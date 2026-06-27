@@ -1,0 +1,124 @@
+{
+  "info": {
+    "name": "Atlas API - Fase 1 Endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api/v1" },
+    { "key": "tenantId", "value": "1" },
+    { "key": "customerId", "value": "1" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Register Customer",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-tenant-id", "value": "{{tenantId}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/customers/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"+59170000000\",\n  \"email\": \"cliente.demo@atlas.bo\",\n  \"firstName\": \"Cliente\",\n  \"lastName\": \"Demo\",\n  \"birthDate\": \"1998-01-10\",\n  \"preferredLanguage\": \"es\",\n  \"marketingOptIn\": false,\n  \"sourceType\": \"mobile_app\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Active Consent Documents",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-tenant-id", "value": "{{tenantId}}" }],
+        "url": "{{baseUrl}}/consent-documents/active?language=es"
+      }
+    },
+    {
+      "name": "Customer Summary",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-tenant-id", "value": "{{tenantId}}" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/summary"
+      }
+    },
+    {
+      "name": "Record Consent",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-tenant-id", "value": "{{tenantId}}" },
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/consents",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"consentDocumentId\": \"1\",\n  \"purposeCode\": \"risk_evaluation\",\n  \"granted\": true,\n  \"channel\": \"mobile_app\",\n  \"sessionId\": \"1\",\n  \"deviceFingerprintSnapshot\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n  \"userAgent\": \"AtlasMobile/1.0\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Create Session",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-tenant-id", "value": "{{tenantId}}" },
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/sessions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"deviceFingerprintHash\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n  \"fingerprintVersion\": \"v1\",\n  \"channel\": \"mobile_app\",\n  \"authMethod\": \"jwt\",\n  \"userAgent\": \"AtlasMobile/1.0\",\n  \"gpsLat\": -17.7833,\n  \"gpsLng\": -63.1821,\n  \"gpsAccuracyMeters\": 15,\n  \"deviceSnapshot\": {\n    \"brand\": \"Apple\",\n    \"model\": \"iPhone\",\n    \"osFamily\": \"iOS\",\n    \"osVersion\": \"18\",\n    \"appVersion\": \"0.1.0\",\n    \"isRooted\": false,\n    \"isEmulator\": false,\n    \"vpnDetected\": false\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "List Sessions",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-tenant-id", "value": "{{tenantId}}" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/sessions?page=1&limit=20"
+      }
+    },
+    {
+      "name": "Latest Risk Result",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-tenant-id", "value": "{{tenantId}}" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/risk/latest"
+      }
+    },
+    {
+      "name": "Manual Review Cases",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-tenant-id", "value": "{{tenantId}}" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "{{baseUrl}}/operations/manual-review-cases?page=1&limit=20"
+      }
+    },
+    {
+      "name": "Fraud Cases",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-tenant-id", "value": "{{tenantId}}" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "{{baseUrl}}/operations/fraud-cases?page=1&limit=20"
+      }
+    }
+  ]
+}

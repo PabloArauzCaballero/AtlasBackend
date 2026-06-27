@@ -1,8 +1,17 @@
-# Proyecto Atlas — ORM de migraciones y seeds mínimos
+# Proyecto Atlas — Backend Fase API 1
 
-Este ZIP contiene la primera fase técnica del backend: infraestructura de migraciones para PostgreSQL usando Sequelize, TypeScript y Umzug dentro de un proyecto NestJS mínimo.
+Este proyecto contiene la base NestJS + Sequelize + PostgreSQL del backend Atlas.
 
-También incluye un seeder mínimo de desarrollo para probar la estructura base de usuario, identidad, dispositivo, sesión, consentimiento, riesgo, revisión manual y fraude.
+La entrega actual incluye:
+
+- Migraciones iniciales.
+- Seeders mínimos de desarrollo.
+- Primeros endpoints de negocio por fase.
+- JWT Bearer para endpoints protegidos.
+- Validaciones Zod.
+- Repositories Sequelize.
+- DTOs y mappers seguros.
+- Documentación de endpoints, arquitectura, flujos y Postman.
 
 ## Instalar dependencias
 
@@ -16,72 +25,116 @@ npm install
 cp .env.example .env
 ```
 
-Ajusta los valores de conexión a PostgreSQL en `.env`.
+Ajusta PostgreSQL y define un secreto JWT fuerte:
 
-## Crear una migración
-
-```bash
-npm run db:migration:create -- create-atlas-user-intelligence-fraud-schema-v5-2-1
+```env
+JWT_ACCESS_TOKEN_SECRET=change-this-secret-with-at-least-32-characters
 ```
 
-## Ejecutar migraciones
+## Base de datos
+
+Ejecutar migraciones:
 
 ```bash
 npm run db:migration:up
 ```
 
-## Revertir última migración
+Ejecutar seeds mínimos:
 
 ```bash
-npm run db:migration:down
+npm run db:seed:up
 ```
 
-## Ver estado de migraciones
+Ver estado:
 
 ```bash
 npm run db:migration:status
-```
-
-## Crear un seeder
-
-```bash
-npm run db:seed:create -- seed-minimal-dev-credentials
-```
-
-## Ejecutar seeds mínimos
-
-```bash
-npm run db:seed:up
-```
-
-## Revertir último seed
-
-```bash
-npm run db:seed:down
-```
-
-## Ver estado de seeds
-
-```bash
 npm run db:seed:status
 ```
 
-## Orden recomendado para probar localmente
+## Levantar API
 
 ```bash
-npm install
-cp .env.example .env
-npm run db:migration:up
-npm run db:seed:up
-npm run db:seed:status
+npm run start:dev
 ```
 
-## Credenciales demo reservadas
+La API queda disponible en:
 
-Las credenciales están documentadas en `docs/database/dev-credentials.md`.
+```txt
+http://localhost:3000/api/v1
+```
 
-Importante: esta fase todavía no implementa Auth/JWT ni una tabla de contraseña. Por eso las contraseñas son valores reservados para pruebas futuras, no secretos persistidos en base de datos.
+## Generar JWT local de prueba
 
-## Alcance
+Cliente:
 
-Incluye ORM/migrations y seeds mínimos de desarrollo. No incluye controllers, services, endpoints, auth, scoring ejecutable, crédito, préstamos, cuotas, pagos, MDR, cobranza ni límites de crédito.
+```bash
+npm run dev:jwt -- --role=customer --tenant-id=1 --customer-id=1
+```
+
+Interno/admin:
+
+```bash
+npm run dev:jwt -- --role=admin --tenant-id=1 --internal-user-id=1
+```
+
+No existe endpoint de login en esta fase porque el schema actual no define entidad de credenciales/password hash. Se evita inventar una tabla o guardar secretos en un lugar incorrecto.
+
+## Endpoints implementados
+
+Públicos:
+
+- `POST /api/v1/customers/register`
+- `GET /api/v1/consent-documents/active`
+
+Protegidos:
+
+- `GET /api/v1/customers/:customerId/summary`
+- `POST /api/v1/customers/:customerId/consents`
+- `POST /api/v1/customers/:customerId/sessions`
+- `GET /api/v1/customers/:customerId/sessions`
+- `GET /api/v1/customers/:customerId/risk/latest`
+- `GET /api/v1/operations/manual-review-cases`
+- `GET /api/v1/operations/fraud-cases`
+
+Documentación completa:
+
+```txt
+docs/endpoints/endpoints.md
+docs/architecture/architecture.md
+docs/architecture/flows.md
+docs/postman/collection.json
+```
+
+## Calidad
+
+Validar TypeScript:
+
+```bash
+npm run type-check
+```
+
+Compilar:
+
+```bash
+npm run build
+```
+
+## Exclusiones explícitas
+
+No se implementó:
+
+- Endpoints para seeds.
+- Login real.
+- Password hash.
+- Refresh token.
+- Compras BNPL.
+- Crédito.
+- Cuotas.
+- Pagos.
+- MDR.
+- Cobranza.
+- Scoring automático.
+- Cambios de estado operativos no definidos.
+
+Estas exclusiones son intencionales para respetar SYSTEM INFO, pendientes de política y la regla de no inventar entidades ni decisiones de negocio.

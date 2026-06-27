@@ -2,64 +2,74 @@
 
 ## 1. Resumen del ciclo de trabajo
 
-Se implementó la primera fase técnica del Proyecto Atlas: infraestructura ORM de migraciones con Sequelize, PostgreSQL y Umzug, más una migración inicial basada en `Atlas_User_Intelligence_Fraud_Schema_v5_2_1_NO_ORM_ROADMAP_YAML.puml`.
+Se implementó la primera fase de endpoints de negocio del backend Atlas sobre el schema existente. La entrega se enfocó en onboarding inicial de cliente, consentimiento, sesiones/dispositivo, lectura de riesgo existente y lectura operativa interna de revisión/fraude.
 
-En este ciclo adicional se agregaron seeders mínimos de desarrollo y credenciales reservadas para pruebas futuras.
+No se crearon entidades nuevas ni endpoints para seeders.
 
 ## 2. Avance realizado
 
-- Se creó proyecto backend mínimo con NestJS y TypeScript.
-- Se configuró Sequelize para PostgreSQL sin `sync`, `force` ni `alter`.
-- Se creó runner de migraciones con Umzug.
-- Se creó script para generar migraciones nuevas.
-- Se generó la migración inicial del schema de inteligencia de usuario y fraude.
-- Se crearon 86 tablas persistentes.
-- Se excluyeron `ImplementationPhase` y `EntityBuildScope` por estar marcadas como `yaml-config` y `no-orm`.
-- Se agregaron foreign keys, checks e índices críticos.
-- Se agregó runner de seeders con Umzug.
-- Se agregó script para crear seeders nuevos.
-- Se creó el seeder `seed-minimal-dev-credentials`.
-- Se sembraron datos mínimos para tenant, usuarios, cliente, identidad, contacto, dispositivo, sesión, consentimiento, onboarding, riesgo, revisión manual, fraude, watchlist, auditoría y calidad.
-- Se documentaron credenciales reservadas en `docs/database/dev-credentials.md`.
-- Se documentaron seeders en `docs/database/seeds.md`.
+- Se convirtió el backend de migraciones en una API NestJS ejecutable.
+- Se agregó `@nestjs/platform-express` para levantar servidor HTTP real.
+- Se agregó JWT Bearer para endpoints protegidos.
+- Se creó script `npm run dev:jwt` para generar tokens locales de prueba sin crear endpoint de login.
+- Se agregaron modelos Sequelize para tablas existentes usadas por los primeros endpoints.
+- Se creó módulo `customers`.
+- Se creó módulo `consents`.
+- Se creó módulo `sessions`.
+- Se creó módulo `risk`.
+- Se creó módulo `operations`.
+- Se agregó validación Zod por endpoint.
+- Se agregó filtro global de errores.
+- Se agregó interceptor global de respuesta normalizada.
+- Se documentaron endpoints en `docs/endpoints/endpoints.md`.
+- Se documentó arquitectura en `docs/architecture/architecture.md`.
+- Se documentaron flujos en `docs/architecture/flows.md`.
+- Se agregó colección Postman en `docs/postman/collection.json`.
 
 ## 3. Riesgos detectados
 
 | Riesgo | Impacto | Mitigación recomendada |
 |---|---|---|
-| El schema actual no tiene tabla de credenciales ni password hash | No se puede hacer login real todavía | Crear migración específica de Auth cuando se defina el flujo JWT/sesiones |
-| Algunas reglas de nulabilidad todavía dependen de decisiones operativas futuras | Podría requerirse endurecer columnas luego | Crear migraciones incrementales cuando se cierren reglas de negocio |
-| Tablas `event` de alto volumen aún no están particionadas | En escala real pueden crecer rápido | Diseñar particionamiento mensual antes de producción |
-| Algunas relaciones polimórficas usan `subject_type` + `subject_id` | No pueden tener FK física directa | Validar por aplicación y documentar contratos |
-| Checks sugeridos podrían requerir ajuste con datos reales | Podrían bloquear cargas parciales si el flujo cambia | Probar con datos de integración antes de producción |
+| No existe entidad de credenciales/password hash en el schema actual. | No se puede implementar login real sin inventar entidad o guardar secretos en tablas no diseñadas para eso. | Diseñar módulo Auth formal con tabla aprobada de credenciales o proveedor externo de identidad. |
+| Las políticas de scoring, cutoffs y reason codes no están cerradas. | Implementar aprobación/rechazo automático ahora sería una decisión inventada. | Mantener endpoints de riesgo en solo lectura hasta cerrar políticas de riesgo. |
+| Las transiciones de revisión manual y fraude no están definidas. | Un endpoint de actualización de estado podría romper operación, auditoría o permisos. | Definir estados, transiciones, roles y auditoría antes de habilitar mutaciones. |
+| Todavía no existe estrategia completa de permisos por rol. | Los roles actuales protegen por grupos amplios. | Diseñar matriz RBAC/ABAC por módulo antes de ampliar operaciones internas. |
+| Los endpoints dependen de migraciones ejecutadas previamente. | Sin base PostgreSQL migrada, la API compila pero no puede operar. | Ejecutar `npm run db:migration:up` y `npm run db:seed:up` en ambiente local. |
 
 ## 4. Decisiones clave tomadas
 
 | Decisión | Justificación | Impacto |
 |---|---|---|
-| Usar una migración inicial consolidada | Reduce riesgo de dependencias circulares entre tablas | La primera revisión es más simple y reversible |
-| Crear tablas primero y constraints después | Evita fallos por referencias a tablas no existentes | Permite modelar relaciones circulares |
-| No crear tablas `no-orm` | El PUML indica que son YAML versionado en Git | Mantiene la BD enfocada en datos operacionales |
-| No crear tabla de contraseñas en este ciclo | El alcance sigue siendo ORM/migraciones/seeders y no Auth | Evita inventar estructura de seguridad antes de definirla |
-| Crear seeders con Umzug y tracking separado | Permite ejecutar/revertir seeds sin mezclarlos con migraciones | Mejora control de ambientes de desarrollo |
-| No implementar endpoints ni servicios | El alcance pedido es solo ORM/migrations/seeders | Evita contaminar la fase de persistencia |
+| No crear endpoint de login. | El schema actual no define persistencia de credenciales. | Se evita inventar entidades y se usa JWT externo/dev para pruebas. |
+| Proteger endpoints sensibles con JWT Bearer. | Los documentos de prompt exigen separar autenticación/autorización y proteger operaciones sensibles. | La API ya queda lista para integrarse con Auth formal. |
+| Implementar registro de cliente con teléfono/email hasheados. | El SYSTEM INFO exige minimizar datos sensibles y evitar exposición innecesaria. | Se puede probar onboarding sin guardar PII en claro. |
+| Implementar riesgo solo lectura. | No existen políticas cerradas de scoring/cutoffs. | Se evita una decisión automática falsa. |
+| Implementar operaciones internas solo lectura. | Las transiciones de estados no están definidas. | Se entrega valor de inspección sin alterar negocio. |
 
 ## 5. Desviaciones de lo esperado
 
 | Desviación | Motivo | Acción recomendada |
 |---|---|---|
-| No se insertaron contraseñas en base de datos | El schema actual no define tabla ni campo de password hash | Implementar Auth en una fase separada con migración propia |
-| No se implementaron migraciones por paquete separado | Una migración consolidada es más segura para el bootstrap inicial con muchas FKs cruzadas | Separar futuras migraciones por módulo cuando el schema empiece a evolucionar |
-| No se implementó particionamiento físico | Sería prematuro para el primer ZIP de ORM | Diseñarlo antes de cargar eventos de alto volumen |
+| No se implementó login. | No existe entidad aprobada para credenciales. | Diseñar Auth en una fase específica. |
+| No se implementó endpoint para ejecutar scoring. | Faltan políticas de scorecard, cutoffs, reglas y reason codes aprobados. | Cerrar brief de scoring antes de crear mutaciones. |
+| No se implementaron endpoints de compras, cuotas, pagos, MDR o cobranza. | El usuario pidió no salir del SYSTEM INFO ni crear lógica no definida; además hay preguntas de política pendientes. | Implementar en fases posteriores cuando se cierre política de producto financiero. |
 
 ## 6. Fase actual del proyecto
 
-Fase 1 técnica: ORM de migraciones, schema base y seeders mínimos de desarrollo.
+Fase API 1: endpoints iniciales de negocio sobre cliente, consentimiento, sesión/dispositivo, riesgo existente y operaciones internas de solo lectura.
 
 ## 7. Próxima fase recomendada
 
-Ejecutar migraciones y seeders contra PostgreSQL local, revisar el schema con datos de prueba y luego crear modelos `sequelize-typescript` solo para las entidades que entren en MVP_CORE.
+Fase API 2 recomendada: módulo Auth formal o KYC documental, dependiendo de cuál decisión se cierre primero.
+
+Antes de implementar compras BNPL se deben resolver al menos:
+
+- Concurrencia de compras activas.
+- Expiración del pago inicial 60%.
+- Estados de mora/default.
+- Política de MDR.
+- Campos obligatorios por etapa de onboarding.
 
 ## 8. Estado general del entregable
 
-Parcial y listo para revisión técnica. Incluye seeds mínimos de desarrollo. No incluye lógica de negocio, API, Auth/JWT ni módulos de crédito/pagos.
+Parcial, completo para la Fase API 1, pendiente de validación contra PostgreSQL local migrado.

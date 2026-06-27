@@ -2,7 +2,7 @@
   "name": "atlas-orm-migrations",
   "version": "0.1.0",
   "private": true,
-  "description": "Proyecto Atlas - ORM y migraciones iniciales Sequelize/PostgreSQL para User Intelligence & Fraud Schema v5.2.1.",
+  "description": "Proyecto Atlas - Backend NestJS con migraciones, seeds y primeros endpoints de negocio.",
   "license": "UNLICENSED",
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -14,14 +14,19 @@
     "db:seed:create": "tsx scripts/create-seeder.ts",
     "db:seed:up": "tsx src/database/seed.ts up",
     "db:seed:down": "tsx src/database/seed.ts down",
-    "db:seed:status": "tsx src/database/seed.ts status"
+    "db:seed:status": "tsx src/database/seed.ts status",
+    "dev:jwt": "tsx scripts/create-dev-jwt.ts",
+    "start": "node dist/src/main.js",
+    "start:dev": "tsx watch src/main.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.6",
+    "@nestjs/platform-express": "^11.1.27",
     "@nestjs/sequelize": "^11.0.0",
     "dotenv": "^17.2.1",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
     "reflect-metadata": "^0.2.2",
@@ -32,6 +37,7 @@
     "zod": "^4.0.17"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.3.0",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
