@@ -1,0 +1,42 @@
+{
+  "name": "atlas-orm-migrations",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Proyecto Atlas - ORM y migraciones iniciales Sequelize/PostgreSQL para User Intelligence & Fraud Schema v5.2.1.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc --noEmit -p tsconfig.json",
+    "db:migration:create": "tsx scripts/create-migration.ts",
+    "db:migration:up": "tsx src/database/migrate.ts up",
+    "db:migration:down": "tsx src/database/migrate.ts down",
+    "db:migration:status": "tsx src/database/migrate.ts status",
+    "db:seed:create": "tsx scripts/create-seeder.ts",
+    "db:seed:up": "tsx src/database/seed.ts up",
+    "db:seed:down": "tsx src/database/seed.ts down",
+    "db:seed:status": "tsx src/database/seed.ts status"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/sequelize": "^11.0.0",
+    "dotenv": "^17.2.1",
+    "pg": "^8.16.3",
+    "pg-hstore": "^2.3.4",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "sequelize": "^6.37.7",
+    "sequelize-typescript": "^2.1.6",
+    "umzug": "^3.8.2",
+    "zod": "^4.0.17"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
