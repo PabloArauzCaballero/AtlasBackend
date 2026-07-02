@@ -17,6 +17,27 @@ export class DataProviderModel extends Model {
   @Column({ field: 'reliability_score', type: DataType.DECIMAL(5, 2) })
   declare reliabilityScore: string | null;
 
+  @Column({ field: 'provider_category', type: DataType.STRING(60) })
+  declare providerCategory: string | null;
+
+  @Column({ field: 'provider_status', type: DataType.STRING(30) })
+  declare providerStatus: string | null;
+
+  @Column({ field: 'default_mode', type: DataType.STRING(30) })
+  declare defaultMode: string | null;
+
+  @Column({ field: 'requires_consent', type: DataType.BOOLEAN })
+  declare requiresConsent: boolean | null;
+
+  @Column({ field: 'requires_manual_approval', type: DataType.BOOLEAN })
+  declare requiresManualApproval: boolean | null;
+
+  @Column({ field: 'is_costly', type: DataType.BOOLEAN })
+  declare isCostly: boolean | null;
+
+  @Column({ field: 'description', type: DataType.TEXT })
+  declare description: string | null;
+
   @Column({ field: 'supports_retro_data', type: DataType.BOOLEAN })
   declare supportsRetroData: boolean | null;
 

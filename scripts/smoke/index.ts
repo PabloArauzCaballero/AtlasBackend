@@ -6,6 +6,7 @@ import { runRiskTelemetrySmoke } from './risk-telemetry.smoke.js';
 import { runRuntimeSmoke } from './runtime.smoke.js';
 import { runEventsSmoke } from './events.smoke.js';
 import { runNotificationsSmoke } from './notifications.smoke.js';
+import { runExternalProvidersSmoke } from './external-providers.smoke.js';
 import { runSessionsSmoke } from './sessions.smoke.js';
 
 async function main(): Promise<void> {
@@ -18,6 +19,7 @@ async function main(): Promise<void> {
   await runRiskTelemetrySmoke();
   await runEventsSmoke();
   await runNotificationsSmoke();
+  await runExternalProvidersSmoke();
   console.log('[OK] Smoke suite completa');
 }
 

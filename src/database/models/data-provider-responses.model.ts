@@ -26,6 +26,12 @@ export class DataProviderResponseModel extends Model {
   @Column({ field: 'response_hash', type: DataType.STRING(128) })
   declare responseHash: string | null;
 
+  @Column({ field: 'provider_status_code', type: DataType.INTEGER })
+  declare providerStatusCode: number | null;
+
+  @Column({ field: 'provider_reference', type: DataType.STRING(160) })
+  declare providerReference: string | null;
+
   @Column({ field: 'normalized_payload_json', type: DataType.JSONB })
   declare normalizedPayloadJson: Record<string, unknown> | null;
 

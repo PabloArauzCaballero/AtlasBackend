@@ -28,6 +28,7 @@ import { OperationsModule } from './modules/operations/operations.module.js';
 import { RuntimeJobsModule } from './modules/runtime-jobs/runtime-jobs.module.js';
 import { EventsModule } from './modules/events/events.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { ExternalDataModule } from './modules/external-data/external-data.module.js';
 import { RiskModule } from './modules/risk/risk.module.js';
 import { FraudModule } from './modules/fraud/fraud.module.js';
 import { SessionsModule } from './modules/sessions/sessions.module.js';
@@ -67,6 +68,7 @@ import { env } from './config/env.js';
     SessionsModule,
     RiskModule,
     FraudModule,
+    ExternalDataModule,
     OperationsModule,
     DataQualityModule,
     AuditModule,
