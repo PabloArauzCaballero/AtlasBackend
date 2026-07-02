@@ -1,27 +1,32 @@
-import { PaginationMeta } from '../../common/utils/pagination/pagination.util.js';
-
-export type CustomerSessionResponseDto = {
-  id: string;
-  tenantId: string;
-  customerId: string | null;
-  deviceId: string | null;
-  channel: string | null;
-  authMethod: string | null;
-  startedAt: string | null;
-  endedAt: string | null;
-  sessionStatus: string | null;
+export type SessionGpsResult = {
+  gpsObservationId: string | null;
+  gpsObservationCreated: boolean;
+  gpsObservationSkippedReason: string | null;
 };
 
-export type CreateCustomerSessionResponseDto = {
-  session: CustomerSessionResponseDto;
-  device: {
-    id: string;
-    riskStatus: string | null;
-    tenantReuseCount: number | null;
-  };
+export type StartSessionResponseDto = {
+  customerId: string;
+  sessionId: string;
+  deviceId: string;
+  sessionStatus: string;
+  gpsObservationId: string | null;
+  gpsObservationCreated: boolean;
+  gpsObservationSkippedReason: string | null;
+  deviceTrustLevel: string | null;
+  nextStep: string;
 };
 
-export type PaginatedCustomerSessionsResponseDto = {
-  items: CustomerSessionResponseDto[];
-  meta: PaginationMeta;
+export type HeartbeatResponseDto = {
+  sessionId: string;
+  status: 'accepted';
+  gpsObservationCreated: boolean;
+  gpsObservationId: string | null;
+  gpsObservationSkippedReason: string | null;
+  riskSignalsCreated: number;
+};
+
+export type EndSessionResponseDto = {
+  sessionId: string;
+  sessionStatus: string;
+  endedAt: string;
 };

@@ -1,34 +1,23 @@
-import { CustomerSessionModel, DeviceModel } from '../../database/models/index.js';
-import { CreateCustomerSessionResponseDto, CustomerSessionResponseDto } from './sessions.dtos.js';
+import { CustomerDeviceLinkModel, CustomerSessionModel, DeviceModel } from '../../database/models/index.js';
+import { SessionGpsResult, StartSessionResponseDto } from './sessions.dtos.js';
 
-function toIsoOrNull(date: Date | null): string | null {
-  return date ? date.toISOString() : null;
-}
-
-export function toCustomerSessionResponse(session: CustomerSessionModel): CustomerSessionResponseDto {
-  return {
-    id: String(session.id),
-    tenantId: String(session.tenantId),
-    customerId: session.customerId === null ? null : String(session.customerId),
-    deviceId: session.deviceId === null ? null : String(session.deviceId),
-    channel: session.channel,
-    authMethod: session.authMethod,
-    startedAt: toIsoOrNull(session.startedAt),
-    endedAt: toIsoOrNull(session.endedAt),
-    sessionStatus: session.sessionStatus,
-  };
-}
-
-export function toCreateSessionResponse(input: {
+export function toStartSessionResponse(input: {
+  customerId: string;
   session: CustomerSessionModel;
   device: DeviceModel;
-}): CreateCustomerSessionResponseDto {
+  link: CustomerDeviceLinkModel | null;
+  gps: SessionGpsResult;
+  nextStep: string;
+}): StartSessionResponseDto {
   return {
-    session: toCustomerSessionResponse(input.session),
-    device: {
-      id: String(input.device.id),
-      riskStatus: input.device.riskStatus,
-      tenantReuseCount: input.device.tenantReuseCount,
-    },
+    customerId: input.customerId,
+    sessionId: String(input.session.id),
+    deviceId: String(input.device.id),
+    sessionStatus: input.session.sessionStatus ?? 'active',
+    gpsObservationId: input.gps.gpsObservationId,
+    gpsObservationCreated: input.gps.gpsObservationCreated,
+    gpsObservationSkippedReason: input.gps.gpsObservationSkippedReason,
+    deviceTrustLevel: input.link?.trustLevel ?? 'new',
+    nextStep: input.nextStep,
   };
 }

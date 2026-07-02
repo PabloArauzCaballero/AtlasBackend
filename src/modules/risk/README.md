@@ -1,11 +1,14 @@
 # Módulo Risk
 
-Primera fase de endpoints de riesgo: solo lectura del último resultado de evaluación existente.
+Responsabilidad futura: evaluación y explicación de riesgo.
 
-## Endpoint
+En esta fase no expone rutas. El endpoint fragmentado `GET /api/v1/customers/:customerId/risk/latest` fue eliminado del contrato público.
 
-- `GET /api/v1/customers/:customerId/risk/latest`
+Lecturas actuales relacionadas a riesgo:
 
-## Exclusiones intencionales
+- `GET /api/v1/customers/:customerId/me`
+- `GET /api/v1/operations/customers/:customerId/investigation-summary`
 
-No se implementa todavía generación de score, cutoffs, aprobación/rechazo automático ni reason codes calculados, porque esas políticas deben cerrarse antes de codificar lógica definitiva.
+Endpoint recomendado para una fase posterior:
+
+- `POST /api/v1/customers/:customerId/risk-assessments`

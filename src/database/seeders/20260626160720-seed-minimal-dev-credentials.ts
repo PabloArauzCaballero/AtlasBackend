@@ -3,6 +3,7 @@ import { QueryInterface, Transaction } from 'sequelize';
 const CREATED_AT = new Date('2026-01-01T00:00:00.000Z');
 const SAMPLE_HASH = 'dev_seed_hash_000000000000000000000000000000000000000000000000000001';
 const CUSTOMER_UUID = '11111111-1111-4111-8111-111111111111';
+const jsonb = (value: unknown): string => JSON.stringify(value);
 
 type SeedRow = Record<string, unknown>;
 
@@ -455,7 +456,7 @@ const SEED_TABLES: SeedTable[] = [
         behavior_score: '80.00',
         contactability_score: '75.00',
         consistency_score: '88.00',
-        reason_codes_json: ['DEV_SEED_LOW_RISK'],
+        reason_codes_json: jsonb(['DEV_SEED_LOW_RISK']),
         model_version_code_snapshot: 'manual-dev-v1',
         ruleset_version_code_snapshot: 'ruleset-dev-v1',
         feature_snapshot_id: null,
@@ -530,9 +531,9 @@ const SEED_TABLES: SeedTable[] = [
         case_status: 'monitoring',
         severity: 'low',
         pattern_detected: 'dev_seed_pattern',
-        linked_customers_json: [1],
-        linked_sessions_json: [1],
-        linked_devices_json: [1],
+        linked_customers_json: jsonb([1]),
+        linked_sessions_json: jsonb([1]),
+        linked_devices_json: jsonb([1]),
         assigned_to_internal_user_id: 2,
         opened_at: CREATED_AT,
         closed_at: null,
@@ -603,9 +604,9 @@ const SEED_TABLES: SeedTable[] = [
         target_id: '20260626160720-seed-minimal-dev-credentials',
         ip_address: '127.0.0.1',
         user_agent: 'Atlas Seeder',
-        payload_json: {
+        payload_json: jsonb({
           note: 'Seeder mínimo para pruebas locales de estructura ORM/migraciones.',
-        },
+        }),
         occurred_at: CREATED_AT,
         _created_at: CREATED_AT,
       },
@@ -621,9 +622,9 @@ const SEED_TABLES: SeedTable[] = [
         target_table: 'customers',
         target_field: 'primary_email_hash',
         severity: 'low',
-        expression_json: {
+        expression_json: jsonb({
           required_when: 'customer fixture is used for dev testing',
-        },
+        }),
         expected_action: 'review',
         build_phase: 'mvp_seed',
         is_active: true,
@@ -634,19 +635,11 @@ const SEED_TABLES: SeedTable[] = [
   },
 ];
 
-async function insertSeedTable(
-  queryInterface: QueryInterface,
-  seedTable: SeedTable,
-  transaction: Transaction,
-): Promise<void> {
+async function insertSeedTable(queryInterface: QueryInterface, seedTable: SeedTable, transaction: Transaction): Promise<void> {
   await queryInterface.bulkInsert(seedTable.tableName, seedTable.rows, { transaction });
 }
 
-async function deleteSeedTable(
-  queryInterface: QueryInterface,
-  seedTable: SeedTable,
-  transaction: Transaction,
-): Promise<void> {
+async function deleteSeedTable(queryInterface: QueryInterface, seedTable: SeedTable, transaction: Transaction): Promise<void> {
   const identityColumn = seedTable.identityColumn ?? '_id';
   const identityValues = seedTable.rows
     .map((row) => row[identityColumn])
@@ -665,25 +658,24 @@ async function deleteSeedTable(
   );
 }
 
-async function resetSequence(
-  queryInterface: QueryInterface,
-  seedTable: SeedTable,
-  transaction: Transaction,
-): Promise<void> {
+async function resetSequence(queryInterface: QueryInterface, seedTable: SeedTable, transaction: Transaction): Promise<void> {
   const identityColumn = seedTable.identityColumn ?? '_id';
 
   if (identityColumn !== '_id') {
     return;
   }
 
-  await queryInterface.sequelize.query(`
+  await queryInterface.sequelize.query(
+    `
     SELECT setval(
       pg_get_serial_sequence('${seedTable.tableName}', '${identityColumn}'),
       COALESCE((SELECT MAX("${identityColumn}") FROM "${seedTable.tableName}"), 1),
       true
     )
     WHERE pg_get_serial_sequence('${seedTable.tableName}', '${identityColumn}') IS NOT NULL;
-  `, { transaction });
+  `,
+    { transaction },
+  );
 }
 
 export async function up({ context: queryInterface }: { context: QueryInterface }): Promise<void> {

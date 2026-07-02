@@ -20,7 +20,12 @@ export function hashSensitiveText(value: string): string {
 }
 
 export function createStableCode(prefix: string): string {
-  const safePrefix = prefix.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) || 'ATLAS';
+  const safePrefix =
+    prefix
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 10) || 'ATLAS';
   return `${safePrefix}-${randomUUID()}`;
 }
 

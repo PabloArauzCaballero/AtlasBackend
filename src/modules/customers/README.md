@@ -1,25 +1,13 @@
 # Módulo Customers
 
-Implementa los primeros endpoints de negocio para registro y consulta segura de cliente.
+Responsabilidad: lecturas agregadas del cliente.
 
-## Endpoints
+Endpoint activo:
 
-- `POST /api/v1/customers/register`
-- `GET /api/v1/customers/:customerId/summary`
+- `GET /api/v1/customers/:customerId/me`
 
-## Reglas aplicadas
+Este módulo no crea clientes. El registro inicial se realiza mediante el caso de uso compuesto:
 
-- No almacena teléfono ni email en claro.
-- Guarda hashes SHA-256, últimos 4 dígitos de teléfono y dominio de email.
-- Crea perfil versionado inicial.
-- Crea evento de estado inicial.
-- Usa transacción Sequelize para el registro completo.
+- `POST /api/v1/customer-onboarding/start`
 
-## Qué no implementa todavía
-
-- Login.
-- Contraseñas.
-- KYC documental.
-- Línea de crédito.
-- Compra BNPL.
-- Scoring automático.
+No agregar aquí endpoints CRUD por tabla.

@@ -1,14 +1,13 @@
 # Módulo Consents
 
-Gestiona documentos activos de consentimiento y eventos de consentimiento del cliente.
+Responsabilidad: lectura de documentos legales activos y persistencia interna de consentimientos.
 
-## Endpoints
+Endpoint activo:
 
 - `GET /api/v1/consent-documents/active`
-- `POST /api/v1/customers/:customerId/consents`
 
-## Reglas aplicadas
+Los consentimientos del onboarding inicial se registran dentro de:
 
-- Se registra una fila en `customer_consents` y una fila en `consent_events` en la misma transacción.
-- No se crea ninguna tabla nueva.
-- No se guardan contactos de terceros ni datos no definidos en el schema.
+- `POST /api/v1/customer-onboarding/start`
+
+No exponer `POST /customers/:customerId/consents` como contrato público en esta fase.

@@ -1,16 +1,17 @@
 # Módulo Sessions
 
-Registra sesiones y señales mínimas de dispositivo usando tablas existentes del schema Atlas.
+Responsabilidad: persistencia interna de dispositivos, sesiones, vínculos cliente-dispositivo y snapshots.
 
-## Endpoints
+Este módulo no registra controller público en esta fase. Sus repositories son usados por el caso de uso compuesto:
+
+- `POST /api/v1/customer-onboarding/start`
+
+No exponer endpoints fragmentados como:
 
 - `POST /api/v1/customers/:customerId/sessions`
 - `GET /api/v1/customers/:customerId/sessions`
 
-## Reglas aplicadas
+Las lecturas agregadas de sesión deben salir por:
 
-- El endpoint recibe `deviceFingerprintHash`, no fingerprint crudo.
-- Se actualiza la reutilización global y por tenant del dispositivo.
-- Se vincula cliente-dispositivo.
-- Se crea snapshot de dispositivo si el cliente envía datos técnicos.
-- La operación de creación usa transacción.
+- `GET /api/v1/customers/:customerId/me`
+- `GET /api/v1/operations/customers/:customerId/investigation-summary`

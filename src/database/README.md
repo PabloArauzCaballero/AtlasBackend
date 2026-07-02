@@ -16,25 +16,25 @@ Esta carpeta contiene infraestructura de base de datos para la primera fase del 
 Crear una migración:
 
 ```bash
-npm run db:migration:create -- create-atlas-user-intelligence-fraud-schema-v5-2-1
+yarn db:migration:create -- create-atlas-user-intelligence-fraud-schema-v5-2-1
 ```
 
 Ejecutar migraciones:
 
 ```bash
-npm run db:migration:up
+yarn db:migration:up
 ```
 
 Revertir la última migración:
 
 ```bash
-npm run db:migration:down
+yarn db:migration:down
 ```
 
 Ver estado:
 
 ```bash
-npm run db:migration:status
+yarn db:migration:status
 ```
 
 ## Comandos de seeders
@@ -42,25 +42,25 @@ npm run db:migration:status
 Crear un seeder:
 
 ```bash
-npm run db:seed:create -- seed-minimal-dev-credentials
+yarn db:seed:create -- seed-minimal-dev-credentials
 ```
 
 Ejecutar seeds:
 
 ```bash
-npm run db:seed:up
+yarn db:seed:up
 ```
 
 Revertir el último seed:
 
 ```bash
-npm run db:seed:down
+yarn db:seed:down
 ```
 
 Ver estado:
 
 ```bash
-npm run db:seed:status
+yarn db:seed:status
 ```
 
 ## Regla de producción

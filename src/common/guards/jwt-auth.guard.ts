@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env.js';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
+import { TokenRevocationService } from '../services/token-revocation.service.js';
 import { AuthenticatedUser, RequestWithAuth } from '../types/auth.types.js';
 
 function extractBearerToken(authorizationHeader: string | string[] | undefined): string {
@@ -41,11 +42,33 @@ function assertAuthenticatedUser(payload: string | jwt.JwtPayload): Authenticate
   };
 }
 
+/**
+ * ATLAS-AUDIT-026 (cerrado en este patch): antes de este cambio, `tokenVersion` se extraía del
+ * payload del JWT pero nunca se comparaba contra nada — un token robado o de un usuario cuya
+ * contraseña cambió seguía siendo válido hasta su expiración natural. Ahora, cuando el token
+ * incluye `tokenVersion` (todos los tokens emitidos por `AuthModule` lo incluyen), el guard lo
+ * compara contra la versión vigente almacenada en `auth_credentials` vía `TokenRevocationService`.
+ *
+ * Los tokens sin `tokenVersion` (p. ej. los generados por `scripts/create-dev-jwt.ts` para
+ * desarrollo/smoke tests locales) se aceptan sin este chequeo adicional, para no romper las
+ * herramientas de desarrollo existentes — la protección real de producción depende de que los
+ * clientes reales solo obtengan tokens a través de `POST /auth/login`.
+ */
+function actorLookup(user: AuthenticatedUser): { actorType: string; actorId: string } | null {
+  if (user.customerId) return { actorType: 'customer', actorId: user.customerId };
+  if (user.internalUserId) return { actorType: 'internal_user', actorId: user.internalUserId };
+  if (user.platformUserId) return { actorType: 'platform_user', actorId: user.platformUserId };
+  return null;
+}
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly tokenRevocationService: TokenRevocationService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [context.getHandler(), context.getClass()]);
     if (isPublic) {
       return true;
@@ -54,14 +77,27 @@ export class JwtAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<RequestWithAuth>();
     const token = extractBearerToken(request.headers.authorization);
 
+    let user: AuthenticatedUser;
     try {
       const payload = jwt.verify(token, env.JWT_ACCESS_TOKEN_SECRET, {
         algorithms: ['HS256'],
       });
-      request.user = assertAuthenticatedUser(payload);
-      return true;
-    } catch (error: unknown) {
+      user = assertAuthenticatedUser(payload);
+    } catch {
       throw new UnauthorizedException('Token inválido o expirado.');
     }
+
+    if (typeof user.tokenVersion === 'number') {
+      const actor = actorLookup(user);
+      if (actor) {
+        const currentVersion = await this.tokenRevocationService.getCurrentTokenVersion(actor.actorType, actor.actorId);
+        if (currentVersion !== null && currentVersion !== user.tokenVersion) {
+          throw new UnauthorizedException('Token revocado. Inicia sesión nuevamente.');
+        }
+      }
+    }
+
+    request.user = user;
+    return true;
   }
 }

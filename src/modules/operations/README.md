@@ -1,12 +1,15 @@
 # Módulo Operations
 
-Primera fase de endpoints internos de solo lectura para operaciones.
+Responsabilidad: endpoints internos agregados para operación, fraude, revisión manual e investigación.
 
-## Endpoints
+Endpoints activos:
+
+- `GET /api/v1/operations/work-queue`
+- `GET /api/v1/operations/customers/:customerId/investigation-summary`
+
+No exponer colas fragmentadas como endpoints principales:
 
 - `GET /api/v1/operations/manual-review-cases`
 - `GET /api/v1/operations/fraud-cases`
 
-## Decisión de alcance
-
-No se implementan cambios de estado de revisión manual ni fraude porque las transiciones, permisos y reglas operativas todavía no están cerradas. Esta fase permite inspección controlada y paginada sin modificar el negocio.
+Ambas vistas deben agruparse desde `work-queue`.

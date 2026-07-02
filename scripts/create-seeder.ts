@@ -34,7 +34,7 @@ function buildSeederTemplate(): string {
 const rawName = process.argv[2];
 
 if (!rawName) {
-  throw new Error('Uso: npm run db:seed:create -- nombre-del-seeder');
+  throw new Error('Uso: yarn db:seed:create -- nombre-del-seeder');
 }
 
 const seedersDirectory = join(process.cwd(), 'src', 'database', 'seeders');

@@ -15,19 +15,19 @@ Se crearon 86 tablas persistentes a partir del PUML.
 ## Comandos de migraciones
 
 ```bash
-npm run db:migration:create -- create-atlas-user-intelligence-fraud-schema-v5-2-1
-npm run db:migration:up
-npm run db:migration:down
-npm run db:migration:status
+yarn db:migration:create -- create-atlas-user-intelligence-fraud-schema-v5-2-1
+yarn db:migration:up
+yarn db:migration:down
+yarn db:migration:status
 ```
 
 ## Comandos de seeders
 
 ```bash
-npm run db:seed:create -- seed-minimal-dev-credentials
-npm run db:seed:up
-npm run db:seed:down
-npm run db:seed:status
+yarn db:seed:create -- seed-minimal-dev-credentials
+yarn db:seed:up
+yarn db:seed:down
+yarn db:seed:status
 ```
 
 ## Decisiones aplicadas

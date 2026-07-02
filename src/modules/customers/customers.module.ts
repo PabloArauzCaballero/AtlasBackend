@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
+  CustomerConsentModel,
   CustomerContactMethodModel,
   CustomerModel,
   CustomerProfileVersionModel,
   CustomerStatusEventModel,
+  RiskAssessmentResultModel,
 } from '../../database/models/index.js';
 import { CustomersController } from './customers.controller.js';
 import { CustomersRepository } from './customers.repository.js';
@@ -17,6 +19,8 @@ import { CustomersService } from './customers.service.js';
       CustomerProfileVersionModel,
       CustomerStatusEventModel,
       CustomerContactMethodModel,
+      CustomerConsentModel,
+      RiskAssessmentResultModel,
     ]),
   ],
   controllers: [CustomersController],

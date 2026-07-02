@@ -21,20 +21,34 @@ export type CustomerProfileResponseDto = {
   validFrom: string | null;
 };
 
-export type CustomerRegistrationResponseDto = {
-  customer: CustomerResponseDto;
-  profile: CustomerProfileResponseDto;
-};
-
-export type CustomerSummaryResponseDto = {
-  customer: CustomerResponseDto;
-  profile: CustomerProfileResponseDto | null;
-  contactMethods: Array<{
-    id: string;
-    contactType: string | null;
-    valueLast4: string | null;
-    emailDomain: string | null;
-    isPrimary: boolean | null;
+export type CustomerMeResponseDto = {
+  customer: {
+    customerId: string;
+    customerCode: string | null;
     status: string | null;
+    phoneLast4: string | null;
+    emailDomain: string | null;
+  };
+  profile: {
+    firstName: string | null;
+    lastName: string | null;
+    birthDate: string | null;
+    preferredLanguage: string | null;
+  } | null;
+  onboarding: null;
+  contacts: Array<{
+    contactType: string | null;
+    status: string | null;
+    isPrimary: boolean | null;
+    valueLast4: string | null;
   }>;
+  consents: {
+    accepted: string[];
+    declined: string[];
+  };
+  risk: {
+    latestDecision: string | null;
+    latestRiskLevel: string | null;
+  } | null;
+  nextStep: string;
 };

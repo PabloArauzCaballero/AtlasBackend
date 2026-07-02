@@ -1,69 +1,57 @@
-# Arquitectura API Atlas — Fase 1
+# Proyecto Atlas — Arquitectura backend actual
 
-## Decisión principal
+## Principio rector
 
-Se implementó un monolito modular NestJS con módulos por dominio inicial:
+El backend se organiza por dominios técnicos, pero los endpoints se diseñan por casos de uso compuestos. El objetivo es evitar una API CRUD por tabla.
 
-- `customers`
-- `consents`
-- `sessions`
-- `risk`
-- `operations`
+## Stack
 
-La base de datos sigue siendo la misma generada por migraciones. No se crearon entidades nuevas.
+- NestJS.
+- TypeScript estricto.
+- PostgreSQL.
+- Sequelize y sequelize-typescript.
+- Zod para validar entrada.
+- JWT y guards para endpoints privados.
+- Transacciones Sequelize para escrituras compuestas.
 
-## Capas
+## Módulos activos
 
-Cada módulo sigue esta separación:
+| Módulo | Responsabilidad |
+|---|---|
+| `health` | Estado del servicio y base de datos. |
+| `consents` | Lectura de documentos legales activos y persistencia de consentimiento. |
+| `customer-onboarding` | Caso de uso compuesto de inicio de onboarding. |
+| `customers` | Lecturas agregadas del cliente. |
+| `sessions` | Persistencia interna de dispositivos, sesiones y snapshots. No registra controller público. |
+| `operations` | Colas internas e investigation summary. |
+| `risk` | Reservado para lecturas futuras de riesgo por ejecución. No expone rutas en esta fase. |
 
-- Controller: expone rutas HTTP, guards, headers, params, body y query.
-- Service: aplica casos de uso y transacciones.
-- Repository: encapsula Sequelize.
-- Schemas: validación Zod.
-- DTOs: contratos públicos de respuesta.
-- Mapper: evita exponer modelos internos.
+## Reglas de capa
 
-## Seguridad
+- Controllers: validan transporte HTTP y delegan.
+- Services: ejecutan casos de uso y controlan transacciones.
+- Repositories: encapsulan acceso Sequelize.
+- Models: representan tablas existentes del schema aprobado.
+- DTOs, schemas y mappers: mantienen contratos explícitos.
 
-Los endpoints protegidos usan JWT Bearer. No se implementó login porque el schema actual no define persistencia para credenciales.
+## Decisiones del patch
 
-Esta decisión evita inventar tablas o guardar contraseñas en lugares no diseñados para eso.
+1. Se retiró el controller público de sesiones para evitar endpoint fragmentado.
+2. Se mantuvo `SessionsModule` como módulo interno porque onboarding necesita sus repositories.
+3. Se agregaron modelos Sequelize para tablas existentes, no entidades nuevas:
+   - `onboarding_flows`
+   - `onboarding_step_events`
+   - `permission_events`
+   - `customer_action_logs`
+   - `operational_audit_logs`
+4. `POST /customer-onboarding/start` ahora registra esas tablas dentro de la misma transacción.
+5. Se validan documentos legales por estado publicado y ventana de vigencia.
+6. No se creó tabla `idempotency_keys` porque no existe en el schema aprobado.
 
-## Persistencia
+## Seguridad y privacidad
 
-Se usan modelos Sequelize sobre tablas existentes:
-
-- `customers`
-- `customer_profile_versions`
-- `customer_status_events`
-- `customer_contact_methods`
-- `consent_documents`
-- `customer_consents`
-- `consent_events`
-- `global_device_fingerprints`
-- `devices`
-- `customer_device_links`
-- `customer_sessions`
-- `device_snapshots`
-- `risk_assessment_results`
-- `manual_review_cases`
-- `fraud_cases`
-
-## Privacidad
-
-La API inicial evita exponer:
-
-- Hashes.
-- Valores cifrados.
-- Teléfono completo.
-- Email completo.
-- Payloads sensibles.
-- Tokens.
-
-Los endpoints de registro calculan hashes SHA-256 de teléfono/email y solo devuelven últimos 4 dígitos o dominio.
-
-## Por qué no se implementó scoring automático
-
-El brief y los pendientes dejan abiertas políticas de negocio críticas. Además, la bibliografía de scorecards recomienda que el scoring sea una herramienta de decisión entendible, validada y alineada con objetivos de negocio, no una caja negra improvisada.
-
-Por eso esta fase solo permite leer resultados existentes de riesgo, sin crear decisiones automáticas nuevas.
+- No se guardan contactos crudos de agenda.
+- No se guardan teléfono ni email en claro desde onboarding.
+- Se registra hash de idempotency key, no el valor completo.
+- No se agregaron endpoints de seeds.
+- No se agregaron endpoints de crédito, pagos, cuotas, MDR ni cobranza.

@@ -2,10 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op, Transaction } from 'sequelize';
 import {
+  CustomerConsentModel,
   CustomerContactMethodModel,
   CustomerModel,
   CustomerProfileVersionModel,
   CustomerStatusEventModel,
+  RiskAssessmentResultModel,
 } from '../../database/models/index.js';
 
 type RepositoryOptions = {
@@ -22,6 +24,10 @@ export class CustomersRepository {
     private readonly contactMethodModel: typeof CustomerContactMethodModel,
     @InjectModel(CustomerStatusEventModel)
     private readonly statusEventModel: typeof CustomerStatusEventModel,
+    @InjectModel(CustomerConsentModel)
+    private readonly customerConsentModel: typeof CustomerConsentModel,
+    @InjectModel(RiskAssessmentResultModel)
+    private readonly riskResultModel: typeof RiskAssessmentResultModel,
   ) {}
 
   findById(tenantId: string, customerId: string, options: RepositoryOptions = {}): Promise<CustomerModel | null> {
@@ -174,6 +180,7 @@ export class CustomersRepository {
       customerId: string;
       contactType: string;
       contactValueHash: string;
+      contactValueEncrypted: string | null;
       valueLast4: string | null;
       emailDomain: string | null;
       isPrimary: boolean;
@@ -188,7 +195,7 @@ export class CustomersRepository {
         customerId: values.customerId,
         contactType: values.contactType,
         contactValueHash: values.contactValueHash,
-        contactValueEncrypted: null,
+        contactValueEncrypted: values.contactValueEncrypted,
         normalizedValueHash: values.contactValueHash,
         valueLast4: values.valueLast4,
         emailDomain: values.emailDomain,
@@ -209,14 +216,37 @@ export class CustomersRepository {
   findCurrentProfile(tenantId: string, customerId: string): Promise<CustomerProfileVersionModel | null> {
     return this.profileModel.findOne({
       where: { tenantId, customerId, validUntil: null },
-      order: [['validFrom', 'DESC'], ['id', 'DESC']],
+      order: [
+        ['validFrom', 'DESC'],
+        ['id', 'DESC'],
+      ],
     } as FindOptions);
   }
 
   findContactMethods(tenantId: string, customerId: string): Promise<CustomerContactMethodModel[]> {
     return this.contactMethodModel.findAll({
       where: { tenantId, customerId, deleted: { [Op.ne]: true } },
-      order: [['isPrimary', 'DESC'], ['id', 'ASC']],
+      order: [
+        ['isPrimary', 'DESC'],
+        ['id', 'ASC'],
+      ],
+    } as FindOptions);
+  }
+
+  findCustomerConsents(tenantId: string, customerId: string): Promise<CustomerConsentModel[]> {
+    return this.customerConsentModel.findAll({
+      where: { tenantId, customerId },
+      order: [['createdAtValue', 'DESC']],
+    } as FindOptions);
+  }
+
+  findLatestRiskResult(tenantId: string, customerId: string): Promise<RiskAssessmentResultModel | null> {
+    return this.riskResultModel.findOne({
+      where: { tenantId, customerId },
+      order: [
+        ['decidedAt', 'DESC'],
+        ['id', 'DESC'],
+      ],
     } as FindOptions);
   }
 }

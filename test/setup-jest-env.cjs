@@ -1,0 +1,10 @@
+// Fuerza entorno de prueba aunque Windows tenga NODE_ENV=production a nivel global.
+process.env.NODE_ENV = 'test';
+process.env.JWT_ACCESS_TOKEN_SECRET ||= 'test-only-atlas-access-token-secret-32chars-minimum';
+process.env.NOTIFICATION_TOKEN_ENCRYPTION_KEY ||= 'test-only-notification-token-key-32chars-minimum';
+process.env.NOTIFICATION_EMAIL_PROVIDER ||= 'disabled';
+process.env.NOTIFICATION_PUSH_PROVIDER ||= 'disabled';
+process.env.NOTIFICATION_SMS_PROVIDER ||= 'disabled';
+process.env.NOTIFICATION_WHATSAPP_PROVIDER ||= 'disabled';
+process.env.NOTIFICATION_PHONE_PROVIDER ||= 'disabled';
+process.env.DB_NAME ||= 'atlas_test';

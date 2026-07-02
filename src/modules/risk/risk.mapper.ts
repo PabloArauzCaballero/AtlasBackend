@@ -1,6 +1,12 @@
 import { RiskAssessmentResultModel } from '../../database/models/index.js';
 import { RiskAssessmentResultResponseDto } from './risk.dtos.js';
 
+function toNumberOrNull(value: string | number | null): number | null {
+  if (value === null) return null;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function toRiskAssessmentResultResponse(result: RiskAssessmentResultModel): RiskAssessmentResultResponseDto {
   return {
     id: String(result.id),
@@ -10,13 +16,13 @@ export function toRiskAssessmentResultResponse(result: RiskAssessmentResultModel
     assessmentType: result.assessmentType,
     recommendedAction: result.recommendedAction,
     riskLevel: result.riskLevel,
-    scoreTotal: result.scoreTotal,
-    fraudScore: result.fraudScore,
-    identityScore: result.identityScore,
-    deviceRiskScore: result.deviceRiskScore,
-    behaviorScore: result.behaviorScore,
-    contactabilityScore: result.contactabilityScore,
-    consistencyScore: result.consistencyScore,
+    scoreTotal: toNumberOrNull(result.scoreTotal),
+    fraudScore: toNumberOrNull(result.fraudScore),
+    identityScore: toNumberOrNull(result.identityScore),
+    deviceRiskScore: toNumberOrNull(result.deviceRiskScore),
+    behaviorScore: toNumberOrNull(result.behaviorScore),
+    contactabilityScore: toNumberOrNull(result.contactabilityScore),
+    consistencyScore: toNumberOrNull(result.consistencyScore),
     reasonCodes: result.reasonCodesJson,
     modelVersionCodeSnapshot: result.modelVersionCodeSnapshot,
     rulesetVersionCodeSnapshot: result.rulesetVersionCodeSnapshot,

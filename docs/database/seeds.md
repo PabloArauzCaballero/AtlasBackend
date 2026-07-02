@@ -7,10 +7,10 @@ Se agregó infraestructura de seeders con Umzug para cargar datos mínimos de pr
 ## Comandos
 
 ```bash
-npm run db:seed:create -- seed-minimal-dev-credentials
-npm run db:seed:up
-npm run db:seed:down
-npm run db:seed:status
+yarn db:seed:create -- seed-minimal-dev-credentials
+yarn db:seed:up
+yarn db:seed:down
+yarn db:seed:status
 ```
 
 ## Seeder mínimo incluido

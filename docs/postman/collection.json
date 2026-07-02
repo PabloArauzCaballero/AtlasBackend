@@ -1,124 +1,1446 @@
 {
   "info": {
-    "name": "Atlas API - Fase 1 Endpoints",
+    "name": "Atlas Backend - Endpoints compuestos",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000/api/v1" },
-    { "key": "tenantId", "value": "1" },
-    { "key": "customerId", "value": "1" },
-    { "key": "token", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "sessionId",
+      "value": "1"
+    },
+    {
+      "key": "deviceId",
+      "value": "1"
+    },
+    {
+      "key": "catalogVersionId",
+      "value": "1"
+    },
+    {
+      "key": "stagingItemId",
+      "value": "1"
+    },
+    {
+      "key": "riskRulesetVersionId",
+      "value": "1"
+    },
+    {
+      "key": "adminToken",
+      "value": "<admin-jwt>"
+    },
+    {
+      "key": "customerToken",
+      "value": "<customer-jwt>"
+    },
+    {
+      "key": "tenantId",
+      "value": "1"
+    },
+    {
+      "key": "customerId",
+      "value": "1"
+    }
   ],
   "item": [
     {
-      "name": "Register Customer",
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/health"
+      }
+    },
+    {
+      "name": "Consent documents active",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/consent-documents/active?language=es"
+      }
+    },
+    {
+      "name": "Customer onboarding start",
       "request": {
         "method": "POST",
         "header": [
-          { "key": "x-tenant-id", "value": "{{tenantId}}" },
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-onboarding-001"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
         ],
-        "url": "{{baseUrl}}/customers/register",
+        "url": "{{baseUrl}}/api/v1/customer-onboarding/start",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"phone\": \"+59170000000\",\n  \"email\": \"cliente.demo@atlas.bo\",\n  \"firstName\": \"Cliente\",\n  \"lastName\": \"Demo\",\n  \"birthDate\": \"1998-01-10\",\n  \"preferredLanguage\": \"es\",\n  \"marketingOptIn\": false,\n  \"sourceType\": \"mobile_app\"\n}"
+          "raw": "{\n  \"customer\": {\n    \"phone\": \"+59170000999\",\n    \"email\": \"postman@atlas.bo\",\n    \"firstName\": \"Postman\",\n    \"lastName\": \"Atlas\"\n  },\n  \"consents\": [\n    {\n      \"consentDocumentId\": \"1\",\n      \"purposeCode\": \"risk_evaluation\",\n      \"granted\": true\n    }\n  ],\n  \"device\": {\n    \"deviceFingerprintHash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n    \"fingerprintVersion\": \"v1\",\n    \"channel\": \"mobile_app\"\n  },\n  \"permissions\": [\n    {\n      \"permissionCode\": \"location\",\n      \"granted\": true\n    }\n  ]\n}"
         }
       }
     },
     {
-      "name": "Active Consent Documents",
-      "request": {
-        "method": "GET",
-        "header": [{ "key": "x-tenant-id", "value": "{{tenantId}}" }],
-        "url": "{{baseUrl}}/consent-documents/active?language=es"
-      }
-    },
-    {
-      "name": "Customer Summary",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "x-tenant-id", "value": "{{tenantId}}" },
-          { "key": "Authorization", "value": "Bearer {{token}}" }
-        ],
-        "url": "{{baseUrl}}/customers/{{customerId}}/summary"
-      }
-    },
-    {
-      "name": "Record Consent",
+      "name": "Contact verification request",
       "request": {
         "method": "POST",
         "header": [
-          { "key": "x-tenant-id", "value": "{{tenantId}}" },
-          { "key": "Authorization", "value": "Bearer {{token}}" },
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-contact-request-001"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
         ],
-        "url": "{{baseUrl}}/customers/{{customerId}}/consents",
+        "url": "{{baseUrl}}/api/v1/customer-onboarding/1/contact-verification/request",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"consentDocumentId\": \"1\",\n  \"purposeCode\": \"risk_evaluation\",\n  \"granted\": true,\n  \"channel\": \"mobile_app\",\n  \"sessionId\": \"1\",\n  \"deviceFingerprintSnapshot\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n  \"userAgent\": \"AtlasMobile/1.0\"\n}"
+          "raw": "{\n  \"contactType\": \"phone\",\n  \"verificationChannel\": \"sms\",\n  \"sessionId\": \"1\"\n}"
         }
       }
     },
     {
-      "name": "Create Session",
+      "name": "Contact verification submit",
       "request": {
         "method": "POST",
         "header": [
-          { "key": "x-tenant-id", "value": "{{tenantId}}" },
-          { "key": "Authorization", "value": "Bearer {{token}}" },
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-contact-submit-001"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
         ],
-        "url": "{{baseUrl}}/customers/{{customerId}}/sessions",
+        "url": "{{baseUrl}}/api/v1/customer-onboarding/1/contact-verification/submit",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"deviceFingerprintHash\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n  \"fingerprintVersion\": \"v1\",\n  \"channel\": \"mobile_app\",\n  \"authMethod\": \"jwt\",\n  \"userAgent\": \"AtlasMobile/1.0\",\n  \"gpsLat\": -17.7833,\n  \"gpsLng\": -63.1821,\n  \"gpsAccuracyMeters\": 15,\n  \"deviceSnapshot\": {\n    \"brand\": \"Apple\",\n    \"model\": \"iPhone\",\n    \"osFamily\": \"iOS\",\n    \"osVersion\": \"18\",\n    \"appVersion\": \"0.1.0\",\n    \"isRooted\": false,\n    \"isEmulator\": false,\n    \"vpnDetected\": false\n  }\n}"
+          "raw": "{\n  \"contactType\": \"phone\",\n  \"verificationChannel\": \"sms\",\n  \"verificationCode\": \"123456\",\n  \"sessionId\": \"1\"\n}"
         }
       }
     },
     {
-      "name": "List Sessions",
+      "name": "Identity package",
       "request": {
-        "method": "GET",
+        "method": "POST",
         "header": [
-          { "key": "x-tenant-id", "value": "{{tenantId}}" },
-          { "key": "Authorization", "value": "Bearer {{token}}" }
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-identity-001"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
         ],
-        "url": "{{baseUrl}}/customers/{{customerId}}/sessions?page=1&limit=20"
+        "url": "{{baseUrl}}/api/v1/customer-onboarding/1/identity-package",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identity\": {\n    \"documentType\": \"ci\",\n    \"documentNumberHash\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\n    \"documentLast4\": \"1234\",\n    \"countryCode\": \"BOL\"\n  },\n  \"evidence\": [\n    {\n      \"evidenceType\": \"identity_front\",\n      \"storageKey\": \"private/customers/1/ci/front.jpg\",\n      \"mimeType\": \"image/jpeg\",\n      \"sha256Hash\": \"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"\n    }\n  ],\n  \"sessionId\": \"1\"\n}"
+        }
       }
     },
     {
-      "name": "Latest Risk Result",
+      "name": "Address package",
       "request": {
-        "method": "GET",
+        "method": "POST",
         "header": [
-          { "key": "x-tenant-id", "value": "{{tenantId}}" },
-          { "key": "Authorization", "value": "Bearer {{token}}" }
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-address-001"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
         ],
-        "url": "{{baseUrl}}/customers/{{customerId}}/risk/latest"
+        "url": "{{baseUrl}}/api/v1/customer-onboarding/1/address-package",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"address\": {\n    \"countryCode\": \"BOL\",\n    \"department\": \"Santa Cruz\",\n    \"city\": \"Santa Cruz de la Sierra\",\n    \"zone\": \"Norte\",\n    \"addressLineEncrypted\": \"tokenized-address\"\n  },\n  \"gpsObservation\": {\n    \"lat\": -17.7833,\n    \"lng\": -63.1821,\n    \"accuracyMeters\": 15\n  },\n  \"sessionId\": \"1\"\n}"
+        }
       }
     },
     {
-      "name": "Manual Review Cases",
+      "name": "Telemetry batch",
       "request": {
-        "method": "GET",
+        "method": "POST",
         "header": [
-          { "key": "x-tenant-id", "value": "{{tenantId}}" },
-          { "key": "Authorization", "value": "Bearer {{token}}" }
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-telemetry-001"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
         ],
-        "url": "{{baseUrl}}/operations/manual-review-cases?page=1&limit=20"
+        "url": "{{baseUrl}}/api/v1/customers/1/telemetry/batch",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sessionId\": \"1\",\n  \"deviceId\": \"1\",\n  \"clientBatchId\": \"batch-postman-001\",\n  \"capturedFrom\": \"2026-06-28T22:00:00.000Z\",\n  \"capturedUntil\": \"2026-06-28T22:05:00.000Z\",\n  \"events\": [\n    {\n      \"eventType\": \"form_field_interaction\",\n      \"eventCode\": \"phone_field_completed\",\n      \"occurredAt\": \"2026-06-28T22:00:00.000Z\",\n      \"metadata\": {\n        \"durationMs\": 1000,\n        \"corrections\": 0\n      }\n    }\n  ],\n  \"onDeviceMetrics\": [\n    {\n      \"metricCode\": \"contact_graph_score\",\n      \"value\": 0.82\n    }\n  ]\n}"
+        }
       }
     },
     {
-      "name": "Fraud Cases",
+      "name": "Risk assessment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-risk-001"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customers/1/risk-assessments",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"assessmentType\": \"onboarding_initial\",\n  \"channel\": \"mobile_app\",\n  \"sessionId\": \"1\",\n  \"deviceId\": \"1\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Customer me",
       "request": {
         "method": "GET",
         "header": [
-          { "key": "x-tenant-id", "value": "{{tenantId}}" },
-          { "key": "Authorization", "value": "Bearer {{token}}" }
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
         ],
-        "url": "{{baseUrl}}/operations/fraud-cases?page=1&limit=20"
+        "url": "{{baseUrl}}/api/v1/customers/1/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
       }
+    },
+    {
+      "name": "Privacy consent decisions",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-privacy-consents-001"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customers/1/privacy/consent-decisions",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"decisions\": [\n    {\n      \"consentDocumentId\": \"1\",\n      \"purposeCode\": \"risk_evaluation\",\n      \"decision\": \"granted\",\n      \"sessionId\": \"1\"\n    }\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Data subject request",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-dsr-001"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customers/1/privacy/data-subject-requests",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestType\": \"access\",\n  \"description\": \"Quiero consultar mis datos personales.\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Operations work queue",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/work-queue?queue=all&page=1&limit=20",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Operations investigation summary",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/customers/1/investigation-summary",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Manual review decision",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-mr-decision-001"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/manual-review-cases/1/decision",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"decision\": \"approved\",\n  \"reasonCode\": \"identity_verified_by_operator\",\n  \"notes\": \"Documento revisado.\",\n  \"nextCustomerStatus\": \"approved_for_next_step\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Fraud decision",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-fraud-decision-001"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/fraud-cases/1/decision",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"decision\": \"false_positive\",\n  \"reasonCode\": \"operator_review\",\n  \"applyWatchlist\": false,\n  \"notes\": \"Sin evidencia suficiente.\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Risk assessment detail",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/risk-assessments/1",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Risk assessment explanation",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/risk-assessments/1/explanation",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Data quality issues",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/data-quality/issues?page=1&limit=20",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Resolve data quality issue",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-dq-resolve-001"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/data-quality/issues/1/resolve",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"resolution\": \"resolved\",\n  \"reasonCode\": \"data_corrected\",\n  \"notes\": \"Se corrigi\\u00f3 el dato.\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Customer audit",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/audit/customer/1?page=1&limit=50",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Session start compound",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "authorization",
+            "value": "Bearer {{customerToken}}"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-session-start-001"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customers/1/sessions/start",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"device\": {\n    \"deviceFingerprintHash\": \"session-device-smoke-001\",\n    \"fingerprintVersion\": \"v1\",\n    \"channel\": \"mobile_app\",\n    \"userAgent\": \"AtlasMobile/0.1.0\",\n    \"snapshot\": {\n      \"brand\": \"Apple\",\n      \"model\": \"iPhone 13\",\n      \"osFamily\": \"iOS\",\n      \"osVersion\": \"18.0\",\n      \"appVersion\": \"0.1.0\",\n      \"isRooted\": false,\n      \"isEmulator\": false,\n      \"vpnDetected\": false\n    }\n  },\n  \"authMethod\": \"app_session\",\n  \"gpsObservation\": {\n    \"lat\": -17.7833,\n    \"lng\": -63.1821,\n    \"accuracyMeters\": 15,\n    \"capturedAt\": \"2026-06-29T13:30:00.000Z\"\n  },\n  \"permissions\": [\n    {\n      \"permissionCode\": \"location\",\n      \"granted\": true,\n      \"decidedAt\": \"2026-06-29T13:30:00.000Z\"\n    }\n  ],\n  \"locationPermissionGranted\": true,\n  \"simObservation\": {\n    \"phoneNumberHash\": \"session-phone-line-smoke-001\",\n    \"phoneLast4\": \"0000\",\n    \"carrierName\": \"Tigo\",\n    \"simType\": \"physical\",\n    \"simCount\": 1\n  },\n  \"ipReputation\": {\n    \"isVpn\": false,\n    \"isProxy\": false,\n    \"isTor\": false,\n    \"countryCode\": \"BO\",\n    \"city\": \"Santa Cruz\",\n    \"reputationScore\": 0.12\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Session heartbeat",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "authorization",
+            "value": "Bearer {{customerToken}}"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-session-heartbeat-001"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customers/1/sessions/{{sessionId}}/heartbeat",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"clientHeartbeatId\": \"hb-smoke-001\",\n  \"capturedAt\": \"2026-06-29T13:35:00.000Z\",\n  \"gpsObservation\": {\n    \"lat\": -17.7829,\n    \"lng\": -63.1818,\n    \"accuracyMeters\": 12\n  },\n  \"permissionChanges\": [\n    {\n      \"permissionCode\": \"location\",\n      \"granted\": true,\n      \"decidedAt\": \"2026-06-29T13:35:00.000Z\"\n    }\n  ],\n  \"locationPermissionGranted\": true,\n  \"deviceSnapshot\": {\n    \"isRooted\": false,\n    \"isEmulator\": false,\n    \"vpnDetected\": false,\n    \"appVersion\": \"0.1.1\"\n  },\n  \"ipReputation\": {\n    \"isVpn\": false,\n    \"isProxy\": false,\n    \"isTor\": false,\n    \"countryCode\": \"BO\",\n    \"city\": \"Santa Cruz\",\n    \"reputationScore\": 0.1\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Session state",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "authorization",
+            "value": "Bearer {{customerToken}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customers/1/session-state"
+      }
+    },
+    {
+      "name": "Operations session investigation summary",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "authorization",
+            "value": "Bearer {{riskToken}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/sessions/{{sessionId}}/investigation-summary"
+      }
+    },
+    {
+      "name": "Session end",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "authorization",
+            "value": "Bearer {{customerToken}}"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "postman-session-end-001"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customers/1/sessions/{{sessionId}}/end",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"endedAt\": \"2026-06-29T14:10:00.000Z\",\n  \"reasonCode\": \"customer_logout\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Catalogs - list",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/catalogs?status=all&active=all"
+      }
+    },
+    {
+      "name": "Catalogs - get version",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/catalogs/city_zones/versions/{{catalogVersionId}}"
+      }
+    },
+    {
+      "name": "Catalogs - create version",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/catalogs/city_zones/versions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"versionCode\": \"2026.07-postman\",\n  \"validFrom\": \"2026-07-01\",\n  \"notes\": \"Postman catalog version\",\n  \"items\": [\n    {\n      \"itemCode\": \"santa_cruz_norte_postman\",\n      \"itemName\": \"Norte Postman\",\n      \"itemType\": \"zone\",\n      \"confidenceScore\": \"95.00\",\n      \"attributes\": {\n        \"city\": \"Santa Cruz de la Sierra\",\n        \"countryCode\": \"BOL\"\n      },\n      \"aliases\": [\n        {\n          \"aliasValue\": \"Zona Norte Postman\",\n          \"aliasType\": \"common_name\",\n          \"confidenceScore\": \"90.00\"\n        }\n      ],\n      \"riskMappings\": [\n        {\n          \"riskDimension\": \"location\",\n          \"riskBand\": \"neutral\",\n          \"scorePointsSuggested\": \"0.00\",\n          \"reasonCode\": \"declared_zone_known_postman\",\n          \"explanation\": \"Zona reconocida para Postman\",\n          \"modelUsage\": \"onboarding_initial\"\n        }\n      ]\n    }\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Catalogs - submit version",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/catalogs/city_zones/versions/{{catalogVersionId}}/submit-for-approval",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notes\": \"Ready for approval from Postman.\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Catalogs - decision",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/catalogs/city_zones/versions/{{catalogVersionId}}/decision",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"decision\": \"approve\",\n  \"decisionReason\": \"Approved from Postman.\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Catalog ingestions - create",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/catalog-ingestions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"catalogCode\": \"city_zones\",\n  \"sourceType\": \"manual_upload\",\n  \"sourceName\": \"Operaciones Atlas Postman\",\n  \"items\": [\n    {\n      \"rawValue\": \"Norte Interno Postman\",\n      \"normalizedValue\": \"santa_cruz_norte_interno_postman\",\n      \"itemType\": \"zone\",\n      \"confidenceScore\": \"88.00\",\n      \"rawPayload\": {\n        \"city\": \"Santa Cruz de la Sierra\",\n        \"countryCode\": \"BOL\"\n      }\n    }\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Catalog staging - decision batch",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/catalog-staging-items/decision-batch",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"targetCatalogVersionId\": \"{{catalogVersionId}}\",\n  \"decisions\": [\n    {\n      \"stagingItemId\": \"{{stagingItemId}}\",\n      \"decision\": \"approve\",\n      \"itemCode\": \"santa_cruz_norte_interno_postman\",\n      \"itemName\": \"Norte Interno Postman\",\n      \"itemType\": \"zone\",\n      \"decisionReason\": \"Valid item from Postman.\"\n    }\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Definitions - list",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/definitions?type=all&status=all&domain=sessions"
+      }
+    },
+    {
+      "name": "Definitions - package",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/definitions/package",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"domain\": \"sessions\",\n  \"definitions\": {\n    \"events\": [\n      {\n        \"eventCode\": \"session_started_postman\",\n        \"eventName\": \"Sesión iniciada Postman\",\n        \"eventFamily\": \"sessions\",\n        \"targetTables\": [\n          \"customer_sessions\"\n        ]\n      }\n    ],\n    \"observations\": [\n      {\n        \"observationCode\": \"gps_observed_postman\",\n        \"observationName\": \"GPS observado Postman\",\n        \"dataType\": \"boolean\",\n        \"sourceGroup\": \"sessions\"\n      }\n    ],\n    \"attributes\": [\n      {\n        \"attributeCode\": \"last_gps_observed_at_postman\",\n        \"attributeName\": \"Último GPS observado Postman\",\n        \"entityScope\": \"customer\",\n        \"dataType\": \"datetime\"\n      }\n    ],\n    \"features\": [\n      {\n        \"featureCode\": \"device_reuse_count_postman\",\n        \"featureName\": \"Reutilización de dispositivo Postman\",\n        \"featureFamily\": \"device\",\n        \"dataType\": \"number\"\n      }\n    ]\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "Risk policy - current",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/risk-policy/current"
+      }
+    },
+    {
+      "name": "Risk policy - create ruleset",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/risk-policy/ruleset-versions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"modelVersion\": {\n    \"modelCode\": \"atlas_onboarding_risk_postman\",\n    \"versionCode\": \"2026.07-postman\",\n    \"modelType\": \"rules\",\n    \"assessmentType\": \"onboarding_initial\"\n  },\n  \"ruleset\": {\n    \"rulesetCode\": \"onboarding_initial_rules_postman\",\n    \"versionCode\": \"2026.07-postman\",\n    \"assessmentType\": \"onboarding_initial\"\n  },\n  \"rules\": [\n    {\n      \"ruleCode\": \"device_emulator_hard_stop_postman\",\n      \"ruleName\": \"Dispositivo emulador Postman\",\n      \"riskDimension\": \"device\",\n      \"ruleType\": \"hard_stop\",\n      \"severity\": \"critical\",\n      \"expressionJson\": {\n        \"field\": \"device.isEmulator\",\n        \"operator\": \"eq\",\n        \"value\": true\n      },\n      \"actionCode\": \"blocked\",\n      \"reasonCode\": \"device_emulator_detected\",\n      \"isHardStop\": true\n    }\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Risk policy - activate ruleset",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/risk-policy/ruleset-versions/{{riskRulesetVersionId}}/activate",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"activationReason\": \"Activated from Postman.\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Data governance - policies",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/data-governance/policies"
+      }
+    },
+    {
+      "name": "Data governance - policy package",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          },
+          {
+            "key": "content-type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/data-governance/policy-package",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"retentionPolicies\": [\n    {\n      \"policyCode\": \"identity_evidence_5y_postman\",\n      \"appliesTo\": \"evidence_documents\",\n      \"retentionDays\": 1825,\n      \"postRetentionAction\": \"archive_or_delete\",\n      \"legalBasis\": \"compliance\"\n    }\n  ],\n  \"classificationPolicies\": [\n    {\n      \"classificationCode\": \"pii_sensitive_postman\",\n      \"classificationName\": \"Dato personal sensible Postman\",\n      \"sensitivityLevel\": \"high\",\n      \"allowedStorageModes\": {\n        \"modes\": [\n          \"encrypted_hash_last4\"\n        ]\n      },\n      \"defaultStorageMode\": \"encrypted_hash_last4\",\n      \"encryptionRequired\": true,\n      \"hashingRequired\": true,\n      \"rawStorageAllowed\": false\n    }\n  ],\n  \"sensitiveFieldRules\": [\n    {\n      \"tableName\": \"customer_identity_documents\",\n      \"fieldName\": \"document_number\",\n      \"classificationCode\": \"pii_sensitive_postman\",\n      \"storageMode\": \"encrypted_hash_last4\",\n      \"maskingStrategy\": \"last4\"\n    }\n  ],\n  \"dataQualityRules\": [\n    {\n      \"ruleCode\": \"identity_document_hash_required_postman\",\n      \"ruleName\": \"Documento debe tener hash Postman\",\n      \"targetTable\": \"customer_identity_documents\",\n      \"targetField\": \"document_hash\",\n      \"severity\": \"critical\",\n      \"expressionJson\": {\n        \"required\": true\n      },\n      \"expectedAction\": \"block_risk_assessment\"\n    }\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Runtime Jobs - Process Outbox",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/jobs/process-outbox",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"limit\": 50,\n  \"dryRun\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Runtime Jobs - Expire Stale Sessions",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/jobs/expire-stale-sessions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maxIdleMinutes\": 120,\n  \"dryRun\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Runtime Jobs - Apply Retention Policies",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/jobs/apply-retention-policies",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dryRun\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Runtime Jobs - Recalculate Data Quality",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-tenant-id",
+            "value": "1"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "x-idempotency-key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/operations/jobs/recalculate-data-quality",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": \"1\",\n  \"dryRun\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Patch 2.0 - Events & Notifications",
+      "item": [
+        {
+          "name": "List event catalog",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/operations/events/catalog",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "operations",
+                "events",
+                "catalog"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Publish user.registered",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "x-idempotency-key",
+                "value": "postman-event-{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventCode\": \"user.registered\",\n  \"aggregateType\": \"customer\",\n  \"aggregateId\": \"{{customerId}}\",\n  \"payload\": {\n    \"customerId\": \"{{customerId}}\"\n  },\n  \"metadata\": {\n    \"source\": \"postman\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/operations/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "operations",
+                "events"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Process events",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "x-idempotency-key",
+                "value": "postman-process-events-{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"limit\": 50,\n  \"dryRun\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/operations/jobs/process-events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "operations",
+                "jobs",
+                "process-events"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List notification messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/operations/notifications/messages?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "operations",
+                "notifications",
+                "messages"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Customer notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}/notifications?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }

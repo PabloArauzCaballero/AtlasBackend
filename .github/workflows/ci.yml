@@ -1,0 +1,81 @@
+name: Backend CI
+
+# ATLAS-AUDIT-019 (cerrado en este patch): no existía ningún workflow de CI, ni siquiera para
+# type-check, pese a que INFRASTRUCTURE_DEVELOPMENT_CONTEXT.md §6 lo exige explícitamente
+# ("GitHub Actions debe incluir: install, lint, type-check, test, build, migration check").
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: install → check-env → lint → type-check → test → build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      # ATLAS-AUDIT-004: falla el build si algún .env real se coló en el repo/paquete.
+      - name: Check no real .env file is committed
+        run: yarn check:no-env-file
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Format check
+        run: yarn format:check
+
+      - name: Type-check
+        run: yarn type-check
+
+      - name: Unit tests
+        run: yarn test:coverage
+
+      - name: Build
+        run: yarn build
+
+  migration-check:
+    name: terraform-style check — migraciones nuevas son pequeñas
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ATLAS-AUDIT-007: no se puede dividir retroactivamente la migración monolítica ya
+      # aplicada (ver docs/architecture/assumptions.md), pero SÍ se puede exigir que ninguna
+      # migración NUEVA vuelva a cometer el mismo error. Este check falla si algún archivo de
+      # migración supera las ~800 líneas, salvo la migración histórica ya conocida.
+      - name: Fail if any NEW migration file is too large
+        run: |
+          set -e
+          MAX_LINES=800
+          FAILED=0
+          for f in src/database/migrations/*.ts; do
+            base=$(basename "$f")
+            if [ "$base" = "20260626154044-create-atlas-user-intelligence-fraud-schema-v5-2-1.ts" ]; then
+              echo "Omitiendo migración histórica ya aplicada: $base"
+              continue
+            fi
+            lines=$(wc -l < "$f")
+            if [ "$lines" -gt "$MAX_LINES" ]; then
+              echo "❌ $base tiene $lines líneas (máximo recomendado: $MAX_LINES)."
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" -eq 1 ]; then
+            exit 1
+          fi
+          echo "✅ Todas las migraciones nuevas están dentro del límite de tamaño recomendado."

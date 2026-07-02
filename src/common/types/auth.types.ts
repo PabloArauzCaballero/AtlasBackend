@@ -3,6 +3,9 @@ export type AtlasUserRole =
   | 'internal_operator'
   | 'risk_analyst'
   | 'compliance_analyst'
+  | 'fraud_analyst'
+  | 'system'
+  | 'merchant'
   | 'admin'
   | 'platform_admin';
 
@@ -20,4 +23,5 @@ export type RequestWithAuth = {
   headers: Record<string, string | string[] | undefined>;
   user?: AuthenticatedUser;
   ip?: string;
+  correlationId?: string;
 };

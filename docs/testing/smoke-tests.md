@@ -1,68 +1,122 @@
-# Smoke tests manuales — API Fase 1
+# Proyecto ATLAS — Smoke tests locales
 
-## 1. Preparar base
+Este backend ya trae smoke tests ejecutables para validar que el servidor responde contra PostgreSQL real, usando las migraciones y el seed mínimo de desarrollo.
 
-```bash
-cp .env.example .env
-npm install
-npm run db:migration:up
-npm run db:seed:up
-npm run start:dev
+## Valores por defecto del seed local
+
+No necesitas exportar variables para el caso local normal. Los scripts usan estos valores automáticamente:
+
+```txt
+BASE_URL=http://localhost:3000/api/v1
+TENANT_ID=1
+CUSTOMER_ID=1
+DEVICE_ID=1
+SESSION_ID=1
+INTERNAL_USER_ID=1
+PLATFORM_USER_ID=1
 ```
 
-## 2. Generar token cliente
+El seed local crea esos registros base: tenant demo, usuario interno, cliente demo, dispositivo demo, sesión demo, consentimiento, evaluación de riesgo demo, caso de revisión manual y caso de fraude demo.
 
-```bash
-CUSTOMER_TOKEN=$(npm run --silent dev:jwt -- --role=customer --tenant-id=1 --customer-id=1)
+## Requisitos previos
+
+En una terminal:
+
+```powershell
+yarn install
+yarn db:migration:up
+yarn db:seed:up
+yarn type-check
+yarn build
+yarn start:dev
 ```
 
-## 3. Registro público de cliente
+`yarn start:dev` compila con `tsc` y luego ejecuta `node dist/src/main.js`. Esto es intencional: NestJS necesita metadata de decoradores emitida por TypeScript para resolver dependencias en runtime. No uses `tsx watch src/main.ts` para levantar la API principal porque puede romper la inyección de dependencias de Nest.
 
-```bash
-curl -X POST http://localhost:3000/api/v1/customers/register \
-  -H 'Content-Type: application/json' \
-  -H 'x-tenant-id: 1' \
-  -d '{
-    "phone": "+59170000000",
-    "email": "cliente.demo@atlas.bo",
-    "firstName": "Cliente",
-    "lastName": "Demo",
-    "preferredLanguage": "es",
-    "marketingOptIn": false
-  }'
+En otra terminal puedes correr los smoke tests.
+
+## Smoke simple
+
+```powershell
+yarn smoke
 ```
 
-## 4. Consultar resumen protegido
+Ese comando valida, en una sola ejecución:
 
-```bash
-curl http://localhost:3000/api/v1/customers/1/summary \
-  -H 'x-tenant-id: 1' \
-  -H "Authorization: Bearer $CUSTOMER_TOKEN"
+```txt
+health
+consentimientos activos
+customer me
+cola operativa
+investigation summary
+catálogos/definiciones/políticas
+runtime jobs en dry-run
+sesiones compuestas start/heartbeat/summary/end
+telemetry batch
+risk assessment + detalle + explicación
+privacidad / data subject request
+auditoría y data quality
 ```
 
-## 5. Registrar sesión
+## Smoke por módulos
 
-```bash
-curl -X POST http://localhost:3000/api/v1/customers/1/sessions \
-  -H 'Content-Type: application/json' \
-  -H 'x-tenant-id: 1' \
-  -H "Authorization: Bearer $CUSTOMER_TOKEN" \
-  -d '{
-    "deviceFingerprintHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "fingerprintVersion": "v1",
-    "channel": "mobile_app",
-    "authMethod": "jwt"
-  }'
+```powershell
+yarn smoke:core
+yarn smoke:catalog
+yarn smoke:runtime
+yarn smoke:sessions
+yarn smoke:risk-telemetry
 ```
 
-## 6. Token interno para operaciones
+## Sobrescribir ambiente
 
-```bash
-ADMIN_TOKEN=$(npm run --silent dev:jwt -- --role=admin --tenant-id=1 --internal-user-id=1)
+Solo si estás probando otro puerto, tenant o customer:
+
+```powershell
+$env:BASE_URL="http://localhost:3000/api/v1"
+$env:TENANT_ID="1"
+$env:CUSTOMER_ID="1"
+$env:DEVICE_ID="1"
+$env:SESSION_ID="1"
+$env:INTERNAL_USER_ID="1"
+$env:PLATFORM_USER_ID="1"
+
+yarn smoke
 ```
 
-```bash
-curl http://localhost:3000/api/v1/operations/manual-review-cases?page=1\&limit=20 \
-  -H 'x-tenant-id: 1' \
-  -H "Authorization: Bearer $ADMIN_TOKEN"
+## Confirmación manual rápida
+
+```powershell
+curl.exe "http://localhost:3000/api/v1/health"
 ```
+
+Debe responder correctamente antes de ejecutar `yarn smoke`.
+
+## Notas importantes
+
+- Los smoke tests generan sus propios JWT de desarrollo usando `JWT_ACCESS_TOKEN_SECRET` del `.env`.
+- Los endpoints mutables usan `x-idempotency-key` único en cada ejecución.
+- Los jobs runtime se ejecutan con `dryRun: true`, para validar contrato sin aplicar acciones destructivas.
+- Si falla `yarn smoke`, corre el módulo específico para aislar el problema.
+
+## Patch 2.0
+
+Nuevos comandos:
+
+```bash
+yarn smoke:events
+yarn smoke:notifications
+```
+
+Validan event-driven messaging, outbox, notification orchestration, adapters configurables, delivery logs y notificaciones internas.
+
+
+## Stress tests de notificaciones
+
+Para validar carga básica del core de eventos y notificaciones:
+
+```bash
+yarn stress:notifications
+```
+
+Ver detalles en `docs/testing/stress-notifications.md`.

@@ -15,26 +15,38 @@ export class ConsentsRepository {
     @InjectModel(ConsentEventModel) private readonly consentEventModel: typeof ConsentEventModel,
   ) {}
 
-  findActiveDocuments(tenantId: string, query: { language: string; documentCode?: string }): Promise<ConsentDocumentModel[]> {
+  findActiveDocuments(tenantId: string, query: { language: string; purposeCode?: string }): Promise<ConsentDocumentModel[]> {
     const now = new Date();
     return this.consentDocumentModel.findAll({
       where: {
         tenantId,
         language: query.language,
         status: 'published',
-        ...(query.documentCode ? { documentCode: query.documentCode } : {}),
+        ...(query.purposeCode ? { documentCode: query.purposeCode } : {}),
         [Op.and]: [
           { [Op.or]: [{ effectiveFrom: null }, { effectiveFrom: { [Op.lte]: now } }] },
           { [Op.or]: [{ effectiveUntil: null }, { effectiveUntil: { [Op.gt]: now } }] },
         ],
       },
-      order: [['documentCode', 'ASC'], ['effectiveFrom', 'DESC']],
+      order: [
+        ['documentCode', 'ASC'],
+        ['effectiveFrom', 'DESC'],
+      ],
     } as FindOptions);
   }
 
-  findDocumentById(tenantId: string, consentDocumentId: string): Promise<ConsentDocumentModel | null> {
+  findActiveDocumentById(tenantId: string, consentDocumentId: string): Promise<ConsentDocumentModel | null> {
+    const now = new Date();
     return this.consentDocumentModel.findOne({
-      where: { id: consentDocumentId, tenantId },
+      where: {
+        id: consentDocumentId,
+        tenantId,
+        status: 'published',
+        [Op.and]: [
+          { [Op.or]: [{ effectiveFrom: null }, { effectiveFrom: { [Op.lte]: now } }] },
+          { [Op.or]: [{ effectiveUntil: null }, { effectiveUntil: { [Op.gt]: now } }] },
+        ],
+      },
     } as FindOptions);
   }
 

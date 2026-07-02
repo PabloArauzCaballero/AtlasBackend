@@ -10,5 +10,6 @@ import { ConsentsService } from './consents.service.js';
   imports: [SequelizeModule.forFeature([ConsentDocumentModel, CustomerConsentModel, ConsentEventModel]), CustomersModule],
   controllers: [ConsentsController],
   providers: [ConsentsRepository, ConsentsService],
+  exports: [ConsentsRepository],
 })
 export class ConsentsModule {}

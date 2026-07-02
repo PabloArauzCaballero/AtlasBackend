@@ -26,7 +26,7 @@ function timestamp(): string {
 const requestedName = process.argv[2];
 
 if (!requestedName) {
-  throw new Error('Debes indicar el nombre de la migración. Ejemplo: npm run db:migration:create -- create-users');
+  throw new Error('Debes indicar el nombre de la migración. Ejemplo: yarn db:migration:create -- create-users');
 }
 
 const migrationName = normalizeMigrationName(requestedName);
