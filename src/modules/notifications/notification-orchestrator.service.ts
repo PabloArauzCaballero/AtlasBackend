@@ -58,8 +58,9 @@ export class NotificationOrchestratorService {
 
   async handleEvent(event: OutboxEventModel): Promise<void> {
     const payload = (event.eventPayloadJson ?? {}) as Record<string, unknown>;
-    const rules = this.rulesService.getRulesForEvent(event.eventCode);
-    for (const rule of rules) {
+    const rules = await Promise.resolve(this.rulesService.getRulesForEvent(event.eventCode));
+    const rulesToApply = Array.isArray(rules) ? rules : [];
+    for (const rule of rulesToApply) {
       const recipientId = getPayloadValue(payload, rule.recipientIdPath) ?? defaultRecipientId(event, rule.recipientType, payload);
       if (!recipientId) continue;
       for (const channel of rule.channels) {
@@ -121,7 +122,7 @@ export class NotificationOrchestratorService {
         : [];
     const customerContactTargets =
       message.recipientType === 'customer' ? await this.repository.getCustomerContactTargets(tenantId, message.recipientId, channel) : [];
-    const storedTargets = this.repository.getMessageDeliveryTargets(message);
+    const storedTargets = await this.repository.getMessageDeliveryTargets(message);
     const payload: NotificationMessagePayload = {
       id: String(message.id),
       tenantId,

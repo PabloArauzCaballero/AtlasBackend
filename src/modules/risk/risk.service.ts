@@ -5,6 +5,7 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { assertOwnCustomerResource } from '../../common/utils/auth/ownership.util.js';
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
+import { RISK_MODEL_CODE, RISK_MODEL_VERSION, RISK_RULESET_VERSION } from './risk-heuristic-v0.constants.js';
 import { RiskAssessmentResultResponseDto } from './risk.dtos.js';
 import { toRiskAssessmentResultResponse } from './risk.mapper.js';
 import { RiskRepository } from './risk.repository.js';
@@ -63,6 +64,11 @@ export class RiskService {
     const hasGrantedConsent = consents.some((consent) => consent.granted === true && !consent.revokedAt);
     if (!hasGrantedConsent) throw new UnprocessableEntityException('REQUIRED_CONSENT_MISSING');
 
+    // NOTA (P1-03 del reporte de auditoría): esto es un motor heurístico v0 — puntajes fijos
+    // codificados a mano, no un scorecard crediticio calibrado ni versionado en base de datos.
+    // Sirve para el flujo de onboarding actual pero no debe presentarse como score financiero
+    // final. `RISK_MODEL_CODE`/`RISK_MODEL_VERSION` (ver risk-heuristic-v0.constants.ts) hacen
+    // ese límite explícito en la respuesta y en el registro persistido de cada corrida.
     const verifiedContactCount = contacts.filter((contact) => contact.status === 'verified').length;
     const hasIdentity = identities.length > 0;
     const identityScore = hasIdentity ? 70 : 30;
@@ -178,6 +184,7 @@ export class RiskService {
             severity: decision === 'manual_review_required' ? 'medium' : 'low',
             isHardStop: false,
             inputValues: featureMap,
+            rulesetVersionCode: RISK_RULESET_VERSION,
             now,
           },
           { transaction },
@@ -217,6 +224,8 @@ export class RiskService {
           reasonCodes: { reasons },
           featureSnapshotId: String(snapshot.id),
           integrityHash: sha256Hex(`${run.id}:${decision}:${totalScore}`),
+          modelVersionCode: RISK_MODEL_VERSION,
+          rulesetVersionCode: RISK_RULESET_VERSION,
           now,
         },
         { transaction },
@@ -248,6 +257,7 @@ export class RiskService {
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,
+          actorInternalUserId: input.currentUser.internalUserId ?? null,
           actionCode: 'risk_assessment.created',
           targetId: input.customerId,
           payload: { runId: String(run.id), resultId: String(result.id), decision, manualReviewCaseId },
@@ -265,6 +275,9 @@ export class RiskService {
         manualReviewCaseId,
         nextStep: decision === 'manual_review_required' ? 'manual_review' : 'continue_onboarding',
         reasons: reasons.map((code) => ({ code, message: code.replaceAll('_', ' ') })),
+        modelCode: RISK_MODEL_CODE,
+        modelVersion: RISK_MODEL_VERSION,
+        rulesetVersion: RISK_RULESET_VERSION,
       };
     });
   }

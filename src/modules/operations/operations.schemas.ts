@@ -21,6 +21,26 @@ export const operationsCustomerIdParamsSchema = z.object({
 export type WorkQueueQueryDto = z.infer<typeof workQueueQuerySchema>;
 export type OperationsCustomerIdParamsDto = z.infer<typeof operationsCustomerIdParamsSchema>;
 
+/**
+ * ATLAS-P11-T10: query schema para las variantes por cursor de las colas individuales
+ * (`manual-review-cases`, `fraud-cases`). Deliberadamente NO cubre `queue: 'all'` — la vista
+ * combinada sigue siendo OFFSET hasta que se resuelva la fusión de dos fuentes de cursor
+ * heterogéneas (ver nota en `operations.repository.ts`).
+ */
+export const cursorWorkQueueQuerySchema = z.object({
+  status: z.string().trim().min(1).max(40).optional(),
+  priority: z.string().trim().min(1).max(40).optional(),
+  customerId: z
+    .string()
+    .regex(/^[1-9][0-9]*$/)
+    .optional(),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  sortBy: z.enum(['createdAt', 'updatedAt']).default('createdAt'),
+  cursor: z.string().trim().min(1).max(500).optional(),
+});
+
+export type CursorWorkQueueQueryDto = z.infer<typeof cursorWorkQueueQuerySchema>;
+
 export const manualReviewDecisionParamsSchema = z.object({
   caseId: z.string().regex(/^[1-9][0-9]*$/),
 });

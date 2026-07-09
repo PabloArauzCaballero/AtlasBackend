@@ -47,6 +47,139 @@ jobs:
       - name: Build
         run: yarn build
 
+  # ATLAS-P10-005 (cierra ATLAS-PEND-109): hasta este patch, ningún job de CI corría contra un
+  # Postgres/Redis reales — todo lo verificado en CI eran tipos, lint y tests con mocks. Este
+  # job usa "services" de GitHub Actions (contenedores efímeros, no infraestructura persistente)
+  # para correr migraciones, seeders y los smoke tests del proyecto contra un motor real en cada
+  # PR, no solo una vez de forma manual.
+  db-and-cache-integration:
+    name: migraciones + seeders + smoke tests contra Postgres/Redis reales
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas
+          POSTGRES_DB: atlas
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U atlas"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: development
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: atlas
+      DB_PASSWORD: atlas
+      DB_NAME: atlas
+      DB_SSL: 'false'
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_TOKEN_SECRET: ci-only-atlas-access-token-secret-change-me-please-32
+      NOTIFICATION_TOKEN_ENCRYPTION_KEY: ci-only-32-plus-character-key-for-device-tokens
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Run migrations against real Postgres
+        run: yarn db:migration:up
+
+      - name: Run seeders
+        run: yarn db:seed:up
+
+      - name: Boot API in background
+        run: |
+          nohup node scripts/run-dev.mjs > /tmp/atlas-api.log 2>&1 &
+          echo $! > /tmp/atlas-api.pid
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/v1/health > /dev/null; then
+              echo "API arriba."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "La API no respondió a tiempo. Log:"
+          cat /tmp/atlas-api.log
+          exit 1
+
+      - name: Smoke tests contra la API real
+        run: |
+          yarn smoke:core
+          yarn smoke:auth
+          yarn smoke:sessions
+          yarn smoke:catalog
+          yarn smoke:runtime
+          yarn smoke:risk-telemetry
+          yarn smoke:events
+          yarn smoke:notifications
+          yarn smoke:external-providers:all
+
+      - name: Stop API
+        if: always()
+        run: kill "$(cat /tmp/atlas-api.pid)" 2>/dev/null || true
+
+      - name: Upload API log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-api-log
+          path: /tmp/atlas-api.log
+
+  # ATLAS-P10-040: escaneo de vulnerabilidades de dependencias. No existía ningún job de este
+  # tipo — un CVE `high`/`critical` en una dependencia (p. ej. jsonwebtoken, argon2, pg) podía
+  # pasar desapercibido indefinidamente. `yarn audit` devuelve código de salida distinto de 0 si
+  # encuentra vulnerabilidades en el umbral configurado.
+  dependency-audit:
+    name: yarn audit (dependencias con vulnerabilidades high/critical)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Audit dependencies (high/critical)
+        run: yarn audit --level high
+        # No se usa `continue-on-error` a propósito: un CVE high/critical debe bloquear el
+        # merge, no quedar como advertencia ignorable. Si una dependencia específica tiene un
+        # falso positivo o no aplica al código realmente usado, documentarlo explícitamente en
+        # docs/pending/pending-items.md con el ID del advisory antes de silenciarlo.
+
   migration-check:
     name: terraform-style check — migraciones nuevas son pequeñas
     runs-on: ubuntu-latest
@@ -54,26 +187,41 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ATLAS-AUDIT-007: no se puede dividir retroactivamente la migración monolítica ya
-      # aplicada (ver docs/architecture/assumptions.md), pero SÍ se puede exigir que ninguna
-      # migración NUEVA vuelva a cometer el mismo error. Este check falla si algún archivo de
-      # migración supera las ~800 líneas, salvo la migración histórica ya conocida.
+      # ATLAS-P11-T09: la migración monolítica original (12,554 líneas) se dividió en 20
+      # migraciones domain-scoped (`schema-part-*`, `schema-relationships-part-*`), verificadas
+      # programáticamente idénticas en contenido al archivo original (ver
+      # docs/architecture/migration-split-verification.md). Ese split es, en sí mismo, la
+      # corrección de ATLAS-AUDIT-007 — ya no hay una migración histórica que excluir.
+      #
+      # Los 20 archivos del split son datos declarativos (specs de tabla/FK/índice generados
+      # programáticamente desde el archivo original, no lógica escrita a mano) y ya están
+      # acotados por dominio de negocio; el más grande (catalog-context, 15 tablas) tiene 1,720
+      # líneas. Se les permite un límite más alto (2,000) que a migraciones nuevas de lógica
+      # arbitraria (800): más líneas en un archivo de datos verificado no implica menos
+      # revisable de la misma forma que en código con lógica de control.
       - name: Fail if any NEW migration file is too large
         run: |
           set -e
           MAX_LINES=800
+          MAX_LINES_SCHEMA_SPLIT=2000
           FAILED=0
           for f in src/database/migrations/*.ts; do
             base=$(basename "$f")
-            if [ "$base" = "20260626154044-create-atlas-user-intelligence-fraud-schema-v5-2-1.ts" ]; then
-              echo "Omitiendo migración histórica ya aplicada: $base"
-              continue
-            fi
             lines=$(wc -l < "$f")
-            if [ "$lines" -gt "$MAX_LINES" ]; then
-              echo "❌ $base tiene $lines líneas (máximo recomendado: $MAX_LINES)."
-              FAILED=1
-            fi
+            case "$base" in
+              20260626154*-schema-part-*.ts|20260626154*-schema-relationships-part-*.ts)
+                if [ "$lines" -gt "$MAX_LINES_SCHEMA_SPLIT" ]; then
+                  echo "❌ $base tiene $lines líneas (máximo para archivos del split de esquema: $MAX_LINES_SCHEMA_SPLIT)."
+                  FAILED=1
+                fi
+                ;;
+              *)
+                if [ "$lines" -gt "$MAX_LINES" ]; then
+                  echo "❌ $base tiene $lines líneas (máximo recomendado: $MAX_LINES)."
+                  FAILED=1
+                fi
+                ;;
+            esac
           done
           if [ "$FAILED" -eq 1 ]; then
             exit 1

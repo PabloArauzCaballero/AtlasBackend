@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { env } from '../../../config/env.js';
+import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';
 import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from '../notification-types.js';
 import { failedDelivery, getFirstDeliveryTarget, postJson, sentDelivery } from './http-adapter.util.js';
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
@@ -24,7 +25,10 @@ function buildRawEmail(input: { from: string; to: string; subject: string; body:
 
 @Injectable()
 export class EmailNotificationAdapter implements NotificationChannelAdapter {
-  constructor(private readonly config: NotificationProviderConfigService) {}
+  constructor(
+    private readonly config: NotificationProviderConfigService,
+    private readonly executor: ResilientAdapterExecutorService,
+  ) {}
 
   getProviderName(): string {
     return this.config.getEmailProvider();
@@ -55,6 +59,8 @@ export class EmailNotificationAdapter implements NotificationChannelAdapter {
     const url = this.config.getWebhookUrl();
     if (!url) return failedDelivery('webhook_email', 'WEBHOOK_URL_MISSING', 'NOTIFICATION_WEBHOOK_URL no está configurado.');
     const response = await postJson(
+      this.executor,
+      'webhook_email',
       url,
       {},
       { channel, to, subject: message.subject, title: message.title, body: message.body, payload: message.payload, messageId: message.id },
@@ -68,6 +74,8 @@ export class EmailNotificationAdapter implements NotificationChannelAdapter {
     const apiKey = this.config.require(env.RESEND_API_KEY, 'RESEND_API_KEY_MISSING');
     const from = this.config.require(env.RESEND_FROM_EMAIL, 'RESEND_FROM_EMAIL_MISSING');
     const response = await postJson(
+      this.executor,
+      'resend',
       'https://api.resend.com/emails',
       { authorization: `Bearer ${apiKey}` },
       { from, to: [to], subject: message.subject ?? 'ATLAS', text: message.body },
@@ -80,6 +88,8 @@ export class EmailNotificationAdapter implements NotificationChannelAdapter {
     const apiKey = this.config.require(env.SENDGRID_API_KEY, 'SENDGRID_API_KEY_MISSING');
     const from = this.config.require(env.SENDGRID_FROM_EMAIL, 'SENDGRID_FROM_EMAIL_MISSING');
     const response = await postJson(
+      this.executor,
+      'sendgrid',
       'https://api.sendgrid.com/v3/mail/send',
       { authorization: `Bearer ${apiKey}` },
       {
@@ -100,6 +110,8 @@ export class EmailNotificationAdapter implements NotificationChannelAdapter {
     const refreshToken = this.config.require(env.GMAIL_REFRESH_TOKEN, 'GMAIL_REFRESH_TOKEN_MISSING');
     const from = this.config.require(env.GMAIL_FROM_EMAIL, 'GMAIL_FROM_EMAIL_MISSING');
     const tokenResponse = await postJson(
+      this.executor,
+      'gmail_api_token',
       'https://oauth2.googleapis.com/token',
       {},
       {
@@ -114,6 +126,8 @@ export class EmailNotificationAdapter implements NotificationChannelAdapter {
     }
     const raw = buildRawEmail({ from, to, subject: message.subject ?? 'ATLAS', body: message.body });
     const sendResponse = await postJson(
+      this.executor,
+      'gmail_api',
       'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
       { authorization: `Bearer ${tokenResponse.json.access_token}` },
       { raw },

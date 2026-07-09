@@ -1,0 +1,2553 @@
+openapi: 3.0.3
+info:
+  title: Atlas API — Systems Ops
+  version: '1.0.0'
+  description: |
+    Contrato OpenAPI ULTRA DETALLADO, generado leyendo directamente el código fuente
+    (controladores, schemas Zod, mappers, servicios y repositorios), del módulo
+    `systems-ops` del backend Atlas: catálogo técnico de endpoints/herramientas/entidades
+    de datos, log de acciones (auditoría HTTP), cola de revisión de gobierno de datos,
+    perfiles y runs de stress testing, y suites/pasos/runs de pruebas E2E internas.
+
+    ## Envolturas globales (aplican a TODOS los endpoints de este documento)
+
+    Este backend registra dos providers globales en `src/app.module.ts`
+    (`APP_INTERCEPTOR` y `APP_FILTER`) que envuelven **toda** respuesta, éxito o error.
+    Los schemas de `data` documentados endpoint por endpoint abajo son el contenido
+    de la propiedad `data`, **no** el body HTTP completo.
+
+    **Éxito** (`ResponseInterceptor`, `src/common/interceptors/response.interceptor.ts`):
+    ```json
+    { "requestId": "corr-id-o-undefined", "data": { "...": "..." }, "timestamp": "2026-07-07T12:00:00.000Z" }
+    ```
+
+    **Error** (`HttpExceptionFilter`, `src/common/filters/http-exception.filter.ts`):
+    ```json
+    { "requestId": "corr-id-o-undefined", "error": { "code": "VALIDATION_ERROR", "message": "..." }, "timestamp": "2026-07-07T12:00:00.000Z" }
+    ```
+    `error.code` se deriva del status HTTP: `400→VALIDATION_ERROR`, `401→UNAUTHORIZED`,
+    `403→FORBIDDEN`, `404→NOT_FOUND`, `409→CONFLICT`, `500→INTERNAL_ERROR` (fallback).
+    `error.message` es el mensaje literal de la excepción Nest lanzada por el servicio
+    (documentado por endpoint), o el detalle formateado de Zod cuando falla la validación
+    de query/params/body.
+
+    ## Seguridad común a los endpoints de este módulo
+
+    Los 5 controladores (`SystemsActionLogController`, `SystemsCatalogController`,
+    `SystemsReviewController`, `SystemsStressController`, `SystemsTestController`)
+    aplican a nivel de clase el decorador compuesto `SystemsOpsControllerSecurity()`
+    (`src/modules/systems-ops/systems-controller.decorators.ts`):
+    ```ts
+    UseGuards(JwtAuthGuard, RolesGuard)
+    Roles('system_admin', 'platform_admin', 'admin', 'qa_engineer', 'devops', 'risk_analyst', 'compliance_analyst', 'readonly_auditor')
+    ```
+    Ningún endpoint tiene `@Public()` ni redefine guards/roles a nivel de método — la
+    seguridad es idéntica en los 39. `JwtAuthGuard` exige `Authorization: Bearer <JWT>`
+    válido (HS256, no revocado por `TokenRevocationService`); `RolesGuard` exige que
+    `user.role` esté en la lista de roles anterior, si no: `403 FORBIDDEN` con mensaje
+    `"El usuario autenticado no tiene permiso para esta operación."`.
+
+    Ningún endpoint de este módulo exige `x-tenant-id` ni `x-idempotency-key`.
+
+    ## Validación de entrada
+
+    Todo query/param/body validado con `ZodValidationPipe` que falla devuelve
+    `400 VALIDATION_ERROR` con el detalle de Zod formateado dentro de `error.message`.
+    Un caso (marcado explícitamente en el endpoint) **no** usa Zod en absoluto.
+externalDocs:
+  description: Documento de contrato completo (todos los módulos, en Markdown)
+  url: ./api-contract.md
+servers:
+  - url: /api/v1
+    description: Prefijo global de la API (env.API_PREFIX, default 'api/v1')
+security:
+  - bearerAuth: []
+tags:
+  - name: SystemsActionLog
+    description: Log de auditoría HTTP (System Action Logs) — src/modules/systems-ops/systems-action-log.controller.ts
+  - name: SystemsCatalog
+    description: Catálogo técnico de endpoints, herramientas, entidades de datos e impactos — src/modules/systems-ops/systems-catalog.controller.ts
+  - name: SystemsReview
+    description: Cola de revisión de gobierno de datos — src/modules/systems-ops/systems-review.controller.ts
+  - name: SystemsStress
+    description: Perfiles y runs de stress testing — src/modules/systems-ops/systems-stress.controller.ts
+  - name: SystemsTest
+    description: Suites, pasos y runs de pruebas E2E internas — src/modules/systems-ops/systems-test.controller.ts
+
+paths:
+  # ============================================================
+  # SystemsActionLogController
+  # ============================================================
+  /systems/action-logs:
+    get:
+      operationId: listActionLogs
+      tags: [SystemsActionLog]
+      summary: Listar log de auditoría HTTP con filtros y paginación
+      parameters:
+        - $ref: '#/components/parameters/ActionLogEndpointIdQuery'
+        - $ref: '#/components/parameters/ActionLogRequestIdQuery'
+        - $ref: '#/components/parameters/ActionLogCorrelationIdQuery'
+        - $ref: '#/components/parameters/ActionLogMethodQuery'
+        - $ref: '#/components/parameters/ActionLogStatusCodeQuery'
+        - $ref: '#/components/parameters/ActionLogActorTypeQuery'
+        - name: module
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 120 }
+          description: Filtra por módulo del endpoint asociado.
+        - $ref: '#/components/parameters/RiskLevelQuery'
+        - name: containsPii
+          in: query
+          schema: { type: boolean }
+          description: Filtra logs que contienen PII (coercionado desde string).
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+          description: Rango de fecha desde (ISO 8601).
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+          description: Rango de fecha hasta (ISO 8601).
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Lista paginada de action logs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_ActionLogList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/action-logs/request/{requestId}:
+    get:
+      operationId: getActionLogsByRequestAlias
+      tags: [SystemsActionLog]
+      summary: 'Alias de compatibilidad: logs asociados a un requestId'
+      description: >-
+        Handler idéntico a `GET /systems/action-logs/by-request/{requestId}` (mismo método de
+        servicio `getActionLogsByRequest`). Si no existe ningún log con ese requestId, NO lanza
+        404 — devuelve `items` como array vacío.
+      parameters:
+        - $ref: '#/components/parameters/RequestIdPath'
+      responses:
+        '200':
+          description: Logs asociados al requestId (orden occurredAt DESC), sin envelope de paginación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_ActionLogItemsOnly'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/action-logs/by-request/{requestId}:
+    get:
+      operationId: getActionLogsByRequest
+      tags: [SystemsActionLog]
+      summary: Ruta canónica (no-alias) — logs asociados a un requestId
+      parameters:
+        - $ref: '#/components/parameters/RequestIdPath'
+      responses:
+        '200':
+          description: Logs asociados al requestId, misma forma que el alias.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_ActionLogItemsOnly'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ============================================================
+  # SystemsCatalogController
+  # ============================================================
+  /systems/dashboard:
+    get:
+      operationId: getSystemsDashboard
+      tags: [SystemsCatalog]
+      summary: Vista resumida del estado del catálogo (conteos + postura de gobierno de datos)
+      responses:
+        '200':
+          description: Resumen del dashboard operativo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_Dashboard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/endpoints:
+    get:
+      operationId: listCatalogEndpoints
+      tags: [SystemsCatalog]
+      summary: Listar endpoints del catálogo con filtros
+      parameters:
+        - $ref: '#/components/parameters/ModuleQuery'
+        - $ref: '#/components/parameters/StatusQuery'
+        - $ref: '#/components/parameters/RiskLevelQuery'
+        - $ref: '#/components/parameters/ReviewStatusQuery'
+        - $ref: '#/components/parameters/QQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Lista paginada de endpoints catalogados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_EndpointList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/endpoints/{endpointId}:
+    get:
+      operationId: getCatalogEndpoint
+      tags: [SystemsCatalog]
+      summary: Detalle de un endpoint del catálogo (con tools, impactos de datos y de campo)
+      parameters:
+        - $ref: '#/components/parameters/EndpointIdPath'
+      responses:
+        '200':
+          description: Detalle completo del endpoint.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_EndpointDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_ENDPOINT_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/endpoints/discover:
+    post:
+      operationId: discoverEndpoints
+      tags: [SystemsCatalog]
+      summary: Escanear src/modules/**/*.controller.ts y detectar endpoints automáticamente
+      description: Opcionalmente persiste (upsert) cada endpoint detectado y marca como `DEPRECATED_CANDIDATE` los que dejaron de existir en el código.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DiscoverEndpointsRequest' }
+      responses:
+        '201':
+          description: Resultado del escaneo (y persistencia si `persist=true`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_DiscoverEndpointsResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/endpoints/catalog-seed/refresh:
+    post:
+      operationId: refreshCatalogSeed
+      tags: [SystemsCatalog]
+      summary: Re-sembrar el catálogo completo desde fixtures/seeds del backend
+      description: Siembra herramientas, entidades de datos (desde modelos Sequelize), endpoints curados + discovery, impactos (desde docs/endpoints/endpoints.md), suites y perfiles de stress. Best-effort — entradas sin match se saltan silenciosamente, no lanza excepciones de negocio.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CatalogSeedRefreshRequest' }
+      responses:
+        '201':
+          description: Conteos de lo sembrado/actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_CatalogSeedRefreshResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/tools:
+    get:
+      operationId: listTools
+      tags: [SystemsCatalog]
+      summary: Listar herramientas/dependencias técnicas catalogadas
+      parameters:
+        - $ref: '#/components/parameters/ModuleQuery'
+        - $ref: '#/components/parameters/StatusQuery'
+        - $ref: '#/components/parameters/RiskLevelQuery'
+        - $ref: '#/components/parameters/ReviewStatusQuery'
+        - $ref: '#/components/parameters/QQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Lista paginada de herramientas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_ToolList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/tools/{toolId}:
+    get:
+      operationId: getTool
+      tags: [SystemsCatalog]
+      summary: Detalle de una herramienta catalogada
+      parameters:
+        - $ref: '#/components/parameters/ToolIdPath'
+      responses:
+        '200':
+          description: Herramienta encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_Tool'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_TOOL_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/tools/infer-requirements:
+    post:
+      operationId: inferToolRequirements
+      tags: [SystemsCatalog]
+      summary: Inferir qué herramientas usa cada endpoint activo (análisis de patrones sobre el código fuente)
+      description: |
+        Analiza el código de cada endpoint activo buscando referencias a herramientas conocidas
+        (JWT, ZOD, POSTGRES, SEQUELIZE, REDIS, OUTBOX_EVENTS_DB, IDEMPOTENCY_KEYS_DB,
+        OPERATIONAL_AUDIT_LOGS, SYSTEM_ACTION_LOGS, S3_OR_OBJECT_STORAGE, WHATSAPP_GENERIC, INFOCENTER)
+        y opcionalmente persiste el requisito detectado con `reviewStatus=NEEDS_REVIEW`.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InferToolRequirementsRequest' }
+      responses:
+        '201':
+          description: Resultado de la inferencia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_InferToolRequirementsResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/data-entities:
+    get:
+      operationId: listDataEntities
+      tags: [SystemsCatalog]
+      summary: Listar entidades de datos (tablas) catalogadas con su clasificación de sensibilidad
+      parameters:
+        - $ref: '#/components/parameters/ModuleQuery'
+        - $ref: '#/components/parameters/StatusQuery'
+        - $ref: '#/components/parameters/RiskLevelQuery'
+        - $ref: '#/components/parameters/ReviewStatusQuery'
+        - $ref: '#/components/parameters/QQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Lista paginada de entidades de datos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_DataEntityList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/data-entities/{entityId}:
+    get:
+      operationId: getDataEntity
+      tags: [SystemsCatalog]
+      summary: Detalle de una entidad de datos
+      parameters:
+        - $ref: '#/components/parameters/EntityIdPath'
+      responses:
+        '200':
+          description: Entidad encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_DataEntity'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_DATA_ENTITY_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/data-entities/{entityId}/metadata:
+    patch:
+      operationId: updateDataEntityMetadata
+      tags: [SystemsCatalog]
+      summary: Actualizar metadatos de gobierno de una entidad de datos
+      description: |
+        **ADVERTENCIA PARA FRONTEND:** este es el ÚNICO endpoint de todo el módulo `systems-ops`
+        que NO valida el body con Zod — se recibe como `@Body() body: Record<string, unknown>`
+        sin `ZodValidationPipe`. El repositorio (`updateDataEntityMetadata`) aplica una whitelist
+        de campos server-side (ver `UpdateDataEntityMetadataRequest` abajo); cualquier otro campo
+        enviado se ignora silenciosamente, y no hay control de tipos en runtime más allá de lo
+        que Sequelize acepte al persistir (un tipo incompatible puede producir un 500 no controlado
+        en vez de un 400 limpio).
+      parameters:
+        - $ref: '#/components/parameters/EntityIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateDataEntityMetadataRequest' }
+      responses:
+        '200':
+          description: Entidad actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_DataEntity'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_DATA_ENTITY_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/impact/by-endpoint/{endpointId}:
+    get:
+      operationId: getImpactByEndpoint
+      tags: [SystemsCatalog]
+      summary: Ver, desde un endpoint, qué herramientas usa y qué tablas/campos impacta
+      parameters:
+        - $ref: '#/components/parameters/EndpointIdPath'
+      responses:
+        '200':
+          description: Impacto del endpoint.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_ImpactByEndpoint'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_ENDPOINT_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/impact/by-table/{schemaName}/{tableName}:
+    get:
+      operationId: getImpactByTable
+      tags: [SystemsCatalog]
+      summary: Ver, desde una tabla, qué endpoints la impactan
+      parameters:
+        - name: schemaName
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 120 }
+          description: Nombre del esquema de BD (p. ej. `public`).
+        - name: tableName
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 180 }
+          description: Nombre de la tabla.
+      responses:
+        '200':
+          description: Impactos sobre la tabla.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_ImpactByTable'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_DATA_ENTITY_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/health/tools:
+    get:
+      operationId: getToolsHealth
+      tags: [SystemsCatalog]
+      summary: Estado de salud/configuración (env vars presentes) de cada herramienta catalogada
+      description: Máximo 100 herramientas. La respuesta `data` es un **array plano**, sin envolver en `items`/`meta` (a diferencia del resto de listados del módulo).
+      responses:
+        '200':
+          description: Array de salud de herramientas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_ToolHealthList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ============================================================
+  # SystemsReviewController
+  # ============================================================
+  /systems/review-queue:
+    get:
+      operationId: getReviewQueue
+      tags: [SystemsReview]
+      summary: Cola unificada de elementos del catálogo pendientes de revisión
+      description: 'Envuelve cada colección como `{items, total}` (SIN `page`/`limit`/`totalPages`) — distinto del envelope `{items, meta}` usado en el resto del módulo.'
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [all, endpoints, data_entities, data_impacts, field_impacts, data_column_impacts, tool_requirements]
+            default: all
+          description: Qué colección(es) incluir en la respuesta.
+        - $ref: '#/components/parameters/ModuleQuery'
+        - name: reviewStatus
+          in: query
+          schema:
+            type: string
+            enum: [AUTO_DETECTED, NEEDS_REVIEW, APPROVED, REJECTED]
+            default: NEEDS_REVIEW
+          description: Estado de revisión a filtrar en todas las colecciones.
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Cola de revisión agregada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_ReviewQueue'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/endpoints/{endpointId}/review:
+    patch:
+      operationId: reviewEndpoint
+      tags: [SystemsReview]
+      summary: Aprobar, rechazar o marcar para revisión un endpoint del catálogo
+      description: Usa `@CurrentUser()` para registrar `updatedBy`.
+      parameters:
+        - $ref: '#/components/parameters/EndpointIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewDecisionRequest' }
+      responses:
+        '200':
+          description: Endpoint actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_EndpointDetail_EndpointOnly'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_ENDPOINT_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/tools/requirements/{requirementId}/review:
+    patch:
+      operationId: reviewToolRequirement
+      tags: [SystemsReview]
+      summary: Revisar un requisito de herramienta inferido/manual para un endpoint
+      parameters:
+        - $ref: '#/components/parameters/RequirementIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewDecisionRequest' }
+      responses:
+        '200':
+          description: Requisito de herramienta actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_ToolRequirement'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_TOOL_REQUIREMENT_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/data-entities/{entityId}/review:
+    patch:
+      operationId: reviewDataEntity
+      tags: [SystemsReview]
+      summary: Revisar (aprobar/rechazar) una entidad de datos del catálogo
+      parameters:
+        - $ref: '#/components/parameters/EntityIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewDecisionRequest' }
+      responses:
+        '200':
+          description: Entidad actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_DataEntity'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_DATA_ENTITY_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/data-entities/columns/{columnId}/review:
+    patch:
+      operationId: reviewDataColumn
+      tags: [SystemsReview]
+      summary: Revisar una columna del catalogo de datos
+      description: Reutiliza `ReviewDecisionRequest`; si viene `notes`, se guarda como nota operacional y marca la columna como editada manualmente.
+      parameters:
+        - name: columnId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]*$' }
+          description: Id numerico de la columna en system_data_field_catalog.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewDecisionRequest' }
+      responses:
+        '200':
+          description: Columna actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_DataEntityColumn'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_DATA_COLUMN_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/impact/data/{impactId}/review:
+    patch:
+      operationId: reviewDataImpact
+      tags: [SystemsReview]
+      summary: Revisar un impacto de endpoint sobre entidad de datos
+      description: A diferencia de `reviewEndpoint`/`reviewDataEntity`, el campo `notes` de `ReviewDecisionRequest` SÍ se persiste aquí si viene definido.
+      parameters:
+        - name: impactId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]*$' }
+          description: Id numérico del impacto de datos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewDecisionRequest' }
+      responses:
+        '200':
+          description: Impacto de datos actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_DataImpact'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_DATA_IMPACT_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/impact/fields/{fieldImpactId}/review:
+    patch:
+      operationId: reviewFieldImpact
+      tags: [SystemsReview]
+      summary: Revisar un impacto de endpoint sobre un campo específico
+      description: El campo `notes` de `ReviewDecisionRequest` SÍ se persiste aquí si viene definido.
+      parameters:
+        - name: fieldImpactId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]*$' }
+          description: Id numérico del impacto de campo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewDecisionRequest' }
+      responses:
+        '200':
+          description: Impacto de campo actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_FieldImpact'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_FIELD_IMPACT_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  # ============================================================
+  # SystemsStressController
+  # ============================================================
+  /systems/stress-profiles:
+    get:
+      operationId: listStressProfiles
+      tags: [SystemsStress]
+      summary: Listar perfiles de prueba de stress configurados por endpoint
+      parameters:
+        - $ref: '#/components/parameters/EndpointIdQuery'
+        - $ref: '#/components/parameters/StatusQuery'
+        - name: enabled
+          in: query
+          schema: { type: boolean }
+          description: Filtra por `isEnabled` (coercionado desde string).
+        - $ref: '#/components/parameters/QQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Lista paginada de perfiles de stress.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_StressProfileList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: upsertStressProfile
+      tags: [SystemsStress]
+      summary: Crear o actualizar (upsert) un perfil de stress para un endpoint
+      description: Usa `@CurrentUser()` como `createdBy`/`updatedBy`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpsertStressProfileRequest' }
+      responses:
+        '201':
+          description: Perfil creado/actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_StressProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_ENDPOINT_NOT_FOUND (el `endpointId` enviado no existe en el catálogo)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/stress-profiles/{profileId}:
+    get:
+      operationId: getStressProfile
+      tags: [SystemsStress]
+      summary: Detalle de un perfil de stress
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+      responses:
+        '200':
+          description: Perfil encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_StressProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_STRESS_PROFILE_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/stress-profiles/{profileId}/queue-run:
+    post:
+      operationId: queueStressRun
+      tags: [SystemsStress]
+      summary: Encolar un job de ejecución de stress test para un perfil
+      description: |
+        Esta fase solo encola el plan (`SystemJobRunModel`, `jobCode='systems_stress_run'`,
+        `status='queued'`); la ejecución real la realiza un worker externo, no este endpoint.
+        Usa `@CurrentUser()` como `triggeredById`.
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QueueStressRunRequest' }
+      responses:
+        '201':
+          description: Job de stress encolado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_QueueStressRunResult'
+        '400':
+          description: |
+            Uno de:
+            - `VALIDATION_ERROR` (Zod, p. ej. `baseUrl` no es URL).
+            - `SYSTEM_STRESS_PROFILE_NOT_ACTIVE` (perfil deshabilitado o `status != 'ACTIVE'`).
+            - `SYSTEM_STRESS_ENVIRONMENT_NOT_ALLOWED` (`environment` fuera del `environmentScope` del perfil).
+            - `STRESS_RUNS_ARE_BLOCKED_IN_PRODUCTION` (`environment === 'PRODUCTION_READONLY'`, bloqueado siempre).
+            - `STRESS_RUN_REQUIRES_APPROVAL_TICKET` (`dryRun=false`, perfil `requiresApproval=true` y sin `approvalTicket`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_STRESS_PROFILE_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/stress-matrix:
+    get:
+      operationId: getStressMatrix
+      tags: [SystemsStress]
+      summary: Ver, por endpoint que requiere stress test, qué perfiles tiene y si alguno está habilitado
+      parameters:
+        - $ref: '#/components/parameters/ModuleQuery'
+        - $ref: '#/components/parameters/StatusQuery'
+        - $ref: '#/components/parameters/RiskLevelQuery'
+        - $ref: '#/components/parameters/ReviewStatusQuery'
+        - $ref: '#/components/parameters/QQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Matriz de cobertura de stress testing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_StressMatrix'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/stress-runs:
+    get:
+      operationId: listStressRuns
+      tags: [SystemsStress]
+      summary: Listar jobs de ejecución de stress (jobCode='systems_stress_run')
+      parameters:
+        - name: suiteId
+          in: query
+          schema: { type: string, pattern: '^[1-9][0-9]*$' }
+          description: 'No aplica a stress runs (parámetro compartido con /test-runs); sin efecto aquí.'
+        - name: status
+          in: query
+          schema: { type: string, enum: [QUEUED, RUNNING, PASSED, FAILED, CANCELLED] }
+          description: Se compara en minúscula contra el status real del job.
+        - name: environment
+          in: query
+          schema: { type: string, enum: [LOCAL, STAGING, PRODUCTION_READONLY] }
+          description: 'No aplica (sin efecto en este endpoint, parámetro compartido con /test-runs).'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Lista paginada de runs de stress, orden createdAt DESC.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_JobRunList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ============================================================
+  # SystemsTestController
+  # ============================================================
+  /systems/test-suites:
+    post:
+      operationId: createTestSuite
+      tags: [SystemsTest]
+      summary: Crear una suite de pruebas para un módulo del backend
+      description: Usa `@CurrentUser()` como `createdBy`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTestSuiteRequest' }
+      responses:
+        '201':
+          description: Suite creada (sin pasos).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_TestSuiteDetail'
+        '400':
+          description: |
+            Uno de:
+            - `VALIDATION_ERROR` (Zod).
+            - `PRODUCTION_READONLY_REQUIRES_SAFE_SUITE` (`environmentScope` incluye `PRODUCTION_READONLY` sin `isSafeForProduction=true`).
+            - `SYSTEM_TEST_SUITE_CREATE_FAILED` (otro error de persistencia).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: SYSTEM_TEST_SUITE_OR_STEP_ALREADY_EXISTS (código duplicado)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    get:
+      operationId: listTestSuites
+      tags: [SystemsTest]
+      summary: Listar suites de prueba con filtros
+      parameters:
+        - $ref: '#/components/parameters/ModuleQuery'
+        - name: suiteType
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 200 }
+          description: 'Lista de tipos separada por coma, p. ej. `INTEGRATION,SMOKE`.'
+        - name: enabled
+          in: query
+          schema: { type: boolean }
+          description: Filtra por `isEnabled`.
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Lista paginada de suites.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_TestSuiteList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/test-suites/{suiteId}:
+    get:
+      operationId: getTestSuite
+      tags: [SystemsTest]
+      summary: Obtener una suite con todos sus pasos ordenados
+      parameters:
+        - $ref: '#/components/parameters/SuiteIdPath'
+      responses:
+        '200':
+          description: Suite con sus pasos (orden stepOrder ASC).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_TestSuiteDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_TEST_SUITE_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    patch:
+      operationId: updateTestSuite
+      tags: [SystemsTest]
+      summary: Actualizar campos de una suite existente (parcial)
+      description: 'Mismos campos que `CreateTestSuiteRequest`, todos opcionales — pero el body debe traer al menos uno (`400` con mensaje "Debe enviar al menos un campo para actualizar." si viene vacío).'
+      parameters:
+        - $ref: '#/components/parameters/SuiteIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTestSuiteRequest' }
+      responses:
+        '200':
+          description: Suite actualizada (pasos sin cambios por este endpoint).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_TestSuiteDetail'
+        '400':
+          description: |
+            Uno de: `VALIDATION_ERROR`, `PRODUCTION_READONLY_REQUIRES_SAFE_SUITE`,
+            `SYSTEM_TEST_SUITE_UPDATE_FAILED`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_TEST_SUITE_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '409':
+          description: SYSTEM_TEST_SUITE_OR_STEP_ALREADY_EXISTS
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/test-suites/{suiteId}/steps:
+    post:
+      operationId: createTestStep
+      tags: [SystemsTest]
+      summary: Agregar un paso (llamada HTTP) a una suite de pruebas
+      parameters:
+        - $ref: '#/components/parameters/SuiteIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTestStepRequest' }
+      responses:
+        '201':
+          description: Paso creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_TestStep'
+        '400':
+          description: |
+            Uno de:
+            - `VALIDATION_ERROR`.
+            - `SYSTEM_TEST_STEP_ENDPOINT_NOT_FOUND` (`endpointId` enviado no existe en catálogo).
+            - `PRODUCTION_SAFE_SUITE_ONLY_ALLOWS_READONLY_METHODS` (suite `isSafeForProduction=true` y `method` no es GET/HEAD/OPTIONS).
+            - `PRODUCTION_SAFE_SUITE_PATH_LOOKS_MUTATING` (suite `isSafeForProduction=true` y `pathTemplate` matchea patrón de mutación).
+            - `SYSTEM_TEST_STEP_CREATE_FAILED`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_TEST_SUITE_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '409':
+          description: SYSTEM_TEST_SUITE_OR_STEP_ALREADY_EXISTS
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/test-suites/{suiteId}/steps/{stepId}:
+    patch:
+      operationId: updateTestStep
+      tags: [SystemsTest]
+      summary: Actualizar un paso existente de una suite (parcial)
+      parameters:
+        - $ref: '#/components/parameters/SuiteIdPath'
+        - name: stepId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]*$' }
+          description: Id numérico del paso.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTestStepRequest' }
+      responses:
+        '200':
+          description: Paso actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_TestStep'
+        '400':
+          description: |
+            Uno de: `VALIDATION_ERROR` (incluye body vacío), `SYSTEM_TEST_STEP_ENDPOINT_NOT_FOUND`,
+            `PRODUCTION_SAFE_SUITE_ONLY_ALLOWS_READONLY_METHODS`, `PRODUCTION_SAFE_SUITE_PATH_LOOKS_MUTATING`,
+            `SYSTEM_TEST_STEP_UPDATE_FAILED`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_TEST_SUITE_NOT_FOUND o SYSTEM_TEST_STEP_NOT_FOUND (paso no existe o no pertenece a la suite)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '409':
+          description: SYSTEM_TEST_SUITE_OR_STEP_ALREADY_EXISTS
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/test-suites/{suiteId}/steps/reorder:
+    post:
+      operationId: reorderTestSteps
+      tags: [SystemsTest]
+      summary: Reordenar en bloque los pasos de una suite
+      parameters:
+        - $ref: '#/components/parameters/SuiteIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReorderTestStepsRequest' }
+      responses:
+        '201':
+          description: Pasos reordenados (todos los pasos de la suite tras el reorden, orden stepOrder ASC).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_TestStepList'
+        '400':
+          description: |
+            Uno de:
+            - `VALIDATION_ERROR`.
+            - `SYSTEM_TEST_STEP_NOT_IN_SUITE:<ids>` (algún `stepId` enviado no pertenece a la suite; el mensaje incluye los ids desconocidos).
+            - `SYSTEM_TEST_STEP_DUPLICATED_ORDER` (`stepOrder` duplicado entre los items enviados).
+            - `SYSTEM_TEST_STEP_REORDER_FAILED`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_TEST_SUITE_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/test-suites/{suiteId}/run:
+    post:
+      operationId: runTestSuite
+      tags: [SystemsTest]
+      summary: Ejecutar una suite de pruebas (dry-run simulado o HTTP real), paso a paso
+      description: |
+        Evalúa aserciones y encadena contexto entre pasos (extractors). Usa `@CurrentUser()`
+        como `triggeredBy`. Los errores dentro de un paso individual (p. ej. `pathTemplate` no
+        resuelve, timeout HTTP) **no** se propagan como excepción HTTP: el paso queda `FAILED`
+        con `errorMessage` y la suite continúa o se detiene según `continueOnFailure` de cada paso.
+      parameters:
+        - $ref: '#/components/parameters/SuiteIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunTestSuiteRequest' }
+      responses:
+        '201':
+          description: Resultado agregado del run + detalle de cada paso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_TestRunDetail'
+        '400':
+          description: |
+            Uno de:
+            - `VALIDATION_ERROR`.
+            - `SYSTEM_TEST_SUITE_DISABLED` (`isEnabled=false`).
+            - `SYSTEM_TEST_BASE_URL_REQUIRED_FOR_REAL_RUN` (`dryRun=false` sin `baseUrl`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: |
+            Uno de:
+            - Rol fuera de la lista permitida (mensaje genérico de `RolesGuard`).
+            - `SYSTEM_TEST_ENVIRONMENT_NOT_ALLOWED_FOR_SUITE` (`environment` no está en `environmentScope` de la suite).
+            - `SYSTEM_TEST_PRODUCTION_EXECUTION_BLOCKED` (`environment=PRODUCTION_READONLY` y `isSafeForProduction=false` o `dryRun=false`).
+            - `SYSTEM_TEST_LOCAL_ENVIRONMENT_REQUIRES_LOCAL_BASE_URL` (ejecución real en `LOCAL` con `baseUrl` cuyo host no es localhost/127.0.0.1/host.docker.internal).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '404':
+          description: SYSTEM_TEST_SUITE_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /systems/test-runs:
+    get:
+      operationId: listTestRuns
+      tags: [SystemsTest]
+      summary: Listar ejecuciones de suites de prueba
+      parameters:
+        - $ref: '#/components/parameters/SuiteIdQuery'
+        - name: status
+          in: query
+          schema: { type: string, enum: [QUEUED, RUNNING, PASSED, FAILED, CANCELLED] }
+        - name: environment
+          in: query
+          schema: { type: string, enum: [LOCAL, STAGING, PRODUCTION_READONLY] }
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Lista paginada de runs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_TestRunList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/test-runs/{runId}:
+    get:
+      operationId: getTestRun
+      tags: [SystemsTest]
+      summary: Detalle de una ejecución de suite, incluyendo el resultado de cada paso
+      parameters:
+        - $ref: '#/components/parameters/RunIdPath'
+      responses:
+        '200':
+          description: Run con sus pasos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_TestRunDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_TEST_RUN_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT emitido por `POST /api/v1/internal/auth/login` (o `/api/v1/auth/login` para
+        roles no internos). Debe pertenecer a un usuario con rol en:
+        system_admin, platform_admin, admin, qa_engineer, devops, risk_analyst,
+        compliance_analyst, readonly_auditor.
+
+  responses:
+    BadRequest:
+      description: Entrada inválida (Zod) o regla de negocio violada — ver detalle por endpoint.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: Falta `Authorization`, formato inválido, token expirado/inválido o revocado.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Forbidden:
+      description: 'Rol autenticado no está en la lista permitida: "El usuario autenticado no tiene permiso para esta operación."'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  parameters:
+    PageQuery:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+      description: Número de página (entero positivo, coercionado desde string).
+    LimitQuery:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      description: Tamaño de página (máx 100).
+    ModuleQuery:
+      name: module
+      in: query
+      schema: { type: string, minLength: 1, maxLength: 120 }
+      description: Filtra por módulo.
+    StatusQuery:
+      name: status
+      in: query
+      schema: { type: string, minLength: 1, maxLength: 40 }
+      description: 'Filtra por estado (valores dependen de la entidad, p. ej. ACTIVE, DEPRECATED_CANDIDATE, DISABLED, NEEDS_REVIEW).'
+    RiskLevelQuery:
+      name: riskLevel
+      in: query
+      schema: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+      description: Filtra por nivel de riesgo.
+    ReviewStatusQuery:
+      name: reviewStatus
+      in: query
+      schema: { type: string, enum: [AUTO_DETECTED, NEEDS_REVIEW, APPROVED, REJECTED] }
+      description: Filtra por estado de revisión.
+    QQuery:
+      name: q
+      in: query
+      schema: { type: string, minLength: 1, maxLength: 200 }
+      description: Búsqueda de texto libre.
+    EndpointIdQuery:
+      name: endpointId
+      in: query
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      description: Filtra por id de endpoint del catálogo.
+    SuiteIdQuery:
+      name: suiteId
+      in: query
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      description: Filtra por suite.
+    EndpointIdPath:
+      name: endpointId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      description: Id numérico del endpoint (representado como texto).
+    ToolIdPath:
+      name: toolId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      description: Id numérico de la herramienta.
+    EntityIdPath:
+      name: entityId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      description: Id numérico de la entidad de datos.
+    ProfileIdPath:
+      name: profileId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      description: Id numérico del perfil de stress.
+    SuiteIdPath:
+      name: suiteId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      description: Id numérico de la suite de pruebas.
+    RunIdPath:
+      name: runId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      description: Id numérico del run de suite.
+    RequirementIdPath:
+      name: requirementId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      description: Id numérico del requisito de herramienta.
+    RequestIdPath:
+      name: requestId
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 120 }
+      description: Identificador de request (`x-request-id`) a buscar en el log de acciones.
+    ActionLogEndpointIdQuery:
+      name: endpointId
+      in: query
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      description: Filtra por id de endpoint del catálogo.
+    ActionLogRequestIdQuery:
+      name: requestId
+      in: query
+      schema: { type: string, minLength: 1, maxLength: 120 }
+      description: Filtra por requestId exacto.
+    ActionLogCorrelationIdQuery:
+      name: correlationId
+      in: query
+      schema: { type: string, minLength: 1, maxLength: 120 }
+      description: Filtra por correlationId.
+    ActionLogMethodQuery:
+      name: method
+      in: query
+      schema: { type: string, enum: [GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD] }
+      description: Filtra por método HTTP.
+    ActionLogStatusCodeQuery:
+      name: statusCode
+      in: query
+      schema: { type: integer, minimum: 100, maximum: 599 }
+      description: Filtra por status code de la respuesta registrada.
+    ActionLogActorTypeQuery:
+      name: actorType
+      in: query
+      schema: { type: string, minLength: 1, maxLength: 80 }
+      description: Filtra por tipo de actor.
+
+  schemas:
+    # ---------- Envoltura global ----------
+    ErrorEnvelope:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true, example: 'req-8f3c2a' }
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT, INTERNAL_ERROR]
+            message: { type: string, example: 'SYSTEM_ENDPOINT_NOT_FOUND' }
+          required: [code, message]
+        timestamp: { type: string, format: date-time }
+      required: [error, timestamp]
+
+    PaginationMeta:
+      type: object
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+      required: [page, limit, total, totalPages]
+
+    # ---------- Entidades del dominio (forma real devuelta por los mappers) ----------
+    Endpoint:
+      type: object
+      description: Forma producida por `mapEndpoint` (src/modules/systems-ops/systems-ops.mapper.ts).
+      properties:
+        endpointId: { type: string }
+        code: { type: string }
+        module: { type: string }
+        controllerName: { type: string, nullable: true }
+        handlerName: { type: string, nullable: true }
+        method: { type: string }
+        routePath: { type: string, description: 'Ruta relativa, sin el prefijo /api/v1.' }
+        fullPath: { type: string, description: 'Ruta completa con prefijo /api/v1.' }
+        routeName: { type: string }
+        businessPurpose: { type: string }
+        businessAction: { type: string, nullable: true }
+        expectedResponseSummary: { type: string, nullable: true }
+        expectedStatusCodes: { type: array, items: { type: integer } }
+        minPayloadSchema: { type: object }
+        queryParamsSchema: { type: object }
+        pathParamsSchema: { type: object }
+        headersSchema: { type: object }
+        requiresAuth: { type: boolean }
+        allowedRoles: { type: array, items: { type: string } }
+        containsPii: { type: boolean }
+        piiFields: { type: array, items: { type: string } }
+        riskLevel: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+        isDestructive: { type: boolean }
+        isReadonly: { type: boolean }
+        idempotencyRequired: { type: boolean }
+        requiresStressTest: { type: boolean }
+        requiresIntegrationTest: { type: boolean }
+        isTestableFromPortal: { type: boolean }
+        testEnvironmentOnly: { type: boolean }
+        ownerTeam: { type: string, nullable: true }
+        status: { type: string, example: ACTIVE }
+        version: { type: string, example: v1 }
+        detectedFrom: { type: string, example: controller }
+        confidenceLevel: { type: string, example: MEDIUM }
+        reviewStatus: { type: string, enum: [AUTO_DETECTED, NEEDS_REVIEW, APPROVED, REJECTED] }
+        sourceFile: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+
+    Tool:
+      type: object
+      description: Forma producida por `mapTool`.
+      properties:
+        toolId: { type: string }
+        code: { type: string }
+        name: { type: string }
+        type: { type: string }
+        provider: { type: string, nullable: true }
+        purpose: { type: string }
+        requiredEnvVars: { type: array, items: { type: string } }
+        hasSandbox: { type: boolean }
+        healthcheckRoute: { type: string, nullable: true }
+        requiresCredentials: { type: boolean }
+        isCritical: { type: boolean }
+        status: { type: string }
+        ownerTeam: { type: string, nullable: true }
+
+    DataEntity:
+      type: object
+      description: Forma producida por `mapDataEntity`.
+      properties:
+        entityId: { type: string }
+        schemaName: { type: string }
+        tableName: { type: string }
+        modelName: { type: string, nullable: true }
+        entityName: { type: string }
+        module: { type: string }
+        businessPurpose: { type: string }
+        dataOwner: { type: string }
+        containsPii: { type: boolean }
+        containsFinancialData: { type: boolean }
+        containsRiskData: { type: boolean }
+        containsLegalData: { type: boolean }
+        containsDeviceData: { type: boolean }
+        containsLocationData: { type: boolean }
+        isAuditCritical: { type: boolean }
+        retentionPolicyCode: { type: string, nullable: true }
+        status: { type: string }
+        detectedFrom: { type: string }
+        confidenceLevel: { type: string }
+        reviewStatus: { type: string, enum: [AUTO_DETECTED, NEEDS_REVIEW, APPROVED, REJECTED] }
+        columns:
+          type: array
+          items: { $ref: '#/components/schemas/DataEntityColumn' }
+        relatedColumns:
+          type: array
+          items: { $ref: '#/components/schemas/DataEntityColumn' }
+        relations:
+          type: array
+          items: { $ref: '#/components/schemas/DataRelationship' }
+        relatedTables:
+          type: array
+          items: { type: string }
+
+    DataEntityColumn:
+      type: object
+      description: Columna persistida en `system_data_field_catalog`, poblada desde information_schema.
+      properties:
+        columnId: { type: string }
+        dataEntityId: { type: string, nullable: true }
+        schemaName: { type: string }
+        tableName: { type: string }
+        columnName: { type: string }
+        ordinalPosition: { type: integer, nullable: true }
+        businessName: { type: string, nullable: true }
+        dataType: { type: string, nullable: true }
+        sqlDataType: { type: string, nullable: true }
+        isNullable: { type: boolean }
+        isPrimaryKey: { type: boolean }
+        isForeignKey: { type: boolean }
+        referencesEntityId: { type: string, nullable: true }
+        referencesSchema: { type: string, nullable: true }
+        referencesTable: { type: string, nullable: true }
+        referencesColumnName: { type: string, nullable: true }
+        defaultValue: { type: string, nullable: true }
+        businessDescription: { type: string, nullable: true }
+        technicalDescription: { type: string, nullable: true }
+        systemPurpose: { type: string, nullable: true }
+        businessPurpose: { type: string, nullable: true }
+        containsPii: { type: boolean }
+        piiType: { type: string, nullable: true }
+        containsSensitive: { type: boolean }
+        containsFinancial: { type: boolean }
+        containsFinancialData: { type: boolean }
+        containsRiskData: { type: boolean }
+        usedInScoring: { type: boolean }
+        usedInMl: { type: boolean }
+        isMlCandidate: { type: boolean }
+        validationRule: { type: object, nullable: true }
+        allowedValues: { type: array, nullable: true, items: {} }
+        status: { type: string, enum: [ACTIVE, DEPRECATED_CANDIDATE, DEPRECATED, DISABLED] }
+        detectedFrom: { type: string }
+        confidenceLevel: { type: string }
+        reviewStatus: { type: string, enum: [AUTO_DETECTED, NEEDS_REVIEW, APPROVED, REJECTED] }
+
+    DataRelationship:
+      type: object
+      description: Relacion entre tablas, normalmente derivada de FKs reales.
+      properties:
+        relationId: { type: string }
+        relationshipId: { type: string }
+        sourceDataEntityId: { type: string, nullable: true }
+        targetDataEntityId: { type: string, nullable: true }
+        sourceSchema: { type: string }
+        sourceTable: { type: string }
+        sourceColumn: { type: string, nullable: true }
+        targetSchema: { type: string }
+        targetTable: { type: string }
+        targetColumn: { type: string, nullable: true }
+        column: { type: string, nullable: true }
+        referencesEntityId: { type: string, nullable: true }
+        referencesColumn: { type: string, nullable: true }
+        relationshipType: { type: string }
+        cardinality: { type: string }
+        optionality: { type: string }
+        businessReason: { type: string, nullable: true }
+        technicalReason: { type: string, nullable: true }
+        confidenceLevel: { type: string }
+        reviewStatus: { type: string, enum: [AUTO_DETECTED, NEEDS_REVIEW, APPROVED, REJECTED] }
+
+    ToolRequirement:
+      type: object
+      description: Forma producida por `mapToolRequirement`.
+      properties:
+        requirementId: { type: string }
+        endpointId: { type: string }
+        toolId: { type: string }
+        usageType: { type: string }
+        isRequired: { type: boolean }
+        failureImpact: { type: string }
+        fallbackStrategy: { type: string }
+        requiresMock: { type: boolean }
+        requiresStressTest: { type: boolean }
+        notes: { type: string, nullable: true }
+        detectedFrom: { type: string }
+        confidenceLevel: { type: string }
+        reviewStatus: { type: string, enum: [AUTO_DETECTED, NEEDS_REVIEW, APPROVED, REJECTED] }
+
+    DataImpact:
+      type: object
+      description: Forma producida por `mapDataImpact`.
+      properties:
+        impactId: { type: string }
+        endpointId: { type: string }
+        dataEntityId: { type: string }
+        operationType: { type: string, example: 'READ | CREATE | UPDATE | DELETE' }
+        impactLevel: { type: string }
+        isPrimaryEntity: { type: boolean }
+        isTransactional: { type: boolean }
+        rollbackRequired: { type: boolean }
+        affectsCustomerState: { type: boolean }
+        affectsFinancialState: { type: boolean }
+        affectsRiskState: { type: boolean }
+        affectsLegalState: { type: boolean }
+        affectsDeviceState: { type: boolean }
+        affectsNotificationState: { type: boolean }
+        requiresAuditLog: { type: boolean }
+        requiresRegressionTest: { type: boolean }
+        requiresStressTest: { type: boolean }
+        notes: { type: string, nullable: true }
+        detectedFrom: { type: string }
+        confidenceLevel: { type: string }
+        reviewStatus: { type: string, enum: [AUTO_DETECTED, NEEDS_REVIEW, APPROVED, REJECTED] }
+
+    FieldImpact:
+      type: object
+      description: Forma producida por `mapFieldImpact`.
+      properties:
+        fieldImpactId: { type: string }
+        endpointId: { type: string }
+        dataEntityId: { type: string }
+        fieldName: { type: string }
+        fieldOperation: { type: string }
+        isRequiredInput: { type: boolean }
+        isGenerated: { type: boolean }
+        isSensitive: { type: boolean }
+        isMlCandidate: { type: boolean }
+        mlFeatureGroup: { type: string, nullable: true }
+        validationRule: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        confidenceLevel: { type: string }
+        reviewStatus: { type: string, enum: [AUTO_DETECTED, NEEDS_REVIEW, APPROVED, REJECTED] }
+
+    ActionLog:
+      type: object
+      description: Forma producida por `mapActionLog`.
+      properties:
+        actionLogId: { type: string }
+        requestId: { type: string }
+        correlationId: { type: string, nullable: true }
+        endpointCatalogId: { type: string, nullable: true }
+        actorUserId: { type: string, nullable: true }
+        actorType: { type: string }
+        actorRole: { type: string, nullable: true }
+        method: { type: string }
+        routeTemplate: { type: string, example: '/systems/endpoints/:endpointId' }
+        resolvedUrlSanitized: { type: string }
+        module: { type: string }
+        actionName: { type: string }
+        ipAddress: { type: string, nullable: true }
+        targetType: { type: string, nullable: true }
+        targetId: { type: string, nullable: true }
+        customerId: { type: string, nullable: true }
+        responseStatusCode: { type: integer }
+        durationMs: { type: number }
+        riskLevel: { type: string }
+        containsPii: { type: boolean }
+        occurredAt: { type: string, format: date-time, nullable: true }
+
+    StressProfile:
+      type: object
+      description: Forma producida por `mapStressProfile`.
+      properties:
+        profileId: { type: string }
+        endpointId: { type: string }
+        code: { type: string }
+        name: { type: string }
+        targetRps: { type: integer }
+        durationSeconds: { type: integer }
+        concurrency: { type: integer }
+        environmentScope: { type: array, items: { type: string, enum: [LOCAL, STAGING, PRODUCTION_READONLY] } }
+        maxErrorRate: { type: number }
+        maxP95Ms: { type: integer }
+        isEnabled: { type: boolean }
+        requiresApproval: { type: boolean }
+        status: { type: string, enum: [ACTIVE, DISABLED, NEEDS_REVIEW, DEPRECATED] }
+        notes: { type: string, nullable: true }
+        createdBy: { type: string, nullable: true }
+        updatedBy: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+
+    JobRun:
+      type: object
+      description: Fila de `SystemJobRunModel` (usada por stress-runs).
+      properties:
+        jobRunId: { type: string }
+        jobCode: { type: string, example: systems_stress_run }
+        status: { type: string }
+        startedAt: { type: string, format: date-time, nullable: true }
+        completedAt: { type: string, format: date-time, nullable: true }
+        inputJson: { type: object }
+        resultJson: { type: object, nullable: true }
+        errorMessage: { type: string, nullable: true }
+        triggeredByType: { type: string, example: user }
+        triggeredById: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+
+    TestSuite:
+      type: object
+      description: Forma producida por `mapTestSuite`.
+      properties:
+        suiteId: { type: string }
+        code: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        module: { type: string }
+        suiteType: { type: string, enum: [INTEGRATION, SMOKE, REGRESSION, E2E_API, LOAD] }
+        executionMode: { type: string, example: SYNC_OR_JOB }
+        environmentScope: { type: array, items: { type: string, enum: [LOCAL, STAGING, PRODUCTION_READONLY] } }
+        isEnabled: { type: boolean }
+        requiresSeedData: { type: boolean }
+        isSafeForProduction: { type: boolean }
+        requiresDestructivePermission: { type: boolean }
+
+    TestStep:
+      type: object
+      description: Forma producida por `mapTestStep`.
+      properties:
+        stepId: { type: string }
+        suiteId: { type: string }
+        endpointId: { type: string, nullable: true }
+        stepOrder: { type: integer }
+        name: { type: string }
+        inputMode: { type: string, enum: [DEFAULT, CONFIGURABLE, GENERATED, FROM_PREVIOUS_STEP] }
+        method: { type: string, enum: [GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD] }
+        pathTemplate: { type: string, example: '/systems/endpoints/{{endpointId}}' }
+        defaultHeaders: { type: object }
+        defaultPayload: { type: object }
+        configSchema: { type: object }
+        extractors: { type: object }
+        assertions: { type: object, example: { expectedStatusCodes: [200, 201] } }
+        continueOnFailure: { type: boolean }
+        cleanupRequired: { type: boolean }
+
+    TestRun:
+      type: object
+      description: Forma producida por `mapTestRun`.
+      properties:
+        runId: { type: string }
+        suiteId: { type: string }
+        environment: { type: string, enum: [LOCAL, STAGING, PRODUCTION_READONLY] }
+        triggeredBy: { type: string, nullable: true }
+        status: { type: string, enum: [PASSED, FAILED] }
+        startedAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+        durationMs: { type: number, nullable: true }
+        summary:
+          type: object
+          nullable: true
+          properties:
+            dryRun: { type: boolean }
+            totalSteps: { type: integer }
+            passed: { type: integer }
+            failed: { type: integer }
+            skipped: { type: integer }
+            extractedContextKeys: { type: array, items: { type: string } }
+        logsUrl: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+
+    TestStepRun:
+      type: object
+      description: Forma producida por `mapTestStepRun`.
+      properties:
+        stepRunId: { type: string }
+        testRunId: { type: string }
+        stepId: { type: string }
+        status: { type: string, enum: [PASSED, FAILED, SKIPPED] }
+        requestPayloadSanitized: { type: object }
+        responseBodySanitized: { type: object }
+        statusCode: { type: integer, nullable: true }
+        durationMs: { type: number }
+        errorMessage: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+
+    # ---------- Request bodies ----------
+    ReviewDecisionRequest:
+      type: object
+      description: Compartido por los endpoints `*/review` de `SystemsReviewController` (`reviewDecisionSchema`).
+      properties:
+        reviewStatus:
+          type: string
+          enum: [NEEDS_REVIEW, APPROVED, REJECTED]
+        confidenceLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        notes:
+          type: string
+          maxLength: 1000
+          description: 'Solo se persiste en data_impact, field_impact y tool_requirement (NO en endpoints ni data_entities).'
+      required: [reviewStatus]
+
+    DiscoverEndpointsRequest:
+      type: object
+      properties:
+        mode: { type: string, enum: [SOURCE_SCAN], default: SOURCE_SCAN }
+        persist: { type: boolean, default: true }
+
+    CatalogSeedRefreshRequest:
+      type: object
+      properties:
+        includeTools: { type: boolean, default: true }
+        includeDataEntities: { type: boolean, default: true }
+        includeEndpointSeeds: { type: boolean, default: true }
+
+    InferToolRequirementsRequest:
+      type: object
+      properties:
+        persist: { type: boolean, default: true }
+
+    UpdateDataEntityMetadataRequest:
+      type: object
+      description: |
+        **Sin validación Zod** — cualquier campo fuera de esta whitelist se ignora
+        silenciosamente y ningún campo listado aquí se valida por tipo en el pipe
+        (solo lo que Sequelize acepte al guardar).
+      properties:
+        businessPurpose: { type: string }
+        dataOwner: { type: string }
+        containsPii: { type: boolean }
+        containsFinancialData: { type: boolean }
+        containsRiskData: { type: boolean }
+        containsLegalData: { type: boolean }
+        containsDeviceData: { type: boolean }
+        containsLocationData: { type: boolean }
+        isAuditCritical: { type: boolean }
+        retentionPolicyCode: { type: string }
+        status: { type: string }
+        reviewStatus: { type: string }
+
+    QueueStressRunRequest:
+      type: object
+      properties:
+        environment: { type: string, enum: [LOCAL, STAGING, PRODUCTION_READONLY], default: LOCAL }
+        dryRun: { type: boolean, default: true }
+        baseUrl: { type: string, format: uri }
+        approvalTicket: { type: string, minLength: 3, maxLength: 160, description: 'Obligatorio si dryRun=false y el perfil requiresApproval=true.' }
+        config: { type: object, default: {} }
+        headers:
+          type: object
+          additionalProperties: { type: string }
+          default: {}
+          description: 'Los que matchean /authorization|token|cookie|secret|key/i se guardan como "[REDACTED]".'
+
+    UpsertStressProfileRequest:
+      type: object
+      properties:
+        endpointId: { type: string, pattern: '^[1-9][0-9]*$' }
+        code: { type: string, minLength: 3, maxLength: 180, pattern: '^[A-Z0-9_]+$', description: 'Si se omite, se genera como STRESS_<endpoint.code>.' }
+        name: { type: string, minLength: 3, maxLength: 220 }
+        targetRps: { type: integer, minimum: 1, maximum: 10000 }
+        durationSeconds: { type: integer, minimum: 5, maximum: 86400 }
+        concurrency: { type: integer, minimum: 1, maximum: 5000 }
+        environmentScope:
+          type: array
+          items: { type: string, enum: [LOCAL, STAGING, PRODUCTION_READONLY] }
+          minItems: 1
+          maxItems: 3
+          default: [LOCAL, STAGING]
+        maxErrorRate: { type: number, minimum: 0, maximum: 1, default: 0.01 }
+        maxP95Ms: { type: integer, minimum: 1, maximum: 300000, default: 1000 }
+        isEnabled: { type: boolean, default: true }
+        requiresApproval: { type: boolean, default: true }
+        status: { type: string, enum: [ACTIVE, DISABLED, NEEDS_REVIEW, DEPRECATED], default: ACTIVE }
+        notes: { type: string, maxLength: 2000 }
+      required: [endpointId, name, targetRps, durationSeconds, concurrency]
+
+    CreateTestSuiteRequest:
+      type: object
+      properties:
+        code: { type: string, minLength: 3, maxLength: 180, pattern: '^[A-Z0-9_]+$' }
+        name: { type: string, minLength: 3, maxLength: 220 }
+        description: { type: string, maxLength: 4000 }
+        module: { type: string, minLength: 2, maxLength: 120 }
+        suiteType: { type: string, enum: [INTEGRATION, SMOKE, REGRESSION, E2E_API, LOAD], default: INTEGRATION }
+        environmentScope:
+          type: array
+          items: { type: string, enum: [LOCAL, STAGING, PRODUCTION_READONLY] }
+          minItems: 1
+          maxItems: 3
+          default: [LOCAL, STAGING]
+        isEnabled: { type: boolean, default: true }
+        requiresSeedData: { type: boolean, default: true }
+        isSafeForProduction: { type: boolean, default: false }
+        requiresDestructivePermission:
+          type: boolean
+          description: 'Si se omite, se calcula como !isSafeForProduction.'
+      required: [code, name, module]
+
+    UpdateTestSuiteRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateTestSuiteRequest'
+      description: 'Todos los campos de CreateTestSuiteRequest, opcionales (.partial()) — el body debe traer al menos uno.'
+
+    CreateTestStepRequest:
+      type: object
+      properties:
+        endpointId:
+          type: string
+          pattern: '^[1-9][0-9]*$'
+          nullable: true
+          description: Debe existir en el catálogo si se envía.
+        stepOrder: { type: integer, minimum: 1, maximum: 500 }
+        name: { type: string, minLength: 3, maxLength: 220 }
+        inputMode: { type: string, enum: [DEFAULT, CONFIGURABLE, GENERATED, FROM_PREVIOUS_STEP], default: DEFAULT }
+        method: { type: string, enum: [GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD] }
+        pathTemplate:
+          type: string
+          minLength: 1
+          maxLength: 1200
+          description: 'Debe iniciar con "/" o "http(s)://". Soporta placeholders {{...}}.'
+        defaultHeaders: { type: object, default: {} }
+        defaultPayload: { type: object, default: {} }
+        configSchema: { type: object, default: {} }
+        extractors: { type: object, default: {}, description: 'JSONPath para extraer valores de la respuesta hacia el contexto de la suite.' }
+        assertions: { type: object, default: { expectedStatusCodes: [200, 201] } }
+        continueOnFailure: { type: boolean, default: false }
+        cleanupRequired: { type: boolean, default: false }
+      required: [stepOrder, name, method, pathTemplate]
+
+    UpdateTestStepRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateTestStepRequest'
+      description: 'Todos los campos de CreateTestStepRequest, opcionales (.partial()) — el body debe traer al menos uno.'
+
+    ReorderTestStepsRequest:
+      type: object
+      properties:
+        steps:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            properties:
+              stepId: { type: string, pattern: '^[1-9][0-9]*$' }
+              stepOrder: { type: integer, minimum: 1, maximum: 500 }
+            required: [stepId, stepOrder]
+      required: [steps]
+
+    RunTestSuiteRequest:
+      type: object
+      properties:
+        environment: { type: string, enum: [LOCAL, STAGING, PRODUCTION_READONLY], default: LOCAL }
+        dryRun: { type: boolean, default: true, description: 'Si true (o si no se envía baseUrl), los pasos se resuelven sin llamada HTTP real.' }
+        baseUrl: { type: string, format: uri, description: Requerido si dryRun=false. }
+        config: { type: object, default: {}, description: 'Config por paso (step_<n> o nombre del paso) usada para resolver templates.' }
+        headers:
+          type: object
+          additionalProperties: { type: string }
+          default: {}
+        timeoutMs: { type: integer, minimum: 100, maximum: 60000, default: 10000 }
+
+    # ---------- Result payloads compuestos (no mapeados 1:1 a una entidad) ----------
+    DashboardResult:
+      type: object
+      properties:
+        counts:
+          type: object
+          properties:
+            endpoints: { type: integer }
+            tools: { type: integer }
+            dataEntities: { type: integer }
+            testSuites: { type: integer }
+            pendingReviews: { type: integer, description: 'Suma de NEEDS_REVIEW en endpoints, entidades, impactos de datos, impactos de campo y requisitos de herramientas.' }
+            stressProfiles: { type: integer, description: Perfiles con isEnabled=true. }
+            actionLogs24h: { type: integer }
+        posture:
+          type: object
+          properties:
+            catalogCoverage: { type: string, enum: [READY_FOR_REVIEW, NEEDS_SEED_REFRESH] }
+            pendingReviews: { type: integer }
+            stressProfilesEnabled: { type: integer }
+
+    DiscoveredEndpointItem:
+      type: object
+      description: Superset de EndpointSeed + controllerName/handlerName, tal como lo produce el escáner de código fuente.
+      additionalProperties: true
+      properties:
+        code: { type: string }
+        module: { type: string }
+        controllerName: { type: string }
+        handlerName: { type: string }
+        method: { type: string }
+        fullPath: { type: string }
+
+    DiscoverEndpointsResult:
+      type: object
+      properties:
+        discovered: { type: integer }
+        persisted: { type: integer, description: '0 si persist=false.' }
+        deprecatedCandidates: { type: integer, description: '0 si persist=false.' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DiscoveredEndpointItem' }
+
+    CatalogSeedRefreshResult:
+      type: object
+      properties:
+        tools: { type: integer }
+        dataEntities: { type: integer }
+        columns: { type: integer, description: 'Columnas detectadas desde information_schema y upserted en system_data_field_catalog.' }
+        relationships: { type: integer, description: 'Relaciones FK detectadas desde information_schema y upserted en system_data_relationship_catalog.' }
+        endpointSeeds: { type: integer }
+        discoveredEndpoints: { type: integer }
+        impacts: { type: integer }
+        suites: { type: integer, description: 'Fijo 2 si se ejecuta el paso.' }
+        stressProfiles: { type: integer }
+
+    ToolInferenceItem:
+      type: object
+      properties:
+        endpointId: { type: string }
+        endpointCode: { type: string }
+        toolCode: { type: string }
+        usageType: { type: string }
+        confidenceLevel: { type: string }
+        notes: { type: string, nullable: true }
+
+    InferToolRequirementsResult:
+      type: object
+      properties:
+        inferred: { type: integer }
+        persisted: { type: integer, description: '0 si persist=false.' }
+        skippedMissingTools: { type: integer }
+        reviewStatus: { type: string, enum: [NEEDS_REVIEW, DRY_RUN] }
+        items:
+          type: array
+          maxItems: 500
+          items: { $ref: '#/components/schemas/ToolInferenceItem' }
+
+    ImpactByEndpointResult:
+      type: object
+      properties:
+        endpoint: { $ref: '#/components/schemas/Endpoint' }
+        tools: { type: array, items: { $ref: '#/components/schemas/ToolRequirement' } }
+        tables: { type: array, items: { $ref: '#/components/schemas/DataImpact' } }
+        fields: { type: array, items: { $ref: '#/components/schemas/FieldImpact' } }
+
+    ImpactByTableResult:
+      type: object
+      properties:
+        entity: { $ref: '#/components/schemas/DataEntity' }
+        endpointImpacts: { type: array, items: { $ref: '#/components/schemas/DataImpact' } }
+        columns: { type: array, items: { $ref: '#/components/schemas/DataEntityColumn' } }
+        relations: { type: array, items: { $ref: '#/components/schemas/DataRelationship' } }
+
+    ToolHealthItem:
+      type: object
+      properties:
+        code: { type: string }
+        name: { type: string }
+        status: { type: string }
+        isConfigured: { type: boolean, description: 'true si todas sus requiredEnvVars están presentes en process.env.' }
+        missingEnvVars: { type: array, items: { type: string } }
+        isCritical: { type: boolean }
+
+    EndpointDetailResult:
+      type: object
+      properties:
+        endpoint: { $ref: '#/components/schemas/Endpoint' }
+        toolRequirements: { type: array, items: { $ref: '#/components/schemas/ToolRequirement' } }
+        dataEntityImpacts: { type: array, items: { $ref: '#/components/schemas/DataImpact' } }
+        fieldImpacts: { type: array, items: { $ref: '#/components/schemas/FieldImpact' } }
+
+    ReviewQueueResult:
+      type: object
+      properties:
+        endpoints:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/Endpoint' } }
+            total: { type: integer }
+        dataEntities:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/DataEntity' } }
+            total: { type: integer }
+        dataEntityImpacts:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/DataImpact' } }
+            total: { type: integer }
+        fieldImpacts:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/FieldImpact' } }
+            total: { type: integer }
+        dataColumnImpacts:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/DataEntityColumn' } }
+            total: { type: integer }
+        toolRequirements:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/ToolRequirement' } }
+            total: { type: integer }
+
+    QueueStressRunResult:
+      type: object
+      properties:
+        queued: { type: boolean, example: true }
+        run:
+          type: object
+          properties:
+            jobRunId: { type: string }
+            jobCode: { type: string, example: systems_stress_run }
+            status: { type: string, example: queued }
+            startedAt: { type: string, nullable: true, example: null }
+            completedAt: { type: string, nullable: true, example: null }
+            inputJson:
+              type: object
+              properties:
+                profileId: { type: string }
+                endpointId: { type: string }
+                profileCode: { type: string }
+                environment: { type: string }
+                dryRun: { type: boolean }
+                baseUrl: { type: string, nullable: true }
+                targetRps: { type: integer }
+                durationSeconds: { type: integer }
+                concurrency: { type: integer }
+                maxErrorRate: { type: number }
+                maxP95Ms: { type: integer }
+                approvalTicket: { type: string, nullable: true }
+                config: { type: object }
+                headers: { type: object, description: "Sanitizado: claves sensibles reemplazadas por el literal REDACTED." }
+                note: { type: string }
+            resultJson: { type: object, nullable: true, example: null }
+            errorMessage: { type: string, nullable: true, example: null }
+            triggeredByType: { type: string, example: user }
+            triggeredById: { type: string, nullable: true }
+            createdAt: { type: string, format: date-time, nullable: true }
+
+    StressMatrixItem:
+      type: object
+      properties:
+        endpoint: { $ref: '#/components/schemas/Endpoint' }
+        profiles: { type: array, items: { $ref: '#/components/schemas/StressProfile' } }
+        hasEnabledProfile: { type: boolean }
+
+    StressMatrixResult:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/StressMatrixItem' } }
+        meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+    TestSuiteDetailResult:
+      type: object
+      properties:
+        suite: { $ref: '#/components/schemas/TestSuite' }
+        steps: { type: array, items: { $ref: '#/components/schemas/TestStep' } }
+
+    TestRunDetailResult:
+      type: object
+      properties:
+        run: { $ref: '#/components/schemas/TestRun' }
+        steps: { type: array, items: { $ref: '#/components/schemas/TestStepRun' } }
+
+    # ---------- Envelopes de respuesta (Envelope global + data específico) ----------
+    Envelope_ActionLogList:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/ActionLog' } }
+            meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+    Envelope_ActionLogItemsOnly:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/ActionLog' } }
+
+    Envelope_Dashboard:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/DashboardResult' }
+
+    Envelope_EndpointList:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/Endpoint' } }
+            meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+    Envelope_EndpointDetail:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/EndpointDetailResult' }
+
+    Envelope_EndpointDetail_EndpointOnly:
+      type: object
+      description: 'El endpoint de revisión (reviewEndpoint) devuelve el objeto Endpoint plano en data, no el envelope EndpointDetailResult.'
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/Endpoint' }
+
+    Envelope_DiscoverEndpointsResult:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/DiscoverEndpointsResult' }
+
+    Envelope_CatalogSeedRefreshResult:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/CatalogSeedRefreshResult' }
+
+    Envelope_ToolList:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/Tool' } }
+            meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+    Envelope_Tool:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/Tool' }
+
+    Envelope_InferToolRequirementsResult:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/InferToolRequirementsResult' }
+
+    Envelope_DataEntityList:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/DataEntity' } }
+            meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+    Envelope_DataEntity:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/DataEntity' }
+
+    Envelope_ImpactByEndpoint:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/ImpactByEndpointResult' }
+
+    Envelope_ImpactByTable:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/ImpactByTableResult' }
+
+    Envelope_ToolHealthList:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/ToolHealthItem' }
+
+    Envelope_ReviewQueue:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/ReviewQueueResult' }
+
+    Envelope_ToolRequirement:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/ToolRequirement' }
+
+    Envelope_DataImpact:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/DataImpact' }
+
+    Envelope_FieldImpact:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/FieldImpact' }
+
+    Envelope_DataEntityColumn:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/DataEntityColumn' }
+
+    Envelope_StressProfileList:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/StressProfile' } }
+            meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+    Envelope_StressProfile:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/StressProfile' }
+
+    Envelope_QueueStressRunResult:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/QueueStressRunResult' }
+
+    Envelope_StressMatrix:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/StressMatrixResult' }
+
+    Envelope_JobRunList:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/JobRun' } }
+            meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+    Envelope_TestSuiteList:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/TestSuite' } }
+            meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+    Envelope_TestSuiteDetail:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/TestSuiteDetailResult' }
+
+    Envelope_TestStep:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/TestStep' }
+
+    Envelope_TestStepList:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/TestStep' } }
+
+    Envelope_TestRunList:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/TestRun' } }
+            meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+    Envelope_TestRunDetail:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/TestRunDetailResult' }

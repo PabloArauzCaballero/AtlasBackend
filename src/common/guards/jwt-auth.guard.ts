@@ -21,14 +21,22 @@ function extractBearerToken(authorizationHeader: string | string[] | undefined):
   return token;
 }
 
-function assertAuthenticatedUser(payload: string | jwt.JwtPayload): AuthenticatedUser {
+// Devuelve `null` (en vez de lanzar una excepción con un mensaje específico) porque el único
+// punto de llamada envuelve esto en un try/catch que siempre lanza el mismo mensaje genérico
+// `'Token inválido o expirado.'` — no filtrar detalle sobre POR QUÉ el token es rechazado es
+// deliberado (evita darle a un atacante pistas para distinguir "firma inválida" de "payload
+// incompleto"). Antes esta función lanzaba `UnauthorizedException` con mensajes distintos por
+// caso, pero como quedaban atrapados por ese catch, nunca llegaban al cliente: código muerto que
+// además podía inducir a error a quien lo leyera (incluida documentación de API generada a partir
+// de este archivo, que llegó a describir esos mensajes como parte del contrato real).
+function parseAuthenticatedUser(payload: string | jwt.JwtPayload): AuthenticatedUser | null {
   if (typeof payload === 'string') {
-    throw new UnauthorizedException('Payload JWT inválido.');
+    return null;
   }
 
   const role = payload.role;
   if (typeof payload.sub !== 'string' || typeof role !== 'string') {
-    throw new UnauthorizedException('Payload JWT incompleto.');
+    return null;
   }
 
   return {
@@ -77,13 +85,15 @@ export class JwtAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<RequestWithAuth>();
     const token = extractBearerToken(request.headers.authorization);
 
-    let user: AuthenticatedUser;
+    let payload: string | jwt.JwtPayload;
     try {
-      const payload = jwt.verify(token, env.JWT_ACCESS_TOKEN_SECRET, {
-        algorithms: ['HS256'],
-      });
-      user = assertAuthenticatedUser(payload);
+      payload = jwt.verify(token, env.JWT_ACCESS_TOKEN_SECRET, { algorithms: ['HS256'] });
     } catch {
+      throw new UnauthorizedException('Token inválido o expirado.');
+    }
+
+    const user = parseAuthenticatedUser(payload);
+    if (!user) {
       throw new UnauthorizedException('Token inválido o expirado.');
     }
 

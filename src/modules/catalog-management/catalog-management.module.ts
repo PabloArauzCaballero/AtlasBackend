@@ -27,6 +27,12 @@ import {
   RiskSignalSeedModel,
   SensitiveFieldRuleModel,
 } from '../../database/models/index.js';
+import { CatalogDataGovernanceService } from './application/catalog-data-governance.service.js';
+import { CatalogDefinitionsService } from './application/catalog-definitions.service.js';
+import { CatalogIngestionService } from './application/catalog-ingestion.service.js';
+import { CatalogQueryService } from './application/catalog-query.service.js';
+import { CatalogRiskPolicyService } from './application/catalog-risk-policy.service.js';
+import { CatalogVersionWorkflowService } from './application/catalog-version-workflow.service.js';
 import { CatalogManagementController } from './catalog-management.controller.js';
 import { CatalogManagementRepository } from './catalog-management.repository.js';
 import { CatalogManagementService } from './catalog-management.service.js';
@@ -62,6 +68,15 @@ import { CatalogManagementService } from './catalog-management.service.js';
     ]),
   ],
   controllers: [CatalogManagementController],
-  providers: [CatalogManagementService, CatalogManagementRepository],
+  providers: [
+    CatalogManagementService,
+    CatalogQueryService,
+    CatalogVersionWorkflowService,
+    CatalogIngestionService,
+    CatalogDefinitionsService,
+    CatalogRiskPolicyService,
+    CatalogDataGovernanceService,
+    CatalogManagementRepository,
+  ],
 })
 export class CatalogManagementModule {}

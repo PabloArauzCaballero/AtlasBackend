@@ -83,6 +83,7 @@ export class FraudRepository {
       tenantId: string;
       entityType: string;
       entityHash: string | null;
+      entityLast4: string | null;
       reasonCode: string;
       severity: string;
       actorInternalUserId: string | null;
@@ -97,7 +98,7 @@ export class FraudRepository {
         countryCode: 'BOL',
         entityType: values.entityType,
         entityHash: values.entityHash,
-        entityLast4: null,
+        entityLast4: values.entityLast4,
         reasonCode: values.reasonCode,
         severity: values.severity,
         status: 'active',
@@ -122,6 +123,7 @@ export class FraudRepository {
       newStatus: string;
       reasonCode: string;
       actorType: string;
+      actorInternalUserId: string | null;
       happenedAt: Date;
       notes: string | null;
     },
@@ -135,6 +137,7 @@ export class FraudRepository {
         newStatus: values.newStatus,
         reasonCode: values.reasonCode,
         changedByType: values.actorType,
+        changedByInternalUserId: values.actorInternalUserId,
         happenedAt: values.happenedAt,
         notes: values.notes,
         createdAtValue: values.happenedAt,

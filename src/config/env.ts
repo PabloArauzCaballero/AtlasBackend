@@ -9,6 +9,11 @@ const optionalUrlEnvSchema = z.preprocess((value) => {
   return value;
 }, z.string().url().optional());
 
+const optionalMongoUrlEnvSchema = z.preprocess((value) => {
+  if (typeof value === 'string' && value.trim() === '') return undefined;
+  return value;
+}, z.string().regex(/^mongodb(\+srv)?:\/\//, 'Debe iniciar con mongodb:// o mongodb+srv://').optional());
+
 const booleanEnvSchema = z
   .preprocess((value) => {
     if (typeof value !== 'string') {
@@ -42,9 +47,10 @@ const optionalBooleanEnvSchema = z
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-    APP_PORT: z.coerce.number().int().positive().default(3000),
+    APP_PORT: z.coerce.number().int().positive().default(3005),
     API_PREFIX: z.string().min(1).default('api/v1'),
-    CORS_ORIGINS: z.string().default('http://localhost:3000,http://localhost:5173'),
+    CORS_ORIGINS: z.string().default('http://localhost:3000,http://localhost:5273'),
+    INTERNAL_FRONTEND_ORIGIN: z.string().url().default('http://localhost:5273'),
     DB_HOST: z.string().min(1).default('localhost'),
     DB_PORT: z.coerce.number().int().positive().default(5432),
     DB_NAME: z.string().min(1).default('atlas'),
@@ -52,6 +58,13 @@ const envSchema = z
     DB_PASSWORD: z.string().default('postgres'),
     DB_SCHEMA: z.string().min(1).default('public'),
     DB_SSL: booleanEnvSchema,
+
+    // Limpieza previa a seeds. Por defecto está apagada. En producción exige doble confirmación
+    // para evitar borrar datos reales por accidente. Preserva SequelizeMeta y limpia los datos
+    // de aplicación para que los seeders vuelvan a poblar un entorno consistente.
+    DATABASE_CLEAN_BEFORE_SEED: booleanEnvSchema,
+    DATABASE_CLEAN_ALLOW_PRODUCTION: booleanEnvSchema,
+    DATABASE_CLEAN_CONFIRM: z.string().optional(),
     JWT_ACCESS_TOKEN_SECRET: z.string().min(32).default(DEFAULT_JWT_SECRET),
     JWT_ACCESS_TOKEN_EXPIRES_IN: z.string().default('1h'),
     API_RATE_LIMIT_TTL_MS: z.coerce.number().int().positive().default(60_000),
@@ -112,6 +125,25 @@ const envSchema = z
     META_WHATSAPP_DEFAULT_TEMPLATE_NAME: z.string().optional(),
     META_WHATSAPP_DEFAULT_TEMPLATE_LANGUAGE: z.string().default('es'),
     NOTIFICATION_TOKEN_ENCRYPTION_KEY: z.string().min(32).default(DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY),
+
+    // ATLAS-P11-T13: opcionales a propósito. Si ambos están presentes, el bootstrap registra
+    // `KmsKeyProvider` como proveedor disponible para `envelope-encryption.util.ts` (ver
+    // `src/main.ts`). Esto NO activa el cifrado de PII con KMS automáticamente — los call sites
+    // reales (`customer-onboarding.service.ts`, `notifications.repository.ts`) siguen usando
+    // `encryptSecretEnvelope()` con su proveedor `local` por defecto hasta que se decida migrar
+    // esos call sites a una firma async con KMS de verdad (ver la nota de alcance en
+    // `envelope-encryption.util.ts`). Dejar esto sin configurar es válido y es el default seguro.
+    KMS_KEY_ID: z.string().min(1).optional(),
+    AWS_REGION: z.string().min(1).optional(),
+
+    MONGO_DB_URL_CONNECTION: optionalMongoUrlEnvSchema,
+    MONGO_LOGS_DB_NAME: z.string().min(1).default('atlas_logs'),
+    MONGO_LOGS_COLLECTION: z.string().min(1).default('archivo_log_updates'),
+    LOG_SYNC_FILE_PATH: z.string().min(1).default('Archivo.log'),
+    LOG_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(5_000),
+    LOG_SYNC_MAX_CHUNK_BYTES: z.coerce.number().int().positive().max(10_000_000).default(1_000_000),
+    LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT: booleanEnvSchema,
+    LOG_SYNC_MONGO_SERVER_SELECTION_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(5_000),
   })
   .superRefine((data, ctx) => {
     function requireWhen(enabled: boolean, path: keyof typeof data, message: string): void {
@@ -285,7 +317,7 @@ function parseEnv(): AppEnv {
 export const env: AppEnv = parseEnv();
 
 export function getAllowedCorsOrigins(): string[] {
-  return env.CORS_ORIGINS.split(',')
+  return [...new Set([...env.CORS_ORIGINS.split(','), env.INTERNAL_FRONTEND_ORIGIN])]
     .map((origin) => origin.trim())
     .filter((origin) => origin.length > 0);
 }

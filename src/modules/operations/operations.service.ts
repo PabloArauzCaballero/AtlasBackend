@@ -13,6 +13,7 @@ import {
   ManualReviewDecisionDto,
   ManualReviewDecisionParamsDto,
   OperationsCustomerIdParamsDto,
+  CursorWorkQueueQueryDto,
   WorkQueueQueryDto,
 } from './operations.schemas.js';
 
@@ -28,6 +29,21 @@ export class OperationsService {
     private readonly riskRepository: RiskRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
+
+  /**
+   * ATLAS-P11-T10: variantes por cursor de las colas individuales (no combinadas — ver la nota
+   * de alcance en `operations.repository.ts`). Pensadas para el panel de operaciones cuando el
+   * volumen de casos crezca lo suficiente para que `OFFSET` se vuelva costoso.
+   */
+  async getManualReviewCasesCursorPage(tenantId: string, query: CursorWorkQueueQueryDto) {
+    const result = await this.operationsRepository.findManualReviewCasesForQueueWithCursor(tenantId, query);
+    return { items: result.items.map(toManualReviewWorkItem), nextCursor: result.nextCursor };
+  }
+
+  async getFraudCasesCursorPage(tenantId: string, query: CursorWorkQueueQueryDto) {
+    const result = await this.operationsRepository.findFraudCasesForQueueWithCursor(tenantId, query);
+    return { items: result.items.map(toFraudWorkItem), nextCursor: result.nextCursor };
+  }
 
   async getWorkQueue(tenantId: string, query: WorkQueueQueryDto): Promise<PaginatedWorkQueueResponseDto> {
     if (query.queue === 'manual_review') {
@@ -140,6 +156,7 @@ export class OperationsService {
             newStatus: input.body.nextCustomerStatus,
             reasonCode: input.body.reasonCode,
             actorType: input.currentUser.role,
+            actorInternalUserId: input.currentUser.internalUserId ?? null,
             happenedAt: now,
             notes: input.body.notes ?? null,
           },

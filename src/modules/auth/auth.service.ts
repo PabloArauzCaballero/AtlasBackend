@@ -5,6 +5,7 @@ import { AtlasUserRole } from '../../common/types/auth.types.js';
 import { hashPassword, isPasswordStrongEnough, verifyPassword } from '../../common/utils/crypto/password.util.js';
 import { generateRefreshToken, hashRefreshToken } from '../../common/utils/crypto/refresh-token.util.js';
 import { hashSensitiveText } from '../../common/utils/crypto/hash.util.js';
+import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
 import { LoginDto, ProvisionCredentialsDto } from './auth.schemas.js';
@@ -29,6 +30,10 @@ const KNOWN_ROLES: ReadonlySet<AtlasUserRole> = new Set([
   'compliance_analyst',
   'fraud_analyst',
   'system',
+  'system_admin',
+  'qa_engineer',
+  'devops',
+  'readonly_auditor',
   'merchant',
   'admin',
   'platform_admin',
@@ -49,6 +54,7 @@ export class AuthService {
   constructor(
     private readonly authRepository: AuthRepository,
     private readonly customersRepository: CustomersRepository,
+    private readonly tokenRevocationService: TokenRevocationService,
   ) {}
 
   private async resolveActorForLogin(tenantId: string, actorType: ActorType, identifier: string): Promise<ResolvedActor | null> {
@@ -67,7 +73,7 @@ export class AuthService {
       // equipo confirma que los emails deben tratarse como case-insensitive, normalizar aquí y
       // al crear el registro en `internal_users` (fuera del alcance de este patch: esa tabla se
       // administra hoy solo por seed/migración manual, no por un módulo de gestión de usuarios).
-      const internalUser = await this.authRepository.findInternalUserByEmail(identifier);
+      const internalUser = await this.authRepository.findInternalUserByEmail(identifier, tenantId);
       if (!internalUser || internalUser.status !== 'active' || !internalUser.roleCode || !isKnownRole(internalUser.roleCode)) {
         return null;
       }
@@ -107,10 +113,10 @@ export class AuthService {
     actorId: string;
     userAgent: string | null;
     ipAddress: string | null;
-  }): Promise<string> {
+  }): Promise<{ token: string; id: string }> {
     const refreshToken = generateRefreshToken();
     const expiresAt = new Date(Date.now() + env.AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS * 24 * 60 * 60 * 1000);
-    await this.authRepository.createRefreshToken({
+    const created = await this.authRepository.createRefreshToken({
       tenantId: input.tenantId,
       actorType: input.actorType,
       actorId: input.actorId,
@@ -119,7 +125,7 @@ export class AuthService {
       userAgent: input.userAgent,
       ipAddress: input.ipAddress,
     });
-    return refreshToken;
+    return { token: refreshToken, id: created.id };
   }
 
   async login(input: { tenantId: string; dto: LoginDto; ip: string | null; userAgent: string | null }): Promise<LoginResult> {
@@ -151,7 +157,7 @@ export class AuthService {
     await this.authRepository.recordSuccessfulLogin(credential, input.ip);
 
     const accessToken = this.issueAccessToken(actor, input.dto.actorType, credential.tokenVersion);
-    const refreshToken = await this.issueRefreshToken({
+    const issuedRefreshToken = await this.issueRefreshToken({
       tenantId: actor.tenantId,
       actorType: input.dto.actorType,
       actorId: actor.id,
@@ -159,7 +165,7 @@ export class AuthService {
       ipAddress: input.ip,
     });
 
-    return { accessToken, refreshToken, tokenType: 'Bearer', expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN };
+    return { accessToken, refreshToken: issuedRefreshToken.token, tokenType: 'Bearer', expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN };
   }
 
   async refresh(input: { refreshToken: string; ip: string | null; userAgent: string | null }): Promise<LoginResult> {
@@ -188,6 +194,8 @@ export class AuthService {
     // Rotación: el refresh token usado queda revocado y se emite uno nuevo. Si este mismo
     // token se presenta de nuevo más adelante (indicio de robo/reuso), la próxima llamada
     // fallará porque ya no está activo — comportamiento estándar de rotación de refresh tokens.
+    // `replacedByTokenId` queda registrado para poder reconstruir la cadena de rotación completa
+    // en una investigación de robo de tokens (antes se guardaba siempre `null`, ver auditoría).
     const newRefreshToken = await this.issueRefreshToken({
       tenantId: refreshedActor.tenantId,
       actorType,
@@ -195,10 +203,10 @@ export class AuthService {
       userAgent: input.userAgent,
       ipAddress: input.ip,
     });
-    await this.authRepository.revokeRefreshToken(stored, 'rotated');
+    await this.authRepository.revokeRefreshToken(stored, 'rotated', newRefreshToken.id);
 
     const accessToken = this.issueAccessToken(refreshedActor, actorType, credential.tokenVersion);
-    return { accessToken, refreshToken: newRefreshToken, tokenType: 'Bearer', expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN };
+    return { accessToken, refreshToken: newRefreshToken.token, tokenType: 'Bearer', expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN };
   }
 
   private async reResolveActorRole(actorType: ActorType, actorId: string, tenantId: string | null): Promise<ResolvedActor | null> {
@@ -233,7 +241,13 @@ export class AuthService {
         // tokens ya emitidos (que siguen vigentes hasta su expiración natural, normalmente 1h)
         // también queden invalidados de inmediato. Cierra ATLAS-AUDIT-026 en el caso de uso
         // real que lo motivó: "cerrar sesión en todos los dispositivos".
-        await this.authRepository.bumpTokenVersion(credential);
+        //
+        // IMPORTANTE: debe pasar por `TokenRevocationService.bumpTokenVersion` (no por
+        // `AuthRepository.bumpTokenVersion`) porque `JwtAuthGuard` resuelve la versión vigente
+        // consultando primero la caché Redis de este servicio. Escribir el bump solo en la base
+        // de datos deja la caché desactualizada hasta su TTL (5 min) y los access tokens
+        // supuestamente revocados seguirían aceptándose durante esa ventana.
+        await this.tokenRevocationService.bumpTokenVersion(credential.actorType, credential.actorId);
       }
     } else {
       await this.authRepository.revokeRefreshToken(stored, 'logout');

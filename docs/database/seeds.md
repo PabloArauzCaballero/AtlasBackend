@@ -1,41 +1,99 @@
-# Seeders de desarrollo — Proyecto Atlas
+# Seeders completos de desarrollo — Proyecto Atlas
 
-## Alcance
+## Objetivo
 
-Se agregó infraestructura de seeders con Umzug para cargar datos mínimos de prueba después de ejecutar las migraciones.
+Estos seeders dejan la base lista para probar el portal administrativo, operaciones, catálogos, gobierno de datos, proveedores externos mock, notificaciones, suites QA y perfiles de stress. La regla es simple: después de migrar y sembrar, el frontend no debería abrir vistas vacías por falta de datos base.
 
-## Comandos
+## Flujo recomendado para una DB local limpia
 
 ```bash
-yarn db:seed:create -- seed-minimal-dev-credentials
-yarn db:seed:up
-yarn db:seed:down
-yarn db:seed:status
+yarn db:migration:up
+DATABASE_CLEAN_BEFORE_SEED=true yarn db:seed:up
 ```
 
-## Seeder mínimo incluido
+`DATABASE_CLEAN_BEFORE_SEED=true` limpia los datos de aplicación antes de correr los seeders. Preserva `SequelizeMeta`, limpia `SequelizeDataSeeders`, reinicia identidades y vuelve a cargar todo desde cero. Esto evita datos basura acumulados por pruebas anteriores.
 
-El seeder `seed-minimal-dev-credentials` carga una cadena mínima de datos para probar las relaciones principales del schema:
+## Variables ENV de limpieza
 
-1. Tenant.
-2. Usuarios plataforma e internos.
-3. Cliente demo.
-4. Perfil, contacto e identidad.
-5. Dispositivo, link cliente-dispositivo y sesión.
-6. Consentimiento y evento de consentimiento.
-7. Onboarding.
-8. Evaluación de riesgo y resultado.
-9. Resumen de actividad.
-10. Casos de revisión manual y fraude.
-11. Watchlist.
-12. Auditoría y calidad de datos.
+| Variable | Default | Uso |
+|---|---:|---|
+| `DATABASE_CLEAN_BEFORE_SEED` | `false` | Si está en `true`, ejecuta `TRUNCATE ... RESTART IDENTITY CASCADE` sobre las tablas de aplicación antes de sembrar. |
+| `DATABASE_CLEAN_ALLOW_PRODUCTION` | `false` | Doble seguro para producción. Debe seguir en `false` en uso normal. |
+| `DATABASE_CLEAN_CONFIRM` | vacío | En producción debe ser exactamente `ATLAS_DESTROY_SEED_DATA` además del flag anterior. |
 
-## Decisión sobre contraseñas
+No uses limpieza sobre una base real. Para desarrollo/staging desechable sí es la forma correcta de garantizar una carga reproducible.
 
-No se creó una tabla nueva de credenciales porque esta fase sigue siendo solo ORM/migraciones/seeders y el PUML actual no define almacenamiento de contraseña.
+## Seeders incluidos
 
-Las contraseñas documentadas en `dev-credentials.md` quedan como valores reservados para cuando se implemente el módulo Auth/JWT.
+| Seeder | Qué carga |
+|---|---|
+| `20260626160720-seed-minimal-dev-credentials` | Tenant, usuarios base, cliente demo, dispositivo, sesión, consentimientos, onboarding, riesgo, revisión manual, fraude, watchlist, auditoría y una regla mínima de calidad. |
+| `20260702032000-seed-external-data-providers` | Proveedores externos Bolivia/mock: SEGIP, InfoCenter, QR genérico, banca genérica, telco, Meta, WhatsApp y digital trust, más políticas de costo. |
+| `20260703002000-seed-systems-ops-catalog` | Escanea todos los controllers y modelos. Carga catálogo de endpoints, tablas, herramientas, impactos endpoint-tabla, impactos por campo, suites de prueba y perfiles de stress. |
+| `20260704121000-seed-internal-rbac-and-pablo` | RBAC interno, roles, permisos y usuario administrador Pablo para el panel interno. |
+| `20260705090000-seed-portal-runtime-demo-data` | Catálogos funcionales, definiciones, risk policy, signal seeds, gobierno de datos, reglas/issues de calidad, templates/mensajes de notificación, outbox, feature values, health de proveedores y jobs demo. |
 
-## Riesgo pendiente
+## Datos funcionales principales
 
-Cuando se implemente autenticación real, debe agregarse una migración explícita para credenciales, password hash, control de sesiones, refresh tokens o el mecanismo que se decida. No conviene mezclarlo dentro del schema de inteligencia/fraude sin una decisión de seguridad cerrada.
+Después de `yarn db:seed:up` quedan disponibles, como mínimo:
+
+- Cliente demo `customer_id=1` para vistas de cliente, sesiones, investigación, riesgo y notificaciones.
+- Casos demo `MR-DEMO-001` y `FR-DEMO-001` para cola operativa.
+- Catálogos publicados para zonas de Santa Cruz, ocupaciones, bandas de ingreso, documentos, reason codes, canales de pago, categorías de comercio y pasos de onboarding.
+- Definiciones de observaciones, atributos, features y eventos para ML/scoring posterior.
+- Políticas de riesgo MVP con reglas de bloqueo, revisión manual, aprobación y límite de línea.
+- Políticas de retención, clasificación de datos y campos sensibles para gobierno.
+- Proveedores externos en modo mock/local con health logs.
+- Templates, mensajes, entregas y preferencias de notificación.
+- Catálogo de sistemas con endpoints, herramientas, impactos, suites QA y perfiles de stress.
+
+## Credencial local para el panel interno
+
+El seeder de RBAC crea/actualiza el usuario:
+
+```text
+Email: pablo@atlas.internal
+Password: Atlas_Pablo#2026!
+```
+
+Es una credencial de desarrollo local. Cámbiala antes de cualquier demo conectada a una base compartida.
+
+## Comandos útiles
+
+```bash
+# Ver seeders ejecutados y pendientes
+yarn db:seed:status
+
+# Cargar seeds sin limpiar datos previos
+yarn db:seed:up
+
+# Cargar seeds reiniciando datos de aplicación
+DATABASE_CLEAN_BEFORE_SEED=true yarn db:seed:up
+
+# Revertir el último seeder ejecutado
+yarn db:seed:down
+```
+
+## Validación rápida esperada
+
+Con el backend levantado, estos endpoints deberían devolver `200` usando el token interno donde corresponda:
+
+```bash
+GET /api/v1/health
+GET /api/v1/customers/1/me
+GET /api/v1/operations/work-queue?queue=all&page=1&limit=20
+GET /api/v1/operations/catalogs
+GET /api/v1/operations/definitions?type=all&status=all
+GET /api/v1/operations/data-governance/policies
+GET /api/v1/external-data/providers/health
+GET /api/v1/operations/notifications/templates
+GET /api/v1/systems/dashboard
+GET /api/v1/systems/endpoints?page=1&limit=20
+GET /api/v1/systems/data-entities?page=1&limit=20
+GET /api/v1/systems/test-suites
+GET /api/v1/systems/stress-profiles
+```
+
+## Nota de calidad
+
+El catálogo de endpoints no depende solo de una lista manual: el seeder escanea los controllers y luego sobreescribe con metadatos curados para las rutas críticas. Así se evita que falten vistas del portal cuando aparece un endpoint nuevo.

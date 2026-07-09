@@ -28,8 +28,7 @@ function buildAuthRepositoryMock() {
     createCredentials: jest.fn(),
     recordFailedAttempt: jest.fn(),
     recordSuccessfulLogin: jest.fn(),
-    bumpTokenVersion: jest.fn(),
-    createRefreshToken: jest.fn(),
+    createRefreshToken: jest.fn(async () => ({ id: 'refresh-row-1' })),
     findActiveRefreshTokenByHash: jest.fn(),
     revokeRefreshToken: jest.fn(),
     revokeAllRefreshTokensForActor: jest.fn(),
@@ -43,13 +42,21 @@ function buildCustomersRepositoryMock() {
   };
 }
 
+function buildTokenRevocationServiceMock() {
+  return {
+    getCurrentTokenVersion: jest.fn(),
+    bumpTokenVersion: jest.fn(),
+  };
+}
+
 describe('AuthService.login', () => {
   it('throws UnauthorizedException with a generic message when the actor does not exist', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     customersRepository.findByContactHash.mockResolvedValue(null);
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
 
     await expect(
       service.login({
@@ -64,6 +71,7 @@ describe('AuthService.login', () => {
   it('throws UnauthorizedException when the password does not match, and records a failed attempt', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     customersRepository.findByContactHash.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'registered' });
     authRepository.findCredentialsByActor.mockResolvedValue({
       passwordHash: 'hashed:correct-password',
@@ -72,7 +80,7 @@ describe('AuthService.login', () => {
       failedLoginAttempts: 0,
     });
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
 
     await expect(
       service.login({
@@ -89,6 +97,7 @@ describe('AuthService.login', () => {
   it('rejects login while the account is locked, without checking the password', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     customersRepository.findByContactHash.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'registered' });
     authRepository.findCredentialsByActor.mockResolvedValue({
       passwordHash: 'hashed:correct-password',
@@ -97,7 +106,7 @@ describe('AuthService.login', () => {
       failedLoginAttempts: 5,
     });
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
 
     await expect(
       service.login({
@@ -114,6 +123,7 @@ describe('AuthService.login', () => {
   it('returns an access+refresh token pair on successful login and records the successful login', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     customersRepository.findByContactHash.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'registered' });
     authRepository.findCredentialsByActor.mockResolvedValue({
       passwordHash: 'hashed:correct-password',
@@ -122,7 +132,7 @@ describe('AuthService.login', () => {
       failedLoginAttempts: 0,
     });
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
 
     const result = await service.login({
       tenantId: '1',
@@ -141,9 +151,10 @@ describe('AuthService.login', () => {
   it('does not authenticate a customer whose lifecycleStatus is closed', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     customersRepository.findByContactHash.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'closed' });
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
 
     await expect(
       service.login({
@@ -161,9 +172,10 @@ describe('AuthService.refresh', () => {
   it('rejects an unknown or already-revoked refresh token', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     authRepository.findActiveRefreshTokenByHash.mockResolvedValue(null);
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
 
     await expect(service.refresh({ refreshToken: 'stale-token', ip: null, userAgent: null })).rejects.toThrow(UnauthorizedException);
   });
@@ -171,6 +183,7 @@ describe('AuthService.refresh', () => {
   it('rejects an expired refresh token', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     authRepository.findActiveRefreshTokenByHash.mockResolvedValue({
       expiresAt: new Date(Date.now() - 1000),
       actorType: 'customer',
@@ -178,7 +191,7 @@ describe('AuthService.refresh', () => {
       tenantId: '1',
     });
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
 
     await expect(service.refresh({ refreshToken: 'expired-token', ip: null, userAgent: null })).rejects.toThrow(UnauthorizedException);
   });
@@ -186,6 +199,7 @@ describe('AuthService.refresh', () => {
   it('rotates the refresh token: revokes the old one and issues a new access+refresh pair', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     const storedToken = {
       expiresAt: new Date(Date.now() + 60_000),
       actorType: 'customer',
@@ -196,11 +210,11 @@ describe('AuthService.refresh', () => {
     authRepository.findCredentialsByActor.mockResolvedValue({ tokenVersion: 2 });
     customersRepository.findById.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'registered' });
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
 
     const result = await service.refresh({ refreshToken: 'valid-token', ip: null, userAgent: null });
 
-    expect(authRepository.revokeRefreshToken).toHaveBeenCalledWith(storedToken, 'rotated');
+    expect(authRepository.revokeRefreshToken).toHaveBeenCalledWith(storedToken, 'rotated', 'refresh-row-1');
     expect(authRepository.createRefreshToken).toHaveBeenCalledTimes(1);
     expect(result.refreshToken).toBe('fixed-refresh-token');
   });
@@ -208,6 +222,7 @@ describe('AuthService.refresh', () => {
   it('does not create a new refresh token when the actor is no longer active', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     authRepository.findActiveRefreshTokenByHash.mockResolvedValue({
       expiresAt: new Date(Date.now() + 60_000),
       actorType: 'customer',
@@ -217,7 +232,7 @@ describe('AuthService.refresh', () => {
     authRepository.findCredentialsByActor.mockResolvedValue({ tokenVersion: 2 });
     customersRepository.findById.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'closed' });
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
 
     await expect(service.refresh({ refreshToken: 'valid-token', ip: null, userAgent: null })).rejects.toThrow(UnauthorizedException);
 
@@ -230,19 +245,21 @@ describe('AuthService.logout', () => {
   it('is idempotent: logging out with an unknown token does not throw', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     authRepository.findActiveRefreshTokenByHash.mockResolvedValue(null);
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
     await expect(service.logout({ refreshToken: 'unknown', allDevices: false })).resolves.toEqual({ loggedOut: true });
   });
 
   it('revokes only the given token when allDevices=false', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     const storedToken = { actorType: 'customer', actorId: '10' };
     authRepository.findActiveRefreshTokenByHash.mockResolvedValue(storedToken);
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
     await service.logout({ refreshToken: 'token', allDevices: false });
 
     expect(authRepository.revokeRefreshToken).toHaveBeenCalledWith(storedToken, 'logout');
@@ -252,16 +269,17 @@ describe('AuthService.logout', () => {
   it('revokes all refresh tokens AND bumps tokenVersion when allDevices=true (closes ATLAS-AUDIT-026)', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     const storedToken = { actorType: 'customer', actorId: '10' };
     authRepository.findActiveRefreshTokenByHash.mockResolvedValue(storedToken);
-    const credential = { tokenVersion: 1 };
+    const credential = { tokenVersion: 1, actorType: 'customer', actorId: '10' };
     authRepository.findCredentialsByActor.mockResolvedValue(credential);
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
     await service.logout({ refreshToken: 'token', allDevices: true });
 
     expect(authRepository.revokeAllRefreshTokensForActor).toHaveBeenCalledWith('customer', '10', 'logout_all_devices');
-    expect(authRepository.bumpTokenVersion).toHaveBeenCalledWith(credential);
+    expect(tokenRevocationService.bumpTokenVersion).toHaveBeenCalledWith('customer', '10');
   });
 });
 
@@ -269,7 +287,8 @@ describe('AuthService.provisionCredentials', () => {
   it('rejects a requester who is not admin/platform_admin', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
 
     await expect(
       service.provisionCredentials({ actorType: 'internal_user', actorId: '5', password: 'AtlasBnpl2026' }, { role: 'internal_operator' }),
@@ -279,10 +298,11 @@ describe('AuthService.provisionCredentials', () => {
   it('rejects provisioning credentials twice for the same actor', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     authRepository.findInternalUserById.mockResolvedValue({ id: '5', tenantId: '1' });
     authRepository.findCredentialsByActor.mockResolvedValue({ id: '1' });
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
 
     await expect(
       service.provisionCredentials({ actorType: 'internal_user', actorId: '5', password: 'AtlasBnpl2026' }, { role: 'admin' }),
@@ -292,10 +312,11 @@ describe('AuthService.provisionCredentials', () => {
   it('creates credentials for a valid, not-yet-provisioned internal user', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
     authRepository.findInternalUserById.mockResolvedValue({ id: '5', tenantId: '1' });
     authRepository.findCredentialsByActor.mockResolvedValue(null);
 
-    const service = new AuthService(authRepository as never, customersRepository as never);
+    const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
 
     const result = await service.provisionCredentials(
       { actorType: 'internal_user', actorId: '5', password: 'AtlasBnpl2026' },

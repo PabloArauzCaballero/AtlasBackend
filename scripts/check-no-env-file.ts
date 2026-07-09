@@ -11,7 +11,9 @@
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const ALLOWED_ENV_FILES = new Set(['.env.example']);
+function isAllowedTemplate(name: string): boolean {
+  return name.endsWith('.example');
+}
 
 function main(): void {
   const rootDir = resolve(process.cwd());
@@ -20,7 +22,7 @@ function main(): void {
   const offendingFiles = entries
     .filter((entry) => entry.isFile())
     .map((entry) => entry.name)
-    .filter((name) => name === '.env' || (name.startsWith('.env.') && !ALLOWED_ENV_FILES.has(name)));
+    .filter((name) => name === '.env' || (name.startsWith('.env.') && !isAllowedTemplate(name)));
 
   if (offendingFiles.length > 0) {
     console.error('❌ Se encontraron archivos .env reales en el repositorio (prohibido, ver ATLAS-AUDIT-004):');

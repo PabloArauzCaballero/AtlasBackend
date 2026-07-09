@@ -8,6 +8,17 @@ export type SmsProvider = 'disabled' | 'twilio' | 'webhook';
 export type WhatsAppProvider = 'disabled' | 'meta_cloud' | 'twilio' | 'webhook';
 export type PhoneProvider = 'disabled' | 'webhook';
 
+/**
+ * Nota de robustez: la validación fail-fast de "proveedor activo sin sus credenciales" para los
+ * 5 canales de este servicio YA existe — vive en `src/config/env.ts` (`requireWhen`/
+ * `requireWebhook` dentro del `.superRefine` de `envSchema`) y corre en `parseEnv()`, antes de
+ * que Nest arranque cualquier módulo. Se evaluó agregar aquí un `OnModuleInit` equivalente
+ * usando `src/common/resilience/provider-config-validator.ts` y se descartó a propósito: sería
+ * exactamente la misma validación duplicada en dos lugares, corriendo la más tardía después de
+ * la más temprana — sin ganancia real y con el costo de mantener las mismas reglas en dos
+ * sitios. El validador fail-fast genérico del kernel de resiliencia se usa en `external-data`
+ * (`ExternalProviderRegistryService`), que no tenía ningún equivalente.
+ */
 @Injectable()
 export class NotificationProviderConfigService {
   getEmailProvider(): EmailProvider {

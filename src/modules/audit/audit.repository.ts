@@ -1,13 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op, WhereOperators } from 'sequelize';
+import { InjectConnection, InjectModel } from '@nestjs/sequelize';
+import { FindOptions, Op, QueryTypes, WhereOperators } from 'sequelize';
+import { Sequelize } from 'sequelize-typescript';
 import {
   AuthEventModel,
   ConsentEventModel,
   CustomerActionLogModel,
+  CustomerConsentModel,
   CustomerStatusEventModel,
   DataChangeLogModel,
   FraudCaseEventModel,
+  FraudCaseModel,
+  ManualReviewCaseModel,
   ManualReviewEventModel,
   OperationalAuditLogModel,
 } from '../../database/models/index.js';
@@ -19,6 +23,18 @@ type AuditEvent = {
   actorType: string | null;
   summary: string;
   payload?: Record<string, unknown> | null;
+};
+
+type AuditFeedRow = {
+  source_table: string;
+  source_id: string;
+  tenant_id: string;
+  occurred_at: string;
+  actor_type: string | null;
+  event_type: string;
+  target_type: string | null;
+  target_id: string | null;
+  payload_json: Record<string, unknown> | null;
 };
 
 function buildDateWhere(query: AuditQueryDto): WhereOperators<Date> | null {
@@ -64,6 +80,10 @@ export class AuditRepository {
     @InjectModel(ConsentEventModel) private readonly consentEventModel: typeof ConsentEventModel,
     @InjectModel(ManualReviewEventModel) private readonly manualReviewEventModel: typeof ManualReviewEventModel,
     @InjectModel(FraudCaseEventModel) private readonly fraudCaseEventModel: typeof FraudCaseEventModel,
+    @InjectModel(CustomerConsentModel) private readonly customerConsentModel: typeof CustomerConsentModel,
+    @InjectModel(ManualReviewCaseModel) private readonly manualReviewCaseModel: typeof ManualReviewCaseModel,
+    @InjectModel(FraudCaseModel) private readonly fraudCaseModel: typeof FraudCaseModel,
+    @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
   async findCustomerAuditEvents(tenantId: string, customerId: string, query: AuditQueryDto): Promise<AuditEvent[]> {
@@ -155,6 +175,162 @@ export class AuditRepository {
         })),
       );
     }
+    // ATLAS-AUDIT (auditoría #14): `consent`, `manual_review` y `fraud` estaban en el enum de
+    // `eventType` del schema (validación aceptaba el valor) pero no tenían ninguna rama de
+    // consulta aquí — `eventType=consent|manual_review|fraud` devolvía siempre `[]` en silencio,
+    // y `eventType=all` nunca incluía estas 3 fuentes. `ConsentEventModel`/`ManualReviewEventModel`/
+    // `FraudCaseEventModel` no tienen `customerId` propio (se vinculan via
+    // `customerConsentId`/`manualReviewCaseId`/`fraudCaseId`), por eso cada rama resuelve primero
+    // los ids del padre para este cliente antes de filtrar el evento.
+    if (query.eventType === 'all' || query.eventType === 'consent') {
+      const consents = await this.customerConsentModel.findAll({
+        where: { tenantId, customerId },
+        attributes: ['id'],
+      } as FindOptions);
+      const consentIds = consents.map((c) => c.id);
+      if (consentIds.length > 0) {
+        const rows = await this.consentEventModel.findAll({
+          where: { tenantId, customerConsentId: { [Op.in]: consentIds }, ...(dateWhere ? { happenedAt: dateWhere } : {}) },
+          limit: depth,
+          order: [['happenedAt', 'DESC']],
+        } as FindOptions);
+        collections.push(
+          rows.map((row) => ({
+            eventType: 'consent',
+            occurredAt: row.happenedAt ?? row.createdAtValue,
+            actorType: row.triggeredByType,
+            summary: row.eventType ?? 'consent_event',
+            payload: { notes: row.notes },
+          })),
+        );
+      }
+    }
+    if (query.eventType === 'all' || query.eventType === 'manual_review') {
+      const cases = await this.manualReviewCaseModel.findAll({ where: { tenantId, customerId }, attributes: ['id'] } as FindOptions);
+      const caseIds = cases.map((c) => c.id);
+      if (caseIds.length > 0) {
+        const rows = await this.manualReviewEventModel.findAll({
+          where: { tenantId, manualReviewCaseId: { [Op.in]: caseIds }, ...(dateWhere ? { happenedAt: dateWhere } : {}) },
+          limit: depth,
+          order: [['happenedAt', 'DESC']],
+        } as FindOptions);
+        collections.push(
+          rows.map((row) => ({
+            eventType: 'manual_review',
+            occurredAt: row.happenedAt ?? row.createdAtValue,
+            actorType: row.actorType,
+            summary: row.eventType ?? 'manual_review_event',
+            payload: row.payloadJson,
+          })),
+        );
+      }
+    }
+    if (query.eventType === 'all' || query.eventType === 'fraud') {
+      const cases = await this.fraudCaseModel.findAll({ where: { tenantId, customerId }, attributes: ['id'] } as FindOptions);
+      const caseIds = cases.map((c) => c.id);
+      if (caseIds.length > 0) {
+        const rows = await this.fraudCaseEventModel.findAll({
+          where: { tenantId, fraudCaseId: { [Op.in]: caseIds }, ...(dateWhere ? { happenedAt: dateWhere } : {}) },
+          limit: depth,
+          order: [['happenedAt', 'DESC']],
+        } as FindOptions);
+        collections.push(
+          rows.map((row) => ({
+            eventType: 'fraud',
+            occurredAt: row.happenedAt ?? row.createdAtValue,
+            actorType: row.actorType,
+            summary: row.eventType ?? 'fraud_case_event',
+            payload: row.payloadJson,
+          })),
+        );
+      }
+    }
     return collections.flat().sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+  }
+
+  /**
+   * ATLAS-P11-T10 (cierra la parte de `audit.repository.ts` que quedaba abierta en
+   * `ATLAS-PEND-102` tras `ATLAS-P10`): variante por cursor real, empujado a la base de datos,
+   * sobre las 8 fuentes de eventos de auditoría — lee de la vista `audit_event_feed` creada por
+   * la migración `20260703035812-add-unified-audit-event-feed-view.ts` en vez de pedir
+   * `offset + limit` filas de cada tabla y recortar en memoria (lo que hace
+   * `findCustomerAuditEvents` arriba, que se mantiene sin cambios por compatibilidad).
+   *
+   * El cursor es una tupla `(occurred_at, source_table, source_id)` comparada como ROW en SQL
+   * (`(occurred_at, source_table, source_id) < (:cursorOccurredAt, :cursorSourceTable,
+   * :cursorSourceId)`), porque `source_id` por sí solo NO es único entre fuentes (cada tabla
+   * origen tiene su propia secuencia de IDs) — `source_table` es parte necesaria de la clave de
+   * paginación, no solo un campo informativo.
+   *
+   * Alcance: a diferencia de `findCustomerAuditEvents` (que solo cubre 5 fuentes), esta variante
+   * cubre las 8 fuentes de la vista. El filtro por cliente replica la semántica de la vista
+   * original: `data_change_log` no tiene un `target_type` fijo (usa el nombre de tabla real), así
+   * que para esa fuente se filtra por `source_id = customerId` directamente en vez de por
+   * `target_type = 'customer'`.
+   */
+  async findCustomerAuditEventsWithCursor(
+    tenantId: string,
+    customerId: string,
+    query: { limit: number; cursor?: string },
+  ): Promise<{ items: AuditFeedRow[]; nextCursor: string | null }> {
+    const cursorKey = decodeAuditCursor(query.cursor);
+    const limit = Math.min(query.limit, 100);
+
+    const cursorClause = cursorKey
+      ? `AND (occurred_at, source_table, source_id) < (:cursorOccurredAt, :cursorSourceTable, :cursorSourceId)`
+      : '';
+
+    const rows = await this.sequelize.query<AuditFeedRow>(
+      `
+      SELECT source_table, source_id, tenant_id, occurred_at, actor_type, event_type, target_type, target_id, payload_json
+      FROM audit_event_feed
+      WHERE tenant_id = :tenantId
+        AND (
+          (target_type = 'customer' AND target_id = :customerId)
+          OR (source_table = 'data_change_log' AND source_id IS NOT NULL AND target_id = :customerId)
+        )
+        ${cursorClause}
+      ORDER BY occurred_at DESC, source_table DESC, source_id DESC
+      LIMIT :limitPlusOne;
+      `,
+      {
+        type: QueryTypes.SELECT,
+        replacements: {
+          tenantId,
+          customerId,
+          limitPlusOne: limit + 1,
+          ...(cursorKey
+            ? { cursorOccurredAt: cursorKey.occurredAt, cursorSourceTable: cursorKey.sourceTable, cursorSourceId: cursorKey.sourceId }
+            : {}),
+        },
+      },
+    );
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    const last = items[items.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeAuditCursor({ occurredAt: last.occurred_at, sourceTable: last.source_table, sourceId: last.source_id })
+        : null;
+
+    return { items, nextCursor };
+  }
+}
+
+export type AuditCursorKey = { occurredAt: string; sourceTable: string; sourceId: string };
+
+export function encodeAuditCursor(key: AuditCursorKey): string {
+  return Buffer.from(JSON.stringify(key), 'utf8').toString('base64url');
+}
+
+export function decodeAuditCursor(cursor: string | undefined): AuditCursorKey | null {
+  if (!cursor) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as Partial<AuditCursorKey>;
+    if (typeof parsed.occurredAt !== 'string' || typeof parsed.sourceTable !== 'string' || typeof parsed.sourceId !== 'string') return null;
+    return { occurredAt: parsed.occurredAt, sourceTable: parsed.sourceTable, sourceId: parsed.sourceId };
+  } catch {
+    return null;
   }
 }

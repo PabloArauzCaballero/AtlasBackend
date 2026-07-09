@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import Redis from 'ioredis';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { CommonAuthModule } from './common/common-auth.module.js';
+import { ResilienceModule } from './common/resilience/resilience.module.js';
 import { REDIS_CLIENT, RedisModule } from './common/redis/redis.module.js';
 import { RedisThrottlerStorage } from './common/throttler/redis-throttler-storage.js';
 import { IdempotencyInterceptor } from './modules/runtime-hardening/idempotency.interceptor.js';
@@ -15,6 +16,7 @@ import { HttpActionLogInterceptor } from './common/interceptors/http-action-log.
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware.js';
 import { DatabaseModule } from './database/sequelize.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
+import { SystemsOpsModule } from './modules/systems-ops/systems-ops.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CatalogManagementModule } from './modules/catalog-management/catalog-management.module.js';
 import { ConsentsModule } from './modules/consents/consents.module.js';
@@ -29,15 +31,20 @@ import { RuntimeJobsModule } from './modules/runtime-jobs/runtime-jobs.module.js
 import { EventsModule } from './modules/events/events.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { ExternalDataModule } from './modules/external-data/external-data.module.js';
+import { InternalUsersModule } from './modules/internal-users/internal-users.module.js';
 import { RiskModule } from './modules/risk/risk.module.js';
 import { FraudModule } from './modules/fraud/fraud.module.js';
 import { SessionsModule } from './modules/sessions/sessions.module.js';
+import { SchemaManagementModule } from './modules/schema-management/schema-management.module.js';
+import { InternalPortalModule } from './modules/internal-portal/internal-portal.module.js';
+import { LogSyncModule } from './modules/log-sync/log-sync.module.js';
 import { env } from './config/env.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     RedisModule,
+    ResilienceModule,
     CommonAuthModule,
     // ATLAS-AUDIT-023 (cerrado en este patch): antes usaba `ThrottlerModule.forRoot([...])` con
     // el storage en memoria por defecto de `@nestjs/throttler`, correcto solo con una instancia.
@@ -60,6 +67,7 @@ import { env } from './config/env.js';
     HealthModule,
     CatalogManagementModule,
     AuthModule,
+    InternalUsersModule,
     CustomersModule,
     CustomerOnboardingModule,
     CustomerPrivacyModule,
@@ -72,6 +80,10 @@ import { env } from './config/env.js';
     OperationsModule,
     DataQualityModule,
     AuditModule,
+    SystemsOpsModule,
+    SchemaManagementModule,
+    InternalPortalModule,
+    LogSyncModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

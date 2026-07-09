@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AuthCredentialModel } from '../database/models/index.js';
+import { RedisModule } from './redis/redis.module.js';
 import { TokenRevocationService } from './services/token-revocation.service.js';
 
 /**
@@ -14,7 +15,7 @@ import { TokenRevocationService } from './services/token-revocation.service.js';
  */
 @Global()
 @Module({
-  imports: [SequelizeModule.forFeature([AuthCredentialModel])],
+  imports: [SequelizeModule.forFeature([AuthCredentialModel]), RedisModule],
   providers: [TokenRevocationService],
   exports: [TokenRevocationService],
 })

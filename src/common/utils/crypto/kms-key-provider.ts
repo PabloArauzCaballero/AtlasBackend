@@ -1,58 +1,122 @@
 import { DataEncryptionKey, DataKeyProvider } from './data-key-provider.interface.js';
 
+type KmsCommandInput = Record<string, unknown>;
+
+type KmsCommand = {
+  input?: KmsCommandInput;
+};
+
+type KmsGenerateDataKeyResult = {
+  Plaintext?: Uint8Array | Buffer;
+  CiphertextBlob?: Uint8Array | Buffer;
+};
+
+type KmsDecryptResult = {
+  Plaintext?: Uint8Array | Buffer;
+};
+
+type KmsClientLike = {
+  send(command: KmsCommand): Promise<KmsGenerateDataKeyResult | KmsDecryptResult>;
+};
+
+type KmsSdk = {
+  KMSClient: new (input: { region: string }) => KmsClientLike;
+  GenerateDataKeyCommand: new (input: KmsCommandInput) => KmsCommand;
+  DecryptCommand: new (input: KmsCommandInput) => KmsCommand;
+};
+
 /**
- * ATLAS-PEND-106: punto de integración documentado para AWS KMS real. NO se conecta a AWS en
- * este patch — agregar la dependencia `@aws-sdk/client-kms` y credenciales de infraestructura
- * es una decisión de despliegue/infraestructura, fuera del alcance de un patch de código escrito
- * sin acceso a AWS real para probarlo. Lanza un error explícito si se intenta usar sin haber
- * completado la integración, en vez de fallar en silencio o simular un cifrado que no es real.
+ * Proveedor opcional de AWS KMS para envelope encryption.
  *
- * Integración pendiente (dejar aquí cuando se implemente):
- *
- * ```ts
- * import { KMSClient, GenerateDataKeyCommand, DecryptCommand } from '@aws-sdk/client-kms';
- *
- * export class KmsKeyProvider implements DataKeyProvider {
- *   readonly providerId = 'kms';
- *   private readonly client: KMSClient;
- *   constructor(private readonly kmsKeyId: string, region: string) {
- *     this.client = new KMSClient({ region });
- *   }
- *
- *   async generateDataKey(): Promise<DataEncryptionKey> {
- *     const result = await this.client.send(new GenerateDataKeyCommand({
- *       KeyId: this.kmsKeyId,
- *       KeySpec: 'AES_256',
- *     }));
- *     return {
- *       keyId: this.kmsKeyId,
- *       plaintextKey: Buffer.from(result.Plaintext!),
- *       encryptedKey: Buffer.from(result.CiphertextBlob!).toString('base64'),
- *     };
- *   }
- *
- *   async decryptDataKey(encryptedKey: string, keyId: string): Promise<Buffer> {
- *     const result = await this.client.send(new DecryptCommand({
- *       CiphertextBlob: Buffer.from(encryptedKey, 'base64'),
- *       KeyId: keyId,
- *     }));
- *     return Buffer.from(result.Plaintext!);
- *   }
- * }
- * ```
+ * Importante para desarrollo local: este archivo no importa `@aws-sdk/client-kms` de forma
+ * estática. Así el backend compila y arranca aunque el SDK de AWS no esté instalado, siempre que
+ * KMS no esté configurado en `.env`. En producción, si se define `KMS_KEY_ID` + `AWS_REGION`, el
+ * paquete `@aws-sdk/client-kms` debe estar instalado en la imagen final.
  */
 export class KmsKeyProvider implements DataKeyProvider {
   readonly providerId = 'kms';
 
-  generateDataKey(): Promise<DataEncryptionKey> {
-    throw new Error(
-      'KmsKeyProvider no está conectado a AWS KMS todavía (ATLAS-PEND-106). Ver el comentario de este archivo para el código de integración exacto, y docs/architecture/assumptions.md.',
-    );
+  private sdkPromise?: Promise<KmsSdk>;
+  private client?: KmsClientLike;
+
+  constructor(
+    private readonly kmsKeyId: string,
+    private readonly region: string,
+  ) {
+    if (!kmsKeyId || kmsKeyId.trim().length === 0) {
+      throw new Error('KmsKeyProvider requiere un kmsKeyId (ARN o alias de la CMK) no vacío.');
+    }
+
+    if (!region || region.trim().length === 0) {
+      throw new Error('KmsKeyProvider requiere una región AWS no vacía.');
+    }
   }
 
-  decryptDataKey(): Promise<Buffer> {
-    throw new Error(
-      'KmsKeyProvider no está conectado a AWS KMS todavía (ATLAS-PEND-106). Ver el comentario de este archivo para el código de integración exacto, y docs/architecture/assumptions.md.',
-    );
+  async generateDataKey(): Promise<DataEncryptionKey> {
+    const sdk = await this.loadSdk();
+    const client = await this.getClient();
+    const result = (await client.send(
+      new sdk.GenerateDataKeyCommand({
+        KeyId: this.kmsKeyId,
+        KeySpec: 'AES_256',
+      }),
+    )) as KmsGenerateDataKeyResult;
+
+    if (!result.Plaintext || !result.CiphertextBlob) {
+      throw new Error('AWS KMS GenerateDataKeyCommand no devolvió Plaintext/CiphertextBlob. Respuesta inesperada del SDK.');
+    }
+
+    return {
+      keyId: this.kmsKeyId,
+      plaintextKey: Buffer.from(result.Plaintext),
+      encryptedKey: Buffer.from(result.CiphertextBlob).toString('base64'),
+    };
+  }
+
+  async decryptDataKey(encryptedKey: string, keyId: string): Promise<Buffer> {
+    const sdk = await this.loadSdk();
+    const client = await this.getClient();
+    const result = (await client.send(
+      new sdk.DecryptCommand({
+        CiphertextBlob: Buffer.from(encryptedKey, 'base64'),
+        KeyId: keyId,
+      }),
+    )) as KmsDecryptResult;
+
+    if (!result.Plaintext) {
+      throw new Error('AWS KMS DecryptCommand no devolvió Plaintext. Respuesta inesperada del SDK.');
+    }
+
+    return Buffer.from(result.Plaintext);
+  }
+
+  private async getClient(): Promise<KmsClientLike> {
+    if (!this.client) {
+      const sdk = await this.loadSdk();
+      this.client = new sdk.KMSClient({ region: this.region });
+    }
+
+    return this.client;
+  }
+
+  private async loadSdk(): Promise<KmsSdk> {
+    if (!this.sdkPromise) {
+      this.sdkPromise = this.importAwsKmsSdk();
+    }
+
+    return this.sdkPromise;
+  }
+
+  private async importAwsKmsSdk(): Promise<KmsSdk> {
+    const packageName = '@aws-sdk/client-kms';
+
+    try {
+      return (await import(packageName)) as unknown as KmsSdk;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `AWS_KMS_SDK_NOT_INSTALLED: instala @aws-sdk/client-kms para usar KMS real o elimina KMS_KEY_ID/AWS_REGION del entorno local. Detalle: ${reason}`,
+      );
+    }
   }
 }

@@ -69,6 +69,7 @@ export class CustomerPrivacyRepository {
       sessionId: string | null;
       ipAddress: string | null;
       actorType: string;
+      actorInternalUserId: string | null;
       notes: string | null;
       happenedAt: Date;
     },
@@ -85,7 +86,7 @@ export class CustomerPrivacyRepository {
         ipAddress: values.ipAddress,
         deviceFingerprintSnapshot: null,
         triggeredByType: values.actorType,
-        triggeredByInternalUserId: null,
+        triggeredByInternalUserId: values.actorInternalUserId,
         notes: values.notes,
         createdAtValue: values.happenedAt,
       },
@@ -101,6 +102,8 @@ export class CustomerPrivacyRepository {
       newStatus: string;
       reasonCode: string;
       actorType: string;
+      actorInternalUserId: string | null;
+      actorPlatformUserId: string | null;
       happenedAt: Date;
       notes: string | null;
     },
@@ -114,6 +117,8 @@ export class CustomerPrivacyRepository {
         newStatus: values.newStatus,
         reasonCode: values.reasonCode,
         changedByType: values.actorType,
+        changedByInternalUserId: values.actorInternalUserId,
+        changedByPlatformUserId: values.actorPlatformUserId,
         happenedAt: values.happenedAt,
         notes: values.notes,
         createdAtValue: values.happenedAt,
@@ -177,6 +182,8 @@ export class CustomerPrivacyRepository {
     values: {
       tenantId: string;
       actorType: string;
+      actorInternalUserId: string | null;
+      actorPlatformUserId: string | null;
       actionCode: string;
       targetType: string;
       targetId: string;
@@ -190,8 +197,8 @@ export class CustomerPrivacyRepository {
       {
         tenantId: values.tenantId,
         actorType: values.actorType,
-        actorInternalUserId: null,
-        actorPlatformUserId: null,
+        actorInternalUserId: values.actorInternalUserId,
+        actorPlatformUserId: values.actorPlatformUserId,
         actionCode: values.actionCode,
         targetType: values.targetType,
         targetId: values.targetId,

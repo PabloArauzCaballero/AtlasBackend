@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { ConflictException } from '@nestjs/common';
 import { UniqueConstraintError } from 'sequelize';
+import { CustomerOnboardingStartService } from '../../../src/modules/customer-onboarding/application/customer-onboarding-start.service.js';
 import { CustomerOnboardingService } from '../../../src/modules/customer-onboarding/customer-onboarding.service.js';
 
 /**
@@ -31,7 +32,7 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
       transaction: jest.fn((callback: (t: unknown) => Promise<unknown>) => callback({})),
     };
 
-    const service = new CustomerOnboardingService(
+    const startService = new CustomerOnboardingStartService(
       customersRepository as never,
       sessionsRepository as never,
       consentsRepository as never,
@@ -39,6 +40,8 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
       authRepository as never,
       sequelize as never,
     );
+
+    const service = new CustomerOnboardingService(startService, {} as never, {} as never, {} as never);
 
     return { service, customersRepository, sequelize };
   }

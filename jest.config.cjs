@@ -1,10 +1,14 @@
-// Jest CJS config: evita depender de ts-node para leer jest.config.ts en CI/local.
+// Jest CJS config: corre los tests TypeScript como CommonJS.
+// Importante: NO usar --experimental-vm-modules ni preset ESM aquí.
+// El proyecto compila la app con tsconfig.json (NodeNext), pero los tests se
+// transforman con tsconfig.spec.json a CommonJS para que:
+// 1) los imports estáticos no generen "exports is not defined";
+// 2) los dynamic import(...) se bajen a require(...) y no pidan VM modules.
 /** @type {import('jest').Config} */
 const config = {
-  preset: 'ts-jest/presets/default-esm',
+  preset: 'ts-jest',
   testEnvironment: 'node',
   setupFiles: ['<rootDir>/test/setup-jest-env.cjs'],
-  extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
@@ -12,12 +16,9 @@ const config = {
     '^.+\\.ts$': [
       'ts-jest',
       {
-        useESM: true,
         tsconfig: 'tsconfig.spec.json',
-        isolatedModules: true,
         diagnostics: {
           warnOnly: true,
-          ignoreCodes: [151002],
         },
       },
     ],
@@ -32,10 +33,10 @@ const config = {
   ],
   coverageThreshold: {
     global: {
-      statements: 5,
-      branches: 5,
-      functions: 5,
-      lines: 5,
+      statements: 50,
+      branches: 20,
+      functions: 28,
+      lines: 50,
     },
   },
   clearMocks: true,

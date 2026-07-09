@@ -1,4 +1,6 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
+import { writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { env } from '../../src/config/env.js';
 import { AtlasUserRole } from '../../src/common/types/auth.types.js';
 
@@ -15,6 +17,27 @@ export type SmokeResponse<T = unknown> = {
   data: T;
   text: string;
 };
+
+export type SmokeRecordedCall = {
+  method: string;
+  path: string;
+  role: AtlasUserRole | null;
+  requestBody: unknown;
+  status: number;
+  responseData: unknown;
+};
+
+const recordedCalls: SmokeRecordedCall[] = [];
+
+export function getRecordedCalls(): SmokeRecordedCall[] {
+  return recordedCalls;
+}
+
+export function writeSmokeResults(fileName = 'smoke-results.json'): void {
+  const outputPath = path.join(__dirname, fileName);
+  writeFileSync(outputPath, JSON.stringify(recordedCalls, null, 2), 'utf-8');
+  console.log(`[SMOKE] Resultados de DTOs guardados en ${outputPath} (${recordedCalls.length} llamadas)`);
+}
 
 export function logSmokeConfig(): void {
   console.log(
@@ -72,6 +95,14 @@ export async function request<T = unknown>(input: {
   });
   const text = await res.text();
   const data = parseBody(text) as T;
+  recordedCalls.push({
+    method: input.method,
+    path: input.path,
+    role: input.role ?? null,
+    requestBody: input.body ?? null,
+    status: res.status,
+    responseData: data,
+  });
   const expected = input.expected ?? [200, 201, 202, 204];
   if (!expected.includes(res.status)) {
     throw new Error(`${input.method} ${input.path} expected ${expected.join('/')} got ${res.status}: ${text}`);

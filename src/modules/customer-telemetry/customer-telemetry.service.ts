@@ -16,7 +16,12 @@ import { CustomerTelemetryRepository } from './customer-telemetry.repository.js'
 import { TelemetryBatchDto } from './customer-telemetry.schemas.js';
 
 function metadataHasRawContacts(value: unknown): boolean {
-  const text = JSON.stringify(value ?? {}).toLowerCase();
+  // Normaliza separadores (snake_case, kebab-case, espacios) antes de comparar: sin esto,
+  // "raw_contacts" o "contact-list" no contienen "rawcontacts"/"contactlist" como substring y
+  // el filtro de privacidad se evade con solo cambiar la convención de nombres.
+  const text = JSON.stringify(value ?? {})
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
   return text.includes('rawcontacts') || text.includes('contactlist') || text.includes('phonebook') || text.includes('agenda');
 }
 
@@ -58,6 +63,10 @@ export class CustomerTelemetryService {
     const deviceLink = await this.telemetryRepository.findCustomerDeviceLink(input.tenantId, input.customerId, input.body.deviceId);
     if (!deviceLink && input.currentUser.role === 'customer') {
       throw new ForbiddenException('El dispositivo no está vinculado al cliente.');
+    }
+    const session = await this.telemetryRepository.findCustomerSession(input.tenantId, input.customerId, input.body.sessionId);
+    if (!session && input.currentUser.role === 'customer') {
+      throw new ForbiddenException('La sesión no pertenece al cliente.');
     }
 
     const now = new Date();
@@ -249,6 +258,8 @@ export class CustomerTelemetryService {
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,
+          actorInternalUserId: input.currentUser.internalUserId ?? null,
+          actorPlatformUserId: input.currentUser.platformUserId ?? null,
           actionCode: 'customer_telemetry.batch_ingested',
           targetType: 'customer',
           targetId: input.customerId,

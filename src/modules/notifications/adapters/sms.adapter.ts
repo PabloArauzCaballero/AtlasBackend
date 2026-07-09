@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { env } from '../../../config/env.js';
+import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';
 import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from '../notification-types.js';
 import { failedDelivery, getFirstDeliveryTarget, postForm, postJson, sentDelivery } from './http-adapter.util.js';
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
@@ -7,7 +8,10 @@ import { NotificationProviderConfigService } from './notification-provider-confi
 
 @Injectable()
 export class SmsNotificationAdapter implements NotificationChannelAdapter {
-  constructor(private readonly config: NotificationProviderConfigService) {}
+  constructor(
+    private readonly config: NotificationProviderConfigService,
+    private readonly executor: ResilientAdapterExecutorService,
+  ) {}
 
   getProviderName(): string {
     return this.config.getSmsProvider();
@@ -33,6 +37,8 @@ export class SmsNotificationAdapter implements NotificationChannelAdapter {
     const from = this.config.require(env.TWILIO_SMS_FROM, 'TWILIO_SMS_FROM_MISSING');
     const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
     const response = await postForm(
+      this.executor,
+      'twilio_sms',
       `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
       { authorization: `Basic ${credentials}` },
       { To: to, From: from, Body: message.body },
@@ -45,7 +51,13 @@ export class SmsNotificationAdapter implements NotificationChannelAdapter {
   private async sendWebhook(message: NotificationMessagePayload, to: string): Promise<DeliveryResult> {
     const url = this.config.getWebhookUrl('sms');
     if (!url) return failedDelivery('webhook_sms', 'WEBHOOK_URL_MISSING', 'NOTIFICATION_WEBHOOK_URL no está configurado.');
-    const response = await postJson(url, {}, { channel: 'sms', to, body: message.body, payload: message.payload, messageId: message.id });
+    const response = await postJson(
+      this.executor,
+      'webhook_sms',
+      url,
+      {},
+      { channel: 'sms', to, body: message.body, payload: message.payload, messageId: message.id },
+    );
     if (!response.ok)
       return failedDelivery('webhook_sms', 'WEBHOOK_SMS_FAILED', `Webhook respondió HTTP ${response.status}.`, response.json);
     return sentDelivery('webhook_sms', String(response.json.id ?? response.json.messageId ?? message.id), response.json);

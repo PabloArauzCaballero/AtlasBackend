@@ -370,7 +370,7 @@ export class ExternalDataRepository {
       {
         tenantId: input.tenantId,
         providerRequestId: input.providerRequestId,
-        payloadStorageStrategy: 'redacted_json',
+        payloadStorageStrategy: 'inline_redacted',
         responsePayloadJson: null,
         redactedPayloadJson: input.redactedPayloadJson,
         rawPayloadS3Key: null,

@@ -4,11 +4,16 @@ import {
   AuthEventModel,
   ConsentEventModel,
   CustomerActionLogModel,
+  CustomerConsentModel,
   CustomerStatusEventModel,
   DataChangeLogModel,
   FraudCaseEventModel,
+  FraudCaseModel,
+  ManualReviewCaseModel,
   ManualReviewEventModel,
   OperationalAuditLogModel,
+  SystemActionLogModel,
+  SystemEndpointCatalogModel,
 } from '../../database/models/index.js';
 import { AuditController } from './audit.controller.js';
 import { AuditRepository } from './audit.repository.js';
@@ -19,6 +24,8 @@ import { HttpActionLogService } from './http-action-log.service.js';
   imports: [
     SequelizeModule.forFeature([
       OperationalAuditLogModel,
+      SystemActionLogModel,
+      SystemEndpointCatalogModel,
       DataChangeLogModel,
       CustomerStatusEventModel,
       CustomerActionLogModel,
@@ -26,6 +33,9 @@ import { HttpActionLogService } from './http-action-log.service.js';
       ConsentEventModel,
       ManualReviewEventModel,
       FraudCaseEventModel,
+      CustomerConsentModel,
+      ManualReviewCaseModel,
+      FraudCaseModel,
     ]),
   ],
   controllers: [AuditController],

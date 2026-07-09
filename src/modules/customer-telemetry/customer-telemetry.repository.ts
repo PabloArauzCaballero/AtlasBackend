@@ -7,9 +7,8 @@ import {
   CustomerActivitySummaryModel,
   CustomerDeviceLinkModel,
   CustomerObservationModel,
-  DeviceModel,
+  CustomerSessionModel,
   DeviceRiskEventModel,
-  DeviceSnapshotModel,
   FormFieldInteractionEventModel,
   IpReputationObservationModel,
   OnDeviceComputationRunModel,
@@ -28,8 +27,7 @@ type RepositoryOptions = { transaction?: Transaction };
 export class CustomerTelemetryRepository {
   constructor(
     @InjectModel(CustomerDeviceLinkModel) private readonly customerDeviceLinkModel: typeof CustomerDeviceLinkModel,
-    @InjectModel(DeviceModel) private readonly deviceModel: typeof DeviceModel,
-    @InjectModel(DeviceSnapshotModel) private readonly deviceSnapshotModel: typeof DeviceSnapshotModel,
+    @InjectModel(CustomerSessionModel) private readonly customerSessionModel: typeof CustomerSessionModel,
     @InjectModel(DeviceRiskEventModel) private readonly deviceRiskEventModel: typeof DeviceRiskEventModel,
     @InjectModel(SimObservationModel) private readonly simObservationModel: typeof SimObservationModel,
     @InjectModel(AuthEventModel) private readonly authEventModel: typeof AuthEventModel,
@@ -54,6 +52,10 @@ export class CustomerTelemetryRepository {
 
   findCustomerDeviceLink(tenantId: string, customerId: string, deviceId: string): Promise<CustomerDeviceLinkModel | null> {
     return this.customerDeviceLinkModel.findOne({ where: { tenantId, customerId, deviceId } } as FindOptions);
+  }
+
+  findCustomerSession(tenantId: string, customerId: string, sessionId: string): Promise<CustomerSessionModel | null> {
+    return this.customerSessionModel.findOne({ where: { tenantId, customerId, id: sessionId } } as FindOptions);
   }
 
   findLatestOnboardingFlow(tenantId: string, customerId: string): Promise<OnboardingFlowModel | null> {
@@ -491,6 +493,8 @@ export class CustomerTelemetryRepository {
     values: {
       tenantId: string;
       actorType: string;
+      actorInternalUserId: string | null;
+      actorPlatformUserId: string | null;
       actionCode: string;
       targetType: string;
       targetId: string;
@@ -504,8 +508,8 @@ export class CustomerTelemetryRepository {
       {
         tenantId: values.tenantId,
         actorType: values.actorType,
-        actorInternalUserId: null,
-        actorPlatformUserId: null,
+        actorInternalUserId: values.actorInternalUserId,
+        actorPlatformUserId: values.actorPlatformUserId,
         actionCode: values.actionCode,
         targetType: values.targetType,
         targetId: values.targetId,

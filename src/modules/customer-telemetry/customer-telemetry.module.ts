@@ -6,9 +6,8 @@ import {
   CustomerActivitySummaryModel,
   CustomerDeviceLinkModel,
   CustomerObservationModel,
-  DeviceModel,
+  CustomerSessionModel,
   DeviceRiskEventModel,
-  DeviceSnapshotModel,
   FormFieldInteractionEventModel,
   IpReputationObservationModel,
   OnDeviceComputationRunModel,
@@ -29,8 +28,7 @@ import { CustomerTelemetryService } from './customer-telemetry.service.js';
   imports: [
     SequelizeModule.forFeature([
       CustomerDeviceLinkModel,
-      DeviceModel,
-      DeviceSnapshotModel,
+      CustomerSessionModel,
       DeviceRiskEventModel,
       SimObservationModel,
       AuthEventModel,

@@ -37,6 +37,45 @@ API_RATE_LIMIT_TTL_MS=60000
 API_RATE_LIMIT_MAX=100
 ```
 
+## Bootstrap de base de datos al arrancar
+
+```env
+DATABASE_BOOTSTRAP_ON_STARTUP=true
+DATABASE_BOOTSTRAP_FAIL_FAST=true
+DATABASE_SEED_PUBLIC_CMS_ON_STARTUP=true
+```
+
+Al arrancar, si `DATABASE_BOOTSTRAP_ON_STARTUP=true` (default), el backend crea columnas/tablas/vistas
+de compatibilidad que falten sin borrar datos existentes — pensado para bases ya desplegadas que
+quedaron desalineadas del schema esperado. `DATABASE_BOOTSTRAP_FAIL_FAST=true` hace que el arranque
+falle si el bootstrap no puede completarse, en vez de seguir con un schema parcialmente aplicado.
+`DATABASE_SEED_PUBLIC_CMS_ON_STARTUP` siembra datos públicos mínimos (p. ej. contenido/CMS) si faltan.
+Apaga estas variables solo si administras el schema exclusivamente por migraciones y prefieres que
+un drift de schema falle explícitamente en vez de autocorregirse.
+
+## Sincronizacion remota de Archivo.log
+
+El backend puede enviar cambios de `Archivo.log` a MongoDB cada 5 segundos. Cada arranque genera un
+`idArranque` nuevo (`bootId`) y registra documentos append-only en la coleccion configurada:
+un documento `startup`, documentos `append` con solo los bytes nuevos y, si el archivo se trunca o
+rota, un documento `rotation`.
+
+```env
+MONGO_DB_URL_CONNECTION=mongodb+srv://<usuario>:<password>@<cluster-host>/?appName=AtlasBackend
+MONGO_LOGS_DB_NAME=atlas_logs
+MONGO_LOGS_COLLECTION=archivo_log_updates
+LOG_SYNC_FILE_PATH=Archivo.log
+LOG_SYNC_INTERVAL_MS=5000
+LOG_SYNC_MAX_CHUNK_BYTES=1000000
+LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT=false
+LOG_SYNC_MONGO_SERVER_SELECTION_TIMEOUT_MS=5000
+```
+
+Si `MONGO_DB_URL_CONNECTION` esta vacio, la sincronizacion queda desactivada. En el primer arranque
+sin historico remoto, `LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT=false` evita duplicar un `Archivo.log`
+ya existente y empieza desde el final del archivo; los siguientes updates continuan desde el ultimo
+`offsetTo` guardado en Mongo.
+
 ## Matriz de proveedores soportados
 
 | Canal | Provider env | Valores soportados | Credenciales requeridas |
@@ -216,11 +255,7 @@ NOTIFICATION_PHONE_PROVIDER=disabled
 
 Activa SMS/WhatsApp cuando ya tengas datos de contacto validados, consentimiento, templates aprobados y costos controlados.
 
-## Revisión auditada Patch 2.4.5
-
-Ver también: `docs/config/environment-provider-audit.md`.
-
-Cambios de hardening aplicados:
+## Reglas de hardening vigentes
 
 - Validación fail-fast de credenciales cuando un provider está activo.
 - Validación fail-fast de webhooks cuando un canal usa `webhook`.

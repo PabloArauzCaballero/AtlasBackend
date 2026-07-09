@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, WhereOptions } from 'sequelize';
 import { lastCharacters, sha256Hex } from '../../common/utils/crypto/hash.util.js';
-import { decryptSecret, encryptSecret } from '../../common/utils/crypto/secret-box.util.js';
+import { decryptSecretEnvelope, encryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { redactSensitiveObject, stableStringify } from '../../common/utils/privacy/redaction.util.js';
 import {
   CustomerContactMethodModel,
@@ -38,7 +38,15 @@ function payloadString(payload: Record<string, unknown>, keys: string[]): string
   return null;
 }
 
-function buildEncryptedDeliveryTargets(channel: NotificationChannel, payload: Record<string, unknown>): StoredDeliveryTarget[] {
+// ATLAS-P10-010: envelope encryption (data key propia por valor) en vez de la clave maestra
+// única de secret-box.util.ts — ver ATLAS-PEND-106/112. Ambas funciones pasaron a ser async
+// porque encryptSecretEnvelope/decryptSecretEnvelope lo son (una data key real por KMS
+// requeriría una llamada de red); decryptSecretEnvelope sigue reconociendo el formato legado
+// `v1:...` para no romper direcciones/tokens cifrados antes de esta migración.
+async function buildEncryptedDeliveryTargets(
+  channel: NotificationChannel,
+  payload: Record<string, unknown>,
+): Promise<StoredDeliveryTarget[]> {
   const targetSpecs: Partial<Record<NotificationChannel, { kind: DeliveryTarget['kind']; keys: string[] }>> = {
     email: { kind: 'email', keys: ['email', 'toEmail', 'recipientEmail'] },
     sms: { kind: 'phone', keys: ['phone', 'toPhone', 'recipientPhone', 'smsTo'] },
@@ -52,22 +60,28 @@ function buildEncryptedDeliveryTargets(channel: NotificationChannel, payload: Re
   return [
     {
       kind: spec.kind,
-      addressEncrypted: encryptSecret(address),
+      addressEncrypted: await encryptSecretEnvelope(address),
       addressHash: sha256Hex(address),
       last4: lastCharacters(address, 4),
     },
   ];
 }
 
-function decryptDeliveryTargets(value: Array<Record<string, unknown>> | null): DeliveryTarget[] {
+async function decryptDeliveryTargets(value: Array<Record<string, unknown>> | null): Promise<DeliveryTarget[]> {
   if (!value) return [];
-  return value.flatMap((item) => {
-    const kind = item.kind;
-    const encrypted = item.addressEncrypted;
-    if ((kind !== 'email' && kind !== 'phone' && kind !== 'fcm_token' && kind !== 'whatsapp') || typeof encrypted !== 'string') return [];
-    const address = decryptSecret(encrypted);
-    return address ? [{ kind, address }] : [];
-  });
+  const resolved = await Promise.all(
+    value.map(async (item) => {
+      const kind = item.kind;
+      const encrypted = item.addressEncrypted;
+      if ((kind !== 'email' && kind !== 'phone' && kind !== 'fcm_token' && kind !== 'whatsapp') || typeof encrypted !== 'string') return [];
+      // TS no conserva el narrowing de `kind` a través del `await` siguiente; se fija el tipo
+      // explícitamente aquí, donde el guard de arriba ya lo garantiza en runtime.
+      const narrowedKind: DeliveryTarget['kind'] = kind;
+      const address = await decryptSecretEnvelope(encrypted);
+      return address ? [{ kind: narrowedKind, address }] : [];
+    }),
+  );
+  return resolved.flat();
 }
 
 function encryptedValueToString(value: string | Buffer | null): string | null {
@@ -158,7 +172,7 @@ export class NotificationsRepository {
       title: input.title,
       body: input.body,
       payloadJson: redactSensitiveObject(input.payload) as Record<string, unknown>,
-      deliveryTargetsJson: buildEncryptedDeliveryTargets(input.channel, input.payload) as unknown as Array<Record<string, unknown>>,
+      deliveryTargetsJson: (await buildEncryptedDeliveryTargets(input.channel, input.payload)) as unknown as Array<Record<string, unknown>>,
       status: 'pending',
       priority: input.priority,
       scheduledAt: input.scheduledAt ?? now,
@@ -449,7 +463,7 @@ export class NotificationsRepository {
     if (existing) {
       existing.isActive = true;
       existing.lastSeenAt = now;
-      existing.tokenEncrypted = encryptSecret(body.token);
+      existing.tokenEncrypted = await encryptSecretEnvelope(body.token);
       existing.tokenLast4 = lastCharacters(body.token, 4);
       existing.deviceId = body.deviceId ?? existing.deviceId;
       existing.updatedAtValue = now;
@@ -461,7 +475,7 @@ export class NotificationsRepository {
       customerId,
       platform: body.platform,
       tokenHash,
-      tokenEncrypted: encryptSecret(body.token),
+      tokenEncrypted: await encryptSecretEnvelope(body.token),
       tokenLast4: lastCharacters(body.token, 4),
       deviceId: body.deviceId ?? null,
       isActive: true,
@@ -471,7 +485,7 @@ export class NotificationsRepository {
     });
   }
 
-  getMessageDeliveryTargets(message: NotificationMessageModel): DeliveryTarget[] {
+  getMessageDeliveryTargets(message: NotificationMessageModel): Promise<DeliveryTarget[]> {
     return decryptDeliveryTargets(message.deliveryTargetsJson);
   }
 
@@ -493,18 +507,21 @@ export class NotificationsRepository {
         ['id', 'ASC'],
       ],
     });
-    const targets = rows.flatMap((row) => {
-      const encrypted = encryptedValueToString(row.contactValueEncrypted as string | Buffer | null);
-      const address = decryptSecret(encrypted);
-      return address ? [{ kind: spec.kind, address }] : [];
-    });
-    return mergeDeliveryTargets(targets);
+    const resolvedTargets = await Promise.all(
+      rows.map(async (row) => {
+        const encrypted = encryptedValueToString(row.contactValueEncrypted as string | Buffer | null);
+        const address = await decryptSecretEnvelope(encrypted);
+        return address ? [{ kind: spec.kind, address }] : [];
+      }),
+    );
+    return mergeDeliveryTargets(resolvedTargets.flat());
   }
 
   async getActiveDeviceTokenSecrets(tenantId: string | null, customerId: string): Promise<string[]> {
     if (!tenantId) return [];
     const rows = await this.deviceTokenModel.findAll({ where: { tenantId, customerId, isActive: true } });
-    return Array.from(new Set(rows.map((row) => decryptSecret(row.tokenEncrypted)).filter((token): token is string => Boolean(token))));
+    const decrypted = await Promise.all(rows.map((row) => decryptSecretEnvelope(row.tokenEncrypted)));
+    return Array.from(new Set(decrypted.filter((token): token is string => Boolean(token))));
   }
 
   async deactivateDeviceToken(tenantId: string, customerId: string, deviceTokenId: string): Promise<DeviceTokenModel> {

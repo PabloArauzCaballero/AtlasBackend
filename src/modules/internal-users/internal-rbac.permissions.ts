@@ -1,0 +1,200 @@
+import { InternalRoleCode } from './internal-rbac.roles.js';
+
+export type InternalPermissionSeed = {
+  code: string;
+  module: string;
+  resource: string;
+  action: string;
+  description: string;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  requiresReason: boolean;
+};
+
+function permission(
+  code: string,
+  module: string,
+  resource: string,
+  action: string,
+  description: string,
+  riskLevel: InternalPermissionSeed['riskLevel'] = 'MEDIUM',
+  requiresReason = false,
+): InternalPermissionSeed {
+  return { code, module, resource, action, description, riskLevel, requiresReason };
+}
+
+export const INTERNAL_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
+  permission('auth.internal.me.read', 'auth', 'internal_session', 'read', 'Consultar perfil, roles y permisos efectivos propios.', 'LOW'),
+  permission('systems.dashboard.read', 'systems', 'dashboard', 'read', 'Consultar dashboard técnico del portal interno.'),
+  permission('systems.endpoints.read', 'systems', 'endpoint_catalog', 'read', 'Consultar catálogo de endpoints.'),
+  permission('systems.endpoints.execute', 'systems', 'endpoint_catalog', 'execute', 'Ejecutar endpoint controlado desde QA.', 'HIGH', true),
+  permission(
+    'systems.endpoints.discover',
+    'systems',
+    'endpoint_catalog',
+    'discover',
+    'Descubrir endpoints y actualizar revisión.',
+    'HIGH',
+    true,
+  ),
+  permission(
+    'systems.endpoints.catalogSeedRefresh',
+    'systems',
+    'endpoint_catalog',
+    'seed_refresh',
+    'Refrescar catálogo técnico desde seed.',
+    'HIGH',
+    true,
+  ),
+  permission('systems.dataEntities.read', 'systems', 'data_entity', 'read', 'Consultar entidades y tablas catalogadas.'),
+  permission(
+    'systems.dataEntities.updateMetadata',
+    'systems',
+    'data_entity',
+    'update_metadata',
+    'Actualizar metadata técnica.',
+    'HIGH',
+    true,
+  ),
+  permission('systems.reviewQueue.read', 'systems', 'review_queue', 'read', 'Consultar cola de revisión.'),
+  permission('systems.reviewQueue.resolve', 'systems', 'review_queue', 'resolve', 'Resolver elementos de revisión.', 'HIGH', true),
+  permission('systems.tools.read', 'systems', 'tool_catalog', 'read', 'Consultar herramientas internas.'),
+  permission('systems.tools.health.read', 'systems', 'tool_health', 'read', 'Consultar salud de herramientas internas.'),
+  permission(
+    'systems.tools.inferRequirements',
+    'systems',
+    'tool_requirements',
+    'infer',
+    'Inferir requisitos de herramientas.',
+    'HIGH',
+    true,
+  ),
+  permission('systems.qa.read', 'systems', 'qa_suite', 'read', 'Consultar suites y corridas QA.'),
+  permission('systems.qa.execute', 'systems', 'qa_run', 'execute', 'Ejecutar suites QA controladas.', 'HIGH', true),
+  permission('systems.stress.read', 'systems', 'stress_profile', 'read', 'Consultar perfiles y corridas stress.'),
+  permission('systems.stress.execute', 'systems', 'stress_run', 'execute', 'Ejecutar stress controlado.', 'CRITICAL', true),
+  permission('internal.users.read', 'internal', 'internal_user', 'read', 'Consultar usuarios internos.'),
+  permission(
+    'internal.users.manage',
+    'internal',
+    'internal_user',
+    'manage',
+    'Crear, editar, suspender y gestionar usuarios internos.',
+    'CRITICAL',
+    true,
+  ),
+  permission('internal.roles.read', 'internal', 'internal_role', 'read', 'Consultar roles internos.'),
+  permission('internal.roles.manage', 'internal', 'internal_role', 'manage', 'Administrar roles internos.', 'CRITICAL', true),
+  permission('internal.permissions.read', 'internal', 'internal_permission', 'read', 'Consultar permisos internos.'),
+  permission('catalog.data.read', 'catalog', 'data_catalog', 'read', 'Consultar catálogo de datos.'),
+  permission('catalog.data.manage', 'catalog', 'data_catalog', 'manage', 'Administrar catálogo de datos.', 'HIGH', true),
+  permission('businessMetadata.read', 'business_metadata', 'business_term', 'read', 'Consultar metadata de negocio.'),
+  permission('businessMetadata.manage', 'business_metadata', 'business_term', 'manage', 'Administrar metadata de negocio.', 'HIGH', true),
+  permission('governance.data.read', 'governance', 'data_governance', 'read', 'Consultar gobierno de datos.'),
+  permission('governance.data.manage', 'governance', 'data_governance', 'manage', 'Administrar gobierno de datos.', 'HIGH', true),
+  permission('governance.policies.read', 'governance', 'policy', 'read', 'Consultar políticas de gobierno.'),
+  permission('governance.policies.manage', 'governance', 'policy', 'manage', 'Administrar políticas de gobierno.', 'HIGH', true),
+  permission('dataQuality.issues.read', 'data_quality', 'quality_issue', 'read', 'Consultar incidencias de calidad.'),
+  permission('dataQuality.issues.resolve', 'data_quality', 'quality_issue', 'resolve', 'Resolver incidencias de calidad.', 'HIGH', true),
+  permission('dataQuality.rules.read', 'data_quality', 'quality_rule', 'read', 'Consultar reglas de calidad.'),
+  permission('dataQuality.rules.manage', 'data_quality', 'quality_rule', 'manage', 'Administrar reglas de calidad.', 'HIGH', true),
+  permission('operations.catalogs.read', 'operations', 'catalog', 'read', 'Consultar catálogos operativos.'),
+  permission('operations.definitions.read', 'operations', 'definition', 'read', 'Consultar definiciones operativas.'),
+  permission('operations.riskPolicy.read', 'operations', 'risk_policy', 'read', 'Consultar política de riesgo vigente.'),
+  permission('reporting.read', 'reporting', 'report', 'read', 'Consultar reportes dinámicos.'),
+  permission('reporting.execute', 'reporting', 'report', 'execute', 'Ejecutar reportes dinámicos.', 'HIGH', true),
+  permission('reporting.manage', 'reporting', 'report', 'manage', 'Administrar reportes dinámicos.', 'HIGH', true),
+  permission('lineage.read', 'lineage', 'lineage_graph', 'read', 'Consultar lineage e impacto.'),
+  permission('audit.events.read', 'audit', 'audit_event', 'read', 'Consultar eventos de auditoría.', 'HIGH'),
+  permission('audit.events.detail', 'audit', 'audit_event', 'detail', 'Consultar detalle de auditoría sensible.', 'HIGH'),
+];
+
+const codeStartsWith = (prefix: string): string[] =>
+  INTERNAL_PERMISSION_SEEDS.filter((item) => item.code.startsWith(prefix)).map((item) => item.code);
+const allReadPermissions = INTERNAL_PERMISSION_SEEDS.filter((item) => item.action === 'read' || item.action === 'detail').map(
+  (item) => item.code,
+);
+const systemsAdminPermissions = [
+  'auth.internal.me.read',
+  ...codeStartsWith('systems.'),
+  ...codeStartsWith('internal.'),
+  ...codeStartsWith('catalog.'),
+  ...codeStartsWith('businessMetadata.'),
+  ...codeStartsWith('governance.'),
+  ...codeStartsWith('dataQuality.'),
+  ...codeStartsWith('reporting.'),
+  'lineage.read',
+  'audit.events.read',
+  'audit.events.detail',
+];
+
+export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly string[]>> = {
+  SUPER_ADMIN: INTERNAL_PERMISSION_SEEDS.map((item) => item.code),
+  SYSTEMS_ADMIN: systemsAdminPermissions,
+  INTERNAL_IDENTITY_ADMIN: [
+    'auth.internal.me.read',
+    'internal.users.read',
+    'internal.users.manage',
+    'internal.roles.read',
+    'internal.roles.manage',
+    'internal.permissions.read',
+    'audit.events.read',
+    'audit.events.detail',
+  ],
+  OPERATIONS_MANAGER: [
+    'auth.internal.me.read',
+    'systems.dashboard.read',
+    'operations.catalogs.read',
+    'operations.definitions.read',
+    'operations.riskPolicy.read',
+    'catalog.data.read',
+    'reporting.read',
+  ],
+  OPERATIONS_ANALYST: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read', 'catalog.data.read'],
+  RISK_MANAGER: ['auth.internal.me.read', 'operations.riskPolicy.read', 'catalog.data.read', 'reporting.read', 'audit.events.read'],
+  RISK_ANALYST: ['auth.internal.me.read', 'operations.riskPolicy.read', 'catalog.data.read'],
+  FRAUD_ANALYST: ['auth.internal.me.read', 'operations.catalogs.read', 'catalog.data.read', 'audit.events.read'],
+  COMPLIANCE_MANAGER: [
+    'auth.internal.me.read',
+    'governance.data.read',
+    'governance.policies.read',
+    'audit.events.read',
+    'audit.events.detail',
+    'reporting.read',
+  ],
+  COMPLIANCE_ANALYST: ['auth.internal.me.read', 'governance.data.read', 'governance.policies.read', 'audit.events.read'],
+  COLLECTIONS_MANAGER: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read', 'reporting.read'],
+  COLLECTIONS_AGENT: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read'],
+  FINANCE_MANAGER: ['auth.internal.me.read', 'reporting.read', 'reporting.execute', 'audit.events.read'],
+  MERCHANT_OPERATIONS: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read'],
+  DATA_GOVERNANCE_MANAGER: [
+    'auth.internal.me.read',
+    ...codeStartsWith('catalog.'),
+    ...codeStartsWith('businessMetadata.'),
+    ...codeStartsWith('governance.'),
+    ...codeStartsWith('dataQuality.'),
+    'systems.dataEntities.read',
+    'systems.dataEntities.updateMetadata',
+    'lineage.read',
+    'audit.events.read',
+  ],
+  DATA_QUALITY_ANALYST: [
+    'auth.internal.me.read',
+    'catalog.data.read',
+    'dataQuality.issues.read',
+    'dataQuality.issues.resolve',
+    'dataQuality.rules.read',
+    'dataQuality.rules.manage',
+  ],
+  QA_ENGINEER: [
+    'auth.internal.me.read',
+    'systems.endpoints.read',
+    'systems.endpoints.execute',
+    'systems.qa.read',
+    'systems.qa.execute',
+    'systems.stress.read',
+    'catalog.data.read',
+  ],
+  AUDITOR_READONLY: ['auth.internal.me.read', ...allReadPermissions],
+  SUPPORT_AGENT: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read'],
+  EXECUTIVE_READONLY: ['auth.internal.me.read', 'systems.dashboard.read', 'reporting.read', 'catalog.data.read'],
+};

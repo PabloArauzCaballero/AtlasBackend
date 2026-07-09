@@ -286,6 +286,7 @@ export class RiskRepository {
       severity: string;
       isHardStop: boolean;
       inputValues: Record<string, unknown>;
+      rulesetVersionCode: string;
       now: Date;
     },
     options: RepositoryOptions,
@@ -296,7 +297,7 @@ export class RiskRepository {
         riskAssessmentRunId: values.riskAssessmentRunId,
         riskPolicyRuleId: null,
         ruleCodeSnapshot: values.ruleCode,
-        rulesetVersionCodeSnapshot: 'rules-v1',
+        rulesetVersionCodeSnapshot: values.rulesetVersionCode,
         riskDimension: values.riskDimension,
         inputValuesJson: values.inputValues,
         outputAction: values.outputAction,
@@ -358,6 +359,8 @@ export class RiskRepository {
       reasonCodes: Record<string, unknown>;
       featureSnapshotId: string;
       integrityHash: string;
+      modelVersionCode: string;
+      rulesetVersionCode: string;
       now: Date;
     },
     options: RepositoryOptions,
@@ -383,8 +386,8 @@ export class RiskRepository {
         contactabilityScore: values.contactabilityScore,
         consistencyScore: values.consistencyScore,
         reasonCodesJson: values.reasonCodes,
-        modelVersionCodeSnapshot: 'rules-v1',
-        rulesetVersionCodeSnapshot: 'rules-v1',
+        modelVersionCodeSnapshot: values.modelVersionCode,
+        rulesetVersionCodeSnapshot: values.rulesetVersionCode,
         featureSnapshotId: values.featureSnapshotId,
         integrityHash: values.integrityHash,
         decidedAt: values.now,
@@ -450,14 +453,22 @@ export class RiskRepository {
   }
 
   createAudit(
-    values: { tenantId: string; actorType: string; actionCode: string; targetId: string; payload: Record<string, unknown>; now: Date },
+    values: {
+      tenantId: string;
+      actorType: string;
+      actorInternalUserId: string | null;
+      actionCode: string;
+      targetId: string;
+      payload: Record<string, unknown>;
+      now: Date;
+    },
     options: RepositoryOptions,
   ): Promise<OperationalAuditLogModel> {
     return this.operationalAuditLogModel.create(
       {
         tenantId: values.tenantId,
         actorType: values.actorType,
-        actorInternalUserId: null,
+        actorInternalUserId: values.actorInternalUserId,
         actorPlatformUserId: null,
         actionCode: values.actionCode,
         targetType: 'customer',

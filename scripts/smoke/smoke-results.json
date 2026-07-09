@@ -1,0 +1,4893 @@
+[
+  {
+    "method": "POST",
+    "path": "/customer-onboarding/start",
+    "role": null,
+    "requestBody": {
+      "customer": {
+        "phone": "+59170861527",
+        "email": "smoke-auth-1783525330861527@atlas.test",
+        "firstName": "Smoke",
+        "lastName": "Auth"
+      },
+      "password": "AtlasSmokeTest-1783525330861527",
+      "consents": [
+        {
+          "consentDocumentId": "1",
+          "purposeCode": "onboarding",
+          "granted": true
+        }
+      ],
+      "device": {
+        "deviceFingerprintHash": "smoke-auth-fp-178352533086152700",
+        "fingerprintVersion": "v1",
+        "channel": "mobile_app",
+        "userAgent": "AtlasSmoke/1.0"
+      }
+    },
+    "status": 201,
+    "responseData": {
+      "requestId": "62a24678-5eed-46cd-8ffd-d7cfc1b868e4",
+      "data": {
+        "customerId": "4",
+        "customerCode": "CUS-7ce3d75c-28e1-4978-ab43-38207606ffee",
+        "lifecycleStatus": "registered",
+        "onboardingFlowId": "4",
+        "sessionId": "6",
+        "deviceId": "6",
+        "nextStep": "verify_contact"
+      },
+      "timestamp": "2026-07-08T15:42:12.528Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "role": null,
+    "requestBody": {
+      "actorType": "customer",
+      "identifier": "smoke-auth-1783525330861527@atlas.test",
+      "password": "AtlasSmokeTest-1783525330861527"
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "b52b9f3b-9042-4b12-8c66-532dc3ad0917",
+      "data": {
+        "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0Iiwicm9sZSI6ImN1c3RvbWVyIiwidG9rZW5WZXJzaW9uIjoxLCJ0ZW5hbnRJZCI6IjEiLCJjdXN0b21lcklkIjoiNCIsImlhdCI6MTc4MzUyNTMzMiwiZXhwIjoxNzgzNTI4OTMyfQ.RfRM36QEWot8fU89Zy_eFj2CNsVf7KRCtPLVX7t-XtA",
+        "refreshToken": "jr_pFriIhHwMLKXLOtVngeZHuZun84R5giR5pL99WSOVmj_lLcgElnqVH_rpxegZ",
+        "tokenType": "Bearer",
+        "expiresIn": "1h"
+      },
+      "timestamp": "2026-07-08T15:42:12.857Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "role": null,
+    "requestBody": {
+      "actorType": "customer",
+      "identifier": "smoke-auth-1783525330861527@atlas.test",
+      "password": "contraseña-incorrecta-a-proposito"
+    },
+    "status": 401,
+    "responseData": {
+      "requestId": "3634364e-91e8-48e1-aa98-6f46bfd748dc",
+      "error": {
+        "code": "UNAUTHORIZED",
+        "message": "Credenciales inválidas."
+      },
+      "timestamp": "2026-07-08T15:42:12.953Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/auth/refresh",
+    "role": null,
+    "requestBody": {
+      "refreshToken": "jr_pFriIhHwMLKXLOtVngeZHuZun84R5giR5pL99WSOVmj_lLcgElnqVH_rpxegZ"
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "cac037cb-4cda-4ff9-b180-ce77c8376556",
+      "data": {
+        "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0Iiwicm9sZSI6ImN1c3RvbWVyIiwidG9rZW5WZXJzaW9uIjoxLCJ0ZW5hbnRJZCI6IjEiLCJjdXN0b21lcklkIjoiNCIsImlhdCI6MTc4MzUyNTMzMiwiZXhwIjoxNzgzNTI4OTMyfQ.RfRM36QEWot8fU89Zy_eFj2CNsVf7KRCtPLVX7t-XtA",
+        "refreshToken": "f-c8KX6ml8v3GwK19CLno3CrW6K_Qn1Izo31RyaQMcpIVdpih6WM8v52gSFTMuhz",
+        "tokenType": "Bearer",
+        "expiresIn": "1h"
+      },
+      "timestamp": "2026-07-08T15:42:12.972Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/auth/refresh",
+    "role": null,
+    "requestBody": {
+      "refreshToken": "jr_pFriIhHwMLKXLOtVngeZHuZun84R5giR5pL99WSOVmj_lLcgElnqVH_rpxegZ"
+    },
+    "status": 401,
+    "responseData": {
+      "requestId": "db74d9e1-fe6c-4632-aabc-8068a18de8c5",
+      "error": {
+        "code": "UNAUTHORIZED",
+        "message": "Refresh token inválido o expirado."
+      },
+      "timestamp": "2026-07-08T15:42:12.998Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/auth/logout",
+    "role": null,
+    "requestBody": {
+      "refreshToken": "f-c8KX6ml8v3GwK19CLno3CrW6K_Qn1Izo31RyaQMcpIVdpih6WM8v52gSFTMuhz",
+      "allDevices": false
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "60820862-932d-474c-a667-98a8cedc0416",
+      "data": {
+        "loggedOut": true
+      },
+      "timestamp": "2026-07-08T15:42:13.009Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/auth/provision-credentials",
+    "role": "admin",
+    "requestBody": {
+      "actorType": "internal_user",
+      "actorId": "1",
+      "password": "AtlasSmokeInternal-1783525330861527"
+    },
+    "status": 409,
+    "responseData": {
+      "requestId": "95afa53e-72cc-4940-b55c-5717014607f3",
+      "error": {
+        "code": "CONFLICT",
+        "message": "CREDENTIALS_ALREADY_PROVISIONED"
+      },
+      "timestamp": "2026-07-08T15:42:13.055Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/auth/provision-credentials",
+    "role": "internal_operator",
+    "requestBody": {
+      "actorType": "internal_user",
+      "actorId": "1",
+      "password": "AtlasSmokeInternal2-1783525330861527"
+    },
+    "status": 403,
+    "responseData": {
+      "requestId": "ccb61b7e-f98a-4af8-b605-4cba7b4c70df",
+      "error": {
+        "code": "FORBIDDEN",
+        "message": "El usuario autenticado no tiene permiso para esta operación."
+      },
+      "timestamp": "2026-07-08T15:42:13.060Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/internal/auth/login",
+    "role": null,
+    "requestBody": {
+      "tenantId": "1",
+      "email": "pablo@atlas.internal",
+      "password": "Atlas_Pablo#2026!"
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "91d34c70-6498-4411-b245-876f5ed90e58",
+      "data": {
+        "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6ImFkbWluIiwidG9rZW5WZXJzaW9uIjoxLCJ0ZW5hbnRJZCI6IjEiLCJpbnRlcm5hbFVzZXJJZCI6IjEiLCJpYXQiOjE3ODM1MjUzMzMsImV4cCI6MTc4MzUyODkzM30.71PVUrE59GP4C9vknVfDU8Sx75e6G27GvAYSZjJbE1E",
+        "refreshToken": "OkS6uTHzPS3woTRG-i8bxNODeR4hxfqjc6WUXyU5IfYjd4tjuppn_rWfhUXKKB89",
+        "tokenType": "Bearer",
+        "expiresIn": "1h",
+        "user": {
+          "id": "1",
+          "tenantId": "1",
+          "email": "pablo@atlas.internal",
+          "fullName": "Pablo Arauz Caballero",
+          "name": "Pablo Arauz Caballero",
+          "userCode": "pablo.admin",
+          "status": "active",
+          "department": "SYSTEMS",
+          "jobTitle": "Founder / Systems Administrator",
+          "mustChangePassword": false,
+          "mfaEnabled": false,
+          "roles": [
+            "DATA_GOVERNANCE_MANAGER",
+            "SUPER_ADMIN",
+            "SYSTEMS_ADMIN"
+          ],
+          "legacyRoles": [
+            "admin"
+          ],
+          "permissions": [
+            "audit.events.detail",
+            "audit.events.read",
+            "auth.internal.me.read",
+            "businessMetadata.manage",
+            "businessMetadata.read",
+            "catalog.data.manage",
+            "catalog.data.read",
+            "dataQuality.issues.read",
+            "dataQuality.issues.resolve",
+            "dataQuality.rules.manage",
+            "dataQuality.rules.read",
+            "governance.data.manage",
+            "governance.data.read",
+            "governance.policies.manage",
+            "governance.policies.read",
+            "internal.permissions.read",
+            "internal.roles.manage",
+            "internal.roles.read",
+            "internal.users.manage",
+            "internal.users.read",
+            "lineage.read",
+            "operations.catalogs.read",
+            "operations.definitions.read",
+            "operations.riskPolicy.read",
+            "rbac.internal_users.create",
+            "rbac.internal_users.disable",
+            "rbac.internal_users.manage_roles",
+            "rbac.internal_users.read",
+            "rbac.internal_users.update",
+            "rbac.roles.read",
+            "reporting.execute",
+            "reporting.manage",
+            "reporting.read",
+            "systems.dashboard.read",
+            "systems.dataEntities.read",
+            "systems.dataEntities.updateMetadata",
+            "systems.endpoints.catalogSeedRefresh",
+            "systems.endpoints.discover",
+            "systems.endpoints.execute",
+            "systems.endpoints.read",
+            "systems.qa.execute",
+            "systems.qa.read",
+            "systems.reviewQueue.read",
+            "systems.reviewQueue.resolve",
+            "systems.stress.execute",
+            "systems.stress.read",
+            "systems.tools.health.read",
+            "systems.tools.inferRequirements",
+            "systems.tools.read"
+          ]
+        }
+      },
+      "timestamp": "2026-07-08T15:42:13.222Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/internal/auth/me",
+    "role": null,
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "ceffc663-c302-4403-83ea-b5a8ab48e883",
+      "data": {
+        "user": {
+          "id": "1",
+          "tenantId": "1",
+          "email": "pablo@atlas.internal",
+          "fullName": "Pablo Arauz Caballero",
+          "name": "Pablo Arauz Caballero",
+          "userCode": "pablo.admin",
+          "status": "active",
+          "department": "SYSTEMS",
+          "jobTitle": "Founder / Systems Administrator",
+          "mustChangePassword": false,
+          "mfaEnabled": false,
+          "roles": [
+            "DATA_GOVERNANCE_MANAGER",
+            "SUPER_ADMIN",
+            "SYSTEMS_ADMIN"
+          ],
+          "legacyRoles": [
+            "admin"
+          ],
+          "permissions": [
+            "audit.events.detail",
+            "audit.events.read",
+            "auth.internal.me.read",
+            "businessMetadata.manage",
+            "businessMetadata.read",
+            "catalog.data.manage",
+            "catalog.data.read",
+            "dataQuality.issues.read",
+            "dataQuality.issues.resolve",
+            "dataQuality.rules.manage",
+            "dataQuality.rules.read",
+            "governance.data.manage",
+            "governance.data.read",
+            "governance.policies.manage",
+            "governance.policies.read",
+            "internal.permissions.read",
+            "internal.roles.manage",
+            "internal.roles.read",
+            "internal.users.manage",
+            "internal.users.read",
+            "lineage.read",
+            "operations.catalogs.read",
+            "operations.definitions.read",
+            "operations.riskPolicy.read",
+            "rbac.internal_users.create",
+            "rbac.internal_users.disable",
+            "rbac.internal_users.manage_roles",
+            "rbac.internal_users.read",
+            "rbac.internal_users.update",
+            "rbac.roles.read",
+            "reporting.execute",
+            "reporting.manage",
+            "reporting.read",
+            "systems.dashboard.read",
+            "systems.dataEntities.read",
+            "systems.dataEntities.updateMetadata",
+            "systems.endpoints.catalogSeedRefresh",
+            "systems.endpoints.discover",
+            "systems.endpoints.execute",
+            "systems.endpoints.read",
+            "systems.qa.execute",
+            "systems.qa.read",
+            "systems.reviewQueue.read",
+            "systems.reviewQueue.resolve",
+            "systems.stress.execute",
+            "systems.stress.read",
+            "systems.tools.health.read",
+            "systems.tools.inferRequirements",
+            "systems.tools.read"
+          ]
+        }
+      },
+      "timestamp": "2026-07-08T15:42:13.260Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/internal/users",
+    "role": null,
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "a42ed2c9-1679-441b-af21-1c4f800c8182",
+      "data": {
+        "items": [
+          {
+            "id": "1",
+            "tenantId": "1",
+            "email": "pablo@atlas.internal",
+            "fullName": "Pablo Arauz Caballero",
+            "name": "Pablo Arauz Caballero",
+            "userCode": "pablo.admin",
+            "status": "active",
+            "department": "SYSTEMS",
+            "jobTitle": "Founder / Systems Administrator",
+            "mustChangePassword": false,
+            "mfaEnabled": false,
+            "roles": [
+              "DATA_GOVERNANCE_MANAGER",
+              "SUPER_ADMIN",
+              "SYSTEMS_ADMIN"
+            ],
+            "legacyRoles": [
+              "admin"
+            ],
+            "permissions": [
+              "audit.events.detail",
+              "audit.events.read",
+              "auth.internal.me.read",
+              "businessMetadata.manage",
+              "businessMetadata.read",
+              "catalog.data.manage",
+              "catalog.data.read",
+              "dataQuality.issues.read",
+              "dataQuality.issues.resolve",
+              "dataQuality.rules.manage",
+              "dataQuality.rules.read",
+              "governance.data.manage",
+              "governance.data.read",
+              "governance.policies.manage",
+              "governance.policies.read",
+              "internal.permissions.read",
+              "internal.roles.manage",
+              "internal.roles.read",
+              "internal.users.manage",
+              "internal.users.read",
+              "lineage.read",
+              "operations.catalogs.read",
+              "operations.definitions.read",
+              "operations.riskPolicy.read",
+              "rbac.internal_users.create",
+              "rbac.internal_users.disable",
+              "rbac.internal_users.manage_roles",
+              "rbac.internal_users.read",
+              "rbac.internal_users.update",
+              "rbac.roles.read",
+              "reporting.execute",
+              "reporting.manage",
+              "reporting.read",
+              "systems.dashboard.read",
+              "systems.dataEntities.read",
+              "systems.dataEntities.updateMetadata",
+              "systems.endpoints.catalogSeedRefresh",
+              "systems.endpoints.discover",
+              "systems.endpoints.execute",
+              "systems.endpoints.read",
+              "systems.qa.execute",
+              "systems.qa.read",
+              "systems.reviewQueue.read",
+              "systems.reviewQueue.resolve",
+              "systems.stress.execute",
+              "systems.stress.read",
+              "systems.tools.health.read",
+              "systems.tools.inferRequirements",
+              "systems.tools.read"
+            ]
+          },
+          {
+            "id": "2",
+            "tenantId": "1",
+            "email": "risk.ops@atlas.test",
+            "fullName": "Risk Operations Demo",
+            "name": "Risk Operations Demo",
+            "userCode": "risk.ops",
+            "status": "active",
+            "department": null,
+            "jobTitle": null,
+            "mustChangePassword": false,
+            "mfaEnabled": false,
+            "roles": [],
+            "legacyRoles": [],
+            "permissions": []
+          },
+          {
+            "id": "3",
+            "tenantId": "1",
+            "email": "qa.internal-rbac-1783396096324-g3mqd1@atlas.internal",
+            "fullName": "QA Internal Atlas Smoke",
+            "name": "QA Internal Atlas Smoke",
+            "userCode": "QA-324-g3mqd1",
+            "status": "active",
+            "department": "SYSTEMS",
+            "jobTitle": "QA Smoke Tester",
+            "mustChangePassword": true,
+            "mfaEnabled": false,
+            "roles": [
+              "QA_ENGINEER"
+            ],
+            "legacyRoles": [
+              "qa_engineer"
+            ],
+            "permissions": [
+              "auth.internal.me.read",
+              "catalog.data.read",
+              "systems.endpoints.execute",
+              "systems.endpoints.read",
+              "systems.qa.execute",
+              "systems.qa.read",
+              "systems.stress.read"
+            ]
+          },
+          {
+            "id": "4",
+            "tenantId": "1",
+            "email": "qa.internal-rbac-1783431146154-gfu6zk@atlas.internal",
+            "fullName": "QA Internal Atlas Smoke",
+            "name": "QA Internal Atlas Smoke",
+            "userCode": "QA-154-gfu6zk",
+            "status": "active",
+            "department": "SYSTEMS",
+            "jobTitle": "QA Smoke Tester",
+            "mustChangePassword": true,
+            "mfaEnabled": false,
+            "roles": [
+              "QA_ENGINEER"
+            ],
+            "legacyRoles": [
+              "qa_engineer"
+            ],
+            "permissions": [
+              "auth.internal.me.read",
+              "catalog.data.read",
+              "systems.endpoints.execute",
+              "systems.endpoints.read",
+              "systems.qa.execute",
+              "systems.qa.read",
+              "systems.stress.read"
+            ]
+          }
+        ]
+      },
+      "timestamp": "2026-07-08T15:42:13.291Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/internal/roles",
+    "role": null,
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "e26df076-e8e2-446e-a73c-b875cec7b257",
+      "data": {
+        "items": [
+          {
+            "id": "18",
+            "code": "AUDITOR_READONLY",
+            "name": "Auditor solo lectura",
+            "description": "Consulta auditoría, catálogos y reportes sin capacidad de mutación.",
+            "department": "AUDIT",
+            "legacyRoleCode": "readonly_auditor",
+            "status": "active",
+            "permissions": [
+              "audit.events.detail",
+              "audit.events.read",
+              "auth.internal.me.read",
+              "businessMetadata.read",
+              "catalog.data.read",
+              "dataQuality.issues.read",
+              "dataQuality.rules.read",
+              "governance.data.read",
+              "governance.policies.read",
+              "internal.permissions.read",
+              "internal.roles.read",
+              "internal.users.read",
+              "lineage.read",
+              "operations.catalogs.read",
+              "operations.definitions.read",
+              "operations.riskPolicy.read",
+              "reporting.read",
+              "systems.dashboard.read",
+              "systems.dataEntities.read",
+              "systems.endpoints.read",
+              "systems.qa.read",
+              "systems.reviewQueue.read",
+              "systems.stress.read",
+              "systems.tools.health.read",
+              "systems.tools.read"
+            ]
+          },
+          {
+            "id": "12",
+            "code": "COLLECTIONS_AGENT",
+            "name": "Agente de cobranza",
+            "description": "Atiende recordatorios, promesas de pago y acciones de cobranza asignadas.",
+            "department": "COLLECTIONS",
+            "legacyRoleCode": "internal_operator",
+            "status": "active",
+            "permissions": [
+              "auth.internal.me.read",
+              "operations.catalogs.read",
+              "operations.definitions.read"
+            ]
+          },
+          {
+            "id": "11",
+            "code": "COLLECTIONS_MANAGER",
+            "name": "Jefatura de cobranza",
+            "description": "Gestiona mora, estrategias de cobranza y asignación de cartera.",
+            "department": "COLLECTIONS",
+            "legacyRoleCode": "internal_operator",
+            "status": "active",
+            "permissions": [
+              "auth.internal.me.read",
+              "operations.catalogs.read",
+              "operations.definitions.read",
+              "reporting.read"
+            ]
+          },
+          {
+            "id": "10",
+            "code": "COMPLIANCE_ANALYST",
+            "name": "Analista de cumplimiento",
+            "description": "Consulta y revisa KYC, consentimientos, privacidad y evidencias.",
+            "department": "COMPLIANCE",
+            "legacyRoleCode": "compliance_analyst",
+            "status": "active",
+            "permissions": [
+              "audit.events.read",
+              "auth.internal.me.read",
+              "governance.data.read",
+              "governance.policies.read"
+            ]
+          },
+          {
+            "id": "9",
+            "code": "COMPLIANCE_MANAGER",
+            "name": "Jefatura de cumplimiento",
+            "description": "Gobierna KYC, consentimientos, privacidad, auditoría y requerimientos regulatorios.",
+            "department": "COMPLIANCE",
+            "legacyRoleCode": "compliance_analyst",
+            "status": "active",
+            "permissions": [
+              "audit.events.detail",
+              "audit.events.read",
+              "auth.internal.me.read",
+              "governance.data.read",
+              "governance.policies.read",
+              "reporting.read"
+            ]
+          },
+          {
+            "id": "15",
+            "code": "DATA_GOVERNANCE_MANAGER",
+            "name": "Gobierno de datos",
+            "description": "Administra catálogo, metadata de negocio, sensibilidad y ownership.",
+            "department": "SYSTEMS",
+            "legacyRoleCode": "admin",
+            "status": "active",
+            "permissions": [
+              "audit.events.read",
+              "auth.internal.me.read",
+              "businessMetadata.manage",
+              "businessMetadata.read",
+              "catalog.data.manage",
+              "catalog.data.read",
+              "dataQuality.issues.read",
+              "dataQuality.issues.resolve",
+              "dataQuality.rules.manage",
+              "dataQuality.rules.read",
+              "governance.data.manage",
+              "governance.data.read",
+              "governance.policies.manage",
+              "governance.policies.read",
+              "lineage.read",
+              "systems.dataEntities.read",
+              "systems.dataEntities.updateMetadata"
+            ]
+          },
+          {
+            "id": "16",
+            "code": "DATA_QUALITY_ANALYST",
+            "name": "Analista de calidad de datos",
+            "description": "Revisa reglas, incidencias y resultados de calidad de datos.",
+            "department": "SYSTEMS",
+            "legacyRoleCode": "internal_operator",
+            "status": "active",
+            "permissions": [
+              "auth.internal.me.read",
+              "catalog.data.read",
+              "dataQuality.issues.read",
+              "dataQuality.issues.resolve",
+              "dataQuality.rules.manage",
+              "dataQuality.rules.read"
+            ]
+          },
+          {
+            "id": "20",
+            "code": "EXECUTIVE_READONLY",
+            "name": "Ejecutivo solo lectura",
+            "description": "Consulta dashboards ejecutivos y métricas sin datos mutables.",
+            "department": "EXECUTIVE",
+            "legacyRoleCode": "readonly_auditor",
+            "status": "active",
+            "permissions": [
+              "auth.internal.me.read",
+              "catalog.data.read",
+              "reporting.read",
+              "systems.dashboard.read"
+            ]
+          },
+          {
+            "id": "13",
+            "code": "FINANCE_MANAGER",
+            "name": "Jefatura financiera",
+            "description": "Consulta y administra conciliación, liquidaciones y reportes financieros internos.",
+            "department": "FINANCE",
+            "legacyRoleCode": "internal_operator",
+            "status": "active",
+            "permissions": [
+              "audit.events.read",
+              "auth.internal.me.read",
+              "reporting.execute",
+              "reporting.read"
+            ]
+          },
+          {
+            "id": "8",
+            "code": "FRAUD_ANALYST",
+            "name": "Analista de fraude",
+            "description": "Investiga señales, watchlists, casos de fraude y vínculos sospechosos.",
+            "department": "RISK",
+            "legacyRoleCode": "fraud_analyst",
+            "status": "active",
+            "permissions": [
+              "audit.events.read",
+              "auth.internal.me.read",
+              "catalog.data.read",
+              "operations.catalogs.read"
+            ]
+          },
+          {
+            "id": "3",
+            "code": "INTERNAL_IDENTITY_ADMIN",
+            "name": "Administrador de identidad interna",
+            "description": "Crea usuarios, asigna roles y gestiona bloqueos internos.",
+            "department": "SYSTEMS",
+            "legacyRoleCode": "admin",
+            "status": "active",
+            "permissions": [
+              "audit.events.detail",
+              "audit.events.read",
+              "auth.internal.me.read",
+              "internal.permissions.read",
+              "internal.roles.manage",
+              "internal.roles.read",
+              "internal.users.manage",
+              "internal.users.read"
+            ]
+          },
+          {
+            "id": "14",
+            "code": "MERCHANT_OPERATIONS",
+            "name": "Operaciones de comercios",
+            "description": "Gestiona onboarding, soporte y operación diaria de comercios.",
+            "department": "OPERATIONS",
+            "legacyRoleCode": "internal_operator",
+            "status": "active",
+            "permissions": [
+              "auth.internal.me.read",
+              "operations.catalogs.read",
+              "operations.definitions.read"
+            ]
+          },
+          {
+            "id": "5",
+            "code": "OPERATIONS_ANALYST",
+            "name": "Analista de operaciones",
+            "description": "Consulta y atiende casos operativos asignados.",
+            "department": "OPERATIONS",
+            "legacyRoleCode": "internal_operator",
+            "status": "active",
+            "permissions": [
+              "auth.internal.me.read",
+              "catalog.data.read",
+              "operations.catalogs.read",
+              "operations.definitions.read"
+            ]
+          },
+          {
+            "id": "4",
+            "code": "OPERATIONS_MANAGER",
+            "name": "Jefatura de operaciones",
+            "description": "Gestiona colas operativas, asignaciones y revisión de casos.",
+            "department": "OPERATIONS",
+            "legacyRoleCode": "internal_operator",
+            "status": "active",
+            "permissions": [
+              "auth.internal.me.read",
+              "catalog.data.read",
+              "operations.catalogs.read",
+              "operations.definitions.read",
+              "operations.riskPolicy.read",
+              "reporting.read",
+              "systems.dashboard.read"
+            ]
+          },
+          {
+            "id": "17",
+            "code": "QA_ENGINEER",
+            "name": "QA interno",
+            "description": "Ejecuta suites controladas, revisa endpoints y reportes de pruebas.",
+            "department": "SYSTEMS",
+            "legacyRoleCode": "qa_engineer",
+            "status": "active",
+            "permissions": [
+              "auth.internal.me.read",
+              "catalog.data.read",
+              "systems.endpoints.execute",
+              "systems.endpoints.read",
+              "systems.qa.execute",
+              "systems.qa.read",
+              "systems.stress.read"
+            ]
+          },
+          {
+            "id": "7",
+            "code": "RISK_ANALYST",
+            "name": "Analista de riesgo",
+            "description": "Consulta expedientes, scoring y explicabilidad de riesgo.",
+            "department": "RISK",
+            "legacyRoleCode": "risk_analyst",
+            "status": "active",
+            "permissions": [
+              "auth.internal.me.read",
+              "catalog.data.read",
+              "operations.riskPolicy.read"
+            ]
+          },
+          {
+            "id": "6",
+            "code": "RISK_MANAGER",
+            "name": "Jefatura de riesgo",
+            "description": "Revisa scoring, políticas de riesgo y overrides controlados.",
+            "department": "RISK",
+            "legacyRoleCode": "risk_analyst",
+            "status": "active",
+            "permissions": [
+              "audit.events.read",
+              "auth.internal.me.read",
+              "catalog.data.read",
+              "operations.riskPolicy.read",
+              "reporting.read"
+            ]
+          },
+          {
+            "id": "1",
+            "code": "SUPER_ADMIN",
+            "name": "Superadministrador ATLAS",
+            "description": "Acceso total al backend interno; reservado a bootstrap y emergencia auditada.",
+            "department": "SYSTEMS",
+            "legacyRoleCode": "admin",
+            "status": "active",
+            "permissions": [
+              "audit.events.detail",
+              "audit.events.read",
+              "auth.internal.me.read",
+              "businessMetadata.manage",
+              "businessMetadata.read",
+              "catalog.data.manage",
+              "catalog.data.read",
+              "dataQuality.issues.read",
+              "dataQuality.issues.resolve",
+              "dataQuality.rules.manage",
+              "dataQuality.rules.read",
+              "governance.data.manage",
+              "governance.data.read",
+              "governance.policies.manage",
+              "governance.policies.read",
+              "internal.permissions.read",
+              "internal.roles.manage",
+              "internal.roles.read",
+              "internal.users.manage",
+              "internal.users.read",
+              "lineage.read",
+              "operations.catalogs.read",
+              "operations.definitions.read",
+              "operations.riskPolicy.read",
+              "reporting.execute",
+              "reporting.manage",
+              "reporting.read",
+              "systems.dashboard.read",
+              "systems.dataEntities.read",
+              "systems.dataEntities.updateMetadata",
+              "systems.endpoints.catalogSeedRefresh",
+              "systems.endpoints.discover",
+              "systems.endpoints.execute",
+              "systems.endpoints.read",
+              "systems.qa.execute",
+              "systems.qa.read",
+              "systems.reviewQueue.read",
+              "systems.reviewQueue.resolve",
+              "systems.stress.execute",
+              "systems.stress.read",
+              "systems.tools.health.read",
+              "systems.tools.inferRequirements",
+              "systems.tools.read"
+            ]
+          },
+          {
+            "id": "19",
+            "code": "SUPPORT_AGENT",
+            "name": "Soporte interno",
+            "description": "Consulta información mínima para soporte a clientes y comercios.",
+            "department": "SUPPORT",
+            "legacyRoleCode": "internal_operator",
+            "status": "active",
+            "permissions": [
+              "auth.internal.me.read",
+              "operations.catalogs.read",
+              "operations.definitions.read"
+            ]
+          },
+          {
+            "id": "2",
+            "code": "SYSTEMS_ADMIN",
+            "name": "Administrador de sistemas",
+            "description": "Administra configuración operativa, catálogo técnico, QA, jobs y observabilidad.",
+            "department": "SYSTEMS",
+            "legacyRoleCode": "admin",
+            "status": "active",
+            "permissions": [
+              "audit.events.detail",
+              "audit.events.read",
+              "auth.internal.me.read",
+              "businessMetadata.manage",
+              "businessMetadata.read",
+              "catalog.data.manage",
+              "catalog.data.read",
+              "dataQuality.issues.read",
+              "dataQuality.issues.resolve",
+              "dataQuality.rules.manage",
+              "dataQuality.rules.read",
+              "governance.data.manage",
+              "governance.data.read",
+              "governance.policies.manage",
+              "governance.policies.read",
+              "internal.permissions.read",
+              "internal.roles.manage",
+              "internal.roles.read",
+              "internal.users.manage",
+              "internal.users.read",
+              "lineage.read",
+              "reporting.execute",
+              "reporting.manage",
+              "reporting.read",
+              "systems.dashboard.read",
+              "systems.dataEntities.read",
+              "systems.dataEntities.updateMetadata",
+              "systems.endpoints.catalogSeedRefresh",
+              "systems.endpoints.discover",
+              "systems.endpoints.execute",
+              "systems.endpoints.read",
+              "systems.qa.execute",
+              "systems.qa.read",
+              "systems.reviewQueue.read",
+              "systems.reviewQueue.resolve",
+              "systems.stress.execute",
+              "systems.stress.read",
+              "systems.tools.health.read",
+              "systems.tools.inferRequirements",
+              "systems.tools.read"
+            ]
+          }
+        ]
+      },
+      "timestamp": "2026-07-08T15:42:13.331Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/internal/permissions",
+    "role": null,
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "9dcd8e27-fba5-4ec3-b5c7-21e606743deb",
+      "data": {
+        "items": [
+          {
+            "id": "43",
+            "code": "audit.events.detail",
+            "module": "audit",
+            "resource": "audit_event",
+            "action": "detail",
+            "description": "Consultar detalle de auditoría sensible.",
+            "riskLevel": "HIGH",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "42",
+            "code": "audit.events.read",
+            "module": "audit",
+            "resource": "audit_event",
+            "action": "read",
+            "description": "Consultar eventos de auditoría.",
+            "riskLevel": "HIGH",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "1",
+            "code": "auth.internal.me.read",
+            "module": "auth",
+            "resource": "internal_session",
+            "action": "read",
+            "description": "Consultar perfil, roles y permisos efectivos propios.",
+            "riskLevel": "LOW",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "26",
+            "code": "businessMetadata.manage",
+            "module": "business_metadata",
+            "resource": "business_term",
+            "action": "manage",
+            "description": "Administrar metadata de negocio.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "25",
+            "code": "businessMetadata.read",
+            "module": "business_metadata",
+            "resource": "business_term",
+            "action": "read",
+            "description": "Consultar metadata de negocio.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "24",
+            "code": "catalog.data.manage",
+            "module": "catalog",
+            "resource": "data_catalog",
+            "action": "manage",
+            "description": "Administrar catálogo de datos.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "23",
+            "code": "catalog.data.read",
+            "module": "catalog",
+            "resource": "data_catalog",
+            "action": "read",
+            "description": "Consultar catálogo de datos.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "31",
+            "code": "dataQuality.issues.read",
+            "module": "data_quality",
+            "resource": "quality_issue",
+            "action": "read",
+            "description": "Consultar incidencias de calidad.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "32",
+            "code": "dataQuality.issues.resolve",
+            "module": "data_quality",
+            "resource": "quality_issue",
+            "action": "resolve",
+            "description": "Resolver incidencias de calidad.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "34",
+            "code": "dataQuality.rules.manage",
+            "module": "data_quality",
+            "resource": "quality_rule",
+            "action": "manage",
+            "description": "Administrar reglas de calidad.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "33",
+            "code": "dataQuality.rules.read",
+            "module": "data_quality",
+            "resource": "quality_rule",
+            "action": "read",
+            "description": "Consultar reglas de calidad.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "28",
+            "code": "governance.data.manage",
+            "module": "governance",
+            "resource": "data_governance",
+            "action": "manage",
+            "description": "Administrar gobierno de datos.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "27",
+            "code": "governance.data.read",
+            "module": "governance",
+            "resource": "data_governance",
+            "action": "read",
+            "description": "Consultar gobierno de datos.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "30",
+            "code": "governance.policies.manage",
+            "module": "governance",
+            "resource": "policy",
+            "action": "manage",
+            "description": "Administrar políticas de gobierno.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "29",
+            "code": "governance.policies.read",
+            "module": "governance",
+            "resource": "policy",
+            "action": "read",
+            "description": "Consultar políticas de gobierno.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "22",
+            "code": "internal.permissions.read",
+            "module": "internal",
+            "resource": "internal_permission",
+            "action": "read",
+            "description": "Consultar permisos internos.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "21",
+            "code": "internal.roles.manage",
+            "module": "internal",
+            "resource": "internal_role",
+            "action": "manage",
+            "description": "Administrar roles internos.",
+            "riskLevel": "CRITICAL",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "20",
+            "code": "internal.roles.read",
+            "module": "internal",
+            "resource": "internal_role",
+            "action": "read",
+            "description": "Consultar roles internos.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "19",
+            "code": "internal.users.manage",
+            "module": "internal",
+            "resource": "internal_user",
+            "action": "manage",
+            "description": "Crear, editar, suspender y gestionar usuarios internos.",
+            "riskLevel": "CRITICAL",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "18",
+            "code": "internal.users.read",
+            "module": "internal",
+            "resource": "internal_user",
+            "action": "read",
+            "description": "Consultar usuarios internos.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "41",
+            "code": "lineage.read",
+            "module": "lineage",
+            "resource": "lineage_graph",
+            "action": "read",
+            "description": "Consultar lineage e impacto.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "35",
+            "code": "operations.catalogs.read",
+            "module": "operations",
+            "resource": "catalog",
+            "action": "read",
+            "description": "Consultar catálogos operativos.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "36",
+            "code": "operations.definitions.read",
+            "module": "operations",
+            "resource": "definition",
+            "action": "read",
+            "description": "Consultar definiciones operativas.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "37",
+            "code": "operations.riskPolicy.read",
+            "module": "operations",
+            "resource": "risk_policy",
+            "action": "read",
+            "description": "Consultar política de riesgo vigente.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "39",
+            "code": "reporting.execute",
+            "module": "reporting",
+            "resource": "report",
+            "action": "execute",
+            "description": "Ejecutar reportes dinámicos.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "40",
+            "code": "reporting.manage",
+            "module": "reporting",
+            "resource": "report",
+            "action": "manage",
+            "description": "Administrar reportes dinámicos.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "38",
+            "code": "reporting.read",
+            "module": "reporting",
+            "resource": "report",
+            "action": "read",
+            "description": "Consultar reportes dinámicos.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "2",
+            "code": "systems.dashboard.read",
+            "module": "systems",
+            "resource": "dashboard",
+            "action": "read",
+            "description": "Consultar dashboard técnico del portal interno.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "7",
+            "code": "systems.dataEntities.read",
+            "module": "systems",
+            "resource": "data_entity",
+            "action": "read",
+            "description": "Consultar entidades y tablas catalogadas.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "8",
+            "code": "systems.dataEntities.updateMetadata",
+            "module": "systems",
+            "resource": "data_entity",
+            "action": "update_metadata",
+            "description": "Actualizar metadata técnica.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "5",
+            "code": "systems.endpoints.discover",
+            "module": "systems",
+            "resource": "endpoint_catalog",
+            "action": "discover",
+            "description": "Descubrir endpoints y actualizar revisión.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "4",
+            "code": "systems.endpoints.execute",
+            "module": "systems",
+            "resource": "endpoint_catalog",
+            "action": "execute",
+            "description": "Ejecutar endpoint controlado desde QA.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "3",
+            "code": "systems.endpoints.read",
+            "module": "systems",
+            "resource": "endpoint_catalog",
+            "action": "read",
+            "description": "Consultar catálogo de endpoints.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "6",
+            "code": "systems.endpoints.catalogSeedRefresh",
+            "module": "systems",
+            "resource": "endpoint_catalog",
+            "action": "seed_refresh",
+            "description": "Refrescar catálogo técnico desde seed.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "15",
+            "code": "systems.qa.execute",
+            "module": "systems",
+            "resource": "qa_run",
+            "action": "execute",
+            "description": "Ejecutar suites QA controladas.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "14",
+            "code": "systems.qa.read",
+            "module": "systems",
+            "resource": "qa_suite",
+            "action": "read",
+            "description": "Consultar suites y corridas QA.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "9",
+            "code": "systems.reviewQueue.read",
+            "module": "systems",
+            "resource": "review_queue",
+            "action": "read",
+            "description": "Consultar cola de revisión.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "10",
+            "code": "systems.reviewQueue.resolve",
+            "module": "systems",
+            "resource": "review_queue",
+            "action": "resolve",
+            "description": "Resolver elementos de revisión.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "16",
+            "code": "systems.stress.read",
+            "module": "systems",
+            "resource": "stress_profile",
+            "action": "read",
+            "description": "Consultar perfiles y corridas stress.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "17",
+            "code": "systems.stress.execute",
+            "module": "systems",
+            "resource": "stress_run",
+            "action": "execute",
+            "description": "Ejecutar stress controlado.",
+            "riskLevel": "CRITICAL",
+            "requiresReason": true,
+            "requiresMfa": false
+          },
+          {
+            "id": "11",
+            "code": "systems.tools.read",
+            "module": "systems",
+            "resource": "tool_catalog",
+            "action": "read",
+            "description": "Consultar herramientas internas.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "12",
+            "code": "systems.tools.health.read",
+            "module": "systems",
+            "resource": "tool_health",
+            "action": "read",
+            "description": "Consultar salud de herramientas internas.",
+            "riskLevel": "MEDIUM",
+            "requiresReason": false,
+            "requiresMfa": false
+          },
+          {
+            "id": "13",
+            "code": "systems.tools.inferRequirements",
+            "module": "systems",
+            "resource": "tool_requirements",
+            "action": "infer",
+            "description": "Inferir requisitos de herramientas.",
+            "riskLevel": "HIGH",
+            "requiresReason": true,
+            "requiresMfa": false
+          }
+        ]
+      },
+      "timestamp": "2026-07-08T15:42:13.356Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/internal/auth/signup",
+    "role": null,
+    "requestBody": {
+      "tenantId": "1",
+      "email": "qa.internal-rbac-1783525333064-jk00xh@atlas.internal",
+      "fullName": "QA Internal Atlas Smoke",
+      "userCode": "QA-064-jk00xh",
+      "department": "SYSTEMS",
+      "jobTitle": "QA Smoke Tester",
+      "password": "Atlas_QA#2026!",
+      "mustChangePassword": true,
+      "roles": [
+        "QA_ENGINEER"
+      ],
+      "reason": "Prueba smoke RBAC interno automatizada"
+    },
+    "status": 201,
+    "responseData": {
+      "requestId": "7f0637a5-bb0e-4299-b7f2-8d4f74d14311",
+      "data": {
+        "user": {
+          "id": "5",
+          "tenantId": "1",
+          "email": "qa.internal-rbac-1783525333064-jk00xh@atlas.internal",
+          "fullName": "QA Internal Atlas Smoke",
+          "name": "QA Internal Atlas Smoke",
+          "userCode": "QA-064-jk00xh",
+          "status": "active",
+          "department": "SYSTEMS",
+          "jobTitle": "QA Smoke Tester",
+          "mustChangePassword": true,
+          "mfaEnabled": false,
+          "roles": [
+            "QA_ENGINEER"
+          ],
+          "legacyRoles": [
+            "qa_engineer"
+          ],
+          "permissions": [
+            "auth.internal.me.read",
+            "catalog.data.read",
+            "systems.endpoints.execute",
+            "systems.endpoints.read",
+            "systems.qa.execute",
+            "systems.qa.read",
+            "systems.stress.read"
+          ]
+        }
+      },
+      "timestamp": "2026-07-08T15:42:13.527Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/internal/auth/login",
+    "role": null,
+    "requestBody": {
+      "tenantId": "1",
+      "email": "qa.internal-rbac-1783525333064-jk00xh@atlas.internal",
+      "password": "Atlas_QA#2026!"
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "acc228b6-b9b1-40ae-8f35-dfe753d148a4",
+      "data": {
+        "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwicm9sZSI6InFhX2VuZ2luZWVyIiwidG9rZW5WZXJzaW9uIjoxLCJ0ZW5hbnRJZCI6IjEiLCJpbnRlcm5hbFVzZXJJZCI6IjUiLCJpYXQiOjE3ODM1MjUzMzMsImV4cCI6MTc4MzUyODkzM30.mVVk53YaU8cutfcSmzQyDOSu3AePYt3E5zFi0k5_-hM",
+        "refreshToken": "ZiaIa_tinb2xTqFYg4NoB7SJfjwU1Nsftgavq49PrTH9mi-_xasGYK6Yb-sTUhLo",
+        "tokenType": "Bearer",
+        "expiresIn": "1h",
+        "user": {
+          "id": "5",
+          "tenantId": "1",
+          "email": "qa.internal-rbac-1783525333064-jk00xh@atlas.internal",
+          "fullName": "QA Internal Atlas Smoke",
+          "name": "QA Internal Atlas Smoke",
+          "userCode": "QA-064-jk00xh",
+          "status": "active",
+          "department": "SYSTEMS",
+          "jobTitle": "QA Smoke Tester",
+          "mustChangePassword": true,
+          "mfaEnabled": false,
+          "roles": [
+            "QA_ENGINEER"
+          ],
+          "legacyRoles": [
+            "qa_engineer"
+          ],
+          "permissions": [
+            "auth.internal.me.read",
+            "catalog.data.read",
+            "systems.endpoints.execute",
+            "systems.endpoints.read",
+            "systems.qa.execute",
+            "systems.qa.read",
+            "systems.stress.read"
+          ]
+        }
+      },
+      "timestamp": "2026-07-08T15:42:13.671Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/internal/auth/login",
+    "role": null,
+    "requestBody": {
+      "tenantId": "1",
+      "email": "pablo@atlas.internal",
+      "password": "password-incorrecto-a-proposito"
+    },
+    "status": 401,
+    "responseData": {
+      "requestId": "bdc1daf3-1a0f-4960-8284-8123f7376b8b",
+      "error": {
+        "code": "UNAUTHORIZED",
+        "message": "Credenciales inválidas."
+      },
+      "timestamp": "2026-07-08T15:42:14.046Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/internal/auth/signup",
+    "role": null,
+    "requestBody": {
+      "tenantId": "1",
+      "email": "sin-token.internal-rbac-1783525333064-jk00xh@atlas.internal",
+      "fullName": "Sin Token Smoke",
+      "userCode": "NO-4-jk00xh",
+      "department": "SYSTEMS",
+      "jobTitle": "No Token",
+      "password": "Atlas_QA#2026!",
+      "roles": [
+        "QA_ENGINEER"
+      ],
+      "reason": "Debe fallar por falta de token"
+    },
+    "status": 401,
+    "responseData": {
+      "requestId": "be93c2ec-6d51-4426-9a36-1bba57359f3c",
+      "error": {
+        "code": "UNAUTHORIZED",
+        "message": "Token Bearer requerido."
+      },
+      "timestamp": "2026-07-08T15:42:14.051Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/internal/users",
+    "role": null,
+    "requestBody": null,
+    "status": 403,
+    "responseData": {
+      "requestId": "0ecdf18c-4942-4b87-970d-c676c9ee9609",
+      "error": {
+        "code": "FORBIDDEN",
+        "message": "El usuario interno no tiene los permisos requeridos para esta operación."
+      },
+      "timestamp": "2026-07-08T15:42:14.060Z"
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/internal/users/1",
+    "role": null,
+    "requestBody": {
+      "status": "disabled",
+      "reason": "Debe fallar por autodesactivacion"
+    },
+    "status": 403,
+    "responseData": {
+      "requestId": "c302eea3-7133-4cc7-9a3b-0488c733bd13",
+      "error": {
+        "code": "FORBIDDEN",
+        "message": "No puedes suspender, bloquear o desactivar tu propia cuenta interna."
+      },
+      "timestamp": "2026-07-08T15:42:14.094Z"
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/internal/users/1/roles",
+    "role": null,
+    "requestBody": {
+      "roles": [
+        "QA_ENGINEER"
+      ],
+      "reason": "Debe fallar por autoreemplazo de roles"
+    },
+    "status": 403,
+    "responseData": {
+      "requestId": "7f14977d-da0d-4aba-9ad2-362ca988071d",
+      "error": {
+        "code": "FORBIDDEN",
+        "message": "No puedes reemplazar tus propios roles internos desde este endpoint."
+      },
+      "timestamp": "2026-07-08T15:42:14.127Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/internal/auth/refresh",
+    "role": null,
+    "requestBody": {
+      "refreshToken": "OkS6uTHzPS3woTRG-i8bxNODeR4hxfqjc6WUXyU5IfYjd4tjuppn_rWfhUXKKB89"
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "6180a8ca-ef5b-44ef-93ec-77394b437da6",
+      "data": {
+        "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6ImFkbWluIiwidG9rZW5WZXJzaW9uIjoxLCJ0ZW5hbnRJZCI6IjEiLCJpbnRlcm5hbFVzZXJJZCI6IjEiLCJpYXQiOjE3ODM1MjUzMzQsImV4cCI6MTc4MzUyODkzNH0.33fpzCFE7qM_UCDoDEjck2re6QLvap38N-118XxpwDs",
+        "refreshToken": "-_ZsA1BiM4PROyIAKfXXPTqfclJ9RS6vIkWMSVotWh6QfzOA2AlrkV9tincUAseb",
+        "tokenType": "Bearer",
+        "expiresIn": "1h",
+        "user": {
+          "id": "1",
+          "tenantId": "1",
+          "email": "pablo@atlas.internal",
+          "fullName": "Pablo Arauz Caballero",
+          "name": "Pablo Arauz Caballero",
+          "userCode": "pablo.admin",
+          "status": "active",
+          "department": "SYSTEMS",
+          "jobTitle": "Founder / Systems Administrator",
+          "mustChangePassword": false,
+          "mfaEnabled": false,
+          "roles": [
+            "DATA_GOVERNANCE_MANAGER",
+            "SUPER_ADMIN",
+            "SYSTEMS_ADMIN"
+          ],
+          "legacyRoles": [
+            "admin"
+          ],
+          "permissions": [
+            "audit.events.detail",
+            "audit.events.read",
+            "auth.internal.me.read",
+            "businessMetadata.manage",
+            "businessMetadata.read",
+            "catalog.data.manage",
+            "catalog.data.read",
+            "dataQuality.issues.read",
+            "dataQuality.issues.resolve",
+            "dataQuality.rules.manage",
+            "dataQuality.rules.read",
+            "governance.data.manage",
+            "governance.data.read",
+            "governance.policies.manage",
+            "governance.policies.read",
+            "internal.permissions.read",
+            "internal.roles.manage",
+            "internal.roles.read",
+            "internal.users.manage",
+            "internal.users.read",
+            "lineage.read",
+            "operations.catalogs.read",
+            "operations.definitions.read",
+            "operations.riskPolicy.read",
+            "rbac.internal_users.create",
+            "rbac.internal_users.disable",
+            "rbac.internal_users.manage_roles",
+            "rbac.internal_users.read",
+            "rbac.internal_users.update",
+            "rbac.roles.read",
+            "reporting.execute",
+            "reporting.manage",
+            "reporting.read",
+            "systems.dashboard.read",
+            "systems.dataEntities.read",
+            "systems.dataEntities.updateMetadata",
+            "systems.endpoints.catalogSeedRefresh",
+            "systems.endpoints.discover",
+            "systems.endpoints.execute",
+            "systems.endpoints.read",
+            "systems.qa.execute",
+            "systems.qa.read",
+            "systems.reviewQueue.read",
+            "systems.reviewQueue.resolve",
+            "systems.stress.execute",
+            "systems.stress.read",
+            "systems.tools.health.read",
+            "systems.tools.inferRequirements",
+            "systems.tools.read"
+          ]
+        }
+      },
+      "timestamp": "2026-07-08T15:42:14.153Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/internal/auth/refresh",
+    "role": null,
+    "requestBody": {
+      "refreshToken": "OkS6uTHzPS3woTRG-i8bxNODeR4hxfqjc6WUXyU5IfYjd4tjuppn_rWfhUXKKB89"
+    },
+    "status": 401,
+    "responseData": {
+      "requestId": "f6e75a70-3162-4dbf-8ebe-6e62c5f28ac6",
+      "error": {
+        "code": "UNAUTHORIZED",
+        "message": "Refresh token inválido o expirado."
+      },
+      "timestamp": "2026-07-08T15:42:14.182Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/internal/auth/logout",
+    "role": null,
+    "requestBody": {
+      "refreshToken": "-_ZsA1BiM4PROyIAKfXXPTqfclJ9RS6vIkWMSVotWh6QfzOA2AlrkV9tincUAseb",
+      "allDevices": false
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "82867e7a-3775-4c60-a758-38f95a499cfd",
+      "data": {
+        "loggedOut": true
+      },
+      "timestamp": "2026-07-08T15:42:14.192Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/health",
+    "role": null,
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "86bc2958-9d3e-45fa-8ea8-02dad4cf4885",
+      "data": {
+        "status": "ok",
+        "service": "atlas-backend",
+        "version": "0.3.0",
+        "database": "ok",
+        "uptime": 131,
+        "timestamp": "2026-07-08T15:42:14.210Z"
+      },
+      "timestamp": "2026-07-08T15:42:14.210Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/consent-documents/active?language=es",
+    "role": null,
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "130a1a5e-00ff-400d-8190-a3f607e6a8b8",
+      "data": [
+        {
+          "id": "1",
+          "tenantId": "1",
+          "documentCode": "privacy-policy-dev",
+          "versionCode": "v1-dev",
+          "language": "es",
+          "contentUrl": "https://atlas.test/legal/privacy-policy-dev",
+          "contentHash": "dev_seed_hash_000000000000000000000000000000000000000000000000000001",
+          "requiresExplicitAction": true,
+          "effectiveFrom": "2026-01-01",
+          "effectiveUntil": null,
+          "status": "published"
+        }
+      ],
+      "timestamp": "2026-07-08T15:42:14.232Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/customers/1/me",
+    "role": "customer",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "c2958851-ac03-44c0-8bc5-c6e2016d2147",
+      "data": {
+        "customer": {
+          "customerId": "1",
+          "customerCode": "CUS-DEMO-001",
+          "status": "active",
+          "phoneLast4": "0001",
+          "emailDomain": "atlas.test"
+        },
+        "profile": {
+          "firstName": "Cliente",
+          "lastName": "Demo",
+          "birthDate": "1996-01-01",
+          "preferredLanguage": "es"
+        },
+        "onboarding": null,
+        "contacts": [
+          {
+            "contactType": "email",
+            "status": "verified",
+            "isPrimary": true,
+            "valueLast4": "test"
+          }
+        ],
+        "consents": {
+          "accepted": [
+            "segip_kyc_onboarding",
+            "risk_fraud_assessment",
+            "segip_kyc_onboarding",
+            "risk_fraud_assessment",
+            "risk_fraud_assessment"
+          ],
+          "declined": []
+        },
+        "risk": {
+          "latestDecision": "approved_for_next_step",
+          "latestRiskLevel": "medium"
+        },
+        "nextStep": "identity_capture"
+      },
+      "timestamp": "2026-07-08T15:42:14.276Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/work-queue?queue=all&page=1&limit=20",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "80a570c6-2b37-4e7b-b953-91a156a63986",
+      "data": {
+        "items": [
+          {
+            "workItemType": "manual_review",
+            "caseId": "1",
+            "caseCode": "MR-DEMO-001",
+            "customerId": "1",
+            "priority": "low",
+            "status": "open",
+            "reasonCode": "risk_review_demo",
+            "openedAt": "2026-01-01T00:00:00.000Z",
+            "createdAt": "2026-01-01T00:00:00.000Z"
+          },
+          {
+            "workItemType": "fraud",
+            "caseId": "1",
+            "caseCode": "FR-DEMO-001",
+            "customerId": "1",
+            "priority": "low",
+            "status": "monitoring",
+            "reasonCode": "dev_seed_pattern",
+            "openedAt": "2026-01-01T00:00:00.000Z",
+            "createdAt": "2026-01-01T00:00:00.000Z"
+          }
+        ],
+        "meta": {
+          "page": 1,
+          "limit": 20,
+          "total": 2,
+          "totalPages": 1
+        }
+      },
+      "timestamp": "2026-07-08T15:42:14.366Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/customers/1/investigation-summary",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "cdcad6cd-dc1b-44d4-8334-5c47c7893650",
+      "data": {
+        "customer": {
+          "customerId": "1",
+          "customerCode": "CUS-DEMO-001",
+          "status": "active",
+          "phoneLast4": "0001",
+          "emailDomain": "atlas.test",
+          "createdAt": "2026-01-01T00:00:00.000Z"
+        },
+        "profile": {
+          "firstName": "Cliente",
+          "lastName": "Demo",
+          "birthDate": "1996-01-01",
+          "preferredLanguage": "es"
+        },
+        "contacts": [
+          {
+            "contactType": "email",
+            "status": "verified",
+            "isPrimary": true,
+            "valueLast4": "test"
+          }
+        ],
+        "consents": [
+          {
+            "purposeCode": "segip_kyc_onboarding",
+            "granted": true,
+            "grantedAt": "2026-07-07T13:32:28.449Z",
+            "revokedAt": null
+          },
+          {
+            "purposeCode": "risk_fraud_assessment",
+            "granted": true,
+            "grantedAt": "2026-07-07T13:32:26.967Z",
+            "revokedAt": null
+          },
+          {
+            "purposeCode": "segip_kyc_onboarding",
+            "granted": true,
+            "grantedAt": "2026-07-07T03:48:26.338Z",
+            "revokedAt": null
+          },
+          {
+            "purposeCode": "risk_fraud_assessment",
+            "granted": true,
+            "grantedAt": "2026-07-07T03:48:19.488Z",
+            "revokedAt": null
+          },
+          {
+            "purposeCode": "risk_fraud_assessment",
+            "granted": true,
+            "grantedAt": "2026-01-01T00:00:00.000Z",
+            "revokedAt": null
+          }
+        ],
+        "latestRiskAssessment": {
+          "riskAssessmentRunId": "3",
+          "assessmentType": "manual_recheck",
+          "recommendedAction": "approved_for_next_step",
+          "riskLevel": "medium",
+          "fraudScore": 20,
+          "decidedAt": "2026-07-07T13:32:27.789Z"
+        },
+        "manualReviewCases": [
+          {
+            "caseId": "1",
+            "caseCode": "MR-DEMO-001",
+            "caseType": "risk_review_demo",
+            "priority": "low",
+            "status": "open",
+            "openedAt": "2026-01-01T00:00:00.000Z"
+          }
+        ],
+        "fraudCases": [
+          {
+            "caseId": "1",
+            "caseCode": "FR-DEMO-001",
+            "severity": "low",
+            "caseStatus": "monitoring",
+            "openedAt": "2026-01-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "timestamp": "2026-07-08T15:42:14.410Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/audit/customer/1?page=1&limit=20",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "12d0de71-8833-45cd-8fea-d7c94984427d",
+      "data": {
+        "events": [
+          {
+            "eventType": "operational_audit",
+            "occurredAt": "2026-07-07T13:32:27.789Z",
+            "actorType": "customer",
+            "summary": "risk_assessment.created"
+          },
+          {
+            "eventType": "operational_audit",
+            "occurredAt": "2026-07-07T13:32:27.724Z",
+            "actorType": "customer",
+            "summary": "customer_telemetry.batch_ingested"
+          },
+          {
+            "eventType": "customer_action",
+            "occurredAt": "2026-07-07T13:32:27.706Z",
+            "actorType": "customer",
+            "summary": "smoke_action_open_app"
+          },
+          {
+            "eventType": "customer_action",
+            "occurredAt": "2026-07-07T13:32:27.619Z",
+            "actorType": "customer",
+            "summary": "session_ended"
+          },
+          {
+            "eventType": "auth",
+            "occurredAt": "2026-07-07T13:32:27.619Z",
+            "actorType": "customer",
+            "summary": "session_ended"
+          },
+          {
+            "eventType": "customer_action",
+            "occurredAt": "2026-07-07T13:32:27.403Z",
+            "actorType": "customer",
+            "summary": "session_heartbeat"
+          },
+          {
+            "eventType": "customer_action",
+            "occurredAt": "2026-07-07T13:32:27.281Z",
+            "actorType": "customer",
+            "summary": "session_started"
+          },
+          {
+            "eventType": "auth",
+            "occurredAt": "2026-07-07T13:32:27.281Z",
+            "actorType": "customer",
+            "summary": "session_started"
+          },
+          {
+            "eventType": "customer_action",
+            "occurredAt": "2026-07-07T13:32:27.021Z",
+            "actorType": "customer",
+            "summary": "data_subject_request_created"
+          },
+          {
+            "eventType": "customer_action",
+            "occurredAt": "2026-07-07T13:32:26.977Z",
+            "actorType": "customer",
+            "summary": "privacy_consent_decisions_registered"
+          },
+          {
+            "eventType": "operational_audit",
+            "occurredAt": "2026-07-07T13:32:26.977Z",
+            "actorType": "customer",
+            "summary": "privacy.consent_decisions"
+          },
+          {
+            "eventType": "consent",
+            "occurredAt": "2026-07-07T13:32:26.967Z",
+            "actorType": "customer",
+            "summary": "granted"
+          },
+          {
+            "eventType": "operational_audit",
+            "occurredAt": "2026-07-07T03:48:21.621Z",
+            "actorType": "customer",
+            "summary": "risk_assessment.created"
+          },
+          {
+            "eventType": "operational_audit",
+            "occurredAt": "2026-07-07T03:48:21.417Z",
+            "actorType": "customer",
+            "summary": "customer_telemetry.batch_ingested"
+          },
+          {
+            "eventType": "customer_action",
+            "occurredAt": "2026-07-07T03:48:21.384Z",
+            "actorType": "customer",
+            "summary": "smoke_action_open_app"
+          },
+          {
+            "eventType": "customer_action",
+            "occurredAt": "2026-07-07T03:48:21.274Z",
+            "actorType": "customer",
+            "summary": "session_ended"
+          },
+          {
+            "eventType": "auth",
+            "occurredAt": "2026-07-07T03:48:21.274Z",
+            "actorType": "customer",
+            "summary": "session_ended"
+          },
+          {
+            "eventType": "customer_action",
+            "occurredAt": "2026-07-07T03:48:20.972Z",
+            "actorType": "customer",
+            "summary": "session_heartbeat"
+          },
+          {
+            "eventType": "customer_action",
+            "occurredAt": "2026-07-07T03:48:20.695Z",
+            "actorType": "customer",
+            "summary": "session_started"
+          },
+          {
+            "eventType": "auth",
+            "occurredAt": "2026-07-07T03:48:20.695Z",
+            "actorType": "customer",
+            "summary": "session_started"
+          }
+        ],
+        "meta": {
+          "page": 1,
+          "limit": 20,
+          "total": 33,
+          "totalPages": 2
+        }
+      },
+      "timestamp": "2026-07-08T15:42:14.517Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/data-quality/issues?page=1&limit=20",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "44db881c-23ac-4e4c-8225-46d4e0536f01",
+      "data": {
+        "items": [
+          {
+            "issueId": "102",
+            "severity": "medium",
+            "entityType": "system_endpoint_catalog",
+            "entityId": "auto",
+            "issueCode": "endpoint_business_purpose_required",
+            "status": "open",
+            "detectedAt": "2026-01-01T00:00:00.000Z",
+            "resolvedAt": null
+          },
+          {
+            "issueId": "101",
+            "severity": "high",
+            "entityType": "risk_assessment_results",
+            "entityId": "1",
+            "issueCode": "risk_result_has_reason_codes",
+            "status": "open",
+            "detectedAt": "2026-01-01T00:00:00.000Z",
+            "resolvedAt": null
+          }
+        ],
+        "meta": {
+          "page": 1,
+          "limit": 20,
+          "total": 2,
+          "totalPages": 1
+        }
+      },
+      "timestamp": "2026-07-08T15:42:14.568Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/customers/1/privacy/consent-decisions",
+    "role": "customer",
+    "requestBody": {
+      "decisions": [
+        {
+          "consentDocumentId": "1",
+          "purposeCode": "risk_fraud_assessment",
+          "decision": "granted",
+          "decidedAt": "2026-07-08T15:42:14.578Z",
+          "sessionId": "1"
+        }
+      ]
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "71a01000-1da2-4f2f-b2a8-a908b513f24b",
+      "data": {
+        "customerId": "1",
+        "processed": 1,
+        "currentConsentStatus": "complete"
+      },
+      "timestamp": "2026-07-08T15:42:14.611Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/customers/1/privacy/data-subject-requests",
+    "role": "customer",
+    "requestBody": {
+      "requestType": "access",
+      "description": "Smoke test local de solicitud de acceso a datos."
+    },
+    "status": 201,
+    "responseData": {
+      "requestId": "b7be2fa5-528c-487a-bcf8-ef00e6106bcb",
+      "data": {
+        "dataSubjectRequestId": "4",
+        "status": "received"
+      },
+      "timestamp": "2026-07-08T15:42:14.685Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/catalogs",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "7d96f1af-ec5c-4766-83e9-76e37530f702",
+      "data": {
+        "items": [
+          {
+            "catalogId": "101",
+            "catalogCode": "city_zones_scz",
+            "catalogName": "Zonas Santa Cruz de la Sierra",
+            "domain": "geography",
+            "description": "Zonas urbanas para formularios, análisis de riesgo y operaciones.",
+            "ownerTeam": "risk_operations",
+            "isActive": true,
+            "currentVersion": {
+              "catalogVersionId": "101",
+              "versionCode": "v1-seed",
+              "status": "published",
+              "validFrom": "2026-01-01",
+              "validUntil": null
+            }
+          },
+          {
+            "catalogId": "104",
+            "catalogCode": "document_types_bo",
+            "catalogName": "Tipos de documento Bolivia",
+            "domain": "kyc",
+            "description": "Documentos aceptados para identidad/KYC.",
+            "ownerTeam": "compliance",
+            "isActive": true,
+            "currentVersion": {
+              "catalogVersionId": "104",
+              "versionCode": "v1-seed",
+              "status": "published",
+              "validFrom": "2026-01-01",
+              "validUntil": null
+            }
+          },
+          {
+            "catalogId": "103",
+            "catalogCode": "income_bands_bob",
+            "catalogName": "Bandas de ingreso mensual BOB",
+            "domain": "income",
+            "description": "Bandas no exactas para reducir sensibilidad y facilitar scorecard.",
+            "ownerTeam": "risk",
+            "isActive": true,
+            "currentVersion": {
+              "catalogVersionId": "103",
+              "versionCode": "v1-seed",
+              "status": "published",
+              "validFrom": "2026-01-01",
+              "validUntil": null
+            }
+          },
+          {
+            "catalogId": "107",
+            "catalogCode": "merchant_categories",
+            "catalogName": "Categorías de comercio",
+            "domain": "merchant",
+            "description": "Categorías comerciales para BNPL y análisis de cohortes.",
+            "ownerTeam": "merchant_ops",
+            "isActive": true,
+            "currentVersion": {
+              "catalogVersionId": "107",
+              "versionCode": "v1-seed",
+              "status": "published",
+              "validFrom": "2026-01-01",
+              "validUntil": null
+            }
+          },
+          {
+            "catalogId": "102",
+            "catalogCode": "occupation_categories_bo",
+            "catalogName": "Categorías ocupacionales Bolivia",
+            "domain": "employment",
+            "description": "Segmentación laboral para perfilamiento inicial y features.",
+            "ownerTeam": "risk",
+            "isActive": true,
+            "currentVersion": {
+              "catalogVersionId": "102",
+              "versionCode": "v1-seed",
+              "status": "published",
+              "validFrom": "2026-01-01",
+              "validUntil": null
+            }
+          },
+          {
+            "catalogId": "108",
+            "catalogCode": "onboarding_steps",
+            "catalogName": "Pasos de onboarding",
+            "domain": "onboarding",
+            "description": "Pasos requeridos para validar flujo de registro y pruebas frontend.",
+            "ownerTeam": "product",
+            "isActive": true,
+            "currentVersion": {
+              "catalogVersionId": "108",
+              "versionCode": "v1-seed",
+              "status": "published",
+              "validFrom": "2026-01-01",
+              "validUntil": null
+            }
+          },
+          {
+            "catalogId": "106",
+            "catalogCode": "payment_channels_bo",
+            "catalogName": "Canales de pago Bolivia",
+            "domain": "payments",
+            "description": "Canales de pago esperados: QR BCB, transferencia, Tigo Money y efectivo comercio.",
+            "ownerTeam": "operations",
+            "isActive": true,
+            "currentVersion": {
+              "catalogVersionId": "106",
+              "versionCode": "v1-seed",
+              "status": "published",
+              "validFrom": "2026-01-01",
+              "validUntil": null
+            }
+          },
+          {
+            "catalogId": "105",
+            "catalogCode": "risk_reason_codes",
+            "catalogName": "Reason codes de riesgo",
+            "domain": "risk",
+            "description": "Razones explicables para score, revisión manual y rechazo.",
+            "ownerTeam": "risk",
+            "isActive": true,
+            "currentVersion": {
+              "catalogVersionId": "105",
+              "versionCode": "v1-seed",
+              "status": "published",
+              "validFrom": "2026-01-01",
+              "validUntil": null
+            }
+          }
+        ]
+      },
+      "timestamp": "2026-07-08T15:42:14.784Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/definitions?type=all&status=all",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "1347a4cc-727a-4dc7-aced-34002478c628",
+      "data": {
+        "observations": [
+          {
+            "observationDefinitionId": "104",
+            "observationCode": "bureau_days_past_due_max_12m",
+            "observationName": "Máximo atraso buró 12 meses",
+            "dataType": "number",
+            "sourceGroup": "bureau",
+            "riskDimension": "credit",
+            "isActive": true
+          },
+          {
+            "observationDefinitionId": "105",
+            "observationCode": "contactability_score_raw",
+            "observationName": "Score crudo de contactabilidad",
+            "dataType": "number",
+            "sourceGroup": "communication",
+            "riskDimension": "contactability",
+            "isActive": true
+          },
+          {
+            "observationDefinitionId": "101",
+            "observationCode": "device_fingerprint_hash",
+            "observationName": "Hash de huella de dispositivo",
+            "dataType": "string",
+            "sourceGroup": "device",
+            "riskDimension": "fraud",
+            "isActive": true
+          },
+          {
+            "observationDefinitionId": "103",
+            "observationCode": "gps_distance_from_declared_address_m",
+            "observationName": "Distancia GPS vs dirección declarada",
+            "dataType": "number",
+            "sourceGroup": "location",
+            "riskDimension": "consistency",
+            "isActive": true
+          },
+          {
+            "observationDefinitionId": "107",
+            "observationCode": "kyc_document_match",
+            "observationName": "Coincidencia documento KYC",
+            "dataType": "boolean",
+            "sourceGroup": "identity",
+            "riskDimension": "identity",
+            "isActive": true
+          },
+          {
+            "observationDefinitionId": "106",
+            "observationCode": "on_device_contacts_score",
+            "observationName": "Puntaje on-device sin guardar agenda",
+            "dataType": "number",
+            "sourceGroup": "on_device",
+            "riskDimension": "fraud",
+            "isActive": true
+          },
+          {
+            "observationDefinitionId": "108",
+            "observationCode": "qr_payment_verified",
+            "observationName": "Pago inicial QR verificado",
+            "dataType": "boolean",
+            "sourceGroup": "payments",
+            "riskDimension": "payment",
+            "isActive": true
+          },
+          {
+            "observationDefinitionId": "102",
+            "observationCode": "sim_count",
+            "observationName": "Cantidad de SIM observadas",
+            "dataType": "number",
+            "sourceGroup": "device",
+            "riskDimension": "fraud",
+            "isActive": true
+          }
+        ],
+        "events": [
+          {
+            "eventDefinitionId": "101",
+            "eventCode": "customer_onboarding_started",
+            "eventName": "Onboarding iniciado",
+            "eventFamily": "customer",
+            "sourcePackage": "customer-onboarding",
+            "riskDimension": "lifecycle",
+            "isHighVolume": true,
+            "isActive": true
+          },
+          {
+            "eventDefinitionId": "103",
+            "eventCode": "manual_review_opened",
+            "eventName": "Revisión manual abierta",
+            "eventFamily": "operations",
+            "sourcePackage": "risk",
+            "riskDimension": "operations",
+            "isHighVolume": false,
+            "isActive": true
+          },
+          {
+            "eventDefinitionId": "104",
+            "eventCode": "provider_request_completed",
+            "eventName": "Proveedor externo completado",
+            "eventFamily": "external_data",
+            "sourcePackage": "external-data",
+            "riskDimension": "external_provider",
+            "isHighVolume": false,
+            "isActive": true
+          },
+          {
+            "eventDefinitionId": "102",
+            "eventCode": "risk_assessment_completed",
+            "eventName": "Evaluación de riesgo completada",
+            "eventFamily": "risk",
+            "sourcePackage": "risk",
+            "riskDimension": "credit",
+            "isHighVolume": true,
+            "isActive": true
+          }
+        ],
+        "attributes": [
+          {
+            "attributeDefinitionId": "101",
+            "attributeCode": "age_years",
+            "attributeName": "Edad en años",
+            "entityScope": "customer",
+            "dataType": "number",
+            "riskDimension": "demographic",
+            "isSensitive": true,
+            "isActive": true
+          },
+          {
+            "attributeDefinitionId": "102",
+            "attributeCode": "city_zone_code",
+            "attributeName": "Zona declarada",
+            "entityScope": "customer",
+            "dataType": "string",
+            "riskDimension": "location",
+            "isSensitive": true,
+            "isActive": true
+          },
+          {
+            "attributeDefinitionId": "106",
+            "attributeCode": "device_trust_tier",
+            "attributeName": "Tier de confianza de dispositivo",
+            "entityScope": "device",
+            "dataType": "string",
+            "riskDimension": "fraud",
+            "isSensitive": true,
+            "isActive": true
+          },
+          {
+            "attributeDefinitionId": "105",
+            "attributeCode": "document_type_code",
+            "attributeName": "Tipo de documento",
+            "entityScope": "customer",
+            "dataType": "string",
+            "riskDimension": "identity",
+            "isSensitive": true,
+            "isActive": true
+          },
+          {
+            "attributeDefinitionId": "104",
+            "attributeCode": "income_band_code",
+            "attributeName": "Banda de ingreso declarada",
+            "entityScope": "customer",
+            "dataType": "string",
+            "riskDimension": "income",
+            "isSensitive": true,
+            "isActive": true
+          },
+          {
+            "attributeDefinitionId": "107",
+            "attributeCode": "merchant_category_code",
+            "attributeName": "Categoría de comercio",
+            "entityScope": "purchase",
+            "dataType": "string",
+            "riskDimension": "merchant",
+            "isSensitive": false,
+            "isActive": true
+          },
+          {
+            "attributeDefinitionId": "103",
+            "attributeCode": "occupation_category_code",
+            "attributeName": "Categoría ocupacional",
+            "entityScope": "customer",
+            "dataType": "string",
+            "riskDimension": "employment",
+            "isSensitive": true,
+            "isActive": true
+          },
+          {
+            "attributeDefinitionId": "108",
+            "attributeCode": "payment_channel_code",
+            "attributeName": "Canal de pago",
+            "entityScope": "payment",
+            "dataType": "string",
+            "riskDimension": "payment",
+            "isSensitive": false,
+            "isActive": true
+          }
+        ],
+        "features": [
+          {
+            "featureDefinitionId": "101",
+            "featureCode": "feat_age_years",
+            "featureName": "Edad en años",
+            "featureFamily": "demographic",
+            "riskDimension": "demographic",
+            "dataType": "number",
+            "isModelInput": true,
+            "isPolicyRuleInput": true,
+            "isActive": true
+          },
+          {
+            "featureDefinitionId": "105",
+            "featureCode": "feat_bureau_dpd_max_12m",
+            "featureName": "Máximo DPD buró 12 meses",
+            "featureFamily": "bureau",
+            "riskDimension": "credit",
+            "dataType": "number",
+            "isModelInput": true,
+            "isPolicyRuleInput": true,
+            "isActive": true
+          },
+          {
+            "featureDefinitionId": "104",
+            "featureCode": "feat_contactability_score",
+            "featureName": "Score de contactabilidad",
+            "featureFamily": "contactability",
+            "riskDimension": "contactability",
+            "dataType": "number",
+            "isModelInput": true,
+            "isPolicyRuleInput": true,
+            "isActive": true
+          },
+          {
+            "featureDefinitionId": "102",
+            "featureCode": "feat_device_reuse_count",
+            "featureName": "Cantidad de clientes por dispositivo",
+            "featureFamily": "device",
+            "riskDimension": "fraud",
+            "dataType": "number",
+            "isModelInput": true,
+            "isPolicyRuleInput": true,
+            "isActive": true
+          },
+          {
+            "featureDefinitionId": "103",
+            "featureCode": "feat_failed_login_count_7d",
+            "featureName": "Intentos fallidos 7 días",
+            "featureFamily": "security",
+            "riskDimension": "fraud",
+            "dataType": "number",
+            "isModelInput": true,
+            "isPolicyRuleInput": true,
+            "isActive": true
+          },
+          {
+            "featureDefinitionId": "106",
+            "featureCode": "feat_gps_consistency_score",
+            "featureName": "Consistencia GPS/dirección",
+            "featureFamily": "location",
+            "riskDimension": "consistency",
+            "dataType": "number",
+            "isModelInput": true,
+            "isPolicyRuleInput": true,
+            "isActive": true
+          },
+          {
+            "featureDefinitionId": "108",
+            "featureCode": "feat_income_band_points",
+            "featureName": "Puntos por banda de ingreso",
+            "featureFamily": "income",
+            "riskDimension": "capacity",
+            "dataType": "number",
+            "isModelInput": true,
+            "isPolicyRuleInput": true,
+            "isActive": true
+          },
+          {
+            "featureDefinitionId": "109",
+            "featureCode": "feat_kyc_match_score",
+            "featureName": "Score de coincidencia KYC",
+            "featureFamily": "identity",
+            "riskDimension": "identity",
+            "dataType": "number",
+            "isModelInput": true,
+            "isPolicyRuleInput": true,
+            "isActive": true
+          },
+          {
+            "featureDefinitionId": "112",
+            "featureCode": "feat_manual_review_count",
+            "featureName": "Histórico revisión manual",
+            "featureFamily": "operations",
+            "riskDimension": "operations",
+            "dataType": "number",
+            "isModelInput": true,
+            "isPolicyRuleInput": true,
+            "isActive": true
+          },
+          {
+            "featureDefinitionId": "107",
+            "featureCode": "feat_on_device_contacts_score",
+            "featureName": "Puntaje agenda on-device",
+            "featureFamily": "on_device",
+            "riskDimension": "fraud",
+            "dataType": "number",
+            "isModelInput": true,
+            "isPolicyRuleInput": true,
+            "isActive": true
+          },
+          {
+            "featureDefinitionId": "111",
+            "featureCode": "feat_qr_payment_verified",
+            "featureName": "Pago QR verificado",
+            "featureFamily": "payment",
+            "riskDimension": "payment",
+            "dataType": "boolean",
+            "isModelInput": true,
+            "isPolicyRuleInput": true,
+            "isActive": true
+          },
+          {
+            "featureDefinitionId": "110",
+            "featureCode": "feat_watchlist_hits",
+            "featureName": "Coincidencias watchlist",
+            "featureFamily": "fraud",
+            "riskDimension": "fraud",
+            "dataType": "number",
+            "isModelInput": true,
+            "isPolicyRuleInput": true,
+            "isActive": true
+          }
+        ]
+      },
+      "timestamp": "2026-07-08T15:42:14.874Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/risk-policy/current",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "fd3ae1df-b835-4015-af77-395ca75c00c2",
+      "data": {
+        "modelVersions": [
+          {
+            "riskModelVersionId": "101",
+            "modelCode": "atlas_bnpl_application_score",
+            "versionCode": "v1-seed",
+            "modelType": "scorecard_placeholder",
+            "assessmentType": "onboarding_credit",
+            "status": "active",
+            "effectiveFrom": "2026-01-01T00:00:00.000Z",
+            "effectiveUntil": null
+          }
+        ],
+        "rulesetVersions": [
+          {
+            "riskRulesetVersionId": "101",
+            "rulesetCode": "atlas_mvp_onboarding_ruleset",
+            "versionCode": "v1-seed",
+            "assessmentType": "onboarding_credit",
+            "status": "active",
+            "effectiveFrom": "2026-01-01T00:00:00.000Z",
+            "effectiveUntil": null,
+            "rules": [
+              {
+                "riskPolicyRuleId": "105",
+                "ruleCode": "approve_good_contactability",
+                "ruleName": "Aprobar si score y contactabilidad son suficientes",
+                "riskDimension": "contactability",
+                "ruleType": "approve_rule",
+                "severity": "low",
+                "actionCode": "APPROVE",
+                "reasonCode": "GOOD_CONTACTABILITY",
+                "isHardStop": false
+              },
+              {
+                "riskPolicyRuleId": "101",
+                "ruleCode": "block_missing_required_consent",
+                "ruleName": "Bloquear si falta consentimiento requerido",
+                "riskDimension": "legal",
+                "ruleType": "hard_stop",
+                "severity": "critical",
+                "actionCode": "BLOCK",
+                "reasonCode": "MISSING_REQUIRED_CONSENT",
+                "isHardStop": true
+              },
+              {
+                "riskPolicyRuleId": "104",
+                "ruleCode": "block_negative_bureau_hit",
+                "ruleName": "Bloquear si buró reporta mora grave",
+                "riskDimension": "credit",
+                "ruleType": "hard_stop",
+                "severity": "critical",
+                "actionCode": "BLOCK",
+                "reasonCode": "BUREAU_HIT_NEGATIVE",
+                "isHardStop": true
+              },
+              {
+                "riskPolicyRuleId": "106",
+                "ruleCode": "cap_line_low_income_band",
+                "ruleName": "Limitar línea inicial por banda de ingreso baja",
+                "riskDimension": "capacity",
+                "ruleType": "line_cap",
+                "severity": "medium",
+                "actionCode": "CAP_CREDIT_LINE",
+                "reasonCode": "LOW_INCOME_BAND",
+                "isHardStop": false
+              },
+              {
+                "riskPolicyRuleId": "102",
+                "ruleCode": "manual_review_device_reuse_high",
+                "ruleName": "Revisión si el dispositivo se reutiliza demasiado",
+                "riskDimension": "fraud",
+                "ruleType": "manual_review",
+                "severity": "high",
+                "actionCode": "MANUAL_REVIEW",
+                "reasonCode": "HIGH_DEVICE_REUSE",
+                "isHardStop": false
+              },
+              {
+                "riskPolicyRuleId": "103",
+                "ruleCode": "manual_review_gps_mismatch",
+                "ruleName": "Revisión si GPS difiere de dirección declarada",
+                "riskDimension": "consistency",
+                "ruleType": "manual_review",
+                "severity": "medium",
+                "actionCode": "MANUAL_REVIEW",
+                "reasonCode": "GPS_DECLARED_ADDRESS_MISMATCH",
+                "isHardStop": false
+              }
+            ]
+          }
+        ],
+        "riskSignalSeeds": [
+          {
+            "riskSignalSeedId": "103",
+            "signalCode": "signal_bureau_dpd",
+            "signalName": "Mora máxima en buró",
+            "signalType": "feature",
+            "sourceEntity": "data_provider_responses",
+            "riskDimension": "credit",
+            "priority": "HIGH",
+            "expectedDirection": "higher_is_riskier",
+            "isActive": true
+          },
+          {
+            "riskSignalSeedId": "102",
+            "signalCode": "signal_contactability",
+            "signalName": "Contactabilidad",
+            "signalType": "feature",
+            "sourceEntity": "customer_contact_methods",
+            "riskDimension": "contactability",
+            "priority": "HIGH",
+            "expectedDirection": "higher_is_better",
+            "isActive": true
+          },
+          {
+            "riskSignalSeedId": "101",
+            "signalCode": "signal_device_reuse",
+            "signalName": "Reuso de dispositivo",
+            "signalType": "feature",
+            "sourceEntity": "devices",
+            "riskDimension": "fraud",
+            "priority": "HIGH",
+            "expectedDirection": "higher_is_riskier",
+            "isActive": true
+          },
+          {
+            "riskSignalSeedId": "105",
+            "signalCode": "signal_kyc_match",
+            "signalName": "Coincidencia KYC",
+            "signalType": "feature",
+            "sourceEntity": "customer_identity_documents",
+            "riskDimension": "identity",
+            "priority": "HIGH",
+            "expectedDirection": "higher_is_better",
+            "isActive": true
+          },
+          {
+            "riskSignalSeedId": "104",
+            "signalCode": "signal_gps_consistency",
+            "signalName": "Consistencia geográfica",
+            "signalType": "feature",
+            "sourceEntity": "address_gps_observations",
+            "riskDimension": "consistency",
+            "priority": "MEDIUM",
+            "expectedDirection": "higher_is_better",
+            "isActive": true
+          }
+        ]
+      },
+      "timestamp": "2026-07-08T15:42:14.909Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/data-governance/policies",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "c7768bd0-bc4f-416b-8a0b-6643c5a530da",
+      "data": {
+        "privacyPurposes": [
+          {
+            "purposeId": "102",
+            "purposeCode": "credit_scoring",
+            "purposeName": "Scoring crediticio BNPL",
+            "legalBasis": "explicit_consent",
+            "requiresExplicitConsent": true
+          },
+          {
+            "purposeId": "105",
+            "purposeCode": "customer_notifications",
+            "purposeName": "Notificaciones al cliente",
+            "legalBasis": "explicit_consent_or_service_notice",
+            "requiresExplicitConsent": true
+          },
+          {
+            "purposeId": "101",
+            "purposeCode": "customer_onboarding",
+            "purposeName": "Onboarding del cliente",
+            "legalBasis": "explicit_consent",
+            "requiresExplicitConsent": true
+          },
+          {
+            "purposeId": "104",
+            "purposeCode": "external_bureau_query",
+            "purposeName": "Consulta buró/proveedor externo",
+            "legalBasis": "explicit_consent",
+            "requiresExplicitConsent": true
+          },
+          {
+            "purposeId": "103",
+            "purposeCode": "kyc_identity_verification",
+            "purposeName": "Verificación de identidad KYC",
+            "legalBasis": "explicit_consent",
+            "requiresExplicitConsent": true
+          },
+          {
+            "purposeId": "1",
+            "purposeCode": "risk_fraud_assessment",
+            "purposeName": "Evaluación de riesgo y fraude",
+            "legalBasis": "explicit_consent",
+            "requiresExplicitConsent": true
+          }
+        ],
+        "retentionPolicies": [
+          {
+            "retentionPolicyId": "103",
+            "policyCode": "audit-logs-1825d",
+            "appliesTo": "audit_and_security_logs",
+            "retentionDays": 1825,
+            "postRetentionAction": "archive",
+            "legalBasis": "security_and_legal_defense"
+          },
+          {
+            "retentionPolicyId": "104",
+            "policyCode": "external-provider-365d",
+            "appliesTo": "external_provider_payloads",
+            "retentionDays": 365,
+            "postRetentionAction": "redact_payload_keep_hash",
+            "legalBasis": "explicit_consent_and_provider_audit"
+          },
+          {
+            "retentionPolicyId": "105",
+            "policyCode": "notification-540d",
+            "appliesTo": "notifications_and_delivery_evidence",
+            "retentionDays": 540,
+            "postRetentionAction": "delete_body_keep_delivery_metadata",
+            "legalBasis": "customer_service_and_operational_evidence"
+          },
+          {
+            "retentionPolicyId": "101",
+            "policyCode": "pii-core-1095d",
+            "appliesTo": "customer_core_pii",
+            "retentionDays": 1095,
+            "postRetentionAction": "anonymize",
+            "legalBasis": "explicit_consent_and_contract_preparation"
+          },
+          {
+            "retentionPolicyId": "1",
+            "policyCode": "risk-data-365d",
+            "appliesTo": "risk_and_fraud_testing",
+            "retentionDays": 365,
+            "postRetentionAction": "anonymize",
+            "legalBasis": "dev_testing_only"
+          },
+          {
+            "retentionPolicyId": "102",
+            "policyCode": "risk-features-730d",
+            "appliesTo": "risk_features_and_score_inputs",
+            "retentionDays": 730,
+            "postRetentionAction": "aggregate_then_delete",
+            "legalBasis": "risk_management_and_model_monitoring"
+          }
+        ],
+        "dataProviders": [
+          {
+            "dataProviderId": "4",
+            "providerCode": "BANKING_GENERIC",
+            "providerName": "Banking Generic Provider",
+            "providerType": "banking",
+            "reliabilityScore": "90.00",
+            "supportsRetroData": false
+          },
+          {
+            "dataProviderId": "8",
+            "providerCode": "DIGITAL_TRUST_GENERIC",
+            "providerName": "Digital Trust Generic Provider",
+            "providerType": "digital_trust",
+            "reliabilityScore": "90.00",
+            "supportsRetroData": false
+          },
+          {
+            "dataProviderId": "6",
+            "providerCode": "FACEBOOK_META",
+            "providerName": "Facebook / Meta OAuth Trust Provider",
+            "providerType": "social",
+            "reliabilityScore": "90.00",
+            "supportsRetroData": false
+          },
+          {
+            "dataProviderId": "2",
+            "providerCode": "INFOCENTER",
+            "providerName": "InfoCenter Credit Bureau",
+            "providerType": "credit_bureau",
+            "reliabilityScore": "90.00",
+            "supportsRetroData": false
+          },
+          {
+            "dataProviderId": "3",
+            "providerCode": "QR_GENERIC",
+            "providerName": "QR Generic Payment Provider",
+            "providerType": "payments",
+            "reliabilityScore": "90.00",
+            "supportsRetroData": false
+          },
+          {
+            "dataProviderId": "1",
+            "providerCode": "SEGIP",
+            "providerName": "SEGIP / CGIP Identity Verification",
+            "providerType": "identity",
+            "reliabilityScore": "90.00",
+            "supportsRetroData": false
+          },
+          {
+            "dataProviderId": "5",
+            "providerCode": "TELCO_GENERIC",
+            "providerName": "Telco Generic Trust Provider",
+            "providerType": "telco",
+            "reliabilityScore": "90.00",
+            "supportsRetroData": false
+          },
+          {
+            "dataProviderId": "7",
+            "providerCode": "WHATSAPP_GENERIC",
+            "providerName": "WhatsApp Generic Contactability Provider",
+            "providerType": "messaging",
+            "reliabilityScore": "90.00",
+            "supportsRetroData": false
+          }
+        ],
+        "classificationPolicies": [
+          {
+            "classificationPolicyId": "106",
+            "classificationCode": "EXTERNAL_PROVIDER_PAYLOAD",
+            "classificationName": "Payload proveedor externo",
+            "sensitivityLevel": "CRITICAL",
+            "defaultStorageMode": "redacted",
+            "encryptionRequired": true,
+            "hashingRequired": true,
+            "rawStorageAllowed": false
+          },
+          {
+            "classificationPolicyId": "102",
+            "classificationCode": "INTERNAL_OPERATIONAL",
+            "classificationName": "Interno operacional",
+            "sensitivityLevel": "MEDIUM",
+            "defaultStorageMode": "plain",
+            "encryptionRequired": false,
+            "hashingRequired": false,
+            "rawStorageAllowed": true
+          },
+          {
+            "classificationPolicyId": "104",
+            "classificationCode": "PII_ENCRYPTED",
+            "classificationName": "PII cifrada",
+            "sensitivityLevel": "HIGH",
+            "defaultStorageMode": "encrypted",
+            "encryptionRequired": true,
+            "hashingRequired": false,
+            "rawStorageAllowed": false
+          },
+          {
+            "classificationPolicyId": "103",
+            "classificationCode": "PII_HASHED",
+            "classificationName": "PII hash irreversible",
+            "sensitivityLevel": "HIGH",
+            "defaultStorageMode": "hash",
+            "encryptionRequired": false,
+            "hashingRequired": true,
+            "rawStorageAllowed": false
+          },
+          {
+            "classificationPolicyId": "101",
+            "classificationCode": "PUBLIC_BUSINESS",
+            "classificationName": "Público de negocio",
+            "sensitivityLevel": "LOW",
+            "defaultStorageMode": "plain",
+            "encryptionRequired": false,
+            "hashingRequired": false,
+            "rawStorageAllowed": true
+          },
+          {
+            "classificationPolicyId": "105",
+            "classificationCode": "RISK_SENSITIVE",
+            "classificationName": "Riesgo y scoring sensible",
+            "sensitivityLevel": "HIGH",
+            "defaultStorageMode": "redacted",
+            "encryptionRequired": false,
+            "hashingRequired": false,
+            "rawStorageAllowed": false
+          }
+        ],
+        "sensitiveFieldRules": [
+          {
+            "sensitiveFieldRuleId": "105",
+            "tableName": "auth_credentials",
+            "fieldName": "password_hash",
+            "classificationCode": "PII_HASHED",
+            "storageMode": "hash",
+            "searchStrategy": "no_search",
+            "maskingStrategy": "never_show",
+            "accessPolicyCode": "security_only"
+          },
+          {
+            "sensitiveFieldRuleId": "104",
+            "tableName": "customer_contact_methods",
+            "fieldName": "contact_value_encrypted",
+            "classificationCode": "PII_ENCRYPTED",
+            "storageMode": "encrypted",
+            "searchStrategy": "hash_lookup",
+            "maskingStrategy": "contact_mask",
+            "accessPolicyCode": "customer_service_limited"
+          },
+          {
+            "sensitiveFieldRuleId": "103",
+            "tableName": "customer_identity_documents",
+            "fieldName": "document_number_hash",
+            "classificationCode": "PII_HASHED",
+            "storageMode": "hash",
+            "searchStrategy": "exact_hash",
+            "maskingStrategy": "document_mask",
+            "accessPolicyCode": "compliance_only"
+          },
+          {
+            "sensitiveFieldRuleId": "102",
+            "tableName": "customers",
+            "fieldName": "email_hash",
+            "classificationCode": "PII_HASHED",
+            "storageMode": "hash",
+            "searchStrategy": "exact_hash",
+            "maskingStrategy": "masked_email",
+            "accessPolicyCode": "risk_ops_need_to_know"
+          },
+          {
+            "sensitiveFieldRuleId": "101",
+            "tableName": "customers",
+            "fieldName": "primary_phone_hash",
+            "classificationCode": "PII_HASHED",
+            "storageMode": "hash",
+            "searchStrategy": "exact_hash",
+            "maskingStrategy": "last4_mask",
+            "accessPolicyCode": "risk_ops_need_to_know"
+          },
+          {
+            "sensitiveFieldRuleId": "107",
+            "tableName": "data_provider_responses",
+            "fieldName": "response_payload_json",
+            "classificationCode": "EXTERNAL_PROVIDER_PAYLOAD",
+            "storageMode": "redacted",
+            "searchStrategy": "hash_lookup",
+            "maskingStrategy": "redacted_json",
+            "accessPolicyCode": "compliance_and_risk"
+          },
+          {
+            "sensitiveFieldRuleId": "106",
+            "tableName": "device_tokens",
+            "fieldName": "token_encrypted",
+            "classificationCode": "PII_ENCRYPTED",
+            "storageMode": "encrypted",
+            "searchStrategy": "hash_lookup",
+            "maskingStrategy": "never_show",
+            "accessPolicyCode": "notification_service_only"
+          }
+        ],
+        "dataQualityRules": [
+          {
+            "dataQualityRuleId": "101",
+            "ruleCode": "customer_requires_phone_hash",
+            "ruleName": "Cliente debe tener teléfono hasheado",
+            "targetTable": "customers",
+            "targetField": "primary_phone_hash",
+            "severity": "critical",
+            "expectedAction": "block_onboarding_completion",
+            "isActive": true
+          },
+          {
+            "dataQualityRuleId": "1",
+            "ruleCode": "DQ_CUSTOMER_EMAIL_HASH_PRESENT_DEV",
+            "ruleName": "Customer email hash present for dev fixture",
+            "targetTable": "customers",
+            "targetField": "primary_email_hash",
+            "severity": "low",
+            "expectedAction": "review",
+            "isActive": true
+          },
+          {
+            "dataQualityRuleId": "105",
+            "ruleCode": "endpoint_business_purpose_required",
+            "ruleName": "Endpoint debe tener propósito de negocio",
+            "targetTable": "system_endpoint_catalog",
+            "targetField": "business_purpose",
+            "severity": "medium",
+            "expectedAction": "send_to_systems_review_queue",
+            "isActive": true
+          },
+          {
+            "dataQualityRuleId": "102",
+            "ruleCode": "identity_document_hash_required",
+            "ruleName": "Documento debe guardarse hasheado",
+            "targetTable": "customer_identity_documents",
+            "targetField": "document_number_hash",
+            "severity": "critical",
+            "expectedAction": "block_kyc_completion",
+            "isActive": true
+          },
+          {
+            "dataQualityRuleId": "104",
+            "ruleCode": "provider_response_must_be_redacted_or_hash",
+            "ruleName": "Respuesta proveedor debe tener payload redactado/hash",
+            "targetTable": "data_provider_responses",
+            "targetField": "redacted_payload_json",
+            "severity": "high",
+            "expectedAction": "quarantine_provider_payload",
+            "isActive": true
+          },
+          {
+            "dataQualityRuleId": "103",
+            "ruleCode": "risk_result_has_reason_codes",
+            "ruleName": "Resultado de riesgo debe tener reason codes",
+            "targetTable": "risk_assessment_results",
+            "targetField": "reason_codes_json",
+            "severity": "high",
+            "expectedAction": "send_to_manual_review",
+            "isActive": true
+          }
+        ]
+      },
+      "timestamp": "2026-07-08T15:42:14.947Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/operations/jobs/process-outbox",
+    "role": "admin",
+    "requestBody": {
+      "limit": 10,
+      "dryRun": true
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "fa93a38d-a5cb-4102-9d06-dda4c0355d68",
+      "data": {
+        "jobRunId": "115",
+        "status": "completed",
+        "result": {
+          "selected": 10,
+          "processed": 0,
+          "skippedBusinessEvents": 0,
+          "dryRun": true,
+          "note": "process-outbox conserva compatibilidad y no procesa eventos de negocio registrados; usa process-events para notificaciones."
+        }
+      },
+      "timestamp": "2026-07-08T15:42:15.016Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/operations/jobs/expire-stale-sessions",
+    "role": "admin",
+    "requestBody": {
+      "maxIdleMinutes": 120,
+      "dryRun": true
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "79db2a24-a3e7-4ec0-92bb-c19b907797e8",
+      "data": {
+        "jobRunId": "116",
+        "status": "completed",
+        "result": {
+          "selected": 3,
+          "expired": 0,
+          "cutoff": "2026-07-08T13:42:15.050Z",
+          "dryRun": true
+        }
+      },
+      "timestamp": "2026-07-08T15:42:15.064Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/operations/jobs/apply-retention-policies",
+    "role": "admin",
+    "requestBody": {
+      "dryRun": true
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "ba0ff3fb-d9c8-4d26-abdb-d340fd679bd1",
+      "data": {
+        "jobRunId": "117",
+        "status": "completed",
+        "result": {
+          "policiesScanned": 6,
+          "destructiveActionsExecuted": 0,
+          "dryRun": true,
+          "outcomes": [],
+          "unmappedPolicies": [
+            "risk-data-365d",
+            "pii-core-1095d",
+            "risk-features-730d",
+            "audit-logs-1825d",
+            "external-provider-365d",
+            "notification-540d"
+          ],
+          "note": "Políticas activas sin tabla registrada en RETENTION_TARGETS (no se ejecutó ninguna acción para ellas): risk-data-365d, pii-core-1095d, risk-features-730d, audit-logs-1825d, external-provider-365d, notification-540d. Ver PENDIENTE_ATLAS en docs/pending/pending-items.md."
+        }
+      },
+      "timestamp": "2026-07-08T15:42:15.118Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/operations/jobs/recalculate-data-quality",
+    "role": "admin",
+    "requestBody": {
+      "dryRun": true
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "160b9718-7a4b-4bcf-873e-4c4b3055b8f9",
+      "data": {
+        "jobRunId": "118",
+        "status": "completed",
+        "result": {
+          "openIssues": 2,
+          "issuesCreated": 0,
+          "dryRun": true,
+          "note": "Recalcula conteos actuales; las reglas automáticas de calidad quedan para workers específicos por regla."
+        }
+      },
+      "timestamp": "2026-07-08T15:42:15.158Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/customers/1/sessions/start",
+    "role": "customer",
+    "requestBody": {
+      "authMethod": "jwt",
+      "device": {
+        "deviceFingerprintHash": "smoke-session-fingerprint-1783525335176",
+        "fingerprintVersion": "v1",
+        "channel": "mobile_app",
+        "userAgent": "AtlasSmoke/1.0",
+        "snapshot": {
+          "brand": "Smoke",
+          "model": "CLI",
+          "osFamily": "node",
+          "osVersion": "20",
+          "appVersion": "0.1.0",
+          "isRooted": false,
+          "isEmulator": false,
+          "vpnDetected": false
+        }
+      },
+      "gpsObservation": {
+        "lat": -17.7833,
+        "lng": -63.1821,
+        "accuracyMeters": 20,
+        "capturedAt": "2026-07-08T15:42:15.176Z"
+      },
+      "permissions": [
+        {
+          "permissionCode": "location",
+          "granted": true,
+          "decidedAt": "2026-07-08T15:42:15.176Z"
+        }
+      ],
+      "locationPermissionGranted": true,
+      "simObservation": {
+        "phoneNumberHash": "smoke-phone-hash",
+        "phoneLast4": "0000",
+        "carrierName": "Tigo",
+        "simType": "physical",
+        "simCount": 1
+      },
+      "ipReputation": {
+        "isVpn": false,
+        "isProxy": false,
+        "isTor": false,
+        "countryCode": "BO",
+        "city": "Santa Cruz",
+        "reputationScore": 0.1
+      }
+    },
+    "status": 201,
+    "responseData": {
+      "requestId": "6390c797-bb44-4473-9a49-969f14b1c307",
+      "data": {
+        "customerId": "1",
+        "sessionId": "7",
+        "deviceId": "7",
+        "sessionStatus": "active",
+        "gpsObservationId": "6",
+        "gpsObservationCreated": true,
+        "gpsObservationSkippedReason": null,
+        "deviceTrustLevel": "new",
+        "nextStep": "continue"
+      },
+      "timestamp": "2026-07-08T15:42:15.382Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/customers/1/sessions/7/heartbeat",
+    "role": "customer",
+    "requestBody": {
+      "deviceId": "7",
+      "clientHeartbeatId": "hb-1783525335411-oonze2",
+      "capturedAt": "2026-07-08T15:42:15.411Z",
+      "gpsObservation": {
+        "lat": -17.7829,
+        "lng": -63.1818,
+        "accuracyMeters": 18
+      },
+      "permissionChanges": [
+        {
+          "permissionCode": "location",
+          "granted": true,
+          "decidedAt": "2026-07-08T15:42:15.411Z"
+        }
+      ],
+      "locationPermissionGranted": true,
+      "deviceSnapshot": {
+        "isRooted": false,
+        "isEmulator": false,
+        "vpnDetected": false,
+        "appVersion": "0.1.1"
+      }
+    },
+    "status": 202,
+    "responseData": {
+      "requestId": "070e278a-3515-489a-baae-0ad9b912887d",
+      "data": {
+        "sessionId": "7",
+        "status": "accepted",
+        "gpsObservationCreated": true,
+        "gpsObservationId": "7",
+        "gpsObservationSkippedReason": null,
+        "riskSignalsCreated": 0
+      },
+      "timestamp": "2026-07-08T15:42:15.467Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/customers/1/session-state",
+    "role": "customer",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "7278b6b5-c1ec-4d8c-849d-85305dae2c55",
+      "data": {
+        "customerId": "1",
+        "activeSession": {
+          "sessionId": "7",
+          "status": "active",
+          "startedAt": "2026-07-08T15:42:15.200Z"
+        },
+        "device": {
+          "deviceId": "7",
+          "trustLevel": "new",
+          "riskStatus": "unknown",
+          "latestSnapshot": {
+            "capturedAt": "2026-07-08T15:42:15.411Z",
+            "appVersion": "0.1.1",
+            "vpnDetected": false,
+            "isRooted": false,
+            "isEmulator": false
+          }
+        },
+        "location": {
+          "lastGpsObservedAt": "2026-07-08T15:42:15.411Z",
+          "hasRecentGps": true
+        }
+      },
+      "timestamp": "2026-07-08T15:42:15.515Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/sessions/7/investigation-summary",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "08eae5b6-1778-4926-b4bf-78d8d41c766b",
+      "data": {
+        "session": {
+          "sessionId": "7",
+          "customerId": "1",
+          "deviceId": "7",
+          "status": "active",
+          "channel": "mobile_app",
+          "authMethod": "jwt",
+          "startedAt": "2026-07-08T15:42:15.200Z",
+          "endedAt": null,
+          "ipAddress": "::1",
+          "userAgent": "AtlasSmoke/1.0"
+        },
+        "customer": {
+          "customerId": "1",
+          "customerCode": "CUS-DEMO-001",
+          "lifecycleStatus": "active"
+        },
+        "device": {
+          "deviceId": "7",
+          "riskStatus": "unknown",
+          "firstSeenAt": "2026-07-08T15:42:15.200Z",
+          "lastSeenAt": "2026-07-08T15:42:15.411Z"
+        },
+        "gpsObservations": [
+          {
+            "id": "7",
+            "capturedAt": "2026-07-08T15:42:15.411Z",
+            "accuracyMeters": "18.00",
+            "hasCoordinates": true
+          },
+          {
+            "id": "6",
+            "capturedAt": "2026-07-08T15:42:15.176Z",
+            "accuracyMeters": "20.00",
+            "hasCoordinates": true
+          }
+        ],
+        "deviceSnapshots": [
+          {
+            "id": "7",
+            "capturedAt": "2026-07-08T15:42:15.411Z",
+            "appVersion": "0.1.1",
+            "vpnDetected": false,
+            "isRooted": false,
+            "isEmulator": false
+          },
+          {
+            "id": "6",
+            "capturedAt": "2026-07-08T15:42:15.200Z",
+            "appVersion": "0.1.0",
+            "vpnDetected": false,
+            "isRooted": false,
+            "isEmulator": false
+          }
+        ],
+        "permissions": [
+          {
+            "id": "8",
+            "permissionCode": "location",
+            "granted": true,
+            "respondedAt": "2026-07-08T15:42:15.411Z"
+          },
+          {
+            "id": "7",
+            "permissionCode": "location",
+            "granted": true,
+            "respondedAt": "2026-07-08T15:42:15.176Z"
+          }
+        ],
+        "authEvents": [
+          {
+            "id": "6",
+            "eventType": "session_started",
+            "loginSuccessful": true,
+            "occurredAt": "2026-07-08T15:42:15.200Z"
+          }
+        ],
+        "ipReputation": [
+          {
+            "id": "4",
+            "isVpn": false,
+            "isProxy": false,
+            "isTor": false,
+            "countryCode": "BO",
+            "city": "Santa Cruz",
+            "reputationScore": "0.10",
+            "capturedAt": "2026-07-08T15:42:15.200Z"
+          }
+        ],
+        "simObservations": [
+          {
+            "id": "4",
+            "carrierName": "Tigo",
+            "simType": "physical",
+            "simCount": 1,
+            "phoneLast4": "0000",
+            "capturedAt": "2026-07-08T15:42:15.200Z"
+          }
+        ],
+        "deviceRiskEvents": [],
+        "customerActions": [
+          {
+            "id": "21",
+            "eventName": "session_heartbeat",
+            "screenName": null,
+            "occurredAt": "2026-07-08T15:42:15.411Z"
+          },
+          {
+            "id": "20",
+            "eventName": "session_started",
+            "screenName": "session_start",
+            "occurredAt": "2026-07-08T15:42:15.200Z"
+          }
+        ],
+        "customerObservations": [
+          {
+            "id": "13",
+            "observationCode": "heartbeat_gps_observed",
+            "valueBoolean": true,
+            "capturedAt": "2026-07-08T15:42:15.411Z"
+          },
+          {
+            "id": "12",
+            "observationCode": "session_gps_observed",
+            "valueBoolean": true,
+            "capturedAt": "2026-07-08T15:42:15.200Z"
+          }
+        ],
+        "auditTrail": [
+          {
+            "id": "331",
+            "actionCode": "customer_session.heartbeat",
+            "actorType": "customer",
+            "occurredAt": "2026-07-08T15:42:15.411Z"
+          },
+          {
+            "id": "329",
+            "actionCode": "customer_session.start",
+            "actorType": "customer",
+            "occurredAt": "2026-07-08T15:42:15.200Z"
+          }
+        ]
+      },
+      "timestamp": "2026-07-08T15:42:15.607Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/customers/1/sessions/7/end",
+    "role": "customer",
+    "requestBody": {
+      "deviceId": "7",
+      "endedAt": "2026-07-08T15:42:15.675Z",
+      "reasonCode": "smoke_logout"
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "42212171-c9a2-4169-becc-5d866d1dea44",
+      "data": {
+        "sessionId": "7",
+        "sessionStatus": "ended",
+        "endedAt": "2026-07-08T15:42:15.675Z"
+      },
+      "timestamp": "2026-07-08T15:42:15.717Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/customers/1/telemetry/batch",
+    "role": "customer",
+    "requestBody": {
+      "sessionId": "1",
+      "deviceId": "1",
+      "clientBatchId": "batch-1783525335752-p9nv3u",
+      "capturedFrom": "2026-07-08T15:42:15.752Z",
+      "capturedUntil": "2026-07-08T15:42:45.752Z",
+      "events": [
+        {
+          "eventType": "customer_action",
+          "eventCode": "smoke_action_open_app",
+          "occurredAt": "2026-07-08T15:42:15.752Z",
+          "metadata": {
+            "source": "smoke",
+            "screen": "home"
+          }
+        }
+      ],
+      "onDeviceMetrics": [
+        {
+          "metricCode": "smoke_contact_graph_score",
+          "value": 0.82,
+          "computedAt": "2026-07-08T15:42:15.752Z",
+          "confidenceScore": 0.9
+        }
+      ]
+    },
+    "status": 202,
+    "responseData": {
+      "requestId": "f9523d98-4159-407a-9fa4-44297e6575db",
+      "data": {
+        "batchId": "batch-1783525335752-p9nv3u",
+        "acceptedEvents": 1,
+        "acceptedMetrics": 1,
+        "duplicatesIgnored": 0,
+        "status": "accepted"
+      },
+      "timestamp": "2026-07-08T15:42:15.838Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/customers/1/risk-assessments",
+    "role": "customer",
+    "requestBody": {
+      "assessmentType": "manual_recheck",
+      "channel": "mobile_app",
+      "sessionId": "1",
+      "deviceId": "1",
+      "requestedLimitContext": {
+        "purpose": "smoke_test"
+      }
+    },
+    "status": 201,
+    "responseData": {
+      "requestId": "aff5482a-e7d9-4772-9cfe-588d03307dda",
+      "data": {
+        "riskAssessmentRunId": "4",
+        "riskAssessmentResultId": "4",
+        "decision": "approved_for_next_step",
+        "riskLevel": "medium",
+        "fraudRiskLevel": "low",
+        "manualReviewCaseId": null,
+        "nextStep": "continue_onboarding",
+        "reasons": [
+          {
+            "code": "minimum_onboarding_risk_passed",
+            "message": "minimum onboarding risk passed"
+          }
+        ],
+        "modelCode": "risk_heuristic_v0",
+        "modelVersion": "v0",
+        "rulesetVersion": "rules-v1"
+      },
+      "timestamp": "2026-07-08T15:42:16.223Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/risk-assessments/4",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "0ed3c75c-9a48-42e5-930c-597f8a3ed3c0",
+      "data": {
+        "run": {
+          "id": "4",
+          "tenantId": "1",
+          "subjectType": "customer",
+          "subjectId": "1",
+          "customerId": "1",
+          "sessionId": "1",
+          "onboardingFlowId": null,
+          "deviceId": "1",
+          "featureSnapshotId": "5",
+          "riskModelVersionId": null,
+          "riskRulesetVersionId": null,
+          "assessmentType": "manual_recheck",
+          "triggerSource": "mobile_app",
+          "idempotencyKey": "smoke-risk-1783525335868-n7jgvx",
+          "runStatus": "completed",
+          "startedAt": "2026-07-08T15:42:15.900Z",
+          "completedAt": "2026-07-08T15:42:15.900Z",
+          "latencyMs": 0,
+          "createdAtValue": "2026-07-08T15:42:15.900Z"
+        },
+        "result": {
+          "id": "4",
+          "tenantId": "1",
+          "riskAssessmentRunId": "4",
+          "subjectType": "customer",
+          "subjectId": "1",
+          "customerId": "1",
+          "sessionId": "1",
+          "onboardingFlowId": null,
+          "deviceId": "1",
+          "assessmentType": "manual_recheck",
+          "recommendedAction": "approved_for_next_step",
+          "riskLevel": "medium",
+          "scoreTotal": "73.00",
+          "fraudScore": "20.00",
+          "identityScore": "70.00",
+          "deviceRiskScore": "70.00",
+          "behaviorScore": "50.00",
+          "contactabilityScore": "90.00",
+          "consistencyScore": "75.00",
+          "reasonCodesJson": {
+            "reasons": [
+              "minimum_onboarding_risk_passed"
+            ]
+          },
+          "modelVersionCodeSnapshot": "v0",
+          "rulesetVersionCodeSnapshot": "rules-v1",
+          "featureSnapshotId": "5",
+          "integrityHash": "5db60959adc4113a2a07e3c57ab886f818f554f5978ad241ed01e9b1ab578f52",
+          "decidedAt": "2026-07-08T15:42:15.900Z",
+          "createdAtValue": "2026-07-08T15:42:15.900Z"
+        },
+        "rulesFired": [
+          {
+            "id": "4",
+            "tenantId": "1",
+            "riskAssessmentRunId": "4",
+            "riskPolicyRuleId": null,
+            "ruleCodeSnapshot": "minimum_onboarding_risk_passed",
+            "rulesetVersionCodeSnapshot": "rules-v1",
+            "riskDimension": "onboarding",
+            "inputValuesJson": {
+              "fraudScore": 20,
+              "deviceScore": 70,
+              "hasIdentity": true,
+              "contactScore": 90,
+              "behaviorScore": 50,
+              "identityScore": 70,
+              "consistencyScore": 75,
+              "hasGrantedConsent": true,
+              "verifiedContactCount": 1
+            },
+            "outputAction": "approved_for_next_step",
+            "reasonCode": "minimum_onboarding_risk_passed",
+            "severity": "low",
+            "isHardStop": false,
+            "firedAt": "2026-07-08T15:42:15.900Z",
+            "createdAtValue": "2026-07-08T15:42:15.900Z"
+          }
+        ],
+        "featureContributions": [
+          {
+            "id": "6",
+            "tenantId": "1",
+            "riskAssessmentRunId": "4",
+            "featureCode": "identity_and_contact_readiness",
+            "rawValueJson": {
+              "hasIdentity": true,
+              "verifiedContactCount": 1
+            },
+            "binOrAttribute": null,
+            "woeValue": null,
+            "scorePoints": "80.00",
+            "reasonCode": "positive_readiness",
+            "createdAtValue": "2026-07-08T15:42:15.900Z"
+          }
+        ],
+        "featureSnapshot": {
+          "id": "5",
+          "tenantId": "1",
+          "subjectType": "customer",
+          "subjectId": "1",
+          "customerId": "1",
+          "deviceId": "1",
+          "snapshotReason": "risk_assessment",
+          "triggeringEntityType": "customer",
+          "triggeringEntityId": "1",
+          "riskAssessmentRunId": "4",
+          "sessionId": "1",
+          "onboardingFlowId": null,
+          "featureSetVersion": "atlas-mvp-v1",
+          "catalogVersionsJson": null,
+          "featuresJson": {
+            "fraudScore": 20,
+            "deviceScore": 70,
+            "hasIdentity": true,
+            "contactScore": 90,
+            "behaviorScore": 50,
+            "identityScore": 70,
+            "consistencyScore": 75,
+            "hasGrantedConsent": true,
+            "verifiedContactCount": 1
+          },
+          "missingFeaturesJson": {
+            "missing": []
+          },
+          "integrityHash": "9827059394d71087384ca61a51ae6ccd5091324b05b7c2debccc3cb2710b996f",
+          "createdAtValue": "2026-07-08T15:42:15.900Z"
+        }
+      },
+      "timestamp": "2026-07-08T15:42:16.277Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/risk-assessments/4/explanation",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "dd404243-4795-4d55-9878-dfccb027c99b",
+      "data": {
+        "decision": "approved_for_next_step",
+        "summary": "Decisión basada en: minimum_onboarding_risk_passed.",
+        "topPositiveFactors": [
+          {
+            "code": "identity_and_contact_readiness",
+            "label": "positive_readiness",
+            "impact": "positive"
+          }
+        ],
+        "topNegativeFactors": [],
+        "rulesFired": [
+          "minimum_onboarding_risk_passed"
+        ],
+        "recommendedAction": "approved_for_next_step"
+      },
+      "timestamp": "2026-07-08T15:42:16.331Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/operations/events",
+    "role": "admin",
+    "requestBody": {
+      "eventCode": "user.registered",
+      "aggregateType": "customer",
+      "aggregateId": "1",
+      "payload": {
+        "customerId": "1",
+        "smoke": true
+      },
+      "metadata": {
+        "source": "smoke"
+      },
+      "priority": 1000,
+      "idempotencyKey": "smoke-user-registered-event-1783525336355-ibg9t0",
+      "correlationId": "smoke-events-run-1783525336355-38scnn",
+      "sourceModule": "smoke",
+      "sourceAction": "events_smoke"
+    },
+    "status": 201,
+    "responseData": {
+      "requestId": "800bd24c-75a6-455b-be5d-2887cd1ebd3c",
+      "data": {
+        "id": "201",
+        "tenantId": "1",
+        "eventCode": "user.registered",
+        "eventFamily": "user_security",
+        "eventVersion": 1,
+        "aggregateType": "customer",
+        "aggregateId": "1",
+        "status": "pending",
+        "priority": 1000,
+        "attempts": 0,
+        "maxAttempts": 3,
+        "availableAt": "2026-07-08T15:42:16.371Z",
+        "processedAt": null,
+        "failedAt": null,
+        "errorCode": null,
+        "lastError": null,
+        "idempotencyKey": "smoke-user-registered-event-1783525336355-ibg9t0",
+        "correlationId": "smoke-events-run-1783525336355-38scnn",
+        "causationId": null,
+        "sourceModule": "smoke",
+        "sourceAction": "events_smoke",
+        "payload": {
+          "smoke": true,
+          "customerId": "1"
+        },
+        "metadata": {
+          "source": "smoke"
+        },
+        "createdAt": "2026-07-08T15:42:16.371Z",
+        "updatedAt": "2026-07-08T15:42:16.371Z"
+      },
+      "timestamp": "2026-07-08T15:42:16.386Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/events/201",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "51de542d-8545-4b66-8ba9-8d76a605afa9",
+      "data": {
+        "id": "201",
+        "tenantId": "1",
+        "eventCode": "user.registered",
+        "eventFamily": "user_security",
+        "eventVersion": 1,
+        "aggregateType": "customer",
+        "aggregateId": "1",
+        "status": "pending",
+        "priority": 1000,
+        "attempts": 0,
+        "maxAttempts": 3,
+        "availableAt": "2026-07-08T15:42:16.371Z",
+        "processedAt": null,
+        "failedAt": null,
+        "errorCode": null,
+        "lastError": null,
+        "idempotencyKey": "smoke-user-registered-event-1783525336355-ibg9t0",
+        "correlationId": "smoke-events-run-1783525336355-38scnn",
+        "causationId": null,
+        "sourceModule": "smoke",
+        "sourceAction": "events_smoke",
+        "payload": {
+          "smoke": true,
+          "customerId": "1"
+        },
+        "metadata": {
+          "source": "smoke"
+        },
+        "createdAt": "2026-07-08T15:42:16.371Z",
+        "updatedAt": "2026-07-08T15:42:16.371Z"
+      },
+      "timestamp": "2026-07-08T15:42:16.410Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/events?correlationId=smoke-events-run-1783525336355-38scnn&page=1&limit=10",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "d668754a-0c41-4aee-b072-07f521452048",
+      "data": {
+        "data": [
+          {
+            "id": "201",
+            "tenantId": "1",
+            "eventCode": "user.registered",
+            "eventFamily": "user_security",
+            "eventVersion": 1,
+            "aggregateType": "customer",
+            "aggregateId": "1",
+            "status": "pending",
+            "priority": 1000,
+            "attempts": 0,
+            "maxAttempts": 3,
+            "availableAt": "2026-07-08T15:42:16.371Z",
+            "processedAt": null,
+            "failedAt": null,
+            "errorCode": null,
+            "lastError": null,
+            "idempotencyKey": "smoke-user-registered-event-1783525336355-ibg9t0",
+            "correlationId": "smoke-events-run-1783525336355-38scnn",
+            "causationId": null,
+            "sourceModule": "smoke",
+            "sourceAction": "events_smoke",
+            "payload": {
+              "smoke": true,
+              "customerId": "1"
+            },
+            "metadata": {
+              "source": "smoke"
+            },
+            "createdAt": "2026-07-08T15:42:16.371Z",
+            "updatedAt": "2026-07-08T15:42:16.371Z"
+          }
+        ],
+        "pagination": {
+          "mode": "offset",
+          "page": 1,
+          "limit": 10,
+          "total": 1,
+          "totalPages": 1
+        }
+      },
+      "timestamp": "2026-07-08T15:42:16.451Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/operations/jobs/process-events",
+    "role": "admin",
+    "requestBody": {
+      "limit": 500,
+      "dryRun": false
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "41c049e2-a180-4529-b4bb-ea88457cade5",
+      "data": {
+        "jobRunId": "119",
+        "status": "completed",
+        "result": {
+          "selected": 1,
+          "processed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "dryRun": false,
+          "eventIds": [
+            "201"
+          ]
+        }
+      },
+      "timestamp": "2026-07-08T15:42:16.598Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/operations/events",
+    "role": "admin",
+    "requestBody": {
+      "eventCode": "user.registered",
+      "aggregateType": "customer",
+      "aggregateId": "1",
+      "payload": {
+        "customerId": "1",
+        "smoke": true
+      },
+      "metadata": {
+        "source": "smoke"
+      },
+      "priority": 1000,
+      "idempotencyKey": "smoke-user-registered-event-1783525336355-ibg9t0",
+      "correlationId": "smoke-events-run-1783525336355-38scnn",
+      "sourceModule": "smoke",
+      "sourceAction": "events_smoke"
+    },
+    "status": 201,
+    "responseData": {
+      "data": {
+        "id": "201",
+        "status": "pending",
+        "payload": "[REDACTED]",
+        "attempts": 0,
+        "failedAt": null,
+        "metadata": {
+          "source": "smoke"
+        },
+        "priority": 1000,
+        "tenantId": "1",
+        "createdAt": "2026-07-08T15:42:16.371Z",
+        "errorCode": null,
+        "eventCode": "user.registered",
+        "lastError": null,
+        "updatedAt": "2026-07-08T15:42:16.371Z",
+        "aggregateId": "1",
+        "availableAt": "2026-07-08T15:42:16.371Z",
+        "causationId": null,
+        "eventFamily": "user_security",
+        "maxAttempts": 3,
+        "processedAt": null,
+        "eventVersion": 1,
+        "sourceAction": "events_smoke",
+        "sourceModule": "smoke",
+        "aggregateType": "customer",
+        "correlationId": "[REDACTED]",
+        "idempotencyKey": "smoke-user-registered-event-1783525336355-ibg9t0"
+      },
+      "requestId": "800bd24c-75a6-455b-be5d-2887cd1ebd3c",
+      "timestamp": "2026-07-08T15:42:16.386Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/operations/events",
+    "role": "admin",
+    "requestBody": {
+      "eventCode": "user.email.verified",
+      "aggregateType": "customer",
+      "aggregateId": "1",
+      "payload": {
+        "customerId": "1",
+        "smoke": true
+      },
+      "metadata": {
+        "source": "smoke"
+      },
+      "priority": 1000,
+      "idempotencyKey": "smoke-notification-event-1783525336631-ql9brc",
+      "correlationId": "smoke-notifications-run-1783525336631-ql3584",
+      "sourceModule": "smoke",
+      "sourceAction": "notifications_smoke"
+    },
+    "status": 201,
+    "responseData": {
+      "requestId": "2f4897c0-4452-46e7-97f5-9d9c2c641acf",
+      "data": {
+        "id": "204",
+        "tenantId": "1",
+        "eventCode": "user.email.verified",
+        "eventFamily": "user_security",
+        "eventVersion": 1,
+        "aggregateType": "customer",
+        "aggregateId": "1",
+        "status": "pending",
+        "priority": 1000,
+        "attempts": 0,
+        "maxAttempts": 3,
+        "availableAt": "2026-07-08T15:42:16.639Z",
+        "processedAt": null,
+        "failedAt": null,
+        "errorCode": null,
+        "lastError": null,
+        "idempotencyKey": "smoke-notification-event-1783525336631-ql9brc",
+        "correlationId": "smoke-notifications-run-1783525336631-ql3584",
+        "causationId": null,
+        "sourceModule": "smoke",
+        "sourceAction": "notifications_smoke",
+        "payload": {
+          "smoke": true,
+          "customerId": "1"
+        },
+        "metadata": {
+          "source": "smoke"
+        },
+        "createdAt": "2026-07-08T15:42:16.639Z",
+        "updatedAt": "2026-07-08T15:42:16.639Z"
+      },
+      "timestamp": "2026-07-08T15:42:16.644Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/operations/jobs/process-events",
+    "role": "admin",
+    "requestBody": {
+      "limit": 500,
+      "dryRun": false
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "9ffcb95a-7a77-469c-bf1e-79a9c7e40c1e",
+      "data": {
+        "jobRunId": "120",
+        "status": "completed",
+        "result": {
+          "selected": 1,
+          "processed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "dryRun": false,
+          "eventIds": [
+            "204"
+          ]
+        }
+      },
+      "timestamp": "2026-07-08T15:42:16.709Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/events?correlationId=smoke-notifications-run-1783525336631-ql3584&page=1&limit=10",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "412f54bc-864d-478c-845c-9e681e304ec4",
+      "data": {
+        "data": [
+          {
+            "id": "204",
+            "tenantId": "1",
+            "eventCode": "user.email.verified",
+            "eventFamily": "user_security",
+            "eventVersion": 1,
+            "aggregateType": "customer",
+            "aggregateId": "1",
+            "status": "processed",
+            "priority": 1000,
+            "attempts": 1,
+            "maxAttempts": 3,
+            "availableAt": "2026-07-08T15:42:16.639Z",
+            "processedAt": "2026-07-08T15:42:16.702Z",
+            "failedAt": null,
+            "errorCode": null,
+            "lastError": null,
+            "idempotencyKey": "smoke-notification-event-1783525336631-ql9brc",
+            "correlationId": "smoke-notifications-run-1783525336631-ql3584",
+            "causationId": null,
+            "sourceModule": "smoke",
+            "sourceAction": "notifications_smoke",
+            "payload": {
+              "smoke": true,
+              "customerId": "1"
+            },
+            "metadata": {
+              "source": "smoke"
+            },
+            "createdAt": "2026-07-08T15:42:16.639Z",
+            "updatedAt": "2026-07-08T15:42:16.702Z"
+          }
+        ],
+        "pagination": {
+          "mode": "offset",
+          "page": 1,
+          "limit": 10,
+          "total": 1,
+          "totalPages": 1
+        }
+      },
+      "timestamp": "2026-07-08T15:42:16.731Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/notifications/messages?recipientType=customer&recipientId=1&channel=in_app&correlationId=smoke-notifications-run-1783525336631-ql3584&page=1&limit=20",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "098d1aeb-ffcc-4c34-86aa-d2a4178201a7",
+      "data": {
+        "data": [
+          {
+            "id": "111",
+            "tenantId": "1",
+            "outboxEventId": "204",
+            "recipientType": "customer",
+            "recipientId": "1",
+            "channel": "in_app",
+            "templateCode": "user_email_verified_in_app",
+            "subject": null,
+            "title": "ATLAS: user email verified",
+            "body": "Se registró el evento user.email.verified.",
+            "payload": {
+              "smoke": true,
+              "customerId": "1"
+            },
+            "status": "delivered",
+            "priority": 1000,
+            "scheduledAt": "2026-07-08T15:42:16.687Z",
+            "queuedAt": "2026-07-08T15:42:16.693Z",
+            "sentAt": "2026-07-08T15:42:16.695Z",
+            "deliveredAt": "2026-07-08T15:42:16.695Z",
+            "readAt": null,
+            "failedAt": null,
+            "cancelledAt": null,
+            "correlationId": "smoke-notifications-run-1783525336631-ql3584",
+            "causationId": "204",
+            "createdAt": "2026-07-08T15:42:16.687Z",
+            "updatedAt": "2026-07-08T15:42:16.695Z"
+          }
+        ],
+        "pagination": {
+          "page": 1,
+          "limit": 20,
+          "total": 1,
+          "totalPages": 1
+        }
+      },
+      "timestamp": "2026-07-08T15:42:16.757Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/operations/notifications/messages/111",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "2b3cb32a-160b-49fd-bb98-3660aae4b75e",
+      "data": {
+        "id": "111",
+        "tenantId": "1",
+        "outboxEventId": "204",
+        "recipientType": "customer",
+        "recipientId": "1",
+        "channel": "in_app",
+        "templateCode": "user_email_verified_in_app",
+        "subject": null,
+        "title": "ATLAS: user email verified",
+        "body": "Se registró el evento user.email.verified.",
+        "payload": {
+          "smoke": true,
+          "customerId": "1"
+        },
+        "status": "delivered",
+        "priority": 1000,
+        "scheduledAt": "2026-07-08T15:42:16.687Z",
+        "queuedAt": "2026-07-08T15:42:16.693Z",
+        "sentAt": "2026-07-08T15:42:16.695Z",
+        "deliveredAt": "2026-07-08T15:42:16.695Z",
+        "readAt": null,
+        "failedAt": null,
+        "cancelledAt": null,
+        "correlationId": "smoke-notifications-run-1783525336631-ql3584",
+        "causationId": "204",
+        "createdAt": "2026-07-08T15:42:16.687Z",
+        "updatedAt": "2026-07-08T15:42:16.695Z",
+        "deliveries": [
+          {
+            "id": "111",
+            "notificationMessageId": "111",
+            "channel": "in_app",
+            "provider": "atlas_in_app",
+            "providerMessageId": "in_app-111",
+            "status": "delivered",
+            "attemptNumber": 1,
+            "errorCode": null,
+            "errorMessage": null,
+            "sentAt": "2026-07-08T15:42:16.695Z",
+            "deliveredAt": "2026-07-08T15:42:16.695Z",
+            "failedAt": null,
+            "createdAt": "2026-07-08T15:42:16.695Z"
+          }
+        ]
+      },
+      "timestamp": "2026-07-08T15:42:16.783Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/customers/1/notifications?channel=in_app&from=2026-07-08T15%3A42%3A11.631Z&page=1&limit=50",
+    "role": "customer",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "be79a37d-864a-4ff0-afb0-8b12dfe6e3ce",
+      "data": {
+        "data": [
+          {
+            "id": "111",
+            "tenantId": "1",
+            "outboxEventId": "204",
+            "recipientType": "customer",
+            "recipientId": "1",
+            "channel": "in_app",
+            "templateCode": "user_email_verified_in_app",
+            "subject": null,
+            "title": "ATLAS: user email verified",
+            "body": "Se registró el evento user.email.verified.",
+            "payload": {
+              "smoke": true,
+              "customerId": "1"
+            },
+            "status": "delivered",
+            "priority": 1000,
+            "scheduledAt": "2026-07-08T15:42:16.687Z",
+            "queuedAt": "2026-07-08T15:42:16.693Z",
+            "sentAt": "2026-07-08T15:42:16.695Z",
+            "deliveredAt": "2026-07-08T15:42:16.695Z",
+            "readAt": null,
+            "failedAt": null,
+            "cancelledAt": null,
+            "correlationId": "smoke-notifications-run-1783525336631-ql3584",
+            "causationId": "204",
+            "createdAt": "2026-07-08T15:42:16.687Z",
+            "updatedAt": "2026-07-08T15:42:16.695Z"
+          },
+          {
+            "id": "109",
+            "tenantId": "1",
+            "outboxEventId": "201",
+            "recipientType": "customer",
+            "recipientId": "1",
+            "channel": "in_app",
+            "templateCode": "user_registered_in_app",
+            "subject": null,
+            "title": "Bienvenido a ATLAS",
+            "body": "Tu cuenta fue creada correctamente.",
+            "payload": {
+              "smoke": true,
+              "customerId": "1"
+            },
+            "status": "delivered",
+            "priority": 1000,
+            "scheduledAt": "2026-07-08T15:42:16.529Z",
+            "queuedAt": "2026-07-08T15:42:16.540Z",
+            "sentAt": "2026-07-08T15:42:16.543Z",
+            "deliveredAt": "2026-07-08T15:42:16.543Z",
+            "readAt": null,
+            "failedAt": null,
+            "cancelledAt": null,
+            "correlationId": "smoke-events-run-1783525336355-38scnn",
+            "causationId": "201",
+            "createdAt": "2026-07-08T15:42:16.529Z",
+            "updatedAt": "2026-07-08T15:42:16.543Z"
+          }
+        ],
+        "pagination": {
+          "page": 1,
+          "limit": 50,
+          "total": 2,
+          "totalPages": 1
+        }
+      },
+      "timestamp": "2026-07-08T15:42:16.818Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/customers/1/notifications/unread-count",
+    "role": "customer",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "84c75178-89de-46e7-a4a1-aeabcc06a7a7",
+      "data": {
+        "unread": 2
+      },
+      "timestamp": "2026-07-08T15:42:16.844Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/customers/1/notifications/111/read",
+    "role": "customer",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "dff1682e-7dc0-4f32-acba-132d92e26dcc",
+      "data": {
+        "id": "111",
+        "tenantId": "1",
+        "outboxEventId": "204",
+        "recipientType": "customer",
+        "recipientId": "1",
+        "channel": "in_app",
+        "templateCode": "user_email_verified_in_app",
+        "subject": null,
+        "title": "ATLAS: user email verified",
+        "body": "Se registró el evento user.email.verified.",
+        "payload": {
+          "smoke": true,
+          "customerId": "1"
+        },
+        "status": "read",
+        "priority": 1000,
+        "scheduledAt": "2026-07-08T15:42:16.687Z",
+        "queuedAt": "2026-07-08T15:42:16.693Z",
+        "sentAt": "2026-07-08T15:42:16.695Z",
+        "deliveredAt": "2026-07-08T15:42:16.695Z",
+        "readAt": "2026-07-08T15:42:16.871Z",
+        "failedAt": null,
+        "cancelledAt": null,
+        "correlationId": "smoke-notifications-run-1783525336631-ql3584",
+        "causationId": "204",
+        "createdAt": "2026-07-08T15:42:16.687Z",
+        "updatedAt": "2026-07-08T15:42:16.871Z"
+      },
+      "timestamp": "2026-07-08T15:42:16.873Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/customers/1/notifications/read-all",
+    "role": "customer",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "2e8b194a-1351-48f9-a88d-3ad0e64c92f1",
+      "data": {
+        "updated": 1
+      },
+      "timestamp": "2026-07-08T15:42:16.902Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/customers/1/device-tokens",
+    "role": "customer",
+    "requestBody": {
+      "platform": "web",
+      "token": "device-token-1783525336926-fthfo0",
+      "deviceId": "smoke-web-1783525336926"
+    },
+    "status": 201,
+    "responseData": {
+      "requestId": "0af407d5-16a9-44d0-b4a8-8a6611444c80",
+      "data": {
+        "id": "4",
+        "customerId": "1",
+        "platform": "web",
+        "deviceId": "smoke-web-1783525336926",
+        "isActive": true,
+        "lastSeenAt": "2026-07-08T15:42:16.933Z",
+        "createdAt": "2026-07-08T15:42:16.933Z",
+        "updatedAt": "2026-07-08T15:42:16.933Z"
+      },
+      "timestamp": "2026-07-08T15:42:16.946Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/admin/external-providers",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "ef6b6614-8c52-4915-a1a9-9105bc9e8bed",
+      "data": [
+        {
+          "id": "4",
+          "code": "BANKING_GENERIC",
+          "name": "Banking Generic Provider",
+          "category": "BANKING",
+          "status": "MOCK_ONLY",
+          "defaultMode": "mock_local",
+          "requiresConsent": true,
+          "requiresManualApproval": false,
+          "isCostly": false,
+          "description": "Provider contractual para fase 2 banca general. Los bancos concretos serán mini providers posteriores."
+        },
+        {
+          "id": "8",
+          "code": "DIGITAL_TRUST_GENERIC",
+          "name": "Digital Trust Generic Provider",
+          "category": "DIGITAL_TRUST",
+          "status": "MOCK_ONLY",
+          "defaultMode": "mock_local",
+          "requiresConsent": true,
+          "requiresManualApproval": false,
+          "isCostly": false,
+          "description": "Provider contractual para reputación digital, identidad sintética, email/IP/device risk."
+        },
+        {
+          "id": "6",
+          "code": "FACEBOOK_META",
+          "name": "Facebook / Meta OAuth Trust Provider",
+          "category": "SOCIAL",
+          "status": "MOCK_ONLY",
+          "defaultMode": "mock_local",
+          "requiresConsent": true,
+          "requiresManualApproval": false,
+          "isCostly": false,
+          "description": "Provider voluntario por OAuth/API oficial. No scraping, no contraseñas, no antigüedad inventada."
+        },
+        {
+          "id": "2",
+          "code": "INFOCENTER",
+          "name": "InfoCenter Credit Bureau",
+          "category": "CREDIT_BUREAU",
+          "status": "ACTIVE",
+          "defaultMode": "mock_local",
+          "requiresConsent": true,
+          "requiresManualApproval": true,
+          "isCostly": true,
+          "description": "Provider caro. Bloqueado por política salvo revisión manual, incremento de línea o fraude."
+        },
+        {
+          "id": "3",
+          "code": "QR_GENERIC",
+          "name": "QR Generic Payment Provider",
+          "category": "PAYMENTS",
+          "status": "MOCK_ONLY",
+          "defaultMode": "mock_local",
+          "requiresConsent": false,
+          "requiresManualApproval": false,
+          "isCostly": false,
+          "description": "Provider contractual para fase 2 QR. No es integración real bancaria."
+        },
+        {
+          "id": "1",
+          "code": "SEGIP",
+          "name": "SEGIP / CGIP Identity Verification",
+          "category": "IDENTITY",
+          "status": "ACTIVE",
+          "defaultMode": "mock_local",
+          "requiresConsent": true,
+          "requiresManualApproval": false,
+          "isCostly": false,
+          "description": "Provider base para validación de identidad. CGIP queda como alias operativo, proveedor oficial SEGIP."
+        },
+        {
+          "id": "5",
+          "code": "TELCO_GENERIC",
+          "name": "Telco Generic Trust Provider",
+          "category": "TELCO",
+          "status": "MOCK_ONLY",
+          "defaultMode": "mock_local",
+          "requiresConsent": true,
+          "requiresManualApproval": false,
+          "isCostly": false,
+          "description": "Provider contractual para fase 3 telefonía: antigüedad, actividad y SIM swap si existe API/contrato."
+        },
+        {
+          "id": "7",
+          "code": "WHATSAPP_GENERIC",
+          "name": "WhatsApp Generic Contactability Provider",
+          "category": "MESSAGING",
+          "status": "MOCK_ONLY",
+          "defaultMode": "mock_local",
+          "requiresConsent": true,
+          "requiresManualApproval": false,
+          "isCostly": false,
+          "description": "Provider contractual para OTP/contactabilidad. No leer chats ni guardar contactos."
+        }
+      ],
+      "timestamp": "2026-07-08T15:42:16.978Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/admin/external-providers/health",
+    "role": "admin",
+    "requestBody": null,
+    "status": 200,
+    "responseData": {
+      "requestId": "e3c96c5e-449f-4bc8-b0df-2f6c604f2f67",
+      "data": [
+        {
+          "providerCode": "BANKING_GENERIC",
+          "status": "UP",
+          "mode": "mock_local",
+          "latencyMs": 0,
+          "checkedAt": "2026-07-08T15:42:16.991Z"
+        },
+        {
+          "providerCode": "DIGITAL_TRUST_GENERIC",
+          "status": "UP",
+          "mode": "mock_local",
+          "latencyMs": 0,
+          "checkedAt": "2026-07-08T15:42:16.998Z"
+        },
+        {
+          "providerCode": "FACEBOOK_META",
+          "status": "UP",
+          "mode": "mock_local",
+          "latencyMs": 0,
+          "checkedAt": "2026-07-08T15:42:17.000Z"
+        },
+        {
+          "providerCode": "INFOCENTER",
+          "status": "UP",
+          "mode": "mock_local",
+          "latencyMs": 0,
+          "checkedAt": "2026-07-08T15:42:17.002Z"
+        },
+        {
+          "providerCode": "QR_GENERIC",
+          "status": "UP",
+          "mode": "mock_local",
+          "latencyMs": 0,
+          "checkedAt": "2026-07-08T15:42:17.004Z"
+        },
+        {
+          "providerCode": "SEGIP",
+          "status": "UP",
+          "mode": "mock_local",
+          "latencyMs": 0,
+          "checkedAt": "2026-07-08T15:42:17.006Z"
+        },
+        {
+          "providerCode": "TELCO_GENERIC",
+          "status": "UP",
+          "mode": "mock_local",
+          "latencyMs": 0,
+          "checkedAt": "2026-07-08T15:42:17.007Z"
+        },
+        {
+          "providerCode": "WHATSAPP_GENERIC",
+          "status": "UP",
+          "mode": "mock_local",
+          "latencyMs": 0,
+          "checkedAt": "2026-07-08T15:42:17.009Z"
+        }
+      ],
+      "timestamp": "2026-07-08T15:42:17.010Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/external-data/consents",
+    "role": "customer",
+    "requestBody": {
+      "customerId": "1",
+      "providerCode": "SEGIP",
+      "purpose": "KYC_ONBOARDING",
+      "legalTextVersion": "v1-dev",
+      "accepted": true,
+      "channel": "mobile_app"
+    },
+    "status": 201,
+    "responseData": {
+      "requestId": "430b877c-5d27-4c32-b10d-4caaefbcda70",
+      "data": {
+        "id": "10",
+        "customerId": "1",
+        "providerCode": "SEGIP",
+        "purposeCode": "segip_kyc_onboarding",
+        "accepted": true,
+        "grantedAt": "2026-07-08T15:42:17.020Z"
+      },
+      "timestamp": "2026-07-08T15:42:17.025Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/kyc/segip/verify",
+    "role": "customer",
+    "requestBody": {
+      "customerId": "1",
+      "documentNumber": "1234567",
+      "documentExtension": "SC",
+      "firstName": "Cliente",
+      "lastName": "Demo",
+      "birthDate": "1996-01-01",
+      "scenario": "happy_path"
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "fa14973b-1c9a-4dd9-8475-8580424a3825",
+      "data": {
+        "requestId": "7",
+        "providerCode": "SEGIP",
+        "status": "MOCKED",
+        "reasonCode": "FOUND",
+        "observations": [
+          {
+            "observationKey": "identity_document_exists",
+            "valueType": "BOOLEAN",
+            "valueBoolean": true,
+            "confidenceScore": 0.98,
+            "verified": true,
+            "manualReviewRequired": false,
+            "featureNamespace": "IDENTITY",
+            "featureKey": "identity_document_exists"
+          },
+          {
+            "observationKey": "identity_name_match_score",
+            "valueType": "NUMBER",
+            "valueNumber": 0.98,
+            "confidenceScore": 0.98,
+            "verified": true,
+            "manualReviewRequired": false,
+            "featureNamespace": "IDENTITY",
+            "featureKey": "identity_match_score"
+          },
+          {
+            "observationKey": "identity_birthdate_match",
+            "valueType": "BOOLEAN",
+            "valueBoolean": true,
+            "confidenceScore": 0.98,
+            "verified": true,
+            "manualReviewRequired": false,
+            "featureNamespace": "IDENTITY",
+            "featureKey": "identity_birthdate_match"
+          },
+          {
+            "observationKey": "identity_verification_status",
+            "valueType": "STRING",
+            "valueString": "VERIFIED",
+            "confidenceScore": 0.98,
+            "verified": true,
+            "manualReviewRequired": false,
+            "featureNamespace": "IDENTITY",
+            "featureKey": "identity_verification_status"
+          },
+          {
+            "observationKey": "identity_manual_review_required",
+            "valueType": "BOOLEAN",
+            "valueBoolean": false,
+            "confidenceScore": 0.98,
+            "verified": true,
+            "manualReviewRequired": false,
+            "featureNamespace": "IDENTITY",
+            "featureKey": "identity_manual_review_required"
+          }
+        ],
+        "features": {
+          "identity_document_exists": true,
+          "identity_document_exists__confidence": 0.98,
+          "identity_match_score": 0.98,
+          "identity_match_score__confidence": 0.98,
+          "identity_birthdate_match": true,
+          "identity_birthdate_match__confidence": 0.98,
+          "identity_verification_status": "VERIFIED",
+          "identity_verification_status__confidence": 0.98,
+          "identity_manual_review_required": false,
+          "identity_manual_review_required__confidence": 0.98
+        },
+        "manualReviewRequired": false,
+        "modeUsed": "mock_local"
+      },
+      "timestamp": "2026-07-08T15:42:17.107Z"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/bureau/infocenter/check",
+    "role": "admin",
+    "requestBody": {
+      "customerId": "1",
+      "documentNumber": "1234567",
+      "decisionStage": "ONBOARDING",
+      "scenario": "happy_path"
+    },
+    "status": 200,
+    "responseData": {
+      "requestId": "562bf69a-2f23-4e4c-a604-9e81e5f93ddd",
+      "data": {
+        "requestId": "8",
+        "providerCode": "INFOCENTER",
+        "status": "BLOCKED_BY_COST_POLICY",
+        "reasonCode": "INFOCENTER_NOT_ALLOWED_FOR_ONBOARDING",
+        "observations": [],
+        "features": {},
+        "manualReviewRequired": false,
+        "modeUsed": "mock_local"
+      },
+      "timestamp": "2026-07-08T15:42:17.133Z"
+    }
+  }
+]

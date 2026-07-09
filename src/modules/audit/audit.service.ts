@@ -21,4 +21,25 @@ export class AuditService {
       meta: buildPaginationMeta({ page: query.page, limit: query.limit }, rows.length),
     };
   }
+
+  /**
+   * ATLAS-P11-T10: variante por cursor real de `getCustomerAudit`, leyendo de la vista
+   * `audit_event_feed` (cubre 8 fuentes en vez de las 5 de `findCustomerAuditEvents`). Pensada
+   * para reemplazar gradualmente a `getCustomerAudit` en el panel de operaciones a medida que el
+   * volumen de auditoría crezca.
+   */
+  async getCustomerAuditFeed(tenantId: string, customerId: string, query: { limit: number; cursor?: string }) {
+    const result = await this.repository.findCustomerAuditEventsWithCursor(tenantId, customerId, query);
+    return {
+      events: result.items.map((row) => ({
+        sourceTable: row.source_table,
+        eventType: row.event_type,
+        occurredAt: new Date(row.occurred_at).toISOString(),
+        actorType: row.actor_type,
+        targetType: row.target_type,
+        targetId: row.target_id,
+      })),
+      nextCursor: result.nextCursor,
+    };
+  }
 }

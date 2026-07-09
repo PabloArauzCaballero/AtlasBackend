@@ -1,20 +1,17 @@
 # Atlas Backend — API (NestJS + Sequelize + PostgreSQL)
 
-> **Estado real del proyecto (léase antes de cualquier otra cosa):** este backend implementa
-> **Fase 1 de Atlas — usuarios** (identidad de cliente, autenticación, sesiones, consentimientos,
-> privacidad, telemetría), con piezas de **Fase 2 — motor de decisión y plataforma
-> administrativa** ya adelantadas (`risk`, `catalog-management`, `operations`, `data-quality`,
-> `audit`). **Fase 3 — deudas y otros** (compras BNPL, cuotas, línea de crédito, comercios,
-> liquidaciones, MDR) **no está implementada todavía**; ver `docs/pending/pending-items.md` §3.
-> Esto es intencional según el roadmap del producto, no un defecto de esta entrega.
+> **Estado real del proyecto:** este backend implementa la base de Atlas para identidad,
+> autenticación, sesiones, consentimientos, privacidad, telemetría, riesgo, fraude, operaciones,
+> catálogo de datos, auditoría, notificaciones, eventos y proveedores externos. Para el historial
+> de cambios y documentación técnica se redujo a lo estrictamente útil para ejecutar, entender
+> y mantener el backend. Las auditorías, pendientes, prompts no esenciales y reportes temporales
+> fueron retirados para mantener el repositorio limpio.
 
-Este README es el punto de entrada real del repositorio (reemplaza una versión anterior que solo
-documentaba el changelog de un parche puntual — ver `CHANGELOG.md` para el historial de cambios).
+Este README es el punto de entrada real del repositorio y reemplaza documentación temporal de parches anteriores.
 
 ## Qué es Atlas
 
-Atlas es una fintech BNPL (Buy Now Pay Later) para Bolivia. Ver `PROJECT_BRIEF_ATLAS.md` en el
-paquete de contexto del proyecto para el detalle completo de producto.
+Atlas es una fintech BNPL (Buy Now Pay Later) para Bolivia. Este repositorio contiene exclusivamente el backend y su documentación técnica mínima.
 
 ## Stack
 
@@ -45,20 +42,28 @@ src/
     ├── customer-telemetry/    # señales de dispositivo/comportamiento (privacidad estricta)
     ├── consents/              # documentos de consentimiento
     ├── sessions/              # sesiones de cliente, heartbeats, señales de riesgo por sesión
+    │                          # (repositorio dividido en src/modules/sessions/repositories/*)
     ├── risk/                  # scoring/evaluación de riesgo (base de Fase 2)
+    ├── fraud/                 # casos de fraude, decisión y watchlist
     ├── catalog-management/    # catálogos de contexto/reglas versionadas (base de Fase 2)
+    ├── external-data/         # adapters a proveedores externos (burós de crédito, KYC)
     ├── operations/            # panel interno de operaciones (base de Fase 2)
     ├── data-quality/          # reglas e incidencias de calidad de datos
-    ├── audit/                 # auditoría consolidada por cliente
+    ├── audit/                 # auditoría consolidada por cliente (feed unificado por cursor
+    │                          # sobre la vista `audit_event_feed`, además del listado por página)
     ├── notifications/         # plantillas, mensajes, canales (SMS/push/email/WhatsApp)
     ├── events/                # outbox de eventos de negocio
     ├── runtime-hardening/     # idempotencia, interceptors de comando
     ├── runtime-jobs/          # jobs operativos (outbox técnico, retención, expiración de sesión)
+    ├── systems-ops/           # catálogo de endpoints/herramientas, suites de QA, cola de revisión
     └── health/                # healthcheck
 ```
 
 Cada módulo sigue el patrón `controller → service → repository → model`, con `*.schemas.ts` (Zod)
-y `*.mapper.ts` para no exponer modelos Sequelize directamente en las respuestas.
+y `*.mapper.ts` para no exponer modelos Sequelize directamente en las respuestas. Los repositorios
+que crecieron más allá de una sola responsabilidad clara (`sessions`, `customer-onboarding`,
+`systems-ops`) se dividen en `repositories/*.ts` por dominio, con una fachada delgada
+(`<módulo>.repository.ts`) que mantiene la misma API pública.
 
 ## Requisitos previos
 
@@ -152,6 +157,8 @@ NOTIFICATION_TOKEN_ENCRYPTION_KEY=<otro-secreto-largo-distinto>
 | `yarn docs:openapi` | Genera `docs/endpoints/openapi.yaml` a partir del código (requiere una base de datos real disponible para levantar el `AppModule`). |
 | `yarn smoke` | Corre la suite de smoke tests contra un servidor real ya levantado (`BASE_URL` por defecto `http://localhost:3000/api/v1`). |
 | `yarn check:no-env-file` | Falla si hay un `.env` real en el repo (lo corre CI). |
+| `yarn crypto:reencrypt-pii:dry-run` | Cuenta (sin escribir) cuántos valores de PII/tokens siguen en formato legado `v1` (clave maestra única) contra una base real. |
+| `yarn crypto:reencrypt-pii` | Re-cifra en caliente, en lotes e idempotente, los valores `v1` a `v2` (envelope encryption). |
 
 ## Autenticación (módulo `auth`)
 
@@ -161,19 +168,15 @@ NOTIFICATION_TOKEN_ENCRYPTION_KEY=<otro-secreto-largo-distinto>
 - `POST /auth/provision-credentials` — body: `{ actorType: 'internal_user'|'platform_user', actorId, password }`. Requiere rol `admin`/`platform_admin`. Fija la contraseña inicial de un actor interno ya existente (no crea el actor).
 
 Para clientes (`customer`), el registro **es** el onboarding: `POST /customer-onboarding/start`
-acepta un campo `password` opcional. Ver `docs/architecture/assumptions.md` sobre por qué es
-opcional (no está cerrado si el mecanismo definitivo de auth del consumidor final es contraseña
-u OTP).
+acepta un campo `password` opcional. El mecanismo final para consumidores puede evolucionar a OTP u otro flujo, pero el backend ya soporta contraseña cuando el cliente se crea desde onboarding.
 
 ## Documentación relacionada
 
-- `docs/pending/pending-items.md` — pendientes, bloqueos y supuestos abiertos (léelo antes de asumir que algo está "cerrado").
-- `docs/architecture/assumptions.md` — supuestos técnicos documentados.
 - `docs/architecture/architecture.md` / `docs/architecture/flows.md` — arquitectura y flujos existentes.
-- `docs/endpoints/endpoints.md` — documentación narrativa de endpoints (complementaria al OpenAPI generado).
-- `AUDITORIA_ATLAS_BACKEND.md` (si está presente en tu copia) — auditoría técnica que originó este patch de corrección, con el detalle completo de cada hallazgo.
-- `IMPLEMENTATION_REPORT.md` — qué se implementó en este patch, qué se validó y qué falta confirmar en un entorno con red/base de datos real.
-- `CHANGELOG.md` — historial de parches (antes vivía, de forma incorrecta, en este mismo README).
+- `docs/config/environment.md` — variables de entorno y reglas de configuración.
+- `docs/database/migrations.md` / `docs/database/seeds.md` — operación de base de datos.
+- `docs/endpoints/endpoints.md` — documentación narrativa de endpoints, complementaria al OpenAPI generado.
+- `docs/testing/smoke-tests.md` — guía práctica para validar el backend levantado.
 
 ## Seguridad — reglas no negociables
 
@@ -183,10 +186,3 @@ u OTP).
 - Toda entrada externa se valida con Zod antes de tocar la base de datos.
 - No exponer modelos Sequelize directamente en respuestas HTTP; usar mappers.
 
-## Patch 5 — Jest globals y entorno de test explícito
-
-- Corregido `yarn test:coverage` cuando `ts-jest` no reconocía `describe`, `it`, `expect` y `jest`.
-- Los tests unitarios ahora importan explícitamente los helpers desde `@jest/globals`, evitando depender de globals implícitos o de un `tsconfig` productivo.
-- Agregado `tsconfig.spec.json` para aislar la compilación de tests.
-- Agregado `test/setup-jest-env.cjs` para forzar `NODE_ENV=test` aunque Windows tenga `NODE_ENV=production` configurado globalmente.
-- `jest.config.cjs` ahora usa `tsconfig.spec.json`, `isolatedModules` y `setupFiles` para evitar el warning de módulo híbrido y errores falsos de configuración.

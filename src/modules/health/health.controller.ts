@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -20,6 +20,8 @@ type HealthStatus = {
 export class HealthController {
   constructor(@InjectConnection() private readonly sequelize: Sequelize) {}
 
+  @ApiOperation({ summary: 'Health check del servicio (público, sin auth)', description: 'Verifica conectividad a la base de datos y reporta uptime/versión. No requiere autenticación.' })
+  @ApiResponse({ status: 200, description: 'Servicio saludable o degradado (nunca falla por sí mismo).' })
   @Public()
   @Get()
   async check(): Promise<HealthStatus> {

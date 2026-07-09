@@ -59,11 +59,6 @@ Los proveedores externos producen observaciones y features auditables. El scorin
 
 Ver `.env.example` para los modos `mock_local`, `mock_server`, `sandbox`, `production` y `disabled`.
 
-## Documentos v2
-
-- `ENDPOINTS_V2.md`: catálogo actualizado de endpoints cómodos y generales.
-- `LONG_TERM_RISK_AUDIT.md`: auditoría preventiva de problemas de largo plazo y mitigaciones aplicadas.
-
 ## Scripts Yarn recomendados
 
 ```bash

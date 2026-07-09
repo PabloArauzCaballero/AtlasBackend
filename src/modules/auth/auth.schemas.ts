@@ -28,7 +28,11 @@ export type LogoutDto = z.infer<typeof logoutSchema>;
 export const provisionCredentialsSchema = z.object({
   actorType: z.enum(['internal_user', 'platform_user']),
   actorId: z.string().regex(/^[1-9][0-9]*$/),
-  password: z.string().trim().min(10, 'La contraseña debe tener al menos 10 caracteres.').max(128),
+  // Sin `.trim()`: `loginSchema.password` tampoco recorta espacios antes de verificar. Si aquí
+  // se recortara antes de hashear, una contraseña con espacio inicial/final quedaría hasheada
+  // sin él, pero `login` compararía el valor tal cual lo escribe el usuario (con el espacio) —
+  // el hash nunca volvería a coincidir. Deben tratar el valor exactamente igual en ambos lados.
+  password: z.string().min(10, 'La contraseña debe tener al menos 10 caracteres.').max(128),
 });
 
 export type ProvisionCredentialsDto = z.infer<typeof provisionCredentialsSchema>;

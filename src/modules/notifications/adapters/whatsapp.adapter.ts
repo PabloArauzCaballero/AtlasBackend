@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { env } from '../../../config/env.js';
+import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';
 import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from '../notification-types.js';
 import { failedDelivery, getFirstDeliveryTarget, postForm, postJson, sentDelivery } from './http-adapter.util.js';
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
@@ -20,7 +21,10 @@ function templateParameters(value: unknown): string[] {
 
 @Injectable()
 export class WhatsAppNotificationAdapter implements NotificationChannelAdapter {
-  constructor(private readonly config: NotificationProviderConfigService) {}
+  constructor(
+    private readonly config: NotificationProviderConfigService,
+    private readonly executor: ResilientAdapterExecutorService,
+  ) {}
 
   getProviderName(): string {
     return this.config.getWhatsAppProvider();
@@ -83,6 +87,8 @@ export class WhatsAppNotificationAdapter implements NotificationChannelAdapter {
       requestBody.text = { preview_url: false, body: message.body };
     }
     const response = await postJson(
+      this.executor,
+      'meta_whatsapp_cloud',
       `https://graph.facebook.com/v20.0/${phoneNumberId}/messages`,
       { authorization: `Bearer ${token}` },
       requestBody,
@@ -105,6 +111,8 @@ export class WhatsAppNotificationAdapter implements NotificationChannelAdapter {
     const from = this.config.require(env.TWILIO_WHATSAPP_FROM, 'TWILIO_WHATSAPP_FROM_MISSING');
     const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
     const response = await postForm(
+      this.executor,
+      'twilio_whatsapp',
       `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
       { authorization: `Basic ${credentials}` },
       {
@@ -122,6 +130,8 @@ export class WhatsAppNotificationAdapter implements NotificationChannelAdapter {
     const url = this.config.getWebhookUrl('whatsapp');
     if (!url) return failedDelivery('webhook_whatsapp', 'WEBHOOK_URL_MISSING', 'NOTIFICATION_WEBHOOK_URL no está configurado.');
     const response = await postJson(
+      this.executor,
+      'webhook_whatsapp',
       url,
       {},
       { channel: 'whatsapp', to, body: message.body, payload: message.payload, messageId: message.id },

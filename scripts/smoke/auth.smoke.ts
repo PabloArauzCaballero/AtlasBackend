@@ -1,4 +1,4 @@
-import { getString, request, TENANT_ID, uniqueKey } from './http.js';
+import { getString, getStringFromPaths, request, TENANT_ID, uniqueKey } from './http.js';
 
 /**
  * ATLAS-AUDIT-002: primer smoke test que ejercita el módulo `auth` de punta a punta contra un
@@ -35,14 +35,16 @@ export async function runAuthSmoke(): Promise<void> {
   console.log(`[SMOKE] cliente de prueba creado: customerId=${customerId}`);
 
   // Login con las credenciales recién creadas.
-  const loginResult = await request<{ accessToken: string; refreshToken: string }>({
+  const loginResult = await request<Record<string, unknown>>({
     method: 'POST',
     path: '/auth/login',
     extraHeaders: { 'x-tenant-id': TENANT_ID },
     body: { actorType: 'customer', identifier: email, password },
     expected: [200],
   });
-  if (!loginResult.data.accessToken || !loginResult.data.refreshToken) {
+  const accessToken = getStringFromPaths(loginResult.data, [['data', 'accessToken'], ['accessToken']]);
+  const refreshToken = getStringFromPaths(loginResult.data, [['data', 'refreshToken'], ['refreshToken']]);
+  if (!accessToken || !refreshToken) {
     throw new Error('login no devolvió accessToken/refreshToken.');
   }
 
@@ -56,13 +58,14 @@ export async function runAuthSmoke(): Promise<void> {
   });
 
   // Refresh: rota el token.
-  const refreshed = await request<{ accessToken: string; refreshToken: string }>({
+  const refreshed = await request<Record<string, unknown>>({
     method: 'POST',
     path: '/auth/refresh',
-    body: { refreshToken: loginResult.data.refreshToken },
+    body: { refreshToken },
     expected: [200],
   });
-  if (refreshed.data.refreshToken === loginResult.data.refreshToken) {
+  const newRefreshToken = getStringFromPaths(refreshed.data, [['data', 'refreshToken'], ['refreshToken']]);
+  if (newRefreshToken === refreshToken) {
     throw new Error('refresh no rotó el refresh token (debe devolver uno distinto al original).');
   }
 
@@ -70,7 +73,7 @@ export async function runAuthSmoke(): Promise<void> {
   await request({
     method: 'POST',
     path: '/auth/refresh',
-    body: { refreshToken: loginResult.data.refreshToken },
+    body: { refreshToken },
     expected: [401],
   });
 
@@ -78,7 +81,7 @@ export async function runAuthSmoke(): Promise<void> {
   await request({
     method: 'POST',
     path: '/auth/logout',
-    body: { refreshToken: refreshed.data.refreshToken, allDevices: false },
+    body: { refreshToken: newRefreshToken, allDevices: false },
     expected: [200],
   });
 

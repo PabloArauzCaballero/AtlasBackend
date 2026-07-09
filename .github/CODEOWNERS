@@ -1,0 +1,39 @@
+# ATLAS-P10-041 — cierra RC-08 de AUDITORIA_ATLAS_BACKEND_10_10.md
+#
+# CODEOWNERS por sí solo NO aplica protección de rama: eso se configura en GitHub
+# (Settings → Branches → Branch protection rules → main), donde se debe activar:
+#   - "Require a pull request before merging"
+#   - "Require approvals" (mínimo 1)
+#   - "Require review from Code Owners"
+#   - "Require status checks to pass before merging" con los jobs de .github/workflows/ci.yml
+#     (backend, db-and-cache-integration, dependency-audit, migration-check)
+#   - "Do not allow bypassing the above settings" (incluye administradores)
+#
+# Esta configuración de GitHub no se puede versionar como archivo — debe activarse manualmente
+# una vez en el repositorio real. Este archivo CODEOWNERS es la mitad "versionable" del control.
+
+# Dueño por defecto de todo el repo si no hay una regla más específica abajo.
+* @atlas-backend-team
+
+# Seguridad, cifrado y autenticación — requieren revisión de seguridad explícita.
+/src/common/utils/crypto/ @atlas-security-team @atlas-backend-team
+/src/modules/auth/ @atlas-security-team @atlas-backend-team
+/src/common/guards/ @atlas-security-team @atlas-backend-team
+/src/common/services/token-revocation.service.ts @atlas-security-team @atlas-backend-team
+
+# Esquema de datos — cualquier migración nueva debe pasar por alguien que entienda el
+# historial completo del esquema (ver docs/database/schema-snapshot.md).
+/src/database/migrations/ @atlas-backend-team @atlas-data-team
+/src/database/models/ @atlas-backend-team @atlas-data-team
+
+# Motor de riesgo/fraude — cambios aquí afectan directamente decisiones de crédito.
+/src/modules/risk/ @atlas-risk-team @atlas-backend-team
+/src/modules/fraud/ @atlas-risk-team @atlas-backend-team
+
+# Gobernanza de pendientes y documentación de producto — cualquiera puede proponer, pero el
+# cierre de pendientes bloqueantes requiere el visto bueno del equipo de producto.
+/docs/pending/ @atlas-product-team @atlas-backend-team
+/PENDIENTES_ATLAS.md @atlas-product-team
+
+# Infraestructura y CI/CD.
+/.github/ @atlas-infra-team @atlas-backend-team

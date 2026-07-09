@@ -5,6 +5,10 @@ export type AtlasUserRole =
   | 'compliance_analyst'
   | 'fraud_analyst'
   | 'system'
+  | 'system_admin'
+  | 'qa_engineer'
+  | 'devops'
+  | 'readonly_auditor'
   | 'merchant'
   | 'admin'
   | 'platform_admin';

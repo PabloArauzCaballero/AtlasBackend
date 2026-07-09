@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindAndCountOptions, FindOptions, Op, Transaction, WhereOptions } from 'sequelize';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
+import { decodeCursor, encodeCursor } from '../../common/utils/pagination/cursor-pagination.util.js';
 import {
   CustomerObservationModel,
   CustomerStatusEventModel,
@@ -61,6 +62,71 @@ export class OperationsRepository {
     };
   }
 
+  /**
+   * ATLAS-P11-T10 (continúa ATLAS-PEND-102 / RC-06, siguiendo el mismo patrón ya aplicado en
+   * `data-quality.repository.ts::findIssuesWithCursor` y `events.repository.ts::listWithCursor`):
+   * variante por cursor de `findManualReviewCasesForQueue()`. Respeta el mismo campo de orden
+   * dinámico (`createdAtValue` o `updatedAtValue`, según `query.sortBy`) que la versión OFFSET,
+   * por lo que el cursor codifica el valor de *ese* campo, no siempre `createdAt` — el nombre
+   * `createdAt` dentro de `CursorKey` es solo la etiqueta del campo de ordenamiento usado, no
+   * necesariamente la columna `created_at`.
+   *
+   * `findManualReviewCasesForQueue()` (OFFSET) se mantiene sin cambios por compatibilidad. Esta
+   * es la variante recomendada para listados nuevos de alto volumen del panel de operaciones.
+   *
+   * Nota de alcance: `getWorkQueue()` combina esta cola con `findFraudCasesForQueueWithCursor()`
+   * en una sola vista mezclada para el operador. Fusionar dos fuentes de cursor heterogéneas en
+   * una sola página ordenada es un problema estructuralmente equivalente al fan-in de 5 tablas
+   * de `audit.repository.ts` (ver `ATLAS-PEND-102`): requiere una vista unificada, no solo un
+   * cambio de repositorio. Por eso `getWorkQueue()` sigue usando las variantes OFFSET por ahora;
+   * las variantes por cursor de este archivo quedan listas para exponerse como endpoints propios
+   * no combinados (`GET /operations/manual-review-cases`, `GET /operations/fraud-cases`) sin
+   * esperar a que se resuelva la fusión completa.
+   */
+  async findManualReviewCasesForQueueWithCursor(
+    tenantId: string,
+    query: { status?: string; priority?: string; customerId?: string; sortBy: 'createdAt' | 'updatedAt'; limit: number; cursor?: string },
+  ): Promise<{ items: ManualReviewCaseModel[]; nextCursor: string | null }> {
+    const orderField = query.sortBy === 'updatedAt' ? 'updatedAtValue' : 'createdAtValue';
+
+    const where: Record<string, unknown> = {
+      tenantId,
+      deleted: { [Op.ne]: true },
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.priority ? { priority: query.priority } : {}),
+      ...(query.customerId ? { customerId: query.customerId } : {}),
+    };
+
+    const cursorKey = decodeCursor(query.cursor);
+    if (cursorKey) {
+      where[Op.and as unknown as string] = [
+        {
+          [Op.or]: [
+            { [orderField]: { [Op.lt]: new Date(cursorKey.createdAt) } },
+            { [Op.and]: [{ [orderField]: new Date(cursorKey.createdAt) }, { id: { [Op.lt]: cursorKey.id } }] },
+          ],
+        },
+      ];
+    }
+
+    const rowsPlusOne = await this.manualReviewCaseModel.findAll({
+      where: where as never,
+      order: [
+        [orderField, 'DESC'],
+        ['id', 'DESC'],
+      ],
+      limit: query.limit + 1,
+    } as FindOptions);
+
+    const hasMore = rowsPlusOne.length > query.limit;
+    const items = hasMore ? rowsPlusOne.slice(0, query.limit) : rowsPlusOne;
+    const last = items[items.length - 1] as (ManualReviewCaseModel & Record<string, unknown>) | undefined;
+    const lastOrderValue = last ? (last[orderField] as Date | undefined) : undefined;
+    const nextCursor = hasMore && last && lastOrderValue ? encodeCursor({ createdAt: lastOrderValue.toISOString(), id: last.id }) : null;
+
+    return { items, nextCursor };
+  }
+
   async findFraudCasesForQueue(tenantId: string, query: WorkQueueQueryDto) {
     const where: WhereOptions = {
       tenantId,
@@ -87,6 +153,54 @@ export class OperationsRepository {
       rows: result.rows,
       meta: buildPaginationMeta({ page: query.page, limit: query.limit }, result.count),
     };
+  }
+
+  /**
+   * ATLAS-P11-T10: variante por cursor de `findFraudCasesForQueue()`, mismo patrón y misma nota
+   * de alcance que `findManualReviewCasesForQueueWithCursor()` — ver el comentario allí.
+   */
+  async findFraudCasesForQueueWithCursor(
+    tenantId: string,
+    query: { status?: string; priority?: string; customerId?: string; sortBy: 'createdAt' | 'updatedAt'; limit: number; cursor?: string },
+  ): Promise<{ items: FraudCaseModel[]; nextCursor: string | null }> {
+    const orderField = query.sortBy === 'updatedAt' ? 'updatedAtValue' : 'createdAtValue';
+
+    const where: Record<string, unknown> = {
+      tenantId,
+      deleted: { [Op.ne]: true },
+      ...(query.status ? { caseStatus: query.status } : {}),
+      ...(query.priority ? { severity: query.priority } : {}),
+      ...(query.customerId ? { customerId: query.customerId } : {}),
+    };
+
+    const cursorKey = decodeCursor(query.cursor);
+    if (cursorKey) {
+      where[Op.and as unknown as string] = [
+        {
+          [Op.or]: [
+            { [orderField]: { [Op.lt]: new Date(cursorKey.createdAt) } },
+            { [Op.and]: [{ [orderField]: new Date(cursorKey.createdAt) }, { id: { [Op.lt]: cursorKey.id } }] },
+          ],
+        },
+      ];
+    }
+
+    const rowsPlusOne = await this.fraudCaseModel.findAll({
+      where: where as never,
+      order: [
+        [orderField, 'DESC'],
+        ['id', 'DESC'],
+      ],
+      limit: query.limit + 1,
+    } as FindOptions);
+
+    const hasMore = rowsPlusOne.length > query.limit;
+    const items = hasMore ? rowsPlusOne.slice(0, query.limit) : rowsPlusOne;
+    const last = items[items.length - 1] as (FraudCaseModel & Record<string, unknown>) | undefined;
+    const lastOrderValue = last ? (last[orderField] as Date | undefined) : undefined;
+    const nextCursor = hasMore && last && lastOrderValue ? encodeCursor({ createdAt: lastOrderValue.toISOString(), id: last.id }) : null;
+
+    return { items, nextCursor };
   }
 
   findOpenManualReviewCasesForCustomer(tenantId: string, customerId: string): Promise<ManualReviewCaseModel[]> {
@@ -181,6 +295,7 @@ export class OperationsRepository {
       newStatus: string;
       reasonCode: string;
       actorType: string;
+      actorInternalUserId: string | null;
       happenedAt: Date;
       notes: string | null;
     },
@@ -194,6 +309,7 @@ export class OperationsRepository {
         newStatus: values.newStatus,
         reasonCode: values.reasonCode,
         changedByType: values.actorType,
+        changedByInternalUserId: values.actorInternalUserId,
         happenedAt: values.happenedAt,
         notes: values.notes,
         createdAtValue: values.happenedAt,

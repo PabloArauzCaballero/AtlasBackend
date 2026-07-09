@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, Transaction } from 'sequelize';
+import { Op, Transaction, fn, where, col } from 'sequelize';
 import { AuthCredentialModel, AuthRefreshTokenModel, InternalUserModel, PlatformUserModel } from '../../database/models/index.js';
 
 export type ActorType = 'customer' | 'internal_user' | 'platform_user';
@@ -14,12 +14,26 @@ export class AuthRepository {
     @InjectModel(PlatformUserModel) private readonly platformUserModel: typeof PlatformUserModel,
   ) {}
 
-  async findInternalUserByEmail(email: string): Promise<InternalUserModel | null> {
-    return this.internalUserModel.findOne({ where: { email, deleted: { [Op.ne]: true } } as never });
+  // ATLAS-P10-045: antes esta búsqueda era case-sensitive tal como estaba almacenado en la
+  // base de datos (ver docs/architecture/assumptions.md, "emails de internal_users/platform_users
+  // tratados como case-sensitive"). Hoy el único punto de alta es el seeder de desarrollo, que
+  // ya inserta en minúsculas, pero comparar con `LOWER(email) = LOWER(:input)` hace la búsqueda
+  // robusta independientemente de cómo se haya insertado el registro (seed manual, migración
+  // futura, o el módulo de gestión de usuarios internos de ATLAS-PEND-108 cuando exista), sin
+  // requerir una migración de datos para los registros ya existentes.
+  async findInternalUserByEmail(email: string, tenantId?: string): Promise<InternalUserModel | null> {
+    const filters: unknown[] = [where(fn('lower', col('email')), email.trim().toLowerCase()), { deleted: { [Op.ne]: true } }];
+    if (tenantId) filters.push({ tenantId });
+
+    return this.internalUserModel.findOne({
+      where: { [Op.and]: filters } as never,
+    });
   }
 
   async findPlatformUserByEmail(email: string): Promise<PlatformUserModel | null> {
-    return this.platformUserModel.findOne({ where: { email, deleted: { [Op.ne]: true } } as never });
+    return this.platformUserModel.findOne({
+      where: { [Op.and]: [where(fn('lower', col('email')), email.trim().toLowerCase()), { deleted: { [Op.ne]: true } }] } as never,
+    });
   }
 
   async findInternalUserById(id: string): Promise<InternalUserModel | null> {
@@ -72,19 +86,19 @@ export class AuthRepository {
   }
 
   async recordSuccessfulLogin(credential: AuthCredentialModel, ip: string | null): Promise<void> {
+    const now = new Date();
     credential.failedLoginAttempts = 0;
     credential.lockedUntil = null;
-    credential.lastLoginAt = new Date();
+    credential.lastLoginAt = now;
     credential.lastLoginIp = ip;
-    credential.updatedAtValue = new Date();
+    credential.updatedAtValue = now;
     await credential.save();
-  }
 
-  async bumpTokenVersion(credential: AuthCredentialModel): Promise<number> {
-    credential.tokenVersion += 1;
-    credential.updatedAtValue = new Date();
-    await credential.save();
-    return credential.tokenVersion;
+    if (credential.actorType === 'internal_user') {
+      await this.internalUserModel.update({ lastLoginAt: now, updatedAtValue: now } as never, {
+        where: { id: credential.actorId, deleted: { [Op.ne]: true } } as never,
+      });
+    }
   }
 
   async createRefreshToken(input: {

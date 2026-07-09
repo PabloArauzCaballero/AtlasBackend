@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op } from 'sequelize';
+import { Op, UniqueConstraintError } from 'sequelize';
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { redactSensitiveObject, stableStringify } from '../../common/utils/privacy/redaction.util.js';
 import { IdempotencyKeyModel, OutboxEventModel } from '../../database/models/index.js';
@@ -19,6 +19,26 @@ export class RuntimeHardeningService {
     return sha256Hex(stableStringify({ body: redactSensitiveObject(body), query, params }));
   }
 
+  private async claimExisting(
+    existing: IdempotencyKeyModel,
+    input: { requestHash: string; now: Date },
+  ): Promise<IdempotencyLookupResult> {
+    if (existing.requestHash !== input.requestHash) {
+      throw new ConflictException('IDEMPOTENCY_CONFLICT');
+    }
+    if (existing.status === 'completed') {
+      return { mode: 'replay', responseBody: existing.responseBodyJson, responseStatus: existing.responseStatus };
+    }
+    if (existing.status === 'processing' && existing.lockedUntil && existing.lockedUntil > input.now) {
+      throw new ConflictException('IDEMPOTENCY_REQUEST_IN_PROGRESS');
+    }
+    existing.status = 'processing';
+    existing.lockedUntil = new Date(input.now.getTime() + 5 * 60_000);
+    existing.updatedAtValue = input.now;
+    await existing.save();
+    return { mode: 'execute', record: existing };
+  }
+
   async claimIdempotency(input: {
     tenantScope: string;
     actorType: string | null;
@@ -28,43 +48,40 @@ export class RuntimeHardeningService {
     requestHash: string;
     now: Date;
   }): Promise<IdempotencyLookupResult> {
-    const existing = await this.idempotencyModel.findOne({
-      where: { tenantScope: input.tenantScope, scope: input.scope, idempotencyKey: input.idempotencyKey },
-    });
+    const where = { tenantScope: input.tenantScope, scope: input.scope, idempotencyKey: input.idempotencyKey };
+    const existing = await this.idempotencyModel.findOne({ where });
 
     if (existing) {
-      if (existing.requestHash !== input.requestHash) {
-        throw new ConflictException('IDEMPOTENCY_CONFLICT');
-      }
-      if (existing.status === 'completed') {
-        return { mode: 'replay', responseBody: existing.responseBodyJson, responseStatus: existing.responseStatus };
-      }
-      if (existing.status === 'processing' && existing.lockedUntil && existing.lockedUntil > input.now) {
-        throw new ConflictException('IDEMPOTENCY_REQUEST_IN_PROGRESS');
-      }
-      existing.status = 'processing';
-      existing.lockedUntil = new Date(input.now.getTime() + 5 * 60_000);
-      existing.updatedAtValue = input.now;
-      await existing.save();
-      return { mode: 'execute', record: existing };
+      return this.claimExisting(existing, input);
     }
 
-    const record = await this.idempotencyModel.create({
-      tenantScope: input.tenantScope,
-      actorType: input.actorType,
-      actorId: input.actorId,
-      idempotencyKey: input.idempotencyKey,
-      scope: input.scope,
-      requestHash: input.requestHash,
-      status: 'processing',
-      responseStatus: null,
-      responseBodyJson: null,
-      lockedUntil: new Date(input.now.getTime() + 5 * 60_000),
-      completedAt: null,
-      createdAtValue: input.now,
-      updatedAtValue: input.now,
-    });
-    return { mode: 'execute', record };
+    try {
+      const record = await this.idempotencyModel.create({
+        tenantScope: input.tenantScope,
+        actorType: input.actorType,
+        actorId: input.actorId,
+        idempotencyKey: input.idempotencyKey,
+        scope: input.scope,
+        requestHash: input.requestHash,
+        status: 'processing',
+        responseStatus: null,
+        responseBodyJson: null,
+        lockedUntil: new Date(input.now.getTime() + 5 * 60_000),
+        completedAt: null,
+        createdAtValue: input.now,
+        updatedAtValue: input.now,
+      });
+      return { mode: 'execute', record };
+    } catch (error) {
+      // Carrera: dos requests con la misma idempotencyKey pasaron el `findOne` de arriba antes
+      // de que cualquiera commiteara su `create`. El índice único (`ux_idempotency_scope_key`)
+      // rechaza el segundo insert — en vez de dejar que ese error suba como un 500 genérico, se
+      // trata exactamente igual que si el `findOne` inicial ya la hubiera encontrado.
+      if (!(error instanceof UniqueConstraintError)) throw error;
+      const raced = await this.idempotencyModel.findOne({ where });
+      if (!raced) throw error;
+      return this.claimExisting(raced, input);
+    }
   }
 
   async completeIdempotency(record: IdempotencyKeyModel, responseStatus: number, responseBody: unknown): Promise<void> {

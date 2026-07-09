@@ -14,17 +14,23 @@ export class DataQualityService {
 
   async listIssues(tenantId: string, query: DataQualityQueryDto) {
     const result = await this.repository.findIssues(tenantId, query);
+    const ruleIds = [...new Set(result.rows.map((issue) => issue.qualityRuleId).filter((id): id is string => id !== null))];
+    const rules = await this.repository.findRulesByIds(ruleIds);
+    const ruleById = new Map(rules.map((rule) => [String(rule.id), rule]));
     return {
-      items: result.rows.map((issue) => ({
-        issueId: String(issue.id),
-        severity: null,
-        entityType: issue.targetTable,
-        entityId: issue.targetRecordId,
-        issueCode: issue.issueStatus,
-        status: issue.issueStatus,
-        detectedAt: issue.detectedAt?.toISOString() ?? null,
-        resolvedAt: issue.resolvedAt?.toISOString() ?? null,
-      })),
+      items: result.rows.map((issue) => {
+        const rule = issue.qualityRuleId ? ruleById.get(String(issue.qualityRuleId)) : undefined;
+        return {
+          issueId: String(issue.id),
+          severity: rule?.severity ?? null,
+          entityType: issue.targetTable,
+          entityId: issue.targetRecordId,
+          issueCode: rule?.ruleCode ?? null,
+          status: issue.issueStatus,
+          detectedAt: issue.detectedAt?.toISOString() ?? null,
+          resolvedAt: issue.resolvedAt?.toISOString() ?? null,
+        };
+      }),
       meta: result.meta,
     };
   }

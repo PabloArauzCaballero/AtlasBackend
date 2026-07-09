@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { createSign } from 'node:crypto';
 import { env } from '../../../config/env.js';
+import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';
 import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from '../notification-types.js';
 import { failedDelivery, getAllDeliveryTargets, postJson, sentDelivery } from './http-adapter.util.js';
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
@@ -14,7 +15,7 @@ function normalizePrivateKey(raw: string): string {
   return raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;
 }
 
-async function getGoogleAccessToken(input: { clientEmail: string; privateKey: string }): Promise<string> {
+async function getGoogleAccessToken(input: { clientEmail: string; privateKey: string; executor: ResilientAdapterExecutorService }): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const header = base64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const claim = base64Url(
@@ -33,6 +34,8 @@ async function getGoogleAccessToken(input: { clientEmail: string; privateKey: st
   const signature = base64Url(signer.sign(normalizePrivateKey(input.privateKey)));
   const assertion = `${unsigned}.${signature}`;
   const response = await postJson(
+    input.executor,
+    'fcm_token',
     'https://oauth2.googleapis.com/token',
     {},
     { grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion },
@@ -45,7 +48,10 @@ async function getGoogleAccessToken(input: { clientEmail: string; privateKey: st
 
 @Injectable()
 export class PushNotificationAdapter implements NotificationChannelAdapter {
-  constructor(private readonly config: NotificationProviderConfigService) {}
+  constructor(
+    private readonly config: NotificationProviderConfigService,
+    private readonly executor: ResilientAdapterExecutorService,
+  ) {}
 
   getProviderName(): string {
     return this.config.getPushProvider();
@@ -69,7 +75,7 @@ export class PushNotificationAdapter implements NotificationChannelAdapter {
     const projectId = this.config.require(env.FCM_PROJECT_ID, 'FCM_PROJECT_ID_MISSING');
     const clientEmail = this.config.require(env.FCM_CLIENT_EMAIL, 'FCM_CLIENT_EMAIL_MISSING');
     const privateKey = this.config.require(env.FCM_PRIVATE_KEY, 'FCM_PRIVATE_KEY_MISSING');
-    const accessToken = await getGoogleAccessToken({ clientEmail, privateKey });
+    const accessToken = await getGoogleAccessToken({ clientEmail, privateKey, executor: this.executor });
     const responses: Record<string, unknown>[] = [];
     let firstMessageId: string | null = null;
     for (const token of tokens) {
@@ -83,6 +89,8 @@ export class PushNotificationAdapter implements NotificationChannelAdapter {
         fcmMessage.notification = { title: message.title ?? 'ATLAS', body: message.body };
       }
       const response = await postJson(
+        this.executor,
+        'fcm',
         `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
         { authorization: `Bearer ${accessToken}` },
         {
@@ -100,6 +108,8 @@ export class PushNotificationAdapter implements NotificationChannelAdapter {
     const url = this.config.getWebhookUrl('push');
     if (!url) return failedDelivery('webhook_push', 'WEBHOOK_URL_MISSING', 'NOTIFICATION_WEBHOOK_URL no está configurado.');
     const response = await postJson(
+      this.executor,
+      'webhook_push',
       url,
       {},
       {

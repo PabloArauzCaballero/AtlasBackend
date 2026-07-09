@@ -23,6 +23,11 @@ import {
 } from './external-data.controller.js';
 import { ExternalDataRepository } from './external-data.repository.js';
 import { ExternalDataService } from './external-data.service.js';
+import { ExternalDataEvidenceService } from './application/external-data-evidence.service.js';
+import { ExternalDataExecutionService } from './application/external-data-execution.service.js';
+import { ExternalDataGovernanceService } from './application/external-data-governance.service.js';
+import { ExternalProviderRegistryService } from './application/external-provider-registry.service.js';
+import { ExternalProviderConvenienceService } from './application/external-provider-convenience.service.js';
 import { SegipAdapter } from './infrastructure/adapters/segip/segip.adapter.js';
 import { InfoCenterAdapter } from './infrastructure/adapters/infocenter/infocenter.adapter.js';
 import { QrGenericAdapter } from './infrastructure/adapters/qr-generic/qr-generic.adapter.js';
@@ -59,6 +64,11 @@ import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-tr
   providers: [
     ExternalDataRepository,
     ExternalDataService,
+    ExternalProviderRegistryService,
+    ExternalDataEvidenceService,
+    ExternalDataExecutionService,
+    ExternalDataGovernanceService,
+    ExternalProviderConvenienceService,
     SegipAdapter,
     InfoCenterAdapter,
     QrGenericAdapter,
