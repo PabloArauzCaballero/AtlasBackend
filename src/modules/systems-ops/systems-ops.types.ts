@@ -100,6 +100,8 @@ export type ToolSeed = {
   healthcheckRoute?: string | null;
   requiresCredentials?: boolean;
   isCritical?: boolean;
+  /** true si el proceso corre por su cuenta (setInterval/@Cron), sin necesitar un trigger HTTP externo. */
+  isWorker?: boolean;
   status?: string;
   ownerTeam?: string;
   description?: string | null;

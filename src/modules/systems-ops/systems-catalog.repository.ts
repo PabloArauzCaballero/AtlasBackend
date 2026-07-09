@@ -339,6 +339,10 @@ export class SystemsCatalogRepository {
     return this.fieldImpactModel.findAll({ where: { endpointId }, order: [['fieldName', 'ASC']] } as FindOptions);
   }
 
+  findFieldImpactsByDataEntity(dataEntityId: string): Promise<SystemEndpointFieldImpactModel[]> {
+    return this.fieldImpactModel.findAll({ where: { dataEntityId }, order: [['fieldName', 'ASC']] } as FindOptions);
+  }
+
   findDataImpactsByEntity(dataEntityId: string): Promise<SystemEndpointDataEntityImpactModel[]> {
     return this.dataImpactModel.findAll({
       where: { dataEntityId },

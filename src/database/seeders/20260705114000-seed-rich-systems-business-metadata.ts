@@ -86,6 +86,17 @@ const TABLE_DOMAIN_OVERRIDES: Record<string, string> = {
   context_approval_events: 'CONTEXTO_RIESGO',
   context_ingestion_jobs: 'CONTEXTO_RIESGO',
   risk_signal_seeds: 'RIESGO_CREDITO',
+  // CAPACIDAD_PAGO existía en DOMAIN_BUSINESS_METADATA (con businessDefinition, exampleTables,
+  // etc.) pero classifyDomain() nunca devolvía ese código: 'attribute_definitions' caía en el
+  // patrón genérico /feature|...|attribute/ → RIESGO_CREDITO, y 'customer_attribute_values'
+  // caía antes en /identity|kyc|...|customer/ → IDENTIDAD_KYC (el regex de 'customer' se
+  // evalúa primero en la cascada). Resultado: 0 entidades bajo ese dominio pese a existir hace
+  // rato. Estas dos tablas son las que realmente guardan rasgos descriptivos usados para estimar
+  // capacidad de pago (ingreso, empleo, gasto declarado) — a diferencia de 'feature_*'/
+  // 'risk_feature_contributions', que son infraestructura de features de scoring compartida por
+  // TODO el motor de riesgo (fraude, comportamiento, dispositivo), no específica de affordability.
+  attribute_definitions: 'CAPACIDAD_PAGO',
+  customer_attribute_values: 'CAPACIDAD_PAGO',
 };
 
 const DOMAIN_OWNER_FALLBACK: Record<string, string> = Object.fromEntries(
@@ -1058,7 +1069,11 @@ async function upsertDataEntity(queryInterface: QueryInterface, tableName: strin
         containsDevice: /device|sim|ip_reputation|session/.test(tableName),
         containsLocation: /gps|address|location/.test(tableName),
         auditCritical: /audit|log|event|risk|fraud|consent|identity|payment|system_|outbox|idempotency/.test(tableName),
-        retentionPolicy: /evidence|response|consent|identity|customer|session/.test(tableName) ? 'RETENTION_PRIVACY_AND_AUDIT' : null,
+        // 'pii-core-1095d' es un código real de `retention_policies` (seed
+        // 20260705090000-seed-portal-runtime-demo-data.ts). Antes esta línea escribía
+        // 'RETENTION_PRIVACY_AND_AUDIT', un código que nunca existió en esa tabla — cualquier
+        // join real (o esta misma auditoría) lo encontraba como referencia huérfana.
+        retentionPolicy: /evidence|response|consent|identity|customer|session/.test(tableName) ? 'pii-core-1095d' : null,
         createdAt: CREATED_AT,
       },
     },
@@ -1163,7 +1178,22 @@ async function upsertField(queryInterface: QueryInterface, row: ColumnRow) {
         dataNature: natureFromDomain(domainCode),
         domainCode,
         governanceCategory: pii ? 'PRIVACIDAD' : fraud ? 'FRAUDE' : capacity ? 'CAPACIDAD' : 'OPERACIONAL',
-        classificationCode: pii ? 'PERSONAL_SENSITIVE' : fraud ? 'RISK_SIGNAL' : capacity ? 'CAPACITY_SIGNAL' : 'INTERNAL_OPERATIONAL',
+        // Códigos reales de `data_classification_policies` (seed
+        // 20260705090000-seed-portal-runtime-demo-data.ts): PUBLIC_BUSINESS, INTERNAL_OPERATIONAL,
+        // PII_HASHED, PII_ENCRYPTED, RISK_SENSITIVE, EXTERNAL_PROVIDER_PAYLOAD. Antes esta línea
+        // inventaba PERSONAL_SENSITIVE/RISK_SIGNAL/CAPACITY_SIGNAL — códigos que no existían en esa
+        // tabla, dejando ~35% de los campos (todos los PII/fraude/capacidad) con una referencia de
+        // clasificación huérfana. `fraud`/`capacity` colapsan a RISK_SENSITIVE (ambos son señales
+        // sensibles de riesgo); la distinción entre ellos sigue visible en `governance_category` y
+        // `domain_code`. PII usa ENCRYPTED cuando el nombre de columna indica cifrado explícito
+        // (p. ej. `contact_value_encrypted`), HASHED en el resto (mayoría: `*_hash`).
+        classificationCode: pii
+          ? row.column_name.includes('encrypted')
+            ? 'PII_ENCRYPTED'
+            : 'PII_HASHED'
+          : fraud || capacity
+            ? 'RISK_SENSITIVE'
+            : 'INTERNAL_OPERATIONAL',
         sensitivityLevel: pii ? 'RESTRICTED' : fraud || capacity ? 'CONFIDENTIAL' : 'INTERNAL',
         containsPii: pii,
         containsFinancial: containsFinancial(row.table_name, row.column_name),
@@ -1174,7 +1204,7 @@ async function upsertField(queryInterface: QueryInterface, row: ColumnRow) {
         mlFeatureGroup: mlGroup(row.table_name, row.column_name),
         qualityRules: JSON.stringify(qualityRules(row)),
         validationRule: JSON.stringify(validationRules(row)),
-        retentionPolicyCode: pii ? 'RETENTION_PRIVACY_AND_AUDIT' : null,
+        retentionPolicyCode: pii ? 'pii-core-1095d' : fraud || capacity ? 'risk-features-730d' : null,
         frontendLabel: humanize(row.column_name),
         formUsage:
           sourceKind(row.column_name) === 'PAYLOAD'

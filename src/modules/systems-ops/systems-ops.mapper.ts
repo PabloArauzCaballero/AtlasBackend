@@ -71,6 +71,7 @@ export function mapTool(row: SystemToolCatalogModel) {
     healthcheckRoute: row.healthcheckRoute,
     requiresCredentials: row.requiresCredentials,
     isCritical: row.isCritical,
+    isWorker: row.isWorker,
     status: row.status,
     ownerTeam: row.ownerTeam,
   };

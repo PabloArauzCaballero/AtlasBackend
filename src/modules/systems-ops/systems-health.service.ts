@@ -27,6 +27,7 @@ export class SystemsHealthService {
         isConfigured: missingEnvVars.length === 0,
         missingEnvVars,
         isCritical: dto.isCritical,
+        isWorker: dto.isWorker,
       };
     });
   }

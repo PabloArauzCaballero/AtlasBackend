@@ -114,16 +114,18 @@ export class SystemsCatalogQueryService {
   async getImpactByTable(schemaName: string, tableName: string) {
     const entity = await this.catalogRepository.findDataEntityByTable(schemaName, tableName);
     if (!entity) throw new NotFoundException('SYSTEM_DATA_ENTITY_NOT_FOUND');
-    const [impacts, columns, relations] = await Promise.all([
+    const [impacts, columns, relations, fieldImpacts] = await Promise.all([
       this.catalogRepository.findDataImpactsByEntity(String(entity.id)),
       this.catalogRepository.findFieldsByTable(schemaName, tableName),
       this.catalogRepository.findRelationshipsByTable(schemaName, tableName),
+      this.catalogRepository.findFieldImpactsByDataEntity(String(entity.id)),
     ]);
     return {
       entity: mapDataEntity(entity),
       endpointImpacts: impacts.map(mapDataImpact),
       columns: columns.map(mapDataField),
       relations: relations.map(mapDataRelationship),
+      fieldImpacts: fieldImpacts.map(mapFieldImpact),
     };
   }
 

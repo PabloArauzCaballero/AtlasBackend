@@ -24,7 +24,19 @@ function quoteIdentifier(identifier: string): string {
 
 async function cleanDatabaseBeforeSeed(): Promise<void> {
   if (!env.DATABASE_CLEAN_BEFORE_SEED) return;
+  await truncateApplicationTables();
+}
 
+/**
+ * `reseed` (a diferencia de `up`, que solo corre seeders nunca ejecutados): comando idempotente
+ * pero destructivo para refrescar TODO el catálogo de seeds desde cero. Existe porque no todos
+ * los seeders en `src/database/seeders/*.ts` son upsert-safe (`ON CONFLICT DO UPDATE`) — algunos
+ * hacen `INSERT` plano — así que re-ejecutar `up()` sobre seeders ya marcados como aplicados
+ * podría duplicar filas o violar constraints únicos. Truncar + limpiar el tracking de
+ * `SequelizeDataSeeders` y volver a correr todo desde cero es la única forma de refrescar seeds
+ * que es segura para los 10 seeders actuales sin auditar/arreglar cada uno para que sea upsert.
+ */
+async function truncateApplicationTables(): Promise<void> {
   if (env.NODE_ENV === 'production') {
     const productionResetAllowed = env.DATABASE_CLEAN_ALLOW_PRODUCTION && env.DATABASE_CLEAN_CONFIRM === SEED_RESET_CONFIRMATION;
     if (!productionResetAllowed) {
@@ -72,6 +84,12 @@ async function run(): Promise<void> {
 
     if (command === 'down') {
       await umzug.down();
+      return;
+    }
+
+    if (command === 'reseed') {
+      await truncateApplicationTables();
+      await umzug.up();
       return;
     }
 

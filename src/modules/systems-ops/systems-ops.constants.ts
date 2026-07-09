@@ -90,6 +90,21 @@ export const SYSTEM_TOOL_SEEDS: ToolSeed[] = [
     purpose: 'Auditoría HTTP enriquecida por request, endpoint y correlación.',
     isCritical: true,
   },
+  {
+    code: 'ARCHIVO_LOG_MONGO_SYNC',
+    name: 'Archivo.log → MongoDB Sync',
+    type: 'OBSERVABILITY',
+    provider: 'mongodb',
+    purpose:
+      'ArchivoLogMongoSyncService: único proceso del backend que corre por su cuenta (setInterval en ' +
+      'onApplicationBootstrap, cada LOG_SYNC_INTERVAL_MS) — copia los bytes nuevos de Archivo.log ' +
+      '(escrito por AppFileLogger) a una colección MongoDB append-only, sin intervención HTTP.',
+    requiredEnvVars: ['MONGO_DB_URL_CONNECTION'],
+    isCritical: false,
+    isWorker: true,
+    status: 'ACTIVE',
+    ownerTeam: 'backend',
+  },
   { code: 'JEST', name: 'Jest', type: 'TESTING', purpose: 'Pruebas unitarias y de integración del repositorio.', isCritical: false },
   {
     code: 'SMOKE_SCRIPTS',

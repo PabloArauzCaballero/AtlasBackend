@@ -300,10 +300,10 @@ async function upsertTool(queryInterface: QueryInterface, tool: (typeof SYSTEM_T
   await queryInterface.sequelize.query(
     `INSERT INTO system_tool_catalog (
       code, name, type, provider, purpose, required_env_vars, has_sandbox, healthcheck_route,
-      requires_credentials, is_critical, status, owner_team, _created_at, _updated_at
+      requires_credentials, is_critical, is_worker, status, owner_team, _created_at, _updated_at
     ) VALUES (
       :code, :name, :type, :provider, :purpose, CAST(:requiredEnvVars AS jsonb), :hasSandbox, :healthcheckRoute,
-      :requiresCredentials, :isCritical, :status, :ownerTeam, :createdAt, :createdAt
+      :requiresCredentials, :isCritical, :isWorker, :status, :ownerTeam, :createdAt, :createdAt
     ) ON CONFLICT (code) DO UPDATE SET
       name = EXCLUDED.name,
       type = EXCLUDED.type,
@@ -314,6 +314,7 @@ async function upsertTool(queryInterface: QueryInterface, tool: (typeof SYSTEM_T
       healthcheck_route = EXCLUDED.healthcheck_route,
       requires_credentials = EXCLUDED.requires_credentials,
       is_critical = EXCLUDED.is_critical,
+      is_worker = EXCLUDED.is_worker,
       status = EXCLUDED.status,
       owner_team = EXCLUDED.owner_team,
       _updated_at = EXCLUDED._updated_at;`,
@@ -326,6 +327,7 @@ async function upsertTool(queryInterface: QueryInterface, tool: (typeof SYSTEM_T
         healthcheckRoute: tool.healthcheckRoute ?? null,
         requiresCredentials: tool.requiresCredentials ?? false,
         isCritical: tool.isCritical ?? false,
+        isWorker: tool.isWorker ?? false,
         status: tool.status ?? 'ACTIVE',
         ownerTeam: tool.ownerTeam ?? 'systems',
         createdAt: CREATED_AT,

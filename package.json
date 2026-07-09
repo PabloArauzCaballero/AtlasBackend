@@ -19,6 +19,7 @@
     "db:seed:up": "tsx src/database/seed.ts up",
     "db:seed:down": "tsx src/database/seed.ts down",
     "db:seed:status": "tsx src/database/seed.ts status",
+    "db:seed:reseed": "tsx src/database/seed.ts reseed",
     "dev:jwt": "tsx scripts/create-dev-jwt.ts",
     "start": "node dist/src/main.js",
     "start:dev": "node scripts/dev-build-and-start.mjs",

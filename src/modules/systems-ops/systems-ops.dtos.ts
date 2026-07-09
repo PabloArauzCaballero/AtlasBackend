@@ -10,4 +10,5 @@ export type SystemsHealthStatus = {
   isConfigured: boolean;
   missingEnvVars: string[];
   isCritical: boolean;
+  isWorker: boolean;
 };

@@ -35,6 +35,9 @@ export class SystemToolCatalogModel extends Model {
   @Column({ field: 'is_critical', type: DataType.BOOLEAN, allowNull: false })
   declare isCritical: boolean;
 
+  @Column({ field: 'is_worker', type: DataType.BOOLEAN, allowNull: false })
+  declare isWorker: boolean;
+
   @Column({ type: DataType.STRING(40), allowNull: false })
   declare status: string;
 
