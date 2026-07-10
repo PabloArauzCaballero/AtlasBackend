@@ -25,8 +25,6 @@ type ReportDefinition = {
 };
 
 const NOW_SEED = new Date('2026-01-01T00:00:00.000Z').toISOString();
-const DEFAULT_META = { page: 1, limit: 20, total: 0, totalPages: 0 };
-
 function clean(value: unknown, fallback = '—'): string {
   if (typeof value === 'string' && value.trim().length > 0) return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
@@ -93,7 +91,11 @@ function paginate<T>(items: T[], query: Query) {
 function containsQuery(row: object, q: string): boolean {
   if (!q) return true;
   const needle = q.toLowerCase();
-  return Object.values(row as Row).some((value) => String(value ?? '').toLowerCase().includes(needle));
+  return Object.values(row as Row).some((value) =>
+    String(value ?? '')
+      .toLowerCase()
+      .includes(needle),
+  );
 }
 
 function policyId(kind: string, rawId: unknown): string {
@@ -123,12 +125,48 @@ function reportDefinitions(): ReportDefinition[] {
       allowedFilters: { environment: ['local', 'staging', 'production_readonly'], from: 'ISO date', to: 'ISO date' },
       permissions: { required: ['reports.read'] },
       widgets: [
-        { widgetId: 'w-ops-counts', reportId: 'operations-overview', widgetType: 'metric_grid', title: 'Contadores operativos', description: 'Cobertura de catálogo y operación.', queryKey: 'opsCounts', visualConfig: {}, position: { order: 1 } },
-        { widgetId: 'w-open-issues', reportId: 'operations-overview', widgetType: 'table', title: 'Issues abiertos', description: 'Alertas de calidad no resueltas.', queryKey: 'openIssues', visualConfig: {}, position: { order: 2 } },
+        {
+          widgetId: 'w-ops-counts',
+          reportId: 'operations-overview',
+          widgetType: 'metric_grid',
+          title: 'Contadores operativos',
+          description: 'Cobertura de catálogo y operación.',
+          queryKey: 'opsCounts',
+          visualConfig: {},
+          position: { order: 1 },
+        },
+        {
+          widgetId: 'w-open-issues',
+          reportId: 'operations-overview',
+          widgetType: 'table',
+          title: 'Issues abiertos',
+          description: 'Alertas de calidad no resueltas.',
+          queryKey: 'openIssues',
+          visualConfig: {},
+          position: { order: 2 },
+        },
       ],
       filters: [
-        { filterId: 'f-date-from', reportId: 'operations-overview', key: 'from', label: 'Desde', filterType: 'date', required: false, options: [], defaultValue: null },
-        { filterId: 'f-date-to', reportId: 'operations-overview', key: 'to', label: 'Hasta', filterType: 'date', required: false, options: [], defaultValue: null },
+        {
+          filterId: 'f-date-from',
+          reportId: 'operations-overview',
+          key: 'from',
+          label: 'Desde',
+          filterType: 'date',
+          required: false,
+          options: [],
+          defaultValue: null,
+        },
+        {
+          filterId: 'f-date-to',
+          reportId: 'operations-overview',
+          key: 'to',
+          label: 'Hasta',
+          filterType: 'date',
+          required: false,
+          options: [],
+          defaultValue: null,
+        },
       ],
       updatedAt,
     },
@@ -146,10 +184,39 @@ function reportDefinitions(): ReportDefinition[] {
       allowedFilters: { module: 'string', riskLevel: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
       permissions: { required: ['systems.catalog.read'] },
       widgets: [
-        { widgetId: 'w-endpoint-risk', reportId: 'endpoint-coverage', widgetType: 'bar', title: 'Endpoints por riesgo', description: 'Distribución por nivel de riesgo.', queryKey: 'endpointsByRisk', visualConfig: {}, position: { order: 1 } },
-        { widgetId: 'w-review-status', reportId: 'endpoint-coverage', widgetType: 'bar', title: 'Revisión', description: 'Estado de aprobación del catálogo.', queryKey: 'reviewStatus', visualConfig: {}, position: { order: 2 } },
+        {
+          widgetId: 'w-endpoint-risk',
+          reportId: 'endpoint-coverage',
+          widgetType: 'bar',
+          title: 'Endpoints por riesgo',
+          description: 'Distribución por nivel de riesgo.',
+          queryKey: 'endpointsByRisk',
+          visualConfig: {},
+          position: { order: 1 },
+        },
+        {
+          widgetId: 'w-review-status',
+          reportId: 'endpoint-coverage',
+          widgetType: 'bar',
+          title: 'Revisión',
+          description: 'Estado de aprobación del catálogo.',
+          queryKey: 'reviewStatus',
+          visualConfig: {},
+          position: { order: 2 },
+        },
       ],
-      filters: [{ filterId: 'f-module', reportId: 'endpoint-coverage', key: 'module', label: 'Módulo', filterType: 'text', required: false, options: [], defaultValue: null }],
+      filters: [
+        {
+          filterId: 'f-module',
+          reportId: 'endpoint-coverage',
+          key: 'module',
+          label: 'Módulo',
+          filterType: 'text',
+          required: false,
+          options: [],
+          defaultValue: null,
+        },
+      ],
       updatedAt,
     },
     {
@@ -165,8 +232,30 @@ function reportDefinitions(): ReportDefinition[] {
       sourceReference: 'privacy_processing_purposes + retention_policies + sensitive_field_rules',
       allowedFilters: { sensitivityLevel: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
       permissions: { required: ['governance.policies.read'] },
-      widgets: [{ widgetId: 'w-sensitive-fields', reportId: 'data-governance', widgetType: 'table', title: 'Campos sensibles', description: 'Reglas de acceso, masking y retención.', queryKey: 'sensitiveFields', visualConfig: {}, position: { order: 1 } }],
-      filters: [{ filterId: 'f-sensitivity', reportId: 'data-governance', key: 'sensitivityLevel', label: 'Sensibilidad', filterType: 'select', required: false, options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], defaultValue: null }],
+      widgets: [
+        {
+          widgetId: 'w-sensitive-fields',
+          reportId: 'data-governance',
+          widgetType: 'table',
+          title: 'Campos sensibles',
+          description: 'Reglas de acceso, masking y retención.',
+          queryKey: 'sensitiveFields',
+          visualConfig: {},
+          position: { order: 1 },
+        },
+      ],
+      filters: [
+        {
+          filterId: 'f-sensitivity',
+          reportId: 'data-governance',
+          key: 'sensitivityLevel',
+          label: 'Sensibilidad',
+          filterType: 'select',
+          required: false,
+          options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+          defaultValue: null,
+        },
+      ],
       updatedAt,
     },
     {
@@ -182,8 +271,30 @@ function reportDefinitions(): ReportDefinition[] {
       sourceReference: 'data_quality_rules + data_quality_issues + risk_policy_rules',
       allowedFilters: { severity: ['low', 'medium', 'high', 'critical'] },
       permissions: { required: ['quality.rules.read'] },
-      widgets: [{ widgetId: 'w-dq-open', reportId: 'risk-quality', widgetType: 'metric_grid', title: 'Calidad y riesgo', description: 'Issues abiertos y reglas activas.', queryKey: 'qualityRisk', visualConfig: {}, position: { order: 1 } }],
-      filters: [{ filterId: 'f-severity', reportId: 'risk-quality', key: 'severity', label: 'Severidad', filterType: 'select', required: false, options: ['low', 'medium', 'high', 'critical'], defaultValue: null }],
+      widgets: [
+        {
+          widgetId: 'w-dq-open',
+          reportId: 'risk-quality',
+          widgetType: 'metric_grid',
+          title: 'Calidad y riesgo',
+          description: 'Issues abiertos y reglas activas.',
+          queryKey: 'qualityRisk',
+          visualConfig: {},
+          position: { order: 1 },
+        },
+      ],
+      filters: [
+        {
+          filterId: 'f-severity',
+          reportId: 'risk-quality',
+          key: 'severity',
+          label: 'Severidad',
+          filterType: 'select',
+          required: false,
+          options: ['low', 'medium', 'high', 'critical'],
+          defaultValue: null,
+        },
+      ],
       updatedAt,
     },
   ];
@@ -205,10 +316,33 @@ export class InternalPortalService {
   async listBusinessTerms(query: Query) {
     const q = clean(query.q, '').toLowerCase();
     const [domains, tables, fields] = await Promise.all([
-      this.queryRows(`SELECT _id, domain_code, domain_name, description, owner_team, data_nature, _updated_at FROM system_domain_catalog ORDER BY domain_code ASC LIMIT 80`),
-      this.queryRows(`SELECT _id, schema_name, table_name, entity_name, module, domain_code, business_purpose, data_owner, status, review_status, _updated_at FROM system_data_entity_catalog ORDER BY module ASC, table_name ASC LIMIT 120`),
-      this.queryRows(`SELECT _id, data_entity_id, schema_name, table_name, column_name, business_name, business_meaning, domain_code, sensitivity_level, referenced_table, referenced_column, _updated_at FROM system_data_field_catalog WHERE COALESCE(status, 'ACTIVE') <> 'DEPRECATED' ORDER BY table_name ASC, ordinal_position ASC LIMIT 240`),
+      this.queryRows(
+        `SELECT _id, domain_code, domain_name, description, owner_team, data_nature, _updated_at FROM system_domain_catalog ORDER BY domain_code ASC LIMIT 80`,
+      ),
+      this.queryRows(
+        `SELECT _id, schema_name, table_name, entity_name, module, domain_code, business_purpose, data_owner, status, review_status, _updated_at FROM system_data_entity_catalog ORDER BY module ASC, table_name ASC LIMIT 120`,
+      ),
+      this.queryRows(
+        `SELECT _id, data_entity_id, schema_name, table_name, column_name, business_name, business_meaning, domain_code, sensitivity_level, referenced_table, referenced_column, _updated_at FROM system_data_field_catalog WHERE COALESCE(status, 'ACTIVE') <> 'DEPRECATED' ORDER BY table_name ASC, ordinal_position ASC LIMIT 240`,
+      ),
     ]);
+    const entityIds = tables.map((row) => id(row._id)).filter(Boolean);
+    const endpointImpacts = entityIds.length
+      ? await this.queryRows<{ data_entity_id: string; method: string; full_path: string }>(
+          `SELECT i.data_entity_id, e.method, e.full_path
+             FROM system_endpoint_data_entity_impacts i
+             JOIN system_endpoint_catalog e ON e._id = i.endpoint_id
+            WHERE i.data_entity_id IN (:entityIds)`,
+          { entityIds },
+        )
+      : [];
+    const endpointsByEntityId = new Map<string, string[]>();
+    for (const impact of endpointImpacts) {
+      const key = clean(impact.data_entity_id, '');
+      const label = `${clean(impact.method)} ${clean(impact.full_path)}`;
+      const current = endpointsByEntityId.get(key) ?? [];
+      if (!current.includes(label)) endpointsByEntityId.set(key, [...current, label]);
+    }
     const fieldsByTable = new Map<string, Row[]>();
     for (const field of fields) {
       const key = clean(field.table_name, '').toLowerCase();
@@ -217,7 +351,9 @@ export class InternalPortalService {
     const tablesForDomain = (domainCode: unknown) => {
       const domain = clean(domainCode, '').toLowerCase();
       return tables
-        .filter((row) => clean(row.domain_code, clean(row.module, '')).toLowerCase() === domain || clean(row.module, '').toLowerCase() === domain)
+        .filter(
+          (row) => clean(row.domain_code, clean(row.module, '')).toLowerCase() === domain || clean(row.module, '').toLowerCase() === domain,
+        )
         .map((row) => clean(row.table_name));
     };
     const columnsForDomain = (domainCode: unknown) => {
@@ -226,6 +362,15 @@ export class InternalPortalService {
       return fields
         .filter((row) => clean(row.domain_code, '').toLowerCase() === domain || tableNames.has(clean(row.table_name, '').toLowerCase()))
         .map((row) => `${clean(row.table_name)}.${clean(row.column_name)}`);
+    };
+    const endpointsForDomain = (domainCode: unknown) => {
+      const domainTables = new Set(tablesForDomain(domainCode).map((table) => table.toLowerCase()));
+      const result = new Set<string>();
+      for (const row of tables) {
+        if (!domainTables.has(clean(row.table_name, '').toLowerCase())) continue;
+        for (const endpoint of endpointsByEntityId.get(clean(row._id, '')) ?? []) result.add(endpoint);
+      }
+      return [...result];
     };
     const items = [
       ...domains.map((row) => ({
@@ -238,6 +383,7 @@ export class InternalPortalService {
         status: 'ACTIVE',
         relatedTables: tablesForDomain(row.domain_code),
         relatedColumns: columnsForDomain(row.domain_code),
+        relatedEndpoints: endpointsForDomain(row.domain_code),
         relatedReports: ['operations-overview', 'data-governance'],
         metadata: { dataNature: clean(row.data_nature, 'OPERACIONAL'), source: 'system_domain_catalog' },
         updatedAt: iso(row._updated_at) ?? NOW_SEED,
@@ -251,9 +397,10 @@ export class InternalPortalService {
         owner: clean(row.data_owner, 'systems'),
         status: clean(row.status, 'ACTIVE'),
         relatedTables: [clean(row.table_name)],
-        relatedColumns: (fieldsByTable.get(clean(row.table_name, '').toLowerCase()) ?? []).map((field) =>
-          `${clean(field.table_name)}.${clean(field.column_name)}`,
+        relatedColumns: (fieldsByTable.get(clean(row.table_name, '').toLowerCase()) ?? []).map(
+          (field) => `${clean(field.table_name)}.${clean(field.column_name)}`,
         ),
+        relatedEndpoints: endpointsByEntityId.get(id(row._id)) ?? [],
         relatedReports: ['endpoint-coverage', 'data-governance'],
         metadata: { schemaName: clean(row.schema_name), reviewStatus: clean(row.review_status), source: 'system_data_entity_catalog' },
         updatedAt: iso(row._updated_at) ?? NOW_SEED,
@@ -294,7 +441,10 @@ export class InternalPortalService {
     return {
       ...term,
       synonyms: [term.key, term.name, ...(term.relatedTables ?? []), ...(term.relatedColumns ?? [])].filter(Boolean),
-      examples: [`Usado por ${term.owner ?? 'systems'} para auditoría, análisis y decisiones operativas.`, 'Debe mantenerse trazable y documentado para evitar interpretación ambigua.'],
+      examples: [
+        `Usado por ${term.owner ?? 'systems'} para auditoría, análisis y decisiones operativas.`,
+        'Debe mantenerse trazable y documentado para evitar interpretación ambigua.',
+      ],
       restrictions: ['No modificar significado sin revisión de gobierno de datos.', 'No exponer PII ni payloads crudos en reportes.'],
       relations:
         fkRelations.length > 0
@@ -316,7 +466,9 @@ export class InternalPortalService {
               targetId: table,
               targetLabel: table,
             })),
-      audit: [{ auditId: `audit:${term.termId}`, action: 'seeded_or_detected', actor: 'atlas_backend', createdAt: term.updatedAt ?? NOW_SEED }],
+      audit: [
+        { auditId: `audit:${term.termId}`, action: 'seeded_or_detected', actor: 'atlas_backend', createdAt: term.updatedAt ?? NOW_SEED },
+      ],
     };
   }
 
@@ -328,18 +480,68 @@ export class InternalPortalService {
     ]);
     const requestedAt = NOW_SEED;
     const items = [
-      { exportId: 'export-endpoint-catalog', name: 'Catálogo de endpoints', resourceType: 'system_endpoint_catalog', resourceId: null, format: 'JSON', status: 'READY', requestedBy: 'seed_admin', requestedAt, finishedAt: requestedAt, expiresAt: null, downloadUrl: '/api/v1/systems/endpoints', metadata: { rows: endpoints, reason: 'QA y revisión técnica' } },
-      { exportId: 'export-data-catalog', name: 'Catálogo de datos', resourceType: 'system_data_entity_catalog', resourceId: null, format: 'JSON', status: 'READY', requestedBy: 'seed_admin', requestedAt, finishedAt: requestedAt, expiresAt: null, downloadUrl: '/api/v1/systems/data-entities', metadata: { rows: tables, reason: 'Gobierno de datos' } },
-      { exportId: 'export-data-quality', name: 'Reglas de calidad', resourceType: 'data_quality_rules', resourceId: null, format: 'JSON', status: 'READY', requestedBy: 'seed_admin', requestedAt, finishedAt: requestedAt, expiresAt: null, downloadUrl: '/api/v1/internal/data-quality/rules', metadata: { rows: rules, reason: 'Auditoría de calidad' } },
+      {
+        exportId: 'export-endpoint-catalog',
+        name: 'Catálogo de endpoints',
+        resourceType: 'system_endpoint_catalog',
+        resourceId: null,
+        format: 'JSON',
+        status: 'READY',
+        requestedBy: 'seed_admin',
+        requestedAt,
+        finishedAt: requestedAt,
+        expiresAt: null,
+        downloadUrl: '/api/v1/systems/endpoints',
+        metadata: { rows: endpoints, reason: 'QA y revisión técnica' },
+      },
+      {
+        exportId: 'export-data-catalog',
+        name: 'Catálogo de datos',
+        resourceType: 'system_data_entity_catalog',
+        resourceId: null,
+        format: 'JSON',
+        status: 'READY',
+        requestedBy: 'seed_admin',
+        requestedAt,
+        finishedAt: requestedAt,
+        expiresAt: null,
+        downloadUrl: '/api/v1/systems/data-entities',
+        metadata: { rows: tables, reason: 'Gobierno de datos' },
+      },
+      {
+        exportId: 'export-data-quality',
+        name: 'Reglas de calidad',
+        resourceType: 'data_quality_rules',
+        resourceId: null,
+        format: 'JSON',
+        status: 'READY',
+        requestedBy: 'seed_admin',
+        requestedAt,
+        finishedAt: requestedAt,
+        expiresAt: null,
+        downloadUrl: '/api/v1/internal/data-quality/rules',
+        metadata: { rows: rules, reason: 'Auditoría de calidad' },
+      },
     ];
-    return paginate(items.filter((item) => containsQuery(item, clean(query.q, '').toLowerCase())), query);
+    return paginate(
+      items.filter((item) => containsQuery(item, clean(query.q, '').toLowerCase())),
+      query,
+    );
   }
 
   async getExport(exportId: string) {
     const result = await this.listExports({ page: 1, limit: 50 });
     const item = result.items.find((row) => row.exportId === decodeURIComponent(exportId));
     if (!item) throw new NotFoundException('DATA_EXPORT_NOT_FOUND');
-    return { ...item, reason: clean(item.metadata?.reason, 'Export operativo controlado'), filters: {}, policySnapshot: { masking: 'no_raw_pii', audit: true }, auditRequestId: `audit:${item.exportId}`, errorCode: null, errorMessage: null };
+    return {
+      ...item,
+      reason: clean(item.metadata?.reason, 'Export operativo controlado'),
+      filters: {},
+      policySnapshot: { masking: 'no_raw_pii', audit: true },
+      auditRequestId: `audit:${item.exportId}`,
+      errorCode: null,
+      errorMessage: null,
+    };
   }
 
   async listDataQualityRules(query: Query) {
@@ -362,7 +564,15 @@ export class InternalPortalService {
       { q, like: `%${q}%` },
     );
     const items = rows.map((row) => this.mapQualityRule(row));
-    return { items, meta: { page: page.page, limit: page.limit, total: intValue(total[0]?.count), totalPages: Math.max(1, Math.ceil(intValue(total[0]?.count) / page.limit)) } };
+    return {
+      items,
+      meta: {
+        page: page.page,
+        limit: page.limit,
+        total: intValue(total[0]?.count),
+        totalPages: Math.max(1, Math.ceil(intValue(total[0]?.count) / page.limit)),
+      },
+    };
   }
 
   async getDataQualityRule(ruleId: string) {
@@ -385,7 +595,20 @@ export class InternalPortalService {
     const rule = await this.getDataQualityRule(ruleId);
     const startedAt = new Date();
     const finishedAt = new Date(startedAt.getTime() + 220);
-    return { runId: `dq-run-${rule.ruleId}-${Date.now()}`, ruleId: rule.ruleId, status: 'completed', startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(), affectedRows: rule.openIssues, summary: { checkedTable: rule.targetTable, targetField: rule.targetField, openIssues: rule.openIssues, message: 'Ejecución controlada por backend; no se silencian errores ni se devuelven nulls.' } };
+    return {
+      runId: `dq-run-${rule.ruleId}-${Date.now()}`,
+      ruleId: rule.ruleId,
+      status: 'completed',
+      startedAt: startedAt.toISOString(),
+      finishedAt: finishedAt.toISOString(),
+      affectedRows: rule.openIssues,
+      summary: {
+        checkedTable: rule.targetTable,
+        targetField: rule.targetField,
+        openIssues: rule.openIssues,
+        message: 'Ejecución controlada por backend; no se silencian errores ni se devuelven nulls.',
+      },
+    };
   }
 
   private mapQualityRule(row: Row) {
@@ -419,64 +642,315 @@ export class InternalPortalService {
 
   async updateGovernancePolicy(policyIdValue: string, body: Row) {
     const existing = await this.getGovernancePolicy(policyIdValue);
-    return { ...existing, ...this.bodyToPolicyOverlay(body), metadata: { ...jsonValue(existing.metadata), lastUpdate: body, persisted: false, note: 'Configuración recibida y validada por contrato de portal; aplicar persistencia granular por tipo de política si se requiere gobierno editable.' }, updatedAt: new Date().toISOString() };
+    return {
+      ...existing,
+      ...this.bodyToPolicyOverlay(body),
+      metadata: {
+        ...jsonValue(existing.metadata),
+        lastUpdate: body,
+        persisted: false,
+        note: 'Configuración recibida y validada por contrato de portal; aplicar persistencia granular por tipo de política si se requiere gobierno editable.',
+      },
+      updatedAt: new Date().toISOString(),
+    };
   }
 
   private bodyToPolicyOverlay(body: Row): Row {
-    return { name: nullableText(body.name) ?? undefined, description: nullableText(body.description) ?? undefined, owner: nullableText(body.owner) ?? undefined, status: nullableText(body.status) ?? undefined, policyType: nullableText(body.policyType) ?? undefined, version: nullableText(body.version) ?? undefined };
+    return {
+      name: nullableText(body.name) ?? undefined,
+      description: nullableText(body.description) ?? undefined,
+      owner: nullableText(body.owner) ?? undefined,
+      status: nullableText(body.status) ?? undefined,
+      policyType: nullableText(body.policyType) ?? undefined,
+      version: nullableText(body.version) ?? undefined,
+    };
   }
 
   private async findPolicyCandidates(rawId: string, kind: string | null) {
     const candidates: Array<Row> = [];
     if (!kind || kind === 'purpose') {
-      const rows = await this.queryRows(`SELECT _id, purpose_code, purpose_name, legal_basis, description, requires_explicit_consent, is_active, _updated_at FROM privacy_processing_purposes WHERE _id::text = :id OR purpose_code = :id LIMIT 1`, { id: rawId });
-      candidates.push(...rows.map((row) => ({ policyId: policyId('purpose', row._id), key: clean(row.purpose_code), name: clean(row.purpose_name), policyType: 'PRIVACY_PURPOSE', status: boolValue(row.is_active, true) ? 'ACTIVE' : 'INACTIVE', version: 'v1', owner: 'compliance', description: clean(row.description), effectiveFrom: NOW_SEED, effectiveUntil: null, affectedTables: ['customers', 'customer_consents'], affectedColumns: [], controls: [{ controlId: `consent:${id(row._id)}`, controlType: 'CONSENT', label: clean(row.legal_basis), status: boolValue(row.requires_explicit_consent, false) ? 'REQUIRED' : 'DOCUMENTED', config: { explicitConsent: boolValue(row.requires_explicit_consent) } }], actions: this.defaultPolicyActions(), approvals: [], metadata: { legalBasis: clean(row.legal_basis) }, updatedAt: iso(row._updated_at) ?? NOW_SEED })));
+      const rows = await this.queryRows(
+        `SELECT _id, purpose_code, purpose_name, legal_basis, description, requires_explicit_consent, is_active, _updated_at FROM privacy_processing_purposes WHERE _id::text = :id OR purpose_code = :id LIMIT 1`,
+        { id: rawId },
+      );
+      candidates.push(
+        ...rows.map((row) => ({
+          policyId: policyId('purpose', row._id),
+          key: clean(row.purpose_code),
+          name: clean(row.purpose_name),
+          policyType: 'PRIVACY_PURPOSE',
+          status: boolValue(row.is_active, true) ? 'ACTIVE' : 'INACTIVE',
+          version: 'v1',
+          owner: 'compliance',
+          description: clean(row.description),
+          effectiveFrom: NOW_SEED,
+          effectiveUntil: null,
+          affectedTables: ['customers', 'customer_consents'],
+          affectedColumns: [],
+          controls: [
+            {
+              controlId: `consent:${id(row._id)}`,
+              controlType: 'CONSENT',
+              label: clean(row.legal_basis),
+              status: boolValue(row.requires_explicit_consent, false) ? 'REQUIRED' : 'DOCUMENTED',
+              config: { explicitConsent: boolValue(row.requires_explicit_consent) },
+            },
+          ],
+          actions: this.defaultPolicyActions(),
+          approvals: [],
+          metadata: { legalBasis: clean(row.legal_basis) },
+          updatedAt: iso(row._updated_at) ?? NOW_SEED,
+        })),
+      );
     }
     if (!kind || kind === 'retention') {
-      const rows = await this.queryRows(`SELECT _id, policy_code, applies_to, retention_days, post_retention_action, legal_basis, description, is_active, _updated_at FROM retention_policies WHERE _id::text = :id OR policy_code = :id LIMIT 1`, { id: rawId });
-      candidates.push(...rows.map((row) => ({ policyId: policyId('retention', row._id), key: clean(row.policy_code), name: `Retención ${clean(row.applies_to)}`, policyType: 'RETENTION', status: boolValue(row.is_active, true) ? 'ACTIVE' : 'INACTIVE', version: 'v1', owner: 'data-governance', description: clean(row.description), effectiveFrom: NOW_SEED, effectiveUntil: null, affectedTables: [clean(row.applies_to)], affectedColumns: [], controls: [{ controlId: `retention:${id(row._id)}`, controlType: 'RETENTION_DAYS', label: `${intValue(row.retention_days)} días`, status: 'ACTIVE', config: { days: intValue(row.retention_days), action: clean(row.post_retention_action) } }], actions: this.defaultPolicyActions(), approvals: [], metadata: { legalBasis: clean(row.legal_basis) }, updatedAt: iso(row._updated_at) ?? NOW_SEED })));
+      const rows = await this.queryRows(
+        `SELECT _id, policy_code, applies_to, retention_days, post_retention_action, legal_basis, description, is_active, _updated_at FROM retention_policies WHERE _id::text = :id OR policy_code = :id LIMIT 1`,
+        { id: rawId },
+      );
+      candidates.push(
+        ...rows.map((row) => ({
+          policyId: policyId('retention', row._id),
+          key: clean(row.policy_code),
+          name: `Retención ${clean(row.applies_to)}`,
+          policyType: 'RETENTION',
+          status: boolValue(row.is_active, true) ? 'ACTIVE' : 'INACTIVE',
+          version: 'v1',
+          owner: 'data-governance',
+          description: clean(row.description),
+          effectiveFrom: NOW_SEED,
+          effectiveUntil: null,
+          affectedTables: [clean(row.applies_to)],
+          affectedColumns: [],
+          controls: [
+            {
+              controlId: `retention:${id(row._id)}`,
+              controlType: 'RETENTION_DAYS',
+              label: `${intValue(row.retention_days)} días`,
+              status: 'ACTIVE',
+              config: { days: intValue(row.retention_days), action: clean(row.post_retention_action) },
+            },
+          ],
+          actions: this.defaultPolicyActions(),
+          approvals: [],
+          metadata: { legalBasis: clean(row.legal_basis) },
+          updatedAt: iso(row._updated_at) ?? NOW_SEED,
+        })),
+      );
     }
     if (!kind || kind === 'classification') {
-      const rows = await this.queryRows(`SELECT _id, classification_code, classification_name, sensitivity_level, default_storage_mode, encryption_required, hashing_required, raw_storage_allowed, description, _updated_at FROM data_classification_policies WHERE _id::text = :id OR classification_code = :id LIMIT 1`, { id: rawId });
-      candidates.push(...rows.map((row) => ({ policyId: policyId('classification', row._id), key: clean(row.classification_code), name: clean(row.classification_name), policyType: 'CLASSIFICATION', status: 'ACTIVE', version: 'v1', owner: 'security', description: clean(row.description), effectiveFrom: NOW_SEED, effectiveUntil: null, affectedTables: [], affectedColumns: [], controls: [{ controlId: `classification:${id(row._id)}`, controlType: 'STORAGE_MODE', label: clean(row.default_storage_mode), status: clean(row.sensitivity_level), config: { encryptionRequired: boolValue(row.encryption_required), hashingRequired: boolValue(row.hashing_required), rawStorageAllowed: boolValue(row.raw_storage_allowed) } }], actions: this.defaultPolicyActions(), approvals: [], metadata: { sensitivityLevel: clean(row.sensitivity_level) }, updatedAt: iso(row._updated_at) ?? NOW_SEED })));
+      const rows = await this.queryRows(
+        `SELECT _id, classification_code, classification_name, sensitivity_level, default_storage_mode, encryption_required, hashing_required, raw_storage_allowed, description, _updated_at FROM data_classification_policies WHERE _id::text = :id OR classification_code = :id LIMIT 1`,
+        { id: rawId },
+      );
+      candidates.push(
+        ...rows.map((row) => ({
+          policyId: policyId('classification', row._id),
+          key: clean(row.classification_code),
+          name: clean(row.classification_name),
+          policyType: 'CLASSIFICATION',
+          status: 'ACTIVE',
+          version: 'v1',
+          owner: 'security',
+          description: clean(row.description),
+          effectiveFrom: NOW_SEED,
+          effectiveUntil: null,
+          affectedTables: [],
+          affectedColumns: [],
+          controls: [
+            {
+              controlId: `classification:${id(row._id)}`,
+              controlType: 'STORAGE_MODE',
+              label: clean(row.default_storage_mode),
+              status: clean(row.sensitivity_level),
+              config: {
+                encryptionRequired: boolValue(row.encryption_required),
+                hashingRequired: boolValue(row.hashing_required),
+                rawStorageAllowed: boolValue(row.raw_storage_allowed),
+              },
+            },
+          ],
+          actions: this.defaultPolicyActions(),
+          approvals: [],
+          metadata: { sensitivityLevel: clean(row.sensitivity_level) },
+          updatedAt: iso(row._updated_at) ?? NOW_SEED,
+        })),
+      );
     }
     if (!kind || kind === 'sensitive') {
-      const rows = await this.queryRows(`SELECT _id, table_name, field_name, classification_code, storage_mode, masking_strategy, access_policy_code, is_active, _updated_at FROM sensitive_field_rules WHERE _id::text = :id LIMIT 1`, { id: rawId });
-      candidates.push(...rows.map((row) => ({ policyId: policyId('sensitive', row._id), key: `${clean(row.table_name)}.${clean(row.field_name)}`, name: `Campo sensible ${clean(row.table_name)}.${clean(row.field_name)}`, policyType: 'SENSITIVE_FIELD', status: boolValue(row.is_active, true) ? 'ACTIVE' : 'INACTIVE', version: 'v1', owner: 'security', description: `Clasificación ${clean(row.classification_code)} con almacenamiento ${clean(row.storage_mode)} y masking ${clean(row.masking_strategy)}.`, effectiveFrom: NOW_SEED, effectiveUntil: null, affectedTables: [clean(row.table_name)], affectedColumns: [clean(row.field_name)], controls: [{ controlId: `sensitive:${id(row._id)}`, controlType: 'MASKING', label: clean(row.masking_strategy), status: 'ACTIVE', config: { storageMode: clean(row.storage_mode), accessPolicy: clean(row.access_policy_code) } }], actions: this.defaultPolicyActions(), approvals: [], metadata: { classificationCode: clean(row.classification_code) }, updatedAt: iso(row._updated_at) ?? NOW_SEED })));
+      const rows = await this.queryRows(
+        `SELECT _id, table_name, field_name, classification_code, storage_mode, masking_strategy, access_policy_code, is_active, _updated_at FROM sensitive_field_rules WHERE _id::text = :id LIMIT 1`,
+        { id: rawId },
+      );
+      candidates.push(
+        ...rows.map((row) => ({
+          policyId: policyId('sensitive', row._id),
+          key: `${clean(row.table_name)}.${clean(row.field_name)}`,
+          name: `Campo sensible ${clean(row.table_name)}.${clean(row.field_name)}`,
+          policyType: 'SENSITIVE_FIELD',
+          status: boolValue(row.is_active, true) ? 'ACTIVE' : 'INACTIVE',
+          version: 'v1',
+          owner: 'security',
+          description: `Clasificación ${clean(row.classification_code)} con almacenamiento ${clean(row.storage_mode)} y masking ${clean(row.masking_strategy)}.`,
+          effectiveFrom: NOW_SEED,
+          effectiveUntil: null,
+          affectedTables: [clean(row.table_name)],
+          affectedColumns: [clean(row.field_name)],
+          controls: [
+            {
+              controlId: `sensitive:${id(row._id)}`,
+              controlType: 'MASKING',
+              label: clean(row.masking_strategy),
+              status: 'ACTIVE',
+              config: { storageMode: clean(row.storage_mode), accessPolicy: clean(row.access_policy_code) },
+            },
+          ],
+          actions: this.defaultPolicyActions(),
+          approvals: [],
+          metadata: { classificationCode: clean(row.classification_code) },
+          updatedAt: iso(row._updated_at) ?? NOW_SEED,
+        })),
+      );
     }
     if (!kind || kind === 'quality') {
-      const rule = await this.queryRows(`SELECT _id, rule_code, rule_name, target_table, target_field, severity, expected_action, is_active, _updated_at FROM data_quality_rules WHERE _id::text = :id OR rule_code = :id LIMIT 1`, { id: rawId });
-      candidates.push(...rule.map((row) => ({ policyId: policyId('quality', row._id), key: clean(row.rule_code), name: clean(row.rule_name), policyType: 'DATA_QUALITY', status: boolValue(row.is_active, true) ? 'ACTIVE' : 'INACTIVE', version: 'v1', owner: 'data-quality', description: clean(row.expected_action), effectiveFrom: NOW_SEED, effectiveUntil: null, affectedTables: [clean(row.target_table)], affectedColumns: nullableText(row.target_field) ? [clean(row.target_field)] : [], controls: [{ controlId: `quality:${id(row._id)}`, controlType: 'QUALITY_RULE', label: clean(row.severity), status: 'ACTIVE', config: { expectedAction: clean(row.expected_action) } }], actions: this.defaultPolicyActions(), approvals: [], metadata: { severity: clean(row.severity) }, updatedAt: iso(row._updated_at) ?? NOW_SEED })));
+      const rule = await this.queryRows(
+        `SELECT _id, rule_code, rule_name, target_table, target_field, severity, expected_action, is_active, _updated_at FROM data_quality_rules WHERE _id::text = :id OR rule_code = :id LIMIT 1`,
+        { id: rawId },
+      );
+      candidates.push(
+        ...rule.map((row) => ({
+          policyId: policyId('quality', row._id),
+          key: clean(row.rule_code),
+          name: clean(row.rule_name),
+          policyType: 'DATA_QUALITY',
+          status: boolValue(row.is_active, true) ? 'ACTIVE' : 'INACTIVE',
+          version: 'v1',
+          owner: 'data-quality',
+          description: clean(row.expected_action),
+          effectiveFrom: NOW_SEED,
+          effectiveUntil: null,
+          affectedTables: [clean(row.target_table)],
+          affectedColumns: nullableText(row.target_field) ? [clean(row.target_field)] : [],
+          controls: [
+            {
+              controlId: `quality:${id(row._id)}`,
+              controlType: 'QUALITY_RULE',
+              label: clean(row.severity),
+              status: 'ACTIVE',
+              config: { expectedAction: clean(row.expected_action) },
+            },
+          ],
+          actions: this.defaultPolicyActions(),
+          approvals: [],
+          metadata: { severity: clean(row.severity) },
+          updatedAt: iso(row._updated_at) ?? NOW_SEED,
+        })),
+      );
     }
     return candidates;
   }
 
   private defaultPolicyActions() {
     return [
-      { actionKey: 'read', name: 'Lectura controlada', description: 'Permite consultar datos con auditoría.', operation: 'READ', enabled: true, requiresApproval: false, requiresReason: false, requiresAudit: true, config: {} },
-      { actionKey: 'update', name: 'Actualización gobernada', description: 'Permite cambios solo si el flujo lo autoriza.', operation: 'UPDATE', enabled: true, requiresApproval: true, requiresReason: true, requiresAudit: true, config: {} },
-      { actionKey: 'delete', name: 'Eliminación restringida', description: 'Bloquea hard delete salvo política expresa.', operation: 'DELETE', enabled: false, requiresApproval: true, requiresReason: true, requiresAudit: true, config: { hardDeleteAllowed: false } },
+      {
+        actionKey: 'read',
+        name: 'Lectura controlada',
+        description: 'Permite consultar datos con auditoría.',
+        operation: 'READ',
+        enabled: true,
+        requiresApproval: false,
+        requiresReason: false,
+        requiresAudit: true,
+        config: {},
+      },
+      {
+        actionKey: 'update',
+        name: 'Actualización gobernada',
+        description: 'Permite cambios solo si el flujo lo autoriza.',
+        operation: 'UPDATE',
+        enabled: true,
+        requiresApproval: true,
+        requiresReason: true,
+        requiresAudit: true,
+        config: {},
+      },
+      {
+        actionKey: 'delete',
+        name: 'Eliminación restringida',
+        description: 'Bloquea hard delete salvo política expresa.',
+        operation: 'DELETE',
+        enabled: false,
+        requiresApproval: true,
+        requiresReason: true,
+        requiresAudit: true,
+        config: { hardDeleteAllowed: false },
+      },
     ];
   }
 
   async getLineage(query: Query) {
     const q = clean(query.q, '').toLowerCase();
     const [entities, endpoints, impacts, relationships] = await Promise.all([
-      this.queryRows(`SELECT _id, table_name, entity_name, module, status, review_status, contains_pii, contains_risk_data FROM system_data_entity_catalog ORDER BY table_name ASC LIMIT 80`),
-      this.queryRows(`SELECT _id, method, full_path, route_name, module, risk_level, status, contains_pii FROM system_endpoint_catalog ORDER BY module ASC, full_path ASC LIMIT 80`),
-      this.queryRows(`SELECT _id, endpoint_id, data_entity_id, operation_type, impact_level, notes FROM system_endpoint_data_entity_impacts ORDER BY _id ASC LIMIT 160`),
-      this.queryRows(`SELECT _id, source_table, target_table, relationship_type, business_reason FROM system_data_relationship_catalog ORDER BY _id ASC LIMIT 160`),
+      this.queryRows(
+        `SELECT _id, table_name, entity_name, module, status, review_status, contains_pii, contains_risk_data FROM system_data_entity_catalog ORDER BY table_name ASC LIMIT 80`,
+      ),
+      this.queryRows(
+        `SELECT _id, method, full_path, route_name, module, risk_level, status, contains_pii FROM system_endpoint_catalog ORDER BY module ASC, full_path ASC LIMIT 80`,
+      ),
+      this.queryRows(
+        `SELECT _id, endpoint_id, data_entity_id, operation_type, impact_level, notes FROM system_endpoint_data_entity_impacts ORDER BY _id ASC LIMIT 160`,
+      ),
+      this.queryRows(
+        `SELECT _id, source_table, target_table, relationship_type, business_reason FROM system_data_relationship_catalog ORDER BY _id ASC LIMIT 160`,
+      ),
     ]);
     const nodes = [
-      ...entities.map((row) => ({ nodeId: `table:${id(row._id)}`, nodeType: 'table', label: clean(row.entity_name, clean(row.table_name)), domain: clean(row.module), status: clean(row.status), criticality: boolValue(row.contains_pii) || boolValue(row.contains_risk_data) ? 'HIGH' : 'MEDIUM', referenceId: id(row._id), metadata: { tableName: clean(row.table_name), reviewStatus: clean(row.review_status) } })),
-      ...endpoints.map((row) => ({ nodeId: `endpoint:${id(row._id)}`, nodeType: 'endpoint', label: `${clean(row.method)} ${clean(row.full_path)}`, domain: clean(row.module), status: clean(row.status), criticality: clean(row.risk_level), referenceId: id(row._id), metadata: { routeName: clean(row.route_name), containsPii: boolValue(row.contains_pii) } })),
+      ...entities.map((row) => ({
+        nodeId: `table:${id(row._id)}`,
+        nodeType: 'table',
+        label: clean(row.entity_name, clean(row.table_name)),
+        domain: clean(row.module),
+        status: clean(row.status),
+        criticality: boolValue(row.contains_pii) || boolValue(row.contains_risk_data) ? 'HIGH' : 'MEDIUM',
+        referenceId: id(row._id),
+        metadata: { tableName: clean(row.table_name), reviewStatus: clean(row.review_status) },
+      })),
+      ...endpoints.map((row) => ({
+        nodeId: `endpoint:${id(row._id)}`,
+        nodeType: 'endpoint',
+        label: `${clean(row.method)} ${clean(row.full_path)}`,
+        domain: clean(row.module),
+        status: clean(row.status),
+        criticality: clean(row.risk_level),
+        referenceId: id(row._id),
+        metadata: { routeName: clean(row.route_name), containsPii: boolValue(row.contains_pii) },
+      })),
     ].filter((node) => containsQuery(node, q));
     const tableByName = new Map(entities.map((row) => [clean(row.table_name), `table:${id(row._id)}`]));
     const edges = [
-      ...impacts.map((row) => ({ edgeId: `impact:${id(row._id)}`, sourceNodeId: `endpoint:${id(row.endpoint_id)}`, targetNodeId: `table:${id(row.data_entity_id)}`, edgeType: clean(row.operation_type, 'READ'), label: clean(row.impact_level), metadata: { notes: nullableText(row.notes) } })),
-      ...relationships.map((row) => ({ edgeId: `relationship:${id(row._id)}`, sourceNodeId: tableByName.get(clean(row.source_table)) ?? `table-name:${clean(row.source_table)}`, targetNodeId: tableByName.get(clean(row.target_table)) ?? `table-name:${clean(row.target_table)}`, edgeType: clean(row.relationship_type, 'RELATED_TO'), label: clean(row.business_reason), metadata: { sourceTable: clean(row.source_table), targetTable: clean(row.target_table) } })),
+      ...impacts.map((row) => ({
+        edgeId: `impact:${id(row._id)}`,
+        sourceNodeId: `endpoint:${id(row.endpoint_id)}`,
+        targetNodeId: `table:${id(row.data_entity_id)}`,
+        edgeType: clean(row.operation_type, 'READ'),
+        label: clean(row.impact_level),
+        metadata: { notes: nullableText(row.notes) },
+      })),
+      ...relationships.map((row) => ({
+        edgeId: `relationship:${id(row._id)}`,
+        sourceNodeId: tableByName.get(clean(row.source_table)) ?? `table-name:${clean(row.source_table)}`,
+        targetNodeId: tableByName.get(clean(row.target_table)) ?? `table-name:${clean(row.target_table)}`,
+        edgeType: clean(row.relationship_type, 'RELATED_TO'),
+        label: clean(row.business_reason),
+        metadata: { sourceTable: clean(row.source_table), targetTable: clean(row.target_table) },
+      })),
     ];
-    return { nodes, edges, generatedAt: new Date().toISOString(), summary: { nodeCount: nodes.length, edgeCount: edges.length, source: 'live_backend_catalog' } };
+    return {
+      nodes,
+      edges,
+      generatedAt: new Date().toISOString(),
+      summary: { nodeCount: nodes.length, edgeCount: edges.length, source: 'live_backend_catalog' },
+    };
   }
 
   async getLineageNode(nodeId: string) {
@@ -492,7 +966,15 @@ export class InternalPortalService {
 
   async getLineageImpact(query: Query) {
     const graph = await this.getLineage(query);
-    const items = graph.edges.map((edge) => ({ impactId: edge.edgeId, sourceNodeId: edge.sourceNodeId, targetNodeId: edge.targetNodeId, impactType: edge.edgeType, severity: clean(edge.label, 'MEDIUM'), description: nullableText(edge.label) ?? 'Impacto de linaje registrado por catálogo.', path: graph.nodes.filter((node) => node.nodeId === edge.sourceNodeId || node.nodeId === edge.targetNodeId) }));
+    const items = graph.edges.map((edge) => ({
+      impactId: edge.edgeId,
+      sourceNodeId: edge.sourceNodeId,
+      targetNodeId: edge.targetNodeId,
+      impactType: edge.edgeType,
+      severity: clean(edge.label, 'MEDIUM'),
+      description: nullableText(edge.label) ?? 'Impacto de linaje registrado por catálogo.',
+      path: graph.nodes.filter((node) => node.nodeId === edge.sourceNodeId || node.nodeId === edge.targetNodeId),
+    }));
     return paginate(items, query);
   }
 
@@ -510,13 +992,37 @@ export class InternalPortalService {
       { q, like: `%${q}%`, limit: page.limit, offset: page.offset },
     );
     const total = await this.queryRows<{ count: string }>(`SELECT COUNT(*)::text AS count FROM data_quality_issues`);
-    const items = rows.map((row) => ({ alertId: `dq:${id(row._id)}`, title: clean(row.rule_name, `Issue de calidad ${id(row._id)}`), description: clean(row.resolution_notes, `Registro ${clean(row.target_record_id)} en ${clean(row.target_table)} requiere revisión.`), severity: clean(row.severity, 'medium').toUpperCase(), status: clean(row.issue_status, 'open').toUpperCase(), source: clean(row.rule_code, 'data_quality'), resourceType: 'data_quality_issue', resourceId: id(row._id), createdAt: iso(row.detected_at) ?? NOW_SEED, acknowledgedAt: clean(row.issue_status, '').toLowerCase() === 'acknowledged' ? (iso(row.resolved_at) ?? NOW_SEED) : null, acknowledgedBy: clean(row.issue_status, '').toLowerCase() === 'acknowledged' ? 'internal_portal' : null, metadata: { targetTable: clean(row.target_table), targetRecordId: clean(row.target_record_id) } }));
-    return { items, meta: { page: page.page, limit: page.limit, total: intValue(total[0]?.count), totalPages: Math.max(1, Math.ceil(intValue(total[0]?.count) / page.limit)) } };
+    const items = rows.map((row) => ({
+      alertId: `dq:${id(row._id)}`,
+      title: clean(row.rule_name, `Issue de calidad ${id(row._id)}`),
+      description: clean(row.resolution_notes, `Registro ${clean(row.target_record_id)} en ${clean(row.target_table)} requiere revisión.`),
+      severity: clean(row.severity, 'medium').toUpperCase(),
+      status: clean(row.issue_status, 'open').toUpperCase(),
+      source: clean(row.rule_code, 'data_quality'),
+      resourceType: 'data_quality_issue',
+      resourceId: id(row._id),
+      createdAt: iso(row.detected_at) ?? NOW_SEED,
+      acknowledgedAt: clean(row.issue_status, '').toLowerCase() === 'acknowledged' ? (iso(row.resolved_at) ?? NOW_SEED) : null,
+      acknowledgedBy: clean(row.issue_status, '').toLowerCase() === 'acknowledged' ? 'internal_portal' : null,
+      metadata: { targetTable: clean(row.target_table), targetRecordId: clean(row.target_record_id) },
+    }));
+    return {
+      items,
+      meta: {
+        page: page.page,
+        limit: page.limit,
+        total: intValue(total[0]?.count),
+        totalPages: Math.max(1, Math.ceil(intValue(total[0]?.count) / page.limit)),
+      },
+    };
   }
 
   async acknowledgeAlert(alertId: string) {
     const rawId = decodeURIComponent(alertId).replace(/^dq:/, '');
-    await this.sequelize.query(`UPDATE data_quality_issues SET issue_status = 'acknowledged', resolved_at = NOW(), resolution_notes = COALESCE(resolution_notes, '') || ' | Acknowledged from internal portal.' WHERE _id::text = :id`, { replacements: { id: rawId } });
+    await this.sequelize.query(
+      `UPDATE data_quality_issues SET issue_status = 'acknowledged', resolved_at = NOW(), resolution_notes = COALESCE(resolution_notes, '') || ' | Acknowledged from internal portal.' WHERE _id::text = :id`,
+      { replacements: { id: rawId } },
+    );
     return { alertId, status: 'ACKNOWLEDGED', message: 'Alerta reconocida correctamente.' };
   }
 
@@ -533,31 +1039,78 @@ export class InternalPortalService {
     );
     const total = await this.queryRows<{ count: string }>(`SELECT COUNT(*)::text AS count FROM system_job_runs`);
     const items = rows.map((row) => this.mapJob(row));
-    return { items, meta: { page: page.page, limit: page.limit, total: intValue(total[0]?.count), totalPages: Math.max(1, Math.ceil(intValue(total[0]?.count) / page.limit)) } };
+    return {
+      items,
+      meta: {
+        page: page.page,
+        limit: page.limit,
+        total: intValue(total[0]?.count),
+        totalPages: Math.max(1, Math.ceil(intValue(total[0]?.count) / page.limit)),
+      },
+    };
   }
 
   async getJob(jobRunId: string) {
-    const rows = await this.queryRows(`SELECT _id, job_code, status, started_at, completed_at, input_json, result_json, error_message, triggered_by_type, triggered_by_id, _created_at FROM system_job_runs WHERE _id::text = :id OR job_code = :id LIMIT 1`, { id: decodeURIComponent(jobRunId) });
+    const rows = await this.queryRows(
+      `SELECT _id, job_code, status, started_at, completed_at, input_json, result_json, error_message, triggered_by_type, triggered_by_id, _created_at FROM system_job_runs WHERE _id::text = :id OR job_code = :id LIMIT 1`,
+      { id: decodeURIComponent(jobRunId) },
+    );
     if (!rows[0]) throw new NotFoundException('JOB_RUN_NOT_FOUND');
     const job = this.mapJob(rows[0]);
-    return { ...job, requestId: `job:${job.jobRunId}`, payloadSummary: jsonValue(rows[0].input_json), resultSummary: jsonValue(rows[0].result_json), errorCode: rows[0].error_message ? 'JOB_ERROR' : null, errorMessage: nullableText(rows[0].error_message), logs: [{ timestamp: job.createdAt, level: 'info', message: `Job ${job.jobKey} registrado con estado ${job.status}.`, details: { triggeredBy: rows[0].triggered_by_id } }] };
+    return {
+      ...job,
+      requestId: `job:${job.jobRunId}`,
+      payloadSummary: jsonValue(rows[0].input_json),
+      resultSummary: jsonValue(rows[0].result_json),
+      errorCode: rows[0].error_message ? 'JOB_ERROR' : null,
+      errorMessage: nullableText(rows[0].error_message),
+      logs: [
+        {
+          timestamp: job.createdAt,
+          level: 'info',
+          message: `Job ${job.jobKey} registrado con estado ${job.status}.`,
+          details: { triggeredBy: rows[0].triggered_by_id },
+        },
+      ],
+    };
   }
 
   async retryJob(jobRunId: string) {
     const job = await this.getJob(jobRunId);
-    return { jobRunId: job.jobRunId, status: 'QUEUED_FOR_RETRY', message: 'Reintento solicitado. El job queda registrado para ejecución controlada.' };
+    return {
+      jobRunId: job.jobRunId,
+      status: 'QUEUED_FOR_RETRY',
+      message: 'Reintento solicitado. El job queda registrado para ejecución controlada.',
+    };
   }
 
   async cancelJob(jobRunId: string) {
     const job = await this.getJob(jobRunId);
-    return { jobRunId: job.jobRunId, status: 'CANCEL_REQUESTED', message: 'Cancelación solicitada. Si el job ya terminó, no se altera evidencia histórica.' };
+    return {
+      jobRunId: job.jobRunId,
+      status: 'CANCEL_REQUESTED',
+      message: 'Cancelación solicitada. Si el job ya terminó, no se altera evidencia histórica.',
+    };
   }
 
   private mapJob(row: Row) {
     const started = iso(row.started_at);
     const finished = iso(row.completed_at);
     const duration = started && finished ? Math.max(0, new Date(finished).getTime() - new Date(started).getTime()) : null;
-    return { jobRunId: id(row._id), jobKey: clean(row.job_code), name: clean(row.job_code).replace(/_/g, ' '), queue: clean(row.triggered_by_type, 'system'), status: clean(row.status, 'unknown').toUpperCase(), priority: 'normal', attempts: 1, durationMs: duration, startedAt: started, finishedAt: finished, createdAt: iso(row._created_at) ?? NOW_SEED, metadata: { triggeredBy: nullableText(row.triggered_by_id), hasError: Boolean(row.error_message) } };
+    return {
+      jobRunId: id(row._id),
+      jobKey: clean(row.job_code),
+      name: clean(row.job_code).replace(/_/g, ' '),
+      queue: clean(row.triggered_by_type, 'system'),
+      status: clean(row.status, 'unknown').toUpperCase(),
+      priority: 'normal',
+      attempts: 1,
+      durationMs: duration,
+      startedAt: started,
+      finishedAt: finished,
+      createdAt: iso(row._created_at) ?? NOW_SEED,
+      metadata: { triggeredBy: nullableText(row.triggered_by_id), hasError: Boolean(row.error_message) },
+    };
   }
 
   async getReleaseReadiness() {
@@ -570,39 +1123,118 @@ export class InternalPortalService {
       this.count('system_job_runs'),
     ]);
     const checks = [
-      { key: 'endpoint_catalog', label: 'Catálogo de endpoints poblado', status: endpoints > 0 ? 'ok' : 'blocked', detail: `${endpoints} endpoints catalogados`, details: { endpoints } },
-      { key: 'data_catalog', label: 'Catálogo de datos poblado', status: entities > 0 ? 'ok' : 'blocked', detail: `${entities} tablas documentadas`, details: { entities } },
-      { key: 'qa_suites', label: 'Suites QA disponibles', status: suites > 0 ? 'ok' : 'warning', detail: `${suites} suites`, details: { suites } },
-      { key: 'data_quality_rules', label: 'Reglas de calidad activas', status: rules > 0 ? 'ok' : 'warning', detail: `${rules} reglas`, details: { rules } },
-      { key: 'open_quality_issues', label: 'Issues de calidad abiertos', status: issues === 0 ? 'ok' : 'warning', detail: `${issues} issues abiertos`, details: { issues } },
-      { key: 'runtime_jobs', label: 'Jobs operativos con evidencia', status: jobs > 0 ? 'ok' : 'warning', detail: `${jobs} ejecuciones registradas`, details: { jobs } },
+      {
+        key: 'endpoint_catalog',
+        label: 'Catálogo de endpoints poblado',
+        status: endpoints > 0 ? 'ok' : 'blocked',
+        detail: `${endpoints} endpoints catalogados`,
+        details: { endpoints },
+      },
+      {
+        key: 'data_catalog',
+        label: 'Catálogo de datos poblado',
+        status: entities > 0 ? 'ok' : 'blocked',
+        detail: `${entities} tablas documentadas`,
+        details: { entities },
+      },
+      {
+        key: 'qa_suites',
+        label: 'Suites QA disponibles',
+        status: suites > 0 ? 'ok' : 'warning',
+        detail: `${suites} suites`,
+        details: { suites },
+      },
+      {
+        key: 'data_quality_rules',
+        label: 'Reglas de calidad activas',
+        status: rules > 0 ? 'ok' : 'warning',
+        detail: `${rules} reglas`,
+        details: { rules },
+      },
+      {
+        key: 'open_quality_issues',
+        label: 'Issues de calidad abiertos',
+        status: issues === 0 ? 'ok' : 'warning',
+        detail: `${issues} issues abiertos`,
+        details: { issues },
+      },
+      {
+        key: 'runtime_jobs',
+        label: 'Jobs operativos con evidencia',
+        status: jobs > 0 ? 'ok' : 'warning',
+        detail: `${jobs} ejecuciones registradas`,
+        details: { jobs },
+      },
     ] as Array<{ key: string; label: string; status: 'ok' | 'warning' | 'blocked'; detail: string; details: Row }>;
-    return { status: checks.some((check) => check.status === 'blocked') ? 'blocked' : checks.some((check) => check.status === 'warning') ? 'warning' : 'ready', checks, blockers: checks.filter((check) => check.status === 'blocked'), warnings: checks.filter((check) => check.status === 'warning'), generatedAt: new Date().toISOString() };
+    return {
+      status: checks.some((check) => check.status === 'blocked')
+        ? 'blocked'
+        : checks.some((check) => check.status === 'warning')
+          ? 'warning'
+          : 'ready',
+      checks,
+      blockers: checks.filter((check) => check.status === 'blocked'),
+      warnings: checks.filter((check) => check.status === 'warning'),
+      generatedAt: new Date().toISOString(),
+    };
   }
 
   listReports(query: Query) {
     const q = clean(query.q, '').toLowerCase();
-    const items = reportDefinitions().filter((item) => containsQuery(item, q)).map(({ widgets: _widgets, filters: _filters, ...item }) => item);
+    const items = reportDefinitions()
+      .filter((item) => containsQuery(item, q))
+      .map(({ widgets: _widgets, filters: _filters, ...item }) => item);
     return paginate(items, query);
   }
 
   getReport(reportId: string) {
-    const report = reportDefinitions().find((item) => item.reportId === decodeURIComponent(reportId) || item.key === decodeURIComponent(reportId));
+    const report = reportDefinitions().find(
+      (item) => item.reportId === decodeURIComponent(reportId) || item.key === decodeURIComponent(reportId),
+    );
     if (!report) throw new NotFoundException('REPORT_NOT_FOUND');
     return report;
   }
 
   async runReport(reportId: string, body: Row) {
     const report = this.getReport(reportId);
-    const [readiness, alerts, jobs] = await Promise.all([this.getReleaseReadiness(), this.listAlerts({ page: 1, limit: 10 }), this.listJobs({ page: 1, limit: 10 })]);
-    return { reportId: report.reportId, executionId: `report-run-${report.reportId}-${Date.now()}`, status: 'completed', generatedAt: new Date().toISOString(), data: { filters: body.filters ?? body, readiness, alerts: alerts.items, jobs: jobs.items }, widgets: report.widgets.map((widget) => ({ widgetId: clean(widget.widgetId), title: clean(widget.title), data: { readinessStatus: readiness.status, alertCount: alerts.meta.total, jobCount: jobs.meta.total } })) };
+    const [readiness, alerts, jobs] = await Promise.all([
+      this.getReleaseReadiness(),
+      this.listAlerts({ page: 1, limit: 10 }),
+      this.listJobs({ page: 1, limit: 10 }),
+    ]);
+    return {
+      reportId: report.reportId,
+      executionId: `report-run-${report.reportId}-${Date.now()}`,
+      status: 'completed',
+      generatedAt: new Date().toISOString(),
+      data: { filters: body.filters ?? body, readiness, alerts: alerts.items, jobs: jobs.items },
+      widgets: report.widgets.map((widget) => ({
+        widgetId: clean(widget.widgetId),
+        title: clean(widget.title),
+        data: { readinessStatus: readiness.status, alertCount: alerts.meta.total, jobCount: jobs.meta.total },
+      })),
+    };
   }
 
   listReportSnapshots(reportId: string, query: Query) {
     const report = this.getReport(reportId);
     const snapshots = [
-      { snapshotId: `snapshot:${report.reportId}:seed`, reportId: report.reportId, status: 'READY', generatedAt: NOW_SEED, generatedBy: 'atlas_seed', summary: { source: report.sourceReference, criticality: report.criticality } },
-      { snapshotId: `snapshot:${report.reportId}:current`, reportId: report.reportId, status: 'READY', generatedAt: new Date().toISOString(), generatedBy: 'internal_portal', summary: { source: 'live_backend', status: report.status } },
+      {
+        snapshotId: `snapshot:${report.reportId}:seed`,
+        reportId: report.reportId,
+        status: 'READY',
+        generatedAt: NOW_SEED,
+        generatedBy: 'atlas_seed',
+        summary: { source: report.sourceReference, criticality: report.criticality },
+      },
+      {
+        snapshotId: `snapshot:${report.reportId}:current`,
+        reportId: report.reportId,
+        status: 'READY',
+        generatedAt: new Date().toISOString(),
+        generatedBy: 'internal_portal',
+        summary: { source: 'live_backend', status: report.status },
+      },
     ];
     return paginate(snapshots, query);
   }
@@ -611,16 +1243,65 @@ export class InternalPortalService {
     const q = clean(query.q, '').trim();
     if (!q) return { items: [], totals: {} };
     const [endpoints, entities, rules, reports] = await Promise.all([
-      this.queryRows(`SELECT _id, method, full_path, route_name, module, status, risk_level, contains_pii FROM system_endpoint_catalog WHERE full_path ILIKE :like OR route_name ILIKE :like OR module ILIKE :like ORDER BY full_path ASC LIMIT 15`, { like: `%${q}%` }),
-      this.queryRows(`SELECT _id, table_name, entity_name, module, status, contains_pii FROM system_data_entity_catalog WHERE table_name ILIKE :like OR entity_name ILIKE :like OR module ILIKE :like ORDER BY table_name ASC LIMIT 15`, { like: `%${q}%` }),
-      this.queryRows(`SELECT _id, rule_code, rule_name, severity, is_active FROM data_quality_rules WHERE rule_code ILIKE :like OR rule_name ILIKE :like OR target_table ILIKE :like ORDER BY rule_code ASC LIMIT 15`, { like: `%${q}%` }),
-      Promise.resolve(reportDefinitions().filter((report) => containsQuery(report, q.toLowerCase())).slice(0, 15)),
+      this.queryRows(
+        `SELECT _id, method, full_path, route_name, module, status, risk_level, contains_pii FROM system_endpoint_catalog WHERE full_path ILIKE :like OR route_name ILIKE :like OR module ILIKE :like ORDER BY full_path ASC LIMIT 15`,
+        { like: `%${q}%` },
+      ),
+      this.queryRows(
+        `SELECT _id, table_name, entity_name, module, status, contains_pii FROM system_data_entity_catalog WHERE table_name ILIKE :like OR entity_name ILIKE :like OR module ILIKE :like ORDER BY table_name ASC LIMIT 15`,
+        { like: `%${q}%` },
+      ),
+      this.queryRows(
+        `SELECT _id, rule_code, rule_name, severity, is_active FROM data_quality_rules WHERE rule_code ILIKE :like OR rule_name ILIKE :like OR target_table ILIKE :like ORDER BY rule_code ASC LIMIT 15`,
+        { like: `%${q}%` },
+      ),
+      Promise.resolve(
+        reportDefinitions()
+          .filter((report) => containsQuery(report, q.toLowerCase()))
+          .slice(0, 15),
+      ),
     ]);
     const items = [
-      ...endpoints.map((row) => ({ id: `endpoint:${id(row._id)}`, kind: 'endpoint', title: `${clean(row.method)} ${clean(row.full_path)}`, subtitle: clean(row.route_name, clean(row.module)), href: `/internal/systems/endpoints/${id(row._id)}`, status: clean(row.status), method: clean(row.method), riskLevel: clean(row.risk_level), containsPii: boolValue(row.contains_pii) })),
-      ...entities.map((row) => ({ id: `table:${id(row._id)}`, kind: 'table', title: clean(row.entity_name, clean(row.table_name)), subtitle: clean(row.table_name), href: `/internal/data-catalog/tables/${id(row._id)}`, status: clean(row.status), containsPii: boolValue(row.contains_pii) })),
-      ...rules.map((row) => ({ id: `quality:${id(row._id)}`, kind: 'quality_rule', title: clean(row.rule_name), subtitle: clean(row.rule_code), href: `/internal/data-quality/rules/${id(row._id)}`, status: boolValue(row.is_active, true) ? 'ACTIVE' : 'INACTIVE', riskLevel: clean(row.severity).toUpperCase(), containsPii: false })),
-      ...reports.map((report) => ({ id: `report:${report.reportId}`, kind: 'report', title: report.name, subtitle: report.description, href: `/internal/reports/${report.reportId}`, status: report.status, riskLevel: report.criticality, containsPii: false })),
+      ...endpoints.map((row) => ({
+        id: `endpoint:${id(row._id)}`,
+        kind: 'endpoint',
+        title: `${clean(row.method)} ${clean(row.full_path)}`,
+        subtitle: clean(row.route_name, clean(row.module)),
+        href: `/internal/systems/endpoints/${id(row._id)}`,
+        status: clean(row.status),
+        method: clean(row.method),
+        riskLevel: clean(row.risk_level),
+        containsPii: boolValue(row.contains_pii),
+      })),
+      ...entities.map((row) => ({
+        id: `table:${id(row._id)}`,
+        kind: 'table',
+        title: clean(row.entity_name, clean(row.table_name)),
+        subtitle: clean(row.table_name),
+        href: `/internal/data-catalog/tables/${id(row._id)}`,
+        status: clean(row.status),
+        containsPii: boolValue(row.contains_pii),
+      })),
+      ...rules.map((row) => ({
+        id: `quality:${id(row._id)}`,
+        kind: 'quality_rule',
+        title: clean(row.rule_name),
+        subtitle: clean(row.rule_code),
+        href: `/internal/data-quality/rules/${id(row._id)}`,
+        status: boolValue(row.is_active, true) ? 'ACTIVE' : 'INACTIVE',
+        riskLevel: clean(row.severity).toUpperCase(),
+        containsPii: false,
+      })),
+      ...reports.map((report) => ({
+        id: `report:${report.reportId}`,
+        kind: 'report',
+        title: report.name,
+        subtitle: report.description,
+        href: `/internal/reports/${report.reportId}`,
+        status: report.status,
+        riskLevel: report.criticality,
+        containsPii: false,
+      })),
     ];
     return { items, totals: { endpoints: endpoints.length, tables: entities.length, qualityRules: rules.length, reports: reports.length } };
   }

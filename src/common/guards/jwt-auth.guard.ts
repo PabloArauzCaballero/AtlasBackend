@@ -6,6 +6,22 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { TokenRevocationService } from '../services/token-revocation.service.js';
 import { AuthenticatedUser, RequestWithAuth } from '../types/auth.types.js';
 
+const KNOWN_ROLES: ReadonlySet<AuthenticatedUser['role']> = new Set([
+  'customer',
+  'internal_operator',
+  'risk_analyst',
+  'compliance_analyst',
+  'fraud_analyst',
+  'system',
+  'system_admin',
+  'qa_engineer',
+  'devops',
+  'readonly_auditor',
+  'merchant',
+  'admin',
+  'platform_admin',
+]);
+
 function extractBearerToken(authorizationHeader: string | string[] | undefined): string {
   const header = Array.isArray(authorizationHeader) ? authorizationHeader[0] : authorizationHeader;
 
@@ -35,7 +51,7 @@ function parseAuthenticatedUser(payload: string | jwt.JwtPayload): Authenticated
   }
 
   const role = payload.role;
-  if (typeof payload.sub !== 'string' || typeof role !== 'string') {
+  if (typeof payload.sub !== 'string' || typeof role !== 'string' || !KNOWN_ROLES.has(role as AuthenticatedUser['role'])) {
     return null;
   }
 
@@ -95,6 +111,12 @@ export class JwtAuthGuard implements CanActivate {
     const user = parseAuthenticatedUser(payload);
     if (!user) {
       throw new UnauthorizedException('Token inválido o expirado.');
+    }
+
+    // Local smoke/dev tokens intentionally omit revocation metadata. They must
+    // never be accepted by a production process.
+    if (env.NODE_ENV === 'production' && (typeof user.tokenVersion !== 'number' || !actorLookup(user))) {
+      throw new UnauthorizedException('Token invalido o expirado.');
     }
 
     if (typeof user.tokenVersion === 'number') {

@@ -9,10 +9,16 @@ const optionalUrlEnvSchema = z.preprocess((value) => {
   return value;
 }, z.string().url().optional());
 
-const optionalMongoUrlEnvSchema = z.preprocess((value) => {
-  if (typeof value === 'string' && value.trim() === '') return undefined;
-  return value;
-}, z.string().regex(/^mongodb(\+srv)?:\/\//, 'Debe iniciar con mongodb:// o mongodb+srv://').optional());
+const optionalMongoUrlEnvSchema = z.preprocess(
+  (value) => {
+    if (typeof value === 'string' && value.trim() === '') return undefined;
+    return value;
+  },
+  z
+    .string()
+    .regex(/^mongodb(\+srv)?:\/\//, 'Debe iniciar con mongodb:// o mongodb+srv://')
+    .optional(),
+);
 
 const booleanEnvSchema = z
   .preprocess((value) => {
@@ -58,6 +64,7 @@ const envSchema = z
     DB_PASSWORD: z.string().default('postgres'),
     DB_SCHEMA: z.string().min(1).default('public'),
     DB_SSL: booleanEnvSchema,
+    DB_SSL_REJECT_UNAUTHORIZED: booleanEnvSchema.default(true),
 
     // Limpieza previa a seeds. Por defecto está apagada. En producción exige doble confirmación
     // para evitar borrar datos reales por accidente. Preserva SequelizeMeta y limpia los datos
@@ -195,6 +202,14 @@ const envSchema = z
         path: ['REDIS_URL'],
         message:
           'REDIS_URL es requerido en producción (ATLAS-AUDIT-023): sin Redis, el rate limiting solo protege por instancia y dejará de ser confiable en cuanto se despliegue más de una tarea de ECS Fargate.',
+      });
+    }
+
+    if (data.NODE_ENV === 'production' && data.DB_SSL && !data.DB_SSL_REJECT_UNAUTHORIZED) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['DB_SSL_REJECT_UNAUTHORIZED'],
+        message: 'DB_SSL_REJECT_UNAUTHORIZED debe permanecer activo en produccion para validar el certificado PostgreSQL.',
       });
     }
 

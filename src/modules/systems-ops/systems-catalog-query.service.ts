@@ -4,6 +4,7 @@ import {
   mapDataField,
   mapDataImpact,
   mapDataRelationship,
+  mapDomain,
   mapEndpoint,
   mapFieldImpact,
   mapTool,
@@ -39,11 +40,16 @@ export class SystemsCatalogQueryService {
       this.catalogRepository.findDataImpactsByEndpoint(endpointId),
       this.catalogRepository.findFieldImpactsByEndpoint(endpointId),
     ]);
+    const [enrichedTools, enrichedDataImpacts, enrichedFieldImpacts] = await Promise.all([
+      this.enrichToolRequirements(tools),
+      this.enrichDataImpacts(dataImpacts),
+      this.enrichFieldImpacts(fieldImpacts),
+    ]);
     return {
       endpoint: mapEndpoint(endpoint),
-      toolRequirements: tools.map(mapToolRequirement),
-      dataEntityImpacts: dataImpacts.map(mapDataImpact),
-      fieldImpacts: fieldImpacts.map(mapFieldImpact),
+      toolRequirements: enrichedTools,
+      dataEntityImpacts: enrichedDataImpacts,
+      fieldImpacts: enrichedFieldImpacts,
     };
   }
 
@@ -53,6 +59,17 @@ export class SystemsCatalogQueryService {
 
   refreshCatalogSeed(body: CatalogSeedRefreshDto) {
     return this.seedService.refreshCatalog(body);
+  }
+
+  async listDomains(query: SystemsListQueryDto) {
+    const result = await this.catalogRepository.listDomains(query);
+    return { items: result.rows.map(mapDomain), meta: result.meta };
+  }
+
+  async getDomain(domainCode: string) {
+    const domain = await this.catalogRepository.findDomainByCode(domainCode);
+    if (!domain) throw new NotFoundException('SYSTEM_DOMAIN_NOT_FOUND');
+    return mapDomain(domain);
   }
 
   async listTools(query: SystemsListQueryDto) {
@@ -103,11 +120,16 @@ export class SystemsCatalogQueryService {
       this.catalogRepository.findDataImpactsByEndpoint(endpointId),
       this.catalogRepository.findFieldImpactsByEndpoint(endpointId),
     ]);
+    const [enrichedTools, enrichedTables, enrichedFields] = await Promise.all([
+      this.enrichToolRequirements(tools),
+      this.enrichDataImpacts(dataImpacts),
+      this.enrichFieldImpacts(fieldImpacts),
+    ]);
     return {
       endpoint: mapEndpoint(endpoint),
-      tools: tools.map(mapToolRequirement),
-      tables: dataImpacts.map(mapDataImpact),
-      fields: fieldImpacts.map(mapFieldImpact),
+      tools: enrichedTools,
+      tables: enrichedTables,
+      fields: enrichedFields,
     };
   }
 
@@ -122,11 +144,32 @@ export class SystemsCatalogQueryService {
     ]);
     return {
       entity: mapDataEntity(entity),
-      endpointImpacts: impacts.map(mapDataImpact),
+      endpointImpacts: impacts.map((impact) => mapDataImpact(impact, entity)),
       columns: columns.map(mapDataField),
       relations: relations.map(mapDataRelationship),
-      fieldImpacts: fieldImpacts.map(mapFieldImpact),
+      fieldImpacts: fieldImpacts.map((impact) => mapFieldImpact(impact, entity)),
     };
+  }
+
+  private async enrichToolRequirements(rows: Awaited<ReturnType<SystemsCatalogRepository['findToolRequirementsByEndpoint']>>) {
+    const toolIds = [...new Set(rows.map((row) => String(row.toolId)))];
+    const tools = await this.catalogRepository.findToolsByIds(toolIds);
+    const toolsById = new Map(tools.map((tool) => [String(tool.id), tool]));
+    return rows.map((row) => mapToolRequirement(row, toolsById.get(String(row.toolId))));
+  }
+
+  private async enrichDataImpacts(rows: Awaited<ReturnType<SystemsCatalogRepository['findDataImpactsByEndpoint']>>) {
+    const entityIds = [...new Set(rows.map((row) => String(row.dataEntityId)))];
+    const entities = await this.catalogRepository.findDataEntitiesByIds(entityIds);
+    const entitiesById = new Map(entities.map((entity) => [String(entity.id), entity]));
+    return rows.map((row) => mapDataImpact(row, entitiesById.get(String(row.dataEntityId))));
+  }
+
+  private async enrichFieldImpacts(rows: Awaited<ReturnType<SystemsCatalogRepository['findFieldImpactsByEndpoint']>>) {
+    const entityIds = [...new Set(rows.map((row) => String(row.dataEntityId)))];
+    const entities = await this.catalogRepository.findDataEntitiesByIds(entityIds);
+    const entitiesById = new Map(entities.map((entity) => [String(entity.id), entity]));
+    return rows.map((row) => mapFieldImpact(row, entitiesById.get(String(row.dataEntityId))));
   }
 
   getToolsHealth() {

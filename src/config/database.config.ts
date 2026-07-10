@@ -17,7 +17,7 @@ export function buildSequelizeOptions(): SequelizeModuleOptions {
       ? {
           ssl: {
             require: true,
-            rejectUnauthorized: false,
+            rejectUnauthorized: env.DB_SSL_REJECT_UNAUTHORIZED,
           },
         }
       : undefined,

@@ -2,6 +2,10 @@
 
 Este documento define las variables de entorno esperadas para ejecutar ATLAS y activar proveedores de notificaciones sin cambiar el core.
 
+> Seguridad TLS: cuando `DB_SSL=true`, `DB_SSL_REJECT_UNAUTHORIZED` vale `true` por defecto y no
+> puede desactivarse en produccion. Instala la CA de PostgreSQL en el entorno en lugar de omitir
+> la validacion del certificado.
+
 ## Regla de arquitectura
 
 La bandeja interna (`in_app`) es propia de ATLAS y no usa proveedor externo. Los canales externos se activan por configuración:
@@ -76,16 +80,22 @@ sin historico remoto, `LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT=false` evita dupli
 ya existente y empieza desde el final del archivo; los siguientes updates continuan desde el ultimo
 `offsetTo` guardado en Mongo.
 
+Esa misma coleccion (`MONGO_LOGS_DB_NAME`/`MONGO_LOGS_COLLECTION`) ahora se puede leer por HTTP via
+`GET /api/v1/systems/logs/mongo` (`MongoLogsQueryService`, `src/modules/log-sync/`), con su propio
+`MongoClient` independiente del que escribe. Si `MONGO_DB_URL_CONNECTION` no esta configurada, ese
+endpoint responde `503 MONGO_LOGS_NOT_CONFIGURED` en vez de fallar la sincronizacion (que ya de por
+si queda desactivada en ese caso).
+
 ## Matriz de proveedores soportados
 
-| Canal | Provider env | Valores soportados | Credenciales requeridas |
-|---|---|---|---|
-| `in_app` | no aplica | backend ATLAS | ninguna |
-| `email` | `NOTIFICATION_EMAIL_PROVIDER` | `disabled`, `resend`, `sendgrid`, `gmail_api`, `webhook` | según proveedor |
-| `push` | `NOTIFICATION_PUSH_PROVIDER` | `disabled`, `fcm`, `webhook` | según proveedor |
-| `sms` | `NOTIFICATION_SMS_PROVIDER` | `disabled`, `twilio`, `webhook` | según proveedor |
-| `whatsapp` | `NOTIFICATION_WHATSAPP_PROVIDER` | `disabled`, `meta_cloud`, `twilio`, `webhook` | según proveedor |
-| `phone` | `NOTIFICATION_PHONE_PROVIDER` | `disabled`, `webhook` | webhook |
+| Canal      | Provider env                     | Valores soportados                                       | Credenciales requeridas |
+| ---------- | -------------------------------- | -------------------------------------------------------- | ----------------------- |
+| `in_app`   | no aplica                        | backend ATLAS                                            | ninguna                 |
+| `email`    | `NOTIFICATION_EMAIL_PROVIDER`    | `disabled`, `resend`, `sendgrid`, `gmail_api`, `webhook` | según proveedor         |
+| `push`     | `NOTIFICATION_PUSH_PROVIDER`     | `disabled`, `fcm`, `webhook`                             | según proveedor         |
+| `sms`      | `NOTIFICATION_SMS_PROVIDER`      | `disabled`, `twilio`, `webhook`                          | según proveedor         |
+| `whatsapp` | `NOTIFICATION_WHATSAPP_PROVIDER` | `disabled`, `meta_cloud`, `twilio`, `webhook`            | según proveedor         |
+| `phone`    | `NOTIFICATION_PHONE_PROVIDER`    | `disabled`, `webhook`                                    | webhook                 |
 
 `disabled` no es mock: significa que el canal queda apagado. Si una regla intenta enviar por ese canal, se registra un delivery fallido con error de configuración.
 

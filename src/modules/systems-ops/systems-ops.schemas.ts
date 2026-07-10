@@ -24,6 +24,9 @@ export const systemsSuiteParamsSchema = z.object({ suiteId: positiveId });
 export const systemsRunParamsSchema = z.object({ runId: positiveId });
 export const systemsDataImpactParamsSchema = z.object({ impactId: positiveId });
 export const systemsFieldImpactParamsSchema = z.object({ fieldImpactId: positiveId });
+export const systemsDomainParamsSchema = z.object({
+  domainCode: z.string().trim().min(1).max(120),
+});
 export const systemsToolRequirementParamsSchema = z.object({ requirementId: positiveId });
 export const systemsStressProfileParamsSchema = z.object({ profileId: positiveId });
 export const systemsRequestParamsSchema = z.object({ requestId: z.string().trim().min(1).max(120) });
@@ -124,6 +127,10 @@ export const systemsActionLogQuerySchema = z.object({
   to: z.string().datetime().optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
+});
+
+export const trafficLatencyQuerySchema = z.object({
+  windowHours: z.coerce.number().int().positive().max(24 * 30).default(24),
 });
 
 export const reviewDecisionSchema = z.object({
@@ -232,11 +239,13 @@ export type SystemsSuiteParamsDto = z.infer<typeof systemsSuiteParamsSchema>;
 export type SystemsRunParamsDto = z.infer<typeof systemsRunParamsSchema>;
 export type SystemsDataImpactParamsDto = z.infer<typeof systemsDataImpactParamsSchema>;
 export type SystemsFieldImpactParamsDto = z.infer<typeof systemsFieldImpactParamsSchema>;
+export type SystemsDomainParamsDto = z.infer<typeof systemsDomainParamsSchema>;
 export type SystemsColumnParamsDto = z.infer<typeof systemsColumnParamsSchema>;
 export type SystemsToolRequirementParamsDto = z.infer<typeof systemsToolRequirementParamsSchema>;
 export type SystemsStressProfileParamsDto = z.infer<typeof systemsStressProfileParamsSchema>;
 export type SystemsRequestParamsDto = z.infer<typeof systemsRequestParamsSchema>;
 export type SystemsActionLogQueryDto = z.infer<typeof systemsActionLogQuerySchema>;
+export type TrafficLatencyQueryDto = z.infer<typeof trafficLatencyQuerySchema>;
 export type RunTestSuiteDto = z.infer<typeof runTestSuiteSchema>;
 export type DiscoverEndpointsDto = z.infer<typeof discoverEndpointsSchema>;
 export type CatalogSeedRefreshDto = z.infer<typeof catalogSeedRefreshSchema>;

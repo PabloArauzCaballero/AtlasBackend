@@ -8,6 +8,8 @@ import {
   SystemsActionLogQueryDto,
   systemsRequestParamsSchema,
   SystemsRequestParamsDto,
+  trafficLatencyQuerySchema,
+  TrafficLatencyQueryDto,
 } from './systems-ops.schemas.js';
 import { SystemsActionLogQueryService } from './systems-action-log-query.service.js';
 
@@ -50,5 +52,13 @@ export class SystemsActionLogController {
   @Get('action-logs/by-request/:requestId')
   getActionLogsByRequest(@Param(new ZodValidationPipe(systemsRequestParamsSchema)) params: SystemsRequestParamsDto) {
     return this.service.getActionLogsByRequest(params.requestId);
+  }
+
+  @ApiOperation({ summary: 'Reporte de tráfico y latencia por ruta (derivado de system_action_logs)' })
+  @ApiQuery({ name: 'windowHours', required: false, schema: zodObjectPropertySchemas(trafficLatencyQuerySchema).windowHours })
+  @ApiResponse({ status: 200, description: 'Resumen de tráfico y latencia por ruta/método.' })
+  @Get('reports/traffic-latency')
+  getTrafficLatencyReport(@Query(new ZodValidationPipe(trafficLatencyQuerySchema)) query: TrafficLatencyQueryDto) {
+    return this.service.getTrafficLatencyReport(query.windowHours);
   }
 }

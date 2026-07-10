@@ -56,6 +56,7 @@ src/
     ├── runtime-hardening/     # idempotencia, interceptors de comando
     ├── runtime-jobs/          # jobs operativos (outbox técnico, retención, expiración de sesión)
     ├── systems-ops/           # catálogo de endpoints/herramientas, suites de QA, cola de revisión
+    ├── log-sync/              # sincroniza Archivo.log a MongoDB y expone su lectura (GET /systems/logs/mongo)
     └── health/                # healthcheck
 ```
 

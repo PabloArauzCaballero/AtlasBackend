@@ -114,6 +114,9 @@ export function definitionDtos(values: {
       sourceGroup: item.sourceGroup,
       riskDimension: item.riskDimension,
       isActive: item.isActive,
+      ownerTeam: item.ownerTeam,
+      domainCode: item.domainCode,
+      reviewStatus: item.reviewStatus,
     })),
     events: values.events.map((item) => ({
       eventDefinitionId: String(item.id),
@@ -124,6 +127,10 @@ export function definitionDtos(values: {
       riskDimension: item.riskDimension,
       isHighVolume: item.isHighVolume,
       isActive: item.isActive,
+      ownerTeam: item.ownerTeam,
+      domainCode: item.domainCode,
+      reviewStatus: item.reviewStatus,
+      relatedTables: Array.isArray(item.targetTablesJson) ? item.targetTablesJson : Object.keys(item.targetTablesJson ?? {}),
     })),
     attributes: values.attributes.map((item) => ({
       attributeDefinitionId: String(item.id),
@@ -134,6 +141,9 @@ export function definitionDtos(values: {
       riskDimension: item.riskDimension,
       isSensitive: item.isSensitive,
       isActive: item.isActive,
+      ownerTeam: item.ownerTeam,
+      domainCode: item.domainCode,
+      reviewStatus: item.reviewStatus,
     })),
     features: values.features.map((item) => ({
       featureDefinitionId: String(item.id),
@@ -145,6 +155,9 @@ export function definitionDtos(values: {
       isModelInput: item.isModelInput,
       isPolicyRuleInput: item.isPolicyRuleInput,
       isActive: item.isActive,
+      ownerTeam: item.ownerTeam,
+      domainCode: item.domainCode,
+      reviewStatus: item.reviewStatus,
     })),
   };
 }

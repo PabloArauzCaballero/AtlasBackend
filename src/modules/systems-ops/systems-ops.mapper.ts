@@ -4,6 +4,7 @@ import {
   SystemDataEntityCatalogModel,
   SystemDataFieldCatalogModel,
   SystemDataRelationshipCatalogModel,
+  SystemDomainCatalogModel,
   SystemEndpointCatalogModel,
   SystemEndpointDataEntityImpactModel,
   SystemEndpointFieldImpactModel,
@@ -102,6 +103,25 @@ export function mapDataEntity(row: SystemDataEntityCatalogModel) {
   };
 }
 
+export function mapDomain(row: SystemDomainCatalogModel) {
+  return {
+    domainId: String(row.id),
+    domainCode: row.domainCode,
+    domainName: row.domainName,
+    description: row.description,
+    businessDefinition: row.businessDefinition,
+    technicalScope: row.technicalScope,
+    dataNature: row.dataNature,
+    ownerTeam: row.ownerTeam,
+    countriesApplicable: row.countriesApplicable,
+    regulatoryNotes: row.regulatoryNotes,
+    exampleTables: row.exampleTables,
+    decisionUseCases: row.decisionUseCases,
+    auditRelevance: row.auditRelevance,
+    status: row.status,
+  };
+}
+
 export function mapDataField(row: SystemDataFieldCatalogModel) {
   return {
     columnId: String(row.id),
@@ -172,11 +192,12 @@ export function mapDataRelationship(row: SystemDataRelationshipCatalogModel) {
   };
 }
 
-export function mapToolRequirement(row: SystemEndpointToolRequirementModel) {
+export function mapToolRequirement(row: SystemEndpointToolRequirementModel, tool?: SystemToolCatalogModel) {
   return {
     requirementId: String(row.id),
     endpointId: String(row.endpointId),
     toolId: String(row.toolId),
+    tool: tool ? { code: tool.code, name: tool.name, type: tool.type } : undefined,
     usageType: row.usageType,
     isRequired: row.isRequired,
     failureImpact: row.failureImpact,
@@ -190,11 +211,14 @@ export function mapToolRequirement(row: SystemEndpointToolRequirementModel) {
   };
 }
 
-export function mapDataImpact(row: SystemEndpointDataEntityImpactModel) {
+export function mapDataImpact(row: SystemEndpointDataEntityImpactModel, dataEntity?: SystemDataEntityCatalogModel) {
   return {
     impactId: String(row.id),
     endpointId: String(row.endpointId),
     dataEntityId: String(row.dataEntityId),
+    dataEntity: dataEntity
+      ? { schemaName: dataEntity.schemaName, tableName: dataEntity.tableName, entityName: dataEntity.entityName }
+      : undefined,
     operationType: row.operationType,
     impactLevel: row.impactLevel,
     isPrimaryEntity: row.isPrimaryEntity,
@@ -216,11 +240,14 @@ export function mapDataImpact(row: SystemEndpointDataEntityImpactModel) {
   };
 }
 
-export function mapFieldImpact(row: SystemEndpointFieldImpactModel) {
+export function mapFieldImpact(row: SystemEndpointFieldImpactModel, dataEntity?: SystemDataEntityCatalogModel) {
   return {
     fieldImpactId: String(row.id),
     endpointId: String(row.endpointId),
     dataEntityId: String(row.dataEntityId),
+    dataEntity: dataEntity
+      ? { schemaName: dataEntity.schemaName, tableName: dataEntity.tableName, entityName: dataEntity.entityName }
+      : undefined,
     fieldName: row.fieldName,
     fieldOperation: row.fieldOperation,
     isRequiredInput: row.isRequiredInput,

@@ -169,6 +169,34 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /systems/reports/traffic-latency:
+    get:
+      operationId: getTrafficLatencyReport
+      tags: [SystemsActionLog]
+      summary: Reporte de tráfico y latencia por ruta (derivado de system_action_logs)
+      description: |
+        Agrega `system_action_logs` por `route_template`+`method` dentro de la ventana pedida
+        (SQL crudo vía `Sequelize#query`, `PERCENTILE_CONT` para p95). Solo considera filas con
+        `duration_ms IS NOT NULL`, limitado a las 50 rutas con más tráfico.
+      parameters:
+        - name: windowHours
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 720, default: 24 }
+          description: Ventana de tiempo hacia atrás en horas (coercionado desde string, máx 30 días).
+      responses:
+        '200':
+          description: Resumen de tráfico y latencia por ruta/método.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_TrafficLatencyReport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   # ============================================================
   # SystemsCatalogController
   # ============================================================
@@ -374,6 +402,41 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /systems/data-entities/infer-impacts:
+    post:
+      operationId: inferDataImpacts
+      tags: [SystemsCatalog]
+      summary: Inferir impactos endpoint-tabla (a partir del código fuente)
+      description: |
+        Mismo enfoque de análisis estático que `POST /systems/tools/infer-requirements`
+        (`SystemsDataImpactInferenceService`): escanea el código fuente del módulo de cada
+        endpoint activo buscando llamadas a métodos Sequelize (`create`, `update`, `destroy`,
+        `upsert`, `bulkCreate`, `findOrCreate`, `increment`, `decrement` → `WRITE`;
+        `findAll`, `findByPk`, `findOne`, `findAndCountAll`, `count` → `READ`) sobre cada modelo
+        conocido, e infiere qué entidad de datos (tabla) impacta cada endpoint. Con
+        `persist=true` hace upsert de cada impacto detectado en
+        `system_endpoint_data_entity_impacts` con `reviewStatus=NEEDS_REVIEW`,
+        `detectedFrom='source_inference'` y varios flags de impacto (`affectsCustomerState`,
+        `affectsFinancialState`, etc.) derivados de metadata ya catalogada de la entidad.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InferToolRequirementsRequest' }
+      responses:
+        '201':
+          description: Resultado de la inferencia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_InferDataImpactsResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /systems/data-entities:
     get:
       operationId: listDataEntities
@@ -400,6 +463,56 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+
+  /systems/domains:
+    get:
+      operationId: listDomains
+      tags: [SystemsCatalog]
+      summary: Listar dominios de negocio catalogados (con descripción y owner)
+      description: Lee `system_domain_catalog` (mismo catálogo que alimenta el glosario de negocio del portal interno).
+      parameters:
+        - $ref: '#/components/parameters/QQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Lista paginada de dominios.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_DomainList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /systems/domains/{domainCode}:
+    get:
+      operationId: getDomain
+      tags: [SystemsCatalog]
+      summary: Obtener un dominio catalogado por código
+      parameters:
+        - $ref: '#/components/parameters/DomainCodePath'
+      responses:
+        '200':
+          description: Detalle del dominio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope_Domain'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: SYSTEM_DOMAIN_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
   /systems/data-entities/{entityId}:
     get:
@@ -1444,6 +1557,12 @@ components:
       required: true
       schema: { type: string, pattern: '^[1-9][0-9]*$' }
       description: Id numérico de la entidad de datos.
+    DomainCodePath:
+      name: domainCode
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 120 }
+      description: Código del dominio de negocio (`system_domain_catalog.domain_code`).
     ProfileIdPath:
       name: profileId
       in: path
@@ -1575,6 +1694,25 @@ components:
         createdAt: { type: string, format: date-time, nullable: true }
         updatedAt: { type: string, format: date-time, nullable: true }
 
+    Domain:
+      type: object
+      description: Forma producida por `mapDomain`, leída de `system_domain_catalog`.
+      properties:
+        domainId: { type: string }
+        domainCode: { type: string }
+        domainName: { type: string }
+        description: { type: string, nullable: true }
+        businessDefinition: { type: string, nullable: true }
+        technicalScope: { type: string, nullable: true }
+        dataNature: { type: string, nullable: true }
+        ownerTeam: { type: string, nullable: true }
+        countriesApplicable: { type: array, nullable: true, items: { type: string } }
+        regulatoryNotes: { type: string, nullable: true }
+        exampleTables: { type: array, nullable: true, items: { type: string } }
+        decisionUseCases: { type: string, nullable: true }
+        auditRelevance: { type: string, nullable: true }
+        status: { type: string }
+
     Tool:
       type: object
       description: Forma producida por `mapTool`.
@@ -1703,6 +1841,14 @@ components:
         requirementId: { type: string }
         endpointId: { type: string }
         toolId: { type: string }
+        tool:
+          type: object
+          nullable: true
+          description: Resumen de la herramienta referenciada, resuelto en batch por `enrichToolRequirements` (ausente/omitido si el toolId no matchea ninguna herramienta catalogada).
+          properties:
+            code: { type: string }
+            name: { type: string }
+            type: { type: string }
         usageType: { type: string }
         isRequired: { type: boolean }
         failureImpact: { type: string }
@@ -1721,6 +1867,14 @@ components:
         impactId: { type: string }
         endpointId: { type: string }
         dataEntityId: { type: string }
+        dataEntity:
+          type: object
+          nullable: true
+          description: Resumen de la entidad de datos, resuelto en batch (ausente en `GET /systems/review/*`, presente en `GET /systems/endpoints/:endpointId`, `.../impact/by-endpoint/:endpointId` y `.../data-entities/:entityId` vía `enrichDataImpacts`/`getDataEntity`).
+          properties:
+            schemaName: { type: string }
+            tableName: { type: string }
+            entityName: { type: string, nullable: true }
         operationType: { type: string, example: 'READ | CREATE | UPDATE | DELETE' }
         impactLevel: { type: string }
         isPrimaryEntity: { type: boolean }
@@ -1747,6 +1901,14 @@ components:
         fieldImpactId: { type: string }
         endpointId: { type: string }
         dataEntityId: { type: string }
+        dataEntity:
+          type: object
+          nullable: true
+          description: Igual enriquecimiento que en `DataImpact.dataEntity`.
+          properties:
+            schemaName: { type: string }
+            tableName: { type: string }
+            entityName: { type: string, nullable: true }
         fieldName: { type: string }
         fieldOperation: { type: string }
         isRequiredInput: { type: boolean }
@@ -2145,6 +2307,55 @@ components:
         confidenceLevel: { type: string }
         notes: { type: string, nullable: true }
 
+    DataImpactInferenceItem:
+      type: object
+      properties:
+        endpointId: { type: string }
+        endpointCode: { type: string }
+        tableName: { type: string }
+        operationType: { type: string, enum: [READ, WRITE] }
+        confidenceLevel: { type: string, enum: [LOW, MEDIUM, HIGH] }
+        notes: { type: string }
+
+    InferDataImpactsResult:
+      type: object
+      properties:
+        inferred: { type: integer }
+        persisted: { type: integer, description: '0 si persist=false.' }
+        reviewStatus: { type: string, enum: [NEEDS_REVIEW, DRY_RUN] }
+        items:
+          type: array
+          maxItems: 500
+          items: { $ref: '#/components/schemas/DataImpactInferenceItem' }
+
+    RouteTrafficLatency:
+      type: object
+      properties:
+        routeTemplate: { type: string, nullable: true }
+        method: { type: string }
+        totalRequests: { type: integer }
+        avgLatencyMs: { type: integer, nullable: true }
+        p95LatencyMs: { type: integer, nullable: true }
+        errorRate: { type: number, description: 'Fracción 0-1 de respuestas con status >= 500.' }
+        lastSeenAt: { type: string, format: date-time }
+
+    TrafficLatencyReport:
+      type: object
+      description: Forma producida por `getTrafficLatencyReport`, agregando `system_action_logs` por ruta/método.
+      properties:
+        windowHours: { type: integer }
+        summary:
+          type: object
+          properties:
+            totalRequests: { type: integer }
+            avgLatencyMs: { type: integer, description: 'Promedio ponderado por totalRequests de cada ruta.' }
+            p95LatencyMs: { type: integer, description: 'Máximo de los p95 por ruta (no un p95 global recalculado).' }
+            errorRate: { type: number, description: 'Promedio ponderado por totalRequests de cada ruta.' }
+        routes:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/RouteTrafficLatency' }
+
     InferToolRequirementsResult:
       type: object
       properties:
@@ -2379,6 +2590,38 @@ components:
         requestId: { type: string, nullable: true }
         timestamp: { type: string, format: date-time }
         data: { $ref: '#/components/schemas/InferToolRequirementsResult' }
+
+    Envelope_InferDataImpactsResult:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/InferDataImpactsResult' }
+
+    Envelope_TrafficLatencyReport:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/TrafficLatencyReport' }
+
+    Envelope_DomainList:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/Domain' } }
+            meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+    Envelope_Domain:
+      type: object
+      properties:
+        requestId: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/Domain' }
 
     Envelope_DataEntityList:
       type: object

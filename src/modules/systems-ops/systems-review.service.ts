@@ -14,10 +14,10 @@ export class SystemsReviewService {
     return {
       endpoints: { items: result.endpoints.rows.map(mapEndpoint), total: result.endpoints.count },
       dataEntities: { items: result.dataEntities.rows.map(mapDataEntity), total: result.dataEntities.count },
-      dataEntityImpacts: { items: result.dataImpacts.rows.map(mapDataImpact), total: result.dataImpacts.count },
-      fieldImpacts: { items: result.fieldImpacts.rows.map(mapFieldImpact), total: result.fieldImpacts.count },
+      dataEntityImpacts: { items: result.dataImpacts.rows.map((row) => mapDataImpact(row)), total: result.dataImpacts.count },
+      fieldImpacts: { items: result.fieldImpacts.rows.map((row) => mapFieldImpact(row)), total: result.fieldImpacts.count },
       dataColumnImpacts: { items: result.dataColumns.rows.map(mapDataField), total: result.dataColumns.count },
-      toolRequirements: { items: result.toolRequirements.rows.map(mapToolRequirement), total: result.toolRequirements.count },
+      toolRequirements: { items: result.toolRequirements.rows.map((row) => mapToolRequirement(row)), total: result.toolRequirements.count },
     };
   }
 

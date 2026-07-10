@@ -14,6 +14,8 @@ import {
   InferToolRequirementsDto,
   systemsEndpointParamsSchema,
   SystemsEndpointParamsDto,
+  systemsDomainParamsSchema,
+  SystemsDomainParamsDto,
   systemsEntityParamsSchema,
   SystemsEntityParamsDto,
   systemsListQuerySchema,
@@ -25,6 +27,7 @@ import {
 } from './systems-ops.schemas.js';
 import { SystemsCatalogQueryService } from './systems-catalog-query.service.js';
 import { SystemsToolInferenceService } from './systems-tool-inference.service.js';
+import { SystemsDataImpactInferenceService } from './systems-data-impact-inference.service.js';
 
 @Controller('systems')
 @SystemsOpsControllerSecurity()
@@ -32,6 +35,7 @@ export class SystemsCatalogController {
   constructor(
     private readonly service: SystemsCatalogQueryService,
     private readonly toolInferenceService: SystemsToolInferenceService,
+    private readonly dataImpactInferenceService: SystemsDataImpactInferenceService,
   ) {}
 
   @ApiOperation({ summary: 'Dashboard resumen de systems-ops' })
@@ -112,6 +116,15 @@ export class SystemsCatalogController {
     return this.toolInferenceService.infer(body);
   }
 
+  @ApiOperation({ summary: 'Inferir impactos endpoint-tabla (a partir del código fuente)' })
+  @ApiBody({ schema: zodToApiSchema(inferToolRequirementsSchema) })
+  @ApiResponse({ status: 200, description: 'Impactos endpoint-tabla inferidos.' })
+  @Post('data-entities/infer-impacts')
+  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  inferDataImpacts(@Body(new ZodValidationPipe(inferToolRequirementsSchema)) body: InferToolRequirementsDto) {
+    return this.dataImpactInferenceService.infer(body);
+  }
+
   @ApiOperation({ summary: 'Listar entidades de datos catalogadas' })
   @ApiQuery({ name: 'module', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).module })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).status })
@@ -122,6 +135,25 @@ export class SystemsCatalogController {
   @Get('data-entities')
   listDataEntities(@Query(new ZodValidationPipe(systemsListQuerySchema)) query: SystemsListQueryDto) {
     return this.service.listDataEntities(query);
+  }
+
+  @ApiOperation({ summary: 'Listar dominios de negocio catalogados (con descripción y owner)' })
+  @ApiQuery({ name: 'q', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).q })
+  @ApiQuery({ name: 'page', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).page })
+  @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).limit })
+  @ApiResponse({ status: 200, description: 'Lista paginada de dominios.' })
+  @Get('domains')
+  listDomains(@Query(new ZodValidationPipe(systemsListQuerySchema)) query: SystemsListQueryDto) {
+    return this.service.listDomains(query);
+  }
+
+  @ApiOperation({ summary: 'Obtener un dominio catalogado por código' })
+  @ApiParam({ name: 'domainCode', schema: zodToApiSchema(systemsDomainParamsSchema.shape.domainCode) })
+  @ApiResponse({ status: 200, description: 'Detalle del dominio.' })
+  @ApiResponse({ status: 404, description: 'SYSTEM_DOMAIN_NOT_FOUND.' })
+  @Get('domains/:domainCode')
+  getDomain(@Param(new ZodValidationPipe(systemsDomainParamsSchema)) params: SystemsDomainParamsDto) {
+    return this.service.getDomain(params.domainCode);
   }
 
   @ApiOperation({ summary: 'Obtener una entidad de datos catalogada' })

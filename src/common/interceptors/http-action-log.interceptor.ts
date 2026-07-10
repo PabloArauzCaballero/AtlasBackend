@@ -4,6 +4,7 @@ import { Observable, catchError, from, mergeMap, of, throwError } from 'rxjs';
 import { AuthenticatedUser } from '../types/auth.types.js';
 import { HttpActionLogService } from '../../modules/audit/http-action-log.service.js';
 import { moduleFromPath } from '../../modules/systems-ops/endpoint-code.util.js';
+import { redactSensitiveObject } from '../utils/privacy/redaction.util.js';
 
 type RequestLike = {
   method: string;
@@ -103,7 +104,7 @@ export class HttpActionLogInterceptor implements NestInterceptor {
         containsPii: isLikelyPiiPath(path),
         errorCode: outcome === 'error' ? 'HTTP_REQUEST_ERROR' : null,
         errorMessage: errorMessage ?? null,
-        payload: {
+        payload: redactSensitiveObject({
           method: request.method,
           path,
           query: request.query,
@@ -115,7 +116,7 @@ export class HttpActionLogInterceptor implements NestInterceptor {
           correlationId: request.correlationId ?? null,
           requestId,
           ...(errorMessage ? { errorMessage } : {}),
-        },
+        }) as Record<string, unknown>,
       });
 
     return next.handle().pipe(

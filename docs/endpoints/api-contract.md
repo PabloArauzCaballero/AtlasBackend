@@ -11,7 +11,7 @@ Este documento describe, endpoint por endpoint: método + ruta, autenticación/r
 3. [Consents / Sessions / Risk / External Data](#modulo-03) — consentimientos, sesiones, scoring de riesgo, proveedores externos (SEGIP, Infocenter, QR, banca, telco, redes sociales, KYC)
 4. [Operations / Data Quality / Audit / Catalog Management](#modulo-04) — cola de trabajo interna, casos de fraude/revisión manual, calidad de datos, auditoría, catálogos y política de riesgo
 5. [Systems Ops](#modulo-05) — catálogo técnico de endpoints/tools/entidades de datos, action log, review queue, pruebas de stress y smoke interno
-6. [Schema Management / Internal Portal / Notifications / Events / Health / Runtime Jobs](#modulo-06)
+6. [Schema Management / Internal Portal / Notifications / Events / Health / Runtime Jobs / Log Sync](#modulo-06)
 
 ## Convenciones
 
@@ -2996,10 +2996,18 @@ Sin body.
 **Response 200**
 | Campo | Tipo | Descripción |
 |---|---|---|
-| observations | array | `{ observationDefinitionId, observationCode, observationName, dataType, sourceGroup, riskDimension, isActive }`. |
-| events | array | `{ eventDefinitionId, eventCode, eventName, eventFamily, sourcePackage, riskDimension, isHighVolume, isActive }`. |
-| attributes | array | `{ attributeDefinitionId, attributeCode, attributeName, entityScope, dataType, riskDimension, isSensitive, isActive }`. |
-| features | array | `{ featureDefinitionId, featureCode, featureName, featureFamily, riskDimension, dataType, isModelInput, isPolicyRuleInput, isActive }`. |
+| observations | array | `{ observationDefinitionId, observationCode, observationName, dataType, sourceGroup, riskDimension, isActive, ownerTeam, domainCode, reviewStatus }`. |
+| events | array | `{ eventDefinitionId, eventCode, eventName, eventFamily, sourcePackage, riskDimension, isHighVolume, isActive, ownerTeam, domainCode, reviewStatus, relatedTables }`. `relatedTables` es `targetTablesJson` normalizado a array (si ya es array se usa tal cual, si es objeto se listan sus claves). |
+| attributes | array | `{ attributeDefinitionId, attributeCode, attributeName, entityScope, dataType, riskDimension, isSensitive, isActive, ownerTeam, domainCode, reviewStatus }`. |
+| features | array | `{ featureDefinitionId, featureCode, featureName, featureFamily, riskDimension, dataType, isModelInput, isPolicyRuleInput, isActive, ownerTeam, domainCode, reviewStatus }`. |
+
+**Nota:** `ownerTeam`, `domainCode` y `reviewStatus` son columnas agregadas por
+`20260710090000-add-owner-domain-to-definitions.ts` (antes esta pantalla de "Definiciones" no
+tenía vínculo de owner/dominio, a diferencia del resto de pantallas de catálogo). Las filas
+existentes fueron backfilleadas desde `risk_dimension` con una función determinística contra los
+`domain_code` reales ya sembrados en `system_domain_catalog`; quedan marcadas
+`reviewStatus: 'NEEDS_REVIEW'` para que un humano confirme el mapeo. `ownerTeam` queda `null` en el
+backfill (sin fuente de verdad real todavía) salvo que se edite manualmente.
 
 **Errores**
 - Rol no interno/sistema → `403 Forbidden`.
@@ -3396,9 +3404,43 @@ Sin body.
 
 ---
 
+### GET /api/v1/systems/reports/traffic-latency
+
+**Propósito:** Reporte de tráfico y latencia por ruta, agregando `system_action_logs` con SQL crudo (`Sequelize#query`, `PERCENTILE_CONT` para p95). Solo considera filas con `duration_ms IS NOT NULL`, limitado a las 50 rutas con más tráfico dentro de la ventana pedida.
+**Auth:** igual que módulo.
+**Headers:** ninguno especial.
+
+**Path params**
+Ninguno.
+
+**Query params** (`trafficLatencyQuerySchema`)
+| Campo | Tipo | Requerido | Default | Descripción |
+|---|---|---|---|---|
+| windowHours | number entero positivo max 720 (coercionado) | No | 24 | Ventana de tiempo hacia atrás en horas (máx 30 días) |
+
+**Request body**
+Sin body.
+
+**Response 200**
+| Campo | Tipo | Descripción |
+|---|---|---|
+| windowHours | number | Eco del parámetro de query aplicado |
+| summary.totalRequests | number | Suma de `totalRequests` de todas las rutas |
+| summary.avgLatencyMs | number | Promedio ponderado por `totalRequests` de cada ruta |
+| summary.p95LatencyMs | number | Máximo de los `p95LatencyMs` por ruta (no un p95 global recalculado sobre todas las filas) |
+| summary.errorRate | number | Promedio ponderado por `totalRequests` de cada ruta (fracción 0-1) |
+| routes | RouteTrafficLatency[] | Máximo 50 rutas, orden por `totalRequests` descendente |
+
+Forma `RouteTrafficLatency`: `routeTemplate (string\|null), method, totalRequests, avgLatencyMs (number\|null), p95LatencyMs (number\|null), errorRate (fracción 0-1, respuestas con status >= 500), lastSeenAt (Date)`.
+
+**Errores**
+- Query inválida (`windowHours` fuera de rango) → `400 BadRequestException`.
+
+---
+
 ## Módulo: SystemsCatalogController
 
-Archivo: `src/modules/systems-ops/systems-catalog.controller.ts`. Servicios: `SystemsCatalogQueryService`, `SystemsToolInferenceService`. Repositorios: `SystemsCatalogRepository`, `SystemsDashboardRepository`. Mappers: `mapEndpoint`, `mapTool`, `mapDataEntity`, `mapToolRequirement`, `mapDataImpact`, `mapFieldImpact`.
+Archivo: `src/modules/systems-ops/systems-catalog.controller.ts`. Servicios: `SystemsCatalogQueryService`, `SystemsToolInferenceService`, `SystemsDataImpactInferenceService`. Repositorios: `SystemsCatalogRepository`, `SystemsDashboardRepository`. Mappers: `mapEndpoint`, `mapTool`, `mapDataEntity`, `mapDomain`, `mapToolRequirement`, `mapDataImpact`, `mapFieldImpact`.
 
 ### GET /api/v1/systems/dashboard
 
@@ -3535,11 +3577,11 @@ Sin body.
 | dataEntityImpacts | DataImpact[] | Ver forma `DataImpact` abajo |
 | fieldImpacts | FieldImpact[] | Ver forma `FieldImpact` abajo |
 
-Forma `ToolRequirement` (`mapToolRequirement`): `requirementId, endpointId, toolId, usageType, isRequired, failureImpact, fallbackStrategy, requiresMock, requiresStressTest, notes, detectedFrom, confidenceLevel, reviewStatus` (todos string/boolean según nombre, ids como string).
+Forma `ToolRequirement` (`mapToolRequirement`): `requirementId, endpointId, toolId, usageType, isRequired, failureImpact, fallbackStrategy, requiresMock, requiresStressTest, notes, detectedFrom, confidenceLevel, reviewStatus` (todos string/boolean según nombre, ids como string), más `tool` (`{ code, name, type } | undefined`, resumen de la herramienta resuelto en batch — presente en `GET /systems/endpoints/:endpointId` y `.../impact/by-endpoint/:endpointId`, ausente en `GET /systems/review/*` que sigue devolviendo la fila cruda sin enriquecer).
 
-Forma `DataImpact` (`mapDataImpact`): `impactId, endpointId, dataEntityId, operationType, impactLevel, isPrimaryEntity, isTransactional, rollbackRequired, affectsCustomerState, affectsFinancialState, affectsRiskState, affectsLegalState, affectsDeviceState, affectsNotificationState, requiresAuditLog, requiresRegressionTest, requiresStressTest, notes, detectedFrom, confidenceLevel, reviewStatus`.
+Forma `DataImpact` (`mapDataImpact`): `impactId, endpointId, dataEntityId, operationType, impactLevel, isPrimaryEntity, isTransactional, rollbackRequired, affectsCustomerState, affectsFinancialState, affectsRiskState, affectsLegalState, affectsDeviceState, affectsNotificationState, requiresAuditLog, requiresRegressionTest, requiresStressTest, notes, detectedFrom, confidenceLevel, reviewStatus`, más `dataEntity` (`{ schemaName, tableName, entityName } | undefined`, mismo enriquecimiento por batch que `tool` arriba).
 
-Forma `FieldImpact` (`mapFieldImpact`): `fieldImpactId, endpointId, dataEntityId, fieldName, fieldOperation, isRequiredInput, isGenerated, isSensitive, isMlCandidate, mlFeatureGroup, validationRule, notes, confidenceLevel, reviewStatus`.
+Forma `FieldImpact` (`mapFieldImpact`): `fieldImpactId, endpointId, dataEntityId, fieldName, fieldOperation, isRequiredInput, isGenerated, isSensitive, isMlCandidate, mlFeatureGroup, validationRule, notes, confidenceLevel, reviewStatus`, más `dataEntity` (`{ schemaName, tableName, entityName } | undefined`, igual enriquecimiento).
 
 **Errores**
 - `endpointId` no existe → `404 NotFoundException('SYSTEM_ENDPOINT_NOT_FOUND')`.
@@ -3698,6 +3740,36 @@ Ninguno.
 
 ---
 
+### POST /api/v1/systems/data-entities/infer-impacts
+
+**Propósito:** Mismo enfoque de análisis estático que `infer-requirements` pero para impactos endpoint→tabla: escanea el código fuente del módulo de cada endpoint activo buscando llamadas a métodos Sequelize conocidos (`create, update, destroy, upsert, bulkCreate, findOrCreate, increment, decrement` → `WRITE`; `findAll, findByPk, findOne, findAndCountAll, count` → `READ`) sobre cada modelo catalogado, e infiere qué tabla impacta cada endpoint.
+**Auth:** igual que módulo.
+**Headers:** ninguno especial.
+
+**Path params**
+Ninguno.
+
+**Query params**
+Ninguno.
+
+**Request body** (`inferToolRequirementsSchema`, reutilizado — mismo shape que `infer-requirements`)
+| Campo | Tipo | Requerido | Default | Descripción |
+|---|---|---|---|---|
+| persist | boolean (coercionado) | No | `true` | Si `true`, hace upsert de cada impacto detectado en `system_endpoint_data_entity_impacts` con `reviewStatus=NEEDS_REVIEW`, `detectedFrom='source_inference'`, y flags (`affectsCustomerState`, `affectsFinancialState`, `affectsRiskState`, `affectsLegalState`, `affectsDeviceState`, `affectsNotificationState`, `requiresAuditLog`, `requiresStressTest`) derivados de metadata ya catalogada de la entidad (`module`, `containsFinancialData`, `containsRiskData`, `containsLegalData`, `containsDeviceData`, `isAuditCritical`) |
+
+**Response 201**
+| Campo | Tipo | Descripción |
+|---|---|---|
+| inferred | number | Total de inferencias detectadas |
+| persisted | number | Cantidad persistida (0 si `persist=false`) |
+| reviewStatus | `'NEEDS_REVIEW' \| 'DRY_RUN'` | `NEEDS_REVIEW` si `persist=true`, `DRY_RUN` si no |
+| items | DataImpactInference[] (máx 500) | `{endpointId, endpointCode, tableName, operationType ('READ'\|'WRITE'), confidenceLevel ('LOW'\|'MEDIUM'\|'HIGH'), notes}` |
+
+**Errores**
+- Body inválido → `400 BadRequestException`.
+
+---
+
 ### GET /api/v1/systems/data-entities
 
 **Propósito:** Listar entidades de datos (tablas) catalogadas con su clasificación de sensibilidad.
@@ -3722,6 +3794,63 @@ Forma `DataEntity` (`mapDataEntity`): `entityId, schemaName, tableName, modelNam
 
 **Errores**
 - Query inválida → `400 BadRequestException`.
+
+---
+
+### GET /api/v1/systems/domains
+
+**Propósito:** Listar dominios de negocio catalogados (con descripción y owner) desde `system_domain_catalog` — el mismo catálogo que alimenta el glosario de negocio del portal interno (`GET /internal/business-metadata/glossary`).
+**Auth:** igual que módulo.
+**Headers:** ninguno especial.
+
+**Path params**
+Ninguno.
+
+**Query params**
+| Campo | Tipo | Requerido | Default | Descripción |
+|---|---|---|---|---|
+| q | string (1-200) | No | — | Búsqueda de texto libre |
+| page | number entero positivo | No | 1 | Página |
+| limit | number entero positivo max 100 | No | 20 | Tamaño de página |
+
+**Request body**
+Sin body.
+
+**Response 200**
+| Campo | Tipo | Descripción |
+|---|---|---|
+| items | Domain[] | Ver forma abajo |
+| meta | `{page, limit, total, totalPages}` | Paginación |
+
+Forma `Domain` (`mapDomain`): `domainId, domainCode, domainName, description, businessDefinition, technicalScope, dataNature, ownerTeam, countriesApplicable (string[]\|null), regulatoryNotes, exampleTables (string[]\|null), decisionUseCases, auditRelevance, status`.
+
+**Errores**
+- Query inválida → `400 BadRequestException`.
+
+---
+
+### GET /api/v1/systems/domains/:domainCode
+
+**Propósito:** Obtener un dominio catalogado por código.
+**Auth:** igual que módulo.
+**Headers:** ninguno especial.
+
+**Path params**
+| Campo | Tipo | Descripción |
+|---|---|---|
+| domainCode | string (1-120) | Código del dominio (`system_domain_catalog.domain_code`) |
+
+**Query params**
+Ninguno.
+
+**Request body**
+Sin body.
+
+**Response 200**: objeto `Domain` (ver forma arriba).
+
+**Errores**
+- No existe → `404 NotFoundException('SYSTEM_DOMAIN_NOT_FOUND')`.
+- `domainCode` vacío o >120 caracteres → `400 BadRequestException`.
 
 ---
 
@@ -4633,7 +4762,7 @@ Sin body.
 
 <a id="modulo-06"></a>
 
-# Contrato HTTP — Schema Management, Internal Portal, Notifications, Events, Health, Runtime Jobs
+# Contrato HTTP — Schema Management, Internal Portal, Notifications, Events, Health, Runtime Jobs, Log Sync
 
 Prefijo global: `/api/v1` (`env.API_PREFIX`, aplicado en `src/main.ts` vía `app.setGlobalPrefix(env.API_PREFIX)`).
 
@@ -4936,7 +5065,7 @@ Nota general: los query/body de este controlador se tipan como `Record<string, s
 
 **Response 200**
 `{ items: BusinessTermSummary[], meta: { page, limit, total, totalPages } }`. Cada item (fusión de dominios + tablas + columnas de `system_domain_catalog`, `system_data_entity_catalog`, `system_data_field_catalog`):
-`termId` (string, prefijo `domain:`/`table:`/`field:`), `key`, `name`, `definition`, `domain`, `owner`, `status`, `relatedTables` (string[]), `relatedColumns` (string[]), `relatedReports` (string[]), `metadata` (object), `updatedAt` (ISO string).
+`termId` (string, prefijo `domain:`/`table:`/`field:`), `key`, `name`, `definition`, `domain`, `owner`, `status`, `relatedTables` (string[]), `relatedColumns` (string[]), `relatedEndpoints` (string[], `"<METHOD> <fullPath>"` por cada endpoint que impacta las tablas del término, resuelto vía `system_endpoint_data_entity_impacts` — solo items `domain:*`/`table:*` lo pueblan; siempre `[]` en items `field:*`), `relatedReports` (string[]), `metadata` (object), `updatedAt` (ISO string).
 
 **Errores:** ninguno explícito (consulta siempre devuelve lista, aunque vacía).
 
@@ -5835,3 +5964,47 @@ Todos los endpoints exigen **ambos** headers `x-tenant-id` y `x-idempotency-key`
 
 **Errores**
 - Headers faltantes → 400. Rol no permitido → 403.
+
+---
+
+## Módulo: Log Sync (Mongo Logs)
+
+Archivo: `src/modules/log-sync/mongo-logs.controller.ts`. Servicio: `MongoLogsQueryService`. Schema: `mongo-logs.schemas.ts`. `ArchivoLogMongoSyncService` (mismo módulo) solo escribe `Archivo.log` hacia MongoDB (`atlas_logs.archivo_log_updates` por defecto) — antes de este endpoint nada leía esa colección de vuelta por HTTP.
+
+### GET /api/v1/systems/logs/mongo
+
+**Propósito:** Listar logs sincronizados a MongoDB (`Archivo.log` remoto) para el visor de logs del panel interno. Usa su propio `MongoClient` (no comparte conexión con `ArchivoLogMongoSyncService`) para que el tráfico de lectura nunca bloquee la ruta de escritura/sync.
+**Auth:** `SystemsOpsControllerSecurity()` — mismos roles que el módulo `systems-ops` (`system_admin, platform_admin, admin, qa_engineer, devops, risk_analyst, compliance_analyst, readonly_auditor`).
+**Headers:** ninguno especial.
+
+**Path params**
+Ninguno.
+
+**Query params** (`mongoLogsQuerySchema`)
+| Campo | Tipo | Requerido | Default | Descripción |
+|---|---|---|---|---|
+| type | enum `startup, append, rotation` | No | — | Filtra por tipo de entrada de log |
+| service | string (1-120) | No | — | Filtra por nombre de servicio exacto |
+| q | string (1-200) | No | — | Búsqueda de texto libre sobre `content` (`$regex`, case-insensitive) |
+| from | string ISO datetime | No | — | Filtra `capturedAt >= from` |
+| to | string ISO datetime | No | — | Filtra `capturedAt <= to` |
+| page | number entero positivo (coercionado) | No | 1 | Página |
+| limit | number entero positivo max 200 (coercionado) | No | 50 | Tamaño de página |
+
+**Request body**
+Sin body.
+
+**Response 200**
+| Campo | Tipo | Descripción |
+|---|---|---|
+| items | MongoLogEntry[] | Ver forma abajo, orden `capturedAt DESC` |
+| meta.page | number | Página actual |
+| meta.limit | number | Tamaño de página |
+| meta.total | number | Total de documentos que matchean el filtro |
+| meta.totalPages | number | `max(1, ceil(total/limit))` |
+
+Forma `MongoLogEntry`: `id (string, _id de Mongo), type, service, capturedAt, content (string\|null), lineCount (number\|null), bytes (number\|null), fileSize (number\|null), source (string\|null)`.
+
+**Errores**
+- Query inválida → `400 BadRequestException` (ZodValidationPipe).
+- `MONGO_DB_URL_CONNECTION` no configurada → `503 ServiceUnavailableException('MONGO_LOGS_NOT_CONFIGURED')`.

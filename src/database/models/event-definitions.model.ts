@@ -41,6 +41,15 @@ export class EventDefinitionModel extends Model {
   @Column({ field: 'is_active', type: DataType.BOOLEAN })
   declare isActive: boolean | null;
 
+  @Column({ field: 'owner_team', type: DataType.STRING(80) })
+  declare ownerTeam: string | null;
+
+  @Column({ field: 'domain_code', type: DataType.STRING(120) })
+  declare domainCode: string | null;
+
+  @Column({ field: 'review_status', type: DataType.STRING(40), allowNull: false })
+  declare reviewStatus: string;
+
   @Column({ field: '_created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 

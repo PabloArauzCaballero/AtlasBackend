@@ -184,6 +184,11 @@ export class SystemsCatalogRepository {
     return this.toolModel.findOne({ where: { code } } as FindOptions);
   }
 
+  findToolsByIds(toolIds: string[]): Promise<SystemToolCatalogModel[]> {
+    if (toolIds.length === 0) return Promise.resolve([]);
+    return this.toolModel.findAll({ where: { id: { [Op.in]: toolIds } } } as FindOptions);
+  }
+
   async upsertTool(seed: ToolSeed): Promise<void> {
     const now = new Date();
     await this.toolModel.upsert({
@@ -236,6 +241,11 @@ export class SystemsCatalogRepository {
 
   findDataEntityByTable(schemaName: string, tableName: string): Promise<SystemDataEntityCatalogModel | null> {
     return this.dataEntityModel.findOne({ where: { schemaName, tableName } } as FindOptions);
+  }
+
+  findDataEntitiesByIds(entityIds: string[]): Promise<SystemDataEntityCatalogModel[]> {
+    if (entityIds.length === 0) return Promise.resolve([]);
+    return this.dataEntityModel.findAll({ where: { id: { [Op.in]: entityIds } } } as FindOptions);
   }
 
   async updateDataEntityMetadata(

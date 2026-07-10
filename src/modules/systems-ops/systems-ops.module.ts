@@ -49,6 +49,8 @@ import { SystemsTestRunnerService } from './systems-test-runner.service.js';
 import { SystemsTestTemplateService } from './systems-test-template.service.js';
 import { SystemsToolInferenceRepository } from './systems-tool-inference.repository.js';
 import { SystemsToolInferenceService } from './systems-tool-inference.service.js';
+import { SystemsDataImpactInferenceRepository } from './systems-data-impact-inference.repository.js';
+import { SystemsDataImpactInferenceService } from './systems-data-impact-inference.service.js';
 
 @Module({
   imports: [
@@ -104,6 +106,8 @@ import { SystemsToolInferenceService } from './systems-tool-inference.service.js
     SystemsTestSuiteAdminService,
     SystemsToolInferenceRepository,
     SystemsToolInferenceService,
+    SystemsDataImpactInferenceRepository,
+    SystemsDataImpactInferenceService,
     SystemsStressRunService,
   ],
 })

@@ -10,6 +10,7 @@ import { SystemsTestController } from '../../../src/modules/systems-ops/systems-
 import { SystemsActionLogQueryService } from '../../../src/modules/systems-ops/systems-action-log-query.service.js';
 import { SystemsCatalogQueryService } from '../../../src/modules/systems-ops/systems-catalog-query.service.js';
 import { SystemsToolInferenceService } from '../../../src/modules/systems-ops/systems-tool-inference.service.js';
+import { SystemsDataImpactInferenceService } from '../../../src/modules/systems-ops/systems-data-impact-inference.service.js';
 import { SystemsReviewService } from '../../../src/modules/systems-ops/systems-review.service.js';
 import { SystemsStressProfileService } from '../../../src/modules/systems-ops/systems-stress-profile.service.js';
 import { SystemsStressRunService } from '../../../src/modules/systems-ops/systems-stress-run.service.js';
@@ -48,6 +49,7 @@ describe('systems-ops — OpenAPI document generation (5 controllers)', () => {
       getStressMatrix: jest.fn(),
     };
     const toolInferenceServiceMock = { infer: jest.fn() };
+    const dataImpactInferenceServiceMock = { infer: jest.fn() };
     const reviewServiceMock = {
       getReviewQueue: jest.fn(),
       reviewEndpoint: jest.fn(),
@@ -94,6 +96,7 @@ describe('systems-ops — OpenAPI document generation (5 controllers)', () => {
         { provide: SystemsActionLogQueryService, useValue: actionLogServiceMock },
         { provide: SystemsCatalogQueryService, useValue: catalogServiceMock },
         { provide: SystemsToolInferenceService, useValue: toolInferenceServiceMock },
+        { provide: SystemsDataImpactInferenceService, useValue: dataImpactInferenceServiceMock },
         { provide: SystemsReviewService, useValue: reviewServiceMock },
         { provide: SystemsStressProfileService, useValue: stressProfileServiceMock },
         { provide: SystemsStressRunService, useValue: stressRunServiceMock },

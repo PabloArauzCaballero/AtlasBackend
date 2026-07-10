@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import type { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface.js';
+
+// Swagger 11 no longer exports its deep OpenAPI interfaces through the package
+// export map. Keep the adapter decoupled from private package paths.
+export type SchemaObject = Record<string, unknown> & {
+  properties?: Record<string, SchemaObject>;
+  required?: string[];
+};
 
 /**
  * Puente Zod -> OpenAPI para TODO el proyecto. Los ~23 módulos de este backend validan su
