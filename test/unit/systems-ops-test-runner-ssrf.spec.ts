@@ -28,7 +28,7 @@ describe('SystemsTestRunnerService — SSRF guard on real (non-dry-run) executio
     return { service, repository, httpClient };
   }
 
-  const user = { role: 'readonly_auditor', internalUserId: 'iu1' } as never;
+  const user = { role: 'system_admin', internalUserId: 'iu1' } as never;
 
   it.each([
     ['STAGING', 'http://169.254.169.254/latest/meta-data/'],
@@ -69,7 +69,14 @@ describe('SystemsTestRunnerService — SSRF guard on real (non-dry-run) executio
 
     const result = await service.runSuite(
       's1',
-      { environment: 'STAGING', dryRun: false, baseUrl: 'https://staging.atlas.example.com', config: {}, headers: {}, timeoutMs: 5000 } as never,
+      {
+        environment: 'STAGING',
+        dryRun: false,
+        baseUrl: 'https://staging.atlas.example.com',
+        config: {},
+        headers: {},
+        timeoutMs: 5000,
+      } as never,
       user,
     );
 

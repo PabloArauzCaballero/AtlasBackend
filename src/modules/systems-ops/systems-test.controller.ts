@@ -6,7 +6,7 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { SystemsOpsControllerSecurity } from './systems-controller.decorators.js';
-import { SYSTEMS_OPS_WRITE_ROLES } from './systems-ops.constants.js';
+import { SYSTEMS_OPS_QA_ROLES } from './systems-ops.constants.js';
 import {
   createTestStepSchema,
   CreateTestStepDto,
@@ -45,7 +45,7 @@ export class SystemsTestController {
   @ApiOperation({ summary: 'Crear una suite de pruebas' })
   @ApiBody({ schema: zodToApiSchema(createTestSuiteSchema) })
   @ApiResponse({ status: 201, description: 'Suite de pruebas creada.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_QA_ROLES)
   @Post('test-suites')
   createTestSuite(@Body(new ZodValidationPipe(createTestSuiteSchema)) body: CreateTestSuiteDto, @CurrentUser() user: AuthenticatedUser) {
     return this.suiteAdminService.createSuite(body, user);
@@ -77,7 +77,7 @@ export class SystemsTestController {
   @ApiBody({ schema: zodToApiSchema(updateTestSuiteSchema) })
   @ApiResponse({ status: 200, description: 'Suite actualizada.' })
   @ApiResponse({ status: 404, description: 'TEST_SUITE_NOT_FOUND.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_QA_ROLES)
   @Patch('test-suites/:suiteId')
   updateTestSuite(
     @Param(new ZodValidationPipe(systemsSuiteParamsSchema)) params: SystemsSuiteParamsDto,
@@ -91,7 +91,7 @@ export class SystemsTestController {
   @ApiBody({ schema: zodToApiSchema(createTestStepSchema) })
   @ApiResponse({ status: 201, description: 'Step creado.' })
   @ApiResponse({ status: 404, description: 'TEST_SUITE_NOT_FOUND.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_QA_ROLES)
   @Post('test-suites/:suiteId/steps')
   createTestStep(
     @Param(new ZodValidationPipe(systemsSuiteParamsSchema)) params: SystemsSuiteParamsDto,
@@ -106,7 +106,7 @@ export class SystemsTestController {
   @ApiBody({ schema: zodToApiSchema(updateTestStepSchema) })
   @ApiResponse({ status: 200, description: 'Step actualizado.' })
   @ApiResponse({ status: 404, description: 'TEST_STEP_NOT_FOUND.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_QA_ROLES)
   @Patch('test-suites/:suiteId/steps/:stepId')
   updateTestStep(
     @Param(new ZodValidationPipe(systemsTestStepParamsSchema)) params: SystemsTestStepParamsDto,
@@ -120,7 +120,7 @@ export class SystemsTestController {
   @ApiBody({ schema: zodToApiSchema(reorderTestStepsSchema) })
   @ApiResponse({ status: 200, description: 'Steps reordenados.' })
   @ApiResponse({ status: 404, description: 'TEST_SUITE_NOT_FOUND.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_QA_ROLES)
   @Post('test-suites/:suiteId/steps/reorder')
   reorderTestSteps(
     @Param(new ZodValidationPipe(systemsSuiteParamsSchema)) params: SystemsSuiteParamsDto,
@@ -134,7 +134,7 @@ export class SystemsTestController {
   @ApiBody({ schema: zodToApiSchema(runTestSuiteSchema) })
   @ApiResponse({ status: 201, description: 'Corrida de suite iniciada/encolada.' })
   @ApiResponse({ status: 404, description: 'TEST_SUITE_NOT_FOUND.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_QA_ROLES)
   @Post('test-suites/:suiteId/run')
   runTestSuite(
     @Param(new ZodValidationPipe(systemsSuiteParamsSchema)) params: SystemsSuiteParamsDto,
@@ -152,8 +152,8 @@ export class SystemsTestController {
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(systemsRunsQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Lista paginada de corridas.' })
   @Get('test-runs')
-  listTestRuns(@Query(new ZodValidationPipe(systemsRunsQuerySchema)) query: SystemsRunsQueryDto) {
-    return this.service.listTestRuns(query);
+  listTestRuns(@Query(new ZodValidationPipe(systemsRunsQuerySchema)) query: SystemsRunsQueryDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.listTestRuns(query, user);
   }
 
   @ApiOperation({ summary: 'Obtener una corrida de suite de pruebas' })
@@ -161,7 +161,7 @@ export class SystemsTestController {
   @ApiResponse({ status: 200, description: 'Detalle de la corrida.' })
   @ApiResponse({ status: 404, description: 'TEST_RUN_NOT_FOUND.' })
   @Get('test-runs/:runId')
-  getTestRun(@Param(new ZodValidationPipe(systemsRunParamsSchema)) params: SystemsRunParamsDto) {
-    return this.service.getTestRun(params.runId);
+  getTestRun(@Param(new ZodValidationPipe(systemsRunParamsSchema)) params: SystemsRunParamsDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.getTestRun(params.runId, user);
   }
 }

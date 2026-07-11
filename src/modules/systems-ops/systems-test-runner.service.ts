@@ -9,6 +9,8 @@ import { SystemsTestAssertionService } from './systems-test-assertion.service.js
 import { SystemsTestHttpClientService } from './systems-test-http-client.service.js';
 import { SystemsTestTemplateContext, SystemsTestTemplateService } from './systems-test-template.service.js';
 import { readJsonPath } from './systems-json-path.util.js';
+import { assertHostAllowed, SystemTestEnvironment } from './systems-test-url-policy.util.js';
+import { systemsTenantScope } from './systems-tenant-scope.util.js';
 
 type StepExecution = {
   status: 'PASSED' | 'FAILED';
@@ -23,19 +25,6 @@ function actorIdentifier(user: AuthenticatedUser): string | null {
   return user.internalUserId ?? user.platformUserId ?? user.sub ?? null;
 }
 
-const BLOCKED_TEST_TARGET_HOSTNAMES = new Set(['169.254.169.254', '169.254.170.2', 'metadata.google.internal', 'metadata']);
-
-function isPrivateOrLoopbackIPv4(ip: string): boolean {
-  const parts = ip.split('.').map(Number);
-  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part))) return false;
-  const [a, b] = parts;
-  if (a === 127 || a === 10 || a === 0) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 169 && b === 254) return true; // incluye 169.254.169.254 (metadata AWS/GCP/Azure)
-  return false;
-}
-
 /**
  * ATLAS-AUDIT (auditoría #16, `systems-ops`): antes de este cambio, `assertRealRunCanExecute`
  * solo restringía el host de `baseUrl` cuando `environment === 'LOCAL'` — para `STAGING` y
@@ -48,15 +37,6 @@ function isPrivateOrLoopbackIPv4(ip: string): boolean {
  * todo requiere una lista blanca de hosts de confianza por ambiente, una decisión de
  * configuración que queda fuera del alcance de esta corrección puntual.
  */
-function isBlockedTestTarget(hostname: string): boolean {
-  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '');
-  if (BLOCKED_TEST_TARGET_HOSTNAMES.has(normalized)) return true;
-  if (normalized === '::1' || normalized === '0:0:0:0:0:0:0:1') return true;
-  if (normalized.startsWith('fe80:') || normalized.startsWith('fc00:') || normalized.startsWith('fd')) return true;
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(normalized)) return isPrivateOrLoopbackIPv4(normalized);
-  return false;
-}
-
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -84,8 +64,11 @@ export class SystemsTestRunnerService {
     this.assertRealRunCanExecute(body);
 
     const steps = await this.repository.findTestStepsBySuite(suiteId);
+    if (steps.length === 0) throw new BadRequestException('SYSTEM_TEST_SUITE_HAS_NO_STEPS');
+    if (steps.length > 50) throw new BadRequestException('SYSTEM_TEST_SUITE_EXCEEDS_MAX_STEPS');
     const startedAt = new Date();
     const run = await this.repository.createTestRun({
+      tenantId: systemsTenantScope(user),
       suiteId,
       environment: body.environment,
       triggeredBy: actorIdentifier(user),
@@ -94,59 +77,74 @@ export class SystemsTestRunnerService {
       summary: { dryRun: this.isDryRun(body), totalSteps: steps.length, timeoutMs: body.timeoutMs },
     });
 
-    const context: Record<string, unknown> = {};
-    let lastResponse: unknown = {};
-    let passed = 0;
-    let failed = 0;
-    let stopped = false;
+    try {
+      const context: Record<string, unknown> = {};
+      let lastResponse: unknown = {};
+      let passed = 0;
+      let failed = 0;
+      let stopped = false;
 
-    for (const step of steps) {
-      if (stopped) {
-        await this.createSkippedStepRun(String(run.id), step);
-        continue;
+      for (const step of steps) {
+        if (stopped) {
+          await this.createSkippedStepRun(String(run.id), step);
+          continue;
+        }
+
+        const executed = await this.executeStepSafely(step, body, { config: body.config, context, last: lastResponse });
+        await this.repository.createTestStepRun({
+          testRunId: String(run.id),
+          stepId: String(step.id),
+          status: executed.status,
+          requestPayloadSanitized: sanitizeForSystemsOps(executed.requestSummary),
+          responseBodySanitized: sanitizeForSystemsOps(executed.responseBody),
+          statusCode: executed.statusCode,
+          durationMs: executed.durationMs,
+          errorMessage: executed.errorMessage,
+          createdAt: new Date(),
+        });
+
+        if (executed.status === 'PASSED') {
+          passed += 1;
+          lastResponse = executed.responseBody;
+          this.applyExtractors(context, step.extractors, executed.responseBody);
+        } else {
+          failed += 1;
+          stopped = !step.continueOnFailure;
+        }
       }
 
-      const executed = await this.executeStepSafely(step, body, { config: body.config, context, last: lastResponse });
-      await this.repository.createTestStepRun({
-        testRunId: String(run.id),
-        stepId: String(step.id),
-        status: executed.status,
-        requestPayloadSanitized: sanitizeForSystemsOps(executed.requestSummary),
-        responseBodySanitized: sanitizeForSystemsOps(executed.responseBody),
-        statusCode: executed.statusCode,
-        durationMs: executed.durationMs,
-        errorMessage: executed.errorMessage,
-        createdAt: new Date(),
+      const skipped = steps.length - passed - failed;
+      const finishedAt = new Date();
+      const status = failed > 0 ? 'FAILED' : 'PASSED';
+      const updated = await this.repository.finishTestRun(run, {
+        status,
+        finishedAt,
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        summary: {
+          dryRun: this.isDryRun(body),
+          totalSteps: steps.length,
+          passed,
+          failed,
+          skipped,
+          extractedContextKeys: Object.keys(context).sort(),
+        },
       });
-
-      if (executed.status === 'PASSED') {
-        passed += 1;
-        lastResponse = executed.responseBody;
-        this.applyExtractors(context, step.extractors, executed.responseBody);
-      } else {
-        failed += 1;
-        stopped = !step.continueOnFailure;
+      const stepRuns = await this.repository.findStepRunsByRun(String(run.id));
+      return { run: mapTestRun(updated), steps: stepRuns.map(mapTestStepRun) };
+    } catch (error) {
+      const finishedAt = new Date();
+      try {
+        await this.repository.finishTestRun(run, {
+          status: 'FAILED',
+          finishedAt,
+          durationMs: finishedAt.getTime() - startedAt.getTime(),
+          summary: { dryRun: this.isDryRun(body), totalSteps: steps.length, infrastructureFailure: true },
+        });
+      } catch {
+        // Se conserva el error original; un reconciliador también cierra runs RUNNING antiguos.
       }
+      throw error;
     }
-
-    const skipped = steps.length - passed - failed;
-    const finishedAt = new Date();
-    const status = failed > 0 ? 'FAILED' : 'PASSED';
-    const updated = await this.repository.finishTestRun(run, {
-      status,
-      finishedAt,
-      durationMs: finishedAt.getTime() - startedAt.getTime(),
-      summary: {
-        dryRun: this.isDryRun(body),
-        totalSteps: steps.length,
-        passed,
-        failed,
-        skipped,
-        extractedContextKeys: Object.keys(context).sort(),
-      },
-    });
-    const stepRuns = await this.repository.findStepRunsByRun(String(run.id));
-    return { run: mapTestRun(updated), steps: stepRuns.map(mapTestStepRun) };
   }
 
   private async executeStepSafely(
@@ -192,6 +190,7 @@ export class SystemsTestRunnerService {
       headers: resolvedHeaders,
       payload: resolvedPayload,
       timeoutMs: body.timeoutMs,
+      environment: body.environment as SystemTestEnvironment,
     });
     const durationMs = Date.now() - startedAt;
     const assertionResult = this.assertions.evaluate({
@@ -284,13 +283,7 @@ export class SystemsTestRunnerService {
   private assertRealRunCanExecute(body: RunTestSuiteDto): void {
     if (this.isDryRun(body)) return;
     if (!body.baseUrl) throw new BadRequestException('SYSTEM_TEST_BASE_URL_REQUIRED_FOR_REAL_RUN');
-    const hostname = new URL(body.baseUrl).hostname;
-    if (body.environment === 'LOCAL' && !['localhost', '127.0.0.1', 'host.docker.internal'].includes(hostname)) {
-      throw new ForbiddenException('SYSTEM_TEST_LOCAL_ENVIRONMENT_REQUIRES_LOCAL_BASE_URL');
-    }
-    if (body.environment !== 'LOCAL' && isBlockedTestTarget(hostname)) {
-      throw new ForbiddenException('SYSTEM_TEST_BASE_URL_TARGETS_INTERNAL_OR_METADATA_ADDRESS');
-    }
+    assertHostAllowed(new URL(body.baseUrl), body.environment as SystemTestEnvironment);
   }
 
   private isDryRun(body: RunTestSuiteDto): boolean {

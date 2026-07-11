@@ -5,6 +5,7 @@ import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pag
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { SystemJobRunModel, SystemStressProfileModel } from '../../database/models/index.js';
 import { QueueStressRunDto, SystemsRunsQueryDto } from './systems-ops.schemas.js';
+import { systemsTenantScope } from './systems-tenant-scope.util.js';
 
 function actorId(user: AuthenticatedUser | undefined): string | null {
   return user?.internalUserId ?? user?.platformUserId ?? user?.sub ?? null;
@@ -40,7 +41,7 @@ export class SystemsStressRunService {
 
     const now = new Date();
     const run = await this.jobRunModel.create({
-      tenantId: null,
+      tenantId: systemsTenantScope(user),
       jobCode: 'systems_stress_run',
       status: 'queued',
       startedAt: null,
@@ -71,10 +72,12 @@ export class SystemsStressRunService {
     return { queued: true, run: mapSystemJobRun(run) };
   }
 
-  async listStressRuns(query: SystemsRunsQueryDto) {
+  async listStressRuns(query: SystemsRunsQueryDto, user: AuthenticatedUser) {
+    const tenantId = systemsTenantScope(user);
     const where: WhereOptions = {
       jobCode: 'systems_stress_run',
       ...(query.status ? { status: query.status.toLowerCase() } : {}),
+      ...(tenantId === null ? {} : { tenantId }),
     } as WhereOptions;
     const result = await this.jobRunModel.findAndCountAll({
       where,

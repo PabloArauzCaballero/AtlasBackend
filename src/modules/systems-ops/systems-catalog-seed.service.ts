@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/sequelize';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { QueryTypes } from 'sequelize';
@@ -11,6 +11,10 @@ import { SystemsCatalogRepository } from './systems-catalog.repository.js';
 import { SystemsStressProfileRepository } from './systems-stress-profile.repository.js';
 import { SystemsTestExecutionRepository } from './systems-test-execution.repository.js';
 import { CURATED_ENDPOINTS, STRESS_PROFILE_SEEDS } from './systems-seed-fixtures.js';
+import { SystemJobRunModel } from '../../database/models/index.js';
+import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { actorId } from './systems-actor.util.js';
+import { systemsTenantScope } from './systems-tenant-scope.util.js';
 
 type DocsImpact = { method: string; path: string; reads: string[]; writes: string[] };
 type IntrospectedTable = { schemaName: string; tableName: string };
@@ -36,9 +40,35 @@ export class SystemsCatalogSeedService {
     private readonly stressRepository: SystemsStressProfileRepository,
     private readonly discovery: EndpointDiscoveryService,
     private readonly classifier: SystemsCatalogClassifierService,
+    @InjectModel(SystemJobRunModel) private readonly jobRunModel: typeof SystemJobRunModel,
   ) {}
 
-  async refreshCatalog(input: { includeTools: boolean; includeDataEntities: boolean; includeEndpointSeeds: boolean }) {
+  async refreshCatalog(
+    input: { includeTools: boolean; includeDataEntities: boolean; includeEndpointSeeds: boolean },
+    user: AuthenticatedUser,
+  ) {
+    const lockTransaction = await this.sequelize.transaction();
+    const [lock] = await this.sequelize.query<{ acquired: boolean }>(
+      `SELECT pg_try_advisory_xact_lock(hashtext('atlas_systems_catalog_refresh')) AS acquired`,
+      { type: QueryTypes.SELECT, transaction: lockTransaction },
+    );
+    if (!lock?.acquired) {
+      await lockTransaction.rollback();
+      throw new ConflictException('SYSTEMS_CATALOG_REFRESH_ALREADY_RUNNING');
+    }
+    const startedAt = new Date();
+    const job = await this.jobRunModel.create({
+      tenantId: systemsTenantScope(user),
+      jobCode: 'systems_catalog_refresh',
+      status: 'running',
+      startedAt,
+      inputJson: input,
+      resultJson: null,
+      errorMessage: null,
+      triggeredByType: 'user',
+      triggeredById: actorId(user),
+      createdAtValue: startedAt,
+    } as never);
     const result = {
       tools: 0,
       dataEntities: 0,
@@ -50,22 +80,37 @@ export class SystemsCatalogSeedService {
       suites: 0,
       stressProfiles: 0,
     };
-    if (input.includeTools) result.tools = await this.seedTools();
-    if (input.includeDataEntities) {
-      result.dataEntities = await this.seedDataEntitiesFromModels();
-      const columnSeed = await this.seedColumnsFromInformationSchema();
-      result.columns = columnSeed.columns;
-      result.relationships = columnSeed.relationships;
+    try {
+      if (input.includeTools) result.tools = await this.seedTools();
+      if (input.includeDataEntities) {
+        result.dataEntities = await this.seedDataEntitiesFromModels();
+        const columnSeed = await this.seedColumnsFromInformationSchema();
+        result.columns = columnSeed.columns;
+        result.relationships = columnSeed.relationships;
+      }
+      if (input.includeEndpointSeeds) {
+        result.endpointSeeds = await this.seedCuratedEndpoints();
+        const discovered = await this.discovery.discoverAndMaybePersist(true);
+        result.discoveredEndpoints = discovered.persisted;
+        result.impacts = await this.seedImpactsFromDocs();
+        result.suites = await this.seedSuites();
+        result.stressProfiles = await this.seedStressProfiles();
+      }
+      job.status = 'succeeded';
+      job.completedAt = new Date();
+      job.resultJson = result;
+      await job.save();
+      await lockTransaction.commit();
+      return { jobRunId: String(job.id), ...result };
+    } catch (error) {
+      job.status = 'failed';
+      job.completedAt = new Date();
+      job.resultJson = result;
+      job.errorMessage = error instanceof Error ? error.message.slice(0, 2000) : 'unknown_error';
+      await job.save().catch(() => undefined);
+      await lockTransaction.rollback().catch(() => undefined);
+      throw error;
     }
-    if (input.includeEndpointSeeds) {
-      result.endpointSeeds = await this.seedCuratedEndpoints();
-      const discovered = await this.discovery.discoverAndMaybePersist(true);
-      result.discoveredEndpoints = discovered.persisted;
-      result.impacts = await this.seedImpactsFromDocs();
-      result.suites = await this.seedSuites();
-      result.stressProfiles = await this.seedStressProfiles();
-    }
-    return result;
   }
 
   async seedTools(): Promise<number> {
@@ -300,13 +345,14 @@ SELECT c.table_schema AS "schemaName",
         : Promise.resolve(null),
     ]);
     const signals = this.classifyColumn(column.columnName, column.tableName);
-    const reviewStatus = signals.containsPii || signals.containsFinancialData || signals.containsSensitive ? 'NEEDS_REVIEW' : 'AUTO_DETECTED';
+    const reviewStatus =
+      signals.containsPii || signals.containsFinancialData || signals.containsSensitive ? 'NEEDS_REVIEW' : 'AUTO_DETECTED';
     const businessName = this.humanize(column.columnName);
     const systemPurpose = column.isPrimaryKey
-      ? `Identifica de forma Ãºnica registros de ${column.tableName} dentro de la base Atlas.`
+      ? `Identifica de forma única registros de ${column.tableName} dentro de la base Atlas.`
       : column.isForeignKey && column.referencedTable
         ? `Relaciona ${column.tableName} con ${column.referencedTable} mediante integridad referencial.`
-        : `Columna persistida en ${column.schemaName}.${column.tableName}, detectada desde information_schema para trazabilidad tÃ©cnica.`;
+        : `Columna persistida en ${column.schemaName}.${column.tableName}, detectada desde information_schema para trazabilidad técnica.`;
 
     await this.sequelize.query(
       `
@@ -423,15 +469,22 @@ DO UPDATE SET
           referencedColumn: column.referencedColumn,
           referencesEntityId: referencedEntity ? String(referencedEntity.id) : null,
           businessName,
-          businessMeaning: `Campo ${businessName} de ${column.tableName}; pendiente de validaciÃ³n de negocio por data owner.`,
+          businessMeaning: `Campo ${businessName} de ${column.tableName}; pendiente de validación de negocio por data owner.`,
           technicalMeaning: systemPurpose,
           systemPurpose,
-          whyStore: `Se conserva como parte del registro ${column.tableName} para operaciÃ³n, auditorÃ­a y anÃ¡lisis.`,
+          whyStore: `Se conserva como parte del registro ${column.tableName} para operación, auditoría y análisis.`,
           whoUses: JSON.stringify(['systems', 'data-governance']),
-          auditUsage: column.isPrimaryKey || column.isForeignKey ? 'Clave usada para trazabilidad, joins y reconstrucciÃ³n de eventos.' : 'Campo disponible para auditorÃ­a segÃºn endpoints que lean o escriban la tabla.',
-          analysisUsage: 'Puede alimentar diagnÃ³sticos, reportes internos o controles de calidad si el dominio lo requiere.',
-          decisionUsage: signals.containsRiskData ? 'Puede participar en decisiones de riesgo, fraude o calidad y requiere revisiÃ³n humana.' : 'Uso de decisiÃ³n pendiente de curadurÃ­a por negocio.',
-          backendWriteBehavior: column.columnDefault ? 'Puede ser completada por default de base de datos o por backend.' : 'Persistida por backend, migraciÃ³n o proceso interno segÃºn el flujo.',
+          auditUsage:
+            column.isPrimaryKey || column.isForeignKey
+              ? 'Clave usada para trazabilidad, joins y reconstrucción de eventos.'
+              : 'Campo disponible para auditoría según endpoints que lean o escriban la tabla.',
+          analysisUsage: 'Puede alimentar diagnósticos, reportes internos o controles de calidad si el dominio lo requiere.',
+          decisionUsage: signals.containsRiskData
+            ? 'Puede participar en decisiones de riesgo, fraude o calidad y requiere revisión humana.'
+            : 'Uso de decisión pendiente de curaduría por negocio.',
+          backendWriteBehavior: column.columnDefault
+            ? 'Puede ser completada por default de base de datos o por backend.'
+            : 'Persistida por backend, migración o proceso interno según el flujo.',
           governanceCategory: signals.containsSensitive ? 'SENSITIVE' : 'OPERACIONAL',
           sensitivityLevel: signals.containsSensitive ? 'CONFIDENTIAL' : 'INTERNAL',
           containsPii: signals.containsPii,

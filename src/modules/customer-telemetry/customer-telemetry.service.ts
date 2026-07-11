@@ -15,13 +15,14 @@ import { CustomersRepository } from '../customers/customers.repository.js';
 import { CustomerTelemetryRepository } from './customer-telemetry.repository.js';
 import { TelemetryBatchDto } from './customer-telemetry.schemas.js';
 
-function metadataHasRawContacts(value: unknown): boolean {
+// Recibe el body ya serializado (ver `ingestBatch`, que lo serializa una sola vez y lo reusa
+// tanto para el chequeo de tamaño como para este) en vez de volver a hacer JSON.stringify de un
+// payload de hasta 250KB dos veces en el mismo request.
+function metadataHasRawContacts(serializedBody: string): boolean {
   // Normaliza separadores (snake_case, kebab-case, espacios) antes de comparar: sin esto,
   // "raw_contacts" o "contact-list" no contienen "rawcontacts"/"contactlist" como substring y
   // el filtro de privacidad se evade con solo cambiar la convención de nombres.
-  const text = JSON.stringify(value ?? {})
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
+  const text = serializedBody.toLowerCase().replace(/[^a-z0-9]/g, '');
   return text.includes('rawcontacts') || text.includes('contactlist') || text.includes('phonebook') || text.includes('agenda');
 }
 
@@ -50,10 +51,11 @@ export class CustomerTelemetryService {
     if (input.body.events.length + input.body.onDeviceMetrics.length === 0) {
       throw new BadRequestException('El batch debe incluir al menos un evento o métrica.');
     }
-    if (JSON.stringify(input.body).length > 250_000) {
+    const serializedBody = JSON.stringify(input.body);
+    if (serializedBody.length > 250_000) {
       throw new PayloadTooLargeException('PAYLOAD_TOO_LARGE');
     }
-    if (metadataHasRawContacts(input.body)) {
+    if (metadataHasRawContacts(serializedBody)) {
       throw new UnprocessableEntityException('RAW_CONTACTS_NOT_ALLOWED');
     }
 
@@ -217,20 +219,18 @@ export class CustomerTelemetryService {
           },
           { transaction },
         );
-        for (const metric of input.body.onDeviceMetrics) {
-          await this.telemetryRepository.createOnDeviceMetric(
-            {
-              tenantId: input.tenantId,
-              computationRunId: String(run.id),
-              metricCode: metric.metricCode,
-              value: metric.value,
-              confidenceScore: metric.confidenceScore === undefined ? null : metric.confidenceScore.toFixed(4),
-              createdAt: now,
-            },
-            { transaction },
-          );
-          acceptedMetrics += 1;
-        }
+        await this.telemetryRepository.createOnDeviceMetrics(
+          input.body.onDeviceMetrics.map((metric) => ({
+            tenantId: input.tenantId,
+            computationRunId: String(run.id),
+            metricCode: metric.metricCode,
+            value: metric.value,
+            confidenceScore: metric.confidenceScore === undefined ? null : metric.confidenceScore.toFixed(4),
+            createdAt: now,
+          })),
+          { transaction },
+        );
+        acceptedMetrics += input.body.onDeviceMetrics.length;
       }
 
       await this.telemetryRepository.createBehaviorSummary(

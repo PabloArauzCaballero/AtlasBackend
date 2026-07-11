@@ -6,7 +6,7 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { SystemsOpsControllerSecurity } from './systems-controller.decorators.js';
-import { SYSTEMS_OPS_WRITE_ROLES } from './systems-ops.constants.js';
+import { SYSTEMS_OPS_STRESS_ROLES } from './systems-ops.constants.js';
 import {
   queueStressRunSchema,
   QueueStressRunDto,
@@ -63,7 +63,7 @@ export class SystemsStressController {
   @ApiResponse({ status: 201, description: 'Corrida de estrés encolada.' })
   @ApiResponse({ status: 404, description: 'STRESS_PROFILE_NOT_FOUND.' })
   @ApiResponse({ status: 422, description: 'APPROVAL_TICKET_REQUIRED — falta aprobación para el entorno solicitado.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_STRESS_ROLES)
   @Post('stress-profiles/:profileId/queue-run')
   queueStressRun(
     @Param(new ZodValidationPipe(systemsStressProfileParamsSchema)) params: SystemsStressProfileParamsDto,
@@ -76,7 +76,7 @@ export class SystemsStressController {
   @ApiOperation({ summary: 'Crear o actualizar un perfil de pruebas de estrés' })
   @ApiBody({ schema: zodToApiSchema(upsertStressProfileSchema) })
   @ApiResponse({ status: 200, description: 'Perfil de estrés creado/actualizado.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_STRESS_ROLES)
   @Post('stress-profiles')
   upsertStressProfile(
     @Body(new ZodValidationPipe(upsertStressProfileSchema)) body: UpsertStressProfileDto,
@@ -107,7 +107,7 @@ export class SystemsStressController {
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(systemsRunsQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Lista paginada de corridas de estrés.' })
   @Get('stress-runs')
-  listStressRuns(@Query(new ZodValidationPipe(systemsRunsQuerySchema)) query: SystemsRunsQueryDto) {
-    return this.stressRunService.listStressRuns(query);
+  listStressRuns(@Query(new ZodValidationPipe(systemsRunsQuerySchema)) query: SystemsRunsQueryDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.stressRunService.listStressRuns(query, user);
   }
 }

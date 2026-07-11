@@ -12,14 +12,18 @@ export class CatalogQueryService {
   async listCatalogs(input: { query: ListCatalogsQueryDto; currentUser: AuthenticatedUser }) {
     assertInternal(input.currentUser);
     const catalogs = await this.repository.listCatalogs(input.query);
-    const rows = await Promise.all(
-      catalogs.map(async (catalog) => {
-        const currentVersion = await this.repository.findLatestVersion(String(catalog.id));
+    // Batch: una sola query trae la última versión de TODOS los catálogos listados, en vez de un
+    // `findLatestVersion` por catálogo (N+1 — antes, un tenant con muchos catálogos disparaba un
+    // round trip extra por fila devuelta).
+    const latestVersionsByCatalogId = await this.repository.findLatestVersionsByCatalogIds(catalogs.map((catalog) => String(catalog.id)));
+    const rows = catalogs
+      .map((catalog) => {
+        const currentVersion = latestVersionsByCatalogId.get(String(catalog.id)) ?? null;
         if (input.query.status !== 'all' && currentVersion?.status !== input.query.status) return null;
         return catalogDto(catalog, currentVersion);
-      }),
-    );
-    return { items: rows.filter((item): item is NonNullable<typeof item> => item !== null) };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+    return { items: rows };
   }
 
   async getCatalogVersion(input: { catalogCode: string; versionId: string; currentUser: AuthenticatedUser }) {

@@ -2,11 +2,11 @@ import { BadRequestException, Injectable, NotFoundException, UnprocessableEntity
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
+import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { IdentityPackageDto } from '../customer-onboarding.schemas.js';
-import { assertCustomerOnboardingScope } from './customer-onboarding-access.util.js';
 
 @Injectable()
 export class CustomerIdentityPackageService {
@@ -25,7 +25,7 @@ export class CustomerIdentityPackageService {
     idempotencyKey: string;
   }) {
     if (!input.idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
-    assertCustomerOnboardingScope(input.customerId, input.currentUser);
+    assertOwnCustomerResourceOrInternalOperational(input.currentUser, input.customerId);
     const customer = await this.customersRepository.findById(input.tenantId, input.customerId);
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
 

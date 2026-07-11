@@ -21,13 +21,21 @@ export const SYSTEMS_OPS_ROLES = [
  */
 export const SYSTEMS_OPS_WRITE_ROLES = SYSTEMS_OPS_ROLES.filter((role) => role !== 'readonly_auditor');
 
+export const SYSTEMS_OPS_GOVERNANCE_ROLES = ['system_admin', 'platform_admin'] as const;
+export const SYSTEMS_OPS_QA_ROLES = ['system_admin', 'platform_admin', 'qa_engineer'] as const;
+export const SYSTEMS_OPS_STRESS_ROLES = ['system_admin', 'platform_admin', 'qa_engineer', 'devops'] as const;
+
+export function canReadAllSystemsOpsTenants(role: string): boolean {
+  return role === 'system_admin' || role === 'platform_admin';
+}
+
 export const SYSTEM_TOOL_SEEDS: ToolSeed[] = [
   {
     code: 'POSTGRES',
     name: 'PostgreSQL',
     type: 'DATABASE',
     purpose: 'Base transaccional principal de Atlas.',
-    requiredEnvVars: ['DATABASE_URL'],
+    requiredEnvVars: ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'],
     hasSandbox: true,
     requiresCredentials: true,
     isCritical: true,
@@ -56,7 +64,7 @@ export const SYSTEM_TOOL_SEEDS: ToolSeed[] = [
     name: 'JSON Web Tokens',
     type: 'AUTH',
     purpose: 'Autenticación de usuarios y sesiones.',
-    requiredEnvVars: ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'],
+    requiredEnvVars: ['JWT_ACCESS_TOKEN_SECRET'],
     requiresCredentials: true,
     isCritical: true,
   },

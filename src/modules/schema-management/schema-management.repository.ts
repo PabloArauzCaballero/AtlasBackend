@@ -95,6 +95,17 @@ interface CountRow {
   count: string;
 }
 
+interface GroupedCountRow {
+  schema_version_id: string;
+  count: string;
+}
+
+export interface SchemaVersionCounts {
+  tablesCount: number;
+  columnsCount: number;
+  relationshipsCount: number;
+}
+
 export interface CreateChangeLogEntryInput {
   changeType: string;
   affectedEntityType: string;
@@ -178,6 +189,63 @@ export class SchemaManagementRepository {
       { type: QueryTypes.SELECT, replacements: { versionId } },
     );
     return Number(rows[0]?.count ?? '0');
+  }
+
+  /**
+   * Batch de `countTablesInVersion`/`countColumnsInVersion`/`countRelationshipsInVersion` para
+   * varias versiones a la vez — usada por `listSchemaVersions` para no disparar 3 COUNT(*) por
+   * fila de la página (hasta 60 queries para una página de 20). 3 queries agregadas con
+   * `GROUP BY schema_version_id`, filtradas a las versiones pedidas, en vez de 3*N queries.
+   */
+  async countTablesColumnsRelationshipsForVersions(versionIds: readonly string[]): Promise<Map<string, SchemaVersionCounts>> {
+    const counts = new Map<string, SchemaVersionCounts>();
+    if (versionIds.length === 0) return counts;
+    for (const versionId of versionIds) {
+      counts.set(versionId, { tablesCount: 0, columnsCount: 0, relationshipsCount: 0 });
+    }
+
+    const replacements = { versionIds: [...versionIds] };
+    const [tableRows, columnRows, relationshipRows] = await Promise.all([
+      this.sequelize.query<GroupedCountRow>(
+        `SELECT schema_version_id, COUNT(*)::text AS count
+         FROM schema_tables
+         WHERE schema_version_id IN (:versionIds) AND is_deleted = false
+         GROUP BY schema_version_id`,
+        { type: QueryTypes.SELECT, replacements },
+      ),
+      this.sequelize.query<GroupedCountRow>(
+        `SELECT st.schema_version_id AS schema_version_id, COUNT(*)::text AS count
+         FROM schema_columns sc
+         JOIN schema_tables st ON st._id = sc.schema_table_id
+         WHERE st.schema_version_id IN (:versionIds)
+           AND st.is_deleted = false
+           AND sc.is_deleted = false
+         GROUP BY st.schema_version_id`,
+        { type: QueryTypes.SELECT, replacements },
+      ),
+      this.sequelize.query<GroupedCountRow>(
+        `SELECT schema_version_id, COUNT(*)::text AS count
+         FROM schema_relationships
+         WHERE schema_version_id IN (:versionIds)
+         GROUP BY schema_version_id`,
+        { type: QueryTypes.SELECT, replacements },
+      ),
+    ]);
+
+    for (const row of tableRows) {
+      const entry = counts.get(row.schema_version_id);
+      if (entry) entry.tablesCount = Number(row.count);
+    }
+    for (const row of columnRows) {
+      const entry = counts.get(row.schema_version_id);
+      if (entry) entry.columnsCount = Number(row.count);
+    }
+    for (const row of relationshipRows) {
+      const entry = counts.get(row.schema_version_id);
+      if (entry) entry.relationshipsCount = Number(row.count);
+    }
+
+    return counts;
   }
 
   // =========================================================================

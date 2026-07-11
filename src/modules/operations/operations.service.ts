@@ -62,10 +62,18 @@ export class OperationsService {
       };
     }
 
-    // queue === 'all': fetch both, merge by date, apply pagination in application layer
+    // queue === 'all': cada fuente se pagina con su propio OFFSET/LIMIT independiente, así que no
+    // se puede pedirle a cada una "la página N" y mezclar esos dos resultados ya recortados — el
+    // corte global de la unión ordenada no coincide con la unión de dos cortes locales (a partir
+    // de la página 2 esto salteaba o duplicaba casos según cómo se distribuyeran las dos colas).
+    // Fix: pedir a cada fuente sus primeros `page*limit` elementos (offset 0), que por definición
+    // contienen todo lo que puede aportar esa fuente al top-`page*limit` de la unión ordenada, y
+    // recién ahí mezclar, ordenar y cortar una sola vez en el rango [start, start+limit).
+    const topK = query.page * query.limit;
+    const topKQuery = { ...query, page: 1, limit: topK };
     const [manualResult, fraudResult] = await Promise.all([
-      this.operationsRepository.findManualReviewCasesForQueue(tenantId, query),
-      this.operationsRepository.findFraudCasesForQueue(tenantId, query),
+      this.operationsRepository.findManualReviewCasesForQueue(tenantId, topKQuery),
+      this.operationsRepository.findFraudCasesForQueue(tenantId, topKQuery),
     ]);
 
     const allItems = [...manualResult.rows.map(toManualReviewWorkItem), ...fraudResult.rows.map(toFraudWorkItem)].sort((a, b) => {

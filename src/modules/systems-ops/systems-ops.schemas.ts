@@ -42,8 +42,8 @@ const pathTemplateSchema = z
   .trim()
   .min(1)
   .max(1200)
-  .refine((value) => value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://'), {
-    message: 'pathTemplate debe iniciar con / o ser URL absoluta http(s).',
+  .refine((value) => value.startsWith('/') && !value.startsWith('//'), {
+    message: 'pathTemplate debe ser una ruta relativa al host permitido e iniciar con un solo /.',
   });
 
 export const createTestSuiteSchema = z.object({
@@ -64,9 +64,35 @@ export const createTestSuiteSchema = z.object({
   requiresDestructivePermission: z.coerce.boolean().optional(),
 });
 
-export const updateTestSuiteSchema = createTestSuiteSchema.partial().refine((value) => Object.keys(value).length > 0, {
-  message: 'Debe enviar al menos un campo para actualizar.',
-});
+// No se construye como `createTestSuiteSchema.partial()`: Zod re-aplica `.default()` de cada
+// campo incluso después de `.partial()`, así que un PATCH parcial (o vacío) llegaría con
+// suiteType/environmentScope/isEnabled/requiresSeedData/isSafeForProduction ya rellenados a sus
+// valores de creación — el refine de "al menos un campo" nunca se dispara, y
+// SystemsTestSuiteAdminRepository.updateSuite (que escribe todo campo !== undefined) los
+// sobrescribiría en silencio en cualquier suite existente. Se declaran los campos opcionales
+// explícitamente, sin `.default()`, para que un campo ausente siga siendo `undefined`.
+export const updateTestSuiteSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .min(3)
+      .max(180)
+      .regex(/^[A-Z0-9_]+$/)
+      .optional(),
+    name: z.string().trim().min(3).max(220).optional(),
+    description: z.string().trim().max(4000).optional(),
+    module: z.string().trim().min(2).max(120).optional(),
+    suiteType: suiteTypeSchema.optional(),
+    environmentScope: z.array(environmentSchema).min(1).max(3).optional(),
+    isEnabled: z.coerce.boolean().optional(),
+    requiresSeedData: z.coerce.boolean().optional(),
+    isSafeForProduction: z.coerce.boolean().optional(),
+    requiresDestructivePermission: z.coerce.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'Debe enviar al menos un campo para actualizar.',
+  });
 
 export const createTestStepSchema = z.object({
   endpointId: positiveId.optional().nullable(),
@@ -84,9 +110,29 @@ export const createTestStepSchema = z.object({
   cleanupRequired: z.coerce.boolean().default(false),
 });
 
-export const updateTestStepSchema = createTestStepSchema.partial().refine((value) => Object.keys(value).length > 0, {
-  message: 'Debe enviar al menos un campo para actualizar.',
-});
+// Mismo problema y mismo fix que `updateTestSuiteSchema` (ver comentario arriba): campos
+// opcionales explícitos, sin `.default()`, para que `SystemsTestSuiteAdminRepository.updateStep`
+// no reciba de vuelta assertions/extractors/headers/payload reseteados a su default de creación
+// en cada PATCH parcial.
+export const updateTestStepSchema = z
+  .object({
+    endpointId: positiveId.optional().nullable(),
+    stepOrder: z.coerce.number().int().positive().max(500).optional(),
+    name: z.string().trim().min(3).max(220).optional(),
+    inputMode: z.enum(['DEFAULT', 'CONFIGURABLE', 'GENERATED', 'FROM_PREVIOUS_STEP']).optional(),
+    method: httpMethodSchema.optional(),
+    pathTemplate: pathTemplateSchema.optional(),
+    defaultHeaders: jsonObjectSchema.optional(),
+    defaultPayload: jsonObjectSchema.optional(),
+    configSchema: jsonObjectSchema.optional(),
+    extractors: jsonObjectSchema.optional(),
+    assertions: jsonObjectSchema.optional(),
+    continueOnFailure: z.coerce.boolean().optional(),
+    cleanupRequired: z.coerce.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'Debe enviar al menos un campo para actualizar.',
+  });
 
 export const reorderTestStepsSchema = z.object({
   steps: z
@@ -130,7 +176,21 @@ export const systemsActionLogQuerySchema = z.object({
 });
 
 export const trafficLatencyQuerySchema = z.object({
-  windowHours: z.coerce.number().int().positive().max(24 * 30).default(24),
+  windowHours: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(24 * 30)
+    .default(24),
+});
+
+export const trafficLatencyTimeseriesQuerySchema = z.object({
+  windowHours: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(24 * 7)
+    .default(24),
 });
 
 export const reviewDecisionSchema = z.object({
@@ -206,6 +266,24 @@ export const catalogSeedRefreshSchema = z.object({
   includeEndpointSeeds: z.coerce.boolean().default(true),
 });
 
+export const updateDataEntityMetadataSchema = z
+  .object({
+    businessPurpose: z.string().trim().min(3).max(4000).optional(),
+    dataOwner: z.string().trim().min(2).max(120).optional(),
+    containsPii: z.boolean().optional(),
+    containsFinancialData: z.boolean().optional(),
+    containsRiskData: z.boolean().optional(),
+    containsLegalData: z.boolean().optional(),
+    containsDeviceData: z.boolean().optional(),
+    containsLocationData: z.boolean().optional(),
+    isAuditCritical: z.boolean().optional(),
+    retentionPolicyCode: z.string().trim().min(2).max(120).nullable().optional(),
+    status: z.enum(['ACTIVE', 'DISABLED', 'DEPRECATED', 'DEPRECATED_CANDIDATE']).optional(),
+    reviewStatus: z.enum(['AUTO_DETECTED', 'NEEDS_REVIEW', 'APPROVED', 'REJECTED']).optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, { message: 'Debe enviar al menos un campo de metadata.' });
+
 export const systemsRunsQuerySchema = z.object({
   suiteId: positiveId.optional(),
   status: z.enum(['QUEUED', 'RUNNING', 'PASSED', 'FAILED', 'CANCELLED']).optional(),
@@ -246,9 +324,11 @@ export type SystemsStressProfileParamsDto = z.infer<typeof systemsStressProfileP
 export type SystemsRequestParamsDto = z.infer<typeof systemsRequestParamsSchema>;
 export type SystemsActionLogQueryDto = z.infer<typeof systemsActionLogQuerySchema>;
 export type TrafficLatencyQueryDto = z.infer<typeof trafficLatencyQuerySchema>;
+export type TrafficLatencyTimeseriesQueryDto = z.infer<typeof trafficLatencyTimeseriesQuerySchema>;
 export type RunTestSuiteDto = z.infer<typeof runTestSuiteSchema>;
 export type DiscoverEndpointsDto = z.infer<typeof discoverEndpointsSchema>;
 export type CatalogSeedRefreshDto = z.infer<typeof catalogSeedRefreshSchema>;
+export type UpdateDataEntityMetadataDto = z.infer<typeof updateDataEntityMetadataSchema>;
 export type SystemsRunsQueryDto = z.infer<typeof systemsRunsQuerySchema>;
 export type SystemsSuiteQueryDto = z.infer<typeof systemsSuiteQuerySchema>;
 export type ReviewDecisionDto = z.infer<typeof reviewDecisionSchema>;

@@ -118,6 +118,33 @@ export class CatalogManagementRepository {
     } as FindOptions);
   }
 
+  /**
+   * Batch de `findLatestVersion` para varios catálogos a la vez — usada por
+   * `CatalogQueryService.listCatalogs` para no disparar un `findLatestVersion` por catálogo
+   * listado (N+1). Trae todas las versiones de los catálogos pedidos en una sola query, ya
+   * ordenadas por catálogo y fecha, y arma en memoria un mapa catalogId -> versión más reciente.
+   */
+  async findLatestVersionsByCatalogIds(catalogIds: readonly string[]): Promise<Map<string, ContextCatalogVersionModel>> {
+    if (catalogIds.length === 0) return new Map();
+    const versions = await this.catalogVersionModel.findAll({
+      where: { catalogId: { [Op.in]: [...catalogIds] } } as WhereOptions,
+      order: [
+        ['catalogId', 'ASC'],
+        ['validFrom', 'DESC'],
+        ['id', 'DESC'],
+      ],
+    } as FindOptions);
+
+    const latestByCatalogId = new Map<string, ContextCatalogVersionModel>();
+    for (const version of versions) {
+      const catalogId = String(version.catalogId);
+      if (!latestByCatalogId.has(catalogId)) {
+        latestByCatalogId.set(catalogId, version);
+      }
+    }
+    return latestByCatalogId;
+  }
+
   findCatalogVersion(catalogId: string, versionId: string, options: RepositoryOptions = {}): Promise<ContextCatalogVersionModel | null> {
     return this.catalogVersionModel.findOne({ where: { id: versionId, catalogId }, transaction: options.transaction } as FindOptions);
   }

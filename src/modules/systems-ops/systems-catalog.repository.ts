@@ -248,10 +248,7 @@ export class SystemsCatalogRepository {
     return this.dataEntityModel.findAll({ where: { id: { [Op.in]: entityIds } } } as FindOptions);
   }
 
-  async updateDataEntityMetadata(
-    entityId: string,
-    body: Record<string, unknown>,
-  ): Promise<SystemDataEntityCatalogModel | null> {
+  async updateDataEntityMetadata(entityId: string, body: Record<string, unknown>): Promise<SystemDataEntityCatalogModel | null> {
     const entity = await this.dataEntityModel.findByPk(entityId);
     if (!entity) return null;
 

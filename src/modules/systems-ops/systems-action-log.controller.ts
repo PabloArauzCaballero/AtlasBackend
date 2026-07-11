@@ -10,8 +10,12 @@ import {
   SystemsRequestParamsDto,
   trafficLatencyQuerySchema,
   TrafficLatencyQueryDto,
+  trafficLatencyTimeseriesQuerySchema,
+  TrafficLatencyTimeseriesQueryDto,
 } from './systems-ops.schemas.js';
 import { SystemsActionLogQueryService } from './systems-action-log-query.service.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { AuthenticatedUser } from '../../common/types/auth.types.js';
 
 @Controller('systems')
 @SystemsOpsControllerSecurity()
@@ -34,31 +38,54 @@ export class SystemsActionLogController {
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(systemsActionLogQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Lista paginada de action logs.' })
   @Get('action-logs')
-  listActionLogs(@Query(new ZodValidationPipe(systemsActionLogQuerySchema)) query: SystemsActionLogQueryDto) {
-    return this.service.listActionLogs(query);
+  listActionLogs(
+    @Query(new ZodValidationPipe(systemsActionLogQuerySchema)) query: SystemsActionLogQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.listActionLogs(query, user);
   }
 
   @ApiOperation({ summary: 'Action logs de un request (alias)' })
   @ApiParam({ name: 'requestId', schema: zodToApiSchema(systemsRequestParamsSchema.shape.requestId) })
   @ApiResponse({ status: 200, description: 'Action logs asociados al request.' })
   @Get('action-logs/request/:requestId')
-  getActionLogsByRequestAlias(@Param(new ZodValidationPipe(systemsRequestParamsSchema)) params: SystemsRequestParamsDto) {
-    return this.service.getActionLogsByRequest(params.requestId);
+  getActionLogsByRequestAlias(
+    @Param(new ZodValidationPipe(systemsRequestParamsSchema)) params: SystemsRequestParamsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.getActionLogsByRequest(params.requestId, user);
   }
 
   @ApiOperation({ summary: 'Action logs de un request' })
   @ApiParam({ name: 'requestId', schema: zodToApiSchema(systemsRequestParamsSchema.shape.requestId) })
   @ApiResponse({ status: 200, description: 'Action logs asociados al request.' })
   @Get('action-logs/by-request/:requestId')
-  getActionLogsByRequest(@Param(new ZodValidationPipe(systemsRequestParamsSchema)) params: SystemsRequestParamsDto) {
-    return this.service.getActionLogsByRequest(params.requestId);
+  getActionLogsByRequest(
+    @Param(new ZodValidationPipe(systemsRequestParamsSchema)) params: SystemsRequestParamsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.getActionLogsByRequest(params.requestId, user);
   }
 
   @ApiOperation({ summary: 'Reporte de tráfico y latencia por ruta (derivado de system_action_logs)' })
   @ApiQuery({ name: 'windowHours', required: false, schema: zodObjectPropertySchemas(trafficLatencyQuerySchema).windowHours })
   @ApiResponse({ status: 200, description: 'Resumen de tráfico y latencia por ruta/método.' })
   @Get('reports/traffic-latency')
-  getTrafficLatencyReport(@Query(new ZodValidationPipe(trafficLatencyQuerySchema)) query: TrafficLatencyQueryDto) {
-    return this.service.getTrafficLatencyReport(query.windowHours);
+  getTrafficLatencyReport(
+    @Query(new ZodValidationPipe(trafficLatencyQuerySchema)) query: TrafficLatencyQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.getTrafficLatencyReport(query.windowHours, user);
+  }
+
+  @ApiOperation({ summary: 'Serie de tiempo de tráfico y latencia agrupada en buckets fijos (derivado de system_action_logs)' })
+  @ApiQuery({ name: 'windowHours', required: false, schema: zodObjectPropertySchemas(trafficLatencyTimeseriesQuerySchema).windowHours })
+  @ApiResponse({ status: 200, description: 'Serie de tiempo de requests y latencia por bucket.' })
+  @Get('reports/traffic-latency-timeseries')
+  getTrafficLatencyTimeseries(
+    @Query(new ZodValidationPipe(trafficLatencyTimeseriesQuerySchema)) query: TrafficLatencyTimeseriesQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.getTrafficLatencyTimeseries(query.windowHours, user);
   }
 }

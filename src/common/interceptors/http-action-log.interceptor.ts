@@ -1,6 +1,6 @@
-import { CallHandler, ExecutionContext, HttpException, Injectable, NestInterceptor } from '@nestjs/common';
+import { CallHandler, ExecutionContext, HttpException, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { Observable, catchError, from, mergeMap, of, throwError } from 'rxjs';
+import { Observable, catchError, from, mergeMap, of, tap, throwError } from 'rxjs';
 import { AuthenticatedUser } from '../types/auth.types.js';
 import { HttpActionLogService } from '../../modules/audit/http-action-log.service.js';
 import { moduleFromPath } from '../../modules/systems-ops/endpoint-code.util.js';
@@ -67,6 +67,8 @@ function idempotencyKey(request: RequestLike): string | null {
 
 @Injectable()
 export class HttpActionLogInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(HttpActionLogInterceptor.name);
+
   constructor(private readonly actionLog: HttpActionLogService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -119,8 +121,16 @@ export class HttpActionLogInterceptor implements NestInterceptor {
         }) as Record<string, unknown>,
       });
 
+    // Fire-and-forget: el audit log HTTP no debe agregar la latencia de un INSERT a la
+    // respuesta de TODA request del backend. `tap` deja pasar `body` de inmediato; el write se
+    // dispara en paralelo y cualquier fallo solo se advierte, nunca bloquea ni rompe la response.
     return next.handle().pipe(
-      mergeMap((body) => from(baseLog(response.statusCode ?? 200, 'success')).pipe(mergeMap(() => of(body)))),
+      tap((body) => {
+        void baseLog(response.statusCode ?? 200, 'success').catch((error: unknown) => {
+          this.logger.warn(`Fallo escribiendo audit log HTTP (no bloqueante): ${error instanceof Error ? error.message : error}`);
+        });
+        return body;
+      }),
       catchError((error: unknown) => {
         const statusCode =
           error instanceof HttpException

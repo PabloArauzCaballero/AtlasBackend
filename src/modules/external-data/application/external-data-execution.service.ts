@@ -616,6 +616,10 @@ export class ExternalDataExecutionService {
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Secuencial e intencional: si la cuota global ya bloquea, ni siquiera se consultan las
+    // cuotas por usuario (ver test "without even checking per-user quotas") — paralelizar los 3
+    // conteos gastaría queries de más en el caso común de bloqueo, que es justo el que este
+    // short-circuit evita.
     if (policy.maxQueriesGlobalPerDay) {
       const globalDaily = await this.repository.countRequests({
         providerId: input.providerId,

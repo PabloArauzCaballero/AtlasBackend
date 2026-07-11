@@ -3,8 +3,10 @@ import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/
 import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { SystemsOpsControllerSecurity } from './systems-controller.decorators.js';
-import { SYSTEMS_OPS_WRITE_ROLES } from './systems-ops.constants.js';
+import { SYSTEMS_OPS_GOVERNANCE_ROLES } from './systems-ops.constants.js';
 import {
   catalogSeedRefreshSchema,
   CatalogSeedRefreshDto,
@@ -24,6 +26,8 @@ import {
   SystemsTableImpactParamsDto,
   systemsToolParamsSchema,
   SystemsToolParamsDto,
+  updateDataEntityMetadataSchema,
+  UpdateDataEntityMetadataDto,
 } from './systems-ops.schemas.js';
 import { SystemsCatalogQueryService } from './systems-catalog-query.service.js';
 import { SystemsToolInferenceService } from './systems-tool-inference.service.js';
@@ -72,7 +76,7 @@ export class SystemsCatalogController {
   @ApiBody({ schema: zodToApiSchema(discoverEndpointsSchema) })
   @ApiResponse({ status: 200, description: 'Resultado del descubrimiento de endpoints.' })
   @Post('endpoints/discover')
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   discoverEndpoints(@Body(new ZodValidationPipe(discoverEndpointsSchema)) body: DiscoverEndpointsDto) {
     return this.service.discoverEndpoints(body);
   }
@@ -81,9 +85,12 @@ export class SystemsCatalogController {
   @ApiBody({ schema: zodToApiSchema(catalogSeedRefreshSchema) })
   @ApiResponse({ status: 200, description: 'Seed del catálogo refrescado.' })
   @Post('endpoints/catalog-seed/refresh')
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
-  refreshCatalogSeed(@Body(new ZodValidationPipe(catalogSeedRefreshSchema)) body: CatalogSeedRefreshDto) {
-    return this.service.refreshCatalogSeed(body);
+  @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
+  refreshCatalogSeed(
+    @Body(new ZodValidationPipe(catalogSeedRefreshSchema)) body: CatalogSeedRefreshDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.refreshCatalogSeed(body, user);
   }
 
   @ApiOperation({ summary: 'Listar herramientas catalogadas' })
@@ -111,7 +118,7 @@ export class SystemsCatalogController {
   @ApiBody({ schema: zodToApiSchema(inferToolRequirementsSchema) })
   @ApiResponse({ status: 200, description: 'Requisitos inferidos.' })
   @Post('tools/infer-requirements')
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   inferToolRequirements(@Body(new ZodValidationPipe(inferToolRequirementsSchema)) body: InferToolRequirementsDto) {
     return this.toolInferenceService.infer(body);
   }
@@ -120,7 +127,7 @@ export class SystemsCatalogController {
   @ApiBody({ schema: zodToApiSchema(inferToolRequirementsSchema) })
   @ApiResponse({ status: 200, description: 'Impactos endpoint-tabla inferidos.' })
   @Post('data-entities/infer-impacts')
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   inferDataImpacts(@Body(new ZodValidationPipe(inferToolRequirementsSchema)) body: InferToolRequirementsDto) {
     return this.dataImpactInferenceService.infer(body);
   }
@@ -167,14 +174,14 @@ export class SystemsCatalogController {
 
   @ApiOperation({ summary: 'Actualizar metadata de una entidad de datos' })
   @ApiParam({ name: 'entityId', schema: zodToApiSchema(systemsEntityParamsSchema.shape.entityId) })
-  @ApiBody({ description: 'Metadata libre a fusionar (objeto JSON arbitrario).' })
+  @ApiBody({ schema: zodToApiSchema(updateDataEntityMetadataSchema) })
   @ApiResponse({ status: 200, description: 'Metadata actualizada.' })
   @ApiResponse({ status: 404, description: 'DATA_ENTITY_NOT_FOUND.' })
   @Patch('data-entities/:entityId/metadata')
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   updateDataEntityMetadata(
     @Param(new ZodValidationPipe(systemsEntityParamsSchema)) params: SystemsEntityParamsDto,
-    @Body() body: Record<string, unknown>,
+    @Body(new ZodValidationPipe(updateDataEntityMetadataSchema)) body: UpdateDataEntityMetadataDto,
   ) {
     return this.service.updateDataEntityMetadata(params.entityId, body);
   }

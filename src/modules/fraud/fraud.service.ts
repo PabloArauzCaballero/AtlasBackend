@@ -32,6 +32,11 @@ export class FraudService {
     if ((input.body.decision === 'confirmed_fraud' || input.body.decision === 'blocked') && !input.body.reasonCode) {
       throw new UnprocessableEntityException('FRAUD_REASON_REQUIRED');
     }
+    // Para decisiones que no exigen reasonCode (false_positive, escalated,
+    // needs_more_investigation) puede venir undefined; los registros de auditoría que requieren
+    // un string no-nulo (watchlist, status event, data-change log) usan la decisión misma como
+    // motivo de respaldo en vez de forzar un reasonCode que el schema ya no exige.
+    const auditReasonCode = input.body.reasonCode ?? input.body.decision;
     const now = new Date();
     return this.sequelize.transaction(async (transaction) => {
       const fraudCase = await this.fraudRepository.findFraudCaseById(input.tenantId, input.params.caseId);
@@ -83,7 +88,7 @@ export class FraudService {
               entityType: identifier.entityType,
               entityHash: identifier.entityHash,
               entityLast4: identifier.entityLast4,
-              reasonCode: input.body.reasonCode,
+              reasonCode: auditReasonCode,
               severity: fraudCase.severity ?? 'high',
               actorInternalUserId: input.currentUser.internalUserId ?? null,
               createdAt: now,
@@ -100,7 +105,7 @@ export class FraudService {
             customerId: String(fraudCase.customerId),
             previousStatus: null,
             newStatus: input.body.nextCustomerStatus,
-            reasonCode: input.body.reasonCode,
+            reasonCode: auditReasonCode,
             actorType: input.currentUser.role,
             actorInternalUserId: input.currentUser.internalUserId ?? null,
             happenedAt: now,
@@ -140,7 +145,7 @@ export class FraudService {
           changeType: 'decision',
           actorType: input.currentUser.role,
           actorInternalUserId: input.currentUser.internalUserId ?? null,
-          reason: input.body.reasonCode,
+          reason: auditReasonCode,
           happenedAt: now,
         },
         { transaction },

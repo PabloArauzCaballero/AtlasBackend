@@ -74,3 +74,10 @@ export const internalUserParamsSchema = z.object({
 });
 
 export type InternalUserParamsDto = z.infer<typeof internalUserParamsSchema>;
+
+export const listInternalUsersQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(50),
+});
+
+export type ListInternalUsersQueryDto = z.infer<typeof listInternalUsersQuerySchema>;

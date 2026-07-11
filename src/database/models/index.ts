@@ -118,3 +118,4 @@ export { SystemEndpointPayloadContractModel } from './system-endpoint-payload-co
 export { SystemDataFieldCatalogModel } from './system-data-field-catalog.model.js';
 export { SystemDataRelationshipCatalogModel } from './system-data-relationship-catalog.model.js';
 export { SystemOperationalRuleCatalogModel } from './system-operational-rule-catalog.model.js';
+export { SystemCatalogReviewEventModel } from './system-catalog-review-events.model.js';

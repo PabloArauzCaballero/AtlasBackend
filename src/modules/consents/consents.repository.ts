@@ -50,6 +50,27 @@ export class ConsentsRepository {
     } as FindOptions);
   }
 
+  /**
+   * Batch de `findActiveDocumentById` — `registerConsentDecisions` puede recibir hasta N
+   * decisiones en un solo request; antes se buscaba el documento de cada una en un `await`
+   * dentro del loop (N+1). Trae todos los documentos activos referenciados en un solo `IN (...)`.
+   */
+  findActiveDocumentsByIds(tenantId: string, consentDocumentIds: readonly string[]): Promise<ConsentDocumentModel[]> {
+    if (consentDocumentIds.length === 0) return Promise.resolve([]);
+    const now = new Date();
+    return this.consentDocumentModel.findAll({
+      where: {
+        id: { [Op.in]: [...consentDocumentIds] },
+        tenantId,
+        status: 'published',
+        [Op.and]: [
+          { [Op.or]: [{ effectiveFrom: null }, { effectiveFrom: { [Op.lte]: now } }] },
+          { [Op.or]: [{ effectiveUntil: null }, { effectiveUntil: { [Op.gt]: now } }] },
+        ],
+      },
+    } as FindOptions);
+  }
+
   createCustomerConsent(
     values: {
       tenantId: string;

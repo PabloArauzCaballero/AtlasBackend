@@ -8,6 +8,7 @@ import {
   SystemEndpointDataEntityImpactModel,
   SystemEndpointFieldImpactModel,
   SystemEndpointToolRequirementModel,
+  SystemCatalogReviewEventModel,
 } from '../../database/models/index.js';
 import { ReviewDecisionDto, SystemsReviewQueueDto } from './systems-ops.schemas.js';
 import { buildReviewWhere } from './systems-repository-where.util.js';
@@ -21,6 +22,7 @@ export class SystemsReviewRepository {
     @InjectModel(SystemEndpointFieldImpactModel) private readonly fieldImpactModel: typeof SystemEndpointFieldImpactModel,
     @InjectModel(SystemDataFieldCatalogModel) private readonly dataFieldModel: typeof SystemDataFieldCatalogModel,
     @InjectModel(SystemEndpointToolRequirementModel) private readonly endpointToolModel: typeof SystemEndpointToolRequirementModel,
+    @InjectModel(SystemCatalogReviewEventModel) private readonly reviewEventModel: typeof SystemCatalogReviewEventModel,
   ) {}
 
   async listReviewQueue(query: SystemsReviewQueueDto) {
@@ -84,66 +86,144 @@ export class SystemsReviewRepository {
     endpointId: string,
     decision: ReviewDecisionDto,
     actorId: string | null,
+    actorRole: string,
+    tenantId: string | null,
   ): Promise<SystemEndpointCatalogModel | null> {
     const row = await this.endpointModel.findByPk(endpointId);
     if (!row) return null;
+    const previousStatus = row.reviewStatus;
+    const previousConfidence = row.confidenceLevel;
     row.reviewStatus = decision.reviewStatus;
     if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
     row.updatedBy = actorId;
     row.updatedAtValue = new Date();
-    return row.save();
+    const saved = await row.save();
+    await this.recordReview('endpoint', endpointId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId);
+    return saved;
   }
 
-  async updateDataEntityReview(entityId: string, decision: ReviewDecisionDto): Promise<SystemDataEntityCatalogModel | null> {
+  async updateDataEntityReview(
+    entityId: string,
+    decision: ReviewDecisionDto,
+    actorId: string | null,
+    actorRole: string,
+    tenantId: string | null,
+  ): Promise<SystemDataEntityCatalogModel | null> {
     const row = await this.dataEntityModel.findByPk(entityId);
     if (!row) return null;
+    const previousStatus = row.reviewStatus;
+    const previousConfidence = row.confidenceLevel;
     row.reviewStatus = decision.reviewStatus;
     if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
     row.updatedAtValue = new Date();
-    return row.save();
+    const saved = await row.save();
+    await this.recordReview('data_entity', entityId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId);
+    return saved;
   }
 
-  async updateDataImpactReview(impactId: string, decision: ReviewDecisionDto): Promise<SystemEndpointDataEntityImpactModel | null> {
+  async updateDataImpactReview(
+    impactId: string,
+    decision: ReviewDecisionDto,
+    actorId: string | null,
+    actorRole: string,
+    tenantId: string | null,
+  ): Promise<SystemEndpointDataEntityImpactModel | null> {
     const row = await this.dataImpactModel.findByPk(impactId);
     if (!row) return null;
+    const previousStatus = row.reviewStatus;
+    const previousConfidence = row.confidenceLevel;
     row.reviewStatus = decision.reviewStatus;
     if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
     if (decision.notes) row.notes = decision.notes;
     row.updatedAtValue = new Date();
-    return row.save();
+    const saved = await row.save();
+    await this.recordReview('data_impact', impactId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId);
+    return saved;
   }
 
-  async updateFieldImpactReview(impactId: string, decision: ReviewDecisionDto): Promise<SystemEndpointFieldImpactModel | null> {
+  async updateFieldImpactReview(
+    impactId: string,
+    decision: ReviewDecisionDto,
+    actorId: string | null,
+    actorRole: string,
+    tenantId: string | null,
+  ): Promise<SystemEndpointFieldImpactModel | null> {
     const row = await this.fieldImpactModel.findByPk(impactId);
     if (!row) return null;
+    const previousStatus = row.reviewStatus;
+    const previousConfidence = row.confidenceLevel;
     row.reviewStatus = decision.reviewStatus;
     if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
     if (decision.notes) row.notes = decision.notes;
-    return row.save();
+    const saved = await row.save();
+    await this.recordReview('field_impact', impactId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId);
+    return saved;
   }
 
-  async updateDataColumnReview(columnId: string, decision: ReviewDecisionDto): Promise<SystemDataFieldCatalogModel | null> {
+  async updateDataColumnReview(
+    columnId: string,
+    decision: ReviewDecisionDto,
+    actorId: string | null,
+    actorRole: string,
+    tenantId: string | null,
+  ): Promise<SystemDataFieldCatalogModel | null> {
     const row = await this.dataFieldModel.findByPk(columnId);
     if (!row) return null;
+    const previousStatus = row.reviewStatus;
+    const previousConfidence = row.confidenceLevel;
     row.reviewStatus = decision.reviewStatus;
     if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
     if (decision.notes) row.operationalNotes = decision.notes;
     row.detectedFrom = 'manual';
     row.manuallyEditedAt = new Date();
     row.updatedAtValue = new Date();
-    return row.save();
+    const saved = await row.save();
+    await this.recordReview('data_column', columnId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId);
+    return saved;
   }
 
   async updateToolRequirementReview(
     requirementId: string,
     decision: ReviewDecisionDto,
+    actorId: string | null,
+    actorRole: string,
+    tenantId: string | null,
   ): Promise<SystemEndpointToolRequirementModel | null> {
     const row = await this.endpointToolModel.findByPk(requirementId);
     if (!row) return null;
+    const previousStatus = row.reviewStatus;
+    const previousConfidence = row.confidenceLevel;
     row.reviewStatus = decision.reviewStatus;
     if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
     if (decision.notes) row.notes = decision.notes;
     row.updatedAtValue = new Date();
-    return row.save();
+    const saved = await row.save();
+    await this.recordReview('tool_requirement', requirementId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId);
+    return saved;
+  }
+
+  private async recordReview(
+    targetType: string,
+    targetId: string,
+    previousStatus: string | null,
+    previousConfidence: string | null,
+    decision: ReviewDecisionDto,
+    actorId: string | null,
+    actorRole: string,
+    tenantId: string | null,
+  ): Promise<void> {
+    await this.reviewEventModel.create({
+      tenantId,
+      targetType,
+      targetId,
+      previousStatus,
+      newStatus: decision.reviewStatus,
+      previousConfidence,
+      newConfidence: decision.confidenceLevel ?? previousConfidence,
+      notes: decision.notes ?? null,
+      actorId,
+      actorRole,
+      createdAtValue: new Date(),
+    } as never);
   }
 }

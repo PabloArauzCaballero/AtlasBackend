@@ -19,6 +19,7 @@ import {
   SystemDataFieldCatalogModel,
   SystemDataRelationshipCatalogModel,
   SystemOperationalRuleCatalogModel,
+  SystemCatalogReviewEventModel,
 } from '../../database/models/index.js';
 import { EndpointDiscoveryService } from './endpoint-discovery.service.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
@@ -73,6 +74,7 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
       SystemDataFieldCatalogModel,
       SystemDataRelationshipCatalogModel,
       SystemOperationalRuleCatalogModel,
+      SystemCatalogReviewEventModel,
     ]),
   ],
   controllers: [

@@ -164,6 +164,73 @@ describe('OperationsService', () => {
       // merged+sorted desc: f2, f1, m2, m1 -> page 2 with limit 2 -> [m2, m1]
       expect(result.items.map((i: { id: string }) => i.id)).toEqual(['m2', 'm1']);
     });
+
+    it('queue: "all" asks each source for its top page*limit rows (offset 0), not the same page/limit as the caller', async () => {
+      const { service, operationsRepository } = await buildService();
+      (operationsRepository.findManualReviewCasesForQueue as jest.Mock).mockResolvedValueOnce({ rows: [], meta: { total: 0 } } as never);
+      (operationsRepository.findFraudCasesForQueue as jest.Mock).mockResolvedValueOnce({ rows: [], meta: { total: 0 } } as never);
+
+      await service.getWorkQueue('t1', { queue: 'all', page: 3, limit: 5, sortOrder: 'desc' } as never);
+
+      // page*limit = 15: cada fuente debe pedirse con offset 0 (page: 1) y limit: 15, no page:3/limit:5 —
+      // ver el comentario en operations.service.ts sobre por qué mezclar dos páginas ya recortadas es incorrecto.
+      expect(operationsRepository.findManualReviewCasesForQueue).toHaveBeenCalledWith(
+        't1',
+        expect.objectContaining({ page: 1, limit: 15 }),
+      );
+      expect(operationsRepository.findFraudCasesForQueue).toHaveBeenCalledWith('t1', expect.objectContaining({ page: 1, limit: 15 }));
+    });
+
+    it('queue: "all" page 2+ returns the correct globally-sorted slice against sources that genuinely paginate (regression for the OFFSET-merge bug)', async () => {
+      const { service, operationsRepository } = await buildService();
+
+      // 5 manual-review cases + 3 fraud cases, already sorted desc by createdAt like the real
+      // repository would return them. Merged+sorted desc, the true order is:
+      // [m1(10), f1(9), m2(8), m3(6), f2(5), m4(4), m5(2), f3(1)]
+      const manualRows = [
+        { id: 'm1', createdAt: '2026-01-10T00:00:00.000Z' },
+        { id: 'm2', createdAt: '2026-01-08T00:00:00.000Z' },
+        { id: 'm3', createdAt: '2026-01-06T00:00:00.000Z' },
+        { id: 'm4', createdAt: '2026-01-04T00:00:00.000Z' },
+        { id: 'm5', createdAt: '2026-01-02T00:00:00.000Z' },
+      ];
+      const fraudRows = [
+        { id: 'f1', createdAt: '2026-01-09T00:00:00.000Z' },
+        { id: 'f2', createdAt: '2026-01-05T00:00:00.000Z' },
+        { id: 'f3', createdAt: '2026-01-01T00:00:00.000Z' },
+      ];
+
+      // Fake que respeta offset/limit de verdad, como haría Postgres — a diferencia de los demás
+      // tests de este describe (que usan mockResolvedValueOnce con datos fijos, ignorando los
+      // argumentos), esto es lo que hacía que el bug original pasara desapercibido.
+      (operationsRepository.findManualReviewCasesForQueue as jest.Mock).mockImplementation(
+        async (_tenantId: string, query: { page: number; limit: number }) => {
+          const offset = (query.page - 1) * query.limit;
+          return { rows: manualRows.slice(offset, offset + query.limit), meta: { total: manualRows.length } };
+        },
+      );
+      (operationsRepository.findFraudCasesForQueue as jest.Mock).mockImplementation(
+        async (_tenantId: string, query: { page: number; limit: number }) => {
+          const offset = (query.page - 1) * query.limit;
+          return { rows: fraudRows.slice(offset, offset + query.limit), meta: { total: fraudRows.length } };
+        },
+      );
+
+      const page1 = await service.getWorkQueue('t1', { queue: 'all', page: 1, limit: 2, sortOrder: 'desc' } as never);
+      const page2 = await service.getWorkQueue('t1', { queue: 'all', page: 2, limit: 2, sortOrder: 'desc' } as never);
+      const page3 = await service.getWorkQueue('t1', { queue: 'all', page: 3, limit: 2, sortOrder: 'desc' } as never);
+      const page4 = await service.getWorkQueue('t1', { queue: 'all', page: 4, limit: 2, sortOrder: 'desc' } as never);
+
+      expect(page1.items.map((i: { id: string }) => i.id)).toEqual(['m1', 'f1']);
+      expect(page2.items.map((i: { id: string }) => i.id)).toEqual(['m2', 'm3']);
+      expect(page3.items.map((i: { id: string }) => i.id)).toEqual(['f2', 'm4']);
+      expect(page4.items.map((i: { id: string }) => i.id)).toEqual(['m5', 'f3']);
+      expect(page1.meta.total).toBe(8);
+
+      // Ninguna página debe repetir ni saltarse ids frente a las demás.
+      const allIds = [page1, page2, page3, page4].flatMap((p) => p.items.map((i: { id: string }) => i.id));
+      expect(new Set(allIds).size).toBe(8);
+    });
   });
 
   describe('getInvestigationSummary', () => {

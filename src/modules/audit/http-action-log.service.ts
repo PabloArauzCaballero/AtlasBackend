@@ -76,6 +76,7 @@ export class HttpActionLogService {
     const endpoint = input.method && input.resolvedUrlSanitized ? await this.findEndpoint(input.method, input.resolvedUrlSanitized) : null;
     const idempotencyKeyHash = input.idempotencyKey ? hashPayload(input.idempotencyKey) : null;
     return this.systemActionLogModel.create({
+      tenantId: input.tenantId,
       requestId: input.requestId ?? input.correlationId ?? null,
       correlationId: input.correlationId ?? null,
       endpointCatalogId: endpoint?.id ?? null,

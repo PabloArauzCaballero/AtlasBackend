@@ -39,6 +39,25 @@ function makeRepository(overrides: Record<string, unknown> = {}) {
         permissions: [],
       },
     })),
+    buildAccessProfiles: jest.fn(async (users: Array<{ id: string }>) =>
+      users.map((user) => ({
+        user: {
+          id: user.id,
+          tenantId: '1',
+          email: `user${user.id}@atlas.internal`,
+          fullName: `User ${user.id}`,
+          userCode: `user${user.id}`,
+          status: 'active',
+          department: 'SYSTEMS',
+          jobTitle: null,
+          mustChangePassword: false,
+          mfaEnabled: false,
+          roles: ['SUPPORT_AGENT'],
+          permissions: [],
+        },
+      })),
+    ),
+    listUsers: jest.fn(async () => ({ rows: [], total: 0 })),
     findUserByEmail: jest.fn(async () => null),
     findRolesByCodes: jest.fn(async (roleCodes: string[]) => roleCodes.map((roleCode, index) => ({ id: String(index + 1), roleCode }))),
     createUserWithCredentials: jest.fn(),
@@ -154,5 +173,25 @@ describe('InternalUsersService security boundaries', () => {
     await service.updateUser(currentUser, '11', { status: 'disabled', reason: 'baja operativa aprobada' }, { ipAddress: null, userAgent: null });
 
     expect(tokenRevocationService.bumpTokenVersion).toHaveBeenCalledWith('internal_user', '11');
+  });
+
+  it('listUsers batches role/permission lookups via buildAccessProfiles instead of one call per user (N+1 regression)', async () => {
+    const rows = [
+      { id: '20', tenantId: '1' },
+      { id: '21', tenantId: '1' },
+      { id: '22', tenantId: '1' },
+    ];
+    const repository = makeRepository({ listUsers: jest.fn(async () => ({ rows, total: 3 })) });
+    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never);
+
+    const result = await service.listUsers(currentUser, { page: 1, limit: 50 });
+
+    expect(repository.listUsers).toHaveBeenCalledWith('1', { page: 1, limit: 50 });
+    // Un solo llamado con las 3 filas de la página, no 3 llamados individuales.
+    expect(repository.buildAccessProfiles).toHaveBeenCalledTimes(1);
+    expect(repository.buildAccessProfiles).toHaveBeenCalledWith(rows);
+    expect(repository.buildAccessProfile).not.toHaveBeenCalled();
+    expect(result.items.map((item) => item.id)).toEqual(['20', '21', '22']);
+    expect(result.meta).toEqual({ page: 1, limit: 50, total: 3, totalPages: 1 });
   });
 });

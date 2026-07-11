@@ -170,6 +170,27 @@ describe('FraudService.decideFraudCase', () => {
     expect(result.watchlistApplied).toBe(false);
   });
 
+  it('does not require reasonCode for false_positive (regression: fraudDecisionSchema used to force it for every decision)', async () => {
+    // Antes de este fix, `fraudDecisionSchema.reasonCode` era obligatorio para TODA decisión —
+    // incluyendo `false_positive` — así que este chequeo de servicio (que solo lo exige para
+    // confirmed_fraud/blocked) nunca se alcanzaba vía HTTP. Ahora el schema lo hace opcional y
+    // el service usa la decisión misma como motivo de respaldo en los logs de auditoría.
+    const repo = buildFraudRepositoryMock();
+    repo.findFraudCaseById.mockResolvedValue({ id: '1', closedAt: null, caseStatus: 'open', customerId: '10', severity: 'low' });
+    const service = new FraudService(repo as never, buildCustomersRepositoryMock() as never, buildSequelizeMock() as never);
+
+    const result = await service.decideFraudCase({
+      tenantId: '1',
+      params: { caseId: '1' },
+      body: { decision: 'false_positive', applyWatchlist: false },
+      currentUser: { sub: '1', role: 'fraud_analyst' },
+      idempotencyKey: 'idem-8',
+    });
+
+    expect(result.caseStatus).toBe('closed');
+    expect(repo.createDataChange).toHaveBeenCalledWith(expect.objectContaining({ reason: 'false_positive' }), expect.anything());
+  });
+
   it('sets caseStatus to in_progress (not closed) for needs_more_investigation', async () => {
     const repo = buildFraudRepositoryMock();
     repo.findFraudCaseById.mockResolvedValue({ id: '1', closedAt: null, caseStatus: 'open', customerId: '10', severity: 'medium' });

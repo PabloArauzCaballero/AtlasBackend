@@ -15,6 +15,44 @@ export type DiscoveredEndpoint = EndpointSeed & {
   handlerName: string | null;
 };
 
+const ROLE_CONSTANTS: Record<string, string[]> = {
+  SYSTEMS_OPS_ROLES: [
+    'system_admin',
+    'platform_admin',
+    'admin',
+    'qa_engineer',
+    'devops',
+    'risk_analyst',
+    'compliance_analyst',
+    'readonly_auditor',
+  ],
+  SYSTEMS_OPS_GOVERNANCE_ROLES: ['system_admin', 'platform_admin'],
+  SYSTEMS_OPS_QA_ROLES: ['system_admin', 'platform_admin', 'qa_engineer'],
+  SYSTEMS_OPS_STRESS_ROLES: ['system_admin', 'platform_admin', 'qa_engineer', 'devops'],
+};
+
+function methodDecoratorBlock(classBlock: string, routeIndex: number): string {
+  const beforeRoute = classBlock.slice(0, routeIndex);
+  const previousMethodEnd = Math.max(beforeRoute.lastIndexOf('\n  }'), beforeRoute.lastIndexOf('\n}'));
+  return beforeRoute.slice(previousMethodEnd + 1);
+}
+
+function rolesFromDecorators(decorators: string): string[] {
+  const rolesCall = decorators.match(/@Roles\(([^)]*)\)/s)?.[1];
+  if (!rolesCall) return [];
+  const roles = [...rolesCall.matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
+  for (const constant of rolesCall.matchAll(/\.\.\.([A-Z0-9_]+)/g)) roles.push(...(ROLE_CONSTANTS[constant[1]] ?? []));
+  return [...new Set(roles)];
+}
+
+function isRoutePublic(classBlock: string, routeIndex: number, decoratorsAfterRoute: string): boolean {
+  if (decoratorsAfterRoute.includes('@Public()')) return true;
+  const publicIndex = classBlock.lastIndexOf('@Public()', routeIndex);
+  if (publicIndex < 0) return false;
+  const between = classBlock.slice(publicIndex + '@Public()'.length, routeIndex);
+  return !/@(Get|Post|Put|Patch|Delete|Options|Head)\(/.test(between);
+}
+
 function decoratorPath(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed || trimmed === '') return '';
@@ -185,6 +223,9 @@ export class EndpointDiscoveryService {
         const riskLevel = this.classifier.riskLevelForEndpoint(method, apiPath);
         const businessContext = endpointBusinessContext(method, apiPath, handlerName);
         const payloadSummary = endpointPayloadSummary(method, apiPath);
+        const decorators = `${methodDecoratorBlock(classBlock, route.index ?? 0)}\n${route[3] ?? ''}`;
+        const explicitRoles = rolesFromDecorators(decorators);
+        const systemsController = classBlock.includes('@SystemsOpsControllerSecurity()');
         endpoints.push({
           code: buildEndpointCode(method, apiPath),
           module: moduleFromPath(apiPath),
@@ -209,8 +250,8 @@ export class EndpointDiscoveryService {
               : 'Escritura esperada. Debe registrar cambios de estado, auditoría, eventos internos y entidades impactadas cuando aplique.',
           metadataCompletenessScore: 82,
           expectedStatusCodes: [method === 'POST' ? 201 : 200],
-          requiresAuth: !classBlock.includes('@Public()') && !route[3].includes('@Public()'),
-          allowedRoles: [],
+          requiresAuth: !isRoutePublic(classBlock, route.index ?? 0, route[3] ?? ''),
+          allowedRoles: explicitRoles.length > 0 ? explicitRoles : systemsController ? ROLE_CONSTANTS.SYSTEMS_OPS_ROLES : [],
           containsPii: this.classifier.containsPiiForEndpoint(apiPath),
           riskLevel,
           isDestructive: method === 'DELETE',

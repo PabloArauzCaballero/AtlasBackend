@@ -6,7 +6,7 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { SystemsOpsControllerSecurity } from './systems-controller.decorators.js';
-import { SYSTEMS_OPS_WRITE_ROLES } from './systems-ops.constants.js';
+import { SYSTEMS_OPS_GOVERNANCE_ROLES } from './systems-ops.constants.js';
 import {
   reviewDecisionSchema,
   ReviewDecisionDto,
@@ -49,7 +49,7 @@ export class SystemsReviewController {
   @ApiBody({ schema: zodToApiSchema(reviewDecisionSchema) })
   @ApiResponse({ status: 200, description: 'Decisión de revisión aplicada.' })
   @ApiResponse({ status: 404, description: 'ENDPOINT_NOT_FOUND.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   @Patch('endpoints/:endpointId/review')
   reviewEndpoint(
     @Param(new ZodValidationPipe(systemsEndpointParamsSchema)) params: SystemsEndpointParamsDto,
@@ -64,13 +64,14 @@ export class SystemsReviewController {
   @ApiBody({ schema: zodToApiSchema(reviewDecisionSchema) })
   @ApiResponse({ status: 200, description: 'Decisión de revisión aplicada.' })
   @ApiResponse({ status: 404, description: 'TOOL_REQUIREMENT_NOT_FOUND.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   @Patch('tools/requirements/:requirementId/review')
   reviewToolRequirement(
     @Param(new ZodValidationPipe(systemsToolRequirementParamsSchema)) params: SystemsToolRequirementParamsDto,
     @Body(new ZodValidationPipe(reviewDecisionSchema)) body: ReviewDecisionDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.reviewToolRequirement(params.requirementId, body);
+    return this.service.reviewToolRequirement(params.requirementId, body, user);
   }
 
   @ApiOperation({ summary: 'Revisar (aprobar/rechazar) una entidad de datos' })
@@ -78,13 +79,14 @@ export class SystemsReviewController {
   @ApiBody({ schema: zodToApiSchema(reviewDecisionSchema) })
   @ApiResponse({ status: 200, description: 'Decisión de revisión aplicada.' })
   @ApiResponse({ status: 404, description: 'DATA_ENTITY_NOT_FOUND.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   @Patch('data-entities/:entityId/review')
   reviewDataEntity(
     @Param(new ZodValidationPipe(systemsEntityParamsSchema)) params: SystemsEntityParamsDto,
     @Body(new ZodValidationPipe(reviewDecisionSchema)) body: ReviewDecisionDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.reviewDataEntity(params.entityId, body);
+    return this.service.reviewDataEntity(params.entityId, body, user);
   }
 
   @ApiOperation({ summary: 'Revisar (aprobar/rechazar) un impacto de datos' })
@@ -92,13 +94,14 @@ export class SystemsReviewController {
   @ApiBody({ schema: zodToApiSchema(reviewDecisionSchema) })
   @ApiResponse({ status: 200, description: 'Decisión de revisión aplicada.' })
   @ApiResponse({ status: 404, description: 'DATA_IMPACT_NOT_FOUND.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   @Patch('impact/data/:impactId/review')
   reviewDataImpact(
     @Param(new ZodValidationPipe(systemsDataImpactParamsSchema)) params: SystemsDataImpactParamsDto,
     @Body(new ZodValidationPipe(reviewDecisionSchema)) body: ReviewDecisionDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.reviewDataImpact(params.impactId, body);
+    return this.service.reviewDataImpact(params.impactId, body, user);
   }
 
   @ApiOperation({ summary: 'Revisar (aprobar/rechazar) un impacto de campo' })
@@ -106,13 +109,14 @@ export class SystemsReviewController {
   @ApiBody({ schema: zodToApiSchema(reviewDecisionSchema) })
   @ApiResponse({ status: 200, description: 'Decisión de revisión aplicada.' })
   @ApiResponse({ status: 404, description: 'FIELD_IMPACT_NOT_FOUND.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   @Patch('impact/fields/:fieldImpactId/review')
   reviewFieldImpact(
     @Param(new ZodValidationPipe(systemsFieldImpactParamsSchema)) params: SystemsFieldImpactParamsDto,
     @Body(new ZodValidationPipe(reviewDecisionSchema)) body: ReviewDecisionDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.reviewFieldImpact(params.fieldImpactId, body);
+    return this.service.reviewFieldImpact(params.fieldImpactId, body, user);
   }
 
   @ApiOperation({ summary: 'Revisar (aprobar/rechazar) una columna de datos' })
@@ -120,12 +124,13 @@ export class SystemsReviewController {
   @ApiBody({ schema: zodToApiSchema(reviewDecisionSchema) })
   @ApiResponse({ status: 200, description: 'Decisión de revisión aplicada.' })
   @ApiResponse({ status: 404, description: 'DATA_COLUMN_NOT_FOUND.' })
-  @Roles(...SYSTEMS_OPS_WRITE_ROLES)
+  @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   @Patch('data-entities/columns/:columnId/review')
   reviewDataColumn(
     @Param(new ZodValidationPipe(systemsColumnParamsSchema)) params: SystemsColumnParamsDto,
     @Body(new ZodValidationPipe(reviewDecisionSchema)) body: ReviewDecisionDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.reviewDataColumn(params.columnId, body);
+    return this.service.reviewDataColumn(params.columnId, body, user);
   }
 }

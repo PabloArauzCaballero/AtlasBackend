@@ -1,5 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../types/auth.types.js';
+import { isInternalOperationalRole } from './role-groups.util.js';
 
 /**
  * ATLAS-AUDIT-027 (cerrado en este patch): antes de este cambio, esta misma verificación
@@ -30,5 +31,25 @@ export function assertOwnCustomerResource(currentUser: AuthenticatedUser, custom
 export function assertIsOwningCustomer(currentUser: AuthenticatedUser, customerId: string): void {
   if (currentUser.role !== 'customer' || currentUser.customerId !== customerId) {
     throw new ForbiddenException('Este recurso solo puede ser accedido por el cliente propietario.');
+  }
+}
+
+/**
+ * Variante usada por `customer-onboarding` (antes vivía duplicada, con semántica distinta, en
+ * `customer-onboarding/application/customer-onboarding-access.util.ts` — reintroducía el mismo
+ * tipo de duplicación que ATLAS-AUDIT-027 consolidó, así que se fusiona aquí en vez de eliminarse
+ * sin más). A diferencia de `assertOwnCustomerResource` (que deja pasar CUALQUIER rol que no sea
+ * literalmente `'customer'`), esta variante solo hace bypass para los roles operacionales
+ * internos (`isInternalOperationalRole`: internal_operator, risk_analyst, compliance_analyst,
+ * fraud_analyst, admin, platform_admin) — roles como `merchant`, `readonly_auditor`,
+ * `qa_engineer`, `devops` o `system_admin` NO tienen motivo de negocio para leer/escribir el
+ * onboarding de un cliente específico y quedan bloqueados a propósito. Usar
+ * `assertOwnCustomerResource` aquí en su lugar sería una regresión de seguridad real (esos roles
+ * pasarían a tener acceso irrestricto a onboarding de cualquier cliente).
+ */
+export function assertOwnCustomerResourceOrInternalOperational(currentUser: AuthenticatedUser, customerId: string): void {
+  if (isInternalOperationalRole(currentUser.role)) return;
+  if (currentUser.role !== 'customer' || currentUser.customerId !== customerId) {
+    throw new ForbiddenException('El token no permite operar sobre este cliente.');
   }
 }

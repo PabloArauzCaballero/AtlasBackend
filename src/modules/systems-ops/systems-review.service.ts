@@ -22,37 +22,49 @@ export class SystemsReviewService {
   }
 
   async reviewEndpoint(endpointId: string, decision: ReviewDecisionDto, user: AuthenticatedUser) {
-    const row = await this.reviewRepository.updateEndpointReview(endpointId, decision, actorId(user));
+    const row = await this.reviewRepository.updateEndpointReview(endpointId, decision, actorId(user), user.role, user.tenantId ?? null);
     if (!row) throw new NotFoundException('SYSTEM_ENDPOINT_NOT_FOUND');
     return mapEndpoint(row);
   }
 
-  async reviewDataEntity(entityId: string, decision: ReviewDecisionDto) {
-    const row = await this.reviewRepository.updateDataEntityReview(entityId, decision);
+  async reviewDataEntity(entityId: string, decision: ReviewDecisionDto, user: AuthenticatedUser) {
+    const row = await this.reviewRepository.updateDataEntityReview(entityId, decision, actorId(user), user.role, user.tenantId ?? null);
     if (!row) throw new NotFoundException('SYSTEM_DATA_ENTITY_NOT_FOUND');
     return mapDataEntity(row);
   }
 
-  async reviewDataImpact(impactId: string, decision: ReviewDecisionDto) {
-    const row = await this.reviewRepository.updateDataImpactReview(impactId, decision);
+  async reviewDataImpact(impactId: string, decision: ReviewDecisionDto, user: AuthenticatedUser) {
+    const row = await this.reviewRepository.updateDataImpactReview(impactId, decision, actorId(user), user.role, user.tenantId ?? null);
     if (!row) throw new NotFoundException('SYSTEM_DATA_IMPACT_NOT_FOUND');
     return mapDataImpact(row);
   }
 
-  async reviewFieldImpact(fieldImpactId: string, decision: ReviewDecisionDto) {
-    const row = await this.reviewRepository.updateFieldImpactReview(fieldImpactId, decision);
+  async reviewFieldImpact(fieldImpactId: string, decision: ReviewDecisionDto, user: AuthenticatedUser) {
+    const row = await this.reviewRepository.updateFieldImpactReview(
+      fieldImpactId,
+      decision,
+      actorId(user),
+      user.role,
+      user.tenantId ?? null,
+    );
     if (!row) throw new NotFoundException('SYSTEM_FIELD_IMPACT_NOT_FOUND');
     return mapFieldImpact(row);
   }
 
-  async reviewDataColumn(columnId: string, decision: ReviewDecisionDto) {
-    const row = await this.reviewRepository.updateDataColumnReview(columnId, decision);
+  async reviewDataColumn(columnId: string, decision: ReviewDecisionDto, user: AuthenticatedUser) {
+    const row = await this.reviewRepository.updateDataColumnReview(columnId, decision, actorId(user), user.role, user.tenantId ?? null);
     if (!row) throw new NotFoundException('SYSTEM_DATA_COLUMN_NOT_FOUND');
     return mapDataField(row);
   }
 
-  async reviewToolRequirement(requirementId: string, decision: ReviewDecisionDto) {
-    const row = await this.reviewRepository.updateToolRequirementReview(requirementId, decision);
+  async reviewToolRequirement(requirementId: string, decision: ReviewDecisionDto, user: AuthenticatedUser) {
+    const row = await this.reviewRepository.updateToolRequirementReview(
+      requirementId,
+      decision,
+      actorId(user),
+      user.role,
+      user.tenantId ?? null,
+    );
     if (!row) throw new NotFoundException('SYSTEM_TOOL_REQUIREMENT_NOT_FOUND');
     return mapToolRequirement(row);
   }

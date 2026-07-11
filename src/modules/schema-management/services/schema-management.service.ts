@@ -1,6 +1,12 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../../common/types/auth.types.js';
-import { SchemaManagementRepository, SchemaChangeLogRow, SchemaTableRow, SchemaVersionRow } from '../schema-management.repository.js';
+import {
+  SchemaManagementRepository,
+  SchemaChangeLogRow,
+  SchemaTableRow,
+  SchemaVersionCounts,
+  SchemaVersionRow,
+} from '../schema-management.repository.js';
 import { SchemaManagementValidationService } from './schema-management-validation.service.js';
 import type { ApproveSchemaChangeRequest, CreateSchemaTableRequest } from '../schema-management.schemas.js';
 import {
@@ -51,7 +57,11 @@ export class SchemaManagementService {
   async listSchemaVersions(limit = 20, offset = 0, includeInactive = false): Promise<SchemaVersionListResponseDto> {
     const { rows, total } = await this.repo.listSchemaVersions(limit, offset, includeInactive);
 
-    const versions = await Promise.all(rows.map((row) => this.mapVersionRow(row)));
+    // Batch: 3 queries agregadas (GROUP BY schema_version_id) para toda la página, en vez de 3
+    // COUNT(*) por fila vía mapVersionRow (hasta 60 queries para una página de 20).
+    const countsByVersion = await this.repo.countTablesColumnsRelationshipsForVersions(rows.map((row) => row._id));
+    const emptyCounts: SchemaVersionCounts = { tablesCount: 0, columnsCount: 0, relationshipsCount: 0 };
+    const versions = rows.map((row) => this.mapVersionRowWithCounts(row, countsByVersion.get(row._id) ?? emptyCounts));
 
     return { versions, total, limit, offset };
   }
@@ -276,7 +286,10 @@ export class SchemaManagementService {
       this.repo.countColumnsInVersion(row._id),
       this.repo.countRelationshipsInVersion(row._id),
     ]);
+    return this.mapVersionRowWithCounts(row, { tablesCount, columnsCount, relationshipsCount });
+  }
 
+  private mapVersionRowWithCounts(row: SchemaVersionRow, counts: SchemaVersionCounts): SchemaVersionDto {
     const dto = new SchemaVersionDto();
     dto._id = row._id;
     dto.versionCode = row.version_code;
@@ -285,9 +298,9 @@ export class SchemaManagementService {
     dto.notes = row.notes;
     dto.isActive = row.is_active;
     dto.parentVersionId = row.parent_version_id;
-    dto.tablesCount = tablesCount;
-    dto.columnsCount = columnsCount;
-    dto.relationshipsCount = relationshipsCount;
+    dto.tablesCount = counts.tablesCount;
+    dto.columnsCount = counts.columnsCount;
+    dto.relationshipsCount = counts.relationshipsCount;
     return dto;
   }
 

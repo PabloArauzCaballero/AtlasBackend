@@ -26,10 +26,14 @@ export class SessionQueryService {
       };
     }
     const deviceId = session.deviceId ? String(session.deviceId) : null;
-    const device = deviceId ? await this.sessionsRepository.findDeviceById(input.tenantId, deviceId) : null;
-    const link = deviceId ? await this.sessionsRepository.findCustomerDeviceLink(input.tenantId, input.customerId, deviceId, {}) : null;
-    const latestGps = await this.sessionsRepository.findLatestGpsObservation(input.tenantId, String(session.id));
-    const latestSnapshot = await this.sessionsRepository.findLatestDeviceSnapshot(input.tenantId, String(session.id));
+    // Los 4 lookups son independientes entre sí (ninguno necesita el resultado de otro, solo
+    // deviceId/session.id ya conocidos) — se piden en paralelo en vez de en secuencia.
+    const [device, link, latestGps, latestSnapshot] = await Promise.all([
+      deviceId ? this.sessionsRepository.findDeviceById(input.tenantId, deviceId) : Promise.resolve(null),
+      deviceId ? this.sessionsRepository.findCustomerDeviceLink(input.tenantId, input.customerId, deviceId, {}) : Promise.resolve(null),
+      this.sessionsRepository.findLatestGpsObservation(input.tenantId, String(session.id)),
+      this.sessionsRepository.findLatestDeviceSnapshot(input.tenantId, String(session.id)),
+    ]);
 
     return {
       customerId: input.customerId,

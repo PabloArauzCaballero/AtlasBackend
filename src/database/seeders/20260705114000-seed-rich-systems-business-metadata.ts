@@ -814,6 +814,7 @@ async function upsertEndpoint(queryInterface: QueryInterface, endpoint: Endpoint
       :requiresStressTest, :requiresIntegrationTest, true, true, :ownerTeam, 'ACTIVE',
       'v1', 'controller_scan_enriched', 'HIGH', 'AUTO_DETECTED', :sourceFile, 'rich_metadata_seed', 'rich_metadata_seed', :createdAt, :createdAt
     ) ON CONFLICT (method, full_path) DO UPDATE SET
+      module = EXCLUDED.module,
       controller_name = EXCLUDED.controller_name,
       handler_name = EXCLUDED.handler_name,
       route_name = EXCLUDED.route_name,
@@ -1008,6 +1009,10 @@ async function upsertDataEntity(queryInterface: QueryInterface, tableName: strin
       :containsDevice, :containsLocation, :auditCritical, :retentionPolicy, 'ACTIVE', 'information_schema_enriched',
       'HIGH', 'AUTO_DETECTED', :createdAt, :createdAt
     ) ON CONFLICT (schema_name, table_name) DO UPDATE SET
+      -- Sin esto, tablas ya insertadas por seedColumnsFromInformationSchema()
+      -- con el módulo por defecto de una clasificación anterior (ej.
+      -- 'operations') nunca se realineaban con domain_code al re-correr el seed.
+      module = EXCLUDED.module,
       business_purpose = EXCLUDED.business_purpose,
       description = EXCLUDED.description,
       technical_purpose = EXCLUDED.technical_purpose,

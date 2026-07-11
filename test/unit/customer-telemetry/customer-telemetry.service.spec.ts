@@ -25,7 +25,7 @@ describe('CustomerTelemetryService.ingestBatch', () => {
       createCustomerAction: jest.fn(),
       createCustomerObservation: jest.fn(),
       createOnDeviceRun: jest.fn(),
-      createOnDeviceMetric: jest.fn(),
+      createOnDeviceMetrics: jest.fn(async (values: unknown[]) => values),
       createBehaviorSummary: jest.fn(),
       upsertActivitySummary: jest.fn(),
       createAudit: jest.fn(),
@@ -262,7 +262,9 @@ describe('CustomerTelemetryService.ingestBatch', () => {
     );
 
     expect(telemetryRepository.createOnDeviceRun).toHaveBeenCalledTimes(1);
-    expect(telemetryRepository.createOnDeviceMetric).toHaveBeenCalledTimes(2);
+    // Un solo bulkCreate para las N métricas (no una llamada por métrica — regresión N+1).
+    expect(telemetryRepository.createOnDeviceMetrics).toHaveBeenCalledTimes(1);
+    expect(telemetryRepository.createOnDeviceMetrics.mock.calls[0][0]).toHaveLength(2);
     expect(result.acceptedMetrics).toBe(2);
   });
 

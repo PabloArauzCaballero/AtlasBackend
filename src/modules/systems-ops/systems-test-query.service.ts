@@ -4,6 +4,7 @@ import { mapTestRun, mapTestStep, mapTestStepRun, mapTestSuite } from './systems
 import { RunTestSuiteDto, SystemsRunsQueryDto, SystemsSuiteQueryDto } from './systems-ops.schemas.js';
 import { SystemsTestExecutionRepository } from './systems-test-execution.repository.js';
 import { SystemsTestRunnerService } from './systems-test-runner.service.js';
+import { systemsTenantScope } from './systems-tenant-scope.util.js';
 
 @Injectable()
 export class SystemsTestQueryService {
@@ -28,13 +29,13 @@ export class SystemsTestQueryService {
     return this.testRunner.runSuite(suiteId, body, user);
   }
 
-  async listTestRuns(query: SystemsRunsQueryDto) {
-    const result = await this.testRepository.listTestRuns(query);
+  async listTestRuns(query: SystemsRunsQueryDto, user: AuthenticatedUser) {
+    const result = await this.testRepository.listTestRuns(query, systemsTenantScope(user));
     return { items: result.rows.map(mapTestRun), meta: result.meta };
   }
 
-  async getTestRun(runId: string) {
-    const run = await this.testRepository.findTestRunById(runId);
+  async getTestRun(runId: string, user: AuthenticatedUser) {
+    const run = await this.testRepository.findTestRunById(runId, systemsTenantScope(user));
     if (!run) throw new NotFoundException('SYSTEM_TEST_RUN_NOT_FOUND');
     const steps = await this.testRepository.findStepRunsByRun(runId);
     return { run: mapTestRun(run), steps: steps.map(mapTestStepRun) };

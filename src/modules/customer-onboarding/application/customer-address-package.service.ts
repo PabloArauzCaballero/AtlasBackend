@@ -2,11 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
+import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { AddressPackageDto } from '../customer-onboarding.schemas.js';
-import { assertCustomerOnboardingScope } from './customer-onboarding-access.util.js';
 
 @Injectable()
 export class CustomerAddressPackageService {
@@ -25,7 +25,7 @@ export class CustomerAddressPackageService {
     idempotencyKey: string;
   }) {
     if (!input.idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
-    assertCustomerOnboardingScope(input.customerId, input.currentUser);
+    assertOwnCustomerResourceOrInternalOperational(input.currentUser, input.customerId);
     const customer = await this.customersRepository.findById(input.tenantId, input.customerId);
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
 
@@ -42,6 +42,14 @@ export class CustomerAddressPackageService {
       }
 
       const declaredAddressText = input.body.address.addressLineEncrypted ?? null;
+      // `addressLineEncrypted` llega ya cifrado/opaco del cliente (envelope-encryption todavía no
+      // está conectado a customer-onboarding — ver ATLAS-AUDIT-012), así que esta capa no puede
+      // leer el texto real para normalizarlo (mayúsculas, tildes, abreviaturas). Lo que se guarda
+      // en `normalized_address_text` es una huella (fingerprint) del valor declarado, útil para
+      // detectar duplicados/cambios entre versiones sin tocar el contenido — NO texto humano
+      // normalizado, a pesar de lo que sugiere el nombre de la columna y del dato de ejemplo en
+      // el seeder de demo (`20260706000000-seed-deep-graph-demo-data.ts`, que sí usa texto plano
+      // legible solo porque es data de demostración, no un caso real).
       const normalizedAddressText = declaredAddressText ? sha256Hex(declaredAddressText) : null;
       const version = await this.onboardingRepository.createAddressVersion(
         {

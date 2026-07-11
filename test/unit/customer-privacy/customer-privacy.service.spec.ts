@@ -20,7 +20,7 @@ describe('CustomerPrivacyService', () => {
       createDataSubjectRequest: jest.fn(),
     };
     const customersRepository = { findById: jest.fn() };
-    const consentsRepository = { findActiveDocumentById: jest.fn() };
+    const consentsRepository = { findActiveDocumentsByIds: jest.fn() };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
 
     const service = new CustomerPrivacyService(
@@ -68,14 +68,14 @@ describe('CustomerPrivacyService', () => {
     it('throws CONSENT_DOCUMENT_NOT_ACTIVE when a decision references a document that is not active', async () => {
       const { service, customersRepository, consentsRepository } = buildService();
       (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
-      (consentsRepository.findActiveDocumentById as jest.Mock).mockResolvedValueOnce(null as never);
+      (consentsRepository.findActiveDocumentsByIds as jest.Mock).mockResolvedValueOnce([] as never);
       await expect(service.registerConsentDecisions(baseInput())).rejects.toThrow(/CONSENT_DOCUMENT_NOT_ACTIVE/);
     });
 
     it('a batch of only "granted" decisions returns currentConsentStatus "complete" and does NOT create a status event', async () => {
       const { service, customersRepository, consentsRepository, privacyRepository } = buildService();
       (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
-      (consentsRepository.findActiveDocumentById as jest.Mock).mockResolvedValue({ id: 'doc1' } as never);
+      (consentsRepository.findActiveDocumentsByIds as jest.Mock).mockResolvedValue([{ id: 'doc1' }] as never);
       (privacyRepository.createCustomerConsent as jest.Mock).mockResolvedValue({ id: 'consent-1' } as never);
 
       const result = await service.registerConsentDecisions(baseInput());
@@ -87,7 +87,7 @@ describe('CustomerPrivacyService', () => {
     it('a batch containing at least one "revoked" decision returns "requires_review" and DOES create a status event', async () => {
       const { service, customersRepository, consentsRepository, privacyRepository } = buildService();
       (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'approved_for_next_step' } as never);
-      (consentsRepository.findActiveDocumentById as jest.Mock).mockResolvedValue({ id: 'doc1' } as never);
+      (consentsRepository.findActiveDocumentsByIds as jest.Mock).mockResolvedValue([{ id: 'doc1' }, { id: 'doc2' }] as never);
       (privacyRepository.createCustomerConsent as jest.Mock).mockResolvedValue({ id: 'consent-1' } as never);
 
       const result = await service.registerConsentDecisions(
@@ -106,10 +106,32 @@ describe('CustomerPrivacyService', () => {
       expect(result.processed).toBe(2);
     });
 
+    it('looks up all referenced consent documents in a single batch call with deduped ids (N+1 regression)', async () => {
+      const { service, customersRepository, consentsRepository, privacyRepository } = buildService();
+      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
+      (consentsRepository.findActiveDocumentsByIds as jest.Mock).mockResolvedValue([{ id: 'doc1' }, { id: 'doc2' }] as never);
+      (privacyRepository.createCustomerConsent as jest.Mock).mockResolvedValue({ id: 'consent-1' } as never);
+
+      await service.registerConsentDecisions(
+        baseInput({
+          body: {
+            decisions: [
+              { consentDocumentId: 'doc1', purposeCode: 'a', decision: 'granted' },
+              { consentDocumentId: 'doc1', purposeCode: 'b', decision: 'granted' },
+              { consentDocumentId: 'doc2', purposeCode: 'c', decision: 'granted' },
+            ],
+          } as never,
+        }),
+      );
+
+      expect(consentsRepository.findActiveDocumentsByIds).toHaveBeenCalledTimes(1);
+      expect(consentsRepository.findActiveDocumentsByIds).toHaveBeenCalledWith('t1', ['doc1', 'doc2']);
+    });
+
     it('one revoked decision among many is enough to flip hasRevoked — it is an OR across the whole batch, not per-decision', async () => {
       const { service, customersRepository, consentsRepository, privacyRepository } = buildService();
       (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
-      (consentsRepository.findActiveDocumentById as jest.Mock).mockResolvedValue({ id: 'doc1' } as never);
+      (consentsRepository.findActiveDocumentsByIds as jest.Mock).mockResolvedValue([{ id: 'doc1' }] as never);
       (privacyRepository.createCustomerConsent as jest.Mock).mockResolvedValue({ id: 'consent-1' } as never);
 
       await service.registerConsentDecisions(
@@ -130,7 +152,7 @@ describe('CustomerPrivacyService', () => {
     it('propagates the acting internal user id to the consent event and audit log — not just the role', async () => {
       const { service, customersRepository, consentsRepository, privacyRepository } = buildService();
       (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
-      (consentsRepository.findActiveDocumentById as jest.Mock).mockResolvedValue({ id: 'doc1' } as never);
+      (consentsRepository.findActiveDocumentsByIds as jest.Mock).mockResolvedValue([{ id: 'doc1' }] as never);
       (privacyRepository.createCustomerConsent as jest.Mock).mockResolvedValue({ id: 'consent-1' } as never);
       const complianceUser = { role: 'compliance_analyst', customerId: undefined, internalUserId: 'iu-42', platformUserId: undefined } as never;
 

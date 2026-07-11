@@ -16,6 +16,7 @@ import { SystemsCatalogSeedService } from './systems-catalog-seed.service.js';
 import { SystemsHealthService } from './systems-health.service.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
 import { SystemsDashboardRepository } from './systems-dashboard.repository.js';
+import { AuthenticatedUser } from '../../common/types/auth.types.js';
 
 @Injectable()
 export class SystemsCatalogQueryService {
@@ -57,8 +58,8 @@ export class SystemsCatalogQueryService {
     return this.discovery.discoverAndMaybePersist(body.persist);
   }
 
-  refreshCatalogSeed(body: CatalogSeedRefreshDto) {
-    return this.seedService.refreshCatalog(body);
+  refreshCatalogSeed(body: CatalogSeedRefreshDto, user: AuthenticatedUser) {
+    return this.seedService.refreshCatalog(body, user);
   }
 
   async listDomains(query: SystemsListQueryDto) {
@@ -100,11 +101,11 @@ export class SystemsCatalogQueryService {
       columns: columns.map(mapDataField),
       relatedColumns: columns.map(mapDataField),
       relations: relations.map(mapDataRelationship),
-      relatedTables: [...new Set(relations.map((relation) => relation.sourceTable === entity.tableName ? relation.targetTable : relation.sourceTable))],
+      relatedTables: [
+        ...new Set(relations.map((relation) => (relation.sourceTable === entity.tableName ? relation.targetTable : relation.sourceTable))),
+      ],
     };
   }
-
-
 
   async updateDataEntityMetadata(entityId: string, body: Record<string, unknown>) {
     const entity = await this.catalogRepository.updateDataEntityMetadata(entityId, body);

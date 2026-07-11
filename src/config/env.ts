@@ -76,6 +76,9 @@ const envSchema = z
     JWT_ACCESS_TOKEN_EXPIRES_IN: z.string().default('1h'),
     API_RATE_LIMIT_TTL_MS: z.coerce.number().int().positive().default(60_000),
     API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+    SYSTEM_TEST_ALLOWED_HOSTS_LOCAL: z.string().default('localhost,127.0.0.1,::1,host.docker.internal'),
+    SYSTEM_TEST_ALLOWED_HOSTS_STAGING: z.string().default(''),
+    SYSTEM_TEST_ALLOWED_HOSTS_PRODUCTION_READONLY: z.string().default(''),
 
     // ATLAS-AUDIT-023 (cerrado en este patch): rate limiting ahora puede respaldarse en Redis
     // para que el límite sea real cuando corre más de una instancia del backend (ver

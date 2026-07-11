@@ -398,38 +398,43 @@ export class ExternalDataRepository {
     },
     options?: QueryOptions,
   ): Promise<void> {
-    for (const observation of input.observations) {
-      await this.customerObservationModel.create(
-        {
-          tenantId: input.tenantId,
-          customerId: input.customerId,
-          sessionId: null,
-          deviceId: null,
-          observationCode: observation.observationKey,
-          valueText: observation.valueType === 'STRING' ? (observation.valueString ?? null) : null,
-          valueNumber:
-            observation.valueType === 'NUMBER' && typeof observation.valueNumber === 'number' ? observation.valueNumber.toFixed(4) : null,
-          valueBoolean: observation.valueType === 'BOOLEAN' ? (observation.valueBoolean ?? null) : null,
-          valueJson: observation.valueType === 'JSON' ? (observation.valueJson ?? null) : null,
-          sourceType: 'external_provider',
-          sourceProviderId: input.providerId,
-          evidenceId: null,
-          confidenceScore: typeof observation.confidenceScore === 'number' ? (observation.confidenceScore * 100).toFixed(2) : null,
-          verificationStatus: observation.verified
-            ? 'verified'
-            : observation.manualReviewRequired
-              ? 'manual_review_required'
-              : 'unverified',
-          capturedAt: input.now,
-          validFrom: input.now,
-          validUntil: null,
-          derivationMethod: `external_provider_request:${input.requestId}`,
-          derivationVersion: 'external-data-v1',
-          createdAtValue: input.now,
-        } as Record<string, unknown>,
-        options,
-      );
-    }
+    if (input.observations.length === 0) return;
+    // bulkCreate en vez de un create() secuencial por observación: cada llamada a un provider
+    // externo (no servida por cache) normaliza entre 1 y varias observaciones que van todas a la
+    // misma tabla en la misma forma.
+    await this.customerObservationModel.bulkCreate(
+      input.observations.map(
+        (observation) =>
+          ({
+            tenantId: input.tenantId,
+            customerId: input.customerId,
+            sessionId: null,
+            deviceId: null,
+            observationCode: observation.observationKey,
+            valueText: observation.valueType === 'STRING' ? (observation.valueString ?? null) : null,
+            valueNumber:
+              observation.valueType === 'NUMBER' && typeof observation.valueNumber === 'number' ? observation.valueNumber.toFixed(4) : null,
+            valueBoolean: observation.valueType === 'BOOLEAN' ? (observation.valueBoolean ?? null) : null,
+            valueJson: observation.valueType === 'JSON' ? (observation.valueJson ?? null) : null,
+            sourceType: 'external_provider',
+            sourceProviderId: input.providerId,
+            evidenceId: null,
+            confidenceScore: typeof observation.confidenceScore === 'number' ? (observation.confidenceScore * 100).toFixed(2) : null,
+            verificationStatus: observation.verified
+              ? 'verified'
+              : observation.manualReviewRequired
+                ? 'manual_review_required'
+                : 'unverified',
+            capturedAt: input.now,
+            validFrom: input.now,
+            validUntil: null,
+            derivationMethod: `external_provider_request:${input.requestId}`,
+            derivationVersion: 'external-data-v1',
+            createdAtValue: input.now,
+          }) as Record<string, unknown>,
+      ) as never[],
+      options,
+    );
   }
 
   createFeatureSnapshot(

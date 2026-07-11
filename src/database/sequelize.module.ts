@@ -122,6 +122,7 @@ import {
   SystemDataFieldCatalogModel,
   SystemDataRelationshipCatalogModel,
   SystemOperationalRuleCatalogModel,
+  SystemCatalogReviewEventModel,
 } from './models/index.js';
 
 export const databaseModels = [
@@ -245,6 +246,7 @@ export const databaseModels = [
   SystemDataFieldCatalogModel,
   SystemDataRelationshipCatalogModel,
   SystemOperationalRuleCatalogModel,
+  SystemCatalogReviewEventModel,
 ];
 
 @Module({

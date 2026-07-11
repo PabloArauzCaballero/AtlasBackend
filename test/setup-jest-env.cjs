@@ -8,3 +8,5 @@ process.env.NOTIFICATION_SMS_PROVIDER ||= 'disabled';
 process.env.NOTIFICATION_WHATSAPP_PROVIDER ||= 'disabled';
 process.env.NOTIFICATION_PHONE_PROVIDER ||= 'disabled';
 process.env.DB_NAME ||= 'atlas_test';
+process.env.SYSTEM_TEST_ALLOWED_HOSTS_STAGING ||= 'staging.atlas.example.com';
+process.env.SYSTEM_TEST_ALLOWED_HOSTS_PRODUCTION_READONLY ||= 'production.atlas.example.com';

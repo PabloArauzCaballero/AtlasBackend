@@ -20,6 +20,7 @@ describe('CatalogQueryService', () => {
     const repository = {
       listCatalogs: jest.fn(),
       findLatestVersion: jest.fn(),
+      findLatestVersionsByCatalogIds: jest.fn(async () => new Map()),
       findCatalogByCode: jest.fn(),
       findCatalogVersion: jest.fn(),
       findItemsByVersion: jest.fn(),
@@ -44,9 +45,12 @@ describe('CatalogQueryService', () => {
     it('status: "all" includes catalogs regardless of their current version status', async () => {
       const { service, repository } = await buildService();
       (repository.listCatalogs as jest.Mock).mockResolvedValueOnce([{ id: 'c1' }, { id: 'c2' }] as never);
-      (repository.findLatestVersion as jest.Mock)
-        .mockResolvedValueOnce({ status: 'draft' } as never)
-        .mockResolvedValueOnce({ status: 'published' } as never);
+      (repository.findLatestVersionsByCatalogIds as jest.Mock).mockResolvedValueOnce(
+        new Map([
+          ['c1', { status: 'draft' }],
+          ['c2', { status: 'published' }],
+        ]) as never,
+      );
 
       const result = await service.listCatalogs({ query: { status: 'all' } as never, currentUser: internalUser });
 
@@ -56,9 +60,12 @@ describe('CatalogQueryService', () => {
     it('a specific status filter excludes catalogs whose current version does not match', async () => {
       const { service, repository } = await buildService();
       (repository.listCatalogs as jest.Mock).mockResolvedValueOnce([{ id: 'c1' }, { id: 'c2' }] as never);
-      (repository.findLatestVersion as jest.Mock)
-        .mockResolvedValueOnce({ status: 'published' } as never)
-        .mockResolvedValueOnce({ status: 'draft' } as never);
+      (repository.findLatestVersionsByCatalogIds as jest.Mock).mockResolvedValueOnce(
+        new Map([
+          ['c1', { status: 'published' }],
+          ['c2', { status: 'draft' }],
+        ]) as never,
+      );
 
       const result = await service.listCatalogs({ query: { status: 'published' } as never, currentUser: internalUser });
 
@@ -68,11 +75,22 @@ describe('CatalogQueryService', () => {
     it('a catalog with no version at all is excluded by any specific status filter (undefined !== filter)', async () => {
       const { service, repository } = await buildService();
       (repository.listCatalogs as jest.Mock).mockResolvedValueOnce([{ id: 'c1' }] as never);
-      (repository.findLatestVersion as jest.Mock).mockResolvedValueOnce(null as never);
+      (repository.findLatestVersionsByCatalogIds as jest.Mock).mockResolvedValueOnce(new Map() as never);
 
       const result = await service.listCatalogs({ query: { status: 'published' } as never, currentUser: internalUser });
 
       expect(result.items).toHaveLength(0);
+    });
+
+    it('fetches the latest version of every listed catalog in a single batch call, not one findLatestVersion per catalog (N+1 regression)', async () => {
+      const { service, repository } = await buildService();
+      (repository.listCatalogs as jest.Mock).mockResolvedValueOnce([{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }] as never);
+
+      await service.listCatalogs({ query: { status: 'all' } as never, currentUser: internalUser });
+
+      expect(repository.findLatestVersionsByCatalogIds).toHaveBeenCalledTimes(1);
+      expect(repository.findLatestVersionsByCatalogIds).toHaveBeenCalledWith(['c1', 'c2', 'c3']);
+      expect(repository.findLatestVersion).not.toHaveBeenCalled();
     });
   });
 

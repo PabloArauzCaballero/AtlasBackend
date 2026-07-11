@@ -15,23 +15,38 @@ DATABASE_CLEAN_BEFORE_SEED=true yarn db:seed:up
 
 ## Variables ENV de limpieza
 
-| Variable | Default | Uso |
-|---|---:|---|
-| `DATABASE_CLEAN_BEFORE_SEED` | `false` | Si está en `true`, ejecuta `TRUNCATE ... RESTART IDENTITY CASCADE` sobre las tablas de aplicación antes de sembrar. |
-| `DATABASE_CLEAN_ALLOW_PRODUCTION` | `false` | Doble seguro para producción. Debe seguir en `false` en uso normal. |
-| `DATABASE_CLEAN_CONFIRM` | vacío | En producción debe ser exactamente `ATLAS_DESTROY_SEED_DATA` además del flag anterior. |
+| Variable                          | Default | Uso                                                                                                                 |
+| --------------------------------- | ------: | ------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_CLEAN_BEFORE_SEED`      | `false` | Si está en `true`, ejecuta `TRUNCATE ... RESTART IDENTITY CASCADE` sobre las tablas de aplicación antes de sembrar. |
+| `DATABASE_CLEAN_ALLOW_PRODUCTION` | `false` | Doble seguro para producción. Debe seguir en `false` en uso normal.                                                 |
+| `DATABASE_CLEAN_CONFIRM`          |   vacío | En producción debe ser exactamente `ATLAS_DESTROY_SEED_DATA` además del flag anterior.                              |
 
 No uses limpieza sobre una base real. Para desarrollo/staging desechable sí es la forma correcta de garantizar una carga reproducible.
 
 ## Seeders incluidos
 
-| Seeder | Qué carga |
-|---|---|
-| `20260626160720-seed-minimal-dev-credentials` | Tenant, usuarios base, cliente demo, dispositivo, sesión, consentimientos, onboarding, riesgo, revisión manual, fraude, watchlist, auditoría y una regla mínima de calidad. |
-| `20260702032000-seed-external-data-providers` | Proveedores externos Bolivia/mock: SEGIP, InfoCenter, QR genérico, banca genérica, telco, Meta, WhatsApp y digital trust, más políticas de costo. |
-| `20260703002000-seed-systems-ops-catalog` | Escanea todos los controllers y modelos. Carga catálogo de endpoints, tablas, herramientas, impactos endpoint-tabla, impactos por campo, suites de prueba y perfiles de stress. |
-| `20260704121000-seed-internal-rbac-and-pablo` | RBAC interno, roles, permisos y usuario administrador Pablo para el panel interno. |
-| `20260705090000-seed-portal-runtime-demo-data` | Catálogos funcionales, definiciones, risk policy, signal seeds, gobierno de datos, reglas/issues de calidad, templates/mensajes de notificación, outbox, feature values, health de proveedores y jobs demo. |
+| Seeder                                              | Qué carga                                                                                                                                                                                                   |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `20260626160720-seed-minimal-dev-credentials`       | Tenant, usuarios base, cliente demo, dispositivo, sesión, consentimientos, onboarding, riesgo, revisión manual, fraude, watchlist, auditoría y una regla mínima de calidad.                                 |
+| `20260702032000-seed-external-data-providers`       | Proveedores externos Bolivia/mock: SEGIP, InfoCenter, QR genérico, banca genérica, telco, Meta, WhatsApp y digital trust, más políticas de costo.                                                           |
+| `20260703002000-seed-systems-ops-catalog`           | Escanea todos los controllers y modelos. Carga catálogo de endpoints, tablas, herramientas, impactos endpoint-tabla, impactos por campo, suites de prueba y perfiles de stress.                             |
+| `20260704121000-seed-internal-rbac-and-pablo`       | RBAC interno, roles, permisos y usuario administrador Pablo para el panel interno.                                                                                                                          |
+| `20260705090000-seed-portal-runtime-demo-data`      | Catálogos funcionales, definiciones, risk policy, signal seeds, gobierno de datos, reglas/issues de calidad, templates/mensajes de notificación, outbox, feature values, health de proveedores y jobs demo. |
+| `20260711090000-seed-bnpl-production-risk-baseline` | Baseline idempotente de señales y reglas BNPL: capacidad de pago, deuda concurrente, dificultad financiera, disputas y riesgo de comercio. No contiene clientes ni operaciones ficticias.                   |
+
+## Alcance productivo BNPL
+
+El baseline BNPL carga metadatos y políticas de referencia, no una calibración aprobada. Antes de
+activar decisiones reales se deben validar localmente fuentes, calidad, umbrales y tratamiento de
+datos con Riesgo y Cumplimiento. En particular, el umbral de servicio total de deuda `0.40` y los
+umbrales de acumulación son parámetros conservadores de arranque para revisión manual; no son
+límites regulatorios bolivianos.
+
+El esquema actual cubre onboarding, KYC, señales, scoring, fraude y operación interna. Todavía no
+modela el ciclo financiero BNPL (comercio/tienda, orden, contrato, desembolso, cronograma, cuota,
+pago, reverso, devolución, disputa, mora, cobranza, refinanciamiento y liquidación al comercio).
+Por tanto, los seeds no deben usarse como evidencia de cobertura contable o de servicing hasta
+incorporar esas entidades mediante migraciones, servicios y pruebas de invariantes monetarias.
 
 ## Datos funcionales principales
 

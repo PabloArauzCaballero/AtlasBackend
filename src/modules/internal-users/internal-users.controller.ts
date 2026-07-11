@@ -1,6 +1,6 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
@@ -10,9 +10,11 @@ import { InternalPermissions } from './internal-permissions.decorator.js';
 import { InternalUsersService } from './internal-users.service.js';
 import {
   InternalUserParamsDto,
+  ListInternalUsersQueryDto,
   ReplaceInternalUserRolesDto,
   UpdateInternalUserDto,
   internalUserParamsSchema,
+  listInternalUsersQuerySchema,
   replaceInternalUserRolesSchema,
   updateInternalUserSchema,
 } from './internal-users.schemas.js';
@@ -39,11 +41,16 @@ export class InternalUsersController {
   constructor(private readonly internalUsersService: InternalUsersService) {}
 
   @ApiOperation({ summary: 'Listar usuarios internos' })
-  @ApiResponse({ status: 200, description: 'Lista de usuarios internos.' })
+  @ApiQuery({ name: 'page', required: false, schema: zodObjectPropertySchemas(listInternalUsersQuerySchema).page })
+  @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(listInternalUsersQuerySchema).limit })
+  @ApiResponse({ status: 200, description: 'Lista paginada de usuarios internos.' })
   @Get()
   @InternalPermissions('internal.users.read')
-  list(@CurrentUser() currentUser: AuthenticatedUser) {
-    return this.internalUsersService.listUsers(currentUser);
+  list(
+    @Query(new ZodValidationPipe(listInternalUsersQuerySchema)) query: ListInternalUsersQueryDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.internalUsersService.listUsers(currentUser, query);
   }
 
   @ApiOperation({ summary: 'Consultar usuario interno' })

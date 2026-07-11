@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 import { SystemEndpointCatalogModel, SystemToolCatalogModel } from '../../database/models/index.js';
 import { SystemsToolInferenceRepository } from './systems-tool-inference.repository.js';
+import { readSourcesForEndpoint } from './systems-source-scan.util.js';
 
 const TOOL_PATTERNS: Array<{
   toolCode: string;
@@ -132,30 +131,6 @@ type ToolInference = {
   notes: string;
 };
 
-function sourceFilesForEndpoint(endpoint: SystemEndpointCatalogModel): string[] {
-  const files = new Set<string>();
-  if (endpoint.sourceFile) files.add(join(process.cwd(), endpoint.sourceFile));
-  const moduleDir = endpoint.sourceFile
-    ? dirname(join(process.cwd(), endpoint.sourceFile))
-    : join(process.cwd(), 'src', 'modules', endpoint.module);
-  if (existsSync(moduleDir)) {
-    for (const file of walk(moduleDir).filter((path) => path.endsWith('.ts'))) files.add(file);
-  }
-  return Array.from(files);
-}
-
-function walk(directory: string): string[] {
-  const entries = readdirSync(directory).map((entry) => join(directory, entry));
-  return entries.flatMap((entry) => (statSync(entry).isDirectory() ? walk(entry) : [entry]));
-}
-
-function readSources(files: string[]): string {
-  return files
-    .filter((file) => existsSync(file))
-    .map((file) => readFileSync(file, 'utf8'))
-    .join('\n');
-}
-
 @Injectable()
 export class SystemsToolInferenceService {
   constructor(private readonly repository: SystemsToolInferenceRepository) {}
@@ -168,7 +143,7 @@ export class SystemsToolInferenceService {
     let skippedMissingTools = 0;
 
     for (const endpoint of endpoints) {
-      const source = readSources(sourceFilesForEndpoint(endpoint));
+      const source = readSourcesForEndpoint(endpoint);
       if (!source) continue;
       for (const pattern of TOOL_PATTERNS) {
         const tool = toolsByCode.get(pattern.toolCode);

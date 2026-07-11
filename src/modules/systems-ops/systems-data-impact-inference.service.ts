@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { SystemEndpointCatalogModel } from '../../database/models/index.js';
 import { SystemsDataImpactInferenceRepository } from './systems-data-impact-inference.repository.js';
+import { readSourcesForEndpoint } from './systems-source-scan.util.js';
 
 const WRITE_METHODS = ['create', 'update', 'destroy', 'upsert', 'bulkCreate', 'findOrCreate', 'increment', 'decrement'];
 const READ_METHODS = ['findAll', 'findByPk', 'findOne', 'findAndCountAll', 'count'];
@@ -16,30 +14,6 @@ type DataImpactInference = {
   notes: string;
 };
 
-function sourceFilesForEndpoint(endpoint: SystemEndpointCatalogModel): string[] {
-  const files = new Set<string>();
-  if (endpoint.sourceFile) files.add(join(process.cwd(), endpoint.sourceFile));
-  const moduleDir = endpoint.sourceFile
-    ? dirname(join(process.cwd(), endpoint.sourceFile))
-    : join(process.cwd(), 'src', 'modules', endpoint.module);
-  if (existsSync(moduleDir)) {
-    for (const file of walk(moduleDir).filter((path) => path.endsWith('.ts'))) files.add(file);
-  }
-  return Array.from(files);
-}
-
-function walk(directory: string): string[] {
-  const entries = readdirSync(directory).map((entry) => join(directory, entry));
-  return entries.flatMap((entry) => (statSync(entry).isDirectory() ? walk(entry) : [entry]));
-}
-
-function readSources(files: string[]): string {
-  return files
-    .filter((file) => existsSync(file))
-    .map((file) => readFileSync(file, 'utf8'))
-    .join('\n');
-}
-
 /**
  * Infers which data entities (tables) an endpoint reads/writes by scanning its
  * module's source for references to known Sequelize model classes, the same
@@ -52,10 +26,7 @@ export class SystemsDataImpactInferenceService {
   constructor(private readonly repository: SystemsDataImpactInferenceRepository) {}
 
   async infer(input: { persist: boolean }) {
-    const [endpoints, entities] = await Promise.all([
-      this.repository.listActiveEndpoints(),
-      this.repository.listEntitiesWithModel(),
-    ]);
+    const [endpoints, entities] = await Promise.all([this.repository.listActiveEndpoints(), this.repository.listEntitiesWithModel()]);
     const entitiesByModelName = new Map(
       entities.filter((entity) => entity.modelName).map((entity) => [entity.modelName as string, entity]),
     );
@@ -63,7 +34,7 @@ export class SystemsDataImpactInferenceService {
     let persisted = 0;
 
     for (const endpoint of endpoints) {
-      const source = readSources(sourceFilesForEndpoint(endpoint));
+      const source = readSourcesForEndpoint(endpoint);
       if (!source) continue;
       for (const [modelName, entity] of entitiesByModelName) {
         const usage = this.classifyUsage(source, modelName);

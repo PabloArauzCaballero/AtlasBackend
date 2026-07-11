@@ -5,6 +5,9 @@ export class SystemActionLogModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;
 
+  @Column({ field: '_tenant_id', type: DataType.BIGINT })
+  declare tenantId: string | null;
+
   @Column({ field: 'request_id', type: DataType.STRING(120) })
   declare requestId: string | null;
 

@@ -407,6 +407,39 @@ export class CustomerTelemetryRepository {
     );
   }
 
+  /**
+   * Batch de `createOnDeviceMetric` — un batch de telemetría puede traer hasta 100 métricas
+   * (ver `telemetryBatchSchema`), y todas van a la misma tabla con la misma forma, así que
+   * `bulkCreate` reemplaza hasta 100 INSERT secuenciales por uno solo.
+   */
+  createOnDeviceMetrics(
+    values: Array<{
+      tenantId: string;
+      computationRunId: string;
+      metricCode: string;
+      value: string | number | boolean | Record<string, unknown>;
+      confidenceScore: string | null;
+      createdAt: Date;
+    }>,
+    options: RepositoryOptions,
+  ): Promise<OnDeviceMetricValueModel[]> {
+    if (values.length === 0) return Promise.resolve([]);
+    return this.onDeviceMetricValueModel.bulkCreate(
+      values.map((value) => ({
+        tenantId: value.tenantId,
+        computationRunId: value.computationRunId,
+        metricCode: value.metricCode,
+        valueText: typeof value.value === 'string' ? value.value : null,
+        valueNumber: typeof value.value === 'number' ? value.value.toFixed(4) : null,
+        valueBoolean: typeof value.value === 'boolean' ? value.value : null,
+        valueJson: typeof value.value === 'object' && !Array.isArray(value.value) ? value.value : null,
+        confidenceScore: value.confidenceScore,
+        createdAtValue: value.createdAt,
+      })) as never[],
+      { transaction: options.transaction },
+    );
+  }
+
   createBehaviorSummary(
     values: {
       tenantId: string;

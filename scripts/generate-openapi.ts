@@ -16,7 +16,9 @@ import { AppModule } from '../src/app.module.js';
 import { buildOpenApiDocument } from '../src/config/swagger.js';
 
 async function main(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { logger: false });
+  // Este script debe ejecutarse desde JavaScript compilado: tsx/esbuild no emite
+  // `design:paramtypes`, metadata que Nest necesita para resolver providers del AppModule.
+  const app = await NestFactory.create(AppModule, { logger: false, abortOnError: false });
   const document = buildOpenApiDocument(app);
 
   const outputPath = join(process.cwd(), 'docs', 'endpoints', 'openapi.yaml');

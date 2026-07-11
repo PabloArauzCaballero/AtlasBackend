@@ -33,12 +33,20 @@ export class CustomerPrivacyService {
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
 
     const now = new Date();
+    // Batch: un solo `IN (...)` para todos los consentDocumentId referenciados en el batch, en
+    // vez de un `findActiveDocumentById` por decisión dentro del loop (N+1) — y falla rápido
+    // antes de abrir la transacción si cualquier documento referenciado no está activo.
+    const consentDocumentIds = [...new Set(input.body.decisions.map((decision) => decision.consentDocumentId))];
+    const activeDocuments = await this.consentsRepository.findActiveDocumentsByIds(input.tenantId, consentDocumentIds);
+    const activeDocumentIds = new Set(activeDocuments.map((doc) => String(doc.id)));
+    for (const decision of input.body.decisions) {
+      if (!activeDocumentIds.has(decision.consentDocumentId)) throw new UnprocessableEntityException('CONSENT_DOCUMENT_NOT_ACTIVE');
+    }
+
     return this.sequelize.transaction(async (transaction) => {
       let processed = 0;
       let hasRevoked = false;
       for (const decision of input.body.decisions) {
-        const doc = await this.consentsRepository.findActiveDocumentById(input.tenantId, decision.consentDocumentId);
-        if (!doc) throw new UnprocessableEntityException('CONSENT_DOCUMENT_NOT_ACTIVE');
         const happenedAt = decision.decidedAt ? new Date(decision.decidedAt) : now;
         const consent = await this.privacyRepository.createCustomerConsent(
           {

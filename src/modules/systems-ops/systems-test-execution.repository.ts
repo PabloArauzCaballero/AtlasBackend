@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindAndCountOptions, FindOptions, WhereOptions } from 'sequelize';
+import { FindAndCountOptions, FindOptions, Op, WhereOptions } from 'sequelize';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
 import { SystemTestRunModel, SystemTestStepModel, SystemTestStepRunModel, SystemTestSuiteModel } from '../../database/models/index.js';
 import { SystemsRunsQueryDto, SystemsSuiteQueryDto } from './systems-ops.schemas.js';
@@ -33,6 +33,7 @@ export type UpsertTestStepInput = {
 };
 
 export type CreateTestRunInput = {
+  tenantId: string | null;
   suiteId: string;
   environment: string;
   triggeredBy: string | null;
@@ -132,6 +133,7 @@ export class SystemsTestExecutionRepository {
 
   createTestRun(values: CreateTestRunInput): Promise<SystemTestRunModel> {
     return this.runModel.create({
+      tenantId: values.tenantId,
       suiteId: values.suiteId,
       environment: values.environment,
       triggeredBy: values.triggeredBy,
@@ -169,11 +171,13 @@ export class SystemsTestExecutionRepository {
     } as never);
   }
 
-  async listTestRuns(query: SystemsRunsQueryDto) {
+  async listTestRuns(query: SystemsRunsQueryDto, tenantId: string | null) {
+    await this.markStaleRunsFailed(tenantId);
     const where: WhereOptions = {
       ...(query.suiteId ? { suiteId: query.suiteId } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.environment ? { environment: query.environment } : {}),
+      ...(tenantId === null ? {} : { tenantId }),
     } as WhereOptions;
     const result = await this.runModel.findAndCountAll({
       where,
@@ -184,8 +188,27 @@ export class SystemsTestExecutionRepository {
     return { rows: result.rows, meta: buildPaginationMeta(query, result.count) };
   }
 
-  findTestRunById(runId: string): Promise<SystemTestRunModel | null> {
-    return this.runModel.findByPk(runId);
+  async markStaleRunsFailed(tenantId: string | null): Promise<number> {
+    const [count] = await this.runModel.update(
+      {
+        status: 'FAILED',
+        finishedAt: new Date(),
+        summary: { infrastructureFailure: true, reason: 'STALE_RUNNING_RUN_RECONCILED' },
+        updatedAtValue: new Date(),
+      },
+      {
+        where: {
+          status: 'RUNNING',
+          startedAt: { [Op.lt]: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+          ...(tenantId === null ? {} : { tenantId }),
+        },
+      },
+    );
+    return count;
+  }
+
+  findTestRunById(runId: string, tenantId: string | null): Promise<SystemTestRunModel | null> {
+    return this.runModel.findOne({ where: { id: runId, ...(tenantId === null ? {} : { tenantId }) } } as FindOptions);
   }
 
   findStepRunsByRun(runId: string): Promise<SystemTestStepRunModel[]> {

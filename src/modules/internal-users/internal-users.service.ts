@@ -2,6 +2,7 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException, U
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { hashPassword, isPasswordStrongEnough } from '../../common/utils/crypto/password.util.js';
 import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { buildPaginationMeta, PaginationInput, PaginationMeta } from '../../common/utils/pagination/pagination.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
 import { INTERNAL_ROLE_CODES, legacyRoleForInternalRoles } from './internal-rbac.seed-data.js';
 import { InternalRbacRepository } from './internal-rbac.repository.js';
@@ -79,11 +80,16 @@ export class InternalUsersService {
     return this.rbacRepository.buildAccessProfile(user);
   }
 
-  async listUsers(currentUser: AuthenticatedUser): Promise<{ items: InternalUserListItem[] }> {
+  async listUsers(
+    currentUser: AuthenticatedUser,
+    pagination: PaginationInput,
+  ): Promise<{ items: InternalUserListItem[]; meta: PaginationMeta }> {
     const actor = assertInternalActor(currentUser);
-    const users = await this.rbacRepository.listUsers(actor.tenantId);
-    const items = await Promise.all(users.map(async (user) => (await this.rbacRepository.buildAccessProfile(user)).user));
-    return { items };
+    const { rows, total } = await this.rbacRepository.listUsers(actor.tenantId, pagination);
+    // Batch: una sola query de roles/permisos para toda la página en vez de una por usuario
+    // (antes, `Promise.all(users.map(buildAccessProfile))` disparaba hasta `limit` round trips).
+    const profiles = await this.rbacRepository.buildAccessProfiles(rows);
+    return { items: profiles.map((profile) => profile.user), meta: buildPaginationMeta(pagination, total) };
   }
 
   async getUser(currentUser: AuthenticatedUser, internalUserId: string): Promise<InternalAccessProfile> {

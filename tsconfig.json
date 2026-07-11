@@ -23,7 +23,6 @@
     "src/modules/content",
     "src/modules/scheduling",
     "src/modules/users",
-    "src/database/models/content-subscriber.model.ts",
-    "src/common/guards/permissions.guard.ts"
+    "src/database/models/content-subscriber.model.ts"
   ]
 }

@@ -31,6 +31,7 @@ function makeRepoMock(): RepoMock {
     countTablesInVersion: jest.fn(async () => 0),
     countColumnsInVersion: jest.fn(async () => 0),
     countRelationshipsInVersion: jest.fn(async () => 0),
+    countTablesColumnsRelationshipsForVersions: jest.fn(async () => new Map()),
     getSchemaTable: jest.fn(),
     listSchemaTables: jest.fn(),
     getSchemaColumns: jest.fn(async () => []),
@@ -138,9 +139,9 @@ describe('SchemaManagementService', () => {
   describe('listSchemaVersions', () => {
     it('devuelve versiones con conteos reales de tablas/columnas/FK', async () => {
       repo.listSchemaVersions.mockResolvedValue({ rows: [baseVersionRow], total: 1 });
-      repo.countTablesInVersion.mockResolvedValue(121);
-      repo.countColumnsInVersion.mockResolvedValue(900);
-      repo.countRelationshipsInVersion.mockResolvedValue(140);
+      repo.countTablesColumnsRelationshipsForVersions.mockResolvedValue(
+        new Map([['1', { tablesCount: 121, columnsCount: 900, relationshipsCount: 140 }]]),
+      );
 
       const result = await service.listSchemaVersions(20, 0, false);
 
@@ -149,6 +150,32 @@ describe('SchemaManagementService', () => {
       expect(result.versions[0]?.tablesCount).toBe(121);
       expect(result.versions[0]?.columnsCount).toBe(900);
       expect(result.versions[0]?.relationshipsCount).toBe(140);
+    });
+
+    it('fetches counts for the whole page in a single batch call, not 3 COUNT(*) per version (N+1 regression)', async () => {
+      const rows = [
+        { ...baseVersionRow, _id: '1' },
+        { ...baseVersionRow, _id: '2' },
+        { ...baseVersionRow, _id: '3' },
+      ];
+      repo.listSchemaVersions.mockResolvedValue({ rows, total: 3 });
+
+      await service.listSchemaVersions(20, 0, false);
+
+      expect(repo.countTablesColumnsRelationshipsForVersions).toHaveBeenCalledTimes(1);
+      expect(repo.countTablesColumnsRelationshipsForVersions).toHaveBeenCalledWith(['1', '2', '3']);
+      expect(repo.countTablesInVersion).not.toHaveBeenCalled();
+      expect(repo.countColumnsInVersion).not.toHaveBeenCalled();
+      expect(repo.countRelationshipsInVersion).not.toHaveBeenCalled();
+    });
+
+    it('defaults counts to 0 for a version missing from the batch map', async () => {
+      repo.listSchemaVersions.mockResolvedValue({ rows: [baseVersionRow], total: 1 });
+      repo.countTablesColumnsRelationshipsForVersions.mockResolvedValue(new Map());
+
+      const result = await service.listSchemaVersions(20, 0, false);
+
+      expect(result.versions[0]).toMatchObject({ tablesCount: 0, columnsCount: 0, relationshipsCount: 0 });
     });
   });
 
