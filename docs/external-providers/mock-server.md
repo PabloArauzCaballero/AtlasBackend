@@ -2,7 +2,14 @@
 
 Servidor independiente para simular proveedores externos.
 
-## Levantar
+> **Nuevo servidor canónico:** la implementación modular y con health por proveedor vive
+> ahora en `AtlasAdminPortal/mock-server` (fuera de este repo, sin dependencias de
+> `AtlasBackend`, pensada para migrar tal cual a un servicio externo). Ver su
+> [README](../../../AtlasAdminPortal/mock-server/README.md). El script `mock:providers`
+> de este repo se mantiene funcionando para desarrollo local rápido, pero para health
+> checks por módulo (`/mock/health/segip`, `/mock/health/qr`, etc.) usá el servidor nuevo.
+
+## Levantar (legacy, embebido en este repo)
 
 ```bash
 npm run mock:providers

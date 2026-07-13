@@ -1,8 +1,10 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { NotificationsRepository } from './notifications.repository.js';
+import { NotificationBroadcastService, BroadcastResult } from './notification-broadcast.service.js';
 import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
 import {
+  CreateBroadcastNotificationDto,
   CreateTemplateDto,
   CustomerNotificationsQueryDto,
   ListMessagesQueryDto,
@@ -35,12 +37,22 @@ function assertCustomerAccess(currentUser: AuthenticatedUser, customerId: string
   if (!canAccessCustomer(currentUser, customerId)) throw new ForbiddenException('CUSTOMER_NOTIFICATION_ACCESS_DENIED');
 }
 
+function requireInternalUserId(currentUser: AuthenticatedUser): string {
+  if (!currentUser.internalUserId) throw new ForbiddenException('INTERNAL_USER_TOKEN_REQUIRED');
+  return currentUser.internalUserId;
+}
+
 @Injectable()
 export class NotificationsService {
   constructor(
     private readonly repository: NotificationsRepository,
     private readonly orchestrator: NotificationOrchestratorService,
+    private readonly broadcastService: NotificationBroadcastService,
   ) {}
+
+  async broadcast(tenantId: string, body: CreateBroadcastNotificationDto): Promise<BroadcastResult> {
+    return this.broadcastService.broadcast(tenantId, body);
+  }
 
   async listMessages(tenantId: string, query: ListMessagesQueryDto) {
     const result = await this.repository.listMessages(tenantId, query);
@@ -132,5 +144,44 @@ export class NotificationsService {
   async deactivateDeviceToken(tenantId: string, customerId: string, deviceTokenId: string, currentUser: AuthenticatedUser) {
     assertCustomerAccess(currentUser, customerId);
     return mapDeviceToken(await this.repository.deactivateDeviceToken(tenantId, customerId, deviceTokenId));
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Autoservicio de notificaciones para usuarios internos (staff) — mismo patrón que el inbox
+  // de customer, pero recipientId siempre es `currentUser.internalUserId` (nunca un parámetro de
+  // ruta): un usuario interno solo puede revisar/marcar SUS propias notificaciones. Necesario
+  // para que el staff pueda revisar las alertas de servicios caídos y los broadcasts de admin
+  // dirigidos a `internal_users`.
+  // ---------------------------------------------------------------------------------------
+
+  async listMyNotifications(tenantId: string, query: CustomerNotificationsQueryDto, currentUser: AuthenticatedUser) {
+    const internalUserId = requireInternalUserId(currentUser);
+    const result = await this.repository.listRecipientMessages(tenantId, 'internal_user', internalUserId, query);
+    return {
+      data: result.rows.map(mapMessage),
+      pagination: { page: query.page, limit: query.limit, total: result.count, totalPages: Math.ceil(result.count / query.limit) },
+    };
+  }
+
+  async myUnreadCount(tenantId: string, currentUser: AuthenticatedUser) {
+    const internalUserId = requireInternalUserId(currentUser);
+    return { unread: await this.repository.countUnreadMessages(tenantId, 'internal_user', internalUserId) };
+  }
+
+  async markMyNotificationRead(tenantId: string, notificationId: string, currentUser: AuthenticatedUser) {
+    const internalUserId = requireInternalUserId(currentUser);
+    const message = await this.repository.getRecipientMessage(
+      tenantId,
+      'internal_user',
+      internalUserId,
+      notificationId,
+      'NOTIFICATION_NOT_FOUND',
+    );
+    return mapMessage(await this.repository.markRead(message));
+  }
+
+  async markAllMyNotificationsRead(tenantId: string, currentUser: AuthenticatedUser) {
+    const internalUserId = requireInternalUserId(currentUser);
+    return { updated: await this.repository.markAllRecipientRead(tenantId, 'internal_user', internalUserId) };
   }
 }

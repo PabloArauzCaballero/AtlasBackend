@@ -25,11 +25,13 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { parsePositiveId } from '../../common/utils/ids/id.util.js';
 import { NotificationsService } from './notifications.service.js';
 import {
+  createBroadcastNotificationSchema,
   createTemplateSchema,
   customerNotificationIdParamsSchema,
   customerNotificationsParamsSchema,
   customerNotificationsQuerySchema,
   deviceTokenIdParamsSchema,
+  internalUserNotificationIdParamsSchema,
   listMessagesQuerySchema,
   listTemplatesQuerySchema,
   messageIdParamsSchema,
@@ -38,11 +40,13 @@ import {
   updatePreferencesSchema,
   updateTemplateSchema,
   upsertDeviceTokenSchema,
+  CreateBroadcastNotificationDto,
   CreateTemplateDto,
   CustomerNotificationIdParamsDto,
   CustomerNotificationsParamsDto,
   CustomerNotificationsQueryDto,
   DeviceTokenIdParamsDto,
+  InternalUserNotificationIdParamsDto,
   ListMessagesQueryDto,
   ListTemplatesQueryDto,
   MessageIdParamsDto,
@@ -55,6 +59,26 @@ import {
 function tenantIdFromHeader(value: string | undefined, currentUser?: AuthenticatedUser): string {
   return parsePositiveId(String(value ?? currentUser?.tenantId ?? ''), 'x-tenant-id');
 }
+
+// Todo rol legacy que `legacyRoleForInternalRoles` (internal-rbac.roles.ts) puede producir para
+// un usuario interno real, más 'platform_admin'/'system' (actores de servicio). A diferencia de
+// los roles usados en el resto de este controller (que gatean vistas ADMINISTRATIVAS sobre datos
+// de OTROS), esta lista es para endpoints de autoservicio ("mis notificaciones") — cualquier
+// usuario interno autenticado debe poder revisar SU PROPIO inbox sin importar su rol funcional.
+// Antes de este fix, la lista omitía 'qa_engineer' y 'readonly_auditor': cualquier interno con
+// esos roles recibía 403 al intentar ver notificaciones que el propio backend ya le había
+// enviado (p. ej. una alerta de servicio caído), un bug real encontrado al integrar el frontend.
+const INTERNAL_SELF_SERVICE_ROLES = [
+  'internal_operator',
+  'risk_analyst',
+  'compliance_analyst',
+  'fraud_analyst',
+  'qa_engineer',
+  'readonly_auditor',
+  'admin',
+  'platform_admin',
+  'system',
+] as const;
 
 function requireIdempotencyKey(value: string | undefined): void {
   if (!value) throw new BadRequestException('X-Idempotency-Key header is required.');
@@ -81,7 +105,10 @@ export class NotificationsController {
     return this.service.listMessages(tenantIdFromHeader(tenantIdHeader), query);
   }
 
-  @ApiOperation({ summary: 'Detalle de un mensaje de notificación (operaciones)', description: 'Incluye el historial de intentos de entrega (deliveries) del mensaje.' })
+  @ApiOperation({
+    summary: 'Detalle de un mensaje de notificación (operaciones)',
+    description: 'Incluye el historial de intentos de entrega (deliveries) del mensaje.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'messageId', schema: zodToApiSchema(messageIdParamsSchema.shape.messageId) })
   @ApiResponse({ status: 200, description: 'Detalle del mensaje con sus deliveries.' })
@@ -198,7 +225,10 @@ export class NotificationsController {
     return this.service.getPreferences(tenantIdFromHeader(tenantIdHeader), params.customerId);
   }
 
-  @ApiOperation({ summary: 'Editar preferencias de notificación de un cliente (operaciones)', description: 'No puede desactivar notificaciones marcadas como requeridas (REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED).' })
+  @ApiOperation({
+    summary: 'Editar preferencias de notificación de un cliente (operaciones)',
+    description: 'No puede desactivar notificaciones marcadas como requeridas (REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED).',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(preferencesParamsSchema.shape.customerId) })
@@ -215,6 +245,31 @@ export class NotificationsController {
   ) {
     requireIdempotencyKey(idempotencyKey);
     return this.service.updatePreferences(tenantIdFromHeader(tenantIdHeader), params.customerId, body);
+  }
+
+  @ApiOperation({
+    summary: 'Enviar notificación in-app personalizada (broadcast de admin)',
+    description:
+      'Crea y entrega una notificación in-app real a customers y/o usuarios internos — a los ids indicados, o a todos los activos del tenant si no se indican. No usa email/SMS/push (esos canales siguen disponibles vía plantillas de eventos de dominio).',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-idempotency-key', required: true })
+  @ApiBody({ schema: zodToApiSchema(createBroadcastNotificationSchema) })
+  @ApiResponse({
+    status: 201,
+    description: 'Broadcast creado — devuelve cuántos destinatarios se targetearon y cuántos mensajes se crearon.',
+  })
+  @ApiResponse({ status: 400, description: 'X-Idempotency-Key ausente, o customerIds/internalUserIds usado con la audience equivocada.' })
+  @Post('operations/notifications/broadcast')
+  @HttpCode(HttpStatus.CREATED)
+  @Roles('admin', 'platform_admin', 'system')
+  broadcastNotification(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
+    @Body(new ZodValidationPipe(createBroadcastNotificationSchema)) body: CreateBroadcastNotificationDto,
+  ) {
+    requireIdempotencyKey(idempotencyKey);
+    return this.service.broadcast(tenantIdFromHeader(tenantIdHeader), body);
   }
 
   @ApiOperation({ summary: 'Listar notificaciones del cliente (autoservicio)' })
@@ -289,7 +344,10 @@ export class NotificationsController {
     return this.service.markAllCustomerNotificationsRead(tenantIdFromHeader(tenantIdHeader, currentUser), params.customerId, currentUser);
   }
 
-  @ApiOperation({ summary: 'Registrar/actualizar token de dispositivo (push)', description: 'Registra el token FCM/APNs del dispositivo del cliente para poder enviarle notificaciones push.' })
+  @ApiOperation({
+    summary: 'Registrar/actualizar token de dispositivo (push)',
+    description: 'Registra el token FCM/APNs del dispositivo del cliente para poder enviarle notificaciones push.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(customerNotificationsParamsSchema.shape.customerId) })
   @ApiBody({ schema: zodToApiSchema(upsertDeviceTokenSchema) })
@@ -327,5 +385,65 @@ export class NotificationsController {
       params.deviceTokenId,
       currentUser,
     );
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Autoservicio de notificaciones del usuario interno autenticado ("me"): mismo patrón que el
+  // inbox de customer, pero recipientId sale siempre del token (`currentUser.internalUserId`),
+  // nunca de un parámetro de ruta — un usuario interno solo puede ver/marcar SUS notificaciones.
+  // ---------------------------------------------------------------------------------------
+
+  @ApiOperation({ summary: 'Listar mis notificaciones (usuario interno, autoservicio)' })
+  @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional (se toma del token).' })
+  @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(customerNotificationsQuerySchema).status })
+  @ApiQuery({ name: 'channel', required: false, schema: zodObjectPropertySchemas(customerNotificationsQuerySchema).channel })
+  @ApiResponse({ status: 200, description: 'Lista paginada de mis notificaciones.' })
+  @ApiResponse({ status: 403, description: 'INTERNAL_USER_TOKEN_REQUIRED.' })
+  @Get('internal-users/me/notifications')
+  @Roles(...INTERNAL_SELF_SERVICE_ROLES)
+  listMyNotifications(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Query(new ZodValidationPipe(customerNotificationsQuerySchema)) query: CustomerNotificationsQueryDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.service.listMyNotifications(tenantIdFromHeader(tenantIdHeader, currentUser), query, currentUser);
+  }
+
+  @ApiOperation({ summary: 'Contador de mis notificaciones no leídas (usuario interno)' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Cantidad de notificaciones no leídas.' })
+  @ApiResponse({ status: 403, description: 'INTERNAL_USER_TOKEN_REQUIRED.' })
+  @Get('internal-users/me/notifications/unread-count')
+  @Roles(...INTERNAL_SELF_SERVICE_ROLES)
+  myUnreadNotificationsCount(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
+    return this.service.myUnreadCount(tenantIdFromHeader(tenantIdHeader, currentUser), currentUser);
+  }
+
+  @ApiOperation({ summary: 'Marcar una de mis notificaciones como leída (usuario interno)' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiParam({ name: 'notificationId', schema: zodToApiSchema(internalUserNotificationIdParamsSchema.shape.notificationId) })
+  @ApiResponse({ status: 200, description: 'Notificación marcada como leída.' })
+  @ApiResponse({ status: 403, description: 'INTERNAL_USER_TOKEN_REQUIRED.' })
+  @ApiResponse({ status: 404, description: 'NOTIFICATION_NOT_FOUND.' })
+  @Post('internal-users/me/notifications/:notificationId/read')
+  @HttpCode(HttpStatus.OK)
+  @Roles(...INTERNAL_SELF_SERVICE_ROLES)
+  markMyNotificationRead(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Param(new ZodValidationPipe(internalUserNotificationIdParamsSchema)) params: InternalUserNotificationIdParamsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.service.markMyNotificationRead(tenantIdFromHeader(tenantIdHeader, currentUser), params.notificationId, currentUser);
+  }
+
+  @ApiOperation({ summary: 'Marcar todas mis notificaciones como leídas (usuario interno)' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Cantidad de notificaciones actualizadas.' })
+  @ApiResponse({ status: 403, description: 'INTERNAL_USER_TOKEN_REQUIRED.' })
+  @Post('internal-users/me/notifications/read-all')
+  @HttpCode(HttpStatus.OK)
+  @Roles(...INTERNAL_SELF_SERVICE_ROLES)
+  markAllMyNotificationsRead(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
+    return this.service.markAllMyNotificationsRead(tenantIdFromHeader(tenantIdHeader, currentUser), currentUser);
   }
 }

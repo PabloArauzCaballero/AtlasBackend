@@ -23,14 +23,17 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
   const config = new DocumentBuilder()
     .setTitle('Atlas API')
     .setDescription(
-      'API de Proyecto Atlas — Fase 1 (usuarios): identidad de cliente, autenticación, sesiones, ' +
-        'consentimientos, privacidad, telemetría, riesgo/scoring y plataforma administrativa. ' +
+      'API de Proyecto Atlas: identidad de cliente, autenticación, sesiones, consentimientos, ' +
+        'privacidad, telemetría, riesgo/scoring y plataforma administrativa. Incluye catálogos ' +
+        'versionados, definiciones semánticas y glosario de negocio para dar contexto trazable al motor de decisión. ' +
         'El dominio BNPL (compras, cuotas, línea de crédito, comercios) corresponde a Fase 3 y ' +
         'todavía no está implementado — ver docs/pending/pending-items.md.',
     )
-    .setVersion('0.2.0')
+    .setVersion('0.3.0')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'access-token')
     .addTag('auth', 'Autenticación: login, refresh, logout, provisión de credenciales internas.')
+    .addTag('catalog-management', 'Catálogos versionados, definiciones semánticas y mapeos de riesgo consumidos por el motor de decisión.')
+    .addTag('internal-portal', 'Glosario de negocio, gobierno y trazabilidad para operadores internos.')
     .build();
 
   return SwaggerModule.createDocument(app, config);

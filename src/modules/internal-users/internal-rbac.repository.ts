@@ -102,6 +102,21 @@ export class InternalRbacRepository {
     return { rows: result.rows, total: result.count };
   }
 
+  /**
+   * Usado por `NotificationBroadcastService` para resolver el destinatario "todos los usuarios
+   * internos" de un broadcast de admin, y por `SystemsHealthMonitorService` para avisar a todo
+   * el staff cuando una herramienta crítica cae. Solo `status: 'active'` — no tiene sentido
+   * notificar cuentas invitadas/suspendidas/bloqueadas que no pueden iniciar sesión de todos
+   * modos.
+   */
+  async listActiveInternalUserIds(tenantId: string): Promise<string[]> {
+    const rows = await this.internalUserModel.findAll({
+      where: { tenantId, deleted: { [Op.ne]: true }, status: 'active' } as never,
+      attributes: ['id'],
+    });
+    return rows.map((row) => String(row.id));
+  }
+
   async findRolesByCodes(roleCodes: readonly string[], transaction?: Transaction): Promise<InternalRoleModel[]> {
     return this.roleModel.findAll({
       where: {

@@ -23,6 +23,12 @@ export class NotificationMessageModel extends Model {
   @Column({ field: 'template_code', type: DataType.STRING(160) })
   declare templateCode: string | null;
 
+  @Column({ field: 'category', type: DataType.STRING(60) })
+  declare category: string | null;
+
+  @Column({ field: 'icon', type: DataType.STRING(60) })
+  declare icon: string | null;
+
   @Column({ field: 'subject', type: DataType.TEXT })
   declare subject: string | null;
 

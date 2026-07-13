@@ -75,7 +75,7 @@ export class SystemsStressController {
 
   @ApiOperation({ summary: 'Crear o actualizar un perfil de pruebas de estrés' })
   @ApiBody({ schema: zodToApiSchema(upsertStressProfileSchema) })
-  @ApiResponse({ status: 200, description: 'Perfil de estrés creado/actualizado.' })
+  @ApiResponse({ status: 201, description: 'Perfil de estrés creado/actualizado.' })
   @Roles(...SYSTEMS_OPS_STRESS_ROLES)
   @Post('stress-profiles')
   upsertStressProfile(

@@ -26,6 +26,12 @@ export class NotificationTemplateModel extends Model {
   @Column({ field: 'body_template', type: DataType.TEXT, allowNull: false })
   declare bodyTemplate: string;
 
+  @Column({ field: 'category', type: DataType.STRING(60) })
+  declare category: string | null;
+
+  @Column({ field: 'icon', type: DataType.STRING(60) })
+  declare icon: string | null;
+
   @Column({ field: 'payload_schema_json', type: DataType.JSONB })
   declare payloadSchemaJson: Record<string, unknown> | null;
 

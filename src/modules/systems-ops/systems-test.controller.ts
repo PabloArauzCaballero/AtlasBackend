@@ -118,7 +118,7 @@ export class SystemsTestController {
   @ApiOperation({ summary: 'Reordenar los steps de una suite de pruebas' })
   @ApiParam({ name: 'suiteId', schema: zodToApiSchema(systemsSuiteParamsSchema.shape.suiteId) })
   @ApiBody({ schema: zodToApiSchema(reorderTestStepsSchema) })
-  @ApiResponse({ status: 200, description: 'Steps reordenados.' })
+  @ApiResponse({ status: 201, description: 'Steps reordenados.' })
   @ApiResponse({ status: 404, description: 'TEST_SUITE_NOT_FOUND.' })
   @Roles(...SYSTEMS_OPS_QA_ROLES)
   @Post('test-suites/:suiteId/steps/reorder')

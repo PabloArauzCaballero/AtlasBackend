@@ -69,11 +69,32 @@ export class MongoLogsQueryService implements OnModuleDestroy {
       throw new ServiceUnavailableException('MONGO_LOGS_NOT_CONFIGURED');
     }
     if (!this.client) {
-      this.client = new MongoClient(env.MONGO_DB_URL_CONNECTION, {
+      const client = new MongoClient(env.MONGO_DB_URL_CONNECTION, {
         serverSelectionTimeoutMS: env.LOG_SYNC_MONGO_SERVER_SELECTION_TIMEOUT_MS,
       });
-      await this.client.connect();
+      try {
+        await client.connect();
+      } catch (error) {
+        await client.close().catch(() => undefined);
+        throw new ServiceUnavailableException(`MONGO_LOGS_UNAVAILABLE: ${mongoLogsErrorHint(error)}`);
+      }
+      this.client = client;
     }
     return this.client.db(env.MONGO_LOGS_DB_NAME).collection(env.MONGO_LOGS_COLLECTION);
   }
+}
+
+function mongoLogsErrorHint(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+  if (normalized.includes('tls') || normalized.includes('ssl') || normalized.includes('alert internal error')) {
+    return 'fallo TLS con MongoDB. Revisa URI, cluster SRV, credenciales y allowlist de IP en Atlas.';
+  }
+  if (normalized.includes('authentication failed') || normalized.includes('auth')) {
+    return 'credenciales MongoDB rechazadas.';
+  }
+  if (normalized.includes('server selection') || normalized.includes('enotfound') || normalized.includes('econnrefused')) {
+    return 'MongoDB no esta alcanzable desde este backend.';
+  }
+  return 'MongoDB no esta disponible para lectura de logs.';
 }

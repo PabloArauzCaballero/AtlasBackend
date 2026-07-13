@@ -179,4 +179,33 @@ describe('final block — OpenAPI document generation (8 controllers, 7 modules)
     };
     expect((body.content['application/json'].schema.properties as Record<string, unknown>).eventCode).toBeDefined();
   });
+
+  it('documents glossary search/pagination and its business-term response shape', () => {
+    const operation = document.paths['/internal/business-metadata/glossary']?.get;
+    const parameterNames = operation?.parameters?.map((parameter) => ('$ref' in parameter ? parameter.$ref : parameter.name));
+    expect(parameterNames).toEqual(expect.arrayContaining(['q', 'page', 'limit', 'pageSize']));
+
+    const response = operation?.responses?.['200'] as {
+      content: { 'application/json': { schema: { properties: Record<string, unknown> } } };
+    };
+    expect(response.content['application/json'].schema.properties).toEqual(
+      expect.objectContaining({ items: expect.any(Object), meta: expect.any(Object) }),
+    );
+  });
+
+  it('documents glossary term details and the not-found contract', () => {
+    const operation = document.paths['/internal/business-metadata/terms/{termId}']?.get;
+    expect(operation?.responses?.['404']).toBeDefined();
+    const response = operation?.responses?.['200'] as {
+      content: { 'application/json': { schema: { properties: Record<string, unknown> } } };
+    };
+    expect(response.content['application/json'].schema.properties).toEqual(
+      expect.objectContaining({
+        synonyms: expect.any(Object),
+        restrictions: expect.any(Object),
+        relations: expect.any(Object),
+        audit: expect.any(Object),
+      }),
+    );
+  });
 });

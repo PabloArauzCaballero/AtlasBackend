@@ -73,12 +73,20 @@ LOG_SYNC_INTERVAL_MS=5000
 LOG_SYNC_MAX_CHUNK_BYTES=1000000
 LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT=false
 LOG_SYNC_MONGO_SERVER_SELECTION_TIMEOUT_MS=5000
+LOG_SYNC_FAILURES_BEFORE_PAUSE=3
+LOG_SYNC_FAILURE_PAUSE_MS=60000
 ```
 
 Si `MONGO_DB_URL_CONNECTION` esta vacio, la sincronizacion queda desactivada. En el primer arranque
 sin historico remoto, `LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT=false` evita duplicar un `Archivo.log`
 ya existente y empieza desde el final del archivo; los siguientes updates continuan desde el ultimo
 `offsetTo` guardado en Mongo.
+
+Si MongoDB rechaza TLS, credenciales o red, el worker no debe inundar logs: tras
+`LOG_SYNC_FAILURES_BEFORE_PAUSE` fallos consecutivos pausa nuevos intentos por
+`LOG_SYNC_FAILURE_PAUSE_MS` y vuelve a intentar despues. Para MongoDB Atlas, un error como
+`tlsv1 alert internal error` suele indicar URI/cluster SRV incorrecto, credenciales invalidas,
+parametros TLS incompatibles o IP del backend fuera del access list del cluster.
 
 Esa misma coleccion (`MONGO_LOGS_DB_NAME`/`MONGO_LOGS_COLLECTION`) ahora se puede leer por HTTP via
 `GET /api/v1/systems/logs/mongo` (`MongoLogsQueryService`, `src/modules/log-sync/`), con su propio

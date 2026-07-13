@@ -45,9 +45,9 @@ function rolesFromDecorators(decorators: string): string[] {
   return [...new Set(roles)];
 }
 
-function isRoutePublic(classBlock: string, routeIndex: number, decoratorsAfterRoute: string): boolean {
-  if (decoratorsAfterRoute.includes('@Public()')) return true;
-  const publicIndex = classBlock.lastIndexOf('@Public()', routeIndex);
+function isRoutePublic(classBlock: string, routeIndex: number): boolean {
+  const publicMatches = [...classBlock.slice(0, routeIndex).matchAll(/^\s*@Public\(\)/gm)];
+  const publicIndex = publicMatches.at(-1)?.index ?? -1;
   if (publicIndex < 0) return false;
   const between = classBlock.slice(publicIndex + '@Public()'.length, routeIndex);
   return !/@(Get|Post|Put|Patch|Delete|Options|Head)\(/.test(between);
@@ -179,9 +179,16 @@ export class EndpointDiscoveryService {
     const items = this.scanControllers();
     let persisted = 0;
     if (persist) {
-      for (const item of items) {
-        await this.repository.upsertEndpoint(item);
-        persisted += 1;
+      // Concurrencia acotada en vez de un upsert 100% secuencial: cada `upsertEndpoint` sigue
+      // siendo un `ON CONFLICT (method, full_path) DO UPDATE` independiente (sin cambios de
+      // semántica), pero se disparan en lotes de a `UPSERT_CONCURRENCY` en paralelo en vez de
+      // uno a la vez, para no abrir cientos de conexiones simultáneas contra el pool en un
+      // catálogo grande de endpoints.
+      const UPSERT_CONCURRENCY = 10;
+      for (let i = 0; i < items.length; i += UPSERT_CONCURRENCY) {
+        const chunk = items.slice(i, i + UPSERT_CONCURRENCY);
+        await Promise.all(chunk.map((item) => this.repository.upsertEndpoint(item)));
+        persisted += chunk.length;
       }
     }
     const activeKeys = new Set(items.map((item) => `${item.method} ${item.fullPath}`));
@@ -250,7 +257,7 @@ export class EndpointDiscoveryService {
               : 'Escritura esperada. Debe registrar cambios de estado, auditoría, eventos internos y entidades impactadas cuando aplique.',
           metadataCompletenessScore: 82,
           expectedStatusCodes: [method === 'POST' ? 201 : 200],
-          requiresAuth: !isRoutePublic(classBlock, route.index ?? 0, route[3] ?? ''),
+          requiresAuth: !isRoutePublic(classBlock, route.index ?? 0),
           allowedRoles: explicitRoles.length > 0 ? explicitRoles : systemsController ? ROLE_CONSTANTS.SYSTEMS_OPS_ROLES : [],
           containsPii: this.classifier.containsPiiForEndpoint(apiPath),
           riskLevel,

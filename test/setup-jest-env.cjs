@@ -10,3 +10,5 @@ process.env.NOTIFICATION_PHONE_PROVIDER ||= 'disabled';
 process.env.DB_NAME ||= 'atlas_test';
 process.env.SYSTEM_TEST_ALLOWED_HOSTS_STAGING ||= 'staging.atlas.example.com';
 process.env.SYSTEM_TEST_ALLOWED_HOSTS_PRODUCTION_READONLY ||= 'production.atlas.example.com';
+// Ningún test debe disparar el setInterval real de SystemsHealthMonitorService.
+process.env.SYSTEM_HEALTH_MONITOR_ENABLED ||= 'false';

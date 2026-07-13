@@ -1,9 +1,10 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { InternalPortalService } from './internal-portal.service.js';
+import { businessTermDetailResponseSchema, businessTermListResponseSchema } from './business-metadata.openapi.js';
 
 type QueryRecord = Record<string, string | number | boolean | undefined>;
 type BodyRecord = Record<string, unknown>;
@@ -41,16 +42,43 @@ const INTERNAL_PORTAL_ROLES = [
 export class InternalPortalController {
   constructor(private readonly service: InternalPortalService) {}
 
-  @ApiOperation({ summary: 'Listar términos del glosario de metadata de negocio' })
-  @ApiResponse({ status: 200, description: 'Lista de términos del glosario.' })
+  @ApiOperation({
+    summary: 'Listar términos del glosario de negocio',
+    description: 'Unifica dominios, tablas y campos para dar contexto semántico, ownership y trazabilidad a las decisiones.',
+  })
+  @ApiQuery({ name: 'q', required: false, type: String, description: 'Busca en los campos textuales y relaciones del término.' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1, default: 1 }, description: 'Página, desde 1.' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+    description: 'Elementos por página (1-100).',
+  })
+  @ApiQuery({
+    name: 'pageSize',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 100 },
+    deprecated: true,
+    description: 'Alias legado de limit.',
+  })
+  @ApiResponse({ status: 200, description: 'Lista paginada de términos del glosario.', schema: businessTermListResponseSchema })
   @Get('business-metadata/glossary')
   listBusinessTerms(@Query() query: QueryRecord) {
     return this.service.listBusinessTerms(query);
   }
 
-  @ApiOperation({ summary: 'Obtener un término del glosario de negocio' })
-  @ApiParam({ name: 'termId' })
-  @ApiResponse({ status: 200, description: 'Detalle del término.' })
+  @ApiOperation({
+    summary: 'Obtener un término del glosario de negocio',
+    description: 'Incluye sinónimos, restricciones, relaciones de datos y evidencia mínima de auditoría.',
+  })
+  @ApiParam({
+    name: 'termId',
+    schema: { type: 'string', pattern: '^(domain|table|field):.+$' },
+    example: 'domain:RIESGO_CREDITO',
+    description: 'Identificador retornado por el glosario; debe enviarse URL-encoded cuando corresponda.',
+  })
+  @ApiResponse({ status: 200, description: 'Detalle enriquecido del término.', schema: businessTermDetailResponseSchema })
+  @ApiResponse({ status: 404, description: 'BUSINESS_TERM_NOT_FOUND.' })
   @Get('business-metadata/terms/:termId')
   getBusinessTerm(@Param('termId') termId: string) {
     return this.service.getBusinessTerm(termId);

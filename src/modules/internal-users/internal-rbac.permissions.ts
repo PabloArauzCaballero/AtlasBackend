@@ -106,6 +106,26 @@ export const INTERNAL_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
   permission('lineage.read', 'lineage', 'lineage_graph', 'read', 'Consultar lineage e impacto.'),
   permission('audit.events.read', 'audit', 'audit_event', 'read', 'Consultar eventos de auditoría.', 'HIGH'),
   permission('audit.events.detail', 'audit', 'audit_event', 'detail', 'Consultar detalle de auditoría sensible.', 'HIGH'),
+  permission('notifications.messages.read', 'notifications', 'notification_message', 'read', 'Consultar mensajes de notificación (in-app/push/email/sms/whatsapp) y su historial de entrega.'),
+  permission(
+    'notifications.messages.manage',
+    'notifications',
+    'notification_message',
+    'manage',
+    'Reintentar o cancelar mensajes de notificación pendientes/fallidos.',
+    'HIGH',
+    true,
+  ),
+  permission('notifications.templates.read', 'notifications', 'notification_template', 'read', 'Consultar plantillas de notificación.'),
+  permission(
+    'notifications.templates.manage',
+    'notifications',
+    'notification_template',
+    'manage',
+    'Crear y editar plantillas de notificación.',
+    'HIGH',
+    true,
+  ),
 ];
 
 const codeStartsWith = (prefix: string): string[] =>
@@ -122,6 +142,7 @@ const systemsAdminPermissions = [
   ...codeStartsWith('governance.'),
   ...codeStartsWith('dataQuality.'),
   ...codeStartsWith('reporting.'),
+  ...codeStartsWith('notifications.'),
   'lineage.read',
   'audit.events.read',
   'audit.events.detail',
@@ -148,6 +169,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'operations.riskPolicy.read',
     'catalog.data.read',
     'reporting.read',
+    'notifications.messages.read',
+    'notifications.templates.read',
   ],
   OPERATIONS_ANALYST: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read', 'catalog.data.read'],
   RISK_MANAGER: ['auth.internal.me.read', 'operations.riskPolicy.read', 'catalog.data.read', 'reporting.read', 'audit.events.read'],

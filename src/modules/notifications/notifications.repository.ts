@@ -151,6 +151,8 @@ export class NotificationsRepository {
     body: string;
     payload: Record<string, unknown>;
     priority: number;
+    category?: string | null;
+    icon?: string | null;
     scheduledAt?: Date | null;
     idempotencyKey?: string | null;
     correlationId?: string | null;
@@ -175,6 +177,8 @@ export class NotificationsRepository {
       deliveryTargetsJson: (await buildEncryptedDeliveryTargets(input.channel, input.payload)) as unknown as Array<Record<string, unknown>>,
       status: 'pending',
       priority: input.priority,
+      category: input.category ?? null,
+      icon: input.icon ?? null,
       scheduledAt: input.scheduledAt ?? now,
       queuedAt: null,
       sentAt: null,
@@ -190,6 +194,63 @@ export class NotificationsRepository {
     });
   }
 
+  /**
+   * Batch de `createMessage` para el caso de broadcast (uno-a-muchos): todos los mensajes son
+   * `channel: 'in_app'` con el mismo título/cuerpo/prioridad/categoría, solo cambia el
+   * destinatario. `in_app` no tiene delivery targets que cifrar (`buildEncryptedDeliveryTargets`
+   * devuelve `[]` para ese canal), así que es seguro insertarlos todos con un solo `bulkCreate`
+   * en vez de N `create()` secuenciales.
+   */
+  async createBroadcastMessages(
+    recipients: Array<{ recipientType: RecipientType; recipientId: string }>,
+    content: {
+      tenantId: string | null;
+      title: string;
+      body: string;
+      priority: number;
+      category: string | null;
+      icon: string | null;
+      correlationId: string | null;
+    },
+  ): Promise<NotificationMessageModel[]> {
+    if (recipients.length === 0) return [];
+    const now = new Date();
+    return this.messageModel.bulkCreate(
+      recipients.map(
+        (recipient) =>
+          ({
+            tenantId: content.tenantId,
+            outboxEventId: null,
+            recipientType: recipient.recipientType,
+            recipientId: recipient.recipientId,
+            channel: 'in_app',
+            templateCode: null,
+            subject: null,
+            title: content.title,
+            body: content.body,
+            payloadJson: {},
+            deliveryTargetsJson: [],
+            status: 'pending',
+            priority: content.priority,
+            category: content.category,
+            icon: content.icon,
+            scheduledAt: now,
+            queuedAt: null,
+            sentAt: null,
+            deliveredAt: null,
+            readAt: null,
+            failedAt: null,
+            cancelledAt: null,
+            idempotencyKey: null,
+            correlationId: content.correlationId,
+            causationId: null,
+            createdAtValue: now,
+            updatedAtValue: now,
+          }) as Record<string, unknown>,
+      ) as never[],
+    );
+  }
+
   async getMessage(tenantId: string, messageId: string): Promise<NotificationMessageModel> {
     const message = await this.messageModel.findOne({ where: { tenantId, id: messageId } });
     if (!message) throw new NotFoundException('NOTIFICATION_MESSAGE_NOT_FOUND');
@@ -203,10 +264,26 @@ export class NotificationsRepository {
   }
 
   async getCustomerMessage(tenantId: string, customerId: string, messageId: string): Promise<NotificationMessageModel> {
+    return this.getRecipientMessage(tenantId, 'customer', customerId, messageId, 'CUSTOMER_NOTIFICATION_NOT_FOUND');
+  }
+
+  /**
+   * Generaliza `getCustomerMessage`/`listCustomerMessages`/`countUnreadCustomerMessages`/
+   * `markAllCustomerRead` (que siguen existiendo tal cual, ahora como wrappers de estos métodos)
+   * para que el mismo inbox in-app sirva tanto a `customer` como a `internal_user` — usado por
+   * los endpoints de autoservicio `internal-users/me/notifications*`.
+   */
+  async getRecipientMessage(
+    tenantId: string,
+    recipientType: RecipientType,
+    recipientId: string,
+    messageId: string,
+    notFoundCode = 'NOTIFICATION_NOT_FOUND',
+  ): Promise<NotificationMessageModel> {
     const message = await this.messageModel.findOne({
-      where: { tenantId, recipientType: 'customer', recipientId: customerId, id: messageId },
+      where: { tenantId, recipientType, recipientId, id: messageId },
     });
-    if (!message) throw new NotFoundException('CUSTOMER_NOTIFICATION_NOT_FOUND');
+    if (!message) throw new NotFoundException(notFoundCode);
     return message;
   }
 
@@ -235,7 +312,11 @@ export class NotificationsRepository {
   }
 
   async listCustomerMessages(tenantId: string, customerId: string, query: CustomerNotificationsQueryDto) {
-    const where: Record<string, unknown> = { tenantId, recipientType: 'customer', recipientId: customerId, channel: 'in_app' };
+    return this.listRecipientMessages(tenantId, 'customer', customerId, query);
+  }
+
+  async listRecipientMessages(tenantId: string, recipientType: RecipientType, recipientId: string, query: CustomerNotificationsQueryDto) {
+    const where: Record<string, unknown> = { tenantId, recipientType, recipientId, channel: 'in_app' };
     if (query.status) where.status = query.status;
     if (query.channel) where.channel = query.channel;
     if (query.from || query.to) {
@@ -256,11 +337,15 @@ export class NotificationsRepository {
   }
 
   async countUnreadCustomerMessages(tenantId: string, customerId: string): Promise<number> {
+    return this.countUnreadMessages(tenantId, 'customer', customerId);
+  }
+
+  async countUnreadMessages(tenantId: string, recipientType: RecipientType, recipientId: string): Promise<number> {
     return this.messageModel.count({
       where: {
         tenantId,
-        recipientType: 'customer',
-        recipientId: customerId,
+        recipientType,
+        recipientId,
         channel: 'in_app',
         readAt: null,
         status: { [Op.notIn]: ['cancelled', 'failed'] },
@@ -342,10 +427,14 @@ export class NotificationsRepository {
   }
 
   async markAllCustomerRead(tenantId: string, customerId: string): Promise<number> {
+    return this.markAllRecipientRead(tenantId, 'customer', customerId);
+  }
+
+  async markAllRecipientRead(tenantId: string, recipientType: RecipientType, recipientId: string): Promise<number> {
     const [count] = await this.messageModel.update(
       { status: 'read', readAt: new Date(), updatedAtValue: new Date() },
       {
-        where: { tenantId, recipientType: 'customer', recipientId: customerId, channel: 'in_app', readAt: null } as never,
+        where: { tenantId, recipientType, recipientId, channel: 'in_app', readAt: null } as never,
       },
     );
     return count;
@@ -379,6 +468,8 @@ export class NotificationsRepository {
       subjectTemplate: body.subjectTemplate ?? null,
       bodyTemplate: body.bodyTemplate,
       payloadSchemaJson: body.payloadSchema ?? null,
+      category: body.category ?? null,
+      icon: body.icon ?? null,
       isActive: body.isActive,
       version: body.version,
       createdAtValue: now,
@@ -396,6 +487,8 @@ export class NotificationsRepository {
     if (body.subjectTemplate !== undefined) template.subjectTemplate = body.subjectTemplate ?? null;
     if (body.bodyTemplate !== undefined) template.bodyTemplate = body.bodyTemplate;
     if (body.payloadSchema !== undefined) template.payloadSchemaJson = body.payloadSchema ?? null;
+    if (body.category !== undefined) template.category = body.category ?? null;
+    if (body.icon !== undefined) template.icon = body.icon ?? null;
     if (body.isActive !== undefined) template.isActive = body.isActive;
     if (body.version !== undefined) template.version = body.version;
     template.updatedAtValue = new Date();

@@ -152,17 +152,20 @@ export class SystemsCatalogRepository {
   }
 
   async markDeprecatedCandidates(activeKeys: Set<string>): Promise<number> {
-    const rows = await this.endpointModel.findAll({ attributes: ['id', 'method', 'fullPath', 'reviewStatus', 'status'] } as FindOptions);
-    let updated = 0;
-    for (const row of rows) {
-      const key = `${row.method} ${row.fullPath}`;
-      if (!activeKeys.has(key) && row.status === 'ACTIVE' && row.reviewStatus !== 'APPROVED') {
-        row.status = 'DEPRECATED_CANDIDATE';
-        row.updatedAtValue = new Date();
-        await row.save();
-        updated += 1;
-      }
-    }
+    // El filtro status/reviewStatus se empuja a SQL (reduce el set a candidatos reales, no todo
+    // el catálogo) y el marcado se hace con un solo UPDATE ... WHERE id IN (...) en vez de un
+    // row.save() por fila que sigue siendo candidata tras cruzar contra activeKeys.
+    const candidates = await this.endpointModel.findAll({
+      attributes: ['id', 'method', 'fullPath'],
+      where: { status: 'ACTIVE', reviewStatus: { [Op.ne]: 'APPROVED' } } as never,
+    } as FindOptions);
+
+    const staleIds = candidates.filter((row) => !activeKeys.has(`${row.method} ${row.fullPath}`)).map((row) => row.id);
+    if (staleIds.length === 0) return 0;
+
+    const [updated] = await this.endpointModel.update({ status: 'DEPRECATED_CANDIDATE', updatedAtValue: new Date() } as never, {
+      where: { id: { [Op.in]: staleIds } } as never,
+    });
     return updated;
   }
 

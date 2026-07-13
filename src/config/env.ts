@@ -154,6 +154,16 @@ const envSchema = z
     LOG_SYNC_MAX_CHUNK_BYTES: z.coerce.number().int().positive().max(10_000_000).default(1_000_000),
     LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT: booleanEnvSchema,
     LOG_SYNC_MONGO_SERVER_SELECTION_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(5_000),
+    LOG_SYNC_FAILURES_BEFORE_PAUSE: z.coerce.number().int().positive().max(20).default(3),
+    LOG_SYNC_FAILURE_PAUSE_MS: z.coerce.number().int().positive().max(3_600_000).default(60_000),
+
+    // Monitor de salud de herramientas críticas (systems-ops): chequea periódicamente
+    // SystemsHealthService.getToolsHealth() y notifica a los usuarios internos (in-app) cuando
+    // una herramienta marcada `isCritical` pasa de saludable a no-saludable (y cuando se
+    // recupera). Activado por defecto; se puede apagar en un entorno donde no tenga sentido
+    // (p. ej. un ambiente de pruebas efímero) sin tocar código.
+    SYSTEM_HEALTH_MONITOR_ENABLED: optionalBooleanEnvSchema.default(true),
+    SYSTEM_HEALTH_MONITOR_INTERVAL_MS: z.coerce.number().int().positive().max(3_600_000).default(60_000),
   })
   .superRefine((data, ctx) => {
     function requireWhen(enabled: boolean, path: keyof typeof data, message: string): void {

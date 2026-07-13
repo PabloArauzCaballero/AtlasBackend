@@ -99,6 +99,8 @@ export class NotificationOrchestratorService {
           body,
           payload,
           priority: event.priority ?? 0,
+          category: template?.category ?? null,
+          icon: template?.icon ?? null,
           idempotencyKey,
           correlationId: event.correlationId,
           causationId: String(event.id),

@@ -6,14 +6,18 @@ import {
   NotificationDeliveryModel,
   NotificationMessageModel,
   NotificationTemplateModel,
+  TenantModel,
   UserNotificationPreferenceModel,
 } from '../../database/models/index.js';
+import { CustomersModule } from '../customers/customers.module.js';
+import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { InAppNotificationAdapter } from './adapters/in-app-notification.adapter.js';
 import { EmailNotificationAdapter } from './adapters/email.adapter.js';
 import { NotificationProviderConfigService } from './adapters/notification-provider-config.service.js';
 import { PushNotificationAdapter } from './adapters/push.adapter.js';
 import { SmsNotificationAdapter } from './adapters/sms.adapter.js';
 import { WhatsAppNotificationAdapter } from './adapters/whatsapp.adapter.js';
+import { NotificationBroadcastService } from './notification-broadcast.service.js';
 import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
 import { NotificationRulesService } from './notification-rules.service.js';
 import { NotificationTemplateRendererService } from './notification-template-renderer.service.js';
@@ -30,7 +34,10 @@ import { NotificationsService } from './notifications.service.js';
       UserNotificationPreferenceModel,
       DeviceTokenModel,
       CustomerContactMethodModel,
+      TenantModel,
     ]),
+    CustomersModule,
+    InternalUsersModule,
   ],
   controllers: [NotificationsController],
   providers: [
@@ -39,6 +46,7 @@ import { NotificationsService } from './notifications.service.js';
     NotificationRulesService,
     NotificationTemplateRendererService,
     NotificationOrchestratorService,
+    NotificationBroadcastService,
     InAppNotificationAdapter,
     NotificationProviderConfigService,
     EmailNotificationAdapter,
@@ -46,6 +54,6 @@ import { NotificationsService } from './notifications.service.js';
     SmsNotificationAdapter,
     WhatsAppNotificationAdapter,
   ],
-  exports: [NotificationOrchestratorService, NotificationsService, NotificationsRepository],
+  exports: [NotificationOrchestratorService, NotificationsService, NotificationsRepository, NotificationBroadcastService],
 })
 export class NotificationsModule {}

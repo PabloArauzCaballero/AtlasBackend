@@ -1,4 +1,4 @@
-import { SYSTEMS_OPS_ROLES, SYSTEMS_OPS_WRITE_ROLES } from '../../src/modules/systems-ops/systems-ops.constants.js';
+import { SYSTEMS_OPS_GOVERNANCE_ROLES, SYSTEMS_OPS_WRITE_ROLES } from '../../src/modules/systems-ops/systems-ops.constants.js';
 
 /**
  * ATLAS-AUDIT (auditoría #16, `systems-ops`): los 18 endpoints de escritura del módulo
@@ -14,8 +14,7 @@ describe('SYSTEMS_OPS_WRITE_ROLES', () => {
     expect(SYSTEMS_OPS_WRITE_ROLES).not.toContain('readonly_auditor');
   });
 
-  it('includes every other systems-ops role unchanged', () => {
-    const expected = SYSTEMS_OPS_ROLES.filter((role) => role !== 'readonly_auditor');
-    expect([...SYSTEMS_OPS_WRITE_ROLES].sort()).toEqual([...expected].sort());
+  it('is narrowed to governance roles for backward compatibility', () => {
+    expect([...SYSTEMS_OPS_WRITE_ROLES].sort()).toEqual([...SYSTEMS_OPS_GOVERNANCE_ROLES].sort());
   });
 });

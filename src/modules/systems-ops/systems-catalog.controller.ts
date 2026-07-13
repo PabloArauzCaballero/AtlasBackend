@@ -74,7 +74,7 @@ export class SystemsCatalogController {
 
   @ApiOperation({ summary: 'Descubrir endpoints (escaneo de código fuente)' })
   @ApiBody({ schema: zodToApiSchema(discoverEndpointsSchema) })
-  @ApiResponse({ status: 200, description: 'Resultado del descubrimiento de endpoints.' })
+  @ApiResponse({ status: 201, description: 'Resultado del descubrimiento de endpoints.' })
   @Post('endpoints/discover')
   @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   discoverEndpoints(@Body(new ZodValidationPipe(discoverEndpointsSchema)) body: DiscoverEndpointsDto) {
@@ -83,7 +83,7 @@ export class SystemsCatalogController {
 
   @ApiOperation({ summary: 'Refrescar el seed del catálogo (herramientas, entidades, endpoints)' })
   @ApiBody({ schema: zodToApiSchema(catalogSeedRefreshSchema) })
-  @ApiResponse({ status: 200, description: 'Seed del catálogo refrescado.' })
+  @ApiResponse({ status: 201, description: 'Seed del catálogo refrescado.' })
   @Post('endpoints/catalog-seed/refresh')
   @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   refreshCatalogSeed(
@@ -116,7 +116,7 @@ export class SystemsCatalogController {
 
   @ApiOperation({ summary: 'Inferir requisitos de herramientas (a partir del catálogo)' })
   @ApiBody({ schema: zodToApiSchema(inferToolRequirementsSchema) })
-  @ApiResponse({ status: 200, description: 'Requisitos inferidos.' })
+  @ApiResponse({ status: 201, description: 'Requisitos inferidos.' })
   @Post('tools/infer-requirements')
   @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   inferToolRequirements(@Body(new ZodValidationPipe(inferToolRequirementsSchema)) body: InferToolRequirementsDto) {
@@ -125,7 +125,7 @@ export class SystemsCatalogController {
 
   @ApiOperation({ summary: 'Inferir impactos endpoint-tabla (a partir del código fuente)' })
   @ApiBody({ schema: zodToApiSchema(inferToolRequirementsSchema) })
-  @ApiResponse({ status: 200, description: 'Impactos endpoint-tabla inferidos.' })
+  @ApiResponse({ status: 201, description: 'Impactos endpoint-tabla inferidos.' })
   @Post('data-entities/infer-impacts')
   @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   inferDataImpacts(@Body(new ZodValidationPipe(inferToolRequirementsSchema)) body: InferToolRequirementsDto) {

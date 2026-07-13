@@ -405,27 +405,60 @@ export class InternalPortalService {
         metadata: { schemaName: clean(row.schema_name), reviewStatus: clean(row.review_status), source: 'system_data_entity_catalog' },
         updatedAt: iso(row._updated_at) ?? NOW_SEED,
       })),
-      ...fields.map((row) => ({
-        termId: `field:${id(row._id)}`,
-        key: `${clean(row.table_name)}.${clean(row.column_name)}`,
-        name: clean(row.business_name, clean(row.column_name)),
-        definition: clean(row.business_meaning, 'Campo documentado para auditoría, análisis y gobierno de datos.'),
-        domain: clean(row.domain_code, 'PLATAFORMA'),
-        owner: 'data-governance',
-        status: 'ACTIVE',
-        relatedTables: [clean(row.table_name)],
-        relatedColumns: [`${clean(row.table_name)}.${clean(row.column_name)}`],
-        relatedReports: ['data-governance'],
-        metadata: { sensitivityLevel: clean(row.sensitivity_level, 'INTERNAL'), source: 'system_data_field_catalog' },
-        updatedAt: iso(row._updated_at) ?? NOW_SEED,
-      })),
+      ...fields.map((row) => this.mapFieldTerm(row)),
     ].filter((item) => containsQuery(item, q));
     return paginate(items, query);
   }
 
-  async getBusinessTerm(termId: string) {
+  private mapFieldTerm(row: Row) {
+    return {
+      termId: `field:${id(row._id)}`,
+      key: `${clean(row.table_name)}.${clean(row.column_name)}`,
+      name: clean(row.business_name, clean(row.column_name)),
+      definition: clean(row.business_meaning, 'Campo documentado para auditoría, análisis y gobierno de datos.'),
+      domain: clean(row.domain_code, 'PLATAFORMA'),
+      owner: 'data-governance',
+      status: 'ACTIVE',
+      relatedTables: [clean(row.table_name)],
+      relatedColumns: [`${clean(row.table_name)}.${clean(row.column_name)}`],
+      relatedReports: ['data-governance'],
+      metadata: { sensitivityLevel: clean(row.sensitivity_level, 'INTERNAL'), source: 'system_data_field_catalog' },
+      updatedAt: iso(row._updated_at) ?? NOW_SEED,
+    };
+  }
+
+  /**
+   * `field:` es, con diferencia, el prefijo más numeroso de `termId` (hasta 240 candidatos vs 120
+   * de `table:` y 80 de `domain:`) y, a diferencia de esos dos, un término de campo no necesita
+   * cruzar contra el resto del catálogo (`relatedTables`/`relatedColumns` se arman solo con la
+   * fila misma — ver `mapFieldTerm`). Para ese caso se resuelve con una sola query dirigida por
+   * id en vez de traer domains+tables+fields completos (`listBusinessTerms`) solo para hacer
+   * `.find()` sobre uno. `domain:`/`table:` sí necesitan el resto del catálogo para calcular sus
+   * relaciones (tablesForDomain/columnsForDomain, fieldsByTable), así que esos siguen usando el
+   * camino original.
+   */
+  private async findSingleBusinessTerm(
+    decodedTermId: string,
+  ): Promise<Awaited<ReturnType<InternalPortalService['listBusinessTerms']>>['items'][number] | undefined> {
+    if (decodedTermId.startsWith('field:')) {
+      const fieldId = decodedTermId.slice('field:'.length);
+      const rows = await this.queryRows(
+        `SELECT _id, data_entity_id, schema_name, table_name, column_name, business_name, business_meaning, domain_code,
+                sensitivity_level, referenced_table, referenced_column, _updated_at
+           FROM system_data_field_catalog
+          WHERE _id = :fieldId AND COALESCE(status, 'ACTIVE') <> 'DEPRECATED'
+          LIMIT 1`,
+        { fieldId },
+      );
+      return rows[0] ? this.mapFieldTerm(rows[0]) : undefined;
+    }
     const result = await this.listBusinessTerms({ page: 1, limit: 500 });
-    const term = result.items.find((item) => item.termId === decodeURIComponent(termId));
+    return result.items.find((item) => item.termId === decodedTermId);
+  }
+
+  async getBusinessTerm(termId: string) {
+    const decodedTermId = decodeURIComponent(termId);
+    const term = await this.findSingleBusinessTerm(decodedTermId);
     if (!term) throw new NotFoundException('BUSINESS_TERM_NOT_FOUND');
     const relatedTableNames = term.relatedTables ?? [];
     const fkRelations = relatedTableNames.length

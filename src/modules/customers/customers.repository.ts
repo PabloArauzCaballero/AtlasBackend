@@ -37,6 +37,27 @@ export class CustomersRepository {
     } as FindOptions);
   }
 
+  /**
+   * Usado por `NotificationBroadcastService` para resolver el destinatario "todos los
+   * customers" de un broadcast de admin. Excluye clientes eliminados y bloqueados — no tiene
+   * sentido notificar a una cuenta bloqueada, y evita construir una lista de miles de ids solo
+   * para descartarlos después caso por caso.
+   */
+  async listActiveCustomerIds(tenantId: string): Promise<string[]> {
+    const rows = await this.customerModel.findAll({
+      where: {
+        tenantId,
+        deleted: { [Op.ne]: true },
+        // `lifecycleStatus` es nullable — `Op.ne` por sí solo excluiría también los NULL (NULL !=
+        // 'blocked' no es true en SQL), así que el OR explícito con NULL es necesario para no
+        // dejar afuera clientes que simplemente no tienen el campo seteado.
+        [Op.or]: [{ lifecycleStatus: null }, { lifecycleStatus: { [Op.ne]: 'blocked' } }],
+      } as never,
+      attributes: ['id'],
+    } as FindOptions);
+    return rows.map((row) => String(row.id));
+  }
+
   findByContactHash(tenantId: string, contactHashes: { phoneHash?: string; emailHash?: string }): Promise<CustomerModel | null> {
     const orConditions = [];
 

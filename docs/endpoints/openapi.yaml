@@ -1162,8 +1162,21 @@ paths:
         - health
   /operations/catalogs:
     get:
+      description: >-
+        Devuelve los catálogos que normalizan señales de negocio y su versión más
+        reciente.
       operationId: CatalogManagementController_listCatalogs
       parameters:
+        - name: active
+          required: false
+          in: query
+          schema:
+            default: all
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+              - all
         - name: status
           required: false
           in: query
@@ -1177,12 +1190,93 @@ paths:
               - published
               - retired
               - all
+        - name: domain
+          required: false
+          in: query
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 80
       responses:
         '200':
-          description: Lista de catálogos.
+          description: Lista de catálogos y su versión vigente o más reciente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      description: >-
+                        Catálogo de contexto usado para normalizar señales antes
+                        de una evaluación del motor de decisión.
+                      properties:
+                        catalogId:
+                          type: string
+                          pattern: ^[1-9][0-9]*$
+                        catalogCode:
+                          type: string
+                        catalogName:
+                          type: string
+                        domain:
+                          type: string
+                          nullable: true
+                        description:
+                          type: string
+                          nullable: true
+                        ownerTeam:
+                          type: string
+                          nullable: true
+                        isActive:
+                          type: boolean
+                        currentVersion:
+                          type: object
+                          properties:
+                            catalogVersionId:
+                              type: string
+                              pattern: ^[1-9][0-9]*$
+                            versionCode:
+                              type: string
+                            status:
+                              type: string
+                              enum:
+                                - draft
+                                - pending_approval
+                                - approved
+                                - published
+                                - retired
+                                - rejected
+                            validFrom:
+                              type: string
+                              format: date
+                              nullable: true
+                            validUntil:
+                              type: string
+                              format: date
+                              nullable: true
+                          required:
+                            - catalogVersionId
+                            - versionCode
+                            - status
+                            - validFrom
+                            - validUntil
+                          nullable: true
+                      required:
+                        - catalogId
+                        - catalogCode
+                        - catalogName
+                        - domain
+                        - description
+                        - ownerTeam
+                        - isActive
+                        - currentVersion
+                required:
+                  - items
       security:
         - access-token: []
-      summary: Listar catálogos de contexto
+      summary: Listar catálogos de contexto del motor de decisión
       tags:
         - catalog-management
   /operations/catalogs/{catalogCode}/versions/{versionId}:
@@ -1205,7 +1299,196 @@ paths:
             pattern: ^[a-zA-Z0-9_.:-]+$
       responses:
         '200':
-          description: Versión de catálogo.
+          description: Versión, items, alias y mapeos de riesgo del catálogo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  catalog:
+                    type: object
+                    description: >-
+                      Catálogo de contexto usado para normalizar señales antes de
+                      una evaluación del motor de decisión.
+                    properties:
+                      catalogId:
+                        type: string
+                        pattern: ^[1-9][0-9]*$
+                      catalogCode:
+                        type: string
+                      catalogName:
+                        type: string
+                      domain:
+                        type: string
+                        nullable: true
+                      description:
+                        type: string
+                        nullable: true
+                      ownerTeam:
+                        type: string
+                        nullable: true
+                      isActive:
+                        type: boolean
+                      currentVersion:
+                        type: object
+                        properties:
+                          catalogVersionId:
+                            type: string
+                            pattern: ^[1-9][0-9]*$
+                          versionCode:
+                            type: string
+                          status:
+                            type: string
+                            enum:
+                              - draft
+                              - pending_approval
+                              - approved
+                              - published
+                              - retired
+                              - rejected
+                          validFrom:
+                            type: string
+                            format: date
+                            nullable: true
+                          validUntil:
+                            type: string
+                            format: date
+                            nullable: true
+                        required:
+                          - catalogVersionId
+                          - versionCode
+                          - status
+                          - validFrom
+                          - validUntil
+                        nullable: true
+                    required:
+                      - catalogId
+                      - catalogCode
+                      - catalogName
+                      - domain
+                      - description
+                      - ownerTeam
+                      - isActive
+                      - currentVersion
+                  version:
+                    type: object
+                    properties:
+                      catalogVersionId:
+                        type: string
+                        pattern: ^[1-9][0-9]*$
+                      versionCode:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - draft
+                          - pending_approval
+                          - approved
+                          - published
+                          - retired
+                          - rejected
+                      validFrom:
+                        type: string
+                        format: date
+                        nullable: true
+                      validUntil:
+                        type: string
+                        format: date
+                        nullable: true
+                      approvedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      notes:
+                        type: string
+                        nullable: true
+                    required:
+                      - catalogVersionId
+                      - versionCode
+                      - status
+                      - validFrom
+                      - validUntil
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        contextItemId:
+                          type: string
+                          pattern: ^[1-9][0-9]*$
+                        itemCode:
+                          type: string
+                        itemName:
+                          type: string
+                        itemType:
+                          type: string
+                        attributes:
+                          type: object
+                          additionalProperties: true
+                        sourceId:
+                          type: string
+                          pattern: ^[1-9][0-9]*$
+                          nullable: true
+                        confidenceScore:
+                          type: string
+                          nullable: true
+                        isActive:
+                          type: boolean
+                        aliases:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              aliasId:
+                                type: string
+                                pattern: ^[1-9][0-9]*$
+                              aliasValue:
+                                type: string
+                              aliasType:
+                                type: string
+                              normalizedAlias:
+                                type: string
+                              confidenceScore:
+                                type: string
+                                nullable: true
+                        riskMappings:
+                          type: array
+                          items:
+                            type: object
+                            description: >-
+                              Interpretación de un valor de catálogo para scoring,
+                              reglas o explicabilidad.
+                            properties:
+                              riskMappingId:
+                                type: string
+                                pattern: ^[1-9][0-9]*$
+                              riskDimension:
+                                type: string
+                              riskBand:
+                                type: string
+                              scorePointsSuggested:
+                                type: string
+                                nullable: true
+                              reasonCode:
+                                type: string
+                              explanation:
+                                type: string
+                                nullable: true
+                              modelUsage:
+                                type: string
+                                nullable: true
+                              validFrom:
+                                type: string
+                                format: date
+                                nullable: true
+                              validUntil:
+                                type: string
+                                format: date
+                                nullable: true
+                required:
+                  - catalog
+                  - version
+                  - items
         '404':
           description: CATALOG_VERSION_NOT_FOUND.
       security:
@@ -1367,6 +1650,31 @@ paths:
       responses:
         '201':
           description: Versión de catálogo creada.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  catalogCode:
+                    type: string
+                  catalogVersionId:
+                    type: string
+                    pattern: ^[1-9][0-9]*$
+                  status:
+                    type: string
+                    enum:
+                      - draft
+                  itemsCreated:
+                    type: integer
+                    minimum: 0
+                  aliasesCreated:
+                    type: integer
+                    minimum: 0
+                  riskMappingsCreated:
+                    type: integer
+                    minimum: 0
+        '404':
+          description: Catálogo no encontrado.
       security:
         - access-token: []
       summary: Crear una nueva versión de catálogo (borrador)
@@ -1417,10 +1725,23 @@ paths:
       responses:
         '200':
           description: Versión enviada a aprobación.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  catalogVersionId:
+                    type: string
+                    pattern: ^[1-9][0-9]*$
+                  status:
+                    type: string
+                required:
+                  - catalogVersionId
+                  - status
         '404':
           description: CATALOG_VERSION_NOT_FOUND.
-        '409':
-          description: CATALOG_VERSION_INVALID_STATE.
+        '422':
+          description: CATALOG_VERSION_NOT_DRAFT o CATALOG_VERSION_WITHOUT_ITEMS.
       security:
         - access-token: []
       summary: Enviar una versión de catálogo a aprobación
@@ -1485,10 +1806,31 @@ paths:
       responses:
         '200':
           description: Decisión registrada.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  catalogVersionId:
+                    type: string
+                    pattern: ^[1-9][0-9]*$
+                  decision:
+                    type: string
+                    enum:
+                      - approve
+                      - reject
+                      - publish
+                      - retire
+                  status:
+                    type: string
+                  publishedAt:
+                    type: string
+                    format: date-time
+                    nullable: true
         '404':
           description: CATALOG_VERSION_NOT_FOUND.
-        '409':
-          description: CATALOG_VERSION_INVALID_STATE.
+        '422':
+          description: La versión no se encuentra en un estado compatible con la decisión.
       security:
         - access-token: []
       summary: Aprobar o rechazar una versión de catálogo
@@ -1580,6 +1922,21 @@ paths:
       responses:
         '201':
           description: Catálogo ingerido a staging.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ingestionJobId:
+                    type: string
+                    pattern: ^[1-9][0-9]*$
+                  status:
+                    type: string
+                  stagingItemsCreated:
+                    type: integer
+                    minimum: 0
+        '404':
+          description: Catálogo no encontrado.
       security:
         - access-token: []
       summary: Ingerir un catálogo (staging)
@@ -1718,6 +2075,27 @@ paths:
       responses:
         '200':
           description: Decisiones aplicadas al lote de staging.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  processed:
+                    type: integer
+                    minimum: 0
+                  approved:
+                    type: integer
+                    minimum: 0
+                  rejected:
+                    type: integer
+                    minimum: 0
+                  itemsCreated:
+                    type: integer
+                    minimum: 0
+        '404':
+          description: Versión destino o item de staging no encontrado.
+        '422':
+          description: Versión destino no editable o item incompatible/incompleto.
       security:
         - access-token: []
       summary: Decidir en lote items en staging de catálogo
@@ -1725,6 +2103,9 @@ paths:
         - catalog-management
   /operations/definitions:
     get:
+      description: >-
+        Consulta observaciones, eventos, atributos y features que pueden alimentar
+        reglas, scoring y explicabilidad.
       operationId: CatalogManagementController_listDefinitions
       parameters:
         - name: domain
@@ -1758,14 +2139,189 @@ paths:
               - all
       responses:
         '200':
-          description: Lista de definiciones.
+          description: Definiciones agrupadas por tipo.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: >-
+                  Definiciones semánticas disponibles para observación, reglas,
+                  features y decisiones.
+                properties:
+                  observations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        observationDefinitionId:
+                          type: string
+                          pattern: ^[1-9][0-9]*$
+                        observationCode:
+                          type: string
+                        observationName:
+                          type: string
+                        dataType:
+                          type: string
+                          nullable: true
+                        riskDimension:
+                          type: string
+                          nullable: true
+                        isActive:
+                          type: boolean
+                        ownerTeam:
+                          type: string
+                          nullable: true
+                        domainCode:
+                          type: string
+                          nullable: true
+                        reviewStatus:
+                          type: string
+                          nullable: true
+                        sourceGroup:
+                          type: string
+                          nullable: true
+                      required:
+                        - observationDefinitionId
+                        - observationCode
+                        - observationName
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        eventDefinitionId:
+                          type: string
+                          pattern: ^[1-9][0-9]*$
+                        eventCode:
+                          type: string
+                        eventName:
+                          type: string
+                        dataType:
+                          type: string
+                          nullable: true
+                        riskDimension:
+                          type: string
+                          nullable: true
+                        isActive:
+                          type: boolean
+                        ownerTeam:
+                          type: string
+                          nullable: true
+                        domainCode:
+                          type: string
+                          nullable: true
+                        reviewStatus:
+                          type: string
+                          nullable: true
+                        eventFamily:
+                          type: string
+                          nullable: true
+                        sourcePackage:
+                          type: string
+                          nullable: true
+                        isHighVolume:
+                          type: boolean
+                        relatedTables:
+                          type: array
+                          items:
+                            type: string
+                      required:
+                        - eventDefinitionId
+                        - eventCode
+                        - eventName
+                  attributes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        attributeDefinitionId:
+                          type: string
+                          pattern: ^[1-9][0-9]*$
+                        attributeCode:
+                          type: string
+                        attributeName:
+                          type: string
+                        dataType:
+                          type: string
+                          nullable: true
+                        riskDimension:
+                          type: string
+                          nullable: true
+                        isActive:
+                          type: boolean
+                        ownerTeam:
+                          type: string
+                          nullable: true
+                        domainCode:
+                          type: string
+                          nullable: true
+                        reviewStatus:
+                          type: string
+                          nullable: true
+                        entityScope:
+                          type: string
+                          nullable: true
+                        isSensitive:
+                          type: boolean
+                      required:
+                        - attributeDefinitionId
+                        - attributeCode
+                        - attributeName
+                  features:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        featureDefinitionId:
+                          type: string
+                          pattern: ^[1-9][0-9]*$
+                        featureCode:
+                          type: string
+                        featureName:
+                          type: string
+                        dataType:
+                          type: string
+                          nullable: true
+                        riskDimension:
+                          type: string
+                          nullable: true
+                        isActive:
+                          type: boolean
+                        ownerTeam:
+                          type: string
+                          nullable: true
+                        domainCode:
+                          type: string
+                          nullable: true
+                        reviewStatus:
+                          type: string
+                          nullable: true
+                        featureFamily:
+                          type: string
+                          nullable: true
+                        isModelInput:
+                          type: boolean
+                        isPolicyRuleInput:
+                          type: boolean
+                      required:
+                        - featureDefinitionId
+                        - featureCode
+                        - featureName
+                required:
+                  - observations
+                  - events
+                  - attributes
+                  - features
       security:
         - access-token: []
-      summary: Listar definiciones (glosario de datos)
+      summary: Listar definiciones semánticas del motor de decisión
       tags:
         - catalog-management
   /operations/definitions/package:
     post:
+      description: >-
+        Crea o actualiza en lote el vocabulario de señales disponible para un
+        dominio de decisión.
       operationId: CatalogManagementController_upsertDefinitionsPackage
       parameters:
         - name: x-idempotency-key
@@ -2100,9 +2656,34 @@ paths:
       responses:
         '200':
           description: Paquete de definiciones aplicado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domain:
+                    type: string
+                  eventsProcessed:
+                    type: integer
+                    minimum: 0
+                  observationsProcessed:
+                    type: integer
+                    minimum: 0
+                  attributesProcessed:
+                    type: integer
+                    minimum: 0
+                  featuresProcessed:
+                    type: integer
+                    minimum: 0
+                required:
+                  - domain
+                  - eventsProcessed
+                  - observationsProcessed
+                  - attributesProcessed
+                  - featuresProcessed
       security:
         - access-token: []
-      summary: Publicar un paquete de definiciones (glosario)
+      summary: Publicar un paquete de definiciones semánticas
       tags:
         - catalog-management
   /operations/risk-policy/current:
@@ -9435,18 +10016,144 @@ paths:
         - schema-management
   /internal/business-metadata/glossary:
     get:
+      description: >-
+        Unifica dominios, tablas y campos para dar contexto semántico, ownership y
+        trazabilidad a las decisiones.
       operationId: InternalPortalController_listBusinessTerms
-      parameters: []
+      parameters:
+        - name: pageSize
+          required: false
+          in: query
+          deprecated: true
+          description: Alias legado de limit.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: limit
+          required: false
+          in: query
+          description: Elementos por página (1-100).
+          schema:
+            default: 20
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: page
+          required: false
+          in: query
+          description: Página, desde 1.
+          schema:
+            default: 1
+            type: integer
+            minimum: 1
+        - name: q
+          required: false
+          in: query
+          description: Busca en los campos textuales y relaciones del término.
+          schema:
+            type: string
       responses:
         '200':
-          description: Lista de términos del glosario.
+          description: Lista paginada de términos del glosario.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      description: >-
+                        Término unificado proveniente de un dominio, tabla o campo
+                        del catálogo de datos.
+                      properties:
+                        termId:
+                          type: string
+                          pattern: ^(domain|table|field):.+$
+                          example: domain:RIESGO_CREDITO
+                        key:
+                          type: string
+                        name:
+                          type: string
+                        definition:
+                          type: string
+                        domain:
+                          type: string
+                        owner:
+                          type: string
+                        status:
+                          type: string
+                        relatedTables:
+                          type: array
+                          items:
+                            type: string
+                        relatedColumns:
+                          type: array
+                          items:
+                            type: string
+                        relatedEndpoints:
+                          type: array
+                          items:
+                            type: string
+                        relatedReports:
+                          type: array
+                          items:
+                            type: string
+                        metadata:
+                          type: object
+                          additionalProperties: true
+                        updatedAt:
+                          type: string
+                          format: date-time
+                      required:
+                        - termId
+                        - key
+                        - name
+                        - definition
+                        - domain
+                        - owner
+                        - status
+                        - relatedTables
+                        - relatedColumns
+                        - relatedReports
+                        - metadata
+                        - updatedAt
+                  meta:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                        minimum: 1
+                      limit:
+                        type: integer
+                        minimum: 1
+                        maximum: 100
+                      total:
+                        type: integer
+                        minimum: 0
+                      totalPages:
+                        type: integer
+                        minimum: 1
+                    required:
+                      - page
+                      - limit
+                      - total
+                      - totalPages
+                required:
+                  - items
+                  - meta
       security:
         - access-token: []
-      summary: Listar términos del glosario de metadata de negocio
+      summary: Listar términos del glosario de negocio
       tags:
         - internal-portal
   /internal/business-metadata/terms/{termId}:
     get:
+      description: >-
+        Incluye sinónimos, restricciones, relaciones de datos y evidencia mínima
+        de auditoría.
       operationId: InternalPortalController_getBusinessTerm
       parameters:
         - name: termId
@@ -9454,9 +10161,141 @@ paths:
           in: path
           schema:
             type: string
+            pattern: ^(domain|table|field):.+$
+          description: >-
+            Identificador retornado por el glosario; debe enviarse URL-encoded
+            cuando corresponda.
       responses:
         '200':
-          description: Detalle del término.
+          description: Detalle enriquecido del término.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: >-
+                  Término unificado proveniente de un dominio, tabla o campo del
+                  catálogo de datos.
+                properties:
+                  termId:
+                    type: string
+                    pattern: ^(domain|table|field):.+$
+                    example: domain:RIESGO_CREDITO
+                  key:
+                    type: string
+                  name:
+                    type: string
+                  definition:
+                    type: string
+                  domain:
+                    type: string
+                  owner:
+                    type: string
+                  status:
+                    type: string
+                  relatedTables:
+                    type: array
+                    items:
+                      type: string
+                  relatedColumns:
+                    type: array
+                    items:
+                      type: string
+                  relatedEndpoints:
+                    type: array
+                    items:
+                      type: string
+                  relatedReports:
+                    type: array
+                    items:
+                      type: string
+                  metadata:
+                    type: object
+                    additionalProperties: true
+                  updatedAt:
+                    type: string
+                    format: date-time
+                  synonyms:
+                    type: array
+                    items:
+                      type: string
+                  examples:
+                    type: array
+                    items:
+                      type: string
+                  restrictions:
+                    type: array
+                    items:
+                      type: string
+                  relations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        relationId:
+                          type: string
+                        relationType:
+                          type: string
+                        targetType:
+                          type: string
+                        targetId:
+                          type: string
+                        targetLabel:
+                          type: string
+                        sourceTable:
+                          type: string
+                        sourceColumn:
+                          type: string
+                          nullable: true
+                        targetTable:
+                          type: string
+                        targetColumn:
+                          type: string
+                          nullable: true
+                      required:
+                        - relationId
+                        - relationType
+                        - targetType
+                        - targetId
+                        - targetLabel
+                  audit:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        auditId:
+                          type: string
+                        action:
+                          type: string
+                        actor:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                      required:
+                        - auditId
+                        - action
+                        - actor
+                        - createdAt
+                required:
+                  - termId
+                  - key
+                  - name
+                  - definition
+                  - domain
+                  - owner
+                  - status
+                  - relatedTables
+                  - relatedColumns
+                  - relatedReports
+                  - metadata
+                  - updatedAt
+                  - synonyms
+                  - examples
+                  - restrictions
+                  - relations
+                  - audit
+        '404':
+          description: BUSINESS_TERM_NOT_FOUND.
       security:
         - access-token: []
       summary: Obtener un término del glosario de negocio
@@ -9862,21 +10701,20 @@ paths:
 info:
   title: Atlas API
   description: >-
-    API de Proyecto Atlas — Fase 1 (usuarios): identidad de cliente,
-    autenticación, sesiones, consentimientos, privacidad, telemetría,
-    riesgo/scoring y plataforma administrativa. El dominio BNPL (compras,
-    cuotas, línea de crédito, comercios) corresponde a Fase 3 y todavía no está
-    implementado — ver docs/pending/pending-items.md.
-  version: 0.2.0
+    API de Proyecto Atlas: identidad de cliente, autenticación, sesiones,
+    consentimientos, privacidad, telemetría, riesgo/scoring y plataforma
+    administrativa. Incluye catálogos versionados, definiciones semánticas y
+    glosario de negocio para dar contexto trazable al motor de decisión. El
+    dominio BNPL (compras, cuotas, línea de crédito, comercios) corresponde a
+    Fase 3 y todavía no está implementado — ver docs/pending/pending-items.md.
+  version: 0.3.0
   contact: {}
 tags:
   - name: auth
     description: 'Autenticación: login, refresh, logout, provisión de credenciales internas.'
-servers: []
-components:
-  securitySchemes:
-    access-token:
-      scheme: bearer
-      bearerFormat: JWT
-      type: http
-  schemas: {}
+  - name: catalog-management
+    description: >-
+      Catálogos versionados, definiciones semánticas y mapeos de riesgo
+      consumidos por el motor de decisión.
+  - name: internal-portal
+    description: Glosario de negocio, gobierno y trazabilidad para operadores internos.

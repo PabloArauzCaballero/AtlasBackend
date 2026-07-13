@@ -19,11 +19,10 @@ export const SYSTEMS_OPS_ROLES = [
  * poder escribir nada. Usar este conjunto (sin `readonly_auditor`) en cada endpoint mutante,
  * mismo patrón ya usado en `operations.controller.ts` para separar roles por tipo de acción.
  */
-export const SYSTEMS_OPS_WRITE_ROLES = SYSTEMS_OPS_ROLES.filter((role) => role !== 'readonly_auditor');
-
 export const SYSTEMS_OPS_GOVERNANCE_ROLES = ['system_admin', 'platform_admin'] as const;
 export const SYSTEMS_OPS_QA_ROLES = ['system_admin', 'platform_admin', 'qa_engineer'] as const;
 export const SYSTEMS_OPS_STRESS_ROLES = ['system_admin', 'platform_admin', 'qa_engineer', 'devops'] as const;
+export const SYSTEMS_OPS_WRITE_ROLES = SYSTEMS_OPS_GOVERNANCE_ROLES;
 
 export function canReadAllSystemsOpsTenants(role: string): boolean {
   return role === 'system_admin' || role === 'platform_admin';

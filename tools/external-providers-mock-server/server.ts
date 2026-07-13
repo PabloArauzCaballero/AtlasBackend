@@ -1,3 +1,6 @@
+// Servidor legacy embebido en este repo, mantenido por compatibilidad con `yarn mock:providers`.
+// El servidor canónico (modular, con health check por proveedor) vive en
+// `AtlasAdminPortal/mock-server` — ver docs/external-providers/mock-server.md.
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 
 const port = Number(process.env.MOCK_PROVIDERS_PORT ?? 4010);

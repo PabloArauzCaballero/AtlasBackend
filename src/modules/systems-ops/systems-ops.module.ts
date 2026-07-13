@@ -21,9 +21,11 @@ import {
   SystemOperationalRuleCatalogModel,
   SystemCatalogReviewEventModel,
 } from '../../database/models/index.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { EndpointDiscoveryService } from './endpoint-discovery.service.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { SystemsCatalogSeedService } from './systems-catalog-seed.service.js';
+import { SystemsHealthMonitorService } from './systems-health-monitor.service.js';
 import { SystemsHealthService } from './systems-health.service.js';
 import { SystemsStressRunService } from './systems-stress-run.service.js';
 import { SystemsActionLogController } from './systems-action-log.controller.js';
@@ -76,6 +78,7 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
       SystemOperationalRuleCatalogModel,
       SystemCatalogReviewEventModel,
     ]),
+    NotificationsModule,
   ],
   controllers: [
     SystemsCatalogController,
@@ -100,6 +103,7 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
     SystemsCatalogClassifierService,
     SystemsCatalogSeedService,
     SystemsHealthService,
+    SystemsHealthMonitorService,
     SystemsTestRunnerService,
     SystemsTestAssertionService,
     SystemsTestHttpClientService,

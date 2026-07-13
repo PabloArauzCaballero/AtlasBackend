@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { stat, truncate } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { Collection, MongoClient } from 'mongodb';
@@ -80,8 +80,11 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
   private timer: NodeJS.Timeout | null = null;
   private flushInFlight: Promise<void> | null = null;
   private startupInserted = false;
+  private bootResetDone = false;
   private currentOffset: number | null = null;
   private sequence = 0;
+  private consecutiveFailures = 0;
+  private pausedUntil = 0;
 
   onApplicationBootstrap(): void {
     if (!env.MONGO_DB_URL_CONNECTION) {
@@ -117,6 +120,8 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
   }
 
   private async flush(): Promise<void> {
+    if (Date.now() < this.pausedUntil) return;
+
     try {
       const collection = await this.getCollection();
       await this.ensureStartupDocument(collection);
@@ -124,7 +129,10 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
       const offset = this.currentOffset ?? 0;
       const delta = await readLogDelta(this.logFilePath, offset, env.LOG_SYNC_MAX_CHUNK_BYTES);
 
-      if (!delta.exists) return;
+      if (!delta.exists) {
+        this.markSyncSuccess();
+        return;
+      }
 
       if (delta.rotated) {
         await collection.insertOne({
@@ -141,6 +149,8 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
 
       if (delta.content.length === 0) {
         this.currentOffset = delta.offsetTo;
+        await this.maybeResetLogFileAfterFullSync(delta.offsetTo, delta.fileSize, collection);
+        this.markSyncSuccess();
         return;
       }
 
@@ -161,9 +171,53 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
       });
 
       this.currentOffset = delta.offsetTo;
+      await this.maybeResetLogFileAfterFullSync(delta.offsetTo, delta.fileSize, collection);
+      this.markSyncSuccess();
     } catch (error) {
-      this.logger.warn(`No se pudo sincronizar ${this.source.fileName} con MongoDB: ${formatError(error)}`);
+      await this.resetMongoClient();
+      this.registerFailure(error);
     }
+  }
+
+  /**
+   * Reinicia (trunca) `Archivo.log` una vez confirmado que su contenido ya quedó
+   * reflejado por completo en MongoDB, para que no crezca sin límite entre reinicios
+   * del backend — MongoDB ya tiene la historia completa, el archivo local es desechable.
+   *
+   * Solo trunca si `syncedUpToOffset` (lo que este flush acaba de confirmar en Mongo)
+   * cubre todo el archivo tal como estaba al momento de leerlo (`fileSizeAtSync`) — si
+   * el log excede `LOG_SYNC_MAX_CHUNK_BYTES` puede tomar varios ciclos de flush llegar
+   * a ese punto, y mientras tanto no se toca el archivo. Justo antes de truncar vuelve a
+   * medir el tamaño del archivo: si alguien escribió algo nuevo en el ínterin (el logger
+   * de la app sigue apilando líneas en paralelo), no trunca esta vez y lo reintenta en el
+   * siguiente ciclo — así nunca se pierde una línea que no haya sido sincronizada.
+   */
+  private async maybeResetLogFileAfterFullSync(
+    syncedUpToOffset: number,
+    fileSizeAtSync: number,
+    collection: Collection<RemoteLogDocument>,
+  ): Promise<void> {
+    if (this.bootResetDone) return;
+    if (fileSizeAtSync === 0 || syncedUpToOffset < fileSizeAtSync) return;
+
+    const currentSize = await getFileSize(this.logFilePath);
+    if (currentSize !== fileSizeAtSync) return;
+
+    await truncate(this.logFilePath, 0);
+    this.currentOffset = 0;
+    this.bootResetDone = true;
+
+    await collection.insertOne({
+      type: 'rotation',
+      bootId: this.bootId,
+      idArranque: this.bootId,
+      capturedAt: new Date(),
+      service: 'atlas-backend',
+      source: this.source,
+      previousOffset: fileSizeAtSync,
+      fileSize: 0,
+    });
+    this.logger.log(`${this.source.fileName} reiniciado: ${fileSizeAtSync} bytes ya confirmados en MongoDB.`);
   }
 
   private async getCollection(): Promise<Collection<RemoteLogDocument>> {
@@ -173,12 +227,13 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
       throw new Error('MONGO_DB_URL_CONNECTION no configurado.');
     }
 
-    this.client = new MongoClient(env.MONGO_DB_URL_CONNECTION, {
+    const client = new MongoClient(env.MONGO_DB_URL_CONNECTION, {
       serverSelectionTimeoutMS: env.LOG_SYNC_MONGO_SERVER_SELECTION_TIMEOUT_MS,
     });
-    await this.client.connect();
+    await client.connect();
+    this.client = client;
 
-    const collection = this.client.db(env.MONGO_LOGS_DB_NAME).collection<RemoteLogDocument>(env.MONGO_LOGS_COLLECTION);
+    const collection = client.db(env.MONGO_LOGS_DB_NAME).collection<RemoteLogDocument>(env.MONGO_LOGS_COLLECTION);
     await collection.createIndexes([
       { key: { bootId: 1, capturedAt: 1 }, name: 'idx_boot_captured_at' },
       { key: { 'source.filePath': 1, capturedAt: -1 }, name: 'idx_source_captured_at' },
@@ -186,6 +241,36 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
 
     this.collection = collection;
     return collection;
+  }
+
+  private async resetMongoClient(): Promise<void> {
+    this.collection = null;
+    const client = this.client;
+    this.client = null;
+    await client?.close().catch(() => undefined);
+  }
+
+  private markSyncSuccess(): void {
+    this.consecutiveFailures = 0;
+    this.pausedUntil = 0;
+  }
+
+  private registerFailure(error: unknown): void {
+    this.consecutiveFailures += 1;
+    const message = formatError(error);
+    const hint = mongoSyncHint(message);
+
+    if (this.consecutiveFailures < env.LOG_SYNC_FAILURES_BEFORE_PAUSE) {
+      this.logger.warn(
+        `No se pudo sincronizar ${this.source.fileName} con MongoDB (${this.consecutiveFailures}/${env.LOG_SYNC_FAILURES_BEFORE_PAUSE}): ${hint}`,
+      );
+      return;
+    }
+
+    this.pausedUntil = Date.now() + env.LOG_SYNC_FAILURE_PAUSE_MS;
+    this.logger.warn(
+      `Sincronizacion de ${this.source.fileName} pausada por ${env.LOG_SYNC_FAILURE_PAUSE_MS}ms tras ${this.consecutiveFailures} fallos consecutivos: ${hint}`,
+    );
   }
 
   private async ensureStartupDocument(collection: Collection<RemoteLogDocument>): Promise<void> {
@@ -309,4 +394,22 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function mongoSyncHint(message: string): string {
+  const normalized = message.toLowerCase();
+  if (normalized.includes('tls') || normalized.includes('ssl') || normalized.includes('alert internal error')) {
+    return (
+      'fallo TLS al conectar con MongoDB. Revisa MONGO_DB_URL_CONNECTION, host SRV, usuario/password, TLS del cluster ' +
+      'y allowlist de IP en MongoDB Atlas. Detalle: ' +
+      message
+    );
+  }
+  if (normalized.includes('authentication failed') || normalized.includes('auth')) {
+    return `credenciales MongoDB rechazadas. Revisa usuario, password y authSource. Detalle: ${message}`;
+  }
+  if (normalized.includes('server selection') || normalized.includes('enotfound') || normalized.includes('econnrefused')) {
+    return `MongoDB no esta alcanzable desde este backend. Revisa red, DNS, cluster host y allowlist. Detalle: ${message}`;
+  }
+  return message;
 }

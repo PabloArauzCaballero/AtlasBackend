@@ -24,6 +24,17 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { parsePositiveId } from '../../common/utils/ids/id.util.js';
 import { CatalogManagementService } from './catalog-management.service.js';
 import {
+  catalogDecisionResponseSchema,
+  catalogIngestionResponseSchema,
+  catalogListResponseSchema,
+  catalogVersionDetailResponseSchema,
+  catalogVersionStatusResponseSchema,
+  createCatalogVersionResponseSchema,
+  definitionsPackageResponseSchema,
+  definitionsResponseSchema,
+  stagingDecisionResponseSchema,
+} from './catalog-management.openapi.js';
+import {
   ActivateRiskRulesetVersionDto,
   CatalogCodeParamsDto,
   CatalogDecisionDto,
@@ -92,9 +103,14 @@ function requireIdempotencyHeader(idempotencyKey: string | undefined): void {
 export class CatalogManagementController {
   constructor(private readonly service: CatalogManagementService) {}
 
-  @ApiOperation({ summary: 'Listar catálogos de contexto' })
+  @ApiOperation({
+    summary: 'Listar catálogos de contexto del motor de decisión',
+    description: 'Devuelve los catálogos que normalizan señales de negocio y su versión más reciente.',
+  })
+  @ApiQuery({ name: 'domain', required: false, schema: zodObjectPropertySchemas(listCatalogsQuerySchema).domain })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(listCatalogsQuerySchema).status })
-  @ApiResponse({ status: 200, description: 'Lista de catálogos.' })
+  @ApiQuery({ name: 'active', required: false, schema: zodObjectPropertySchemas(listCatalogsQuerySchema).active })
+  @ApiResponse({ status: 200, description: 'Lista de catálogos y su versión vigente o más reciente.', schema: catalogListResponseSchema })
   @Get('catalogs')
   listCatalogs(
     @Query(new ZodValidationPipe(listCatalogsQuerySchema)) query: ListCatalogsQueryDto,
@@ -106,7 +122,11 @@ export class CatalogManagementController {
   @ApiOperation({ summary: 'Obtener una versión de catálogo' })
   @ApiParam({ name: 'catalogCode', schema: zodToApiSchema(catalogVersionParamsSchema.shape.catalogCode) })
   @ApiParam({ name: 'versionId', schema: zodToApiSchema(catalogVersionParamsSchema.shape.versionId) })
-  @ApiResponse({ status: 200, description: 'Versión de catálogo.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Versión, items, alias y mapeos de riesgo del catálogo.',
+    schema: catalogVersionDetailResponseSchema,
+  })
   @ApiResponse({ status: 404, description: 'CATALOG_VERSION_NOT_FOUND.' })
   @Get('catalogs/:catalogCode/versions/:versionId')
   getCatalogVersion(
@@ -121,7 +141,8 @@ export class CatalogManagementController {
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiParam({ name: 'catalogCode', schema: zodToApiSchema(catalogCodeParamsSchema.shape.catalogCode) })
   @ApiBody({ schema: zodToApiSchema(createCatalogVersionSchema) })
-  @ApiResponse({ status: 201, description: 'Versión de catálogo creada.' })
+  @ApiResponse({ status: 201, description: 'Versión de catálogo creada.', schema: createCatalogVersionResponseSchema })
+  @ApiResponse({ status: 404, description: 'Catálogo no encontrado.' })
   @Post('catalogs/:catalogCode/versions')
   @HttpCode(HttpStatus.CREATED)
   createCatalogVersion(
@@ -147,9 +168,9 @@ export class CatalogManagementController {
   @ApiParam({ name: 'catalogCode', schema: zodToApiSchema(catalogVersionParamsSchema.shape.catalogCode) })
   @ApiParam({ name: 'versionId', schema: zodToApiSchema(catalogVersionParamsSchema.shape.versionId) })
   @ApiBody({ schema: zodToApiSchema(submitCatalogVersionSchema) })
-  @ApiResponse({ status: 200, description: 'Versión enviada a aprobación.' })
+  @ApiResponse({ status: 200, description: 'Versión enviada a aprobación.', schema: catalogVersionStatusResponseSchema })
   @ApiResponse({ status: 404, description: 'CATALOG_VERSION_NOT_FOUND.' })
-  @ApiResponse({ status: 409, description: 'CATALOG_VERSION_INVALID_STATE.' })
+  @ApiResponse({ status: 422, description: 'CATALOG_VERSION_NOT_DRAFT o CATALOG_VERSION_WITHOUT_ITEMS.' })
   @Post('catalogs/:catalogCode/versions/:versionId/submit-for-approval')
   @HttpCode(HttpStatus.OK)
   submitCatalogVersion(
@@ -176,9 +197,9 @@ export class CatalogManagementController {
   @ApiParam({ name: 'catalogCode', schema: zodToApiSchema(catalogVersionParamsSchema.shape.catalogCode) })
   @ApiParam({ name: 'versionId', schema: zodToApiSchema(catalogVersionParamsSchema.shape.versionId) })
   @ApiBody({ schema: zodToApiSchema(catalogDecisionSchema) })
-  @ApiResponse({ status: 200, description: 'Decisión registrada.' })
+  @ApiResponse({ status: 200, description: 'Decisión registrada.', schema: catalogDecisionResponseSchema })
   @ApiResponse({ status: 404, description: 'CATALOG_VERSION_NOT_FOUND.' })
-  @ApiResponse({ status: 409, description: 'CATALOG_VERSION_INVALID_STATE.' })
+  @ApiResponse({ status: 422, description: 'La versión no se encuentra en un estado compatible con la decisión.' })
   @Post('catalogs/:catalogCode/versions/:versionId/decision')
   @HttpCode(HttpStatus.OK)
   decideCatalogVersion(
@@ -203,7 +224,8 @@ export class CatalogManagementController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiBody({ schema: zodToApiSchema(catalogIngestionSchema) })
-  @ApiResponse({ status: 201, description: 'Catálogo ingerido a staging.' })
+  @ApiResponse({ status: 201, description: 'Catálogo ingerido a staging.', schema: catalogIngestionResponseSchema })
+  @ApiResponse({ status: 404, description: 'Catálogo no encontrado.' })
   @Post('catalog-ingestions')
   @HttpCode(HttpStatus.CREATED)
   ingestCatalog(
@@ -221,7 +243,9 @@ export class CatalogManagementController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiBody({ schema: zodToApiSchema(stagingDecisionBatchSchema) })
-  @ApiResponse({ status: 200, description: 'Decisiones aplicadas al lote de staging.' })
+  @ApiResponse({ status: 200, description: 'Decisiones aplicadas al lote de staging.', schema: stagingDecisionResponseSchema })
+  @ApiResponse({ status: 404, description: 'Versión destino o item de staging no encontrado.' })
+  @ApiResponse({ status: 422, description: 'Versión destino no editable o item incompatible/incompleto.' })
   @Post('catalog-staging-items/decision-batch')
   @HttpCode(HttpStatus.OK)
   decideStagingItems(
@@ -235,11 +259,14 @@ export class CatalogManagementController {
     return this.service.decideStagingItems({ body, currentUser, context: contextFrom(tenantIdHeader, idempotencyKey, request) });
   }
 
-  @ApiOperation({ summary: 'Listar definiciones (glosario de datos)' })
+  @ApiOperation({
+    summary: 'Listar definiciones semánticas del motor de decisión',
+    description: 'Consulta observaciones, eventos, atributos y features que pueden alimentar reglas, scoring y explicabilidad.',
+  })
   @ApiQuery({ name: 'type', required: false, schema: zodObjectPropertySchemas(definitionsQuerySchema).type })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(definitionsQuerySchema).status })
   @ApiQuery({ name: 'domain', required: false, schema: zodObjectPropertySchemas(definitionsQuerySchema).domain })
-  @ApiResponse({ status: 200, description: 'Lista de definiciones.' })
+  @ApiResponse({ status: 200, description: 'Definiciones agrupadas por tipo.', schema: definitionsResponseSchema })
   @Get('definitions')
   listDefinitions(
     @Query(new ZodValidationPipe(definitionsQuerySchema)) query: DefinitionsQueryDto,
@@ -248,11 +275,14 @@ export class CatalogManagementController {
     return this.service.listDefinitions({ query, currentUser });
   }
 
-  @ApiOperation({ summary: 'Publicar un paquete de definiciones (glosario)' })
+  @ApiOperation({
+    summary: 'Publicar un paquete de definiciones semánticas',
+    description: 'Crea o actualiza en lote el vocabulario de señales disponible para un dominio de decisión.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiBody({ schema: zodToApiSchema(definitionsPackageSchema) })
-  @ApiResponse({ status: 200, description: 'Paquete de definiciones aplicado.' })
+  @ApiResponse({ status: 200, description: 'Paquete de definiciones aplicado.', schema: definitionsPackageResponseSchema })
   @Post('definitions/package')
   @HttpCode(HttpStatus.OK)
   upsertDefinitionsPackage(
