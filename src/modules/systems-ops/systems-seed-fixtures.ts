@@ -52,7 +52,7 @@ export const CURATED_ENDPOINTS: EndpointSeed[] = [
     businessAction: 'Valida credenciales del usuario interno, emite tokens y adjunta permisos/roles de sesión.',
     expectedResponseSummary: 'Sesión interna con permisos autorizados para pintar menús, acciones y vistas.',
     expectedStatusCodes: [200, 400, 401, 403, 423],
-    minPayloadSchema: { email: 'pablo@atlas.internal', password: 'Atlas_Pablo#2026!' },
+    minPayloadSchema: { email: 'string|required', password: 'string|required' },
     requiresAuth: false,
     allowedRoles: [],
     containsPii: true,

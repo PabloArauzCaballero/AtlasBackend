@@ -32,6 +32,7 @@ function buildAuthRepositoryMock() {
     findActiveRefreshTokenByHash: jest.fn(),
     revokeRefreshToken: jest.fn(),
     revokeAllRefreshTokensForActor: jest.fn(),
+    recordLoginAttemptEvent: jest.fn(),
   };
 }
 
@@ -66,6 +67,10 @@ describe('AuthService.login', () => {
         userAgent: null,
       }),
     ).rejects.toThrow(UnauthorizedException);
+
+    expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ successful: false, failureReasonCode: 'actor_not_found', actorId: null }),
+    );
   });
 
   it('throws UnauthorizedException when the password does not match, and records a failed attempt', async () => {
@@ -92,6 +97,9 @@ describe('AuthService.login', () => {
     ).rejects.toThrow(UnauthorizedException);
 
     expect(authRepository.recordFailedAttempt).toHaveBeenCalledTimes(1);
+    expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ successful: false, failureReasonCode: 'invalid_password', actorId: '10' }),
+    );
   });
 
   it('rejects login while the account is locked, without checking the password', async () => {
@@ -118,6 +126,9 @@ describe('AuthService.login', () => {
     ).rejects.toThrow(UnauthorizedException);
 
     expect(authRepository.recordFailedAttempt).not.toHaveBeenCalled();
+    expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ successful: false, failureReasonCode: 'account_locked', actorId: '10' }),
+    );
   });
 
   it('returns an access+refresh token pair on successful login and records the successful login', async () => {
@@ -146,6 +157,9 @@ describe('AuthService.login', () => {
     expect(result.refreshToken).toBe('fixed-refresh-token');
     expect(authRepository.recordSuccessfulLogin).toHaveBeenCalledTimes(1);
     expect(authRepository.createRefreshToken).toHaveBeenCalledTimes(1);
+    expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ successful: true, failureReasonCode: null, actorId: '10', eventType: 'login' }),
+    );
   });
 
   it('does not authenticate a customer whose lifecycleStatus is closed', async () => {
@@ -256,7 +270,7 @@ describe('AuthService.logout', () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const tokenRevocationService = buildTokenRevocationServiceMock();
-    const storedToken = { actorType: 'customer', actorId: '10' };
+    const storedToken = { actorType: 'customer', actorId: '10', tenantId: '1' };
     authRepository.findActiveRefreshTokenByHash.mockResolvedValue(storedToken);
 
     const service = new AuthService(authRepository as never, customersRepository as never, tokenRevocationService as never);
@@ -264,6 +278,9 @@ describe('AuthService.logout', () => {
 
     expect(authRepository.revokeRefreshToken).toHaveBeenCalledWith(storedToken, 'logout');
     expect(authRepository.revokeAllRefreshTokensForActor).not.toHaveBeenCalled();
+    expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: 'logout', actorType: 'customer', actorId: '10', tenantId: '1', successful: true }),
+    );
   });
 
   it('revokes all refresh tokens AND bumps tokenVersion when allDevices=true (closes ATLAS-AUDIT-026)', async () => {

@@ -34,6 +34,7 @@ describe('CatalogRiskPolicyService', () => {
   }
 
   const internalUser = { role: 'internal_operator', internalUserId: 'iu1', platformUserId: 'pu1' } as never;
+  const adminUser = { role: 'admin', internalUserId: 'iu1', platformUserId: 'pu1' } as never;
   const customerUser = { role: 'customer', internalUserId: null, platformUserId: null } as never;
   const context = { tenantId: 't1', ipAddress: null, userAgent: null, idempotencyKey: 'idem-1' };
 
@@ -134,11 +135,19 @@ describe('CatalogRiskPolicyService', () => {
   });
 
   describe('activateRiskRulesetVersion', () => {
+    it('rejects a non-admin internal actor before touching the repository — only admin/platform_admin may activate', async () => {
+      const { service, repository } = buildService();
+      await expect(
+        service.activateRiskRulesetVersion({ rulesetVersionId: 'rv-1', body: {} as never, currentUser: internalUser, context }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(repository.findRiskRulesetVersionById).not.toHaveBeenCalled();
+    });
+
     it('throws NotFoundException when the ruleset version does not exist', async () => {
       const { service, repository } = buildService();
       (repository.findRiskRulesetVersionById as jest.Mock).mockResolvedValueOnce(null as never);
       await expect(
-        service.activateRiskRulesetVersion({ rulesetVersionId: 'missing', body: {} as never, currentUser: internalUser, context }),
+        service.activateRiskRulesetVersion({ rulesetVersionId: 'missing', body: {} as never, currentUser: adminUser, context }),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -151,7 +160,7 @@ describe('CatalogRiskPolicyService', () => {
       const result = await service.activateRiskRulesetVersion({
         rulesetVersionId: 'rv-1',
         body: {} as never,
-        currentUser: internalUser,
+        currentUser: adminUser,
         context,
       });
 
@@ -162,7 +171,7 @@ describe('CatalogRiskPolicyService', () => {
       const { service, repository } = buildService();
       (repository.findRiskRulesetVersionById as jest.Mock).mockResolvedValueOnce({ id: 'rv-1', status, rulesetCode: 'core' } as never);
       await expect(
-        service.activateRiskRulesetVersion({ rulesetVersionId: 'rv-1', body: {} as never, currentUser: internalUser, context }),
+        service.activateRiskRulesetVersion({ rulesetVersionId: 'rv-1', body: {} as never, currentUser: adminUser, context }),
       ).rejects.toThrow(/RULESET_VERSION_NOT_ACTIVATABLE/);
       expect(repository.activateRuleset).not.toHaveBeenCalled();
     });
@@ -180,7 +189,7 @@ describe('CatalogRiskPolicyService', () => {
       const result = await service.activateRiskRulesetVersion({
         rulesetVersionId: 'rv-2',
         body: {} as never,
-        currentUser: internalUser,
+        currentUser: adminUser,
         context,
       });
 
@@ -199,7 +208,7 @@ describe('CatalogRiskPolicyService', () => {
       (repository.activateRuleset as jest.Mock).mockResolvedValueOnce({ id: 'rv-1', status: 'active', effectiveFrom: new Date() } as never);
 
       const before = Date.now();
-      await service.activateRiskRulesetVersion({ rulesetVersionId: 'rv-1', body: {} as never, currentUser: internalUser, context });
+      await service.activateRiskRulesetVersion({ rulesetVersionId: 'rv-1', body: {} as never, currentUser: adminUser, context });
       const after = Date.now();
 
       const activateArgs = (repository.activateRuleset as jest.Mock).mock.calls[0][1] as { effectiveFrom: Date };
@@ -224,7 +233,7 @@ describe('CatalogRiskPolicyService', () => {
       await service.activateRiskRulesetVersion({
         rulesetVersionId: 'rv-1',
         body: { effectiveFrom: '2026-08-01T00:00:00.000Z' } as never,
-        currentUser: internalUser,
+        currentUser: adminUser,
         context,
       });
 

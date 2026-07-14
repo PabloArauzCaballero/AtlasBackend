@@ -55,6 +55,10 @@ const envSchema = z
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     APP_PORT: z.coerce.number().int().positive().default(3005),
     API_PREFIX: z.string().min(1).default('api/v1'),
+    API_JSON_BODY_LIMIT: z
+      .string()
+      .regex(/^\d+(kb|mb)$/i, 'Debe usar un limite como 512kb o 2mb.')
+      .default('2mb'),
     CORS_ORIGINS: z.string().default('http://localhost:3000,http://localhost:5273'),
     INTERNAL_FRONTEND_ORIGIN: z.string().url().default('http://localhost:5273'),
     DB_HOST: z.string().min(1).default('localhost'),

@@ -136,12 +136,31 @@ export class AuthService {
     // registrados a través de mensajes de error distintos.
     const invalidCredentialsError = new UnauthorizedException('Credenciales inválidas.');
 
-    if (!actor) throw invalidCredentialsError;
+    const logAttempt = (failed: { actorId: string | null; reasonCode: string } | null) =>
+      this.authRepository.recordLoginAttemptEvent({
+        tenantId: input.tenantId,
+        actorType: input.dto.actorType,
+        actorId: failed ? failed.actorId : actor?.id ?? null,
+        eventType: 'login',
+        successful: failed === null,
+        failureReasonCode: failed?.reasonCode ?? null,
+        ipAddress: input.ip,
+        userAgent: input.userAgent,
+      });
+
+    if (!actor) {
+      await logAttempt({ actorId: null, reasonCode: 'actor_not_found' });
+      throw invalidCredentialsError;
+    }
 
     const credential = await this.authRepository.findCredentialsByActor(input.dto.actorType, actor.id);
-    if (!credential) throw invalidCredentialsError;
+    if (!credential) {
+      await logAttempt({ actorId: actor.id, reasonCode: 'no_credentials' });
+      throw invalidCredentialsError;
+    }
 
     if (credential.lockedUntil && credential.lockedUntil.getTime() > Date.now()) {
+      await logAttempt({ actorId: actor.id, reasonCode: 'account_locked' });
       throw new UnauthorizedException('Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intenta nuevamente más tarde.');
     }
 
@@ -151,10 +170,12 @@ export class AuthService {
         maxAttempts: env.AUTH_MAX_FAILED_LOGIN_ATTEMPTS,
         lockoutMinutes: env.AUTH_LOCKOUT_MINUTES,
       });
+      await logAttempt({ actorId: actor.id, reasonCode: 'invalid_password' });
       throw invalidCredentialsError;
     }
 
     await this.authRepository.recordSuccessfulLogin(credential, input.ip);
+    await logAttempt(null);
 
     const accessToken = this.issueAccessToken(actor, input.dto.actorType, credential.tokenVersion);
     const issuedRefreshToken = await this.issueRefreshToken({
@@ -232,6 +253,17 @@ export class AuthService {
       // Idempotente: cerrar sesión con un token ya inválido/inexistente no es un error.
       return { loggedOut: true };
     }
+
+    await this.authRepository.recordLoginAttemptEvent({
+      tenantId: stored.tenantId,
+      actorType: stored.actorType as ActorType,
+      actorId: stored.actorId,
+      eventType: 'logout',
+      successful: true,
+      failureReasonCode: null,
+      ipAddress: null,
+      userAgent: null,
+    });
 
     if (input.allDevices) {
       await this.authRepository.revokeAllRefreshTokensForActor(stored.actorType as ActorType, stored.actorId, 'logout_all_devices');

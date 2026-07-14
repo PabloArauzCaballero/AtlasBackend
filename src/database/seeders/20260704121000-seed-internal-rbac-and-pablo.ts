@@ -1,4 +1,5 @@
 import { QueryInterface, Transaction } from 'sequelize';
+import { env } from '../../config/env.js';
 import {
   INTERNAL_PERMISSION_SEEDS,
   INTERNAL_ROLE_SEEDS,
@@ -8,7 +9,12 @@ import {
 const CREATED_AT = new Date('2026-01-01T00:00:00.000Z');
 const PABLO_INTERNAL_USER_ID = 1;
 const PABLO_TENANT_ID = 1;
-const PABLO_PASSWORD_HASH = '$argon2id$v=19$m=65536,t=3,p=4$VDi3tAhiCzEiTK454N7psg$OXSNkeaFiWk4isxmbnnDSPC/Q2w58j/mWKN0bCK/m2w';
+// ATLAS-P0-002: hash rotado — el hash anterior quedó expuesto en el historial de git (cualquiera
+// con acceso de lectura al repo lo tenía) y se considera comprometido de forma permanente, sin
+// importar qué tan fuerte fuera. Este valor NO es la contraseña; es un hash Argon2id de una sola
+// vía. Si se necesita rotar de nuevo, generar un hash nuevo con `hashPassword()` (ver
+// `src/common/utils/crypto/password.util.ts`) — nunca reutilizar un hash ya versionado.
+const PABLO_PASSWORD_HASH = '$argon2id$v=19$m=19456,t=2,p=1$9rx/YUDFU5oQP84BWY9ZIw$HA8XLZcd6yT+9ER+ZsZEuYDx48X+a72U7QhVCehbvBM';
 const PABLO_ROLE_CODES = ['SUPER_ADMIN', 'SYSTEMS_ADMIN', 'DATA_GOVERNANCE_MANAGER'] as const;
 
 type QueryParams = {
@@ -247,7 +253,21 @@ async function createSeedAudit(queryInterface: QueryInterface, transaction: Tran
   });
 }
 
+/**
+ * ATLAS-P0-001: este seeder crea/mantiene una cuenta `SUPER_ADMIN` de desarrollo (`pablo@atlas.internal`)
+ * con una contraseña fija conocida por cualquiera con acceso al repositorio. Eso es aceptable para
+ * un entorno de desarrollo/staging descartable, pero nunca en producción — bloquear aquí, no
+ * confiar en que quien ejecute `db:seed:up` recuerde omitirlo manualmente.
+ */
 export async function up({ context: queryInterface }: { context: QueryInterface }): Promise<void> {
+  if (env.NODE_ENV === 'production') {
+    throw new Error(
+      'El seeder 20260704121000-seed-internal-rbac-and-pablo.ts no puede ejecutarse con NODE_ENV=production: ' +
+        'crearía/actualizaría un SUPER_ADMIN con una contraseña versionada en git. Si se necesita un ' +
+        'administrador inicial en producción, provisionarlo por un canal separado y auditado, no por este seeder.',
+    );
+  }
+
   await queryInterface.sequelize.transaction(async (transaction) => {
     await upsertRoles(queryInterface, transaction);
     await upsertPermissions(queryInterface, transaction);

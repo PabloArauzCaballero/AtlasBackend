@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { join, relative } from 'node:path';
+import { mapWithConcurrency } from '../../common/utils/concurrency.util.js';
 import { env } from '../../config/env.js';
 import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from './endpoint-code.util.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
@@ -176,43 +177,38 @@ export class EndpointDiscoveryService {
   async discoverAndMaybePersist(
     persist: boolean,
   ): Promise<{ discovered: number; persisted: number; deprecatedCandidates: number; items: DiscoveredEndpoint[] }> {
-    const items = this.scanControllers();
+    const items = await this.scanControllers();
     let persisted = 0;
     if (persist) {
-      // Concurrencia acotada en vez de un upsert 100% secuencial: cada `upsertEndpoint` sigue
+      // Concurrencia acotada (compartida con otros servicios de systems-ops vía
+      // `mapWithConcurrency`) en vez de un upsert 100% secuencial: cada `upsertEndpoint` sigue
       // siendo un `ON CONFLICT (method, full_path) DO UPDATE` independiente (sin cambios de
-      // semántica), pero se disparan en lotes de a `UPSERT_CONCURRENCY` en paralelo en vez de
-      // uno a la vez, para no abrir cientos de conexiones simultáneas contra el pool en un
-      // catálogo grande de endpoints.
-      const UPSERT_CONCURRENCY = 10;
-      for (let i = 0; i < items.length; i += UPSERT_CONCURRENCY) {
-        const chunk = items.slice(i, i + UPSERT_CONCURRENCY);
-        await Promise.all(chunk.map((item) => this.repository.upsertEndpoint(item)));
-        persisted += chunk.length;
-      }
+      // semántica), pero se disparan en lotes en paralelo en vez de uno a la vez, para no abrir
+      // cientos de conexiones simultáneas contra el pool en un catálogo grande de endpoints.
+      await mapWithConcurrency(items, SCAN_CONCURRENCY, (item) => this.repository.upsertEndpoint(item));
+      persisted = items.length;
     }
     const activeKeys = new Set(items.map((item) => `${item.method} ${item.fullPath}`));
     const deprecatedCandidates = persist ? await this.repository.markDeprecatedCandidates(activeKeys) : 0;
     return { discovered: items.length, persisted, deprecatedCandidates, items };
   }
 
-  scanControllers(): DiscoveredEndpoint[] {
+  async scanControllers(): Promise<DiscoveredEndpoint[]> {
     const root = join(process.cwd(), 'src', 'modules');
-    if (!existsSync(root)) return [];
+    if (!(await pathExists(root))) return [];
+    const files = (await walk(root)).filter((file) => file.endsWith('.controller.ts'));
+    const perFile = await mapWithConcurrency(files, SCAN_CONCURRENCY, (file) => this.scanControllerFile(file));
     const seen = new Set<string>();
-    return this.walk(root)
-      .filter((file) => file.endsWith('.controller.ts'))
-      .flatMap((file) => this.scanControllerFile(file))
-      .filter((item) => {
-        const key = `${item.method} ${item.fullPath}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+    return perFile.flat().filter((item) => {
+      const key = `${item.method} ${item.fullPath}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
-  private scanControllerFile(file: string): DiscoveredEndpoint[] {
-    const source = readFileSync(file, 'utf8');
+  private async scanControllerFile(file: string): Promise<DiscoveredEndpoint[]> {
+    const source = await readFile(file, 'utf8');
     const controllers = [...source.matchAll(CONTROLLER_DECORATOR)];
     const endpoints: DiscoveredEndpoint[] = [];
 
@@ -279,9 +275,33 @@ export class EndpointDiscoveryService {
     }
     return endpoints;
   }
+}
 
-  private walk(directory: string): string[] {
-    const entries = readdirSync(directory).map((entry) => join(directory, entry));
-    return entries.flatMap((entry) => (statSync(entry).isDirectory() ? this.walk(entry) : [entry]));
+/** Cuántos archivos/endpoints se procesan en paralelo por lote (lecturas de archivo y upserts a la BD). */
+const SCAN_CONCURRENCY = 10;
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
   }
+}
+
+/**
+ * Recorre el árbol de directorios con I/O asíncrono — `scanControllers` corre dentro de un
+ * handler HTTP (`POST /systems/endpoints/discover`); una versión síncrona (`readdirSync`/
+ * `statSync`) bloquearía el event loop completo del proceso Node durante todo el escaneo del
+ * árbol `src/modules`, congelando cualquier otro request (incluidos health checks) mientras dura.
+ */
+async function walk(directory: string): Promise<string[]> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map((entry) => {
+      const entryPath = join(directory, entry.name);
+      return entry.isDirectory() ? walk(entryPath) : Promise.resolve([entryPath]);
+    }),
+  );
+  return files.flat();
 }

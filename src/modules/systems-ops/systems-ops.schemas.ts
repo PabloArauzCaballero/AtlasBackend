@@ -5,6 +5,7 @@ const optionalCsv = z.string().trim().min(1).max(200).optional();
 
 export const systemsListQuerySchema = z.object({
   module: z.string().trim().min(1).max(120).optional(),
+  backendService: z.string().trim().min(1).max(120).optional(),
   status: z.string().trim().min(1).max(40).optional(),
   riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
   reviewStatus: z.enum(['AUTO_DETECTED', 'NEEDS_REVIEW', 'APPROVED', 'REJECTED']).optional(),

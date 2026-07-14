@@ -11,6 +11,12 @@ export class SystemEndpointCatalogModel extends Model {
   @Column({ type: DataType.STRING(120), allowNull: false })
   declare module: string;
 
+  @Column({ field: 'backend_service', type: DataType.STRING(120), allowNull: false, defaultValue: 'atlas-backend' })
+  declare backendService: string;
+
+  @Column({ field: 'backend_base_url', type: DataType.TEXT })
+  declare backendBaseUrl: string | null;
+
   @Column({ field: 'controller_name', type: DataType.STRING(180) })
   declare controllerName: string | null;
 

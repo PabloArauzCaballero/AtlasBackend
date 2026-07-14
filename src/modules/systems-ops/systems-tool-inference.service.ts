@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { mapWithConcurrency } from '../../common/utils/concurrency.util.js';
 import { SystemEndpointCatalogModel, SystemToolCatalogModel } from '../../database/models/index.js';
 import { SystemsToolInferenceRepository } from './systems-tool-inference.repository.js';
 import { readSourcesForEndpoint } from './systems-source-scan.util.js';
+
+/** Cuántos upserts `endpoint x herramienta` se disparan en paralelo contra la BD por lote. */
+const UPSERT_CONCURRENCY = 20;
 
 const TOOL_PATTERNS: Array<{
   toolCode: string;
@@ -139,11 +143,15 @@ export class SystemsToolInferenceService {
     const [endpoints, tools] = await Promise.all([this.repository.listActiveEndpoints(), this.repository.listTools()]);
     const toolsByCode = new Map(tools.map((tool) => [tool.code, tool]));
     const inferences: ToolInference[] = [];
-    let persisted = 0;
+    const pendingUpserts: Array<{
+      endpoint: SystemEndpointCatalogModel;
+      tool: SystemToolCatalogModel;
+      pattern: (typeof TOOL_PATTERNS)[number];
+    }> = [];
     let skippedMissingTools = 0;
 
     for (const endpoint of endpoints) {
-      const source = readSourcesForEndpoint(endpoint);
+      const source = await readSourcesForEndpoint(endpoint);
       if (!source) continue;
       for (const pattern of TOOL_PATTERNS) {
         const tool = toolsByCode.get(pattern.toolCode);
@@ -152,25 +160,31 @@ export class SystemsToolInferenceService {
           continue;
         }
         if (!pattern.source.test(source) && !pattern.source.test(endpoint.fullPath)) continue;
-        const inference = {
+        inferences.push({
           endpointId: String(endpoint.id),
           endpointCode: endpoint.code,
           toolCode: tool.code,
           usageType: pattern.usageType,
           confidenceLevel: this.confidenceFor(endpoint, tool, source),
           notes: pattern.notes,
-        } satisfies ToolInference;
-        inferences.push(inference);
-        if (input.persist) {
-          await this.repository.upsertRequirement(endpoint, tool, pattern);
-          persisted += 1;
-        }
+        });
+        if (input.persist) pendingUpserts.push({ endpoint, tool, pattern });
       }
+    }
+
+    // Escaneo (CPU + I/O de archivos) y persistencia (round trips a la BD) son dos pasadas
+    // separadas: primero se acumulan todos los upserts pendientes, luego se disparan en lotes de
+    // concurrencia acotada — no un `await` secuencial por cada par endpoint x herramienta, que
+    // serializaría potencialmente miles de round trips contra el pool de conexiones.
+    if (pendingUpserts.length > 0) {
+      await mapWithConcurrency(pendingUpserts, UPSERT_CONCURRENCY, (job) =>
+        this.repository.upsertRequirement(job.endpoint, job.tool, job.pattern),
+      );
     }
 
     return {
       inferred: inferences.length,
-      persisted,
+      persisted: pendingUpserts.length,
       skippedMissingTools,
       reviewStatus: input.persist ? 'NEEDS_REVIEW' : 'DRY_RUN',
       items: inferences.slice(0, 500),

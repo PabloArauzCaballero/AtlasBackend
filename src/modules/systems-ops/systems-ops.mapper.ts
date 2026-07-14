@@ -21,6 +21,8 @@ export function mapEndpoint(row: SystemEndpointCatalogModel) {
     endpointId: String(row.id),
     code: row.code,
     module: row.module,
+    backendService: row.backendService ?? 'atlas-backend',
+    backendBaseUrl: row.backendBaseUrl ?? null,
     controllerName: row.controllerName,
     handlerName: row.handlerName,
     method: row.method,

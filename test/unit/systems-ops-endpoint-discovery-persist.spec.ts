@@ -20,7 +20,7 @@ describe('EndpointDiscoveryService.discoverAndMaybePersist', () => {
   it('does not persist anything when persist=false', async () => {
     const repository = { upsertEndpoint: jest.fn(), markDeprecatedCandidates: jest.fn() };
     const service = buildService(repository);
-    jest.spyOn(service, 'scanControllers').mockReturnValue([buildItem(1), buildItem(2)]);
+    jest.spyOn(service, 'scanControllers').mockResolvedValue([buildItem(1), buildItem(2)]);
 
     const result = await service.discoverAndMaybePersist(false);
 
@@ -33,7 +33,7 @@ describe('EndpointDiscoveryService.discoverAndMaybePersist', () => {
     const repository = { upsertEndpoint: jest.fn(async () => undefined), markDeprecatedCandidates: jest.fn(async () => 3) };
     const service = buildService(repository);
     const items = Array.from({ length: 25 }, (_, i) => buildItem(i));
-    jest.spyOn(service, 'scanControllers').mockReturnValue(items);
+    jest.spyOn(service, 'scanControllers').mockResolvedValue(items);
 
     const result = await service.discoverAndMaybePersist(true);
 
@@ -48,7 +48,7 @@ describe('EndpointDiscoveryService.discoverAndMaybePersist', () => {
     const repository = { upsertEndpoint: jest.fn(async () => undefined), markDeprecatedCandidates: jest.fn(async () => 0) };
     const service = buildService(repository);
     const items = [buildItem(1), buildItem(2)];
-    jest.spyOn(service, 'scanControllers').mockReturnValue(items);
+    jest.spyOn(service, 'scanControllers').mockResolvedValue(items);
 
     await service.discoverAndMaybePersist(true);
 

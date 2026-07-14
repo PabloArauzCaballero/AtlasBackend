@@ -33,9 +33,49 @@ export function getRecordedCalls(): SmokeRecordedCall[] {
   return recordedCalls;
 }
 
+const REDACTED = '[REDACTED]';
+const JWT_PATTERN = /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+const SENSITIVE_KEYS = new Set([
+  'password',
+  'passwordhash',
+  'accesstoken',
+  'refreshtoken',
+  'authorization',
+  'cookie',
+  'set-cookie',
+  'apikey',
+  'clientsecret',
+  'privatekey',
+  'tokenhash',
+]);
+
+/**
+ * `writeSmokeResults` persiste esto a disco para depuración manual — sin redacción, cada corrida
+ * dejaba passwords y JWT/refresh tokens reales en texto plano dentro de un archivo versionado
+ * (ver `docs/progress/remediation-register.md`, ATLAS-P0-003).
+ */
+function redactSensitive(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactSensitive);
+  if (typeof value === 'string') return JWT_PATTERN.test(value) ? REDACTED : value;
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, val]) => [
+        key,
+        SENSITIVE_KEYS.has(key.toLowerCase()) ? REDACTED : redactSensitive(val),
+      ]),
+    );
+  }
+  return value;
+}
+
 export function writeSmokeResults(fileName = 'smoke-results.json'): void {
   const outputPath = path.join(__dirname, fileName);
-  writeFileSync(outputPath, JSON.stringify(recordedCalls, null, 2), 'utf-8');
+  const redacted = recordedCalls.map((call) => ({
+    ...call,
+    requestBody: redactSensitive(call.requestBody),
+    responseData: redactSensitive(call.responseData),
+  }));
+  writeFileSync(outputPath, JSON.stringify(redacted, null, 2), 'utf-8');
   console.log(`[SMOKE] Resultados de DTOs guardados en ${outputPath} (${recordedCalls.length} llamadas)`);
 }
 

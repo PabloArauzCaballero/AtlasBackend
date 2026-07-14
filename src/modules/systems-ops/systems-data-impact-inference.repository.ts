@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions } from 'sequelize';
 import {
   SystemDataEntityCatalogModel,
+  SystemDataRelationshipCatalogModel,
   SystemEndpointCatalogModel,
   SystemEndpointDataEntityImpactModel,
 } from '../../database/models/index.js';
@@ -13,6 +14,8 @@ export class SystemsDataImpactInferenceRepository {
     @InjectModel(SystemEndpointCatalogModel) private readonly endpointModel: typeof SystemEndpointCatalogModel,
     @InjectModel(SystemDataEntityCatalogModel) private readonly dataEntityModel: typeof SystemDataEntityCatalogModel,
     @InjectModel(SystemEndpointDataEntityImpactModel) private readonly impactModel: typeof SystemEndpointDataEntityImpactModel,
+    @InjectModel(SystemDataRelationshipCatalogModel)
+    private readonly relationshipModel: typeof SystemDataRelationshipCatalogModel,
   ) {}
 
   listActiveEndpoints(): Promise<SystemEndpointCatalogModel[]> {
@@ -23,10 +26,19 @@ export class SystemsDataImpactInferenceRepository {
     return this.dataEntityModel.findAll({ order: [['tableName', 'ASC']] } as FindOptions);
   }
 
+  listRelationships(): Promise<SystemDataRelationshipCatalogModel[]> {
+    return this.relationshipModel.findAll({ order: [['sourceTable', 'ASC']] } as FindOptions);
+  }
+
   async upsertImpact(
     endpoint: SystemEndpointCatalogModel,
     entity: SystemDataEntityCatalogModel,
-    values: { operationType: 'READ' | 'WRITE'; confidenceLevel: 'LOW' | 'MEDIUM' | 'HIGH'; notes: string },
+    values: {
+      operationType: 'READ' | 'UPSERT';
+      confidenceLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+      notes: string;
+      detectedFrom?: string;
+    },
   ): Promise<SystemEndpointDataEntityImpactModel> {
     const now = new Date();
     const [row] = await this.impactModel.upsert({
@@ -35,7 +47,7 @@ export class SystemsDataImpactInferenceRepository {
       operationType: values.operationType,
       impactLevel: entity.isAuditCritical ? 'HIGH' : 'MEDIUM',
       isPrimaryEntity: false,
-      isTransactional: values.operationType === 'WRITE',
+      isTransactional: values.operationType !== 'READ',
       rollbackRequired: false,
       affectsCustomerState: entity.module === 'customers',
       affectsFinancialState: entity.containsFinancialData,
@@ -44,10 +56,10 @@ export class SystemsDataImpactInferenceRepository {
       affectsDeviceState: entity.containsDeviceData,
       affectsNotificationState: entity.module === 'notifications',
       requiresAuditLog: entity.isAuditCritical,
-      requiresRegressionTest: values.operationType === 'WRITE',
+      requiresRegressionTest: values.operationType !== 'READ',
       requiresStressTest: entity.isAuditCritical,
       notes: values.notes,
-      detectedFrom: 'source_inference',
+      detectedFrom: values.detectedFrom ?? 'source_inference',
       confidenceLevel: values.confidenceLevel,
       reviewStatus: 'NEEDS_REVIEW',
       createdAtValue: now,

@@ -5,7 +5,7 @@ type JsonRecord = Record<string, unknown>;
 type AuthContext = { headers: Record<string, string> };
 
 const PABLO_EMAIL = process.env.INTERNAL_SMOKE_EMAIL ?? 'pablo@atlas.internal';
-const PABLO_PASSWORD = process.env.INTERNAL_SMOKE_PASSWORD ?? 'Atlas_Pablo#2026!';
+const PABLO_PASSWORD = process.env.INTERNAL_SMOKE_PASSWORD ?? 'Atlas72107014!';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);

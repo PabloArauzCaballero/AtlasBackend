@@ -42,14 +42,14 @@ Roles de clase: `internal_operator`, `risk_analyst`, `compliance_analyst`, `frau
 | `GET catalogs/:catalogCode/versions/:versionId` | (roles de clase) | — | Bajo | `context_catalog_versions` |
 | `POST catalogs/:catalogCode/versions` | (roles de clase) | ✅ | Medio | `context_catalog_versions` |
 | `POST catalogs/:catalogCode/versions/:versionId/submit-for-approval` | (roles de clase) | ✅ | Medio | `context_catalog_versions` |
-| `POST catalogs/:catalogCode/versions/:versionId/decision` | (roles de clase) | ✅ | Alto (aprueba/rechaza) | `context_catalog_versions` |
+| `POST catalogs/:catalogCode/versions/:versionId/decision` | `admin`, `platform_admin` | ✅ | Alto (aprueba/rechaza) | `context_catalog_versions` |
 | `POST catalog-ingestions` | (roles de clase) | ✅ | Alto (ingesta masiva) | `catalog_ingestion_batches` |
 | `POST catalog-staging-items/decision-batch` | (roles de clase) | ✅ | Alto | `catalog_staging_items` |
 | `GET definitions` | (roles de clase) | — | Bajo | `ml_definitions` |
 | `POST definitions/package` | (roles de clase) | ✅ | Medio | `ml_definitions` |
 | `GET risk-policy/current` | (roles de clase) | — | Bajo | `risk_policy_rulesets` |
 | `POST risk-policy/ruleset-versions` | (roles de clase) | ✅ | Alto (define reglas de riesgo) | `risk_policy_rulesets` |
-| `POST risk-policy/ruleset-versions/:rulesetVersionId/activate` | (roles de clase) | ✅ | Alto (activa reglas en producción) | `risk_policy_rulesets` |
+| `POST risk-policy/ruleset-versions/:rulesetVersionId/activate` | `admin`, `platform_admin` | ✅ | Alto (activa reglas en producción) | `risk_policy_rulesets` |
 | `GET data-governance/policies` | (roles de clase) | — | Bajo | `data_governance_policies` |
 | `POST data-governance/policy-package` | (roles de clase) | ✅ | Medio | `data_governance_policies` |
 

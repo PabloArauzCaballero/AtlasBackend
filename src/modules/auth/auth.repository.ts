@@ -1,9 +1,27 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction, fn, where, col } from 'sequelize';
-import { AuthCredentialModel, AuthRefreshTokenModel, InternalUserModel, PlatformUserModel } from '../../database/models/index.js';
+import {
+  AuthCredentialModel,
+  AuthEventModel,
+  AuthRefreshTokenModel,
+  InternalUserModel,
+  OperationalAuditLogModel,
+  PlatformUserModel,
+} from '../../database/models/index.js';
 
 export type ActorType = 'customer' | 'internal_user' | 'platform_user';
+
+export type LoginAttemptEvent = {
+  tenantId: string | null;
+  actorType: ActorType;
+  actorId: string | null;
+  eventType: 'login' | 'logout';
+  successful: boolean;
+  failureReasonCode: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+};
 
 @Injectable()
 export class AuthRepository {
@@ -12,6 +30,8 @@ export class AuthRepository {
     @InjectModel(AuthRefreshTokenModel) private readonly refreshTokenModel: typeof AuthRefreshTokenModel,
     @InjectModel(InternalUserModel) private readonly internalUserModel: typeof InternalUserModel,
     @InjectModel(PlatformUserModel) private readonly platformUserModel: typeof PlatformUserModel,
+    @InjectModel(AuthEventModel) private readonly authEventModel: typeof AuthEventModel,
+    @InjectModel(OperationalAuditLogModel) private readonly auditLogModel: typeof OperationalAuditLogModel,
   ) {}
 
   // ATLAS-P10-045: antes esta búsqueda era case-sensitive tal como estaba almacenado en la
@@ -141,5 +161,50 @@ export class AuthRepository {
     await this.refreshTokenModel.update({ revokedAt: new Date(), revokedReason: reason } as never, {
       where: { actorType, actorId, revokedAt: null } as never,
     });
+  }
+
+  /**
+   * Deja rastro firmado por el id del actor de cada intento de login/logout, sea exitoso o no.
+   * `operational_audit_logs` cubre los tres tipos de actor (internal_user/platform_user vía
+   * columnas dedicadas, customer en el payload). `auth_events` es además el historial de sesión
+   * dedicado a clientes (mismo esquema que `customer_sessions`); antes de este cambio el modelo
+   * existía pero ningún flujo lo escribía, así que no había forma de listar intentos de login
+   * previos de un cliente, solo el último (`auth_credentials.lastLoginAt`).
+   */
+  async recordLoginAttemptEvent(event: LoginAttemptEvent): Promise<void> {
+    const now = new Date();
+    await this.auditLogModel.create({
+      tenantId: event.tenantId,
+      actorType: event.actorType,
+      actorInternalUserId: event.actorType === 'internal_user' ? event.actorId : null,
+      actorPlatformUserId: event.actorType === 'platform_user' ? event.actorId : null,
+      actionCode: `auth.${event.eventType}.${event.successful ? 'success' : 'failure'}`,
+      targetType: 'actor',
+      targetId: event.actorId,
+      ipAddress: event.ipAddress,
+      userAgent: event.userAgent,
+      payloadJson: {
+        actorType: event.actorType,
+        failureReasonCode: event.failureReasonCode,
+        ...(event.actorType === 'customer' && event.actorId ? { customerId: event.actorId } : {}),
+      },
+      occurredAt: now,
+      createdAtValue: now,
+    } as never);
+
+    if (event.actorType === 'customer' && event.tenantId) {
+      await this.authEventModel.create({
+        tenantId: event.tenantId,
+        customerId: event.actorId,
+        sessionId: null,
+        deviceId: null,
+        eventType: event.eventType,
+        loginSuccessful: event.eventType === 'login' ? event.successful : null,
+        failureReasonCode: event.failureReasonCode,
+        occurredAt: now,
+        ipAddress: event.ipAddress,
+        createdAtValue: now,
+      } as never);
+    }
   }
 }

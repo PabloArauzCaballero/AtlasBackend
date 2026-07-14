@@ -26,7 +26,14 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: new AppFileLogger(),
     bufferLogs: env.NODE_ENV !== 'development',
+    bodyParser: false,
   });
+
+  // El contrato de ingesta de catalogos admite hasta 1.000 items por request y
+  // recomienda cuerpos de 2 MB. El limite por defecto de Express (100 KB)
+  // rechazaba lotes validos antes de alcanzar el ZodValidationPipe.
+  app.useBodyParser('json', { limit: env.API_JSON_BODY_LIMIT });
+  app.useBodyParser('urlencoded', { limit: env.API_JSON_BODY_LIMIT, extended: true });
 
   // Trust first proxy so req.ip resolves correctly behind a load balancer
   app.set('trust proxy', 1);

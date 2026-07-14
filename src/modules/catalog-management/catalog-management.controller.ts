@@ -202,6 +202,7 @@ export class CatalogManagementController {
   @ApiResponse({ status: 422, description: 'La versión no se encuentra en un estado compatible con la decisión.' })
   @Post('catalogs/:catalogCode/versions/:versionId/decision')
   @HttpCode(HttpStatus.OK)
+  @Roles('admin', 'platform_admin')
   decideCatalogVersion(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
@@ -330,6 +331,7 @@ export class CatalogManagementController {
   @ApiResponse({ status: 404, description: 'RULESET_VERSION_NOT_FOUND.' })
   @Post('risk-policy/ruleset-versions/:rulesetVersionId/activate')
   @HttpCode(HttpStatus.OK)
+  @Roles('admin', 'platform_admin')
   activateRiskRulesetVersion(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,

@@ -1,9 +1,10 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { mapWithConcurrency } from '../../common/utils/concurrency.util.js';
 import { SYSTEM_TOOL_SEEDS } from './systems-ops.constants.js';
 import { EndpointDiscoveryService } from './endpoint-discovery.service.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
@@ -15,6 +16,18 @@ import { SystemJobRunModel } from '../../database/models/index.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { actorId } from './systems-actor.util.js';
 import { systemsTenantScope } from './systems-tenant-scope.util.js';
+
+/** Cuántas filas/archivos se procesan en paralelo por lote al reseedear el catálogo. */
+const SEED_CONCURRENCY = 20;
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 type DocsImpact = { method: string; path: string; reads: string[]; writes: string[] };
 type IntrospectedTable = { schemaName: string; tableName: string };
@@ -120,12 +133,12 @@ export class SystemsCatalogSeedService {
 
   async seedDataEntitiesFromModels(): Promise<number> {
     const modelDir = join(process.cwd(), 'src', 'database', 'models');
-    if (!existsSync(modelDir)) return 0;
-    const files = readdirSync(modelDir).filter((file) => file.endsWith('.model.ts'));
+    if (!(await pathExists(modelDir))) return 0;
+    const files = (await readdir(modelDir)).filter((file) => file.endsWith('.model.ts'));
     let count = 0;
     const seen = new Set<string>();
     for (const file of files) {
-      const source = readFileSync(join(modelDir, file), 'utf8');
+      const source = await readFile(join(modelDir, file), 'utf8');
       const tableName = source.match(/@Table\(\{\s*tableName:\s*['"]([^'"]+)['"]/s)?.[1];
       const modelName = source.match(/export\s+class\s+([A-Za-z0-9_]+)/)?.[1] ?? null;
       if (!tableName || seen.has(tableName)) continue;
@@ -137,8 +150,12 @@ export class SystemsCatalogSeedService {
   }
 
   async seedColumnsFromInformationSchema(): Promise<{ columns: number; relationships: number }> {
+    // `tables`/`columns` vienen de introspección de `information_schema` sobre TODO el esquema
+    // (cientos de tablas, potencialmente miles de columnas) — un `await` secuencial por fila
+    // serializaría esa cantidad de round trips contra la BD. `mapWithConcurrency` los dispara en
+    // lotes acotados en vez de uno a la vez o todos de golpe.
     const tables = await this.listDatabaseTables();
-    for (const table of tables) {
+    await mapWithConcurrency(tables, SEED_CONCURRENCY, async (table) => {
       const existing = await this.catalogRepository.findDataEntityByTable(table.schemaName, table.tableName);
       if (!existing) {
         await this.catalogRepository.upsertDataEntity({
@@ -148,19 +165,19 @@ export class SystemsCatalogSeedService {
           confidenceLevel: 'MEDIUM',
         });
       }
-    }
+    });
 
     const columns = await this.listDatabaseColumns();
     const activeKeys = new Set<string>();
     let relationshipCount = 0;
-    for (const column of columns) {
+    await mapWithConcurrency(columns, SEED_CONCURRENCY, async (column) => {
       activeKeys.add(`${column.schemaName}.${column.tableName}.${column.columnName}`);
       await this.upsertCatalogColumn(column);
       if (column.isForeignKey && column.referencedTable && column.referencedColumn) {
         await this.upsertCatalogRelationship(column);
         relationshipCount += 1;
       }
-    }
+    });
     await this.markMissingColumnsAsDeprecated(activeKeys);
     return { columns: columns.length, relationships: relationshipCount };
   }
@@ -171,7 +188,7 @@ export class SystemsCatalogSeedService {
   }
 
   async seedImpactsFromDocs(): Promise<number> {
-    const docs = this.parseEndpointDocs();
+    const docs = await this.parseEndpointDocs();
     let count = 0;
     for (const doc of docs) {
       const endpoint = await this.catalogRepository.findEndpointByMethodAndPath(doc.method, doc.path);
@@ -670,10 +687,10 @@ UPDATE system_data_field_catalog
     return true;
   }
 
-  private parseEndpointDocs(): DocsImpact[] {
+  private async parseEndpointDocs(): Promise<DocsImpact[]> {
     const path = join(process.cwd(), 'docs', 'endpoints', 'endpoints.md');
-    if (!existsSync(path)) return [];
-    const lines = readFileSync(path, 'utf8').split('\n');
+    if (!(await pathExists(path))) return [];
+    const lines = (await readFile(path, 'utf8')).split('\n');
     const impacts: DocsImpact[] = [];
     let current: DocsImpact | null = null;
     let section: 'reads' | 'writes' | null = null;

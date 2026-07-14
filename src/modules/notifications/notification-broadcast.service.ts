@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { randomUUID } from 'node:crypto';
+import { mapWithConcurrency } from '../../common/utils/concurrency.util.js';
 import { TenantModel } from '../../database/models/index.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { InternalRbacRepository } from '../internal-users/internal-rbac.repository.js';
@@ -125,20 +126,13 @@ export class NotificationBroadcastService {
       correlationId: broadcastId,
     });
 
-    for (let i = 0; i < messages.length; i += DELIVERY_CONCURRENCY) {
-      const chunk = messages.slice(i, i + DELIVERY_CONCURRENCY);
-      await Promise.all(
-        chunk.map((message) =>
-          this.orchestrator.deliverMessage(String(message.id)).catch((error: unknown) => {
-            this.logger.warn(
-              `Fallo entregando mensaje ${String(message.id)} del broadcast ${broadcastId}: ${
-                error instanceof Error ? error.message : error
-              }`,
-            );
-          }),
-        ),
-      );
-    }
+    await mapWithConcurrency(messages, DELIVERY_CONCURRENCY, (message) =>
+      this.orchestrator.deliverMessage(String(message.id)).catch((error: unknown) => {
+        this.logger.warn(
+          `Fallo entregando mensaje ${String(message.id)} del broadcast ${broadcastId}: ${error instanceof Error ? error.message : error}`,
+        );
+      }),
+    );
 
     return { broadcastId, targeted: recipients.length, created: messages.length };
   }

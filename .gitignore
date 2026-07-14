@@ -5,3 +5,5 @@ dist/
 .DS_Store
 coverage/
 tmp-*.log
+scripts/smoke/*.results.json
+scripts/smoke/smoke-results.json

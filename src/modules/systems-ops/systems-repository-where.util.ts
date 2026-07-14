@@ -9,6 +9,7 @@ import {
 export function buildEndpointTextWhere(query: SystemsListQueryDto): WhereOptions {
   const where: Record<string, unknown> = {
     ...(query.module ? { module: query.module } : {}),
+    ...(query.backendService ? { backendService: query.backendService } : {}),
     ...(query.status ? { status: query.status } : {}),
     ...(query.riskLevel ? { riskLevel: query.riskLevel } : {}),
     ...(query.reviewStatus ? { reviewStatus: query.reviewStatus } : {}),

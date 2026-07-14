@@ -51,6 +51,7 @@ export class SystemsCatalogController {
 
   @ApiOperation({ summary: 'Listar endpoints catalogados' })
   @ApiQuery({ name: 'module', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).module })
+  @ApiQuery({ name: 'backendService', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).backendService })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).status })
   @ApiQuery({ name: 'riskLevel', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).riskLevel })
   @ApiQuery({ name: 'reviewStatus', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).reviewStatus })

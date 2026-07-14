@@ -64,14 +64,10 @@ Después de `yarn db:seed:up` quedan disponibles, como mínimo:
 
 ## Credencial local para el panel interno
 
-El seeder de RBAC crea/actualiza el usuario:
-
-```text
-Email: pablo@atlas.internal
-Password: Atlas_Pablo#2026!
-```
-
-Es una credencial de desarrollo local. Cámbiala antes de cualquier demo conectada a una base compartida.
+El seeder de RBAC crea/actualiza el usuario `pablo@atlas.internal` (ver `docs/database/dev-credentials.md`
+para el detalle de roles/tenant). Este seeder falla explícitamente si `NODE_ENV=production` — solo corre
+en entornos de desarrollo/staging desechables. La contraseña no se documenta en texto plano en el
+repositorio (ver ATLAS-P0-002 en `docs/progress/remediation-register.md`); pídela al dueño de la cuenta.
 
 ## Comandos útiles
 

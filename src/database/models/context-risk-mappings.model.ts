@@ -32,6 +32,12 @@ export class ContextRiskMappingModel extends Model {
   @Column({ field: 'valid_until', type: DataType.DATEONLY })
   declare validUntil: string | null;
 
+  @Column({ field: 'allowed_for_direct_adverse_credit_action', type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare allowedForDirectAdverseCreditAction: boolean;
+
+  @Column({ field: 'requires_calibration', type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
+  declare requiresCalibration: boolean;
+
   @Column({ field: '_created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 }

@@ -7,6 +7,7 @@ import { CatalogManagementRepository } from '../catalog-management.repository.js
 import { CatalogDecisionDto, CreateCatalogVersionDto, SubmitCatalogVersionDto } from '../catalog-management.schemas.js';
 import {
   actorPlatformUserId,
+  assertAdmin,
   assertInternal,
   auditBase,
   normalizeAlias,
@@ -231,7 +232,7 @@ export class CatalogVersionWorkflowService {
     currentUser: AuthenticatedUser;
     context: RequestContext;
   }) {
-    assertInternal(input.currentUser);
+    assertAdmin(input.currentUser);
     requireIdempotency(input.context);
     const catalog = await this.repository.findCatalogByCode(input.catalogCode);
     if (!catalog) throw new NotFoundException('Catálogo no encontrado.');

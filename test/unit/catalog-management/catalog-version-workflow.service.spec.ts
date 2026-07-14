@@ -35,6 +35,7 @@ describe('CatalogVersionWorkflowService', () => {
   }
 
   const internalUser = { role: 'internal_operator', internalUserId: 'iu-1', platformUserId: null } as never;
+  const adminUser = { role: 'admin', internalUserId: 'iu-1', platformUserId: null } as never;
   const customerUser = { role: 'customer', internalUserId: null, platformUserId: null } as never;
   const context = { tenantId: 't1', ipAddress: null, userAgent: null, idempotencyKey: 'idem-1' };
 
@@ -178,6 +179,20 @@ describe('CatalogVersionWorkflowService', () => {
   });
 
   describe('decideCatalogVersion (pending_approval -> approved -> published, or -> retired/rejected)', () => {
+    it('rejects a non-admin internal actor before touching the repository — only admin/platform_admin may decide', async () => {
+      const { service, repository } = buildService();
+      await expect(
+        service.decideCatalogVersion({
+          catalogCode: 'c1',
+          versionId: '10',
+          body: { decision: 'approve' } as never,
+          currentUser: internalUser,
+          context,
+        }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(repository.findCatalogByCode).not.toHaveBeenCalled();
+    });
+
     it('throws CATALOG_VERSION_NOT_PENDING_APPROVAL when approving a version that is not pending_approval', async () => {
       const { service, repository } = buildService();
       (repository.findCatalogByCode as jest.Mock).mockResolvedValueOnce({ id: 1 } as never);
@@ -187,7 +202,7 @@ describe('CatalogVersionWorkflowService', () => {
           catalogCode: 'c1',
           versionId: '10',
           body: { decision: 'approve' } as never,
-          currentUser: internalUser,
+          currentUser: adminUser,
           context,
         }),
       ).rejects.toThrow(/CATALOG_VERSION_NOT_PENDING_APPROVAL/);
@@ -202,7 +217,7 @@ describe('CatalogVersionWorkflowService', () => {
           catalogCode: 'c1',
           versionId: '10',
           body: { decision: 'publish' } as never,
-          currentUser: internalUser,
+          currentUser: adminUser,
           context,
         }),
       ).rejects.toThrow(/CATALOG_VERSION_NOT_READY_TO_PUBLISH/);
@@ -218,7 +233,7 @@ describe('CatalogVersionWorkflowService', () => {
         catalogCode: 'c1',
         versionId: '10',
         body: { decision: 'publish' } as never,
-        currentUser: internalUser,
+        currentUser: adminUser,
         context,
       });
 
@@ -236,7 +251,7 @@ describe('CatalogVersionWorkflowService', () => {
         catalogCode: 'c1',
         versionId: '10',
         body: { decision: 'approve' } as never,
-        currentUser: internalUser,
+        currentUser: adminUser,
         context,
       });
 
@@ -254,7 +269,7 @@ describe('CatalogVersionWorkflowService', () => {
         catalogCode: 'c1',
         versionId: '10',
         body: { decision: 'retire' } as never,
-        currentUser: internalUser,
+        currentUser: adminUser,
         context,
       });
 
@@ -271,7 +286,7 @@ describe('CatalogVersionWorkflowService', () => {
         catalogCode: 'c1',
         versionId: '10',
         body: { decision: 'reject' } as never,
-        currentUser: internalUser,
+        currentUser: adminUser,
         context,
       });
 
@@ -289,7 +304,7 @@ describe('CatalogVersionWorkflowService', () => {
           catalogCode: 'c1',
           versionId: 'missing',
           body: { decision: 'approve' } as never,
-          currentUser: internalUser,
+          currentUser: adminUser,
           context,
         }),
       ).rejects.toThrow(NotFoundException);
