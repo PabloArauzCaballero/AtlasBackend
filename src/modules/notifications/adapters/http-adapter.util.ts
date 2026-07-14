@@ -48,11 +48,16 @@ export function sentDelivery(provider: string, providerMessageId: string | null,
   return { status: 'sent', provider, providerMessageId, response: response ?? null, errorCode: null, errorMessage: null };
 }
 
-async function fetchOnce(input: { url: string; headers: Record<string, string>; body: string }): Promise<{ status: number; ok: boolean; json: Record<string, unknown> }> {
+async function fetchOnce(input: {
+  url: string;
+  method: 'GET' | 'POST';
+  headers: Record<string, string>;
+  body?: string;
+}): Promise<{ status: number; ok: boolean; json: Record<string, unknown> }> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), env.NOTIFICATION_PROVIDER_HTTP_TIMEOUT_MS);
   try {
-    const response = await fetch(input.url, { method: 'POST', headers: input.headers, body: input.body, signal: controller.signal });
+    const response = await fetch(input.url, { method: input.method, headers: input.headers, body: input.body, signal: controller.signal });
     const json = await parseResponseJson(response);
     return { status: response.status, ok: response.ok, json };
   } finally {
@@ -72,7 +77,7 @@ async function fetchOnce(input: { url: string; headers: Record<string, string>; 
 async function callResilient(
   executor: ResilientAdapterExecutorService,
   provider: string,
-  request: { url: string; headers: Record<string, string>; body: string },
+  request: { url: string; method: 'GET' | 'POST'; headers: Record<string, string>; body?: string },
 ): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
   try {
     const result = await executor.run(
@@ -101,9 +106,19 @@ export async function postJson(
 ): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
   return callResilient(executor, provider, {
     url,
+    method: 'POST',
     headers: { 'content-type': 'application/json', ...headers },
     body: JSON.stringify(body),
   });
+}
+
+export async function getJson(
+  executor: ResilientAdapterExecutorService,
+  provider: string,
+  url: string,
+  headers: Record<string, string>,
+): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
+  return callResilient(executor, provider, { url, method: 'GET', headers });
 }
 
 export async function postForm(
@@ -115,6 +130,7 @@ export async function postForm(
 ): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
   return callResilient(executor, provider, {
     url,
+    method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded', ...headers },
     body: new URLSearchParams(body).toString(),
   });

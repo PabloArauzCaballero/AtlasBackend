@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env.js';
-import { AuthService } from '../auth/auth.service.js';
+import { AuthService, LoginPinChallenge, isLoginPinChallenge } from '../auth/auth.service.js';
 import { InternalUsersService } from './internal-users.service.js';
 import { InternalAuthResponse } from './internal-users.types.js';
 
@@ -27,26 +27,40 @@ export class InternalAuthService {
     password: string;
     ip: string | null;
     userAgent: string | null;
-  }): Promise<InternalAuthResponse> {
-    const tokens = await this.authService.login({
+  }): Promise<InternalAuthResponse | LoginPinChallenge> {
+    const outcome = await this.authService.login({
       tenantId: input.tenantId,
       dto: { actorType: 'internal_user', identifier: input.email, password: input.password },
       ip: input.ip,
       userAgent: input.userAgent,
     });
-    const actor = decodeInternalUserId(tokens.accessToken);
-    const profile = await this.internalUsersService.getMyProfile({
-      sub: actor.internalUserId,
-      tenantId: actor.tenantId,
-      internalUserId: actor.internalUserId,
-      role: 'internal_operator',
-    });
+    // Super admin con MailSender configurado: el panel debe pedir el PIN recibido por correo y
+    // completar el login vía `verifyLoginPin` — todavía no hay tokens que decodificar.
+    if (isLoginPinChallenge(outcome)) return outcome;
+    return this.buildAuthenticatedResponse(outcome);
+  }
 
-    return { ...tokens, ...profile };
+  async verifyLoginPin(input: {
+    challengeToken: string;
+    pin: string;
+    ip: string | null;
+    userAgent: string | null;
+  }): Promise<InternalAuthResponse> {
+    const tokens = await this.authService.verifyLoginPin(input);
+    return this.buildAuthenticatedResponse(tokens);
   }
 
   async refresh(input: { refreshToken: string; ip: string | null; userAgent: string | null }): Promise<InternalAuthResponse> {
     const tokens = await this.authService.refresh({ refreshToken: input.refreshToken, ip: input.ip, userAgent: input.userAgent });
+    return this.buildAuthenticatedResponse(tokens);
+  }
+
+  private async buildAuthenticatedResponse(tokens: {
+    accessToken: string;
+    refreshToken: string;
+    tokenType: 'Bearer';
+    expiresIn: string;
+  }): Promise<InternalAuthResponse> {
     const actor = decodeInternalUserId(tokens.accessToken);
     const profile = await this.internalUsersService.getMyProfile({
       sub: actor.internalUserId,

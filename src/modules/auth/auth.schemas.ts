@@ -25,6 +25,39 @@ export const logoutSchema = z.object({
 
 export type LogoutDto = z.infer<typeof logoutSchema>;
 
+export const loginPinVerifySchema = z.object({
+  challengeToken: z.string().trim().min(20),
+  pin: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'El PIN debe tener exactamente 6 dígitos.'),
+});
+
+export type LoginPinVerifyDto = z.infer<typeof loginPinVerifySchema>;
+
+// El identificador del reset es siempre un email: es el canal por el que se entrega el código.
+const resetIdentifierSchema = z.string().trim().email().max(180);
+
+export const passwordResetRequestSchema = z.object({
+  actorType: actorTypeSchema,
+  identifier: resetIdentifierSchema,
+});
+
+export type PasswordResetRequestDto = z.infer<typeof passwordResetRequestSchema>;
+
+export const passwordResetConfirmSchema = z.object({
+  actorType: actorTypeSchema,
+  identifier: resetIdentifierSchema,
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'El código debe tener exactamente 6 dígitos.'),
+  // Sin `.trim()`: misma regla que `provisionCredentialsSchema.password` (ver nota abajo).
+  newPassword: z.string().min(10, 'La contraseña debe tener al menos 10 caracteres.').max(128),
+});
+
+export type PasswordResetConfirmDto = z.infer<typeof passwordResetConfirmSchema>;
+
 export const provisionCredentialsSchema = z.object({
   actorType: z.enum(['internal_user', 'platform_user']),
   actorId: z.string().regex(/^[1-9][0-9]*$/),

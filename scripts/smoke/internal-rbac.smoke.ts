@@ -1,10 +1,11 @@
 import { getArrayFromPaths, getStringFromPaths, request, TENANT_ID, uniqueKey } from './http.js';
+import { requireSmokeEnv } from './required-smoke-env.js';
 
 type JsonRecord = Record<string, unknown>;
 
 const PABLO_EMAIL = process.env.INTERNAL_SMOKE_EMAIL ?? 'pablo@atlas.internal';
-const PABLO_PASSWORD = process.env.INTERNAL_SMOKE_PASSWORD ?? 'Atlas72107014!';
-const QA_PASSWORD = process.env.INTERNAL_SMOKE_QA_PASSWORD ?? 'Atlas_QA#2026!';
+const PABLO_PASSWORD = requireSmokeEnv('INTERNAL_SMOKE_PASSWORD');
+const QA_PASSWORD = requireSmokeEnv('INTERNAL_SMOKE_QA_PASSWORD');
 const EXPECTED_PABLO_ROLES = ['SUPER_ADMIN', 'SYSTEMS_ADMIN', 'DATA_GOVERNANCE_MANAGER'];
 const MINIMUM_FRONTEND_PERMISSION_GROUPS = [
   ['auth.internal.me.read'],

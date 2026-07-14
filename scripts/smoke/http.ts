@@ -1,8 +1,10 @@
-import jwt, { SignOptions } from 'jsonwebtoken';
-import { writeFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { env } from '../../src/config/env.js';
 import { AtlasUserRole } from '../../src/common/types/auth.types.js';
+import { redactSensitive } from './redact.js';
 
 export const BASE_URL = process.env.BASE_URL ?? `http://localhost:${env.APP_PORT}/${env.API_PREFIX}`;
 export const TENANT_ID = process.env.TENANT_ID ?? '1';
@@ -25,6 +27,7 @@ export type SmokeRecordedCall = {
   requestBody: unknown;
   status: number;
   responseData: unknown;
+  ok: boolean;
 };
 
 const recordedCalls: SmokeRecordedCall[] = [];
@@ -33,50 +36,47 @@ export function getRecordedCalls(): SmokeRecordedCall[] {
   return recordedCalls;
 }
 
-const REDACTED = '[REDACTED]';
-const JWT_PATTERN = /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
-const SENSITIVE_KEYS = new Set([
-  'password',
-  'passwordhash',
-  'accesstoken',
-  'refreshtoken',
-  'authorization',
-  'cookie',
-  'set-cookie',
-  'apikey',
-  'clientsecret',
-  'privatekey',
-  'tokenhash',
-]);
-
 /**
- * `writeSmokeResults` persiste esto a disco para depuración manual — sin redacción, cada corrida
- * dejaba passwords y JWT/refresh tokens reales en texto plano dentro de un archivo versionado
- * (ver `docs/progress/remediation-register.md`, ATLAS-P0-003).
+ * ATLAS-P0-SMOKE-001: los resultados de smoke se siguen generando siempre — solo se movieron a una
+ * carpeta dedicada (fuera del índice de Git, ver `.gitignore`), con un contrato de esquema estable
+ * y redacción de secretos, y con escritura atómica (`.tmp` + rename) para que un fallo a mitad de
+ * escritura nunca deje un JSON corrupto o truncado como "resultado válido".
  */
-function redactSensitive(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(redactSensitive);
-  if (typeof value === 'string') return JWT_PATTERN.test(value) ? REDACTED : value;
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, val]) => [
-        key,
-        SENSITIVE_KEYS.has(key.toLowerCase()) ? REDACTED : redactSensitive(val),
-      ]),
-    );
+const RESULTS_DIR = path.join(__dirname, 'results');
+
+function currentCommitSha(): string {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA;
+  try {
+    return execSync('git rev-parse HEAD', { cwd: path.join(__dirname, '..', '..') }).toString().trim();
+  } catch {
+    return 'unknown';
   }
-  return value;
 }
 
-export function writeSmokeResults(fileName = 'smoke-results.json'): void {
-  const outputPath = path.join(__dirname, fileName);
-  const redacted = recordedCalls.map((call) => ({
-    ...call,
-    requestBody: redactSensitive(call.requestBody),
-    responseData: redactSensitive(call.responseData),
-  }));
-  writeFileSync(outputPath, JSON.stringify(redacted, null, 2), 'utf-8');
-  console.log(`[SMOKE] Resultados de DTOs guardados en ${outputPath} (${recordedCalls.length} llamadas)`);
+export function writeSmokeResults(suite = 'all', fileName = 'smoke-results.json'): void {
+  mkdirSync(RESULTS_DIR, { recursive: true });
+  const outputPath = path.join(RESULTS_DIR, fileName);
+  const tmpPath = `${outputPath}.tmp`;
+
+  const passed = recordedCalls.filter((call) => call.ok).length;
+  const result = {
+    schemaVersion: '1.0.0',
+    suite,
+    generatedAt: new Date().toISOString(),
+    commitSha: currentCommitSha(),
+    environment: env.NODE_ENV,
+    summary: { total: recordedCalls.length, passed, failed: recordedCalls.length - passed },
+    calls: recordedCalls.map((call) => ({
+      ...call,
+      requestBody: redactSensitive(call.requestBody),
+      responseData: redactSensitive(call.responseData),
+    })),
+  };
+
+  const serialized = JSON.stringify(result, null, 2);
+  writeFileSync(tmpPath, serialized, 'utf-8');
+  renameSync(tmpPath, outputPath);
+  console.log(`[SMOKE] Resultados guardados en ${outputPath} (${recordedCalls.length} llamadas, ${passed} ok)`);
 }
 
 export function logSmokeConfig(): void {
@@ -135,6 +135,8 @@ export async function request<T = unknown>(input: {
   });
   const text = await res.text();
   const data = parseBody(text) as T;
+  const expected = input.expected ?? [200, 201, 202, 204];
+  const ok = expected.includes(res.status);
   recordedCalls.push({
     method: input.method,
     path: input.path,
@@ -142,9 +144,9 @@ export async function request<T = unknown>(input: {
     requestBody: input.body ?? null,
     status: res.status,
     responseData: data,
+    ok,
   });
-  const expected = input.expected ?? [200, 201, 202, 204];
-  if (!expected.includes(res.status)) {
+  if (!ok) {
     throw new Error(`${input.method} ${input.path} expected ${expected.join('/')} got ${res.status}: ${text}`);
   }
   console.log(`[OK] ${input.method} ${input.path} -> ${res.status}`);

@@ -103,6 +103,23 @@ const envSchema = z
     AUTH_MAX_FAILED_LOGIN_ATTEMPTS: z.coerce.number().int().positive().default(5),
     AUTH_LOCKOUT_MINUTES: z.coerce.number().int().positive().default(15),
 
+    // Códigos de un solo uso (reset de contraseña y PIN de login de administradores).
+    // El PIN de super admin solo se exige cuando AUTH_LOGIN_PIN_ENABLED=true Y MailSender está
+    // configurado: sin servicio de correo no hay forma de entregar el PIN y exigirlo dejaría a
+    // los administradores sin acceso.
+    AUTH_LOGIN_PIN_ENABLED: optionalBooleanEnvSchema.default(true),
+    AUTH_ONE_TIME_CODE_TTL_MINUTES: z.coerce.number().int().positive().max(60).default(10),
+    AUTH_ONE_TIME_CODE_MAX_ATTEMPTS: z.coerce.number().int().positive().max(10).default(5),
+
+    // Integración con MailSender (microservicio de mensajería transaccional, proyecto hermano).
+    // MAILSENDER_BASE_URL vacío = integración apagada. Cuando está configurado, se exigen la
+    // API key externa (envíos) y las credenciales administrativas (auto-provisión de plantillas).
+    MAILSENDER_BASE_URL: optionalUrlEnvSchema,
+    MAILSENDER_API_PREFIX: z.string().default('/api/v1'),
+    MAILSENDER_EXTERNAL_API_KEY: z.string().optional(),
+    MAILSENDER_ADMIN_USERNAME: z.string().optional(),
+    MAILSENDER_ADMIN_PASSWORD: z.string().optional(),
+
     NOTIFICATION_EMAIL_PROVIDER: z.enum(['disabled', 'resend', 'sendgrid', 'gmail_api', 'webhook']).default('disabled'),
     NOTIFICATION_PUSH_PROVIDER: z.enum(['disabled', 'fcm', 'webhook']).default('disabled'),
     NOTIFICATION_SMS_PROVIDER: z.enum(['disabled', 'twilio', 'webhook']).default('disabled'),
@@ -229,6 +246,22 @@ const envSchema = z
         message: 'DB_SSL_REJECT_UNAUTHORIZED debe permanecer activo en produccion para validar el certificado PostgreSQL.',
       });
     }
+
+    requireWhen(
+      Boolean(data.MAILSENDER_BASE_URL),
+      'MAILSENDER_EXTERNAL_API_KEY',
+      'MAILSENDER_EXTERNAL_API_KEY es requerido cuando MAILSENDER_BASE_URL está configurado.',
+    );
+    requireWhen(
+      Boolean(data.MAILSENDER_BASE_URL),
+      'MAILSENDER_ADMIN_USERNAME',
+      'MAILSENDER_ADMIN_USERNAME es requerido cuando MAILSENDER_BASE_URL está configurado.',
+    );
+    requireWhen(
+      Boolean(data.MAILSENDER_BASE_URL),
+      'MAILSENDER_ADMIN_PASSWORD',
+      'MAILSENDER_ADMIN_PASSWORD es requerido cuando MAILSENDER_BASE_URL está configurado.',
+    );
 
     requireWhen(
       data.NOTIFICATION_EMAIL_PROVIDER === 'resend',

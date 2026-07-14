@@ -8,6 +8,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { LoginPinVerifyDto, loginPinVerifySchema } from '../auth/auth.schemas.js';
 import { InternalPermissionsGuard } from './guards/internal-permissions.guard.js';
 import { InternalAuthService } from './internal-auth.service.js';
 import { InternalPermissions } from './internal-permissions.decorator.js';
@@ -64,6 +65,27 @@ export class InternalAuthController {
       tenantId,
       email: body.email,
       password: body.password,
+      ip: request.ip ?? null,
+      userAgent: firstHeader(request.headers['user-agent']),
+    });
+  }
+
+  @Public()
+  @ApiOperation({
+    summary: 'Verificar PIN de login interno',
+    description:
+      'Segundo paso del login para super admins: canjea el `challengeToken` devuelto por el login más el PIN ' +
+      'recibido por correo por los tokens y el perfil de la sesión interna.',
+  })
+  @ApiBody({ schema: zodToApiSchema(loginPinVerifySchema) })
+  @ApiResponse({ status: 200, description: 'PIN correcto — tokens + perfil interno.' })
+  @ApiResponse({ status: 401, description: 'PIN inválido, expirado o con intentos agotados.' })
+  @Post('login/pin')
+  @HttpCode(HttpStatus.OK)
+  verifyLoginPin(@Body(new ZodValidationPipe(loginPinVerifySchema)) body: LoginPinVerifyDto, @Req() request: RequestWithNetwork) {
+    return this.internalAuthService.verifyLoginPin({
+      challengeToken: body.challengeToken,
+      pin: body.pin,
       ip: request.ip ?? null,
       userAgent: firstHeader(request.headers['user-agent']),
     });

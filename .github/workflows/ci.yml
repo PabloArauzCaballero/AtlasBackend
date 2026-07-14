@@ -32,6 +32,11 @@ jobs:
       - name: Check no real .env file is committed
         run: yarn check:no-env-file
 
+      # ATLAS-P0-SMOKE-001: falla el build si un JSON de resultado de smoke (con potenciales
+      # tokens/passwords, aunque redactados) quedó rastreado por Git, sin importar cómo llegó ahí.
+      - name: Verify smoke result JSON files are never tracked
+        run: yarn check:smoke-results-untracked
+
       - name: Lint
         run: yarn lint
 
@@ -152,6 +157,19 @@ jobs:
         with:
           name: atlas-api-log
           path: /tmp/atlas-api.log
+
+      # ATLAS-P0-SMOKE-001: JSON de evidencia (redactado) de las corridas de smoke, si alguna se
+      # generó. `if-no-files-found: warn` porque hoy no todos los `yarn smoke:*` invocados arriba
+      # escriben resultado propio (solo `yarn smoke` agregado lo hace) — ver
+      # docs/progress/remediation-register.md para el seguimiento de ese gap.
+      - name: Upload smoke JSON evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-smoke-results
+          path: scripts/smoke/results/*.json
+          retention-days: 7
+          if-no-files-found: warn
 
   # ATLAS-P10-040: escaneo de vulnerabilidades de dependencias. No existía ningún job de este
   # tipo — un CVE `high`/`critical` en una dependencia (p. ej. jsonwebtoken, argon2, pg) podía

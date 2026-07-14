@@ -19,8 +19,12 @@ function buildRepository(findOneMock: jest.Mock) {
   return new AuthRepository(
     {} as never, // credentialModel — no usado en estos tests
     {} as never, // refreshTokenModel — no usado en estos tests
+    {} as never, // oneTimeCodeModel — no usado en estos tests
     modelMock as never, // internalUserModel
     modelMock as never, // platformUserModel
+    {} as never, // authEventModel — no usado en estos tests
+    {} as never, // auditLogModel — no usado en estos tests
+    {} as never, // sequelize — no usado en estos tests
   );
 }
 

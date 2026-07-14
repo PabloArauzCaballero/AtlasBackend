@@ -30,6 +30,7 @@
     "test:coverage": "jest --config jest.config.cjs --coverage",
     "docs:openapi": "tsc -p tsconfig.json && node dist/scripts/generate-openapi.js",
     "check:no-env-file": "tsx scripts/check-no-env-file.ts",
+    "check:smoke-results-untracked": "tsx scripts/check-no-tracked-smoke-results.ts",
     "smoke": "tsx scripts/smoke/index.ts",
     "db:seed:verify-graph": "tsx scripts/verify-seed-graph-integrity.ts",
     "db:context:load": "tsx scripts/load-multidomain-context.ts",

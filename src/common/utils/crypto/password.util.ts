@@ -1,16 +1,10 @@
+import { randomInt } from 'node:crypto';
 import argon2 from 'argon2';
 
 /**
  * Hashing de contraseñas con Argon2id, conforme a BACKEND_DEVELOPMENT_CONTEXT.md §10
  * ("Contraseñas con Argon2id o bcrypt con coste apropiado").
  *
- * NOTA DE ENTREGA: este archivo depende del paquete `argon2` (agregado en `package.json`).
- * En el sandbox donde se implementó este patch no hay acceso a red para ejecutar
- * `yarn install`, por lo que este archivo no pudo compilarse/ejecutarse contra el paquete
- * real en ese entorno. Antes de desplegar, ejecutar:
- *   yarn install
- *   yarn type-check
- *   yarn test -- password.util
  * Si por alguna razón el equipo prefiere bcrypt en vez de argon2, esta es la ÚNICA capa que
  * hay que tocar: ningún otro módulo importa `argon2` directamente.
  */
@@ -43,4 +37,24 @@ export function isPasswordStrongEnough(plainTextPassword: string): boolean {
   const hasLetter = /[a-zA-Z]/.test(plainTextPassword);
   const hasDigitOrSymbol = /[0-9\W]/.test(plainTextPassword);
   return hasLetter && hasDigitOrSymbol;
+}
+
+// Sin caracteres ambiguos (0/O, 1/l/I) porque esta contraseña se transcribe desde un correo.
+const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+const TEMPORARY_PASSWORD_LENGTH = 12;
+
+/**
+ * Contraseña por defecto para usuarios internos recién creados cuando el administrador no
+ * define una explícitamente. Se entrega por correo (MailSender) y obliga a cambiarla en el
+ * primer login (`mustChangePassword`).
+ */
+export function generateTemporaryPassword(): string {
+  let candidate = '';
+  do {
+    candidate = Array.from(
+      { length: TEMPORARY_PASSWORD_LENGTH },
+      () => TEMPORARY_PASSWORD_ALPHABET[randomInt(0, TEMPORARY_PASSWORD_ALPHABET.length)],
+    ).join('');
+  } while (!isPasswordStrongEnough(candidate));
+  return candidate;
 }

@@ -5,5 +5,10 @@ dist/
 .DS_Store
 coverage/
 tmp-*.log
-scripts/smoke/*.results.json
+
+# Resultados locales generados por smoke tests (ATLAS-P0-SMOKE-001). Se siguen generando siempre;
+# solo deben permanecer fuera del índice de Git. No usar una regla genérica como *.json aquí —
+# excluiría JSON válidos del proyecto.
 scripts/smoke/smoke-results.json
+scripts/smoke/*.results.json
+scripts/smoke/results/

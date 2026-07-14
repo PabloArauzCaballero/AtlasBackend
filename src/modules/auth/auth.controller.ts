@@ -13,11 +13,17 @@ import { parsePositiveId } from '../../common/utils/ids/id.util.js';
 import { AuthService } from './auth.service.js';
 import {
   LoginDto,
+  LoginPinVerifyDto,
   LogoutDto,
+  PasswordResetConfirmDto,
+  PasswordResetRequestDto,
   ProvisionCredentialsDto,
   RefreshDto,
+  loginPinVerifySchema,
   loginSchema,
   logoutSchema,
+  passwordResetConfirmSchema,
+  passwordResetRequestSchema,
   provisionCredentialsSchema,
   refreshSchema,
 } from './auth.schemas.js';
@@ -59,7 +65,12 @@ export class AuthController {
   })
   @ApiHeader({ name: 'x-tenant-id', required: true, description: 'Tenant al que pertenece el actor (entero positivo como string).' })
   @ApiBody({ schema: zodToApiSchema(loginSchema) })
-  @ApiResponse({ status: 200, description: 'Login exitoso — access token + refresh token.' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Login exitoso — access token + refresh token. Para super admins (roles admin/platform_admin) con MailSender ' +
+      'configurado, responde en cambio `{ pinChallengeRequired, challengeToken, expiresInMinutes }`: completar con POST /auth/login/pin.',
+  })
   @ApiResponse({ status: 400, description: 'x-tenant-id ausente o no es un entero positivo válido.' })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas, o cuenta bloqueada temporalmente por intentos fallidos.' })
   @Post('login')
@@ -73,6 +84,86 @@ export class AuthController {
     return this.authService.login({
       tenantId,
       dto: body,
+      ip: request.ip ?? null,
+      userAgent: userAgentFrom(request),
+    });
+  }
+
+  @Public()
+  @ApiOperation({
+    summary: 'Verificar PIN de login',
+    description:
+      'Segundo paso del login para super admins (roles admin/platform_admin) cuando MailSender está configurado: ' +
+      'canjea el `challengeToken` devuelto por `POST /auth/login` más el PIN de 6 dígitos recibido por correo ' +
+      'por el par access+refresh token definitivo.',
+  })
+  @ApiBody({ schema: zodToApiSchema(loginPinVerifySchema) })
+  @ApiResponse({ status: 200, description: 'PIN correcto — access token + refresh token.' })
+  @ApiResponse({ status: 401, description: 'PIN inválido, expirado, agotó intentos, o el actor ya no está disponible.' })
+  @Post('login/pin')
+  @HttpCode(HttpStatus.OK)
+  verifyLoginPin(@Body(new ZodValidationPipe(loginPinVerifySchema)) body: LoginPinVerifyDto, @Req() request: RequestWithNetwork) {
+    return this.authService.verifyLoginPin({
+      challengeToken: body.challengeToken,
+      pin: body.pin,
+      ip: request.ip ?? null,
+      userAgent: userAgentFrom(request),
+    });
+  }
+
+  @Public()
+  @ApiOperation({
+    summary: 'Solicitar cambio de contraseña',
+    description:
+      'Envía por correo (MailSender) un código de un solo uso para restablecer la contraseña. ' +
+      'La respuesta es idéntica exista o no la cuenta, para no permitir enumeración.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true, description: 'Tenant al que pertenece el actor (entero positivo como string).' })
+  @ApiBody({ schema: zodToApiSchema(passwordResetRequestSchema) })
+  @ApiResponse({ status: 200, description: 'Solicitud registrada (si la cuenta existe, el código fue enviado por correo).' })
+  @ApiResponse({ status: 503, description: 'El servicio de correo (MailSender) no está configurado.' })
+  @Post('password-reset/request')
+  @HttpCode(HttpStatus.OK)
+  requestPasswordReset(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Body(new ZodValidationPipe(passwordResetRequestSchema)) body: PasswordResetRequestDto,
+    @Req() request: RequestWithNetwork,
+  ) {
+    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    return this.authService.requestPasswordReset({
+      tenantId,
+      actorType: body.actorType,
+      identifier: body.identifier,
+      ip: request.ip ?? null,
+      userAgent: userAgentFrom(request),
+    });
+  }
+
+  @Public()
+  @ApiOperation({
+    summary: 'Confirmar cambio de contraseña',
+    description:
+      'Fija la contraseña nueva usando el código recibido por correo. Al confirmarse, revoca todos los refresh ' +
+      'tokens del actor e invalida los access tokens vigentes (tokenVersion).',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true, description: 'Tenant al que pertenece el actor (entero positivo como string).' })
+  @ApiBody({ schema: zodToApiSchema(passwordResetConfirmSchema) })
+  @ApiResponse({ status: 200, description: 'Contraseña actualizada; todas las sesiones previas quedaron revocadas.' })
+  @ApiResponse({ status: 401, description: 'Código inválido/expirado o la contraseña nueva no cumple el mínimo de seguridad.' })
+  @Post('password-reset/confirm')
+  @HttpCode(HttpStatus.OK)
+  confirmPasswordReset(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Body(new ZodValidationPipe(passwordResetConfirmSchema)) body: PasswordResetConfirmDto,
+    @Req() request: RequestWithNetwork,
+  ) {
+    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    return this.authService.confirmPasswordReset({
+      tenantId,
+      actorType: body.actorType,
+      identifier: body.identifier,
+      code: body.code,
+      newPassword: body.newPassword,
       ip: request.ip ?? null,
       userAgent: userAgentFrom(request),
     });
