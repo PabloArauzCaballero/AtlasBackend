@@ -1,9 +1,6 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { RequestWithAuth } from '../types/auth.types.js';
-
-function firstHeader(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
+import { firstHeaderValue } from '../utils/http/headers.util.js';
 
 /**
  * Los tokens de `customer` e `internal_user` llevan `tenantId` (ver `AuthService`/`InternalAuthService`);
@@ -22,7 +19,7 @@ export class TenantGuard implements CanActivate {
       return true;
     }
 
-    const headerTenantId = firstHeader(request.headers['x-tenant-id']);
+    const headerTenantId = firstHeaderValue(request.headers['x-tenant-id']);
     if (headerTenantId !== undefined && headerTenantId !== '' && headerTenantId !== user.tenantId) {
       throw new ForbiddenException('El x-tenant-id indicado no coincide con el tenant del token autenticado.');
     }

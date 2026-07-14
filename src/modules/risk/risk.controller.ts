@@ -8,7 +8,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { RiskService } from './risk.service.js';
 import {
   createRiskAssessmentSchema,
@@ -54,7 +54,7 @@ export class RiskController {
   ) {
     if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     return this.riskService.createRiskAssessment({
-      tenantId: parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+      tenantId: tenantIdFromHeader(tenantIdHeader),
       customerId: params.customerId,
       body,
       currentUser,
@@ -79,7 +79,7 @@ export class RiskController {
     @Param(new ZodValidationPipe(riskAssessmentParamsSchema)) params: RiskAssessmentParamsDto,
   ) {
     return this.riskService.getRiskAssessmentDetail(
-      parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+      tenantIdFromHeader(tenantIdHeader),
       params.riskAssessmentRunId,
     );
   }
@@ -99,7 +99,7 @@ export class RiskController {
     @Param(new ZodValidationPipe(riskAssessmentParamsSchema)) params: RiskAssessmentParamsDto,
   ) {
     return this.riskService.getRiskAssessmentExplanation(
-      parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+      tenantIdFromHeader(tenantIdHeader),
       params.riskAssessmentRunId,
     );
   }

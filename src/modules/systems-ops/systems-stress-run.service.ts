@@ -3,13 +3,10 @@ import { InjectModel } from '@nestjs/sequelize';
 import { FindAndCountOptions, WhereOptions } from 'sequelize';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { actorId } from '../../common/utils/auth/actor.util.js';
 import { SystemJobRunModel, SystemStressProfileModel } from '../../database/models/index.js';
 import { QueueStressRunDto, SystemsRunsQueryDto } from './systems-ops.schemas.js';
 import { systemsTenantScope } from './systems-tenant-scope.util.js';
-
-function actorId(user: AuthenticatedUser | undefined): string | null {
-  return user?.internalUserId ?? user?.platformUserId ?? user?.sub ?? null;
-}
 
 function mapSystemJobRun(row: SystemJobRunModel) {
   return {

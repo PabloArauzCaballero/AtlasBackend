@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { mapEndpoint, mapStressProfile } from './systems-ops.mapper.js';
 import { SystemsListQueryDto, SystemsStressProfileQueryDto, UpsertStressProfileDto } from './systems-ops.schemas.js';
-import { actorId } from './systems-actor.util.js';
+import { actorId } from '../../common/utils/auth/actor.util.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
 import { SystemsStressProfileRepository } from './systems-stress-profile.repository.js';
 

@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -22,7 +21,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { NotificationsService } from './notifications.service.js';
 import {
   createBroadcastNotificationSchema,
@@ -56,10 +55,6 @@ import {
   UpsertDeviceTokenDto,
 } from './notifications.schemas.js';
 
-function tenantIdFromHeader(value: string | undefined, currentUser?: AuthenticatedUser): string {
-  return parsePositiveId(String(value ?? currentUser?.tenantId ?? ''), 'x-tenant-id');
-}
-
 // Todo rol legacy que `legacyRoleForInternalRoles` (internal-rbac.roles.ts) puede producir para
 // un usuario interno real, más 'platform_admin'/'system' (actores de servicio). A diferencia de
 // los roles usados en el resto de este controller (que gatean vistas ADMINISTRATIVAS sobre datos
@@ -79,10 +74,6 @@ const INTERNAL_SELF_SERVICE_ROLES = [
   'platform_admin',
   'system',
 ] as const;
-
-function requireIdempotencyKey(value: string | undefined): void {
-  if (!value) throw new BadRequestException('X-Idempotency-Key header is required.');
-}
 
 @ApiTags('notifications')
 @ApiBearerAuth('access-token')

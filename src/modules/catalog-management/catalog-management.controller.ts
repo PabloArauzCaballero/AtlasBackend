@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -21,7 +20,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { RequestWithNetwork, requireIdempotencyKey, tenantIdFromHeader, userAgentFrom } from '../../common/utils/http/headers.util.js';
 import { CatalogManagementService } from './catalog-management.service.js';
 import {
   catalogDecisionResponseSchema,
@@ -65,11 +64,6 @@ import {
   submitCatalogVersionSchema,
 } from './catalog-management.schemas.js';
 
-type RequestWithNetwork = {
-  ip?: string;
-  headers: Record<string, string | string[] | undefined>;
-};
-
 type RequestContext = {
   tenantId: string;
   ipAddress: string | null;
@@ -77,22 +71,13 @@ type RequestContext = {
   idempotencyKey?: string;
 };
 
-function firstHeader(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) return value[0] ?? null;
-  return value ?? null;
-}
-
 function contextFrom(tenantIdHeader: string | undefined, idempotencyKey: string | undefined, request: RequestWithNetwork): RequestContext {
   return {
-    tenantId: parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+    tenantId: tenantIdFromHeader(tenantIdHeader),
     ipAddress: request.ip ?? null,
-    userAgent: firstHeader(request.headers['user-agent']),
+    userAgent: userAgentFrom(request),
     idempotencyKey,
   };
-}
-
-function requireIdempotencyHeader(idempotencyKey: string | undefined): void {
-  if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
 }
 
 @ApiTags('catalog-management')
@@ -153,7 +138,7 @@ export class CatalogManagementController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
-    requireIdempotencyHeader(idempotencyKey);
+    requireIdempotencyKey(idempotencyKey);
     return this.service.createCatalogVersion({
       catalogCode: params.catalogCode,
       body,
@@ -181,7 +166,7 @@ export class CatalogManagementController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
-    requireIdempotencyHeader(idempotencyKey);
+    requireIdempotencyKey(idempotencyKey);
     return this.service.submitCatalogVersion({
       catalogCode: params.catalogCode,
       versionId: params.versionId,
@@ -211,7 +196,7 @@ export class CatalogManagementController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
-    requireIdempotencyHeader(idempotencyKey);
+    requireIdempotencyKey(idempotencyKey);
     return this.service.decideCatalogVersion({
       catalogCode: params.catalogCode,
       versionId: params.versionId,
@@ -236,7 +221,7 @@ export class CatalogManagementController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
-    requireIdempotencyHeader(idempotencyKey);
+    requireIdempotencyKey(idempotencyKey);
     return this.service.ingestCatalog({ body, currentUser, context: contextFrom(tenantIdHeader, idempotencyKey, request) });
   }
 
@@ -256,7 +241,7 @@ export class CatalogManagementController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
-    requireIdempotencyHeader(idempotencyKey);
+    requireIdempotencyKey(idempotencyKey);
     return this.service.decideStagingItems({ body, currentUser, context: contextFrom(tenantIdHeader, idempotencyKey, request) });
   }
 
@@ -293,7 +278,7 @@ export class CatalogManagementController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
-    requireIdempotencyHeader(idempotencyKey);
+    requireIdempotencyKey(idempotencyKey);
     return this.service.upsertDefinitionsPackage({ body, currentUser, context: contextFrom(tenantIdHeader, idempotencyKey, request) });
   }
 
@@ -318,7 +303,7 @@ export class CatalogManagementController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
-    requireIdempotencyHeader(idempotencyKey);
+    requireIdempotencyKey(idempotencyKey);
     return this.service.createRiskRulesetVersion({ body, currentUser, context: contextFrom(tenantIdHeader, idempotencyKey, request) });
   }
 
@@ -340,7 +325,7 @@ export class CatalogManagementController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
-    requireIdempotencyHeader(idempotencyKey);
+    requireIdempotencyKey(idempotencyKey);
     return this.service.activateRiskRulesetVersion({
       rulesetVersionId: params.rulesetVersionId,
       body,
@@ -370,7 +355,7 @@ export class CatalogManagementController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
-    requireIdempotencyHeader(idempotencyKey);
+    requireIdempotencyKey(idempotencyKey);
     return this.service.upsertDataGovernancePackage({ body, currentUser, context: contextFrom(tenantIdHeader, idempotencyKey, request) });
   }
 }

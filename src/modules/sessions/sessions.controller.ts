@@ -8,7 +8,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { RequestWithNetwork, tenantIdFromHeader, userAgentFrom } from '../../common/utils/http/headers.util.js';
 import { SessionsService } from './sessions.service.js';
 import {
   EndSessionDto,
@@ -24,20 +24,6 @@ import {
   startSessionParamsSchema,
   startSessionSchema,
 } from './sessions.schemas.js';
-
-type RequestWithNetwork = {
-  ip?: string;
-  headers: Record<string, string | string[] | undefined>;
-};
-
-function firstHeader(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) return value[0] ?? null;
-  return value ?? null;
-}
-
-function userAgentFrom(request: RequestWithNetwork): string | null {
-  return firstHeader(request.headers['user-agent']);
-}
 
 @ApiTags('sessions')
 @ApiBearerAuth('access-token')
@@ -78,7 +64,7 @@ export class CustomerSessionsController {
       body,
       currentUser,
       context: {
-        tenantId: parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+        tenantId: tenantIdFromHeader(tenantIdHeader),
         ipAddress: request.ip ?? null,
         userAgent: userAgentFrom(request),
         idempotencyKey,
@@ -118,7 +104,7 @@ export class CustomerSessionsController {
       body,
       currentUser,
       context: {
-        tenantId: parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+        tenantId: tenantIdFromHeader(tenantIdHeader),
         ipAddress: request.ip ?? null,
         userAgent: userAgentFrom(request),
         idempotencyKey,
@@ -152,7 +138,7 @@ export class CustomerSessionsController {
       body,
       currentUser,
       context: {
-        tenantId: parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+        tenantId: tenantIdFromHeader(tenantIdHeader),
         ipAddress: request.ip ?? null,
         userAgent: userAgentFrom(request),
         idempotencyKey,
@@ -175,7 +161,7 @@ export class CustomerSessionsController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.sessionsService.getSessionState({
-      tenantId: parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+      tenantId: tenantIdFromHeader(tenantIdHeader),
       customerId: params.customerId,
       currentUser,
     });
@@ -207,7 +193,7 @@ export class OperationsSessionsController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.sessionsService.getOperationsSessionSummary({
-      tenantId: parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+      tenantId: tenantIdFromHeader(tenantIdHeader),
       sessionId: params.sessionId,
       currentUser,
     });

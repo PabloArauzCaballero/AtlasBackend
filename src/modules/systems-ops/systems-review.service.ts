@@ -3,7 +3,7 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { mapDataEntity, mapDataField, mapDataImpact, mapEndpoint, mapFieldImpact, mapToolRequirement } from './systems-ops.mapper.js';
 import { ReviewDecisionDto, SystemsReviewQueueDto } from './systems-ops.schemas.js';
 import { SystemsReviewRepository } from './systems-review.repository.js';
-import { actorId } from './systems-actor.util.js';
+import { actorId } from '../../common/utils/auth/actor.util.js';
 
 @Injectable()
 export class SystemsReviewService {

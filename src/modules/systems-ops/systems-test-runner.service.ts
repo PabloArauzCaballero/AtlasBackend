@@ -1,5 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { actorId } from '../../common/utils/auth/actor.util.js';
+import { asRecord } from '../../common/utils/types/record.util.js';
 import { mapTestRun, mapTestStepRun } from './systems-ops.mapper.js';
 import { RunTestSuiteDto } from './systems-ops.schemas.js';
 import { SystemsTestExecutionRepository } from './systems-test-execution.repository.js';
@@ -21,10 +23,6 @@ type StepExecution = {
   durationMs: number;
 };
 
-function actorIdentifier(user: AuthenticatedUser): string | null {
-  return user.internalUserId ?? user.platformUserId ?? user.sub ?? null;
-}
-
 /**
  * ATLAS-AUDIT (auditoría #16, `systems-ops`): antes de este cambio, `assertRealRunCanExecute`
  * solo restringía el host de `baseUrl` cuando `environment === 'LOCAL'` — para `STAGING` y
@@ -37,10 +35,6 @@ function actorIdentifier(user: AuthenticatedUser): string | null {
  * todo requiere una lista blanca de hosts de confianza por ambiente, una decisión de
  * configuración que queda fuera del alcance de esta corrección puntual.
  */
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
-
 function asStringRecord(value: unknown): Record<string, string> {
   const record = asRecord(value);
   return Object.fromEntries(Object.entries(record).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
@@ -71,7 +65,7 @@ export class SystemsTestRunnerService {
       tenantId: systemsTenantScope(user),
       suiteId,
       environment: body.environment,
-      triggeredBy: actorIdentifier(user),
+      triggeredBy: actorId(user),
       status: 'RUNNING',
       startedAt,
       summary: { dryRun: this.isDryRun(body), totalSteps: steps.length, timeoutMs: body.timeoutMs },

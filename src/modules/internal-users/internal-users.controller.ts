@@ -5,6 +5,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { RequestWithNetwork, requestMeta } from '../../common/utils/http/headers.util.js';
 import { InternalPermissionsGuard } from './guards/internal-permissions.guard.js';
 import { InternalPermissions } from './internal-permissions.decorator.js';
 import { InternalUsersService } from './internal-users.service.js';
@@ -18,20 +19,6 @@ import {
   replaceInternalUserRolesSchema,
   updateInternalUserSchema,
 } from './internal-users.schemas.js';
-
-type RequestWithNetwork = {
-  ip?: string;
-  headers: Record<string, string | string[] | undefined>;
-};
-
-function firstHeader(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) return value[0] ?? null;
-  return value ?? null;
-}
-
-function requestMeta(request: RequestWithNetwork): { ipAddress: string | null; userAgent: string | null } {
-  return { ipAddress: request.ip ?? null, userAgent: firstHeader(request.headers['user-agent']) };
-}
 
 @ApiTags('internal-users')
 @ApiBearerAuth('access-token')

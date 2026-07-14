@@ -8,7 +8,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { CustomerPrivacyService } from './customer-privacy.service.js';
 import {
   consentDecisionsSchema,
@@ -59,7 +59,7 @@ export class CustomerPrivacyController {
   ) {
     if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     return this.privacyService.registerConsentDecisions({
-      tenantId: parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+      tenantId: tenantIdFromHeader(tenantIdHeader),
       customerId: params.customerId,
       body,
       currentUser,
@@ -95,7 +95,7 @@ export class CustomerPrivacyController {
   ) {
     if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     return this.privacyService.createDataSubjectRequest({
-      tenantId: parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+      tenantId: tenantIdFromHeader(tenantIdHeader),
       customerId: params.customerId,
       body,
       currentUser,

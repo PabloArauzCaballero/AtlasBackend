@@ -6,10 +6,7 @@ import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from 
 import { failedDelivery, getAllDeliveryTargets, postJson, sentDelivery } from './http-adapter.util.js';
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
 import { NotificationProviderConfigService } from './notification-provider-config.service.js';
-
-function base64Url(input: Buffer | string): string {
-  return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-}
+import { base64Url } from '../../../common/utils/crypto/encoding.util.js';
 
 function normalizePrivateKey(raw: string): string {
   return raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;

@@ -1,10 +1,7 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { RequestWithAuth } from '../types/auth.types.js';
 import { parsePositiveId } from '../utils/ids/id.util.js';
-
-function firstHeader(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
+import { firstHeaderValue } from '../utils/http/headers.util.js';
 
 /**
  * Reemplaza el patrón repetido en ~17 controllers de `@Headers('x-tenant-id') tenantIdHeader` +
@@ -16,7 +13,7 @@ function firstHeader(value: string | string[] | undefined): string | undefined {
  */
 export const CurrentTenant = createParamDecorator((_: unknown, context: ExecutionContext): string => {
   const request = context.switchToHttp().getRequest<RequestWithAuth>();
-  const headerValue = firstHeader(request.headers['x-tenant-id']);
+  const headerValue = firstHeaderValue(request.headers['x-tenant-id']);
   const raw = headerValue ?? request.user?.tenantId;
   return parsePositiveId(String(raw ?? ''), 'x-tenant-id');
 });

@@ -14,7 +14,7 @@ import { SystemsTestExecutionRepository } from './systems-test-execution.reposit
 import { CURATED_ENDPOINTS, STRESS_PROFILE_SEEDS } from './systems-seed-fixtures.js';
 import { SystemJobRunModel } from '../../database/models/index.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { actorId } from './systems-actor.util.js';
+import { actorId } from '../../common/utils/auth/actor.util.js';
 import { systemsTenantScope } from './systems-tenant-scope.util.js';
 
 /** Cuántas filas/archivos se procesan en paralelo por lote al reseedear el catálogo. */

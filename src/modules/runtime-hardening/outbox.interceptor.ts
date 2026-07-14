@@ -1,6 +1,7 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable, from, mergeMap, of } from 'rxjs';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { firstHeader } from '../../common/utils/http/headers.util.js';
 import { RuntimeHardeningService } from './runtime-hardening.service.js';
 
 type RequestLike = {
@@ -12,10 +13,6 @@ type RequestLike = {
   user?: AuthenticatedUser;
   correlationId?: string;
 };
-
-function firstHeader(value: string | string[] | undefined): string | null {
-  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
-}
 
 function shouldHandle(method: string): boolean {
   return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());

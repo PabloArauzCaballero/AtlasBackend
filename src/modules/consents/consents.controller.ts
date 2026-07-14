@@ -6,7 +6,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { ConsentsService } from './consents.service.js';
 import { listActiveConsentDocumentsQuerySchema, ListActiveConsentDocumentsQueryDto } from './consents.schemas.js';
 
@@ -34,7 +34,7 @@ export class ConsentsController {
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Query(new ZodValidationPipe(listActiveConsentDocumentsQuerySchema)) query: ListActiveConsentDocumentsQueryDto,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.consentsService.listActiveDocuments(tenantId, query);
   }
 }

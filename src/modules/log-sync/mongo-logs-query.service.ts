@@ -2,10 +2,7 @@ import { Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestj
 import { Collection, Document, Filter, MongoClient } from 'mongodb';
 import { env } from '../../config/env.js';
 import { MongoLogsQueryDto } from './mongo-logs.schemas.js';
-
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+import { escapeRegex } from '../../common/utils/strings/regex.util.js';
 
 /**
  * Read-only counterpart to `ArchivoLogMongoSyncService`. That service only

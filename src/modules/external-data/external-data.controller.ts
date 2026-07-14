@@ -22,7 +22,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { assertOwnCustomerResource } from '../../common/utils/auth/ownership.util.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { ExternalDataService } from './external-data.service.js';
 import {
   approveProviderRequestSchema,
@@ -80,10 +80,6 @@ import {
   whatsappVerificationStartSchema,
   WhatsappVerificationStartDto,
 } from './external-data.schemas.js';
-
-function tenantIdFromHeader(header: string | undefined, currentUser?: AuthenticatedUser): string {
-  return parsePositiveId(String(header ?? currentUser?.tenantId ?? ''), 'x-tenant-id');
-}
 
 function actorId(currentUser: AuthenticatedUser): string | undefined {
   return currentUser.internalUserId ?? currentUser.platformUserId ?? currentUser.customerId;

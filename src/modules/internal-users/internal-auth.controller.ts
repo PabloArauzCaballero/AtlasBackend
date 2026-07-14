@@ -8,6 +8,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { RequestWithNetwork, firstHeader, requestMeta } from '../../common/utils/http/headers.util.js';
 import { LoginPinVerifyDto, loginPinVerifySchema } from '../auth/auth.schemas.js';
 import { InternalPermissionsGuard } from './guards/internal-permissions.guard.js';
 import { InternalAuthService } from './internal-auth.service.js';
@@ -23,20 +24,6 @@ import {
   internalLogoutSchema,
   internalRefreshSchema,
 } from './internal-users.schemas.js';
-
-type RequestWithNetwork = {
-  ip?: string;
-  headers: Record<string, string | string[] | undefined>;
-};
-
-function firstHeader(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) return value[0] ?? null;
-  return value ?? null;
-}
-
-function requestMeta(request: RequestWithNetwork): { ipAddress: string | null; userAgent: string | null } {
-  return { ipAddress: request.ip ?? null, userAgent: firstHeader(request.headers['user-agent']) };
-}
 
 @ApiTags('internal-auth')
 @ApiBearerAuth('access-token')

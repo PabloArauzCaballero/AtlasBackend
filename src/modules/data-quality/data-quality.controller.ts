@@ -8,7 +8,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { DataQualityService } from './data-quality.service.js';
 import {
   dataQualityIssueParamsSchema,
@@ -39,7 +39,7 @@ export class DataQualityController {
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Query(new ZodValidationPipe(dataQualityQuerySchema)) query: DataQualityQueryDto,
   ) {
-    return this.service.listIssues(parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'), query);
+    return this.service.listIssues(tenantIdFromHeader(tenantIdHeader), query);
   }
 
   @ApiOperation({ summary: 'Resolver/ignorar un issue de calidad de datos' })
@@ -61,7 +61,7 @@ export class DataQualityController {
   ) {
     if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     return this.service.resolveIssue({
-      tenantId: parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+      tenantId: tenantIdFromHeader(tenantIdHeader),
       params,
       body,
       currentUser,

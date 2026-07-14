@@ -1,3 +1,5 @@
+import { isRecord } from '../../common/utils/types/record.util.js';
+
 export type JsonPathReadResult = {
   found: boolean;
   value: unknown;
@@ -6,10 +8,6 @@ export type JsonPathReadResult = {
 type PathToken = string | number;
 
 const PATH_TOKEN_PATTERN = /\.([A-Za-z_$][A-Za-z0-9_$-]*)|\[(\d+)]|\[['"]([^'"]+)['"]]/g;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 export function parseJsonPath(path: string): PathToken[] {
   if (path === '$') return [];

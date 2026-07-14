@@ -3,6 +3,7 @@ import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Op, QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { actorId } from '../../common/utils/auth/actor.util.js';
 import {
   AddressGpsObservationModel,
   CustomerSessionModel,
@@ -23,10 +24,6 @@ import {
   ProcessOutboxDto,
   RecalculateDataQualityDto,
 } from './runtime-jobs.schemas.js';
-
-function actorId(user: AuthenticatedUser): string | null {
-  return user.internalUserId ?? user.platformUserId ?? user.sub ?? null;
-}
 
 function registeredEventCodesOrSentinel(): string[] {
   const codes = listEventDefinitions().map((event) => event.code);

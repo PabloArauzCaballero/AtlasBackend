@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Headers, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -8,7 +8,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import {
   applyRetentionPoliciesSchema,
   expireStaleSessionsSchema,
@@ -24,8 +24,8 @@ import {
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 
 function requireHeaders(tenantIdHeader: string | undefined, idempotencyKey: string | undefined): string {
-  if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
-  return parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+  requireIdempotencyKey(idempotencyKey);
+  return tenantIdFromHeader(tenantIdHeader);
 }
 
 @ApiTags('runtime-jobs')

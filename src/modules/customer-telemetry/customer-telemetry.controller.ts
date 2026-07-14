@@ -8,7 +8,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { CustomerTelemetryService } from './customer-telemetry.service.js';
 import {
   telemetryBatchSchema,
@@ -56,7 +56,7 @@ export class CustomerTelemetryController {
   ) {
     if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     return this.telemetryService.ingestBatch({
-      tenantId: parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'),
+      tenantId: tenantIdFromHeader(tenantIdHeader),
       customerId: params.customerId,
       body,
       currentUser,

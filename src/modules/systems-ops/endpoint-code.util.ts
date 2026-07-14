@@ -1,3 +1,5 @@
+import { escapeRegex } from '../../common/utils/strings/regex.util.js';
+
 export function normalizeEndpointPath(path: string): string {
   const withoutQuery = path.split('?')[0] ?? path;
   return withoutQuery
@@ -30,10 +32,6 @@ export function moduleFromPath(fullPath: string): string {
 
 export function routeNameFromMethodAndPath(method: string, fullPath: string): string {
   return `${method.toUpperCase()} /${normalizeEndpointPath(fullPath)}`;
-}
-
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export function endpointTemplateToRegex(fullPath: string): RegExp {

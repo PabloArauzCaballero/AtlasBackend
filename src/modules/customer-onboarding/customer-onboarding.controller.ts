@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Headers, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
@@ -10,7 +10,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { CustomerOnboardingService } from './customer-onboarding.service.js';
 import {
   addressPackageSchema,
@@ -30,13 +30,6 @@ import {
 type RequestWithIp = {
   ip?: string;
 };
-
-function requireIdempotencyKey(idempotencyKey: string | undefined): string {
-  if (!idempotencyKey) {
-    throw new BadRequestException('X-Idempotency-Key header is required.');
-  }
-  return idempotencyKey;
-}
 
 @ApiTags('customer-onboarding')
 @Controller('customer-onboarding')
@@ -70,7 +63,7 @@ export class CustomerOnboardingController {
     @Body(new ZodValidationPipe(startOnboardingSchema)) body: StartOnboardingDto,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.startOnboarding(tenantId, body, request.ip ?? null, requireIdempotencyKey(idempotencyKey));
   }
 
@@ -99,7 +92,7 @@ export class CustomerOnboardingController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.requestContactVerification({
       tenantId,
       customerId: params.customerId,
@@ -135,7 +128,7 @@ export class CustomerOnboardingController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.submitContactVerification({
       tenantId,
       customerId: params.customerId,
@@ -170,7 +163,7 @@ export class CustomerOnboardingController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.submitIdentityPackage({
       tenantId,
       customerId: params.customerId,
@@ -205,7 +198,7 @@ export class CustomerOnboardingController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.submitAddressPackage({
       tenantId,
       customerId: params.customerId,

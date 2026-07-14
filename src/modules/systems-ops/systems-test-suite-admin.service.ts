@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { actorId } from '../../common/utils/auth/actor.util.js';
 import { mapTestStep, mapTestSuite } from './systems-ops.mapper.js';
 import {
   CreateTestStepDto,
@@ -9,10 +10,6 @@ import {
   UpdateTestSuiteDto,
 } from './systems-ops.schemas.js';
 import { SystemsTestSuiteAdminRepository } from './systems-test-suite-admin.repository.js';
-
-function actorId(user: AuthenticatedUser | undefined): string | null {
-  return user?.internalUserId ?? user?.platformUserId ?? user?.sub ?? null;
-}
 
 @Injectable()
 export class SystemsTestSuiteAdminService {

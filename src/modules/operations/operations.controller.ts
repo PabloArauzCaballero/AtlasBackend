@@ -8,7 +8,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { FraudService } from '../fraud/fraud.service.js';
 import { fraudDecisionParamsSchema, FraudDecisionParamsDto, fraudDecisionSchema, FraudDecisionDto } from '../fraud/fraud.schemas.js';
 import { OperationsService } from './operations.service.js';
@@ -47,7 +47,7 @@ export class OperationsController {
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Query(new ZodValidationPipe(workQueueQuerySchema)) query: WorkQueueQueryDto,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.operationsService.getWorkQueue(tenantId, query);
   }
 
@@ -65,7 +65,7 @@ export class OperationsController {
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Query(new ZodValidationPipe(cursorWorkQueueQuerySchema)) query: CursorWorkQueueQueryDto,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.operationsService.getManualReviewCasesCursorPage(tenantId, query);
   }
 
@@ -80,7 +80,7 @@ export class OperationsController {
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Query(new ZodValidationPipe(cursorWorkQueueQuerySchema)) query: CursorWorkQueueQueryDto,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.operationsService.getFraudCasesCursorPage(tenantId, query);
   }
 
@@ -94,7 +94,7 @@ export class OperationsController {
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Param(new ZodValidationPipe(operationsCustomerIdParamsSchema)) params: OperationsCustomerIdParamsDto,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.operationsService.getInvestigationSummary(tenantId, params);
   }
 
@@ -121,7 +121,7 @@ export class OperationsController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.operationsService.decideManualReviewCase({ tenantId, params, body, currentUser, idempotencyKey });
   }
 
@@ -152,7 +152,7 @@ export class OperationsController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.fraudService.decideFraudCase({ tenantId, params, body, currentUser, idempotencyKey });
   }
 }

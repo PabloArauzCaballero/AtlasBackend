@@ -9,7 +9,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { RequestWithNetwork, tenantIdFromHeader, userAgentFrom } from '../../common/utils/http/headers.util.js';
 import { AuthService } from './auth.service.js';
 import {
   LoginDto,
@@ -27,20 +27,6 @@ import {
   provisionCredentialsSchema,
   refreshSchema,
 } from './auth.schemas.js';
-
-type RequestWithNetwork = {
-  ip?: string;
-  headers: Record<string, string | string[] | undefined>;
-};
-
-function firstHeader(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) return value[0] ?? null;
-  return value ?? null;
-}
-
-function userAgentFrom(request: RequestWithNetwork): string | null {
-  return firstHeader(request.headers['user-agent']);
-}
 
 /**
  * ATLAS-AUDIT-002 (cerrado en este patch). Ver `auth.service.ts` para el detalle de negocio.
@@ -80,7 +66,7 @@ export class AuthController {
     @Body(new ZodValidationPipe(loginSchema)) body: LoginDto,
     @Req() request: RequestWithNetwork,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.authService.login({
       tenantId,
       dto: body,
@@ -129,7 +115,7 @@ export class AuthController {
     @Body(new ZodValidationPipe(passwordResetRequestSchema)) body: PasswordResetRequestDto,
     @Req() request: RequestWithNetwork,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.authService.requestPasswordReset({
       tenantId,
       actorType: body.actorType,
@@ -157,7 +143,7 @@ export class AuthController {
     @Body(new ZodValidationPipe(passwordResetConfirmSchema)) body: PasswordResetConfirmDto,
     @Req() request: RequestWithNetwork,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.authService.confirmPasswordReset({
       tenantId,
       actorType: body.actorType,

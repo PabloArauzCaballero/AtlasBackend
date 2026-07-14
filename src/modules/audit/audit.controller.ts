@@ -6,7 +6,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
+import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { AuditService } from './audit.service.js';
 import {
   auditCustomerParamsSchema,
@@ -41,7 +41,7 @@ export class AuditController {
     @Param(new ZodValidationPipe(auditCustomerParamsSchema)) params: AuditCustomerParamsDto,
     @Query(new ZodValidationPipe(auditQuerySchema)) query: AuditQueryDto,
   ) {
-    return this.service.getCustomerAudit(parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id'), params, query);
+    return this.service.getCustomerAudit(tenantIdFromHeader(tenantIdHeader), params, query);
   }
 
   /**
@@ -63,7 +63,7 @@ export class AuditController {
     @Param(new ZodValidationPipe(auditCustomerParamsSchema)) params: AuditCustomerParamsDto,
     @Query(new ZodValidationPipe(auditFeedQuerySchema)) query: AuditFeedQueryDto,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? ''), 'x-tenant-id');
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.service.getCustomerAuditFeed(tenantId, params.customerId, query);
   }
 }

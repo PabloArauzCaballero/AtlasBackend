@@ -1,6 +1,7 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable, catchError, from, mergeMap, of, throwError } from 'rxjs';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { firstHeader } from '../../common/utils/http/headers.util.js';
 import { RuntimeHardeningService } from './runtime-hardening.service.js';
 
 type RequestLike = {
@@ -16,10 +17,6 @@ type RequestLike = {
 };
 
 type ResponseLike = { statusCode?: number; status?: (statusCode: number) => ResponseLike };
-
-function firstHeader(value: string | string[] | undefined): string | null {
-  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
-}
 
 function tenantScope(request: RequestLike): string {
   return request.user?.tenantId ?? firstHeader(request.headers['x-tenant-id']) ?? 'global';

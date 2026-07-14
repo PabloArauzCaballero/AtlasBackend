@@ -16,17 +16,8 @@ import {
   RiskSummaryDto,
   WorkQueueItemDto,
 } from './operations.dtos.js';
-
-function toIsoOrNull(date: Date | string | null): string | null {
-  if (!date) return null;
-  return date instanceof Date ? date.toISOString() : date;
-}
-
-function toNumberOrNull(value: string | number | null): number | null {
-  if (value === null) return null;
-  const parsed = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
+import { toIsoOrNull } from '../../common/utils/dates/date.util.js';
+import { toNumberOrNull } from '../../common/utils/numbers/number.util.js';
 
 export function toManualReviewWorkItem(caseModel: ManualReviewCaseModel): WorkQueueItemDto {
   return {

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { asRecord } from '../../common/utils/types/record.util.js';
 import { readJsonPath } from './systems-json-path.util.js';
 
 export type SystemsAssertionEvaluationInput = {
@@ -24,10 +25,6 @@ export type SystemsAssertionEvaluation = {
 function asNumberArray(value: unknown): number[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is number => typeof item === 'number' && Number.isFinite(item));
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
 function sameValue(actual: unknown, expected: unknown): boolean {

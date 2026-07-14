@@ -5,6 +5,7 @@ import { AuthenticatedUser } from '../types/auth.types.js';
 import { HttpActionLogService } from '../../modules/audit/http-action-log.service.js';
 import { moduleFromPath } from '../../modules/systems-ops/endpoint-code.util.js';
 import { redactSensitiveObject } from '../utils/privacy/redaction.util.js';
+import { firstHeader } from '../utils/http/headers.util.js';
 
 type RequestLike = {
   method: string;
@@ -22,10 +23,6 @@ type RequestLike = {
 };
 
 type ResponseLike = { statusCode?: number };
-
-function firstHeader(value: string | string[] | undefined): string | null {
-  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
-}
 
 function cleanPath(path: string): string {
   return path.split('?')[0] ?? path;

@@ -6,14 +6,7 @@ import {
   RiskAssessmentResultModel,
 } from '../../database/models/index.js';
 import { CustomerMeResponseDto, CustomerProfileResponseDto, CustomerResponseDto } from './customers.dtos.js';
-
-function toIsoOrNull(date: Date | string | null): string | null {
-  if (date === null) {
-    return null;
-  }
-
-  return date instanceof Date ? date.toISOString() : date;
-}
+import { toIsoOrNull } from '../../common/utils/dates/date.util.js';
 
 function deriveNextStep(lifecycleStatus: string | null, contacts: CustomerContactMethodModel[]): string {
   if (lifecycleStatus === 'blocked') return 'blocked';

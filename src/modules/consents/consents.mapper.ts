@@ -1,10 +1,6 @@
 import { ConsentDocumentModel, CustomerConsentModel } from '../../database/models/index.js';
 import { ConsentDocumentResponseDto, CustomerConsentResponseDto } from './consents.dtos.js';
-
-function toIsoOrNull(date: Date | string | null): string | null {
-  if (!date) return null;
-  return date instanceof Date ? date.toISOString() : date;
-}
+import { toIsoOrNull } from '../../common/utils/dates/date.util.js';
 
 export function toConsentDocumentResponse(document: ConsentDocumentModel): ConsentDocumentResponseDto {
   return {
