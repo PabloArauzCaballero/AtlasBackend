@@ -718,43 +718,11 @@ const DEFINITIONS: SeedTable[] = [
 ];
 
 const RISK_TABLES: SeedTable[] = [
-  {
-    tableName: 'risk_model_versions',
-    rows: [
-      {
-        _id: 101,
-        model_code: 'atlas_bnpl_application_score',
-        version_code: 'v1-seed',
-        model_type: 'scorecard_placeholder',
-        assessment_type: 'onboarding_credit',
-        status: 'active',
-        effective_from: CREATED_AT,
-        effective_until: null,
-        approved_by_platform_user_id: 1,
-        approved_at: CREATED_AT,
-        artifact_url: 'seed://risk/atlas_bnpl_application_score/v1',
-        artifact_hash: 'seed-artifact-hash-v1',
-        _created_at: CREATED_AT,
-      },
-    ],
-  },
-  {
-    tableName: 'risk_ruleset_versions',
-    rows: [
-      {
-        _id: 101,
-        ruleset_code: 'atlas_mvp_onboarding_ruleset',
-        version_code: 'v1-seed',
-        assessment_type: 'onboarding_credit',
-        status: 'active',
-        effective_from: CREATED_AT,
-        effective_until: null,
-        approved_by_platform_user_id: 1,
-        approved_at: CREATED_AT,
-        _created_at: CREATED_AT,
-      },
-    ],
-  },
+  // NOTA: `risk_model_versions` (_id 101, atlas_bnpl_application_score) y `risk_ruleset_versions`
+  // (_id 101, atlas_mvp_onboarding_ruleset) ahora los crea el seeder productivo
+  // `production/20260711085000-seed-risk-baseline-ruleset.ts`, que corre antes que este demo en
+  // todos los perfiles que lo incluyen. Este seeder solo referencia el _id 101 y ya no lo posee:
+  // así no choca (delete/insert) con el baseline BNPL productivo, que engancha reglas a ese ruleset.
   {
     tableName: 'risk_policy_rules',
     rows: [

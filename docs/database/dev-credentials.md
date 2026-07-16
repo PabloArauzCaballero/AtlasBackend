@@ -2,7 +2,7 @@
 
 ## Usuario interno principal
 
-El seeder `20260704121000-seed-internal-rbac-and-pablo` crea/actualiza el usuario administrador del portal interno **solo en entornos no productivos** (falla explícitamente si `NODE_ENV=production`, ver ATLAS-P0-001 en `docs/progress/remediation-register.md`):
+El seeder `development/20260704121500-seed-pablo-admin-user` crea/actualiza el usuario administrador del portal interno **solo en entornos no productivos** (falla explícitamente si `NODE_ENV=production`, ver ATLAS-P0-001 en `docs/progress/remediation-register.md`). El catálogo de roles/permisos que respalda esta cuenta lo siembra `production/20260704121000-seed-internal-rbac`:
 
 | Campo | Valor |
 |---|---|
@@ -54,7 +54,7 @@ curl http://localhost:3000/api/v1/systems/dashboard \
 
 ```bash
 yarn db:migration:up
-DATABASE_CLEAN_BEFORE_SEED=true yarn db:seed:up
+yarn db:seed:dev   # production + development (incluye el usuario admin Pablo)
 ```
 
 Esto limpia datos basura de una base local/staging desechable y carga todos los datos necesarios para probar el portal.

@@ -1,10 +1,10 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { QueryInterface } from 'sequelize';
-import { SYSTEM_TOOL_SEEDS } from '../../modules/systems-ops/systems-ops.constants.js';
-import { EndpointSeed } from '../../modules/systems-ops/systems-ops.types.js';
-import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from '../../modules/systems-ops/endpoint-code.util.js';
-import { CURATED_ENDPOINTS, STRESS_PROFILE_SEEDS } from '../../modules/systems-ops/systems-seed-fixtures.js';
+import { SYSTEM_TOOL_SEEDS } from '../../../modules/systems-ops/systems-ops.constants.js';
+import { EndpointSeed } from '../../../modules/systems-ops/systems-ops.types.js';
+import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from '../../../modules/systems-ops/endpoint-code.util.js';
+import { CURATED_ENDPOINTS, STRESS_PROFILE_SEEDS } from '../../../modules/systems-ops/systems-seed-fixtures.js';
 
 type SeedContext = { context: QueryInterface };
 

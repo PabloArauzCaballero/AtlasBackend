@@ -26,8 +26,14 @@ export class AuditController {
   constructor(private readonly service: AuditService) {}
 
   @ApiOperation({
-    summary: 'Historial de auditoría de un cliente (paginado por offset)',
-    description: 'Combina 8 fuentes de eventos (status, auth, consent, manual_review, fraud, data_change, customer_action, operational_audit). eventType=risk no tiene fuente dedicada — se ve mezclado en operational_audit bajo actionCode risk_assessment.created.',
+    deprecated: true,
+    summary: 'Historial de auditoría de un cliente (paginado por offset) — DEPRECADO',
+    description:
+      'DEPRECADO (Fase 4 del plan de mejora del modelo de datos, §25): usar GET .../customer/:customerId/feed, ' +
+      'que pagina por cursor real sobre la vista audit_event_feed en vez de pedir offset+limit de cada fuente y ' +
+      'ordenar en memoria. Esta ruta se retirará cuando su uso sea cero durante dos releases. Combina 8 fuentes ' +
+      'de eventos (status, auth, consent, manual_review, fraud, data_change, customer_action, operational_audit). ' +
+      'eventType=risk no tiene fuente dedicada — se ve mezclado en operational_audit bajo actionCode risk_assessment.created.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(auditCustomerParamsSchema.shape.customerId) })
@@ -51,7 +57,8 @@ export class AuditController {
    */
   @ApiOperation({
     summary: 'Historial de auditoría de un cliente (paginado por cursor real)',
-    description: 'Lee de la vista audit_event_feed (cubre las 8 fuentes con cursor SQL real, más eficiente que la variante offset para volúmenes altos).',
+    description:
+      'Lee de la vista audit_event_feed (cubre las 8 fuentes con cursor SQL real, más eficiente que la variante offset para volúmenes altos).',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(auditCustomerParamsSchema.shape.customerId) })

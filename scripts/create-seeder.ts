@@ -31,13 +31,26 @@ function buildSeederTemplate(): string {
   return `import { QueryInterface } from 'sequelize';\n\nexport async function up({ context: queryInterface }: { context: QueryInterface }): Promise<void> {\n  await queryInterface.sequelize.transaction(async (transaction) => {\n    // Agrega aquí los datos mínimos de prueba.\n  });\n}\n\nexport async function down({ context: queryInterface }: { context: QueryInterface }): Promise<void> {\n  await queryInterface.sequelize.transaction(async (transaction) => {\n    // Revierte aquí los datos mínimos de prueba en orden inverso.\n  });\n}\n`;
 }
 
-const rawName = process.argv[2];
+const SEED_PROFILES = ['production', 'development', 'demo', 'test'] as const;
+type SeedProfile = (typeof SEED_PROFILES)[number];
 
-if (!rawName) {
-  throw new Error('Uso: yarn db:seed:create -- nombre-del-seeder');
+function parseProfile(argv: string[]): SeedProfile {
+  const flag = argv.find((arg) => arg.startsWith('--profile='));
+  const value = flag ? flag.slice('--profile='.length) : 'development';
+  if (!(SEED_PROFILES as readonly string[]).includes(value)) {
+    throw new Error(`Perfil inválido: "${value}". Válidos: ${SEED_PROFILES.join(', ')}.`);
+  }
+  return value as SeedProfile;
 }
 
-const seedersDirectory = join(process.cwd(), 'src', 'database', 'seeders');
+const rawName = process.argv.slice(2).find((arg) => !arg.startsWith('--'));
+
+if (!rawName) {
+  throw new Error('Uso: yarn db:seed:create -- nombre-del-seeder [--profile=production|development|demo|test]');
+}
+
+const profile = parseProfile(process.argv.slice(2));
+const seedersDirectory = join(process.cwd(), 'src', 'database', 'seeders', profile);
 
 if (!existsSync(seedersDirectory)) {
   mkdirSync(seedersDirectory, { recursive: true });

@@ -5,7 +5,7 @@
  * `module = EXCLUDED.module` sin truncar el resto de la base con `reseed`.
  */
 import { createSequelizeInstance } from '../src/database/sequelize.js';
-import * as seeder from '../src/database/seeders/20260705114000-seed-rich-systems-business-metadata.js';
+import * as seeder from '../src/database/seeders/demo/20260705114000-seed-rich-systems-business-metadata.js';
 
 async function run(): Promise<void> {
   const sequelize = createSequelizeInstance();

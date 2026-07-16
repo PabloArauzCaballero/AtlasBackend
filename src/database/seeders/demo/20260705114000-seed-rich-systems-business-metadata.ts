@@ -5,8 +5,8 @@ import {
   TABLE_BUSINESS_METADATA,
   DOMAIN_BUSINESS_METADATA,
   LOGICAL_RELATIONSHIP_METADATA,
-} from '../../modules/systems-ops/systems-business-metadata.fixtures.js';
-import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from '../../modules/systems-ops/endpoint-code.util.js';
+} from '../../../modules/systems-ops/systems-business-metadata.fixtures.js';
+import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from '../../../modules/systems-ops/endpoint-code.util.js';
 
 type SeedContext = { context: QueryInterface };
 type ColumnRow = {

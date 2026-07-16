@@ -43,6 +43,15 @@ jobs:
       - name: Format check
         run: yarn format:check
 
+      # Fase 1 del plan de modelo de datos: los seeders deben estar separados por perfil y el
+      # directorio production/ no puede contener datos ficticios (nombres ni contenido).
+      - name: Check seed profile separation
+        run: yarn check:seed-profiles
+
+      # Fase 7: sin overfetching en la capa de lectura (ninguna vista/consulta read_api con SELECT *).
+      - name: Check no overfetching in read_api layer
+        run: yarn check:overfetching
+
       - name: Type-check
         run: yarn type-check
 
@@ -117,8 +126,44 @@ jobs:
       - name: Run migrations against real Postgres
         run: yarn db:migration:up
 
-      - name: Run seeders
-        run: yarn db:seed:up
+      # Perfil demo = production + development + demo: reproduce el dataset completo que antes cargaba
+      # `db:seed:up` (todos los seeders), ahora reorganizado por perfil, para los smoke tests.
+      - name: Run seeders (demo profile)
+        run: yarn db:seed:demo
+
+      # Fase 7: las 7 vistas de read_api existen y responden (smoke SELECT + EXPLAIN del feed).
+      - name: Verify read_api views
+        run: yarn check:read-api-views
+
+      # Fase 1 §10: los seeders de producción son idempotentes (re-aplicar no duplica ni falla).
+      - name: Verify production seeders are idempotent
+        run: yarn db:seed:verify-prod-idempotency
+
+      # Fase 2: crear la jerarquía de roles y grants contra el Postgres real, y verificar la matriz
+      # de privilegios conectando como atlas_app_rw y atlas_app_ro (no destructivo).
+      - name: Bootstrap PostgreSQL roles and grants
+        env:
+          PGPASSWORD: atlas
+        run: |
+          psql -h localhost -U atlas -d atlas \
+            -v atlas_migrator_password=ci_migrator_pw \
+            -v atlas_app_rw_password=ci_app_rw_pw \
+            -v atlas_app_ro_password=ci_app_ro_pw \
+            -f ops/postgres/bootstrap-roles.sql
+          psql -h localhost -U atlas -d atlas \
+            -v core_schema=public -v read_schema=read_api \
+            -f ops/postgres/grants.sql
+          psql -h localhost -U atlas -d atlas \
+            -v core_schema=public -v read_schema=read_api \
+            -f ops/postgres/verify-privileges.sql
+
+      - name: Verify DB privilege matrix (as app_rw / app_ro)
+        env:
+          DB_USER: atlas_app_rw
+          DB_PASSWORD: ci_app_rw_pw
+          DB_READ_USER: atlas_app_ro
+          DB_READ_PASSWORD: ci_app_ro_pw
+        run: yarn check:db-privileges
 
       - name: Boot API in background
         run: |

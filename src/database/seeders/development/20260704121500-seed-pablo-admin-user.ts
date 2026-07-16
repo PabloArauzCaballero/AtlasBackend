@@ -1,10 +1,18 @@
 import { QueryInterface, Transaction } from 'sequelize';
-import { env } from '../../config/env.js';
-import {
-  INTERNAL_PERMISSION_SEEDS,
-  INTERNAL_ROLE_SEEDS,
-  ROLE_PERMISSION_CODES,
-} from '../../modules/internal-users/internal-rbac.seed-data.js';
+import { env } from '../../../config/env.js';
+
+/**
+ * Cuenta administrador de DESARROLLO: `pablo@atlas.internal` (SUPER_ADMIN) con una contraseña
+ * cuyo hash está versionado en git. Es la mitad "de desarrollo" del antiguo
+ * `20260704121000-seed-internal-rbac-and-pablo.ts`; el catálogo productivo de roles/permisos vive
+ * ahora en `production/20260704121000-seed-internal-rbac.ts`, que corre primero en el perfil
+ * `development`.
+ *
+ * ATLAS-P0-001: este seeder es de PERFIL DEVELOPMENT y jamás debe ejecutarse en producción — una
+ * contraseña conocida por cualquiera con acceso al repo no puede terminar en una base real. El
+ * runner por perfiles ya bloquea `development` bajo `NODE_ENV=production`; el guard de abajo es
+ * defensa en profundidad deliberada (ver §7.2 del plan).
+ */
 
 const CREATED_AT = new Date('2026-01-01T00:00:00.000Z');
 const PABLO_INTERNAL_USER_ID = 1;
@@ -25,98 +33,6 @@ type QueryParams = {
 
 async function runQuery(queryInterface: QueryInterface, input: QueryParams): Promise<void> {
   await queryInterface.sequelize.query(input.sql, { replacements: input.replacements, transaction: input.transaction });
-}
-
-async function upsertRoles(queryInterface: QueryInterface, transaction: Transaction): Promise<void> {
-  for (const role of INTERNAL_ROLE_SEEDS) {
-    await runQuery(queryInterface, {
-      transaction,
-      sql: `
-        INSERT INTO internal_roles (role_code, role_name, description, department, legacy_role_code, is_system_role, status, _created_at, _updated_at, _deleted)
-        VALUES (:roleCode, :roleName, :description, :department, :legacyRoleCode, :isSystemRole, 'active', :createdAt, :createdAt, false)
-        ON CONFLICT (role_code) WHERE _deleted = false
-        DO UPDATE SET
-          role_name = EXCLUDED.role_name,
-          description = EXCLUDED.description,
-          department = EXCLUDED.department,
-          legacy_role_code = EXCLUDED.legacy_role_code,
-          is_system_role = EXCLUDED.is_system_role,
-          status = 'active',
-          _updated_at = EXCLUDED._updated_at;
-      `,
-      replacements: {
-        roleCode: role.code,
-        roleName: role.name,
-        description: role.description,
-        department: role.department,
-        legacyRoleCode: role.legacyRoleCode,
-        isSystemRole: role.isSystemRole,
-        createdAt: CREATED_AT,
-      },
-    });
-  }
-}
-
-async function upsertPermissions(queryInterface: QueryInterface, transaction: Transaction): Promise<void> {
-  for (const permission of INTERNAL_PERMISSION_SEEDS) {
-    await runQuery(queryInterface, {
-      transaction,
-      sql: `
-        INSERT INTO internal_permissions (
-          permission_code, module_code, resource_code, action_code, description, risk_level,
-          requires_reason, requires_mfa, is_system_permission, status, _created_at, _updated_at, _deleted
-        )
-        VALUES (
-          :permissionCode, :moduleCode, :resourceCode, :actionCode, :description, :riskLevel,
-          :requiresReason, false, true, 'active', :createdAt, :createdAt, false
-        )
-        ON CONFLICT (permission_code) WHERE _deleted = false
-        DO UPDATE SET
-          module_code = EXCLUDED.module_code,
-          resource_code = EXCLUDED.resource_code,
-          action_code = EXCLUDED.action_code,
-          description = EXCLUDED.description,
-          risk_level = EXCLUDED.risk_level,
-          requires_reason = EXCLUDED.requires_reason,
-          status = 'active',
-          _updated_at = EXCLUDED._updated_at;
-      `,
-      replacements: {
-        permissionCode: permission.code,
-        moduleCode: permission.module,
-        resourceCode: permission.resource,
-        actionCode: permission.action,
-        description: permission.description,
-        riskLevel: permission.riskLevel,
-        requiresReason: permission.requiresReason,
-        createdAt: CREATED_AT,
-      },
-    });
-  }
-}
-
-async function assignRolePermissions(queryInterface: QueryInterface, transaction: Transaction): Promise<void> {
-  for (const [roleCode, permissionCodes] of Object.entries(ROLE_PERMISSION_CODES)) {
-    for (const permissionCode of permissionCodes) {
-      await runQuery(queryInterface, {
-        transaction,
-        sql: `
-          INSERT INTO internal_role_permissions (role_id, permission_id, created_by_internal_user_id, _created_at)
-          SELECT r._id, p._id, :createdByInternalUserId, :createdAt
-          FROM internal_roles r
-          JOIN internal_permissions p ON p.permission_code = :permissionCode AND p._deleted = false
-          WHERE r.role_code = :roleCode AND r._deleted = false
-          ON CONFLICT (role_id, permission_id) DO NOTHING;
-        `,
-        replacements: {
-          roleCode,
-          permissionCode,
-          createdByInternalUserId: PABLO_INTERNAL_USER_ID,
-          createdAt: CREATED_AT,
-        },
-      });
-    }
-  }
 }
 
 async function upsertPabloInternalUser(queryInterface: QueryInterface, transaction: Transaction): Promise<void> {
@@ -236,8 +152,8 @@ async function createSeedAudit(queryInterface: QueryInterface, transaction: Tran
         target_type, target_id, ip_address, user_agent, payload_json, occurred_at, _created_at
       )
       VALUES (
-        :tenantId, 'system', NULL, NULL, 'seed.internal_rbac_and_pablo.applied',
-        'database_seed', '20260704121000-seed-internal-rbac-and-pablo', '127.0.0.1', 'Atlas Seeder',
+        :tenantId, 'system', NULL, NULL, 'seed.pablo_admin_user.applied',
+        'database_seed', '20260704121500-seed-pablo-admin-user', '127.0.0.1', 'Atlas Seeder',
         CAST(:payload AS jsonb), :createdAt, :createdAt
       );
     `,
@@ -253,27 +169,18 @@ async function createSeedAudit(queryInterface: QueryInterface, transaction: Tran
   });
 }
 
-/**
- * ATLAS-P0-001: este seeder crea/mantiene una cuenta `SUPER_ADMIN` de desarrollo (`pablo@atlas.internal`)
- * con una contraseña fija conocida por cualquiera con acceso al repositorio. Eso es aceptable para
- * un entorno de desarrollo/staging descartable, pero nunca en producción — bloquear aquí, no
- * confiar en que quien ejecute `db:seed:up` recuerde omitirlo manualmente.
- */
 export async function up({ context: queryInterface }: { context: QueryInterface }): Promise<void> {
   if (env.NODE_ENV === 'production') {
     throw new Error(
-      'El seeder 20260704121000-seed-internal-rbac-and-pablo.ts no puede ejecutarse con NODE_ENV=production: ' +
+      'El seeder development/20260704121500-seed-pablo-admin-user.ts no puede ejecutarse con NODE_ENV=production: ' +
         'crearía/actualizaría un SUPER_ADMIN con una contraseña versionada en git. Si se necesita un ' +
         'administrador inicial en producción, provisionarlo por un canal separado y auditado, no por este seeder.',
     );
   }
 
   await queryInterface.sequelize.transaction(async (transaction) => {
-    await upsertRoles(queryInterface, transaction);
-    await upsertPermissions(queryInterface, transaction);
     await upsertPabloInternalUser(queryInterface, transaction);
     await upsertPabloCredentials(queryInterface, transaction);
-    await assignRolePermissions(queryInterface, transaction);
     await assignPabloRoles(queryInterface, transaction);
     await createSeedAudit(queryInterface, transaction);
   });
@@ -292,12 +199,5 @@ export async function down({ context: queryInterface }: { context: QueryInterfac
       `,
       replacements: { tenantId: PABLO_TENANT_ID, internalUserId: PABLO_INTERNAL_USER_ID, revokedAt: new Date() },
     });
-
-    await runQuery(queryInterface, {
-      transaction,
-      sql: `DELETE FROM internal_role_permissions WHERE role_id IN (SELECT _id FROM internal_roles WHERE is_system_role = true);`,
-    });
-    await runQuery(queryInterface, { transaction, sql: `DELETE FROM internal_permissions WHERE is_system_permission = true;` });
-    await runQuery(queryInterface, { transaction, sql: `DELETE FROM internal_roles WHERE is_system_role = true;` });
   });
 }

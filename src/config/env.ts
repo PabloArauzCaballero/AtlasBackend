@@ -70,12 +70,32 @@ const envSchema = z
     DB_SSL: booleanEnvSchema,
     DB_SSL_REJECT_UNAUTHORIZED: booleanEnvSchema.default(true),
 
+    // Pool de LECTURA opcional (Fase 2/5 del plan de mejora del modelo de datos). La conexión
+    // write/default sigue siendo DB_HOST/DB_USER/... (apúntala a atlas_app_rw). Cuando
+    // DB_READ_ENABLED=true, `ReadDatabaseModule` registra una segunda conexión "read" usando estas
+    // variables (apúntalas a atlas_app_ro y, en el futuro, a una réplica). Cualquier campo DB_READ_*
+    // ausente cae al valor de la conexión de escritura equivalente. No usar el pool read en auth,
+    // outbox, idempotencia, riesgo transaccional ni read-after-write.
+    DB_READ_ENABLED: booleanEnvSchema,
+    DB_READ_HOST: z.string().min(1).optional(),
+    DB_READ_PORT: z.coerce.number().int().positive().optional(),
+    DB_READ_NAME: z.string().min(1).optional(),
+    DB_READ_USER: z.string().min(1).optional(),
+    DB_READ_PASSWORD: z.string().optional(),
+    DB_READ_SCHEMA: z.string().min(1).optional(),
+    DB_READ_SSL: optionalBooleanEnvSchema,
+
     // Limpieza previa a seeds. Por defecto está apagada. En producción exige doble confirmación
     // para evitar borrar datos reales por accidente. Preserva SequelizeMeta y limpia los datos
     // de aplicación para que los seeders vuelvan a poblar un entorno consistente.
     DATABASE_CLEAN_BEFORE_SEED: booleanEnvSchema,
     DATABASE_CLEAN_ALLOW_PRODUCTION: booleanEnvSchema,
     DATABASE_CLEAN_CONFIRM: z.string().optional(),
+
+    // Perfil de seeds a ejecutar (production | development | demo | test). Si no se define, el runner
+    // lo deriva de NODE_ENV (production→production, test→test, resto→development). Ver
+    // `src/database/seed-profiles.ts`. Se puede sobrescribir por comando con `--profile=...`.
+    SEED_PROFILE: z.enum(['production', 'development', 'demo', 'test']).optional(),
     JWT_ACCESS_TOKEN_SECRET: z.string().min(32).default(DEFAULT_JWT_SECRET),
     JWT_ACCESS_TOKEN_EXPIRES_IN: z.string().default('1h'),
     API_RATE_LIMIT_TTL_MS: z.coerce.number().int().positive().default(60_000),
