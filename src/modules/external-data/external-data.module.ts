@@ -23,6 +23,7 @@ import {
 } from './controllers/social-trust.controller.js';
 import { ExternalDataRepository } from './external-data.repository.js';
 import { ExternalDataService } from './external-data.service.js';
+import { ExternalDataDecisionService } from './application/external-data-decision.service.js';
 import { ExternalDataEvidenceService } from './application/external-data-evidence.service.js';
 import { ExternalDataExecutionService } from './application/external-data-execution.service.js';
 import { ExternalDataGovernanceService } from './application/external-data-governance.service.js';
@@ -66,6 +67,7 @@ import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-tr
     ExternalDataService,
     ExternalProviderRegistryService,
     ExternalDataEvidenceService,
+    ExternalDataDecisionService,
     ExternalDataExecutionService,
     ExternalDataGovernanceService,
     ExternalProviderConvenienceService,

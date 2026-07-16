@@ -15,6 +15,8 @@ jest.mock('../../../src/common/utils/crypto/refresh-token.util.js', () => ({
 }));
 
 import { AuthService, isLoginPinChallenge, LoginOutcome } from '../../../src/modules/auth/auth.service.js';
+import { AuthActorResolverService } from '../../../src/modules/auth/auth-actor-resolver.service.js';
+import { AuthPasswordResetService } from '../../../src/modules/auth/auth-password-reset.service.js';
 
 function buildAuthRepositoryMock() {
   return {
@@ -92,9 +94,20 @@ function buildService(
   mailSenderService: ReturnType<typeof buildMailSenderServiceMock> = buildMailSenderServiceMock(),
   sequelize: ReturnType<typeof buildSequelizeMock> = buildSequelizeMock(),
 ) {
+  // Los colaboradores extraídos (Fase 2.2) se construyen con los MISMOS mocks, de modo que los
+  // tests públicos de `AuthService` ejercitan la resolución de actor y el reset reales, sin
+  // duplicar mocks ni cambiar ninguna aserción.
+  const actorResolver = new AuthActorResolverService(authRepository as never, customersRepository as never);
+  const passwordReset = new AuthPasswordResetService(
+    authRepository as never,
+    tokenRevocationService as never,
+    mailSenderService as never,
+    actorResolver,
+  );
   return new AuthService(
     authRepository as never,
-    customersRepository as never,
+    actorResolver,
+    passwordReset,
     tokenRevocationService as never,
     mailSenderService as never,
     sequelize as never,

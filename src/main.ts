@@ -7,20 +7,23 @@ import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { env, getAllowedCorsOrigins } from './config/env.js';
 import { buildOpenApiDocument } from './config/swagger.js';
-import { registerDataKeyProvider } from './common/utils/crypto/envelope-encryption.util.js';
+import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encryption.util.js';
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('AtlasBootstrap');
 
-  // ATLAS-P11-T13: registro opcional del proveedor KMS real para envelope encryption. No activa
-  // el cifrado de PII con KMS por sí solo (ver la nota de alcance en
-  // envelope-encryption.util.ts) — solo lo deja disponible como `providersById['kms']` para el
-  // día en que se decida migrar los call sites reales a una firma async con KMS de verdad.
+  // Fase 3.3 del plan 10/10: si KMS está configurado (KMS_KEY_ID + AWS_REGION), se ACTIVA como
+  // proveedor de cifrado de envelope encryption. A partir de ahí, todas las escrituras nuevas de
+  // PII (customer-onboarding, notifications) se cifran con data keys de AWS KMS real, sin tocar
+  // ningún call site: `encryptSecretEnvelope(x)` toma el proveedor activo. Los valores previos
+  // cifrados con `local` se siguen descifrando (el proveedor `local` sigue registrado y el
+  // providerId va embebido en cada valor). Sin KMS configurado, el proveedor activo permanece en
+  // `local` — el default seguro para dev/test.
   if (env.KMS_KEY_ID && env.AWS_REGION) {
-    registerDataKeyProvider(new KmsKeyProvider(env.KMS_KEY_ID, env.AWS_REGION));
-    logger.log('Proveedor KmsKeyProvider registrado para envelope-encryption.util.ts (KMS_KEY_ID configurado).');
+    setActiveEncryptionProvider(new KmsKeyProvider(env.KMS_KEY_ID, env.AWS_REGION));
+    logger.log('KMS activado como proveedor de cifrado de PII (KMS_KEY_ID + AWS_REGION configurados).');
   }
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op, Transaction, WhereOptions } from 'sequelize';
+import { FindOptions, Op, WhereOptions } from 'sequelize';
 import {
   AttributeDefinitionModel,
   ContextApprovalEventModel,
@@ -13,25 +13,21 @@ import {
   ContextSourceModel,
   ContextStagingItemModel,
   DataChangeLogModel,
-  DataClassificationPolicyModel,
-  DataProviderModel,
-  DataQualityRuleModel,
   EventDefinitionModel,
   FeatureDefinitionModel,
   ObservationDefinitionModel,
   OperationalAuditLogModel,
-  PrivacyProcessingPurposeModel,
-  RetentionPolicyModel,
   RiskModelVersionModel,
   RiskPolicyRuleModel,
   RiskRulesetVersionModel,
   RiskSignalSeedModel,
-  SensitiveFieldRuleModel,
 } from '../../database/models/index.js';
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
+import { CatalogDataGovernanceRepository } from './catalog-data-governance.repository.js';
+import { RepositoryOptions, upsertByCode } from './catalog-repository.helpers.js';
 import { DefinitionsQueryDto, ListCatalogsQueryDto } from './catalog-management.schemas.js';
 
-export type RepositoryOptions = { transaction?: Transaction };
+export type { RepositoryOptions };
 
 export type AuditValues = {
   tenantId: string;
@@ -85,14 +81,11 @@ export class CatalogManagementRepository {
     @InjectModel(RiskRulesetVersionModel) private readonly riskRulesetVersionModel: typeof RiskRulesetVersionModel,
     @InjectModel(RiskPolicyRuleModel) private readonly riskPolicyRuleModel: typeof RiskPolicyRuleModel,
     @InjectModel(RiskSignalSeedModel) private readonly riskSignalSeedModel: typeof RiskSignalSeedModel,
-    @InjectModel(PrivacyProcessingPurposeModel) private readonly privacyPurposeModel: typeof PrivacyProcessingPurposeModel,
-    @InjectModel(RetentionPolicyModel) private readonly retentionPolicyModel: typeof RetentionPolicyModel,
-    @InjectModel(DataProviderModel) private readonly dataProviderModel: typeof DataProviderModel,
-    @InjectModel(DataClassificationPolicyModel) private readonly classificationPolicyModel: typeof DataClassificationPolicyModel,
-    @InjectModel(SensitiveFieldRuleModel) private readonly sensitiveFieldRuleModel: typeof SensitiveFieldRuleModel,
-    @InjectModel(DataQualityRuleModel) private readonly dataQualityRuleModel: typeof DataQualityRuleModel,
     @InjectModel(OperationalAuditLogModel) private readonly auditModel: typeof OperationalAuditLogModel,
     @InjectModel(DataChangeLogModel) private readonly dataChangeLogModel: typeof DataChangeLogModel,
+    // Fase 2.3: el agregado de gobierno de datos vive en su propio repo (acceso acotado a sus 6
+    // tablas). La fachada delega en él para conservar su API pública.
+    private readonly dataGovernanceRepository: CatalogDataGovernanceRepository,
   ) {}
 
   listCatalogs(query: ListCatalogsQueryDto): Promise<ContextCatalogModel[]> {
@@ -481,35 +474,16 @@ export class CatalogManagementRepository {
   }
 
   upsertEventDefinition(values: Record<string, unknown>, options: RepositoryOptions) {
-    return this.upsertByCode(this.eventDefinitionModel, 'eventCode', values.eventCode as string, values, options);
+    return upsertByCode(this.eventDefinitionModel, 'eventCode', values.eventCode as string, values, options);
   }
   upsertObservationDefinition(values: Record<string, unknown>, options: RepositoryOptions) {
-    return this.upsertByCode(this.observationDefinitionModel, 'observationCode', values.observationCode as string, values, options);
+    return upsertByCode(this.observationDefinitionModel, 'observationCode', values.observationCode as string, values, options);
   }
   upsertAttributeDefinition(values: Record<string, unknown>, options: RepositoryOptions) {
-    return this.upsertByCode(this.attributeDefinitionModel, 'attributeCode', values.attributeCode as string, values, options);
+    return upsertByCode(this.attributeDefinitionModel, 'attributeCode', values.attributeCode as string, values, options);
   }
   upsertFeatureDefinition(values: Record<string, unknown>, options: RepositoryOptions) {
-    return this.upsertByCode(this.featureDefinitionModel, 'featureCode', values.featureCode as string, values, options);
-  }
-
-  async upsertByCode<T extends { update: (values: Record<string, unknown>, options?: { transaction?: Transaction }) => Promise<unknown> }>(
-    model: {
-      findOne: (options: FindOptions) => Promise<T | null>;
-      create: (values: any, options?: { transaction?: Transaction }) => Promise<T>;
-    },
-    fieldName: string,
-    fieldValue: string,
-    values: Record<string, unknown>,
-    options: RepositoryOptions,
-  ): Promise<{ record: T; created: boolean }> {
-    const existing = await model.findOne({ where: { [fieldName]: fieldValue }, transaction: options.transaction } as FindOptions);
-    if (existing) {
-      await existing.update({ ...values, updatedAtValue: values.updatedAtValue }, { transaction: options.transaction });
-      return { record: existing, created: false };
-    }
-    const record = await model.create(values, { transaction: options.transaction });
-    return { record, created: true };
+    return upsertByCode(this.featureDefinitionModel, 'featureCode', values.featureCode as string, values, options);
   }
 
   async listCurrentRiskPolicy() {
@@ -590,52 +564,29 @@ export class CatalogManagementRepository {
     return count;
   }
 
-  async listDataGovernancePolicies() {
-    const [privacyPurposes, retentionPolicies, dataProviders, classificationPolicies, sensitiveFieldRules, dataQualityRules] =
-      await Promise.all([
-        this.privacyPurposeModel.findAll({ where: { isActive: true }, order: [['purposeCode', 'ASC']] } as FindOptions),
-        this.retentionPolicyModel.findAll({ where: { isActive: true }, order: [['policyCode', 'ASC']] } as FindOptions),
-        this.dataProviderModel.findAll({ where: { isActive: true }, order: [['providerCode', 'ASC']] } as FindOptions),
-        this.classificationPolicyModel.findAll({ order: [['classificationCode', 'ASC']] } as FindOptions),
-        this.sensitiveFieldRuleModel.findAll({
-          where: { isActive: true },
-          order: [
-            ['tableName', 'ASC'],
-            ['fieldName', 'ASC'],
-          ],
-        } as FindOptions),
-        this.dataQualityRuleModel.findAll({ where: { isActive: true }, order: [['ruleCode', 'ASC']] } as FindOptions),
-      ]);
-    return { privacyPurposes, retentionPolicies, dataProviders, classificationPolicies, sensitiveFieldRules, dataQualityRules };
+  // --- Gobierno de datos: delegado en `CatalogDataGovernanceRepository` (Fase 2.3) --------------
+  // La fachada conserva estos métodos como delegadores finos para no cambiar sus consumidores; el
+  // acceso real a las 6 tablas de gobierno vive acotado en el repo por agregado.
+  listDataGovernancePolicies() {
+    return this.dataGovernanceRepository.listDataGovernancePolicies();
   }
-
   upsertPrivacyPurpose(values: Record<string, unknown>, options: RepositoryOptions) {
-    return this.upsertByCode(this.privacyPurposeModel, 'purposeCode', values.purposeCode as string, values, options);
+    return this.dataGovernanceRepository.upsertPrivacyPurpose(values, options);
   }
   upsertRetentionPolicy(values: Record<string, unknown>, options: RepositoryOptions) {
-    return this.upsertByCode(this.retentionPolicyModel, 'policyCode', values.policyCode as string, values, options);
+    return this.dataGovernanceRepository.upsertRetentionPolicy(values, options);
   }
   upsertDataProvider(values: Record<string, unknown>, options: RepositoryOptions) {
-    return this.upsertByCode(this.dataProviderModel, 'providerCode', values.providerCode as string, values, options);
+    return this.dataGovernanceRepository.upsertDataProvider(values, options);
   }
   upsertClassificationPolicy(values: Record<string, unknown>, options: RepositoryOptions) {
-    return this.upsertByCode(this.classificationPolicyModel, 'classificationCode', values.classificationCode as string, values, options);
+    return this.dataGovernanceRepository.upsertClassificationPolicy(values, options);
   }
   upsertDataQualityRule(values: Record<string, unknown>, options: RepositoryOptions) {
-    return this.upsertByCode(this.dataQualityRuleModel, 'ruleCode', values.ruleCode as string, values, options);
+    return this.dataGovernanceRepository.upsertDataQualityRule(values, options);
   }
-
-  async upsertSensitiveFieldRule(values: Record<string, unknown>, options: RepositoryOptions) {
-    const existing = await this.sensitiveFieldRuleModel.findOne({
-      where: { tableName: values.tableName, fieldName: values.fieldName },
-      transaction: options.transaction,
-    } as FindOptions);
-    if (existing) {
-      await existing.update({ ...values, updatedAtValue: values.updatedAtValue }, { transaction: options.transaction });
-      return { record: existing, created: false };
-    }
-    const record = await this.sensitiveFieldRuleModel.create(values as any, { transaction: options.transaction });
-    return { record, created: true };
+  upsertSensitiveFieldRule(values: Record<string, unknown>, options: RepositoryOptions) {
+    return this.dataGovernanceRepository.upsertSensitiveFieldRule(values, options);
   }
 
   createAudit(values: AuditValues, options: RepositoryOptions): Promise<OperationalAuditLogModel> {

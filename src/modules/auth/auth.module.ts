@@ -12,6 +12,8 @@ import {
 import { CustomersModule } from '../customers/customers.module.js';
 import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { AuthController } from './auth.controller.js';
+import { AuthActorResolverService } from './auth-actor-resolver.service.js';
+import { AuthPasswordResetService } from './auth-password-reset.service.js';
 import { AuthRepository } from './auth.repository.js';
 import { AuthService } from './auth.service.js';
 
@@ -30,7 +32,7 @@ import { AuthService } from './auth.service.js';
     MailSenderModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthRepository],
+  providers: [AuthService, AuthActorResolverService, AuthPasswordResetService, AuthRepository],
   exports: [AuthService, AuthRepository],
 })
 export class AuthModule {}

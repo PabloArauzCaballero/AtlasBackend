@@ -188,13 +188,13 @@ const envSchema = z
     META_WHATSAPP_DEFAULT_TEMPLATE_LANGUAGE: z.string().default('es'),
     NOTIFICATION_TOKEN_ENCRYPTION_KEY: z.string().min(32).default(DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY),
 
-    // ATLAS-P11-T13: opcionales a propósito. Si ambos están presentes, el bootstrap registra
-    // `KmsKeyProvider` como proveedor disponible para `envelope-encryption.util.ts` (ver
-    // `src/main.ts`). Esto NO activa el cifrado de PII con KMS automáticamente — los call sites
-    // reales (`customer-onboarding.service.ts`, `notifications.repository.ts`) siguen usando
-    // `encryptSecretEnvelope()` con su proveedor `local` por defecto hasta que se decida migrar
-    // esos call sites a una firma async con KMS de verdad (ver la nota de alcance en
-    // `envelope-encryption.util.ts`). Dejar esto sin configurar es válido y es el default seguro.
+    // Opcionales a propósito. Si AMBOS están presentes, `main.ts` ACTIVA `KmsKeyProvider` como
+    // proveedor de cifrado de envelope encryption (Fase 3.3 del plan 10/10): a partir de ahí las
+    // escrituras nuevas de PII (`customer-onboarding`, `notifications.repository.ts`) se cifran con
+    // data keys de AWS KMS real, sin cambiar los call sites — `encryptSecretEnvelope()` toma el
+    // proveedor activo. Los valores previos cifrados con `local` se siguen descifrando. Requiere
+    // que `@aws-sdk/client-kms` esté instalado en la imagen. Dejar esto sin configurar es válido y
+    // deja el proveedor activo en `local`, el default seguro para dev/test.
     KMS_KEY_ID: z.string().min(1).optional(),
     AWS_REGION: z.string().min(1).optional(),
 

@@ -12,7 +12,15 @@ import { decryptSecret as decryptSecretLegacyV1 } from './secret-box.util.js';
 const defaultProvider = new LocalKeyProvider();
 const providersById: Record<string, DataKeyProvider> = { local: defaultProvider };
 
-export async function encryptSecretEnvelope(plainText: string, provider: DataKeyProvider = defaultProvider): Promise<string> {
+// Proveedor ACTIVO de cifrado: el que usan por defecto los call sites (`encryptSecretEnvelope(x)`
+// sin segundo argumento). Arranca en `local` — el default seguro para desarrollo/test y para
+// cualquier entorno que no configure KMS. `setActiveEncryptionProvider` lo conmuta a `kms` en
+// `main.ts` cuando `KMS_KEY_ID`+`AWS_REGION` están presentes (Fase 3.3 del plan 10/10). El
+// descifrado no depende de esto: usa el `providerId` embebido en cada valor, así que datos
+// cifrados con `local` siguen descifrándose aunque el proveedor activo sea `kms`, y viceversa.
+let activeEncryptionProvider: DataKeyProvider = defaultProvider;
+
+export async function encryptSecretEnvelope(plainText: string, provider: DataKeyProvider = activeEncryptionProvider): Promise<string> {
   const dataKey = await provider.generateDataKey();
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', dataKey.plaintextKey, iv);
@@ -58,8 +66,25 @@ export async function decryptSecretEnvelope(value: string | null): Promise<strin
 
 /**
  * Registra un `DataKeyProvider` adicional (p. ej. `KmsKeyProvider` una vez conectado a AWS) para
- * que `decryptSecretEnvelope` pueda descifrar valores cifrados con él.
+ * que `decryptSecretEnvelope` pueda descifrar valores cifrados con él. Registrar un proveedor NO
+ * lo vuelve el proveedor de CIFRADO por defecto; para eso usa `setActiveEncryptionProvider`.
  */
 export function registerDataKeyProvider(provider: DataKeyProvider): void {
   providersById[provider.providerId] = provider;
+}
+
+/**
+ * Conmuta el proveedor ACTIVO de cifrado (el que usan los call sites sin argumento). Registra
+ * también el proveedor para descifrado por conveniencia. Llamado en `main.ts` cuando KMS está
+ * configurado, de modo que en producción las escrituras nuevas de PII se cifren con KMS real sin
+ * tocar ningún call site. Es idempotente.
+ */
+export function setActiveEncryptionProvider(provider: DataKeyProvider): void {
+  registerDataKeyProvider(provider);
+  activeEncryptionProvider = provider;
+}
+
+/** Devuelve el `providerId` del proveedor de cifrado activo (`local` | `kms`). Útil para logs/observabilidad. */
+export function getActiveEncryptionProviderId(): string {
+  return activeEncryptionProvider.providerId;
 }

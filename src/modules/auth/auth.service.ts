@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ForbiddenException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { Transaction } from 'sequelize';
@@ -13,21 +13,12 @@ import {
   hashOneTimeCode,
   verifyOneTimeCode,
 } from '../../common/utils/crypto/one-time-code.util.js';
-import { hashSensitiveText } from '../../common/utils/crypto/hash.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
-import { CustomersRepository } from '../customers/customers.repository.js';
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
+import { AuthActorResolverService, ResolvedActor } from './auth-actor-resolver.service.js';
+import { AuthPasswordResetService } from './auth-password-reset.service.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
 import { LoginDto, ProvisionCredentialsDto } from './auth.schemas.js';
-
-type ResolvedActor = {
-  id: string;
-  tenantId: string | null;
-  role: AtlasUserRole;
-  /** Email de contacto para correos transaccionales (para actores internos, el mismo email de login). */
-  email: string | null;
-  displayName: string | null;
-};
 
 type LoginResult = {
   accessToken: string;
@@ -52,79 +43,26 @@ export function isLoginPinChallenge(outcome: LoginOutcome): outcome is LoginPinC
   return 'pinChallengeRequired' in outcome;
 }
 
-const KNOWN_ROLES: ReadonlySet<AtlasUserRole> = new Set([
-  'customer',
-  'internal_operator',
-  'risk_analyst',
-  'compliance_analyst',
-  'fraud_analyst',
-  'system',
-  'system_admin',
-  'qa_engineer',
-  'devops',
-  'readonly_auditor',
-  'merchant',
-  'admin',
-  'platform_admin',
-]);
-
-function isKnownRole(value: string): value is AtlasUserRole {
-  return KNOWN_ROLES.has(value as AtlasUserRole);
-}
-
 // "Super admins": roles con administración total. Con MailSender configurado, su login exige un
 // PIN adicional entregado por correo (ver `AuthService.login` / `verifyLoginPin`).
 const LOGIN_PIN_REQUIRED_ROLES: ReadonlySet<AtlasUserRole> = new Set(['admin', 'platform_admin']);
 
 /**
  * Emisor único de JWT de producción para clientes, usuarios internos y usuarios de plataforma.
+ * La resolución de actor vive en `AuthActorResolverService` y el flujo de reset de contraseña en
+ * `AuthPasswordResetService` (Fase 2.2 del plan 10/10); aquí queda la orquestación de login, PIN de
+ * super admin, rotación de refresh token, logout y provisión de credenciales.
  */
 @Injectable()
 export class AuthService {
   constructor(
     private readonly authRepository: AuthRepository,
-    private readonly customersRepository: CustomersRepository,
+    private readonly actorResolver: AuthActorResolverService,
+    private readonly passwordReset: AuthPasswordResetService,
     private readonly tokenRevocationService: TokenRevocationService,
     private readonly mailSenderService: MailSenderService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
-
-  private async resolveActorForLogin(tenantId: string, actorType: ActorType, identifier: string): Promise<ResolvedActor | null> {
-    if (actorType === 'customer') {
-      const identifierHash = hashSensitiveText(identifier);
-      const customer = await this.customersRepository.findByContactHash(tenantId, {
-        phoneHash: identifierHash,
-        emailHash: identifierHash,
-      });
-      if (!customer || customer.lifecycleStatus === 'closed') return null;
-      // El email/teléfono del cliente se almacena hasheado; el único valor en claro disponible
-      // es el identificador que el propio cliente acaba de escribir (y que coincidió por hash).
-      const email = identifier.includes('@') ? identifier : null;
-      return { id: customer.id, tenantId: customer.tenantId, role: 'customer', email, displayName: null };
-    }
-
-    if (actorType === 'internal_user') {
-      // La búsqueda normaliza email en el repositorio para tolerar diferencias de mayúsculas.
-      const internalUser = await this.authRepository.findInternalUserByEmail(identifier, tenantId);
-      if (!internalUser || internalUser.status !== 'active' || !internalUser.roleCode || !isKnownRole(internalUser.roleCode)) {
-        return null;
-      }
-      return {
-        id: internalUser.id,
-        tenantId: internalUser.tenantId,
-        role: internalUser.roleCode,
-        email: internalUser.email,
-        displayName: internalUser.fullName,
-      };
-    }
-
-    // platform_user
-    const platformUser = await this.authRepository.findPlatformUserByEmail(identifier);
-    if (!platformUser || platformUser.status !== 'active' || !platformUser.roleCode || !isKnownRole(platformUser.roleCode)) {
-      return null;
-    }
-    return { id: platformUser.id, tenantId: null, role: platformUser.roleCode, email: platformUser.email, displayName: platformUser.fullName };
-  }
 
   private issueAccessToken(actor: ResolvedActor, actorType: ActorType, tokenVersion: number): string {
     const payload: Record<string, unknown> = {
@@ -173,7 +111,7 @@ export class AuthService {
   }
 
   async login(input: { tenantId: string; dto: LoginDto; ip: string | null; userAgent: string | null }): Promise<LoginOutcome> {
-    const actor = await this.resolveActorForLogin(input.tenantId, input.dto.actorType, input.dto.identifier);
+    const actor = await this.actorResolver.resolveActorForLogin(input.tenantId, input.dto.actorType, input.dto.identifier);
 
     // Mensaje deliberadamente genérico en los tres casos de falla (actor inexistente, sin
     // credenciales, contraseña incorrecta) para no facilitar enumeración de cuentas/usuarios
@@ -184,7 +122,7 @@ export class AuthService {
       this.authRepository.recordLoginAttemptEvent({
         tenantId: input.tenantId,
         actorType: input.dto.actorType,
-        actorId: failed ? failed.actorId : actor?.id ?? null,
+        actorId: failed ? failed.actorId : (actor?.id ?? null),
         eventType: 'login',
         successful: failed === null,
         failureReasonCode: failed?.reasonCode ?? null,
@@ -327,7 +265,7 @@ export class AuthService {
 
     await this.authRepository.consumeOneTimeCode(challenge);
 
-    const actor = await this.reResolveActorRole(actorType, challenge.actorId, challenge.tenantId);
+    const actor = await this.actorResolver.reResolveActorRole(actorType, challenge.actorId, challenge.tenantId);
     const credential = actor ? await this.authRepository.findCredentialsByActor(actorType, actor.id) : null;
     if (!actor || !credential) {
       throw new UnauthorizedException('El actor asociado a este PIN ya no está disponible.');
@@ -348,12 +286,7 @@ export class AuthService {
     return this.issueTokenPair(actor, actorType, credential.tokenVersion, { ip: input.ip, userAgent: input.userAgent });
   }
 
-  /**
-   * "Olvidé mi contraseña": envía un código de un solo uso al email del actor. La respuesta es
-   * idéntica exista o no la cuenta (sin enumeración); solo falla si el servicio de correo no
-   * está configurado, porque en ese caso NINGUNA solicitud podría completarse y ocultarlo solo
-   * confundiría al operador.
-   */
+  /** "Olvidé mi contraseña" (paso 1). Delegado en `AuthPasswordResetService`. */
   async requestPasswordReset(input: {
     tenantId: string;
     actorType: ActorType;
@@ -361,52 +294,10 @@ export class AuthService {
     ip: string | null;
     userAgent: string | null;
   }): Promise<{ requested: boolean }> {
-    if (!this.mailSenderService.isEnabled()) {
-      throw new ServiceUnavailableException('El servicio de correo no está configurado; no es posible enviar códigos de recuperación.');
-    }
-
-    const genericResponse = { requested: true };
-    const actor = await this.resolveActorForLogin(input.tenantId, input.actorType, input.identifier);
-    if (!actor || !actor.email) return genericResponse;
-
-    const credential = await this.authRepository.findCredentialsByActor(input.actorType, actor.id);
-    if (!credential) return genericResponse;
-
-    const code = generateNumericCode();
-    const ttlMinutes = env.AUTH_ONE_TIME_CODE_TTL_MINUTES;
-    await this.authRepository.createOneTimeCode({
-      tenantId: actor.tenantId,
-      actorType: input.actorType,
-      actorId: actor.id,
-      purpose: 'password_reset',
-      codeHash: hashOneTimeCode(code),
-      challengeHash: null,
-      expiresAt: new Date(Date.now() + ttlMinutes * 60_000),
-    });
-
-    await this.mailSenderService.sendPasswordResetCode({
-      to: actor.email,
-      recipientName: actor.displayName,
-      code,
-      ttlMinutes,
-      reference: `password-reset-${input.actorType}-${actor.id}`,
-    });
-
-    await this.authRepository.recordLoginAttemptEvent({
-      tenantId: actor.tenantId,
-      actorType: input.actorType,
-      actorId: actor.id,
-      eventType: 'password_reset_request',
-      successful: true,
-      failureReasonCode: null,
-      ipAddress: input.ip,
-      userAgent: input.userAgent,
-    });
-
-    return genericResponse;
+    return this.passwordReset.requestPasswordReset(input);
   }
 
-  /** Segundo paso del reset: código recibido por correo + contraseña nueva. */
+  /** Reset de contraseña (paso 2). Delegado en `AuthPasswordResetService`. */
   async confirmPasswordReset(input: {
     tenantId: string;
     actorType: ActorType;
@@ -416,49 +307,7 @@ export class AuthService {
     ip: string | null;
     userAgent: string | null;
   }): Promise<{ passwordChanged: boolean }> {
-    // Mensaje genérico en todos los caminos de falla (actor inexistente, sin código activo,
-    // código incorrecto/expirado) por la misma razón anti-enumeración que en `login`.
-    const invalidCodeError = new UnauthorizedException('Código inválido o expirado.');
-
-    if (!isPasswordStrongEnough(input.newPassword)) {
-      throw new UnauthorizedException('La contraseña no cumple el mínimo de seguridad requerido.');
-    }
-
-    const actor = await this.resolveActorForLogin(input.tenantId, input.actorType, input.identifier);
-    if (!actor) throw invalidCodeError;
-
-    const oneTimeCode = await this.authRepository.findActiveOneTimeCodeByActor(input.actorType, actor.id, 'password_reset');
-    if (!oneTimeCode || oneTimeCode.expiresAt.getTime() < Date.now()) throw invalidCodeError;
-
-    if (!verifyOneTimeCode(input.code, oneTimeCode.codeHash)) {
-      await this.authRepository.registerOneTimeCodeFailedAttempt(oneTimeCode, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
-      throw invalidCodeError;
-    }
-
-    const credential = await this.authRepository.findCredentialsByActor(input.actorType, actor.id);
-    if (!credential) throw invalidCodeError;
-
-    await this.authRepository.consumeOneTimeCode(oneTimeCode);
-    await this.authRepository.updatePasswordHash(credential, await hashPassword(input.newPassword));
-
-    // Cambio de contraseña = cerrar toda sesión previa: refresh tokens revocados y tokenVersion
-    // incrementado vía TokenRevocationService (misma razón que logout allDevices: la caché Redis
-    // de JwtAuthGuard debe invalidarse de inmediato, no al vencer su TTL).
-    await this.authRepository.revokeAllRefreshTokensForActor(input.actorType, actor.id, 'password_reset');
-    await this.tokenRevocationService.bumpTokenVersion(input.actorType, actor.id);
-
-    await this.authRepository.recordLoginAttemptEvent({
-      tenantId: actor.tenantId,
-      actorType: input.actorType,
-      actorId: actor.id,
-      eventType: 'password_reset',
-      successful: true,
-      failureReasonCode: null,
-      ipAddress: input.ip,
-      userAgent: input.userAgent,
-    });
-
-    return { passwordChanged: true };
+    return this.passwordReset.confirmPasswordReset(input);
   }
 
   /**
@@ -477,7 +326,9 @@ export class AuthService {
   async refresh(input: { refreshToken: string; ip: string | null; userAgent: string | null }): Promise<LoginResult> {
     const tokenHash = hashRefreshToken(input.refreshToken);
 
-    const outcome = await this.sequelize.transaction((transaction) => this.rotateRefreshTokenWithinTransaction(tokenHash, input, transaction));
+    const outcome = await this.sequelize.transaction((transaction) =>
+      this.rotateRefreshTokenWithinTransaction(tokenHash, input, transaction),
+    );
 
     if (outcome.kind === 'success') {
       return {
@@ -540,7 +391,7 @@ export class AuthService {
     if (!credential) return { kind: 'invalid' };
 
     // El rol/tenant vigentes se re-resuelven antes de emitir un refresh token nuevo.
-    const refreshedActor = await this.reResolveActorRole(actorType, stored.actorId, stored.tenantId);
+    const refreshedActor = await this.actorResolver.reResolveActorRole(actorType, stored.actorId, stored.tenantId);
     if (!refreshedActor) return { kind: 'actor_unavailable' };
 
     // Rotación: el refresh token usado queda revocado y se emite uno nuevo, en la misma
@@ -560,28 +411,6 @@ export class AuthService {
 
     const accessToken = this.issueAccessToken(refreshedActor, actorType, credential.tokenVersion);
     return { kind: 'success', accessToken, refreshToken: newRefreshToken.token };
-  }
-
-  private async reResolveActorRole(actorType: ActorType, actorId: string, tenantId: string | null): Promise<ResolvedActor | null> {
-    if (actorType === 'customer') {
-      const customer = tenantId ? await this.customersRepository.findById(tenantId, actorId) : null;
-      if (!customer || customer.lifecycleStatus === 'closed') return null;
-      return { id: actorId, tenantId, role: 'customer', email: null, displayName: null };
-    }
-    if (actorType === 'internal_user') {
-      const internalUser = await this.authRepository.findInternalUserById(actorId);
-      if (!internalUser || internalUser.status !== 'active' || !internalUser.roleCode || !isKnownRole(internalUser.roleCode)) return null;
-      return {
-        id: actorId,
-        tenantId: internalUser.tenantId,
-        role: internalUser.roleCode,
-        email: internalUser.email,
-        displayName: internalUser.fullName,
-      };
-    }
-    const platformUser = await this.authRepository.findPlatformUserById(actorId);
-    if (!platformUser || platformUser.status !== 'active' || !platformUser.roleCode || !isKnownRole(platformUser.roleCode)) return null;
-    return { id: actorId, tenantId: null, role: platformUser.roleCode, email: platformUser.email, displayName: platformUser.fullName };
   }
 
   async logout(input: { refreshToken: string; allDevices: boolean }): Promise<{ loggedOut: boolean }> {
