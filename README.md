@@ -2,12 +2,11 @@
 
 > **Estado real del proyecto:** este backend implementa la base de Atlas para identidad,
 > autenticación, sesiones, consentimientos, privacidad, telemetría, riesgo, fraude, operaciones,
-> catálogo de datos, auditoría, notificaciones, eventos y proveedores externos. Para el historial
-> de cambios y documentación técnica se redujo a lo estrictamente útil para ejecutar, entender
-> y mantener el backend. Las auditorías, pendientes, prompts no esenciales y reportes temporales
-> fueron retirados para mantener el repositorio limpio.
+> catálogo de datos, auditoría, notificaciones, eventos y proveedores externos. La documentación
+> del repositorio se mantiene enfocada en operación, contratos técnicos y mantenimiento de
+> producción.
 
-Este README es el punto de entrada real del repositorio y reemplaza documentación temporal de parches anteriores.
+Este README es el punto de entrada operativo del repositorio.
 
 ## Qué es Atlas
 
@@ -121,8 +120,8 @@ siempre:
 yarn start:dev
 ```
 
-Este patch cambia `start:dev` para forzar `NODE_ENV=development` de forma compatible con Windows,
-Linux y macOS. Producción debe arrancarse con:
+`start:dev` fuerza `NODE_ENV=development` de forma compatible con Windows, Linux y macOS.
+Producción debe arrancarse con:
 
 ```bash
 yarn start:prod
@@ -186,4 +185,3 @@ acepta un campo `password` opcional. El mecanismo final para consumidores puede 
 - Ninguna tabla financiera/de auditoría se borra o sobrescribe; se usan movimientos, reversos o eventos.
 - Toda entrada externa se valida con Zod antes de tocar la base de datos.
 - No exponer modelos Sequelize directamente en respuestas HTTP; usar mappers.
-

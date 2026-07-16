@@ -1,17 +1,4 @@
-import {
-  Body,
-  Controller,
-  ForbiddenException,
-  Get,
-  Headers,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Patch,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -21,32 +8,22 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { assertOwnCustomerResource } from '../../common/utils/auth/ownership.util.js';
 import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { actorId, assertCustomerAccess, customerScopeForConsentMutation } from './external-data-controller.util.js';
 import { ExternalDataService } from './external-data.service.js';
 import {
   approveProviderRequestSchema,
   ApproveProviderRequestDto,
-  bankTransferVerifySchema,
-  BankTransferVerifyDto,
   consentIdParamsSchema,
   ConsentIdParamsDto,
   customerIdParamsSchema,
   CustomerIdParamsDto,
   decisionPackageQuerySchema,
   DecisionPackageQueryDto,
-  digitalTrustCheckSchema,
-  DigitalTrustCheckDto,
   externalConsentSchema,
   ExternalConsentDto,
   externalDataRequestSchema,
   ExternalDataRequestDto,
-  facebookCallbackSchema,
-  FacebookCallbackDto,
-  facebookConnectUrlQuerySchema,
-  FacebookConnectUrlQueryDto,
-  infocenterCheckSchema,
-  InfocenterCheckDto,
   idempotencyAuditQuerySchema,
   IdempotencyAuditQueryDto,
   productionGateQuerySchema,
@@ -61,8 +38,6 @@ import {
   ProviderUsageQueryDto,
   providerCostPolicyPatchSchema,
   ProviderCostPolicyPatchDto,
-  qrPaymentVerifySchema,
-  QrPaymentVerifyDto,
   requestIdParamsSchema,
   RequestIdParamsDto,
   retentionPreviewQuerySchema,
@@ -71,29 +46,15 @@ import {
   RetryRequestDto,
   sanitizationAuditQuerySchema,
   SanitizationAuditQueryDto,
-  segipVerifySchema,
-  SegipVerifyDto,
-  telcoPhoneTrustSchema,
-  TelcoPhoneTrustDto,
-  whatsappVerificationConfirmSchema,
-  WhatsappVerificationConfirmDto,
-  whatsappVerificationStartSchema,
-  WhatsappVerificationStartDto,
 } from './external-data.schemas.js';
 
-function actorId(currentUser: AuthenticatedUser): string | undefined {
-  return currentUser.internalUserId ?? currentUser.platformUserId ?? currentUser.customerId;
-}
-
-function assertCustomerAccess(currentUser: AuthenticatedUser, customerId?: string): void {
-  if (customerId) assertOwnCustomerResource(currentUser, customerId);
-}
-
-function customerScopeForConsentMutation(currentUser: AuthenticatedUser): string | undefined {
-  if (currentUser.role !== 'customer') return undefined;
-  if (!currentUser.customerId) throw new ForbiddenException('El token de cliente no contiene customerId.');
-  return currentUser.customerId;
-}
+/**
+ * Fase 2.2 del plan 10/10: este archivo agrupaba NUEVE clases de controller en 966 líneas. Los siete
+ * verticales (kyc, bureau, payments, telco, facebook, whatsapp, digital-trust) viven ahora en
+ * `controllers/`, y los helpers compartidos en `external-data-controller.util.ts`. Aquí quedan el
+ * controller de ejecución (`external-data`) y el de administración (`admin/external-providers`).
+ * Las rutas, guards, roles y comportamiento no cambian.
+ */
 
 @ApiTags('external-data')
 @ApiBearerAuth('access-token')
@@ -103,7 +64,11 @@ function customerScopeForConsentMutation(currentUser: AuthenticatedUser): string
 export class ExternalDataController {
   constructor(private readonly externalDataService: ExternalDataService) {}
 
-  @ApiOperation({ summary: 'Registrar consentimiento para un proveedor externo', description: 'Registra el consentimiento del cliente para consultar un proveedor de datos externos específico (KYC, buró, telco, etc.).' })
+  @ApiOperation({
+    summary: 'Registrar consentimiento para un proveedor externo',
+    description:
+      'Registra el consentimiento del cliente para consultar un proveedor de datos externos específico (KYC, buró, telco, etc.).',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiBody({ schema: zodToApiSchema(externalConsentSchema) })
   @ApiResponse({ status: 201, description: 'Consentimiento registrado.' })
@@ -164,7 +129,8 @@ export class ExternalDataController {
 
   @ApiOperation({
     summary: 'Preflight de una solicitud a proveedor externo',
-    description: 'Evalúa consentimiento, política de costo, cuota y circuit breaker SIN ejecutar el proveedor ni guardar respuesta. Úsalo antes de proveedores costosos o en producción.',
+    description:
+      'Evalúa consentimiento, política de costo, cuota y circuit breaker SIN ejecutar el proveedor ni guardar respuesta. Úsalo antes de proveedores costosos o en producción.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiBody({ schema: zodToApiSchema(externalDataRequestSchema) })
@@ -186,12 +152,17 @@ export class ExternalDataController {
 
   @ApiOperation({
     summary: 'Ejecutar solicitud a proveedor externo',
-    description: 'Ejecuta la consulta contra el proveedor (o devuelve una respuesta cacheada según TTL de política), registra costo/cuota, y persiste observaciones normalizadas + features.',
+    description:
+      'Ejecuta la consulta contra el proveedor (o devuelve una respuesta cacheada según TTL de política), registra costo/cuota, y persiste observaciones normalizadas + features.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: false })
   @ApiBody({ schema: zodToApiSchema(externalDataRequestSchema) })
-  @ApiResponse({ status: 200, description: 'Resultado de la ejecución (COMPLETED, CACHED, BLOCKED_BY_COST_POLICY, RATE_LIMITED, MANUAL_APPROVAL_REQUIRED, CONSENT_REQUIRED, FAILED, etc.).' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Resultado de la ejecución (COMPLETED, CACHED, BLOCKED_BY_COST_POLICY, RATE_LIMITED, MANUAL_APPROVAL_REQUIRED, CONSENT_REQUIRED, FAILED, etc.).',
+  })
   @ApiResponse({ status: 403, description: 'Un customer intentó consultar datos de otro cliente.' })
   @Post('requests')
   @HttpCode(HttpStatus.OK)
@@ -235,7 +206,11 @@ export class ExternalDataController {
     return this.externalDataService.getProviderHealth(providerCode);
   }
 
-  @ApiOperation({ summary: 'Features derivados de datos externos de un cliente', description: 'Devuelve los features normalizados (score de confianza, matches, etc.) computados a partir de todas las respuestas de proveedores externos del cliente.' })
+  @ApiOperation({
+    summary: 'Features derivados de datos externos de un cliente',
+    description:
+      'Devuelve los features normalizados (score de confianza, matches, etc.) computados a partir de todas las respuestas de proveedores externos del cliente.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(customerIdParamsSchema.shape.customerId) })
   @ApiResponse({ status: 200, description: 'Features del cliente.' })
@@ -271,12 +246,21 @@ export class ExternalDataController {
 
   @ApiOperation({
     summary: 'Paquete de decisión completo de un cliente',
-    description: 'Agrega features, observaciones y (opcionalmente) las respuestas crudas redactadas de todos los proveedores externos consultados, para un panel de decisión de riesgo/crédito.',
+    description:
+      'Agrega features, observaciones y (opcionalmente) las respuestas crudas redactadas de todos los proveedores externos consultados, para un panel de decisión de riesgo/crédito.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(customerIdParamsSchema.shape.customerId) })
-  @ApiQuery({ name: 'includeRawResponses', required: false, schema: zodObjectPropertySchemas(decisionPackageQuerySchema).includeRawResponses })
-  @ApiQuery({ name: 'featureMaxAgeHours', required: false, schema: zodObjectPropertySchemas(decisionPackageQuerySchema).featureMaxAgeHours })
+  @ApiQuery({
+    name: 'includeRawResponses',
+    required: false,
+    schema: zodObjectPropertySchemas(decisionPackageQuerySchema).includeRawResponses,
+  })
+  @ApiQuery({
+    name: 'featureMaxAgeHours',
+    required: false,
+    schema: zodObjectPropertySchemas(decisionPackageQuerySchema).featureMaxAgeHours,
+  })
   @ApiResponse({ status: 200, description: 'Paquete de decisión.' })
   @Get('users/:customerId/decision-package')
   getDecisionPackage(
@@ -294,7 +278,10 @@ export class ExternalDataController {
     });
   }
 
-  @ApiOperation({ summary: 'Observaciones normalizadas de un cliente', description: 'Lista cruda de observaciones individuales (no agregadas a features) generadas por proveedores externos.' })
+  @ApiOperation({
+    summary: 'Observaciones normalizadas de un cliente',
+    description: 'Lista cruda de observaciones individuales (no agregadas a features) generadas por proveedores externos.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(customerIdParamsSchema.shape.customerId) })
   @ApiResponse({ status: 200, description: 'Observaciones del cliente.' })
@@ -334,14 +321,20 @@ export class AdminExternalProvidersController {
     return this.externalDataService.getProviderHealth();
   }
 
-  @ApiOperation({ summary: 'Readiness de proveedores para producción', description: 'Evalúa si cada proveedor tiene credenciales/integración real lista para modo production.' })
+  @ApiOperation({
+    summary: 'Readiness de proveedores para producción',
+    description: 'Evalúa si cada proveedor tiene credenciales/integración real lista para modo production.',
+  })
   @ApiResponse({ status: 200, description: 'Reporte de readiness.' })
   @Get('readiness')
   readiness() {
     return this.externalDataService.getProviderReadiness();
   }
 
-  @ApiOperation({ summary: 'Auditoría de calidad de configuración de proveedores', description: 'Detecta configuraciones riesgosas (p. ej. HIGH_COST_NOT_BLOCKED — proveedor costoso sin gate de aprobación).' })
+  @ApiOperation({
+    summary: 'Auditoría de calidad de configuración de proveedores',
+    description: 'Detecta configuraciones riesgosas (p. ej. HIGH_COST_NOT_BLOCKED — proveedor costoso sin gate de aprobación).',
+  })
   @ApiResponse({ status: 200, description: 'Hallazgos de auditoría de calidad.' })
   @Get('quality-audit')
   qualityAudit() {
@@ -411,7 +404,10 @@ export class AdminExternalProvidersController {
     });
   }
 
-  @ApiOperation({ summary: 'Vista previa de purga por retención', description: 'Simula qué respuestas de proveedores externos serían purgadas por política de retención, sin borrar nada.' })
+  @ApiOperation({
+    summary: 'Vista previa de purga por retención',
+    description: 'Simula qué respuestas de proveedores externos serían purgadas por política de retención, sin borrar nada.',
+  })
   @ApiQuery({ name: 'days', required: false, schema: zodObjectPropertySchemas(retentionPreviewQuerySchema).days })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(retentionPreviewQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Vista previa de purga.' })
@@ -420,7 +416,11 @@ export class AdminExternalProvidersController {
     return this.externalDataService.getRetentionPreview({ days: query.days, limit: query.limit });
   }
 
-  @ApiOperation({ summary: 'Auditoría de sanitización de respuestas', description: 'Verifica que las respuestas crudas persistidas de proveedores externos estén correctamente redactadas (sin PII en claro).' })
+  @ApiOperation({
+    summary: 'Auditoría de sanitización de respuestas',
+    description:
+      'Verifica que las respuestas crudas persistidas de proveedores externos estén correctamente redactadas (sin PII en claro).',
+  })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(sanitizationAuditQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Auditoría de sanitización.' })
   @Get('sanitization-audit')
@@ -452,7 +452,11 @@ export class AdminExternalProvidersController {
   // visibilidad de solo lectura, pero este endpoint reconfigura en caliente el modo de
   // producción, estado y activación de un proveedor externo (KYC/crédito/telco/pagos) — una
   // acción de plataforma, no de investigación.
-  @ApiOperation({ summary: 'Reconfigurar modo/estado runtime de un proveedor (solo admin)', description: 'Cambia en caliente el modo (mock_local/sandbox/production/disabled), estado activo/inactivo. Restringido a admin/platform_admin.' })
+  @ApiOperation({
+    summary: 'Reconfigurar modo/estado runtime de un proveedor (solo admin)',
+    description:
+      'Cambia en caliente el modo (mock_local/sandbox/production/disabled), estado activo/inactivo. Restringido a admin/platform_admin.',
+  })
   @ApiParam({ name: 'providerCode', schema: zodToApiSchema(providerCodeParamsSchema.shape.providerCode) })
   @ApiBody({ schema: zodToApiSchema(providerRuntimePatchSchema) })
   @ApiResponse({ status: 200, description: 'Política runtime actualizada.' })
@@ -466,7 +470,10 @@ export class AdminExternalProvidersController {
     return this.externalDataService.updateProviderRuntimePolicy({ providerCode: params.providerCode, patch: body });
   }
 
-  @ApiOperation({ summary: 'Kill switch de emergencia de un proveedor', description: 'Desactiva inmediatamente un proveedor externo (p. ej. ante una fuga de datos o abuso de costo detectado).' })
+  @ApiOperation({
+    summary: 'Kill switch de emergencia de un proveedor',
+    description: 'Desactiva inmediatamente un proveedor externo (p. ej. ante una fuga de datos o abuso de costo detectado).',
+  })
   @ApiParam({ name: 'providerCode', schema: zodToApiSchema(providerCodeParamsSchema.shape.providerCode) })
   @ApiBody({ schema: zodToApiSchema(providerRuntimePatchSchema) })
   @ApiResponse({ status: 200, description: 'Proveedor desactivado.' })
@@ -491,7 +498,10 @@ export class AdminExternalProvidersController {
   // política de costo/aprobación manual de un proveedor (incluye poder desactivar
   // `requiresManualApproval`/`blockByDefault` en una query de costo alto) — control financiero,
   // no de investigación de riesgo/cumplimiento.
-  @ApiOperation({ summary: 'Editar política de costo/aprobación de un proveedor (solo admin)', description: 'Control financiero — puede modificar requiresManualApproval/blockByDefault para un tipo de consulta de costo alto.' })
+  @ApiOperation({
+    summary: 'Editar política de costo/aprobación de un proveedor (solo admin)',
+    description: 'Control financiero — puede modificar requiresManualApproval/blockByDefault para un tipo de consulta de costo alto.',
+  })
   @ApiParam({ name: 'providerCode', schema: zodToApiSchema(providerCodeParamsSchema.shape.providerCode) })
   @ApiParam({ name: 'queryType', description: 'Tipo de consulta (p. ej. IDENTITY_VERIFICATION, CREDIT_CHECK).' })
   @ApiBody({ schema: zodToApiSchema(providerCostPolicyPatchSchema) })
@@ -507,7 +517,11 @@ export class AdminExternalProvidersController {
     return this.externalDataService.updateProviderCostPolicy({ providerCode: params.providerCode, queryType, patch: body });
   }
 
-  @ApiOperation({ summary: 'Probar un proveedor con datos sintéticos', description: 'Ejecuta una solicitud real de prueba contra el proveedor (útil para QA/debug), con valores por defecto razonables si no se envían.' })
+  @ApiOperation({
+    summary: 'Probar un proveedor con datos sintéticos',
+    description:
+      'Ejecuta una solicitud real de prueba contra el proveedor (útil para QA/debug), con valores por defecto razonables si no se envían.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'providerCode', schema: zodToApiSchema(providerCodeParamsSchema.shape.providerCode) })
   @ApiResponse({ status: 200, description: 'Resultado de la ejecución de prueba.' })
@@ -540,7 +554,10 @@ export class AdminExternalProvidersController {
   // gate de control de costos que `auditExternalProvidersQuality` marca como CRITICAL si falta
   // (`HIGH_COST_NOT_BLOCKED`); dejarlo abierto a `risk_analyst`/`compliance_analyst` permitiría
   // que el mismo perfil que solicita datos costosos se autoapruebe.
-  @ApiOperation({ summary: 'Aprobar solicitud costosa/manual (solo admin)', description: 'Aprueba una solicitud bloqueada por política de costo o que requiere revisión manual, permitiendo su ejecución.' })
+  @ApiOperation({
+    summary: 'Aprobar solicitud costosa/manual (solo admin)',
+    description: 'Aprueba una solicitud bloqueada por política de costo o que requiere revisión manual, permitiendo su ejecución.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'requestId', schema: zodToApiSchema(requestIdParamsSchema.shape.requestId) })
   @ApiBody({ schema: zodToApiSchema(approveProviderRequestSchema) })
@@ -586,7 +603,11 @@ export class AdminExternalProvidersController {
     });
   }
 
-  @ApiOperation({ summary: 'Reconstruir snapshot de features desde una respuesta existente', description: 'Recalcula el snapshot de features a partir de la respuesta ya almacenada de una solicitud, sin volver a consultar al proveedor.' })
+  @ApiOperation({
+    summary: 'Reconstruir snapshot de features desde una respuesta existente',
+    description:
+      'Recalcula el snapshot de features a partir de la respuesta ya almacenada de una solicitud, sin volver a consultar al proveedor.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'requestId', schema: zodToApiSchema(requestIdParamsSchema.shape.requestId) })
   @ApiResponse({ status: 200, description: 'Snapshot de features reconstruido.' })
@@ -601,366 +622,6 @@ export class AdminExternalProvidersController {
     return this.externalDataService.rebuildFeatureSnapshotFromRequest({
       tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
       requestId: params.requestId,
-    });
-  }
-}
-
-@ApiTags('kyc')
-@ApiBearerAuth('access-token')
-@Controller('kyc')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
-@Roles('customer', 'internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
-export class KycExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
-
-  @ApiOperation({ summary: 'Verificar identidad contra SEGIP', description: 'Consulta el registro de identidad boliviano (SEGIP/CGIP) para validar documento, nombre, fecha de nacimiento.' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: false })
-  @ApiBody({ schema: zodToApiSchema(segipVerifySchema) })
-  @ApiResponse({ status: 200, description: 'Resultado de la verificación de identidad.' })
-  @ApiResponse({ status: 403, description: 'Un customer intentó verificar la identidad de otro cliente.' })
-  @Post('segip/verify')
-  @HttpCode(HttpStatus.OK)
-  verifySegip(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(segipVerifySchema)) body: SegipVerifyDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeSegip({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: body.customerId,
-      body,
-      idempotencyKey,
-      requestedByUserId: actorId(currentUser),
-    });
-  }
-}
-
-@ApiTags('bureau')
-@ApiBearerAuth('access-token')
-@Controller('bureau')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
-@Roles('admin', 'platform_admin', 'risk_analyst', 'compliance_analyst')
-export class BureauExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
-
-  @ApiOperation({
-    summary: 'Consultar buró de crédito InfoCenter',
-    description: 'Consulta el buró de crédito boliviano InfoCenter (proveedor costoso — sujeto a política de costo/aprobación manual). No incluye customer/internal_operator en roles: exclusivo de analistas/admin.',
-  })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: false })
-  @ApiBody({ schema: zodToApiSchema(infocenterCheckSchema) })
-  @ApiResponse({ status: 200, description: 'Resultado del buró de crédito.' })
-  @ApiResponse({ status: 422, description: 'BLOCKED_BY_COST_POLICY o MANUAL_APPROVAL_REQUIRED según la política configurada.' })
-  @Post('infocenter/check')
-  @HttpCode(HttpStatus.OK)
-  checkInfocenter(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(infocenterCheckSchema)) body: InfocenterCheckDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeInfocenter({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: body.customerId,
-      body,
-      idempotencyKey,
-      requestedByUserId: actorId(currentUser),
-    });
-  }
-}
-
-@ApiTags('payments-external')
-@ApiBearerAuth('access-token')
-@Controller('payments')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
-@Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin', 'system')
-export class PaymentsExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
-
-  @ApiOperation({ summary: 'Verificar pago por QR', description: 'Valida un pago realizado por QR contra el proveedor genérico configurado (QR_GENERIC / QR_BCB_GENERIC).' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: false })
-  @ApiBody({ schema: zodToApiSchema(qrPaymentVerifySchema) })
-  @ApiResponse({ status: 200, description: 'Resultado de la verificación del pago QR.' })
-  @Post('qr/verify')
-  @HttpCode(HttpStatus.OK)
-  verifyQr(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(qrPaymentVerifySchema)) body: QrPaymentVerifyDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeQrPayment({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: body.customerId,
-      body,
-      idempotencyKey,
-      requestedByUserId: actorId(currentUser),
-    });
-  }
-
-  @ApiOperation({ summary: 'Verificar transferencia bancaria', description: 'Valida una transferencia bancaria declarada contra el proveedor bancario genérico configurado.' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: false })
-  @ApiBody({ schema: zodToApiSchema(bankTransferVerifySchema) })
-  @ApiResponse({ status: 200, description: 'Resultado de la verificación de transferencia.' })
-  @Post('bank-transfer/verify')
-  @HttpCode(HttpStatus.OK)
-  verifyBankTransfer(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(bankTransferVerifySchema)) body: BankTransferVerifyDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeBankTransfer({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: body.customerId,
-      body,
-      idempotencyKey,
-      requestedByUserId: actorId(currentUser),
-    });
-  }
-}
-
-@ApiTags('telco')
-@ApiBearerAuth('access-token')
-@Controller('telco')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
-@Roles('customer', 'internal_operator', 'risk_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
-export class TelcoExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
-
-  @ApiOperation({ summary: 'Verificar confianza de teléfono (telco)', description: 'Consulta al proveedor telco genérico señales de confianza del número (antigüedad de línea, SIM swap reciente, portabilidad).' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: false })
-  @ApiBody({ schema: zodToApiSchema(telcoPhoneTrustSchema) })
-  @ApiResponse({ status: 200, description: 'Resultado de la verificación de confianza telefónica.' })
-  @Post('phone-trust/verify')
-  @HttpCode(HttpStatus.OK)
-  verifyPhoneTrust(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(telcoPhoneTrustSchema)) body: TelcoPhoneTrustDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeTelcoPhoneTrust({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: body.customerId,
-      body,
-      idempotencyKey,
-      requestedByUserId: actorId(currentUser),
-    });
-  }
-
-  @ApiOperation({ summary: 'Features de confianza telefónica de un cliente' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiParam({ name: 'customerId', schema: zodToApiSchema(customerIdParamsSchema.shape.customerId) })
-  @ApiResponse({ status: 200, description: 'Features de confianza telefónica.' })
-  @Get('phone-trust/:customerId')
-  getPhoneTrust(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, params.customerId);
-    return this.externalDataService.getCustomerFeatures({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: params.customerId,
-    });
-  }
-}
-
-@ApiTags('social')
-@ApiBearerAuth('access-token')
-@Controller('social/facebook')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
-@Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin', 'system')
-export class FacebookExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
-
-  @ApiOperation({ summary: 'Generar URL de conexión OAuth con Facebook' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiQuery({ name: 'customerId', schema: zodObjectPropertySchemas(facebookConnectUrlQuerySchema).customerId })
-  @ApiResponse({ status: 200, description: 'URL de conexión OAuth.' })
-  @Get('connect-url')
-  getConnectUrl(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Query(new ZodValidationPipe(facebookConnectUrlQuerySchema)) query: FacebookConnectUrlQueryDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, query.customerId);
-    return this.externalDataService.createFacebookConnectUrl({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: query.customerId,
-    });
-  }
-
-  @ApiOperation({ summary: 'Callback OAuth de Facebook', description: 'Procesa el código de autorización devuelto por Facebook tras el consentimiento del usuario.' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: false })
-  @ApiBody({ schema: zodToApiSchema(facebookCallbackSchema) })
-  @ApiResponse({ status: 200, description: 'Cuenta de Facebook conectada y datos de confianza social obtenidos.' })
-  @Post('callback')
-  @HttpCode(HttpStatus.OK)
-  callback(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(facebookCallbackSchema)) body: FacebookCallbackDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeFacebookCallback({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: body.customerId,
-      body,
-      idempotencyKey,
-      requestedByUserId: actorId(currentUser),
-    });
-  }
-
-  @ApiOperation({ summary: 'Estado de conexión/verificación de Facebook de un cliente' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiParam({ name: 'customerId', schema: zodToApiSchema(customerIdParamsSchema.shape.customerId) })
-  @ApiResponse({ status: 200, description: 'Features derivados de la conexión Facebook.' })
-  @Get('status/:customerId')
-  status(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, params.customerId);
-    return this.externalDataService.getCustomerFeatures({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: params.customerId,
-    });
-  }
-}
-
-@ApiTags('whatsapp')
-@ApiBearerAuth('access-token')
-@Controller('whatsapp')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
-@Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin', 'system')
-export class WhatsappExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
-
-  @ApiOperation({ summary: 'Iniciar verificación de WhatsApp', description: 'Envía un mensaje/código de verificación al número de WhatsApp del cliente.' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: false })
-  @ApiBody({ schema: zodToApiSchema(whatsappVerificationStartSchema) })
-  @ApiResponse({ status: 200, description: 'Verificación iniciada.' })
-  @Post('verification/start')
-  @HttpCode(HttpStatus.OK)
-  start(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(whatsappVerificationStartSchema)) body: WhatsappVerificationStartDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeWhatsapp({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: body.customerId,
-      body,
-      idempotencyKey,
-      requestedByUserId: actorId(currentUser),
-    });
-  }
-
-  @ApiOperation({ summary: 'Confirmar verificación de WhatsApp', description: 'Valida el código recibido para completar la verificación del número de WhatsApp.' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: false })
-  @ApiBody({ schema: zodToApiSchema(whatsappVerificationConfirmSchema) })
-  @ApiResponse({ status: 200, description: 'Verificación confirmada.' })
-  @Post('verification/confirm')
-  @HttpCode(HttpStatus.OK)
-  confirm(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(whatsappVerificationConfirmSchema)) body: WhatsappVerificationConfirmDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeWhatsapp({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: body.customerId,
-      body,
-      idempotencyKey,
-      requestedByUserId: actorId(currentUser),
-    });
-  }
-
-  @ApiOperation({ summary: 'Estado de verificación de WhatsApp de un cliente' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiParam({ name: 'customerId', schema: zodToApiSchema(customerIdParamsSchema.shape.customerId) })
-  @ApiResponse({ status: 200, description: 'Features derivados de la verificación de WhatsApp.' })
-  @Get('status/:customerId')
-  status(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, params.customerId);
-    return this.externalDataService.getCustomerFeatures({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: params.customerId,
-    });
-  }
-}
-
-@ApiTags('digital-trust')
-@ApiBearerAuth('access-token')
-@Controller('digital-trust')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
-@Roles('customer', 'internal_operator', 'risk_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
-export class DigitalTrustExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
-
-  @ApiOperation({ summary: 'Consultar confianza digital (email/IP/dispositivo)', description: 'Consulta el proveedor de reputación digital genérico (identidad sintética, señales de email/IP/dispositivo).' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: false })
-  @ApiBody({ schema: zodToApiSchema(digitalTrustCheckSchema) })
-  @ApiResponse({ status: 200, description: 'Resultado de la consulta de confianza digital.' })
-  @Post('check')
-  @HttpCode(HttpStatus.OK)
-  check(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(digitalTrustCheckSchema)) body: DigitalTrustCheckDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeDigitalTrust({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: body.customerId,
-      body,
-      idempotencyKey,
-      requestedByUserId: actorId(currentUser),
-    });
-  }
-
-  @ApiOperation({ summary: 'Perfil de confianza digital de un cliente' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiParam({ name: 'customerId', schema: zodToApiSchema(customerIdParamsSchema.shape.customerId) })
-  @ApiResponse({ status: 200, description: 'Features de confianza digital.' })
-  @Get('profile/:customerId')
-  profile(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    assertCustomerAccess(currentUser, params.customerId);
-    return this.externalDataService.getCustomerFeatures({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
-      customerId: params.customerId,
     });
   }
 }

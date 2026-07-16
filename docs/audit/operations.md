@@ -4,7 +4,7 @@
 `.mapper.ts`, `.dtos.ts`, `.schemas.ts`, `.module.ts`. Por el acoplamiento explícito con
 `fraud` (`decideFraudCase` vive en `FraudService` pero la ruta HTTP sigue en este controller;
 `createStatusEvent`/`createCustomerObservation` están deliberadamente duplicados en
-`fraud.repository.ts` — ver `ATLAS-AUDIT-014`), también se revisaron los puntos de contacto
+`fraud.repository.ts`), también se revisaron los puntos de contacto
 correspondientes en `fraud.service.ts`/`fraud.repository.ts` (sin reabrir el resto del módulo
 `fraud`, ya auditado en el módulo #7). Tests: `test/unit/operations/operations.service.spec.ts`,
 `test/unit/fraud/fraud.service.spec.ts` (solo la parte tocada).

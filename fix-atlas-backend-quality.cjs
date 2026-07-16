@@ -121,7 +121,7 @@ function patchNotificationOrchestrator() {
         'Busca manualmente:',
         '  const rules = this.rulesService.getRulesForEvent(event.eventCode);',
         '  for (const rule of rules) {',
-        'y reemplÃ¡zalo por la versiÃ³n async/segura indicada en CORRECCION_ATLAS_BACKEND.md.',
+        'y reemplazalo por la version async/segura indicada por el contrato del orquestador.',
       ].join('\n'),
     );
   }

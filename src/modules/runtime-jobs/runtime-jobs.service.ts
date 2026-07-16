@@ -35,10 +35,6 @@ function registeredEventCodesOrSentinel(): string[] {
 type RetentionOutcome = { table: string; action: 'delete' | 'anonymize'; affected: number };
 
 /**
- * ATLAS-AUDIT-024 (cerrado parcialmente en este patch): antes de este cambio,
- * `applyRetentionPolicies` era un stub que solo contaba políticas activas y siempre devolvía
- * `destructiveActionsExecuted: 0`, sin importar el valor real de `dryRun`.
- *
  * Este registro mapea `policy_code` (columna de `retention_policies`) a una acción ejecutable
  * real. A propósito, solo se registran tablas de telemetría cruda claramente no-financieras y
  * no-auditables (GPS, snapshots de dispositivo, interacción de formularios) — nunca tablas de
@@ -48,14 +44,13 @@ type RetentionOutcome = { table: string; action: 'delete' | 'anonymize'; affecte
  * La única política ya sembrada en `db/seeders` (`risk-data-365d`, `applies_to:
  * risk_and_fraud_testing`) NO tiene una tabla mapeada aquí a propósito: su alcance real
  * ("datos de riesgo y fraude") es ambiguo y podría incluir tablas de decisión que no deben
- * purgarse — cerrar esa ambigüedad es una decisión de producto/legal, no algo que este patch
- * deba inventar (ver PENDIENTE_ATLAS en docs/pending/pending-items.md). Para esa política, el
+ * purgarse; cerrar esa ambigüedad es una decisión de producto/legal. Para esa política, el
  * job sigue reportando `destructiveActionsExecuted: 0`, tal como antes, pero ahora por una
  * razón explícita y visible en la respuesta (`unmappedPolicies`), no por ser un stub general.
  *
  * Para activar la purga real de las 3 tablas mapeadas aquí, un operador debe crear/activar una
  * fila en `retention_policies` con uno de estos `policy_code`. Mientras no exista esa fila
- * activa, el comportamiento observable sigue siendo "no se ejecuta nada" — igual que antes.
+ * activa, no se ejecuta ninguna acción destructiva.
  */
 const RETENTION_TARGETS: Record<string, { table: string; description: string }> = {
   gps_observations_90d: {
@@ -135,18 +130,8 @@ export class RuntimeJobsService {
   }
 
   /**
-   * ATLAS-AUDIT-022 (cerrado en este patch): antes de este cambio, este método hacía un
-   * `SELECT` normal seguido de un `for` que llamaba `.save()` fila por fila, sin ningún bloqueo.
-   * Si dos ejecuciones de este job corrían casi al mismo tiempo (un reintento de un scheduler
-   * externo, un operador disparándolo a mano mientras el cron también corre, o más de una tarea
-   * de ECS Fargate con el mismo cron configurado), ambas podían leer el mismo lote de eventos
-   * "pendientes" antes de que ninguna los marcara como procesados, duplicando su procesamiento.
-   *
-   * La corrección reutiliza exactamente el mismo patrón ya usado (correctamente) en
-   * `events.repository.ts::claimPending` para eventos de negocio: `SELECT ... FOR UPDATE SKIP
-   * LOCKED` dentro de una transacción, seguido de un `UPDATE` atómico sobre las filas
-   * reclamadas. Dos ejecuciones concurrentes ahora se reparten las filas sin solaparse, en vez
-   * de reprocesar las mismas.
+   * Reclama eventos con `SELECT ... FOR UPDATE SKIP LOCKED` dentro de una transacción.
+   * Dos ejecuciones concurrentes se reparten las filas sin solaparse.
    */
   async processOutbox(input: { tenantId: string; body: ProcessOutboxDto; currentUser: AuthenticatedUser }) {
     return this.runJob(
@@ -292,7 +277,7 @@ export class RuntimeJobsService {
           unmappedPolicies,
           note:
             unmappedPolicies.length > 0
-              ? `Políticas activas sin tabla registrada en RETENTION_TARGETS (no se ejecutó ninguna acción para ellas): ${unmappedPolicies.join(', ')}. Ver PENDIENTE_ATLAS en docs/pending/pending-items.md.`
+              ? `Políticas activas sin tabla registrada en RETENTION_TARGETS (no se ejecutó ninguna acción para ellas): ${unmappedPolicies.join(', ')}.`
               : 'Todas las políticas activas evaluadas tienen una tabla registrada en RETENTION_TARGETS.',
         };
       },

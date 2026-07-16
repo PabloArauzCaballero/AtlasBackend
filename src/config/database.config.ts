@@ -64,3 +64,25 @@ export function buildReadSequelizeOptions(): SequelizeModuleOptions {
 export function isDedicatedReadConnection(): boolean {
   return env.DB_READ_ENABLED && Boolean(env.DB_READ_HOST ?? env.DB_READ_USER);
 }
+
+/**
+ * Conexión para MIGRACIONES y SEEDS (DDL).
+ *
+ * El runtime debe correr como `atlas_app_rw`, que deliberadamente NO puede alterar el schema. Si
+ * migraciones y runtime compartieran identidad, ese privilegio mínimo sería ficticio. Por eso, cuando
+ * `DB_MIGRATION_USER` está configurado, `db:migration:*` y `db:seed:*` usan esa identidad
+ * (`atlas_migrator`) en vez de la del runtime. Si no está, cae a DB_USER — cómodo en local antes de
+ * separar roles. Ver `docs/database/postgres-roles.md`.
+ */
+export function buildMigrationSequelizeOptions(): SequelizeModuleOptions {
+  return {
+    ...buildSequelizeOptions(),
+    username: env.DB_MIGRATION_USER ?? env.DB_USER,
+    password: env.DB_MIGRATION_PASSWORD ?? env.DB_PASSWORD,
+  };
+}
+
+/** True cuando las migraciones corren con una identidad distinta a la del runtime. */
+export function usesDedicatedMigrationIdentity(): boolean {
+  return Boolean(env.DB_MIGRATION_USER && env.DB_MIGRATION_USER !== env.DB_USER);
+}

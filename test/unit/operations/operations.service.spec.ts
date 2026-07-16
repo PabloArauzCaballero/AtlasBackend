@@ -3,7 +3,7 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 
 /**
  * ATLAS-P12 (plan `PLAN_RED_DE_PRUEBAS_ATLAS_P12.md`, Fase 3): primer test real de `operations`
- * (1,048 líneas, 0 tests hasta este patch). Incluye la paginación por cursor que
+ * Incluye la paginación por cursor que
  * `ATLAS-P11-T10` agregó a este mismo servicio sin test dedicado — deuda que este archivo cierra.
  */
 jest.mock('../../../src/modules/operations/operations.mapper.js', () => ({
@@ -313,7 +313,7 @@ describe('OperationsService', () => {
 
       expect(operationsRepository.createStatusEvent).toHaveBeenCalledTimes(1);
       expect(operationsRepository.createCustomerObservation).toHaveBeenCalledTimes(1);
-      // ATLAS-AUDIT: changedByInternalUserId debe reflejar al actor real, no quedar null fijo.
+      // changedByInternalUserId debe reflejar al actor real, no quedar null fijo.
       expect((operationsRepository.createStatusEvent as jest.Mock).mock.calls[0][0]).toEqual(
         expect.objectContaining({ actorInternalUserId: expect.anything() }),
       );

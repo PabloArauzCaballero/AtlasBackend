@@ -142,7 +142,7 @@ No subas retries sin control: puedes duplicar costo o saturar proveedores si hay
 - Los tokens FCM se guardan cifrados en `device_tokens.token_encrypted`, más `token_hash` para deduplicación.
 - En push, evita mandar montos, deuda, mora o datos sensibles en el payload. Envía solo `notificationMessageId` y consulta el detalle al backend.
 
-## Pendientes conscientes
+## Alcance actual
 
-- Amazon SES no está implementado como adapter de primer nivel en este patch. Puede conectarse mediante `webhook` o implementarse después como `ses`.
-- WhatsApp en producción normalmente requiere templates aprobados. Este patch soporta template fallback, pero el mapeo formal por evento/template_code contra templates aprobados debería tratarse en un patch de activación de proveedor.
+- Amazon SES no está implementado como adapter de primer nivel. Puede conectarse mediante `webhook` o implementarse después como `ses`.
+- WhatsApp en producción normalmente requiere templates aprobados. El core soporta template fallback; el mapeo formal por evento/template_code contra templates aprobados corresponde a la activación del proveedor.

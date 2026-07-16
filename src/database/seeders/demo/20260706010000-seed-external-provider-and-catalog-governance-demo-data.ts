@@ -1,8 +1,7 @@
 import { QueryInterface, Transaction } from 'sequelize';
 
 /**
- * PENDIENTE_ATLAS / ATLAS-TECH-PEND (continuación de 20260706000000-seed-deep-graph-demo-data.ts):
- * cierra 6 tablas más del listado de 45 tablas sin fila detectadas en la auditoría de seeds.
+ * Datos demo para proveedores externos y gobierno de catálogo.
  *
  * `data_providers._id` NO es fijo (el seeder `20260702032000-seed-external-data-providers.ts` lo
  * inserta por SQL crudo con `ON CONFLICT (provider_code)`, sin fijar `_id`), así que
@@ -10,11 +9,10 @@ import { QueryInterface, Transaction } from 'sequelize';
  * `provider_code` en vez de un `_id` literal, para no asumir un valor de secuencia que puede
  * cambiar según el orden real de ejecución.
  *
- * SUPUESTO_ATLAS: payloads de proveedor son mocks ilustrativos (no hay contrato real de
- * SEGIP/InfoCenter documentado todavía, ver PENDIENTES_ATLAS.md). Sirven para ejercitar el flujo
+ * Los payloads de proveedor son mocks ilustrativos. Sirven para ejercitar el flujo
  * de auditoría/retención de `data_provider_responses`, no para validar reglas de negocio reales.
  *
- * Quedan pendientes a propósito (no se siembran aquí): content_subscribers,
+ * No se siembran aquí: content_subscribers,
  * external_oauth_connections, auth_refresh_tokens, system_action_logs, system_test_runs,
  * system_test_step_runs. Motivo igual que en el seeder anterior: son artefactos de runtime o de
  * ejecución real de test/OAuth, no datos de referencia sembrables sin falsear su propósito.

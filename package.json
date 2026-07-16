@@ -33,7 +33,9 @@
     "db:seed:reseed:test": "tsx src/database/seed.ts reseed --profile=test",
     "check:seed-profiles": "tsx scripts/check-seed-profile.ts",
     "check:db-privileges": "tsx scripts/check-db-privileges.ts",
+    "db:roles:bootstrap": "tsx scripts/bootstrap-db-roles.ts",
     "check:overfetching": "tsx scripts/check-overfetching.ts",
+    "check:file-size": "tsx scripts/check-file-size.ts",
     "check:read-api-views": "tsx scripts/check-read-api-views.ts",
     "db:seed:verify-prod-idempotency": "tsx scripts/verify-prod-seed-idempotency.ts",
     "db:extract-read-workload": "tsx scripts/extract-read-workload.ts",
@@ -44,6 +46,7 @@
     "start:dev": "node scripts/dev-build-and-start.mjs",
     "test": "jest --config jest.config.cjs",
     "test:unit": "jest --config jest.config.cjs --testPathPattern=test/unit",
+    "test:unit:randomized": "jest --config jest.config.cjs --testPathPattern=test/unit --randomize",
     "test:e2e": "jest --config jest.config.cjs --testPathPattern=test/e2e",
     "test:watch": "jest --config jest.config.cjs --watch",
     "test:coverage": "jest --config jest.config.cjs --coverage",
@@ -138,7 +141,7 @@
     "typescript": "^5.9.2"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "resolutions": {
     "js-yaml": "^4.2.0",

@@ -2,26 +2,9 @@ import { QueryInterface } from 'sequelize';
 import { buildColumns, TableSpec } from '../migration-support/atlas-schema-builder.util.js';
 
 /**
- * ATLAS-P11-T09: parte 9/10 del split de la migración inicial monolítica
- * (`20260626154044-create-atlas-user-intelligence-fraud-schema-v5-2-1.ts`, 12,554 líneas,
- * eliminada por este patch). Dominio: **fraud-review** (6 tablas).
+ * Parte 9/10 del schema base. Dominio: fraud-review.
  *
- * Esta migración SOLO crea tablas (`CREATE TABLE`) — sin foreign keys, índices ni check
- * constraints, exactamente como hacía la migración original en su primera fase (`up()` original:
- * loop de `createTable` seguido de `addForeignKeys`/`addChecks`/`createIndexes` como fases
- * separadas). Esa misma separación se preserva aquí a nivel de archivo: las 10 migraciones de
- * "parte" (`schema-part-*`) crean únicamente tablas; `schema-relationships` (que corre después
- * de las 10) agrega TODAS las foreign keys, checks e índices de las 86 tablas en un solo paso,
- * evitando cualquier problema de orden de dependencia entre dominios (varias tablas de dominios
- * "tempranos" tienen FKs hacia tablas de dominios "tardíos" — por ejemplo `customer_identity_documents`
- * → `evidence_documents` — así que las relaciones no se pueden repartir de forma segura por
- * dominio sin arriesgar un `CREATE TABLE` fallido por FK a una tabla que aún no existe).
- *
- * Split verificado programáticamente contra el archivo original: las 86 tablas de `TABLES` se
- * repartieron exactamente una vez entre las 10 partes (sin duplicados, sin faltantes), y las 244
- * foreign keys / 136 índices / 5 check constraints se preservaron sin cambios en
- * `schema-relationships`. Ver `docs/architecture/migration-split-verification.md` para el detalle
- * exacto de la verificación.
+ * Crea únicamente tablas. Las relaciones se agregan después de que todo el schema base existe.
  */
 const TABLES: TableSpec[] = [
   {

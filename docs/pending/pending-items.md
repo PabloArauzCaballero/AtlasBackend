@@ -27,4 +27,4 @@ cambio que resuelve o abre un ítem — no se deja para después.
 | ATLAS-SEC-002 | Abierto | Deuda técnica | Baja | Controllers | ~13 controllers siguen parseando `x-tenant-id` manualmente por endpoint (`@Headers('x-tenant-id')` + `parsePositiveId(...)`) en vez de usar `@CurrentTenant()` (`src/common/decorators/current-tenant.decorator.ts`, ya creado). La brecha de seguridad real ya la cierra `TenantGuard` — esto es solo duplicación de código. | Ninguno funcional; el riesgo real ya está mitigado. Mantenimiento ligeramente más alto por duplicación. | Migrar cada controller a `@CurrentTenant()` cuando se toque ese archivo por otra razón; no se justifica un refactor masivo dedicado solo a esto. | Backend |
 
 ## Marcas usadas
-`TODO_ATLAS:`, `PENDIENTE_ATLAS:`, `BLOQUEANTE_ATLAS:`, `SUPUESTO_ATLAS:`, `RIESGO_ATLAS:` en comentarios de código cuando aplique.
+El seguimiento debe quedar en este registro o en issues formales; no se deben abrir nuevos pendientes como comentarios inline.

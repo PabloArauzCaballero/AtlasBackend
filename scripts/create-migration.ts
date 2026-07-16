@@ -49,12 +49,12 @@ writeFileSync(
   `import { QueryInterface } from 'sequelize';
 
 export async function up({ context: queryInterface }: { context: QueryInterface }): Promise<void> {
-  // TODO: implementar migración.
+  // Implementar migración.
   void queryInterface;
 }
 
 export async function down({ context: queryInterface }: { context: QueryInterface }): Promise<void> {
-  // TODO: revertir migración.
+  // Revertir migración.
   void queryInterface;
 }
 `,

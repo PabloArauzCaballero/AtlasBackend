@@ -28,8 +28,7 @@ Para cualquier otro rol (`merchant`, `system`, o cualquier rol futuro que se agr
 interno.
 
 Comparé contra los módulos hermanos que exponen el mismo patrón `:customerId` (todos
-documentados en el comentario original de `ownership.util.ts`, que ya había centralizado
-este chequeo tras una auditoría previa — ATLAS-AUDIT-027): `customer-privacy`,
+documentados en `ownership.util.ts`): `customer-privacy`,
 `customer-telemetry`, `sessions`, `risk` y `customer-onboarding` **sí** declaran
 `@Roles('customer', 'internal_operator', ...)` explícito en cada endpoint. `customers`
 era el único módulo de este grupo sin esa lista — un decorador faltante, no una decisión
@@ -41,7 +40,7 @@ perfil completo (nombre, fecha de nacimiento, últimos 4 dígitos de teléfono/e
 consentimientos otorgados/rechazados, último resultado de riesgo) de **cualquier**
 cliente del tenant, sin ninguna relación con ese cliente. Dado que `assertOwnCustomerResource`
 ya había sido creada específicamente para cerrar este tipo de brecha en otros módulos
-(ver comentario ATLAS-AUDIT-027), este endpoint quedó fuera de esa auditoría anterior.
+este endpoint quedó fuera de la cobertura de ownership compartida.
 
 **Corrección aplicada:** se agregó `@Roles('customer', 'internal_operator', 'risk_analyst',
 'compliance_analyst', 'admin', 'platform_admin')` al método — el mismo patrón (cliente +

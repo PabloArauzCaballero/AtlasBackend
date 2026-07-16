@@ -8,7 +8,7 @@
 ambos endpoints de este módulo, no solo el chequeo de presencia del header). Tests:
 `test/unit/customer-privacy/customer-privacy.service.spec.ts`.
 
-**Resultado:** 1 hallazgo Alto (trazabilidad de auditoría), corregido en este turno. Suite
+**Resultado:** 1 hallazgo Alto (trazabilidad de auditoría), corregido. Suite
 verde tras el cambio (12/12, incluye 1 test nuevo).
 
 ---

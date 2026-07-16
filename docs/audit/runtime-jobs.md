@@ -69,11 +69,11 @@ actor no autorizado — el controller ya está correctamente restringido a
 - `RETENTION_TARGETS` documenta explícitamente, con justificación, por qué la única política ya
   sembrada (`risk-data-365d`) queda deliberadamente sin mapear — su alcance ("datos de riesgo y
   fraude") podría incluir tablas de decisión/auditoría que deben permanecer append-only, y
-  cerrar esa ambigüedad es una decisión de producto/legal, no algo para inventar en este patch.
+  cerrar esa ambigüedad es una decisión de producto/legal.
   Ninguna tabla de decisión (`risk_assessment_results`, `operational_audit_logs`, etc.) está
   mapeada a una acción de purga.
-- `processOutbox` usa `SELECT ... FOR UPDATE SKIP LOCKED` + `UPDATE` atómico (`ATLAS-AUDIT-022`,
-  ya cerrado) para reclamar eventos — dos ejecuciones concurrentes del mismo job no reprocesan
+- `processOutbox` usa `SELECT ... FOR UPDATE SKIP LOCKED` + `UPDATE` atómico para reclamar eventos;
+  dos ejecuciones concurrentes del mismo job no reprocesan
   las mismas filas.
 - Todos los jobs excluyen explícitamente los `eventCode` ya cubiertos por `process-events`
   (`registeredEventCodesOrSentinel`, con manejo correcto del caso de lista vacía para evitar un

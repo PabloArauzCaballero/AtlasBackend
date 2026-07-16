@@ -4,7 +4,7 @@ import { CustomerPrivacyService } from '../../../src/modules/customer-privacy/cu
 
 /**
  * ATLAS-P12 (plan `PLAN_RED_DE_PRUEBAS_ATLAS_P12.md`, Fase 3): primer test real de
- * `customer-privacy` (514 líneas, 0 tests hasta este patch) — consentimientos y solicitudes de
+ * `customer-privacy` — consentimientos y solicitudes de
  * datos personales (derecho de acceso/portabilidad/eliminación). Es superficie legal/regulatoria,
  * no solo lógica de app: el plazo de `dueAt` (15 días) y la transición a `requires_review` tras
  * una revocación son las dos reglas de negocio más importantes de este archivo.

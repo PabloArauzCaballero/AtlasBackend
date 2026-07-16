@@ -67,16 +67,10 @@ function parseAuthenticatedUser(payload: string | jwt.JwtPayload): Authenticated
 }
 
 /**
- * ATLAS-AUDIT-026 (cerrado en este patch): antes de este cambio, `tokenVersion` se extraía del
- * payload del JWT pero nunca se comparaba contra nada — un token robado o de un usuario cuya
- * contraseña cambió seguía siendo válido hasta su expiración natural. Ahora, cuando el token
- * incluye `tokenVersion` (todos los tokens emitidos por `AuthModule` lo incluyen), el guard lo
- * compara contra la versión vigente almacenada en `auth_credentials` vía `TokenRevocationService`.
+ * Valida JWT y compara `tokenVersion` contra la versión vigente del actor.
  *
- * Los tokens sin `tokenVersion` (p. ej. los generados por `scripts/create-dev-jwt.ts` para
- * desarrollo/smoke tests locales) se aceptan sin este chequeo adicional, para no romper las
- * herramientas de desarrollo existentes — la protección real de producción depende de que los
- * clientes reales solo obtengan tokens a través de `POST /auth/login`.
+ * Los tokens de herramientas locales sin `tokenVersion` no activan este chequeo; los clientes
+ * reales deben obtener tokens desde `POST /auth/login`.
  */
 function actorLookup(user: AuthenticatedUser): { actorType: string; actorId: string } | null {
   if (user.customerId) return { actorType: 'customer', actorId: user.customerId };

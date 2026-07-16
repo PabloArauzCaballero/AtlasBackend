@@ -53,7 +53,7 @@ limpieza separado.
   la columna `documentCode` (no existe columna de propósito en `consent_documents`; el
   vocabulario de `purposeCode` real vive en `customer_consents.purpose_code`, con valores
   totalmente distintos como `kyc_identity_verification`). Esto **ya está documentado** como
-  comportamiento conocido tanto en el comentario `BLOCKED` de `consents.schemas.ts` como en
+  comportamiento conocido tanto en `consents.schemas.ts` como en
   `docs/endpoints/api-contract.md:1152` — no es un hallazgo nuevo, lo confirmé para no
   reportarlo por error como regresión.
 - Los dos flujos externos que escriben consentimientos (`customer-onboarding-start.service.ts`,

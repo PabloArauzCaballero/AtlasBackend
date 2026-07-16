@@ -126,9 +126,7 @@ export class OperationsController {
   }
 
   /**
-   * ATLAS-AUDIT-014 (cerrado en este patch): la ruta se mantiene sin cambios por compatibilidad
-   * de API; la implementación ahora vive en `FraudService` (módulo `fraud`), no en
-   * `OperationsService`.
+   * Ruta compatible de operaciones; la decisión de negocio vive en `FraudService`.
    */
   @ApiOperation({
     summary: 'Decidir un caso de fraude',

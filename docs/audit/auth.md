@@ -9,7 +9,7 @@
 - `src/config/env.ts` (variables `JWT_*` / `AUTH_*`)
 - Tests: `test/unit/auth/*.spec.ts`, `test/unit/common/guards/jwt-auth.guard.spec.ts`
 
-**Resultado:** 4 hallazgos (1 crítico, 2 medios, 1 bajo), los 4 corregidos en este patch.
+**Resultado:** 4 hallazgos (1 crítico, 2 medios, 1 bajo), los 4 corregidos.
 Suite de tests actualizada y verde (49/49). `tsc --noEmit` limpio.
 
 ---
@@ -31,8 +31,7 @@ caché Redis de `TokenRevocationService` (TTL 5 min) antes de ir a la base de da
 decir: al cerrar sesión en todos los dispositivos, la base de datos quedaba correcta
 de inmediato, pero cualquier access token ya emitido seguía siendo válido para
 `JwtAuthGuard` hasta que la entrada de Redis expirara (hasta 5 minutos) — justo el
-escenario que el comentario original en el código (`ATLAS-AUDIT-026`) decía haber
-cerrado.
+escenario de revocación inmediata esperado.
 
 **Impacto:** en un incidente real (robo de sesión, empleado despedido, dispositivo
 perdido) donde el usuario usa "cerrar sesión en todos los dispositivos" como
@@ -127,7 +126,7 @@ realmente sale.
 y `docs/endpoints/openapi-systems-ops.yaml` que describía esos mensajes específicos
 de `JwtAuthGuard` como parte del contrato de error de `401` debe leerse con esta
 corrección en mente (el único mensaje real de `401` por payload inválido es
-`"Token inválido o expirado."`). No se regeneró esa documentación en este patch.
+`"Token inválido o expirado."`).
 
 ---
 
@@ -147,8 +146,7 @@ Estas quedan documentadas para decisión del equipo, no representan bugs de segu
    repite en cada intento), pero ensucia la tabla `auth_refresh_tokens` con filas
    "activas" ya inútiles. Se podría cerrar marcando `revokedAt`/`revokedReason:
    'expired'` en el mismo branch que lanza el error. Bajo impacto, bajo esfuerzo —
-   candidato a limpieza futura, no se aplicó para mantener el diff de este patch
-   enfocado en los hallazgos con impacto real.
+   candidato a limpieza futura.
 
 ## Qué quedó verificado como correcto (sin cambios)
 

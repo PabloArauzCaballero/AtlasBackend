@@ -4,7 +4,7 @@ import { CatalogVersionWorkflowService } from '../../../src/modules/catalog-mana
 
 /**
  * ATLAS-P12 (plan `PLAN_RED_DE_PRUEBAS_ATLAS_P12.md`, Fase 1): primer test real de
- * `catalog-management` (2,915 líneas, 0 tests hasta este patch). Cubre la máquina de estados de
+ * `catalog-management`. Cubre la máquina de estados de
  * aprobación de versiones de catálogo (`draft -> pending_approval -> approved -> published ->
  * retired`), que alimenta directamente al motor de riesgo — un estado mal validado aquí no es un
  * bug cosmético, es un problema de integridad de una decisión de crédito río abajo.

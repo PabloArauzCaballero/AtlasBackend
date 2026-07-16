@@ -3,7 +3,7 @@ import { RuntimeJobsService } from '../../../src/modules/runtime-jobs/runtime-jo
 
 /**
  * ATLAS-P12 (plan `PLAN_RED_DE_PRUEBAS_ATLAS_P12.md`, Fase 3): primer test real de
- * `runtime-jobs` (545 líneas, 0 tests hasta este patch) — el job de retención de datos. Un
+ * `runtime-jobs` — el job de retención de datos. Un
  * error aquí significa borrar datos que no debían borrarse, o no borrar datos que sí debían.
  * El caso más importante de este archivo es confirmar, con un test y no solo con un comentario,
  * que `risk-data-365d` (política sin tabla mapeada, ver

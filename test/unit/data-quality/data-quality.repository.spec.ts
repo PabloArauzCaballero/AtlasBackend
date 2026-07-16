@@ -4,9 +4,7 @@ import { DataQualityRepository } from '../../../src/modules/data-quality/data-qu
 import { decodeCursor, encodeCursor } from '../../../src/common/utils/pagination/cursor-pagination.util.js';
 
 /**
- * ATLAS-P10-031: primera cobertura de tests para `data-quality` (0% antes de este patch, ver
- * AUDITORIA_ATLAS_BACKEND_10_10.md §1/RC-03). Se enfoca en `findIssuesWithCursor`, la variante
- * de paginación por cursor agregada para cerrar RC-06/ATLAS-PEND-102.
+ * Cobertura de `findIssuesWithCursor`, la variante de paginación por cursor de data-quality.
  */
 
 function makeRow(id: string, detectedAt: string) {

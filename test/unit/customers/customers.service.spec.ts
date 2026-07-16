@@ -3,7 +3,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 /**
  * ATLAS-P12 (plan `PLAN_RED_DE_PRUEBAS_ATLAS_P12.md`, Fase 4): primer test real de `customers`
- * (508 líneas, 0 tests hasta este patch). Es un servicio pequeño, pero `getCustomerMe` es el
+ * `getCustomerMe` es el
  * endpoint "me" que usa cada pantalla del cliente — alto tráfico, bajo margen de error. El caso
  * más importante es la verificación de ownership: un cliente autenticado nunca debe poder leer
  * el perfil de otro `customerId` solo cambiando el parámetro de la URL.

@@ -19,15 +19,8 @@ export const startOnboardingSchema = z.object({
       path: ['phone'],
     }),
 
-  // ATLAS-AUDIT-002 (cerrado parcialmente en este patch): antes de este cambio no existía
-  // ningún mecanismo para que un cliente pudiera autenticarse fuera de un script de
-  // desarrollador. Se agrega contraseña opcional aquí porque, para el consumidor final, el
-  // registro de negocio *es* el onboarding (no tiene sentido un `/auth/register` separado
-  // que duplique la creación del cliente). Es opcional a propósito:
-  // PENDIENTE_ATLAS (ver docs/pending/pending-items.md): no está decidido si el mecanismo de
-  // autenticación definitivo del consumidor final será contraseña, OTP por SMS, o ambos. Si
-  // se omite, el cliente queda registrado pero sin poder autenticarse por contraseña todavía
-  // (no es un estado roto: simplemente no se creó `auth_credentials` para ese actor).
+  // La contraseña es opcional porque el registro de negocio ocurre en onboarding. Si se omite,
+  // el cliente queda registrado sin credenciales de contraseña.
   password: z.string().trim().min(10, 'La contraseña debe tener al menos 10 caracteres.').max(128).optional(),
 
   consents: z

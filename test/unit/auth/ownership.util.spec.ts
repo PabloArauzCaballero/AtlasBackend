@@ -11,7 +11,7 @@ function user(overrides: Partial<AuthenticatedUser>): AuthenticatedUser {
   return { sub: '1', role: 'customer', ...overrides };
 }
 
-describe('assertOwnCustomerResource (ATLAS-AUDIT-027)', () => {
+describe('assertOwnCustomerResource', () => {
   it('allows a customer to access their own resource', () => {
     expect(() => assertOwnCustomerResource(user({ role: 'customer', customerId: '42' }), '42')).not.toThrow();
   });

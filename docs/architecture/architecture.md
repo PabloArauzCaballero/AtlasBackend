@@ -34,19 +34,19 @@ El backend se organiza por dominios técnicos, pero los endpoints se diseñan po
 - Models: representan tablas existentes del schema aprobado.
 - DTOs, schemas y mappers: mantienen contratos explícitos.
 
-## Decisiones del patch
+## Decisiones de arquitectura
 
-1. Se retiró el controller público de sesiones para evitar endpoint fragmentado.
-2. Se mantuvo `SessionsModule` como módulo interno porque onboarding necesita sus repositories.
-3. Se agregaron modelos Sequelize para tablas existentes, no entidades nuevas:
+1. El contrato público evita endpoints fragmentados por tabla.
+2. `SessionsModule` es un módulo interno porque onboarding necesita sus repositories.
+3. Los modelos Sequelize representan tablas existentes del schema aprobado:
    - `onboarding_flows`
    - `onboarding_step_events`
    - `permission_events`
    - `customer_action_logs`
    - `operational_audit_logs`
-4. `POST /customer-onboarding/start` ahora registra esas tablas dentro de la misma transacción.
-5. Se validan documentos legales por estado publicado y ventana de vigencia.
-6. No se creó tabla `idempotency_keys` porque no existe en el schema aprobado.
+4. `POST /customer-onboarding/start` registra esas tablas dentro de la misma transacción.
+5. Los documentos legales se validan por estado publicado y ventana de vigencia.
+6. La idempotencia usa los mecanismos existentes del schema aprobado.
 
 ## Seguridad y privacidad
 

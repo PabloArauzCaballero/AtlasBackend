@@ -12,12 +12,7 @@ export const SYSTEMS_OPS_ROLES = [
 ] as const;
 
 /**
- * ATLAS-AUDIT (auditoría #16, `systems-ops`): antes de este cambio, los 18 endpoints de
- * escritura de este módulo (crear/editar catálogos de test, disparar runs reales, decidir
- * revisiones, encolar stress runs) compartían el mismo `@Roles(...SYSTEMS_OPS_ROLES)` que los de
- * solo lectura — incluyendo `readonly_auditor`, un rol cuyo propio nombre declara que no debería
- * poder escribir nada. Usar este conjunto (sin `readonly_auditor`) en cada endpoint mutante,
- * mismo patrón ya usado en `operations.controller.ts` para separar roles por tipo de acción.
+ * Roles separados por superficie de acción. `readonly_auditor` puede leer, pero nunca escribir.
  */
 export const SYSTEMS_OPS_GOVERNANCE_ROLES = ['system_admin', 'platform_admin'] as const;
 export const SYSTEMS_OPS_QA_ROLES = ['system_admin', 'platform_admin', 'qa_engineer'] as const;

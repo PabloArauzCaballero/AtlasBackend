@@ -6,7 +6,7 @@ import { UniqueConstraintError } from 'sequelize';
  * ATLAS-P12d (extensión del plan más allá de las 11 módulos originales —
  * `docs/testing/PLAN_RED_DE_PRUEBAS_ATLAS_P12.md` §9, punto 5): `CustomerOnboardingStartService`
  * es el flujo de registro real de un cliente nuevo — el archivo más grande de todo el proyecto
- * sin ningún test hasta este patch (637 líneas). Escribe en 10+ tablas dentro de una única
+ * Escribe en 10+ tablas dentro de una única
  * transacción: cliente, credenciales, perfil, contactos, dispositivo, sesión, flujo de
  * onboarding, permisos, auditoría y consentimientos. Un error aquí no es un bug de UI — es un
  * registro de cliente corrupto, duplicado, o sin el consentimiento legal que se supone que tiene.

@@ -11,9 +11,9 @@ import {
   SeedProfile,
   SeedStage,
 } from './seed-profiles.js';
-import { createSequelizeInstance } from './sequelize.js';
+import { createMigrationSequelizeInstance } from './sequelize.js';
 
-const sequelize = createSequelizeInstance();
+const sequelize = createMigrationSequelizeInstance();
 const SEED_RESET_CONFIRMATION = 'ATLAS_DESTROY_SEED_DATA';
 
 type StageRunner = {

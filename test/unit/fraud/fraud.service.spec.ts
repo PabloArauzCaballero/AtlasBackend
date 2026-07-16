@@ -3,8 +3,8 @@ import { ConflictException, NotFoundException, UnprocessableEntityException } fr
 import { FraudService } from '../../../src/modules/fraud/fraud.service.js';
 
 /**
- * ATLAS-AUDIT-014: regresión para confirmar que mover `decideFraudCase` de
- * `OperationsService` a `FraudService` no cambió el comportamiento observable.
+ * Regresión para confirmar que `FraudService.decideFraudCase` conserva el comportamiento
+ * observable de la ruta operativa compatible.
  */
 function buildFraudRepositoryMock() {
   return {

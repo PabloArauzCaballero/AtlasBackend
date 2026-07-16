@@ -17,9 +17,7 @@ import {
   WorkQueueQueryDto,
 } from './operations.schemas.js';
 
-// decideFraudCase se movió a src/modules/fraud/fraud.service.ts (ATLAS-AUDIT-014). La ruta
-// HTTP `POST /operations/fraud-cases/:caseId/decision` sigue existiendo sin cambios — ver
-// operations.controller.ts, que ahora delega en FraudService en vez de en OperationsService.
+// La decisión de fraude vive en FraudService; OperationsController conserva la ruta compatible.
 
 @Injectable()
 export class OperationsService {

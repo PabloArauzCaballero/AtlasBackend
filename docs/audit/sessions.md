@@ -48,6 +48,6 @@ forma consistente:
   reales — buena trazabilidad para investigación de fraude.
 
 Este módulo ya refleja el resultado de auditorías previas documentadas inline en el
-código (comentarios `ATLAS-AUDIT-*` en los módulos hermanos que reutiliza:
+código en los módulos hermanos que reutiliza:
 `ownership.util.ts`, `role-groups.util.ts`). No se identificó ningún atajo, bypass, o
 inconsistencia comparable a los hallazgos de los módulos anteriores.

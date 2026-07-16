@@ -79,11 +79,11 @@ API.
 
 **Archivos:** `src/modules/customer-onboarding/customer-onboarding.mapper.ts`,
 `src/modules/customer-onboarding/application/customer-onboarding-start.service.ts`.
-**Nota relacionada (no corregida en este patch):** `customers.mapper.ts` (`toCustomerMeResponse`,
-módulo `customers`, ya auditado) tiene el mismo comentario obsoleto y devuelve
+**Nota relacionada:** `customers.mapper.ts` (`toCustomerMeResponse`,
+módulo `customers`, ya auditado) devuelve
 `onboarding: null` siempre en `GET /customers/:customerId/me`. Corregirlo requeriría que
 `CustomersService` consulte también `CustomerOnboardingRepository` — un cambio de mayor
-alcance que cruza módulos, fuera del diff enfocado de esta auditoría. Queda anotado para
+alcance que cruza módulos. Queda anotado para
 una iteración futura.
 
 ---

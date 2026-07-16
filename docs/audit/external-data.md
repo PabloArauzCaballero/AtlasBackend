@@ -72,7 +72,7 @@ heredando el rol de clase sin restringirse de más.
 (`POST :providerCode/test`) ni `retryProviderRequest` — ambos ejecutan una llamada real al
 proveedor y podrían merecer la misma restricción; `testProvider` además auto-asigna
 `approvedByAdminId: actorId(currentUser)` sin verificar que el actor sea realmente admin.
-Decidí no tocarlos en este patch para mantener el fix acotado a los 3 casos inequívocos
+No se modificaron para mantener el fix acotado a los 3 casos inequívocos
 (cambio de estado de producción, política de costo, aprobación) — quedan señalados para
 revisión de producto sobre si ameritan la misma restricción.
 

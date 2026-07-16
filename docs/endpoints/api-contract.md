@@ -5738,7 +5738,7 @@ Guard de clase: `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles('internal_opera
 | correlationId | string, 1-120 | No | — | |
 | page | number (positivo) | No | 1 | Solo aplica si `pagination=offset` |
 | limit | number (positivo, max 100) | No | 20 | |
-| pagination | enum `offset`\|`cursor` | No | `offset` | Modo de paginación (ATLAS-AUDIT-025: cursor recomendado para tablas de alto crecimiento) |
+| pagination | enum `offset`\|`cursor` | No | `offset` | Modo de paginación; cursor recomendado para tablas de alto crecimiento |
 | cursor | string, max 500 | No | — | Cursor opaco (solo relevante si `pagination=cursor`) |
 
 **Response 200 (modo `offset`):** `{ data: EventDto[], pagination: { mode: 'offset', page, limit, total, totalPages } }`.

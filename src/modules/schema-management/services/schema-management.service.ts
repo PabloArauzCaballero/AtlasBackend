@@ -35,7 +35,7 @@ import {
  *   simultáneamente no pueden generar doble ejecución.
  * - La ejecución del DDL físico NO ocurre aquí en el MVP: aprobar registra la decisión en el
  *   catálogo; el DDL real sigue saliendo por migraciones Sequelize revisadas en PR.
- *   Ver PENDIENTE_ATLAS en docs/pending/pending-items.md (ATLAS-TECH-007).
+ *   Ver docs/pending/pending-items.md para el seguimiento operativo.
  */
 
 const PROPOSER_ROLES: ReadonlySet<string> = new Set(['internal_operator', 'admin', 'platform_admin']);

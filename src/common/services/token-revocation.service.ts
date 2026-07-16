@@ -5,32 +5,11 @@ import { AuthCredentialModel } from '../../database/models/index.js';
 import { REDIS_CLIENT } from '../redis/redis.module.js';
 
 /**
- * Cierra ATLAS-AUDIT-026: hasta el patch anterior, `AuthenticatedUser.tokenVersion` se extraía
- * del JWT pero nunca se comparaba contra nada — el campo existía sin ninguna lógica de
- * revocación detrás, lo que podía dar una falsa sensación de que "la revocación de tokens ya
- * funciona".
+ * Fuente de verdad para la versión vigente de token de un actor.
  *
- * Este servicio es la única fuente de verdad sobre la versión vigente de token de un actor.
- * `JwtAuthGuard` la consulta en cada request autenticado; `AuthService` la incrementa al
- * cambiar contraseña o forzar cierre de sesión ("logout de todos los dispositivos").
- *
- * Es un servicio `@Global()` (ver `common-auth.module.ts`) para que cualquier guard pueda
- * inyectarlo sin que cada módulo de negocio tenga que importar el módulo de auth completo.
- *
- * ATLAS-P10-013 (cierra el punto de rendimiento documentado en assumptions.md): esta consulta
- * corre en cada request autenticado, así que se agrega una capa de caché en Redis delante de la
- * base de datos:
- *  - Lectura: intenta Redis primero; si hay hit, no toca la base de datos. Si Redis no está
- *    configurado (`REDIS_URL` vacío, válido en desarrollo con una sola instancia) o falla, se
- *    degrada de forma explícita a la base de datos — nunca se rompe la revocación por un
- *    problema de caché.
- *  - Escritura (`bumpTokenVersion`): además de persistir en la base de datos, escribe
- *    inmediatamente ("write-through") el nuevo valor en Redis, para que la revocación sea
- *    efectiva en el siguiente request sin esperar a que expire un TTL.
- *  - TTL de seguridad (`CACHE_TTL_SECONDS`): red de seguridad ante cualquier escritura de caché
- *    que falle silenciosamente (p. ej. Redis no disponible en el instante del bump); acota el
- *    tiempo máximo en que un token ya revocado podría seguir aceptándose por un dato de caché
- *    desactualizado.
+ * `JwtAuthGuard` consulta este servicio en cada request autenticado; `AuthService` incrementa
+ * la versión al cambiar contraseña o cerrar sesión en todos los dispositivos. Redis funciona
+ * como caché write-through y nunca reemplaza a `auth_credentials.token_version`.
  */
 @Injectable()
 export class TokenRevocationService {

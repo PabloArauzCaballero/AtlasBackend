@@ -7,11 +7,10 @@ import { FraudRepository } from './fraud.repository.js';
 import { FraudDecisionDto, FraudDecisionParamsDto } from './fraud.schemas.js';
 
 /**
- * ATLAS-AUDIT-014 (cerrado en este patch): módulo `fraud` extraído de `operations`/`risk`.
- * Lógica idéntica a la que vivía en `OperationsService.decideFraudCase` — solo cambia de dónde
- * vive el código, no el comportamiento observable. La ruta HTTP se mantiene sin cambios en
- * `operations.controller.ts` (`POST /operations/fraud-cases/:caseId/decision`), que ahora
- * delega en este servicio.
+ * Servicio de decisión de fraude.
+ *
+ * La ruta HTTP compatible sigue en `OperationsController`; la regla de negocio vive en el
+ * dominio `fraud`.
  */
 @Injectable()
 export class FraudService {

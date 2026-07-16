@@ -99,7 +99,7 @@ lectura en el conjunto de escritura sin que sea explícito.
 - `assertEnvironmentAllowed` y `assertProductionSafe` siguen aplicándose además del nuevo chequeo
   de SSRF — no se relajó ninguna de las validaciones existentes.
 - `SystemsStressRunService.queueStressRun` **no** ejecuta peticiones HTTP en proceso — solo
-  encola el plan (`inputJson`) para que "un worker externo controlado" lo ejecute (comentario
+  encola el plan (`inputJson`) para que un worker externo controlado lo ejecute
   explícito en el propio código); no comparte el vector de SSRF del Hallazgo 1.
 - `SystemsTestHttpClientService.buildUrl` usa el constructor `URL(path, baseUrl)` (no
   concatenación de strings), y el runner ya tenía manejo de timeout vía `AbortController`.

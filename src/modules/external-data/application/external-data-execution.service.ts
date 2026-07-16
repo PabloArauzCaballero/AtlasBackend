@@ -263,7 +263,7 @@ export class ExternalDataExecutionService {
       // un fallo transitorio del adaptador (`AdapterError.retryable`, p. ej. timeout o 5xx una
       // vez que exista una integración real) se reintenta con backoff antes de marcar el
       // request como `FAILED`. Sin política configurada, el default es 1 intento (sin retry) —
-      // mismo comportamiento observable que antes de este cambio.
+      // mismo comportamiento observable para llamadas sin política de costo configurada.
       const raw = await this.resilience.run(() => adapter.execute(executionInput), {
         provider: providerCode,
         maxAttempts: policy?.retryMaxAttempts ?? 1,

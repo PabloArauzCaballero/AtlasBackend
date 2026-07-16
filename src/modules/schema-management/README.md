@@ -56,7 +56,7 @@ catálogo versionado creado en la Fase 4A.
 
 ## Alcance y pendientes
 
-- `PENDIENTE_ATLAS:` **ATLAS-TECH-007** — La ejecución de DDL físico vía API está
+- **ATLAS-TECH-007** — La ejecución de DDL físico vía API está
   intencionalmente fuera del MVP. Aprobar un cambio registra la decisión en
   `schema_change_log`; el `CREATE TABLE` real sigue saliendo por migraciones
   Sequelize revisadas en PR (Opción C aprobada por el usuario). Ver

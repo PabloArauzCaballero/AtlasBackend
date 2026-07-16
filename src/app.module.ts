@@ -47,11 +47,7 @@ import { env } from './config/env.js';
     RedisModule,
     ResilienceModule,
     CommonAuthModule,
-    // ATLAS-AUDIT-023 (cerrado en este patch): antes usaba `ThrottlerModule.forRoot([...])` con
-    // el storage en memoria por defecto de `@nestjs/throttler`, correcto solo con una instancia.
-    // Ahora, si `REDIS_URL` está configurado (obligatorio en producción, ver `env.ts`), el
-    // contador de rate limit vive en Redis y es correcto sin importar cuántas instancias del
-    // backend estén corriendo detrás del Load Balancer.
+    // En producción, REDIS_URL mantiene el contador de rate limit compartido entre instancias.
     ThrottlerModule.forRootAsync({
       imports: [RedisModule],
       inject: [REDIS_CLIENT],

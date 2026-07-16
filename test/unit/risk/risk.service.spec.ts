@@ -10,10 +10,10 @@ import { CreateRiskAssessmentDto } from '../../../src/modules/risk/risk.schemas.
  * onboarding o pasa a revisión manual — es exactamente el tipo de lógica que
  * `BACKEND_DEVELOPMENT_CONTEXT.md` §12 exige mantener versionada y auditable, y que
  * `PROMPT_MASTER_ATLAS.md` prohíbe tratar como caja negra. No tenía ningún test propio antes de
- * este patch.
+ * este flujo.
  *
  * Se mockea `RiskRepository` y `CustomersRepository` por completo (no hay Postgres real en el
- * entorno de generación de este patch) y `sequelize.transaction` se resuelve invocando
+ * test unitario) y `sequelize.transaction` se resuelve invocando
  * directamente el callback — foco en la LÓGICA DE DECISIÓN (scores, reason codes, resultado),
  * no en el mapeo objeto-relacional, que es responsabilidad de un test de integración contra una
  * base de datos real (ver ATLAS-P10-001..005, Fase 0 de AUDITORIA_ATLAS_BACKEND_10_10.md).

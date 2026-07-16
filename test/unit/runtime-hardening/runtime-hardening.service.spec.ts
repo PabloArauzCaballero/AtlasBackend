@@ -54,7 +54,7 @@ describe('RuntimeHardeningService.claimIdempotency', () => {
     expect(created.lockedUntil).toEqual(new Date(NOW.getTime() + 5 * 60_000));
   });
 
-  it('ATLAS-AUDIT (auditoría #22, runtime-hardening): carrera bajo la misma idempotencyKey — el findOne inicial no la ve, el create choca con el índice único, se recupera como si ya existiera en vez de propagar un 500', async () => {
+  it('recupera la carrera bajo la misma idempotencyKey sin propagar un 500', async () => {
     const { service, idempotencyModel } = buildService();
     idempotencyModel.findOne.mockResolvedValueOnce(null);
     idempotencyModel.create.mockRejectedValueOnce(new UniqueConstraintError({}));

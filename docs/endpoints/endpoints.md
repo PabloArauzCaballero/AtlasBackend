@@ -1891,7 +1891,7 @@ data_change_logs
 
 # Runtime hardening, idempotencia, outbox y jobs internos
 
-Esta sección documenta el patch de endurecimiento operativo. No agrega integraciones con proveedores reales. Agrega infraestructura interna para que los endpoints críticos sean más seguros, repetibles y auditables.
+Esta sección documenta el endurecimiento operativo. No agrega integraciones con proveedores reales; agrega infraestructura interna para que los endpoints críticos sean más seguros, repetibles y auditables.
 
 ## RH-001 — Idempotencia fuerte para escrituras críticas
 
@@ -2297,7 +2297,7 @@ outbox_events
 3. Sirve como base para workers de data quality por regla.
 4. Audita ejecución.
 
-## Patch 2.0 — Events Core
+## Events Core
 
 ### GET /operations/events/catalog
 Lista el catálogo de eventos internos soportados.
@@ -2339,7 +2339,7 @@ Procesa eventos pendientes y dispara notificaciones.
 }
 ```
 
-## Patch 2.0 — Notifications Core
+## Notifications Core
 
 ### GET /operations/notifications/messages
 Lista mensajes generados. Filtros: `status`, `channel`, `recipientType`, `recipientId`, `correlationId`, `from`, `to`, `page`, `limit`.

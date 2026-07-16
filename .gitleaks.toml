@@ -1,0 +1,52 @@
+# Configuración de gitleaks para Atlas (Fase 4.1 del plan 10/10).
+#
+# Extiende el set de reglas por defecto y añade SOLO excepciones verificadas una por una. Las
+# excepciones se documentan con su razón: un allowlist amplio (p. ej. desactivar generic-api-key o
+# ignorar src/) volvería el gate decorativo.
+#
+# Ejecutar localmente:
+#   gitleaks detect --source . --no-git --redact
+
+title = "Atlas gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Falsos positivos verificados de Atlas (revisados manualmente el 15-jul-2026)"
+
+# `regexTarget = "line"` permite anclar la excepción al identificador que la origina, en vez de a la
+# cadena detectada — así la excepción no se transfiere a cualquier otro valor de alta entropía.
+regexTarget = "line"
+
+regexes = [
+  # src/common/utils/crypto/password.util.ts: alfabeto (sin caracteres ambiguos) usado para GENERAR
+  # contraseñas temporales. Es una constante pública del algoritmo, no una credencial.
+  '''TEMPORARY_PASSWORD_ALPHABET\s*=''',
+
+  # src/modules/external-data/.../infocenter.adapter.ts: nombres de campo del dominio de riesgo
+  # (clave de observación / de feature). Son identificadores de negocio, no secretos.
+  '''observationKey\s*:''',
+  '''featureKey\s*:''',
+
+  # docs/config/environment.md y docs/notifications/channel-adapters.md: PLACEHOLDER de documentación
+  # con puntos suspensivos literales, sin material de clave. Se ancla al placeholder exacto (`\n...\n`)
+  # a propósito: si alguien pegara una clave FCM real en la doc, NO haría match y el gate la atraparía.
+  '''BEGIN PRIVATE KEY-----\\n\.\.\.\\n-----END PRIVATE KEY''',
+]
+
+paths = [
+  # test/unit/smoke/smoke-redaction.spec.ts: fixtures de secretos FALSOS (un JWT de juguete y un bloque
+  # PEM truncado) cuya única razón de existir es probar que `redactSensitive()` los redacta. Marcarlos
+  # como fuga sería exactamente al revés.
+  '''test[\\/]unit[\\/]smoke[\\/]smoke-redaction\.spec\.ts$''',
+
+  # Dependencias de terceros: no son código de Atlas y disparan ruido. En CI el escaneo corre antes
+  # de `yarn install`, así que este directorio ni siquiera existe; queda por si se escanea en local.
+  '''(^|/)node_modules/''',
+  # Plantilla sin valores reales; el gate `yarn check:no-env-file` ya impide .env reales en el repo.
+  '''\.env\.example$''',
+  '''(^|/)yarn\.lock$''',
+  '''(^|/)coverage/''',
+  '''(^|/)dist/''',
+]

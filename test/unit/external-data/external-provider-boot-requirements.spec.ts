@@ -3,10 +3,7 @@ import { externalProviderBootRequirements } from '../../../src/modules/external-
 import { assertAllProvidersConfigured } from '../../../src/common/resilience/provider-config-validator.js';
 
 /**
- * ATLAS-ROBUSTEZ: `externalProviderBootRequirements` es la pieza fail-fast nueva para
- * `external-data` — antes de este cambio, no existía ningún chequeo al arrancar el proceso para
- * un proveedor activado en `production` sin sus credenciales; el primer síntoma era un
- * `PRODUCTION_GATE_BLOCKED` en la primera request real de un cliente.
+ * `externalProviderBootRequirements` valida fail-fast proveedores en modo production.
  */
 describe('externalProviderBootRequirements', () => {
   const ORIGINAL_ENV = { ...process.env };

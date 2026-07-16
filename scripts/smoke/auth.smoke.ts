@@ -1,11 +1,8 @@
 import { getString, getStringFromPaths, request, TENANT_ID, uniqueKey } from './http.js';
 
 /**
- * ATLAS-AUDIT-002: primer smoke test que ejercita el módulo `auth` de punta a punta contra un
- * servidor real. A diferencia de otros smoke tests del proyecto, este es autocontenido: no
- * depende de que exista un cliente sembrado con contraseña (los datos de seed no la tienen),
- * así que primero registra un cliente nuevo con contraseña vía `POST /customer-onboarding/start`
- * y luego inicia sesión con esas mismas credenciales.
+ * Smoke test autocontenido para auth: crea un cliente con contraseña vía onboarding y luego
+ * valida login, refresh y logout contra un servidor real.
  */
 export async function runAuthSmoke(): Promise<void> {
   const unique = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -48,7 +45,7 @@ export async function runAuthSmoke(): Promise<void> {
     throw new Error('login no devolvió accessToken/refreshToken.');
   }
 
-  // Login con contraseña incorrecta debe fallar con 401, no con un 500.
+  // La contraseña incorrecta debe fallar como rechazo de credenciales.
   await request({
     method: 'POST',
     path: '/auth/login',

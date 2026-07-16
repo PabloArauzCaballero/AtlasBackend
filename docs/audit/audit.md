@@ -64,8 +64,7 @@ etiquetado `operational_audit` en vez de `risk`). Filtrar específicamente por `
 requeriría o bien un campo distintivo confiable (hoy solo existe `actionCode:
 'risk_assessment.created'`, un match por substring de código de acción, no una columna
 dedicada) o un cambio de esquema. Documentado como el mismo tipo de decisión de diseño que
-`ATLAS-AUDIT-025` (comentario ya existente en este archivo) — no es un bug de una línea, es una
-decisión de modelado que no me corresponde tomar unilateralmente en una auditoría.
+la paginación por cursor — no es un bug de una línea, es una decisión de modelado.
 
 ---
 
@@ -76,8 +75,7 @@ decisión de modelado que no me corresponde tomar unilateralmente en una auditor
 - El cursor real (`getCustomerAuditFeed`, vista `audit_event_feed`) usa SQL parametrizado
   (`replacements`, nunca interpolación de string) — sin superficie de inyección SQL pese a ser
   la única query cruda del módulo.
-- La corrección histórica `ATLAS-AUDIT-025` (paginación por página profunda incorrecta antes de
-  pedir `offset + limit` filas por fuente) sigue vigente y correctamente acotada por
+- La paginación por página profunda pide `offset + limit` filas por fuente y sigue acotada por
   `MAX_DEPTH`; la limitación restante para offsets muy profundos ya está documentada como
   pendiente de diseño, no se reabre aquí.
 - `http-action-log.service.ts` sanitiza (`sanitizeForSystemsOps`) y redacta (`redactSensitiveObject`)

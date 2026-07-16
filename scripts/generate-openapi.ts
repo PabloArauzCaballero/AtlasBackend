@@ -1,12 +1,7 @@
 /**
- * ATLAS-AUDIT-006: genera `docs/endpoints/openapi.yaml` a partir del propio código (no a mano),
- * para que el contrato de API nunca se desincronice silenciosamente de los controladores reales.
+ * Genera `docs/endpoints/openapi.yaml` a partir del código.
  *
- * IMPORTANTE (transparencia de entrega): este script necesita levantar el `AppModule` completo,
- * lo que requiere una conexión real a PostgreSQL disponible (mismo requisito que `yarn start`).
- * No pudo ejecutarse en el sandbox donde se escribió este patch por no tener una base de datos
- * disponible. Ejecutar `yarn docs:openapi` con una base de datos local levantada (ver README)
- * para generar el archivo por primera vez.
+ * Requiere levantar `AppModule`, por lo que necesita una conexión PostgreSQL disponible.
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';

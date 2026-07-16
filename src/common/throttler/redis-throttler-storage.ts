@@ -24,9 +24,7 @@ type ThrottlerStorageRecord = {
  * devolver `{ totalHits, timeToExpire, isBlocked, timeToBlockExpire }`) respaldada en Redis en
  * vez de en memoria del proceso.
  *
- * Cierra ATLAS-AUDIT-023: con esto, el límite de tasa es el mismo sin importar a cuál de las N
- * instancias del backend llegue cada request, porque el contador vive en Redis (compartido) y
- * no en la memoria de cada proceso Node.
+ * Con Redis, el límite de tasa es el mismo para todas las instancias del backend.
  *
  * Estrategia: contador de ventana fija (`INCR` + `PEXPIRE` solo en el primer hit de la
  * ventana), la misma estrategia que usa la implementación en memoria por defecto de
@@ -52,8 +50,13 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
       // No debería ocurrir en producción (env.ts exige REDIS_URL), pero si llegara a pasar en
       // un ambiente mal configurado, degradar de forma segura en vez de tirar el request abajo:
       // se reporta "no bloqueado" y se loguea con severidad alta para que salte en observabilidad.
+      //
+      // `timeToExpire` va en SEGUNDOS, igual que en el resto de los retornos de este método: es el
+      // valor que `ThrottlerGuard` usa para el header `Retry-After`. Antes se devolvía `ttl` crudo
+      // (milisegundos), lo que en esta rama producía un Retry-After ~1000x mayor (60_000 s ≈ 16 h
+      // para una ventana de 60 s). Detectado por test/unit/common/throttler/redis-throttler-storage.spec.ts.
       this.logger.error('RedisThrottlerStorage.increment() llamado sin cliente Redis disponible.');
-      return { totalHits: 1, timeToExpire: ttl, isBlocked: false, timeToBlockExpire: 0 };
+      return { totalHits: 1, timeToExpire: Math.ceil(ttl / 1000), isBlocked: false, timeToBlockExpire: 0 };
     }
 
     const hitKey = `throttle:${throttlerName}:${key}`;

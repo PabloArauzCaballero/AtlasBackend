@@ -60,7 +60,7 @@ aquí.
 **Dónde:** `customer-telemetry.service.ts`, función `metadataHasRawContacts`.
 
 **Qué encontré:** el propio proyecto documenta esta regla como *"la más estricta de privacidad
-del proyecto"* (comentario en `test/unit/customer-telemetry/customer-telemetry.service.spec.ts`,
+del proyecto"* (`test/unit/customer-telemetry/customer-telemetry.service.spec.ts`,
 que la vincula a `MOBILE_DEVELOPMENT_CONTEXT.md §3` — "no subir agenda de contactos"), con un
 test dedicado que ya cubre `rawContacts`/`contactList`/`phoneBook`/`agenda` en mayúsculas y
 minúsculas. Pero la implementación comparaba substrings exactos (`rawcontacts`, `contactlist`,

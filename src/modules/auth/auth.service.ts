@@ -77,10 +77,7 @@ function isKnownRole(value: string): value is AtlasUserRole {
 const LOGIN_PIN_REQUIRED_ROLES: ReadonlySet<AtlasUserRole> = new Set(['admin', 'platform_admin']);
 
 /**
- * ATLAS-AUDIT-002 (cerrado en este patch): antes de `AuthModule`, el único emisor de JWT en
- * todo el proyecto era `scripts/create-dev-jwt.ts`, una herramienta de línea de comandos para
- * desarrolladores. Ningún cliente real (app móvil, portal comercio, panel de operaciones)
- * tenía forma de autenticarse. `AuthService` es ahora el único emisor de JWT de producción.
+ * Emisor único de JWT de producción para clientes, usuarios internos y usuarios de plataforma.
  */
 @Injectable()
 export class AuthService {
@@ -107,10 +104,7 @@ export class AuthService {
     }
 
     if (actorType === 'internal_user') {
-      // SUPUESTO_ATLAS: la búsqueda de email es case-sensitive tal como está almacenado. Si el
-      // equipo confirma que los emails deben tratarse como case-insensitive, normalizar aquí y
-      // al crear el registro en `internal_users` (fuera del alcance de este patch: esa tabla se
-      // administra hoy solo por seed/migración manual, no por un módulo de gestión de usuarios).
+      // La búsqueda normaliza email en el repositorio para tolerar diferencias de mayúsculas.
       const internalUser = await this.authRepository.findInternalUserByEmail(identifier, tenantId);
       if (!internalUser || internalUser.status !== 'active' || !internalUser.roleCode || !isKnownRole(internalUser.roleCode)) {
         return null;
@@ -545,10 +539,7 @@ export class AuthService {
     const credential = await this.authRepository.findCredentialsByActor(actorType, stored.actorId, { transaction });
     if (!credential) return { kind: 'invalid' };
 
-    // El rol/tenant vigentes se re-resuelven ANTES de emitir un refresh token nuevo.
-    // Corrección ATLAS-SEC-REFRESH-001: el flujo anterior creaba el token nuevo y recién después
-    // validaba si el actor seguía activo. Si el cliente/usuario había sido cerrado o bloqueado,
-    // el método lanzaba error pero podía dejar un refresh token recién creado en la base.
+    // El rol/tenant vigentes se re-resuelven antes de emitir un refresh token nuevo.
     const refreshedActor = await this.reResolveActorRole(actorType, stored.actorId, stored.tenantId);
     if (!refreshedActor) return { kind: 'actor_unavailable' };
 
@@ -616,16 +607,7 @@ export class AuthService {
       await this.authRepository.revokeAllRefreshTokensForActor(stored.actorType as ActorType, stored.actorId, 'logout_all_devices');
       const credential = await this.authRepository.findCredentialsByActor(stored.actorType as ActorType, stored.actorId);
       if (credential) {
-        // Además de revocar refresh tokens, se incrementa `tokenVersion` para que los access
-        // tokens ya emitidos (que siguen vigentes hasta su expiración natural, normalmente 1h)
-        // también queden invalidados de inmediato. Cierra ATLAS-AUDIT-026 en el caso de uso
-        // real que lo motivó: "cerrar sesión en todos los dispositivos".
-        //
-        // IMPORTANTE: debe pasar por `TokenRevocationService.bumpTokenVersion` (no por
-        // `AuthRepository.bumpTokenVersion`) porque `JwtAuthGuard` resuelve la versión vigente
-        // consultando primero la caché Redis de este servicio. Escribir el bump solo en la base
-        // de datos deja la caché desactualizada hasta su TTL (5 min) y los access tokens
-        // supuestamente revocados seguirían aceptándose durante esa ventana.
+        // `TokenRevocationService` actualiza base de datos y caché para invalidar access tokens.
         await this.tokenRevocationService.bumpTokenVersion(credential.actorType, credential.actorId);
       }
     } else {
@@ -639,11 +621,8 @@ export class AuthService {
    * Provisión de credenciales para actores internos (`internal_user`/`platform_user`).
    * No existe autoregistro público para estos roles a propósito: permitir que cualquiera cree
    * una cuenta con rol `admin`/`platform_admin` sería una vulnerabilidad crítica. El flujo
-   * correcto es: un `platform_admin` crea (fuera de este patch, vía seed/gestión operativa) la
-   * fila en `internal_users`/`platform_users`, y luego usa este endpoint para fijar su
-   * contraseña inicial. El propio actor puede luego re-invocar este mismo endpoint sobre sí
-   * mismo si se expone `self` como caso adicional (fuera de alcance de este patch, ver
-   * `docs/pending/pending-items.md`).
+   * correcto es: un `platform_admin` crea la fila en `internal_users`/`platform_users` y luego
+   * usa este endpoint para fijar su contraseña inicial.
    */
   async provisionCredentials(dto: ProvisionCredentialsDto, requestedBy: { role: AtlasUserRole }): Promise<{ provisioned: boolean }> {
     if (requestedBy.role !== 'admin' && requestedBy.role !== 'platform_admin') {

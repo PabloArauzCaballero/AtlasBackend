@@ -24,16 +24,10 @@ type StepExecution = {
 };
 
 /**
- * ATLAS-AUDIT (auditoría #16, `systems-ops`): antes de este cambio, `assertRealRunCanExecute`
- * solo restringía el host de `baseUrl` cuando `environment === 'LOCAL'` — para `STAGING` y
- * `PRODUCTION_READONLY` cualquier rol de `SYSTEMS_OPS_ROLES` (incluido `readonly_auditor`) podía
- * ejecutar un run real (`dryRun: false`) con un `baseUrl` completamente arbitrario, causando que
- * el backend hiciera una petición HTTP saliente real a esa URL (SSRF). Este chequeo bloquea los
- * blancos más peligrosos (metadata de nube, rangos privados/loopback/link-local) para cualquier
- * ambiente que no sea `LOCAL`. No es DNS-rebinding-safe (valida el hostname/IP literal de la URL,
- * no la IP a la que realmente resuelve `fetch` en el momento de la petición) — cerrar eso del
- * todo requiere una lista blanca de hosts de confianza por ambiente, una decisión de
- * configuración que queda fuera del alcance de esta corrección puntual.
+ * Bloquea SSRF en runs reales fuera de `LOCAL`.
+ *
+ * Rechaza metadata de nube, rangos privados, loopback y link-local usando el hostname/IP literal.
+ * Para defensa DNS-rebinding-safe se requiere lista blanca de hosts por ambiente.
  */
 function asStringRecord(value: unknown): Record<string, string> {
   const record = asRecord(value);

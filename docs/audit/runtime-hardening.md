@@ -51,11 +51,11 @@ resuelve como conflicto/en-progreso en vez de propagar el error de base de datos
 ## Qué quedó verificado como correcto (sin cambios)
 
 - `IdempotencyInterceptor` espera realmente la persistencia (`completeIdempotency`/
-  `failIdempotency`) antes de responder — el propio comentario en el archivo documenta que antes
+  `failIdempotency`) antes de responder; antes
   era fire-and-forget (`void this.runtime.completeIdempotency(...)`) y que eso podía dejar al
   cliente con una respuesta `OK` sin que la idempotencia hubiera quedado registrada; ya está
   corregido.
-- `ApiCommandOutboxInterceptor` (mismo patrón de corrección, mismo comentario) también espera la
+- `ApiCommandOutboxInterceptor` también espera la
   escritura del evento de outbox antes de devolver la respuesta.
 - El hash de idempotencia (`requestHash`) se calcula sobre `body` **redactado**
   (`redactSensitiveObject`) + `query` + `params` — no se guarda el payload crudo con datos

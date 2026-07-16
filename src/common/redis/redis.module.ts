@@ -5,20 +5,10 @@ import { env } from '../../config/env.js';
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 
 /**
- * ATLAS-AUDIT-023 (cerrado en este patch): antes de este módulo, no existía ningún cliente
- * Redis en el proyecto pese a que `INFRASTRUCTURE_DEVELOPMENT_CONTEXT.md` fija ElastiCache
- * Redis como parte del stack AWS objetivo. Sin Redis, el rate limiting (`@nestjs/throttler`)
- * usaba almacenamiento en memoria del propio proceso: correcto con una sola instancia, pero
- * silenciosamente incorrecto (el límite efectivo se multiplica por el número de instancias)
- * en cuanto se despliega con autoscaling en ECS Fargate.
+ * Cliente Redis compartido del backend.
  *
- * Este módulo expone un único cliente `ioredis` compartido (`REDIS_CLIENT`) para:
- *  - El storage de `ThrottlerModule` (`RedisThrottlerStorage`).
- *  - Cualquier necesidad futura de caché (p. ej. cachear resultados de scoring en Fase 2).
- *
- * Si `REDIS_URL` no está configurado, el factory devuelve `null` y el resto del sistema debe
- * degradar de forma explícita (ver `redis-throttler-storage.ts` y `app.module.ts`), nunca
- * fallar en silencio. En producción, `env.ts` ya exige `REDIS_URL` (ver `superRefine`).
+ * En desarrollo local `REDIS_URL` puede omitirse y los consumidores usan fallback en memoria.
+ * En producción `env.ts` exige Redis para que el rate limiting sea distribuido.
  */
 @Global()
 @Module({

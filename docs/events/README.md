@@ -1,4 +1,4 @@
-# Patch 2.0 — Events Core
+# Events Core
 
 ATLAS ahora tiene una capa central para eventos de negocio sobre `outbox_events`.
 
@@ -17,7 +17,7 @@ dominio / controller
 
 ## Decisión clave
 
-No se creó `event_outbox` porque el backend ya tenía `outbox_events`. El patch extiende esa tabla y evita una arquitectura paralela.
+El backend usa `outbox_events` como tabla única de outbox para evitar una arquitectura paralela.
 
 ## Endpoints
 

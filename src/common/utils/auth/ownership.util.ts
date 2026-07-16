@@ -3,18 +3,10 @@ import { AuthenticatedUser } from '../../types/auth.types.js';
 import { isInternalOperationalRole } from './role-groups.util.js';
 
 /**
- * ATLAS-AUDIT-027 (cerrado en este patch): antes de este cambio, esta misma verificación
- * ("un cliente autenticado solo puede acceder a sus propios datos") estaba reimplementada de
- * forma independiente en 6-7 servicios distintos (`customers.service.ts`,
- * `customer-privacy.service.ts`, `customer-telemetry.service.ts`, `risk.service.ts`,
- * `sessions.service.ts`, `notifications.service.ts`, e inline en
- * `customer-onboarding.service.ts`), con firmas inconsistentes — incluso con el orden de
- * argumentos invertido en `notifications.service.ts`. Ninguno de esos casos era hoy una
- * vulnerabilidad activa, pero cada nuevo endpoint `:customerId` corría el riesgo de omitir esta
- * verificación por copy-paste manual.
+ * Verificación única de ownership para endpoints `:customerId`.
  *
- * A partir de este patch, todos esos módulos deben importar `assertOwnCustomerResource` desde
- * aquí en vez de definir su propia copia local.
+ * Un cliente autenticado solo puede acceder a sus propios datos; los roles internos se autorizan
+ * en la capa de roles del endpoint.
  */
 export function assertOwnCustomerResource(currentUser: AuthenticatedUser, customerId: string): void {
   if (currentUser.role === 'customer' && currentUser.customerId !== customerId) {
@@ -35,17 +27,7 @@ export function assertIsOwningCustomer(currentUser: AuthenticatedUser, customerI
 }
 
 /**
- * Variante usada por `customer-onboarding` (antes vivía duplicada, con semántica distinta, en
- * `customer-onboarding/application/customer-onboarding-access.util.ts` — reintroducía el mismo
- * tipo de duplicación que ATLAS-AUDIT-027 consolidó, así que se fusiona aquí en vez de eliminarse
- * sin más). A diferencia de `assertOwnCustomerResource` (que deja pasar CUALQUIER rol que no sea
- * literalmente `'customer'`), esta variante solo hace bypass para los roles operacionales
- * internos (`isInternalOperationalRole`: internal_operator, risk_analyst, compliance_analyst,
- * fraud_analyst, admin, platform_admin) — roles como `merchant`, `readonly_auditor`,
- * `qa_engineer`, `devops` o `system_admin` NO tienen motivo de negocio para leer/escribir el
- * onboarding de un cliente específico y quedan bloqueados a propósito. Usar
- * `assertOwnCustomerResource` aquí en su lugar sería una regresión de seguridad real (esos roles
- * pasarían a tener acceso irrestricto a onboarding de cualquier cliente).
+ * Variante estricta para onboarding: solo cliente dueño o rol operacional interno.
  */
 export function assertOwnCustomerResourceOrInternalOperational(currentUser: AuthenticatedUser, customerId: string): void {
   if (isInternalOperationalRole(currentUser.role)) return;

@@ -3,7 +3,7 @@ import { EventsService } from '../../../src/modules/events/events.service.js';
 
 /**
  * ATLAS-P12 (plan `PLAN_RED_DE_PRUEBAS_ATLAS_P12.md`, Fase 2): primer test real de `events`
- * (785 líneas, 0 tests hasta este patch) — el outbox de eventos de negocio del que dependen
+ * El outbox de eventos de negocio del que dependen
  * notificaciones y workers. Si esto falla en silencio, todo lo que consume eventos falla en
  * cascada sin que nadie lo note primero en `events`.
  */

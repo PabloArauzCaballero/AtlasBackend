@@ -29,10 +29,10 @@ import {
 } from './auth.schemas.js';
 
 /**
- * ATLAS-AUDIT-002 (cerrado en este patch). Ver `auth.service.ts` para el detalle de negocio.
- * `login`, `refresh` y `logout` son endpoints públicos (`@Public()`) por diseño: son la puerta
- * de entrada antes de tener un access token, y `logout`/`refresh` operan sobre el refresh token
- * en sí mismo, no sobre el access token.
+ * Endpoints públicos de autenticación y endpoints administrativos de provisión de credenciales.
+ *
+ * `login`, `refresh` y `logout` son públicos por diseño: son la puerta de entrada antes de tener
+ * access token y operan sobre credenciales/refresh tokens.
  */
 @ApiTags('auth')
 @Controller('auth')

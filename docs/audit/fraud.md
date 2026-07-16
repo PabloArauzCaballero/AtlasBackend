@@ -75,7 +75,7 @@ alerta, pese a que el equipo de fraude creía haberlo "watchlisteado".
 
 **Nota de alcance:** este fix no crea el lado de "consulta" del watchlist (verificar
 contra `watchlist_entries` durante `RiskService.createRiskAssessment` u onboarding) —
-ese matching activo no existía antes de este patch y sigue sin existir; los modelos
+ese matching activo no existe; los modelos
 `WatchlistMatchModel`/`WatchlistMatchModel` están definidos y catalogados en
 `systems-business-metadata.fixtures.ts` pero ningún servicio los escribe todavía. Cerrar
 ese circuito completo (detectar un match real contra el watchlist en un nuevo
@@ -90,7 +90,7 @@ para que, en el futuro, algo lo consulte.
 ## Addendum (durante la auditoría #12, `operations`) — `createStatusEvent` sin actor interno
 
 Al auditar `operations` (que comparte deliberadamente `createStatusEvent`/
-`createCustomerObservation` con este módulo, ver `ATLAS-AUDIT-014`) se encontró que la copia de
+`createCustomerObservation` con este módulo) se encontró que la copia de
 `createStatusEvent` en `fraud.repository.ts` tenía el mismo defecto que su gemela en
 `operations.repository.ts`: no aceptaba ni escribía `actorInternalUserId` en
 `changed_by_internal_user_id`, a diferencia de `createWatchlistEntry` (línea 88, ya corregido en

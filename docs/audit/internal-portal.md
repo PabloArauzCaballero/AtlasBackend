@@ -18,7 +18,7 @@ sin `RolesGuard` ni un solo `@Roles(...)` en ninguno de los 17 endpoints (a nive
 método).
 
 **Qué encontré:** `JwtAuthGuard` (`src/common/guards/jwt-auth.guard.ts`) valida únicamente que el
-JWT sea válido, no esté expirado y no esté revocado (`ATLAS-AUDIT-026`) — **no valida el rol del
+JWT sea válido, no esté expirado y no esté revocado; **no valida el rol del
 actor**. La autorización por rol vive exclusivamente en `RolesGuard`, que lee la metadata que
 pone `@Roles(...)`. Sin `RolesGuard` en la cadena de guards del controller, ese chequeo
 simplemente nunca corre. El resultado: **cualquier token válido de cualquier rol** —
@@ -84,4 +84,4 @@ como refinamiento recomendado, con precedente ya establecido en `systems-ops.con
   Crítico sigue siendo válido igual (exposición de lectura + `acknowledgeAlert` sí persiste), pero
   este endpoint específico no representa un riesgo de integridad de datos adicional hoy.
 - `retryJob`/`cancelJob` tampoco disparan una acción de control de jobs real todavía — solo
-  devuelven un mensaje de estado; no hay un sistema de colas/workers conectado en este patch.
+  devuelven un mensaje de estado; no hay un sistema de colas/workers conectado.

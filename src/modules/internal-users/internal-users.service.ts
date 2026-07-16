@@ -194,7 +194,7 @@ export class InternalUsersService {
     if (dto.status && disabledLikeStatuses.has(dto.status)) {
       // Sin esto, un access token ya emitido para este usuario sigue siendo válido para
       // `JwtAuthGuard` hasta su expiración natural (por defecto 1h) pese a que el admin lo
-      // acaba de suspender/bloquear/deshabilitar — el mismo tipo de hueco que ATLAS-AUDIT-026
+      // acaba de suspender/bloquear/deshabilitar.
       // cerró para "logout en todos los dispositivos", pero que nunca se aplicó a este flujo.
       await this.tokenRevocationService.bumpTokenVersion('internal_user', targetUserId);
     }

@@ -19,10 +19,8 @@
  *   tsx scripts/reencrypt-pii-to-envelope.ts --dry-run   # solo cuenta filas pendientes, no escribe
  *   tsx scripts/reencrypt-pii-to-envelope.ts             # re-cifra en lotes de BATCH_SIZE
  *
- * Requiere una base de datos real accesible (usa las mismas env vars que el resto del proyecto,
- * ver src/config/env.ts). No se ejecutó en este patch por no haber acceso a una base real en el
- * sandbox de generación — ver docs/pending/pending-items.md, ATLAS-P10-011, para el estado real
- * de ejecución en cada ambiente.
+ * Requiere una base de datos real accesible y usa las mismas env vars que el resto del proyecto.
+ * Revisar `docs/pending/pending-items.md` para el estado de ejecución por ambiente.
  */
 import { QueryTypes } from 'sequelize';
 import { createSequelizeInstance } from '../src/database/sequelize.js';

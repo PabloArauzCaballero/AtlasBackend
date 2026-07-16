@@ -1,13 +1,6 @@
-# Configuración documental. No es tabla SQL, no se lee en runtime por ningún módulo todavía.
-#
-# ATLAS-AUDIT-009 (cerrado en este patch): este archivo estaba vacío ("phases: []") con un
-# comentario "pendiente de completar" sin que esa omisión estuviera declarada en el sistema de
-# pendientes del proyecto. Se completa aquí con el roadmap real confirmado por el negocio
-# (usuarios -> motor de decisión y plataforma administrativa -> deudas y otros), alineado a
-# PROJECT_BRIEF_ATLAS.md §6 ("Módulos por prioridad").
-#
-# Si el roadmap operativo cambia, actualizar este archivo Y docs/pending/pending-items.md en el
-# mismo patch — no dejar que se desincronicen.
+# Configuración documental. No es tabla SQL y no se lee en runtime.
+# Este roadmap es la referencia oficial de fases del backend; cualquier cambio operativo debe
+# mantenerse sincronizado con docs/pending/pending-items.md.
 
 phases:
   - id: fase-1-usuarios
@@ -36,7 +29,7 @@ phases:
     description: >
       Scoring/riesgo, catálogos versionados, panel interno de operaciones, calidad de datos y
       auditoría consolidada. Varios de estos módulos ya tienen una base funcional construida
-      durante Fase 1; falta separar `fraud` de `risk` (ver ATLAS-PEND-107) y consolidar el
+      durante Fase 1; resta separar `fraud` de `risk` (ver ATLAS-PEND-107) y consolidar el
       panel administrativo como frente de producto propio (Next.js, ver
       FRONTEND_WEB_DEVELOPMENT_CONTEXT.md).
     modules:
@@ -45,7 +38,7 @@ phases:
       - operations
       - data-quality
       - audit
-      - fraud # pendiente de extraer como módulo independiente — ver ATLAS-PEND-107
+      - fraud # Separación de risk registrada en ATLAS-PEND-107.
 
   - id: fase-3-deudas
     name: "Fase 3 — Deudas y otros (BNPL)"

@@ -4,7 +4,7 @@ import { CustomerTelemetryService } from '../../../src/modules/customer-telemetr
 
 /**
  * ATLAS-P12 (plan `PLAN_RED_DE_PRUEBAS_ATLAS_P12.md`, Fase 2): primer test real de
- * `customer-telemetry` (949 líneas, 0 tests hasta este patch). El caso más importante de este
+ * `customer-telemetry`. El caso más importante de este
  * archivo es `RAW_CONTACTS_NOT_ALLOWED`: convierte la regla de `MOBILE_DEVELOPMENT_CONTEXT.md`
  * §3 ("no subir agenda de contactos") de una promesa en documentación a algo que CI verifica en
  * cada PR.

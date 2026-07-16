@@ -2,17 +2,24 @@ import { beforeAll, describe, expect, it, jest } from '@jest/globals';
 import { Test } from '@nestjs/testing';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+// Fase 2.2 del plan 10/10: los 9 controllers seguían viviendo en un solo archivo de 966 líneas. Los
+// verticales se movieron a `controllers/`; solo cambian estas rutas de import — las aserciones de
+// abajo (mismas rutas, mismos summaries, sin colisiones) son las que garantizan que el contrato
+// OpenAPI no cambió con la división.
+import { AdminExternalProvidersController, ExternalDataController } from '../../../src/modules/external-data/external-data.controller.js';
 import {
-  AdminExternalProvidersController,
   BureauExternalDataController,
-  DigitalTrustExternalDataController,
-  ExternalDataController,
-  FacebookExternalDataController,
   KycExternalDataController,
+} from '../../../src/modules/external-data/controllers/kyc-bureau.controller.js';
+import {
   PaymentsExternalDataController,
   TelcoExternalDataController,
+} from '../../../src/modules/external-data/controllers/payments-telco.controller.js';
+import {
+  DigitalTrustExternalDataController,
+  FacebookExternalDataController,
   WhatsappExternalDataController,
-} from '../../../src/modules/external-data/external-data.controller.js';
+} from '../../../src/modules/external-data/controllers/social-trust.controller.js';
 import { ExternalDataService } from '../../../src/modules/external-data/external-data.service.js';
 import { JwtAuthGuard } from '../../../src/common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../../src/common/guards/roles.guard.js';

@@ -3,7 +3,7 @@ import { NotificationRulesService } from '../../../src/modules/notifications/not
 
 /**
  * ATLAS-P12 (plan `PLAN_RED_DE_PRUEBAS_ATLAS_P12.md`, Fase 3): primer test real de
- * `notifications` (2,124 líneas, 0 tests hasta este patch). Se empieza por
+ * `notifications`. Se empieza por
  * `NotificationRulesService` porque es lógica pura (una tabla de mapeo evento -> canales, sin
  * dependencias ni I/O), y porque un error de mapeo aquí es exactamente el tipo de bug que un
  * test detecta y una demo manual no: un evento de cliente que termina notificando al canal de

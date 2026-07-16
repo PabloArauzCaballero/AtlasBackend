@@ -1,16 +1,10 @@
 import { QueryInterface, Transaction } from 'sequelize';
 
 /**
- * PENDIENTE_ATLAS / ATLAS-TECH-PEND: este seeder cierra la brecha detectada en la auditoría de
- * estructura (ver docs/architecture/assumptions.md) donde ~45 tablas del modelo de datos
- * (customer_addresses, device_risk_events, risk_assessment_contexts, fraud_case_events, etc.)
- * tenían fila 0 en todos los seeders existentes. Sin estas filas, el cliente demo sembrado por
- * `20260626160720-seed-minimal-dev-credentials.ts` tiene registros "padre" (customers, devices,
- * risk_assessment_runs, fraud_cases, manual_review_cases, watchlist_entries, onboarding_flows)
- * pero ningún registro "hijo"/evento asociado, por lo que no se puede probar en profundidad
- * ningún endpoint de detalle, timeline o auditoría de esos módulos.
+ * Seeder demo de grafo profundo.
  *
- * Este seeder NO inventa política de negocio (montos, cuotas, MDR, mora): solo produce datos de
+ * Produce registros hijo/evento para probar endpoints de detalle, timeline y auditoría. No
+ * inventa política de negocio (montos, cuotas, MDR, mora): solo produce datos de
  * demostración/prueba para relaciones ya definidas en el schema, reutilizando los IDs fijos
  * creados por los seeders anteriores:
  *   - tenants._id = 1, customers._id = 1 (customer_uuid = 11111111-1111-4111-8111-111111111111)

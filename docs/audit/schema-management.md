@@ -8,7 +8,7 @@
 verde); no se agregaron tests nuevos porque no se aplicó ningún cambio de código.
 
 **Resultado:** sin hallazgos críticos/altos/medios. No se modificó código. Módulo de gobernanza
-de propuestas DDL ("Fase 4B", según sus propios comentarios) ya construido con los patrones
+de propuestas DDL ("Fase 4B") ya construido con los patrones
 correctos.
 
 ---

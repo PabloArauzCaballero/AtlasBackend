@@ -15,12 +15,10 @@ import {
 import { WorkQueueQueryDto } from './operations.schemas.js';
 
 /**
- * ATLAS-AUDIT-014 (cerrado en este patch): las escrituras de decisión de casos de fraude
- * (`closeFraudCase`, `createFraudCaseEvent`, `createWatchlistEntry`, `findFraudCaseById`) se
- * movieron a `src/modules/fraud/fraud.repository.ts`. `FraudCaseModel` se mantiene inyectado
- * aquí porque `findFraudCasesForQueue`/`getInvestigationSummary` (lectura para el panel de
- * operaciones) siguen necesitándolo — una cola de trabajo que combina fraude + revisión manual
- * es, correctamente, responsabilidad de "operations", no de "fraud".
+ * Repositorio de operaciones.
+ *
+ * Las escrituras de decisión de fraude viven en `FraudRepository`; este repositorio mantiene
+ * lecturas de casos de fraude para colas e investigation summary.
  */
 @Injectable()
 export class OperationsRepository {
@@ -237,7 +235,7 @@ export class OperationsRepository {
     return this.manualReviewCaseModel.findOne({ where: { tenantId, id: caseId, deleted: { [Op.ne]: true } } } as FindOptions);
   }
 
-  // findFraudCaseById movido a src/modules/fraud/fraud.repository.ts (ATLAS-AUDIT-014).
+  // Las escrituras de fraude viven en `FraudRepository`.
 
   async closeManualReviewCase(
     caseModel: ManualReviewCaseModel,
@@ -281,11 +279,7 @@ export class OperationsRepository {
     );
   }
 
-  // closeFraudCase y createFraudCaseEvent movidos a src/modules/fraud/fraud.repository.ts
-  // (ATLAS-AUDIT-014). createStatusEvent/createCustomerObservation se mantienen aquí Y se
-  // duplican en FraudRepository porque decideManualReviewCase (que sigue en operations) y
-  // decideFraudCase (movido a fraud) ambos los necesitan — son escrituras genéricas de una
-  // sola fila, estables, de bajo riesgo de divergencia.
+  // Status events y observaciones se usan tanto por manual review como por fraude.
 
   createStatusEvent(
     values: {
@@ -349,7 +343,7 @@ export class OperationsRepository {
     );
   }
 
-  // createWatchlistEntry movido a src/modules/fraud/fraud.repository.ts (ATLAS-AUDIT-014).
+  // Las escrituras de watchlist de fraude viven en `FraudRepository`.
 
   createOperationalAudit(
     values: {

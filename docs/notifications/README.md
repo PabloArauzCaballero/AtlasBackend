@@ -1,4 +1,4 @@
-# Patch 2.0 — Notifications Core
+# Notifications Core
 
 Este módulo separa tres conceptos:
 

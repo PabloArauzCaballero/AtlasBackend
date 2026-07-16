@@ -1,7 +1,7 @@
 import { Umzug, SequelizeStorage } from 'umzug';
-import { createSequelizeInstance } from './sequelize.js';
+import { createMigrationSequelizeInstance } from './sequelize.js';
 
-const sequelize = createSequelizeInstance();
+const sequelize = createMigrationSequelizeInstance();
 
 const umzug = new Umzug({
   migrations: {

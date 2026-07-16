@@ -23,7 +23,48 @@ diferenciados en vez de una sola identidad `DB_USER` con permisos amplios.
 - **Beneficio inicial = seguridad y gobierno, no rendimiento.** Si RW y RO apuntan al mismo primario,
   no hay menos CPU ni I/O. La ganancia de rendimiento llega cuando RO apunte a una réplica (§13.3).
 
-## Aplicación (operado por DBA / Terraform, NO por migraciones de app)
+## Camino rápido: crear los roles desde el ORM (`yarn db:roles:bootstrap`)
+
+Para local/CI no hace falta psql ni un DBA: el script usa **Sequelize** (el mismo ORM del backend)
+para crear los roles y aplicar los grants, de forma idempotente.
+
+```bash
+# Las contraseñas vienen de tu gestor de secretos; NUNCA se versionan.
+export DB_APP_RW_PASSWORD='...'
+export DB_APP_RO_PASSWORD='...'
+export DB_MIGRATOR_PASSWORD='...'
+yarn db:roles:bootstrap
+yarn check:db-privileges   # verifica la matriz de forma no destructiva
+```
+
+Se conecta con `DB_ADMIN_USER`/`DB_ADMIN_PASSWORD` (cae a `DB_USER`). Esa identidad necesita
+**CREATE ROLE**; si no lo tiene, el script lo dice y no toca nada — los roles son objetos de
+**cluster** y muchos proveedores administrados restringen su creación.
+
+Además de crear los roles, el script:
+
+- **Adopta la propiedad** de las tablas/vistas/secuencias existentes hacia `atlas_owner`. Sin esto,
+  `atlas_migrator` no puede alterar objetos creados antes por otro rol (PostgreSQL exige ser dueño o
+  miembro del rol dueño) y las migraciones fallarían con *"debe ser dueño de la tabla"*.
+- Ejecuta `ALTER ROLE atlas_migrator IN DATABASE <db> SET role TO atlas_owner`, de modo que todo lo
+  que cree una migración quede propiedad de `atlas_owner` sin que cada migración recuerde hacer
+  `SET ROLE`.
+- Concede a `atlas_app_rw` los privilegios sobre tablas **futuras** (`ALTER DEFAULT PRIVILEGES`) para
+  las tres identidades que pueden aplicar DDL, para que el runtime no se quede sin permisos tras la
+  próxima migración.
+
+### Por qué es un script y no una migración Sequelize
+
+- Los roles son objetos de **cluster**, no de base: una migración (que es por-base) los crearía como
+  efecto colateral fuera de su alcance, y re-aplicarla contra otra base del mismo cluster no tendría
+  sentido.
+- Requiere **CREATE ROLE**. En muchos proveedores administrados el usuario de despliegue no lo tiene:
+  la migración fallaría y **rompería el deploy** en vez de degradar con un aviso.
+- El `down()` tendría que hacer `DROP ROLE`, destructivo y peligroso si otra base del cluster usa los
+  mismos roles.
+- Las contraseñas tendrían que entrar por env de todos modos, así que no se gana nada.
+
+## Aplicación alternativa con SQL (operado por DBA / Terraform)
 
 Los roles existen a nivel de cluster; muchos proveedores administrados restringen su creación. Por
 eso viven en `ops/postgres/*.sql` y los aplica infraestructura, no `db:migration:up` (§15). Las

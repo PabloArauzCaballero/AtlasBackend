@@ -16,15 +16,8 @@ import {
 import { mapDelivery, mapDeviceToken, mapMessage, mapPreference, mapTemplate } from './notifications.mapper.js';
 
 /**
- * NOTA (cierre de ATLAS-AUDIT-027): este archivo mantiene su propia verificación en vez de usar
- * `assertOwnCustomerResource` de `src/common/utils/auth/ownership.util.ts` a propósito: el
- * control de acceso a notificaciones es intencionalmente más estricto que el genérico — solo
- * una lista explícita de roles internos puede leer/gestionar notificaciones de un cliente
- * (notar que `merchant` NO está en esta lista, a diferencia de lo que permitiría el helper
- * genérico, que solo bloquea el rol `customer` y deja pasar cualquier otro rol). Colapsar esto
- * al helper genérico habría sido una regresión de seguridad silenciosa (ampliar el acceso de
- * `merchant` a notificaciones de cualquier cliente). Si la lista de roles permitidos cambia,
- * actualizar únicamente aquí.
+ * Las notificaciones usan una autorización más estricta que el helper genérico de ownership:
+ * solo el cliente dueño o una lista explícita de roles internos puede leer/gestionar mensajes.
  */
 function canAccessCustomer(currentUser: AuthenticatedUser, customerId: string): boolean {
   if (currentUser.role === 'customer') return currentUser.customerId === customerId;

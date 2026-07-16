@@ -1,11 +1,7 @@
 /**
- * ATLAS-AUDIT-012 / ATLAS-PEND-106: interfaz de "proveedor de data key" para envelope
- * encryption. `INFRASTRUCTURE_DEVELOPMENT_CONTEXT.md` §2/§10 fija KMS como parte del stack de
- * cifrado objetivo, pero hoy (`secret-box.util.ts`) el cifrado usa una única clave maestra
- * derivada de una variable de entorno, sin envelope encryption real ni rotación por registro.
+ * Contrato para proveedores de data keys de envelope encryption.
  *
- * Este archivo define el contrato que cualquier proveedor de claves debe cumplir, sin importar
- * si la clave la genera KMS o (como hoy, vía `LocalKeyProvider`) una derivación local:
+ * Cualquier proveedor de claves debe cumplir este contrato, ya sea KMS o `LocalKeyProvider`:
  *
  *  - `generateDataKey()`: genera una data key nueva (una por valor cifrado, no una única clave
  *    maestra reusada para todo), devuelve la clave en claro (para cifrar/descifrar en memoria,
@@ -13,8 +9,8 @@
  *  - `decryptDataKey(encryptedKey, keyId)`: desenvuelve una data key ya guardada para poder
  *    descifrar el valor asociado.
  *
- * Con AWS KMS real, `generateDataKey` llamaría a `GenerateDataKeyCommand` y `decryptDataKey` a
- * `DecryptCommand` — ver `kms-key-provider.ts` para el punto exacto de integración pendiente.
+ * Con AWS KMS, `generateDataKey` llama a `GenerateDataKeyCommand` y `decryptDataKey` a
+ * `DecryptCommand`.
  */
 export type DataEncryptionKey = {
   /** Identificador de qué clave maestra envolvió esta data key (permite rotar sin romper datos viejos). */

@@ -2,10 +2,8 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { DataQualityService } from '../../../src/modules/data-quality/data-quality.service.js';
 
 /**
- * ATLAS-AUDIT (auditoría #13, `data-quality`): `listIssues` hardcodeaba `severity: null` y
- * `issueCode: issue.issueStatus` (duplicando el campo `status`) en vez de resolver esos dos
- * campos contra `data_quality_rules` (via `quality_rule_id`), donde realmente viven. Este test
- * cubre el mapeo correcto tras el fix.
+ * Regresión de data-quality: `listIssues` debe resolver `severity` e `issueCode` desde
+ * `data_quality_rules` vía `quality_rule_id`.
  */
 describe('DataQualityService.listIssues', () => {
   function buildService() {

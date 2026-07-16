@@ -1,5 +1,5 @@
 /**
- * ATLAS-AUDIT-025: paginación por cursor (keyset) para reemplazar `OFFSET/LIMIT` en listados
+ * Paginación por cursor (keyset) para reemplazar `OFFSET/LIMIT` en listados
  * sobre tablas de alto crecimiento (auditoría, telemetría, colas de trabajo). El costo de un
  * `OFFSET` en PostgreSQL crece linealmente con la profundidad de la página, porque la base de
  * datos igual tiene que recorrer y descartar todas las filas anteriores al offset. Un cursor

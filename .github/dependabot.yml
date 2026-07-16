@@ -1,0 +1,52 @@
+# Fase 4.1 del plan 10/10: actualizaciones automáticas de dependencias.
+#
+# Complementa `yarn audit --level high` (que BLOQUEA el merge ante un CVE high/critical) con un flujo
+# proactivo: Dependabot abre el PR de actualización antes de que el CVE aparezca, en vez de dejar el
+# pipeline rojo esperando una acción manual.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+    groups:
+      # Agrupa el ruido de bajo riesgo en un solo PR; lo demás llega por separado para revisarlo bien.
+      dev-tooling:
+        patterns:
+          - '@types/*'
+          - 'eslint*'
+          - '@typescript-eslint/*'
+          - 'prettier'
+          - 'jest'
+          - 'ts-jest'
+          - 'supertest'
+          - '@nestjs/testing'
+        update-types:
+          - minor
+          - patch
+      nestjs:
+        patterns:
+          - '@nestjs/*'
+        update-types:
+          - minor
+          - patch
+
+  # El propio pipeline también se versiona: las actions con tag flotante son un vector de supply chain.
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: 'chore(ci)'

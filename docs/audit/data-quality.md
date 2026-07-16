@@ -3,7 +3,7 @@
 **Alcance revisado:** `data-quality.controller.ts`, `.service.ts`, `.repository.ts`,
 `.schemas.ts`, `.module.ts`; modelos `DataQualityIssueModel`, `DataQualityRuleModel`. Tests:
 `test/unit/data-quality/data-quality.repository.spec.ts` (existente) y
-`data-quality.service.spec.ts` (nuevo — el service no tenía cobertura antes de este patch).
+`data-quality.service.spec.ts`.
 
 **Resultado:** 1 hallazgo Alto (parámetro de filtro `severity` completamente inerte + campos de
 respuesta incorrectos), corregido. Suite verde tras el cambio (8/8, incluye 4 tests nuevos).

@@ -4,10 +4,7 @@ import { SystemsTestAssertionService } from '../../src/modules/systems-ops/syste
 import { SystemsTestTemplateService } from '../../src/modules/systems-ops/systems-test-template.service.js';
 
 /**
- * ATLAS-AUDIT (auditoría #16, `systems-ops`): `assertRealRunCanExecute` solo restringía el host
- * de `baseUrl` cuando `environment === 'LOCAL'`. Para `STAGING`/`PRODUCTION_READONLY`, un run real
- * (`dryRun: false`) con `baseUrl` apuntando a la IP de metadata de nube o a un rango privado no
- * tenía ningún bloqueo — el backend hacía la petición HTTP saliente (SSRF). Este test cubre el
+ * `assertRealRunCanExecute` bloquea SSRF para runs reales fuera de LOCAL. Este test cubre el
  * bloqueo agregado, sin necesidad de una base de datos real (repositorio y http client mockeados).
  */
 describe('SystemsTestRunnerService — SSRF guard on real (non-dry-run) executions', () => {

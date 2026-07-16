@@ -87,7 +87,7 @@ export class EventsRepository {
   }
 
   /**
-   * ATLAS-AUDIT-025: variante por cursor de `list()`. Referencia de aplicación del patrón
+   * Variante por cursor de `list()`. Referencia de aplicación del patrón
    * documentado en `src/common/utils/pagination/cursor-pagination.util.ts`. A diferencia de
    * `list()` (que sigue usando `OFFSET`, mantenido por compatibilidad), esta consulta no paga
    * un costo creciente por página profunda: siempre filtra por la clave del cursor en vez de

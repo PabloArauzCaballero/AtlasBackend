@@ -1,10 +1,7 @@
 import { QueryInterface } from 'sequelize';
 
 /**
- * ATLAS-P11-T10 (cierra la parte de `audit`/`ATLAS-PEND-102` que quedaba abierta tras el patch
- * `ATLAS-P10`: "operations" y "audit" seguían en OFFSET).
- *
- * Esta migración es ADITIVA: crea una vista (`audit_event_feed`) que unifica por `UNION ALL`
+ * Migración aditiva: crea una vista (`audit_event_feed`) que unifica por `UNION ALL`
  * las 7 tablas fuente que hoy alimenta `AuditRepository` (`operational_audit_logs`,
  * `data_change_logs`, `auth_events`, `consent_events`, `customer_action_logs`,
  * `customer_status_events`, `fraud_case_events`, `manual_review_events`), permitiendo un
@@ -24,12 +21,7 @@ import { QueryInterface } from 'sequelize';
  * tabla fuente — por eso esta migración también asegura esos índices con `IF NOT EXISTS` en
  * vez de asumir que ya existen.
  *
- * ATLAS-P11-NOTA-DE-ALCANCE: esta migración fue escrita y revisada estáticamente (columnas y
- * tipos verificados contra cada modelo Sequelize en `src/database/models/`), pero — igual que
- * el resto de este patch — NO fue ejecutada por quien la escribió contra un Postgres real (ver
- * `ATLAS-PEND-109` y la nota de alcance general en `docs/pending/pending-items.md`). Antes de
- * darla por cerrada debe correr una vez a través del job `db-and-cache-integration` de CI
- * (`yarn db:migration:up` contra el Postgres de servicio) y confirmarse con:
+ * Validación operativa recomendada después de aplicar la migración:
  *   `SELECT COUNT(*) FROM audit_event_feed;` (debe coincidir con la suma de conteos de las 8
  *   tablas fuente) y `EXPLAIN ANALYZE SELECT * FROM audit_event_feed WHERE tenant_id = 1 ORDER
  *   BY occurred_at DESC, source_id DESC LIMIT 20;` (debe mostrar índices, no seq scans, en cada

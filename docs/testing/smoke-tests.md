@@ -99,7 +99,7 @@ Debe responder correctamente antes de ejecutar `yarn smoke`.
 - Los jobs runtime se ejecutan con `dryRun: true`, para validar contrato sin aplicar acciones destructivas.
 - Si falla `yarn smoke`, corre el módulo específico para aislar el problema.
 
-## Patch 2.0
+## Smoke tests de eventos y notificaciones
 
 Nuevos comandos:
 

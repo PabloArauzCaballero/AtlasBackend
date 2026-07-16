@@ -329,10 +329,8 @@ export class AuthRepository {
   /**
    * Deja rastro firmado por el id del actor de cada intento de login/logout, sea exitoso o no.
    * `operational_audit_logs` cubre los tres tipos de actor (internal_user/platform_user vía
-   * columnas dedicadas, customer en el payload). `auth_events` es además el historial de sesión
-   * dedicado a clientes (mismo esquema que `customer_sessions`); antes de este cambio el modelo
-   * existía pero ningún flujo lo escribía, así que no había forma de listar intentos de login
-   * previos de un cliente, solo el último (`auth_credentials.lastLoginAt`).
+   * columnas dedicadas, customer en el payload). `auth_events` mantiene el historial dedicado de
+   * autenticación de clientes.
    */
   async recordLoginAttemptEvent(event: LoginAttemptEvent): Promise<void> {
     const now = new Date();

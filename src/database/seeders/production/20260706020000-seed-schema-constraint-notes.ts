@@ -1,11 +1,9 @@
 import { QueryInterface, Transaction } from 'sequelize';
 
 /**
- * PENDIENTE_ATLAS (continuación de Fase 2): cierra `schema_constraint_notes`, la última tabla de
- * catálogo/documentación que quedaba en 0 filas y que SÍ tiene sentido sembrar (a diferencia de
- * `system_test_runs`, `auth_refresh_tokens`, etc., que son artefactos de runtime).
+ * Catálogo productivo de constraints de schema.
  *
- * Este catálogo documenta, en lenguaje de negocio, los 5 CHECK CONSTRAINTS reales que existen hoy
+ * Documenta, en lenguaje de negocio, los 5 CHECK CONSTRAINTS reales que existen hoy
  * en el schema (verificados leyendo `CHECK_CONSTRAINTS` en las 10 migraciones
  * `schema-relationships-part-*`). No se inventa ningún constraint nuevo aquí — solo se documenta
  * lo que ya existe en la base de datos, para que el panel de operaciones / data-quality pueda

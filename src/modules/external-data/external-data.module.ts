@@ -10,17 +10,17 @@ import {
   FeatureSnapshotModel,
   ProviderHealthLogModel,
 } from '../../database/models/index.js';
+import { AdminExternalProvidersController, ExternalDataController } from './external-data.controller.js';
+// Fase 2.2 del plan 10/10: los verticales salieron de `external-data.controller.ts` (966 líneas, 9
+// clases) a `controllers/`. El ORDEN de registro se conserva idéntico al original a propósito: Nest
+// resuelve las rutas en orden de registro y cambiarlo podría alterar el matching.
+import { BureauExternalDataController, KycExternalDataController } from './controllers/kyc-bureau.controller.js';
+import { PaymentsExternalDataController, TelcoExternalDataController } from './controllers/payments-telco.controller.js';
 import {
-  AdminExternalProvidersController,
-  BureauExternalDataController,
   DigitalTrustExternalDataController,
-  ExternalDataController,
   FacebookExternalDataController,
-  KycExternalDataController,
-  PaymentsExternalDataController,
-  TelcoExternalDataController,
   WhatsappExternalDataController,
-} from './external-data.controller.js';
+} from './controllers/social-trust.controller.js';
 import { ExternalDataRepository } from './external-data.repository.js';
 import { ExternalDataService } from './external-data.service.js';
 import { ExternalDataEvidenceService } from './application/external-data-evidence.service.js';

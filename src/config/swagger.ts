@@ -2,22 +2,10 @@ import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule, OpenAPIObject } from '@nestjs/swagger';
 
 /**
- * ATLAS-AUDIT-006 (cerrado en este patch): no existía ningún Swagger/OpenAPI en el proyecto
- * pese a que `BACKEND_DEVELOPMENT_CONTEXT.md` §1 y §16 lo exigen, ni el archivo obligatorio
- * `docs/endpoints/openapi.yaml`.
+ * Builder oficial de OpenAPI para `/docs` y para `docs/endpoints/openapi.yaml`.
  *
- * Esta función construye el documento OpenAPI una sola vez, para dos consumidores:
- *  - `main.ts`: lo monta en `${API_PREFIX}/docs` como UI interactiva (Swagger UI).
- *  - `scripts/generate-openapi.ts`: lo exporta a `docs/endpoints/openapi.yaml` para que quede
- *    versionado y sea el contrato que consumen los equipos de frontend web y mobile.
- *
- * Nota de cobertura: los DTOs/controladores de `auth` están decorados con `@ApiProperty`/
- * `@ApiOperation`. Los 15 módulos preexistentes (customers, sessions, risk, etc.) NO tienen
- * decoradores Swagger todavía — sus rutas SÍ aparecen en el documento generado (Nest las
- * detecta por los decoradores HTTP estándar de `@Controller`/`@Get`/`@Post`), pero sin
- * descripciones enriquecidas. Retrofit completo de anotaciones queda documentado como pendiente
- * en `docs/pending/pending-items.md` (ATLAS-AUDIT-006) — agregarlo módulo por módulo es trabajo
- * mecánico de bajo riesgo, no bloqueante para tener el mecanismo funcionando.
+ * Las rutas se detectan desde los decoradores HTTP de Nest; los módulos con decoradores Swagger
+ * específicos aportan descripciones enriquecidas al contrato generado.
  */
 export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
   const config = new DocumentBuilder()

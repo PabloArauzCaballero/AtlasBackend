@@ -45,7 +45,7 @@ export const manualReviewDecisionParamsSchema = z.object({
   caseId: z.string().regex(/^[1-9][0-9]*$/),
 });
 
-// fraudDecisionParamsSchema movido a src/modules/fraud/fraud.schemas.ts (ATLAS-AUDIT-014).
+// El schema de decisión de fraude vive en el dominio `fraud`.
 
 export const manualReviewDecisionSchema = z.object({
   decision: z.enum(['approved', 'rejected', 'request_more_information', 'escalated_to_fraud', 'no_action']),
@@ -56,7 +56,7 @@ export const manualReviewDecisionSchema = z.object({
     .optional(),
 });
 
-// fraudDecisionSchema movido a src/modules/fraud/fraud.schemas.ts (ATLAS-AUDIT-014).
+// El schema de decisión de fraude vive en el dominio `fraud`.
 
 export type ManualReviewDecisionParamsDto = z.infer<typeof manualReviewDecisionParamsSchema>;
 export type ManualReviewDecisionDto = z.infer<typeof manualReviewDecisionSchema>;

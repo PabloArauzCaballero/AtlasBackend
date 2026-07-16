@@ -12,13 +12,10 @@ import {
 } from '../../database/models/index.js';
 
 /**
- * ATLAS-AUDIT-014 (cerrado en este patch): repositorio de escritura de decisiones de fraude,
- * extraído de `operations.repository.ts`. `createStatusEvent`, `createCustomerObservation`,
- * `createOperationalAudit` y `createDataChange` están intencionalmente duplicados aquí (y en
- * `OperationsRepository`, que los sigue usando desde `decideManualReviewCase`): son escrituras
- * genéricas de una sola fila sobre tablas usadas por múltiples dominios, de bajo riesgo de
- * divergencia. No se extrajeron a un repositorio "compartido" separado para no introducir una
- * dependencia cruzada adicional entre `fraud` y `operations` en ninguna dirección.
+ * Repositorio de escritura de decisiones de fraude.
+ *
+ * Las escrituras de auditoría/observación se mantienen locales al dominio para que la decisión
+ * de fraude no dependa de internals de `operations`.
  */
 @Injectable()
 export class FraudRepository {

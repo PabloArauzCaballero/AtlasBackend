@@ -12,17 +12,20 @@ on:
 
 jobs:
   backend:
-    name: install → check-env → lint → type-check → test → build
+    name: install → check-env → lint → type-check → unit tests → build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Fase 6.3 del plan 10/10: la versión de Node se toma de .nvmrc (22.16.0) en vez de estar
+      # hardcodeada a '20'. Así local/CI no vuelven a divergir nunca.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'yarn'
 
       - name: Install dependencies
@@ -52,14 +55,64 @@ jobs:
       - name: Check no overfetching in read_api layer
         run: yarn check:overfetching
 
+      # Fase 2.1 del plan 10/10: congela la deuda de tamaño — ningún archivo runtime NUEVO grande
+      # entra sin excepción documentada. Los umbrales de complejidad los aplica ESLint arriba.
+      - name: Check runtime file size (complexity gate)
+        run: yarn check:file-size
+
       - name: Type-check
         run: yarn type-check
 
-      - name: Unit tests
-        run: yarn test:coverage
+      # Fase 1.1: los unit tests dan feedback rápido en el PR (~1 min). La suite COMPLETA con el
+      # gate de cobertura corre en paralelo en el job `coverage`, para no serializar el feedback.
+      #
+      # Fase 1.3: se corren con `--randomize` para que una dependencia de ORDEN entre tests falle el
+      # PR en vez de convertirse en flakiness intermitente. Es reproducible: Jest imprime la semilla
+      # y se puede repetir con `yarn test:unit -- --seed=<n>`. Verificado sin acoplamiento de orden
+      # (suite completa aleatorizada: 110 suites / 1006 tests verdes).
+      - name: Unit tests (fast feedback, randomized order)
+        run: yarn test:unit:randomized
 
       - name: Build
         run: yarn build
+
+  # Fase 1.1 + 1.2 del plan 10/10: la suite COMPLETA (unit + e2e) corre aquí, sin límite artificial
+  # de proceso — antes un corte de 60 s la mataba y ocultaba si pasaba (pasa: 108 suites / 985 tests).
+  # Este job es el que aplica el GATE DE COBERTURA (jest coverageThreshold) y publica el reporte.
+  coverage:
+    name: suite completa + gate de cobertura + reporte
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      # Falla si la cobertura baja de los umbrales por trinquete (global + auth/risk/fraud/crypto).
+      # Publica también el tiempo total de la suite, requisito del DoD de la Fase 1.1.
+      - name: Full test suite with coverage gate
+        run: yarn test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-coverage
+          path: |
+            coverage/lcov-report
+            coverage/coverage-summary.json
+            coverage/lcov.info
+          retention-days: 14
+          if-no-files-found: warn
 
   # ATLAS-P10-005 (cierra ATLAS-PEND-109): hasta este patch, ningún job de CI corría contra un
   # Postgres/Redis reales — todo lo verificado en CI eran tipos, lint y tests con mocks. Este
@@ -114,7 +167,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'yarn'
 
       - name: Install dependencies
@@ -230,7 +283,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'yarn'
 
       - name: Install dependencies
@@ -242,6 +295,88 @@ jobs:
         # merge, no quedar como advertencia ignorable. Si una dependencia específica tiene un
         # falso positivo o no aplica al código realmente usado, documentarlo explícitamente en
         # docs/pending/pending-items.md con el ID del advisory antes de silenciarlo.
+
+  # Fase 4.1 del plan 10/10: análisis estático de seguridad (SAST). Complementa `yarn audit` (CVEs de
+  # dependencias) buscando vulnerabilidades en el CÓDIGO de Atlas (inyección, path traversal, etc.).
+  codeql:
+    name: CodeQL (SAST)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      # JS/TS no necesita build para CodeQL: analiza el fuente directamente.
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'
+
+  # Fase 4.1: escaneo de secretos. Corre ANTES de instalar dependencias a propósito — así node_modules
+  # no existe y el escaneo cubre solo código de Atlas (rápido y sin ruido de terceros).
+  #
+  # Alcance: WORKING TREE (--no-git), no el historial. Es una decisión deliberada: el historial ya
+  # contiene un hash de contraseña rotado y documentado (ATLAS-P0-002), así que un escaneo de historial
+  # dejaría este gate rojo permanentemente y por tanto ignorado. Este gate impide que entren secretos
+  # NUEVOS; la exposición histórica se trata como incidente cerrado (credencial rotada), no como gate.
+  # Las excepciones están verificadas una a una en .gitleaks.toml.
+  secret-scan:
+    name: Escaneo de secretos (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install gitleaks (versión fijada)
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz" -o gitleaks.tar.gz
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo install gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Scan working tree for secrets
+        run: gitleaks detect --source . --no-git --redact --config .gitleaks.toml --exit-code 1
+
+  # Fase 4.1: SBOM (CycloneDX) por build. Se usa Syft/anchore porque soporta yarn 1 (los generadores
+  # de CycloneDX para npm exigen package-lock.json, que este repo no usa).
+  sbom:
+    name: SBOM (CycloneDX)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: atlas-sbom.cyclonedx.json
+          artifact-name: atlas-sbom.cyclonedx.json
 
   migration-check:
     name: terraform-style check — migraciones nuevas son pequeñas

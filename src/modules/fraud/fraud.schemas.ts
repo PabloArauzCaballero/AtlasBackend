@@ -1,10 +1,7 @@
 import { z } from 'zod';
 
 /**
- * ATLAS-AUDIT-014 (cerrado en este patch): movido desde `operations.schemas.ts`. La decisión
- * sobre un caso de fraude es responsabilidad del dominio `fraud`, no de `operations` — aunque
- * la ruta HTTP se mantiene bajo `/operations/fraud-cases/...` por compatibilidad (ver
- * `operations.controller.ts`, que delega en `FraudService`).
+ * Schemas de decisión de fraude; la ruta HTTP compatible delega en `FraudService`.
  */
 export const fraudDecisionParamsSchema = z.object({
   caseId: z.string().regex(/^[1-9][0-9]*$/),

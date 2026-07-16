@@ -2,10 +2,8 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { AuditRepository } from '../../../src/modules/audit/audit.repository.js';
 
 /**
- * ATLAS-AUDIT (auditoría #14, `audit`): `consent`, `manual_review` y `fraud` estaban en el enum
- * de `eventType` del schema pero no tenían ninguna rama de consulta en
- * `findCustomerAuditEvents` — pedir cualquiera de esos 3 filtros devolvía `[]` siempre, en
- * silencio, y `eventType=all` nunca los incluía. Este test cubre las 3 ramas agregadas por el
+ * Regresión de auditoría: `consent`, `manual_review` y `fraud` deben tener ramas de consulta en
+ * `findCustomerAuditEvents`. Este test cubre las 3 ramas del
  * fix, sin base de datos real (todos los modelos inyectados están mockeados).
  */
 describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/fraud branches', () => {

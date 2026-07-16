@@ -5,24 +5,13 @@ type MigrationContext = {
 };
 
 /**
- * Patch Fase 1 — Auth real + cierre de condición de carrera en alta de cliente.
+ * Migración de autenticación y unicidad de email.
  *
- * Referencias de auditoría cerradas por esta migración:
- * - ATLAS-AUDIT-002: no existía módulo de autenticación ni tabla de credenciales/refresh tokens.
- * - ATLAS-AUDIT-021: `primary_email_hash` de `customers` no tenía restricción única a nivel de
- *   base de datos (solo `primary_phone_hash` la tenía), permitiendo clientes duplicados bajo
- *   condición de carrera cuando dos registros concurrentes comparten el mismo email.
- * - ATLAS-AUDIT-026: se agrega `token_version` en `auth_credentials` para que la revocación de
- *   tokens (comparada en `JwtAuthGuard` vía `TokenRevocationService`) sea real, no solo un campo
- *   decorativo en el tipo `AuthenticatedUser`.
- *
- * No se modifica la migración monolítica original (`20260626154044-...`) porque ya fue aplicada:
- * `CONTRIBUTING.md` prohíbe editar migraciones ya aplicadas en ambientes compartidos. Este patch
- * sigue el patrón correcto: migraciones nuevas, pequeñas y focalizadas por dominio.
+ * Crea credenciales y refresh tokens por actor, agrega `token_version` para revocación global
+ * y refuerza unicidad de `primary_email_hash` por tenant a nivel de base de datos.
  */
 export async function up({ context: queryInterface }: MigrationContext): Promise<void> {
-  // 1. Credenciales de autenticación, genéricas por tipo de actor (customer / internal_user / platform_user).
-  //    Se modela aparte de las tablas de actor existentes para no tocar la migración monolítica ya aplicada.
+  // Credenciales genéricas por tipo de actor.
   await queryInterface.createTable('auth_credentials', {
     _id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false },
     _tenant_id: { type: DataTypes.BIGINT, allowNull: true },
@@ -44,8 +33,7 @@ export async function up({ context: queryInterface }: MigrationContext): Promise
     where: { _deleted: false },
   });
 
-  // 2. Refresh tokens con rotación y revocación (BACKEND_DEVELOPMENT_CONTEXT.md §10).
-  //    Se guarda el hash del token, nunca el token en claro (defensa en profundidad ante fuga de DB).
+  // Refresh tokens con rotación y revocación; se guarda solo el hash del token.
   await queryInterface.createTable('auth_refresh_tokens', {
     _id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false },
     _tenant_id: { type: DataTypes.BIGINT, allowNull: true },
@@ -69,11 +57,8 @@ export async function up({ context: queryInterface }: MigrationContext): Promise
     name: 'ix_auth_refresh_tokens_actor',
   });
 
-  // 3. Cierre de ATLAS-AUDIT-021: restricción única real para email, con el mismo patrón SQL crudo
-  //    ya usado por la migración base para índices parciales (ver `createIndexes()` en
-  //    `20260626154044-...ts`), que ya aplica correctamente esta misma estrategia a
-  //    `primary_phone_hash`. `queryInterface.addIndex` no soporta de forma portable expresiones
-  //    `WHERE ... IS NOT NULL`, por eso se usa SQL crudo igual que en el resto del proyecto.
+  // Sequelize no modela de forma portable el índice parcial requerido; SQL crudo mantiene el
+  // contrato de unicidad solo para emails presentes y filas activas.
   await queryInterface.sequelize.query(
     `CREATE UNIQUE INDEX IF NOT EXISTS "ux_customers_tenant_email_hash" ON "customers" ("_tenant_id", "primary_email_hash") WHERE _deleted = false AND primary_email_hash IS NOT NULL;`,
   );

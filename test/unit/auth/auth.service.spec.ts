@@ -1,10 +1,8 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { UnauthorizedException, ForbiddenException, ConflictException } from '@nestjs/common';
 
-// Se mockean las utilidades criptográficas para aislar la lógica de negocio de `AuthService`
-// de la librería `argon2` (no instalable en el sandbox donde se escribió este patch por falta
-// de acceso a red, ver IMPLEMENTATION_REPORT.md). El comportamiento de argon2 en sí mismo ya
-// está cubierto por `password.util.spec.ts`.
+// Se mockean las utilidades criptográficas para aislar la lógica de negocio de `AuthService`.
+// El comportamiento de argon2 está cubierto por `password.util.spec.ts`.
 jest.mock('../../../src/common/utils/crypto/password.util.js', () => ({
   hashPassword: jest.fn(async (plain: string) => `hashed:${plain}`),
   verifyPassword: jest.fn(async (hash: string, plain: string) => hash === `hashed:${plain}`),
@@ -489,7 +487,7 @@ describe('AuthService.logout', () => {
     );
   });
 
-  it('revokes all refresh tokens AND bumps tokenVersion when allDevices=true (closes ATLAS-AUDIT-026)', async () => {
+  it('revokes all refresh tokens AND bumps tokenVersion when allDevices=true', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const tokenRevocationService = buildTokenRevocationServiceMock();

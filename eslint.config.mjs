@@ -1,9 +1,4 @@
-// ATLAS-AUDIT-020 (cerrado en este patch): el proyecto no tenía ESLint ni Prettier
-// configurados pese a que `BACKEND_DEVELOPMENT_CONTEXT.md` §1 los exige ("ESLint + Prettier").
-//
-// Reglas deliberadamente moderadas para un patch de corrección (no una reescritura de estilo):
-// prioriza atrapar errores reales (variables no usadas, `any` sin justificar, promesas sin
-// await) sobre imponer un estilo de formato — eso ya lo resuelve Prettier por separado.
+// Reglas de lint enfocadas en errores reales; Prettier cubre el formato.
 import js from '@eslint/js';
 import tseslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
@@ -39,10 +34,7 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
-      // Atlas prohíbe `any` como escape permanente (BACKEND_DEVELOPMENT_CONTEXT.md §17), pero
-      // el código existente usa `as never` deliberadamente en varios puntos para interactuar
-      // con tipados imprecisos de Sequelize; se deja como warning, no error, para no bloquear
-      // el build por deuda preexistente mientras se migra gradualmente.
+      // `any` no es un escape permanente; queda como warning por los tipados dinámicos de Sequelize.
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       // TypeScript ya valida nombres/globales con mayor precisión. Mantener no-undef activo
@@ -54,6 +46,16 @@ export default [
     },
   },
   {
+    // Límites de complejidad para runtime. Se mantienen como warning hasta que el baseline baje.
+    files: ['src/**/*.ts'],
+    rules: {
+      complexity: ['warn', 15],
+      'max-depth': ['warn', 4],
+      'max-params': ['warn', 5],
+      'max-lines-per-function': ['warn', { max: 80, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
     // Herramientas CLI: aquí console.log es salida esperada de usuario, no logging de app.
     files: ['scripts/**/*.ts', 'src/database/migrate.ts', 'src/database/seed.ts', 'src/config/database.config.ts'],
     rules: {
@@ -61,9 +63,7 @@ export default [
     },
   },
   {
-    // Deuda tipada localizada: este repositorio usa Sequelize con consultas dinámicas en el
-    // catálogo administrativo. No bloqueamos Fase 1 por estos any mientras se migra a tipos
-    // específicos por endpoint en la fase de endurecimiento.
+    // Sequelize usa consultas dinámicas en el catálogo administrativo; este archivo se tipa por endpoint.
     files: ['src/modules/catalog-management/catalog-management.repository.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',

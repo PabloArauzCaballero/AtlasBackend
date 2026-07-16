@@ -5,10 +5,8 @@ import { CustomerOnboardingStartService } from '../../../src/modules/customer-on
 import { CustomerOnboardingService } from '../../../src/modules/customer-onboarding/customer-onboarding.service.js';
 
 /**
- * ATLAS-AUDIT-021 / ATLAS-AUDIT-028: antes de este patch, `startOnboarding` solo protegía
- * contra clientes duplicados con un `SELECT` previo a la transacción (patrón check-then-act no
- * atómico). Bajo concurrencia real, dos registros casi simultáneos con el mismo email podían
- * crear dos filas de `customers`. Este test simula exactamente ese escenario: el chequeo previo
+ * Regresión de concurrencia: `startOnboarding` protege contra clientes duplicados con índices
+ * únicos parciales, no solo con el `SELECT` previo. Este test simula exactamente ese escenario: el chequeo previo
  * "no encuentra nada" (como pasaría en una carrera real, donde ambos requests llegan casi al
  * mismo tiempo), pero el índice único de base de datos SÍ detecta la colisión al momento de
  * escribir, y el servicio debe traducir ese error de base de datos al mismo error de negocio

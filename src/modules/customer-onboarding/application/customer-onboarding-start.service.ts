@@ -44,13 +44,10 @@ export class CustomerOnboardingStartService {
   ) {}
 
   /**
-   * ATLAS-AUDIT-010 (cerrado en este patch): `startOnboarding` era un único método de ~400
-   * líneas que escribía en 15+ tablas distintas. Se descompuso en pasos privados, cada uno con
-   * una única responsabilidad, conservando exactamente el mismo orden y la misma lógica que
-   * tenía el método original (los comentarios `// N.` se mantienen para que el mapeo contra la
-   * versión anterior sea trazable). El método público sigue siendo el único punto de entrada y
-   * sigue abriendo una única transacción — el comportamiento observable no cambia, solo cómo
-   * está organizado el código.
+   * Punto de entrada transaccional de onboarding.
+   *
+   * Cada paso privado encapsula una escritura o validación del flujo, manteniendo una única
+   * transacción para cliente, credenciales, perfil, dispositivo, sesión, permisos y consentimientos.
    */
   async startOnboarding(
     tenantId: string,
@@ -68,14 +65,8 @@ export class CustomerOnboardingStartService {
     await this.assertNoDuplicateCustomer(tenantId, phoneHash, emailHash);
     await this.assertConsentDocumentsAreValid(tenantId, input.consents);
 
-    // ATLAS-AUDIT-021 / ATLAS-AUDIT-028 (cerrado en este patch): la verificación de arriba
-    // (`assertNoDuplicateCustomer`) es un chequeo de UX que falla rápido con un mensaje claro,
-    // pero bajo concurrencia real (dos registros casi simultáneos con el mismo email/teléfono)
-    // no es suficiente por sí sola — es un patrón check-then-act no atómico. La garantía de
-    // integridad real la da el índice único parcial a nivel de base de datos: ya existía para
-    // `primary_phone_hash` y se agregó para `primary_email_hash` en la migración
-    // `20260701000000-add-auth-credentials-and-email-uniqueness.ts`. El `try/catch` de abajo
-    // captura la colisión bajo carrera (`UniqueConstraintError`) y la traduce al mismo error de
+    // La garantía de integridad real la dan los índices únicos parciales de la base de datos.
+    // Este try/catch traduce colisiones concurrentes al mismo error de
     // negocio que el chequeo previo, para que el cliente de la app siempre reciba el mismo
     // código (`CUSTOMER_ALREADY_EXISTS`) sin importar si perdió la carrera o si simplemente
     // llegó segundo en el tiempo.
@@ -154,11 +145,6 @@ export class CustomerOnboardingStartService {
     }
   }
 
-  // ---------------------------------------------------------------------------------------
-  // Pasos privados de startOnboarding (ATLAS-AUDIT-010). Cada uno hace exactamente lo que
-  // hacía el bloque numerado equivalente en la versión anterior de este método.
-  // ---------------------------------------------------------------------------------------
-
   private async assertNoDuplicateCustomer(tenantId: string, phoneHash: string | null, emailHash: string | null): Promise<void> {
     const existing = await this.customersRepository.findByContactHash(tenantId, {
       phoneHash: phoneHash ?? undefined,
@@ -210,8 +196,7 @@ export class CustomerOnboardingStartService {
       { transaction: input.transaction },
     );
 
-    // ATLAS-AUDIT-002: credenciales de autenticación (opcional — ver PENDIENTE_ATLAS sobre
-    // mecanismo definitivo de auth del consumidor final, documentado en el schema de entrada).
+    // Credenciales de autenticación opcionales para clientes registrados por onboarding.
     if (input.passwordHash) {
       await this.authRepository.createCredentials(
         { tenantId: input.tenantId, actorType: 'customer', actorId: String(customer.id), passwordHash: input.passwordHash },

@@ -1,6 +1,6 @@
 # Outbox flow
 
-El patch usa un worker DB-backed porque el backend ya tenía `outbox_events`, `system_job_runs` y `process-outbox`.
+El flujo usa un worker DB-backed sobre `outbox_events`, `system_job_runs` y `process-outbox`.
 
 ## Estados
 

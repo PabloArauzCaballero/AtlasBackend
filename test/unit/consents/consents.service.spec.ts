@@ -3,7 +3,7 @@ import { ConsentsService } from '../../../src/modules/consents/consents.service.
 
 /**
  * ATLAS-P12 (plan `PLAN_RED_DE_PRUEBAS_ATLAS_P12.md`, Fase 4): primer test real de `consents`
- * (254 líneas, 0 tests hasta este patch) — el más simple de los 11 módulos del plan: solo
+ * Servicio de lectura de catálogo de documentos de consentimiento activos: solo
  * lectura de catálogo de documentos de consentimiento activos.
  */
 describe('ConsentsService.listActiveDocuments', () => {

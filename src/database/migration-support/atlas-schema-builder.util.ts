@@ -1,20 +1,11 @@
 import { DataTypes, Model, ModelAttributeColumnOptions, ModelAttributes, QueryInterface } from 'sequelize';
 
 /**
- * ATLAS-P11-T09: utilidades compartidas extraídas de la migración inicial monolítica
- * (`20260626154044-create-atlas-user-intelligence-fraud-schema-v5-2-1.ts`, 12,554 líneas,
- * eliminada por este patch y reemplazada por 10 migraciones `schema-part-*.ts` + 1
- * `schema-relationships.ts`).
+ * Utilidades compartidas por migraciones de schema.
  *
- * Este archivo vive DELIBERADAMENTE fuera de `src/database/migrations/` — el runner de
- * migraciones (`src/database/migrate.ts`) usa `glob: 'src/database/migrations/*.ts'` (no
- * recursivo, pero sí "todo archivo .ts en esa carpeta"), así que un archivo de utilidades sin
- * `up`/`down` colocado ahí sería tratado por Umzug como una migración inválida. Vive en
- * `migration-support/` en su lugar, un nivel arriba de `migrations/`, e importado explícitamente
- * por cada migración que lo necesita.
- *
- * El contenido es una copia exacta (sin cambios de comportamiento) de las funciones y tipos que
- * antes vivían al final del archivo monolítico — solo se movieron, no se reescribieron.
+ * Este archivo vive fuera de `src/database/migrations/` porque Umzug carga como migración todo
+ * archivo `.ts` directo de esa carpeta. Los helpers se importan explícitamente desde
+ * `migration-support/` para no exponer archivos sin `up`/`down` al runner.
  */
 
 export type ColumnKind =

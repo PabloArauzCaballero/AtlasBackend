@@ -1,6 +1,6 @@
 # Proyecto Atlas — Flujos backend compuestos
 
-Este documento describe los flujos activos después del patch de endpoints compuestos. La API ya no modela tablas individuales como endpoints. Cada flujo agrupa varias operaciones de persistencia dentro de servicios transaccionales.
+Este documento describe los flujos activos de la API. El contrato público no modela tablas individuales como endpoints; cada flujo agrupa operaciones de persistencia dentro de servicios transaccionales.
 
 ## 1. Inicio de onboarding de cliente
 

@@ -46,28 +46,11 @@ function buildDateWhere(query: AuditQueryDto): WhereOperators<Date> | null {
 }
 
 /**
- * ATLAS-AUDIT-025 (corrección de fondo, no solo de rendimiento): antes de este cambio, cada
- * subconsulta por tabla de origen (`customerStatusEventModel`, `customerActionLogModel`, etc.)
- * pedía siempre `limit` filas — nunca `page * limit` — sin importar qué página se solicitara.
- * `AuditService` luego hacía `rows.slice(start, start + limit)` sobre el resultado combinado.
+ * Repositorio de auditoría consolidada.
  *
- * Esto significa que para `page >= 2`, el resultado podía estar INCOMPLETO o directamente
- * incorrecto: un evento que debía aparecer en la página 2 podía no estar entre las primeras
- * `limit` filas de SU tabla de origen, y por lo tanto nunca entraba al pool combinado del que
- * se recorta la página. No era solo un problema de que "se pondría lento con el tiempo" — para
- * cualquier cliente con más de `limit` eventos de auditoría, pedir la página 2 ya devolvía
- * datos incorrectos hoy mismo, independientemente del volumen de la tabla.
- *
- * Esta corrección pide `offset + limit` filas de cada fuente (suficiente profundidad para
- * cubrir la página solicitada), preservando el comportamiento observable para la mayoría de
- * los casos de uso (consultas de las páginas más recientes) sin cambiar el contrato de la API.
- *
- * Sigue sin ser un cursor real empujado a la base de datos (ver ATLAS-AUDIT-025 en el reporte
- * de auditoría): con offsets muy profundos, el costo sigue creciendo por página. La corrección
- * completa (una vista/tabla unificada de eventos de auditoría con `UNION ALL` + índice
- * compuesto, permitiendo un cursor real `(occurred_at, id)` entre las 5 fuentes) queda
- * documentada como pendiente en `docs/pending/pending-items.md` — es un cambio de esquema, no
- * algo para resolver dentro de este patch de corrección.
+ * La API paginada conserva `page`/`limit`; internamente cada fuente solicita suficientes filas
+ * para cubrir la página combinada. Para lecturas profundas, usar la ruta por cursor respaldada
+ * por la vista unificada de auditoría.
  */
 @Injectable()
 export class AuditRepository {
@@ -175,13 +158,7 @@ export class AuditRepository {
         })),
       );
     }
-    // ATLAS-AUDIT (auditoría #14): `consent`, `manual_review` y `fraud` estaban en el enum de
-    // `eventType` del schema (validación aceptaba el valor) pero no tenían ninguna rama de
-    // consulta aquí — `eventType=consent|manual_review|fraud` devolvía siempre `[]` en silencio,
-    // y `eventType=all` nunca incluía estas 3 fuentes. `ConsentEventModel`/`ManualReviewEventModel`/
-    // `FraudCaseEventModel` no tienen `customerId` propio (se vinculan via
-    // `customerConsentId`/`manualReviewCaseId`/`fraudCaseId`), por eso cada rama resuelve primero
-    // los ids del padre para este cliente antes de filtrar el evento.
+    // Algunas fuentes no tienen `customerId` directo; primero se resuelven los ids del padre.
     if (query.eventType === 'all' || query.eventType === 'consent') {
       const consents = await this.customerConsentModel.findAll({
         where: { tenantId, customerId },

@@ -9,7 +9,7 @@ import { RequestWithAuth } from '../../../../src/common/types/auth.types.js';
 
 /**
  * Fase 3 (auditoría de cobertura): `JwtAuthGuard` estaba en 0% de cobertura. Es la puerta de
- * autenticación de TODO el backend (salvo endpoints @Public) y desde ATLAS-AUDIT-026 incluye la
+ * autenticación de TODO el backend (salvo endpoints @Public) e incluye la
  * comprobación de `tokenVersion` contra `TokenRevocationService` (un token robado o de un usuario
  * que cambió de contraseña debe dejar de servir). Sin tests, un regresión aquí podría hacer que
  * tokens revocados sigan siendo aceptados sin que nada lo detecte hasta un incidente real.

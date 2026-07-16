@@ -85,6 +85,26 @@ const envSchema = z
     DB_READ_SCHEMA: z.string().min(1).optional(),
     DB_READ_SSL: optionalBooleanEnvSchema,
 
+    // --- Separación de identidades PostgreSQL (docs/database/postgres-roles.md) ---------------
+    // DB_USER/DB_PASSWORD  = RUNTIME del backend. Debe apuntar a `atlas_app_rw` (CRUD, sin DDL).
+    //
+    // DB_MIGRATION_USER/PASSWORD = identidad que aplica migraciones y seeds (DDL). Si se omite, cae
+    // a DB_USER — cómodo en local, pero en un entorno con roles diferenciados el runtime NO debe
+    // poder alterar el schema, así que aquí se apunta a `atlas_migrator` (o al owner/admin).
+    DB_MIGRATION_USER: z.string().min(1).optional(),
+    DB_MIGRATION_PASSWORD: z.string().optional(),
+
+    // DB_ADMIN_USER/PASSWORD = identidad con CREATE ROLE usada SOLO por `yarn db:roles:bootstrap`
+    // para crear los roles del cluster. Si se omite, cae a DB_USER. Nunca la usa el runtime.
+    DB_ADMIN_USER: z.string().min(1).optional(),
+    DB_ADMIN_PASSWORD: z.string().optional(),
+
+    // Contraseñas que `yarn db:roles:bootstrap` asigna a cada rol. No tienen default a propósito:
+    // una contraseña "de repuesto" en código es indistinguible de una credencial filtrada.
+    DB_APP_RW_PASSWORD: z.string().optional(),
+    DB_APP_RO_PASSWORD: z.string().optional(),
+    DB_MIGRATOR_PASSWORD: z.string().optional(),
+
     // Limpieza previa a seeds. Por defecto está apagada. En producción exige doble confirmación
     // para evitar borrar datos reales por accidente. Preserva SequelizeMeta y limpia los datos
     // de aplicación para que los seeders vuelvan a poblar un entorno consistente.
@@ -104,19 +124,10 @@ const envSchema = z
     SYSTEM_TEST_ALLOWED_HOSTS_STAGING: z.string().default(''),
     SYSTEM_TEST_ALLOWED_HOSTS_PRODUCTION_READONLY: z.string().default(''),
 
-    // ATLAS-AUDIT-023 (cerrado en este patch): rate limiting ahora puede respaldarse en Redis
-    // para que el límite sea real cuando corre más de una instancia del backend (ver
-    // `src/common/redis/redis.module.ts` y `src/common/throttler/redis-throttler-storage.ts`).
-    // Si REDIS_URL no está configurado, el throttler cae a almacenamiento en memoria (correcto
-    // solo para una única instancia); se exige explícitamente en producción más abajo.
+    // Redis respalda el rate limiting distribuido cuando hay más de una instancia.
     REDIS_URL: optionalUrlEnvSchema,
 
-    // ATLAS-AUDIT-006: expone Swagger/OpenAPI en API_PREFIX/docs. Activado por defecto fuera
-    // de producción; en producción debe activarse explícitamente y protegerse a nivel de
-    // infraestructura (p. ej. restringido por IP/VPN), no queda expuesto públicamente por defecto.
-    // Si no se define explícitamente, Swagger queda activo en desarrollo/test y apagado en
-    // producción. Antes el default era true también en producción, contradiciendo el comentario
-    // de seguridad del propio archivo.
+    // Swagger/OpenAPI queda activo fuera de producción; en producción requiere activación explícita.
     API_DOCS_ENABLED: optionalBooleanEnvSchema,
 
     AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS: z.coerce.number().int().positive().default(30),
@@ -254,8 +265,7 @@ const envSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['REDIS_URL'],
-        message:
-          'REDIS_URL es requerido en producción (ATLAS-AUDIT-023): sin Redis, el rate limiting solo protege por instancia y dejará de ser confiable en cuanto se despliegue más de una tarea de ECS Fargate.',
+        message: 'REDIS_URL es requerido en producción: sin Redis, el rate limiting solo protege por instancia.',
       });
     }
 

@@ -16,7 +16,7 @@ rules, template-renderer).
 
 - **Control de acceso a notificaciones de cliente deliberadamente más estricto que el genérico**:
   `notifications.service.ts` mantiene su propia `assertCustomerAccess` en vez de reutilizar
-  `assertOwnCustomerResource` — el comentario en el código (`ATLAS-AUDIT-027`) explica por qué:
+  `assertOwnCustomerResource`:
   el helper genérico solo bloquea el rol `customer` cruzado y deja pasar cualquier otro rol,
   mientras que aquí se exige una lista explícita de roles internos (y **excluye deliberadamente
   `merchant`**, que sí pasaría el chequeo genérico). Confirmé que la lista se usa de forma

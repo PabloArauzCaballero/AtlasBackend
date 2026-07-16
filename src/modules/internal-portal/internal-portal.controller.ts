@@ -10,17 +10,9 @@ type QueryRecord = Record<string, string | number | boolean | undefined>;
 type BodyRecord = Record<string, unknown>;
 
 /**
- * ATLAS-AUDIT (auditoría #18, `internal-portal`): antes de este cambio, el controller completo
- * (17 endpoints — glosario de metadata de negocio, exports, reglas de calidad de datos,
- * políticas de gobierno de datos incluyendo un PATCH, linaje de datos, alertas —
- * `acknowledgeAlert` ejecuta un UPDATE real —, jobs, reportes) solo tenía `@UseGuards(JwtAuthGuard)`,
- * sin `RolesGuard` ni `@Roles(...)` en ningún endpoint. `JwtAuthGuard` únicamente valida que el
- * token sea válido y no esté revocado — no valida rol. Cualquier actor autenticado, incluido un
- * `customer`, tenía acceso completo a este panel "interno". Este conjunto de roles replica el de
- * los módulos hermanos con audiencia equivalente (`operations`, `data-quality`, `audit`,
- * `systems-ops`) — es la corrección crítica inmediata (de "cualquiera" a "solo interno"); afinar
- * qué subconjunto de estos roles debería tener acceso de escritura específicamente es un refinamiento
- * posterior, no bloquea cerrar el hueco de autorización.
+ * Roles internos autorizados para el portal operacional.
+ *
+ * El controller expone lectura y escritura administrativa; nunca debe aceptar actores `customer`.
  */
 const INTERNAL_PORTAL_ROLES = [
   'internal_operator',
