@@ -39,9 +39,13 @@ despliegue. Fuera de alcance: infraestructura de terceros y proyectos hermanos
   y máximo de intentos.
 - Revocación de sesiones: ver
   [runbook de expiración/revocación](docs/runbooks/expiracion-y-revocacion-de-sesiones.md).
+- **2FA obligatorio para actores internos (Fase 4.2):** todo login de `internal_user` /
+  `platform_user` exige un segundo factor (PIN de un solo uso entregado por correo) cuando
+  MailSender está configurado; sin correo cae a un paso, y `AUTH_LOGIN_PIN_ENABLED=false` lo
+  desactiva (test). Los clientes quedan en un paso.
 
-> Pendiente (plan 10/10 Fase 4.2): MFA/OTP para clientes y 2FA obligatorio para roles
-> internos aún **no** implementados.
+> Pendiente (plan 10/10 Fase 4.2): **MFA/OTP para clientes** (segundo factor opcional del lado
+> cliente) aún **no** implementado; el 2FA de roles internos ya sí.
 
 ### Cifrado
 - PII y tokens de dispositivo cifrados en reposo con **envelope encryption**

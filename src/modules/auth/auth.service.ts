@@ -43,10 +43,6 @@ export function isLoginPinChallenge(outcome: LoginOutcome): outcome is LoginPinC
   return 'pinChallengeRequired' in outcome;
 }
 
-// "Super admins": roles con administración total. Con MailSender configurado, su login exige un
-// PIN adicional entregado por correo (ver `AuthService.login` / `verifyLoginPin`).
-const LOGIN_PIN_REQUIRED_ROLES: ReadonlySet<AtlasUserRole> = new Set(['admin', 'platform_admin']);
-
 /**
  * Emisor único de JWT de producción para clientes, usuarios internos y usuarios de plataforma.
  * La resolución de actor vive en `AuthActorResolverService` y el flujo de reset de contraseña en
@@ -156,7 +152,7 @@ export class AuthService {
       throw invalidCredentialsError;
     }
 
-    if (this.isLoginPinRequired(actor.role)) {
+    if (this.isLoginPinRequired(input.dto.actorType)) {
       return this.issueLoginPinChallenge(actor, input.dto.actorType, { ip: input.ip, userAgent: input.userAgent });
     }
 
@@ -185,11 +181,14 @@ export class AuthService {
   }
 
   /**
-   * El PIN de super admin solo se exige cuando hay forma real de entregarlo: sin MailSender
-   * configurado el login queda en un solo paso (comportamiento previo), nunca bloqueado.
+   * Fase 4.2 del plan 10/10: 2FA OBLIGATORIO para todo actor interno (`internal_user` y
+   * `platform_user`), no solo super admins. Los clientes (`customer`) quedan en un solo paso aquí
+   * (su MFA/OTP es un flujo aparte). El segundo factor solo se exige cuando hay forma real de
+   * entregar el PIN (MailSender configurado): sin correo, el login queda en un solo paso en vez de
+   * bloquearse, y `AUTH_LOGIN_PIN_ENABLED=false` lo desactiva por completo (p. ej. entornos de test).
    */
-  private isLoginPinRequired(role: AtlasUserRole): boolean {
-    return env.AUTH_LOGIN_PIN_ENABLED && LOGIN_PIN_REQUIRED_ROLES.has(role) && this.mailSenderService.isEnabled();
+  private isLoginPinRequired(actorType: ActorType): boolean {
+    return env.AUTH_LOGIN_PIN_ENABLED && actorType !== 'customer' && this.mailSenderService.isEnabled();
   }
 
   private async issueLoginPinChallenge(

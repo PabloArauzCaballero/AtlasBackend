@@ -257,6 +257,97 @@ describe('AuthService.login', () => {
   });
 });
 
+describe('AuthService.login — 2FA obligatorio para actores internos (Fase 4.2)', () => {
+  function buildInternalLoginMocks() {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const mailSenderService = buildMailSenderServiceMock();
+    authRepository.findInternalUserByEmail.mockResolvedValue({
+      id: '99',
+      tenantId: '1',
+      status: 'active',
+      roleCode: 'risk_analyst',
+      email: 'ana@atlas.test',
+      fullName: 'Ana',
+    });
+    authRepository.findCredentialsByActor.mockResolvedValue({
+      passwordHash: 'hashed:correct-password',
+      tokenVersion: 1,
+      lockedUntil: null,
+      failedLoginAttempts: 0,
+    });
+    return { authRepository, customersRepository, tokenRevocationService, mailSenderService };
+  }
+
+  it('exige el PIN de segundo factor a un internal_user cuando MailSender está configurado (no emite tokens todavía)', async () => {
+    const m = buildInternalLoginMocks();
+    m.mailSenderService.isEnabled.mockReturnValue(true);
+    const service = buildService(m.authRepository, m.customersRepository, m.tokenRevocationService, m.mailSenderService);
+
+    const outcome = await service.login({
+      tenantId: '1',
+      dto: { actorType: 'internal_user', identifier: 'ana@atlas.test', password: 'correct-password' },
+      ip: null,
+      userAgent: null,
+    });
+
+    expect(isLoginPinChallenge(outcome)).toBe(true);
+    expect(m.mailSenderService.sendLoginPin).toHaveBeenCalledTimes(1);
+    expect(m.authRepository.createOneTimeCode).toHaveBeenCalledWith(expect.objectContaining({ purpose: 'login_pin', actorId: '99' }));
+    // 2FA pendiente: aún NO se emiten tokens ni se marca el login como exitoso.
+    expect(m.authRepository.createRefreshToken).not.toHaveBeenCalled();
+    expect(m.authRepository.recordSuccessfulLogin).not.toHaveBeenCalled();
+  });
+
+  it('cae a login de un solo paso para un internal_user si NO hay MailSender (no puede entregar el PIN)', async () => {
+    const m = buildInternalLoginMocks();
+    m.mailSenderService.isEnabled.mockReturnValue(false);
+    const service = buildService(m.authRepository, m.customersRepository, m.tokenRevocationService, m.mailSenderService);
+
+    const result = expectLoginResult(
+      await service.login({
+        tenantId: '1',
+        dto: { actorType: 'internal_user', identifier: 'ana@atlas.test', password: 'correct-password' },
+        ip: null,
+        userAgent: null,
+      }),
+    );
+
+    expect(result.tokenType).toBe('Bearer');
+    expect(m.mailSenderService.sendLoginPin).not.toHaveBeenCalled();
+    expect(m.authRepository.createRefreshToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('NO exige segundo factor a un cliente aunque MailSender esté configurado (su MFA es un flujo aparte)', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const mailSenderService = buildMailSenderServiceMock();
+    mailSenderService.isEnabled.mockReturnValue(true);
+    customersRepository.findByContactHash.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'registered' });
+    authRepository.findCredentialsByActor.mockResolvedValue({
+      passwordHash: 'hashed:correct-password',
+      tokenVersion: 1,
+      lockedUntil: null,
+      failedLoginAttempts: 0,
+    });
+    const service = buildService(authRepository, customersRepository, tokenRevocationService, mailSenderService);
+
+    const result = expectLoginResult(
+      await service.login({
+        tenantId: '1',
+        dto: { actorType: 'customer', identifier: '70000000', password: 'correct-password' },
+        ip: null,
+        userAgent: null,
+      }),
+    );
+
+    expect(result.tokenType).toBe('Bearer');
+    expect(mailSenderService.sendLoginPin).not.toHaveBeenCalled();
+  });
+});
+
 describe('AuthService.refresh', () => {
   it('rejects an unknown refresh token', async () => {
     const authRepository = buildAuthRepositoryMock();

@@ -63,14 +63,16 @@ const config = {
     // amplio; los bumps van a los dominios con umbral propio donde la mejora fue holgada.
     global: { statements: 62, branches: 44, functions: 38, lines: 62 },
     // Dominios críticos con umbral propio (medidos: ver docs/testing/coverage-ratchet.md).
-    // auth: 57.2/45.0/37.5/57.2 tras la extracción de AuthActorResolver/AuthPasswordReset (Fase 2.2).
-    './src/modules/auth/': { statements: 56, branches: 43, functions: 37, lines: 56 },
+    // auth: 61.0/48.6/41.1/61.3 tras extraer AuthActorResolver/AuthPasswordReset (Fase 2.2) y el
+    // 2FA obligatorio para actores internos (Fase 4.2), que ejercita el flujo de PIN por correo.
+    './src/modules/auth/': { statements: 60, branches: 48, functions: 40, lines: 60 },
     './src/modules/risk/': { statements: 74, branches: 78, functions: 43, lines: 72 },
     // fraud: 93.2/80.0/100/92.4 tras el spec directo de FraudRepository (Fase 1.2) — de 25% a 100%
     // de funciones cubiertas.
     './src/modules/fraud/': { statements: 90, branches: 79, functions: 95, lines: 90 },
-    // crypto: 85.0/71.4/80.0/86.7 tras los tests del proveedor activo de KMS (Fase 3.3).
-    './src/common/utils/crypto/': { statements: 84, branches: 71, functions: 78, lines: 86 },
+    // crypto: 89.0/73.5/88.6/90.4 tras los tests de KMS (Fase 3.3) y el PIN de 2FA (Fase 4.2), que
+    // usa one-time-code.util.
+    './src/common/utils/crypto/': { statements: 88, branches: 73, functions: 87, lines: 90 },
   },
   clearMocks: true,
 };

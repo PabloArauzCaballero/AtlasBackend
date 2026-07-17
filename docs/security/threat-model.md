@@ -39,7 +39,7 @@ externos (salida controlada).
 |---------|-----------------|-------------------|
 | Robo/reuso de token de sesión | JWT corto + `tokenVersion` (revocación inmediata); refresh opaco, hasheado y rotado | — |
 | Fuerza bruta de credenciales | Lockout 5 intentos/15 min; rate limit en login | — |
-| Falta de segundo factor | Password + códigos de un solo uso para admin (PIN) | **MFA/OTP clientes y 2FA interno pendientes (Fase 4.2)** |
+| Falta de segundo factor | **2FA obligatorio para actores internos** (PIN por correo, Fase 4.2); password + one-time codes | MFA/OTP para clientes aún pendiente (Fase 4.2) |
 | Suplantación de servicio externo | Config de proveedores validada; SSL forzado a DB en prod | Verificar TLS/pinning en salidas a proveedores |
 
 ## T — Tampering (manipulación)
@@ -89,7 +89,8 @@ externos (salida controlada).
 
 ## Riesgos residuales priorizados
 
-1. **Sin MFA/2FA** (S) — segundo factor pendiente. → Fase 4.2.
+1. **MFA de clientes pendiente** (S) — el 2FA de roles internos ya es obligatorio (PIN por
+   correo); falta el segundo factor opcional del lado cliente. → Fase 4.2.
 2. **Retención/no-PII en logs sin control automático** (R/I) — política escrita, falta
    el lint/test que la haga cumplir. → Fase 3.2.
 3. **Rate limits no granulares por endpoint/rol** (D) — hoy global. → Fase 4.3.

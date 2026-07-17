@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op, WhereOptions } from 'sequelize';
 import {
-  AttributeDefinitionModel,
   ContextApprovalEventModel,
   ContextCatalogModel,
   ContextCatalogVersionModel,
@@ -13,9 +12,6 @@ import {
   ContextSourceModel,
   ContextStagingItemModel,
   DataChangeLogModel,
-  EventDefinitionModel,
-  FeatureDefinitionModel,
-  ObservationDefinitionModel,
   OperationalAuditLogModel,
   RiskModelVersionModel,
   RiskPolicyRuleModel,
@@ -24,7 +20,8 @@ import {
 } from '../../database/models/index.js';
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { CatalogDataGovernanceRepository } from './catalog-data-governance.repository.js';
-import { RepositoryOptions, upsertByCode } from './catalog-repository.helpers.js';
+import { CatalogDefinitionsRepository } from './catalog-definitions.repository.js';
+import { RepositoryOptions } from './catalog-repository.helpers.js';
 import { DefinitionsQueryDto, ListCatalogsQueryDto } from './catalog-management.schemas.js';
 
 export type { RepositoryOptions };
@@ -73,19 +70,16 @@ export class CatalogManagementRepository {
     @InjectModel(ContextStagingItemModel) private readonly contextStagingItemModel: typeof ContextStagingItemModel,
     @InjectModel(ContextApprovalEventModel) private readonly contextApprovalEventModel: typeof ContextApprovalEventModel,
     @InjectModel(ContextIngestionJobModel) private readonly contextIngestionJobModel: typeof ContextIngestionJobModel,
-    @InjectModel(ObservationDefinitionModel) private readonly observationDefinitionModel: typeof ObservationDefinitionModel,
-    @InjectModel(EventDefinitionModel) private readonly eventDefinitionModel: typeof EventDefinitionModel,
-    @InjectModel(AttributeDefinitionModel) private readonly attributeDefinitionModel: typeof AttributeDefinitionModel,
-    @InjectModel(FeatureDefinitionModel) private readonly featureDefinitionModel: typeof FeatureDefinitionModel,
     @InjectModel(RiskModelVersionModel) private readonly riskModelVersionModel: typeof RiskModelVersionModel,
     @InjectModel(RiskRulesetVersionModel) private readonly riskRulesetVersionModel: typeof RiskRulesetVersionModel,
     @InjectModel(RiskPolicyRuleModel) private readonly riskPolicyRuleModel: typeof RiskPolicyRuleModel,
     @InjectModel(RiskSignalSeedModel) private readonly riskSignalSeedModel: typeof RiskSignalSeedModel,
     @InjectModel(OperationalAuditLogModel) private readonly auditModel: typeof OperationalAuditLogModel,
     @InjectModel(DataChangeLogModel) private readonly dataChangeLogModel: typeof DataChangeLogModel,
-    // Fase 2.3: el agregado de gobierno de datos vive en su propio repo (acceso acotado a sus 6
-    // tablas). La fachada delega en él para conservar su API pública.
+    // Fase 2.3: cada agregado vive en su propio repo con acceso acotado a sus tablas; la fachada
+    // delega para conservar su API pública.
     private readonly dataGovernanceRepository: CatalogDataGovernanceRepository,
+    private readonly definitionsRepository: CatalogDefinitionsRepository,
   ) {}
 
   listCatalogs(query: ListCatalogsQueryDto): Promise<ContextCatalogModel[]> {
@@ -441,49 +435,23 @@ export class CatalogManagementRepository {
     return item.save({ transaction: options.transaction });
   }
 
-  async listDefinitions(query: DefinitionsQueryDto) {
-    const statusWhere = query.status === 'active' ? { isActive: true } : query.status === 'inactive' ? { isActive: false } : {};
-    const domainFilter = query.domain ? query.domain : undefined;
-    const [observations, events, attributes, features] = await Promise.all([
-      query.type === 'all' || query.type === 'observation'
-        ? this.observationDefinitionModel.findAll({
-            where: { ...statusWhere, ...(domainFilter ? { sourceGroup: domainFilter } : {}) },
-            order: [['observationCode', 'ASC']],
-          } as FindOptions)
-        : Promise.resolve([]),
-      query.type === 'all' || query.type === 'event'
-        ? this.eventDefinitionModel.findAll({
-            where: { ...statusWhere, ...(domainFilter ? { eventFamily: domainFilter } : {}) },
-            order: [['eventCode', 'ASC']],
-          } as FindOptions)
-        : Promise.resolve([]),
-      query.type === 'all' || query.type === 'attribute'
-        ? this.attributeDefinitionModel.findAll({
-            where: { ...statusWhere, ...(domainFilter ? { sourceType: domainFilter } : {}) },
-            order: [['attributeCode', 'ASC']],
-          } as FindOptions)
-        : Promise.resolve([]),
-      query.type === 'all' || query.type === 'feature'
-        ? this.featureDefinitionModel.findAll({
-            where: { ...statusWhere, ...(domainFilter ? { featureFamily: domainFilter } : {}) },
-            order: [['featureCode', 'ASC']],
-          } as FindOptions)
-        : Promise.resolve([]),
-    ]);
-    return { observations, events, attributes, features };
+  // --- Definiciones: delegado en `CatalogDefinitionsRepository` (Fase 2.3) ----------------------
+  // Delegadores finos que conservan la API pública; el acceso a las 4 tablas de definición vive
+  // acotado en el repo por agregado.
+  listDefinitions(query: DefinitionsQueryDto) {
+    return this.definitionsRepository.listDefinitions(query);
   }
-
   upsertEventDefinition(values: Record<string, unknown>, options: RepositoryOptions) {
-    return upsertByCode(this.eventDefinitionModel, 'eventCode', values.eventCode as string, values, options);
+    return this.definitionsRepository.upsertEventDefinition(values, options);
   }
   upsertObservationDefinition(values: Record<string, unknown>, options: RepositoryOptions) {
-    return upsertByCode(this.observationDefinitionModel, 'observationCode', values.observationCode as string, values, options);
+    return this.definitionsRepository.upsertObservationDefinition(values, options);
   }
   upsertAttributeDefinition(values: Record<string, unknown>, options: RepositoryOptions) {
-    return upsertByCode(this.attributeDefinitionModel, 'attributeCode', values.attributeCode as string, values, options);
+    return this.definitionsRepository.upsertAttributeDefinition(values, options);
   }
   upsertFeatureDefinition(values: Record<string, unknown>, options: RepositoryOptions) {
-    return upsertByCode(this.featureDefinitionModel, 'featureCode', values.featureCode as string, values, options);
+    return this.definitionsRepository.upsertFeatureDefinition(values, options);
   }
 
   async listCurrentRiskPolicy() {
