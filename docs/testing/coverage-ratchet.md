@@ -14,22 +14,23 @@ sprint se suben los números (el "trinquete") hasta el objetivo del plan.
 | Global | ≥ 85% |
 | auth / risk / fraud / crypto | ≥ 90% |
 
-## Línea base medida (15-jul-2026)
+## Línea base medida (16-jul-2026)
 
-Suite completa: **110 suites, 1006 tests, verdes**. Total del repo: statements 62.61 · branches 45.18 ·
-functions 39.35 · lines 62.88.
+Suite completa: **119 suites, 1089 tests, verdes**. Total del repo: statements 63.33 · branches 45.45 ·
+functions 39.97 · lines 63.65.
 
-> Trinquete ya aplicado una vez: al cubrir el rate limit distribuido y el interceptor de idempotencia
-> (Fase 1.3), el "resto" subió de 61.91/43.97/38.20/62.22 → **62.38/44.36/38.88/62.66**, y los
-> umbrales se subieron en consecuencia para fijar la ganancia.
+> Trinquete subido de nuevo tras: los tests del proveedor activo de KMS (Fase 3.3), la extracción de
+> `AuthActorResolver`/`AuthPasswordReset` (Fase 2.2), el spec directo de `FraudRepository` y la
+> observabilidad (Fase 3.4, "resto" al 62.90/44.55/39.04/63.22). Ganancia clave: **fraud pasó de 25%
+> a 100% de funciones cubiertas**.
 
 | Grupo | stmts | branch | funcs | lines | Umbral fijado |
 | ----- | ----: | -----: | ----: | ----: | ------------- |
-| **global** (= "resto", ver nota) | 62.38 | 44.36 | 38.88 | 62.66 | 62 / 44 / 38 / 62 |
-| `src/modules/auth/` | 54.22 | 41.26 | 36.54 | 54.37 | 54 / 41 / 36 / 54 |
+| **global** (= "resto", ver nota) | 62.90 | 44.55 | 39.04 | 63.22 | 62 / 44 / 38 / 62 |
+| `src/modules/auth/` | 57.20 | 45.00 | 37.50 | 57.20 | 56 / 43 / 37 / 56 |
 | `src/modules/risk/` | 74.14 | 78.29 | 43.18 | 72.26 | 74 / 78 / 43 / 72 |
-| `src/modules/fraud/` | 65.75 | 80.00 | 25.00 | 62.12 | 65 / 79 / 25 / 62 |
-| `src/common/utils/crypto/` | 83.83 | 71.43 | 75.76 | 85.63 | 83 / 71 / 75 / 85 |
+| `src/modules/fraud/` | 93.20 | 80.00 | 100.0 | 92.40 | 90 / 79 / 95 / 90 |
+| `src/common/utils/crypto/` | 85.00 | 71.43 | 80.00 | 86.70 | 84 / 71 / 78 / 86 |
 
 > **Nota importante sobre Jest:** cuando se declaran umbrales por *path*, los archivos que hacen match
 > se **restan** del cómputo `global`. Por eso el umbral `global` está calibrado contra el **resto**
@@ -45,10 +46,10 @@ functions 39.35 · lines 62.88.
 
 Prioridad sugerida (los más lejos del objetivo y más críticos):
 
-1. **`auth`** (54% stmts, 36% funcs) — es el dominio crítico más bajo.
-2. **`fraud`** (25% funcs) — cobertura de funciones muy baja pese a buen branch.
-3. **`risk`** (43% funcs).
-4. `crypto` ya está cerca (83–85%); subirlo a 90 es el más barato.
+1. **`auth`** (57% stmts, 37% funcs) — sigue siendo el dominio crítico más bajo; el objetivo es 90%.
+2. **`risk`** (43% funcs) — buen branch, funciones bajas.
+3. `crypto` ya está cerca (85–87%); subirlo a 90 es el más barato.
+4. `fraud` ya en 93/100 — mantener; falta cerrar el resto del repo hacia el 85% global.
 
 ## Reportes
 

@@ -1,4 +1,7 @@
 import 'reflect-metadata';
+// Fase 3.4: el bootstrap de OpenTelemetry debe importarse ANTES que cualquier módulo instrumentable
+// (HTTP/Express/PG) para poder envolverlos. Es no-op salvo OTEL_ENABLED=true.
+import './observability/tracing-bootstrap.js';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -10,6 +13,7 @@ import { buildOpenApiDocument } from './config/swagger.js';
 import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encryption.util.js';
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
+import { shutdownTracing } from './observability/tracing.js';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('AtlasBootstrap');
@@ -44,8 +48,11 @@ async function bootstrap(): Promise<void> {
   // Security headers: HSTS, X-Frame-Options, X-Content-Type-Options, CSP, etc.
   app.use(helmet());
 
-  app.setGlobalPrefix(env.API_PREFIX);
+  // `/metrics` se excluye del prefijo `/api/v1` para respetar la convención de scrape de Prometheus.
+  app.setGlobalPrefix(env.API_PREFIX, { exclude: ['metrics'] });
   app.enableShutdownHooks();
+  // Fase 3.4: flush de spans de OpenTelemetry al apagar (no-op si tracing está deshabilitado).
+  process.once('SIGTERM', () => void shutdownTracing());
   app.enableCors({
     origin: getAllowedCorsOrigins(),
     credentials: true,

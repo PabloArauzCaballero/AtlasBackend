@@ -36,6 +36,9 @@ const config = {
     'src/**/*.ts',
     '!src/**/*.module.ts',
     '!src/main.ts',
+    // Glue de arranque con efecto de importación (como main.ts): arranca OpenTelemetry antes que la
+    // app. No tiene lógica testeable por sí mismo; `tracing.ts` sí se cubre por unit test.
+    '!src/observability/tracing-bootstrap.ts',
     '!src/database/migrations/**',
     '!src/database/seeders/**',
   ],
@@ -55,14 +58,19 @@ const config = {
   // se RESTAN del cómputo `global`. Por eso `global` está calibrado contra el "resto" (61.91/43.97/
   // 38.20/62.22 medido), no contra el total de 62.18. Medido con `yarn test:coverage`.
   coverageThreshold: {
-    // Trinquete subido tras cubrir el rate limit distribuido y el interceptor de idempotencia
-    // (Fase 1.3): el "resto" pasó de 61.91/43.97/38.20/62.22 a 62.38/44.36/38.88/62.66.
+    // El "resto" (scope de `global`, todo menos los paths con umbral propio) subió a
+    // 62.90/44.55/39.04/63.22 tras cubrir observabilidad (Fase 3.4). Se mantiene el piso con margen
+    // amplio; los bumps van a los dominios con umbral propio donde la mejora fue holgada.
     global: { statements: 62, branches: 44, functions: 38, lines: 62 },
     // Dominios críticos con umbral propio (medidos: ver docs/testing/coverage-ratchet.md).
-    './src/modules/auth/': { statements: 54, branches: 41, functions: 36, lines: 54 },
+    // auth: 57.2/45.0/37.5/57.2 tras la extracción de AuthActorResolver/AuthPasswordReset (Fase 2.2).
+    './src/modules/auth/': { statements: 56, branches: 43, functions: 37, lines: 56 },
     './src/modules/risk/': { statements: 74, branches: 78, functions: 43, lines: 72 },
-    './src/modules/fraud/': { statements: 65, branches: 79, functions: 25, lines: 62 },
-    './src/common/utils/crypto/': { statements: 83, branches: 71, functions: 75, lines: 85 },
+    // fraud: 93.2/80.0/100/92.4 tras el spec directo de FraudRepository (Fase 1.2) — de 25% a 100%
+    // de funciones cubiertas.
+    './src/modules/fraud/': { statements: 90, branches: 79, functions: 95, lines: 90 },
+    // crypto: 85.0/71.4/80.0/86.7 tras los tests del proveedor activo de KMS (Fase 3.3).
+    './src/common/utils/crypto/': { statements: 84, branches: 71, functions: 78, lines: 86 },
   },
   clearMocks: true,
 };

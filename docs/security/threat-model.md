@@ -93,5 +93,7 @@ externos (salida controlada).
 2. **Retención/no-PII en logs sin control automático** (R/I) — política escrita, falta
    el lint/test que la haga cumplir. → Fase 3.2.
 3. **Rate limits no granulares por endpoint/rol** (D) — hoy global. → Fase 4.3.
-4. **Sin observabilidad de SLO** (D/T) — no hay métricas/trazas para detectar abuso o
-   backlog anómalo. → Fase 3.4.
+4. **Observabilidad de SLO parcial** (D/T) — Fase 3.4 en curso: métricas Prometheus
+   (`GET /metrics`: latencia p50/p95/p99 e índice de error por ruta) y trazas OpenTelemetry
+   opt-in ya implementadas. Falta cablear dashboards/alertas sobre esas señales y las métricas
+   de negocio (backlog de outbox, breaker abierto).

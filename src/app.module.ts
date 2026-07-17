@@ -13,6 +13,8 @@ import { ApiCommandOutboxInterceptor } from './modules/runtime-hardening/outbox.
 import { RuntimeHardeningModule } from './modules/runtime-hardening/runtime-hardening.module.js';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor.js';
 import { HttpActionLogInterceptor } from './common/interceptors/http-action-log.interceptor.js';
+import { HttpMetricsInterceptor } from './common/observability/http-metrics.interceptor.js';
+import { ObservabilityModule } from './common/observability/observability.module.js';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware.js';
 import { DatabaseModule } from './database/sequelize.module.js';
 import { ReadDatabaseModule } from './database/read-database.module.js';
@@ -46,6 +48,7 @@ import { env } from './config/env.js';
     ConfigModule.forRoot({ isGlobal: true }),
     RedisModule,
     ResilienceModule,
+    ObservabilityModule,
     CommonAuthModule,
     // En producción, REDIS_URL mantiene el contador de rate limit compartido entre instancias.
     ThrottlerModule.forRootAsync({
@@ -85,6 +88,9 @@ import { env } from './config/env.js';
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
+    // Fase 3.4: el interceptor de métricas va PRIMERO (el más externo) para medir la latencia total
+    // del request, incluyendo el resto de interceptores. No-op si METRICS_ENABLED=false.
+    { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
     // Action log debe envolver también replays de idempotencia; por eso va antes del interceptor
     // de idempotencia. El resto conserva el contrato: idempotencia -> outbox -> respuesta.
     { provide: APP_INTERCEPTOR, useClass: HttpActionLogInterceptor },
