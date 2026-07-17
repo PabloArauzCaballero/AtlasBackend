@@ -59,14 +59,15 @@ const config = {
   // 38.20/62.22 medido), no contra el total de 62.18. Medido con `yarn test:coverage`.
   coverageThreshold: {
     // El "resto" (scope de `global`, todo menos los paths con umbral propio) subió a
-    // 62.90/44.55/39.04/63.22 tras cubrir observabilidad (Fase 3.4). Se mantiene el piso con margen
-    // amplio; los bumps van a los dominios con umbral propio donde la mejora fue holgada.
-    global: { statements: 62, branches: 44, functions: 38, lines: 62 },
+    // 63.29/45.20/39.43/63.59 tras cubrir observabilidad y las métricas de negocio (Fase 3.4).
+    global: { statements: 63, branches: 45, functions: 39, lines: 63 },
     // Dominios críticos con umbral propio (medidos: ver docs/testing/coverage-ratchet.md).
     // auth: 61.0/48.6/41.1/61.3 tras extraer AuthActorResolver/AuthPasswordReset (Fase 2.2) y el
     // 2FA obligatorio para actores internos (Fase 4.2), que ejercita el flujo de PIN por correo.
     './src/modules/auth/': { statements: 60, branches: 48, functions: 40, lines: 60 },
-    './src/modules/risk/': { statements: 74, branches: 78, functions: 43, lines: 72 },
+    // risk: 90.8/78.3/68.2/91.0 tras el spec directo de RiskRepository (Fase 1.2) — el repositorio
+    // no tenía test propio (servicio y controller lo mockean), así que sus funciones no se ejercitaban.
+    './src/modules/risk/': { statements: 89, branches: 78, functions: 67, lines: 89 },
     // fraud: 93.2/80.0/100/92.4 tras el spec directo de FraudRepository (Fase 1.2) — de 25% a 100%
     // de funciones cubiertas.
     './src/modules/fraud/': { statements: 90, branches: 79, functions: 95, lines: 90 },

@@ -14,23 +14,26 @@ sprint se suben los números (el "trinquete") hasta el objetivo del plan.
 | Global | ≥ 85% |
 | auth / risk / fraud / crypto | ≥ 90% |
 
-## Línea base medida (16-jul-2026)
+## Línea base medida (17-jul-2026)
 
-Suite completa: **119 suites, 1089 tests, verdes**. Total del repo: statements 63.33 · branches 45.45 ·
-functions 39.97 · lines 63.65.
+Suite completa: **124 suites, 1154 tests, verdes**. Total del repo: statements 64.05 · branches 46.19 ·
+functions 40.97 · lines 64.39.
 
-> Trinquete subido de nuevo tras: los tests del proveedor activo de KMS (Fase 3.3), la extracción de
-> `AuthActorResolver`/`AuthPasswordReset` (Fase 2.2), el spec directo de `FraudRepository` y la
-> observabilidad (Fase 3.4, "resto" al 62.90/44.55/39.04/63.22). Ganancia clave: **fraud pasó de 25%
-> a 100% de funciones cubiertas**.
+> Trinquete subido tras: KMS (Fase 3.3), extracción de `AuthActorResolver`/`AuthPasswordReset` y el
+> 2FA/MFA (Fases 2.2/4.2), observabilidad y métricas de negocio (Fase 3.4), y los specs directos de
+> `FraudRepository` y `RiskRepository` (Fase 1.2).
+>
+> Ganancias clave: **fraud 25% → 100% de funciones** y **risk 43% → 68% de funciones** (90.8% stmts).
+> En ambos casos la causa era la misma: el repositorio del dominio no tenía spec propio — servicio y
+> controller lo mockean, así que sus funciones nunca se ejercitaban.
 
 | Grupo | stmts | branch | funcs | lines | Umbral fijado |
 | ----- | ----: | -----: | ----: | ----: | ------------- |
-| **global** (= "resto", ver nota) | 62.90 | 44.55 | 39.04 | 63.22 | 62 / 44 / 38 / 62 |
-| `src/modules/auth/` | 57.20 | 45.00 | 37.50 | 57.20 | 56 / 43 / 37 / 56 |
-| `src/modules/risk/` | 74.14 | 78.29 | 43.18 | 72.26 | 74 / 78 / 43 / 72 |
+| **global** (= "resto", ver nota) | 63.29 | 45.20 | 39.43 | 63.59 | 63 / 45 / 39 / 63 |
+| `src/modules/auth/` | 61.10 | 49.10 | 40.70 | 61.10 | 60 / 48 / 40 / 60 |
+| `src/modules/risk/` | 90.80 | 78.29 | 68.20 | 91.00 | 89 / 78 / 67 / 89 |
 | `src/modules/fraud/` | 93.20 | 80.00 | 100.0 | 92.40 | 90 / 79 / 95 / 90 |
-| `src/common/utils/crypto/` | 85.00 | 71.43 | 80.00 | 86.70 | 84 / 71 / 78 / 86 |
+| `src/common/utils/crypto/` | 89.00 | 73.50 | 88.60 | 90.40 | 88 / 73 / 87 / 90 |
 
 > **Nota importante sobre Jest:** cuando se declaran umbrales por *path*, los archivos que hacen match
 > se **restan** del cómputo `global`. Por eso el umbral `global` está calibrado contra el **resto**
@@ -46,10 +49,13 @@ functions 39.97 · lines 63.65.
 
 Prioridad sugerida (los más lejos del objetivo y más críticos):
 
-1. **`auth`** (57% stmts, 37% funcs) — sigue siendo el dominio crítico más bajo; el objetivo es 90%.
-2. **`risk`** (43% funcs) — buen branch, funciones bajas.
-3. `crypto` ya está cerca (85–87%); subirlo a 90 es el más barato.
-4. `fraud` ya en 93/100 — mantener; falta cerrar el resto del repo hacia el 85% global.
+1. **`auth`** (61% stmts, 41% funcs) — el dominio crítico más bajo; el objetivo es 90%. El hueco está
+   en `auth.repository` (sin spec propio) y en las ramas de `verifyLoginPin`/refresh.
+2. **`risk`** (68% funcs) — ya en 90% de stmts; falta cubrir los `create*` del repositorio.
+3. `crypto` (89%) — el más barato de llevar a 90+.
+4. **El "resto" (63%)** es lo que separa del objetivo global de 85%: son muchos módulos con
+   servicio+controller testeados pero repositorio sin spec. El patrón que funcionó en `fraud` y
+   `risk` (spec directo del repositorio con modelos mockeados) es replicable módulo a módulo.
 
 ## Reportes
 
