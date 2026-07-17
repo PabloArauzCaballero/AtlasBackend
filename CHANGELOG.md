@@ -46,6 +46,14 @@ Este proyecto es privado (`UNLICENSED`); el versionado sigue `package.json`.
   `http_request_duration_seconds` para SLO p50/p95/p99 e índice de error, más métricas de proceso) y
   bootstrap de trazas OpenTelemetry **opt-in** (`OTEL_ENABLED`, no-op por defecto). Config por
   `process.env` (`METRICS_ENABLED`, `OTEL_*`).
+- **Métricas de negocio** (Fase 3.4): `atlas_circuit_breaker_state{provider}` y
+  `atlas_provider_calls_total{provider,outcome}` instrumentadas en `ResilientAdapterExecutorService`
+  (el punto de entrada único de toda llamada saliente; `circuit_open` se distingue de `failure`
+  porque no incurre costo), y `atlas_outbox_pending_events{tenant_id}` publicada por
+  `RuntimeJobsService.processOutbox` reutilizando el conteo que ya calculaba (sin query extra).
+- **Dashboards y alertas de SLO** (`ops/observability/`): reglas Prometheus (error 5xx, p95/p99,
+  target down, breaker abierto, backlog de outbox, tasa de fallo por proveedor) y dashboard Grafana
+  importable con los SLOs HTTP.
 - **Segundo factor** (Fase 4.2): 2FA obligatorio para actores internos (`internal_user`/
   `platform_user`) y MFA opt-in para clientes vía `POST /auth/mfa`, ambos con OTP de un solo uso por
   correo (reutilizan el flujo de PIN existente). Nueva columna `auth_credentials.mfa_enabled`.

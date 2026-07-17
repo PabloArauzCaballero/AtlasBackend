@@ -63,6 +63,36 @@ groups:
           summary: 'Latencia p99 > 2.5s'
           description: 'El p99 de latencia HTTP supera 2.5s durante 5m.'
 
+      # --- Métricas de NEGOCIO --------------------------------------------------------------------
+      - alert: AtlasCircuitBreakerOpen
+        expr: atlas_circuit_breaker_state == 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Circuit breaker ABIERTO para {{ $labels.provider }}'
+          description: 'El breaker de {{ $labels.provider }} lleva >1m abierto: las llamadas se están cortando sin llegar al proveedor.'
+
+      - alert: AtlasOutboxBacklogGrowing
+        expr: atlas_outbox_pending_events > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Backlog del outbox > 1000 eventos (tenant {{ $labels.tenant_id }})'
+          description: 'El outbox no está drenando: >1000 eventos pending durante 10m. Revisa el job process-outbox.'
+
+      - alert: AtlasProviderFailureRateHigh
+        expr: |
+          sum by (provider) (rate(atlas_provider_calls_total{outcome="failure"}[10m]))
+            / clamp_min(sum by (provider) (rate(atlas_provider_calls_total[10m])), 1e-9) > 0.20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Proveedor {{ $labels.provider }} fallando > 20%'
+          description: 'Más del 20% de las llamadas a {{ $labels.provider }} fallan (10m). Precede a la apertura del breaker.'
+
       # --- Salud del proceso (métricas por defecto de prom-client) --------------------------------
       - alert: AtlasBackendEventLoopLag
         expr: nodejs_eventloop_lag_seconds > 0.2

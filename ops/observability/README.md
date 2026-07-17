@@ -3,10 +3,10 @@
 Config lista para operar los SLOs de AtlasBackend a partir de las métricas que expone
 `GET /metrics` (`MetricsService`). No requiere código: son artefactos de Prometheus/Grafana.
 
-| Archivo | Qué es |
-|---------|--------|
-| [`prometheus-alerts.yml`](prometheus-alerts.yml) | Reglas de alerta (error 5xx, p95/p99, target down, event loop lag) |
-| [`grafana-dashboard.json`](grafana-dashboard.json) | Dashboard "AtlasBackend — SLOs HTTP" (importable) |
+| Archivo                                            | Qué es                                                                                                                                 |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [`prometheus-alerts.yml`](prometheus-alerts.yml)   | 9 reglas: SLOs HTTP (error 5xx, p95/p99, target down) + negocio (breaker abierto, backlog de outbox, fallo por proveedor) + event loop |
+| [`grafana-dashboard.json`](grafana-dashboard.json) | Dashboard "AtlasBackend — SLOs HTTP" (importable)                                                                                      |
 
 ## Scrape
 
@@ -42,10 +42,17 @@ Grafana → **Dashboards → Import → Upload JSON** → selecciona `grafana-da
 datos Prometheus. Paneles: tasa de error (SLI), throughput, p95, event loop lag, percentiles
 p50/p95/p99, requests por clase de estado y top rutas por latencia.
 
-## Pendiente (métricas de negocio)
+## Métricas de negocio
 
-El dashboard cubre los SLOs **HTTP**, que es lo que hoy instrumenta el interceptor. Las señales de
-negocio que el plan también pide — **profundidad del outbox**, **circuit breaker abierto** y **costo
-por proveedor externo** — requieren instrumentar counters/gauges propios en esos servicios
-(outbox despachador, `ResilientAdapterExecutorService`, `ExternalDataDecisionService`) y exponerlos
-por el mismo `MetricsService`. Es el siguiente incremento de la Fase 3.4.
+Además de los SLOs HTTP, se exponen las tres señales de negocio que pide el plan:
+
+| Métrica                                        | Origen                                                                                                                                                              | Alerta                                |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `atlas_circuit_breaker_state{provider}`        | `ResilientAdapterExecutorService` (0=closed, 1=half_open, 2=open)                                                                                                   | `AtlasCircuitBreakerOpen` (== 2)      |
+| `atlas_provider_calls_total{provider,outcome}` | `ResilientAdapterExecutorService` — `success` / `failure` / `circuit_open`. Proxy del **costo**: cada llamada a un buró/KYC se cobra; `circuit_open` **no** cuesta. | `AtlasProviderFailureRateHigh` (>20%) |
+| `atlas_outbox_pending_events{tenant_id}`       | `RuntimeJobsService.processOutbox` — profundidad del backlog medida en cada corrida del job                                                                         | `AtlasOutboxBacklogGrowing` (>1000)   |
+
+> El gauge del outbox se actualiza **cuando corre el job** `process-outbox`, no en cada scrape (evita
+> una query a PostgreSQL por scrape). Si el job deja de correr, el gauge se queda estancado — por eso
+> `AtlasOutboxBacklogGrowing` usa `for: 10m` y conviene complementarlo con una alerta de
+> "el job no corrió" desde el scheduler que lo dispara.
