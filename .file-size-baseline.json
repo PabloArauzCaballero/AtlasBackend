@@ -6,7 +6,7 @@
   "src/modules/auth/auth.service.ts": 512,
   "src/modules/catalog-management/application/catalog-version-workflow.service.ts": 313,
   "src/modules/catalog-management/catalog-management.controller.ts": 362,
-  "src/modules/catalog-management/catalog-management.repository.ts": 632,
+  "src/modules/catalog-management/catalog-management.repository.ts": 562,
   "src/modules/catalog-management/catalog-management.schemas.ts": 375,
   "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts": 623,
   "src/modules/customer-onboarding/customer-onboarding.repository.ts": 388,

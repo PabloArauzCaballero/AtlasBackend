@@ -36,6 +36,7 @@ import { CatalogVersionWorkflowService } from './application/catalog-version-wor
 import { CatalogManagementController } from './catalog-management.controller.js';
 import { CatalogDataGovernanceRepository } from './catalog-data-governance.repository.js';
 import { CatalogDefinitionsRepository } from './catalog-definitions.repository.js';
+import { CatalogRiskPolicyRepository } from './catalog-risk-policy.repository.js';
 import { CatalogManagementRepository } from './catalog-management.repository.js';
 import { CatalogManagementService } from './catalog-management.service.js';
 
@@ -80,6 +81,7 @@ import { CatalogManagementService } from './catalog-management.service.js';
     CatalogDataGovernanceService,
     CatalogDataGovernanceRepository,
     CatalogDefinitionsRepository,
+    CatalogRiskPolicyRepository,
     CatalogManagementRepository,
   ],
 })

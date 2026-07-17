@@ -13,6 +13,8 @@ import {
   ContextStagingItemModel,
   DataChangeLogModel,
   OperationalAuditLogModel,
+  // Solo como TIPOS para las firmas públicas de los delegadores de risk-policy; el acceso real a
+  // estas tablas vive en `CatalogRiskPolicyRepository`.
   RiskModelVersionModel,
   RiskPolicyRuleModel,
   RiskRulesetVersionModel,
@@ -21,6 +23,7 @@ import {
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { CatalogDataGovernanceRepository } from './catalog-data-governance.repository.js';
 import { CatalogDefinitionsRepository } from './catalog-definitions.repository.js';
+import { CatalogRiskPolicyRepository } from './catalog-risk-policy.repository.js';
 import { RepositoryOptions } from './catalog-repository.helpers.js';
 import { DefinitionsQueryDto, ListCatalogsQueryDto } from './catalog-management.schemas.js';
 
@@ -70,16 +73,13 @@ export class CatalogManagementRepository {
     @InjectModel(ContextStagingItemModel) private readonly contextStagingItemModel: typeof ContextStagingItemModel,
     @InjectModel(ContextApprovalEventModel) private readonly contextApprovalEventModel: typeof ContextApprovalEventModel,
     @InjectModel(ContextIngestionJobModel) private readonly contextIngestionJobModel: typeof ContextIngestionJobModel,
-    @InjectModel(RiskModelVersionModel) private readonly riskModelVersionModel: typeof RiskModelVersionModel,
-    @InjectModel(RiskRulesetVersionModel) private readonly riskRulesetVersionModel: typeof RiskRulesetVersionModel,
-    @InjectModel(RiskPolicyRuleModel) private readonly riskPolicyRuleModel: typeof RiskPolicyRuleModel,
-    @InjectModel(RiskSignalSeedModel) private readonly riskSignalSeedModel: typeof RiskSignalSeedModel,
     @InjectModel(OperationalAuditLogModel) private readonly auditModel: typeof OperationalAuditLogModel,
     @InjectModel(DataChangeLogModel) private readonly dataChangeLogModel: typeof DataChangeLogModel,
     // Fase 2.3: cada agregado vive en su propio repo con acceso acotado a sus tablas; la fachada
     // delega para conservar su API pública.
     private readonly dataGovernanceRepository: CatalogDataGovernanceRepository,
     private readonly definitionsRepository: CatalogDefinitionsRepository,
+    private readonly riskPolicyRepository: CatalogRiskPolicyRepository,
   ) {}
 
   listCatalogs(query: ListCatalogsQueryDto): Promise<ContextCatalogModel[]> {
@@ -454,82 +454,44 @@ export class CatalogManagementRepository {
     return this.definitionsRepository.upsertFeatureDefinition(values, options);
   }
 
-  async listCurrentRiskPolicy() {
-    const [modelVersions, rulesetVersions, riskSignalSeeds] = await Promise.all([
-      this.riskModelVersionModel.findAll({
-        where: { status: { [Op.in]: ['active', 'published'] } },
-        order: [
-          ['effectiveFrom', 'DESC'],
-          ['id', 'DESC'],
-        ],
-      } as FindOptions),
-      this.riskRulesetVersionModel.findAll({
-        where: { status: { [Op.in]: ['active', 'published'] } },
-        order: [
-          ['effectiveFrom', 'DESC'],
-          ['id', 'DESC'],
-        ],
-      } as FindOptions),
-      this.riskSignalSeedModel.findAll({
-        where: { isActive: true },
-        order: [
-          ['priority', 'ASC'],
-          ['signalCode', 'ASC'],
-        ],
-      } as FindOptions),
-    ]);
-    return { modelVersions, rulesetVersions, riskSignalSeeds };
+  // --- Política de riesgo: delegado en `CatalogRiskPolicyRepository` (Fase 2.3) ------------------
+  // Delegadores finos que conservan la API pública; el acceso a las 4 tablas de política de riesgo
+  // vive acotado en el repo por agregado.
+  listCurrentRiskPolicy() {
+    return this.riskPolicyRepository.listCurrentRiskPolicy();
   }
-
   findRulesByRulesetIds(rulesetVersionIds: string[]): Promise<RiskPolicyRuleModel[]> {
-    if (rulesetVersionIds.length === 0) return Promise.resolve([]);
-    return this.riskPolicyRuleModel.findAll({
-      where: { rulesetVersionId: { [Op.in]: rulesetVersionIds } },
-      order: [['ruleCode', 'ASC']],
-    } as FindOptions);
+    return this.riskPolicyRepository.findRulesByRulesetIds(rulesetVersionIds);
   }
-
   createRiskModelVersion(values: Record<string, unknown>, options: RepositoryOptions): Promise<RiskModelVersionModel> {
-    return this.riskModelVersionModel.create(values as any, { transaction: options.transaction });
+    return this.riskPolicyRepository.createRiskModelVersion(values, options);
   }
   createRiskRulesetVersion(values: Record<string, unknown>, options: RepositoryOptions): Promise<RiskRulesetVersionModel> {
-    return this.riskRulesetVersionModel.create(values as any, { transaction: options.transaction });
+    return this.riskPolicyRepository.createRiskRulesetVersion(values, options);
   }
   createRiskPolicyRule(values: Record<string, unknown>, options: RepositoryOptions): Promise<RiskPolicyRuleModel> {
-    return this.riskPolicyRuleModel.create(values as any, { transaction: options.transaction });
+    return this.riskPolicyRepository.createRiskPolicyRule(values, options);
   }
   createRiskSignalSeed(values: Record<string, unknown>, options: RepositoryOptions): Promise<RiskSignalSeedModel> {
-    return this.riskSignalSeedModel.create(values as any, { transaction: options.transaction });
+    return this.riskPolicyRepository.createRiskSignalSeed(values, options);
   }
-
   findRiskRulesetVersionById(id: string, options: RepositoryOptions = {}): Promise<RiskRulesetVersionModel | null> {
-    return this.riskRulesetVersionModel.findOne({ where: { id }, transaction: options.transaction } as FindOptions);
+    return this.riskPolicyRepository.findRiskRulesetVersionById(id, options);
   }
-
-  async activateRuleset(
+  activateRuleset(
     version: RiskRulesetVersionModel,
     values: { approvedByPlatformUserId: string | null; effectiveFrom: Date; now: Date },
     options: RepositoryOptions,
   ): Promise<RiskRulesetVersionModel> {
-    version.status = 'active';
-    version.effectiveFrom = values.effectiveFrom;
-    version.approvedByPlatformUserId = values.approvedByPlatformUserId;
-    version.approvedAt = values.now;
-    return version.save({ transaction: options.transaction });
+    return this.riskPolicyRepository.activateRuleset(version, values, options);
   }
-
-  async retireOtherActiveRulesets(
+  retireOtherActiveRulesets(
     rulesetCode: string | null,
     currentId: string,
     effectiveUntil: Date,
     options: RepositoryOptions,
   ): Promise<number> {
-    if (!rulesetCode) return 0;
-    const [count] = await this.riskRulesetVersionModel.update({ status: 'retired', effectiveUntil } as any, {
-      where: { rulesetCode, id: { [Op.ne]: currentId }, status: 'active' },
-      transaction: options.transaction,
-    });
-    return count;
+    return this.riskPolicyRepository.retireOtherActiveRulesets(rulesetCode, currentId, effectiveUntil, options);
   }
 
   // --- Gobierno de datos: delegado en `CatalogDataGovernanceRepository` (Fase 2.3) --------------
