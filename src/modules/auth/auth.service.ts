@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { Transaction } from 'sequelize';
@@ -152,7 +152,7 @@ export class AuthService {
       throw invalidCredentialsError;
     }
 
-    if (this.isLoginPinRequired(input.dto.actorType)) {
+    if (this.isSecondFactorRequired(input.dto.actorType, credential)) {
       return this.issueLoginPinChallenge(actor, input.dto.actorType, { ip: input.ip, userAgent: input.userAgent });
     }
 
@@ -181,14 +181,36 @@ export class AuthService {
   }
 
   /**
-   * Fase 4.2 del plan 10/10: 2FA OBLIGATORIO para todo actor interno (`internal_user` y
-   * `platform_user`), no solo super admins. Los clientes (`customer`) quedan en un solo paso aquí
-   * (su MFA/OTP es un flujo aparte). El segundo factor solo se exige cuando hay forma real de
-   * entregar el PIN (MailSender configurado): sin correo, el login queda en un solo paso en vez de
-   * bloquearse, y `AUTH_LOGIN_PIN_ENABLED=false` lo desactiva por completo (p. ej. entornos de test).
+   * Fase 4.2 del plan 10/10: decide si el login exige un segundo factor (OTP por correo).
+   *  - Actores INTERNOS (`internal_user`, `platform_user`): 2FA OBLIGATORIO, no solo super admins.
+   *  - CLIENTES (`customer`): 2FA solo si activaron MFA opt-in (`credential.mfaEnabled`).
+   *
+   * En ambos casos solo se exige cuando hay forma real de entregar el PIN (MailSender configurado):
+   * sin correo el login queda en un paso en vez de bloquearse, y `AUTH_LOGIN_PIN_ENABLED=false` lo
+   * desactiva por completo (p. ej. entornos de test).
    */
-  private isLoginPinRequired(actorType: ActorType): boolean {
-    return env.AUTH_LOGIN_PIN_ENABLED && actorType !== 'customer' && this.mailSenderService.isEnabled();
+  private isSecondFactorRequired(actorType: ActorType, credential: { mfaEnabled?: boolean }): boolean {
+    if (!env.AUTH_LOGIN_PIN_ENABLED || !this.mailSenderService.isEnabled()) return false;
+    if (actorType !== 'customer') return true;
+    return credential.mfaEnabled === true;
+  }
+
+  /**
+   * Fase 4.2: MFA opt-in del cliente. Un cliente autenticado activa/desactiva su segundo factor.
+   * Devuelve el estado resultante. Solo aplica a `customer` (los internos tienen 2FA obligatorio).
+   */
+  async setCustomerMfaPreference(input: { actorId: string; enabled: boolean }): Promise<{ mfaEnabled: boolean }> {
+    const credential = await this.authRepository.findCredentialsByActor('customer', input.actorId);
+    if (!credential) {
+      throw new UnauthorizedException('No hay credenciales para este cliente.');
+    }
+    if (input.enabled && !this.mailSenderService.isEnabled()) {
+      // Fail-closed a la inversa: no dejar activar MFA si no hay canal para entregar el OTP, para no
+      // dejar al cliente bloqueado en el próximo login.
+      throw new ServiceUnavailableException('No es posible activar MFA: el servicio de correo no está configurado.');
+    }
+    await this.authRepository.setMfaEnabled(credential, input.enabled);
+    return { mfaEnabled: input.enabled };
   }
 
   private async issueLoginPinChallenge(

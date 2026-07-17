@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { UnauthorizedException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { UnauthorizedException, ForbiddenException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 
 // Se mockean las utilidades criptográficas para aislar la lógica de negocio de `AuthService`.
 // El comportamiento de argon2 está cubierto por `password.util.spec.ts`.
@@ -27,6 +27,7 @@ function buildAuthRepositoryMock() {
     findCredentialsByActor: jest.fn(),
     createCredentials: jest.fn(),
     updatePasswordHash: jest.fn(),
+    setMfaEnabled: jest.fn(),
     createOneTimeCode: jest.fn(),
     findActiveOneTimeCodeByActor: jest.fn(),
     findActiveOneTimeCodeByChallenge: jest.fn(),
@@ -345,6 +346,109 @@ describe('AuthService.login — 2FA obligatorio para actores internos (Fase 4.2)
 
     expect(result.tokenType).toBe('Bearer');
     expect(mailSenderService.sendLoginPin).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService — MFA opt-in del cliente (Fase 4.2)', () => {
+  it('un cliente CON mfaEnabled y correo configurado recibe el desafío OTP (login por email)', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const mailSenderService = buildMailSenderServiceMock();
+    mailSenderService.isEnabled.mockReturnValue(true);
+    // Login con email para que el OTP tenga destino (el email en claro solo existe si el cliente lo escribió).
+    customersRepository.findByContactHash.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'registered' });
+    authRepository.findCredentialsByActor.mockResolvedValue({
+      passwordHash: 'hashed:correct-password',
+      tokenVersion: 1,
+      lockedUntil: null,
+      failedLoginAttempts: 0,
+      mfaEnabled: true,
+    });
+    const service = buildService(authRepository, customersRepository, tokenRevocationService, mailSenderService);
+
+    const outcome = await service.login({
+      tenantId: '1',
+      dto: { actorType: 'customer', identifier: 'cliente@atlas.test', password: 'correct-password' },
+      ip: null,
+      userAgent: null,
+    });
+
+    expect(isLoginPinChallenge(outcome)).toBe(true);
+    expect(mailSenderService.sendLoginPin).toHaveBeenCalledTimes(1);
+    expect(authRepository.createRefreshToken).not.toHaveBeenCalled();
+  });
+
+  it('un cliente SIN mfaEnabled entra en un paso aunque haya correo configurado', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const mailSenderService = buildMailSenderServiceMock();
+    mailSenderService.isEnabled.mockReturnValue(true);
+    customersRepository.findByContactHash.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'registered' });
+    authRepository.findCredentialsByActor.mockResolvedValue({
+      passwordHash: 'hashed:correct-password',
+      tokenVersion: 1,
+      lockedUntil: null,
+      failedLoginAttempts: 0,
+      mfaEnabled: false,
+    });
+    const service = buildService(authRepository, customersRepository, tokenRevocationService, mailSenderService);
+
+    const result = expectLoginResult(
+      await service.login({
+        tenantId: '1',
+        dto: { actorType: 'customer', identifier: 'cliente@atlas.test', password: 'correct-password' },
+        ip: null,
+        userAgent: null,
+      }),
+    );
+    expect(result.tokenType).toBe('Bearer');
+    expect(mailSenderService.sendLoginPin).not.toHaveBeenCalled();
+  });
+
+  it('setCustomerMfaPreference activa el flag en la credencial del cliente', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const mailSenderService = buildMailSenderServiceMock();
+    mailSenderService.isEnabled.mockReturnValue(true);
+    const credential = { mfaEnabled: false };
+    authRepository.findCredentialsByActor.mockResolvedValue(credential);
+    const service = buildService(authRepository, customersRepository, tokenRevocationService, mailSenderService);
+
+    const result = await service.setCustomerMfaPreference({ actorId: '10', enabled: true });
+
+    expect(result).toEqual({ mfaEnabled: true });
+    expect(authRepository.setMfaEnabled).toHaveBeenCalledWith(credential, true);
+  });
+
+  it('no permite activar MFA si no hay MailSender (evita bloquear al cliente en el próximo login)', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const mailSenderService = buildMailSenderServiceMock();
+    mailSenderService.isEnabled.mockReturnValue(false);
+    authRepository.findCredentialsByActor.mockResolvedValue({ mfaEnabled: false });
+    const service = buildService(authRepository, customersRepository, tokenRevocationService, mailSenderService);
+
+    await expect(service.setCustomerMfaPreference({ actorId: '10', enabled: true })).rejects.toThrow(ServiceUnavailableException);
+    expect(authRepository.setMfaEnabled).not.toHaveBeenCalled();
+  });
+
+  it('permite DESactivar MFA aunque no haya MailSender', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const mailSenderService = buildMailSenderServiceMock();
+    mailSenderService.isEnabled.mockReturnValue(false);
+    const credential = { mfaEnabled: true };
+    authRepository.findCredentialsByActor.mockResolvedValue(credential);
+    const service = buildService(authRepository, customersRepository, tokenRevocationService, mailSenderService);
+
+    const result = await service.setCustomerMfaPreference({ actorId: '10', enabled: false });
+    expect(result).toEqual({ mfaEnabled: false });
+    expect(authRepository.setMfaEnabled).toHaveBeenCalledWith(credential, false);
   });
 });
 

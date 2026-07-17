@@ -113,6 +113,13 @@ export class AuthRepository {
     await credential.save();
   }
 
+  /** Fase 4.2: activa/desactiva el MFA opt-in de una credencial (usado por el flujo de cliente). */
+  async setMfaEnabled(credential: AuthCredentialModel, enabled: boolean): Promise<void> {
+    credential.mfaEnabled = enabled;
+    credential.updatedAtValue = new Date();
+    await credential.save();
+  }
+
   /**
    * Crea un código de un solo uso y consume cualquier código anterior todavía activo del mismo
    * actor+propósito: nunca hay más de un código vigente, así reenviar un código invalida el
@@ -146,7 +153,11 @@ export class AuthRepository {
     } as never);
   }
 
-  async findActiveOneTimeCodeByActor(actorType: ActorType, actorId: string, purpose: OneTimeCodePurpose): Promise<AuthOneTimeCodeModel | null> {
+  async findActiveOneTimeCodeByActor(
+    actorType: ActorType,
+    actorId: string,
+    purpose: OneTimeCodePurpose,
+  ): Promise<AuthOneTimeCodeModel | null> {
     return this.oneTimeCodeModel.findOne({
       where: { actorType, actorId, purpose, consumedAt: null } as never,
       order: [['id', 'DESC']],

@@ -25,6 +25,12 @@ export const logoutSchema = z.object({
 
 export type LogoutDto = z.infer<typeof logoutSchema>;
 
+// Fase 4.2: preferencia de MFA opt-in del cliente.
+export const mfaPreferenceSchema = z.object({
+  enabled: z.boolean(),
+});
+export type MfaPreferenceDto = z.infer<typeof mfaPreferenceSchema>;
+
 export const loginPinVerifySchema = z.object({
   challengeToken: z.string().trim().min(20),
   pin: z

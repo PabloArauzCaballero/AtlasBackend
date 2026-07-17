@@ -20,6 +20,10 @@ export class AuthCredentialModel extends Model {
   @Column({ field: 'token_version', type: DataType.INTEGER, allowNull: false, defaultValue: 1 })
   declare tokenVersion: number;
 
+  // Fase 4.2: MFA opt-in del cliente. Con `true`, el login exige un OTP de segundo factor por correo.
+  @Column({ field: 'mfa_enabled', type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare mfaEnabled: boolean;
+
   @Column({ field: 'failed_login_attempts', type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
   declare failedLoginAttempts: number;
 

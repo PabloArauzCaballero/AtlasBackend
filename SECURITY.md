@@ -42,10 +42,15 @@ despliegue. Fuera de alcance: infraestructura de terceros y proyectos hermanos
 - **2FA obligatorio para actores internos (Fase 4.2):** todo login de `internal_user` /
   `platform_user` exige un segundo factor (PIN de un solo uso entregado por correo) cuando
   MailSender está configurado; sin correo cae a un paso, y `AUTH_LOGIN_PIN_ENABLED=false` lo
-  desactiva (test). Los clientes quedan en un paso.
+  desactiva (test).
+- **MFA opt-in para clientes (Fase 4.2):** un cliente autenticado activa su segundo factor con
+  `POST /auth/mfa` (`{ enabled }`); con MFA activo su login responde un desafío OTP por correo
+  (mismo flujo que el PIN interno, completar con `POST /auth/login/pin`). Activar exige MailSender
+  configurado (si no, no habría cómo entregar el OTP y el cliente quedaría bloqueado).
 
-> Pendiente (plan 10/10 Fase 4.2): **MFA/OTP para clientes** (segundo factor opcional del lado
-> cliente) aún **no** implementado; el 2FA de roles internos ya sí.
+> Limitación conocida (Fase 4.2): el OTP de cliente se entrega por **correo** y requiere un email en
+> claro (disponible cuando el cliente inicia sesión con su email). La entrega por **SMS** para
+> clientes que inician con teléfono, y los **códigos de recuperación**, quedan como seguimiento.
 
 ### Cifrado
 - PII y tokens de dispositivo cifrados en reposo con **envelope encryption**

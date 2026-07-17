@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Headers, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -15,6 +15,7 @@ import {
   LoginDto,
   LoginPinVerifyDto,
   LogoutDto,
+  MfaPreferenceDto,
   PasswordResetConfirmDto,
   PasswordResetRequestDto,
   ProvisionCredentialsDto,
@@ -22,6 +23,7 @@ import {
   loginPinVerifySchema,
   loginSchema,
   logoutSchema,
+  mfaPreferenceSchema,
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
   provisionCredentialsSchema,
@@ -187,6 +189,35 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   logout(@Body(new ZodValidationPipe(logoutSchema)) body: LogoutDto) {
     return this.authService.logout({ refreshToken: body.refreshToken, allDevices: body.allDevices });
+  }
+
+  /**
+   * Fase 4.2: MFA opt-in del cliente. Requiere un access token vigente del propio cliente
+   * (`customer`); activa/desactiva su segundo factor por correo para futuros logins. No aplica a
+   * actores internos (su 2FA es obligatorio, no configurable aquí).
+   */
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Activar/desactivar MFA (cliente)',
+    description:
+      'Un cliente autenticado activa o desactiva su segundo factor (OTP por correo). Con MFA activo, ' +
+      'su próximo login responde `{ pinChallengeRequired, challengeToken, expiresInMinutes }` y debe completarse ' +
+      'con POST /auth/login/pin. Activar exige que MailSender esté configurado (si no, no habría cómo entregar el OTP).',
+  })
+  @ApiBody({ schema: zodToApiSchema(mfaPreferenceSchema) })
+  @ApiResponse({ status: 200, description: 'Preferencia de MFA actualizada — `{ mfaEnabled }`.' })
+  @ApiResponse({ status: 403, description: 'El actor autenticado no es un cliente.' })
+  @ApiResponse({ status: 503, description: 'Se intentó activar MFA pero el servicio de correo no está configurado.' })
+  @Post('mfa')
+  @HttpCode(HttpStatus.OK)
+  setMfaPreference(
+    @Body(new ZodValidationPipe(mfaPreferenceSchema)) body: MfaPreferenceDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    if (currentUser.role !== 'customer' || !currentUser.customerId) {
+      throw new ForbiddenException('Solo un cliente puede configurar su MFA.');
+    }
+    return this.authService.setCustomerMfaPreference({ actorId: currentUser.customerId, enabled: body.enabled });
   }
 
   /**
