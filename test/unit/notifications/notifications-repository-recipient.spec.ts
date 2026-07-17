@@ -12,13 +12,15 @@ import { NotificationsRepository } from '../../../src/modules/notifications/noti
  * 2) los métodos viejos de customer siguen funcionando exactamente igual (son wrappers).
  */
 function buildRepository(messageModel: Record<string, jest.Mock>) {
+  // Fase 2.3: plantillas y preferencias salieron a repos por agregado, así que ya no se inyectan
+  // sus modelos aquí — la fachada recibe esos repos (no usados por estos tests de inbox).
   return new NotificationsRepository(
-    {} as never, // templateModel
     messageModel as never,
     {} as never, // deliveryModel
-    {} as never, // preferenceModel
     {} as never, // deviceTokenModel
     {} as never, // contactMethodModel
+    {} as never, // templatesRepository
+    {} as never, // preferencesRepository
   );
 }
 

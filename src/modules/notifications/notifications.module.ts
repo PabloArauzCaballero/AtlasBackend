@@ -21,6 +21,8 @@ import { NotificationBroadcastService } from './notification-broadcast.service.j
 import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
 import { NotificationRulesService } from './notification-rules.service.js';
 import { NotificationTemplateRendererService } from './notification-template-renderer.service.js';
+import { NotificationPreferencesRepository } from './notification-preferences.repository.js';
+import { NotificationTemplatesRepository } from './notification-templates.repository.js';
 import { NotificationsController } from './notifications.controller.js';
 import { NotificationsRepository } from './notifications.repository.js';
 import { NotificationsService } from './notifications.service.js';
@@ -42,6 +44,8 @@ import { NotificationsService } from './notifications.service.js';
   controllers: [NotificationsController],
   providers: [
     NotificationsRepository,
+    NotificationTemplatesRepository,
+    NotificationPreferencesRepository,
     NotificationsService,
     NotificationRulesService,
     NotificationTemplateRendererService,

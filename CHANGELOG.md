@@ -90,10 +90,13 @@ Este proyecto es privado (`UNLICENSED`); el versionado sigue `package.json`.
 - **`auth.service.ts` dividido: 683 → ~490 líneas** (Fase 2.2). Se extrajeron
   `AuthActorResolverService` (resolución de actor) y `AuthPasswordResetService` (reset de contraseña);
   el servicio delega y conserva su API pública (controller y tests sin cambios de contrato).
-- **Fachada `catalog-management.repository.ts` rota por agregado** (Fase 2.3): los agregados de
-  gobierno de datos (`CatalogDataGovernanceRepository`, 6 tablas) y definiciones
-  (`CatalogDefinitionsRepository`, 4 tablas) viven en repos con acceso acotado; la fachada delega y
-  baja de 681 a 600 líneas. Cada repo toca solo las tablas de su agregado.
+- **Fachada `catalog-management.repository.ts` rota por agregado** (Fase 2.3): gobierno de datos
+  (`CatalogDataGovernanceRepository`, 6 tablas), definiciones (`CatalogDefinitionsRepository`, 4
+  tablas) y política de riesgo (`CatalogRiskPolicyRepository`, 4 tablas) viven en repos con acceso
+  acotado; la fachada delega y baja de 681 a 562 líneas (inyecta 14 dependencias, eran 25).
+- **Fachada `notifications.repository.ts` rota por agregado** (Fase 2.3): plantillas
+  (`NotificationTemplatesRepository`) y preferencias (`NotificationPreferencesRepository`) viven en
+  repos de una sola tabla; la fachada delega y baja de 628 a 542 líneas.
 - **Ratchet de cobertura subido** tras los tests nuevos: `auth` 54→60, `crypto` 83→88, `fraud`
   funciones 25→95. Ver `docs/testing/coverage-ratchet.md`.
 

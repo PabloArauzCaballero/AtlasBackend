@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, WhereOptions } from 'sequelize';
+import { Op } from 'sequelize';
 import { lastCharacters, sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { decryptSecretEnvelope, encryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { redactSensitiveObject, stableStringify } from '../../common/utils/privacy/redaction.util.js';
@@ -9,9 +9,13 @@ import {
   DeviceTokenModel,
   NotificationDeliveryModel,
   NotificationMessageModel,
+  // Solo como TIPOS para las firmas públicas de los delegadores; el acceso real a estas tablas vive
+  // en `NotificationTemplatesRepository` / `NotificationPreferencesRepository` (Fase 2.3).
   NotificationTemplateModel,
   UserNotificationPreferenceModel,
 } from '../../database/models/index.js';
+import { NotificationPreferencesRepository } from './notification-preferences.repository.js';
+import { NotificationTemplatesRepository } from './notification-templates.repository.js';
 import {
   CreateTemplateDto,
   CustomerNotificationsQueryDto,
@@ -111,32 +115,24 @@ function mergeDeliveryTargets(targets: DeliveryTarget[]): DeliveryTarget[] {
 @Injectable()
 export class NotificationsRepository {
   constructor(
-    @InjectModel(NotificationTemplateModel) private readonly templateModel: typeof NotificationTemplateModel,
     @InjectModel(NotificationMessageModel) private readonly messageModel: typeof NotificationMessageModel,
     @InjectModel(NotificationDeliveryModel) private readonly deliveryModel: typeof NotificationDeliveryModel,
-    @InjectModel(UserNotificationPreferenceModel) private readonly preferenceModel: typeof UserNotificationPreferenceModel,
     @InjectModel(DeviceTokenModel) private readonly deviceTokenModel: typeof DeviceTokenModel,
     @InjectModel(CustomerContactMethodModel) private readonly contactMethodModel: typeof CustomerContactMethodModel,
+    // Fase 2.3: plantillas y preferencias son agregados propios con acceso acotado a su tabla; la
+    // fachada delega para conservar su API pública.
+    private readonly templatesRepository: NotificationTemplatesRepository,
+    private readonly preferencesRepository: NotificationPreferencesRepository,
   ) {}
 
-  async findTemplate(input: {
+  // --- Plantillas: delegado en `NotificationTemplatesRepository` (Fase 2.3) ---------------------
+  findTemplate(input: {
     tenantId: string | null;
     code: string;
     channel: NotificationChannel;
     locale?: string;
   }): Promise<NotificationTemplateModel | null> {
-    const locale = input.locale ?? 'es-BO';
-    const tenantTemplate = input.tenantId
-      ? await this.templateModel.findOne({
-          where: { tenantId: input.tenantId, code: input.code, channel: input.channel, locale, isActive: true },
-          order: [['version', 'DESC']],
-        })
-      : null;
-    if (tenantTemplate) return tenantTemplate;
-    return this.templateModel.findOne({
-      where: { tenantId: null, code: input.code, channel: input.channel, locale, isActive: true },
-      order: [['version', 'DESC']],
-    });
+    return this.templatesRepository.findTemplate(input);
   }
 
   async createMessage(input: {
@@ -440,113 +436,31 @@ export class NotificationsRepository {
     return count;
   }
 
-  async listTemplates(tenantId: string, query: ListTemplatesQueryDto) {
-    const where: WhereOptions = { [Op.or]: [{ tenantId }, { tenantId: null }] } as never;
-    if (query.code) (where as Record<string, unknown>).code = query.code;
-    if (query.channel) (where as Record<string, unknown>).channel = query.channel;
-    if (query.active !== undefined) (where as Record<string, unknown>).isActive = query.active;
-    return this.templateModel.findAndCountAll({
-      where,
-      order: [
-        ['code', 'ASC'],
-        ['channel', 'ASC'],
-        ['version', 'DESC'],
-      ],
-      offset: (query.page - 1) * query.limit,
-      limit: query.limit,
-    });
+  listTemplates(tenantId: string, query: ListTemplatesQueryDto) {
+    return this.templatesRepository.listTemplates(tenantId, query);
+  }
+  createTemplate(tenantId: string, body: CreateTemplateDto): Promise<NotificationTemplateModel> {
+    return this.templatesRepository.createTemplate(tenantId, body);
+  }
+  updateTemplate(tenantId: string, templateId: string, body: UpdateTemplateDto): Promise<NotificationTemplateModel> {
+    return this.templatesRepository.updateTemplate(tenantId, templateId, body);
   }
 
-  async createTemplate(tenantId: string, body: CreateTemplateDto): Promise<NotificationTemplateModel> {
-    const now = new Date();
-    return this.templateModel.create({
-      tenantId,
-      code: body.code,
-      channel: body.channel,
-      locale: body.locale,
-      titleTemplate: body.titleTemplate ?? null,
-      subjectTemplate: body.subjectTemplate ?? null,
-      bodyTemplate: body.bodyTemplate,
-      payloadSchemaJson: body.payloadSchema ?? null,
-      category: body.category ?? null,
-      icon: body.icon ?? null,
-      isActive: body.isActive,
-      version: body.version,
-      createdAtValue: now,
-      updatedAtValue: now,
-    });
+  // --- Preferencias: delegado en `NotificationPreferencesRepository` (Fase 2.3) -----------------
+  getPreferences(tenantId: string, customerId: string): Promise<UserNotificationPreferenceModel[]> {
+    return this.preferencesRepository.getPreferences(tenantId, customerId);
   }
-
-  async updateTemplate(tenantId: string, templateId: string, body: UpdateTemplateDto): Promise<NotificationTemplateModel> {
-    const template = await this.templateModel.findOne({ where: { tenantId, id: templateId } });
-    if (!template) throw new NotFoundException('NOTIFICATION_TEMPLATE_NOT_FOUND');
-    if (body.code !== undefined) template.code = body.code;
-    if (body.channel !== undefined) template.channel = body.channel;
-    if (body.locale !== undefined) template.locale = body.locale;
-    if (body.titleTemplate !== undefined) template.titleTemplate = body.titleTemplate ?? null;
-    if (body.subjectTemplate !== undefined) template.subjectTemplate = body.subjectTemplate ?? null;
-    if (body.bodyTemplate !== undefined) template.bodyTemplate = body.bodyTemplate;
-    if (body.payloadSchema !== undefined) template.payloadSchemaJson = body.payloadSchema ?? null;
-    if (body.category !== undefined) template.category = body.category ?? null;
-    if (body.icon !== undefined) template.icon = body.icon ?? null;
-    if (body.isActive !== undefined) template.isActive = body.isActive;
-    if (body.version !== undefined) template.version = body.version;
-    template.updatedAtValue = new Date();
-    await template.save();
-    return template;
+  upsertPreferences(tenantId: string, customerId: string, body: UpdatePreferencesDto): Promise<UserNotificationPreferenceModel[]> {
+    return this.preferencesRepository.upsertPreferences(tenantId, customerId, body);
   }
-
-  async getPreferences(tenantId: string, customerId: string): Promise<UserNotificationPreferenceModel[]> {
-    return this.preferenceModel.findAll({
-      where: { tenantId, customerId },
-      order: [
-        ['eventCode', 'ASC'],
-        ['channel', 'ASC'],
-      ],
-    });
-  }
-
-  async upsertPreferences(tenantId: string, customerId: string, body: UpdatePreferencesDto): Promise<UserNotificationPreferenceModel[]> {
-    const now = new Date();
-    for (const preference of body.preferences) {
-      const existing = await this.preferenceModel.findOne({
-        where: { tenantId, customerId, eventCode: preference.eventCode, channel: preference.channel },
-      });
-      if (existing?.isRequired && !preference.isEnabled) throw new BadRequestException('REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED');
-      if (existing) {
-        existing.isEnabled = preference.isEnabled;
-        existing.isRequired = existing.isRequired || preference.isRequired;
-        existing.updatedAtValue = now;
-        await existing.save();
-      } else {
-        await this.preferenceModel.create({
-          tenantId,
-          customerId,
-          eventCode: preference.eventCode,
-          channel: preference.channel,
-          isEnabled: preference.isEnabled,
-          isRequired: preference.isRequired,
-          createdAtValue: now,
-          updatedAtValue: now,
-        });
-      }
-    }
-    return this.getPreferences(tenantId, customerId);
-  }
-
-  async isChannelEnabled(input: {
+  isChannelEnabled(input: {
     tenantId: string;
     customerId: string;
     eventCode: string;
     channel: NotificationChannel;
     required?: boolean;
   }): Promise<boolean> {
-    if (input.required) return true;
-    const preference = await this.preferenceModel.findOne({
-      where: { tenantId: input.tenantId, customerId: input.customerId, eventCode: input.eventCode, channel: input.channel },
-    });
-    if (!preference) return true;
-    return preference.isRequired || preference.isEnabled;
+    return this.preferencesRepository.isChannelEnabled(input);
   }
 
   async upsertDeviceToken(tenantId: string, customerId: string, body: UpsertDeviceTokenDto): Promise<DeviceTokenModel> {
