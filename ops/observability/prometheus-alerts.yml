@@ -1,0 +1,74 @@
+# Reglas de alerta Prometheus para AtlasBackend (Fase 3.4 del plan 10/10).
+#
+# Se alimentan de las métricas expuestas en `GET /metrics` por `MetricsService`:
+#   - http_requests_total{method,route,status_code,service}
+#   - http_request_duration_seconds_bucket{le,method,route,status_code,service}  (histograma)
+#
+# Cárgalas en Prometheus con `rule_files: [ "prometheus-alerts.yml" ]`. Los umbrales son un punto de
+# partida razonable para una API web; ajústalos al SLO acordado del servicio.
+groups:
+  - name: atlas-backend-slo
+    rules:
+      # --- Disponibilidad -------------------------------------------------------------------------
+      - alert: AtlasBackendTargetDown
+        expr: up{job="atlas-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'AtlasBackend no responde al scrape'
+          description: 'El target {{ $labels.instance }} lleva >2m sin responder a Prometheus.'
+
+      # --- Tasa de error (SLI principal) ----------------------------------------------------------
+      - alert: AtlasBackendHighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_requests_total[5m])), 1e-9) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Tasa de error 5xx > 5%'
+          description: 'La proporción de respuestas 5xx supera el 5% durante 5m (SLO de error).'
+
+      - alert: AtlasBackendElevatedClientErrors
+        expr: |
+          sum(rate(http_requests_total{status_code=~"4.."}[5m]))
+            / clamp_min(sum(rate(http_requests_total[5m])), 1e-9) > 0.30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Tasa de error 4xx > 30%'
+          description: 'Muchos 4xx durante 10m: posible abuso, cliente mal integrado o validación rota.'
+
+      # --- Latencia (p95 / p99) -------------------------------------------------------------------
+      - alert: AtlasBackendHighP95Latency
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Latencia p95 > 1s'
+          description: 'El p95 de latencia HTTP supera 1s durante 5m.'
+
+      - alert: AtlasBackendHighP99Latency
+        expr: |
+          histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 2.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Latencia p99 > 2.5s'
+          description: 'El p99 de latencia HTTP supera 2.5s durante 5m.'
+
+      # --- Salud del proceso (métricas por defecto de prom-client) --------------------------------
+      - alert: AtlasBackendEventLoopLag
+        expr: nodejs_eventloop_lag_seconds > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Event loop lag > 200ms'
+          description: 'El event loop de Node está saturado (>200ms de lag) durante 5m.'

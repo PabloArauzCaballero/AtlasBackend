@@ -9,6 +9,7 @@ concretos, comandos reales del repo y criterios de verificación.
 | [rotacion-de-claves.md](rotacion-de-claves.md) | Rotación programada o de emergencia de secretos de cifrado (envelope/KMS) y JWT |
 | [incident-response.md](incident-response.md) | Sospecha de compromiso, fuga de credenciales, abuso o caída |
 | [expiracion-y-revocacion-de-sesiones.md](expiracion-y-revocacion-de-sesiones.md) | Revocar sesiones/tokens de un actor o de toda la flota |
+| [despliegue-produccion.md](despliegue-produccion.md) | Checklist de despliegue a producción (env vars, migraciones, KMS, 2FA, observabilidad) |
 
 > Los comandos asumen las variables de entorno del entorno objetivo ya cargadas. Verifica
 > siempre `NODE_ENV` **antes** de ejecutar nada destructivo.

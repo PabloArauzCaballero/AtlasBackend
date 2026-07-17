@@ -33,6 +33,24 @@ Este proyecto es privado (`UNLICENSED`); el versionado sigue `package.json`.
 - **Roles PostgreSQL de privilegio mínimo** (`ops/postgres/*.sql`) + verificación automatizada
   (`yarn check:db-privileges`). Ver `docs/database/postgres-roles.md`.
 - `yarn hash-password` para rotar credenciales de desarrollo sin versionar texto plano.
+- **Gobernanza y seguridad documentadas** (Fases 6.1/4.3/3.1): 5 ADRs en `docs/adr/` (outbox en
+  PostgreSQL, Redis prod-only, Mongo/log-sync, KMS envelope encryption, paginación por cursor),
+  runbooks operativos (`docs/runbooks/`: rotación de claves, respuesta a incidentes,
+  expiración/revocación de sesiones), `SECURITY.md`, threat model STRIDE (`docs/security/`) y
+  `CONTRIBUTING.md` con el flujo de gates.
+- **Cifrado de PII con KMS real** (Fase 3.3): envelope encryption con proveedor de cifrado ACTIVO;
+  si `KMS_KEY_ID`+`AWS_REGION` están presentes, `main.ts` activa AWS KMS y las escrituras nuevas de
+  PII usan data keys de KMS sin cambiar los call sites (los valores previos en `local` siguen
+  descifrándose). Requiere `@aws-sdk/client-kms` en la imagen de producción. Ver `docs/adr/0004`.
+- **Observabilidad** (Fase 3.4): métricas Prometheus en `GET /metrics` (`http_requests_total` +
+  `http_request_duration_seconds` para SLO p50/p95/p99 e índice de error, más métricas de proceso) y
+  bootstrap de trazas OpenTelemetry **opt-in** (`OTEL_ENABLED`, no-op por defecto). Config por
+  `process.env` (`METRICS_ENABLED`, `OTEL_*`).
+- **Segundo factor** (Fase 4.2): 2FA obligatorio para actores internos (`internal_user`/
+  `platform_user`) y MFA opt-in para clientes vía `POST /auth/mfa`, ambos con OTP de un solo uso por
+  correo (reutilizan el flujo de PIN existente). Nueva columna `auth_credentials.mfa_enabled`.
+- **Cobertura directa de `FraudRepository`** (Fase 1.2): de 25% a 100% de funciones cubiertas del
+  dominio de fraude; ratchet de `auth`/`crypto`/`fraud` subido para fijar la ganancia.
 
 ### Cambiado
 
@@ -58,6 +76,18 @@ Este proyecto es privado (`UNLICENSED`); el versionado sigue `package.json`.
   OpenAPI; usar la variante `/feed` con cursor real.
 - El seeder combinado `internal-rbac-and-pablo` se dividió: catálogo RBAC → perfil `production`;
   usuario admin de desarrollo → perfil `development`.
+- **`external-data-execution.service.ts` dividido: 692 → 477 líneas** (Fase 2.2). La lógica de
+  decisión de costo/cuota/circuit-breaker/idempotencia salió a `ExternalDataDecisionService` (con
+  acceso acotado al repositorio) y se testea aislada. La orquestación queda en el servicio original.
+- **`auth.service.ts` dividido: 683 → ~490 líneas** (Fase 2.2). Se extrajeron
+  `AuthActorResolverService` (resolución de actor) y `AuthPasswordResetService` (reset de contraseña);
+  el servicio delega y conserva su API pública (controller y tests sin cambios de contrato).
+- **Fachada `catalog-management.repository.ts` rota por agregado** (Fase 2.3): los agregados de
+  gobierno de datos (`CatalogDataGovernanceRepository`, 6 tablas) y definiciones
+  (`CatalogDefinitionsRepository`, 4 tablas) viven en repos con acceso acotado; la fachada delega y
+  baja de 681 a 600 líneas. Cada repo toca solo las tablas de su agregado.
+- **Ratchet de cobertura subido** tras los tests nuevos: `auth` 54→60, `crypto` 83→88, `fraud`
+  funciones 25→95. Ver `docs/testing/coverage-ratchet.md`.
 
 ### Corregido
 
