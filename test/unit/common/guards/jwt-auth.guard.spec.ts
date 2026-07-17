@@ -59,6 +59,69 @@ describe('JwtAuthGuard', () => {
     await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
   });
 
+  /**
+   * Sesión por cookie `HttpOnly`: es la vía del panel interno desde que los tokens dejaron de
+   * viajar en el body. Si el guard dejara de leer la cookie, el portal entero quedaría sin
+   * autenticar; si dejara de aceptar el header, se romperían los smoke tests y scripts.
+   */
+  describe('sesión por cookie HttpOnly', () => {
+    it('acepta el token desde la cookie de acceso, sin header Authorization', async () => {
+      const token = signToken({ sub: 'int-1', role: 'internal_operator', internalUserId: '1' });
+      const { context, request, reflector } = buildContext({ cookie: `atlas_internal_access=${token}` });
+      const guard = new JwtAuthGuard(reflector, buildRevocationServiceMock(null));
+
+      await expect(guard.canActivate(context)).resolves.toBe(true);
+      expect(request.user?.sub).toBe('int-1');
+    });
+
+    it('la cookie tiene prioridad sobre el header Authorization', async () => {
+      const cookieToken = signToken({ sub: 'desde-cookie', role: 'internal_operator', internalUserId: '1' });
+      const headerToken = signToken({ sub: 'desde-header', role: 'internal_operator', internalUserId: '2' });
+      const { context, request, reflector } = buildContext({
+        cookie: `atlas_internal_access=${cookieToken}`,
+        authorization: `Bearer ${headerToken}`,
+      });
+      const guard = new JwtAuthGuard(reflector, buildRevocationServiceMock(null));
+
+      await guard.canActivate(context);
+
+      expect(request.user?.sub).toBe('desde-cookie');
+    });
+
+    it('encuentra la cookie de acceso entre otras cookies', async () => {
+      const token = signToken({ sub: 'int-1', role: 'internal_operator', internalUserId: '1' });
+      const { context, request, reflector } = buildContext({
+        cookie: `otra=1; atlas_internal_access=${token}; atlas_internal_refresh=xyz`,
+      });
+      const guard = new JwtAuthGuard(reflector, buildRevocationServiceMock(null));
+
+      await guard.canActivate(context);
+
+      expect(request.user?.sub).toBe('int-1');
+    });
+
+    it('cae al header Authorization si la cookie no está (clientes no navegador)', async () => {
+      const token = signToken({ sub: 'script-1', role: 'system', platformUserId: '9' });
+      const { context, request, reflector } = buildContext({
+        cookie: 'otra=1',
+        authorization: `Bearer ${token}`,
+      });
+      const guard = new JwtAuthGuard(reflector, buildRevocationServiceMock(null));
+
+      await guard.canActivate(context);
+
+      expect(request.user?.sub).toBe('script-1');
+    });
+
+    it('rechaza un token de cookie con firma inválida', async () => {
+      const badToken = jwt.sign({ sub: '1', role: 'customer' }, 'clave-incorrecta', { algorithm: 'HS256' });
+      const { context, reflector } = buildContext({ cookie: `atlas_internal_access=${badToken}` });
+      const guard = new JwtAuthGuard(reflector, buildRevocationServiceMock(null));
+
+      await expect(guard.canActivate(context)).rejects.toThrow('Token inválido o expirado');
+    });
+  });
+
   it('rechaza si el esquema no es "Bearer"', async () => {
     const { context, reflector } = buildContext({ authorization: `Basic ${signToken({ sub: '1', role: 'customer' })}` });
     const guard = new JwtAuthGuard(reflector, buildRevocationServiceMock(null));

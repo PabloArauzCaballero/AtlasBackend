@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
+import { MetricsService } from '../../common/observability/metrics.service.js';
 import { Op, QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
@@ -83,6 +84,9 @@ export class RuntimeJobsService {
     @InjectModel(FormFieldInteractionEventModel) private readonly formInteractionModel: typeof FormFieldInteractionEventModel,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly eventsService: EventsService,
+    // Fase 3.4: publica la profundidad del backlog del outbox. `@Optional()` y último a propósito:
+    // varios tests construyen este servicio posicionalmente y no deben romperse por instrumentar.
+    @Optional() private readonly metrics?: MetricsService,
   ) {}
 
   private async executeRetentionTarget(policyCode: string, cutoffDate: Date, dryRun: boolean): Promise<RetentionOutcome | null> {
@@ -154,6 +158,8 @@ export class RuntimeJobsService {
             where: { tenantId: input.tenantId, status: 'pending', availableAt: { [Op.lte]: new Date() } } as never,
           });
           const selected = Math.min(Number(count), input.body.limit);
+          // Fase 3.4: profundidad del backlog del outbox, ya calculada aquí (sin query extra).
+          this.metrics?.setOutboxPendingEvents({ tenantId: input.tenantId, pending: totalPending });
           return {
             selected,
             processed: 0,
@@ -197,6 +203,8 @@ export class RuntimeJobsService {
         const totalPendingAfter = await this.outboxModel.count({
           where: { tenantId: input.tenantId, status: 'pending', availableAt: { [Op.lte]: new Date() } } as never,
         });
+        // Fase 3.4: backlog restante tras drenar — la señal que alerta si el outbox no da abasto.
+        this.metrics?.setOutboxPendingEvents({ tenantId: input.tenantId, pending: totalPendingAfter });
 
         return {
           selected: claimed.length,

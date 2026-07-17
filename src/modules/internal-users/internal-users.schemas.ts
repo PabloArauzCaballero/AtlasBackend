@@ -18,14 +18,20 @@ export const internalLoginSchema = z.object({
 
 export type InternalLoginDto = z.infer<typeof internalLoginSchema>;
 
+/**
+ * `refreshToken` pasa a ser opcional: el panel interno ya no lo tiene en JavaScript — viaja en una
+ * cookie `HttpOnly` que el navegador envía solo. Se mantiene aceptándolo en el body como fallback
+ * para clientes que no son navegador (smoke tests, scripts, integraciones). El controller exige
+ * que llegue por una de las dos vías.
+ */
 export const internalRefreshSchema = z.object({
-  refreshToken: z.string().trim().min(20),
+  refreshToken: z.string().trim().min(20).optional(),
 });
 
 export type InternalRefreshDto = z.infer<typeof internalRefreshSchema>;
 
 export const internalLogoutSchema = z.object({
-  refreshToken: z.string().trim().min(20),
+  refreshToken: z.string().trim().min(20).optional(),
   allDevices: z.boolean().optional().default(false),
 });
 

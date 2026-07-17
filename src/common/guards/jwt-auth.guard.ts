@@ -5,6 +5,7 @@ import { env } from '../../config/env.js';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { TokenRevocationService } from '../services/token-revocation.service.js';
 import { AuthenticatedUser, RequestWithAuth } from '../types/auth.types.js';
+import { ACCESS_TOKEN_COOKIE, readCookie } from '../utils/http/auth-cookies.util.js';
 
 const KNOWN_ROLES: ReadonlySet<AuthenticatedUser['role']> = new Set([
   'customer',
@@ -22,12 +23,9 @@ const KNOWN_ROLES: ReadonlySet<AuthenticatedUser['role']> = new Set([
   'platform_admin',
 ]);
 
-function extractBearerToken(authorizationHeader: string | string[] | undefined): string {
+function bearerTokenFromHeader(authorizationHeader: string | string[] | undefined): string | null {
   const header = Array.isArray(authorizationHeader) ? authorizationHeader[0] : authorizationHeader;
-
-  if (!header) {
-    throw new UnauthorizedException('Token Bearer requerido.');
-  }
+  if (!header) return null;
 
   const [scheme, token] = header.split(' ');
   if (scheme !== 'Bearer' || !token) {
@@ -35,6 +33,21 @@ function extractBearerToken(authorizationHeader: string | string[] | undefined):
   }
 
   return token;
+}
+
+/**
+ * La cookie `HttpOnly` tiene prioridad sobre `Authorization`: es la vía del panel interno y la que
+ * un XSS no puede leer. El header se mantiene como fallback para clientes que no son navegador
+ * (smoke tests, scripts, integraciones), que no tienen dónde guardar una cookie.
+ */
+function extractAccessToken(request: RequestWithAuth): string {
+  const fromCookie = readCookie(request, ACCESS_TOKEN_COOKIE);
+  if (fromCookie) return fromCookie;
+
+  const fromHeader = bearerTokenFromHeader(request.headers.authorization);
+  if (fromHeader) return fromHeader;
+
+  throw new UnauthorizedException('Sesión requerida: falta la cookie de sesión o un token Bearer.');
 }
 
 // Devuelve `null` (en vez de lanzar una excepción con un mensaje específico) porque el único
@@ -93,7 +106,7 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<RequestWithAuth>();
-    const token = extractBearerToken(request.headers.authorization);
+    const token = extractAccessToken(request);
 
     let payload: string | jwt.JwtPayload;
     try {

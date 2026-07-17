@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Counter, Histogram, Registry, collectDefaultMetrics } from 'prom-client';
+import { Counter, Gauge, Histogram, Registry, collectDefaultMetrics } from 'prom-client';
 import { readObservabilityConfig } from './observability.config.js';
+
+/** Estado del circuit breaker, codificado numéricamente para poder graficarlo/alertar. */
+const CIRCUIT_STATE_VALUE: Record<string, number> = { closed: 0, half_open: 1, open: 2 };
 
 /**
  * Registro central de métricas Prometheus (Fase 3.4 del plan 10/10). Expone:
@@ -17,6 +20,9 @@ export class MetricsService {
 
   private readonly httpRequestsTotal: Counter<'method' | 'route' | 'status_code'>;
   private readonly httpRequestDuration: Histogram<'method' | 'route' | 'status_code'>;
+  private readonly providerCallsTotal: Counter<'provider' | 'outcome'>;
+  private readonly circuitBreakerState: Gauge<'provider'>;
+  private readonly outboxPendingEvents: Gauge<'tenant_id'>;
 
   constructor() {
     this.registry = new Registry();
@@ -40,6 +46,45 @@ export class MetricsService {
       buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
       registers: [this.registry],
     });
+
+    // --- Métricas de NEGOCIO (Fase 3.4) --------------------------------------------------------
+    // Las tres señales que el plan pide además de los SLO HTTP: costo/volumen por proveedor
+    // externo, breaker abierto y profundidad del outbox.
+    this.providerCallsTotal = new Counter({
+      name: 'atlas_provider_calls_total',
+      help: 'Llamadas salientes a proveedores externos por proveedor y resultado. Proxy del costo: cada llamada a un buró/KYC se cobra.',
+      labelNames: ['provider', 'outcome'],
+      registers: [this.registry],
+    });
+
+    this.circuitBreakerState = new Gauge({
+      name: 'atlas_circuit_breaker_state',
+      help: 'Estado del circuit breaker por proveedor: 0=closed, 1=half_open, 2=open.',
+      labelNames: ['provider'],
+      registers: [this.registry],
+    });
+
+    this.outboxPendingEvents = new Gauge({
+      name: 'atlas_outbox_pending_events',
+      help: 'Eventos del outbox en estado pending (profundidad del backlog) por tenant, medido en la última corrida del job.',
+      labelNames: ['tenant_id'],
+      registers: [this.registry],
+    });
+  }
+
+  /** Registra una llamada saliente a un proveedor externo. `outcome`: success | failure | circuit_open. */
+  recordProviderCall(input: { provider: string; outcome: 'success' | 'failure' | 'circuit_open' }): void {
+    this.providerCallsTotal.inc({ provider: input.provider, outcome: input.outcome });
+  }
+
+  /** Publica el estado actual del circuit breaker de un proveedor (alertable: `== 2` es abierto). */
+  setCircuitBreakerState(input: { provider: string; state: string }): void {
+    this.circuitBreakerState.set({ provider: input.provider }, CIRCUIT_STATE_VALUE[input.state] ?? 0);
+  }
+
+  /** Publica la profundidad del backlog del outbox de un tenant (medida al correr el job). */
+  setOutboxPendingEvents(input: { tenantId: string; pending: number }): void {
+    this.outboxPendingEvents.set({ tenant_id: input.tenantId }, input.pending);
   }
 
   /** Registra un request HTTP completado. `durationSeconds` viene del interceptor (fin - inicio). */

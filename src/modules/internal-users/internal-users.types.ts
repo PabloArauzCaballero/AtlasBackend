@@ -17,10 +17,23 @@ export type InternalAccessProfile = {
   };
 };
 
+/**
+ * Respuesta del dominio: SÍ lleva los tokens. No se devuelve tal cual por HTTP — el controller los
+ * mueve a cookies `HttpOnly` y entrega `InternalSessionResponse`.
+ */
 export type InternalAuthResponse = {
   accessToken: string;
   refreshToken: string;
   tokenType: 'Bearer';
+  expiresIn: string;
+} & InternalAccessProfile;
+
+/**
+ * Lo que ve el cliente HTTP: perfil y metadatos, sin un solo token. `tokenType: 'Cookie'` es la
+ * señal que el portal ya sabe interpretar para dejar de persistir credenciales en `sessionStorage`.
+ */
+export type InternalSessionResponse = {
+  tokenType: 'Cookie';
   expiresIn: string;
 } & InternalAccessProfile;
 

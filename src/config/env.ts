@@ -134,6 +134,20 @@ const envSchema = z
     AUTH_MAX_FAILED_LOGIN_ATTEMPTS: z.coerce.number().int().positive().default(5),
     AUTH_LOCKOUT_MINUTES: z.coerce.number().int().positive().default(15),
 
+    /**
+     * Cookies de sesión del panel interno. Los tokens viajan en cookies `HttpOnly` para que un XSS
+     * en el portal no pueda leerlos.
+     *
+     * `lax` es correcto aunque portal (5273) y API (3005) sean orígenes distintos: SameSite se
+     * decide por dominio registrable, no por puerto, así que son el mismo site. Solo hay que pasar
+     * a `none` (que exige `Secure`) si se despliegan en dominios distintos — y en ese caso SameSite
+     * deja de proteger contra CSRF por sí solo.
+     */
+    AUTH_COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).default('lax'),
+    AUTH_COOKIE_DOMAIN: z.string().optional(),
+    /** Sin valor explícito se activa en producción y se apaga en desarrollo (http://localhost). */
+    AUTH_COOKIE_SECURE: optionalBooleanEnvSchema,
+
     // Códigos de un solo uso (reset de contraseña y PIN de login de administradores).
     // El PIN de super admin solo se exige cuando AUTH_LOGIN_PIN_ENABLED=true Y MailSender está
     // configurado: sin servicio de correo no hay forma de entregar el PIN y exigirlo dejaría a
@@ -390,7 +404,10 @@ const envSchema = z
   });
 
 type RawAppEnv = z.infer<typeof envSchema>;
-export type AppEnv = Omit<RawAppEnv, 'API_DOCS_ENABLED'> & { API_DOCS_ENABLED: boolean };
+export type AppEnv = Omit<RawAppEnv, 'API_DOCS_ENABLED' | 'AUTH_COOKIE_SECURE'> & {
+  API_DOCS_ENABLED: boolean;
+  AUTH_COOKIE_SECURE: boolean;
+};
 
 function parseEnv(): AppEnv {
   const parsed = envSchema.safeParse(process.env);
@@ -403,9 +420,20 @@ function parseEnv(): AppEnv {
     );
   }
 
+  // `SameSite=None` sin `Secure` es rechazado por los navegadores: la sesión simplemente no se
+  // establecería. Se falla al arrancar con un mensaje claro en vez de dejar un login roto en runtime.
+  const cookieSecure = parsed.data.AUTH_COOKIE_SECURE ?? parsed.data.NODE_ENV === 'production';
+  if (parsed.data.AUTH_COOKIE_SAMESITE === 'none' && !cookieSecure) {
+    throw new Error(
+      'Configuración de entorno inválida para ATLAS.\n' +
+        '- AUTH_COOKIE_SAMESITE=none exige AUTH_COOKIE_SECURE=true (los navegadores descartan la cookie si no).',
+    );
+  }
+
   return {
     ...parsed.data,
     API_DOCS_ENABLED: parsed.data.API_DOCS_ENABLED ?? parsed.data.NODE_ENV !== 'production',
+    AUTH_COOKIE_SECURE: cookieSecure,
   };
 }
 

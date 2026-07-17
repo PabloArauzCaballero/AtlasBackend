@@ -37,4 +37,50 @@ describe('MetricsService', () => {
     const service = new MetricsService();
     expect(service.contentType).toContain('text/plain');
   });
+
+  describe('métricas de negocio (Fase 3.4)', () => {
+    it('recordProviderCall cuenta llamadas por proveedor y resultado (proxy de costo)', async () => {
+      const service = new MetricsService();
+      service.recordProviderCall({ provider: 'INFOCENTER', outcome: 'success' });
+      service.recordProviderCall({ provider: 'INFOCENTER', outcome: 'success' });
+      service.recordProviderCall({ provider: 'INFOCENTER', outcome: 'failure' });
+
+      const output = await service.render();
+      expect(output).toMatch(/atlas_provider_calls_total\{[^}]*provider="INFOCENTER"[^}]*outcome="success"[^}]*\}\s+2/);
+      expect(output).toMatch(/atlas_provider_calls_total\{[^}]*outcome="failure"[^}]*\}\s+1/);
+    });
+
+    it('distingue circuit_open de failure (breaker cortó: no hubo llamada ni costo)', async () => {
+      const service = new MetricsService();
+      service.recordProviderCall({ provider: 'SEGIP', outcome: 'circuit_open' });
+      const output = await service.render();
+      expect(output).toMatch(/atlas_provider_calls_total\{[^}]*outcome="circuit_open"[^}]*\}\s+1/);
+    });
+
+    it('setCircuitBreakerState codifica el estado (0=closed, 1=half_open, 2=open) para poder alertar', async () => {
+      const service = new MetricsService();
+      service.setCircuitBreakerState({ provider: 'A', state: 'closed' });
+      service.setCircuitBreakerState({ provider: 'B', state: 'half_open' });
+      service.setCircuitBreakerState({ provider: 'C', state: 'open' });
+
+      const output = await service.render();
+      expect(output).toMatch(/atlas_circuit_breaker_state\{[^}]*provider="A"[^}]*\}\s+0/);
+      expect(output).toMatch(/atlas_circuit_breaker_state\{[^}]*provider="B"[^}]*\}\s+1/);
+      expect(output).toMatch(/atlas_circuit_breaker_state\{[^}]*provider="C"[^}]*\}\s+2/);
+    });
+
+    it('un estado desconocido cae a 0 (closed) en vez de romper el scrape', async () => {
+      const service = new MetricsService();
+      service.setCircuitBreakerState({ provider: 'X', state: 'lo-que-sea' });
+      const output = await service.render();
+      expect(output).toMatch(/atlas_circuit_breaker_state\{[^}]*provider="X"[^}]*\}\s+0/);
+    });
+
+    it('setOutboxPendingEvents publica la profundidad del backlog por tenant', async () => {
+      const service = new MetricsService();
+      service.setOutboxPendingEvents({ tenantId: '1', pending: 42 });
+      const output = await service.render();
+      expect(output).toMatch(/atlas_outbox_pending_events\{[^}]*tenant_id="1"[^}]*\}\s+42/);
+    });
+  });
 });
