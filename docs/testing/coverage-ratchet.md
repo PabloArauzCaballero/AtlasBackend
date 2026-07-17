@@ -29,8 +29,8 @@ functions 40.97 · lines 64.39.
 
 | Grupo | stmts | branch | funcs | lines | Umbral fijado |
 | ----- | ----: | -----: | ----: | ----: | ------------- |
-| **global** (= "resto", ver nota) | 63.29 | 45.20 | 39.43 | 63.59 | 63 / 45 / 39 / 63 |
-| `src/modules/auth/` | 61.10 | 49.10 | 40.70 | 61.10 | 60 / 48 / 40 / 60 |
+| **global** (= "resto", ver nota) | 63.70 | 45.39 | 40.06 | 64.04 | 63 / 45 / 39 / 63 |
+| `src/modules/auth/` | 74.10 | 57.70 | 66.10 | 74.60 | 73 / 56 / 65 / 73 |
 | `src/modules/risk/` | 90.80 | 78.29 | 68.20 | 91.00 | 89 / 78 / 67 / 89 |
 | `src/modules/fraud/` | 93.20 | 80.00 | 100.0 | 92.40 | 90 / 79 / 95 / 90 |
 | `src/common/utils/crypto/` | 89.00 | 73.50 | 88.60 | 90.40 | 88 / 73 / 87 / 90 |
@@ -49,13 +49,15 @@ functions 40.97 · lines 64.39.
 
 Prioridad sugerida (los más lejos del objetivo y más críticos):
 
-1. **`auth`** (61% stmts, 41% funcs) — el dominio crítico más bajo; el objetivo es 90%. El hueco está
-   en `auth.repository` (sin spec propio) y en las ramas de `verifyLoginPin`/refresh.
-2. **`risk`** (68% funcs) — ya en 90% de stmts; falta cubrir los `create*` del repositorio.
+1. **El "resto" (64%)** es lo que separa del objetivo global de 85%: muchos módulos con
+   servicio+controller testeados pero repositorio sin spec. El patrón que funcionó en `fraud`,
+   `risk`, `auth`, `operations` y `external-data` (spec directo del repositorio con modelos
+   mockeados) es replicable módulo a módulo. Repos grandes aún sin spec: `customer-telemetry`
+   (558), `systems-catalog` (541), `schema-management` (475), y los sub-repos de sessions/onboarding.
+2. **`auth`** (74% stmts, 66% funcs) — subió mucho con `auth.repository`; para llegar a 90 faltan las
+   ramas de `verifyLoginPin`/rotación de refresh en `auth.service`.
 3. `crypto` (89%) — el más barato de llevar a 90+.
-4. **El "resto" (63%)** es lo que separa del objetivo global de 85%: son muchos módulos con
-   servicio+controller testeados pero repositorio sin spec. El patrón que funcionó en `fraud` y
-   `risk` (spec directo del repositorio con modelos mockeados) es replicable módulo a módulo.
+4. **`risk`** (68% funcs) — ya 90% stmts; faltan los `create*` del repositorio.
 
 ## Reportes
 

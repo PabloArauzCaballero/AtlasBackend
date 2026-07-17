@@ -62,9 +62,10 @@ const config = {
     // 63.29/45.20/39.43/63.59 tras cubrir observabilidad y las métricas de negocio (Fase 3.4).
     global: { statements: 63, branches: 45, functions: 39, lines: 63 },
     // Dominios críticos con umbral propio (medidos: ver docs/testing/coverage-ratchet.md).
-    // auth: 61.0/48.6/41.1/61.3 tras extraer AuthActorResolver/AuthPasswordReset (Fase 2.2) y el
-    // 2FA obligatorio para actores internos (Fase 4.2), que ejercita el flujo de PIN por correo.
-    './src/modules/auth/': { statements: 60, branches: 48, functions: 40, lines: 60 },
+    // auth: 74.1/57.7/66.1/74.6 tras el spec directo de auth.repository (Fase 1.2). El repositorio no
+    // tenía test (AuthService lo mockea): lockout, one-time codes, rotación/revocación de refresh y
+    // el mapeo de actor en la auditoría no se ejercitaban.
+    './src/modules/auth/': { statements: 73, branches: 56, functions: 65, lines: 73 },
     // risk: 90.8/78.3/68.2/91.0 tras el spec directo de RiskRepository (Fase 1.2) — el repositorio
     // no tenía test propio (servicio y controller lo mockean), así que sus funciones no se ejercitaban.
     './src/modules/risk/': { statements: 89, branches: 78, functions: 67, lines: 89 },
