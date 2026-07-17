@@ -59,9 +59,10 @@ const config = {
   // 38.20/62.22 medido), no contra el total de 62.18. Medido con `yarn test:coverage`.
   coverageThreshold: {
     // El "resto" (scope de `global`, todo menos los paths con umbral propio) subió a
-    // 64.15/45.51/40.84/64.51 tras los specs directos de operations/external-data/customer-telemetry
-    // repositories (Fase 1.2).
-    global: { statements: 63, branches: 45, functions: 40, lines: 64 },
+    // 64.65/45.78/42.32/65.09 tras los specs directos de repositorios (operations, external-data,
+    // customer-telemetry, schema-management, systems-catalog, internal-rbac y los sub-repos de
+    // sessions/onboarding). Fase 1.2.
+    global: { statements: 64, branches: 45, functions: 41, lines: 64 },
     // Dominios críticos con umbral propio (medidos: ver docs/testing/coverage-ratchet.md).
     // auth: 74.1/57.7/66.1/74.6 tras el spec directo de auth.repository (Fase 1.2). El repositorio no
     // tenía test (AuthService lo mockea): lockout, one-time codes, rotación/revocación de refresh y
