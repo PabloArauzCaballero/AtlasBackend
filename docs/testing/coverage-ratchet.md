@@ -21,7 +21,11 @@ functions 40.97 · lines 64.39.
 
 > Trinquete subido tras: KMS (Fase 3.3), extracción de `AuthActorResolver`/`AuthPasswordReset` y el
 > 2FA/MFA (Fases 2.2/4.2), observabilidad y métricas de negocio (Fase 3.4), y los specs directos de
-> `FraudRepository` y `RiskRepository` (Fase 1.2).
+> `FraudRepository`, `RiskRepository`, `AuthRepository`, los repos de operations/external-data/
+> customer-telemetry/schema-management/systems-catalog/internal-rbac, los sub-repos de sessions
+> (lifecycle, location, device, telemetry, onboarding-link, activity-audit) y de onboarding
+> (flow, contact-verification, identity-evidence, address-status), `AuditRepository` (feed de 8
+> fuentes + paginación por cursor) y `ConsentsRepository` (Fase 1.2).
 >
 > Ganancias clave: **fraud 25% → 100% de funciones** y **risk 43% → 68% de funciones** (90.8% stmts).
 > En ambos casos la causa era la misma: el repositorio del dominio no tenía spec propio — servicio y
@@ -29,7 +33,7 @@ functions 40.97 · lines 64.39.
 
 | Grupo | stmts | branch | funcs | lines | Umbral fijado |
 | ----- | ----: | -----: | ----: | ----: | ------------- |
-| **global** (= "resto", ver nota) | 64.65 | 45.78 | 42.32 | 65.09 | 64 / 45 / 41 / 64 |
+| **global** (= "resto", ver nota) | 65.65 | 46.14 | 44.50 | 66.17 | 65 / 45 / 43 / 65 |
 | `src/modules/auth/` | 74.10 | 57.70 | 66.10 | 74.60 | 73 / 56 / 65 / 73 |
 | `src/modules/risk/` | 90.80 | 78.29 | 68.20 | 91.00 | 89 / 78 / 67 / 89 |
 | `src/modules/fraud/` | 93.20 | 80.00 | 100.0 | 92.40 | 90 / 79 / 95 / 90 |
