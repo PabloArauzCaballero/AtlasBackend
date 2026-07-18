@@ -16,8 +16,8 @@ sprint se suben los números (el "trinquete") hasta el objetivo del plan.
 
 ## Línea base medida (17-jul-2026)
 
-Suite completa: **152 suites, 1349 tests, verdes**. Total del repo: statements 67.75 · branches 48.40 ·
-functions 48.53 · lines 68.35.
+Suite completa: **160 suites, 1395 tests, verdes**. Total del repo: statements 69.00 · branches 49.49 ·
+functions 50.42 · lines 69.61.
 
 > Trinquete subido tras: KMS (Fase 3.3), extracción de `AuthActorResolver`/`AuthPasswordReset` y el
 > 2FA/MFA (Fases 2.2/4.2), observabilidad y métricas de negocio (Fase 3.4), y los specs directos de
@@ -27,7 +27,14 @@ functions 48.53 · lines 68.35.
 > (flow, contact-verification, identity-evidence, address-status), `AuditRepository` (feed de 8
 > fuentes + paginación por cursor), `ConsentsRepository`, `EventsRepository` (outbox +
 > claimPending), `CustomerPrivacyRepository`, `CustomersRepository`, `InternalAccessCatalogRepository`,
-> `SystemsActionLogRepository` y `SystemsReviewRepository` (Fase 1.2).
+> `SystemsActionLogRepository`, `SystemsReviewRepository`, y el cierre con TODOS los repos con lógica
+> real: los 6 restantes de systems-ops (`SystemsTestExecution`, `SystemsDataImpactInference`,
+> `SystemsToolInference`, `SystemsDashboard`, `SystemsStressProfile`, `SystemsTestSuiteAdmin`) y los 2
+> sub-repos de notifications (`NotificationPreferences`, `NotificationTemplates`). Fase 1.2.
+>
+> A partir de aquí ya NO quedan repositorios con lógica real sin spec (los 4 sin cubrir son fachadas
+> puramente delegadoras). Para seguir subiendo hacia el 85% global toca cubrir ramas de
+> servicios/controllers, no repos.
 >
 > Ganancias clave: **fraud 25% → 100% de funciones** y **risk 43% → 68% de funciones** (90.8% stmts).
 > En ambos casos la causa era la misma: el repositorio del dominio no tenía spec propio — servicio y
@@ -35,7 +42,7 @@ functions 48.53 · lines 68.35.
 
 | Grupo | stmts | branch | funcs | lines | Umbral fijado |
 | ----- | ----: | -----: | ----: | ----: | ------------- |
-| **global** (= "resto", ver nota) | 66.85 | 47.26 | 46.85 | 67.41 | 66 / 46 / 45 / 66 |
+| **global** (= "resto", ver nota) | 68.18 | 48.42 | 48.87 | 68.75 | 67 / 47 / 47 / 67 |
 | `src/modules/auth/` | 74.10 | 57.70 | 66.10 | 74.60 | 73 / 56 / 65 / 73 |
 | `src/modules/risk/` | 90.80 | 78.29 | 68.20 | 91.00 | 89 / 78 / 67 / 89 |
 | `src/modules/fraud/` | 93.20 | 80.00 | 100.0 | 92.40 | 90 / 79 / 95 / 90 |
