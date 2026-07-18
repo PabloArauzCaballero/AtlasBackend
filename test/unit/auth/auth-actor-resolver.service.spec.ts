@@ -1,0 +1,143 @@
+import { describe, expect, it, jest } from '@jest/globals';
+import { AuthActorResolverService, isKnownRole } from '../../../src/modules/auth/auth-actor-resolver.service.js';
+
+/**
+ * `AuthActorResolverService` se extrajo de `AuthService` (Fase 2.2) para unificar la resolución de
+ * actor (cliente / usuario interno / usuario de plataforma) que comparten login, verificación de PIN,
+ * reset de contraseña y rotación de refresh. Hoy solo se cubría de forma indirecta vía
+ * `auth.service.spec`; este spec directo ejercita cada rama de fuente y de estado.
+ */
+describe('AuthActorResolverService', () => {
+  function build() {
+    const authRepository = {
+      findInternalUserByEmail: jest.fn(async () => null),
+      findPlatformUserByEmail: jest.fn(async () => null),
+      findInternalUserById: jest.fn(async () => null),
+      findPlatformUserById: jest.fn(async () => null),
+    };
+    const customersRepository = {
+      findByContactHash: jest.fn(async () => null),
+      findById: jest.fn(async () => null),
+    };
+    const service = new AuthActorResolverService(authRepository as never, customersRepository as never);
+    return { service, authRepository, customersRepository };
+  }
+
+  it('isKnownRole reconoce roles válidos y rechaza desconocidos', () => {
+    expect(isKnownRole('admin')).toBe(true);
+    expect(isKnownRole('customer')).toBe(true);
+    expect(isKnownRole('not-a-role')).toBe(false);
+  });
+
+  // --- resolveActorForLogin: cliente ----------------------------------------------------------
+
+  it('resolveActorForLogin(customer) devuelve actor con email cuando el identificador es un correo', async () => {
+    const { service, customersRepository } = build();
+    (customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce({
+      id: 'c1',
+      tenantId: 't1',
+      lifecycleStatus: 'active',
+    } as never);
+    const actor = await service.resolveActorForLogin('t1', 'customer', 'user@mail.com');
+    expect(actor).toEqual({ id: 'c1', tenantId: 't1', role: 'customer', email: 'user@mail.com', displayName: null });
+  });
+
+  it('resolveActorForLogin(customer) deja email null cuando el identificador no es un correo', async () => {
+    const { service, customersRepository } = build();
+    (customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce({
+      id: 'c1',
+      tenantId: 't1',
+      lifecycleStatus: 'active',
+    } as never);
+    const actor = await service.resolveActorForLogin('t1', 'customer', '5215500000000');
+    expect(actor?.email).toBeNull();
+  });
+
+  it('resolveActorForLogin(customer) => null si no existe o está closed', async () => {
+    const { service, customersRepository } = build();
+    expect(await service.resolveActorForLogin('t1', 'customer', 'x@mail.com')).toBeNull();
+    (customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce({ id: 'c1', tenantId: 't1', lifecycleStatus: 'closed' } as never);
+    expect(await service.resolveActorForLogin('t1', 'customer', 'x@mail.com')).toBeNull();
+  });
+
+  // --- resolveActorForLogin: usuario interno --------------------------------------------------
+
+  it('resolveActorForLogin(internal_user) => actor activo con rol conocido', async () => {
+    const { service, authRepository } = build();
+    (authRepository.findInternalUserByEmail as jest.Mock).mockResolvedValueOnce({
+      id: 'u1',
+      tenantId: 't1',
+      status: 'active',
+      roleCode: 'risk_analyst',
+      email: 'op@atlas.io',
+      fullName: 'Op Uno',
+    } as never);
+    const actor = await service.resolveActorForLogin('t1', 'internal_user', 'op@atlas.io');
+    expect(actor).toEqual({ id: 'u1', tenantId: 't1', role: 'risk_analyst', email: 'op@atlas.io', displayName: 'Op Uno' });
+  });
+
+  it('resolveActorForLogin(internal_user) => null si está inactivo o con rol desconocido', async () => {
+    const { service, authRepository } = build();
+    (authRepository.findInternalUserByEmail as jest.Mock)
+      .mockResolvedValueOnce({ id: 'u1', status: 'suspended', roleCode: 'risk_analyst' } as never)
+      .mockResolvedValueOnce({ id: 'u1', status: 'active', roleCode: 'wizard' } as never);
+    expect(await service.resolveActorForLogin('t1', 'internal_user', 'op@atlas.io')).toBeNull();
+    expect(await service.resolveActorForLogin('t1', 'internal_user', 'op@atlas.io')).toBeNull();
+  });
+
+  // --- resolveActorForLogin: usuario de plataforma --------------------------------------------
+
+  it('resolveActorForLogin(platform_user) => actor activo con tenantId null', async () => {
+    const { service, authRepository } = build();
+    (authRepository.findPlatformUserByEmail as jest.Mock).mockResolvedValueOnce({
+      id: 'p1',
+      status: 'active',
+      roleCode: 'platform_admin',
+      email: 'boss@atlas.io',
+      fullName: 'Boss',
+    } as never);
+    const actor = await service.resolveActorForLogin('t1', 'platform_user', 'boss@atlas.io');
+    expect(actor).toEqual({ id: 'p1', tenantId: null, role: 'platform_admin', email: 'boss@atlas.io', displayName: 'Boss' });
+  });
+
+  it('resolveActorForLogin(platform_user) => null si no existe', async () => {
+    const { service } = build();
+    expect(await service.resolveActorForLogin('t1', 'platform_user', 'nope@atlas.io')).toBeNull();
+  });
+
+  // --- reResolveActorRole ---------------------------------------------------------------------
+
+  it('reResolveActorRole(customer) => null si tenantId es null y no consulta el repo', async () => {
+    const { service, customersRepository } = build();
+    const actor = await service.reResolveActorRole('customer', 'c1', null);
+    expect(actor).toBeNull();
+    expect(customersRepository.findById).not.toHaveBeenCalled();
+  });
+
+  it('reResolveActorRole(customer) => actor con email null si existe y está abierto', async () => {
+    const { service, customersRepository } = build();
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'active' } as never);
+    const actor = await service.reResolveActorRole('customer', 'c1', 't1');
+    expect(actor).toEqual({ id: 'c1', tenantId: 't1', role: 'customer', email: null, displayName: null });
+  });
+
+  it('reResolveActorRole(internal_user) => actor activo con rol conocido', async () => {
+    const { service, authRepository } = build();
+    (authRepository.findInternalUserById as jest.Mock).mockResolvedValueOnce({
+      id: 'u1',
+      tenantId: 't1',
+      status: 'active',
+      roleCode: 'compliance_analyst',
+      email: 'c@atlas.io',
+      fullName: 'Compliance',
+    } as never);
+    const actor = await service.reResolveActorRole('internal_user', 'u1', 't1');
+    expect(actor?.role).toBe('compliance_analyst');
+  });
+
+  it('reResolveActorRole(platform_user) => null si está inactivo', async () => {
+    const { service, authRepository } = build();
+    (authRepository.findPlatformUserById as jest.Mock).mockResolvedValueOnce({ id: 'p1', status: 'disabled', roleCode: 'admin' } as never);
+    expect(await service.reResolveActorRole('platform_user', 'p1', null)).toBeNull();
+  });
+});
