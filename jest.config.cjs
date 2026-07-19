@@ -81,7 +81,13 @@ const config = {
     // notificación y external-data). Fase 1.2. Medido con `test:coverage` capado: total repo
     // 80.65/62.52/70.4/81.36 (1749 tests); el "resto" queda ~1 pt por debajo. Umbral con ~2-3 pt de
     // colchón para que el gate aguante aunque CI corra sin los specs untracked ajenos.
-    global: { statements: 77, branches: 58, functions: 66, lines: 77 },
+    //
+    // Bump 77/58/66/77 -> 79/60/70/79 (2026-07-19, cont.): tras un lote de cobertura dirigido por datos
+    // (controllers/repos/servicios/adapters: external-data controller+repo, catalog-management.repo,
+    // runtime-jobs, systems-catalog-query, adapters de notificación) el "resto" subió a 82.23/63.55/
+    // 74.58/82.97 (repo total 82.65). Functions saltó +4.4 pt. Colchón ~3-4 pt para absorber que CI corre
+    // sin los 3 specs untracked ajenos (http-exception.filter, domain-schemas, admin-read.service).
+    global: { statements: 79, branches: 60, functions: 70, lines: 79 },
     // Dominios críticos con umbral propio (medidos: ver docs/testing/coverage-ratchet.md).
     // Re-baseline Fase 1.2 (medido in-band, 1770 tests): estos 4 paths no dependen de specs untracked
     // ni de código sin commitear (working tree limpio bajo ellos), así que su nivel es reproducible en

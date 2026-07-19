@@ -42,11 +42,17 @@ branches 63.13 · functions 70.64 · lines 81.70.
 
 | Grupo | stmts | branch | funcs | lines | Umbral fijado |
 | ----- | ----: | -----: | ----: | ----: | ------------- |
-| **global** (= "resto", ver nota) | 80.47 | 62.50 | 70.18 | 81.18 | 77 / 58 / 66 / 77 (sin cambio) |
+| **global** (= "resto", ver nota) | 82.23 | 63.55 | 74.58 | 82.97 | 79 / 60 / 70 / 79 |
 | `src/modules/auth/` | 86.51 | 67.42 | 69.49 | 86.57 | 84 / 65 / 68 / 84 |
 | `src/modules/risk/` | 91.38 | 81.40 | 70.45 | 91.61 | 90 / 79 / 69 / 90 |
 | `src/modules/fraud/` | 97.26 | 80.00 | 100.0 | 96.97 | 95 / 79 / 98 / 95 |
 | `src/common/utils/crypto/` | 91.33 | 77.55 | 94.29 | 92.77 | 90 / 75 / 92 / 91 |
+
+> Bump del global **77/58/66/77 → 79/60/70/79** (2026-07-19, cont.): tras un lote de cobertura dirigido
+> por datos (controller+repo de external-data, catalog-management.repo, runtime-jobs.service,
+> systems-catalog-query.service, adapters email/push/whatsapp, suite-admin.repo) el "resto" subió a
+> 82.23/63.55/74.58/82.97 (repo total 82.65 · 235 suites / 1808 tests). Functions +4.4 pt. Los 4
+> dominios con umbral propio no cambian.
 
 ## Línea base previa (17-jul-2026)
 
