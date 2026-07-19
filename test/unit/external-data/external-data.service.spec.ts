@@ -10,13 +10,49 @@ import { ExternalDataService } from '../../../src/modules/external-data/external
  * equivocado.
  */
 describe('ExternalDataService', () => {
+  const mocks = (...names: string[]) => Object.fromEntries(names.map((n) => [n, jest.fn(async () => ({}))])) as Record<string, jest.Mock>;
+
   function buildService() {
     const repository = { createCustomerConsent: jest.fn() };
-    const registry = { listProviders: jest.fn(), getProviderHealth: jest.fn() };
-    const execution = { executeExternalDataRequest: jest.fn(), previewExternalDataRequest: jest.fn() };
-    const convenience = { executeSegip: jest.fn(), executeInfocenter: jest.fn() };
-    const evidence = { listCustomerConsents: jest.fn() };
-    const governance = { approveRequest: jest.fn(), getProviderReadiness: jest.fn(), auditExternalProvidersQuality: jest.fn() };
+    const registry = mocks('listProviders', 'getProviderHealth');
+    const execution = mocks('executeExternalDataRequest', 'previewExternalDataRequest');
+    const convenience = mocks(
+      'executeSegip',
+      'executeInfocenter',
+      'executeQrPayment',
+      'executeBankTransfer',
+      'executeTelcoPhoneTrust',
+      'executeWhatsapp',
+      'executeDigitalTrust',
+      'createFacebookConnectUrl',
+      'executeFacebookCallback',
+      'retryProviderRequest',
+    );
+    const evidence = mocks(
+      'listCustomerConsents',
+      'revokeConsent',
+      'getProviderRequest',
+      'getCustomerObservations',
+      'getCustomerFeatures',
+      'getCustomerScoringInput',
+      'getCustomerDecisionPackage',
+      'rebuildFeatureSnapshotFromRequest',
+    );
+    const governance = mocks(
+      'approveRequest',
+      'getProviderReadiness',
+      'auditExternalProvidersQuality',
+      'getProviderCostPolicies',
+      'updateProviderCostPolicy',
+      'getProviderUsage',
+      'auditIdempotencyKeys',
+      'updateProviderRuntimePolicy',
+      'activateProviderKillSwitch',
+      'getRetentionPreview',
+      'auditResponseSanitization',
+      'getProductionGate',
+      'getProviderSlaReport',
+    );
     const service = new ExternalDataService(
       repository as never,
       registry as never,
@@ -114,6 +150,56 @@ describe('ExternalDataService', () => {
       const input = { tenantId: 't1', customerId: 'c1' };
       await service.listCustomerConsents(input);
       expect(evidence.listCustomerConsents).toHaveBeenCalledWith(input);
+    });
+
+    it('delega el resto de operaciones (passthrough) en su sub-servicio correcto', async () => {
+      const s = buildService();
+      const input = { tenantId: 't1', customerId: 'c1', requestId: 'r1', body: {}, days: 7, limit: 5, strict: false, includeRawResponses: false, patch: {} } as never;
+      const routes: Array<[string, 'execution' | 'convenience' | 'evidence' | 'governance']> = [
+        ['previewExternalDataRequest', 'execution'],
+        ['executeInfocenter', 'convenience'],
+        ['executeQrPayment', 'convenience'],
+        ['executeBankTransfer', 'convenience'],
+        ['executeTelcoPhoneTrust', 'convenience'],
+        ['executeWhatsapp', 'convenience'],
+        ['executeDigitalTrust', 'convenience'],
+        ['createFacebookConnectUrl', 'convenience'],
+        ['executeFacebookCallback', 'convenience'],
+        ['retryProviderRequest', 'convenience'],
+        ['revokeConsent', 'evidence'],
+        ['getProviderRequest', 'evidence'],
+        ['getCustomerObservations', 'evidence'],
+        ['getCustomerFeatures', 'evidence'],
+        ['getCustomerScoringInput', 'evidence'],
+        ['getCustomerDecisionPackage', 'evidence'],
+        ['rebuildFeatureSnapshotFromRequest', 'evidence'],
+        ['getProviderReadiness', 'governance'],
+        ['auditExternalProvidersQuality', 'governance'],
+        ['updateProviderCostPolicy', 'governance'],
+        ['getProviderUsage', 'governance'],
+        ['auditIdempotencyKeys', 'governance'],
+        ['updateProviderRuntimePolicy', 'governance'],
+        ['activateProviderKillSwitch', 'governance'],
+        ['getRetentionPreview', 'governance'],
+        ['auditResponseSanitization', 'governance'],
+        ['getProductionGate', 'governance'],
+        ['getProviderSlaReport', 'governance'],
+      ];
+      const svc = s.service as unknown as Record<string, (i: unknown) => Promise<unknown>>;
+      for (const [method, collab] of routes) {
+        await svc[method](input);
+        expect((s[collab] as Record<string, jest.Mock>)[method]).toHaveBeenCalledTimes(1);
+      }
+    });
+
+    it('getProviderHealth normaliza el código y getProviderCostPolicies delega en governance', async () => {
+      const { service, registry, governance } = buildService();
+      await service.getProviderHealth();
+      expect(registry.getProviderHealth).toHaveBeenCalledWith(undefined);
+      await service.getProviderHealth('cgip');
+      expect(registry.getProviderHealth).toHaveBeenCalledWith('SEGIP'); // toProviderCode normaliza
+      await service.getProviderCostPolicies('SEGIP');
+      expect(governance.getProviderCostPolicies).toHaveBeenCalledWith('SEGIP');
     });
   });
 });
