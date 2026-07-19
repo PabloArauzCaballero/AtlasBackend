@@ -68,4 +68,27 @@ describe('SystemsReviewService', () => {
     (reviewRepository.updateToolRequirementReview as jest.Mock).mockResolvedValueOnce({ id: 6, endpointId: 1, toolId: 9 } as never);
     expect(await service.reviewToolRequirement('6', decision, user)).toMatchObject({ requirementId: '6' });
   });
+
+  describe('resto de reviews (data-entity / data-impact / field-impact / data-column)', () => {
+    const cases = [
+      { method: 'reviewDataEntity', repoMethod: 'updateDataEntityReview', row: { id: 2 }, key: 'entityId', expected: '2' },
+      { method: 'reviewDataImpact', repoMethod: 'updateDataImpactReview', row: { id: 3, endpointId: 1, dataEntityId: 2 }, key: 'impactId', expected: '3' },
+      { method: 'reviewFieldImpact', repoMethod: 'updateFieldImpactReview', row: { id: 4, endpointId: 1, dataEntityId: 2 }, key: 'fieldImpactId', expected: '4' },
+      { method: 'reviewDataColumn', repoMethod: 'updateDataColumnReview', row: { id: 5 }, key: 'columnId', expected: '5' },
+    ] as const;
+
+    for (const c of cases) {
+      it(`${c.method}: NotFound si el repo devuelve null; si no, mapea (${c.key})`, async () => {
+        const nullCase = build();
+        const svcNull = nullCase.service as unknown as Record<string, (id: string, d: unknown, u: unknown) => Promise<unknown>>;
+        await expect(svcNull[c.method]('x', decision, user)).rejects.toBeInstanceOf(NotFoundException);
+
+        const okCase = build();
+        (okCase.reviewRepository as unknown as Record<string, jest.Mock>)[c.repoMethod].mockResolvedValueOnce(c.row as never);
+        const svcOk = okCase.service as unknown as Record<string, (id: string, d: unknown, u: unknown) => Promise<Record<string, unknown>>>;
+        const res = await svcOk[c.method]('x', decision, user);
+        expect(res[c.key]).toBe(c.expected);
+      });
+    }
+  });
 });
