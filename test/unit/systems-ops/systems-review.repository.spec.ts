@@ -109,4 +109,40 @@ describe('SystemsReviewRepository', () => {
       expect(result).toBeNull();
     });
   });
+
+  describe('resto de mutaciones de revisión (data-entity / data-impact / field-impact / tool)', () => {
+    const cases = [
+      { method: 'updateDataEntityReview', model: 'dataEntity', targetType: 'data_entity' },
+      { method: 'updateDataImpactReview', model: 'dataImpact', targetType: 'data_impact' },
+      { method: 'updateFieldImpactReview', model: 'fieldImpact', targetType: 'field_impact' },
+      { method: 'updateToolRequirementReview', model: 'endpointTool', targetType: 'tool_requirement' },
+    ] as const;
+
+    for (const c of cases) {
+      it(`${c.method}: null si no existe; si existe muta/guarda/registra ${c.targetType}`, async () => {
+        const nullCase = buildRepo();
+        (nullCase.models as unknown as Record<string, { findByPk: jest.Mock }>)[c.model].findByPk.mockResolvedValue(null as never);
+        const repoNull = nullCase.repo as unknown as Record<string, (id: string, d: unknown, a: unknown, r: unknown, t: unknown) => Promise<unknown>>;
+        expect(await repoNull[c.method]('x', { reviewStatus: 'approved' }, 'u1', 'admin', 't1')).toBeNull();
+
+        const okCase = buildRepo();
+        const save = jest.fn(async () => ({ id: 'x' }));
+        const row = { reviewStatus: 'pending', confidenceLevel: 'low', save } as Record<string, unknown>;
+        (okCase.models as unknown as Record<string, { findByPk: jest.Mock }>)[c.model].findByPk.mockResolvedValue(row as never);
+        (okCase.models.reviewEvent.create as jest.Mock).mockResolvedValue({} as never);
+        const repoOk = okCase.repo as unknown as Record<string, (id: string, d: unknown, a: unknown, r: unknown, t: unknown) => Promise<unknown>>;
+        await repoOk[c.method]('x', { reviewStatus: 'approved', confidenceLevel: 'high', notes: 'ok' }, 'u1', 'admin', 't1');
+        expect(row.reviewStatus).toBe('approved');
+        expect(save).toHaveBeenCalledTimes(1);
+        expect((okCase.models.reviewEvent.create as jest.Mock).mock.calls[0][0]).toMatchObject({ targetType: c.targetType, newStatus: 'approved', notes: 'ok' });
+      });
+    }
+  });
+
+  it('listReviewQueue con type=tool_requirements solo consulta endpointTool', async () => {
+    const { repo, models } = buildRepo();
+    await repo.listReviewQueue({ type: 'tool_requirements', reviewStatus: 'pending', page: 1, limit: 20 } as never);
+    expect(models.endpointTool.findAndCountAll).toHaveBeenCalled();
+    expect(models.endpoint.findAndCountAll).not.toHaveBeenCalled();
+  });
 });
