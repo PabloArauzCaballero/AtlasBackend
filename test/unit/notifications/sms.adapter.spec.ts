@@ -77,3 +77,37 @@ describe('SmsNotificationAdapter — webhook channel routed through the resilien
     expect((result.response as { code?: string } | null)?.code).toBe('AUTH_FAILED');
   });
 });
+
+describe('SmsNotificationAdapter — guardas y camino Twilio (executor mockeado)', () => {
+  function build(provider: string, webhookUrl: string | null = null) {
+    const config = { getSmsProvider: () => provider, require: () => 'val', getWebhookUrl: () => webhookUrl };
+    const executor = { run: jest.fn() };
+    return { adapter: new SmsNotificationAdapter(config as never, executor as never), executor };
+  }
+  const msg = (payload: Record<string, unknown> = { phone: '+591700' }) => ({ id: '1', channel: 'sms', body: 'hi', payload }) as never;
+
+  it('supports y validatePayload', () => {
+    const { adapter } = build('twilio');
+    expect(adapter.supports('sms')).toBe(true);
+    expect(adapter.supports('email' as never)).toBe(false);
+    expect(adapter.validatePayload({ channel: 'sms', body: 'hi' } as never)).toBe(true);
+    expect(adapter.validatePayload({ channel: 'sms', body: '' } as never)).toBe(false);
+  });
+
+  it('ramas de guarda: disabled / sin destinatario / no soportado / webhook sin url', async () => {
+    expect(await build('disabled').adapter.send(msg())).toMatchObject({ status: 'failed', errorCode: 'SMS_PROVIDER_DISABLED' });
+    expect(await build('twilio').adapter.send(msg({}))).toMatchObject({ status: 'failed', errorCode: 'MISSING_SMS_RECIPIENT' });
+    expect(await build('nexmo').adapter.send(msg())).toMatchObject({ status: 'failed', errorCode: 'UNSUPPORTED_SMS_PROVIDER' });
+    expect(await build('webhook', null).adapter.send(msg())).toMatchObject({ status: 'failed', errorCode: 'WEBHOOK_URL_MISSING' });
+  });
+
+  it('twilio: éxito devuelve sent con el sid; fallo (executor rechaza) devuelve failed', async () => {
+    const ok = build('twilio');
+    (ok.executor.run as jest.Mock).mockResolvedValue({ status: 200, json: { sid: 'SM1' } } as never);
+    expect(await ok.adapter.send(msg())).toMatchObject({ status: 'sent', provider: 'twilio_sms', providerMessageId: 'SM1' });
+
+    const bad = build('twilio');
+    (bad.executor.run as jest.Mock).mockRejectedValue(new Error('boom') as never);
+    expect(await bad.adapter.send(msg())).toMatchObject({ status: 'failed', errorCode: 'TWILIO_SMS_SEND_FAILED' });
+  });
+});
