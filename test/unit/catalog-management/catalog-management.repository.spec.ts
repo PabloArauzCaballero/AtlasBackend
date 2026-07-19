@@ -263,4 +263,99 @@ describe('CatalogManagementRepository', () => {
     expect(subRepos.dataGovernance.listDataGovernancePolicies).toHaveBeenCalledTimes(1);
     expect(subRepos.dataGovernance.upsertPrivacyPurpose).toHaveBeenCalledWith({ p: 1 }, {});
   });
+
+  it('los create* del núcleo delegan en model.create con {transaction} y campos mapeados', async () => {
+    const { repo, models } = buildRepo();
+    const opt = { transaction: 'tx' as never };
+    await repo.createCatalogVersion(
+      { catalogId: 'c', versionCode: 'v1', status: 'draft', validFrom: null, validUntil: null, createdByType: 'platform_admin', createdByPlatformUserId: 'u', notes: null, now } as never,
+      opt,
+    );
+    expect((models.catalogVersionModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ versionCode: 'v1', approvedByType: null, approvedAt: null });
+    expect((models.catalogVersionModel.create as jest.Mock).mock.calls[0][1]).toEqual({ transaction: 'tx' });
+
+    await repo.createContextItem(
+      { catalogVersionId: 'cv', itemCode: 'i', itemName: 'N', itemType: 't', attributes: { a: 1 }, sourceId: null, confidenceScore: null, now } as never,
+      opt,
+    );
+    expect((models.contextItemModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ itemCode: 'i', attributesJson: { a: 1 }, isActive: true });
+
+    await repo.createAlias({ contextItemId: 'ci', aliasValue: 'a', aliasType: 'syn', normalizedAlias: 'a', confidenceScore: null, now } as never, opt);
+    expect((models.contextItemAliasModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ aliasValue: 'a', normalizedAlias: 'a' });
+
+    await repo.createRiskMapping(
+      { contextItemId: 'ci', riskDimension: 'd', riskBand: 'HIGH', scorePointsSuggested: null, reasonCode: 'R', explanation: null, modelUsage: null, validFrom: null, validUntil: null, now } as never,
+      opt,
+    );
+    expect((models.contextRiskMappingModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ riskBand: 'HIGH', reasonCode: 'R' });
+
+    await repo.createApprovalEvent(
+      { stagingItemId: 's', catalogVersionId: 'cv', eventType: 'approved', decidedByPlatformUserId: 'u', decidedAt: now, decisionReason: 'ok' } as never,
+      opt,
+    );
+    expect((models.contextApprovalEventModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ eventType: 'approved', createdAtValue: now });
+
+    await repo.createIngestionJob(
+      { jobCode: 'J', sourceType: 'csv', sourceName: 'f', triggeredByType: 'platform_admin', triggeredByPlatformUserId: 'u', status: 'completed', summary: { n: 1 }, now } as never,
+      opt,
+    );
+    expect((models.contextIngestionJobModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ jobCode: 'J', summaryJson: { n: 1 } });
+
+    await repo.createStagingItem(
+      { catalogId: 'c', ingestionJobId: 'j', proposedItemCode: null, proposedItemName: 'N', proposedAttributes: {}, aiSuggested: true, createdByType: 'platform_admin', createdByPlatformUserId: 'u', now } as never,
+      opt,
+    );
+    expect((models.contextStagingItemModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ reviewStatus: 'pending_review', aiSuggested: true });
+  });
+
+  it('finders de versión/fuente/staging delegan con su filtro y transacción', async () => {
+    const { repo, models } = buildRepo();
+    await repo.findCatalogVersion('c', 'v', { transaction: 'tx' as never });
+    expect((models.catalogVersionModel.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { id: 'v', catalogId: 'c' }, transaction: 'tx' });
+    await repo.findCatalogVersionById('v2');
+    expect((models.catalogVersionModel.findOne as jest.Mock).mock.calls[1][0]).toMatchObject({ where: { id: 'v2' } });
+    await repo.findSourceByCode('SRC');
+    expect((models.contextSourceModel.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { sourceCode: 'SRC' } });
+    await repo.findStagingItemById('s1');
+    expect((models.contextStagingItemModel.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { id: 's1' } });
+  });
+
+  it('delega las mutaciones de política de riesgo (create*/find/activate/retire) en el sub-repo', async () => {
+    const { repo, subRepos } = buildRepo();
+    const opt = { transaction: 'tx' as never };
+    await repo.createRiskModelVersion({ a: 1 }, opt);
+    await repo.createRiskRulesetVersion({ b: 2 }, opt);
+    await repo.createRiskPolicyRule({ c: 3 }, opt);
+    await repo.createRiskSignalSeed({ d: 4 }, opt);
+    await repo.findRiskRulesetVersionById('rs1', opt);
+    await repo.activateRuleset({ id: 'rs1' } as never, { approvedByPlatformUserId: 'u', effectiveFrom: now, now }, opt);
+    await repo.retireOtherActiveRulesets('RC', 'rs1', now, opt);
+    expect(subRepos.riskPolicy.createRiskModelVersion).toHaveBeenCalledWith({ a: 1 }, opt);
+    expect(subRepos.riskPolicy.createRiskRulesetVersion).toHaveBeenCalledWith({ b: 2 }, opt);
+    expect(subRepos.riskPolicy.createRiskPolicyRule).toHaveBeenCalledWith({ c: 3 }, opt);
+    expect(subRepos.riskPolicy.createRiskSignalSeed).toHaveBeenCalledWith({ d: 4 }, opt);
+    expect(subRepos.riskPolicy.findRiskRulesetVersionById).toHaveBeenCalledWith('rs1', opt);
+    expect(subRepos.riskPolicy.activateRuleset).toHaveBeenCalledWith({ id: 'rs1' }, { approvedByPlatformUserId: 'u', effectiveFrom: now, now }, opt);
+    expect(subRepos.riskPolicy.retireOtherActiveRulesets).toHaveBeenCalledWith('RC', 'rs1', now, opt);
+  });
+
+  it('delega el resto de upserts de definiciones y gobierno de datos', async () => {
+    const { repo, subRepos } = buildRepo();
+    repo.upsertObservationDefinition({ a: 1 }, {});
+    repo.upsertAttributeDefinition({ b: 2 }, {});
+    repo.upsertFeatureDefinition({ c: 3 }, {});
+    repo.upsertRetentionPolicy({ d: 4 }, {});
+    repo.upsertDataProvider({ e: 5 }, {});
+    repo.upsertClassificationPolicy({ f: 6 }, {});
+    repo.upsertDataQualityRule({ g: 7 }, {});
+    repo.upsertSensitiveFieldRule({ h: 8 }, {});
+    expect(subRepos.definitions.upsertObservationDefinition).toHaveBeenCalledWith({ a: 1 }, {});
+    expect(subRepos.definitions.upsertAttributeDefinition).toHaveBeenCalledWith({ b: 2 }, {});
+    expect(subRepos.definitions.upsertFeatureDefinition).toHaveBeenCalledWith({ c: 3 }, {});
+    expect(subRepos.dataGovernance.upsertRetentionPolicy).toHaveBeenCalledWith({ d: 4 }, {});
+    expect(subRepos.dataGovernance.upsertDataProvider).toHaveBeenCalledWith({ e: 5 }, {});
+    expect(subRepos.dataGovernance.upsertClassificationPolicy).toHaveBeenCalledWith({ f: 6 }, {});
+    expect(subRepos.dataGovernance.upsertDataQualityRule).toHaveBeenCalledWith({ g: 7 }, {});
+    expect(subRepos.dataGovernance.upsertSensitiveFieldRule).toHaveBeenCalledWith({ h: 8 }, {});
+  });
 });
