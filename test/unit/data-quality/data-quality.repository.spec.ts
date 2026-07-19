@@ -105,3 +105,76 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
     expect(issueFindAll).not.toHaveBeenCalled();
   });
 });
+
+describe('DataQualityRepository — findIssues / finders / mutaciones', () => {
+  function buildFull() {
+    const issueModel = { findAll: jest.fn(), findAndCountAll: jest.fn(), findOne: jest.fn() };
+    const ruleModel = { findAll: jest.fn(async () => []) };
+    const auditModel = { create: jest.fn(async () => ({ id: 'a' })) };
+    const dataChangeLogModel = { create: jest.fn(async () => ({ id: 'd' })) };
+    const repo = new DataQualityRepository(issueModel as never, ruleModel as never, auditModel as never, dataChangeLogModel as never);
+    return { repo, issueModel, ruleModel, auditModel, dataChangeLogModel };
+  }
+
+  it('findIssues (offset) arma el where con status/entityType/customerId y pagina', async () => {
+    const { repo, issueModel } = buildFull();
+    (issueModel.findAndCountAll as jest.Mock).mockResolvedValueOnce({ rows: [{ id: '1' }], count: 1 } as never);
+    const res = await repo.findIssues('t1', { status: 'open', entityType: 'customers', customerId: 'c1', limit: 20, page: 1 } as never);
+    const args = (issueModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; limit: number };
+    expect(args.where).toMatchObject({ tenantId: 't1', issueStatus: 'open', targetTable: 'customers', targetRecordId: 'c1' });
+    expect(res.rows).toHaveLength(1);
+    expect(res.meta).toBeDefined();
+  });
+
+  it('findIssues corta temprano (sin consultar issues) cuando la severity no matchea ninguna regla', async () => {
+    const { repo, issueModel, ruleModel } = buildFull();
+    (ruleModel.findAll as jest.Mock).mockResolvedValueOnce([] as never);
+    const res = await repo.findIssues('t1', { severity: 'critical', limit: 20, page: 1 } as never);
+    expect(res.rows).toEqual([]);
+    expect(issueModel.findAndCountAll).not.toHaveBeenCalled();
+  });
+
+  it('findRulesByIds corta temprano con lista vacía; con ids usa Op.in', async () => {
+    const { repo, ruleModel } = buildFull();
+    expect(await repo.findRulesByIds([])).toEqual([]);
+    (ruleModel.findAll as jest.Mock).mockResolvedValueOnce([{ id: 'r1' }] as never);
+    await repo.findRulesByIds(['r1', 'r2']);
+    expect((ruleModel.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { id: { [Op.in]: ['r1', 'r2'] } } });
+  });
+
+  it('findIssueById filtra por tenant + id', async () => {
+    const { repo, issueModel } = buildFull();
+    (issueModel.findOne as jest.Mock).mockResolvedValueOnce(null as never);
+    await repo.findIssueById('t1', '9');
+    expect((issueModel.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { tenantId: 't1', id: '9' } });
+  });
+
+  it('resolveIssue fija estado/resolvedAt/notas y guarda en la transacción', async () => {
+    const { repo } = buildFull();
+    const save = jest.fn(async () => ({}));
+    const issue = { save } as never;
+    const resolvedAt = new Date('2026-01-01T00:00:00.000Z');
+    await repo.resolveIssue(issue, { status: 'resolved', notes: 'ok', resolvedAt }, { transaction: 'tx' as never });
+    expect((issue as { issueStatus: string }).issueStatus).toBe('resolved');
+    expect((issue as { resolutionNotes: string }).resolutionNotes).toBe('ok');
+    expect(save).toHaveBeenCalledWith({ transaction: 'tx' });
+  });
+
+  it('createAudit mapea el payload y fija targetType data_quality_issue', async () => {
+    const { repo, auditModel } = buildFull();
+    await repo.createAudit(
+      { tenantId: 't1', actorType: 'internal_operator', actorInternalUserId: 'u', actionCode: 'resolve', targetId: '9', payload: { a: 1 }, happenedAt: new Date() },
+      { transaction: 'tx' as never },
+    );
+    expect((auditModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ targetType: 'data_quality_issue', targetId: '9', payloadJson: { a: 1 }, actorPlatformUserId: null });
+  });
+
+  it('createDataChange registra el cambio de tipo resolve sobre data_quality_issues', async () => {
+    const { repo, dataChangeLogModel } = buildFull();
+    await repo.createDataChange(
+      { tenantId: 't1', issueId: '9', actorType: 'internal_operator', actorInternalUserId: 'u', reason: 'fix', happenedAt: new Date() },
+      {},
+    );
+    expect((dataChangeLogModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ tableName: 'data_quality_issues', recordId: '9', changeType: 'resolve', changeReason: 'fix' });
+  });
+});
