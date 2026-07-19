@@ -4,6 +4,17 @@
 // transforman con tsconfig.spec.json a CommonJS para que:
 // 1) los imports estáticos no generen "exports is not defined";
 // 2) los dynamic import(...) se bajen a require(...) y no pidan VM modules.
+// Fase 1.2 (fix del flake del gate): cuando se corre con `--coverage`, forzamos UN solo worker.
+// El error intermitente "Coverage data for ./src/modules/auth/ was not found" (exit 1 pese a que
+// todos los tests pasan) es el race de Jest al FUSIONAR los coverage maps de varios workers: bajo
+// presión de memoria un worker se reinicia/OOM y su parte del mapa se pierde, dejando un grupo de
+// umbral (p. ej. auth) sin datos justo cuando se evalúa el threshold. Con un único worker no hay
+// fusión entre procesos → el cómputo de cobertura es determinista. El dev loop (`yarn test`, sin
+// `--coverage`) mantiene `maxWorkers: '50%'` para seguir siendo rápido; solo el GATE corre in-band.
+const isCoverageRun =
+  process.argv.some((a) => a === '--coverage' || a === '--collectCoverage' || a.startsWith('--coverage=')) ||
+  process.env.npm_lifecycle_event === 'test:coverage';
+
 /** @type {import('jest').Config} */
 const config = {
   preset: 'ts-jest',
@@ -30,7 +41,9 @@ const config = {
   // No se limita el proceso: se fija un timeout POR TEST razonable (para que un test colgado falle
   // rápido en vez de colgar el job) y `maxWorkers` para que el tiempo sea estable entre local y CI.
   testTimeout: 15000,
-  maxWorkers: '50%',
+  // '50%' para el dev loop; 1 para el gate de cobertura (ver `isCoverageRun` arriba: evita el flake
+  // de fusión de coverage maps entre workers).
+  maxWorkers: isCoverageRun ? 1 : '50%',
 
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -70,19 +83,19 @@ const config = {
     // colchón para que el gate aguante aunque CI corra sin los specs untracked ajenos.
     global: { statements: 77, branches: 58, functions: 66, lines: 77 },
     // Dominios críticos con umbral propio (medidos: ver docs/testing/coverage-ratchet.md).
-    // auth: 74.1/57.7/66.1/74.6 tras el spec directo de auth.repository (Fase 1.2). El repositorio no
-    // tenía test (AuthService lo mockea): lockout, one-time codes, rotación/revocación de refresh y
-    // el mapeo de actor en la auditoría no se ejercitaban.
-    './src/modules/auth/': { statements: 73, branches: 56, functions: 65, lines: 73 },
-    // risk: 90.8/78.3/68.2/91.0 tras el spec directo de RiskRepository (Fase 1.2) — el repositorio
-    // no tenía test propio (servicio y controller lo mockean), así que sus funciones no se ejercitaban.
-    './src/modules/risk/': { statements: 89, branches: 78, functions: 67, lines: 89 },
-    // fraud: 93.2/80.0/100/92.4 tras el spec directo de FraudRepository (Fase 1.2) — de 25% a 100%
-    // de funciones cubiertas.
-    './src/modules/fraud/': { statements: 90, branches: 79, functions: 95, lines: 90 },
-    // crypto: 89.0/73.5/88.6/90.4 tras los tests de KMS (Fase 3.3) y el PIN de 2FA (Fase 4.2), que
-    // usa one-time-code.util.
-    './src/common/utils/crypto/': { statements: 88, branches: 73, functions: 87, lines: 90 },
+    // Re-baseline Fase 1.2 (medido in-band, 1770 tests): estos 4 paths no dependen de specs untracked
+    // ni de código sin commitear (working tree limpio bajo ellos), así que su nivel es reproducible en
+    // CI y se ratchetea con ~1.5-2.5 pt de colchón. El `global` NO se sube: su medición está inflada
+    // por specs untracked ajenas del "resto", así que quedaría por encima de lo que CI vería.
+    // auth: 86.51/67.42/69.49/86.57 (subió de 74.1/74.6 tras cubrir el service layer de auth extraído).
+    './src/modules/auth/': { statements: 84, branches: 65, functions: 68, lines: 84 },
+    // risk: 91.38/81.40/70.45/91.61 tras el spec directo de RiskRepository y ramas del servicio.
+    './src/modules/risk/': { statements: 90, branches: 79, functions: 69, lines: 90 },
+    // fraud: 97.26/80.00/100/96.97 tras el spec directo de FraudRepository — 100% de funciones. El
+    // branch (80.0) se mantiene en 79 (colchón ~1 pt) porque no subió con el resto.
+    './src/modules/fraud/': { statements: 95, branches: 79, functions: 98, lines: 95 },
+    // crypto: 91.33/77.55/94.29/92.77 tras los tests de KMS (Fase 3.3) y el PIN de 2FA (Fase 4.2).
+    './src/common/utils/crypto/': { statements: 90, branches: 75, functions: 92, lines: 91 },
   },
   clearMocks: true,
 };

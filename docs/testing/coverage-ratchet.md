@@ -14,7 +14,41 @@ sprint se suben los números (el "trinquete") hasta el objetivo del plan.
 | Global | ≥ 85% |
 | auth / risk / fraud / crypto | ≥ 90% |
 
-## Línea base medida (17-jul-2026)
+## Fix del flake del gate (determinismo con un solo worker)
+
+Síntoma: el job de coverage fallaba **intermitentemente** con `Coverage data for ./src/modules/auth/
+was not found` (exit 1) aunque **todos los tests pasaban** y el `global` cumplía. Causa: al correr con
+varios workers, Jest **fusiona** los coverage maps de cada worker al final; bajo presión de memoria un
+worker se reinicia/OOM y su parte del mapa se pierde, dejando un grupo con umbral propio (p. ej.
+`auth`) sin datos justo cuando se evalúa el threshold.
+
+Fix (en `jest.config.cjs`): cuando la corrida lleva `--coverage`, `maxWorkers` se fuerza a `1`
+(`isCoverageRun`). Con un único worker no hay fusión entre procesos → el cómputo es determinista. El
+dev loop (`yarn test`, sin `--coverage`) mantiene `maxWorkers: '50%'` y sigue siendo rápido; solo el
+GATE corre in-band. `collectCoverageFrom` (instrumentar todo `src`, no solo lo importado por los
+tests que corrieron) ya estaba y se mantiene: garantiza que cada grupo de umbral tenga datos.
+
+## Línea base medida (19-jul-2026, in-band, 1770 tests)
+
+Suite completa: **234 suites, 1770 tests, verdes** (exit 0, sin flake). Total del repo: statements 80.99 ·
+branches 63.13 · functions 70.64 · lines 81.70.
+
+> Re-baseline tras cubrir el service layer de `auth` extraído (74→86 stmts) y las ramas profundas de
+> `external-data-execution` (bloqueo por política, cache-hit, fallo de ejecución, preview). Los 4 paths
+> con umbral propio se ratchetean a su nivel real (working tree limpio bajo ellos → reproducible en CI).
+> El **`global` NO se sube**: su medición (resto 80.47/62.50/70.18/81.18) está inflada por 3 specs
+> untracked ajenas del "resto" (`http-exception.filter`, `domain-schemas`, `admin-read.service`) que
+> CI no vería; subirlo dejaría el gate por encima de lo reproducible. Se mantiene en 77/58/66/77.
+
+| Grupo | stmts | branch | funcs | lines | Umbral fijado |
+| ----- | ----: | -----: | ----: | ----: | ------------- |
+| **global** (= "resto", ver nota) | 80.47 | 62.50 | 70.18 | 81.18 | 77 / 58 / 66 / 77 (sin cambio) |
+| `src/modules/auth/` | 86.51 | 67.42 | 69.49 | 86.57 | 84 / 65 / 68 / 84 |
+| `src/modules/risk/` | 91.38 | 81.40 | 70.45 | 91.61 | 90 / 79 / 69 / 90 |
+| `src/modules/fraud/` | 97.26 | 80.00 | 100.0 | 96.97 | 95 / 79 / 98 / 95 |
+| `src/common/utils/crypto/` | 91.33 | 77.55 | 94.29 | 92.77 | 90 / 75 / 92 / 91 |
+
+## Línea base previa (17-jul-2026)
 
 Suite completa: **160 suites, 1395 tests, verdes**. Total del repo: statements 69.00 · branches 49.49 ·
 functions 50.42 · lines 69.61.
