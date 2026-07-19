@@ -17,6 +17,7 @@ jest.mock('../../../src/common/utils/crypto/refresh-token.util.js', () => ({
 import { AuthService, isLoginPinChallenge, LoginOutcome } from '../../../src/modules/auth/auth.service.js';
 import { AuthActorResolverService } from '../../../src/modules/auth/auth-actor-resolver.service.js';
 import { AuthPasswordResetService } from '../../../src/modules/auth/auth-password-reset.service.js';
+import { hashOneTimeCode } from '../../../src/common/utils/crypto/one-time-code.util.js';
 
 function buildAuthRepositoryMock() {
   return {
@@ -754,5 +755,64 @@ describe('AuthService.provisionCredentials', () => {
 
     expect(result).toEqual({ provisioned: true });
     expect(authRepository.createCredentials).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('AuthService.verifyLoginPin (2FA por PIN de super admin / MFA cliente)', () => {
+  const challenge = (over: Record<string, unknown> = {}) => ({
+    purpose: 'login_pin',
+    expiresAt: new Date(Date.now() + 60_000),
+    actorType: 'internal_user',
+    actorId: '5',
+    tenantId: '1',
+    codeHash: hashOneTimeCode('123456'),
+    ...over,
+  });
+  const activeInternalUser = { id: '5', tenantId: '1', status: 'active', roleCode: 'internal_operator', email: 'a@x.com', fullName: 'A' };
+
+  it('lanza si el challengeToken no matchea, no es login_pin, o ya expiró', async () => {
+    for (const bad of [null, challenge({ purpose: 'password_reset' }), challenge({ expiresAt: new Date(Date.now() - 1000) })]) {
+      const authRepository = buildAuthRepositoryMock();
+      authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(bad);
+      const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
+      await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: null, userAgent: null })).rejects.toThrow(UnauthorizedException);
+    }
+  });
+
+  it('PIN incorrecto: registra el intento fallido + evento y lanza; no consume el código', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(challenge());
+    const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
+    await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '000000', ip: '1.2.3.4', userAgent: 'ua' })).rejects.toThrow(UnauthorizedException);
+    expect(authRepository.registerOneTimeCodeFailedAttempt).toHaveBeenCalledTimes(1);
+    expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ successful: false, failureReasonCode: 'invalid_login_pin', actorId: '5' }),
+    );
+    expect(authRepository.consumeOneTimeCode).not.toHaveBeenCalled();
+  });
+
+  it('PIN correcto pero el actor ya no existe: consume el código y lanza "ya no está disponible"', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(challenge());
+    authRepository.findInternalUserById.mockResolvedValue(null); // reResolveActorRole -> null
+    const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
+    await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: null, userAgent: null })).rejects.toThrow(UnauthorizedException);
+    expect(authRepository.consumeOneTimeCode).toHaveBeenCalledTimes(1);
+  });
+
+  it('PIN correcto y actor vigente: consume el código, registra el login y emite el par de tokens', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(challenge());
+    authRepository.findInternalUserById.mockResolvedValue(activeInternalUser);
+    authRepository.findCredentialsByActor.mockResolvedValue({ tokenVersion: 2 });
+    const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
+    const result = await service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: '1.2.3.4', userAgent: 'ua' });
+    expect(result.tokenType).toBe('Bearer');
+    expect(result.refreshToken).toBe('fixed-refresh-token');
+    expect(authRepository.consumeOneTimeCode).toHaveBeenCalledTimes(1);
+    expect(authRepository.recordSuccessfulLogin).toHaveBeenCalledTimes(1);
+    expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ successful: true, failureReasonCode: null, actorId: '5' }),
+    );
   });
 });
