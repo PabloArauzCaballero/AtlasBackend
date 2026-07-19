@@ -80,4 +80,47 @@ describe('SystemsTestSuiteAdminRepository', () => {
     expect(save1).toHaveBeenCalled();
     expect(save2).toHaveBeenCalled();
   });
+
+  it('los finders delegan en findByPk del modelo correspondiente', async () => {
+    const { repo, endpointModel, suiteModel, stepModel } = buildRepo();
+    (endpointModel.findByPk as jest.Mock).mockResolvedValue({ id: 'e' } as never);
+    (suiteModel.findByPk as jest.Mock).mockResolvedValue({ id: 's' } as never);
+    (stepModel.findByPk as jest.Mock).mockResolvedValue({ id: 'st' } as never);
+    expect(await repo.findEndpointById('e1')).toEqual({ id: 'e' });
+    expect(endpointModel.findByPk).toHaveBeenCalledWith('e1');
+    expect(await repo.findSuiteById('s1')).toEqual({ id: 's' });
+    expect(suiteModel.findByPk).toHaveBeenCalledWith('s1');
+    expect(await repo.findStepById('st1')).toEqual({ id: 'st' });
+    expect(stepModel.findByPk).toHaveBeenCalledWith('st1');
+  });
+
+  it('updateSuite NO toca requiresDestructivePermission cuando no se pasan ni el flag ni isSafeForProduction', async () => {
+    const { repo } = buildRepo();
+    const save = jest.fn(async () => ({}));
+    const suite = { requiresDestructivePermission: 'unchanged', save } as never;
+    await repo.updateSuite(suite, { name: 'n' } as never);
+    expect((suite as { requiresDestructivePermission: unknown }).requiresDestructivePermission).toBe('unchanged');
+  });
+
+  it('updateStep asigna solo los campos definidos (endpointId ?? null) y guarda', async () => {
+    const { repo } = buildRepo();
+    const save = jest.fn(async () => ({}));
+    const step = { name: 'old', method: 'GET', save } as never;
+    await repo.updateStep(step, {
+      endpointId: null,
+      stepOrder: 3,
+      name: 'nuevo',
+      inputMode: 'MANUAL',
+      pathTemplate: '/y',
+      assertions: [{ kind: 'status' }],
+      continueOnFailure: true,
+      cleanupRequired: false,
+    } as never);
+    expect((step as { endpointId: unknown }).endpointId).toBeNull();
+    expect((step as { name: string }).name).toBe('nuevo');
+    expect((step as { stepOrder: number }).stepOrder).toBe(3);
+    expect((step as { method: string }).method).toBe('GET'); // no pasado -> intacto
+    expect((step as { continueOnFailure: boolean }).continueOnFailure).toBe(true);
+    expect(save).toHaveBeenCalled();
+  });
 });
