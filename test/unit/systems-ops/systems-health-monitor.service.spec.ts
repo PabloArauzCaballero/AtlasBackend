@@ -133,4 +133,30 @@ describe('SystemsHealthMonitorService', () => {
 
     await expect(runCheckOnce(service)).resolves.toBeUndefined();
   });
+
+  it('checkWithLock evita chequeos concurrentes: un 2º disparo mientras hay uno en vuelo no re-consulta', async () => {
+    let resolveHealth: (v: SystemsHealthStatus[]) => void = () => undefined;
+    const healthPromise = new Promise<SystemsHealthStatus[]>((resolve) => {
+      resolveHealth = resolve;
+    });
+    const { service, healthService } = buildService(() => healthPromise);
+    const withLock = (service as unknown as { checkWithLock: () => Promise<void> }).checkWithLock.bind(service);
+    const first = withLock();
+    const second = withLock(); // debe salir temprano por el lock
+    resolveHealth([]);
+    await Promise.all([first, second]);
+    expect(healthService.getToolsHealth).toHaveBeenCalledTimes(1);
+  });
+
+  it('onModuleDestroy no falla sin timer activo y espera el chequeo en vuelo', async () => {
+    const { service } = buildService(async () => []);
+    await expect(service.onModuleDestroy()).resolves.toBeUndefined();
+  });
+
+  it('onApplicationBootstrap no lanza y su timer se limpia en onModuleDestroy', async () => {
+    const { service } = buildService(async () => []);
+    expect(() => service.onApplicationBootstrap()).not.toThrow();
+    // Limpia cualquier setInterval que el bootstrap haya podido crear (según env) para no filtrar timers.
+    await service.onModuleDestroy();
+  });
 });
