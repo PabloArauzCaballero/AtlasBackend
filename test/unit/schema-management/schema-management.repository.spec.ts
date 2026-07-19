@@ -8,7 +8,7 @@ import { SchemaManagementRepository } from '../../../src/modules/schema-manageme
  */
 describe('SchemaManagementRepository', () => {
   function buildRepo() {
-    const sequelize = { query: jest.fn() };
+    const sequelize = { query: jest.fn(), transaction: jest.fn(async (cb: (tx: string) => unknown) => cb('tx')) };
     const repo = new SchemaManagementRepository(sequelize as never);
     return { repo, sequelize };
   }
@@ -77,5 +77,97 @@ describe('SchemaManagementRepository', () => {
       await expect(repo.countRelationshipsInVersion('v9')).resolves.toBe(3);
       expect((sequelize.query as jest.Mock).mock.calls[0][1]).toMatchObject({ replacements: { versionId: 'v9' } });
     });
+  });
+
+  describe('countTablesColumnsRelationshipsForVersions', () => {
+    it('corta con lista vacía (sin query)', async () => {
+      const { repo, sequelize } = buildRepo();
+      const map = await repo.countTablesColumnsRelationshipsForVersions([]);
+      expect(map.size).toBe(0);
+      expect(sequelize.query).not.toHaveBeenCalled();
+    });
+
+    it('agrega los 3 conteos por versión y deja 0 donde no hay filas', async () => {
+      const { repo, sequelize } = buildRepo();
+      (sequelize.query as jest.Mock)
+        .mockResolvedValueOnce([{ schema_version_id: 'v1', count: '2' }] as never) // tablas
+        .mockResolvedValueOnce([{ schema_version_id: 'v1', count: '5' }] as never) // columnas
+        .mockResolvedValueOnce([] as never); // relaciones
+      const map = await repo.countTablesColumnsRelationshipsForVersions(['v1', 'v2']);
+      expect(map.get('v1')).toEqual({ tablesCount: 2, columnsCount: 5, relationshipsCount: 0 });
+      expect(map.get('v2')).toEqual({ tablesCount: 0, columnsCount: 0, relationshipsCount: 0 });
+    });
+  });
+
+  describe('schema tables / columns / relationships', () => {
+    it('listSchemaTables aplica el filtro de tipo solo cuando se provee', async () => {
+      const withType = buildRepo();
+      (withType.sequelize.query as jest.Mock).mockResolvedValueOnce([{ _id: 't1' }] as never).mockResolvedValueOnce([{ count: '1' }] as never);
+      const res = await withType.repo.listSchemaTables('v1', 'catalog', 10, 0);
+      expect(res).toEqual({ rows: [{ _id: 't1' }], total: 1 });
+      expect((withType.sequelize.query as jest.Mock).mock.calls[0][0] as string).toContain('AND table_type = :tableType');
+
+      const noType = buildRepo();
+      (noType.sequelize.query as jest.Mock).mockResolvedValueOnce([] as never).mockResolvedValueOnce([{ count: '0' }] as never);
+      await noType.repo.listSchemaTables('v1', undefined, 10, 0);
+      expect((noType.sequelize.query as jest.Mock).mock.calls[0][0] as string).not.toContain('table_type = :tableType');
+    });
+
+    it('getSchemaTable devuelve fila o null; getSchemaColumns/Relationships devuelven el array', async () => {
+      const { repo, sequelize } = buildRepo();
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([{ _id: 't1' }] as never);
+      expect(await repo.getSchemaTable('t1')).toMatchObject({ _id: 't1' });
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([] as never);
+      expect(await repo.getSchemaTable('nope')).toBeNull();
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([{ _id: 'c1' }] as never);
+      expect(await repo.getSchemaColumns('t1')).toEqual([{ _id: 'c1' }]);
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([{ _id: 'r1' }] as never);
+      expect(await repo.getSchemaRelationshipsForTable('t1')).toEqual([{ _id: 'r1' }]);
+    });
+  });
+
+  describe('change log', () => {
+    it('createChangeLogEntry devuelve la fila creada y lanza si el INSERT no retorna nada', async () => {
+      const ok = buildRepo();
+      (ok.sequelize.query as jest.Mock).mockResolvedValue([{ _id: 'c1', change_type: 'create_table' }] as never);
+      const created = await ok.repo.createChangeLogEntry({ changeType: 'create_table', affectedEntityType: 'table', changePayload: { a: 1 }, requesterPlatformUserId: 'p1' });
+      expect(created).toMatchObject({ _id: 'c1' });
+
+      const bad = buildRepo();
+      (bad.sequelize.query as jest.Mock).mockResolvedValue([] as never);
+      await expect(bad.repo.createChangeLogEntry({ changeType: 'x', affectedEntityType: 'y', changePayload: {}, requesterPlatformUserId: 'p1' })).rejects.toThrow('Failed to insert');
+    });
+
+    it('listChangeLog arma el WHERE dinámico desde los filtros presentes', async () => {
+      const all = buildRepo();
+      (all.sequelize.query as jest.Mock).mockResolvedValueOnce([{ _id: 'c1' }] as never).mockResolvedValueOnce([{ count: '1' }] as never);
+      await all.repo.listChangeLog('pending', 'create_table', 'p1', 10, 0);
+      const sql = (all.sequelize.query as jest.Mock).mock.calls[0][0] as string;
+      expect(sql).toContain('approval_status = :approvalStatus');
+      expect(sql).toContain('change_type = :changeType');
+      expect(sql).toContain('requester_platform_user_id = :requesterUserId');
+
+      const none = buildRepo();
+      (none.sequelize.query as jest.Mock).mockResolvedValueOnce([] as never).mockResolvedValueOnce([{ count: '0' }] as never);
+      await none.repo.listChangeLog(undefined, undefined, undefined, 10, 0);
+      expect((none.sequelize.query as jest.Mock).mock.calls[0][0] as string).not.toContain('WHERE');
+    });
+
+    it('resolveChangeLogEntry devuelve la fila actualizada o null', async () => {
+      const found = buildRepo();
+      (found.sequelize.query as jest.Mock).mockResolvedValue([{ _id: 'c1', approval_status: 'approved' }] as never);
+      expect(await found.repo.resolveChangeLogEntry('c1', { approvalStatus: 'approved', approvedByPlatformUserId: 'p1', approvalNotes: null, changeResult: 'success', errorMessage: null })).toMatchObject({ approval_status: 'approved' });
+
+      const missing = buildRepo();
+      (missing.sequelize.query as jest.Mock).mockResolvedValue([] as never);
+      expect(await missing.repo.resolveChangeLogEntry('nope', { approvalStatus: 'rejected', approvedByPlatformUserId: 'p1', approvalNotes: 'no', changeResult: 'rejected', errorMessage: null })).toBeNull();
+    });
+  });
+
+  it('withTransaction delega en sequelize.transaction', async () => {
+    const { repo, sequelize } = buildRepo();
+    const result = await repo.withTransaction(async () => 'done');
+    expect(result).toBe('done');
+    expect(sequelize.transaction).toHaveBeenCalledTimes(1);
   });
 });
