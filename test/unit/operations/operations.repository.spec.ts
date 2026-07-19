@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { OperationsRepository } from '../../../src/modules/operations/operations.repository.js';
+import { encodeCursor } from '../../../src/common/utils/pagination/cursor-pagination.util.js';
 
 /**
  * Cobertura directa de `OperationsRepository` (Fase 1.2 del plan 10/10): finders de la cola de
@@ -8,7 +9,7 @@ import { OperationsRepository } from '../../../src/modules/operations/operations
  */
 describe('OperationsRepository', () => {
   function buildRepo() {
-    const make = () => ({ findOne: jest.fn(), findAll: jest.fn(), create: jest.fn() });
+    const make = () => ({ findOne: jest.fn(), findAll: jest.fn(), findAndCountAll: jest.fn(), create: jest.fn() });
     const models = {
       manualReviewCase: make(),
       fraudCase: make(),
@@ -115,6 +116,51 @@ describe('OperationsRepository', () => {
       expect(models.customerObservation.create).toHaveBeenCalledTimes(1);
       expect(models.operationalAudit.create).toHaveBeenCalledTimes(1);
       expect(models.dataChangeLog.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('colas de trabajo (offset + cursor)', () => {
+    it('findManualReviewCasesForQueue aplica filtros y el orden dinámico por sortBy', async () => {
+      const { repo, models } = buildRepo();
+      (models.manualReviewCase.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [{ id: 'mr1' }], count: 3 } as never);
+      const res = await repo.findManualReviewCasesForQueue('t1', { status: 'open', priority: 'high', customerId: 'c1', sortBy: 'updatedAt', sortOrder: 'asc', page: 2, limit: 10 } as never);
+      const opts = (models.manualReviewCase.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; order: string[][] };
+      expect(opts.where).toMatchObject({ tenantId: 't1', status: 'open', priority: 'high', customerId: 'c1' });
+      expect(opts.order[0]).toEqual(['updatedAtValue', 'ASC']);
+      expect(res.meta).toMatchObject({ total: 3 });
+    });
+
+    it('findFraudCasesForQueue mapea status->caseStatus y priority->severity', async () => {
+      const { repo, models } = buildRepo();
+      (models.fraudCase.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
+      await repo.findFraudCasesForQueue('t1', { status: 'open', priority: 'high', sortBy: 'createdAt', sortOrder: 'desc', page: 1, limit: 10 } as never);
+      expect((models.fraudCase.findAndCountAll as jest.Mock).mock.calls[0][0].where).toMatchObject({ caseStatus: 'open', severity: 'high' });
+    });
+
+    it('findManualReviewCasesForQueueWithCursor: nextCursor null sin más filas; corta y arma cursor cuando hasMore', async () => {
+      const noMore = buildRepo();
+      (noMore.models.manualReviewCase.findAll as jest.Mock).mockResolvedValue([{ id: 'a', createdAtValue: new Date('2026-01-01T00:00:00.000Z') }] as never);
+      const r1 = await noMore.repo.findManualReviewCasesForQueueWithCursor('t1', { sortBy: 'createdAt', limit: 2 });
+      expect(r1.items).toHaveLength(1);
+      expect(r1.nextCursor).toBeNull();
+
+      const more = buildRepo();
+      (more.models.manualReviewCase.findAll as jest.Mock).mockResolvedValue([
+        { id: 'a', createdAtValue: new Date('2026-01-02T00:00:00.000Z') },
+        { id: 'b', createdAtValue: new Date('2026-01-01T00:00:00.000Z') },
+      ] as never);
+      const r2 = await more.repo.findManualReviewCasesForQueueWithCursor('t1', { status: 'open', sortBy: 'createdAt', limit: 1 });
+      expect(r2.items).toHaveLength(1);
+      expect(r2.nextCursor).toEqual(expect.any(String));
+    });
+
+    it('un cursor válido activa la rama keyset (decodeCursor) en el where', async () => {
+      const { repo, models } = buildRepo();
+      (models.fraudCase.findAll as jest.Mock).mockResolvedValue([] as never);
+      const cursor = encodeCursor({ createdAt: '2026-01-01T00:00:00.000Z', id: 'x' });
+      await repo.findFraudCasesForQueueWithCursor('t1', { sortBy: 'updatedAt', limit: 5, cursor });
+      const where = (models.fraudCase.findAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+      expect(Object.getOwnPropertySymbols(where).length).toBeGreaterThan(0); // Op.and del keyset
     });
   });
 });
