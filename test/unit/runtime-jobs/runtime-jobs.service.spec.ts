@@ -54,6 +54,9 @@ describe('RuntimeJobsService', () => {
       formInteractionModel,
       sessionModel,
       auditModel,
+      outboxModel,
+      sequelize,
+      eventsService,
     };
   }
 
@@ -220,6 +223,69 @@ describe('RuntimeJobsService', () => {
       expect(auditModel.create).toHaveBeenCalledTimes(1);
       const auditArgs = (auditModel.create as jest.Mock).mock.calls[0][0] as { actionCode: string };
       expect(auditArgs.actionCode).toBe('job_apply_retention_policies_executed');
+    });
+  });
+
+  describe('applyRetentionPolicies — form_interaction_events_60d', () => {
+    it('dryRun cuenta; dryRun:false borra y lo reporta como acción destructiva', async () => {
+      const dry = buildService();
+      (dry.retentionPolicyModel.findAll as jest.Mock).mockResolvedValueOnce([
+        { policyCode: 'form_interaction_events_60d', retentionDays: 60, isActive: true },
+      ] as never);
+      (dry.formInteractionModel.count as jest.Mock).mockResolvedValueOnce(9 as never);
+      const dryResp = await dry.service.applyRetentionPolicies({ tenantId: 't1', body: { dryRun: true } as never, currentUser: internalUser });
+      expect(dry.formInteractionModel.destroy).not.toHaveBeenCalled();
+      expect((dryResp as { result: { outcomes: unknown[] } }).result.outcomes).toEqual([
+        { table: 'form_field_interaction_events', action: 'delete', affected: 9 },
+      ]);
+
+      const real = buildService();
+      (real.retentionPolicyModel.findAll as jest.Mock).mockResolvedValueOnce([
+        { policyCode: 'form_interaction_events_60d', retentionDays: 60, isActive: true },
+      ] as never);
+      (real.formInteractionModel.destroy as jest.Mock).mockResolvedValueOnce(9 as never);
+      const realResp = await real.service.applyRetentionPolicies({ tenantId: 't1', body: { dryRun: false } as never, currentUser: internalUser });
+      expect(real.formInteractionModel.count).not.toHaveBeenCalled();
+      expect((realResp as { result: { destructiveActionsExecuted: number } }).result.destructiveActionsExecuted).toBe(9);
+    });
+  });
+
+  describe('processOutbox', () => {
+    it('dryRun: cuenta candidatos vía SQL y reporta el backlog sin reclamar filas', async () => {
+      const { service, sequelize, outboxModel } = buildService();
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([{ count: '5' }] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(8 as never);
+
+      const response = await service.processOutbox({ tenantId: 't1', body: { dryRun: true, limit: 100 } as never, currentUser: internalUser });
+      const result = (response as { result: { selected: number; processed: number; skippedBusinessEvents: number; dryRun: boolean } }).result;
+      expect(result).toMatchObject({ selected: 5, processed: 0, skippedBusinessEvents: 3, dryRun: true });
+    });
+
+    it('real: reclama filas con SELECT..FOR UPDATE SKIP LOCKED dentro de una transacción', async () => {
+      const { service, sequelize, outboxModel } = buildService();
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([{ id: '1' }, { id: '2' }] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(4 as never);
+
+      const response = await service.processOutbox({ tenantId: 't1', body: { dryRun: false, limit: 100 } as never, currentUser: internalUser });
+      const result = (response as { result: { selected: number; processed: number; skippedBusinessEvents: number; dryRun: boolean } }).result;
+      expect(result).toMatchObject({ selected: 2, processed: 2, skippedBusinessEvents: 4, dryRun: false });
+      expect(sequelize.transaction).toHaveBeenCalled();
+    });
+  });
+
+  describe('processEvents', () => {
+    it('delega en EventsService.processPendingEvents con el workerId del job', async () => {
+      const { service, eventsService } = buildService();
+      (eventsService.processPendingEvents as jest.Mock).mockResolvedValueOnce({ processed: 3, dryRun: false } as never);
+
+      const response = await service.processEvents({ tenantId: 't1', body: { dryRun: false, limit: 50 } as never, currentUser: internalUser });
+      expect(eventsService.processPendingEvents).toHaveBeenCalledWith({
+        tenantId: 't1',
+        limit: 50,
+        dryRun: false,
+        workerId: 'runtime_jobs_process_events',
+      });
+      expect((response as { result: { processed: number } }).result).toMatchObject({ processed: 3 });
     });
   });
 
