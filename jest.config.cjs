@@ -62,10 +62,12 @@ const config = {
     // con specs directos TODO el service layer testeable (auth extraídos, systems-ops completo,
     // mail-sender, http-action-log, audit, mongo-logs, etc.) y TODOS los controllers testeables (audit,
     // events, operations, sessions, customer-onboarding, catalog-management, notifications, external-data
-    // verticales, systems-ops×N, etc.). Fase 1.2. Medido con `test:coverage` capado: total repo
-    // 75.23/54.85/59.79/75.89 (206 suites / 1614 tests); el "resto" queda ~1 pt por debajo. Umbral con
-    // ~2-3 pt de colchón para que el gate aguante aunque CI corra sin los specs untracked ajenos.
-    global: { statements: 72, branches: 51, functions: 55, lines: 72 },
+    // verticales, systems-ops×N, etc.) + un push de BRANCH coverage sobre los mappers puros y los 8
+    // adapters de external-data (execute local sin HTTP + normalize). Fase 1.2. Medido con `test:coverage`
+    // capado: total repo 76.5/57.18/62.24/77.18 (219 suites / 1662 tests); el "resto" queda ~1 pt por
+    // debajo. Umbral con ~2-3 pt de colchón para que el gate aguante aunque CI corra sin los specs
+    // untracked ajenos.
+    global: { statements: 73, branches: 53, functions: 57, lines: 73 },
     // Dominios críticos con umbral propio (medidos: ver docs/testing/coverage-ratchet.md).
     // auth: 74.1/57.7/66.1/74.6 tras el spec directo de auth.repository (Fase 1.2). El repositorio no
     // tenía test (AuthService lo mockea): lockout, one-time codes, rotación/revocación de refresh y
