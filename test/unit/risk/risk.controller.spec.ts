@@ -18,7 +18,7 @@ import type { CreateRiskAssessmentDto, CustomerRiskParamsDto } from '../../../sr
 
 describe('RiskController (unit, real controller)', () => {
   let controller: RiskController;
-  let riskService: { createRiskAssessment: jest.Mock };
+  let riskService: { createRiskAssessment: jest.Mock; getRiskAssessmentDetail: jest.Mock; getRiskAssessmentExplanation: jest.Mock };
 
   const currentUser: AuthenticatedUser = {
     sub: 'cust-1',
@@ -40,6 +40,8 @@ describe('RiskController (unit, real controller)', () => {
         riskAssessmentRunId: '1',
         status: 'approved',
       })),
+      getRiskAssessmentDetail: jest.fn(async () => ({ riskAssessmentRunId: '7' })),
+      getRiskAssessmentExplanation: jest.fn(async () => ({ reasons: [] })),
     };
     controller = new RiskController(riskService as unknown as RiskService);
   });
@@ -69,5 +71,15 @@ describe('RiskController (unit, real controller)', () => {
     expect(callArg.customerId).toBe('1');
     expect(callArg.idempotencyKey).toBe('idem-key-001');
     expect(callArg.currentUser.sub).toBe('cust-1');
+  });
+
+  it('getRiskAssessmentDetail delega con tenant parseado y el runId', async () => {
+    await controller.getRiskAssessmentDetail('1', { riskAssessmentRunId: '7' } as never);
+    expect(riskService.getRiskAssessmentDetail).toHaveBeenCalledWith('1', '7');
+  });
+
+  it('getRiskAssessmentExplanation delega con tenant parseado y el runId', async () => {
+    await controller.getRiskAssessmentExplanation('1', { riskAssessmentRunId: '7' } as never);
+    expect(riskService.getRiskAssessmentExplanation).toHaveBeenCalledWith('1', '7');
   });
 });
