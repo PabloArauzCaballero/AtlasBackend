@@ -240,4 +240,48 @@ describe('AuthRepository', () => {
       expect(values).toMatchObject({ actionCode: 'auth.login.failure', actorInternalUserId: '5' });
     });
   });
+
+  describe('finders y mutaciones restantes', () => {
+    it('findInternalUserById / findPlatformUserById filtran por id', async () => {
+      const { repo, models } = buildRepo();
+      (models.internalUser.findOne as jest.Mock).mockResolvedValue({ id: '5' } as never);
+      (models.platformUser.findOne as jest.Mock).mockResolvedValue(null as never);
+      await repo.findInternalUserById('5');
+      expect((models.internalUser.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { id: '5' } });
+      await repo.findPlatformUserById('9');
+      expect((models.platformUser.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { id: '9' } });
+    });
+
+    it('findActiveOneTimeCodeByChallenge exige challengeHash + no-consumido', async () => {
+      const { repo, models } = buildRepo();
+      (models.oneTimeCode.findOne as jest.Mock).mockResolvedValue(null as never);
+      await repo.findActiveOneTimeCodeByChallenge('h');
+      expect((models.oneTimeCode.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { challengeHash: 'h', consumedAt: null } });
+    });
+
+    it('consumeOneTimeCode marca consumedAt y guarda', async () => {
+      const { repo } = buildRepo();
+      const save = jest.fn(async () => undefined);
+      const code = { consumedAt: null, save } as never;
+      await repo.consumeOneTimeCode(code);
+      expect((code as { consumedAt: Date | null }).consumedAt).not.toBeNull();
+      expect(save).toHaveBeenCalled();
+    });
+
+    it('findActiveRefreshTokenByHash exige tokenHash + no-revocado', async () => {
+      const { repo, models } = buildRepo();
+      (models.refreshToken.findOne as jest.Mock).mockResolvedValue(null as never);
+      await repo.findActiveRefreshTokenByHash('th');
+      expect((models.refreshToken.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { tokenHash: 'th', revokedAt: null } });
+    });
+
+    it('revokeAllRefreshTokensForActor revoca todos los tokens activos del actor', async () => {
+      const { repo, models } = buildRepo();
+      (models.refreshToken.update as jest.Mock).mockResolvedValue([2] as never);
+      await repo.revokeAllRefreshTokensForActor('internal_user', '5', 'password_reset');
+      const [values, options] = (models.refreshToken.update as jest.Mock).mock.calls[0] as [Record<string, unknown>, { where: Record<string, unknown> }];
+      expect(values).toMatchObject({ revokedReason: 'password_reset' });
+      expect(options.where).toMatchObject({ actorType: 'internal_user', actorId: '5', revokedAt: null });
+    });
+  });
 });
