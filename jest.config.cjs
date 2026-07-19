@@ -64,11 +64,11 @@ const config = {
     // events, operations, sessions, customer-onboarding, catalog-management, notifications, external-data
     // verticales, systems-ops×N, etc.) + un push de BRANCH coverage sobre los mappers puros y los 8
     // adapters de external-data + extensión de repos (internal-rbac, schema-management, external-data,
-    // systems-review + operations/customer-telemetry/systems-catalog: mutaciones, cursor keyset, upserts,
-    // y los mappers/adapters puros). Fase 1.2. Medido con `test:coverage` capado: total repo
-    // 79.03/61.64/66.86/79.73 (1715 tests); el "resto" queda ~1 pt por debajo. Umbral con ~2-3 pt de
+    // repos, servicios (notifications/data-quality/external-data facades), guards y los adapters de
+    // notificación y external-data). Fase 1.2. Medido con `test:coverage` capado: total repo
+    // 80.65/62.52/70.4/81.36 (1749 tests); el "resto" queda ~1 pt por debajo. Umbral con ~2-3 pt de
     // colchón para que el gate aguante aunque CI corra sin los specs untracked ajenos.
-    global: { statements: 75, branches: 57, functions: 62, lines: 75 },
+    global: { statements: 77, branches: 58, functions: 66, lines: 77 },
     // Dominios críticos con umbral propio (medidos: ver docs/testing/coverage-ratchet.md).
     // auth: 74.1/57.7/66.1/74.6 tras el spec directo de auth.repository (Fase 1.2). El repositorio no
     // tenía test (AuthService lo mockea): lockout, one-time codes, rotación/revocación de refresh y
