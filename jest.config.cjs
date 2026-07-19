@@ -96,10 +96,12 @@ const config = {
     // ni de código sin commitear (working tree limpio bajo ellos), así que su nivel es reproducible en
     // CI y se ratchetea con ~1.5-2.5 pt de colchón. El `global` NO se sube: su medición está inflada
     // por specs untracked ajenas del "resto", así que quedaría por encima de lo que CI vería.
-    // auth: 86.51/67.42/69.49/86.57 (subió de 74.1/74.6 tras cubrir el service layer de auth extraído).
-    './src/modules/auth/': { statements: 84, branches: 65, functions: 68, lines: 84 },
-    // risk: 91.38/81.40/70.45/91.61 tras el spec directo de RiskRepository y ramas del servicio.
-    './src/modules/risk/': { statements: 90, branches: 79, functions: 69, lines: 90 },
+    // auth: 96.56/74.53/94.92/97.14 tras cubrir auth.controller (8 endpoints), verifyLoginPin (login 2FA) y
+    // los finders/mutaciones restantes de auth.repository — CRUZA el objetivo del plan ≥90% en stmts/funcs/lines.
+    './src/modules/auth/': { statements: 94, branches: 72, functions: 92, lines: 95 },
+    // risk: 98.85/81.40/100/100 tras cubrir los 11 create* de RiskRepository y getDetail/getExplanation del
+    // controller — 100% de funciones y líneas.
+    './src/modules/risk/': { statements: 97, branches: 80, functions: 98, lines: 98 },
     // fraud: 97.26/80.00/100/96.97 tras el spec directo de FraudRepository — 100% de funciones. El
     // branch (80.0) se mantiene en 79 (colchón ~1 pt) porque no subió con el resto.
     './src/modules/fraud/': { statements: 95, branches: 79, functions: 98, lines: 95 },

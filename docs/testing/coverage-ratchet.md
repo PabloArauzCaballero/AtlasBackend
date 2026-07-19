@@ -43,8 +43,8 @@ branches 63.13 · functions 70.64 · lines 81.70.
 | Grupo | stmts | branch | funcs | lines | Umbral fijado |
 | ----- | ----: | -----: | ----: | ----: | ------------- |
 | **global** (= "resto", ver nota) | 82.23 | 63.55 | 74.58 | 82.97 | 79 / 60 / 70 / 79 |
-| `src/modules/auth/` | 86.51 | 67.42 | 69.49 | 86.57 | 84 / 65 / 68 / 84 |
-| `src/modules/risk/` | 91.38 | 81.40 | 70.45 | 91.61 | 90 / 79 / 69 / 90 |
+| `src/modules/auth/` | 96.56 | 74.53 | 94.92 | 97.14 | 94 / 72 / 92 / 95 |
+| `src/modules/risk/` | 98.85 | 81.40 | 100.0 | 100.0 | 97 / 80 / 98 / 98 |
 | `src/modules/fraud/` | 97.26 | 80.00 | 100.0 | 96.97 | 95 / 79 / 98 / 95 |
 | `src/common/utils/crypto/` | 91.33 | 77.55 | 94.29 | 92.77 | 90 / 75 / 92 / 91 |
 
@@ -56,8 +56,14 @@ branches 63.13 · functions 70.64 · lines 81.70.
 > (159 stmts, NO era delegador puro), sessions-device/telemetry.repo, health-monitor lifecycle,
 > mail-sender.client, systems-test-http-client, mongo-logs-query → "resto" **84.31/64.95/77.83/85.13** (repo
 > total **84.61 stmts / 85.41 lines** — cruzando el objetivo de 85% en líneas · 238 suites / 1865 tests).
-> Functions +3.25 pt. Los 4 dominios con umbral propio no cambian. Colchón ~3-4 pt para la inflación de los
-> 3 specs untracked ajenos.
+> Functions +3.25 pt. Colchón ~3-4 pt para la inflación de los 3 specs untracked ajenos.
+>
+> Empuje de DOMINIOS CRÍTICOS hacia el objetivo del plan ≥90% (2026-07-19): **auth 84/65/68/84 →
+> 94/72/92/95** (86.51→96.56 stmts / 69.49→94.92 funcs, tras cubrir auth.controller, verifyLoginPin y
+> auth.repository) y **risk 90/79/69/90 → 97/80/98/98** (91.38→98.85 stmts / 70.45→100 funcs, tras los 11
+> create* de RiskRepository + getDetail/getExplanation). fraud (95/79/98/95) y crypto (90/75/92/91) sin
+> cambio. Colchón más ajustado (~1.5-2.5 pt): estos paths no dependen de specs untracked ni de código sin
+> commitear, así que son reproducibles en CI. El branch (72-80%) es la métrica rezagada en los 4 dominios.
 
 ## Línea base previa (17-jul-2026)
 
