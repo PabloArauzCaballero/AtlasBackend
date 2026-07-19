@@ -139,4 +139,54 @@ describe('RiskRepository', () => {
     expect((snapshot as { riskAssessmentRunId: string }).riskAssessmentRunId).toBe('run1');
     expect(save).toHaveBeenCalledWith({ transaction: 'tx' });
   });
+
+  describe('escrituras del expediente de riesgo (create*)', () => {
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    const opts = { transaction: 'tx' as never };
+    const firstArg = (m: { create: jest.Mock }) => (m.create as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+    const secondArg = (m: { create: jest.Mock }) => (m.create as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
+
+    it('createFeatureComputationRun / FeatureValue / FeatureSnapshot mapean sus constantes', async () => {
+      const { repo, models } = buildRepo();
+      await repo.createFeatureComputationRun({ tenantId: 't1', customerId: 'c1', sessionId: null, deviceId: null, runReason: 'onboarding', triggerSource: 'api', idempotencyKey: 'k', now } as never, opts);
+      expect(firstArg(models.featureComputationRun)).toMatchObject({ subjectType: 'customer', featureSetVersion: 'atlas-mvp-v1', status: 'completed' });
+      expect(secondArg(models.featureComputationRun)).toEqual({ transaction: 'tx' });
+
+      await repo.createFeatureValue({ tenantId: 't1', computationRunId: 'r1', customerId: 'c1', sessionId: null, deviceId: null, featureCode: 'age', valueNumber: '30', valueBoolean: null, valueText: null, valueJson: null, now } as never, opts);
+      expect(firstArg(models.featureValue)).toMatchObject({ confidenceScore: '1.0000', derivationMethod: 'age', valueNumber: '30' });
+
+      await repo.createFeatureSnapshot({ tenantId: 't1', customerId: 'c1', deviceId: null, sessionId: null, featuresJson: { a: 1 }, missingFeaturesJson: {}, integrityHash: 'h', now } as never, opts);
+      expect(firstArg(models.featureSnapshot)).toMatchObject({ snapshotReason: 'risk_assessment', featuresJson: { a: 1 }, integrityHash: 'h' });
+    });
+
+    it('createRiskAssessmentRun / Context / RuleFired / Contribution mapean sus constantes', async () => {
+      const { repo, models } = buildRepo();
+      await repo.createRiskAssessmentRun({ tenantId: 't1', customerId: 'c1', sessionId: null, deviceId: null, featureSnapshotId: 's1', assessmentType: 'onboarding', triggerSource: 'api', idempotencyKey: 'k', now } as never, opts);
+      expect(firstArg(models.riskAssessmentRun)).toMatchObject({ runStatus: 'completed', featureSnapshotId: 's1' });
+
+      await repo.createRiskAssessmentContext({ tenantId: 't1', riskAssessmentRunId: 'run1', contextPayloadHash: 'h', now } as never, opts);
+      expect(firstArg(models.riskAssessmentContext)).toMatchObject({ contextType: 'onboarding', currencyCode: 'BOB', contextPayloadHash: 'h' });
+
+      await repo.createRuleFired({ tenantId: 't1', riskAssessmentRunId: 'run1', ruleCode: 'R1', riskDimension: 'fraud', outputAction: 'review', reasonCode: 'RC', severity: 'high', isHardStop: true, inputValues: { x: 1 }, rulesetVersionCode: 'rv1', now } as never, opts);
+      expect(firstArg(models.riskRuleFired)).toMatchObject({ ruleCodeSnapshot: 'R1', rulesetVersionCodeSnapshot: 'rv1', isHardStop: true, inputValuesJson: { x: 1 } });
+
+      await repo.createContribution({ tenantId: 't1', riskAssessmentRunId: 'run1', featureCode: 'age', rawValue: { v: 30 }, scorePoints: '5', reasonCode: 'RC', now } as never, opts);
+      expect(firstArg(models.riskFeatureContribution)).toMatchObject({ featureCode: 'age', rawValueJson: { v: 30 }, scorePoints: '5' });
+    });
+
+    it('createRiskResult / ManualReviewCase / DataQualityIssue / Audit mapean sus constantes', async () => {
+      const { repo, models } = buildRepo();
+      await repo.createRiskResult({ tenantId: 't1', runId: 'run1', customerId: 'c1', sessionId: null, deviceId: null, assessmentType: 'onboarding', recommendedAction: 'approve', riskLevel: 'low', scoreTotal: '10', fraudScore: '1', identityScore: '2', deviceRiskScore: '3', behaviorScore: '4', contactabilityScore: '5', consistencyScore: '6', reasonCodes: { a: 1 }, featureSnapshotId: 's1', integrityHash: 'h', modelVersionCode: 'mv1', rulesetVersionCode: 'rv1', now } as never, opts);
+      expect(firstArg(models.riskAssessmentResult)).toMatchObject({ subjectType: 'customer', riskAssessmentRunId: 'run1', reasonCodesJson: { a: 1 }, recommendedAction: 'approve' });
+
+      await repo.createManualReviewCase({ tenantId: 't1', customerId: 'c1', riskAssessmentRunId: 'run1', priority: 'high', caseType: 'risk', notes: 'n', now } as never, opts);
+      expect(firstArg(models.manualReviewCase)).toMatchObject({ status: 'open', caseType: 'risk', notes: 'n', deleted: false });
+
+      await repo.createDataQualityIssue({ tenantId: 't1', targetRecordId: 'c1', issueCode: 'open', now } as never, opts);
+      expect(firstArg(models.dataQualityIssue)).toMatchObject({ targetTable: 'customers', targetRecordId: 'c1', issueStatus: 'open' });
+
+      await repo.createAudit({ tenantId: 't1', actorType: 'system', actorInternalUserId: null, actionCode: 'risk.assessed', targetId: 'c1', payload: { p: 1 }, now } as never, opts);
+      expect(firstArg(models.operationalAuditLog)).toMatchObject({ targetType: 'customer', actionCode: 'risk.assessed', payloadJson: { p: 1 }, actorPlatformUserId: null });
+    });
+  });
 });
