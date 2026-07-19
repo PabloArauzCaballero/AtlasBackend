@@ -1,5 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { ServiceUnavailableException } from '@nestjs/common';
 import { MongoLogsQueryService } from '../../../src/modules/log-sync/mongo-logs-query.service.js';
+import { env } from '../../../src/config/env.js';
 import { escapeRegex } from '../../../src/common/utils/strings/regex.util.js';
 
 /**
@@ -43,5 +45,25 @@ describe('MongoLogsQueryService', () => {
     const { service, collection } = build([], 5);
     await service.listLogs({ page: 1, limit: 20 } as never);
     expect((collection.find.mock.calls[0] as [Record<string, unknown>])[0]).toEqual({});
+  });
+
+  it('onModuleDestroy cierra el cliente si existe y no falla si no', async () => {
+    const service = new MongoLogsQueryService();
+    await expect(service.onModuleDestroy()).resolves.toBeUndefined(); // sin cliente
+    const close = jest.fn(async () => undefined);
+    (service as unknown as { client: unknown }).client = { close };
+    await service.onModuleDestroy();
+    expect(close).toHaveBeenCalled();
+  });
+
+  it('listLogs lanza MONGO_LOGS_NOT_CONFIGURED cuando no hay URL de Mongo', async () => {
+    const saved = (env as Record<string, unknown>).MONGO_DB_URL_CONNECTION;
+    (env as Record<string, unknown>).MONGO_DB_URL_CONNECTION = '';
+    try {
+      const service = new MongoLogsQueryService(); // sin espiar getCollection: corre la ruta real
+      await expect(service.listLogs({ page: 1, limit: 20 } as never)).rejects.toBeInstanceOf(ServiceUnavailableException);
+    } finally {
+      (env as Record<string, unknown>).MONGO_DB_URL_CONNECTION = saved;
+    }
   });
 });
