@@ -116,6 +116,55 @@ describe('SystemsCatalogQueryService', () => {
     expect(healthService.getToolsHealth).toHaveBeenCalledTimes(1);
   });
 
+  it('listDomains / listTools / listDataEntities mapean filas y propagan meta', async () => {
+    const { service, catalogRepository } = build();
+    (catalogRepository.listDomains as jest.Mock).mockResolvedValueOnce({ rows: [{ id: 1, domainCode: 'D', domainName: 'Dom' }], meta: { page: 1 } } as never);
+    (catalogRepository.listTools as jest.Mock).mockResolvedValueOnce({ rows: [{ id: 2, code: 'T', name: 'Tool', type: 'api' }], meta: { page: 2 } } as never);
+    (catalogRepository.listDataEntities as jest.Mock).mockResolvedValueOnce({ rows: [{ id: 3, schemaName: 's', tableName: 't', entityName: 'E' }], meta: { page: 3 } } as never);
+    expect((await service.listDomains({} as never)).items[0]).toMatchObject({ domainCode: 'D' });
+    expect((await service.listTools({} as never)).items[0]).toMatchObject({ toolId: '2', code: 'T' });
+    const entities = await service.listDataEntities({} as never);
+    expect(entities.items[0]).toMatchObject({ entityId: '3' });
+    expect(entities.meta).toEqual({ page: 3 });
+  });
+
+  it('getDomain devuelve el mapeo cuando existe', async () => {
+    const { service, catalogRepository } = build();
+    (catalogRepository.findDomainByCode as jest.Mock).mockResolvedValueOnce({ id: 4, domainCode: 'DOM', domainName: 'Dominio' } as never);
+    expect(await service.getDomain('DOM')).toMatchObject({ domainCode: 'DOM' });
+  });
+
+  it('updateDataEntityMetadata lanza NotFound o devuelve la entidad mapeada', async () => {
+    const { service, catalogRepository } = build();
+    (catalogRepository as unknown as { updateDataEntityMetadata: jest.Mock }).updateDataEntityMetadata = jest.fn(async () => null);
+    await expect(service.updateDataEntityMetadata('7', { description: 'x' })).rejects.toBeInstanceOf(NotFoundException);
+    (catalogRepository as unknown as { updateDataEntityMetadata: jest.Mock }).updateDataEntityMetadata.mockResolvedValueOnce({ id: 7, schemaName: 's', tableName: 't', entityName: 'E' } as never);
+    expect(await service.updateDataEntityMetadata('7', { description: 'x' })).toMatchObject({ entityId: '7' });
+  });
+
+  it('getImpactByEndpoint agrega tools/tables/fields enriquecidos', async () => {
+    const { service, catalogRepository } = build();
+    (catalogRepository.findEndpointById as jest.Mock).mockResolvedValueOnce({ id: 5, code: 'EP', method: 'GET' } as never);
+    (catalogRepository.findToolRequirementsByEndpoint as jest.Mock).mockResolvedValueOnce([{ id: 1, toolId: 9 }] as never);
+    (catalogRepository.findDataImpactsByEndpoint as jest.Mock).mockResolvedValueOnce([{ id: 1, dataEntityId: 7, endpointId: 5 }] as never);
+    (catalogRepository.findFieldImpactsByEndpoint as jest.Mock).mockResolvedValueOnce([{ id: 1, dataEntityId: 7, endpointId: 5 }] as never);
+    (catalogRepository.findToolsByIds as jest.Mock).mockResolvedValueOnce([{ id: 9, code: 'TOOL', name: 'Tool', type: 'api' }] as never);
+    (catalogRepository.findDataEntitiesByIds as jest.Mock).mockResolvedValue([{ id: 7, schemaName: 's', tableName: 't', entityName: 'E' }] as never);
+    const res = await service.getImpactByEndpoint('5');
+    expect(res.endpoint).toMatchObject({ endpointId: '5' });
+    expect(res.tools).toHaveLength(1);
+    expect(res.tables).toHaveLength(1);
+    expect(res.fields).toHaveLength(1);
+  });
+
+  it('getImpactByTable mapea también los fieldImpacts cuando existen', async () => {
+    const { service, catalogRepository } = build();
+    (catalogRepository.findDataEntityByTable as jest.Mock).mockResolvedValueOnce({ id: 7, schemaName: 's', tableName: 't', entityName: 'E' } as never);
+    (catalogRepository.findFieldImpactsByDataEntity as jest.Mock).mockResolvedValueOnce([{ id: 1, dataEntityId: 7, fieldName: 'x' }] as never);
+    const res = await service.getImpactByTable('s', 't');
+    expect(res.fieldImpacts).toHaveLength(1);
+  });
+
   it('getDashboard marca READY_FOR_REVIEW solo con endpoints y entidades presentes', async () => {
     const { service, dashboardRepository } = build();
     (dashboardRepository.getDashboardCounts as jest.Mock).mockResolvedValueOnce({ endpoints: 5, dataEntities: 3, pendingReviews: 2, stressProfiles: 1 } as never);
