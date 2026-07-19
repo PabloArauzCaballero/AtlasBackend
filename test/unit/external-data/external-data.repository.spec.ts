@@ -9,7 +9,7 @@ import { ExternalDataRepository } from '../../../src/modules/external-data/exter
  */
 describe('ExternalDataRepository', () => {
   function buildRepo() {
-    const make = () => ({ findOne: jest.fn(), findAll: jest.fn(), findByPk: jest.fn(), create: jest.fn(), update: jest.fn(), count: jest.fn() });
+    const make = () => ({ findOne: jest.fn(), findAll: jest.fn(), findByPk: jest.fn(), create: jest.fn(), update: jest.fn(), count: jest.fn(), bulkCreate: jest.fn() });
     const models = {
       dataProvider: make(),
       costPolicy: make(),
@@ -120,5 +120,101 @@ describe('ExternalDataRepository', () => {
     expect((models.customerObservation.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({
       where: { tenantId: 't1', customerId: 'c1', sourceType: 'external_provider' },
     });
+  });
+
+  // --- Mutaciones ------------------------------------------------------------------------------
+
+  it('updateCostPolicy devuelve null si no existe; si existe aplica solo los campos del patch', async () => {
+    const missing = buildRepo();
+    (missing.models.costPolicy.findOne as jest.Mock).mockResolvedValue(null as never);
+    expect(await missing.repo.updateCostPolicy('p1', 'q', {})).toBeNull();
+
+    const found = buildRepo();
+    const policy = { update: jest.fn(async () => undefined) };
+    (found.models.costPolicy.findOne as jest.Mock).mockResolvedValue(policy as never);
+    const res = await found.repo.updateCostPolicy('p1', 'q', { unitCostAmount: 1.5, currency: 'BOB', active: false });
+    expect(res).toBe(policy);
+    const update = (policy.update as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+    expect(update).toMatchObject({ unitCostAmount: '1.5000', currency: 'BOB', active: false });
+    expect(update.costTier).toBeUndefined(); // no venía en el patch
+  });
+
+  it('updateProviderRuntime devuelve null si no existe; si existe aplica el patch', async () => {
+    const missing = buildRepo();
+    (missing.models.dataProvider.findByPk as jest.Mock).mockResolvedValue(null as never);
+    expect(await missing.repo.updateProviderRuntime('p1', {})).toBeNull();
+
+    const found = buildRepo();
+    const provider = { update: jest.fn(async () => undefined) };
+    (found.models.dataProvider.findByPk as jest.Mock).mockResolvedValue(provider as never);
+    await found.repo.updateProviderRuntime('p1', { providerStatus: 'DEGRADED', isActive: false });
+    expect((provider.update as jest.Mock).mock.calls[0][0]).toMatchObject({ providerStatus: 'DEGRADED', isActive: false });
+  });
+
+  it('revokeCustomerConsent devuelve null si no existe; si existe marca granted=false y revokedAt', async () => {
+    const missing = buildRepo();
+    (missing.models.customerConsent.findOne as jest.Mock).mockResolvedValue(null as never);
+    expect(await missing.repo.revokeCustomerConsent('t1', 'c1', new Date())).toBeNull();
+
+    const found = buildRepo();
+    const consent = { update: jest.fn(async () => undefined) };
+    (found.models.customerConsent.findOne as jest.Mock).mockResolvedValue(consent as never);
+    const now = new Date('2026-01-01');
+    await found.repo.revokeCustomerConsent('t1', 'c1', now);
+    expect((consent.update as jest.Mock).mock.calls[0][0]).toMatchObject({ granted: false, revokedAt: now });
+  });
+
+  it('createProviderRequest y createProviderResponse crean con defaults null', async () => {
+    const { repo, models } = buildRepo();
+    (models.dataProviderRequest.create as jest.Mock).mockResolvedValue({ id: 'req1' } as never);
+    await repo.createProviderRequest({ tenantId: 't1', providerId: 'p1', requestType: 'q', purposeCode: 'pc', decisionStage: 's', modeUsed: 'local', requestPayloadHash: 'h', responseStatus: 'COMPLETED', now: new Date() } as never);
+    expect((models.dataProviderRequest.create as jest.Mock).mock.calls[0][0]).toMatchObject({ customerId: null, idempotencyKey: null, respondedAt: null });
+
+    (models.dataProviderResponse.create as jest.Mock).mockResolvedValue({ id: 'res1' } as never);
+    await repo.createProviderResponse({ tenantId: 't1', providerRequestId: 'req1', redactedPayloadJson: {}, normalizedPayloadJson: {}, responseHash: 'h', containsSensitiveData: false, now: new Date() });
+    expect((models.dataProviderResponse.create as jest.Mock).mock.calls[0][0]).toMatchObject({ payloadStorageStrategy: 'inline_redacted', providerStatusCode: null });
+  });
+
+  it('updateProviderRequest aplica el patch con fallback a los valores existentes del request', async () => {
+    const { repo } = buildRepo();
+    const request = { responseCode: 'old', latencyMs: 100, respondedAt: null, providerRequestRef: 'ref', actualCostAmount: null, errorMessageSafe: null, metadataJson: null, update: jest.fn(async (v: unknown) => v) };
+    await repo.updateProviderRequest(request as never, { responseStatus: 'COMPLETED', latencyMs: 250 });
+    const patch = (request.update as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+    expect(patch).toMatchObject({ responseStatus: 'COMPLETED', latencyMs: 250, responseCode: 'old', providerRequestRef: 'ref' });
+  });
+
+  it('createObservations corta con lista vacía y mapea valueType + verificationStatus', async () => {
+    const empty = buildRepo();
+    await empty.repo.createObservations({ tenantId: 't1', customerId: 'c1', providerId: 'p1', requestId: 'r1', observations: [], now: new Date() });
+    expect(empty.models.customerObservation.bulkCreate).not.toHaveBeenCalled();
+
+    const { repo, models } = buildRepo();
+    await repo.createObservations({
+      tenantId: 't1',
+      customerId: 'c1',
+      providerId: 'p1',
+      requestId: 'r1',
+      observations: [
+        { observationKey: 'a', valueType: 'NUMBER', valueNumber: 0.5, confidenceScore: 0.9, verified: true } as never,
+        { observationKey: 'b', valueType: 'STRING', valueString: 'x', verified: false, manualReviewRequired: true } as never,
+        { observationKey: 'c', valueType: 'BOOLEAN', valueBoolean: true, verified: false, manualReviewRequired: false } as never,
+      ],
+      now: new Date(),
+    });
+    const rows = (models.customerObservation.bulkCreate as jest.Mock).mock.calls[0][0] as Array<Record<string, unknown>>;
+    expect(rows[0]).toMatchObject({ valueNumber: '0.5000', confidenceScore: '90.00', verificationStatus: 'verified' });
+    expect(rows[1]).toMatchObject({ valueText: 'x', verificationStatus: 'manual_review_required' });
+    expect(rows[2]).toMatchObject({ valueBoolean: true, verificationStatus: 'unverified' });
+  });
+
+  it('createFeatureSnapshot y createHealthLog crean con sus campos derivados', async () => {
+    const { repo, models } = buildRepo();
+    (models.featureSnapshot.create as jest.Mock).mockResolvedValue({ id: 'fs1' } as never);
+    await repo.createFeatureSnapshot({ tenantId: 't1', customerId: 'c1', providerCode: 'SEGIP', requestId: 'r1', featuresJson: {}, missingFeaturesJson: {}, integrityHash: 'h', now: new Date() });
+    expect((models.featureSnapshot.create as jest.Mock).mock.calls[0][0]).toMatchObject({ snapshotReason: 'external_provider_segip', triggeringEntityId: 'r1' });
+
+    (models.providerHealthLog.create as jest.Mock).mockResolvedValue({ id: 'h1' } as never);
+    await repo.createHealthLog({ providerId: 'p1', health: { providerCode: 'SEGIP', status: 'UP', mode: 'local', latencyMs: 5, checkedAt: '2026-01-01T00:00:00.000Z' } as never });
+    expect((models.providerHealthLog.create as jest.Mock).mock.calls[0][0]).toMatchObject({ status: 'UP', errorCode: null, metadataJson: { providerCode: 'SEGIP' } });
   });
 });
