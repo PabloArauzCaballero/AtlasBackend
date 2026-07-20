@@ -19,19 +19,29 @@ updates:
       prefix-development: 'chore(deps-dev)'
     groups:
       # Agrupa el ruido de bajo riesgo en un solo PR; lo demás llega por separado para revisarlo bien.
+      #
+      # Incluye MAJOR a propósito: son dependencias de desarrollo (linter, compilador, test runner) que
+      # no llegan al bundle de producción, y revisarlas juntas es más barato que atender un PR por cada
+      # major suelto. Antes, `typescript` y `@eslint/js` no matcheaban ningún patrón (`eslint*` no cubre
+      # el scope `@eslint/`), así que abrían PR propio cada uno.
       dev-tooling:
         patterns:
           - '@types/*'
           - 'eslint*'
+          - '@eslint/*'
           - '@typescript-eslint/*'
+          - 'typescript'
           - 'prettier'
           - 'jest'
           - 'ts-jest'
           - 'supertest'
           - '@nestjs/testing'
         update-types:
+          - major
           - minor
           - patch
+      # El framework de producción se agrupa solo en minor/patch: un major de NestJS cambia la app en
+      # runtime y merece su propio PR con revisión dedicada.
       nestjs:
         patterns:
           - '@nestjs/*'
@@ -45,8 +55,20 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    open-pull-requests-limit: 3
     labels:
       - dependencies
       - ci
     commit-message:
       prefix: 'chore(ci)'
+    groups:
+      # Sin este grupo, cada action abría su propio PR (checkout, setup-node, upload-artifact,
+      # codeql-action → 4 ramas por semana). Todas se revisan igual (bump de tag) y se validan con el
+      # mismo pipeline, así que un PR conjunto es suficiente y deja el listado de ramas limpio.
+      ci-actions:
+        patterns:
+          - '*'
+        update-types:
+          - major
+          - minor
+          - patch
