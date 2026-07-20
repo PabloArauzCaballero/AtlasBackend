@@ -285,4 +285,99 @@ describe('CustomerTelemetryService.ingestBatch', () => {
     const result = await service.ingestBatch(baseInput());
     expect(result.duplicatesIgnored).toBe(0);
   });
+
+  describe('despacho por eventType (una rama por tipo, con metadata tipada y sin ella)', () => {
+    const ev = (eventType: string, eventCode: string, metadata: Record<string, unknown> = {}) => ({
+      eventType,
+      eventCode,
+      occurredAt: '2026-01-01T00:00:00.000Z',
+      metadata,
+    });
+    const allTypes = (metadata: Record<string, unknown>) => [
+      ev('form_field_interaction', 'nombre', metadata),
+      ev('permission_event', 'location_granted', metadata),
+      ev('auth_event', 'login', metadata),
+      ev('device_risk_event', 'root_detected', metadata),
+      ev('sim_observation', 'sim', metadata),
+      ev('ip_reputation_observation', 'ip', metadata),
+      ev('onboarding_step_event', 'step_1', metadata),
+      ev('customer_action', 'screen_view', metadata),
+      ev('tipo_desconocido', 'obs_code', metadata), // cae en el else -> observación de cliente
+    ];
+
+    function arrange(flow: unknown) {
+      const built = buildService();
+      (built.customersRepository.findById as jest.Mock).mockResolvedValue({ id: 'c1' } as never);
+      (built.telemetryRepository.findCustomerDeviceLink as jest.Mock).mockResolvedValue({ id: 'link-1' } as never);
+      (built.telemetryRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValue(flow as never);
+      (built.telemetryRepository.createOnDeviceRun as jest.Mock).mockResolvedValue({ id: 'run-1' } as never);
+      return built;
+    }
+
+    it('con metadata tipada completa persiste cada tipo con sus valores y liga el flow', async () => {
+      const { service, telemetryRepository } = arrange({ id: 'flow-1' });
+      const metadata = {
+        interactionType: 'blur',
+        usedCopyPaste: true,
+        corrections: 3,
+        durationMs: 1200,
+        granted: true,
+        loginSuccessful: false,
+        failureReasonCode: 'BAD_PASSWORD',
+        reasonCode: 'ROOT',
+        eventType: 'completed',
+        screenName: 'home',
+      };
+
+      const result = await service.ingestBatch(
+        baseInput({
+          body: baseBody({
+            events: allTypes(metadata),
+            onDeviceMetrics: [{ metricCode: 'typing_speed', value: '1.5', confidenceScore: 0.87, computedAt: '2026-01-01T00:00:00.000Z' }],
+          }),
+        }),
+      );
+
+      expect(result.acceptedEvents).toBe(9);
+      expect((telemetryRepository.createFormFieldEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
+        onboardingFlowId: 'flow-1', interactionType: 'blur', usedCopyPaste: true, correctionCount: 3, focusDurationMs: 1200,
+      });
+      expect((telemetryRepository.createPermissionEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ onboardingFlowId: 'flow-1', granted: true });
+      expect((telemetryRepository.createAuthEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ loginSuccessful: false, failureReasonCode: 'BAD_PASSWORD' });
+      expect((telemetryRepository.createDeviceRiskEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ reasonCode: 'ROOT' });
+      expect(telemetryRepository.createSimObservation).toHaveBeenCalledTimes(1);
+      expect(telemetryRepository.createIpReputation).toHaveBeenCalledTimes(1);
+      expect((telemetryRepository.createOnboardingStepEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ eventType: 'completed', onboardingFlowId: 'flow-1' });
+      expect((telemetryRepository.createCustomerAction as jest.Mock).mock.calls[0][0]).toMatchObject({ screenName: 'home' });
+      expect((telemetryRepository.createCustomerObservation as jest.Mock).mock.calls[0][0]).toMatchObject({ observationCode: 'obs_code' });
+      // confidenceScore definido -> se formatea a 4 decimales
+      const metrics = (telemetryRepository.createOnDeviceMetrics as jest.Mock).mock.calls[0][0] as Array<Record<string, unknown>>;
+      expect(metrics[0]).toMatchObject({ metricCode: 'typing_speed', confidenceScore: '0.8700', computationRunId: 'run-1' });
+    });
+
+    it('sin metadata tipada aplica los defaults (interaction/telemetry/null) y sin flow deja los ids en null', async () => {
+      const { service, telemetryRepository } = arrange(null);
+
+      await service.ingestBatch(
+        baseInput({
+          body: baseBody({
+            events: allTypes({}),
+            onDeviceMetrics: [{ metricCode: 'm', value: '1' }], // sin confidenceScore ni computedAt
+          }),
+        }),
+      );
+
+      expect((telemetryRepository.createFormFieldEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
+        onboardingFlowId: null, interactionType: 'interaction', usedCopyPaste: null, correctionCount: null, focusDurationMs: null,
+      });
+      // sin metadata.granted, se infiere del eventCode (contiene "granted")
+      expect((telemetryRepository.createPermissionEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ granted: true });
+      expect((telemetryRepository.createAuthEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ loginSuccessful: null, failureReasonCode: null });
+      expect((telemetryRepository.createDeviceRiskEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ reasonCode: null });
+      expect((telemetryRepository.createOnboardingStepEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ eventType: 'telemetry', onboardingFlowId: null });
+      expect((telemetryRepository.createCustomerAction as jest.Mock).mock.calls[0][0]).toMatchObject({ screenName: null });
+      const metrics = (telemetryRepository.createOnDeviceMetrics as jest.Mock).mock.calls[0][0] as Array<Record<string, unknown>>;
+      expect(metrics[0]).toMatchObject({ confidenceScore: null });
+    });
+  });
 });
