@@ -102,7 +102,7 @@
     "@nestjs/sequelize": "^11.0.0",
     "@nestjs/swagger": "^11.4.5",
     "@nestjs/throttler": "^6.5.0",
-    "argon2": "^0.41.1",
+    "argon2": "^0.45.0",
     "dotenv": "^17.4.2",
     "helmet": "^8.2.0",
     "ioredis": "^5.4.1",
