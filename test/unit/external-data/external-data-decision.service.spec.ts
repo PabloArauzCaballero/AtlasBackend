@@ -292,5 +292,102 @@ describe('ExternalDataDecisionService', () => {
       const result = await service.replayIdempotentResult(existing as never, 'INFOCENTER');
       expect(result.manualReviewRequired).toBe(true);
     });
+
+    it('sin respuestas almacenadas devuelve observaciones/features vacías y los códigos por defecto', async () => {
+      const { service, repository } = buildService();
+      (repository.findProviderResponsesByRequestId as jest.Mock).mockResolvedValue([] as never);
+
+      const result = await service.replayIdempotentResult(
+        { id: 7, responseStatus: null, responseCode: null, modeUsed: null } as never,
+        'SEGIP' as never,
+      );
+
+      expect(result).toMatchObject({
+        requestId: '7',
+        status: 'PENDING',
+        reasonCode: 'IDEMPOTENT_REPLAY',
+        observations: [],
+        features: {},
+        modeUsed: 'mock_local',
+        manualReviewRequired: false,
+      });
+    });
+
+    it('ignora un payload normalizado con formas inválidas (observations no-array, features no-objeto)', async () => {
+      const { service, repository } = buildService();
+      (repository.findProviderResponsesByRequestId as jest.Mock).mockResolvedValue([
+        { normalizedPayloadJson: { observations: 'no-es-array', features: ['tampoco-es-objeto'] } },
+      ] as never);
+
+      const result = await service.replayIdempotentResult({ id: 7, responseStatus: 'COMPLETED' } as never, 'SEGIP' as never);
+
+      expect(result.observations).toEqual([]);
+      expect(result.features).toEqual({});
+    });
+  });
+
+  describe('mapCostPolicy — proyección pública de la política de costo', () => {
+    it('devuelve null cuando no hay política', () => {
+      const { service } = buildService();
+      expect(service.mapCostPolicy(null as never)).toBeNull();
+    });
+
+    it('proyecta la política y normaliza allowedDecisionStagesJson ausente a []', () => {
+      const { service } = buildService();
+
+      const mapped = service.mapCostPolicy({
+        id: 1,
+        providerId: 3,
+        queryType: 'identity_check',
+        unitCostAmount: '5.00',
+        currency: 'BOB',
+        costTier: 'HIGH',
+        maxQueriesPerUserPerDay: 2,
+        maxQueriesPerUserPerMonth: 10,
+        maxQueriesGlobalPerDay: 100,
+        allowedDecisionStagesJson: null,
+        requiresManualApproval: true,
+        requiresAdminRole: true,
+        blockByDefault: true,
+        cacheTtlSeconds: 3600,
+        featureTtlSeconds: 7200,
+        retryMaxAttempts: 4,
+        retryBackoffSeconds: 2,
+        active: true,
+        activeFrom: null,
+        activeTo: null,
+      } as never);
+
+      expect(mapped).toMatchObject({
+        id: '1',
+        providerId: '3',
+        queryType: 'identity_check',
+        costTier: 'HIGH',
+        allowedDecisionStagesJson: [],
+        requiresManualApproval: true,
+        cacheTtlSeconds: 3600,
+        retryMaxAttempts: 4,
+      });
+    });
+  });
+
+  describe('evaluateQuotaPolicy — cuota mensual por usuario', () => {
+    it('bloquea con RATE_LIMITED cuando solo se excede la cuota mensual del usuario', async () => {
+      const { service, repository } = buildService();
+      // global diaria OK, diaria por usuario OK, mensual por usuario excedida
+      (repository.countRequests as jest.Mock)
+        .mockResolvedValueOnce(0 as never)
+        .mockResolvedValueOnce(0 as never)
+        .mockResolvedValueOnce(10 as never);
+
+      const decision = await service.evaluateQuotaPolicy({
+        providerId: 'p1',
+        providerCode: 'SEGIP',
+        customerId: 'c1',
+        policy: { maxQueriesGlobalPerDay: 100, maxQueriesPerUserPerDay: 5, maxQueriesPerUserPerMonth: 10 } as never,
+      });
+
+      expect(decision).toMatchObject({ blocked: true, status: 'RATE_LIMITED', reasonCode: 'SEGIP_USER_MONTHLY_QUOTA_EXCEEDED' });
+    });
   });
 });
