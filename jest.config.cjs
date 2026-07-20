@@ -90,7 +90,12 @@ const config = {
     // untracked ajenos (http-exception.filter, domain-schemas, admin-read.service).
     // Historial previo: 77/58/66/77 -> 79/60/70/79 (1er lote: external-data controller+repo, catalog-management.
     // repo, runtime-jobs, systems-catalog-query, adapters de notificación).
-    global: { statements: 81, branches: 62, functions: 74, lines: 81 },
+    // Bump 81/62/74/81 -> 82/65/76/82 (2026-07-19, 3º del ciclo): lote de BRANCHES en utils puros,
+    // interceptores, servicios y repos (systems-repository-where, external-data-policy, outbox.interceptor,
+    // session-query, external-data-evidence, http-action-log.interceptor, governance, session-heartbeat,
+    // customer-telemetry, notification-templates, events) — el "resto" quedó en 84.96/68.02/79.03/85.57
+    // (repo total 85.58/68.55/80.09/86.23, 242 suites / 1961 tests). Branches +3.1 pt respecto del bump previo.
+    global: { statements: 82, branches: 65, functions: 76, lines: 82 },
     // Dominios críticos con umbral propio (medidos: ver docs/testing/coverage-ratchet.md).
     // Re-baseline Fase 1.2 (medido in-band, 1770 tests): estos 4 paths no dependen de specs untracked
     // ni de código sin commitear (working tree limpio bajo ellos), así que su nivel es reproducible en
