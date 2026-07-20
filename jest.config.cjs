@@ -95,7 +95,10 @@ const config = {
     // session-query, external-data-evidence, http-action-log.interceptor, governance, session-heartbeat,
     // customer-telemetry, notification-templates, events) — el "resto" quedó en 84.96/68.02/79.03/85.57
     // (repo total 85.58/68.55/80.09/86.23, 242 suites / 1961 tests). Branches +3.1 pt respecto del bump previo.
-    global: { statements: 82, branches: 65, functions: 76, lines: 82 },
+    // Bump 82/65/76/82 -> 83/67/77/83 (2026-07-19, 4º y último del ciclo): 2º lote de branches
+    // (orchestrator, audit.repo, catalog-definitions, session-start, operations.repo, decision.service,
+    // notifications.repo) dejó el "resto" en 85.01/69.15/79.12/85.62. Branches +7 pt en el ciclo (62→69).
+    global: { statements: 83, branches: 67, functions: 77, lines: 83 },
     // Dominios críticos con umbral propio (medidos: ver docs/testing/coverage-ratchet.md).
     // Re-baseline Fase 1.2 (medido in-band, 1770 tests): estos 4 paths no dependen de specs untracked
     // ni de código sin commitear (working tree limpio bajo ellos), así que su nivel es reproducible en

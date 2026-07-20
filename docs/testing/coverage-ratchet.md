@@ -104,6 +104,15 @@ functions 50.42 · lines 69.61.
 > (61.91/43.97/38.20/62.22), no contra el total del repo (62.18). Calibrarlo contra el total dejaría
 > el gate mal ajustado.
 
+## Trayectoria del trinquete global (ciclo 2026-07-19)
+
+`77/58/66/77` → `79/60/70/79` → `81/62/74/81` → `82/65/76/82` → **`83/67/77/83`**. El repo pasó de
+80.65% a **85.6% statements / 69.6% branches / 80.2% functions / 86.3% lines** (1749 → ~1990 tests).
+
+Lo que más rindió para BRANCHES: **ejercitar cada método con datos completos y con datos vacíos** —
+una sola pareja de casos cubre ambos lados de cada `??`/ternario de mapeo. En listados, poner DOS filas
+por colección (una con fecha, otra sin) cubre el `?.toISOString() ?? null` de un tiro.
+
 ## Techo estructural del BRANCH coverage en los controllers (no perseguirlo)
 
 El `branch` es la métrica más baja del repo (~65% global) y **una parte grande de ese hueco no es
