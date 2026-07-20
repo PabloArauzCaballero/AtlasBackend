@@ -60,15 +60,12 @@ describe('NotificationsController — internal-users/me/notifications (e2e/super
     // 403 al intentar revisar SU PROPIO inbox (p. ej. una alerta de servicio caído que el propio
     // backend le mandó). Un usuario interno debe poder ver sus notificaciones sin importar su rol
     // funcional; ver INTERNAL_SELF_SERVICE_ROLES en el controller.
-    it.each(['qa_engineer', 'readonly_auditor'] as const)(
-      '200 para el rol interno "%s" (antes daba 403 — regresión)',
-      async (role) => {
-        await request(app.getHttpServer())
-          .get('/internal-users/me/notifications')
-          .set(...authHeader(role, { internalUserId: 'iu-qa' }))
-          .expect(200);
-      },
-    );
+    it.each(['qa_engineer', 'readonly_auditor'] as const)('200 para el rol interno "%s" (antes daba 403 — regresión)', async (role) => {
+      await request(app.getHttpServer())
+        .get('/internal-users/me/notifications')
+        .set(...authHeader(role, { internalUserId: 'iu-qa' }))
+        .expect(200);
+    });
   });
 
   describe('GET internal-users/me/notifications/unread-count', () => {

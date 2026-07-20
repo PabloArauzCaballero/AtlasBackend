@@ -45,7 +45,9 @@ describe('DataQualityService', () => {
       ],
       meta: { page: 1, limit: 20, total: 1 },
     } as never);
-    (repository.findRulesByIds as jest.Mock).mockResolvedValueOnce([{ id: 'rule-1', severity: 'critical', ruleCode: 'missing_identity_doc' }] as never);
+    (repository.findRulesByIds as jest.Mock).mockResolvedValueOnce([
+      { id: 'rule-1', severity: 'critical', ruleCode: 'missing_identity_doc' },
+    ] as never);
 
     const result = await service.listIssues('t1', {} as never);
 

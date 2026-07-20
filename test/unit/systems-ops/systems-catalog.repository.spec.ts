@@ -8,7 +8,14 @@ import { SystemsCatalogRepository } from '../../../src/modules/systems-ops/syste
  */
 describe('SystemsCatalogRepository', () => {
   function buildRepo() {
-    const make = () => ({ findAndCountAll: jest.fn(), findByPk: jest.fn(), findOne: jest.fn(), findAll: jest.fn(), upsert: jest.fn(), update: jest.fn() });
+    const make = () => ({
+      findAndCountAll: jest.fn(),
+      findByPk: jest.fn(),
+      findOne: jest.fn(),
+      findAll: jest.fn(),
+      upsert: jest.fn(),
+      update: jest.fn(),
+    });
     const models = Array.from({ length: 11 }, make);
     const repo = new SystemsCatalogRepository(
       models[0] as never,
@@ -56,7 +63,14 @@ describe('SystemsCatalogRepository', () => {
   describe('upserts (seed del catálogo)', () => {
     it('upsertEndpoint aplica defaults y deriva isReadonly de GET', async () => {
       const { repo, models } = buildRepo();
-      await repo.upsertEndpoint({ code: 'EP', module: 'auth', method: 'GET', fullPath: '/api/v1/x', routeName: 'x', businessPurpose: 'p' } as never);
+      await repo.upsertEndpoint({
+        code: 'EP',
+        module: 'auth',
+        method: 'GET',
+        fullPath: '/api/v1/x',
+        routeName: 'x',
+        businessPurpose: 'p',
+      } as never);
       const values = (models[0].upsert as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
       expect(values).toMatchObject({ code: 'EP', method: 'GET', isReadonly: true, riskLevel: 'LOW', status: 'ACTIVE' });
     });
@@ -71,7 +85,23 @@ describe('SystemsCatalogRepository', () => {
 
     it('upsertDataEntity y upsertDataImpact delegan en su modelo', async () => {
       const { repo, models } = buildRepo();
-      await repo.upsertDataEntity({ schemaName: 's', tableName: 't', entityName: 'E', module: 'm', businessPurpose: 'p', containsPii: false, containsFinancialData: false, containsRiskData: false, containsLegalData: false, containsDeviceData: false, containsLocationData: false, isAuditCritical: false, detectedFrom: 'seed', confidenceLevel: 'MEDIUM', reviewStatus: 'NEEDS_REVIEW' } as never);
+      await repo.upsertDataEntity({
+        schemaName: 's',
+        tableName: 't',
+        entityName: 'E',
+        module: 'm',
+        businessPurpose: 'p',
+        containsPii: false,
+        containsFinancialData: false,
+        containsRiskData: false,
+        containsLegalData: false,
+        containsDeviceData: false,
+        containsLocationData: false,
+        isAuditCritical: false,
+        detectedFrom: 'seed',
+        confidenceLevel: 'MEDIUM',
+        reviewStatus: 'NEEDS_REVIEW',
+      } as never);
       expect(models[3].upsert).toHaveBeenCalledTimes(1);
       await repo.upsertDataImpact({ endpointId: 'e1', dataEntityId: 'de1', operationType: 'READ', impactLevel: 'LOW' } as never);
       expect(models[4].upsert).toHaveBeenCalledTimes(1);

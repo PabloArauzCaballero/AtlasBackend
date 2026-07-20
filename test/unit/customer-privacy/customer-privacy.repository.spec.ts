@@ -35,7 +35,18 @@ describe('CustomerPrivacyRepository', () => {
     const { repo, models } = buildRepo();
     (models.customerConsent.create as jest.Mock).mockResolvedValue({ id: 'cc1' } as never);
     await repo.createCustomerConsent(
-      { tenantId: 't1', customerId: 'c1', consentDocumentId: 'd1', purposeCode: 'kyc', granted: true, revoked: false, channel: 'app', sessionId: null, ipAddress: null, happenedAt: now },
+      {
+        tenantId: 't1',
+        customerId: 'c1',
+        consentDocumentId: 'd1',
+        purposeCode: 'kyc',
+        granted: true,
+        revoked: false,
+        channel: 'app',
+        sessionId: null,
+        ipAddress: null,
+        happenedAt: now,
+      },
       opts,
     );
     expect((models.customerConsent.create as jest.Mock).mock.calls[0][0]).toMatchObject({ grantedAt: now, revokedAt: null });
@@ -45,7 +56,18 @@ describe('CustomerPrivacyRepository', () => {
     const { repo, models } = buildRepo();
     (models.customerConsent.create as jest.Mock).mockResolvedValue({ id: 'cc1' } as never);
     await repo.createCustomerConsent(
-      { tenantId: 't1', customerId: 'c1', consentDocumentId: 'd1', purposeCode: 'kyc', granted: false, revoked: true, channel: 'app', sessionId: null, ipAddress: null, happenedAt: now },
+      {
+        tenantId: 't1',
+        customerId: 'c1',
+        consentDocumentId: 'd1',
+        purposeCode: 'kyc',
+        granted: false,
+        revoked: true,
+        channel: 'app',
+        sessionId: null,
+        ipAddress: null,
+        happenedAt: now,
+      },
       opts,
     );
     expect((models.customerConsent.create as jest.Mock).mock.calls[0][0]).toMatchObject({ grantedAt: null, revokedAt: now });
@@ -55,7 +77,18 @@ describe('CustomerPrivacyRepository', () => {
     const { repo, models } = buildRepo();
     (models.consentEvent.create as jest.Mock).mockResolvedValue({ id: 'e1' } as never);
     await repo.createConsentEvent(
-      { tenantId: 't1', customerConsentId: 'cc1', eventType: 'revoked', channel: 'app', sessionId: null, ipAddress: null, actorType: 'internal', actorInternalUserId: 'u1', notes: null, happenedAt: now },
+      {
+        tenantId: 't1',
+        customerConsentId: 'cc1',
+        eventType: 'revoked',
+        channel: 'app',
+        sessionId: null,
+        ipAddress: null,
+        actorType: 'internal',
+        actorInternalUserId: 'u1',
+        notes: null,
+        happenedAt: now,
+      },
       opts,
     );
     expect((models.consentEvent.create as jest.Mock).mock.calls[0][0]).toMatchObject({
@@ -94,15 +127,25 @@ describe('CustomerPrivacyRepository', () => {
   it('createActionLog fija screenName=privacy y deviceId null', async () => {
     const { repo, models } = buildRepo();
     (models.customerActionLog.create as jest.Mock).mockResolvedValue({ id: 'al1' } as never);
-    await repo.createActionLog({ tenantId: 't1', customerId: 'c1', sessionId: null, eventName: 'export', payload: { a: 1 }, occurredAt: now }, opts);
-    expect((models.customerActionLog.create as jest.Mock).mock.calls[0][0]).toMatchObject({ screenName: 'privacy', deviceId: null, actionPayloadJson: { a: 1 } });
+    await repo.createActionLog(
+      { tenantId: 't1', customerId: 'c1', sessionId: null, eventName: 'export', payload: { a: 1 }, occurredAt: now },
+      opts,
+    );
+    expect((models.customerActionLog.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      screenName: 'privacy',
+      deviceId: null,
+      actionPayloadJson: { a: 1 },
+    });
   });
 
   it('createDataSubjectRequest nace received, no resuelto y no borrado', async () => {
     const { repo, models } = buildRepo();
     (models.dataSubjectRequest.create as jest.Mock).mockResolvedValue({ id: 'dsr1' } as never);
     const dueAt = new Date('2026-02-20');
-    await repo.createDataSubjectRequest({ tenantId: 't1', requestCode: 'REQ-1', customerId: 'c1', requestType: 'access', dueAt, requestedAt: now }, opts);
+    await repo.createDataSubjectRequest(
+      { tenantId: 't1', requestCode: 'REQ-1', customerId: 'c1', requestType: 'access', dueAt, requestedAt: now },
+      opts,
+    );
     expect((models.dataSubjectRequest.create as jest.Mock).mock.calls[0][0]).toMatchObject({
       status: 'received',
       resolvedAt: null,

@@ -340,7 +340,10 @@ describe('SessionStartService.startSession', () => {
   describe('telemetría opcional del arranque (ambos lados de cada ?? null)', () => {
     async function arrange(flow: unknown) {
       const mocks = await buildService();
-      (mocks.customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'approved_for_next_step' } as never);
+      (mocks.customersRepository.findById as jest.Mock).mockResolvedValueOnce({
+        id: 'c1',
+        lifecycleStatus: 'approved_for_next_step',
+      } as never);
       await primeDeviceMocks(mocks);
       // primeDeviceMocks encola un `mockResolvedValueOnce(null)` para el flow; se limpia para poder fijarlo.
       (mocks.sessionsRepository.findLatestOnboardingFlow as jest.Mock).mockReset();
@@ -360,7 +363,16 @@ describe('SessionStartService.startSession', () => {
             deviceFingerprintHash: 'fp-1',
             fingerprintVersion: 'v1',
             channel: 'mobile_app',
-            snapshot: { brand: 'Samsung', model: 'A54', osFamily: 'android', osVersion: '14', appVersion: '1.2.3', isRooted: false, isEmulator: false, vpnDetected: true },
+            snapshot: {
+              brand: 'Samsung',
+              model: 'A54',
+              osFamily: 'android',
+              osVersion: '14',
+              appVersion: '1.2.3',
+              isRooted: false,
+              isEmulator: false,
+              vpnDetected: true,
+            },
           },
           permissions: [{ permissionCode: 'location', granted: true, decidedAt: '2026-01-01T00:00:00.000Z' }],
           simObservation: { phoneNumberHash: 'h', phoneLast4: '1234', carrierName: 'Tigo', simType: 'physical', simCount: 2 },
@@ -368,10 +380,26 @@ describe('SessionStartService.startSession', () => {
         }) as never,
       });
 
-      expect((mocks.sessionsRepository.createDeviceSnapshot as jest.Mock).mock.calls[0][0]).toMatchObject({ brand: 'Samsung', osVersion: '14', vpnDetected: true });
-      expect((mocks.sessionsRepository.createPermissionEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ onboardingFlowId: 'flow-1', permissionCode: 'location' });
-      expect((mocks.sessionsRepository.createSimObservation as jest.Mock).mock.calls[0][0]).toMatchObject({ carrierName: 'Tigo', phoneLast4: '1234', simCount: 2 });
-      expect((mocks.sessionsRepository.createIpReputation as jest.Mock).mock.calls[0][0]).toMatchObject({ isVpn: true, countryCode: 'BO', city: 'La Paz', ipAddress: '10.0.0.1' });
+      expect((mocks.sessionsRepository.createDeviceSnapshot as jest.Mock).mock.calls[0][0]).toMatchObject({
+        brand: 'Samsung',
+        osVersion: '14',
+        vpnDetected: true,
+      });
+      expect((mocks.sessionsRepository.createPermissionEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
+        onboardingFlowId: 'flow-1',
+        permissionCode: 'location',
+      });
+      expect((mocks.sessionsRepository.createSimObservation as jest.Mock).mock.calls[0][0]).toMatchObject({
+        carrierName: 'Tigo',
+        phoneLast4: '1234',
+        simCount: 2,
+      });
+      expect((mocks.sessionsRepository.createIpReputation as jest.Mock).mock.calls[0][0]).toMatchObject({
+        isVpn: true,
+        countryCode: 'BO',
+        city: 'La Paz',
+        ipAddress: '10.0.0.1',
+      });
     });
 
     it('con los bloques presentes pero vacíos, cada campo opcional cae a null (y sin flow, el id queda en null)', async () => {
@@ -390,14 +418,29 @@ describe('SessionStartService.startSession', () => {
       });
 
       expect((mocks.sessionsRepository.createDeviceSnapshot as jest.Mock).mock.calls[0][0]).toMatchObject({
-        brand: null, model: null, osFamily: null, osVersion: null, appVersion: null, isRooted: null, isEmulator: null, vpnDetected: null,
+        brand: null,
+        model: null,
+        osFamily: null,
+        osVersion: null,
+        appVersion: null,
+        isRooted: null,
+        isEmulator: null,
+        vpnDetected: null,
       });
       expect((mocks.sessionsRepository.createPermissionEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ onboardingFlowId: null });
       expect((mocks.sessionsRepository.createSimObservation as jest.Mock).mock.calls[0][0]).toMatchObject({
-        phoneNumberHash: null, phoneLast4: null, carrierName: null, simType: null, simCount: null,
+        phoneNumberHash: null,
+        phoneLast4: null,
+        carrierName: null,
+        simType: null,
+        simCount: null,
       });
       expect((mocks.sessionsRepository.createIpReputation as jest.Mock).mock.calls[0][0]).toMatchObject({
-        isVpn: null, isProxy: null, isTor: null, countryCode: null, city: null,
+        isVpn: null,
+        isProxy: null,
+        isTor: null,
+        countryCode: null,
+        city: null,
       });
     });
   });

@@ -56,7 +56,11 @@ describe('AuthActorResolverService', () => {
   it('resolveActorForLogin(customer) => null si no existe o está closed', async () => {
     const { service, customersRepository } = build();
     expect(await service.resolveActorForLogin('t1', 'customer', 'x@mail.com')).toBeNull();
-    (customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce({ id: 'c1', tenantId: 't1', lifecycleStatus: 'closed' } as never);
+    (customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce({
+      id: 'c1',
+      tenantId: 't1',
+      lifecycleStatus: 'closed',
+    } as never);
     expect(await service.resolveActorForLogin('t1', 'customer', 'x@mail.com')).toBeNull();
   });
 

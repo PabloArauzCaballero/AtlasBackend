@@ -157,11 +157,7 @@ describe('InternalAuthController · refresh', () => {
     const { controller, authService } = buildController();
     const { response } = buildResponseSpy();
 
-    await controller.refresh(
-      { refreshToken: 'desde-body-0123456789' },
-      requestWith('atlas_internal_refresh=desde-cookie'),
-      response,
-    );
+    await controller.refresh({ refreshToken: 'desde-body-0123456789' }, requestWith('atlas_internal_refresh=desde-cookie'), response);
 
     expect(authService.refresh).toHaveBeenCalledWith(expect.objectContaining({ refreshToken: 'desde-cookie' }));
   });
@@ -172,9 +168,7 @@ describe('InternalAuthController · refresh', () => {
 
     await controller.refresh({ refreshToken: 'desde-body-0123456789' }, requestWith(), response);
 
-    expect(authService.refresh).toHaveBeenCalledWith(
-      expect.objectContaining({ refreshToken: 'desde-body-0123456789' }),
-    );
+    expect(authService.refresh).toHaveBeenCalledWith(expect.objectContaining({ refreshToken: 'desde-body-0123456789' }));
   });
 
   it('rechaza si no hay ni cookie ni body', async () => {

@@ -50,7 +50,13 @@ describe('SystemsTestRunnerService.runSuite', () => {
 
   const user = { role: 'system_admin', tenantId: 't1', internalUserId: 'u1', platformUserId: null } as never;
   const dryBody = { environment: 'TEST', dryRun: true, config: {}, headers: {}, timeoutMs: 5000 } as never;
-  const enabledSuite = (over: Record<string, unknown> = {}) => ({ id: 1, isEnabled: true, environmentScope: ['TEST'], isSafeForProduction: false, ...over });
+  const enabledSuite = (over: Record<string, unknown> = {}) => ({
+    id: 1,
+    isEnabled: true,
+    environmentScope: ['TEST'],
+    isSafeForProduction: false,
+    ...over,
+  });
 
   it('lanza NotFound si la suite no existe', async () => {
     const { service } = build(null, []);
@@ -69,16 +75,19 @@ describe('SystemsTestRunnerService.runSuite', () => {
 
   it('bloquea la ejecución en PRODUCTION_READONLY sobre una suite no segura', async () => {
     const { service } = build(enabledSuite({ environmentScope: ['PRODUCTION_READONLY'], isSafeForProduction: false }), [step()]);
-    await expect(
-      service.runSuite('1', { ...dryBody, environment: 'PRODUCTION_READONLY' } as never, user),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.runSuite('1', { ...dryBody, environment: 'PRODUCTION_READONLY' } as never, user)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 
   it('lanza BadRequest si la suite no tiene pasos o excede el máximo', async () => {
     const noSteps = build(enabledSuite(), []);
     await expect(noSteps.service.runSuite('1', dryBody, user)).rejects.toBeInstanceOf(BadRequestException);
 
-    const tooMany = build(enabledSuite(), Array.from({ length: 51 }, (_, i) => step({ id: i, stepOrder: i })));
+    const tooMany = build(
+      enabledSuite(),
+      Array.from({ length: 51 }, (_, i) => step({ id: i, stepOrder: i })),
+    );
     await expect(tooMany.service.runSuite('1', dryBody, user)).rejects.toBeInstanceOf(BadRequestException);
   });
 

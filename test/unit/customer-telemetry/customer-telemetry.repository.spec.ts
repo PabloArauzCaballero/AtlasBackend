@@ -109,7 +109,15 @@ describe('CustomerTelemetryRepository', () => {
     it('createPermissionEvent guarda el grant del permiso', async () => {
       const { repo, models } = buildRepo();
       await repo.createPermissionEvent(
-        { tenantId: 't1', customerId: 'c1', sessionId: 's1', onboardingFlowId: null, permissionCode: 'location', granted: true, occurredAt: new Date('2026-01-01') },
+        {
+          tenantId: 't1',
+          customerId: 'c1',
+          sessionId: 's1',
+          onboardingFlowId: null,
+          permissionCode: 'location',
+          granted: true,
+          occurredAt: new Date('2026-01-01'),
+        },
         tx,
       );
       expect((models.permissionEvent.create as jest.Mock).mock.calls[0][0]).toMatchObject({ permissionCode: 'location', granted: true });
@@ -151,12 +159,28 @@ describe('CustomerTelemetryRepository', () => {
         },
         tx,
       );
-      expect((models.operationalAuditLog.create as jest.Mock).mock.calls[0][0]).toMatchObject({ actionCode: 'telemetry.ingest', targetId: 'c1' });
+      expect((models.operationalAuditLog.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+        actionCode: 'telemetry.ingest',
+        targetId: 'c1',
+      });
     });
   });
 
   describe('escrituras adicionales', () => {
-    const base = { tenantId: 't1', customerId: 'c1', sessionId: 's1', deviceId: 'd1', onboardingFlowId: 'f1', occurredAt: new Date('2026-01-01'), createdAt: new Date('2026-01-01'), metadata: {}, signalsJson: {}, payload: {}, summary: {}, snapshotJson: {} };
+    const base = {
+      tenantId: 't1',
+      customerId: 'c1',
+      sessionId: 's1',
+      deviceId: 'd1',
+      onboardingFlowId: 'f1',
+      occurredAt: new Date('2026-01-01'),
+      createdAt: new Date('2026-01-01'),
+      metadata: {},
+      signalsJson: {},
+      payload: {},
+      summary: {},
+      snapshotJson: {},
+    };
 
     it('los creates simples delegan cada uno en su modelo', async () => {
       const { repo, models } = buildRepo();
@@ -180,7 +204,10 @@ describe('CustomerTelemetryRepository', () => {
       const { repo, models } = buildRepo();
       await repo.createOnDeviceMetric({ ...base, computationRunId: 'r1', metricCode: 'm', value: 0.5, confidenceScore: null } as never, tx);
       await repo.createOnDeviceMetric({ ...base, computationRunId: 'r1', metricCode: 'm', value: 'x', confidenceScore: null } as never, tx);
-      await repo.createOnDeviceMetric({ ...base, computationRunId: 'r1', metricCode: 'm', value: { a: 1 }, confidenceScore: null } as never, tx);
+      await repo.createOnDeviceMetric(
+        { ...base, computationRunId: 'r1', metricCode: 'm', value: { a: 1 }, confidenceScore: null } as never,
+        tx,
+      );
       const calls = (models.onDeviceMetricValue.create as jest.Mock).mock.calls;
       expect(calls[0][0]).toMatchObject({ valueNumber: '0.5000', valueText: null, valueBoolean: null });
       expect(calls[1][0]).toMatchObject({ valueText: 'x' });
@@ -193,8 +220,13 @@ describe('CustomerTelemetryRepository', () => {
       expect(empty.models.onDeviceMetricValue.bulkCreate).not.toHaveBeenCalled();
 
       const { repo, models } = buildRepo();
-      await repo.createOnDeviceMetrics([{ ...base, computationRunId: 'r', metricCode: 'm', value: true, confidenceScore: null }] as never, tx);
-      expect(((models.onDeviceMetricValue.bulkCreate as jest.Mock).mock.calls[0][0] as Array<Record<string, unknown>>)[0]).toMatchObject({ valueBoolean: true });
+      await repo.createOnDeviceMetrics(
+        [{ ...base, computationRunId: 'r', metricCode: 'm', value: true, confidenceScore: null }] as never,
+        tx,
+      );
+      expect(((models.onDeviceMetricValue.bulkCreate as jest.Mock).mock.calls[0][0] as Array<Record<string, unknown>>)[0]).toMatchObject({
+        valueBoolean: true,
+      });
     });
 
     it('createBehaviorSummary fija permissionGrantScore según el conteo de permisos', async () => {

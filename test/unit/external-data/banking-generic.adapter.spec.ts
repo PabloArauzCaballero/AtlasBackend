@@ -13,18 +13,35 @@ describe('BankingGenericAdapter', () => {
   });
 
   it('normalize (VERIFIED, matches true) verifica y reconcilia como MATCHED', async () => {
-    const obs = await adapter.normalize({ status: 'VERIFIED', payload: { status: 'VERIFIED', amountMatches: true, referenceMatches: true } } as never);
+    const obs = await adapter.normalize({
+      status: 'VERIFIED',
+      payload: { status: 'VERIFIED', amountMatches: true, referenceMatches: true },
+    } as never);
     expect(obs.find((o) => o.observationKey === 'bank_transfer_status')).toMatchObject({ verified: true });
-    expect(obs.find((o) => o.observationKey === 'payment_amount_match')).toMatchObject({ valueType: 'BOOLEAN', valueBoolean: true, verified: true });
+    expect(obs.find((o) => o.observationKey === 'payment_amount_match')).toMatchObject({
+      valueType: 'BOOLEAN',
+      valueBoolean: true,
+      verified: true,
+    });
     expect(obs.find((o) => o.observationKey === 'reconciliation_status')).toMatchObject({ valueString: 'MATCHED', verified: true });
   });
 
   it('normalize con matches null/undefined -> STRING DATA_NOT_AVAILABLE; false -> revisión manual', async () => {
-    const pending = await adapter.normalize({ status: 'PENDING', payload: { status: 'PENDING', amountMatches: null, referenceMatches: null } } as never);
-    expect(pending.find((o) => o.observationKey === 'payment_amount_match')).toMatchObject({ valueType: 'STRING', valueString: 'DATA_NOT_AVAILABLE', verified: false });
+    const pending = await adapter.normalize({
+      status: 'PENDING',
+      payload: { status: 'PENDING', amountMatches: null, referenceMatches: null },
+    } as never);
+    expect(pending.find((o) => o.observationKey === 'payment_amount_match')).toMatchObject({
+      valueType: 'STRING',
+      valueString: 'DATA_NOT_AVAILABLE',
+      verified: false,
+    });
     expect(pending.find((o) => o.observationKey === 'reconciliation_status')).toMatchObject({ valueString: 'PENDING' });
 
-    const failed = await adapter.normalize({ status: 'FAILED', payload: { status: 'FAILED', amountMatches: false, referenceMatches: false } } as never);
+    const failed = await adapter.normalize({
+      status: 'FAILED',
+      payload: { status: 'FAILED', amountMatches: false, referenceMatches: false },
+    } as never);
     expect(failed.find((o) => o.observationKey === 'bank_transfer_status')).toMatchObject({ manualReviewRequired: true });
     expect(failed.find((o) => o.observationKey === 'payment_amount_match')).toMatchObject({ manualReviewRequired: true });
   });

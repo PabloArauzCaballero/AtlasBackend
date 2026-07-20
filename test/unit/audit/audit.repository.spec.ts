@@ -70,7 +70,11 @@ describe('AuditRepository', () => {
 
     it('aplica el rango de fechas [from,to] al where de la fuente', async () => {
       const { repo, models } = buildRepo();
-      await repo.findCustomerAuditEvents('t1', 'c1', baseQuery({ eventType: 'status', from: '2026-01-01T00:00:00.000Z', to: '2026-02-01T00:00:00.000Z' }));
+      await repo.findCustomerAuditEvents(
+        't1',
+        'c1',
+        baseQuery({ eventType: 'status', from: '2026-01-01T00:00:00.000Z', to: '2026-02-01T00:00:00.000Z' }),
+      );
       const where = (models.customerStatusEvent.findAll as jest.Mock).mock.calls[0][0].where as { happenedAt: Record<symbol, Date> };
       expect(where.happenedAt[Op.gte]).toEqual(new Date('2026-01-01T00:00:00.000Z'));
       expect(where.happenedAt[Op.lte]).toEqual(new Date('2026-02-01T00:00:00.000Z'));
@@ -199,10 +203,14 @@ describe('AuditRepository', () => {
       (models.customerStatusEvent.findAll as jest.Mock).mockResolvedValue([
         { id: 1, happenedAt: null, createdAtValue, previousStatus: null, newStatus: 'active' },
       ] as never);
-      (models.customerActionLog.findAll as jest.Mock).mockResolvedValue([{ id: 2, occurredAt: null, createdAtValue, eventName: null }] as never);
+      (models.customerActionLog.findAll as jest.Mock).mockResolvedValue([
+        { id: 2, occurredAt: null, createdAtValue, eventName: null },
+      ] as never);
       (models.authEvent.findAll as jest.Mock).mockResolvedValue([{ id: 3, occurredAt: null, createdAtValue, eventType: null }] as never);
       (models.dataChangeLog.findAll as jest.Mock).mockResolvedValue([{ id: 4, changedAt: null, createdAtValue }] as never);
-      (models.operationalAuditLog.findAll as jest.Mock).mockResolvedValue([{ id: 5, occurredAt: null, createdAtValue, actionCode: null }] as never);
+      (models.operationalAuditLog.findAll as jest.Mock).mockResolvedValue([
+        { id: 5, occurredAt: null, createdAtValue, actionCode: null },
+      ] as never);
       // sin consentimientos: la consulta de eventos de consentimiento ni se dispara
       (models.customerConsent.findAll as jest.Mock).mockResolvedValue([] as never);
 

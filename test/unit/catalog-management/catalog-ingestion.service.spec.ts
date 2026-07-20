@@ -150,9 +150,7 @@ describe('CatalogIngestionService', () => {
       } as never);
 
       await expect(
-        service.decideStagingItems(
-          baseInput([{ stagingItemId: 'staging-1', decision: 'approve', aliases: [], riskMappings: [] }]),
-        ),
+        service.decideStagingItems(baseInput([{ stagingItemId: 'staging-1', decision: 'approve', aliases: [], riskMappings: [] }])),
       ).rejects.toThrow(/catálogo distinto/);
       expect(repository.createContextItem).not.toHaveBeenCalled();
     });

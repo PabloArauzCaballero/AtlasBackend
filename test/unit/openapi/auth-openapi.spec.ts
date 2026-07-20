@@ -17,7 +17,9 @@ describe('AuthController — OpenAPI document generation', () => {
   async function buildDocument() {
     const moduleRef = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: { login: jest.fn(), refresh: jest.fn(), logout: jest.fn(), provisionCredentials: jest.fn() } }],
+      providers: [
+        { provide: AuthService, useValue: { login: jest.fn(), refresh: jest.fn(), logout: jest.fn(), provisionCredentials: jest.fn() } },
+      ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })
@@ -36,9 +38,7 @@ describe('AuthController — OpenAPI document generation', () => {
   it('documents all 4 auth endpoints under the /auth prefix', async () => {
     const document = await buildDocument();
     const paths = Object.keys(document.paths);
-    expect(paths).toEqual(
-      expect.arrayContaining(['/auth/login', '/auth/refresh', '/auth/logout', '/auth/provision-credentials']),
-    );
+    expect(paths).toEqual(expect.arrayContaining(['/auth/login', '/auth/refresh', '/auth/logout', '/auth/provision-credentials']));
   });
 
   it('derives the login request body schema from loginSchema — actorType enum and identifier/password constraints appear', async () => {

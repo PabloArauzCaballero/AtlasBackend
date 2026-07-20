@@ -170,7 +170,12 @@ describe('InternalUsersService security boundaries', () => {
     const tokenRevocationService = makeTokenRevocationService();
     const service = new InternalUsersService(repository as never, tokenRevocationService as never);
 
-    await service.updateUser(currentUser, '11', { status: 'disabled', reason: 'baja operativa aprobada' }, { ipAddress: null, userAgent: null });
+    await service.updateUser(
+      currentUser,
+      '11',
+      { status: 'disabled', reason: 'baja operativa aprobada' },
+      { ipAddress: null, userAgent: null },
+    );
 
     expect(tokenRevocationService.bumpTokenVersion).toHaveBeenCalledWith('internal_user', '11');
   });

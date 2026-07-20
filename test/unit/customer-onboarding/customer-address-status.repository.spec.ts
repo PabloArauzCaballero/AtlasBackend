@@ -102,7 +102,17 @@ describe('CustomerAddressStatusRepository', () => {
     const { repo, addressGpsObservationModel } = buildRepo();
     (addressGpsObservationModel.create as jest.Mock).mockResolvedValue({ id: 'o1' } as never);
     await repo.createGpsObservation(
-      { tenantId: 't1', customerId: 'c1', customerAddressId: 'a1', addressVersionId: 'v1', sessionId: 's1', gpsLat: '1', gpsLng: '2', gpsAccuracyMeters: '5', capturedAt: now },
+      {
+        tenantId: 't1',
+        customerId: 'c1',
+        customerAddressId: 'a1',
+        addressVersionId: 'v1',
+        sessionId: 's1',
+        gpsLat: '1',
+        gpsLng: '2',
+        gpsAccuracyMeters: '5',
+        capturedAt: now,
+      },
       opts,
     );
     expect((addressGpsObservationModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({

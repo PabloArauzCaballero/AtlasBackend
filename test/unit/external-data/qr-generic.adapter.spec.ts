@@ -14,17 +14,30 @@ describe('QrGenericAdapter', () => {
   });
 
   it('normalize (verificado) marca verified y sin revisión manual en los matches', async () => {
-    const obs = await adapter.normalize({ status: 'PAYMENT_VERIFIED', payload: { status: 'PAYMENT_VERIFIED', amountMatches: true, referenceMatches: true, paidAmount: 600 } } as never);
+    const obs = await adapter.normalize({
+      status: 'PAYMENT_VERIFIED',
+      payload: { status: 'PAYMENT_VERIFIED', amountMatches: true, referenceMatches: true, paidAmount: 600 },
+    } as never);
     expect(obs.find((o) => o.observationKey === 'qr_payment_status')).toMatchObject({ verified: true, manualReviewRequired: false });
     expect(obs.find((o) => o.observationKey === 'payment_amount_match')).toMatchObject({ valueBoolean: true, manualReviewRequired: false });
     expect(obs.find((o) => o.observationKey === 'payment_paid_amount')).toMatchObject({ valueType: 'NUMBER', valueNumber: 600 });
   });
 
   it('normalize (fallo) exige revisión manual, refleja duplicado y datos ausentes', async () => {
-    const obs = await adapter.normalize({ status: 'PAYMENT_NOT_FOUND', payload: { status: 'PAYMENT_NOT_FOUND', amountMatches: false, referenceMatches: false, duplicateDetected: true } } as never);
+    const obs = await adapter.normalize({
+      status: 'PAYMENT_NOT_FOUND',
+      payload: { status: 'PAYMENT_NOT_FOUND', amountMatches: false, referenceMatches: false, duplicateDetected: true },
+    } as never);
     expect(obs.find((o) => o.observationKey === 'qr_payment_status')).toMatchObject({ verified: false, manualReviewRequired: true });
     expect(obs.find((o) => o.observationKey === 'payment_amount_match')).toMatchObject({ manualReviewRequired: true });
-    expect(obs.find((o) => o.observationKey === 'payment_duplicate_detected')).toMatchObject({ valueBoolean: true, manualReviewRequired: true });
-    expect(obs.find((o) => o.observationKey === 'payment_paid_amount')).toMatchObject({ valueType: 'STRING', valueString: 'DATA_NOT_AVAILABLE', verified: false });
+    expect(obs.find((o) => o.observationKey === 'payment_duplicate_detected')).toMatchObject({
+      valueBoolean: true,
+      manualReviewRequired: true,
+    });
+    expect(obs.find((o) => o.observationKey === 'payment_paid_amount')).toMatchObject({
+      valueType: 'STRING',
+      valueString: 'DATA_NOT_AVAILABLE',
+      verified: false,
+    });
   });
 });

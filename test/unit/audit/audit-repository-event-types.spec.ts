@@ -46,14 +46,22 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
       customerConsentModel: { findAll: jest.fn(async () => [{ id: 'cc-1' }, { id: 'cc-2' }]) },
       consentEventModel: {
         findAll: jest.fn(async () => [
-          { happenedAt: new Date('2026-01-01T00:00:00.000Z'), createdAtValue: new Date(), triggeredByType: 'customer', eventType: 'granted', notes: null },
+          {
+            happenedAt: new Date('2026-01-01T00:00:00.000Z'),
+            createdAtValue: new Date(),
+            triggeredByType: 'customer',
+            eventType: 'granted',
+            notes: null,
+          },
         ]),
       },
     });
 
     const result = await repository.findCustomerAuditEvents('t1', 'c1', { ...baseQuery, eventType: 'consent' });
 
-    expect(models.customerConsentModel.findAll).toHaveBeenCalledWith(expect.objectContaining({ where: { tenantId: 't1', customerId: 'c1' } }));
+    expect(models.customerConsentModel.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { tenantId: 't1', customerId: 'c1' } }),
+    );
     expect(models.consentEventModel.findAll).toHaveBeenCalledTimes(1);
     expect(result).toHaveLength(1);
     expect(result[0]?.eventType).toBe('consent');
@@ -75,7 +83,13 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
       manualReviewCaseModel: { findAll: jest.fn(async () => [{ id: 'case-1' }]) },
       manualReviewEventModel: {
         findAll: jest.fn(async () => [
-          { happenedAt: new Date('2026-01-01T00:00:00.000Z'), createdAtValue: new Date(), actorType: 'risk_analyst', eventType: 'decision_recorded', payloadJson: {} },
+          {
+            happenedAt: new Date('2026-01-01T00:00:00.000Z'),
+            createdAtValue: new Date(),
+            actorType: 'risk_analyst',
+            eventType: 'decision_recorded',
+            payloadJson: {},
+          },
         ]),
       },
     });
@@ -91,7 +105,13 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
       fraudCaseModel: { findAll: jest.fn(async () => [{ id: 'fraud-1' }]) },
       fraudCaseEventModel: {
         findAll: jest.fn(async () => [
-          { happenedAt: new Date('2026-01-01T00:00:00.000Z'), createdAtValue: new Date(), actorType: 'fraud_analyst', eventType: 'decision_recorded', payloadJson: {} },
+          {
+            happenedAt: new Date('2026-01-01T00:00:00.000Z'),
+            createdAtValue: new Date(),
+            actorType: 'fraud_analyst',
+            eventType: 'decision_recorded',
+            payloadJson: {},
+          },
         ]),
       },
     });
@@ -107,19 +127,37 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
       customerConsentModel: { findAll: jest.fn(async () => [{ id: 'cc-1' }]) },
       consentEventModel: {
         findAll: jest.fn(async () => [
-          { happenedAt: new Date('2026-01-03T00:00:00.000Z'), createdAtValue: new Date(), triggeredByType: 'customer', eventType: 'granted', notes: null },
+          {
+            happenedAt: new Date('2026-01-03T00:00:00.000Z'),
+            createdAtValue: new Date(),
+            triggeredByType: 'customer',
+            eventType: 'granted',
+            notes: null,
+          },
         ]),
       },
       manualReviewCaseModel: { findAll: jest.fn(async () => [{ id: 'case-1' }]) },
       manualReviewEventModel: {
         findAll: jest.fn(async () => [
-          { happenedAt: new Date('2026-01-02T00:00:00.000Z'), createdAtValue: new Date(), actorType: 'risk_analyst', eventType: 'decision_recorded', payloadJson: {} },
+          {
+            happenedAt: new Date('2026-01-02T00:00:00.000Z'),
+            createdAtValue: new Date(),
+            actorType: 'risk_analyst',
+            eventType: 'decision_recorded',
+            payloadJson: {},
+          },
         ]),
       },
       fraudCaseModel: { findAll: jest.fn(async () => [{ id: 'fraud-1' }]) },
       fraudCaseEventModel: {
         findAll: jest.fn(async () => [
-          { happenedAt: new Date('2026-01-01T00:00:00.000Z'), createdAtValue: new Date(), actorType: 'fraud_analyst', eventType: 'decision_recorded', payloadJson: {} },
+          {
+            happenedAt: new Date('2026-01-01T00:00:00.000Z'),
+            createdAtValue: new Date(),
+            actorType: 'fraud_analyst',
+            eventType: 'decision_recorded',
+            payloadJson: {},
+          },
         ]),
       },
     });

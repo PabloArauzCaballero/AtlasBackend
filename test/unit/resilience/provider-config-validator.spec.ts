@@ -1,5 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
-import { assertAllProvidersConfigured, assertProviderConfigured, ProviderConfigError } from '../../../src/common/resilience/provider-config-validator.js';
+import {
+  assertAllProvidersConfigured,
+  assertProviderConfigured,
+  ProviderConfigError,
+} from '../../../src/common/resilience/provider-config-validator.js';
 
 describe('assertProviderConfigured', () => {
   it('does nothing when all required vars are present', () => {

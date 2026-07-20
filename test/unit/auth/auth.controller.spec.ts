@@ -44,9 +44,27 @@ describe('AuthController', () => {
   it('requestPasswordReset y confirmPasswordReset delegan con tenant y red', async () => {
     const { controller, authService } = build();
     await controller.requestPasswordReset('1', { actorType: 'internal_user', identifier: 'a@x.com' } as never, request);
-    expect(authService.requestPasswordReset).toHaveBeenCalledWith({ tenantId, actorType: 'internal_user', identifier: 'a@x.com', ip, userAgent });
-    await controller.confirmPasswordReset('1', { actorType: 'internal_user', identifier: 'a@x.com', code: '000000', newPassword: 'NewPass1!' } as never, request);
-    expect(authService.confirmPasswordReset).toHaveBeenCalledWith({ tenantId, actorType: 'internal_user', identifier: 'a@x.com', code: '000000', newPassword: 'NewPass1!', ip, userAgent });
+    expect(authService.requestPasswordReset).toHaveBeenCalledWith({
+      tenantId,
+      actorType: 'internal_user',
+      identifier: 'a@x.com',
+      ip,
+      userAgent,
+    });
+    await controller.confirmPasswordReset(
+      '1',
+      { actorType: 'internal_user', identifier: 'a@x.com', code: '000000', newPassword: 'NewPass1!' } as never,
+      request,
+    );
+    expect(authService.confirmPasswordReset).toHaveBeenCalledWith({
+      tenantId,
+      actorType: 'internal_user',
+      identifier: 'a@x.com',
+      code: '000000',
+      newPassword: 'NewPass1!',
+      ip,
+      userAgent,
+    });
   });
 
   it('refresh y logout delegan (logout pasa allDevices)', async () => {
@@ -61,7 +79,9 @@ describe('AuthController', () => {
     const { controller, authService } = build();
     await controller.setMfaPreference({ enabled: true } as never, { role: 'customer', customerId: '9' } as never);
     expect(authService.setCustomerMfaPreference).toHaveBeenCalledWith({ actorId: '9', enabled: true });
-    expect(() => controller.setMfaPreference({ enabled: true } as never, { role: 'internal_operator' } as never)).toThrow(ForbiddenException);
+    expect(() => controller.setMfaPreference({ enabled: true } as never, { role: 'internal_operator' } as never)).toThrow(
+      ForbiddenException,
+    );
   });
 
   it('provisionCredentials delega el body + el rol del actor autenticado', async () => {

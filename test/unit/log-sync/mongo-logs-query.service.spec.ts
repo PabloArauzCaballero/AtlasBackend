@@ -25,7 +25,15 @@ describe('MongoLogsQueryService', () => {
 
   it('arma los filtros (type/service/q escapado/rango) y pagina con skip/limit correctos', async () => {
     const { service, collection, chain } = build([], 0);
-    await service.listLogs({ type: 'error', service: 'atlas', q: 'a.b*c', from: '2026-01-01', to: '2026-02-01', page: 2, limit: 10 } as never);
+    await service.listLogs({
+      type: 'error',
+      service: 'atlas',
+      q: 'a.b*c',
+      from: '2026-01-01',
+      to: '2026-02-01',
+      page: 2,
+      limit: 10,
+    } as never);
     const filter = (collection.find.mock.calls[0] as [Record<string, { $gte?: Date; $lte?: Date }>])[0];
     expect(filter).toMatchObject({ type: 'error', service: 'atlas', content: { $regex: escapeRegex('a.b*c'), $options: 'i' } });
     expect(filter.capturedAt.$gte).toBeInstanceOf(Date);

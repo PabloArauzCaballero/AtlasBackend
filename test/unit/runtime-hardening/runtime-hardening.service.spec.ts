@@ -58,7 +58,12 @@ describe('RuntimeHardeningService.claimIdempotency', () => {
     const { service, idempotencyModel } = buildService();
     idempotencyModel.findOne.mockResolvedValueOnce(null);
     idempotencyModel.create.mockRejectedValueOnce(new UniqueConstraintError({}));
-    const winner = { requestHash: 'hash-1', status: 'processing', lockedUntil: new Date(NOW.getTime() + 60_000), save: jest.fn(async () => undefined) };
+    const winner = {
+      requestHash: 'hash-1',
+      status: 'processing',
+      lockedUntil: new Date(NOW.getTime() + 60_000),
+      save: jest.fn(async () => undefined),
+    };
     idempotencyModel.findOne.mockResolvedValueOnce(winner as never);
 
     await expect(

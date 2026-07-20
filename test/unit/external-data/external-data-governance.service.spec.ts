@@ -743,7 +743,16 @@ describe('ExternalDataGovernanceService', () => {
     it('readiness acumula ADAPTER_MISSING + PROVIDER_DISABLED + MODE_DISABLED + NO_COST_POLICY', async () => {
       const { service, repository, registry } = buildService();
       repository.listProviders.mockResolvedValue([
-        { id: 1, providerCode: 'SEGIP', providerName: 'Segip', providerCategory: null, providerType: 'identity', defaultMode: 'disabled', isActive: false, providerStatus: 'DISABLED' },
+        {
+          id: 1,
+          providerCode: 'SEGIP',
+          providerName: 'Segip',
+          providerCategory: null,
+          providerType: 'identity',
+          defaultMode: 'disabled',
+          isActive: false,
+          providerStatus: 'DISABLED',
+        },
       ] as never);
       (registry.hasAdapter as jest.Mock).mockReturnValue(false as never);
       repository.listCostPolicies.mockResolvedValue([] as never);
@@ -763,13 +772,23 @@ describe('ExternalDataGovernanceService', () => {
     it('readiness agrega HEALTH_DOWN cuando el adapter responde DOWN, y deriva status ACTIVE sin providerStatus', async () => {
       const { service, repository, registry } = buildService();
       repository.listProviders.mockResolvedValue([
-        { id: 1, providerCode: 'SEGIP', providerName: 'Segip', providerCategory: 'identity', defaultMode: 'mock_local', isActive: true, providerStatus: null },
+        {
+          id: 1,
+          providerCode: 'SEGIP',
+          providerName: 'Segip',
+          providerCategory: 'identity',
+          defaultMode: 'mock_local',
+          isActive: true,
+          providerStatus: null,
+        },
       ] as never);
       (registry.hasAdapter as jest.Mock).mockReturnValue(true as never);
       (registry.requireAdapter as jest.Mock).mockReturnValue({
         checkHealth: jest.fn(async () => ({ providerCode: 'SEGIP', status: 'DOWN', mode: 'mock_local', latencyMs: 1, checkedAt: 'now' })),
       } as never);
-      repository.listCostPolicies.mockResolvedValue([{ id: 1, providerId: 1, queryType: 'q', unitCostAmount: '1', currency: 'BOB', costTier: 'LOW' }] as never);
+      repository.listCostPolicies.mockResolvedValue([
+        { id: 1, providerId: 1, queryType: 'q', unitCostAmount: '1', currency: 'BOB', costTier: 'LOW' },
+      ] as never);
       repository.countRequests.mockResolvedValue(3 as never);
 
       const entry = (await service.getProviderReadiness()).readiness[0];

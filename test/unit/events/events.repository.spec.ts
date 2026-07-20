@@ -37,7 +37,12 @@ describe('EventsRepository', () => {
     it('con idempotencyKey y evento existente devuelve el existente sin crear', async () => {
       const { repo, outboxModel } = buildRepo();
       (outboxModel.findOne as jest.Mock).mockResolvedValue({ id: 'e1' } as never);
-      const result = await repo.createEvent({ tenantId: 't1', aggregateType: 'customer', eventCode: 'customer.created', idempotencyKey: 'k1' } as never);
+      const result = await repo.createEvent({
+        tenantId: 't1',
+        aggregateType: 'customer',
+        eventCode: 'customer.created',
+        idempotencyKey: 'k1',
+      } as never);
       expect(result).toEqual({ id: 'e1' });
       expect(outboxModel.create).not.toHaveBeenCalled();
     });
@@ -45,7 +50,13 @@ describe('EventsRepository', () => {
     it('crea con defaults (pending, attempts 0) y family/version de la definición', async () => {
       const { repo, outboxModel } = buildRepo();
       (outboxModel.create as jest.Mock).mockResolvedValue({ id: 'e2' } as never);
-      await repo.createEvent({ tenantId: 't1', aggregateType: 'customer', aggregateId: 'c1', eventCode: 'customer.created', payload: {} } as never);
+      await repo.createEvent({
+        tenantId: 't1',
+        aggregateType: 'customer',
+        aggregateId: 'c1',
+        eventCode: 'customer.created',
+        payload: {},
+      } as never);
       expect((outboxModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
         status: 'pending',
         attempts: 0,
@@ -60,20 +71,31 @@ describe('EventsRepository', () => {
       const { repo, outboxModel } = buildRepo();
       (outboxModel.create as jest.Mock).mockResolvedValue({ id: 'e3' } as never);
       await repo.createEvent({ tenantId: 't1', aggregateType: 'x', eventCode: 'unknown.code', payload: {} } as never);
-      expect((outboxModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ eventFamily: 'uncatalogued', eventVersion: 1, priority: 0 });
+      expect((outboxModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+        eventFamily: 'uncatalogued',
+        eventVersion: 1,
+        priority: 0,
+      });
     });
 
     it('si create falla sin idempotencyKey, relanza el error', async () => {
       const { repo, outboxModel } = buildRepo();
       (outboxModel.create as jest.Mock).mockRejectedValue(new Error('boom') as never);
-      await expect(repo.createEvent({ tenantId: 't1', aggregateType: 'x', eventCode: 'customer.created' } as never)).rejects.toThrow('boom');
+      await expect(repo.createEvent({ tenantId: 't1', aggregateType: 'x', eventCode: 'customer.created' } as never)).rejects.toThrow(
+        'boom',
+      );
     });
 
     it('si create falla con idempotencyKey y hay carrera, devuelve el existente', async () => {
       const { repo, outboxModel } = buildRepo();
       (outboxModel.findOne as jest.Mock).mockResolvedValueOnce(null as never).mockResolvedValueOnce({ id: 'race' } as never);
       (outboxModel.create as jest.Mock).mockRejectedValue(new Error('unique') as never);
-      const result = await repo.createEvent({ tenantId: 't1', aggregateType: 'x', eventCode: 'customer.created', idempotencyKey: 'k9' } as never);
+      const result = await repo.createEvent({
+        tenantId: 't1',
+        aggregateType: 'x',
+        eventCode: 'customer.created',
+        idempotencyKey: 'k9',
+      } as never);
       expect(result).toEqual({ id: 'race' });
     });
   });
@@ -83,7 +105,11 @@ describe('EventsRepository', () => {
       const { repo, outboxModel } = buildRepo();
       (outboxModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
       await repo.list('t1', { status: 'pending', eventCode: 'customer.created', page: 2, limit: 25 } as never);
-      const arg = (outboxModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; offset: number; limit: number };
+      const arg = (outboxModel.findAndCountAll as jest.Mock).mock.calls[0][0] as {
+        where: Record<string, unknown>;
+        offset: number;
+        limit: number;
+      };
       expect(arg.where).toMatchObject({ tenantId: 't1', status: 'pending', eventCode: 'customer.created' });
       expect(arg.offset).toBe(25);
       expect(arg.limit).toBe(25);

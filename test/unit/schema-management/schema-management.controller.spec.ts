@@ -27,7 +27,13 @@ describe('SchemaManagementController', () => {
     await controller.getVersion('v1');
     await controller.listTables({ versionId: 'v1', tableType: 'core', limit: 5, offset: 2 } as never);
     await controller.getTable('t1');
-    await controller.listChangeLog({ approvalStatus: 'pending', changeType: 'create', requesterUserId: 'u9', limit: 20, offset: 0 } as never);
+    await controller.listChangeLog({
+      approvalStatus: 'pending',
+      changeType: 'create',
+      requesterUserId: 'u9',
+      limit: 20,
+      offset: 0,
+    } as never);
     expect(service.listSchemaVersions).toHaveBeenCalledWith(10, 0, true);
     expect(service.getSchemaVersion).toHaveBeenCalledWith('v1');
     expect(service.listSchemaTables).toHaveBeenCalledWith('v1', 'core', 5, 2);

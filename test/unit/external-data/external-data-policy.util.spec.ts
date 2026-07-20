@@ -158,7 +158,16 @@ describe('external-data-policy.util', () => {
 
   it('consentPurposeCodes deriva las variantes del propósito y del proveedor', () => {
     const codes = consentPurposeCodes('SEGIP', 'Origination');
-    expect(codes).toEqual(expect.arrayContaining(['Origination', 'origination', 'risk_fraud_assessment', 'external_data', 'external_origination', 'segip_origination']));
+    expect(codes).toEqual(
+      expect.arrayContaining([
+        'Origination',
+        'origination',
+        'risk_fraud_assessment',
+        'external_data',
+        'external_origination',
+        'segip_origination',
+      ]),
+    );
   });
 
   describe('statusFromRaw', () => {

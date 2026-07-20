@@ -109,7 +109,11 @@ describe('CustomersRepository', () => {
       },
       opts,
     );
-    expect((profileModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ validFrom: now, validUntil: null, supersedesVersionId: null });
+    expect((profileModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      validFrom: now,
+      validUntil: null,
+      supersedesVersionId: null,
+    });
   });
 
   it('updateCurrentProfileVersion fija currentProfileVersionId y guarda', async () => {
@@ -125,7 +129,16 @@ describe('CustomersRepository', () => {
     const { repo, statusEventModel } = buildRepo();
     (statusEventModel.create as jest.Mock).mockResolvedValue({ id: 's1' } as never);
     await repo.createStatusEvent(
-      { tenantId: 't1', customerId: 'c1', previousStatus: null, newStatus: 'active', reasonCode: 'ok', changedByType: 'system', happenedAt: now, notes: null },
+      {
+        tenantId: 't1',
+        customerId: 'c1',
+        previousStatus: null,
+        newStatus: 'active',
+        reasonCode: 'ok',
+        changedByType: 'system',
+        happenedAt: now,
+        notes: null,
+      },
       opts,
     );
     expect((statusEventModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ createdAtValue: now, newStatus: 'active' });
@@ -135,17 +148,43 @@ describe('CustomersRepository', () => {
     const { repo, contactMethodModel } = buildRepo();
     (contactMethodModel.create as jest.Mock).mockResolvedValue({ id: 'cm1' } as never);
     await repo.createContactMethod(
-      { tenantId: 't1', customerId: 'c1', contactType: 'phone', contactValueHash: 'h', contactValueEncrypted: null, valueLast4: '1234', emailDomain: null, isPrimary: true, sourceType: 'api', createdAt: now },
+      {
+        tenantId: 't1',
+        customerId: 'c1',
+        contactType: 'phone',
+        contactValueHash: 'h',
+        contactValueEncrypted: null,
+        valueLast4: '1234',
+        emailDomain: null,
+        isPrimary: true,
+        sourceType: 'api',
+        createdAt: now,
+      },
       opts,
     );
-    expect((contactMethodModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ label: 'primary_phone', status: 'unverified', deleted: false });
+    expect((contactMethodModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      label: 'primary_phone',
+      status: 'unverified',
+      deleted: false,
+    });
   });
 
   it('createContactMethod usa label primary_email para email', async () => {
     const { repo, contactMethodModel } = buildRepo();
     (contactMethodModel.create as jest.Mock).mockResolvedValue({ id: 'cm1' } as never);
     await repo.createContactMethod(
-      { tenantId: 't1', customerId: 'c1', contactType: 'email', contactValueHash: 'h', contactValueEncrypted: null, valueLast4: null, emailDomain: 'x.com', isPrimary: true, sourceType: 'api', createdAt: now },
+      {
+        tenantId: 't1',
+        customerId: 'c1',
+        contactType: 'email',
+        contactValueHash: 'h',
+        contactValueEncrypted: null,
+        valueLast4: null,
+        emailDomain: 'x.com',
+        isPrimary: true,
+        sourceType: 'api',
+        createdAt: now,
+      },
       opts,
     );
     expect((contactMethodModel.create as jest.Mock).mock.calls[0][0].label).toBe('primary_email');

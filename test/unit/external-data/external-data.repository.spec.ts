@@ -9,7 +9,15 @@ import { ExternalDataRepository } from '../../../src/modules/external-data/exter
  */
 describe('ExternalDataRepository', () => {
   function buildRepo() {
-    const make = () => ({ findOne: jest.fn(), findAll: jest.fn(), findByPk: jest.fn(), create: jest.fn(), update: jest.fn(), count: jest.fn(), bulkCreate: jest.fn() });
+    const make = () => ({
+      findOne: jest.fn(),
+      findAll: jest.fn(),
+      findByPk: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn(),
+      bulkCreate: jest.fn(),
+    });
     const models = {
       dataProvider: make(),
       costPolicy: make(),
@@ -46,14 +54,18 @@ describe('ExternalDataRepository', () => {
     expect((models.dataProvider.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { providerCode: 'INFOCENTER' } });
     expect(models.dataProvider.findByPk).toHaveBeenCalledWith('p1');
     // findCostPolicy solo devuelve la política ACTIVA.
-    expect((models.costPolicy.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { providerId: 'p1', queryType: 'credit_check', active: true } });
+    expect((models.costPolicy.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({
+      where: { providerId: 'p1', queryType: 'credit_check', active: true },
+    });
   });
 
   it('findIdempotentProviderRequest busca por tenant + idempotencyKey', async () => {
     const { repo, models } = buildRepo();
     (models.dataProviderRequest.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findIdempotentProviderRequest('t1', 'idem-1');
-    expect((models.dataProviderRequest.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { tenantId: 't1', idempotencyKey: 'idem-1' } });
+    expect((models.dataProviderRequest.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({
+      where: { tenantId: 't1', idempotencyKey: 'idem-1' },
+    });
   });
 
   describe('findReusableProviderRequest (cache hit)', () => {
@@ -68,7 +80,14 @@ describe('ExternalDataRepository', () => {
       expect(where.responseStatus).toBeDefined(); // { [Op.in]: [COMPLETED, MOCKED, DATA_NOT_AVAILABLE] }
       expect(where.customerId).toBeUndefined();
 
-      await repo.findReusableProviderRequest({ tenantId: 't1', providerId: 'p1', customerId: 'c1', queryType: 'q', requestPayloadHash: 'h', since });
+      await repo.findReusableProviderRequest({
+        tenantId: 't1',
+        providerId: 'p1',
+        customerId: 'c1',
+        queryType: 'q',
+        requestPayloadHash: 'h',
+        since,
+      });
       where = (models.dataProviderRequest.findOne as jest.Mock).mock.calls[1][0].where as Record<string, unknown>;
       expect(where.customerId).toBe('c1');
     });
@@ -79,7 +98,12 @@ describe('ExternalDataRepository', () => {
       const { repo, models } = buildRepo();
       (models.dataProviderRequest.count as jest.Mock).mockResolvedValue(7 as never);
 
-      const result = await repo.countRequests({ providerId: 'p1', customerId: 'c1', from: new Date('2026-01-01'), statuses: ['COMPLETED'] });
+      const result = await repo.countRequests({
+        providerId: 'p1',
+        customerId: 'c1',
+        from: new Date('2026-01-01'),
+        statuses: ['COMPLETED'],
+      });
       expect(result).toBe(7);
       const where = (models.dataProviderRequest.count as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
       expect(where).toMatchObject({ providerId: 'p1', customerId: 'c1' });
@@ -167,17 +191,51 @@ describe('ExternalDataRepository', () => {
   it('createProviderRequest y createProviderResponse crean con defaults null', async () => {
     const { repo, models } = buildRepo();
     (models.dataProviderRequest.create as jest.Mock).mockResolvedValue({ id: 'req1' } as never);
-    await repo.createProviderRequest({ tenantId: 't1', providerId: 'p1', requestType: 'q', purposeCode: 'pc', decisionStage: 's', modeUsed: 'local', requestPayloadHash: 'h', responseStatus: 'COMPLETED', now: new Date() } as never);
-    expect((models.dataProviderRequest.create as jest.Mock).mock.calls[0][0]).toMatchObject({ customerId: null, idempotencyKey: null, respondedAt: null });
+    await repo.createProviderRequest({
+      tenantId: 't1',
+      providerId: 'p1',
+      requestType: 'q',
+      purposeCode: 'pc',
+      decisionStage: 's',
+      modeUsed: 'local',
+      requestPayloadHash: 'h',
+      responseStatus: 'COMPLETED',
+      now: new Date(),
+    } as never);
+    expect((models.dataProviderRequest.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      customerId: null,
+      idempotencyKey: null,
+      respondedAt: null,
+    });
 
     (models.dataProviderResponse.create as jest.Mock).mockResolvedValue({ id: 'res1' } as never);
-    await repo.createProviderResponse({ tenantId: 't1', providerRequestId: 'req1', redactedPayloadJson: {}, normalizedPayloadJson: {}, responseHash: 'h', containsSensitiveData: false, now: new Date() });
-    expect((models.dataProviderResponse.create as jest.Mock).mock.calls[0][0]).toMatchObject({ payloadStorageStrategy: 'inline_redacted', providerStatusCode: null });
+    await repo.createProviderResponse({
+      tenantId: 't1',
+      providerRequestId: 'req1',
+      redactedPayloadJson: {},
+      normalizedPayloadJson: {},
+      responseHash: 'h',
+      containsSensitiveData: false,
+      now: new Date(),
+    });
+    expect((models.dataProviderResponse.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      payloadStorageStrategy: 'inline_redacted',
+      providerStatusCode: null,
+    });
   });
 
   it('updateProviderRequest aplica el patch con fallback a los valores existentes del request', async () => {
     const { repo } = buildRepo();
-    const request = { responseCode: 'old', latencyMs: 100, respondedAt: null, providerRequestRef: 'ref', actualCostAmount: null, errorMessageSafe: null, metadataJson: null, update: jest.fn(async (v: unknown) => v) };
+    const request = {
+      responseCode: 'old',
+      latencyMs: 100,
+      respondedAt: null,
+      providerRequestRef: 'ref',
+      actualCostAmount: null,
+      errorMessageSafe: null,
+      metadataJson: null,
+      update: jest.fn(async (v: unknown) => v),
+    };
     await repo.updateProviderRequest(request as never, { responseStatus: 'COMPLETED', latencyMs: 250 });
     const patch = (request.update as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
     expect(patch).toMatchObject({ responseStatus: 'COMPLETED', latencyMs: 250, responseCode: 'old', providerRequestRef: 'ref' });
@@ -185,7 +243,14 @@ describe('ExternalDataRepository', () => {
 
   it('createObservations corta con lista vacía y mapea valueType + verificationStatus', async () => {
     const empty = buildRepo();
-    await empty.repo.createObservations({ tenantId: 't1', customerId: 'c1', providerId: 'p1', requestId: 'r1', observations: [], now: new Date() });
+    await empty.repo.createObservations({
+      tenantId: 't1',
+      customerId: 'c1',
+      providerId: 'p1',
+      requestId: 'r1',
+      observations: [],
+      now: new Date(),
+    });
     expect(empty.models.customerObservation.bulkCreate).not.toHaveBeenCalled();
 
     const { repo, models } = buildRepo();
@@ -210,12 +275,31 @@ describe('ExternalDataRepository', () => {
   it('createFeatureSnapshot y createHealthLog crean con sus campos derivados', async () => {
     const { repo, models } = buildRepo();
     (models.featureSnapshot.create as jest.Mock).mockResolvedValue({ id: 'fs1' } as never);
-    await repo.createFeatureSnapshot({ tenantId: 't1', customerId: 'c1', providerCode: 'SEGIP', requestId: 'r1', featuresJson: {}, missingFeaturesJson: {}, integrityHash: 'h', now: new Date() });
-    expect((models.featureSnapshot.create as jest.Mock).mock.calls[0][0]).toMatchObject({ snapshotReason: 'external_provider_segip', triggeringEntityId: 'r1' });
+    await repo.createFeatureSnapshot({
+      tenantId: 't1',
+      customerId: 'c1',
+      providerCode: 'SEGIP',
+      requestId: 'r1',
+      featuresJson: {},
+      missingFeaturesJson: {},
+      integrityHash: 'h',
+      now: new Date(),
+    });
+    expect((models.featureSnapshot.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      snapshotReason: 'external_provider_segip',
+      triggeringEntityId: 'r1',
+    });
 
     (models.providerHealthLog.create as jest.Mock).mockResolvedValue({ id: 'h1' } as never);
-    await repo.createHealthLog({ providerId: 'p1', health: { providerCode: 'SEGIP', status: 'UP', mode: 'local', latencyMs: 5, checkedAt: '2026-01-01T00:00:00.000Z' } as never });
-    expect((models.providerHealthLog.create as jest.Mock).mock.calls[0][0]).toMatchObject({ status: 'UP', errorCode: null, metadataJson: { providerCode: 'SEGIP' } });
+    await repo.createHealthLog({
+      providerId: 'p1',
+      health: { providerCode: 'SEGIP', status: 'UP', mode: 'local', latencyMs: 5, checkedAt: '2026-01-01T00:00:00.000Z' } as never,
+    });
+    expect((models.providerHealthLog.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      status: 'UP',
+      errorCode: null,
+      metadataJson: { providerCode: 'SEGIP' },
+    });
   });
 
   it('finders de listado (providers/requests/responses/cost-policies/feature-snapshots) delegan con su filtro', async () => {
@@ -232,13 +316,20 @@ describe('ExternalDataRepository', () => {
     await repo.findProviderRequestByIdAndTenant('t1', 'r1');
     expect((models.dataProviderRequest.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { tenantId: 't1', id: 'r1' } });
     await repo.findProviderResponsesByRequestId('r1');
-    expect((models.dataProviderResponse.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { providerRequestId: 'r1' }, limit: 10 });
+    expect((models.dataProviderResponse.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({
+      where: { providerRequestId: 'r1' },
+      limit: 10,
+    });
     await repo.findProviderResponsesByRequestIdAndTenant('t1', 'r1');
-    expect((models.dataProviderResponse.findAll as jest.Mock).mock.calls[1][0]).toMatchObject({ where: { tenantId: 't1', providerRequestId: 'r1' } });
+    expect((models.dataProviderResponse.findAll as jest.Mock).mock.calls[1][0]).toMatchObject({
+      where: { tenantId: 't1', providerRequestId: 'r1' },
+    });
     await repo.listRecentProviderResponses(7);
     expect((models.dataProviderResponse.findAll as jest.Mock).mock.calls[2][0]).toMatchObject({ limit: 7 });
     await repo.listCustomerFeatureSnapshots('t1', 'c1');
-    expect((models.featureSnapshot.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { tenantId: 't1', customerId: 'c1', triggeringEntityType: 'data_provider_request' } });
+    expect((models.featureSnapshot.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({
+      where: { tenantId: 't1', customerId: 'c1', triggeringEntityType: 'data_provider_request' },
+    });
     await repo.listCostPolicies('p1');
     expect((models.costPolicy.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { providerId: 'p1' } });
   });
@@ -250,12 +341,22 @@ describe('ExternalDataRepository', () => {
     (models.customerConsent.create as jest.Mock).mockResolvedValue({ id: 'k1' } as never);
 
     await repo.findCustomerConsent('t1', 'c1', ['KYC_SEGIP']);
-    expect((models.customerConsent.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { tenantId: 't1', customerId: 'c1', granted: true, revokedAt: null } });
+    expect((models.customerConsent.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({
+      where: { tenantId: 't1', customerId: 'c1', granted: true, revokedAt: null },
+    });
     await repo.findCustomerConsentByIdAndTenant('t1', 'k9');
     expect((models.customerConsent.findOne as jest.Mock).mock.calls[1][0]).toMatchObject({ where: { tenantId: 't1', id: 'k9' } });
     await repo.listCustomerConsents('t1', 'c1');
-    expect((models.customerConsent.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { tenantId: 't1', customerId: 'c1' }, limit: 100 });
+    expect((models.customerConsent.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({
+      where: { tenantId: 't1', customerId: 'c1' },
+      limit: 100,
+    });
     await repo.createCustomerConsent({ tenantId: 't1', customerId: 'c1', purposeCode: 'KYC_SEGIP', channel: 'web', now: new Date() });
-    expect((models.customerConsent.create as jest.Mock).mock.calls[0][0]).toMatchObject({ purposeCode: 'KYC_SEGIP', granted: true, consentDocumentId: null, channel: 'web' });
+    expect((models.customerConsent.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      purposeCode: 'KYC_SEGIP',
+      granted: true,
+      consentDocumentId: null,
+      channel: 'web',
+    });
   });
 });

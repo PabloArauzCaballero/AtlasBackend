@@ -12,7 +12,12 @@ describe('SystemsDataImpactInferenceRepository', () => {
     const dataEntityModel = { findAll: jest.fn() };
     const impactModel = { upsert: jest.fn() };
     const relationshipModel = { findAll: jest.fn() };
-    const repo = new SystemsDataImpactInferenceRepository(endpointModel as never, dataEntityModel as never, impactModel as never, relationshipModel as never);
+    const repo = new SystemsDataImpactInferenceRepository(
+      endpointModel as never,
+      dataEntityModel as never,
+      impactModel as never,
+      relationshipModel as never,
+    );
     return { repo, endpointModel, dataEntityModel, impactModel, relationshipModel };
   }
 

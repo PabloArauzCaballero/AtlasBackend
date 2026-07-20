@@ -8,7 +8,11 @@ import { SystemsReviewRepository } from '../../../src/modules/systems-ops/system
  */
 describe('SystemsReviewRepository', () => {
   function buildRepo() {
-    const make = () => ({ findAndCountAll: jest.fn().mockResolvedValue({ rows: [], count: 0 } as never), findByPk: jest.fn(), create: jest.fn() });
+    const make = () => ({
+      findAndCountAll: jest.fn().mockResolvedValue({ rows: [], count: 0 } as never),
+      findByPk: jest.fn(),
+      create: jest.fn(),
+    });
     const models = {
       endpoint: make(),
       dataEntity: make(),
@@ -72,7 +76,13 @@ describe('SystemsReviewRepository', () => {
       expect((row as { updatedBy: string }).updatedBy).toBe('u1');
       expect(save).toHaveBeenCalled();
       const event = (models.reviewEvent.create as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
-      expect(event).toMatchObject({ targetType: 'endpoint', targetId: 'e1', previousStatus: 'pending', newStatus: 'approved', newConfidence: 'high' });
+      expect(event).toMatchObject({
+        targetType: 'endpoint',
+        targetId: 'e1',
+        previousStatus: 'pending',
+        newStatus: 'approved',
+        newConfidence: 'high',
+      });
     });
 
     it('sin confidenceLevel en la decisión, el evento hereda el confidence previo', async () => {
@@ -122,7 +132,10 @@ describe('SystemsReviewRepository', () => {
       it(`${c.method}: null si no existe; si existe muta/guarda/registra ${c.targetType}`, async () => {
         const nullCase = buildRepo();
         (nullCase.models as unknown as Record<string, { findByPk: jest.Mock }>)[c.model].findByPk.mockResolvedValue(null as never);
-        const repoNull = nullCase.repo as unknown as Record<string, (id: string, d: unknown, a: unknown, r: unknown, t: unknown) => Promise<unknown>>;
+        const repoNull = nullCase.repo as unknown as Record<
+          string,
+          (id: string, d: unknown, a: unknown, r: unknown, t: unknown) => Promise<unknown>
+        >;
         expect(await repoNull[c.method]('x', { reviewStatus: 'approved' }, 'u1', 'admin', 't1')).toBeNull();
 
         const okCase = buildRepo();
@@ -130,11 +143,18 @@ describe('SystemsReviewRepository', () => {
         const row = { reviewStatus: 'pending', confidenceLevel: 'low', save } as Record<string, unknown>;
         (okCase.models as unknown as Record<string, { findByPk: jest.Mock }>)[c.model].findByPk.mockResolvedValue(row as never);
         (okCase.models.reviewEvent.create as jest.Mock).mockResolvedValue({} as never);
-        const repoOk = okCase.repo as unknown as Record<string, (id: string, d: unknown, a: unknown, r: unknown, t: unknown) => Promise<unknown>>;
+        const repoOk = okCase.repo as unknown as Record<
+          string,
+          (id: string, d: unknown, a: unknown, r: unknown, t: unknown) => Promise<unknown>
+        >;
         await repoOk[c.method]('x', { reviewStatus: 'approved', confidenceLevel: 'high', notes: 'ok' }, 'u1', 'admin', 't1');
         expect(row.reviewStatus).toBe('approved');
         expect(save).toHaveBeenCalledTimes(1);
-        expect((okCase.models.reviewEvent.create as jest.Mock).mock.calls[0][0]).toMatchObject({ targetType: c.targetType, newStatus: 'approved', notes: 'ok' });
+        expect((okCase.models.reviewEvent.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+          targetType: c.targetType,
+          newStatus: 'approved',
+          notes: 'ok',
+        });
       });
     }
   });

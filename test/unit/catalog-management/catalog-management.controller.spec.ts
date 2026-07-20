@@ -22,7 +22,12 @@ describe('CatalogManagementController', () => {
   }
   const user = { role: 'risk_analyst', tenantId: '1', internalUserId: 'u1' } as never;
   const request = { ip: '3.3.3.3', headers: { 'user-agent': 'jest-ua' } } as never;
-  const expectedContext = { tenantId: tenantIdFromHeader('1'), ipAddress: '3.3.3.3', userAgent: userAgentFrom(request), idempotencyKey: 'idem' };
+  const expectedContext = {
+    tenantId: tenantIdFromHeader('1'),
+    ipAddress: '3.3.3.3',
+    userAgent: userAgentFrom(request),
+    idempotencyKey: 'idem',
+  };
 
   it('las lecturas delegan con { query/params, currentUser }', async () => {
     const { controller, service } = build();
@@ -50,6 +55,12 @@ describe('CatalogManagementController', () => {
     const { controller, service } = build();
     const body = { decision: 'approved' } as never;
     await controller.decideCatalogVersion('1', 'idem', { catalogCode: 'C', versionId: 'v1' } as never, body, user, request);
-    expect(service.decideCatalogVersion).toHaveBeenCalledWith({ catalogCode: 'C', versionId: 'v1', body, currentUser: user, context: expectedContext });
+    expect(service.decideCatalogVersion).toHaveBeenCalledWith({
+      catalogCode: 'C',
+      versionId: 'v1',
+      body,
+      currentUser: user,
+      context: expectedContext,
+    });
   });
 });

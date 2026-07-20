@@ -21,7 +21,12 @@ function buildFraudRepositoryMock() {
 
 function buildCustomersRepositoryMock(overrides: Record<string, unknown> = {}) {
   return {
-    findById: jest.fn(async () => ({ id: '10', primaryPhoneHash: 'hash-of-real-phone', primaryPhoneLast4: '6789', primaryEmailHash: null })),
+    findById: jest.fn(async () => ({
+      id: '10',
+      primaryPhoneHash: 'hash-of-real-phone',
+      primaryPhoneLast4: '6789',
+      primaryEmailHash: null,
+    })),
     ...overrides,
   };
 }
@@ -112,7 +117,7 @@ describe('FraudService.decideFraudCase', () => {
     expect(result.caseStatus).toBe('closed');
   });
 
-  it('watchlists by the customer\'s real phone/email hash, never by the internal customerId (regression)', async () => {
+  it("watchlists by the customer's real phone/email hash, never by the internal customerId (regression)", async () => {
     // Antes de este fix, el watchlist se creaba con `entityHash = hash(customerId)` — un valor
     // que NUNCA puede volver a coincidir porque un futuro registro fraudulento del mismo actor
     // recibe un customerId distinto. Debe usar los hashes reales de contacto del cliente.

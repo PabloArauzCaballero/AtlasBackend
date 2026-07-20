@@ -11,12 +11,35 @@ import { encryptSecretEnvelope } from '../../../src/common/utils/crypto/envelope
  */
 describe('NotificationsRepository — núcleo', () => {
   function build() {
-    const messageModel = { findOne: jest.fn(), create: jest.fn(async (v: unknown) => ({ id: 'm1', ...(v as object) })), findAndCountAll: jest.fn(async () => ({ rows: [], count: 0 })), count: jest.fn(), update: jest.fn() };
-    const deliveryModel = { count: jest.fn(async () => 0), create: jest.fn(async (v: unknown) => ({ id: 'd1', ...(v as object) })), findAll: jest.fn(async () => []) };
-    const deviceTokenModel = { findOne: jest.fn(), create: jest.fn(async (v: unknown) => ({ id: 'dt1', ...(v as object) })), findAll: jest.fn(async () => []) };
+    const messageModel = {
+      findOne: jest.fn(),
+      create: jest.fn(async (v: unknown) => ({ id: 'm1', ...(v as object) })),
+      findAndCountAll: jest.fn(async () => ({ rows: [], count: 0 })),
+      count: jest.fn(),
+      update: jest.fn(),
+    };
+    const deliveryModel = {
+      count: jest.fn(async () => 0),
+      create: jest.fn(async (v: unknown) => ({ id: 'd1', ...(v as object) })),
+      findAll: jest.fn(async () => []),
+    };
+    const deviceTokenModel = {
+      findOne: jest.fn(),
+      create: jest.fn(async (v: unknown) => ({ id: 'dt1', ...(v as object) })),
+      findAll: jest.fn(async () => []),
+    };
     const contactMethodModel = { findAll: jest.fn(async () => []) };
-    const templatesRepository = { findTemplate: jest.fn(async () => null), listTemplates: jest.fn(async () => ({})), createTemplate: jest.fn(async () => ({})), updateTemplate: jest.fn(async () => ({})) };
-    const preferencesRepository = { getPreferences: jest.fn(async () => []), upsertPreferences: jest.fn(async () => []), isChannelEnabled: jest.fn(async () => true) };
+    const templatesRepository = {
+      findTemplate: jest.fn(async () => null),
+      listTemplates: jest.fn(async () => ({})),
+      createTemplate: jest.fn(async () => ({})),
+      updateTemplate: jest.fn(async () => ({})),
+    };
+    const preferencesRepository = {
+      getPreferences: jest.fn(async () => []),
+      upsertPreferences: jest.fn(async () => []),
+      isChannelEnabled: jest.fn(async () => true),
+    };
     const repo = new NotificationsRepository(
       messageModel as never,
       deliveryModel as never,
@@ -42,14 +65,39 @@ describe('NotificationsRepository — núcleo', () => {
     it('devuelve el mensaje existente si la idempotencyKey ya existe (no crea otro)', async () => {
       const { repo, messageModel } = build();
       (messageModel.findOne as jest.Mock).mockResolvedValueOnce({ id: 'existing' } as never);
-      const res = await repo.createMessage({ tenantId: 't1', idempotencyKey: 'k1', channel: 'email', body: 'b', payload: {}, recipientType: 'customer', recipientId: 'c1', outboxEventId: null, templateCode: null, subject: null, title: null, priority: 0 } as never);
+      const res = await repo.createMessage({
+        tenantId: 't1',
+        idempotencyKey: 'k1',
+        channel: 'email',
+        body: 'b',
+        payload: {},
+        recipientType: 'customer',
+        recipientId: 'c1',
+        outboxEventId: null,
+        templateCode: null,
+        subject: null,
+        title: null,
+        priority: 0,
+      } as never);
       expect(res).toEqual({ id: 'existing' });
       expect(messageModel.create).not.toHaveBeenCalled();
     });
 
     it('crea el mensaje con status pending, payload redactado y delivery targets cifrados para email', async () => {
       const { repo, messageModel } = build();
-      await repo.createMessage({ tenantId: 't1', channel: 'email', body: 'b', payload: { email: 'a@x.com' }, recipientType: 'customer', recipientId: 'c1', outboxEventId: null, templateCode: null, subject: 'S', title: 'T', priority: 5 } as never);
+      await repo.createMessage({
+        tenantId: 't1',
+        channel: 'email',
+        body: 'b',
+        payload: { email: 'a@x.com' },
+        recipientType: 'customer',
+        recipientId: 'c1',
+        outboxEventId: null,
+        templateCode: null,
+        subject: 'S',
+        title: 'T',
+        priority: 5,
+      } as never);
       const created = (messageModel.create as jest.Mock).mock.calls[0][0] as { status: string; deliveryTargetsJson: unknown[] };
       expect(created.status).toBe('pending');
       expect(created.deliveryTargetsJson).toHaveLength(1);
@@ -70,9 +118,26 @@ describe('NotificationsRepository — núcleo', () => {
     const { repo, messageModel } = build();
     const from = new Date('2026-01-01T00:00:00.000Z');
     const to = new Date('2026-02-01T00:00:00.000Z');
-    await repo.listMessages('t1', { status: 'sent', channel: 'email', recipientType: 'customer', recipientId: 'c1', correlationId: 'corr', from, to, page: 1, limit: 20 } as never);
+    await repo.listMessages('t1', {
+      status: 'sent',
+      channel: 'email',
+      recipientType: 'customer',
+      recipientId: 'c1',
+      correlationId: 'corr',
+      from,
+      to,
+      page: 1,
+      limit: 20,
+    } as never);
     const where = (messageModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown> };
-    expect(where.where).toMatchObject({ tenantId: 't1', status: 'sent', channel: 'email', recipientType: 'customer', recipientId: 'c1', correlationId: 'corr' });
+    expect(where.where).toMatchObject({
+      tenantId: 't1',
+      status: 'sent',
+      channel: 'email',
+      recipientType: 'customer',
+      recipientId: 'c1',
+      correlationId: 'corr',
+    });
     expect(where.where.createdAtValue).toBeDefined();
   });
 
@@ -159,7 +224,9 @@ describe('NotificationsRepository — núcleo', () => {
   it('getMessageDeliveryTargets descifra los targets del mensaje (round-trip)', async () => {
     const { repo } = build();
     const encrypted = await encryptSecretEnvelope('a@x.com');
-    const targets = await repo.getMessageDeliveryTargets({ deliveryTargetsJson: [{ kind: 'email', addressEncrypted: encrypted }] } as never);
+    const targets = await repo.getMessageDeliveryTargets({
+      deliveryTargetsJson: [{ kind: 'email', addressEncrypted: encrypted }],
+    } as never);
     expect(targets).toEqual([{ kind: 'email', address: 'a@x.com' }]);
   });
 
@@ -208,7 +275,19 @@ describe('NotificationsRepository — núcleo', () => {
       ['push', { fcmToken: 'tok-1' }, 'fcm_token'],
     ])('createMessage para %s cifra el destino con kind %s', async (channel, payload, kind) => {
       const { repo, messageModel } = build();
-      await repo.createMessage({ tenantId: 't1', channel, body: 'b', payload, recipientType: 'customer', recipientId: 'c1', outboxEventId: null, templateCode: null, subject: null, title: null, priority: 0 } as never);
+      await repo.createMessage({
+        tenantId: 't1',
+        channel,
+        body: 'b',
+        payload,
+        recipientType: 'customer',
+        recipientId: 'c1',
+        outboxEventId: null,
+        templateCode: null,
+        subject: null,
+        title: null,
+        priority: 0,
+      } as never);
       const targets = (messageModel.create as jest.Mock).mock.calls[0][0].deliveryTargetsJson as Array<{ kind: string }>;
       expect(targets).toHaveLength(1);
       expect(targets[0].kind).toBe(kind);
@@ -216,10 +295,34 @@ describe('NotificationsRepository — núcleo', () => {
 
     it('in_app no tiene destino que cifrar, y un canal con destino ausente tampoco', async () => {
       const { repo, messageModel } = build();
-      await repo.createMessage({ tenantId: 't1', channel: 'in_app', body: 'b', payload: { email: 'a@x.com' }, recipientType: 'customer', recipientId: 'c1', outboxEventId: null, templateCode: null, subject: null, title: null, priority: 0 } as never);
+      await repo.createMessage({
+        tenantId: 't1',
+        channel: 'in_app',
+        body: 'b',
+        payload: { email: 'a@x.com' },
+        recipientType: 'customer',
+        recipientId: 'c1',
+        outboxEventId: null,
+        templateCode: null,
+        subject: null,
+        title: null,
+        priority: 0,
+      } as never);
       expect((messageModel.create as jest.Mock).mock.calls[0][0].deliveryTargetsJson).toEqual([]);
 
-      await repo.createMessage({ tenantId: 't1', channel: 'email', body: 'b', payload: {}, recipientType: 'customer', recipientId: 'c1', outboxEventId: null, templateCode: null, subject: null, title: null, priority: 0 } as never);
+      await repo.createMessage({
+        tenantId: 't1',
+        channel: 'email',
+        body: 'b',
+        payload: {},
+        recipientType: 'customer',
+        recipientId: 'c1',
+        outboxEventId: null,
+        templateCode: null,
+        subject: null,
+        title: null,
+        priority: 0,
+      } as never);
       expect((messageModel.create as jest.Mock).mock.calls[1][0].deliveryTargetsJson).toEqual([]);
     });
 
@@ -228,7 +331,10 @@ describe('NotificationsRepository — núcleo', () => {
       expect(await repo.getMessageDeliveryTargets({ deliveryTargetsJson: null } as never)).toEqual([]);
       expect(
         await repo.getMessageDeliveryTargets({
-          deliveryTargetsJson: [{ kind: 'inventado', addressEncrypted: 'x' }, { kind: 'email', addressEncrypted: 123 }],
+          deliveryTargetsJson: [
+            { kind: 'inventado', addressEncrypted: 'x' },
+            { kind: 'email', addressEncrypted: 123 },
+          ],
         } as never),
       ).toEqual([]);
     });
@@ -258,7 +364,12 @@ describe('NotificationsRepository — núcleo', () => {
     it('listRecipientMessages aplica status, channel y el rango de fechas', async () => {
       const { repo, messageModel } = build();
       await repo.listRecipientMessages('t1', 'customer', 'c1', {
-        status: 'read', channel: 'in_app', from: new Date('2026-01-01'), to: new Date('2026-02-01'), page: 1, limit: 20,
+        status: 'read',
+        channel: 'in_app',
+        from: new Date('2026-01-01'),
+        to: new Date('2026-02-01'),
+        page: 1,
+        limit: 20,
       } as never);
       const where = (messageModel.findAndCountAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
       expect(where).toMatchObject({ status: 'read', channel: 'in_app' });

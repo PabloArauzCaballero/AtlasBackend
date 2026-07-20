@@ -276,11 +276,27 @@ describe('ExternalDataEvidenceService', () => {
     it('getProviderRequest lanza NotFound, y con datos proyecta la solicitud + sus respuestas', async () => {
       const { service, repository } = buildService();
       repository.findProviderRequestByIdAndTenant.mockResolvedValue(null as never);
-      await expect(service.getProviderRequest({ tenantId: 't1', requestId: 'r1' })).rejects.toThrow('Solicitud de provider externo no encontrada.');
+      await expect(service.getProviderRequest({ tenantId: 't1', requestId: 'r1' })).rejects.toThrow(
+        'Solicitud de provider externo no encontrada.',
+      );
 
-      repository.findProviderRequestByIdAndTenant.mockResolvedValue({ id: 7, providerId: 3, customerId: 9, requestType: 'q', responseStatus: 'COMPLETED' } as never);
+      repository.findProviderRequestByIdAndTenant.mockResolvedValue({
+        id: 7,
+        providerId: 3,
+        customerId: 9,
+        requestType: 'q',
+        responseStatus: 'COMPLETED',
+      } as never);
       repository.findProviderResponsesByRequestIdAndTenant.mockResolvedValue([
-        { id: 11, providerStatusCode: 200, providerReference: 'ref', responseHash: 'h', redactedPayloadJson: {}, normalizedPayloadJson: {}, createdAtValue: null },
+        {
+          id: 11,
+          providerStatusCode: 200,
+          providerReference: 'ref',
+          responseHash: 'h',
+          redactedPayloadJson: {},
+          normalizedPayloadJson: {},
+          createdAtValue: null,
+        },
       ] as never);
       const full = await service.getProviderRequest({ tenantId: 't1', requestId: '7' });
       expect(full).toMatchObject({ id: '7', providerId: '3', customerId: '9', responseStatus: 'COMPLETED' });

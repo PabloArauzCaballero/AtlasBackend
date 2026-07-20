@@ -45,7 +45,10 @@ describe('NotificationTemplatesRepository', () => {
     const { repo, templateModel } = buildRepo();
     (templateModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
     await repo.listTemplates('t1', { code: 'welcome', active: true, page: 2, limit: 10 } as never);
-    const arg = (templateModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string | symbol, unknown>; offset: number };
+    const arg = (templateModel.findAndCountAll as jest.Mock).mock.calls[0][0] as {
+      where: Record<string | symbol, unknown>;
+      offset: number;
+    };
     expect(arg.where[Op.or]).toEqual([{ tenantId: 't1' }, { tenantId: null }]);
     expect(arg.where.code).toBe('welcome');
     expect(arg.where.isActive).toBe(true);
@@ -55,7 +58,14 @@ describe('NotificationTemplatesRepository', () => {
   it('createTemplate aplica defaults null en los campos opcionales', async () => {
     const { repo, templateModel } = buildRepo();
     (templateModel.create as jest.Mock).mockResolvedValue({ id: 'tpl1' } as never);
-    await repo.createTemplate('t1', { code: 'c', channel: 'push', locale: 'es-BO', bodyTemplate: 'b', isActive: true, version: 1 } as never);
+    await repo.createTemplate('t1', {
+      code: 'c',
+      channel: 'push',
+      locale: 'es-BO',
+      bodyTemplate: 'b',
+      isActive: true,
+      version: 1,
+    } as never);
     expect((templateModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
       titleTemplate: null,
       subjectTemplate: null,
@@ -103,8 +113,17 @@ describe('NotificationTemplatesRepository', () => {
     } as never);
 
     expect(template).toMatchObject({
-      code: 'NEW', channel: 'email', locale: 'es', titleTemplate: 'T', subjectTemplate: 'S',
-      bodyTemplate: 'B', payloadSchemaJson: { a: 1 }, category: 'system', icon: 'bell', isActive: false, version: 3,
+      code: 'NEW',
+      channel: 'email',
+      locale: 'es',
+      titleTemplate: 'T',
+      subjectTemplate: 'S',
+      bodyTemplate: 'B',
+      payloadSchemaJson: { a: 1 },
+      category: 'system',
+      icon: 'bell',
+      isActive: false,
+      version: 3,
     });
     expect(save).toHaveBeenCalled();
   });
@@ -115,7 +134,11 @@ describe('NotificationTemplatesRepository', () => {
     (templateModel.findOne as jest.Mock).mockResolvedValue(template as never);
 
     await repo.updateTemplate('t1', '1', {
-      titleTemplate: null, subjectTemplate: null, payloadSchema: null, category: null, icon: null,
+      titleTemplate: null,
+      subjectTemplate: null,
+      payloadSchema: null,
+      category: null,
+      icon: null,
     } as never);
 
     expect(template).toMatchObject({ titleTemplate: null, subjectTemplate: null, payloadSchemaJson: null, category: null, icon: null });
@@ -127,7 +150,11 @@ describe('NotificationTemplatesRepository', () => {
 
     await repo.listTemplates('t1', { code: 'C', channel: 'email', active: false, page: 2, limit: 10 } as never);
 
-    const args = (templateModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; offset: number; limit: number };
+    const args = (templateModel.findAndCountAll as jest.Mock).mock.calls[0][0] as {
+      where: Record<string, unknown>;
+      offset: number;
+      limit: number;
+    };
     expect(args.where).toMatchObject({ code: 'C', channel: 'email', isActive: false });
     expect(args).toMatchObject({ offset: 10, limit: 10 });
   });
@@ -139,7 +166,12 @@ describe('NotificationTemplatesRepository', () => {
     await repo.createTemplate('t1', { code: 'C', channel: 'email', locale: 'es', bodyTemplate: 'B', isActive: true, version: 1 } as never);
 
     expect((templateModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
-      titleTemplate: null, subjectTemplate: null, payloadSchemaJson: null, category: null, icon: null, tenantId: 't1',
+      titleTemplate: null,
+      subjectTemplate: null,
+      payloadSchemaJson: null,
+      category: null,
+      icon: null,
+      tenantId: 't1',
     });
   });
 });

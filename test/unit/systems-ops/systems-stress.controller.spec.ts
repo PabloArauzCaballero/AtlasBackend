@@ -17,7 +17,11 @@ describe('SystemsStressController', () => {
       queueStressRun: jest.fn(async () => ({ queued: true })),
       listStressRuns: jest.fn(async () => ({ items: [] })),
     };
-    return { controller: new SystemsStressController(profileService as never, stressRunService as never), profileService, stressRunService };
+    return {
+      controller: new SystemsStressController(profileService as never, stressRunService as never),
+      profileService,
+      stressRunService,
+    };
   }
   const user = { role: 'system_admin', tenantId: '1', internalUserId: 'u1' } as never;
 

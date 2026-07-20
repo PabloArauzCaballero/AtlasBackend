@@ -27,7 +27,10 @@ describe('SegipAdapter', () => {
   });
 
   it('normalize deriva 5 observaciones; verified/manualReview según status y score', async () => {
-    const found = await adapter.normalize({ status: 'FOUND', payload: { status: 'FOUND', documentExists: true, birthDateMatches: true, matchScore: 0.98 } } as never);
+    const found = await adapter.normalize({
+      status: 'FOUND',
+      payload: { status: 'FOUND', documentExists: true, birthDateMatches: true, matchScore: 0.98 },
+    } as never);
     expect(found).toHaveLength(5);
     const docExists = found.find((o) => o.observationKey === 'identity_document_exists');
     expect(docExists).toMatchObject({ valueBoolean: true, verified: true, manualReviewRequired: false });

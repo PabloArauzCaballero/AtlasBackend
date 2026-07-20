@@ -77,7 +77,10 @@ describe('SessionsActivityAuditRepository', () => {
       },
       opts,
     );
-    expect((operationalAuditLogModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ actorPlatformUserId: null, createdAtValue: now });
+    expect((operationalAuditLogModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      actorPlatformUserId: null,
+      createdAtValue: now,
+    });
   });
 
   it('findSessionAudits filtra por targetType=session y aplica límite por defecto 30', async () => {

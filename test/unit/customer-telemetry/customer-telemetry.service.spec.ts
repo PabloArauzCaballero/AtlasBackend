@@ -340,14 +340,27 @@ describe('CustomerTelemetryService.ingestBatch', () => {
 
       expect(result.acceptedEvents).toBe(9);
       expect((telemetryRepository.createFormFieldEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
-        onboardingFlowId: 'flow-1', interactionType: 'blur', usedCopyPaste: true, correctionCount: 3, focusDurationMs: 1200,
+        onboardingFlowId: 'flow-1',
+        interactionType: 'blur',
+        usedCopyPaste: true,
+        correctionCount: 3,
+        focusDurationMs: 1200,
       });
-      expect((telemetryRepository.createPermissionEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ onboardingFlowId: 'flow-1', granted: true });
-      expect((telemetryRepository.createAuthEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ loginSuccessful: false, failureReasonCode: 'BAD_PASSWORD' });
+      expect((telemetryRepository.createPermissionEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
+        onboardingFlowId: 'flow-1',
+        granted: true,
+      });
+      expect((telemetryRepository.createAuthEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
+        loginSuccessful: false,
+        failureReasonCode: 'BAD_PASSWORD',
+      });
       expect((telemetryRepository.createDeviceRiskEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ reasonCode: 'ROOT' });
       expect(telemetryRepository.createSimObservation).toHaveBeenCalledTimes(1);
       expect(telemetryRepository.createIpReputation).toHaveBeenCalledTimes(1);
-      expect((telemetryRepository.createOnboardingStepEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ eventType: 'completed', onboardingFlowId: 'flow-1' });
+      expect((telemetryRepository.createOnboardingStepEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
+        eventType: 'completed',
+        onboardingFlowId: 'flow-1',
+      });
       expect((telemetryRepository.createCustomerAction as jest.Mock).mock.calls[0][0]).toMatchObject({ screenName: 'home' });
       expect((telemetryRepository.createCustomerObservation as jest.Mock).mock.calls[0][0]).toMatchObject({ observationCode: 'obs_code' });
       // confidenceScore definido -> se formatea a 4 decimales
@@ -368,13 +381,23 @@ describe('CustomerTelemetryService.ingestBatch', () => {
       );
 
       expect((telemetryRepository.createFormFieldEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
-        onboardingFlowId: null, interactionType: 'interaction', usedCopyPaste: null, correctionCount: null, focusDurationMs: null,
+        onboardingFlowId: null,
+        interactionType: 'interaction',
+        usedCopyPaste: null,
+        correctionCount: null,
+        focusDurationMs: null,
       });
       // sin metadata.granted, se infiere del eventCode (contiene "granted")
       expect((telemetryRepository.createPermissionEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ granted: true });
-      expect((telemetryRepository.createAuthEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ loginSuccessful: null, failureReasonCode: null });
+      expect((telemetryRepository.createAuthEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
+        loginSuccessful: null,
+        failureReasonCode: null,
+      });
       expect((telemetryRepository.createDeviceRiskEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ reasonCode: null });
-      expect((telemetryRepository.createOnboardingStepEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ eventType: 'telemetry', onboardingFlowId: null });
+      expect((telemetryRepository.createOnboardingStepEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
+        eventType: 'telemetry',
+        onboardingFlowId: null,
+      });
       expect((telemetryRepository.createCustomerAction as jest.Mock).mock.calls[0][0]).toMatchObject({ screenName: null });
       const metrics = (telemetryRepository.createOnDeviceMetrics as jest.Mock).mock.calls[0][0] as Array<Record<string, unknown>>;
       expect(metrics[0]).toMatchObject({ confidenceScore: null });

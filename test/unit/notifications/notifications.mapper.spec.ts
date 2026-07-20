@@ -25,8 +25,16 @@ describe('notifications.mapper', () => {
   });
 
   it('mapDelivery, mapPreference y mapDeviceToken normalizan sus ids', () => {
-    expect(mapDelivery({ id: 1, notificationMessageId: 2, channel: 'push', status: 'sent', attemptNumber: 1 } as never)).toMatchObject({ id: '1', notificationMessageId: '2' });
-    expect(mapPreference({ id: 3, customerId: 4, eventCode: 'e', channel: 'email', isEnabled: true, isRequired: false } as never)).toMatchObject({ id: '3', customerId: '4' });
-    expect(mapDeviceToken({ id: 5, customerId: 6, platform: 'ios', deviceId: 'd', isActive: true } as never)).toMatchObject({ id: '5', customerId: '6' });
+    expect(mapDelivery({ id: 1, notificationMessageId: 2, channel: 'push', status: 'sent', attemptNumber: 1 } as never)).toMatchObject({
+      id: '1',
+      notificationMessageId: '2',
+    });
+    expect(
+      mapPreference({ id: 3, customerId: 4, eventCode: 'e', channel: 'email', isEnabled: true, isRequired: false } as never),
+    ).toMatchObject({ id: '3', customerId: '4' });
+    expect(mapDeviceToken({ id: 5, customerId: 6, platform: 'ios', deviceId: 'd', isActive: true } as never)).toMatchObject({
+      id: '5',
+      customerId: '6',
+    });
   });
 });

@@ -21,7 +21,10 @@ describe('CatalogManagementService (fachada)', () => {
       createRiskRulesetVersion: jest.fn(async () => 'crrv'),
       activateRiskRulesetVersion: jest.fn(async () => 'arrv'),
     };
-    const dataGovernanceService = { getDataGovernancePolicies: jest.fn(async () => 'gdgp'), upsertDataGovernancePackage: jest.fn(async () => 'udgp') };
+    const dataGovernanceService = {
+      getDataGovernancePolicies: jest.fn(async () => 'gdgp'),
+      upsertDataGovernancePackage: jest.fn(async () => 'udgp'),
+    };
     const service = new CatalogManagementService(
       queryService as never,
       versionWorkflowService as never,
@@ -30,7 +33,15 @@ describe('CatalogManagementService (fachada)', () => {
       riskPolicyService as never,
       dataGovernanceService as never,
     );
-    return { service, queryService, versionWorkflowService, ingestionService, definitionsService, riskPolicyService, dataGovernanceService };
+    return {
+      service,
+      queryService,
+      versionWorkflowService,
+      ingestionService,
+      definitionsService,
+      riskPolicyService,
+      dataGovernanceService,
+    };
   }
 
   it('delega cada operación en su sub-servicio de aplicación', async () => {

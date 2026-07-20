@@ -19,7 +19,16 @@ describe('SystemsTestSuiteAdminRepository', () => {
     const { repo, suiteModel } = buildRepo();
     (suiteModel.create as jest.Mock).mockResolvedValue({ id: 's1' } as never);
     await repo.createSuite(
-      { code: 'C', name: 'N', module: 'm', suiteType: 't', environmentScope: ['dev'], isEnabled: true, requiresSeedData: true, isSafeForProduction: false } as never,
+      {
+        code: 'C',
+        name: 'N',
+        module: 'm',
+        suiteType: 't',
+        environmentScope: ['dev'],
+        isEnabled: true,
+        requiresSeedData: true,
+        isSafeForProduction: false,
+      } as never,
       'u1',
     );
     expect((suiteModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ requiresDestructivePermission: true, createdBy: 'u1' });
@@ -54,14 +63,21 @@ describe('SystemsTestSuiteAdminRepository', () => {
   it('reorderSteps lanza si algún stepId no pertenece a la suite', async () => {
     const { repo, stepModel } = buildRepo();
     (stepModel.findAll as jest.Mock).mockResolvedValue([{ id: 1 }, { id: 2 }] as never);
-    await expect(repo.reorderSteps('s1', { steps: [{ stepId: '99', stepOrder: 1 }] } as never)).rejects.toThrow('SYSTEM_TEST_STEP_NOT_IN_SUITE:99');
+    await expect(repo.reorderSteps('s1', { steps: [{ stepId: '99', stepOrder: 1 }] } as never)).rejects.toThrow(
+      'SYSTEM_TEST_STEP_NOT_IN_SUITE:99',
+    );
   });
 
   it('reorderSteps lanza si hay órdenes duplicados', async () => {
     const { repo, stepModel } = buildRepo();
     (stepModel.findAll as jest.Mock).mockResolvedValue([{ id: 1 }, { id: 2 }] as never);
     await expect(
-      repo.reorderSteps('s1', { steps: [{ stepId: '1', stepOrder: 5 }, { stepId: '2', stepOrder: 5 }] } as never),
+      repo.reorderSteps('s1', {
+        steps: [
+          { stepId: '1', stepOrder: 5 },
+          { stepId: '2', stepOrder: 5 },
+        ],
+      } as never),
     ).rejects.toThrow('SYSTEM_TEST_STEP_DUPLICATED_ORDER');
   });
 
@@ -74,7 +90,12 @@ describe('SystemsTestSuiteAdminRepository', () => {
       { id: 2, save: save2 },
     ];
     (stepModel.findAll as jest.Mock).mockResolvedValue(steps as never);
-    await repo.reorderSteps('s1', { steps: [{ stepId: '1', stepOrder: 2 }, { stepId: '2', stepOrder: 1 }] } as never);
+    await repo.reorderSteps('s1', {
+      steps: [
+        { stepId: '1', stepOrder: 2 },
+        { stepId: '2', stepOrder: 1 },
+      ],
+    } as never);
     expect((steps[0] as { stepOrder: number }).stepOrder).toBe(2);
     expect((steps[1] as { stepOrder: number }).stepOrder).toBe(1);
     expect(save1).toHaveBeenCalled();

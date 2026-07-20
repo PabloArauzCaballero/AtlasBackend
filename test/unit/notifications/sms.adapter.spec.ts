@@ -39,7 +39,10 @@ describe('SmsNotificationAdapter — webhook channel routed through the resilien
       return new Response(JSON.stringify({ id: 'webhook-msg-1' }), { status: 200 });
     }) as unknown as typeof fetch;
 
-    const adapter = new SmsNotificationAdapter(buildConfig('https://hooks.example.com/sms') as never, new ResilientAdapterExecutorService());
+    const adapter = new SmsNotificationAdapter(
+      buildConfig('https://hooks.example.com/sms') as never,
+      new ResilientAdapterExecutorService(),
+    );
 
     const result = await adapter.send(message);
 
@@ -51,7 +54,10 @@ describe('SmsNotificationAdapter — webhook channel routed through the resilien
   it('gives up after exhausting retries on a persistent 503 and returns a failed delivery, never throwing', async () => {
     global.fetch = jest.fn(async () => new Response(JSON.stringify({ error: 'down' }), { status: 503 })) as unknown as typeof fetch;
 
-    const adapter = new SmsNotificationAdapter(buildConfig('https://hooks.example.com/sms') as never, new ResilientAdapterExecutorService());
+    const adapter = new SmsNotificationAdapter(
+      buildConfig('https://hooks.example.com/sms') as never,
+      new ResilientAdapterExecutorService(),
+    );
 
     const result = await adapter.send(message);
 
@@ -67,7 +73,10 @@ describe('SmsNotificationAdapter — webhook channel routed through the resilien
       return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });
     }) as unknown as typeof fetch;
 
-    const adapter = new SmsNotificationAdapter(buildConfig('https://hooks.example.com/sms') as never, new ResilientAdapterExecutorService());
+    const adapter = new SmsNotificationAdapter(
+      buildConfig('https://hooks.example.com/sms') as never,
+      new ResilientAdapterExecutorService(),
+    );
 
     const result = await adapter.send(message);
 

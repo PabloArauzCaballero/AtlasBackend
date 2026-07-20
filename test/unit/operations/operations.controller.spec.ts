@@ -42,7 +42,13 @@ describe('OperationsController', () => {
     const params = { caseId: '3' } as never;
     const body = { decision: 'approved' } as never;
     await controller.decideManualReviewCase('1', 'idem', params, body, user);
-    expect(operationsService.decideManualReviewCase).toHaveBeenCalledWith({ tenantId: tenantIdFromHeader('1'), params, body, currentUser: user, idempotencyKey: 'idem' });
+    expect(operationsService.decideManualReviewCase).toHaveBeenCalledWith({
+      tenantId: tenantIdFromHeader('1'),
+      params,
+      body,
+      currentUser: user,
+      idempotencyKey: 'idem',
+    });
     expect(() => controller.decideManualReviewCase('1', undefined, params, body, user)).toThrow();
   });
 
@@ -51,7 +57,13 @@ describe('OperationsController', () => {
     const params = { caseId: '4' } as never;
     const body = { decision: 'confirmed_fraud' } as never;
     await controller.decideFraudCase('1', 'idem', params, body, user);
-    expect(fraudService.decideFraudCase).toHaveBeenCalledWith({ tenantId: tenantIdFromHeader('1'), params, body, currentUser: user, idempotencyKey: 'idem' });
+    expect(fraudService.decideFraudCase).toHaveBeenCalledWith({
+      tenantId: tenantIdFromHeader('1'),
+      params,
+      body,
+      currentUser: user,
+      idempotencyKey: 'idem',
+    });
     expect(operationsService.decideManualReviewCase).not.toHaveBeenCalled();
     expect(() => controller.decideFraudCase('1', undefined, params, body, user)).toThrow();
   });

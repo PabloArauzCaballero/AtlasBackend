@@ -32,7 +32,10 @@ describe('SessionsDeviceRepository', () => {
     const { repo, models } = buildRepo();
     (models.globalDevice.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findGlobalDevice('fp', 'v1', opts);
-    expect((models.globalDevice.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({ deviceFingerprint: 'fp', fingerprintVersion: 'v1' });
+    expect((models.globalDevice.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({
+      deviceFingerprint: 'fp',
+      fingerprintVersion: 'v1',
+    });
   });
 
   it('createGlobalDevice nace con reuseCount=1 y riesgo unknown', async () => {
@@ -67,7 +70,11 @@ describe('SessionsDeviceRepository', () => {
       { tenantId: 't1', globalDeviceFingerprintId: 'g1', deviceFingerprint: 'fp', fingerprintVersion: 'v1', now: new Date('2026-01-01') },
       opts,
     );
-    expect((models.device.create as jest.Mock).mock.calls[0][0]).toMatchObject({ tenantReuseCount: 1, riskStatus: 'unknown', deleted: false });
+    expect((models.device.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      tenantReuseCount: 1,
+      riskStatus: 'unknown',
+      deleted: false,
+    });
   });
 
   it('touchDevice incrementa el contador de reuso por tenant', async () => {
@@ -82,14 +89,23 @@ describe('SessionsDeviceRepository', () => {
     const { repo, models } = buildRepo();
     (models.customerDeviceLink.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findCustomerDeviceLink('t1', 'c1', 'd1', opts);
-    expect((models.customerDeviceLink.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({ tenantId: 't1', customerId: 'c1', deviceId: 'd1' });
+    expect((models.customerDeviceLink.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({
+      tenantId: 't1',
+      customerId: 'c1',
+      deviceId: 'd1',
+    });
   });
 
   it('createCustomerDeviceLink nace activo, trust new y no borrado', async () => {
     const { repo, models } = buildRepo();
     (models.customerDeviceLink.create as jest.Mock).mockResolvedValue({ id: 'l1' } as never);
     await repo.createCustomerDeviceLink({ tenantId: 't1', customerId: 'c1', deviceId: 'd1', now: new Date('2026-01-01') }, opts);
-    expect((models.customerDeviceLink.create as jest.Mock).mock.calls[0][0]).toMatchObject({ linkStatus: 'active', trustLevel: 'new', isPrimaryDevice: false, deleted: false });
+    expect((models.customerDeviceLink.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      linkStatus: 'active',
+      trustLevel: 'new',
+      isPrimaryDevice: false,
+      deleted: false,
+    });
   });
 
   it('touchCustomerDeviceLink fija lastSeenSessionId y firstSeen solo si estaba null', async () => {
@@ -111,10 +127,28 @@ describe('SessionsDeviceRepository', () => {
     const { repo, models } = buildRepo();
     (models.deviceSnapshot.create as jest.Mock).mockResolvedValue({ id: 'sn1' } as never);
     await repo.createDeviceSnapshot(
-      { tenantId: 't1', customerId: 'c1', deviceId: 'd1', sessionId: 's1', brand: 'Samsung', model: 'A54', osFamily: 'android', osVersion: '14', appVersion: '1.0', isRooted: false, isEmulator: false, vpnDetected: true, now: new Date('2026-01-01') },
+      {
+        tenantId: 't1',
+        customerId: 'c1',
+        deviceId: 'd1',
+        sessionId: 's1',
+        brand: 'Samsung',
+        model: 'A54',
+        osFamily: 'android',
+        osVersion: '14',
+        appVersion: '1.0',
+        isRooted: false,
+        isEmulator: false,
+        vpnDetected: true,
+        now: new Date('2026-01-01'),
+      },
       opts,
     );
-    expect((models.deviceSnapshot.create as jest.Mock).mock.calls[0][0]).toMatchObject({ brand: 'Samsung', vpnDetected: true, sessionId: 's1' });
+    expect((models.deviceSnapshot.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      brand: 'Samsung',
+      vpnDetected: true,
+      sessionId: 's1',
+    });
   });
 
   it('findLatestDeviceSnapshot / findSessionDeviceSnapshots ordenan por capturedAt desc', async () => {
@@ -124,21 +158,35 @@ describe('SessionsDeviceRepository', () => {
     await repo.findLatestDeviceSnapshot('t1', 's1');
     expect((models.deviceSnapshot.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { tenantId: 't1', sessionId: 's1' } });
     await repo.findSessionDeviceSnapshots('t1', 's1', 5);
-    expect((models.deviceSnapshot.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { tenantId: 't1', sessionId: 's1' }, limit: 5 });
+    expect((models.deviceSnapshot.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({
+      where: { tenantId: 't1', sessionId: 's1' },
+      limit: 5,
+    });
   });
 
   it('createDeviceRiskEvent mapea evidence a supportingEvidenceJson y happenedAt', async () => {
     const { repo, models } = buildRepo();
     (models.deviceRiskEvent.create as jest.Mock).mockResolvedValue({ id: 're1' } as never);
     const occurredAt = new Date('2026-01-05');
-    await repo.createDeviceRiskEvent({ tenantId: 't1', deviceId: 'd1', eventType: 'root_detected', reasonCode: 'ROOT', evidence: { a: 1 }, occurredAt }, opts);
-    expect((models.deviceRiskEvent.create as jest.Mock).mock.calls[0][0]).toMatchObject({ eventType: 'root_detected', reasonCode: 'ROOT', supportingEvidenceJson: { a: 1 }, happenedAt: occurredAt });
+    await repo.createDeviceRiskEvent(
+      { tenantId: 't1', deviceId: 'd1', eventType: 'root_detected', reasonCode: 'ROOT', evidence: { a: 1 }, occurredAt },
+      opts,
+    );
+    expect((models.deviceRiskEvent.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      eventType: 'root_detected',
+      reasonCode: 'ROOT',
+      supportingEvidenceJson: { a: 1 },
+      happenedAt: occurredAt,
+    });
   });
 
   it('findDeviceRiskEvents filtra por tenant+device', async () => {
     const { repo, models } = buildRepo();
     (models.deviceRiskEvent.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.findDeviceRiskEvents('t1', 'd1', 7);
-    expect((models.deviceRiskEvent.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { tenantId: 't1', deviceId: 'd1' }, limit: 7 });
+    expect((models.deviceRiskEvent.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({
+      where: { tenantId: 't1', deviceId: 'd1' },
+      limit: 7,
+    });
   });
 });

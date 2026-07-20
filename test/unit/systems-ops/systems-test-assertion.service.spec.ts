@@ -9,7 +9,8 @@ import { SystemsTestAssertionService } from '../../../src/modules/systems-ops/sy
 describe('SystemsTestAssertionService', () => {
   const service = new SystemsTestAssertionService();
   const base = { statusCode: 200, durationMs: 50, responseBody: { data: { id: 5, items: [1, 2] } }, assertions: {} };
-  const named = (r: { results: { name: string; passed: boolean; message?: string }[] }, name: string) => r.results.find((x) => x.name === name);
+  const named = (r: { results: { name: string; passed: boolean; message?: string }[] }, name: string) =>
+    r.results.find((x) => x.name === name);
 
   it('status por defecto acepta 200/201 y rechaza otros o null', () => {
     expect(service.evaluate({ ...base, statusCode: 200 }).results[0].passed).toBe(true);
@@ -35,8 +36,12 @@ describe('SystemsTestAssertionService', () => {
   });
 
   it('jsonPathEquals compara por valor y avisa si el path no existe', () => {
-    expect(named(service.evaluate({ ...base, assertions: { jsonPathEquals: { '$.data.id': 5 } } }), 'jsonPathEquals:$.data.id')?.passed).toBe(true);
-    expect(named(service.evaluate({ ...base, assertions: { jsonPathEquals: { '$.data.id': 6 } } }), 'jsonPathEquals:$.data.id')?.passed).toBe(false);
+    expect(
+      named(service.evaluate({ ...base, assertions: { jsonPathEquals: { '$.data.id': 5 } } }), 'jsonPathEquals:$.data.id')?.passed,
+    ).toBe(true);
+    expect(
+      named(service.evaluate({ ...base, assertions: { jsonPathEquals: { '$.data.id': 6 } } }), 'jsonPathEquals:$.data.id')?.passed,
+    ).toBe(false);
     const missing = named(service.evaluate({ ...base, assertions: { jsonPathEquals: { '$.nope': 1 } } }), 'jsonPathEquals:$.nope');
     expect(missing?.passed).toBe(false);
     expect(missing?.message).toBe('JSONPath not found');

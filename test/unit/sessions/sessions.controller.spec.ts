@@ -10,7 +10,12 @@ import { tenantIdFromHeader, userAgentFrom } from '../../../src/common/utils/htt
 describe('sessions controllers', () => {
   const user = { role: 'customer', tenantId: '1', customerId: '9' } as never;
   const request = { ip: '5.5.5.5', headers: { 'user-agent': 'jest-ua' } } as never;
-  const expectedContext = { tenantId: tenantIdFromHeader('1'), ipAddress: '5.5.5.5', userAgent: userAgentFrom(request), idempotencyKey: 'idem' };
+  const expectedContext = {
+    tenantId: tenantIdFromHeader('1'),
+    ipAddress: '5.5.5.5',
+    userAgent: userAgentFrom(request),
+    idempotencyKey: 'idem',
+  };
 
   it('startSession arma el context y exige idempotency-key', async () => {
     const service = { startSession: jest.fn(async () => ({ sessionId: 's1' })) };
@@ -41,6 +46,10 @@ describe('sessions controllers', () => {
     const controller = new OperationsSessionsController(service as never);
     const internal = { role: 'risk_analyst', tenantId: '1', internalUserId: 'u1' } as never;
     await controller.getInvestigationSummary('1', { sessionId: 's1' } as never, internal);
-    expect(service.getOperationsSessionSummary).toHaveBeenCalledWith({ tenantId: tenantIdFromHeader('1'), sessionId: 's1', currentUser: internal });
+    expect(service.getOperationsSessionSummary).toHaveBeenCalledWith({
+      tenantId: tenantIdFromHeader('1'),
+      sessionId: 's1',
+      currentUser: internal,
+    });
   });
 });

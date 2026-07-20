@@ -38,8 +38,6 @@ describe('InternalPortalController — requiere rol interno (regression, no solo
     const { ROLES_KEY, InternalPortalController } = await loadController();
     const roles = Reflect.getMetadata(ROLES_KEY, InternalPortalController) as string[] | undefined;
 
-    expect(roles).toEqual(
-      expect.arrayContaining(['internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin']),
-    );
+    expect(roles).toEqual(expect.arrayContaining(['internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin']));
   });
 });

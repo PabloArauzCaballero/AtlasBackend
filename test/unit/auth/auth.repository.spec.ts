@@ -279,7 +279,10 @@ describe('AuthRepository', () => {
       const { repo, models } = buildRepo();
       (models.refreshToken.update as jest.Mock).mockResolvedValue([2] as never);
       await repo.revokeAllRefreshTokensForActor('internal_user', '5', 'password_reset');
-      const [values, options] = (models.refreshToken.update as jest.Mock).mock.calls[0] as [Record<string, unknown>, { where: Record<string, unknown> }];
+      const [values, options] = (models.refreshToken.update as jest.Mock).mock.calls[0] as [
+        Record<string, unknown>,
+        { where: Record<string, unknown> },
+      ];
       expect(values).toMatchObject({ revokedReason: 'password_reset' });
       expect(options.where).toMatchObject({ actorType: 'internal_user', actorId: '5', revokedAt: null });
     });

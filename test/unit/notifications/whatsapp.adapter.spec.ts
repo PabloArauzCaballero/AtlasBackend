@@ -12,7 +12,8 @@ describe('WhatsAppNotificationAdapter', () => {
     const executor = { run: jest.fn() };
     return { adapter: new WhatsAppNotificationAdapter(config as never, executor as never), executor };
   }
-  const msg = (payload: Record<string, unknown> = { phone: '+591700' }) => ({ id: '1', channel: 'whatsapp', body: 'hola', payload }) as never;
+  const msg = (payload: Record<string, unknown> = { phone: '+591700' }) =>
+    ({ id: '1', channel: 'whatsapp', body: 'hola', payload }) as never;
 
   it('supports y validatePayload', () => {
     const { adapter } = build('meta_cloud');
@@ -41,7 +42,12 @@ describe('WhatsAppNotificationAdapter', () => {
     const ok = build('meta_cloud');
     (ok.executor.run as jest.Mock).mockResolvedValue({ status: 200, json: { messages: [{ id: 'wam2' }] } } as never);
     const res = await ok.adapter.send(
-      msg({ phone: 'whatsapp:+591700', whatsappTemplateName: 'otp', whatsappTemplateLanguage: 'es', whatsappTemplateParameters: ['123', 456] }),
+      msg({
+        phone: 'whatsapp:+591700',
+        whatsappTemplateName: 'otp',
+        whatsappTemplateLanguage: 'es',
+        whatsappTemplateParameters: ['123', 456],
+      }),
     );
     expect(res).toMatchObject({ status: 'sent', provider: 'meta_whatsapp_cloud', providerMessageId: 'wam2' });
   });

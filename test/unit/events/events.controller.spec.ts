@@ -38,7 +38,11 @@ describe('EventsController', () => {
     const { controller, service } = build();
     const body = { eventCode: 'X', payload: {} } as never;
     await controller.createEvent('1', key, body);
-    expect(service.publishFromDto).toHaveBeenCalledWith({ tenantId: tenantIdFromHeader('1'), body, idempotencyKey: requireIdempotencyKey(key) });
+    expect(service.publishFromDto).toHaveBeenCalledWith({
+      tenantId: tenantIdFromHeader('1'),
+      body,
+      idempotencyKey: requireIdempotencyKey(key),
+    });
   });
 
   it('createEvent exige el x-idempotency-key', () => {

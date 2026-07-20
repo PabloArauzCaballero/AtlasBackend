@@ -163,10 +163,23 @@ describe('DataQualityRepository — findIssues / finders / mutaciones', () => {
   it('createAudit mapea el payload y fija targetType data_quality_issue', async () => {
     const { repo, auditModel } = buildFull();
     await repo.createAudit(
-      { tenantId: 't1', actorType: 'internal_operator', actorInternalUserId: 'u', actionCode: 'resolve', targetId: '9', payload: { a: 1 }, happenedAt: new Date() },
+      {
+        tenantId: 't1',
+        actorType: 'internal_operator',
+        actorInternalUserId: 'u',
+        actionCode: 'resolve',
+        targetId: '9',
+        payload: { a: 1 },
+        happenedAt: new Date(),
+      },
       { transaction: 'tx' as never },
     );
-    expect((auditModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ targetType: 'data_quality_issue', targetId: '9', payloadJson: { a: 1 }, actorPlatformUserId: null });
+    expect((auditModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      targetType: 'data_quality_issue',
+      targetId: '9',
+      payloadJson: { a: 1 },
+      actorPlatformUserId: null,
+    });
   });
 
   it('createDataChange registra el cambio de tipo resolve sobre data_quality_issues', async () => {
@@ -175,6 +188,11 @@ describe('DataQualityRepository — findIssues / finders / mutaciones', () => {
       { tenantId: 't1', issueId: '9', actorType: 'internal_operator', actorInternalUserId: 'u', reason: 'fix', happenedAt: new Date() },
       {},
     );
-    expect((dataChangeLogModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ tableName: 'data_quality_issues', recordId: '9', changeType: 'resolve', changeReason: 'fix' });
+    expect((dataChangeLogModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      tableName: 'data_quality_issues',
+      recordId: '9',
+      changeType: 'resolve',
+      changeReason: 'fix',
+    });
   });
 });

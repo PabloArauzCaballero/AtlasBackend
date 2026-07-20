@@ -13,7 +13,14 @@ describe('sessions.mapper', () => {
 
   it('mapea con link presente (usa su trustLevel)', () => {
     const res = toStartSessionResponse({ ...base, link: { trustLevel: 'trusted' } } as never);
-    expect(res).toMatchObject({ customerId: '9', sessionId: '1', deviceId: '2', sessionStatus: 'active', deviceTrustLevel: 'trusted', nextStep: 'home' });
+    expect(res).toMatchObject({
+      customerId: '9',
+      sessionId: '1',
+      deviceId: '2',
+      sessionStatus: 'active',
+      deviceTrustLevel: 'trusted',
+      nextStep: 'home',
+    });
   });
 
   it('aplica defaults cuando falta link (trustLevel new) y sessionStatus null (active)', () => {

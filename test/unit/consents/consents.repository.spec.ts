@@ -40,7 +40,11 @@ describe('ConsentsRepository', () => {
     const { repo, consentDocumentModel } = buildRepo();
     (consentDocumentModel.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findActiveDocumentById('t1', 'd1');
-    expect((consentDocumentModel.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({ id: 'd1', tenantId: 't1', status: 'published' });
+    expect((consentDocumentModel.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({
+      id: 'd1',
+      tenantId: 't1',
+      status: 'published',
+    });
   });
 
   it('findActiveDocumentsByIds corta en seco (sin query) para lista vacía', async () => {

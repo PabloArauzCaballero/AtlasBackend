@@ -85,7 +85,10 @@ describe('NotificationsController — POST /operations/notifications/broadcast (
       .expect(201);
 
     expect(res.body).toEqual({ broadcastId: 'bcast-1', targeted: 2, created: 2 });
-    expect(service.broadcast).toHaveBeenCalledWith('1', expect.objectContaining({ ...validBody, priority: 0, category: 'custom_broadcast' }));
+    expect(service.broadcast).toHaveBeenCalledWith(
+      '1',
+      expect.objectContaining({ ...validBody, priority: 0, category: 'custom_broadcast' }),
+    );
   });
 
   it('platform_admin y system también pueden disparar broadcasts', async () => {

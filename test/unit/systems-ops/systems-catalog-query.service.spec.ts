@@ -31,7 +31,9 @@ describe('SystemsCatalogQueryService', () => {
       findFieldsByTable: jest.fn(async () => [] as unknown[]),
       findFieldImpactsByDataEntity: jest.fn(async () => [] as unknown[]),
     };
-    const dashboardRepository = { getDashboardCounts: jest.fn(async () => ({ endpoints: 0, dataEntities: 0, pendingReviews: 0, stressProfiles: 0 })) };
+    const dashboardRepository = {
+      getDashboardCounts: jest.fn(async () => ({ endpoints: 0, dataEntities: 0, pendingReviews: 0, stressProfiles: 0 })),
+    };
     const discovery = { discoverAndMaybePersist: jest.fn(async () => ({ discovered: 1 })) };
     const seedService = { refreshCatalog: jest.fn(async () => ({ refreshed: true })) };
     const healthService = { getToolsHealth: jest.fn(async () => [{ code: 'POSTGRES' }]) };
@@ -49,7 +51,10 @@ describe('SystemsCatalogQueryService', () => {
 
   it('listEndpoints mapea filas a DTO y propaga el meta', async () => {
     const { service, catalogRepository } = build();
-    (catalogRepository.listEndpoints as jest.Mock).mockResolvedValueOnce({ rows: [{ id: 3, code: 'EP', method: 'GET' }], meta: { page: 1 } } as never);
+    (catalogRepository.listEndpoints as jest.Mock).mockResolvedValueOnce({
+      rows: [{ id: 3, code: 'EP', method: 'GET' }],
+      meta: { page: 1 },
+    } as never);
     const res = await service.listEndpoints({} as never);
     expect(res.items[0]).toMatchObject({ endpointId: '3', code: 'EP' });
     expect(res.meta).toEqual({ page: 1 });
@@ -99,7 +104,12 @@ describe('SystemsCatalogQueryService', () => {
   it('getImpactByTable lanza NotFound o mapea el impacto con su entidad', async () => {
     const { service, catalogRepository } = build();
     await expect(service.getImpactByTable('s', 't')).rejects.toBeInstanceOf(NotFoundException);
-    (catalogRepository.findDataEntityByTable as jest.Mock).mockResolvedValueOnce({ id: 7, schemaName: 's', tableName: 't', entityName: 'E' } as never);
+    (catalogRepository.findDataEntityByTable as jest.Mock).mockResolvedValueOnce({
+      id: 7,
+      schemaName: 's',
+      tableName: 't',
+      entityName: 'E',
+    } as never);
     (catalogRepository.findDataImpactsByEntity as jest.Mock).mockResolvedValueOnce([{ id: 1, endpointId: 2, dataEntityId: 7 }] as never);
     const res = await service.getImpactByTable('s', 't');
     expect(res.entity).toMatchObject({ entityId: '7' });
@@ -118,9 +128,18 @@ describe('SystemsCatalogQueryService', () => {
 
   it('listDomains / listTools / listDataEntities mapean filas y propagan meta', async () => {
     const { service, catalogRepository } = build();
-    (catalogRepository.listDomains as jest.Mock).mockResolvedValueOnce({ rows: [{ id: 1, domainCode: 'D', domainName: 'Dom' }], meta: { page: 1 } } as never);
-    (catalogRepository.listTools as jest.Mock).mockResolvedValueOnce({ rows: [{ id: 2, code: 'T', name: 'Tool', type: 'api' }], meta: { page: 2 } } as never);
-    (catalogRepository.listDataEntities as jest.Mock).mockResolvedValueOnce({ rows: [{ id: 3, schemaName: 's', tableName: 't', entityName: 'E' }], meta: { page: 3 } } as never);
+    (catalogRepository.listDomains as jest.Mock).mockResolvedValueOnce({
+      rows: [{ id: 1, domainCode: 'D', domainName: 'Dom' }],
+      meta: { page: 1 },
+    } as never);
+    (catalogRepository.listTools as jest.Mock).mockResolvedValueOnce({
+      rows: [{ id: 2, code: 'T', name: 'Tool', type: 'api' }],
+      meta: { page: 2 },
+    } as never);
+    (catalogRepository.listDataEntities as jest.Mock).mockResolvedValueOnce({
+      rows: [{ id: 3, schemaName: 's', tableName: 't', entityName: 'E' }],
+      meta: { page: 3 },
+    } as never);
     expect((await service.listDomains({} as never)).items[0]).toMatchObject({ domainCode: 'D' });
     expect((await service.listTools({} as never)).items[0]).toMatchObject({ toolId: '2', code: 'T' });
     const entities = await service.listDataEntities({} as never);
@@ -138,7 +157,12 @@ describe('SystemsCatalogQueryService', () => {
     const { service, catalogRepository } = build();
     (catalogRepository as unknown as { updateDataEntityMetadata: jest.Mock }).updateDataEntityMetadata = jest.fn(async () => null);
     await expect(service.updateDataEntityMetadata('7', { description: 'x' })).rejects.toBeInstanceOf(NotFoundException);
-    (catalogRepository as unknown as { updateDataEntityMetadata: jest.Mock }).updateDataEntityMetadata.mockResolvedValueOnce({ id: 7, schemaName: 's', tableName: 't', entityName: 'E' } as never);
+    (catalogRepository as unknown as { updateDataEntityMetadata: jest.Mock }).updateDataEntityMetadata.mockResolvedValueOnce({
+      id: 7,
+      schemaName: 's',
+      tableName: 't',
+      entityName: 'E',
+    } as never);
     expect(await service.updateDataEntityMetadata('7', { description: 'x' })).toMatchObject({ entityId: '7' });
   });
 
@@ -149,7 +173,9 @@ describe('SystemsCatalogQueryService', () => {
     (catalogRepository.findDataImpactsByEndpoint as jest.Mock).mockResolvedValueOnce([{ id: 1, dataEntityId: 7, endpointId: 5 }] as never);
     (catalogRepository.findFieldImpactsByEndpoint as jest.Mock).mockResolvedValueOnce([{ id: 1, dataEntityId: 7, endpointId: 5 }] as never);
     (catalogRepository.findToolsByIds as jest.Mock).mockResolvedValueOnce([{ id: 9, code: 'TOOL', name: 'Tool', type: 'api' }] as never);
-    (catalogRepository.findDataEntitiesByIds as jest.Mock).mockResolvedValue([{ id: 7, schemaName: 's', tableName: 't', entityName: 'E' }] as never);
+    (catalogRepository.findDataEntitiesByIds as jest.Mock).mockResolvedValue([
+      { id: 7, schemaName: 's', tableName: 't', entityName: 'E' },
+    ] as never);
     const res = await service.getImpactByEndpoint('5');
     expect(res.endpoint).toMatchObject({ endpointId: '5' });
     expect(res.tools).toHaveLength(1);
@@ -159,15 +185,27 @@ describe('SystemsCatalogQueryService', () => {
 
   it('getImpactByTable mapea también los fieldImpacts cuando existen', async () => {
     const { service, catalogRepository } = build();
-    (catalogRepository.findDataEntityByTable as jest.Mock).mockResolvedValueOnce({ id: 7, schemaName: 's', tableName: 't', entityName: 'E' } as never);
-    (catalogRepository.findFieldImpactsByDataEntity as jest.Mock).mockResolvedValueOnce([{ id: 1, dataEntityId: 7, fieldName: 'x' }] as never);
+    (catalogRepository.findDataEntityByTable as jest.Mock).mockResolvedValueOnce({
+      id: 7,
+      schemaName: 's',
+      tableName: 't',
+      entityName: 'E',
+    } as never);
+    (catalogRepository.findFieldImpactsByDataEntity as jest.Mock).mockResolvedValueOnce([
+      { id: 1, dataEntityId: 7, fieldName: 'x' },
+    ] as never);
     const res = await service.getImpactByTable('s', 't');
     expect(res.fieldImpacts).toHaveLength(1);
   });
 
   it('getDashboard marca READY_FOR_REVIEW solo con endpoints y entidades presentes', async () => {
     const { service, dashboardRepository } = build();
-    (dashboardRepository.getDashboardCounts as jest.Mock).mockResolvedValueOnce({ endpoints: 5, dataEntities: 3, pendingReviews: 2, stressProfiles: 1 } as never);
+    (dashboardRepository.getDashboardCounts as jest.Mock).mockResolvedValueOnce({
+      endpoints: 5,
+      dataEntities: 3,
+      pendingReviews: 2,
+      stressProfiles: 1,
+    } as never);
     const ready = await service.getDashboard();
     expect(ready.posture).toMatchObject({ catalogCoverage: 'READY_FOR_REVIEW', pendingReviews: 2, stressProfilesEnabled: 1 });
 

@@ -27,7 +27,13 @@ describe('SystemsToolInferenceRepository', () => {
     (requirementModel.upsert as jest.Mock).mockResolvedValue([{ id: 'req1' }] as never);
     const endpoint = { id: 5, requiresStressTest: true, riskLevel: 'CRITICAL' } as never;
     const tool = { id: 9, status: 'PLANNED', isCritical: true } as never;
-    await repo.upsertRequirement(endpoint, tool, { usageType: 'call', failureImpact: 'high', isRequired: true, requiresMock: false, notes: 'n' });
+    await repo.upsertRequirement(endpoint, tool, {
+      usageType: 'call',
+      failureImpact: 'high',
+      isRequired: true,
+      requiresMock: false,
+      notes: 'n',
+    });
     const arg = (requirementModel.upsert as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
     expect(arg.fallbackStrategy).not.toBeNull();
     expect(arg.requiresMock).toBe(true); // false || PLANNED
@@ -41,7 +47,13 @@ describe('SystemsToolInferenceRepository', () => {
     (requirementModel.upsert as jest.Mock).mockResolvedValue([{ id: 'req2' }] as never);
     const endpoint = { id: 5, requiresStressTest: true, riskLevel: 'LOW' } as never;
     const tool = { id: 9, status: 'ACTIVE', isCritical: false } as never;
-    await repo.upsertRequirement(endpoint, tool, { usageType: 'call', failureImpact: 'low', isRequired: false, requiresMock: false, notes: 'n' });
+    await repo.upsertRequirement(endpoint, tool, {
+      usageType: 'call',
+      failureImpact: 'low',
+      isRequired: false,
+      requiresMock: false,
+      notes: 'n',
+    });
     const arg = (requirementModel.upsert as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
     expect(arg.fallbackStrategy).toBeNull();
     expect(arg.requiresMock).toBe(false);

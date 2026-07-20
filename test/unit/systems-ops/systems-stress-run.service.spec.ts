@@ -50,7 +50,9 @@ describe('SystemsStressRunService', () => {
     await expect(service.queueStressRun('5', input({ environment: 'TEST' }) as never, user)).rejects.toBeInstanceOf(BadRequestException);
 
     (stressProfileModel.findByPk as jest.Mock).mockResolvedValueOnce(activeProfile({ environmentScope: ['PRODUCTION_READONLY'] }) as never);
-    await expect(service.queueStressRun('5', input({ environment: 'PRODUCTION_READONLY' }) as never, user)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.queueStressRun('5', input({ environment: 'PRODUCTION_READONLY' }) as never, user)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
 
     (stressProfileModel.findByPk as jest.Mock).mockResolvedValueOnce(activeProfile({ requiresApproval: true }) as never);
     await expect(service.queueStressRun('5', input({ dryRun: false }) as never, user)).rejects.toBeInstanceOf(BadRequestException);

@@ -8,7 +8,14 @@ import { InternalRbacRepository } from '../../../src/modules/internal-users/inte
  */
 describe('InternalRbacRepository', () => {
   function buildRepo() {
-    const make = () => ({ findOne: jest.fn(), findAll: jest.fn(), findAndCountAll: jest.fn(), create: jest.fn(), update: jest.fn(), bulkCreate: jest.fn() });
+    const make = () => ({
+      findOne: jest.fn(),
+      findAll: jest.fn(),
+      findAndCountAll: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      bulkCreate: jest.fn(),
+    });
     const models = {
       internalUser: make(),
       role: make(),
@@ -125,8 +132,19 @@ describe('InternalRbacRepository', () => {
 
   it('createAudit fija actorType internal_user/system y funde reason+metadata', async () => {
     const { repo, models } = buildRepo();
-    await repo.createAudit({ tenantId: 't1', actorInternalUserId: 'u1', actionCode: 'X', targetType: 't', targetId: '1', reason: 'r', metadata: { k: 1 } });
-    expect((models.audit.create as jest.Mock).mock.calls[0][0]).toMatchObject({ actorType: 'internal_user', payloadJson: { reason: 'r', k: 1 } });
+    await repo.createAudit({
+      tenantId: 't1',
+      actorInternalUserId: 'u1',
+      actionCode: 'X',
+      targetType: 't',
+      targetId: '1',
+      reason: 'r',
+      metadata: { k: 1 },
+    });
+    expect((models.audit.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      actorType: 'internal_user',
+      payloadJson: { reason: 'r', k: 1 },
+    });
     await repo.createAudit({ tenantId: 't1', actorInternalUserId: null, actionCode: 'X', targetType: 't', targetId: null, reason: null });
     expect((models.audit.create as jest.Mock).mock.calls[1][0].actorType).toBe('system');
   });
@@ -139,14 +157,23 @@ describe('InternalRbacRepository', () => {
       { roleCode: 'admin', legacyRoleCode: 'admin', permissionCode: 'internal.users.read' },
       { roleCode: 'admin', legacyRoleCode: 'admin', permissionCode: null },
     ] as never);
-    const profile = await repo.buildAccessProfile({ id: 'u1', tenantId: 't1', email: 'a@x', fullName: 'Ana', userCode: 'U', status: 'active' } as never);
+    const profile = await repo.buildAccessProfile({
+      id: 'u1',
+      tenantId: 't1',
+      email: 'a@x',
+      fullName: 'Ana',
+      userCode: 'U',
+      status: 'active',
+    } as never);
     expect(profile.user.roles).toEqual(['admin']);
     expect(profile.user.permissions).toEqual(expect.arrayContaining(['internal.users.read', 'rbac.internal_users.read']));
   });
 
   it('hasPermissions es true solo si todos los permisos (o su alias) están presentes', async () => {
     const { repo, sequelize } = buildRepo();
-    (sequelize.query as jest.Mock).mockResolvedValue([{ roleCode: 'admin', legacyRoleCode: null, permissionCode: 'rbac.internal_users.read' }] as never);
+    (sequelize.query as jest.Mock).mockResolvedValue([
+      { roleCode: 'admin', legacyRoleCode: null, permissionCode: 'rbac.internal_users.read' },
+    ] as never);
     expect(await repo.hasPermissions('t1', 'u1', ['internal.users.read'])).toBe(true); // vía alias
     expect(await repo.hasPermissions('t1', 'u1', ['internal.roles.manage'])).toBe(false);
   });

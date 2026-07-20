@@ -44,7 +44,9 @@ describe('SystemsToolInferenceService', () => {
     mockReadSources.mockResolvedValueOnce('// código sin señales de tools' as never);
     const { SystemsToolInferenceService } = await import('../../../src/modules/systems-ops/systems-tool-inference.service.js');
     const repository = {
-      listActiveEndpoints: jest.fn(async () => [{ id: 2, code: 'EP2', module: 'auth', fullPath: '/auth/accessToken/refresh', riskLevel: 'LOW' }]),
+      listActiveEndpoints: jest.fn(async () => [
+        { id: 2, code: 'EP2', module: 'auth', fullPath: '/auth/accessToken/refresh', riskLevel: 'LOW' },
+      ]),
       listTools: jest.fn(async () => [{ code: 'JWT', isCritical: true }]),
       upsertRequirement: jest.fn(async () => ({})),
     };

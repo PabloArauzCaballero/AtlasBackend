@@ -26,7 +26,15 @@ describe('risk.mapper', () => {
 
   it('mapea los scores (toNumberOrNull) y la fecha ISO', () => {
     const res = toRiskAssessmentResultResponse(base as never);
-    expect(res).toMatchObject({ id: '1', tenantId: '2', customerId: '9', scoreTotal: 12.5, fraudScore: 0.1, identityScore: null, decidedAt: '2026-01-01T00:00:00.000Z' });
+    expect(res).toMatchObject({
+      id: '1',
+      tenantId: '2',
+      customerId: '9',
+      scoreTotal: 12.5,
+      fraudScore: 0.1,
+      identityScore: null,
+      decidedAt: '2026-01-01T00:00:00.000Z',
+    });
   });
 
   it('normaliza customerId y decidedAt null', () => {

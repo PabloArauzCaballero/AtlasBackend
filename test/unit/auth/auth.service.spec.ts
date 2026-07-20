@@ -775,7 +775,9 @@ describe('AuthService.verifyLoginPin (2FA por PIN de super admin / MFA cliente)'
       const authRepository = buildAuthRepositoryMock();
       authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(bad);
       const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
-      await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: null, userAgent: null })).rejects.toThrow(UnauthorizedException);
+      await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: null, userAgent: null })).rejects.toThrow(
+        UnauthorizedException,
+      );
     }
   });
 
@@ -783,7 +785,9 @@ describe('AuthService.verifyLoginPin (2FA por PIN de super admin / MFA cliente)'
     const authRepository = buildAuthRepositoryMock();
     authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(challenge());
     const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
-    await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '000000', ip: '1.2.3.4', userAgent: 'ua' })).rejects.toThrow(UnauthorizedException);
+    await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '000000', ip: '1.2.3.4', userAgent: 'ua' })).rejects.toThrow(
+      UnauthorizedException,
+    );
     expect(authRepository.registerOneTimeCodeFailedAttempt).toHaveBeenCalledTimes(1);
     expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
       expect.objectContaining({ successful: false, failureReasonCode: 'invalid_login_pin', actorId: '5' }),
@@ -796,7 +800,9 @@ describe('AuthService.verifyLoginPin (2FA por PIN de super admin / MFA cliente)'
     authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(challenge());
     authRepository.findInternalUserById.mockResolvedValue(null); // reResolveActorRole -> null
     const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
-    await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: null, userAgent: null })).rejects.toThrow(UnauthorizedException);
+    await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: null, userAgent: null })).rejects.toThrow(
+      UnauthorizedException,
+    );
     expect(authRepository.consumeOneTimeCode).toHaveBeenCalledTimes(1);
   });
 

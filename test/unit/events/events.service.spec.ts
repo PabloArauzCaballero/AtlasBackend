@@ -239,7 +239,10 @@ describe('EventsService', () => {
     it('aplica los defaults de la proyección (tenant null, priority 0, attempts 0, maxAttempts 3)', async () => {
       const { service, repository } = buildService();
       (repository.createEvent as jest.Mock).mockResolvedValue({
-        id: 1, tenantId: null, eventCode: 'user.registered', status: 'pending',
+        id: 1,
+        tenantId: null,
+        eventCode: 'user.registered',
+        status: 'pending',
       } as never);
 
       const result = await service.publish({ tenantId: 't1', eventCode: 'user.registered', aggregateType: 'customer' } as never);
@@ -250,7 +253,13 @@ describe('EventsService', () => {
     it('respeta los valores presentes en el evento (tenantId se serializa a string)', async () => {
       const { service, repository } = buildService();
       (repository.createEvent as jest.Mock).mockResolvedValue({
-        id: 2, tenantId: 5, eventCode: 'user.registered', status: 'pending', priority: 9, attempts: 2, maxAttempts: 7,
+        id: 2,
+        tenantId: 5,
+        eventCode: 'user.registered',
+        status: 'pending',
+        priority: 9,
+        attempts: 2,
+        maxAttempts: 7,
       } as never);
 
       const result = await service.publish({ tenantId: 't1', eventCode: 'user.registered', aggregateType: 'customer' } as never);
@@ -268,8 +277,12 @@ describe('EventsService', () => {
       });
 
       expect((repository.createEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
-        aggregateId: null, idempotencyKey: null, correlationId: null, causationId: null,
-        sourceModule: 'operations_api', sourceAction: 'publish_event',
+        aggregateId: null,
+        idempotencyKey: null,
+        correlationId: null,
+        causationId: null,
+        sourceModule: 'operations_api',
+        sourceAction: 'publish_event',
       });
     });
 
@@ -287,15 +300,25 @@ describe('EventsService', () => {
       await service.publishFromDto({
         tenantId: 't1',
         body: {
-          eventCode: 'user.registered', aggregateType: 'customer', aggregateId: 'a1', payload: {},
-          idempotencyKey: 'from-body', correlationId: 'corr', causationId: 'caus',
-          sourceModule: 'mi_modulo', sourceAction: 'mi_accion',
+          eventCode: 'user.registered',
+          aggregateType: 'customer',
+          aggregateId: 'a1',
+          payload: {},
+          idempotencyKey: 'from-body',
+          correlationId: 'corr',
+          causationId: 'caus',
+          sourceModule: 'mi_modulo',
+          sourceAction: 'mi_accion',
         } as never,
         idempotencyKey: 'from-header',
       });
       expect((repository.createEvent as jest.Mock).mock.calls[1][0]).toMatchObject({
-        aggregateId: 'a1', idempotencyKey: 'from-body', correlationId: 'corr', causationId: 'caus',
-        sourceModule: 'mi_modulo', sourceAction: 'mi_accion',
+        aggregateId: 'a1',
+        idempotencyKey: 'from-body',
+        correlationId: 'corr',
+        causationId: 'caus',
+        sourceModule: 'mi_modulo',
+        sourceAction: 'mi_accion',
       });
     });
   });

@@ -102,7 +102,9 @@ describe('SchemaManagementRepository', () => {
   describe('schema tables / columns / relationships', () => {
     it('listSchemaTables aplica el filtro de tipo solo cuando se provee', async () => {
       const withType = buildRepo();
-      (withType.sequelize.query as jest.Mock).mockResolvedValueOnce([{ _id: 't1' }] as never).mockResolvedValueOnce([{ count: '1' }] as never);
+      (withType.sequelize.query as jest.Mock)
+        .mockResolvedValueOnce([{ _id: 't1' }] as never)
+        .mockResolvedValueOnce([{ count: '1' }] as never);
       const res = await withType.repo.listSchemaTables('v1', 'catalog', 10, 0);
       expect(res).toEqual({ rows: [{ _id: 't1' }], total: 1 });
       expect((withType.sequelize.query as jest.Mock).mock.calls[0][0] as string).toContain('AND table_type = :tableType');
@@ -130,12 +132,19 @@ describe('SchemaManagementRepository', () => {
     it('createChangeLogEntry devuelve la fila creada y lanza si el INSERT no retorna nada', async () => {
       const ok = buildRepo();
       (ok.sequelize.query as jest.Mock).mockResolvedValue([{ _id: 'c1', change_type: 'create_table' }] as never);
-      const created = await ok.repo.createChangeLogEntry({ changeType: 'create_table', affectedEntityType: 'table', changePayload: { a: 1 }, requesterPlatformUserId: 'p1' });
+      const created = await ok.repo.createChangeLogEntry({
+        changeType: 'create_table',
+        affectedEntityType: 'table',
+        changePayload: { a: 1 },
+        requesterPlatformUserId: 'p1',
+      });
       expect(created).toMatchObject({ _id: 'c1' });
 
       const bad = buildRepo();
       (bad.sequelize.query as jest.Mock).mockResolvedValue([] as never);
-      await expect(bad.repo.createChangeLogEntry({ changeType: 'x', affectedEntityType: 'y', changePayload: {}, requesterPlatformUserId: 'p1' })).rejects.toThrow('Failed to insert');
+      await expect(
+        bad.repo.createChangeLogEntry({ changeType: 'x', affectedEntityType: 'y', changePayload: {}, requesterPlatformUserId: 'p1' }),
+      ).rejects.toThrow('Failed to insert');
     });
 
     it('listChangeLog arma el WHERE dinámico desde los filtros presentes', async () => {
@@ -156,11 +165,27 @@ describe('SchemaManagementRepository', () => {
     it('resolveChangeLogEntry devuelve la fila actualizada o null', async () => {
       const found = buildRepo();
       (found.sequelize.query as jest.Mock).mockResolvedValue([{ _id: 'c1', approval_status: 'approved' }] as never);
-      expect(await found.repo.resolveChangeLogEntry('c1', { approvalStatus: 'approved', approvedByPlatformUserId: 'p1', approvalNotes: null, changeResult: 'success', errorMessage: null })).toMatchObject({ approval_status: 'approved' });
+      expect(
+        await found.repo.resolveChangeLogEntry('c1', {
+          approvalStatus: 'approved',
+          approvedByPlatformUserId: 'p1',
+          approvalNotes: null,
+          changeResult: 'success',
+          errorMessage: null,
+        }),
+      ).toMatchObject({ approval_status: 'approved' });
 
       const missing = buildRepo();
       (missing.sequelize.query as jest.Mock).mockResolvedValue([] as never);
-      expect(await missing.repo.resolveChangeLogEntry('nope', { approvalStatus: 'rejected', approvedByPlatformUserId: 'p1', approvalNotes: 'no', changeResult: 'rejected', errorMessage: null })).toBeNull();
+      expect(
+        await missing.repo.resolveChangeLogEntry('nope', {
+          approvalStatus: 'rejected',
+          approvedByPlatformUserId: 'p1',
+          approvalNotes: 'no',
+          changeResult: 'rejected',
+          errorMessage: null,
+        }),
+      ).toBeNull();
     });
   });
 

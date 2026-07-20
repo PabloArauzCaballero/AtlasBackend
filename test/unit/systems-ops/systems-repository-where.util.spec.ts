@@ -16,7 +16,14 @@ import {
  */
 describe('systems-repository-where.util', () => {
   it('buildEndpointTextWhere: con todos los filtros + búsqueda libre (Op.or sobre 4 columnas)', () => {
-    const where = buildEndpointTextWhere({ module: 'auth', backendService: 'api', status: 'active', riskLevel: 'high', reviewStatus: 'pending', q: 'log' } as never) as Record<string, unknown>;
+    const where = buildEndpointTextWhere({
+      module: 'auth',
+      backendService: 'api',
+      status: 'active',
+      riskLevel: 'high',
+      reviewStatus: 'pending',
+      q: 'log',
+    } as never) as Record<string, unknown>;
     expect(where).toMatchObject({ module: 'auth', backendService: 'api', status: 'active', riskLevel: 'high', reviewStatus: 'pending' });
     expect((where as Record<symbol, unknown>)[Op.or as unknown as symbol]).toHaveLength(4);
   });
@@ -35,7 +42,10 @@ describe('systems-repository-where.util', () => {
   });
 
   it('buildDataEntityWhere: con module/status/reviewStatus + q, y vacío sin nada', () => {
-    const full = buildDataEntityWhere({ module: 'core', status: 'active', reviewStatus: 'done', q: 'customers' } as never) as Record<string, unknown>;
+    const full = buildDataEntityWhere({ module: 'core', status: 'active', reviewStatus: 'done', q: 'customers' } as never) as Record<
+      string,
+      unknown
+    >;
     expect(full).toMatchObject({ module: 'core', status: 'active', reviewStatus: 'done' });
     expect((full as Record<symbol, unknown>)[Op.or as unknown as symbol]).toHaveLength(3);
     expect(Reflect.ownKeys(buildDataEntityWhere({} as never) as object)).toHaveLength(0);
@@ -89,14 +99,20 @@ describe('systems-repository-where.util', () => {
   });
 
   it('buildReviewWhere: reviewStatus siempre presente; module solo si viene', () => {
-    expect(buildReviewWhere({ reviewStatus: 'pending', module: 'auth' } as never)).toMatchObject({ reviewStatus: 'pending', module: 'auth' });
+    expect(buildReviewWhere({ reviewStatus: 'pending', module: 'auth' } as never)).toMatchObject({
+      reviewStatus: 'pending',
+      module: 'auth',
+    });
     const noModule = buildReviewWhere({ reviewStatus: 'pending' } as never) as Record<string, unknown>;
     expect(noModule).toMatchObject({ reviewStatus: 'pending' });
     expect(noModule.module).toBeUndefined();
   });
 
   it('buildStressProfileWhere: endpointId/status/enabled=false + q, y vacío sin nada', () => {
-    const full = buildStressProfileWhere({ endpointId: 'e1', status: 'active', enabled: false, q: 'carga' } as never) as Record<string, unknown>;
+    const full = buildStressProfileWhere({ endpointId: 'e1', status: 'active', enabled: false, q: 'carga' } as never) as Record<
+      string,
+      unknown
+    >;
     expect(full).toMatchObject({ endpointId: 'e1', status: 'active', isEnabled: false });
     expect((full as Record<symbol, unknown>)[Op.or as unknown as symbol]).toHaveLength(3);
     expect(Reflect.ownKeys(buildStressProfileWhere({} as never) as object)).toHaveLength(0);

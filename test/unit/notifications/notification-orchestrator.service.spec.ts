@@ -475,12 +475,20 @@ describe('NotificationOrchestratorService', () => {
       const { service, rulesService, repository } = buildService();
       (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce([rule()] as never);
       (repository.findTemplate as jest.Mock).mockResolvedValue({
-        subjectTemplate: 'S', titleTemplate: 'T', bodyTemplate: 'B', category: 'system_alert', icon: 'bell',
+        subjectTemplate: 'S',
+        titleTemplate: 'T',
+        bodyTemplate: 'B',
+        category: 'system_alert',
+        icon: 'bell',
       } as never);
 
       await service.handleEvent(fakeEvent({ aggregateType: 'customer', aggregateId: 'c1', eventPayloadJson: {}, priority: 77 }) as never);
 
-      expect((repository.createMessage as jest.Mock).mock.calls[0][0]).toMatchObject({ category: 'system_alert', icon: 'bell', priority: 77 });
+      expect((repository.createMessage as jest.Mock).mock.calls[0][0]).toMatchObject({
+        category: 'system_alert',
+        icon: 'bell',
+        priority: 77,
+      });
     });
 
     it('sin plantilla ni prioridad, category/icon quedan en null y la prioridad en 0; el templateCode deriva del eventCode', async () => {
@@ -488,7 +496,13 @@ describe('NotificationOrchestratorService', () => {
       (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce([rule({ templatePrefix: undefined })] as never);
 
       await service.handleEvent(
-        fakeEvent({ eventCode: 'user.registered', aggregateType: 'customer', aggregateId: 'c1', eventPayloadJson: {}, priority: null }) as never,
+        fakeEvent({
+          eventCode: 'user.registered',
+          aggregateType: 'customer',
+          aggregateId: 'c1',
+          eventPayloadJson: {},
+          priority: null,
+        }) as never,
       );
 
       expect((repository.createMessage as jest.Mock).mock.calls[0][0]).toMatchObject({ category: null, icon: null, priority: 0 });
@@ -499,7 +513,10 @@ describe('NotificationOrchestratorService', () => {
     it('cuando el mensaje creado no expone .id, resuelve el id vía getDataValue', async () => {
       const { service, rulesService, repository } = buildService();
       (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce([rule()] as never);
-      (repository.createMessage as jest.Mock).mockResolvedValueOnce({ id: undefined, getDataValue: jest.fn(() => 'msg-from-datavalue') } as never);
+      (repository.createMessage as jest.Mock).mockResolvedValueOnce({
+        id: undefined,
+        getDataValue: jest.fn(() => 'msg-from-datavalue'),
+      } as never);
 
       await service.handleEvent(fakeEvent({ aggregateType: 'customer', aggregateId: 'c1', eventPayloadJson: {} }) as never);
 

@@ -168,7 +168,9 @@ describe('HttpActionLogInterceptor', () => {
 
     it('riesgo HIGH cuando la respuesta es 5xx', async () => {
       const { interceptor, actionLog } = build();
-      await firstValueFrom(interceptor.intercept(ctx({ method: 'GET', url: '/api/v1/health', headers: {} }, { statusCode: 503 }), buildHandler(null)));
+      await firstValueFrom(
+        interceptor.intercept(ctx({ method: 'GET', url: '/api/v1/health', headers: {} }, { statusCode: 503 }), buildHandler(null)),
+      );
       await flush();
       expect(lastCall(actionLog)).toMatchObject({ responseStatusCode: 503, riskLevel: 'HIGH' });
     });
@@ -176,9 +178,9 @@ describe('HttpActionLogInterceptor', () => {
     it('error HttpException: registra su status y outcome error, y re-lanza el error al cliente', async () => {
       const { interceptor, actionLog } = build();
       const handler = { handle: () => throwError(() => new NotFoundException('no está')) } as CallHandler;
-      await expect(firstValueFrom(interceptor.intercept(ctx({ method: 'GET', url: '/api/v1/customers/1', headers: {} }), handler))).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        firstValueFrom(interceptor.intercept(ctx({ method: 'GET', url: '/api/v1/customers/1', headers: {} }), handler)),
+      ).rejects.toThrow(NotFoundException);
       expect(lastCall(actionLog)).toMatchObject({ responseStatusCode: 404, errorCode: 'HTTP_REQUEST_ERROR', errorMessage: 'no está' });
     });
 
@@ -198,7 +200,11 @@ describe('HttpActionLogInterceptor', () => {
     });
 
     it('si el registro del error también falla, el error original igual llega al cliente', async () => {
-      const actionLog = { createHttpAction: jest.fn(async () => { throw new Error('log down'); }) };
+      const actionLog = {
+        createHttpAction: jest.fn(async () => {
+          throw new Error('log down');
+        }),
+      };
       const interceptor = new HttpActionLogInterceptor(actionLog as unknown as HttpActionLogService);
       const boom = { handle: () => throwError(() => new Error('original')) } as CallHandler;
       await expect(firstValueFrom(interceptor.intercept(ctx({ method: 'GET', url: '/x', headers: {} }), boom))).rejects.toThrow('original');

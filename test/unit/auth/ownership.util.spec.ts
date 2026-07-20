@@ -46,9 +46,7 @@ describe('assertOwnCustomerResourceOrInternalOperational (usada por customer-onb
 
   it('blocks roles with no onboarding business need, unlike assertOwnCustomerResource (regression: this is the check that must stay stricter)', () => {
     for (const role of ['merchant', 'readonly_auditor', 'qa_engineer', 'devops', 'system_admin', 'system'] as const) {
-      expect(() => assertOwnCustomerResourceOrInternalOperational(user({ role, customerId: undefined }), '99')).toThrow(
-        ForbiddenException,
-      );
+      expect(() => assertOwnCustomerResourceOrInternalOperational(user({ role, customerId: undefined }), '99')).toThrow(ForbiddenException);
     }
   });
 });

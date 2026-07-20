@@ -25,7 +25,10 @@ describe('SystemsStressProfileService', () => {
 
   it('listStressProfiles mapea filas y propaga meta', async () => {
     const { service, stressRepository } = build();
-    (stressRepository.listStressProfiles as jest.Mock).mockResolvedValueOnce({ rows: [{ id: 1, endpointId: 5, code: 'C' }], meta: { page: 1 } } as never);
+    (stressRepository.listStressProfiles as jest.Mock).mockResolvedValueOnce({
+      rows: [{ id: 1, endpointId: 5, code: 'C' }],
+      meta: { page: 1 },
+    } as never);
     const res = await service.listStressProfiles({} as never);
     expect(res.items[0]).toMatchObject({ profileId: '1', endpointId: '5' });
     expect(res.meta).toEqual({ page: 1 });
@@ -63,7 +66,10 @@ describe('SystemsStressProfileService', () => {
   it('getStressMatrix agrupa perfiles por endpoint y calcula hasEnabledProfile', async () => {
     const { service, stressRepository } = build();
     (stressRepository.listStressRequiredEndpoints as jest.Mock).mockResolvedValueOnce({
-      rows: [{ id: 5, code: 'EP5' }, { id: 6, code: 'EP6' }],
+      rows: [
+        { id: 5, code: 'EP5' },
+        { id: 6, code: 'EP6' },
+      ],
       meta: { page: 1 },
     } as never);
     (stressRepository.findStressProfilesByEndpointIds as jest.Mock).mockResolvedValueOnce([

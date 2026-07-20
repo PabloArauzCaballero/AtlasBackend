@@ -72,8 +72,20 @@ describe('SystemsReviewService', () => {
   describe('resto de reviews (data-entity / data-impact / field-impact / data-column)', () => {
     const cases = [
       { method: 'reviewDataEntity', repoMethod: 'updateDataEntityReview', row: { id: 2 }, key: 'entityId', expected: '2' },
-      { method: 'reviewDataImpact', repoMethod: 'updateDataImpactReview', row: { id: 3, endpointId: 1, dataEntityId: 2 }, key: 'impactId', expected: '3' },
-      { method: 'reviewFieldImpact', repoMethod: 'updateFieldImpactReview', row: { id: 4, endpointId: 1, dataEntityId: 2 }, key: 'fieldImpactId', expected: '4' },
+      {
+        method: 'reviewDataImpact',
+        repoMethod: 'updateDataImpactReview',
+        row: { id: 3, endpointId: 1, dataEntityId: 2 },
+        key: 'impactId',
+        expected: '3',
+      },
+      {
+        method: 'reviewFieldImpact',
+        repoMethod: 'updateFieldImpactReview',
+        row: { id: 4, endpointId: 1, dataEntityId: 2 },
+        key: 'fieldImpactId',
+        expected: '4',
+      },
       { method: 'reviewDataColumn', repoMethod: 'updateDataColumnReview', row: { id: 5 }, key: 'columnId', expected: '5' },
     ] as const;
 

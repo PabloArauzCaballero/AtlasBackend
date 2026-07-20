@@ -15,9 +15,16 @@ describe('InfoCenterAdapter', () => {
   });
 
   it('normalize (COMPLETED con score) marca verificado', async () => {
-    const obs = await adapter.normalize({ status: 'COMPLETED', payload: { status: 'COMPLETED', bureauScore: 680, activeDebtCount: 2, maxDaysPastDue12m: 0 } } as never);
+    const obs = await adapter.normalize({
+      status: 'COMPLETED',
+      payload: { status: 'COMPLETED', bureauScore: 680, activeDebtCount: 2, maxDaysPastDue12m: 0 },
+    } as never);
     expect(obs.find((o) => o.observationKey === 'bureau_report_status')).toMatchObject({ verified: true, manualReviewRequired: false });
-    expect(obs.find((o) => o.observationKey === 'bureau_score_external')).toMatchObject({ valueType: 'NUMBER', valueNumber: 680, verified: true });
+    expect(obs.find((o) => o.observationKey === 'bureau_score_external')).toMatchObject({
+      valueType: 'NUMBER',
+      valueNumber: 680,
+      verified: true,
+    });
   });
 
   it('normalize sin datos -> valueType STRING con DATA_NOT_AVAILABLE y no verificado', async () => {
@@ -28,7 +35,13 @@ describe('InfoCenterAdapter', () => {
   });
 
   it('normalize marca manualReview cuando maxDaysPastDue12m > 30', async () => {
-    const obs = await adapter.normalize({ status: 'COMPLETED', payload: { status: 'COMPLETED', bureauScore: 500, maxDaysPastDue12m: 45 } } as never);
-    expect(obs.find((o) => o.observationKey === 'bureau_days_past_due_max_12m')).toMatchObject({ valueNumber: 45, manualReviewRequired: true });
+    const obs = await adapter.normalize({
+      status: 'COMPLETED',
+      payload: { status: 'COMPLETED', bureauScore: 500, maxDaysPastDue12m: 45 },
+    } as never);
+    expect(obs.find((o) => o.observationKey === 'bureau_days_past_due_max_12m')).toMatchObject({
+      valueNumber: 45,
+      manualReviewRequired: true,
+    });
   });
 });

@@ -13,15 +13,31 @@ describe('FacebookMetaAdapter', () => {
   });
 
   it('normalize: score alto verifica; email presente BOOLEAN; edad no disponible -> STRING', async () => {
-    const obs = await adapter.normalize({ status: 'CONNECTED', payload: { status: 'CONNECTED', nameMatchScore: 0.93, emailMatch: true, accountAgeAvailable: false, accountAgeDays: null } } as never);
-    expect(obs.find((o) => o.observationKey === 'facebook_name_match_score')).toMatchObject({ verified: true, manualReviewRequired: false });
+    const obs = await adapter.normalize({
+      status: 'CONNECTED',
+      payload: { status: 'CONNECTED', nameMatchScore: 0.93, emailMatch: true, accountAgeAvailable: false, accountAgeDays: null },
+    } as never);
+    expect(obs.find((o) => o.observationKey === 'facebook_name_match_score')).toMatchObject({
+      verified: true,
+      manualReviewRequired: false,
+    });
     expect(obs.find((o) => o.observationKey === 'facebook_email_match')).toMatchObject({ valueType: 'BOOLEAN', valueBoolean: true });
-    expect(obs.find((o) => o.observationKey === 'facebook_account_age_days')).toMatchObject({ valueType: 'STRING', valueString: 'DATA_NOT_AVAILABLE', verified: false });
+    expect(obs.find((o) => o.observationKey === 'facebook_account_age_days')).toMatchObject({
+      valueType: 'STRING',
+      valueString: 'DATA_NOT_AVAILABLE',
+      verified: false,
+    });
   });
 
   it('normalize: score bajo exige revisión y email ausente -> STRING', async () => {
     const obs = await adapter.normalize({ status: 'CONNECTED', payload: { status: 'CONNECTED', nameMatchScore: 0.5 } } as never);
-    expect(obs.find((o) => o.observationKey === 'facebook_name_match_score')).toMatchObject({ verified: false, manualReviewRequired: true });
-    expect(obs.find((o) => o.observationKey === 'facebook_email_match')).toMatchObject({ valueType: 'STRING', valueString: 'DATA_NOT_AVAILABLE' });
+    expect(obs.find((o) => o.observationKey === 'facebook_name_match_score')).toMatchObject({
+      verified: false,
+      manualReviewRequired: true,
+    });
+    expect(obs.find((o) => o.observationKey === 'facebook_email_match')).toMatchObject({
+      valueType: 'STRING',
+      valueString: 'DATA_NOT_AVAILABLE',
+    });
   });
 });

@@ -53,7 +53,12 @@ describe('ExternalDataController (ejecución)', () => {
     await c.previewRequest('1', body, user);
     expect(svc.previewExternalDataRequest).toHaveBeenCalledWith({ tenantId, body, requestedByUserId: actorId(user) });
     await c.executeRequest('1', 'idem-1', body, user);
-    expect(svc.executeExternalDataRequest).toHaveBeenCalledWith({ tenantId, body, idempotencyKey: 'idem-1', requestedByUserId: actorId(user) });
+    expect(svc.executeExternalDataRequest).toHaveBeenCalledWith({
+      tenantId,
+      body,
+      idempotencyKey: 'idem-1',
+      requestedByUserId: actorId(user),
+    });
   });
 
   it('lecturas por cliente y por request (features, scoring-input, decision-package, observations, getRequest, health)', async () => {
@@ -68,7 +73,12 @@ describe('ExternalDataController (ejecución)', () => {
     await c.getUserScoringInput('1', { customerId: '9' } as never, user);
     expect(svc.getCustomerScoringInput).toHaveBeenCalledWith({ tenantId, customerId: '9' });
     await c.getDecisionPackage('1', { customerId: '9' } as never, { includeRawResponses: true, featureMaxAgeHours: 24 } as never, user);
-    expect(svc.getCustomerDecisionPackage).toHaveBeenCalledWith({ tenantId, customerId: '9', includeRawResponses: true, featureMaxAgeHours: 24 });
+    expect(svc.getCustomerDecisionPackage).toHaveBeenCalledWith({
+      tenantId,
+      customerId: '9',
+      includeRawResponses: true,
+      featureMaxAgeHours: 24,
+    });
     await c.getUserObservations('1', { customerId: '9' } as never, user);
     expect(svc.getCustomerObservations).toHaveBeenCalledWith({ tenantId, customerId: '9' });
   });
@@ -91,17 +101,17 @@ describe('AdminExternalProvidersController (administración)', () => {
       listProviders: jest.fn(async () => []),
       getProviderHealth: jest.fn(async () => []),
       getProviderReadiness: jest.fn(async () => ({})),
-      auditExternalProvidersQuality: jest.fn(async () => ([])),
+      auditExternalProvidersQuality: jest.fn(async () => []),
       getProductionGate: jest.fn(async () => ({})),
       getProviderSlaReport: jest.fn(async () => ({})),
       getProviderUsage: jest.fn(async () => ({})),
-      auditIdempotencyKeys: jest.fn(async () => ([])),
+      auditIdempotencyKeys: jest.fn(async () => []),
       getRetentionPreview: jest.fn(async () => ({})),
-      auditResponseSanitization: jest.fn(async () => ([])),
+      auditResponseSanitization: jest.fn(async () => []),
       previewExternalDataRequest: jest.fn(async () => ({})),
       updateProviderRuntimePolicy: jest.fn(async () => ({})),
       activateProviderKillSwitch: jest.fn(async () => ({})),
-      getProviderCostPolicies: jest.fn(async () => ([])),
+      getProviderCostPolicies: jest.fn(async () => []),
       updateProviderCostPolicy: jest.fn(async () => ({})),
       executeExternalDataRequest: jest.fn(async () => ({})),
       approveRequest: jest.fn(async () => ({})),
@@ -150,7 +160,11 @@ describe('AdminExternalProvidersController (administración)', () => {
     await c.getCostPolicy({ providerCode: 'SEGIP' } as never);
     expect(svc.getProviderCostPolicies).toHaveBeenCalledWith('SEGIP');
     await c.updateCostPolicy({ providerCode: 'SEGIP' } as never, 'CREDIT_CHECK', { blockByDefault: false } as never);
-    expect(svc.updateProviderCostPolicy).toHaveBeenCalledWith({ providerCode: 'SEGIP', queryType: 'CREDIT_CHECK', patch: { blockByDefault: false } });
+    expect(svc.updateProviderCostPolicy).toHaveBeenCalledWith({
+      providerCode: 'SEGIP',
+      queryType: 'CREDIT_CHECK',
+      patch: { blockByDefault: false },
+    });
   });
 
   it('previewPolicy delega en el preview del servicio', async () => {
@@ -184,7 +198,14 @@ describe('AdminExternalProvidersController (administración)', () => {
   it('testProvider respeta los valores provistos en el body', async () => {
     const svc = service();
     const c = new AdminExternalProvidersController(svc as never);
-    const body = { customerId: '42', queryType: 'CREDIT_CHECK', purpose: 'ORIGINATION', decisionStage: 'ORIGINATION', input: { doc: 'x' }, scenario: 'happy' };
+    const body = {
+      customerId: '42',
+      queryType: 'CREDIT_CHECK',
+      purpose: 'ORIGINATION',
+      decisionStage: 'ORIGINATION',
+      input: { doc: 'x' },
+      scenario: 'happy',
+    };
     await c.testProvider('1', { providerCode: 'INFOCENTER' } as never, body, user);
     expect(svc.executeExternalDataRequest).toHaveBeenCalledWith({
       tenantId,
@@ -199,7 +220,12 @@ describe('AdminExternalProvidersController (administración)', () => {
     await c.approveRequest('1', { requestId: '7' } as never, { approvedByAdminId: 'boss', approvalReason: 'ok' } as never, user);
     expect(svc.approveRequest).toHaveBeenCalledWith({ tenantId, requestId: '7', approvedByAdminId: 'boss', approvalReason: 'ok' });
     await c.approveRequest('1', { requestId: '8' } as never, { approvalReason: 'ok2' } as never, user);
-    expect(svc.approveRequest).toHaveBeenLastCalledWith({ tenantId, requestId: '8', approvedByAdminId: actorId(user), approvalReason: 'ok2' });
+    expect(svc.approveRequest).toHaveBeenLastCalledWith({
+      tenantId,
+      requestId: '8',
+      approvedByAdminId: actorId(user),
+      approvalReason: 'ok2',
+    });
     const retryBody = { reason: 'transient' } as never;
     await c.retryRequest('1', { requestId: '9' } as never, retryBody, user);
     expect(svc.retryProviderRequest).toHaveBeenCalledWith({ tenantId, requestId: '9', body: retryBody, requestedByUserId: actorId(user) });

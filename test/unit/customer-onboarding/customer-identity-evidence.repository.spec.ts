@@ -65,7 +65,10 @@ describe('CustomerIdentityEvidenceRepository', () => {
     const { repo, models } = buildRepo();
     (models.evidenceExtraction.create as jest.Mock).mockResolvedValue({ id: 'x1' } as never);
     const extractedDataJson = { name: 'X' };
-    await repo.createEvidenceExtraction({ tenantId: 't1', evidenceDocumentId: 'e1', extractedAt: now, requiresReview: true, extractedDataJson }, opts);
+    await repo.createEvidenceExtraction(
+      { tenantId: 't1', evidenceDocumentId: 'e1', extractedAt: now, requiresReview: true, extractedDataJson },
+      opts,
+    );
     expect((models.evidenceExtraction.create as jest.Mock).mock.calls[0][0]).toMatchObject({
       extractionMethod: 'not_executed',
       extractedDataJson,
@@ -77,8 +80,15 @@ describe('CustomerIdentityEvidenceRepository', () => {
   it('createEvidenceReview fija reviewedBy null y createdAtValue=reviewedAt', async () => {
     const { repo, models } = buildRepo();
     (models.evidenceReview.create as jest.Mock).mockResolvedValue({ id: 'r1' } as never);
-    await repo.createEvidenceReview({ tenantId: 't1', evidenceDocumentId: 'e1', reviewStatus: 'approved', reviewedAt: now, notes: null }, opts);
-    expect((models.evidenceReview.create as jest.Mock).mock.calls[0][0]).toMatchObject({ reviewedBy: null, reviewStatus: 'approved', createdAtValue: now });
+    await repo.createEvidenceReview(
+      { tenantId: 't1', evidenceDocumentId: 'e1', reviewStatus: 'approved', reviewedAt: now, notes: null },
+      opts,
+    );
+    expect((models.evidenceReview.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      reviewedBy: null,
+      reviewStatus: 'approved',
+      createdAtValue: now,
+    });
   });
 
   it('createIdentityDocument nace pending_review con validFrom=createdAt', async () => {
@@ -133,7 +143,15 @@ describe('CustomerIdentityEvidenceRepository', () => {
     const { repo, models } = buildRepo();
     (models.providerRequest.create as jest.Mock).mockResolvedValue({ id: 'pr1' } as never);
     await repo.createDataProviderRequest(
-      { tenantId: 't1', customerId: 'c1', requestType: 'kyc', providerRequestRef: null, requestPayloadHash: null, idempotencyKey: null, requestedAt: now },
+      {
+        tenantId: 't1',
+        customerId: 'c1',
+        requestType: 'kyc',
+        providerRequestRef: null,
+        requestPayloadHash: null,
+        idempotencyKey: null,
+        requestedAt: now,
+      },
       opts,
     );
     expect((models.providerRequest.create as jest.Mock).mock.calls[0][0]).toMatchObject({ responseStatus: 'not_sent', respondedAt: null });
@@ -143,7 +161,10 @@ describe('CustomerIdentityEvidenceRepository', () => {
     const { repo, models } = buildRepo();
     (models.providerResponse.create as jest.Mock).mockResolvedValue({ id: 'pres1' } as never);
     const normalizedPayloadJson = { ok: true };
-    await repo.createDataProviderResponse({ tenantId: 't1', providerRequestId: 'pr1', responseHash: 'rh', normalizedPayloadJson, createdAt: now }, opts);
+    await repo.createDataProviderResponse(
+      { tenantId: 't1', providerRequestId: 'pr1', responseHash: 'rh', normalizedPayloadJson, createdAt: now },
+      opts,
+    );
     expect((models.providerResponse.create as jest.Mock).mock.calls[0][0]).toMatchObject({
       payloadStorageStrategy: 'inline_redacted',
       redactedPayloadJson: normalizedPayloadJson,

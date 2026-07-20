@@ -154,7 +154,12 @@ describe('CustomerPrivacyService', () => {
       (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
       (consentsRepository.findActiveDocumentsByIds as jest.Mock).mockResolvedValue([{ id: 'doc1' }] as never);
       (privacyRepository.createCustomerConsent as jest.Mock).mockResolvedValue({ id: 'consent-1' } as never);
-      const complianceUser = { role: 'compliance_analyst', customerId: undefined, internalUserId: 'iu-42', platformUserId: undefined } as never;
+      const complianceUser = {
+        role: 'compliance_analyst',
+        customerId: undefined,
+        internalUserId: 'iu-42',
+        platformUserId: undefined,
+      } as never;
 
       await service.registerConsentDecisions(baseInput({ currentUser: complianceUser }));
 

@@ -31,8 +31,19 @@ describe('SystemsTestExecutionRepository', () => {
   it('upsertTestSuite: isSafeForProduction=true ⇒ requiresDestructivePermission=false', async () => {
     const { repo, suiteModel } = buildRepo();
     (suiteModel.upsert as jest.Mock).mockResolvedValue([{ id: 's1' }] as never);
-    await repo.upsertTestSuite({ code: 'C', name: 'N', description: 'D', module: 'm', suiteType: 't', environmentScope: ['prod'], isSafeForProduction: true });
-    expect((suiteModel.upsert as jest.Mock).mock.calls[0][0]).toMatchObject({ isSafeForProduction: true, requiresDestructivePermission: false });
+    await repo.upsertTestSuite({
+      code: 'C',
+      name: 'N',
+      description: 'D',
+      module: 'm',
+      suiteType: 't',
+      environmentScope: ['prod'],
+      isSafeForProduction: true,
+    });
+    expect((suiteModel.upsert as jest.Mock).mock.calls[0][0]).toMatchObject({
+      isSafeForProduction: true,
+      requiresDestructivePermission: false,
+    });
   });
 
   it('upsertTestStep aplica defaults (inputMode DEFAULT, assertions con expectedStatusCodes)', async () => {
@@ -59,8 +70,20 @@ describe('SystemsTestExecutionRepository', () => {
     const { repo, runModel } = buildRepo();
     (runModel.create as jest.Mock).mockResolvedValue({ id: 'r1' } as never);
     const startedAt = new Date('2026-01-20');
-    await repo.createTestRun({ tenantId: 't1', suiteId: 's1', environment: 'dev', triggeredBy: 'u1', status: 'RUNNING', startedAt, summary: {} });
-    expect((runModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ finishedAt: null, durationMs: null, createdAtValue: startedAt });
+    await repo.createTestRun({
+      tenantId: 't1',
+      suiteId: 's1',
+      environment: 'dev',
+      triggeredBy: 'u1',
+      status: 'RUNNING',
+      startedAt,
+      summary: {},
+    });
+    expect((runModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      finishedAt: null,
+      durationMs: null,
+      createdAtValue: startedAt,
+    });
   });
 
   it('finishTestRun copia status/finishedAt/duration/summary y guarda', async () => {

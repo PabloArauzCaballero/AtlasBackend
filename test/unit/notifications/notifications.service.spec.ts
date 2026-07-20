@@ -50,7 +50,10 @@ describe('NotificationsService', () => {
 
   it('listMessages y listTemplates paginan con totalPages = ceil(total/limit)', async () => {
     const { service, repository } = build();
-    (repository.listMessages as jest.Mock).mockResolvedValueOnce({ rows: [{ id: 1, channel: 'in_app', status: 'sent' }], count: 25 } as never);
+    (repository.listMessages as jest.Mock).mockResolvedValueOnce({
+      rows: [{ id: 1, channel: 'in_app', status: 'sent' }],
+      count: 25,
+    } as never);
     const res = await service.listMessages('1', { page: 1, limit: 10 } as never);
     expect(res.data).toHaveLength(1);
     expect(res.pagination).toMatchObject({ total: 25, totalPages: 3 });
@@ -61,7 +64,9 @@ describe('NotificationsService', () => {
   it('getMessage combina el mensaje con sus deliveries', async () => {
     const { service, repository } = build();
     (repository.getMessage as jest.Mock).mockResolvedValueOnce({ id: 7, channel: 'email', status: 'sent' } as never);
-    (repository.listDeliveries as jest.Mock).mockResolvedValueOnce([{ id: 1, notificationMessageId: 7, channel: 'email', status: 'sent', attemptNumber: 1 }] as never);
+    (repository.listDeliveries as jest.Mock).mockResolvedValueOnce([
+      { id: 1, notificationMessageId: 7, channel: 'email', status: 'sent', attemptNumber: 1 },
+    ] as never);
     const res = await service.getMessage('1', '7');
     expect(res).toMatchObject({ id: '7' });
     expect(res.deliveries).toHaveLength(1);

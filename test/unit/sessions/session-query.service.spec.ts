@@ -225,11 +225,22 @@ describe('SessionQueryService', () => {
     it('getSessionState con dispositivo, vínculo y snapshot presentes los proyecta completos', async () => {
       const { service, sessionsRepository, customersRepository } = buildService();
       customersRepository.findById.mockResolvedValue({ id: 'c1' } as never);
-      sessionsRepository.findLatestActiveSession.mockResolvedValue({ id: 's1', deviceId: 'd1', sessionStatus: 'active', startedAt: date } as never);
+      sessionsRepository.findLatestActiveSession.mockResolvedValue({
+        id: 's1',
+        deviceId: 'd1',
+        sessionStatus: 'active',
+        startedAt: date,
+      } as never);
       sessionsRepository.findDeviceById.mockResolvedValue({ id: 'd1', riskStatus: 'clean' } as never);
       sessionsRepository.findCustomerDeviceLink.mockResolvedValue({ trustLevel: 'trusted' } as never);
       sessionsRepository.findLatestGpsObservation.mockResolvedValue({ capturedAt: new Date() } as never);
-      sessionsRepository.findLatestDeviceSnapshot.mockResolvedValue({ capturedAt: date, appVersion: '1.2.3', vpnDetected: false, isRooted: false, isEmulator: true } as never);
+      sessionsRepository.findLatestDeviceSnapshot.mockResolvedValue({
+        capturedAt: date,
+        appVersion: '1.2.3',
+        vpnDetected: false,
+        isRooted: false,
+        isEmulator: true,
+      } as never);
 
       const result = await service.getSessionState({ tenantId: 't1', customerId: 'c1', currentUser: customerUser });
 
@@ -241,11 +252,22 @@ describe('SessionQueryService', () => {
     it('getSessionState aplica los defaults cuando faltan estado/fechas/vínculo', async () => {
       const { service, sessionsRepository, customersRepository } = buildService();
       customersRepository.findById.mockResolvedValue({ id: 'c1' } as never);
-      sessionsRepository.findLatestActiveSession.mockResolvedValue({ id: 's1', deviceId: 'd1', sessionStatus: null, startedAt: null } as never);
+      sessionsRepository.findLatestActiveSession.mockResolvedValue({
+        id: 's1',
+        deviceId: 'd1',
+        sessionStatus: null,
+        startedAt: null,
+      } as never);
       sessionsRepository.findDeviceById.mockResolvedValue({ id: 'd1', riskStatus: null } as never);
       sessionsRepository.findCustomerDeviceLink.mockResolvedValue(null as never);
       sessionsRepository.findLatestGpsObservation.mockResolvedValue(null as never);
-      sessionsRepository.findLatestDeviceSnapshot.mockResolvedValue({ capturedAt: null, appVersion: null, vpnDetected: null, isRooted: null, isEmulator: null } as never);
+      sessionsRepository.findLatestDeviceSnapshot.mockResolvedValue({
+        capturedAt: null,
+        appVersion: null,
+        vpnDetected: null,
+        isRooted: null,
+        isEmulator: null,
+      } as never);
 
       const result = await service.getSessionState({ tenantId: 't1', customerId: 'c1', currentUser: customerUser });
 
@@ -258,8 +280,16 @@ describe('SessionQueryService', () => {
     it('getOperationsSessionSummary proyecta cliente, dispositivo y las 10 colecciones (con y sin fecha)', async () => {
       const { service, sessionsRepository, customersRepository } = buildService();
       sessionsRepository.findSessionForOperations.mockResolvedValue({
-        id: 's1', customerId: 'c1', deviceId: 'd1', sessionStatus: 'active', channel: 'mobile_app',
-        authMethod: 'password', startedAt: date, endedAt: date, ipAddress: '1.2.3.4', userAgent: 'ua',
+        id: 's1',
+        customerId: 'c1',
+        deviceId: 'd1',
+        sessionStatus: 'active',
+        channel: 'mobile_app',
+        authMethod: 'password',
+        startedAt: date,
+        endedAt: date,
+        ipAddress: '1.2.3.4',
+        userAgent: 'ua',
       } as never);
       customersRepository.findById.mockResolvedValue({ id: 'c1', customerCode: 'C-1', lifecycleStatus: 'active' } as never);
       sessionsRepository.findDeviceById.mockResolvedValue({ id: 'd1', riskStatus: 'clean', firstSeenAt: date, lastSeenAt: date } as never);
@@ -268,15 +298,42 @@ describe('SessionQueryService', () => {
         { id: 1, capturedAt: date, gpsAccuracyMeters: '5', gpsLat: '-16.5', gpsLng: '-68.1' },
         { id: 2, capturedAt: null, gpsAccuracyMeters: null, gpsLat: null, gpsLng: null },
       ] as never);
-      sessionsRepository.findSessionDeviceSnapshots.mockResolvedValue([{ id: 1, capturedAt: date }, { id: 2, capturedAt: null }] as never);
-      sessionsRepository.findSessionPermissionEvents.mockResolvedValue([{ id: 1, permissionCode: 'location', granted: true, respondedAt: date }, { id: 2, respondedAt: null }] as never);
-      sessionsRepository.findSessionAuthEvents.mockResolvedValue([{ id: 1, eventType: 'login', loginSuccessful: true, occurredAt: date }, { id: 2, occurredAt: null }] as never);
-      sessionsRepository.findSessionIpReputation.mockResolvedValue([{ id: 1, isVpn: true, capturedAt: date }, { id: 2, capturedAt: null }] as never);
-      sessionsRepository.findSessionSimObservations.mockResolvedValue([{ id: 1, carrierName: 'Tigo', capturedAt: date }, { id: 2, capturedAt: null }] as never);
-      sessionsRepository.findDeviceRiskEvents.mockResolvedValue([{ id: 1, eventType: 'root', reasonCode: 'R', happenedAt: date }, { id: 2, happenedAt: null }] as never);
-      sessionsRepository.findSessionCustomerActions.mockResolvedValue([{ id: 1, eventName: 'tap', occurredAt: date }, { id: 2, occurredAt: null }] as never);
-      sessionsRepository.findSessionCustomerObservations.mockResolvedValue([{ id: 1, observationCode: 'o', valueBoolean: true, capturedAt: date }, { id: 2, capturedAt: null }] as never);
-      sessionsRepository.findSessionAudits.mockResolvedValue([{ id: 1, actionCode: 'a', actorType: 'system', occurredAt: date }, { id: 2, occurredAt: null }] as never);
+      sessionsRepository.findSessionDeviceSnapshots.mockResolvedValue([
+        { id: 1, capturedAt: date },
+        { id: 2, capturedAt: null },
+      ] as never);
+      sessionsRepository.findSessionPermissionEvents.mockResolvedValue([
+        { id: 1, permissionCode: 'location', granted: true, respondedAt: date },
+        { id: 2, respondedAt: null },
+      ] as never);
+      sessionsRepository.findSessionAuthEvents.mockResolvedValue([
+        { id: 1, eventType: 'login', loginSuccessful: true, occurredAt: date },
+        { id: 2, occurredAt: null },
+      ] as never);
+      sessionsRepository.findSessionIpReputation.mockResolvedValue([
+        { id: 1, isVpn: true, capturedAt: date },
+        { id: 2, capturedAt: null },
+      ] as never);
+      sessionsRepository.findSessionSimObservations.mockResolvedValue([
+        { id: 1, carrierName: 'Tigo', capturedAt: date },
+        { id: 2, capturedAt: null },
+      ] as never);
+      sessionsRepository.findDeviceRiskEvents.mockResolvedValue([
+        { id: 1, eventType: 'root', reasonCode: 'R', happenedAt: date },
+        { id: 2, happenedAt: null },
+      ] as never);
+      sessionsRepository.findSessionCustomerActions.mockResolvedValue([
+        { id: 1, eventName: 'tap', occurredAt: date },
+        { id: 2, occurredAt: null },
+      ] as never);
+      sessionsRepository.findSessionCustomerObservations.mockResolvedValue([
+        { id: 1, observationCode: 'o', valueBoolean: true, capturedAt: date },
+        { id: 2, capturedAt: null },
+      ] as never);
+      sessionsRepository.findSessionAudits.mockResolvedValue([
+        { id: 1, actionCode: 'a', actorType: 'system', occurredAt: date },
+        { id: 2, occurredAt: null },
+      ] as never);
 
       const result = await service.getOperationsSessionSummary({ tenantId: 't1', sessionId: 's1', currentUser: internalUser });
 
@@ -286,7 +343,17 @@ describe('SessionQueryService', () => {
       // hasCoordinates: true con lat/lng, false cuando alguna es null
       expect(result.gpsObservations[0]).toMatchObject({ capturedAt: iso, hasCoordinates: true });
       expect(result.gpsObservations[1]).toMatchObject({ capturedAt: null, hasCoordinates: false });
-      for (const key of ['deviceSnapshots', 'permissions', 'authEvents', 'ipReputation', 'simObservations', 'deviceRiskEvents', 'customerActions', 'customerObservations', 'auditTrail'] as const) {
+      for (const key of [
+        'deviceSnapshots',
+        'permissions',
+        'authEvents',
+        'ipReputation',
+        'simObservations',
+        'deviceRiskEvents',
+        'customerActions',
+        'customerObservations',
+        'auditTrail',
+      ] as const) {
         expect((result as unknown as Record<string, unknown[]>)[key]).toHaveLength(2);
       }
       expect(result.auditTrail[0].occurredAt).toBe(iso);

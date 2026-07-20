@@ -33,7 +33,14 @@ describe('CustomerOnboardingFlowRepository', () => {
   it('createOnboardingFlow nace sin completar (completedAt/abandonedAt null)', async () => {
     const { repo, models } = buildRepo();
     await repo.createOnboardingFlow(
-      { tenantId: 't1', customerId: 'c1', sessionId: 's1', flowVersion: 'v1', startedAt: new Date('2026-01-01'), completionStatus: 'in_progress' },
+      {
+        tenantId: 't1',
+        customerId: 'c1',
+        sessionId: 's1',
+        flowVersion: 'v1',
+        startedAt: new Date('2026-01-01'),
+        completionStatus: 'in_progress',
+      },
       opts,
     );
     const [values] = (models.onboardingFlow.create as jest.Mock).mock.calls[0];
@@ -55,7 +62,14 @@ describe('CustomerOnboardingFlowRepository', () => {
   it('createOnboardingStepEvent nace con errorCount 0 y mapea happenedAt -> startedAt', async () => {
     const { repo, models } = buildRepo();
     await repo.createOnboardingStepEvent(
-      { tenantId: 't1', onboardingFlowId: 'f1', stepCode: 'kyc', eventType: 'started', happenedAt: new Date('2026-01-01'), payloadJson: null },
+      {
+        tenantId: 't1',
+        onboardingFlowId: 'f1',
+        stepCode: 'kyc',
+        eventType: 'started',
+        happenedAt: new Date('2026-01-01'),
+        payloadJson: null,
+      },
       opts,
     );
     const [values] = (models.onboardingStepEvent.create as jest.Mock).mock.calls[0];

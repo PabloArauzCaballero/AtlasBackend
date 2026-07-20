@@ -13,8 +13,7 @@ describe('ApiCommandOutboxInterceptor', () => {
     const runtime = { emitApiCommandCompleted: jest.fn(async () => undefined) };
     return { interceptor: new ApiCommandOutboxInterceptor(runtime as never), runtime };
   }
-  const contextOf = (request: Record<string, unknown>) =>
-    ({ switchToHttp: () => ({ getRequest: () => request }) }) as never;
+  const contextOf = (request: Record<string, unknown>) => ({ switchToHttp: () => ({ getRequest: () => request }) }) as never;
   const handlerOf = (body: unknown) => ({ handle: jest.fn(() => of(body)) }) as never;
 
   it('no intercepta lecturas (GET): pasa la respuesta sin emitir al outbox', async () => {

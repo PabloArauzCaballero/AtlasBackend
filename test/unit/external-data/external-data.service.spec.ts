@@ -154,7 +154,17 @@ describe('ExternalDataService', () => {
 
     it('delega el resto de operaciones (passthrough) en su sub-servicio correcto', async () => {
       const s = buildService();
-      const input = { tenantId: 't1', customerId: 'c1', requestId: 'r1', body: {}, days: 7, limit: 5, strict: false, includeRawResponses: false, patch: {} } as never;
+      const input = {
+        tenantId: 't1',
+        customerId: 'c1',
+        requestId: 'r1',
+        body: {},
+        days: 7,
+        limit: 5,
+        strict: false,
+        includeRawResponses: false,
+        patch: {},
+      } as never;
       const routes: Array<[string, 'execution' | 'convenience' | 'evidence' | 'governance']> = [
         ['previewExternalDataRequest', 'execution'],
         ['executeInfocenter', 'convenience'],

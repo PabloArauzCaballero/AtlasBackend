@@ -237,14 +237,30 @@ describe('ExternalDataExecutionService', () => {
   describe('ramas profundas (bloqueo por política, cache, fallo de ejecución, sin customerId, preview)', () => {
     const provider = { id: 'p1', providerCode: 'SEGIP', defaultMode: 'mock_local', requiresConsent: false };
     const body = (over: Record<string, unknown> = {}) =>
-      ({ providerCode: 'SEGIP', queryType: 'identity_check', purpose: 'origination', decisionStage: 'origination', customerId: 'c1', input: {}, ...over }) as never;
+      ({
+        providerCode: 'SEGIP',
+        queryType: 'identity_check',
+        purpose: 'origination',
+        decisionStage: 'origination',
+        customerId: 'c1',
+        input: {},
+        ...over,
+      }) as never;
 
     it('bloqueo por cost policy (HIGH + blockByDefault + requiresManualApproval, sin admin) -> MANUAL_APPROVAL_REQUIRED sin ejecutar', async () => {
       const { service, repository, registry } = buildService();
       (registry.requireProvider as jest.Mock).mockResolvedValueOnce(provider as never);
       const adapter = { execute: jest.fn(), normalize: jest.fn() };
       (registry.requireAdapter as jest.Mock).mockReturnValueOnce(adapter as never);
-      (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce({ costTier: 'HIGH', blockByDefault: true, requiresManualApproval: true, unitCostAmount: '5', currency: 'BOB', cacheTtlSeconds: 0, allowedDecisionStagesJson: [] } as never);
+      (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce({
+        costTier: 'HIGH',
+        blockByDefault: true,
+        requiresManualApproval: true,
+        unitCostAmount: '5',
+        currency: 'BOB',
+        cacheTtlSeconds: 0,
+        allowedDecisionStagesJson: [],
+      } as never);
       (repository.createProviderRequest as jest.Mock).mockResolvedValueOnce({ id: 'req-b' } as never);
 
       const result = await service.executeExternalDataRequest({ tenantId: 't1', body: body() });
@@ -257,10 +273,23 @@ describe('ExternalDataExecutionService', () => {
       (registry.requireProvider as jest.Mock).mockResolvedValueOnce(provider as never);
       const adapter = { execute: jest.fn(), normalize: jest.fn() };
       (registry.requireAdapter as jest.Mock).mockReturnValueOnce(adapter as never);
-      (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce({ costTier: 'LOW', cacheTtlSeconds: 3600, unitCostAmount: '1', currency: 'BOB', allowedDecisionStagesJson: [] } as never);
-      (repository.findReusableProviderRequest as jest.Mock).mockResolvedValueOnce({ id: 'cached-1', responseStatus: 'COMPLETED', responseCode: 'OK', modeUsed: 'mock_local' } as never);
+      (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce({
+        costTier: 'LOW',
+        cacheTtlSeconds: 3600,
+        unitCostAmount: '1',
+        currency: 'BOB',
+        allowedDecisionStagesJson: [],
+      } as never);
+      (repository.findReusableProviderRequest as jest.Mock).mockResolvedValueOnce({
+        id: 'cached-1',
+        responseStatus: 'COMPLETED',
+        responseCode: 'OK',
+        modeUsed: 'mock_local',
+      } as never);
       (repository.createProviderRequest as jest.Mock).mockResolvedValueOnce({ id: 'audit-1' } as never);
-      (repository.findProviderResponsesByRequestId as jest.Mock).mockResolvedValueOnce([{ normalizedPayloadJson: { observations: [], features: {} } }] as never);
+      (repository.findProviderResponsesByRequestId as jest.Mock).mockResolvedValueOnce([
+        { normalizedPayloadJson: { observations: [], features: {} } },
+      ] as never);
 
       const result = await service.executeExternalDataRequest({ tenantId: 't1', body: body() });
       expect(result).toMatchObject({ status: 'CACHED', reasonCode: 'CACHE_HIT', requestId: 'audit-1' });
@@ -270,7 +299,12 @@ describe('ExternalDataExecutionService', () => {
     it('fallo de ejecución (el adapter lanza) -> marca el request FAILED y devuelve FAILED', async () => {
       const { service, repository, registry } = buildService();
       (registry.requireProvider as jest.Mock).mockResolvedValueOnce(provider as never);
-      const adapter = { execute: jest.fn(async () => { throw new Error('provider boom'); }), normalize: jest.fn() };
+      const adapter = {
+        execute: jest.fn(async () => {
+          throw new Error('provider boom');
+        }),
+        normalize: jest.fn(),
+      };
       (registry.requireAdapter as jest.Mock).mockReturnValueOnce(adapter as never);
       (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce(null as never);
       (repository.createProviderRequest as jest.Mock).mockResolvedValueOnce({ id: 'req-f' } as never);
@@ -278,7 +312,10 @@ describe('ExternalDataExecutionService', () => {
 
       const result = await service.executeExternalDataRequest({ tenantId: 't1', body: body() });
       expect(result).toMatchObject({ status: 'FAILED', reasonCode: 'provider boom', manualReviewRequired: true });
-      expect((repository.updateProviderRequest as jest.Mock).mock.calls[0][1]).toMatchObject({ responseStatus: 'FAILED', responseCode: 'PROVIDER_EXECUTION_FAILED' });
+      expect((repository.updateProviderRequest as jest.Mock).mock.calls[0][1]).toMatchObject({
+        responseStatus: 'FAILED',
+        responseCode: 'PROVIDER_EXECUTION_FAILED',
+      });
     });
 
     it('éxito sin customerId no crea observaciones ni feature snapshot', async () => {
@@ -321,7 +358,13 @@ describe('ExternalDataExecutionService', () => {
     it('previewExternalDataRequest: refleja el cache hit cuando la policy tiene TTL', async () => {
       const { service, repository, registry } = buildService();
       (registry.requireProvider as jest.Mock).mockResolvedValueOnce(provider as never);
-      (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce({ costTier: 'LOW', cacheTtlSeconds: 3600, unitCostAmount: '1', currency: 'BOB', allowedDecisionStagesJson: [] } as never);
+      (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce({
+        costTier: 'LOW',
+        cacheTtlSeconds: 3600,
+        unitCostAmount: '1',
+        currency: 'BOB',
+        allowedDecisionStagesJson: [],
+      } as never);
       (repository.findReusableProviderRequest as jest.Mock).mockResolvedValueOnce({ id: 'cached-9' } as never);
       const res = await service.previewExternalDataRequest({ tenantId: 't1', body: body() });
       expect(res.cache).toMatchObject({ cacheEligible: true, cacheHit: true, cachedRequestId: 'cached-9' });

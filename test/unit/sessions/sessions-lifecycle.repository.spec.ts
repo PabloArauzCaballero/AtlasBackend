@@ -36,7 +36,10 @@ describe('SessionsLifecycleRepository', () => {
       },
       opts,
     );
-    const [values, callOpts] = (customerSessionModel.create as jest.Mock).mock.calls[0] as [Record<string, unknown>, Record<string, unknown>];
+    const [values, callOpts] = (customerSessionModel.create as jest.Mock).mock.calls[0] as [
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
     expect(values).toMatchObject({ sessionStatus: 'active', endedAt: null, startedAt: now, createdAtValue: now });
     expect(callOpts).toEqual({ transaction: 'tx' });
   });

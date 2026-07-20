@@ -92,7 +92,9 @@ describe('CatalogManagementRepository', () => {
   it('findCatalogByCode busca por code propagando la transacción', async () => {
     const { repo, models } = buildRepo();
     await repo.findCatalogByCode('CAT-1', { transaction: 'tx' as never });
-    expect(models.catalogModel.findOne).toHaveBeenCalledWith(expect.objectContaining({ where: { catalogCode: 'CAT-1' }, transaction: 'tx' }));
+    expect(models.catalogModel.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { catalogCode: 'CAT-1' }, transaction: 'tx' }),
+    );
   });
 
   it('findLatestVersion ordena por validFrom/id descendente', async () => {
@@ -161,12 +163,15 @@ describe('CatalogManagementRepository', () => {
 
   it('createSource crea la fuente con isActive por defecto y timestamps', async () => {
     const { repo, models } = buildRepo();
-    await repo.createSource(
-      { sourceCode: 'SRC-1', sourceName: 'Fuente', sourceType: 'manual', now },
-      { transaction: 'tx' as never },
-    );
+    await repo.createSource({ sourceCode: 'SRC-1', sourceName: 'Fuente', sourceType: 'manual', now }, { transaction: 'tx' as never });
     const [values, opts] = (models.contextSourceModel.create as jest.Mock).mock.calls[0] as [Record<string, unknown>, unknown];
-    expect(values).toMatchObject({ sourceCode: 'SRC-1', sourceName: 'Fuente', sourceType: 'manual', isActive: true, reliabilityScore: null });
+    expect(values).toMatchObject({
+      sourceCode: 'SRC-1',
+      sourceName: 'Fuente',
+      sourceType: 'manual',
+      isActive: true,
+      reliabilityScore: null,
+    });
     expect(opts).toEqual({ transaction: 'tx' });
   });
 
@@ -214,7 +219,13 @@ describe('CatalogManagementRepository', () => {
       {},
     );
     const [values] = (models.auditModel.create as jest.Mock).mock.calls[0] as [Record<string, unknown>];
-    expect(values).toMatchObject({ tenantId: 't1', actionCode: 'CATALOG_PUBLISH', payloadJson: { foo: 'bar' }, occurredAt: now, createdAtValue: now });
+    expect(values).toMatchObject({
+      tenantId: 't1',
+      actionCode: 'CATALOG_PUBLISH',
+      payloadJson: { foo: 'bar' },
+      occurredAt: now,
+      createdAtValue: now,
+    });
   });
 
   it('createDataChange hashea newValues cuando existen y deja null si no', async () => {
@@ -268,50 +279,126 @@ describe('CatalogManagementRepository', () => {
     const { repo, models } = buildRepo();
     const opt = { transaction: 'tx' as never };
     await repo.createCatalogVersion(
-      { catalogId: 'c', versionCode: 'v1', status: 'draft', validFrom: null, validUntil: null, createdByType: 'platform_admin', createdByPlatformUserId: 'u', notes: null, now } as never,
+      {
+        catalogId: 'c',
+        versionCode: 'v1',
+        status: 'draft',
+        validFrom: null,
+        validUntil: null,
+        createdByType: 'platform_admin',
+        createdByPlatformUserId: 'u',
+        notes: null,
+        now,
+      } as never,
       opt,
     );
-    expect((models.catalogVersionModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ versionCode: 'v1', approvedByType: null, approvedAt: null });
+    expect((models.catalogVersionModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      versionCode: 'v1',
+      approvedByType: null,
+      approvedAt: null,
+    });
     expect((models.catalogVersionModel.create as jest.Mock).mock.calls[0][1]).toEqual({ transaction: 'tx' });
 
     await repo.createContextItem(
-      { catalogVersionId: 'cv', itemCode: 'i', itemName: 'N', itemType: 't', attributes: { a: 1 }, sourceId: null, confidenceScore: null, now } as never,
+      {
+        catalogVersionId: 'cv',
+        itemCode: 'i',
+        itemName: 'N',
+        itemType: 't',
+        attributes: { a: 1 },
+        sourceId: null,
+        confidenceScore: null,
+        now,
+      } as never,
       opt,
     );
-    expect((models.contextItemModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ itemCode: 'i', attributesJson: { a: 1 }, isActive: true });
+    expect((models.contextItemModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      itemCode: 'i',
+      attributesJson: { a: 1 },
+      isActive: true,
+    });
 
-    await repo.createAlias({ contextItemId: 'ci', aliasValue: 'a', aliasType: 'syn', normalizedAlias: 'a', confidenceScore: null, now } as never, opt);
+    await repo.createAlias(
+      { contextItemId: 'ci', aliasValue: 'a', aliasType: 'syn', normalizedAlias: 'a', confidenceScore: null, now } as never,
+      opt,
+    );
     expect((models.contextItemAliasModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ aliasValue: 'a', normalizedAlias: 'a' });
 
     await repo.createRiskMapping(
-      { contextItemId: 'ci', riskDimension: 'd', riskBand: 'HIGH', scorePointsSuggested: null, reasonCode: 'R', explanation: null, modelUsage: null, validFrom: null, validUntil: null, now } as never,
+      {
+        contextItemId: 'ci',
+        riskDimension: 'd',
+        riskBand: 'HIGH',
+        scorePointsSuggested: null,
+        reasonCode: 'R',
+        explanation: null,
+        modelUsage: null,
+        validFrom: null,
+        validUntil: null,
+        now,
+      } as never,
       opt,
     );
     expect((models.contextRiskMappingModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ riskBand: 'HIGH', reasonCode: 'R' });
 
     await repo.createApprovalEvent(
-      { stagingItemId: 's', catalogVersionId: 'cv', eventType: 'approved', decidedByPlatformUserId: 'u', decidedAt: now, decisionReason: 'ok' } as never,
+      {
+        stagingItemId: 's',
+        catalogVersionId: 'cv',
+        eventType: 'approved',
+        decidedByPlatformUserId: 'u',
+        decidedAt: now,
+        decisionReason: 'ok',
+      } as never,
       opt,
     );
-    expect((models.contextApprovalEventModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ eventType: 'approved', createdAtValue: now });
+    expect((models.contextApprovalEventModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      eventType: 'approved',
+      createdAtValue: now,
+    });
 
     await repo.createIngestionJob(
-      { jobCode: 'J', sourceType: 'csv', sourceName: 'f', triggeredByType: 'platform_admin', triggeredByPlatformUserId: 'u', status: 'completed', summary: { n: 1 }, now } as never,
+      {
+        jobCode: 'J',
+        sourceType: 'csv',
+        sourceName: 'f',
+        triggeredByType: 'platform_admin',
+        triggeredByPlatformUserId: 'u',
+        status: 'completed',
+        summary: { n: 1 },
+        now,
+      } as never,
       opt,
     );
     expect((models.contextIngestionJobModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ jobCode: 'J', summaryJson: { n: 1 } });
 
     await repo.createStagingItem(
-      { catalogId: 'c', ingestionJobId: 'j', proposedItemCode: null, proposedItemName: 'N', proposedAttributes: {}, aiSuggested: true, createdByType: 'platform_admin', createdByPlatformUserId: 'u', now } as never,
+      {
+        catalogId: 'c',
+        ingestionJobId: 'j',
+        proposedItemCode: null,
+        proposedItemName: 'N',
+        proposedAttributes: {},
+        aiSuggested: true,
+        createdByType: 'platform_admin',
+        createdByPlatformUserId: 'u',
+        now,
+      } as never,
       opt,
     );
-    expect((models.contextStagingItemModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({ reviewStatus: 'pending_review', aiSuggested: true });
+    expect((models.contextStagingItemModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      reviewStatus: 'pending_review',
+      aiSuggested: true,
+    });
   });
 
   it('finders de versión/fuente/staging delegan con su filtro y transacción', async () => {
     const { repo, models } = buildRepo();
     await repo.findCatalogVersion('c', 'v', { transaction: 'tx' as never });
-    expect((models.catalogVersionModel.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { id: 'v', catalogId: 'c' }, transaction: 'tx' });
+    expect((models.catalogVersionModel.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({
+      where: { id: 'v', catalogId: 'c' },
+      transaction: 'tx',
+    });
     await repo.findCatalogVersionById('v2');
     expect((models.catalogVersionModel.findOne as jest.Mock).mock.calls[1][0]).toMatchObject({ where: { id: 'v2' } });
     await repo.findSourceByCode('SRC');
@@ -335,7 +422,11 @@ describe('CatalogManagementRepository', () => {
     expect(subRepos.riskPolicy.createRiskPolicyRule).toHaveBeenCalledWith({ c: 3 }, opt);
     expect(subRepos.riskPolicy.createRiskSignalSeed).toHaveBeenCalledWith({ d: 4 }, opt);
     expect(subRepos.riskPolicy.findRiskRulesetVersionById).toHaveBeenCalledWith('rs1', opt);
-    expect(subRepos.riskPolicy.activateRuleset).toHaveBeenCalledWith({ id: 'rs1' }, { approvedByPlatformUserId: 'u', effectiveFrom: now, now }, opt);
+    expect(subRepos.riskPolicy.activateRuleset).toHaveBeenCalledWith(
+      { id: 'rs1' },
+      { approvedByPlatformUserId: 'u', effectiveFrom: now, now },
+      opt,
+    );
     expect(subRepos.riskPolicy.retireOtherActiveRulesets).toHaveBeenCalledWith('RC', 'rs1', now, opt);
   });
 

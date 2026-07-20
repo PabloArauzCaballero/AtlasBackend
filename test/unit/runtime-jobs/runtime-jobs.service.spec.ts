@@ -233,7 +233,11 @@ describe('RuntimeJobsService', () => {
         { policyCode: 'form_interaction_events_60d', retentionDays: 60, isActive: true },
       ] as never);
       (dry.formInteractionModel.count as jest.Mock).mockResolvedValueOnce(9 as never);
-      const dryResp = await dry.service.applyRetentionPolicies({ tenantId: 't1', body: { dryRun: true } as never, currentUser: internalUser });
+      const dryResp = await dry.service.applyRetentionPolicies({
+        tenantId: 't1',
+        body: { dryRun: true } as never,
+        currentUser: internalUser,
+      });
       expect(dry.formInteractionModel.destroy).not.toHaveBeenCalled();
       expect((dryResp as { result: { outcomes: unknown[] } }).result.outcomes).toEqual([
         { table: 'form_field_interaction_events', action: 'delete', affected: 9 },
@@ -244,7 +248,11 @@ describe('RuntimeJobsService', () => {
         { policyCode: 'form_interaction_events_60d', retentionDays: 60, isActive: true },
       ] as never);
       (real.formInteractionModel.destroy as jest.Mock).mockResolvedValueOnce(9 as never);
-      const realResp = await real.service.applyRetentionPolicies({ tenantId: 't1', body: { dryRun: false } as never, currentUser: internalUser });
+      const realResp = await real.service.applyRetentionPolicies({
+        tenantId: 't1',
+        body: { dryRun: false } as never,
+        currentUser: internalUser,
+      });
       expect(real.formInteractionModel.count).not.toHaveBeenCalled();
       expect((realResp as { result: { destructiveActionsExecuted: number } }).result.destructiveActionsExecuted).toBe(9);
     });
@@ -256,8 +264,13 @@ describe('RuntimeJobsService', () => {
       (sequelize.query as jest.Mock).mockResolvedValueOnce([{ count: '5' }] as never);
       (outboxModel.count as jest.Mock).mockResolvedValueOnce(8 as never);
 
-      const response = await service.processOutbox({ tenantId: 't1', body: { dryRun: true, limit: 100 } as never, currentUser: internalUser });
-      const result = (response as { result: { selected: number; processed: number; skippedBusinessEvents: number; dryRun: boolean } }).result;
+      const response = await service.processOutbox({
+        tenantId: 't1',
+        body: { dryRun: true, limit: 100 } as never,
+        currentUser: internalUser,
+      });
+      const result = (response as { result: { selected: number; processed: number; skippedBusinessEvents: number; dryRun: boolean } })
+        .result;
       expect(result).toMatchObject({ selected: 5, processed: 0, skippedBusinessEvents: 3, dryRun: true });
     });
 
@@ -266,8 +279,13 @@ describe('RuntimeJobsService', () => {
       (sequelize.query as jest.Mock).mockResolvedValueOnce([{ id: '1' }, { id: '2' }] as never);
       (outboxModel.count as jest.Mock).mockResolvedValueOnce(4 as never);
 
-      const response = await service.processOutbox({ tenantId: 't1', body: { dryRun: false, limit: 100 } as never, currentUser: internalUser });
-      const result = (response as { result: { selected: number; processed: number; skippedBusinessEvents: number; dryRun: boolean } }).result;
+      const response = await service.processOutbox({
+        tenantId: 't1',
+        body: { dryRun: false, limit: 100 } as never,
+        currentUser: internalUser,
+      });
+      const result = (response as { result: { selected: number; processed: number; skippedBusinessEvents: number; dryRun: boolean } })
+        .result;
       expect(result).toMatchObject({ selected: 2, processed: 2, skippedBusinessEvents: 4, dryRun: false });
       expect(sequelize.transaction).toHaveBeenCalled();
     });
@@ -278,7 +296,11 @@ describe('RuntimeJobsService', () => {
       const { service, eventsService } = buildService();
       (eventsService.processPendingEvents as jest.Mock).mockResolvedValueOnce({ processed: 3, dryRun: false } as never);
 
-      const response = await service.processEvents({ tenantId: 't1', body: { dryRun: false, limit: 50 } as never, currentUser: internalUser });
+      const response = await service.processEvents({
+        tenantId: 't1',
+        body: { dryRun: false, limit: 50 } as never,
+        currentUser: internalUser,
+      });
       expect(eventsService.processPendingEvents).toHaveBeenCalledWith({
         tenantId: 't1',
         limit: 50,
