@@ -228,5 +228,101 @@ describe('ExternalDataEvidenceService', () => {
       expect(result.rebuilt).toBe(true);
       expect(result.features.x).toBe(5);
     });
+
+    it('sin proveedor asociado usa providerCode UNKNOWN y marca las features DATA_NOT_AVAILABLE como faltantes', async () => {
+      const { service, repository } = buildService();
+      repository.findProviderRequestByIdAndTenant.mockResolvedValue({ id: 'r1', customerId: 'c1', providerId: null } as never);
+      repository.findProviderResponsesByRequestIdAndTenant.mockResolvedValue([
+        {
+          normalizedPayloadJson: {
+            observations: [
+              { featureKey: 'ok', valueType: 'NUMBER', valueNumber: 5 },
+              { featureKey: 'faltante', valueType: 'STRING', valueString: 'DATA_NOT_AVAILABLE' },
+            ],
+          },
+        },
+      ] as never);
+      repository.createFeatureSnapshot.mockResolvedValue({ id: 'fs1' } as never);
+
+      const result = await service.rebuildFeatureSnapshotFromRequest({ tenantId: 't1', requestId: 'r1' });
+
+      expect(result.providerCode).toBe('UNKNOWN');
+      expect(repository.findProviderById).not.toHaveBeenCalled();
+      expect(result.missingFeaturesJson).toEqual({ faltante: 'DATA_NOT_AVAILABLE' });
+    });
+  });
+
+  describe('proyecciones de lectura (mapeo con y sin ids opcionales)', () => {
+    it('listCustomerConsents proyecta el consentimiento', async () => {
+      const { service, repository } = buildService();
+      repository.listCustomerConsents.mockResolvedValue([
+        { id: 1, customerId: 9, purposeCode: 'KYC', granted: true, grantedAt: null, revokedAt: null, channel: 'web' },
+      ] as never);
+      const result = await service.listCustomerConsents({ tenantId: 't1', customerId: '9' });
+      expect(result[0]).toMatchObject({ id: '1', customerId: '9', purposeCode: 'KYC', granted: true, channel: 'web' });
+    });
+
+    it('revokeConsent devuelve el consentimiento revocado; si la revocación no encuentra fila, NotFound', async () => {
+      const { service, repository } = buildService();
+      repository.findCustomerConsentByIdAndTenant.mockResolvedValue({ id: 5, customerId: 9 } as never);
+      repository.revokeCustomerConsent.mockResolvedValue({ id: 5, customerId: 9, revokedAt: new Date('2026-01-01') } as never);
+      const ok = await service.revokeConsent({ tenantId: 't1', consentId: '5', customerId: '9' });
+      expect(ok).toMatchObject({ id: '5', customerId: '9', revoked: true });
+
+      repository.revokeCustomerConsent.mockResolvedValue(null as never);
+      await expect(service.revokeConsent({ tenantId: 't1', consentId: '5' })).rejects.toThrow('Consentimiento no encontrado.');
+    });
+
+    it('getProviderRequest lanza NotFound, y con datos proyecta la solicitud + sus respuestas', async () => {
+      const { service, repository } = buildService();
+      repository.findProviderRequestByIdAndTenant.mockResolvedValue(null as never);
+      await expect(service.getProviderRequest({ tenantId: 't1', requestId: 'r1' })).rejects.toThrow('Solicitud de provider externo no encontrada.');
+
+      repository.findProviderRequestByIdAndTenant.mockResolvedValue({ id: 7, providerId: 3, customerId: 9, requestType: 'q', responseStatus: 'COMPLETED' } as never);
+      repository.findProviderResponsesByRequestIdAndTenant.mockResolvedValue([
+        { id: 11, providerStatusCode: 200, providerReference: 'ref', responseHash: 'h', redactedPayloadJson: {}, normalizedPayloadJson: {}, createdAtValue: null },
+      ] as never);
+      const full = await service.getProviderRequest({ tenantId: 't1', requestId: '7' });
+      expect(full).toMatchObject({ id: '7', providerId: '3', customerId: '9', responseStatus: 'COMPLETED' });
+      expect(full.responses[0]).toMatchObject({ id: '11', providerReference: 'ref' });
+    });
+
+    it('getProviderRequest deja providerId/customerId en null cuando la solicitud no los tiene', async () => {
+      const { service, repository } = buildService();
+      repository.findProviderRequestByIdAndTenant.mockResolvedValue({ id: 7, providerId: null, customerId: null } as never);
+      repository.findProviderResponsesByRequestIdAndTenant.mockResolvedValue([] as never);
+      const result = await service.getProviderRequest({ tenantId: 't1', requestId: '7' });
+      expect(result).toMatchObject({ providerId: null, customerId: null, responses: [] });
+    });
+
+    it('getCustomerObservations mapea ids opcionales y usa el límite por defecto (50) o el explícito', async () => {
+      const { service, repository } = buildService();
+      repository.listCustomerObservations.mockResolvedValue([
+        { id: 1, customerId: 9, sourceProviderId: 3, observationCode: 'o1' },
+        { id: 2, customerId: null, sourceProviderId: null, observationCode: 'o2' },
+      ] as never);
+      const result = await service.getCustomerObservations({ tenantId: 't1', customerId: '9' });
+      expect(repository.listCustomerObservations).toHaveBeenCalledWith('t1', '9', 50);
+      expect(result[0]).toMatchObject({ id: '1', customerId: '9', sourceProviderId: '3' });
+      expect(result[1]).toMatchObject({ customerId: null, sourceProviderId: null });
+
+      await service.getCustomerObservations({ tenantId: 't1', customerId: '9', limit: 5 });
+      expect(repository.listCustomerObservations).toHaveBeenLastCalledWith('t1', '9', 5);
+    });
+
+    it('getCustomerFeatures mapea ids opcionales y usa el límite por defecto (20) o el explícito', async () => {
+      const { service, repository } = buildService();
+      repository.listCustomerFeatureSnapshots.mockResolvedValue([
+        { id: 1, customerId: 9, triggeringEntityId: 4, snapshotReason: 'risk' },
+        { id: 2, customerId: null, triggeringEntityId: null, snapshotReason: null },
+      ] as never);
+      const result = await service.getCustomerFeatures({ tenantId: 't1', customerId: '9' });
+      expect(repository.listCustomerFeatureSnapshots).toHaveBeenCalledWith('t1', '9', 20);
+      expect(result[0]).toMatchObject({ id: '1', customerId: '9', triggeringEntityId: '4' });
+      expect(result[1]).toMatchObject({ customerId: null, triggeringEntityId: null });
+
+      await service.getCustomerFeatures({ tenantId: 't1', customerId: '9', limit: 3 });
+      expect(repository.listCustomerFeatureSnapshots).toHaveBeenLastCalledWith('t1', '9', 3);
+    });
   });
 });
