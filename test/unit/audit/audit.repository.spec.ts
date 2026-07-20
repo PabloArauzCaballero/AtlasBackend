@@ -191,4 +191,28 @@ describe('AuditRepository', () => {
       expect(decodeAuditCursor(partial)).toBeNull();
     });
   });
+
+  describe('feed "all" con filas incompletas (fallbacks de fecha y resumen)', () => {
+    it('cae a createdAtValue y a los resúmenes por defecto cuando la fila no trae fecha ni nombre', async () => {
+      const { repo, models } = buildRepo();
+      const createdAtValue = new Date('2026-01-01T10:00:00.000Z');
+      (models.customerStatusEvent.findAll as jest.Mock).mockResolvedValue([
+        { id: 1, happenedAt: null, createdAtValue, previousStatus: null, newStatus: 'active' },
+      ] as never);
+      (models.customerActionLog.findAll as jest.Mock).mockResolvedValue([{ id: 2, occurredAt: null, createdAtValue, eventName: null }] as never);
+      (models.authEvent.findAll as jest.Mock).mockResolvedValue([{ id: 3, occurredAt: null, createdAtValue, eventType: null }] as never);
+      (models.dataChangeLog.findAll as jest.Mock).mockResolvedValue([{ id: 4, changedAt: null, createdAtValue }] as never);
+      (models.operationalAuditLog.findAll as jest.Mock).mockResolvedValue([{ id: 5, occurredAt: null, createdAtValue, actionCode: null }] as never);
+      // sin consentimientos: la consulta de eventos de consentimiento ni se dispara
+      (models.customerConsent.findAll as jest.Mock).mockResolvedValue([] as never);
+
+      const result = await repo.findCustomerAuditEvents('t1', 'c1', baseQuery({ eventType: 'all' }));
+      const events = Array.isArray(result) ? result : result.events;
+
+      for (const event of events) expect(event.occurredAt).toEqual(createdAtValue);
+      const summaries = events.map((event: { summary: string }) => event.summary);
+      expect(summaries).toEqual(expect.arrayContaining(['Estado: none -> active', 'customer_action', 'auth_event', 'audit']));
+      expect(models.consentEvent.findAll).not.toHaveBeenCalled();
+    });
+  });
 });

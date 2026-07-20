@@ -443,4 +443,80 @@ describe('NotificationOrchestratorService', () => {
       expect(recordArgs.errorMessage).toBe('provider timeout');
     });
   });
+
+  describe('ramas de derivación restantes', () => {
+    const rule = (over: Record<string, unknown> = {}) => ({
+      eventCode: 'x',
+      channels: ['in_app'],
+      recipientType: 'customer',
+      recipientIdPath: ['customerId'],
+      required: false,
+      templatePrefix: 'x',
+      ...over,
+    });
+
+    it('una regla merchant cae al aggregateId cuando el aggregateType es merchant', async () => {
+      const { service, rulesService, repository } = buildService();
+      (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce([rule({ recipientType: 'merchant' })] as never);
+
+      await service.handleEvent(fakeEvent({ aggregateType: 'merchant', aggregateId: 'm-1', eventPayloadJson: {} }) as never);
+
+      expect((repository.createMessage as jest.Mock).mock.calls[0][0]).toMatchObject({ recipientType: 'merchant', recipientId: 'm-1' });
+    });
+
+    it('tolera eventPayloadJson null y un conjunto de reglas no-array (no crea nada, no revienta)', async () => {
+      const { service, rulesService, repository } = buildService();
+      (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce(undefined as never);
+      await service.handleEvent(fakeEvent({ eventPayloadJson: null }) as never);
+      expect(repository.createMessage).not.toHaveBeenCalled();
+    });
+
+    it('con plantilla registrada toma su category/icon y la prioridad del evento', async () => {
+      const { service, rulesService, repository } = buildService();
+      (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce([rule()] as never);
+      (repository.findTemplate as jest.Mock).mockResolvedValue({
+        subjectTemplate: 'S', titleTemplate: 'T', bodyTemplate: 'B', category: 'system_alert', icon: 'bell',
+      } as never);
+
+      await service.handleEvent(fakeEvent({ aggregateType: 'customer', aggregateId: 'c1', eventPayloadJson: {}, priority: 77 }) as never);
+
+      expect((repository.createMessage as jest.Mock).mock.calls[0][0]).toMatchObject({ category: 'system_alert', icon: 'bell', priority: 77 });
+    });
+
+    it('sin plantilla ni prioridad, category/icon quedan en null y la prioridad en 0; el templateCode deriva del eventCode', async () => {
+      const { service, rulesService, repository } = buildService();
+      (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce([rule({ templatePrefix: undefined })] as never);
+
+      await service.handleEvent(
+        fakeEvent({ eventCode: 'user.registered', aggregateType: 'customer', aggregateId: 'c1', eventPayloadJson: {}, priority: null }) as never,
+      );
+
+      expect((repository.createMessage as jest.Mock).mock.calls[0][0]).toMatchObject({ category: null, icon: null, priority: 0 });
+      // templatePrefix ausente -> se usa el eventCode con puntos reemplazados
+      expect((repository.findTemplate as jest.Mock).mock.calls[0][0]).toMatchObject({ code: 'user_registered_in_app' });
+    });
+
+    it('cuando el mensaje creado no expone .id, resuelve el id vía getDataValue', async () => {
+      const { service, rulesService, repository } = buildService();
+      (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce([rule()] as never);
+      (repository.createMessage as jest.Mock).mockResolvedValueOnce({ id: undefined, getDataValue: jest.fn(() => 'msg-from-datavalue') } as never);
+
+      await service.handleEvent(fakeEvent({ aggregateType: 'customer', aggregateId: 'c1', eventPayloadJson: {} }) as never);
+
+      expect(repository.getMessageForDelivery).toHaveBeenCalledWith('msg-from-datavalue');
+    });
+
+    it('si el adapter lanza algo que no es Error, registra el código genérico ADAPTER_SEND_FAILED', async () => {
+      const { service, repository, adapters } = buildService();
+      (adapters.inAppAdapter.send as jest.Mock).mockImplementationOnce(() => {
+        throw 'string suelto';
+      });
+
+      await service.deliverMessage('msg-1');
+
+      const recordArgs = (repository.recordDelivery as jest.Mock).mock.calls[0][2] as { errorCode: string; errorMessage: string };
+      expect(recordArgs.errorCode).toBe('ADAPTER_SEND_FAILED');
+      expect(recordArgs.errorMessage).toBe('Fallo no identificado en adapter de notificación.');
+    });
+  });
 });
