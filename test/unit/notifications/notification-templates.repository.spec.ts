@@ -81,4 +81,65 @@ describe('NotificationTemplatesRepository', () => {
     expect((template as { code: string }).code).toBe('old'); // no tocado
     expect(save).toHaveBeenCalled();
   });
+
+  it('updateTemplate con TODOS los campos definidos los asigna uno a uno', async () => {
+    const { repo, templateModel } = buildRepo();
+    const save = jest.fn(async () => undefined);
+    const template = { save } as never;
+    (templateModel.findOne as jest.Mock).mockResolvedValue(template as never);
+
+    await repo.updateTemplate('t1', '1', {
+      code: 'NEW',
+      channel: 'email',
+      locale: 'es',
+      titleTemplate: 'T',
+      subjectTemplate: 'S',
+      bodyTemplate: 'B',
+      payloadSchema: { a: 1 },
+      category: 'system',
+      icon: 'bell',
+      isActive: false,
+      version: 3,
+    } as never);
+
+    expect(template).toMatchObject({
+      code: 'NEW', channel: 'email', locale: 'es', titleTemplate: 'T', subjectTemplate: 'S',
+      bodyTemplate: 'B', payloadSchemaJson: { a: 1 }, category: 'system', icon: 'bell', isActive: false, version: 3,
+    });
+    expect(save).toHaveBeenCalled();
+  });
+
+  it('updateTemplate normaliza a null los opcionales enviados como null', async () => {
+    const { repo, templateModel } = buildRepo();
+    const template = { save: jest.fn(async () => undefined) } as never;
+    (templateModel.findOne as jest.Mock).mockResolvedValue(template as never);
+
+    await repo.updateTemplate('t1', '1', {
+      titleTemplate: null, subjectTemplate: null, payloadSchema: null, category: null, icon: null,
+    } as never);
+
+    expect(template).toMatchObject({ titleTemplate: null, subjectTemplate: null, payloadSchemaJson: null, category: null, icon: null });
+  });
+
+  it('listTemplates aplica code/channel/active sobre el OR de tenant propio + global', async () => {
+    const { repo, templateModel } = buildRepo();
+    (templateModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
+
+    await repo.listTemplates('t1', { code: 'C', channel: 'email', active: false, page: 2, limit: 10 } as never);
+
+    const args = (templateModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; offset: number; limit: number };
+    expect(args.where).toMatchObject({ code: 'C', channel: 'email', isActive: false });
+    expect(args).toMatchObject({ offset: 10, limit: 10 });
+  });
+
+  it('createTemplate deja en null los opcionales ausentes', async () => {
+    const { repo, templateModel } = buildRepo();
+    (templateModel.create as jest.Mock).mockResolvedValue({ id: '1' } as never);
+
+    await repo.createTemplate('t1', { code: 'C', channel: 'email', locale: 'es', bodyTemplate: 'B', isActive: true, version: 1 } as never);
+
+    expect((templateModel.create as jest.Mock).mock.calls[0][0]).toMatchObject({
+      titleTemplate: null, subjectTemplate: null, payloadSchemaJson: null, category: null, icon: null, tenantId: 't1',
+    });
+  });
 });
