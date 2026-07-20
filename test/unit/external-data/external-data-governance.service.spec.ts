@@ -696,4 +696,90 @@ describe('ExternalDataGovernanceService', () => {
       expect(result.providers[0].p95LatencyMs).toBeNull();
     });
   });
+
+  describe('ramas de defaults y blockers', () => {
+    it('approveRequest aplica los defaults cuando la solicitud no trae estado/código/metadata ni admin', async () => {
+      const { service, repository } = buildService();
+      const update = jest.fn(async () => undefined);
+      repository.findProviderRequestByIdAndTenant.mockResolvedValue({
+        id: 7,
+        responseStatus: null,
+        responseCode: null,
+        respondedAt: null,
+        metadataJson: null,
+        update,
+      } as never);
+
+      const result = await service.approveRequest({ tenantId: 't1', requestId: '7', approvedByAdminId: undefined });
+
+      const patch = (repository.updateProviderRequest as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
+      expect(patch).toMatchObject({ responseStatus: 'PENDING', responseCode: 'APPROVED_FOR_MANUAL_EXECUTION' });
+      expect(patch.metadataJson).toMatchObject({ approvalReason: null });
+      expect(update).toHaveBeenCalledWith({ approvalStatus: 'approved', approvedByAdminId: null });
+      expect(result).toEqual({ requestId: '7', approvalStatus: 'approved' });
+    });
+
+    it('approveRequest conserva estado/código/metadata previos y registra la razón y el admin', async () => {
+      const { service, repository } = buildService();
+      const update = jest.fn(async () => undefined);
+      const respondedAt = new Date('2026-01-01T00:00:00.000Z');
+      repository.findProviderRequestByIdAndTenant.mockResolvedValue({
+        id: 7,
+        responseStatus: 'MANUAL_APPROVAL_REQUIRED',
+        responseCode: 'NEEDS_ADMIN',
+        respondedAt,
+        metadataJson: { previo: true },
+        update,
+      } as never);
+
+      await service.approveRequest({ tenantId: 't1', requestId: '7', approvedByAdminId: 'admin-1', approvalReason: 'ok' });
+
+      const patch = (repository.updateProviderRequest as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
+      expect(patch).toMatchObject({ responseStatus: 'MANUAL_APPROVAL_REQUIRED', responseCode: 'NEEDS_ADMIN', respondedAt });
+      expect(patch.metadataJson).toMatchObject({ previo: true, approvalReason: 'ok' });
+      expect(update).toHaveBeenCalledWith({ approvalStatus: 'approved', approvedByAdminId: 'admin-1' });
+    });
+
+    it('readiness acumula ADAPTER_MISSING + PROVIDER_DISABLED + MODE_DISABLED + NO_COST_POLICY', async () => {
+      const { service, repository, registry } = buildService();
+      repository.listProviders.mockResolvedValue([
+        { id: 1, providerCode: 'SEGIP', providerName: 'Segip', providerCategory: null, providerType: 'identity', defaultMode: 'disabled', isActive: false, providerStatus: 'DISABLED' },
+      ] as never);
+      (registry.hasAdapter as jest.Mock).mockReturnValue(false as never);
+      repository.listCostPolicies.mockResolvedValue([] as never);
+      repository.countRequests.mockResolvedValue(0 as never);
+
+      const result = await service.getProviderReadiness();
+      const entry = result.readiness[0];
+
+      expect(entry.blockers).toEqual(expect.arrayContaining(['ADAPTER_MISSING', 'PROVIDER_DISABLED', 'MODE_DISABLED', 'NO_COST_POLICY']));
+      expect(entry.health).toMatchObject({ status: 'UNKNOWN', errorCode: 'ADAPTER_NOT_REGISTERED' });
+      expect(entry.readyForMock).toBe(false);
+      expect(entry.readyForProduction).toBe(false);
+      expect(entry.category).toBe('identity'); // providerCategory null -> providerType
+      expect(entry.status).toBe('DISABLED');
+    });
+
+    it('readiness agrega HEALTH_DOWN cuando el adapter responde DOWN, y deriva status ACTIVE sin providerStatus', async () => {
+      const { service, repository, registry } = buildService();
+      repository.listProviders.mockResolvedValue([
+        { id: 1, providerCode: 'SEGIP', providerName: 'Segip', providerCategory: 'identity', defaultMode: 'mock_local', isActive: true, providerStatus: null },
+      ] as never);
+      (registry.hasAdapter as jest.Mock).mockReturnValue(true as never);
+      (registry.requireAdapter as jest.Mock).mockReturnValue({
+        checkHealth: jest.fn(async () => ({ providerCode: 'SEGIP', status: 'DOWN', mode: 'mock_local', latencyMs: 1, checkedAt: 'now' })),
+      } as never);
+      repository.listCostPolicies.mockResolvedValue([{ id: 1, providerId: 1, queryType: 'q', unitCostAmount: '1', currency: 'BOB', costTier: 'LOW' }] as never);
+      repository.countRequests.mockResolvedValue(3 as never);
+
+      const entry = (await service.getProviderReadiness()).readiness[0];
+
+      expect(entry.blockers).toContain('HEALTH_DOWN');
+      expect(entry.blockers).not.toContain('NO_COST_POLICY');
+      expect(entry.status).toBe('ACTIVE'); // providerStatus null + isActive true
+      expect(entry.readyForMock).toBe(true); // hay adapter y el modo no es disabled
+      expect(entry.recentFailures).toBe(3);
+      expect(entry.policies).toHaveLength(1);
+    });
+  });
 });
