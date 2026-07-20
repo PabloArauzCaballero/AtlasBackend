@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
 import { SystemsTestTemplateService } from '../../../src/modules/systems-ops/systems-test-template.service.js';
 

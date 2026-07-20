@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import { MetricsController } from '../../../src/common/observability/metrics.controller.js';
 import { MetricsService } from '../../../src/common/observability/metrics.service.js';
 
