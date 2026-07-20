@@ -149,4 +149,91 @@ describe('CatalogDefinitionsService', () => {
       expect(args).toMatchObject({ eventFamily: 'risk_scoring', sourcePackage: 'risk_scoring' });
     });
   });
+
+  describe('atributos y features con TODOS los campos explícitos (no se aplica ningún default)', () => {
+    it('un atributo completamente especificado se persiste tal cual', async () => {
+      const { service, repository } = buildService();
+      await service.upsertDefinitionsPackage({
+        body: {
+          domain: 'risk',
+          definitions: {
+            ...emptyDefinitions(),
+            attributes: [
+              {
+                attributeCode: 'a1',
+                attributeName: 'A1',
+                entityScope: 'merchant',
+                dataType: 'number',
+                riskDimension: 'fraud',
+                sourceType: 'external',
+                availabilityStage: 'onboarding',
+                buildPhase: 'phase_2',
+                dataClassificationCode: 'SENSITIVE',
+                requiresConsent: true,
+                isSensitive: true,
+                isModelCandidate: true,
+                allowedForCreditDecision: true,
+                allowedForFraudDecision: true,
+                legalReviewStatus: 'approved',
+                fairnessReviewRequired: true,
+                retentionPolicyId: 'rp-1',
+              },
+            ],
+          },
+        } as never,
+        currentUser: internalUser,
+        context,
+      });
+
+      expect((repository.upsertAttributeDefinition as jest.Mock).mock.calls[0][0]).toMatchObject({
+        entityScope: 'merchant',
+        dataType: 'number',
+        riskDimension: 'fraud',
+        sourceType: 'external',
+        availabilityStage: 'onboarding',
+        buildPhase: 'phase_2',
+        dataClassificationCode: 'SENSITIVE',
+        requiresConsent: true,
+        isSensitive: true,
+        isModelCandidate: true,
+        allowedForCreditDecision: true,
+        allowedForFraudDecision: true,
+        legalReviewStatus: 'approved',
+        fairnessReviewRequired: true,
+        retentionPolicyId: 'rp-1',
+        prohibitedReasonCode: null,
+        isActive: true,
+      });
+    });
+
+    it('un atributo mínimo recibe los defaults seguros (customer/string/pending y todos los flags en false)', async () => {
+      const { service, repository } = buildService();
+      await service.upsertDefinitionsPackage({
+        body: {
+          domain: 'risk',
+          definitions: { ...emptyDefinitions(), attributes: [{ attributeCode: 'a1', attributeName: 'A1' }] },
+        } as never,
+        currentUser: internalUser,
+        context,
+      });
+
+      expect((repository.upsertAttributeDefinition as jest.Mock).mock.calls[0][0]).toMatchObject({
+        entityScope: 'customer',
+        dataType: 'string',
+        riskDimension: null,
+        sourceType: 'risk', // cae al domain del paquete
+        availabilityStage: null,
+        buildPhase: null,
+        dataClassificationCode: null,
+        requiresConsent: false,
+        isSensitive: false,
+        isModelCandidate: false,
+        allowedForCreditDecision: false,
+        allowedForFraudDecision: false,
+        legalReviewStatus: 'pending',
+        fairnessReviewRequired: false,
+        retentionPolicyId: null,
+      });
+    });
+  });
 });
