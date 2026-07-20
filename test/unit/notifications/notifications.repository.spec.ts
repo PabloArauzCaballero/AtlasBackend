@@ -197,7 +197,7 @@ describe('NotificationsRepository — núcleo', () => {
     const message = baseMessage();
     await repo.markRead(message as never);
     expect((message as { status: string }).status).toBe('read');
-    expect((message as { readAt: Date | null }).readAt).not.toBeNull();
+    expect((message as unknown as { readAt: Date | null }).readAt).not.toBeNull();
   });
 
   describe('upsertDeviceToken', () => {
@@ -288,7 +288,9 @@ describe('NotificationsRepository — núcleo', () => {
         title: null,
         priority: 0,
       } as never);
-      const targets = (messageModel.create as jest.Mock).mock.calls[0][0].deliveryTargetsJson as Array<{ kind: string }>;
+      const targets = ((messageModel.create as jest.Mock).mock.calls[0][0] as Record<string, unknown>).deliveryTargetsJson as Array<{
+        kind: string;
+      }>;
       expect(targets).toHaveLength(1);
       expect(targets[0].kind).toBe(kind);
     });
@@ -308,7 +310,7 @@ describe('NotificationsRepository — núcleo', () => {
         title: null,
         priority: 0,
       } as never);
-      expect((messageModel.create as jest.Mock).mock.calls[0][0].deliveryTargetsJson).toEqual([]);
+      expect(((messageModel.create as jest.Mock).mock.calls[0][0] as Record<string, unknown>).deliveryTargetsJson).toEqual([]);
 
       await repo.createMessage({
         tenantId: 't1',
@@ -323,7 +325,7 @@ describe('NotificationsRepository — núcleo', () => {
         title: null,
         priority: 0,
       } as never);
-      expect((messageModel.create as jest.Mock).mock.calls[1][0].deliveryTargetsJson).toEqual([]);
+      expect(((messageModel.create as jest.Mock).mock.calls[1][0] as Record<string, unknown>).deliveryTargetsJson).toEqual([]);
     });
 
     it('getMessageDeliveryTargets descarta destinos sin lista, de kind inválido o con cifrado no-string', async () => {
@@ -343,10 +345,14 @@ describe('NotificationsRepository — núcleo', () => {
       const { repo, contactMethodModel } = build();
       (contactMethodModel.findAll as jest.Mock).mockResolvedValue([{ contactValueEncrypted: 'basura-no-descifrable' }] as never);
       expect(await repo.getCustomerContactTargets('t1', 'c1', 'sms')).toEqual([]);
-      expect((contactMethodModel.findAll as jest.Mock).mock.calls[0][0].where).toMatchObject({ contactType: 'phone' });
+      expect(((contactMethodModel.findAll as jest.Mock).mock.calls[0][0] as Record<string, unknown>).where).toMatchObject({
+        contactType: 'phone',
+      });
 
       await repo.getCustomerContactTargets('t1', 'c1', 'whatsapp');
-      expect((contactMethodModel.findAll as jest.Mock).mock.calls[1][0].where).toMatchObject({ contactType: 'phone' });
+      expect(((contactMethodModel.findAll as jest.Mock).mock.calls[1][0] as Record<string, unknown>).where).toMatchObject({
+        contactType: 'phone',
+      });
     });
   });
 
@@ -356,9 +362,13 @@ describe('NotificationsRepository — núcleo', () => {
       const from = new Date('2026-01-01T00:00:00.000Z');
       const to = new Date('2026-02-01T00:00:00.000Z');
       await repo.listMessages('t1', { from, page: 1, limit: 20 } as never);
-      expect((messageModel.findAndCountAll as jest.Mock).mock.calls[0][0].where.createdAtValue).toBeDefined();
+      expect(
+        ((messageModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown> }).where.createdAtValue,
+      ).toBeDefined();
       await repo.listMessages('t1', { to, page: 1, limit: 20 } as never);
-      expect((messageModel.findAndCountAll as jest.Mock).mock.calls[1][0].where.createdAtValue).toBeDefined();
+      expect(
+        ((messageModel.findAndCountAll as jest.Mock).mock.calls[1][0] as { where: Record<string, unknown> }).where.createdAtValue,
+      ).toBeDefined();
     });
 
     it('listRecipientMessages aplica status, channel y el rango de fechas', async () => {
@@ -371,7 +381,10 @@ describe('NotificationsRepository — núcleo', () => {
         page: 1,
         limit: 20,
       } as never);
-      const where = (messageModel.findAndCountAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+      const where = ((messageModel.findAndCountAll as jest.Mock).mock.calls[0][0] as Record<string, unknown>).where as Record<
+        string,
+        unknown
+      >;
       expect(where).toMatchObject({ status: 'read', channel: 'in_app' });
       expect(where.createdAtValue).toBeDefined();
     });
