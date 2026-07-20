@@ -163,4 +163,60 @@ describe('OperationsRepository', () => {
       expect(Object.getOwnPropertySymbols(where).length).toBeGreaterThan(0); // Op.and del keyset
     });
   });
+
+  describe('filtros opcionales de las colas (con todos y sin ninguno)', () => {
+    const allFilters = { status: 'open', priority: 'high', customerId: 'c1', sortBy: 'updatedAt', sortOrder: 'asc', page: 1, limit: 20 };
+    const noFilters = { sortBy: 'createdAt', sortOrder: 'desc', page: 1, limit: 20 };
+
+    it('revisión manual: con todos los filtros ordena por updatedAtValue ASC; sin filtros solo acota tenant + no-borrado', async () => {
+      const { repo, models } = buildRepo();
+      (models.manualReviewCase.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
+
+      await repo.findManualReviewCasesForQueue('t1', allFilters as never);
+      const full = (models.manualReviewCase.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; order: string[][] };
+      expect(full.where).toMatchObject({ tenantId: 't1', status: 'open', priority: 'high', customerId: 'c1' });
+      expect(full.order[0]).toEqual(['updatedAtValue', 'ASC']);
+
+      await repo.findManualReviewCasesForQueue('t1', noFilters as never);
+      const bare = (models.manualReviewCase.findAndCountAll as jest.Mock).mock.calls[1][0] as { where: Record<string, unknown>; order: string[][] };
+      expect(bare.where.status).toBeUndefined();
+      expect(bare.where.priority).toBeUndefined();
+      expect(bare.where.customerId).toBeUndefined();
+      expect(bare.order[0]).toEqual(['createdAtValue', 'DESC']);
+    });
+
+    it('fraude: mapea status->caseStatus y priority->severity, y sin filtros no los agrega', async () => {
+      const { repo, models } = buildRepo();
+      (models.fraudCase.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
+
+      await repo.findFraudCasesForQueue('t1', allFilters as never);
+      const full = (models.fraudCase.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; order: string[][] };
+      expect(full.where).toMatchObject({ tenantId: 't1', caseStatus: 'open', severity: 'high', customerId: 'c1' });
+      expect(full.order[0]).toEqual(['updatedAtValue', 'ASC']);
+
+      await repo.findFraudCasesForQueue('t1', noFilters as never);
+      const bare = (models.fraudCase.findAndCountAll as jest.Mock).mock.calls[1][0] as { where: Record<string, unknown> };
+      expect(bare.where.caseStatus).toBeUndefined();
+      expect(bare.where.severity).toBeUndefined();
+    });
+
+    it('cola de fraude por cursor: con más filas de las pedidas recorta y emite nextCursor; si no, null', async () => {
+      const { repo, models } = buildRepo();
+      const rows = [
+        { id: '3', createdAtValue: new Date('2026-01-03T00:00:00.000Z') },
+        { id: '2', createdAtValue: new Date('2026-01-02T00:00:00.000Z') },
+        { id: '1', createdAtValue: new Date('2026-01-01T00:00:00.000Z') },
+      ];
+      (models.fraudCase.findAll as jest.Mock).mockResolvedValueOnce(rows as never);
+      const page = await repo.findFraudCasesForQueueWithCursor('t1', { status: 'open', priority: 'high', customerId: 'c1', sortBy: 'createdAt', limit: 2 } as never);
+      expect(page.items).toHaveLength(2);
+      expect(page.nextCursor).not.toBeNull();
+      const where = (models.fraudCase.findAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+      expect(where).toMatchObject({ caseStatus: 'open', severity: 'high', customerId: 'c1' });
+
+      (models.fraudCase.findAll as jest.Mock).mockResolvedValueOnce([rows[0]] as never);
+      const last = await repo.findFraudCasesForQueueWithCursor('t1', { sortBy: 'updatedAt', limit: 5 } as never);
+      expect(last.nextCursor).toBeNull();
+    });
+  });
 });
