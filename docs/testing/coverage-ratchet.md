@@ -104,6 +104,26 @@ functions 50.42 · lines 69.61.
 > (61.91/43.97/38.20/62.22), no contra el total del repo (62.18). Calibrarlo contra el total dejaría
 > el gate mal ajustado.
 
+## Techo estructural del BRANCH coverage en los controllers (no perseguirlo)
+
+El `branch` es la métrica más baja del repo (~65% global) y **una parte grande de ese hueco no es
+cubrible con unit tests**. Los controllers de NestJS quedan atascados en ~50-55% de ramas **aunque
+estén al 100% de statements, functions y lines**. Ejemplo medido: `auth.controller.ts` = 100/53.24/100/100
+tras un spec que ejercita sus 8 endpoints.
+
+Causa: los decoradores de parámetro (`@Headers()`, `@Body()`, `@Param()`, `@Query()`) se emiten como
+helpers `__decorate`/`__param` de TypeScript, que contienen condicionales (`cond-expr`/`binary-expr`)
+que istanbul cuenta como ramas del archivo. Inspeccionando el `branchMap` de `auth.controller.ts`, las
+ramas sin cubrir caen sobre las **líneas de los decoradores** (L68, L93, L117…), no sobre la lógica.
+
+Consecuencia práctica:
+
+- **No** invertir en "subir branches de controllers": el techo es del emit, no de los tests.
+- Las ramas REALES que sí conviene cubrir en un controller son las del cuerpo del handler, típicamente
+  `request.ip ?? null` y ternarios de defaults — se cubren llamando al handler con el valor ausente.
+- El resto del esfuerzo de branch coverage rinde en **utils puros, servicios y repositorios** (sin
+  decoradores), donde cada rama corresponde a lógica real.
+
 ## Cómo subir el trinquete
 
 1. Añade tests al dominio que quieras mejorar.
