@@ -201,6 +201,79 @@ describe('NotificationsRepository — núcleo', () => {
     expect(token.save).toHaveBeenCalled();
   });
 
+  describe('matriz de canales y descifrado de destinos', () => {
+    it.each([
+      ['sms', { phone: '+591700' }, 'phone'],
+      ['whatsapp', { whatsappTo: '+591700' }, 'whatsapp'],
+      ['push', { fcmToken: 'tok-1' }, 'fcm_token'],
+    ])('createMessage para %s cifra el destino con kind %s', async (channel, payload, kind) => {
+      const { repo, messageModel } = build();
+      await repo.createMessage({ tenantId: 't1', channel, body: 'b', payload, recipientType: 'customer', recipientId: 'c1', outboxEventId: null, templateCode: null, subject: null, title: null, priority: 0 } as never);
+      const targets = (messageModel.create as jest.Mock).mock.calls[0][0].deliveryTargetsJson as Array<{ kind: string }>;
+      expect(targets).toHaveLength(1);
+      expect(targets[0].kind).toBe(kind);
+    });
+
+    it('in_app no tiene destino que cifrar, y un canal con destino ausente tampoco', async () => {
+      const { repo, messageModel } = build();
+      await repo.createMessage({ tenantId: 't1', channel: 'in_app', body: 'b', payload: { email: 'a@x.com' }, recipientType: 'customer', recipientId: 'c1', outboxEventId: null, templateCode: null, subject: null, title: null, priority: 0 } as never);
+      expect((messageModel.create as jest.Mock).mock.calls[0][0].deliveryTargetsJson).toEqual([]);
+
+      await repo.createMessage({ tenantId: 't1', channel: 'email', body: 'b', payload: {}, recipientType: 'customer', recipientId: 'c1', outboxEventId: null, templateCode: null, subject: null, title: null, priority: 0 } as never);
+      expect((messageModel.create as jest.Mock).mock.calls[1][0].deliveryTargetsJson).toEqual([]);
+    });
+
+    it('getMessageDeliveryTargets descarta destinos sin lista, de kind inválido o con cifrado no-string', async () => {
+      const { repo } = build();
+      expect(await repo.getMessageDeliveryTargets({ deliveryTargetsJson: null } as never)).toEqual([]);
+      expect(
+        await repo.getMessageDeliveryTargets({
+          deliveryTargetsJson: [{ kind: 'inventado', addressEncrypted: 'x' }, { kind: 'email', addressEncrypted: 123 }],
+        } as never),
+      ).toEqual([]);
+    });
+
+    it('getCustomerContactTargets soporta sms/whatsapp y descarta lo que no se puede descifrar', async () => {
+      const { repo, contactMethodModel } = build();
+      (contactMethodModel.findAll as jest.Mock).mockResolvedValue([{ contactValueEncrypted: 'basura-no-descifrable' }] as never);
+      expect(await repo.getCustomerContactTargets('t1', 'c1', 'sms')).toEqual([]);
+      expect((contactMethodModel.findAll as jest.Mock).mock.calls[0][0].where).toMatchObject({ contactType: 'phone' });
+
+      await repo.getCustomerContactTargets('t1', 'c1', 'whatsapp');
+      expect((contactMethodModel.findAll as jest.Mock).mock.calls[1][0].where).toMatchObject({ contactType: 'phone' });
+    });
+  });
+
+  describe('rangos de fecha parciales en los listados', () => {
+    it('listMessages acepta solo "from" o solo "to"', async () => {
+      const { repo, messageModel } = build();
+      const from = new Date('2026-01-01T00:00:00.000Z');
+      const to = new Date('2026-02-01T00:00:00.000Z');
+      await repo.listMessages('t1', { from, page: 1, limit: 20 } as never);
+      expect((messageModel.findAndCountAll as jest.Mock).mock.calls[0][0].where.createdAtValue).toBeDefined();
+      await repo.listMessages('t1', { to, page: 1, limit: 20 } as never);
+      expect((messageModel.findAndCountAll as jest.Mock).mock.calls[1][0].where.createdAtValue).toBeDefined();
+    });
+
+    it('listRecipientMessages aplica status, channel y el rango de fechas', async () => {
+      const { repo, messageModel } = build();
+      await repo.listRecipientMessages('t1', 'customer', 'c1', {
+        status: 'read', channel: 'in_app', from: new Date('2026-01-01'), to: new Date('2026-02-01'), page: 1, limit: 20,
+      } as never);
+      const where = (messageModel.findAndCountAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+      expect(where).toMatchObject({ status: 'read', channel: 'in_app' });
+      expect(where.createdAtValue).toBeDefined();
+    });
+  });
+
+  it('upsertDeviceToken conserva el deviceId previo cuando el body no lo trae', async () => {
+    const { repo, deviceTokenModel } = build();
+    const existing = { deviceId: 'dispositivo-previo', save: jest.fn(async () => undefined) };
+    (deviceTokenModel.findOne as jest.Mock).mockResolvedValueOnce(existing as never);
+    await repo.upsertDeviceToken('t1', 'c1', { token: 'tok', platform: 'ios' } as never);
+    expect((existing as { deviceId: string }).deviceId).toBe('dispositivo-previo');
+  });
+
   it('delega plantillas y preferencias en sus sub-repos', async () => {
     const { repo, templatesRepository, preferencesRepository } = build();
     await repo.findTemplate({ tenantId: 't1', code: 'C', channel: 'email' } as never);
