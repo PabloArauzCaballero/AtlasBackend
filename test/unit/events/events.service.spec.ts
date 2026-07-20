@@ -234,4 +234,69 @@ describe('EventsService', () => {
       expect(result.processed).toBe(1);
     });
   });
+
+  describe('proyección del evento y fallbacks de publishFromDto', () => {
+    it('aplica los defaults de la proyección (tenant null, priority 0, attempts 0, maxAttempts 3)', async () => {
+      const { service, repository } = buildService();
+      (repository.createEvent as jest.Mock).mockResolvedValue({
+        id: 1, tenantId: null, eventCode: 'user.registered', status: 'pending',
+      } as never);
+
+      const result = await service.publish({ tenantId: 't1', eventCode: 'user.registered', aggregateType: 'customer' } as never);
+
+      expect(result).toMatchObject({ id: '1', tenantId: null, priority: 0, attempts: 0, maxAttempts: 3 });
+    });
+
+    it('respeta los valores presentes en el evento (tenantId se serializa a string)', async () => {
+      const { service, repository } = buildService();
+      (repository.createEvent as jest.Mock).mockResolvedValue({
+        id: 2, tenantId: 5, eventCode: 'user.registered', status: 'pending', priority: 9, attempts: 2, maxAttempts: 7,
+      } as never);
+
+      const result = await service.publish({ tenantId: 't1', eventCode: 'user.registered', aggregateType: 'customer' } as never);
+
+      expect(result).toMatchObject({ id: '2', tenantId: '5', priority: 9, attempts: 2, maxAttempts: 7 });
+    });
+
+    it('publishFromDto sin opcionales usa los fallbacks (origen operations_api/publish_event, ids en null)', async () => {
+      const { service, repository } = buildService();
+      (repository.createEvent as jest.Mock).mockResolvedValue({ id: 1, tenantId: 1 } as never);
+
+      await service.publishFromDto({
+        tenantId: 't1',
+        body: { eventCode: 'user.registered', aggregateType: 'customer', payload: {} } as never,
+      });
+
+      expect((repository.createEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
+        aggregateId: null, idempotencyKey: null, correlationId: null, causationId: null,
+        sourceModule: 'operations_api', sourceAction: 'publish_event',
+      });
+    });
+
+    it('publishFromDto toma la idempotencyKey del header cuando el body no la trae, y prioriza la del body si existe', async () => {
+      const { service, repository } = buildService();
+      (repository.createEvent as jest.Mock).mockResolvedValue({ id: 1, tenantId: 1 } as never);
+
+      await service.publishFromDto({
+        tenantId: 't1',
+        body: { eventCode: 'user.registered', aggregateType: 'customer', payload: {} } as never,
+        idempotencyKey: 'from-header',
+      });
+      expect((repository.createEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ idempotencyKey: 'from-header' });
+
+      await service.publishFromDto({
+        tenantId: 't1',
+        body: {
+          eventCode: 'user.registered', aggregateType: 'customer', aggregateId: 'a1', payload: {},
+          idempotencyKey: 'from-body', correlationId: 'corr', causationId: 'caus',
+          sourceModule: 'mi_modulo', sourceAction: 'mi_accion',
+        } as never,
+        idempotencyKey: 'from-header',
+      });
+      expect((repository.createEvent as jest.Mock).mock.calls[1][0]).toMatchObject({
+        aggregateId: 'a1', idempotencyKey: 'from-body', correlationId: 'corr', causationId: 'caus',
+        sourceModule: 'mi_modulo', sourceAction: 'mi_accion',
+      });
+    });
+  });
 });
