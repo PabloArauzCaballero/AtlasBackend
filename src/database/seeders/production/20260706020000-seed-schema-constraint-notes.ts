@@ -1,4 +1,4 @@
-import { QueryInterface, Transaction } from 'sequelize';
+import { QueryInterface, QueryOptions, Transaction } from 'sequelize';
 
 /**
  * Catálogo productivo de constraints de schema.
@@ -93,7 +93,14 @@ const SEED_TABLES: SeedTable[] = [
 ];
 
 async function insertSeedTable(queryInterface: QueryInterface, seedTable: SeedTable, transaction: Transaction): Promise<void> {
-  await queryInterface.bulkInsert(seedTable.tableName, seedTable.rows, { transaction });
+  // `ignoreDuplicates` → `INSERT ... ON CONFLICT DO NOTHING` en Postgres: el seeder es idempotente y
+  // no rompe si las filas ya existen (p. ej. cuando otro perfil ya sembró este catálogo compartido).
+  // El cast es porque `ignoreDuplicates` no está en el tipo `QueryOptions` de bulkInsert, aunque
+  // Sequelize sí lo honra en runtime.
+  await queryInterface.bulkInsert(seedTable.tableName, seedTable.rows, {
+    transaction,
+    ignoreDuplicates: true,
+  } as QueryOptions);
 }
 
 async function deleteSeedTable(queryInterface: QueryInterface, seedTable: SeedTable, transaction: Transaction): Promise<void> {

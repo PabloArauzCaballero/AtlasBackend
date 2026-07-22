@@ -1,4 +1,4 @@
-import { QueryInterface, Transaction } from 'sequelize';
+import { QueryInterface, QueryOptions, Transaction } from 'sequelize';
 
 /**
  * Fase 4A: Seeders blindados para catálogos maestros versionados.
@@ -32,7 +32,9 @@ async function insertSeedTable(queryInterface: QueryInterface, seedTable: SeedTa
         : row.entry_attributes,
   }));
 
-  await queryInterface.bulkInsert(seedTable.tableName, rows, { transaction });
+  // Idempotente: ON CONFLICT DO NOTHING (no rompe si el catálogo ya fue sembrado por otro perfil).
+  // Cast porque `ignoreDuplicates` no está en el tipo QueryOptions aunque Sequelize lo honra.
+  await queryInterface.bulkInsert(seedTable.tableName, rows, { transaction, ignoreDuplicates: true } as QueryOptions);
 }
 
 async function deleteSeedTable(queryInterface: QueryInterface, seedTable: SeedTable, transaction: Transaction): Promise<void> {

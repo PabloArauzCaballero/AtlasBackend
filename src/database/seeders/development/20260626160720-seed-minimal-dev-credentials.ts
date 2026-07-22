@@ -1,4 +1,4 @@
-import { QueryInterface, Transaction } from 'sequelize';
+import { QueryInterface, QueryOptions, Transaction } from 'sequelize';
 
 const CREATED_AT = new Date('2026-01-01T00:00:00.000Z');
 const SAMPLE_HASH = 'dev_seed_hash_000000000000000000000000000000000000000000000000000001';
@@ -636,7 +636,9 @@ const SEED_TABLES: SeedTable[] = [
 ];
 
 async function insertSeedTable(queryInterface: QueryInterface, seedTable: SeedTable, transaction: Transaction): Promise<void> {
-  await queryInterface.bulkInsert(seedTable.tableName, seedTable.rows, { transaction });
+  // Idempotente: ON CONFLICT DO NOTHING — no rompe si las filas ya existen de un seed previo.
+  // Cast porque `ignoreDuplicates` no está en el tipo QueryOptions aunque Sequelize lo honra.
+  await queryInterface.bulkInsert(seedTable.tableName, seedTable.rows, { transaction, ignoreDuplicates: true } as QueryOptions);
 }
 
 async function deleteSeedTable(queryInterface: QueryInterface, seedTable: SeedTable, transaction: Transaction): Promise<void> {
