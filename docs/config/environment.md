@@ -41,21 +41,31 @@ API_RATE_LIMIT_TTL_MS=60000
 API_RATE_LIMIT_MAX=100
 ```
 
-## Bootstrap de base de datos al arrancar
+## Seeding idempotente al arrancar (opt-in)
 
 ```env
-DATABASE_BOOTSTRAP_ON_STARTUP=true
-DATABASE_BOOTSTRAP_FAIL_FAST=true
-DATABASE_SEED_PUBLIC_CMS_ON_STARTUP=true
+DATABASE_SEED_ON_STARTUP=false
+DATABASE_SEED_ON_STARTUP_FAIL_FAST=false
 ```
 
-Al arrancar, si `DATABASE_BOOTSTRAP_ON_STARTUP=true` (default), el backend crea columnas/tablas/vistas
-de compatibilidad que falten sin borrar datos existentes — pensado para bases ya desplegadas que
-quedaron desalineadas del schema esperado. `DATABASE_BOOTSTRAP_FAIL_FAST=true` hace que el arranque
-falle si el bootstrap no puede completarse, en vez de seguir con un schema parcialmente aplicado.
-`DATABASE_SEED_PUBLIC_CMS_ON_STARTUP` siembra datos públicos mínimos (p. ej. contenido/CMS) si faltan.
-Apaga estas variables solo si administras el schema exclusivamente por migraciones y prefieres que
-un drift de schema falle explícitamente en vez de autocorregirse.
+Con `DATABASE_SEED_ON_STARTUP=true`, el backend aplica al iniciar (`onApplicationBootstrap`) los
+seeders **pendientes** del perfil — derivado de `SEED_PROFILE`/`NODE_ENV`
+(`production→production`, `test→test`, resto→`development`) — de forma **idempotente**: Umzug solo
+corre los seeders no ejecutados y los propios seeders son upsert-safe (`ON CONFLICT DO NOTHING` /
+`WHERE NOT EXISTS`). En `development` esto siembra el admin `pablo@atlas.internal` sin correr
+`yarn db:seed:dev` a mano.
+
+Seguridad: **nunca** corre seeders de dev/demo en producción (el perfil `production` solo incluye el
+stage `production`, validado por `assertProfileAllowedForEnv`). Usa la identidad de migración
+(`DB_MIGRATION_USER`, cae a `DB_USER` en local), así que en un despliegue con roles separados esa
+credencial debe estar disponible.
+
+Modo de fallo: por defecto un fallo de seed se **loguea y el backend arranca igual** (un seed roto no
+debería tumbar la API). Con `DATABASE_SEED_ON_STARTUP_FAIL_FAST=true` el arranque **aborta** ante un
+fallo de seed.
+
+> Migraciones (DDL) **no** corren al arrancar: requieren la identidad `atlas_migrator` y son un paso
+> deliberado (`yarn db:migration:up`). El seeding al arrancar solo inserta datos.
 
 ## Pool de conexiones y timeouts (hardening 2026-07-21)
 

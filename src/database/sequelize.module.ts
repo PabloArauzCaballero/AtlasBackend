@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { buildSequelizeOptions } from '../config/database.config.js';
+import { StartupSeedService } from './startup-seed.service.js';
 import {
   TenantModel,
   PlatformUserModel,
@@ -258,5 +259,7 @@ export const databaseModels = [
       models: databaseModels,
     }),
   ],
+  // Seeding idempotente al arrancar (opt-in vía DATABASE_SEED_ON_STARTUP). No-op si la var está apagada.
+  providers: [StartupSeedService],
 })
 export class DatabaseModule {}

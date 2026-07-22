@@ -126,6 +126,16 @@ const envSchema = z
     // lo deriva de NODE_ENV (production→production, test→test, resto→development). Ver
     // `src/database/seed-profiles.ts`. Se puede sobrescribir por comando con `--profile=...`.
     SEED_PROFILE: z.enum(['production', 'development', 'demo', 'test']).optional(),
+
+    // Seeding idempotente AL ARRANCAR (opt-in). Si es true, el backend aplica los seeders pendientes
+    // del perfil (derivado de SEED_PROFILE/NODE_ENV) al iniciar, de forma idempotente (Umzug solo
+    // corre los no ejecutados). NUNCA corre seeders de dev/demo en producción: el perfil production
+    // solo incluye el stage `production`. Usa la identidad de migración (DB_MIGRATION_USER, cae a
+    // DB_USER en local), así que en un despliegue con roles separados requiere esa credencial.
+    DATABASE_SEED_ON_STARTUP: booleanEnvSchema,
+    // Si el seeding al arrancar falla y esto es true, el arranque ABORTA (exit). Por defecto false:
+    // se loguea el error y el backend arranca igual (un fallo de seed no debería tumbar la API).
+    DATABASE_SEED_ON_STARTUP_FAIL_FAST: booleanEnvSchema,
     JWT_ACCESS_TOKEN_SECRET: z.string().min(32).default(DEFAULT_JWT_SECRET),
     JWT_ACCESS_TOKEN_EXPIRES_IN: z.string().default('1h'),
     API_RATE_LIMIT_TTL_MS: z.coerce.number().int().positive().default(60_000),

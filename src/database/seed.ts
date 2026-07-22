@@ -1,38 +1,12 @@
 import { QueryTypes } from 'sequelize';
-import { SequelizeStorage, Umzug } from 'umzug';
 import { env } from '../config/env.js';
 import { ATLAS_SCHEMAS } from './domain-schemas.js';
-import {
-  assertProfileAllowedForEnv,
-  assertReseedAllowed,
-  findForbiddenProductionTokens,
-  FORBIDDEN_PRODUCTION_FILENAME_TOKENS,
-  resolveSeedProfile,
-  SEED_PROFILE_STAGES,
-  SeedProfile,
-  SeedStage,
-} from './seed-profiles.js';
+import { assertProfileAllowedForEnv, assertReseedAllowed, resolveSeedProfile, SEED_PROFILE_STAGES, SeedProfile } from './seed-profiles.js';
+import { buildStageRunner, runProfileSeedersUp } from './seed-runner.js';
 import { createMigrationSequelizeInstance } from './sequelize.js';
 
 const sequelize = createMigrationSequelizeInstance();
 const SEED_RESET_CONFIRMATION = 'ATLAS_DESTROY_SEED_DATA';
-
-type StageRunner = {
-  stage: SeedStage;
-  umzug: Umzug<ReturnType<typeof sequelize.getQueryInterface>>;
-};
-
-function buildStageRunner(stage: SeedStage): StageRunner {
-  const umzug = new Umzug({
-    migrations: {
-      glob: `src/database/seeders/${stage.directory}/*.ts`,
-    },
-    context: sequelize.getQueryInterface(),
-    storage: new SequelizeStorage({ sequelize, modelName: stage.trackingModelName }),
-    logger: console,
-  });
-  return { stage, umzug };
-}
 
 function parseProfileFlag(argv: string[]): string | null {
   const flag = argv.find((arg) => arg.startsWith('--profile='));
@@ -40,26 +14,6 @@ function parseProfileFlag(argv: string[]): string | null {
   const index = argv.indexOf('--profile');
   if (index >= 0 && argv[index + 1]) return argv[index + 1];
   return null;
-}
-
-/**
- * Guard de arranque productivo (§11): ningún seeder del directorio `production` puede llamarse con
- * tokens de datos ficticios (`demo`, `dev`, `fixture`, `mock`, `sample`). Es defensa en profundidad
- * frente a `scripts/check-seed-profile.ts`, que hace el mismo escaneo estático en CI.
- */
-async function assertProductionStageIsClean(runner: StageRunner): Promise<void> {
-  if (runner.stage.directory !== 'production') return;
-  const [pending, executed] = await Promise.all([runner.umzug.pending(), runner.umzug.executed()]);
-  const offenders = [...pending, ...executed]
-    .map((migration) => migration.name)
-    .filter((name) => findForbiddenProductionTokens(name).length > 0);
-  if (offenders.length > 0) {
-    throw new Error(
-      `Seeders de arranque productivo con nombres prohibidos detectados en src/database/seeders/production/: ` +
-        `${offenders.join(', ')}. Los tokens ${FORBIDDEN_PRODUCTION_FILENAME_TOKENS.join('/')} indican datos ` +
-        'de desarrollo/demo y no pueden vivir en el perfil production.',
-    );
-  }
 }
 
 function quoteIdentifier(identifier: string): string {
@@ -116,33 +70,21 @@ async function truncateApplicationTables(profile: SeedProfile): Promise<void> {
 
 async function commandUp(profile: SeedProfile): Promise<void> {
   await cleanDatabaseBeforeSeed(profile);
-  const evidence: Record<string, string[]> = {};
-  for (const stage of SEED_PROFILE_STAGES[profile]) {
-    const runner = buildStageRunner(stage);
-    await assertProductionStageIsClean(runner);
-    const applied = await runner.umzug.up();
-    evidence[stage.directory] = applied.map((migration) => migration.name);
-  }
+  const evidence = await runProfileSeedersUp(sequelize, profile);
   console.log(JSON.stringify({ command: 'up', profile, appliedByStage: evidence, appliedAt: new Date().toISOString() }, null, 2));
 }
 
 async function commandReseed(profile: SeedProfile): Promise<void> {
   assertReseedAllowed(profile);
   await truncateApplicationTables(profile);
-  const evidence: Record<string, string[]> = {};
-  for (const stage of SEED_PROFILE_STAGES[profile]) {
-    const runner = buildStageRunner(stage);
-    await assertProductionStageIsClean(runner);
-    const applied = await runner.umzug.up();
-    evidence[stage.directory] = applied.map((migration) => migration.name);
-  }
+  const evidence = await runProfileSeedersUp(sequelize, profile);
   console.log(JSON.stringify({ command: 'reseed', profile, appliedByStage: evidence, appliedAt: new Date().toISOString() }, null, 2));
 }
 
 async function commandDown(profile: SeedProfile): Promise<void> {
   // Revierte el último seeder aplicado del stage más específico del perfil que tenga ejecutados.
   for (const stage of [...SEED_PROFILE_STAGES[profile]].reverse()) {
-    const runner = buildStageRunner(stage);
+    const runner = buildStageRunner(sequelize, stage);
     const executed = await runner.umzug.executed();
     if (executed.length > 0) {
       const reverted = await runner.umzug.down();
@@ -156,7 +98,7 @@ async function commandDown(profile: SeedProfile): Promise<void> {
 async function commandStatus(profile: SeedProfile): Promise<void> {
   const stages = [];
   for (const stage of SEED_PROFILE_STAGES[profile]) {
-    const runner = buildStageRunner(stage);
+    const runner = buildStageRunner(sequelize, stage);
     const executed = await runner.umzug.executed();
     const pending = await runner.umzug.pending();
     stages.push({
