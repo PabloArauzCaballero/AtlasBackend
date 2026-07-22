@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc --noEmit -p tsconfig.json",
+    "type-check:tests": "tsc --noEmit -p tsconfig.spec.json",
     "lint": "eslint --config eslint.config.mjs \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
     "lint:fix": "eslint --config eslint.config.mjs \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
@@ -35,6 +36,8 @@
     "check:db-privileges": "tsx scripts/check-db-privileges.ts",
     "db:roles:bootstrap": "tsx scripts/bootstrap-db-roles.ts",
     "check:overfetching": "tsx scripts/check-overfetching.ts",
+    "check:domain-schemas": "tsx scripts/check-domain-schemas.ts",
+    "check:domain-schema-layout": "tsx scripts/check-domain-schema-layout.ts",
     "check:file-size": "tsx scripts/check-file-size.ts",
     "check:read-api-views": "tsx scripts/check-read-api-views.ts",
     "db:seed:verify-prod-idempotency": "tsx scripts/verify-prod-seed-idempotency.ts",
@@ -73,7 +76,7 @@
     "crypto:reencrypt-pii": "tsx scripts/reencrypt-pii-to-envelope.ts",
     "crypto:reencrypt-pii:dry-run": "tsx scripts/reencrypt-pii-to-envelope.ts --dry-run",
     "clean:legacy-configs": "node scripts/cleanup-legacy-configs.cjs",
-    "mock:providers": "tsx tools/external-providers-mock-server/server.ts",
+    "mock:providers": "node ../AtlasExternalProvidersMock/src/main.mjs",
     "test:external-providers": "jest --config jest.config.cjs --testPathPattern=test/unit/external-data",
     "test:external-providers:smoke": "tsx scripts/smoke/external-providers.smoke.ts",
     "test:external-providers:errors": "tsx scripts/smoke/external-providers-errors.smoke.ts",
@@ -108,6 +111,7 @@
     "@opentelemetry/sdk-node": "^0.220.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "argon2": "^0.41.1",
+    "compression": "^1.7.5",
     "dotenv": "^17.4.2",
     "helmet": "^8.2.0",
     "ioredis": "^5.4.1",
@@ -129,6 +133,7 @@
   "devDependencies": {
     "@eslint/js": "^9.18.0",
     "@nestjs/testing": "^11.1.6",
+    "@types/compression": "^1.7.5",
     "@types/jest": "^29.5.14",
     "@types/js-yaml": "^4.0.9",
     "@types/jsonwebtoken": "^9.0.10",
@@ -150,6 +155,7 @@
     "node": ">=22.0.0"
   },
   "resolutions": {
+    "brace-expansion": "^1.1.16",
     "js-yaml": "^4.2.0",
     "lodash": "^4.18.0",
     "multer": "^2.2.0",

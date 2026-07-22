@@ -45,6 +45,8 @@ SELECT NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'atlas_migrator') AS c
 \endif
 ALTER ROLE atlas_migrator WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 3;
 GRANT atlas_owner TO atlas_migrator;
+GRANT CONNECT, CREATE ON DATABASE :"DBNAME" TO atlas_owner;
+ALTER ROLE atlas_migrator IN DATABASE :"DBNAME" SET role TO atlas_owner;
 \if :{?atlas_migrator_password}
   ALTER ROLE atlas_migrator PASSWORD :'atlas_migrator_password';
 \endif
@@ -57,6 +59,12 @@ SELECT NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'atlas_app_rw') AS cre
   CREATE ROLE atlas_app_rw LOGIN;
 \endif
 ALTER ROLE atlas_app_rw WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 50;
+-- Timeouts defensivos también para la identidad de escritura: una query o transacción colgada
+-- retiene locks indefinidamente y agota el pool. Márgenes más holgados que atlas_app_ro porque el
+-- runtime OLTP tiene transacciones legítimamente más largas (onboarding multi-tabla, outbox).
+ALTER ROLE atlas_app_rw SET statement_timeout = '30s';
+ALTER ROLE atlas_app_rw SET idle_in_transaction_session_timeout = '60s';
+ALTER ROLE atlas_app_rw SET lock_timeout = '5s';
 \if :{?atlas_app_rw_password}
   ALTER ROLE atlas_app_rw PASSWORD :'atlas_app_rw_password';
 \endif

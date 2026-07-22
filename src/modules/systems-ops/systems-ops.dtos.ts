@@ -11,7 +11,7 @@ export type SystemsHealthStatus = {
   missingEnvVars: string[];
   isCritical: boolean;
   isWorker: boolean;
-  checkType: 'LIVE' | 'CONFIGURATION';
+  checkType: 'LIVE' | 'CONFIGURATION' | 'NOT_APPLICABLE';
   isHealthy: boolean | null;
   healthMessage: string;
 };

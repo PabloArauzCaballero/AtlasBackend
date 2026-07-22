@@ -33,19 +33,41 @@ type TargetTable = {
   table: string;
   idColumn: string;
   valueColumn: string;
+  /**
+   * Tipo físico de la columna cifrada. El formato de envelope (`v1:...`/`v2:...`) siempre es texto
+   * ASCII, pero se almacena en columnas de tipo distinto según la tabla:
+   *  - `text`: la columna es TEXT/VARCHAR → se puede comparar y escribir el string directamente.
+   *  - `bytea`: la columna es BLOB → hay que convertir texto↔bytes con convert_from/convert_to,
+   *             porque `LIKE`/binds de texto no operan sobre bytea.
+   */
+  columnKind: 'text' | 'bytea';
   /** Nombre humano solo para logs — nunca se loguea el valor cifrado ni el descifrado. */
   label: string;
 };
 
+// PK real de ambas tablas es `_id` (BIGINT autoincrement), no `id` — ver
+// src/database/models/customer-contact-methods.model.ts y device-tokens.model.ts.
 const TARGETS: TargetTable[] = [
   {
     table: 'customer_contact_methods',
-    idColumn: 'id',
+    idColumn: '_id',
     valueColumn: 'contact_value_encrypted',
+    columnKind: 'bytea',
     label: 'contactos de clientes (teléfono/email)',
   },
-  { table: 'device_tokens', idColumn: 'id', valueColumn: 'token_encrypted', label: 'push tokens de dispositivo' },
+  {
+    table: 'device_tokens',
+    idColumn: '_id',
+    valueColumn: 'token_encrypted',
+    columnKind: 'text',
+    label: 'push tokens de dispositivo',
+  },
 ];
+
+/** Expresión SQL que expone la columna cifrada como texto para leerla/compararla. */
+function valueAsText(target: TargetTable): string {
+  return target.columnKind === 'bytea' ? `convert_from(${target.valueColumn}, 'UTF8')` : target.valueColumn;
+}
 
 async function migrateTable(
   sequelize: ReturnType<typeof createSequelizeInstance>,
@@ -54,11 +76,13 @@ async function migrateTable(
   let migrated = 0;
   let failed = 0;
 
+  const valueText = valueAsText(target);
+
   for (;;) {
     const rows = await sequelize.query<{ id: string; value: string }>(
-      `SELECT ${target.idColumn} AS id, ${target.valueColumn} AS value
+      `SELECT ${target.idColumn} AS id, ${valueText} AS value
        FROM ${target.table}
-       WHERE ${target.valueColumn} LIKE 'v1:%'
+       WHERE ${valueText} LIKE 'v1:%'
        ORDER BY ${target.idColumn}
        LIMIT :limit`,
       { type: QueryTypes.SELECT, replacements: { limit: BATCH_SIZE } },
@@ -88,8 +112,11 @@ async function migrateTable(
           continue;
         }
         const reencrypted = await encryptSecretEnvelope(plainText);
+        // En bytea escribimos con convert_to y comparamos el valor previo como texto, para no
+        // depender de la representación binaria exacta. En text es asignación directa.
+        const valueExpr = target.columnKind === 'bytea' ? `convert_to(:value, 'UTF8')` : ':value';
         await sequelize.query(
-          `UPDATE ${target.table} SET ${target.valueColumn} = :value WHERE ${target.idColumn} = :id AND ${target.valueColumn} = :oldValue`,
+          `UPDATE ${target.table} SET ${target.valueColumn} = ${valueExpr} WHERE ${target.idColumn} = :id AND ${valueText} = :oldValue`,
           {
             type: QueryTypes.UPDATE,
             replacements: { value: reencrypted, id: row.id, oldValue: row.value },

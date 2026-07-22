@@ -7,6 +7,7 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import compression from 'compression';
 import { AppModule } from './app.module.js';
 import { env, getAllowedCorsOrigins } from './config/env.js';
 import { buildOpenApiDocument } from './config/swagger.js';
@@ -48,11 +49,19 @@ async function bootstrap(): Promise<void> {
   // Security headers: HSTS, X-Frame-Options, X-Content-Type-Options, CSP, etc.
   app.use(helmet());
 
+  // Compresión gzip de respuestas. Los listados paginados (hasta limit=100 con payloads JSON por
+  // fila) viajan sin comprimir si el proceso Node sirve directo. `compression` respeta Accept-Encoding
+  // y solo comprime por encima de su umbral (1KB por defecto). Si un reverse proxy ya comprime, esto
+  // es redundante pero inofensivo (el proxy suele terminar TLS y recomprimir).
+  app.use(compression());
+
   // `/metrics` se excluye del prefijo `/api/v1` para respetar la convención de scrape de Prometheus.
   app.setGlobalPrefix(env.API_PREFIX, { exclude: ['metrics'] });
   app.enableShutdownHooks();
   // Fase 3.4: flush de spans de OpenTelemetry al apagar (no-op si tracing está deshabilitado).
+  // SIGINT además de SIGTERM para cubrir Ctrl-C en dev y orquestadores que envían SIGINT.
   process.once('SIGTERM', () => void shutdownTracing());
+  process.once('SIGINT', () => void shutdownTracing());
   app.enableCors({
     origin: getAllowedCorsOrigins(),
     credentials: true,
@@ -67,6 +76,24 @@ async function bootstrap(): Promise<void> {
   await app.listen(env.APP_PORT);
   logger.log(`Atlas API escuchando en puerto ${env.APP_PORT} con prefijo /${env.API_PREFIX}`);
 }
+
+// Última red de seguridad para fallos asíncronos que escapan a todo try/catch. Sin estos handlers,
+// Node imprime el stack a stderr FUERA de AppFileLogger (no llega a Archivo.log ni al sync a Mongo):
+// el crash quedaría sin evidencia en el pipeline de logs propio. Se loguea con stack, se intenta un
+// flush de trazas y se sale con código ≠ 0 para que el orquestador reinicie el proceso.
+function installGlobalCrashHandlers(): void {
+  const logger = new Logger('AtlasProcess');
+  process.on('unhandledRejection', (reason: unknown) => {
+    logger.error('unhandledRejection: promesa rechazada sin catch.', reason instanceof Error ? reason.stack : String(reason));
+    void shutdownTracing().finally(() => process.exit(1));
+  });
+  process.on('uncaughtException', (error: Error) => {
+    logger.error('uncaughtException: excepción no capturada.', error.stack);
+    void shutdownTracing().finally(() => process.exit(1));
+  });
+}
+
+installGlobalCrashHandlers();
 
 bootstrap().catch((error: unknown) => {
   const logger = new Logger('AtlasBootstrap');

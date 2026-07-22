@@ -1,5 +1,6 @@
 import { Body, Controller, ForbiddenException, Headers, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Public } from '../../common/decorators/public.decorator.js';
@@ -42,6 +43,8 @@ import {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // 10 intentos de login por minuto por IP — frena fuerza bruta de credenciales sin estorbar uso legítimo.
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Public()
   @ApiOperation({
     summary: 'Login',
@@ -77,6 +80,8 @@ export class AuthController {
     });
   }
 
+  // 10 verificaciones de PIN por minuto por IP — el PIN tiene 6 dígitos; sin throttle sería fuerza-bruteable.
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Public()
   @ApiOperation({
     summary: 'Verificar PIN de login',
@@ -99,6 +104,8 @@ export class AuthController {
     });
   }
 
+  // 5 solicitudes por minuto por IP — cada request dispara un correo real; complementa el cooldown por destino del servicio.
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Public()
   @ApiOperation({
     summary: 'Solicitar cambio de contraseña',
@@ -127,6 +134,8 @@ export class AuthController {
     });
   }
 
+  // 5 confirmaciones por minuto por IP — limita la fuerza bruta del código de 6 dígitos junto al máximo de intentos en DB.
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Public()
   @ApiOperation({
     summary: 'Confirmar cambio de contraseña',
@@ -157,6 +166,8 @@ export class AuthController {
     });
   }
 
+  // 30 refresh por minuto por IP — más laxo que login (uso legítimo frecuente) pero frena el descubrimiento de tokens por fuerza bruta.
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
   @Public()
   @ApiOperation({
     summary: 'Refresh',

@@ -57,6 +57,38 @@ falle si el bootstrap no puede completarse, en vez de seguir con un schema parci
 Apaga estas variables solo si administras el schema exclusivamente por migraciones y prefieres que
 un drift de schema falle explícitamente en vez de autocorregirse.
 
+## Pool de conexiones y timeouts (hardening 2026-07-21)
+
+Sin estas variables, Sequelize usa `max: 5`, que se queda corto frente a la concurrencia real (p. ej.
+el fan-out de notificaciones asume ~25). Todas tienen default; dimensiona `DB_POOL_MAX` de modo que
+`(instancias × DB_POOL_MAX)` no supere el `CONNECTION LIMIT` de `atlas_app_rw` (50).
+
+```env
+DB_POOL_MAX=20
+DB_POOL_MIN=2
+DB_POOL_ACQUIRE_MS=30000
+DB_POOL_IDLE_MS=10000
+DB_READ_POOL_MAX=10
+```
+
+Los timeouts de statement/transacción se fijan a nivel de rol PostgreSQL (no por env), ver
+`docs/database/postgres-roles.md`.
+
+## OpenTelemetry (trazas) — opt-in
+
+Si `OTEL_ENABLED` no está en `true`, el tracing es no-op (cero impacto). En producción **no** muestrees
+al 100% (default del SDK): usa un ratio parent-based.
+
+```env
+OTEL_ENABLED=false
+OTEL_EXPORTER_OTLP_ENDPOINT=
+OTEL_TRACES_SAMPLER=parentbased_traceidratio
+OTEL_TRACES_SAMPLER_ARG=0.1
+```
+
+Cuando el tracing está activo, el `trace_id` del span en curso se incluye en cada línea de log
+(`Archivo.log` es JSON estructurado con `correlationId` + `traceId`).
+
 ## Sincronizacion remota de Archivo.log
 
 El backend puede enviar cambios de `Archivo.log` a MongoDB cada 5 segundos. Cada arranque genera un

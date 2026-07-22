@@ -6,7 +6,7 @@ import { describe, expect, it, jest } from '@jest/globals';
  * para controlar el "código fuente" y ejercitar el matching, el conteo de tools ausentes, el nivel de
  * confianza y el modo persist. Patrón de module-mock ya usado en el repo (prefijo `mock` por el hoisting).
  */
-const mockReadSources = jest.fn(async () => '');
+const mockReadSources = jest.fn(async (_endpoint: unknown) => '');
 jest.mock('../../../src/modules/systems-ops/systems-source-scan.util.js', () => ({
   readSourcesForEndpoint: (endpoint: unknown) => mockReadSources(endpoint),
   clearSourceScanCacheForTests: () => undefined,

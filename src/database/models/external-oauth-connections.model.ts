@@ -1,6 +1,7 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { atlasSchemaFor } from '../domain-schemas.js';
 
-@Table({ tableName: 'external_oauth_connections', timestamps: false })
+@Table({ tableName: 'external_oauth_connections', schema: atlasSchemaFor('external_oauth_connections'), timestamps: false })
 export class ExternalOauthConnectionModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;

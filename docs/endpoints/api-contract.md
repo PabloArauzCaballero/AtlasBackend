@@ -5842,7 +5842,7 @@ Prefijo del controlador: `@Controller('health')` → `/api/v1/health`.
 
 ### GET /api/v1/health
 
-**Propósito:** Chequeo de salud del servicio (liveness/readiness), incluyendo conectividad a la base de datos.
+**Propósito:** Chequeo de salud legacy (consumido por el Admin Portal). Reporta conectividad a BD y uptime, y **nunca falla** (siempre 200). Para probes de orquestación usar `/health/liveness` y `/health/readiness`.
 **Auth:** `@Public()` — sin JWT, sin roles, endpoint completamente abierto. No hay `@UseGuards` en la clase (no depende de RolesGuard/JwtAuthGuard de todas formas).
 **Headers:** ninguno especial.
 
@@ -5859,6 +5859,21 @@ Prefijo del controlador: `@Controller('health')` → `/api/v1/health`.
 | timestamp | string (ISO) | Momento de la respuesta |
 
 **Errores:** ninguno — los fallos de conexión a BD se capturan internamente y se reflejan en el payload, nunca lanzan excepción HTTP.
+
+### GET /api/v1/health/liveness
+
+**Propósito:** Liveness probe. Trivial: si responde, el event loop atiende peticiones. No verifica dependencias.
+**Auth:** `@Public()`, `@SkipThrottle()`.
+
+**Response 200:** `{ status: "alive", timestamp: ISO }`.
+
+### GET /api/v1/health/readiness
+
+**Propósito:** Readiness probe. Verifica Postgres (obligatorio) y Redis (si está configurado). Devuelve **503** si Postgres no responde, para que el balanceador/orquestador saque la instancia del pool. Redis no configurado (dev) no invalida readiness.
+**Auth:** `@Public()`, `@SkipThrottle()`.
+
+**Response 200** (listo): `{ status: "ready", checks: { postgres: "ok", redis: "ok"|"not_configured" }, timestamp }`.
+**Response 503** (no listo): mismo shape con `status: "not_ready"` y el `check` que falló en `"unreachable"`.
 
 ---
 

@@ -2,6 +2,8 @@ import { ConsoleLogger } from '@nestjs/common';
 import { appendFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { env } from '../../config/env.js';
+import { redactSensitiveText } from '../utils/privacy/redact-text.util.js';
+import { getCorrelationId, getTraceId } from './request-context.js';
 
 function lastStringOf(params: unknown[]): string | undefined {
   const last = params.at(-1);
@@ -22,8 +24,14 @@ function stringifyMessage(message: unknown): string {
  * `ArchivoLogMongoSyncService` (`src/modules/log-sync/log-sync.service.ts`) sincroniza el
  * contenido de `LOG_SYNC_FILE_PATH` (default `Archivo.log`) hacia MongoDB, pero nada en el
  * backend escribía ese archivo — el `Logger` de Nest por defecto solo imprime a consola. Este
- * logger extiende `ConsoleLogger` (mantiene el output de consola sin cambios) y además apila
- * cada línea en `Archivo.log`, en orden, sin bloquear el event loop.
+ * logger extiende `ConsoleLogger` (mantiene el output de CONSOLA human-readable sin cambios) y
+ * además apila cada línea en `Archivo.log`, en orden, sin bloquear el event loop.
+ *
+ * Formato de archivo: JSON estructurado (una línea = un objeto JSON), con `correlationId` y
+ * `traceId` del request en curso (vía AsyncLocalStorage / OpenTelemetry). Así cada línea es
+ * parseable y correlacionable con su request y su traza — antes era texto plano sin correlación.
+ * Nada parsea el formato previo (log-sync solo cuenta líneas; el visor de Mongo hace búsqueda
+ * full-text sobre `content`), así que el cambio a JSON es compatible con los consumidores.
  *
  * Si `Archivo.log` no puede escribirse (permisos, disco lleno, etc.), el error se manda a
  * stderr directamente — nunca a través de `this.error(...)`, para no encolar un intento de
@@ -34,10 +42,19 @@ export class AppFileLogger extends ConsoleLogger {
   private writeQueue: Promise<void> = Promise.resolve();
 
   private enqueueWrite(level: string, context: string | undefined, message: unknown, extra?: string): void {
-    const timestamp = new Date().toISOString();
-    const ctx = context ? `[${context}] ` : '';
-    const trailer = extra ? `\n${extra}` : '';
-    const line = `${timestamp} ${level.toUpperCase().padEnd(5)} ${ctx}${stringifyMessage(message)}${trailer}\n`;
+    // Scrubber de PII/secretos antes de persistir: la línea acaba en Archivo.log y de ahí en la
+    // colección Mongo expuesta por /systems/logs/mongo. `redactSensitiveObject` solo cubre payloads
+    // estructurados; aquí el mensaje/stack ya es texto libre, así que se enmascara por patrón.
+    const entry = {
+      ts: new Date().toISOString(),
+      level,
+      context: context ?? null,
+      correlationId: getCorrelationId() ?? null,
+      traceId: getTraceId() ?? null,
+      message: redactSensitiveText(stringifyMessage(message)),
+      ...(extra ? { stack: redactSensitiveText(extra) } : {}),
+    };
+    const line = `${JSON.stringify(entry)}\n`;
 
     this.writeQueue = this.writeQueue
       .then(() => appendFile(this.filePath, line, 'utf8'))

@@ -10,32 +10,26 @@ punto de contacto con este módulo (su lógica propia se audita en sus respectiv
 Tests: `test/unit/consents/consents.service.spec.ts`.
 
 **Resultado:** sin hallazgos críticos/altos/medios. 1 observación de estructura (Bajo),
-**no corregida** (ver justificación abajo — requiere confirmación explícita antes de borrar
-archivos). No se modificó código. Suite verde sin cambios.
+**resuelta** posteriormente en un commit de limpieza (ver abajo). Suite verde sin cambios.
 
 ---
 
-## Observación (Bajo) — modelos duplicados y no usados en `src/database/models/`
+## Observación (Bajo, resuelta) — modelos duplicados y no usados en `src/database/models/`
 
-**Dónde:** `consent-document.model.ts`, `consent-event.model.ts`, `customer-consent.model.ts`
-(versión **singular** del nombre de archivo).
+**Dónde:** los modelos vivos de este módulo son `consent-documents.model.ts`,
+`consent-events.model.ts` y `customer-consents.model.ts` (versión **plural** del nombre de
+archivo, las únicas re-exportadas por `src/database/models/index.ts`).
 
-**Qué encontré:** por cada uno de estos tres modelos existe un archivo duplicado con nombre en
-plural (`consent-documents.model.ts`, `consent-events.model.ts`, `customer-consents.model.ts`)
-y contenido casi idéntico (misma tabla, mismos campos; la única diferencia real es que la
-versión singular de `ConsentDocumentModel` tipa `effectiveFrom`/`effectiveUntil` como
-`DataType.DATE` mientras la plural usa `DataType.DATEONLY`). `src/database/models/index.ts`
-solo re-exporta las versiones **plural** (línea 27-29); confirmé por búsqueda en todo `src/`
-que ningún import referencia los tres archivos singulares — son código muerto.
+**Qué se encontró:** existían duplicados muertos con nombre en singular
+(`consent-document.model.ts`, `consent-event.model.ts`, `customer-consent.model.ts`) con
+contenido casi idéntico pero con deriva de esquema (la versión singular de
+`ConsentDocumentModel` tipaba `effectiveFrom`/`effectiveUntil` como `DataType.DATE` mientras
+la plural usa `DataType.DATEONLY`). Ningún import en el repo referenciaba los archivos
+singulares — eran código muerto.
 
-**Riesgo:** ninguno en producción hoy (nunca se cargan). El riesgo es futuro: si alguien edita
-por error el archivo singular esperando que el cambio tenga efecto, el cambio se pierde
-silenciosamente porque Sequelize nunca registra esa clase.
-
-**Por qué no lo corregí yo mismo:** borrar archivos preexistentes no señalados explícitamente
-por el usuario es una acción irreversible de bajo valor añadido para una auditoría de
-seguridad; lo dejo documentado para que el equipo lo confirme y lo borre en un commit de
-limpieza separado.
+**Resolución:** los tres duplicados singulares (junto con el resto de pares singular/plural
+muertos de `src/database/models/`) fueron eliminados en el commit de limpieza correspondiente;
+`tsc --noEmit` verificado en verde tras el borrado.
 
 ---
 

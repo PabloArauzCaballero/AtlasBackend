@@ -22,6 +22,7 @@
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { env } from '../src/config/env.js';
+import { ATLAS_SCHEMAS } from '../src/database/domain-schemas.js';
 
 const OWNER = 'atlas_owner';
 const MIGRATOR = 'atlas_migrator';
@@ -119,10 +120,22 @@ async function main(): Promise<void> {
     await sequelize.query(`ALTER ROLE ${APP_RO} SET idle_in_transaction_session_timeout = '15s'`);
     await sequelize.query(`ALTER ROLE ${APP_RO} SET lock_timeout = '1s'`);
 
+    // La identidad de escritura también recibe timeouts (márgenes más holgados: transacciones OLTP
+    // legítimamente más largas). Evita que una query/transacción colgada retenga locks y agote el pool.
+    await sequelize.query(`ALTER ROLE ${APP_RW} SET statement_timeout = '30s'`);
+    await sequelize.query(`ALTER ROLE ${APP_RW} SET idle_in_transaction_session_timeout = '60s'`);
+    await sequelize.query(`ALTER ROLE ${APP_RW} SET lock_timeout = '5s'`);
+
     // --- Grants ------------------------------------------------------------------------------
-    const core = env.DB_SCHEMA;
+    const writeSchemas = Object.values(ATLAS_SCHEMAS);
+    const managedSchemas = [...new Set([env.DB_SCHEMA, READ_SCHEMA, ...writeSchemas])];
+    const managedSchemaSql = managedSchemas.map((schema) => `'${schema}'`).join(', ');
     await sequelize.query(`GRANT CONNECT ON DATABASE "${identity.db}" TO ${APP_RW}, ${APP_RO}, ${MIGRATOR}`);
-    await sequelize.query(`CREATE SCHEMA IF NOT EXISTS ${READ_SCHEMA}`);
+    await sequelize.query(`GRANT CREATE ON DATABASE "${identity.db}" TO ${OWNER}`);
+    for (const schema of [READ_SCHEMA, ...writeSchemas]) {
+      await sequelize.query(`CREATE SCHEMA IF NOT EXISTS "${schema}" AUTHORIZATION ${OWNER}`);
+      await sequelize.query(`ALTER SCHEMA "${schema}" OWNER TO ${OWNER}`);
+    }
 
     // --- Ownership: el owner debe PODER crear y POSEER los objetos ----------------------------
     // Sin esto, `atlas_migrator` se queda sin DDL: no basta con ser miembro de `atlas_owner` si los
@@ -130,8 +143,9 @@ async function main(): Promise<void> {
     // y `REVOKE CREATE ... FROM PUBLIC` le quita el permiso de crear en el schema. Verificado: sin
     // estos pasos, `CREATE TABLE` falla con "permiso denegado al esquema public" y `ALTER TABLE` con
     // "debe ser dueño de la tabla".
-    await sequelize.query(`GRANT USAGE, CREATE ON SCHEMA "${core}" TO ${OWNER}`);
-    await sequelize.query(`GRANT USAGE, CREATE ON SCHEMA ${READ_SCHEMA} TO ${OWNER}`);
+    for (const schema of managedSchemas) {
+      await sequelize.query(`GRANT USAGE, CREATE ON SCHEMA "${schema}" TO ${OWNER}`);
+    }
 
     // Adopta la propiedad de los objetos existentes (creados históricamente por el admin) para que
     // el migrator pueda alterarlos. Es idempotente y no toca datos, solo el dueño.
@@ -139,13 +153,13 @@ async function main(): Promise<void> {
       DO $$
       DECLARE r record;
       BEGIN
-        FOR r IN SELECT schemaname, tablename FROM pg_tables WHERE schemaname IN ('${core}', '${READ_SCHEMA}') LOOP
+        FOR r IN SELECT schemaname, tablename FROM pg_tables WHERE schemaname IN (${managedSchemaSql}) LOOP
           EXECUTE format('ALTER TABLE %I.%I OWNER TO ${OWNER}', r.schemaname, r.tablename);
         END LOOP;
-        FOR r IN SELECT schemaname, viewname FROM pg_views WHERE schemaname IN ('${core}', '${READ_SCHEMA}') LOOP
+        FOR r IN SELECT schemaname, viewname FROM pg_views WHERE schemaname IN (${managedSchemaSql}) LOOP
           EXECUTE format('ALTER VIEW %I.%I OWNER TO ${OWNER}', r.schemaname, r.viewname);
         END LOOP;
-        FOR r IN SELECT schemaname, sequencename FROM pg_sequences WHERE schemaname IN ('${core}', '${READ_SCHEMA}') LOOP
+        FOR r IN SELECT schemaname, sequencename FROM pg_sequences WHERE schemaname IN (${managedSchemaSql}) LOOP
           EXECUTE format('ALTER SEQUENCE %I.%I OWNER TO ${OWNER}', r.schemaname, r.sequencename);
         END LOOP;
       END$$;
@@ -156,22 +170,28 @@ async function main(): Promise<void> {
     // depender de que cada migración recuerde hacer `SET ROLE`.
     await sequelize.query(`ALTER ROLE ${MIGRATOR} IN DATABASE "${identity.db}" SET role TO ${OWNER}`);
 
-    await sequelize.query(`GRANT USAGE ON SCHEMA "${core}" TO ${APP_RW}`);
-    await sequelize.query(`REVOKE CREATE ON SCHEMA "${core}" FROM ${APP_RW}`);
-    await sequelize.query(`REVOKE CREATE ON SCHEMA "${core}" FROM PUBLIC`);
-    await sequelize.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "${core}" TO ${APP_RW}`);
-    await sequelize.query(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "${core}" TO ${APP_RW}`);
+    for (const schema of writeSchemas) {
+      await sequelize.query(`GRANT USAGE ON SCHEMA "${schema}" TO ${APP_RW}`);
+      await sequelize.query(`REVOKE CREATE ON SCHEMA "${schema}" FROM ${APP_RW}`);
+      await sequelize.query(`REVOKE CREATE ON SCHEMA "${schema}" FROM PUBLIC`);
+      await sequelize.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "${schema}" TO ${APP_RW}`);
+      await sequelize.query(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "${schema}" TO ${APP_RW}`);
+      await sequelize.query(`REVOKE ALL ON ALL TABLES IN SCHEMA "${schema}" FROM ${APP_RO}`);
+      await sequelize.query(`REVOKE ALL ON ALL SEQUENCES IN SCHEMA "${schema}" FROM ${APP_RO}`);
+    }
 
     // Tablas FUTURAS: las default privileges se cuelgan del rol que CREA el objeto. Se registran
     // para las tres identidades que pueden aplicar DDL (el admin actual, el owner y el migrator)
     // para que el runtime no se quede sin permisos tras la próxima migración, corra quien corra.
     for (const ddlRole of [identity.usr, OWNER, MIGRATOR]) {
-      await sequelize.query(
-        `ALTER DEFAULT PRIVILEGES FOR ROLE ${ddlRole} IN SCHEMA "${core}" GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${APP_RW}`,
-      );
-      await sequelize.query(
-        `ALTER DEFAULT PRIVILEGES FOR ROLE ${ddlRole} IN SCHEMA "${core}" GRANT USAGE, SELECT ON SEQUENCES TO ${APP_RW}`,
-      );
+      for (const schema of writeSchemas) {
+        await sequelize.query(
+          `ALTER DEFAULT PRIVILEGES FOR ROLE ${ddlRole} IN SCHEMA "${schema}" GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${APP_RW}`,
+        );
+        await sequelize.query(
+          `ALTER DEFAULT PRIVILEGES FOR ROLE ${ddlRole} IN SCHEMA "${schema}" GRANT USAGE, SELECT ON SEQUENCES TO ${APP_RW}`,
+        );
+      }
       await sequelize.query(
         `ALTER DEFAULT PRIVILEGES FOR ROLE ${ddlRole} IN SCHEMA ${READ_SCHEMA} GRANT SELECT ON TABLES TO ${APP_RO}, ${APP_RW}`,
       );

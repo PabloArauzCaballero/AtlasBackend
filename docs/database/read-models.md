@@ -14,15 +14,15 @@ vistas PostgreSQL versionadas. Migración: `20260715120000-create-read-api-schem
 
 ## Vistas de la primera ola
 
-| Vista                                       | Grano                          | Fuentes principales                                                                 |
-| ------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------- |
-| `read_api.v_customer_overview_v1`           | Una fila por cliente           | customers, customer_profile_versions, risk_assessment_results, customer_consents, customer_device_links, manual_review_cases, fraud_cases |
-| `read_api.v_risk_assessment_summary_v1`     | Una fila por corrida de riesgo | risk_assessment_runs + risk_assessment_results (resultado más reciente)              |
-| `read_api.v_operations_work_queue_v1`       | Una fila por tarea abierta      | manual_review_cases, fraud_cases, data_quality_issues, data_subject_requests         |
-| `read_api.v_provider_health_latest_v1`      | Una fila por proveedor          | provider_health_logs (último por proveedor) + data_providers                        |
-| `read_api.v_notification_delivery_summary_v1` | Una fila por mensaje          | notification_messages + agregados de notification_deliveries                        |
-| `read_api.v_system_endpoint_coverage_v1`    | Una fila por endpoint           | system_endpoint_catalog + impactos de entidad + suites por módulo                   |
-| `read_api.v_audit_event_feed_v1`            | Una fila por evento             | Envuelve la vista `audit_event_feed` (cursor real sobre 8 fuentes)                  |
+| Vista                                         | Grano                          | Fuentes principales                                                                                                                       |
+| --------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `read_api.v_customer_overview_v1`             | Una fila por cliente           | customers, customer_profile_versions, risk_assessment_results, customer_consents, customer_device_links, manual_review_cases, fraud_cases |
+| `read_api.v_risk_assessment_summary_v1`       | Una fila por corrida de riesgo | risk_assessment_runs + risk_assessment_results (resultado más reciente)                                                                   |
+| `read_api.v_operations_work_queue_v1`         | Una fila por tarea abierta     | manual_review_cases, fraud_cases, data_quality_issues, data_subject_requests                                                              |
+| `read_api.v_provider_health_latest_v1`        | Una fila por proveedor         | provider_health_logs (último por proveedor) + data_providers                                                                              |
+| `read_api.v_notification_delivery_summary_v1` | Una fila por mensaje           | notification_messages + agregados de notification_deliveries                                                                              |
+| `read_api.v_system_endpoint_coverage_v1`      | Una fila por endpoint          | system_endpoint_catalog + impactos de entidad + suites por módulo                                                                         |
+| `read_api.v_audit_event_feed_v1`              | Una fila por evento            | Envuelve la vista `audit_event_feed` (cursor real sobre 8 fuentes)                                                                        |
 
 ### Notas de diseño (realidad del esquema)
 
@@ -41,14 +41,35 @@ vistas PostgreSQL versionadas. Migración: `20260715120000-create-read-api-schem
 
 ## Paginación por cursor recomendada
 
-| Vista                                 | Cursor sugerido                                            |
-| ------------------------------------- | --------------------------------------------------------- |
-| `v_operations_work_queue_v1`          | `(priority, created_at, queue_item_type, queue_item_id)`  |
-| `v_audit_event_feed_v1`               | `(occurred_at, source_table, source_id)`                  |
-| `v_risk_assessment_summary_v1`        | `(requested_at DESC, risk_assessment_run_id DESC)`        |
-| `v_notification_delivery_summary_v1`  | `(created_at DESC, message_id DESC)`                      |
+| Vista                                | Cursor sugerido                                          |
+| ------------------------------------ | -------------------------------------------------------- |
+| `v_operations_work_queue_v1`         | `(priority, created_at, queue_item_type, queue_item_id)` |
+| `v_audit_event_feed_v1`              | `(occurred_at, source_table, source_id)`                 |
+| `v_risk_assessment_summary_v1`       | `(requested_at DESC, risk_assessment_run_id DESC)`       |
+| `v_notification_delivery_summary_v1` | `(created_at DESC, message_id DESC)`                     |
 
 No usar `OFFSET` profundo en históricos. `OFFSET` solo para catálogos pequeños/pantallas admin.
+
+## Superficie para el portal admin
+
+El backend consume estas vistas mediante `ReadQueryService` y expone endpoints dedicados, en lugar
+de entregar modelos ORM completos:
+
+| Endpoint                                      | Vista                                |
+| --------------------------------------------- | ------------------------------------ |
+| `GET /internal/views/customers`               | `v_customer_overview_v1`             |
+| `GET /internal/views/risk-assessments`        | `v_risk_assessment_summary_v1`       |
+| `GET /internal/views/work-queue`              | `v_operations_work_queue_v1`         |
+| `GET /internal/views/provider-health`         | `v_provider_health_latest_v1`        |
+| `GET /internal/views/notification-deliveries` | `v_notification_delivery_summary_v1` |
+| `GET /internal/views/endpoint-coverage`       | `v_system_endpoint_coverage_v1`      |
+| `GET /internal/views/audit-events`            | `v_audit_event_feed_v1`              |
+
+Todos aceptan `page`, `limit` y `fields=campoA,campoB`. `fields` usa allowlists por vista: no se
+interpola input como identificador SQL, no admite relaciones arbitrarias y la respuesta informa
+`meta.selectedFields`. Sin `fields`, cada pantalla recibe una proyección mínima pensada para el
+listado. Los endpoints tenant-scoped fuerzan `tenant_id`; provider health y endpoint coverage son
+catálogos globales. Los filtros adicionales están validados por Zod y cada ruta aplica RBAC interno.
 
 ## Índices de soporte
 
@@ -73,9 +94,8 @@ los roles existen; en el despliegue también los aplica `ops/postgres/grants.sql
 No se crean por defecto. Solo cuando una consulta agregada sea cara, se lea con frecuencia y tolere
 staleness, con índice único + job de refresh concurrente + métrica de staleness (`read_api.mv_<agg>_v1`).
 
-## Verificación pendiente (igual que el resto de migraciones del repo)
+## Verificación contra PostgreSQL
 
-Esta migración fue escrita y verificada estáticamente contra los modelos Sequelize, pero debe correr
-una vez contra el Postgres de CI y confirmarse con el gate de vistas (Fase 7): existencia en
+La migración debe correr contra el Postgres de CI y confirmarse con el gate de vistas (Fase 7): existencia en
 `pg_views`, smoke `SELECT`, `EXPLAIN (ANALYZE, BUFFERS)` y equivalencia con el repositorio legado
 donde aplique.

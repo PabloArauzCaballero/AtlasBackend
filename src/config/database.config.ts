@@ -1,15 +1,23 @@
 import { SequelizeModuleOptions } from '@nestjs/sequelize';
 import { env } from './env.js';
+import { ATLAS_MIGRATION_SEARCH_PATH, ATLAS_RUNTIME_SEARCH_PATH } from '../database/domain-schemas.js';
 
-function buildSslOptions(useSsl: boolean, rejectUnauthorized: boolean): SequelizeModuleOptions['dialectOptions'] {
-  return useSsl
-    ? {
-        ssl: {
-          require: true,
-          rejectUnauthorized,
-        },
-      }
-    : undefined;
+function buildDialectOptions(
+  useSsl: boolean,
+  rejectUnauthorized: boolean,
+  searchPath: readonly string[],
+): SequelizeModuleOptions['dialectOptions'] {
+  return {
+    options: `-c search_path=${searchPath.join(',')}`,
+    ...(useSsl
+      ? {
+          ssl: {
+            require: true,
+            rejectUnauthorized,
+          },
+        }
+      : {}),
+  };
 }
 
 /**
@@ -29,7 +37,13 @@ export function buildSequelizeOptions(): SequelizeModuleOptions {
     autoLoadModels: false,
     synchronize: false,
     logging: env.NODE_ENV === 'development' ? console.log : false,
-    dialectOptions: buildSslOptions(env.DB_SSL, env.DB_SSL_REJECT_UNAUTHORIZED),
+    pool: {
+      max: env.DB_POOL_MAX,
+      min: env.DB_POOL_MIN,
+      acquire: env.DB_POOL_ACQUIRE_MS,
+      idle: env.DB_POOL_IDLE_MS,
+    },
+    dialectOptions: buildDialectOptions(env.DB_SSL, env.DB_SSL_REJECT_UNAUTHORIZED, ATLAS_RUNTIME_SEARCH_PATH),
   };
 }
 
@@ -56,7 +70,13 @@ export function buildReadSequelizeOptions(): SequelizeModuleOptions {
     autoLoadModels: false,
     synchronize: false,
     logging: false,
-    dialectOptions: buildSslOptions(useSsl, env.DB_SSL_REJECT_UNAUTHORIZED),
+    pool: {
+      max: env.DB_READ_POOL_MAX,
+      min: env.DB_POOL_MIN,
+      acquire: env.DB_POOL_ACQUIRE_MS,
+      idle: env.DB_POOL_IDLE_MS,
+    },
+    dialectOptions: buildDialectOptions(useSsl, env.DB_SSL_REJECT_UNAUTHORIZED, ['read_api', 'public']),
   };
 }
 
@@ -79,6 +99,9 @@ export function buildMigrationSequelizeOptions(): SequelizeModuleOptions {
     ...buildSequelizeOptions(),
     username: env.DB_MIGRATION_USER ?? env.DB_USER,
     password: env.DB_MIGRATION_PASSWORD ?? env.DB_PASSWORD,
+    // `public` primero permite reproducir el historial previo a la migración de separación; una vez
+    // movidas las tablas, los siguientes nombres se resuelven por dominio para seeds heredados.
+    dialectOptions: buildDialectOptions(env.DB_SSL, env.DB_SSL_REJECT_UNAUTHORIZED, ATLAS_MIGRATION_SEARCH_PATH),
   };
 }
 

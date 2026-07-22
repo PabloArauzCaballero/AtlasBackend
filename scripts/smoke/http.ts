@@ -47,7 +47,9 @@ const RESULTS_DIR = path.join(__dirname, 'results');
 function currentCommitSha(): string {
   if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA;
   try {
-    return execSync('git rev-parse HEAD', { cwd: path.join(__dirname, '..', '..') }).toString().trim();
+    return execSync('git rev-parse HEAD', { cwd: path.join(__dirname, '..', '..') })
+      .toString()
+      .trim();
   } catch {
     return 'unknown';
   }

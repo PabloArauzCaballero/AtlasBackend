@@ -5,6 +5,14 @@ import { NotificationTemplateModel } from '../../database/models/index.js';
 import { NotificationChannel } from './notification-types.js';
 import { CreateTemplateDto, ListTemplatesQueryDto, UpdateTemplateDto } from './notifications.schemas.js';
 
+// Las plantillas son casi estáticas pero `findTemplate` se consultaba por cada mensaje del outbox
+// (N mensajes × M canales). Caché en memoria con TTL corto para evitar el round-trip repetido. Se
+// invalida por completo ante cualquier create/update (son raros); el TTL acota además la ventana de
+// inconsistencia si una réplica escribe una plantilla sin pasar por esta instancia.
+const TEMPLATE_CACHE_TTL_MS = 60_000;
+
+type CachedTemplate = { value: NotificationTemplateModel | null; expiresAt: number };
+
 /**
  * Repositorio del agregado de PLANTILLAS de notificación (Fase 2.3 del plan 10/10). Toca
  * EXCLUSIVAMENTE `notification_templates` — sin acceso a mensajes, entregas, preferencias, tokens de
@@ -15,6 +23,8 @@ import { CreateTemplateDto, ListTemplatesQueryDto, UpdateTemplateDto } from './n
  */
 @Injectable()
 export class NotificationTemplatesRepository {
+  private readonly cache = new Map<string, CachedTemplate>();
+
   constructor(@InjectModel(NotificationTemplateModel) private readonly templateModel: typeof NotificationTemplateModel) {}
 
   async findTemplate(input: {
@@ -24,17 +34,31 @@ export class NotificationTemplatesRepository {
     locale?: string;
   }): Promise<NotificationTemplateModel | null> {
     const locale = input.locale ?? 'es-BO';
+    const cacheKey = `${input.tenantId ?? 'GLOBAL'}|${input.code}|${input.channel}|${locale}`;
+    const cached = this.cache.get(cacheKey);
+    // No se usa Date.now dentro de scripts de workflow, pero aquí es runtime normal de la app.
+    const now = Date.now();
+    if (cached && cached.expiresAt > now) return cached.value;
+
     const tenantTemplate = input.tenantId
       ? await this.templateModel.findOne({
           where: { tenantId: input.tenantId, code: input.code, channel: input.channel, locale, isActive: true },
           order: [['version', 'DESC']],
         })
       : null;
-    if (tenantTemplate) return tenantTemplate;
-    return this.templateModel.findOne({
-      where: { tenantId: null, code: input.code, channel: input.channel, locale, isActive: true },
-      order: [['version', 'DESC']],
-    });
+    const resolved =
+      tenantTemplate ??
+      (await this.templateModel.findOne({
+        where: { tenantId: null, code: input.code, channel: input.channel, locale, isActive: true },
+        order: [['version', 'DESC']],
+      }));
+    this.cache.set(cacheKey, { value: resolved, expiresAt: now + TEMPLATE_CACHE_TTL_MS });
+    return resolved;
+  }
+
+  /** Invalida toda la caché de resolución. Se llama tras cualquier escritura de plantilla. */
+  private invalidateCache(): void {
+    this.cache.clear();
   }
 
   async listTemplates(tenantId: string, query: ListTemplatesQueryDto) {
@@ -56,7 +80,7 @@ export class NotificationTemplatesRepository {
 
   async createTemplate(tenantId: string, body: CreateTemplateDto): Promise<NotificationTemplateModel> {
     const now = new Date();
-    return this.templateModel.create({
+    const created = await this.templateModel.create({
       tenantId,
       code: body.code,
       channel: body.channel,
@@ -72,6 +96,8 @@ export class NotificationTemplatesRepository {
       createdAtValue: now,
       updatedAtValue: now,
     });
+    this.invalidateCache();
+    return created;
   }
 
   async updateTemplate(tenantId: string, templateId: string, body: UpdateTemplateDto): Promise<NotificationTemplateModel> {
@@ -90,6 +116,7 @@ export class NotificationTemplatesRepository {
     if (body.version !== undefined) template.version = body.version;
     template.updatedAtValue = new Date();
     await template.save();
+    this.invalidateCache();
     return template;
   }
 }

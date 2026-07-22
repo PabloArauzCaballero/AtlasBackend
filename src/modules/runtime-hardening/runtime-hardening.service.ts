@@ -19,10 +19,7 @@ export class RuntimeHardeningService {
     return sha256Hex(stableStringify({ body: redactSensitiveObject(body), query, params }));
   }
 
-  private async claimExisting(
-    existing: IdempotencyKeyModel,
-    input: { requestHash: string; now: Date },
-  ): Promise<IdempotencyLookupResult> {
+  private async claimExisting(existing: IdempotencyKeyModel, input: { requestHash: string; now: Date }): Promise<IdempotencyLookupResult> {
     if (existing.requestHash !== input.requestHash) {
       throw new ConflictException('IDEMPOTENCY_CONFLICT');
     }

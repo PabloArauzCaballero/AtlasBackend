@@ -111,7 +111,10 @@ export class MailSenderClient {
       getJson(this.executor, 'mailsender', this.apiUrl('/templates?canal=EMAIL'), { authorization: `Bearer ${bearer}` }),
     );
     if (!list.ok) {
-      throw new MailSenderDeliveryError('MAILSENDER_TEMPLATES_UNAVAILABLE', `MailSender respondió HTTP ${list.status} al listar plantillas.`);
+      throw new MailSenderDeliveryError(
+        'MAILSENDER_TEMPLATES_UNAVAILABLE',
+        `MailSender respondió HTTP ${list.status} al listar plantillas.`,
+      );
     }
 
     const templates = Array.isArray(list.json.data) ? (list.json.data as Array<Record<string, unknown>>) : [];
@@ -177,7 +180,10 @@ export class MailSenderClient {
     );
     const accessToken = this.dataFrom(response.json).accessToken;
     if (!response.ok || typeof accessToken !== 'string') {
-      throw new MailSenderDeliveryError('MAILSENDER_AUTH_FAILED', `MailSender respondió HTTP ${response.status} al emitir el JWT administrativo.`);
+      throw new MailSenderDeliveryError(
+        'MAILSENDER_AUTH_FAILED',
+        `MailSender respondió HTTP ${response.status} al emitir el JWT administrativo.`,
+      );
     }
 
     this.adminToken = { value: accessToken, expiresAtMs: Date.now() + ADMIN_TOKEN_CACHE_MS };

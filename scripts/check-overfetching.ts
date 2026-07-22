@@ -14,7 +14,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 const SRC_ROOT = resolve(process.cwd(), 'src');
-const SELECT_STAR_FROM_READ_API = /select\s+\*\s+from\s+read_api\./i;
+const SELECT_STAR_FROM_READ_API = /select\s+(?:[a-z_][a-z0-9_]*\.)?\*\s+from\s+read_api\./i;
 const READ_API_VIEW_DEFINITION = /create(\s+or\s+replace)?\s+view\s+read_api\./i;
 const SELECT_STAR_ANYWHERE = /select\s+\*/i;
 
@@ -39,11 +39,11 @@ function main(): void {
     const content = readFileSync(file, 'utf8');
     const rel = relative(process.cwd(), file);
 
-    content.split(/\r?\n/).forEach((line, index) => {
-      if (SELECT_STAR_FROM_READ_API.test(line)) {
-        errors.push(`${rel}:${index + 1}: consulta una vista de read_api con "SELECT *" (overfetching). Enumera columnas.`);
-      }
-    });
+    // Evalúa también SQL multilínea; el gate anterior solo detectaba SELECT y FROM en la misma línea.
+    const sourceWithoutComments = content.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    if (SELECT_STAR_FROM_READ_API.test(sourceWithoutComments)) {
+      errors.push(`${rel}: consulta una vista de read_api con proyección "*" (overfetching). Enumera columnas.`);
+    }
 
     // Si el archivo define vistas de read_api y en alguna parte hay "SELECT *", es sospechoso:
     // ninguna definición de vista de read_api debe proyectar con estrella (incluye `SELECT alias.*`).

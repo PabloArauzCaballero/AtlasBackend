@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataEntitySeed, SystemRiskLevel } from './systems-ops.types.js';
+import { atlasSchemaFor } from '../../database/domain-schemas.js';
 
 const PII_PATTERN = /(customer|identity|contact|auth|consent|privacy|address|evidence|document|phone|email|session|token)/i;
 const RISK_PATTERN = /(risk|fraud|watchlist|feature|score|observation|quality|provider|reputation|sim|ip_)/i;
@@ -21,7 +22,7 @@ export class SystemsCatalogClassifierService {
     const containsFinancialData = FINANCIAL_PATTERN.test(normalized);
     const isAuditCritical = AUDIT_PATTERN.test(normalized) || containsPii || containsRiskData || containsFinancialData;
     return {
-      schemaName: 'public',
+      schemaName: atlasSchemaFor(tableName),
       tableName,
       modelName,
       entityName: this.toEntityName(tableName),

@@ -23,7 +23,14 @@ export class AdapterError extends Error {
   readonly httpStatus: number | null;
   readonly cause: unknown;
 
-  constructor(input: { code: AdapterErrorCode; provider: string; message: string; retryable: boolean; httpStatus?: number | null; cause?: unknown }) {
+  constructor(input: {
+    code: AdapterErrorCode;
+    provider: string;
+    message: string;
+    retryable: boolean;
+    httpStatus?: number | null;
+    cause?: unknown;
+  }) {
     super(input.message);
     this.name = 'AdapterError';
     this.code = input.code;
@@ -62,10 +69,24 @@ export function toAdapterError(input: { provider: string; error?: unknown; httpS
 
   if (typeof httpStatus === 'number' && httpStatus >= 400) {
     if (httpStatus === 401 || httpStatus === 403) {
-      return new AdapterError({ code: 'AUTH_FAILED', provider, message: input.message ?? `HTTP ${httpStatus}`, retryable: false, httpStatus, cause: error });
+      return new AdapterError({
+        code: 'AUTH_FAILED',
+        provider,
+        message: input.message ?? `HTTP ${httpStatus}`,
+        retryable: false,
+        httpStatus,
+        cause: error,
+      });
     }
     if (httpStatus === 429) {
-      return new AdapterError({ code: 'RATE_LIMITED', provider, message: input.message ?? 'Rate limited', retryable: true, httpStatus, cause: error });
+      return new AdapterError({
+        code: 'RATE_LIMITED',
+        provider,
+        message: input.message ?? 'Rate limited',
+        retryable: true,
+        httpStatus,
+        cause: error,
+      });
     }
     return new AdapterError({
       code: 'PROVIDER_ERROR',

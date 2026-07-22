@@ -7,9 +7,11 @@ import {
   LOGICAL_RELATIONSHIP_METADATA,
 } from '../../../modules/systems-ops/systems-business-metadata.fixtures.js';
 import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from '../../../modules/systems-ops/endpoint-code.util.js';
+import { ATLAS_SCHEMAS, atlasSchemaFor } from '../../domain-schemas.js';
 
 type SeedContext = { context: QueryInterface };
 type ColumnRow = {
+  table_schema: string;
   table_name: string;
   column_name: string;
   ordinal_position: number;
@@ -23,6 +25,10 @@ type ColumnRow = {
   referenced_table: string | null;
   referenced_column: string | null;
 };
+
+const DOMAIN_SCHEMA_SQL = Object.values(ATLAS_SCHEMAS)
+  .map((schema) => `'${schema}'`)
+  .join(', ');
 
 type EndpointScan = {
   method: string;
@@ -987,7 +993,7 @@ async function upsertPayloadContract(
   );
 }
 
-async function upsertDataEntity(queryInterface: QueryInterface, tableName: string) {
+async function upsertDataEntity(queryInterface: QueryInterface, schemaName: string, tableName: string) {
   const domainCode = classifyDomain(tableName);
   const meta = TABLE_METADATA.get(tableName);
   const entityName = humanize(tableName);
@@ -1002,7 +1008,7 @@ async function upsertDataEntity(queryInterface: QueryInterface, tableName: strin
       contains_device_data, contains_location_data, is_audit_critical, retention_policy_code, status, detected_from,
       confidence_level, review_status, _created_at, _updated_at
     ) VALUES (
-      'public', :tableName, null, :entityName, :module, :businessPurpose, :description, :technicalPurpose,
+      :schemaName, :tableName, null, :entityName, :module, :businessPurpose, :description, :technicalPurpose,
       :businessProcess, :whyStore, CAST(:whoUses AS jsonb), :auditUsage, :analysisUsage, :decisionUsage, :dataNature, :domainCode,
       :dataGrain, 'atlas-backend', CAST(:operationalRules AS jsonb), CAST(:qualityRules AS jsonb), :relationshipsSummary, :relationshipRationale,
       :internationalizationNotes, :dataOwner, :containsPii, :containsFinancial, :containsRisk, :containsLegal,
@@ -1045,6 +1051,7 @@ async function upsertDataEntity(queryInterface: QueryInterface, tableName: strin
       _updated_at = EXCLUDED._updated_at;`,
     {
       replacements: {
+        schemaName,
         tableName,
         entityName,
         module: moduleFromTable(tableName),
@@ -1087,8 +1094,8 @@ async function upsertDataEntity(queryInterface: QueryInterface, tableName: strin
 
 async function upsertField(queryInterface: QueryInterface, row: ColumnRow) {
   const entity = await queryInterface.sequelize.query<{ _id: string }>(
-    `SELECT _id FROM system_data_entity_catalog WHERE schema_name = 'public' AND table_name = :tableName LIMIT 1`,
-    { replacements: { tableName: row.table_name }, type: QueryTypes.SELECT },
+    `SELECT _id FROM system_data_entity_catalog WHERE schema_name = :schemaName AND table_name = :tableName LIMIT 1`,
+    { replacements: { schemaName: row.table_schema, tableName: row.table_name }, type: QueryTypes.SELECT },
   );
   const domainCode = classifyDomain(row.table_name);
   const pii = containsPii(row.table_name, row.column_name);
@@ -1104,7 +1111,7 @@ async function upsertField(queryInterface: QueryInterface, row: ColumnRow) {
       is_ml_candidate, ml_feature_group, quality_rules_json, validation_rule_json, retention_policy_code, frontend_label,
       form_usage, relationship_notes, operational_notes, source_document, confidence_level, review_status, _created_at, _updated_at
     ) VALUES (
-      :dataEntityId, 'public', :tableName, :columnName, :ordinalPosition, :sqlDataType, :isNullable, :columnDefault,
+      :dataEntityId, :schemaName, :tableName, :columnName, :ordinalPosition, :sqlDataType, :isNullable, :columnDefault,
       :isPrimaryKey, :isForeignKey, :referencedSchema, :referencedTable, :referencedColumn, :businessName, :businessMeaning,
       :technicalMeaning, :whyStore, CAST(:whoUses AS jsonb), :auditUsage, :analysisUsage, :decisionUsage, :sourceKind, CAST(:payloadPaths AS jsonb),
       :backendWriteBehavior, :dataNature, :domainCode, :governanceCategory, :classificationCode, :sensitivityLevel,
@@ -1155,6 +1162,7 @@ async function upsertField(queryInterface: QueryInterface, row: ColumnRow) {
     {
       replacements: {
         dataEntityId: entity[0]?._id ?? null,
+        schemaName: row.table_schema,
         tableName: row.table_name,
         columnName: row.column_name,
         ordinalPosition: row.ordinal_position,
@@ -1230,6 +1238,7 @@ async function upsertField(queryInterface: QueryInterface, row: ColumnRow) {
 async function seedColumns(queryInterface: QueryInterface) {
   const rows = await queryInterface.sequelize.query<ColumnRow>(
     `SELECT
+      c.table_schema,
       c.table_name,
       c.column_name,
       c.ordinal_position,
@@ -1254,34 +1263,34 @@ async function seedColumns(queryInterface: QueryInterface) {
       JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
       WHERE tc.constraint_type = 'FOREIGN KEY'
     ) fk ON fk.table_schema = c.table_schema AND fk.table_name = c.table_name AND fk.column_name = c.column_name
-    WHERE c.table_schema = 'public'
+    WHERE c.table_schema IN (${DOMAIN_SCHEMA_SQL})
       AND c.table_name NOT IN ('SequelizeMeta','SequelizeDataSeeders')
     ORDER BY c.table_name, c.ordinal_position`,
     { type: QueryTypes.SELECT },
   );
-  const tableNames = [...new Set(rows.map((row) => row.table_name))];
-  for (const tableName of tableNames) await upsertDataEntity(queryInterface, tableName);
+  const tables = [...new Map(rows.map((row) => [`${row.table_schema}.${row.table_name}`, row])).values()];
+  for (const table of tables) await upsertDataEntity(queryInterface, table.table_schema, table.table_name);
   for (const row of rows) await upsertField(queryInterface, row);
 }
 
 async function seedRelationships(queryInterface: QueryInterface) {
   const rows = await queryInterface.sequelize.query<ColumnRow>(
-    `SELECT kcu.table_name, kcu.column_name, ccu.table_schema AS referenced_schema, ccu.table_name AS referenced_table, ccu.column_name AS referenced_column
+    `SELECT kcu.table_schema, kcu.table_name, kcu.column_name, ccu.table_schema AS referenced_schema, ccu.table_name AS referenced_table, ccu.column_name AS referenced_column
      FROM information_schema.table_constraints tc
      JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
      JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
-     WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public'
+      WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema IN (${DOMAIN_SCHEMA_SQL})
      ORDER BY kcu.table_name, kcu.column_name`,
     { type: QueryTypes.SELECT },
   );
   for (const row of rows) {
     const sourceEntity = await queryInterface.sequelize.query<{ _id: string }>(
-      `SELECT _id FROM system_data_entity_catalog WHERE table_name = :tableName LIMIT 1`,
-      { replacements: { tableName: row.table_name }, type: QueryTypes.SELECT },
+      `SELECT _id FROM system_data_entity_catalog WHERE schema_name = :schemaName AND table_name = :tableName LIMIT 1`,
+      { replacements: { schemaName: row.table_schema, tableName: row.table_name }, type: QueryTypes.SELECT },
     );
     const targetEntity = await queryInterface.sequelize.query<{ _id: string }>(
-      `SELECT _id FROM system_data_entity_catalog WHERE table_name = :tableName LIMIT 1`,
-      { replacements: { tableName: row.referenced_table }, type: QueryTypes.SELECT },
+      `SELECT _id FROM system_data_entity_catalog WHERE schema_name = :schemaName AND table_name = :tableName LIMIT 1`,
+      { replacements: { schemaName: row.referenced_schema, tableName: row.referenced_table }, type: QueryTypes.SELECT },
     );
     await queryInterface.sequelize.query(
       `INSERT INTO system_data_relationship_catalog (
@@ -1289,7 +1298,7 @@ async function seedRelationships(queryInterface: QueryInterface) {
         relationship_type, cardinality, optionality, business_reason, technical_reason, audit_usage, analysis_usage, decision_usage,
         enforcement_strategy, delete_policy, source_document, confidence_level, review_status, _created_at, _updated_at
       ) VALUES (
-        :sourceId, :targetId, 'public', :sourceTable, :sourceColumn, COALESCE(:targetSchema, 'public'), :targetTable, :targetColumn,
+        :sourceId, :targetId, :sourceSchema, :sourceTable, :sourceColumn, :targetSchema, :targetTable, :targetColumn,
         'FOREIGN_KEY', 'N:1', 'REQUIRED_WHEN_FLOW_REACHES_STEP', :businessReason, :technicalReason, :auditUsage, :analysisUsage, :decisionUsage,
         'DATABASE_FOREIGN_KEY', 'RESTRICT_OR_SOFT_DELETE', 'information_schema_fk', 'HIGH', 'AUTO_DETECTED', :createdAt, :createdAt
       ) ON CONFLICT (source_schema, source_table, COALESCE(source_column, ''), target_schema, target_table, COALESCE(target_column, ''), relationship_type) DO UPDATE SET
@@ -1303,6 +1312,7 @@ async function seedRelationships(queryInterface: QueryInterface) {
         replacements: {
           sourceId: sourceEntity[0]?._id ?? null,
           targetId: targetEntity[0]?._id ?? null,
+          sourceSchema: row.table_schema,
           sourceTable: row.table_name,
           sourceColumn: row.column_name,
           targetSchema: row.referenced_schema,
@@ -1322,13 +1332,15 @@ async function seedRelationships(queryInterface: QueryInterface) {
 
 async function seedLogicalRelationships(queryInterface: QueryInterface) {
   for (const rel of LOGICAL_RELATIONSHIP_METADATA) {
+    const sourceSchema = atlasSchemaFor(rel.sourceTable);
+    const targetSchema = atlasSchemaFor(rel.targetTable);
     const sourceEntity = await queryInterface.sequelize.query<{ _id: string }>(
-      `SELECT _id FROM system_data_entity_catalog WHERE table_name = :tableName LIMIT 1`,
-      { replacements: { tableName: rel.sourceTable }, type: QueryTypes.SELECT },
+      `SELECT _id FROM system_data_entity_catalog WHERE schema_name = :schemaName AND table_name = :tableName LIMIT 1`,
+      { replacements: { schemaName: sourceSchema, tableName: rel.sourceTable }, type: QueryTypes.SELECT },
     );
     const targetEntity = await queryInterface.sequelize.query<{ _id: string }>(
-      `SELECT _id FROM system_data_entity_catalog WHERE table_name = :tableName LIMIT 1`,
-      { replacements: { tableName: rel.targetTable }, type: QueryTypes.SELECT },
+      `SELECT _id FROM system_data_entity_catalog WHERE schema_name = :schemaName AND table_name = :tableName LIMIT 1`,
+      { replacements: { schemaName: targetSchema, tableName: rel.targetTable }, type: QueryTypes.SELECT },
     );
     await queryInterface.sequelize.query(
       `INSERT INTO system_data_relationship_catalog (
@@ -1336,7 +1348,7 @@ async function seedLogicalRelationships(queryInterface: QueryInterface) {
         relationship_type, cardinality, optionality, business_reason, technical_reason, audit_usage, analysis_usage, decision_usage,
         enforcement_strategy, delete_policy, source_document, confidence_level, review_status, _created_at, _updated_at
       ) VALUES (
-        :sourceId, :targetId, 'public', :sourceTable, null, 'public', :targetTable, null,
+        :sourceId, :targetId, :sourceSchema, :sourceTable, null, :targetSchema, :targetTable, null,
         :relationshipType, :cardinality, :optionality, :businessReason, :technicalReason, :auditUsage, :analysisUsage, :decisionUsage,
         'LOGICAL_RELATION_WITH_SERVICE_VALIDATION', 'SOFT_DELETE_OR_APPEND_ONLY_HISTORY', 'schema_v5_2_logical_relationships', 'HIGH', 'AUTO_DETECTED', :createdAt, :createdAt
       ) ON CONFLICT (source_schema, source_table, COALESCE(source_column, ''), target_schema, target_table, COALESCE(target_column, ''), relationship_type) DO UPDATE SET
@@ -1357,6 +1369,8 @@ async function seedLogicalRelationships(queryInterface: QueryInterface) {
         replacements: {
           sourceId: sourceEntity[0]?._id ?? null,
           targetId: targetEntity[0]?._id ?? null,
+          sourceSchema,
+          targetSchema,
           sourceTable: rel.sourceTable,
           targetTable: rel.targetTable,
           relationshipType: rel.relationshipType,
@@ -1376,6 +1390,7 @@ async function seedLogicalRelationships(queryInterface: QueryInterface) {
 
 async function seedOperationalRules(queryInterface: QueryInterface) {
   const tables = await queryInterface.sequelize.query<{
+    schema_name: string;
     table_name: string;
     domain_code: string | null;
     contains_pii: boolean;
@@ -1383,7 +1398,7 @@ async function seedOperationalRules(queryInterface: QueryInterface) {
     contains_device_data: boolean;
     is_audit_critical: boolean;
   }>(
-    `SELECT table_name, domain_code, contains_pii, contains_risk_data, contains_device_data, is_audit_critical FROM system_data_entity_catalog WHERE status = 'ACTIVE'`,
+    `SELECT schema_name, table_name, domain_code, contains_pii, contains_risk_data, contains_device_data, is_audit_critical FROM system_data_entity_catalog WHERE status = 'ACTIVE'`,
     { type: QueryTypes.SELECT },
   );
   for (const table of tables) {
@@ -1434,7 +1449,7 @@ async function seedOperationalRules(queryInterface: QueryInterface) {
           business_reason, technical_enforcement, enforcement_layer, severity, expected_action, audit_evidence,
           analysis_value, is_active, source_document, confidence_level, review_status, _created_at, _updated_at
         ) VALUES (
-          :code, 'TABLE', 'public', :tableName, :domainCode, :ruleType, :ruleName, :description,
+          :code, 'TABLE', :schemaName, :tableName, :domainCode, :ruleType, :ruleName, :description,
           :businessReason, :technicalEnforcement, :layer, :severity, :expectedAction, :auditEvidence,
           :analysisValue, true, 'rich_metadata_seed', 'HIGH', 'AUTO_DETECTED', :createdAt, :createdAt
         ) ON CONFLICT (rule_code) DO UPDATE SET
@@ -1448,6 +1463,7 @@ async function seedOperationalRules(queryInterface: QueryInterface) {
         {
           replacements: {
             code,
+            schemaName: table.schema_name,
             tableName: table.table_name,
             domainCode: table.domain_code,
             ruleType: rule.type,
@@ -1480,8 +1496,8 @@ function toSnakeCase(value: string): string {
 
 async function tableFieldNames(queryInterface: QueryInterface, tableName: string): Promise<Set<string>> {
   const rows = await queryInterface.sequelize.query<{ column_name: string }>(
-    `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = :tableName`,
-    { replacements: { tableName }, type: QueryTypes.SELECT },
+    `SELECT column_name FROM information_schema.columns WHERE table_schema = :schemaName AND table_name = :tableName`,
+    { replacements: { schemaName: atlasSchemaFor(tableName), tableName }, type: QueryTypes.SELECT },
   );
   return new Set(rows.map((row) => row.column_name));
 }

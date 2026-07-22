@@ -6,6 +6,9 @@ dist/
 coverage/
 tmp-*.log
 
+# Grafo de conocimiento generado por graphify (artefacto local, se regenera con `graphify update .`).
+graphify-out/
+
 # Resultados locales generados por smoke tests (ATLAS-P0-SMOKE-001). Se siguen generando siempre;
 # solo deben permanecer fuera del índice de Git. No usar una regla genérica como *.json aquí —
 # excluiría JSON válidos del proyecto.

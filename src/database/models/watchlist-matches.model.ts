@@ -1,6 +1,7 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { atlasSchemaFor } from '../domain-schemas.js';
 
-@Table({ tableName: 'watchlist_matches', timestamps: false })
+@Table({ tableName: 'watchlist_matches', schema: atlasSchemaFor('watchlist_matches'), timestamps: false })
 export class WatchlistMatchModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;

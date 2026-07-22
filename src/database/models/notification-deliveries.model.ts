@@ -1,6 +1,7 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { atlasSchemaFor } from '../domain-schemas.js';
 
-@Table({ tableName: 'notification_deliveries', timestamps: false })
+@Table({ tableName: 'notification_deliveries', schema: atlasSchemaFor('notification_deliveries'), timestamps: false })
 export class NotificationDeliveryModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;

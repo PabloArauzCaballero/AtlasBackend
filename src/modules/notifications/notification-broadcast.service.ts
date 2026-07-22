@@ -17,6 +17,9 @@ export type BroadcastResult = {
   broadcastId: string;
   targeted: number;
   created: number;
+  // 'queued': mensajes creados; la entrega corre en background (broadcast de admin, puede ser grande).
+  // 'completed': entrega finalizada de forma síncrona (camino interno del monitor de salud, pequeño).
+  status: 'queued' | 'completed';
 };
 
 // Cuántos deliverMessage() corren en paralelo por tanda. in_app no hace ninguna llamada externa
@@ -45,13 +48,23 @@ export class NotificationBroadcastService {
    */
   async broadcast(tenantId: string, input: CreateBroadcastNotificationDto): Promise<BroadcastResult> {
     const recipients = await this.resolveRecipients(tenantId, input);
-    return this.dispatch(tenantId, recipients, {
-      title: input.title,
-      body: input.body,
-      priority: input.priority,
-      category: input.category,
-      icon: input.icon ?? null,
-    });
+    // Entrega DESACOPLADA (awaitDelivery=false): un broadcast de admin puede targetear decenas de
+    // miles de destinatarios; entregarlos dentro del request lo haría durar minutos y superar el
+    // timeout del proxy/cliente. Los mensajes se crean síncronamente (se reporta targeted/created) y
+    // la entrega corre en background. Los mensajes quedan persistidos como 'pending', así que la
+    // durabilidad no empeora respecto al modo síncrono anterior.
+    return this.dispatch(
+      tenantId,
+      recipients,
+      {
+        title: input.title,
+        body: input.body,
+        priority: input.priority,
+        category: input.category,
+        icon: input.icon ?? null,
+      },
+      { awaitDelivery: false },
+    );
   }
 
   /**
@@ -109,11 +122,12 @@ export class NotificationBroadcastService {
     tenantId: string,
     recipients: BroadcastRecipient[],
     content: { title: string; body: string; priority: number; category: string | null; icon: string | null },
+    options: { awaitDelivery: boolean } = { awaitDelivery: true },
   ): Promise<BroadcastResult> {
     const broadcastId = randomUUID();
     if (recipients.length === 0) {
       this.logger.warn(`Broadcast ${broadcastId} sin destinatarios resueltos — no se crea ningún mensaje.`);
-      return { broadcastId, targeted: 0, created: 0 };
+      return { broadcastId, targeted: 0, created: 0, status: 'completed' };
     }
 
     const messages = await this.notificationsRepository.createBroadcastMessages(recipients, {
@@ -126,6 +140,23 @@ export class NotificationBroadcastService {
       correlationId: broadcastId,
     });
 
+    if (options.awaitDelivery) {
+      await this.deliverBroadcastMessages(messages, broadcastId);
+      return { broadcastId, targeted: recipients.length, created: messages.length, status: 'completed' };
+    }
+
+    // Fire-and-forget: la entrega corre fuera del request. `void` + `.catch` para que un fallo no
+    // genere un unhandledRejection (que ahora además mataría el proceso por los handlers de main.ts).
+    void this.deliverBroadcastMessages(messages, broadcastId).catch((error: unknown) => {
+      this.logger.error(
+        `Fallo en la entrega en background del broadcast ${broadcastId}: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    });
+    return { broadcastId, targeted: recipients.length, created: messages.length, status: 'queued' };
+  }
+
+  private async deliverBroadcastMessages(messages: Array<{ id: string | number }>, broadcastId: string): Promise<void> {
     await mapWithConcurrency(messages, DELIVERY_CONCURRENCY, (message) =>
       this.orchestrator.deliverMessage(String(message.id)).catch((error: unknown) => {
         this.logger.warn(
@@ -133,7 +164,5 @@ export class NotificationBroadcastService {
         );
       }),
     );
-
-    return { broadcastId, targeted: recipients.length, created: messages.length };
   }
 }

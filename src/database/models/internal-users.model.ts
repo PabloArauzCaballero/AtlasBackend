@@ -1,6 +1,7 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { atlasSchemaFor } from '../domain-schemas.js';
 
-@Table({ tableName: 'internal_users', timestamps: false })
+@Table({ tableName: 'internal_users', schema: atlasSchemaFor('internal_users'), timestamps: false })
 export class InternalUserModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;

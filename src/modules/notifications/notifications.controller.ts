@@ -1,17 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Headers,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Patch,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -247,12 +234,13 @@ export class NotificationsController {
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiBody({ schema: zodToApiSchema(createBroadcastNotificationSchema) })
   @ApiResponse({
-    status: 201,
-    description: 'Broadcast creado — devuelve cuántos destinatarios se targetearon y cuántos mensajes se crearon.',
+    status: 202,
+    description:
+      'Broadcast aceptado — los mensajes se crearon (devuelve targeted/created) y la entrega corre en background (status: "queued"). Un broadcast grande no bloquea el request.',
   })
   @ApiResponse({ status: 400, description: 'X-Idempotency-Key ausente, o customerIds/internalUserIds usado con la audience equivocada.' })
   @Post('operations/notifications/broadcast')
-  @HttpCode(HttpStatus.CREATED)
+  @HttpCode(HttpStatus.ACCEPTED)
   @Roles('admin', 'platform_admin', 'system')
   broadcastNotification(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,

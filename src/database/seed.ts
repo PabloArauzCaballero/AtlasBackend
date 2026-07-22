@@ -1,6 +1,7 @@
 import { QueryTypes } from 'sequelize';
 import { SequelizeStorage, Umzug } from 'umzug';
 import { env } from '../config/env.js';
+import { ATLAS_SCHEMAS } from './domain-schemas.js';
 import {
   assertProfileAllowedForEnv,
   assertReseedAllowed,
@@ -89,26 +90,25 @@ async function truncateApplicationTables(profile: SeedProfile): Promise<void> {
     }
   }
 
-  const schema = env.DB_SCHEMA;
-  const tables = await sequelize.query<{ table_name: string }>(
-    `SELECT table_name
+  const schemas = Object.values(ATLAS_SCHEMAS);
+  const tables = await sequelize.query<{ table_schema: string; table_name: string }>(
+    `SELECT table_schema, table_name
        FROM information_schema.tables
-      WHERE table_schema = :schema
+      WHERE table_schema IN (:schemas)
         AND table_type = 'BASE TABLE'
-        AND table_name <> 'SequelizeMeta'
-      ORDER BY table_name;`,
-    { replacements: { schema }, type: QueryTypes.SELECT },
+      ORDER BY table_schema, table_name;`,
+    { replacements: { schemas }, type: QueryTypes.SELECT },
   );
 
   if (tables.length === 0) {
-    console.log(`[seed:clean] No hay tablas de aplicación para limpiar en schema ${schema}.`);
+    console.log(`[seed:clean] No hay tablas de aplicación para limpiar en los schemas ${schemas.join(', ')}.`);
     return;
   }
 
-  const tableList = tables.map((row) => `${quoteIdentifier(schema)}.${quoteIdentifier(row.table_name)}`).join(', ');
+  const tableList = tables.map((row) => `${quoteIdentifier(row.table_schema)}.${quoteIdentifier(row.table_name)}`).join(', ');
   console.warn(
-    `[seed:clean] Limpiando ${tables.length} tablas de aplicación en schema ${schema}. ` +
-      'Se preserva SequelizeMeta y se limpian las tablas de tracking de seeders para recargar todos los perfiles.',
+    `[seed:clean] Limpiando ${tables.length} tablas de aplicación en ${schemas.length} schemas de dominio. ` +
+      'Se preservan SequelizeMeta y las tablas de tracking de seeders en public.',
   );
   await sequelize.query(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE;`);
   console.log('[seed:clean] Limpieza completada. Ejecutando seeders desde cero.');

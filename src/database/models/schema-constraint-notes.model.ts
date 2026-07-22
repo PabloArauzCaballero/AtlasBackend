@@ -1,6 +1,7 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { atlasSchemaFor } from '../domain-schemas.js';
 
-@Table({ tableName: 'schema_constraint_notes', timestamps: false })
+@Table({ tableName: 'schema_constraint_notes', schema: atlasSchemaFor('schema_constraint_notes'), timestamps: false })
 export class SchemaConstraintNoteModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;

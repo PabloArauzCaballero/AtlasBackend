@@ -1,5 +1,6 @@
 import { Controller, Get, Res } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { MetricsService } from './metrics.service.js';
 
 type ExpressLikeResponse = {
@@ -18,6 +19,7 @@ type ExpressLikeResponse = {
  * (no exponerlo a internet). Si no se desea exponerlo, `METRICS_ENABLED=false` deja el counter/
  * histograma sin alimentar y este endpoint devuelve un registro vacío.
  */
+@SkipThrottle()
 @ApiExcludeController()
 @Controller('metrics')
 export class MetricsController {

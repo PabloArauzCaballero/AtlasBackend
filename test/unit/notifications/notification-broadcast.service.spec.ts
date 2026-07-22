@@ -52,6 +52,10 @@ function buildService(
 
 const baseInput = { title: 'Mantenimiento programado', body: 'El sistema estará en mantenimiento a las 22:00.', priority: 10 };
 
+// El broadcast de admin entrega en background (fire-and-forget) para no bloquear el request; se
+// deja correr la cola de microtasks/timers para que la entrega detached termine antes de asertar.
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+
 describe('NotificationBroadcastService.broadcast', () => {
   it('audience "customers" without explicit ids targets every active customer of the tenant', async () => {
     const { service, notificationsRepository, customersRepository, internalRbacRepository } = buildService();
@@ -99,16 +103,21 @@ describe('NotificationBroadcastService.broadcast', () => {
     expect(recipients).toEqual([{ recipientType: 'customer', recipientId: 'c99' }]);
   });
 
-  it('creates the messages in one bulk call and delivers each one via the real orchestrator', async () => {
+  it('creates the messages in one bulk call (sync) and delivers each one en background vía el orchestrator real', async () => {
     const { service, notificationsRepository, orchestrator } = buildService();
 
     const result = await service.broadcast('t1', { ...baseInput, category: 'custom_broadcast', audience: 'customers' } as never);
 
+    // Respuesta inmediata: mensajes creados, entrega encolada (status 'queued').
     expect(notificationsRepository.createBroadcastMessages).toHaveBeenCalledTimes(1);
-    expect(orchestrator.deliverMessage).toHaveBeenCalledTimes(2);
     expect(result.targeted).toBe(2);
     expect(result.created).toBe(2);
+    expect(result.status).toBe('queued');
     expect(result.broadcastId).toEqual(expect.any(String));
+
+    // La entrega detached termina tras dejar correr la cola de microtasks.
+    await flush();
+    expect(orchestrator.deliverMessage).toHaveBeenCalledTimes(2);
   });
 
   it('a failed delivery for one recipient does not stop the rest from being delivered', async () => {
@@ -121,6 +130,7 @@ describe('NotificationBroadcastService.broadcast', () => {
     const { service } = buildService({ orchestrator });
 
     const result = await service.broadcast('t1', { ...baseInput, category: 'custom_broadcast', audience: 'customers' } as never);
+    await flush();
 
     expect(orchestrator.deliverMessage).toHaveBeenCalledTimes(2);
     expect(result.created).toBe(2);

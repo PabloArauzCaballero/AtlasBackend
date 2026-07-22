@@ -1,7 +1,13 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { Logger } from '@nestjs/common';
 import { DataKeyProvider } from './data-key-provider.interface.js';
 import { LocalKeyProvider } from './local-key-provider.js';
 import { decryptSecret as decryptSecretLegacyV1 } from './secret-box.util.js';
+
+// Logger sin DI (util puro). Un descifrado que devuelve null se veía como "el cliente no tiene
+// dato" en los call sites (notificaciones que dejaban de salir sin señal). Se registra el motivo
+// —nunca el valor— para poder distinguir "no hay dato" de "KMS caído / clave rotada / corrupción".
+const logger = new Logger('EnvelopeEncryption');
 
 /**
  * Envelope encryption con una data key por valor y proveedor de claves intercambiable.
@@ -49,17 +55,28 @@ export async function decryptSecretEnvelope(value: string | null): Promise<strin
   try {
     const [version, providerId, keyId, encryptedKeyEncoded, ivB64, tagB64, ciphertextB64] = value.split(':');
     if (version !== 'v2' || !providerId || !keyId || !encryptedKeyEncoded || !ivB64 || !tagB64 || !ciphertextB64) {
+      logger.warn('Valor cifrado con formato v2 malformado: no se pudo parsear (valor no registrado).');
       return null;
     }
 
     const provider = providersById[providerId];
-    if (!provider) return null;
+    if (!provider) {
+      logger.warn(
+        `Sin proveedor registrado para '${providerId}' (activo: '${getActiveEncryptionProviderId()}'). ` +
+          '¿KMS no inicializado en este proceso? Valor no descifrado.',
+      );
+      return null;
+    }
 
     const dataKey = await provider.decryptDataKey(decodeURIComponent(encryptedKeyEncoded), keyId);
     const decipher = createDecipheriv('aes-256-gcm', dataKey, Buffer.from(ivB64, 'base64'));
     decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
     return Buffer.concat([decipher.update(Buffer.from(ciphertextB64, 'base64')), decipher.final()]).toString('utf8');
-  } catch {
+  } catch (error) {
+    logger.warn(
+      `Fallo al descifrar valor v2 (proveedor activo: '${getActiveEncryptionProviderId()}'): ` +
+        `${error instanceof Error ? error.message : 'error desconocido'}. Valor no descifrado.`,
+    );
     return null;
   }
 }

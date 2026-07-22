@@ -1,6 +1,7 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { atlasSchemaFor } from '../domain-schemas.js';
 
-@Table({ tableName: 'idempotency_keys', timestamps: false })
+@Table({ tableName: 'idempotency_keys', schema: atlasSchemaFor('idempotency_keys'), timestamps: false })
 export class IdempotencyKeyModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;

@@ -1,5 +1,20 @@
+/**
+ * Claves cuyo VALOR nunca debe persistirse en claro (audit logs, telemetría, etc.).
+ *
+ * Dos modos de match, a propósito:
+ * - Substring (primer grupo): fragmentos que son sensibles aparezcan donde aparezcan en la clave
+ *   (`identifier` cubre el body de POST /auth/login que persistía email/teléfono en claro en
+ *   http_action_logs; `fullName`/`firstName`/`lastName` son PII en cualquier clave que los contenga).
+ * - Exacto (`^name$`): `name` a secas solo se redacta como clave completa, porque como substring
+ *   sobre-redactaría claves técnicas sin PII (jobName, actionName, screenName, …).
+ *
+ * Nota (deuda preexistente): `lat|lng|gps` se matchean como substring, así que colisionan con claves
+ * técnicas que los contienen (p.ej. "temp`lat`eName" → redactada). Es fail-safe (sobre-redacta, no
+ * filtra); acotarlos a límites de palabra queda pendiente para no arriesgar under-redacción de
+ * claves GPS reales. Ver docs/audit/cierre-correcciones-2026-07-21.md.
+ */
 const SENSITIVE_KEY_PATTERN =
-  /(password|token|secret|authorization|cookie|otp|verificationCode|documentNumber|declaredNumber|encrypted|phone|email|lat|lng|gps|address|reference|rawPayload|evidence|storageKey|payload)/i;
+  /(password|token|secret|authorization|cookie|otp|verificationCode|documentNumber|declaredNumber|encrypted|phone|email|lat|lng|gps|address|reference|rawPayload|evidence|storageKey|payload|identifier|fullName|firstName|lastName)|^name$/i;
 
 export function stableStringify(value: unknown): string {
   return JSON.stringify(sortValue(value));

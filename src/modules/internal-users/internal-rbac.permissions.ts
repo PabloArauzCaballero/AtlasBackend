@@ -106,7 +106,13 @@ export const INTERNAL_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
   permission('lineage.read', 'lineage', 'lineage_graph', 'read', 'Consultar lineage e impacto.'),
   permission('audit.events.read', 'audit', 'audit_event', 'read', 'Consultar eventos de auditoría.', 'HIGH'),
   permission('audit.events.detail', 'audit', 'audit_event', 'detail', 'Consultar detalle de auditoría sensible.', 'HIGH'),
-  permission('notifications.messages.read', 'notifications', 'notification_message', 'read', 'Consultar mensajes de notificación (in-app/push/email/sms/whatsapp) y su historial de entrega.'),
+  permission(
+    'notifications.messages.read',
+    'notifications',
+    'notification_message',
+    'read',
+    'Consultar mensajes de notificación (in-app/push/email/sms/whatsapp) y su historial de entrega.',
+  ),
   permission(
     'notifications.messages.manage',
     'notifications',

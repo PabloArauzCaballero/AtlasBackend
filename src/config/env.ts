@@ -70,6 +70,16 @@ const envSchema = z
     DB_SSL: booleanEnvSchema,
     DB_SSL_REJECT_UNAUTHORIZED: booleanEnvSchema.default(true),
 
+    // Pool de conexiones Sequelize. Sin estas vars, Sequelize aplica su default `max: 5`, que se
+    // queda corto frente a la concurrencia real del backend (p.ej. el fan-out de notificaciones
+    // asume ~25 entregas simultáneas). Dimensionar de modo que (instancias × DB_POOL_MAX) no supere
+    // el CONNECTION LIMIT del rol atlas_app_rw en Postgres. Ver docs/database/postgres-roles.md.
+    DB_POOL_MAX: z.coerce.number().int().positive().max(200).default(20),
+    DB_POOL_MIN: z.coerce.number().int().min(0).max(100).default(2),
+    DB_POOL_ACQUIRE_MS: z.coerce.number().int().positive().max(120_000).default(30_000),
+    DB_POOL_IDLE_MS: z.coerce.number().int().positive().max(120_000).default(10_000),
+    DB_READ_POOL_MAX: z.coerce.number().int().positive().max(200).default(10),
+
     // Pool de LECTURA opcional (Fase 2/5 del plan de mejora del modelo de datos). La conexión
     // write/default sigue siendo DB_HOST/DB_USER/... (apúntala a atlas_app_rw). Cuando
     // DB_READ_ENABLED=true, `ReadDatabaseModule` registra una segunda conexión "read" usando estas
@@ -427,6 +437,18 @@ function parseEnv(): AppEnv {
     throw new Error(
       'Configuración de entorno inválida para ATLAS.\n' +
         '- AUTH_COOKIE_SAMESITE=none exige AUTH_COOKIE_SECURE=true (los navegadores descartan la cookie si no).',
+    );
+  }
+
+  // PII cifrada sin KMS: en producción sin KMS_KEY_ID+AWS_REGION, la master key se deriva de una env
+  // var (SHA-256). Es un despliegue legítimo en la etapa actual, pero comprometer esa variable
+  // descifra toda la PII, así que se avisa ruidosamente (no se bloquea el arranque). Ver
+  // docs/audit/revision-completa-backend-2026-07-21.md (S-M3).
+  if (parsed.data.NODE_ENV === 'production' && !(parsed.data.KMS_KEY_ID && parsed.data.AWS_REGION)) {
+    console.warn(
+      '[ATLAS][SEGURIDAD] Producción sin KMS: la PII se cifra con clave derivada de una variable de ' +
+        'entorno. Configura KMS_KEY_ID + AWS_REGION y ejecuta `yarn crypto:reencrypt-pii` para migrar ' +
+        'los valores existentes al proveedor KMS.',
     );
   }
 

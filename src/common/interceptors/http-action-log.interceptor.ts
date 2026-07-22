@@ -51,7 +51,10 @@ function targetId(request: RequestLike): string | null {
 }
 
 function clientIp(request: RequestLike): string | null {
-  return firstHeader(request.headers['x-forwarded-for'])?.split(',')[0]?.trim() ?? request.ip ?? null;
+  // Fuente primaria: `request.ip` — Express ya la resuelve respetando `trust proxy`, así que solo
+  // honra el x-forwarded-for añadido por NUESTRO proxy, no uno inventado por el cliente. El header
+  // crudo queda únicamente como fallback forense para requests sin `ip` (p. ej. tests o mounts no-Express).
+  return request.ip ?? firstHeader(request.headers['x-forwarded-for'])?.split(',')[0]?.trim() ?? null;
 }
 
 function isLikelyPiiPath(path: string): boolean {

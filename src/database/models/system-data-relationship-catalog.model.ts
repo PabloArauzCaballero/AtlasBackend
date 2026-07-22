@@ -1,7 +1,8 @@
 import { Column, DataType, ForeignKey, Model, Table } from 'sequelize-typescript';
+import { atlasSchemaFor } from '../domain-schemas.js';
 import { SystemDataEntityCatalogModel } from './system-data-entity-catalog.model.js';
 
-@Table({ tableName: 'system_data_relationship_catalog', timestamps: false })
+@Table({ tableName: 'system_data_relationship_catalog', schema: atlasSchemaFor('system_data_relationship_catalog'), timestamps: false })
 export class SystemDataRelationshipCatalogModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;

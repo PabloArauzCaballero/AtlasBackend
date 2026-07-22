@@ -13,7 +13,7 @@ import { buildNotificationsTestApp, authHeader } from './support/notifications-t
 describe('NotificationsController — POST /operations/notifications/broadcast (e2e/supertest)', () => {
   let app: INestApplication;
   const service = {
-    broadcast: jest.fn(async () => ({ broadcastId: 'bcast-1', targeted: 2, created: 2 })),
+    broadcast: jest.fn(async () => ({ broadcastId: 'bcast-1', targeted: 2, created: 2, status: 'queued' })),
   };
 
   beforeAll(async () => {
@@ -75,16 +75,16 @@ describe('NotificationsController — POST /operations/notifications/broadcast (
     expect(service.broadcast).not.toHaveBeenCalled();
   });
 
-  it('201 con admin + idempotency-key + x-tenant-id: aplica default de priority=0 y delega el tenantId del header (x-tenant-id es requerido en los endpoints de operations, no se infiere del token)', async () => {
+  it('202 con admin + idempotency-key + x-tenant-id: aplica default de priority=0 y delega el tenantId del header (x-tenant-id es requerido en los endpoints de operations, no se infiere del token)', async () => {
     const res = await request(app.getHttpServer())
       .post('/operations/notifications/broadcast')
       .set(...authHeader('admin'))
       .set('x-tenant-id', '1')
       .set('x-idempotency-key', 'idem-1')
       .send(validBody)
-      .expect(201);
+      .expect(202);
 
-    expect(res.body).toEqual({ broadcastId: 'bcast-1', targeted: 2, created: 2 });
+    expect(res.body).toEqual({ broadcastId: 'bcast-1', targeted: 2, created: 2, status: 'queued' });
     expect(service.broadcast).toHaveBeenCalledWith(
       '1',
       expect.objectContaining({ ...validBody, priority: 0, category: 'custom_broadcast' }),
@@ -98,14 +98,14 @@ describe('NotificationsController — POST /operations/notifications/broadcast (
       .set('x-tenant-id', '1')
       .set('x-idempotency-key', 'idem-2')
       .send({ ...validBody, audience: 'both' })
-      .expect(201);
+      .expect(202);
     await request(app.getHttpServer())
       .post('/operations/notifications/broadcast')
       .set(...authHeader('system'))
       .set('x-tenant-id', '1')
       .set('x-idempotency-key', 'idem-3')
       .send({ ...validBody, audience: 'internal_users' })
-      .expect(201);
+      .expect(202);
     expect(service.broadcast).toHaveBeenCalledTimes(2);
   });
 });

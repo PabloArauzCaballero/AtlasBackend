@@ -25,7 +25,21 @@ describe('NotificationOrchestratorService', () => {
     const repository = {
       isChannelEnabled: jest.fn(async () => true),
       findTemplate: jest.fn(async () => null),
-      createMessage: jest.fn(async () => ({ id: 'msg-1' })),
+      // createMessage devuelve el modelo COMPLETO (como en producción): handleEvent ahora lo pasa
+      // directo a deliverMessage sin re-leer (optimización #1), así que necesita channel/status/etc.
+      createMessage: jest.fn(async () => ({
+        id: 'msg-1',
+        status: 'queued',
+        channel: 'in_app',
+        tenantId: 't1',
+        recipientType: 'customer',
+        recipientId: 'c1',
+        subject: null,
+        title: 'title',
+        body: 'body',
+        payloadJson: {},
+        correlationId: null,
+      })),
       getMessageForDelivery: jest.fn(async () => ({
         id: 'msg-1',
         status: 'queued',
@@ -315,8 +329,8 @@ describe('NotificationOrchestratorService', () => {
       expect(emailCall[0].subject).not.toBeNull();
     });
 
-    it('calls handleEvent -> deliverMessage automatically for every message created', async () => {
-      const { service, rulesService, repository } = buildService();
+    it('handleEvent entrega cada mensaje creado SIN re-leerlo (optimización #1: pasa el modelo directo)', async () => {
+      const { service, rulesService, repository, adapters } = buildService();
       (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce([
         {
           eventCode: 'x',
@@ -327,19 +341,13 @@ describe('NotificationOrchestratorService', () => {
           templatePrefix: 'x',
         },
       ] as never);
-      (repository.getMessageForDelivery as jest.Mock).mockResolvedValueOnce({
-        id: 'msg-1',
-        status: 'queued',
-        channel: 'in_app',
-        tenantId: 't1',
-        recipientType: 'customer',
-        recipientId: 'c1',
-        payloadJson: {},
-      } as never);
 
       await service.handleEvent(fakeEvent({ eventPayloadJson: { customerId: 'c1' } }) as never);
 
-      expect(repository.getMessageForDelivery).toHaveBeenCalledWith('msg-1');
+      // El mensaje recién creado se entrega (adapter.send) sin una segunda lectura de DB.
+      expect(repository.createMessage).toHaveBeenCalledTimes(1);
+      expect(adapters.inAppAdapter.send).toHaveBeenCalledTimes(1);
+      expect(repository.getMessageForDelivery).not.toHaveBeenCalled();
     });
   });
 
@@ -510,17 +518,30 @@ describe('NotificationOrchestratorService', () => {
       expect((repository.findTemplate as jest.Mock).mock.calls[0][0]).toMatchObject({ code: 'user_registered_in_app' });
     });
 
-    it('cuando el mensaje creado no expone .id, resuelve el id vía getDataValue', async () => {
-      const { service, rulesService, repository } = buildService();
+    it('cuando el mensaje creado no expone .id, resuelve el id vía getDataValue (sin re-leer de DB)', async () => {
+      const { service, rulesService, repository, adapters } = buildService();
       (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce([rule()] as never);
       (repository.createMessage as jest.Mock).mockResolvedValueOnce({
         id: undefined,
         getDataValue: jest.fn(() => 'msg-from-datavalue'),
+        status: 'queued',
+        channel: 'in_app',
+        tenantId: 't1',
+        recipientType: 'customer',
+        recipientId: 'c1',
+        subject: null,
+        title: 'title',
+        body: 'body',
+        payloadJson: {},
+        correlationId: null,
       } as never);
 
       await service.handleEvent(fakeEvent({ aggregateType: 'customer', aggregateId: 'c1', eventPayloadJson: {} }) as never);
 
-      expect(repository.getMessageForDelivery).toHaveBeenCalledWith('msg-from-datavalue');
+      // Se entrega el modelo directo (no hay re-lectura); el id del payload se resuelve por getDataValue.
+      expect(repository.getMessageForDelivery).not.toHaveBeenCalled();
+      const payload = (adapters.inAppAdapter.send as jest.Mock).mock.calls[0][0] as { id: string };
+      expect(payload.id).toBe('msg-from-datavalue');
     });
 
     it('si el adapter lanza algo que no es Error, registra el código genérico ADAPTER_SEND_FAILED', async () => {

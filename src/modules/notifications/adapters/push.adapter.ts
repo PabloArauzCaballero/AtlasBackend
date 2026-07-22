@@ -12,7 +12,11 @@ function normalizePrivateKey(raw: string): string {
   return raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;
 }
 
-async function getGoogleAccessToken(input: { clientEmail: string; privateKey: string; executor: ResilientAdapterExecutorService }): Promise<string> {
+async function getGoogleAccessToken(input: {
+  clientEmail: string;
+  privateKey: string;
+  executor: ResilientAdapterExecutorService;
+}): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const header = base64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const claim = base64Url(

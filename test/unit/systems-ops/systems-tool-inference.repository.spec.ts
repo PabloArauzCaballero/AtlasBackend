@@ -19,7 +19,7 @@ describe('SystemsToolInferenceRepository', () => {
     const { repo, endpointModel } = buildRepo();
     (endpointModel.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.listActiveEndpoints();
-    expect((endpointModel.findAll as jest.Mock).mock.calls[0][0].where).toEqual({ status: 'ACTIVE' });
+    expect(((endpointModel.findAll as jest.Mock).mock.calls[0][0] as { where: unknown }).where).toEqual({ status: 'ACTIVE' });
   });
 
   it('upsertRequirement: tool PLANNED + ambos críticos ⇒ fallback, requiresMock y confidence HIGH', async () => {

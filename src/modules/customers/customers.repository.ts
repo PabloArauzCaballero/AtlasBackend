@@ -44,18 +44,34 @@ export class CustomersRepository {
    * para descartarlos después caso por caso.
    */
   async listActiveCustomerIds(tenantId: string): Promise<string[]> {
-    const rows = await this.customerModel.findAll({
-      where: {
-        tenantId,
-        deleted: { [Op.ne]: true },
-        // `lifecycleStatus` es nullable — `Op.ne` por sí solo excluiría también los NULL (NULL !=
-        // 'blocked' no es true en SQL), así que el OR explícito con NULL es necesario para no
-        // dejar afuera clientes que simplemente no tienen el campo seteado.
-        [Op.or]: [{ lifecycleStatus: null }, { lifecycleStatus: { [Op.ne]: 'blocked' } }],
-      } as never,
-      attributes: ['id'],
-    } as FindOptions);
-    return rows.map((row) => String(row.id));
+    // Paginación keyset por PK en lotes: evita una única query sin `limit` que materializa de golpe
+    // todas las filas del tenant (riesgo de memoria/tiempo con decenas de miles de clientes). Cada
+    // lote trae `id > lastId ORDER BY id LIMIT N`, que usa el índice de PK sin OFFSET profundo.
+    const BATCH_SIZE = 5_000;
+    const ids: string[] = [];
+    let lastId: string | null = null;
+
+    for (;;) {
+      const rows: CustomerModel[] = await this.customerModel.findAll({
+        where: {
+          tenantId,
+          deleted: { [Op.ne]: true },
+          // `lifecycleStatus` es nullable — `Op.ne` por sí solo excluiría también los NULL (NULL !=
+          // 'blocked' no es true en SQL), así que el OR explícito con NULL es necesario para no
+          // dejar afuera clientes que simplemente no tienen el campo seteado.
+          [Op.or]: [{ lifecycleStatus: null }, { lifecycleStatus: { [Op.ne]: 'blocked' } }],
+          ...(lastId === null ? {} : { id: { [Op.gt]: lastId } }),
+        } as never,
+        attributes: ['id'],
+        order: [['id', 'ASC']],
+        limit: BATCH_SIZE,
+      } as FindOptions);
+      if (rows.length === 0) break;
+      for (const row of rows) ids.push(String(row.id));
+      lastId = String(rows[rows.length - 1].id);
+      if (rows.length < BATCH_SIZE) break;
+    }
+    return ids;
   }
 
   findByContactHash(tenantId: string, contactHashes: { phoneHash?: string; emailHash?: string }): Promise<CustomerModel | null> {

@@ -32,7 +32,10 @@ export class EventsController {
     return { data: this.eventsService.listDefinitions() };
   }
 
-  @ApiOperation({ summary: 'Listar eventos de dominio (outbox)', description: 'Soporta paginación por offset (page/limit) o por cursor (pagination=cursor).' })
+  @ApiOperation({
+    summary: 'Listar eventos de dominio (outbox)',
+    description: 'Soporta paginación por offset (page/limit) o por cursor (pagination=cursor).',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(listEventsQuerySchema).status })
   @ApiQuery({ name: 'eventCode', required: false, schema: zodObjectPropertySchemas(listEventsQuerySchema).eventCode })

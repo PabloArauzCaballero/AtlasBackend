@@ -27,7 +27,10 @@ import {
 export class DataQualityController {
   constructor(private readonly service: DataQualityService) {}
 
-  @ApiOperation({ summary: 'Listar issues de calidad de datos', description: 'severity resuelve contra data_quality_rules (vía join manual, no columna propia del issue).' })
+  @ApiOperation({
+    summary: 'Listar issues de calidad de datos',
+    description: 'severity resuelve contra data_quality_rules (vía join manual, no columna propia del issue).',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(dataQualityQuerySchema).status })
   @ApiQuery({ name: 'severity', required: false, schema: zodObjectPropertySchemas(dataQualityQuerySchema).severity })

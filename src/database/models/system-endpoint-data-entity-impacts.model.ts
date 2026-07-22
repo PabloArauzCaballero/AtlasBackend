@@ -1,6 +1,11 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { atlasSchemaFor } from '../domain-schemas.js';
 
-@Table({ tableName: 'system_endpoint_data_entity_impacts', timestamps: false })
+@Table({
+  tableName: 'system_endpoint_data_entity_impacts',
+  schema: atlasSchemaFor('system_endpoint_data_entity_impacts'),
+  timestamps: false,
+})
 export class SystemEndpointDataEntityImpactModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;

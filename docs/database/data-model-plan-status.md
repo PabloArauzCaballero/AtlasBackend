@@ -2,16 +2,17 @@
 
 Seguimiento de la implementación del `PLAN_MEJORA_MODELO_DATOS_POSTGRES_ATLAS.md`.
 
-| Fase | Alcance | Estado | Artefactos |
-| ---- | ------- | ------ | ---------- |
-| **0** | Inventario de workload + baseline p50/p95/p99 | ◑ Scaffolding listo; faltan datos reales | Docs plantilla (`read-workload-inventory.md`, `query-baseline.md`, `view-candidates.md`) + scripts `db:extract-read-workload` y `db:capture-query-baseline`. Los números se llenan desde staging con `pg_stat_statements`. |
-| **1** | Perfiles de seeds (production/development/demo/test) + runner + guards | ✅ Implementada | `src/database/seed.ts`, `seed-profiles.ts`, `seeders/{production,development,demo,test}/`, `scripts/check-seed-profile.ts`, tests. |
-| **2** | Roles PostgreSQL (owner/migrator/rw/ro) + grants + verificación | ✅ Implementada | `ops/postgres/*.sql`, `docs/database/postgres-roles.md`, `scripts/check-db-privileges.ts`, `DB_READ_*` en env. |
-| **3** | Schema `read_api` + primera ola de 7 vistas versionadas | ✅ Implementada | `migrations/20260715120000-create-read-api-schema-and-views-v1.ts`, `docs/database/read-models.md`. |
-| **4** | Migración de repositorios a las vistas + deprecación de rutas offset | ◑ Iniciada | Ruta de auditoría por offset marcada `deprecated: true` en OpenAPI (§25). Las vistas y el `ReadQueryService` están listos; la migración de cada repositorio se hace por módulo con medición. |
-| **5** | Conexión read-only opcional (segundo pool) | ✅ Implementada (opt-in) | `read-database.module.ts`, `common/database/read-query.service.ts`, `DB_READ_ENABLED`. |
-| **6** | Materialized views (`mv_*`) | ⏳ Solo con evidencia | El plan (§22) exige justificarlas con métricas + job de refresh; no se crean por defecto. |
-| **7** | Gates de CI (seeds, privilegios, vistas, overfetching) | ✅ Implementada | `scripts/check-*.ts`, `verify-prod-seed-idempotency.ts`, `.github/workflows/ci.yml`. |
+| Fase  | Alcance                                                                | Estado                                   | Artefactos                                                                                                                                                                                                                 |
+| ----- | ---------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **0** | Inventario de workload + baseline p50/p95/p99                          | ◑ Scaffolding listo; faltan datos reales | Docs plantilla (`read-workload-inventory.md`, `query-baseline.md`, `view-candidates.md`) + scripts `db:extract-read-workload` y `db:capture-query-baseline`. Los números se llenan desde staging con `pg_stat_statements`. |
+| **1** | Perfiles de seeds (production/development/demo/test) + runner + guards | ✅ Implementada                          | `src/database/seed.ts`, `seed-profiles.ts`, `seeders/{production,development,demo,test}/`, `scripts/check-seed-profile.ts`, tests.                                                                                         |
+| **2** | Roles PostgreSQL (owner/migrator/rw/ro) + grants + verificación        | ✅ Implementada                          | `ops/postgres/*.sql`, `docs/database/postgres-roles.md`, `scripts/check-db-privileges.ts`, `DB_READ_*` en env.                                                                                                             |
+| **3** | Schema `read_api` + primera ola de 7 vistas versionadas                | ✅ Implementada                          | `migrations/20260715120000-create-read-api-schema-and-views-v1.ts`, `docs/database/read-models.md`.                                                                                                                        |
+| **4** | Migración de repositorios a las vistas + deprecación de rutas offset   | ◑ Portal admin cubierto                  | Siete endpoints `/internal/views/*` consumen `ReadQueryService`, aplican field picking por allowlist y tenant scope. La migración de rutas públicas/legadas continúa por módulo con medición.                              |
+| **5** | Conexión read-only opcional (segundo pool)                             | ✅ Implementada (opt-in)                 | `read-database.module.ts`, `common/database/read-query.service.ts`, `DB_READ_ENABLED`.                                                                                                                                     |
+| **6** | Materialized views (`mv_*`)                                            | ⏳ Solo con evidencia                    | El plan (§22) exige justificarlas con métricas + job de refresh; no se crean por defecto.                                                                                                                                  |
+| **7** | Gates de CI (seeds, privilegios, vistas, overfetching)                 | ✅ Implementada                          | `scripts/check-*.ts`, `verify-prod-seed-idempotency.ts`, `.github/workflows/ci.yml`.                                                                                                                                       |
+| **8** | Separación física del modelo de escritura por dominio                  | ✅ Implementada                          | 11 schemas de dominio, mapa único `domain-schemas.ts`, migración `20260717120000-*`, modelos ORM explícitos y gate `check:domain-schemas`.                                                                                 |
 
 ## Verificación local ya realizada
 
@@ -35,4 +36,4 @@ Seguimiento de la implementación del `PLAN_MEJORA_MODELO_DATOS_POSTGRES_ATLAS.m
   del seeder demo a un seeder productivo (`production/20260711085000-seed-risk-baseline-ruleset.ts`),
   para que `db:seed:prod` sea autosuficiente.
 - Las vistas usan las columnas REALES del esquema (p. ej. consentimiento activo = `granted AND
-  revoked_at IS NULL`; "abierto" = `closed_at IS NULL`), no las asumidas en el plan.
+revoked_at IS NULL`; "abierto" = `closed_at IS NULL`), no las asumidas en el plan.

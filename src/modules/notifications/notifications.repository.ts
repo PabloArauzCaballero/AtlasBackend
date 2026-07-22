@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op } from 'sequelize';
+import { Op, UniqueConstraintError } from 'sequelize';
 import { lastCharacters, sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { decryptSecretEnvelope, encryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { redactSensitiveObject, stableStringify } from '../../common/utils/privacy/redaction.util.js';
@@ -112,6 +112,10 @@ function mergeDeliveryTargets(targets: DeliveryTarget[]): DeliveryTarget[] {
   return merged;
 }
 
+// Tamaño de lote para insertar mensajes de broadcast. Un único bulkCreate con decenas de miles de
+// filas produce una sentencia SQL gigante; trocear acota memoria del driver/servidor por INSERT.
+const BROADCAST_INSERT_CHUNK_SIZE = 1_000;
+
 @Injectable()
 export class NotificationsRepository {
   constructor(
@@ -155,39 +159,58 @@ export class NotificationsRepository {
     causationId?: string | null;
   }): Promise<NotificationMessageModel> {
     if (input.idempotencyKey) {
-      const existing = await this.messageModel.findOne({ where: { tenantId: input.tenantId, idempotencyKey: input.idempotencyKey } });
+      const existing = await this.findByIdempotencyKey(input.tenantId, input.idempotencyKey);
       if (existing) return existing;
     }
     const now = new Date();
-    return this.messageModel.create({
-      tenantId: input.tenantId,
-      outboxEventId: input.outboxEventId,
-      recipientType: input.recipientType,
-      recipientId: input.recipientId,
-      channel: input.channel,
-      templateCode: input.templateCode,
-      subject: input.subject,
-      title: input.title,
-      body: input.body,
-      payloadJson: redactSensitiveObject(input.payload) as Record<string, unknown>,
-      deliveryTargetsJson: (await buildEncryptedDeliveryTargets(input.channel, input.payload)) as unknown as Array<Record<string, unknown>>,
-      status: 'pending',
-      priority: input.priority,
-      category: input.category ?? null,
-      icon: input.icon ?? null,
-      scheduledAt: input.scheduledAt ?? now,
-      queuedAt: null,
-      sentAt: null,
-      deliveredAt: null,
-      readAt: null,
-      failedAt: null,
-      cancelledAt: null,
-      idempotencyKey: input.idempotencyKey ?? null,
-      correlationId: input.correlationId ?? null,
-      causationId: input.causationId ?? null,
-      createdAtValue: now,
-      updatedAtValue: now,
-    });
+    try {
+      return await this.messageModel.create({
+        tenantId: input.tenantId,
+        outboxEventId: input.outboxEventId,
+        recipientType: input.recipientType,
+        recipientId: input.recipientId,
+        channel: input.channel,
+        templateCode: input.templateCode,
+        subject: input.subject,
+        title: input.title,
+        body: input.body,
+        payloadJson: redactSensitiveObject(input.payload) as Record<string, unknown>,
+        deliveryTargetsJson: (await buildEncryptedDeliveryTargets(input.channel, input.payload)) as unknown as Array<
+          Record<string, unknown>
+        >,
+        status: 'pending',
+        priority: input.priority,
+        category: input.category ?? null,
+        icon: input.icon ?? null,
+        scheduledAt: input.scheduledAt ?? now,
+        queuedAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        readAt: null,
+        failedAt: null,
+        cancelledAt: null,
+        idempotencyKey: input.idempotencyKey ?? null,
+        correlationId: input.correlationId ?? null,
+        causationId: input.causationId ?? null,
+        createdAtValue: now,
+        updatedAtValue: now,
+      });
+    } catch (error) {
+      // El findOne de arriba no cierra la ventana de carrera: dos requests concurrentes con la
+      // misma idempotencyKey pueden pasar ambas la comprobación y llegar al create. El índice único
+      // parcial (ux_notification_messages_idempotency_key) garantiza que solo una gane; la perdedora
+      // recibe UniqueConstraintError. En vez de propagarlo como 500, se relee el mensaje ganador y
+      // se devuelve — el resultado observable es idéntico a si hubiera ganado el findOne.
+      if (error instanceof UniqueConstraintError && input.idempotencyKey) {
+        const winner = await this.findByIdempotencyKey(input.tenantId, input.idempotencyKey);
+        if (winner) return winner;
+      }
+      throw error;
+    }
+  }
+
+  private async findByIdempotencyKey(tenantId: string | null, idempotencyKey: string): Promise<NotificationMessageModel | null> {
+    return this.messageModel.findOne({ where: { tenantId, idempotencyKey } });
   }
 
   /**
@@ -211,40 +234,47 @@ export class NotificationsRepository {
   ): Promise<NotificationMessageModel[]> {
     if (recipients.length === 0) return [];
     const now = new Date();
-    return this.messageModel.bulkCreate(
-      recipients.map(
-        (recipient) =>
-          ({
-            tenantId: content.tenantId,
-            outboxEventId: null,
-            recipientType: recipient.recipientType,
-            recipientId: recipient.recipientId,
-            channel: 'in_app',
-            templateCode: null,
-            subject: null,
-            title: content.title,
-            body: content.body,
-            payloadJson: {},
-            deliveryTargetsJson: [],
-            status: 'pending',
-            priority: content.priority,
-            category: content.category,
-            icon: content.icon,
-            scheduledAt: now,
-            queuedAt: null,
-            sentAt: null,
-            deliveredAt: null,
-            readAt: null,
-            failedAt: null,
-            cancelledAt: null,
-            idempotencyKey: null,
-            correlationId: content.correlationId,
-            causationId: null,
-            createdAtValue: now,
-            updatedAtValue: now,
-          }) as Record<string, unknown>,
-      ) as never[],
+    const rows = recipients.map(
+      (recipient) =>
+        ({
+          tenantId: content.tenantId,
+          outboxEventId: null,
+          recipientType: recipient.recipientType,
+          recipientId: recipient.recipientId,
+          channel: 'in_app',
+          templateCode: null,
+          subject: null,
+          title: content.title,
+          body: content.body,
+          payloadJson: {},
+          deliveryTargetsJson: [],
+          status: 'pending',
+          priority: content.priority,
+          category: content.category,
+          icon: content.icon,
+          scheduledAt: now,
+          queuedAt: null,
+          sentAt: null,
+          deliveredAt: null,
+          readAt: null,
+          failedAt: null,
+          cancelledAt: null,
+          idempotencyKey: null,
+          correlationId: content.correlationId,
+          causationId: null,
+          createdAtValue: now,
+          updatedAtValue: now,
+        }) as Record<string, unknown>,
     );
+
+    // Se trocea en lotes para no emitir un único INSERT gigante (una sentencia con decenas de miles
+    // de filas satura memoria del driver y del servidor). El orden de retorno se preserva.
+    const created: NotificationMessageModel[] = [];
+    for (let start = 0; start < rows.length; start += BROADCAST_INSERT_CHUNK_SIZE) {
+      const chunk = rows.slice(start, start + BROADCAST_INSERT_CHUNK_SIZE);
+      created.push(...(await this.messageModel.bulkCreate(chunk as never[])));
+    }
+    return created;
   }
 
   async getMessage(tenantId: string, messageId: string): Promise<NotificationMessageModel> {

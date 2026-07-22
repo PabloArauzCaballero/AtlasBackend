@@ -78,10 +78,7 @@ export class RiskController {
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Param(new ZodValidationPipe(riskAssessmentParamsSchema)) params: RiskAssessmentParamsDto,
   ) {
-    return this.riskService.getRiskAssessmentDetail(
-      tenantIdFromHeader(tenantIdHeader),
-      params.riskAssessmentRunId,
-    );
+    return this.riskService.getRiskAssessmentDetail(tenantIdFromHeader(tenantIdHeader), params.riskAssessmentRunId);
   }
 
   @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin')
@@ -98,9 +95,6 @@ export class RiskController {
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Param(new ZodValidationPipe(riskAssessmentParamsSchema)) params: RiskAssessmentParamsDto,
   ) {
-    return this.riskService.getRiskAssessmentExplanation(
-      tenantIdFromHeader(tenantIdHeader),
-      params.riskAssessmentRunId,
-    );
+    return this.riskService.getRiskAssessmentExplanation(tenantIdFromHeader(tenantIdHeader), params.riskAssessmentRunId);
   }
 }

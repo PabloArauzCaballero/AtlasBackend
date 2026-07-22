@@ -22,7 +22,7 @@ const PABLO_TENANT_ID = 1;
 // importar qué tan fuerte fuera. Este valor NO es la contraseña; es un hash Argon2id de una sola
 // vía. Si se necesita rotar de nuevo, generar un hash nuevo con `hashPassword()` (ver
 // `src/common/utils/crypto/password.util.ts`) — nunca reutilizar un hash ya versionado.
-const PABLO_PASSWORD_HASH = '$argon2id$v=19$m=19456,t=2,p=1$9rx/YUDFU5oQP84BWY9ZIw$HA8XLZcd6yT+9ER+ZsZEuYDx48X+a72U7QhVCehbvBM';
+const PABLO_PASSWORD_HASH = '$argon2id$v=19$m=19456,t=2,p=1$SZRsHwGS2nSxkmeTcmaC6A$4h+SqECFqRPMDwffaUfnlgsfQFqCewlq2j3EnjUVAeo';
 const PABLO_ROLE_CODES = ['SUPER_ADMIN', 'SYSTEMS_ADMIN', 'DATA_GOVERNANCE_MANAGER'] as const;
 
 type QueryParams = {

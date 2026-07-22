@@ -36,7 +36,11 @@ export class OperationsController {
     private readonly fraudService: FraudService,
   ) {}
 
-  @ApiOperation({ summary: 'Cola de trabajo combinada (revisión manual + fraude)', description: 'Vista paginada por OFFSET que combina ambas colas ordenadas por fecha. Para volúmenes altos, usar las variantes por cursor (manual-review-cases / fraud-cases).' })
+  @ApiOperation({
+    summary: 'Cola de trabajo combinada (revisión manual + fraude)',
+    description:
+      'Vista paginada por OFFSET que combina ambas colas ordenadas por fecha. Para volúmenes altos, usar las variantes por cursor (manual-review-cases / fraud-cases).',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiQuery({ name: 'queue', required: false, schema: zodObjectPropertySchemas(workQueueQuerySchema).queue })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(workQueueQuerySchema).status })
@@ -84,7 +88,11 @@ export class OperationsController {
     return this.operationsService.getFraudCasesCursorPage(tenantId, query);
   }
 
-  @ApiOperation({ summary: 'Resumen de investigación de un cliente', description: 'Perfil, contactos, consentimientos, último resultado de riesgo (desglose completo) y casos abiertos, para investigación interna.' })
+  @ApiOperation({
+    summary: 'Resumen de investigación de un cliente',
+    description:
+      'Perfil, contactos, consentimientos, último resultado de riesgo (desglose completo) y casos abiertos, para investigación interna.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(operationsCustomerIdParamsSchema.shape.customerId) })
   @ApiResponse({ status: 200, description: 'Resumen de investigación.' })
@@ -100,7 +108,8 @@ export class OperationsController {
 
   @ApiOperation({
     summary: 'Decidir un caso de revisión manual',
-    description: 'Registra la decisión (approved/rejected/request_more_information/escalated_to_fraud/no_action) y, si corresponde, actualiza el estado del cliente.',
+    description:
+      'Registra la decisión (approved/rejected/request_more_information/escalated_to_fraud/no_action) y, si corresponde, actualiza el estado del cliente.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
@@ -130,7 +139,8 @@ export class OperationsController {
    */
   @ApiOperation({
     summary: 'Decidir un caso de fraude',
-    description: 'Registra la decisión de un analista de fraude; puede aplicar watchlist (marca al cliente real por teléfono/email hasheado, no por customerId) y cambiar el estado del cliente. Exclusivo de fraud_analyst/admin/platform_admin.',
+    description:
+      'Registra la decisión de un analista de fraude; puede aplicar watchlist (marca al cliente real por teléfono/email hasheado, no por customerId) y cambiar el estado del cliente. Exclusivo de fraud_analyst/admin/platform_admin.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })

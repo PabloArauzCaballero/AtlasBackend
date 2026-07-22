@@ -82,9 +82,7 @@ async function upsertBatch(
   const bind = rows.flat();
   const whereSql = conflictWhere ? ` WHERE ${conflictWhere}` : '';
   const updateSql =
-    updateColumns.length > 0
-      ? `DO UPDATE SET ${updateColumns.map((c) => `${c} = EXCLUDED.${c}`).join(', ')}`
-      : 'DO NOTHING';
+    updateColumns.length > 0 ? `DO UPDATE SET ${updateColumns.map((c) => `${c} = EXCLUDED.${c}`).join(', ')}` : 'DO NOTHING';
   const returningSql = returning && returning.length > 0 ? ` RETURNING ${returning.join(',')}` : '';
 
   const sql = `
@@ -131,7 +129,17 @@ async function main(): Promise<void> {
       const returned = await upsertBatch(
         sequelize,
         'context_sources',
-        ['source_code', 'source_name', 'source_type', 'reliability_score', 'refresh_frequency', 'notes', 'is_active', '_created_at', '_updated_at'],
+        [
+          'source_code',
+          'source_name',
+          'source_type',
+          'reliability_score',
+          'refresh_frequency',
+          'notes',
+          'is_active',
+          '_created_at',
+          '_updated_at',
+        ],
         ['source_code'],
         null,
         ['source_name', 'source_type', 'reliability_score', 'refresh_frequency', 'notes', 'is_active', '_updated_at'],
@@ -197,7 +205,18 @@ async function main(): Promise<void> {
       const returned = await upsertBatch(
         sequelize,
         'context_catalog_versions',
-        ['catalog_id', 'version_code', 'status', 'valid_from', 'valid_until', 'created_by_type', 'approved_by_type', 'approved_at', 'notes', '_created_at'],
+        [
+          'catalog_id',
+          'version_code',
+          'status',
+          'valid_from',
+          'valid_until',
+          'created_by_type',
+          'approved_by_type',
+          'approved_at',
+          'notes',
+          '_created_at',
+        ],
         ['catalog_id', 'version_code'],
         'catalog_id IS NOT NULL AND version_code IS NOT NULL',
         ['status', 'valid_from', 'valid_until', 'created_by_type', 'approved_by_type', 'approved_at', 'notes'],
@@ -213,7 +232,8 @@ async function main(): Promise<void> {
       const catalogId = catalogMap.get(catalogCode);
       if (!catalogId) throw new Error(`No se pudo resolver catalog_id para catalogCode="${catalogCode}"`);
       const versionId = versionMap.get(`${catalogId}::${versionCode}`);
-      if (!versionId) throw new Error(`No se pudo resolver catalog_version_id para catalogCode="${catalogCode}" versionCode="${versionCode}"`);
+      if (!versionId)
+        throw new Error(`No se pudo resolver catalog_version_id para catalogCode="${catalogCode}" versionCode="${versionCode}"`);
       return versionId;
     }
 
@@ -227,7 +247,7 @@ async function main(): Promise<void> {
       const rows: unknown[][] = [];
       for (const item of allItems) {
         const versionId = resolveVersionId(str(item.catalogCode)!, str(item.versionCode)!);
-        const sourceId = item.sourceCode ? sourceMap.get(str(item.sourceCode)!) ?? null : null;
+        const sourceId = item.sourceCode ? (sourceMap.get(str(item.sourceCode)!) ?? null) : null;
         rows.push([
           versionId,
           str(item.itemCode),
@@ -244,7 +264,18 @@ async function main(): Promise<void> {
       const returned = await upsertBatch(
         sequelize,
         'context_items',
-        ['catalog_version_id', 'item_code', 'item_name', 'item_type', 'attributes_json', 'source_id', 'confidence_score', 'is_active', '_created_at', '_updated_at'],
+        [
+          'catalog_version_id',
+          'item_code',
+          'item_name',
+          'item_type',
+          'attributes_json',
+          'source_id',
+          'confidence_score',
+          'is_active',
+          '_created_at',
+          '_updated_at',
+        ],
         ['catalog_version_id', 'item_code'],
         'catalog_version_id IS NOT NULL AND item_code IS NOT NULL',
         ['item_name', 'item_type', 'attributes_json', 'source_id', 'confidence_score', 'is_active', '_updated_at'],
@@ -274,7 +305,7 @@ async function main(): Promise<void> {
         for (let offset = 0; offset < data.items.length; offset += CHUNK_BATCH_SIZE) {
           const slice = data.items.slice(offset, offset + CHUNK_BATCH_SIZE);
           const rows = slice.map((item) => {
-            const sourceId = item.sourceCode ? sourceMap.get(str(item.sourceCode)!) ?? null : null;
+            const sourceId = item.sourceCode ? (sourceMap.get(str(item.sourceCode)!) ?? null) : null;
             return [
               versionId,
               str(item.itemCode),
@@ -291,7 +322,18 @@ async function main(): Promise<void> {
           await upsertBatch(
             sequelize,
             'context_items',
-            ['catalog_version_id', 'item_code', 'item_name', 'item_type', 'attributes_json', 'source_id', 'confidence_score', 'is_active', '_created_at', '_updated_at'],
+            [
+              'catalog_version_id',
+              'item_code',
+              'item_name',
+              'item_type',
+              'attributes_json',
+              'source_id',
+              'confidence_score',
+              'is_active',
+              '_created_at',
+              '_updated_at',
+            ],
             ['catalog_version_id', 'item_code'],
             'catalog_version_id IS NOT NULL AND item_code IS NOT NULL',
             ['item_name', 'item_type', 'attributes_json', 'source_id', 'confidence_score', 'is_active', '_updated_at'],
@@ -364,7 +406,18 @@ async function main(): Promise<void> {
       await upsertBatch(
         sequelize,
         'context_risk_mappings',
-        ['context_item_id', 'risk_dimension', 'risk_band', 'score_points_suggested', 'reason_code', 'explanation', 'model_usage', 'valid_from', 'valid_until', '_created_at'],
+        [
+          'context_item_id',
+          'risk_dimension',
+          'risk_band',
+          'score_points_suggested',
+          'reason_code',
+          'explanation',
+          'model_usage',
+          'valid_from',
+          'valid_until',
+          '_created_at',
+        ],
         ['context_item_id', 'risk_dimension', 'risk_band', 'reason_code', 'valid_from'],
         'context_item_id IS NOT NULL AND risk_dimension IS NOT NULL AND risk_band IS NOT NULL AND reason_code IS NOT NULL',
         ['score_points_suggested', 'explanation', 'model_usage', 'valid_until'],
@@ -400,9 +453,15 @@ async function main(): Promise<void> {
       validation.counts.materializedContextBindings + validation.counts.supportingDimensionItems + validation.counts.profileDefinitionItems;
 
     console.log('---- Reconciliación ----');
-    console.log(`context_items:        actual=${total_items} esperado>=${expectedItems} -> ${total_items >= expectedItems ? 'PASS' : 'FAIL'}`);
-    console.log(`context_item_aliases: actual=${total_aliases} esperado>=${validation.counts.aliases} -> ${total_aliases >= validation.counts.aliases ? 'PASS' : 'FAIL'}`);
-    console.log(`context_risk_mappings: actual=${total_risk} esperado>=${validation.counts.riskMappings} -> ${total_risk >= validation.counts.riskMappings ? 'PASS' : 'FAIL'}`);
+    console.log(
+      `context_items:        actual=${total_items} esperado>=${expectedItems} -> ${total_items >= expectedItems ? 'PASS' : 'FAIL'}`,
+    );
+    console.log(
+      `context_item_aliases: actual=${total_aliases} esperado>=${validation.counts.aliases} -> ${total_aliases >= validation.counts.aliases ? 'PASS' : 'FAIL'}`,
+    );
+    console.log(
+      `context_risk_mappings: actual=${total_risk} esperado>=${validation.counts.riskMappings} -> ${total_risk >= validation.counts.riskMappings ? 'PASS' : 'FAIL'}`,
+    );
 
     const totalMs = Date.now() - startedAt;
     console.log(`OK: inyección completa en ${(totalMs / 1000).toFixed(1)}s`);

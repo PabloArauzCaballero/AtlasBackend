@@ -3,6 +3,7 @@ import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { QueryTypes } from 'sequelize';
+import { ATLAS_SCHEMAS, atlasSchemaFor } from '../../database/domain-schemas.js';
 import { Sequelize } from 'sequelize-typescript';
 import { mapWithConcurrency } from '../../common/utils/concurrency.util.js';
 import { SYSTEM_TOOL_SEEDS } from './systems-ops.constants.js';
@@ -285,11 +286,11 @@ export class SystemsCatalogSeedService {
 SELECT table_schema AS "schemaName",
        table_name AS "tableName"
   FROM information_schema.tables
- WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+ WHERE table_schema IN (:schemas)
    AND table_type = 'BASE TABLE'
  ORDER BY table_schema ASC, table_name ASC;
 `,
-      { type: QueryTypes.SELECT },
+      { replacements: { schemas: Object.values(ATLAS_SCHEMAS) }, type: QueryTypes.SELECT },
     );
   }
 
@@ -347,10 +348,10 @@ SELECT c.table_schema AS "schemaName",
     ON fk.table_schema = c.table_schema
    AND fk.table_name = c.table_name
    AND fk.column_name = c.column_name
- WHERE c.table_schema NOT IN ('pg_catalog', 'information_schema')
+  WHERE c.table_schema IN (:schemas)
  ORDER BY c.table_schema ASC, c.table_name ASC, c.ordinal_position ASC;
 `,
-      { type: QueryTypes.SELECT },
+      { replacements: { schemas: Object.values(ATLAS_SCHEMAS) }, type: QueryTypes.SELECT },
     );
   }
 
@@ -666,7 +667,7 @@ UPDATE system_data_field_catalog
     operationType: string,
     isPrimaryEntity: boolean,
   ): Promise<boolean> {
-    const entity = await this.catalogRepository.findDataEntityByTable('public', tableName);
+    const entity = await this.catalogRepository.findDataEntityByTable(atlasSchemaFor(tableName), tableName);
     if (!entity) return false;
     await this.catalogRepository.upsertDataImpact({
       endpointId,

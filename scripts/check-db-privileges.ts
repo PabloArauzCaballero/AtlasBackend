@@ -10,11 +10,19 @@
  * SALTA con un aviso y termina en 0 — no bloquea. Las aserciones estrictas solo se aplican cuando el
  * usuario realmente conectado es el rol esperado, así correr localmente como `postgres` no falla.
  *
- * Ejecutar con `yarn check:db-privileges`.
+ * Con `--strict` (recomendado en CI), conectar con un usuario distinto al rol esperado es un FALLO
+ * en vez de un skip: evita que una CI mal configurada (p.ej. conectando como `postgres`) pase el
+ * gate en verde sin verificar nada.
+ *
+ * Ejecutar con `yarn check:db-privileges` o `yarn check:db-privileges --strict`.
  */
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { env } from '../src/config/env.js';
+import { ATLAS_SCHEMAS } from '../src/database/domain-schemas.js';
+
+/** En modo estricto, un usuario conectado distinto al rol esperado es un fallo, no un skip. */
+const STRICT = process.argv.includes('--strict');
 
 interface ConnectionSpec {
   label: string;
@@ -56,6 +64,12 @@ async function checkReadWrite(sequelize: Sequelize): Promise<string[]> {
   );
 
   if (identity.current_user !== 'atlas_app_rw') {
+    if (STRICT) {
+      errors.push(
+        `[strict] conexión de escritura conectada como "${identity.current_user}", no atlas_app_rw: en modo estricto esto es un fallo (el gate no puede verificar el privilegio mínimo real).`,
+      );
+      return errors;
+    }
     console.log(
       `[nota] conexión de escritura conectada como "${identity.current_user}", no atlas_app_rw; se omiten aserciones estrictas de RW.`,
     );
@@ -64,12 +78,18 @@ async function checkReadWrite(sequelize: Sequelize): Promise<string[]> {
 
   if (identity.is_super) errors.push('atlas_app_rw es SUPERUSER (debe ser NOSUPERUSER).');
 
-  const create = await selectOne<{ can_create: boolean }>(
-    sequelize,
-    `SELECT has_schema_privilege(current_user, :schema, 'CREATE') AS can_create`,
-    { schema: env.DB_SCHEMA },
-  );
-  if (create.can_create) errors.push(`atlas_app_rw tiene CREATE en el schema "${env.DB_SCHEMA}" (no debe tener DDL).`);
+  const schemas = Object.values(ATLAS_SCHEMAS);
+  const schemaPrivileges = (await sequelize.query(
+    `SELECT schema_name,
+            has_schema_privilege(current_user, schema_name, 'USAGE') AS can_use,
+            has_schema_privilege(current_user, schema_name, 'CREATE') AS can_create
+       FROM unnest(ARRAY[:schemas]::text[]) AS schema_name`,
+    { replacements: { schemas }, type: QueryTypes.SELECT },
+  )) as { schema_name: string; can_use: boolean; can_create: boolean }[];
+  for (const schema of schemaPrivileges) {
+    if (!schema.can_use) errors.push(`atlas_app_rw no tiene USAGE en el schema "${schema.schema_name}".`);
+    if (schema.can_create) errors.push(`atlas_app_rw tiene CREATE en el schema "${schema.schema_name}" (no debe tener DDL).`);
+  }
 
   const crud = await selectOne<{ can_select: string; can_insert: string; total: string }>(
     sequelize,
@@ -77,14 +97,14 @@ async function checkReadWrite(sequelize: Sequelize): Promise<string[]> {
        count(*) AS total,
        count(*) FILTER (WHERE has_table_privilege(current_user, format('%I.%I', schemaname, tablename), 'SELECT')) AS can_select,
        count(*) FILTER (WHERE has_table_privilege(current_user, format('%I.%I', schemaname, tablename), 'INSERT')) AS can_insert
-     FROM pg_tables WHERE schemaname = :schema`,
-    { schema: env.DB_SCHEMA },
+     FROM pg_tables WHERE schemaname IN (:schemas)`,
+    { schemas },
   );
   if (Number(crud.total) > 0 && Number(crud.can_select) === 0) {
-    errors.push('atlas_app_rw no puede hacer SELECT en ninguna tabla del schema core.');
+    errors.push('atlas_app_rw no puede hacer SELECT en ninguna tabla de los schemas de dominio.');
   }
   if (Number(crud.total) > 0 && Number(crud.can_insert) === 0) {
-    errors.push('atlas_app_rw no puede hacer INSERT en ninguna tabla del schema core.');
+    errors.push('atlas_app_rw no puede hacer INSERT en ninguna tabla de los schemas de dominio.');
   }
 
   console.log(`[ok] atlas_app_rw verificado (SELECT en ${crud.can_select}/${crud.total} tablas, sin CREATE, sin superuser).`);
@@ -96,6 +116,12 @@ async function checkReadOnly(sequelize: Sequelize): Promise<string[]> {
   const identity = await selectOne<{ current_user: string }>(sequelize, `SELECT current_user`);
 
   if (identity.current_user !== 'atlas_app_ro') {
+    if (STRICT) {
+      errors.push(
+        `[strict] conexión de lectura conectada como "${identity.current_user}", no atlas_app_ro: en modo estricto esto es un fallo.`,
+      );
+      return errors;
+    }
     console.log(
       `[nota] conexión de lectura conectada como "${identity.current_user}", no atlas_app_ro; se omiten aserciones estrictas de RO.`,
     );

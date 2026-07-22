@@ -5,6 +5,13 @@ import { basename, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { Collection, MongoClient } from 'mongodb';
 import { env } from '../../config/env.js';
+import { redactSensitiveText } from '../../common/utils/privacy/redact-text.util.js';
+
+// Retención de la colección de logs en Mongo. Sin TTL la colección crece sin límite y, como el
+// archivo local se trunca tras sincronizar, Mongo pasa a ser la única copia. 30 días es un punto
+// intermedio entre trazabilidad forense y coste/PII residual. Constante local (no env) a propósito:
+// cambiarla es una decisión de gobernanza, no de configuración por entorno.
+const LOG_RETENTION_SECONDS = 30 * 24 * 60 * 60;
 
 type RemoteLogDocument =
   | {
@@ -167,7 +174,10 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
         bytes: Buffer.byteLength(delta.content, 'utf8'),
         chars: delta.content.length,
         lineCount: countLines(delta.content),
-        content: delta.content,
+        // Redacción defensiva: aunque Archivo.log ya se escribe scrubbeado por AppFileLogger, este
+        // camino también sincroniza logs preexistentes (LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT) que
+        // pudieron escribirse antes del scrubber. Segunda capa antes de persistir en Mongo.
+        content: redactSensitiveText(delta.content),
       });
 
       this.currentOffset = delta.offsetTo;
@@ -237,6 +247,9 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
     await collection.createIndexes([
       { key: { bootId: 1, capturedAt: 1 }, name: 'idx_boot_captured_at' },
       { key: { 'source.filePath': 1, capturedAt: -1 }, name: 'idx_source_captured_at' },
+      // TTL: Mongo purga documentos cuyo capturedAt supere la retención. Evita crecimiento ilimitado
+      // y acota la ventana de PII residual. Si el valor cambia, Mongo actualiza el TTL en caliente.
+      { key: { capturedAt: 1 }, name: 'idx_ttl_captured_at', expireAfterSeconds: LOG_RETENTION_SECONDS },
     ]);
 
     this.collection = collection;

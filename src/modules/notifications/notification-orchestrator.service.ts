@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { OutboxEventModel } from '../../database/models/index.js';
+import { Injectable, Logger } from '@nestjs/common';
+import { NotificationMessageModel, OutboxEventModel } from '../../database/models/index.js';
 import { NotificationChannelAdapter } from './adapters/notification-channel-adapter.js';
 import { InAppNotificationAdapter } from './adapters/in-app-notification.adapter.js';
 import { EmailNotificationAdapter } from './adapters/email.adapter.js';
@@ -30,6 +30,13 @@ function defaultRecipientId(event: OutboxEventModel, recipientType: RecipientTyp
   return null;
 }
 
+/** Resuelve el id de un mensaje de forma robusta: `.id` directo o `getDataValue('id')` como fallback. */
+function resolveMessageId(message: NotificationMessageModel): string {
+  if (message.id !== undefined && message.id !== null) return String(message.id);
+  const viaDataValue = (message as { getDataValue?: (key: string) => unknown }).getDataValue?.('id');
+  return String(viaDataValue);
+}
+
 function fallbackText(eventCode: string, channel: NotificationChannel): { title: string; subject: string | null; body: string } {
   const readable = eventCode.replaceAll('.', ' ');
   return {
@@ -41,6 +48,8 @@ function fallbackText(eventCode: string, channel: NotificationChannel): { title:
 
 @Injectable()
 export class NotificationOrchestratorService {
+  private readonly logger = new Logger(NotificationOrchestratorService.name);
+
   constructor(
     private readonly rulesService: NotificationRulesService,
     private readonly repository: NotificationsRepository,
@@ -105,18 +114,23 @@ export class NotificationOrchestratorService {
           correlationId: event.correlationId,
           causationId: String(event.id),
         });
-        await this.deliverMessage(message.id === undefined ? String(message.getDataValue('id')) : String(message.id));
+        // Se pasa el modelo recién creado directamente para evitar una re-lectura innecesaria en
+        // deliverMessage (getMessageForDelivery). El camino por-id sigue disponible para el outbox.
+        await this.deliverMessage(message);
       }
     }
   }
 
-  async deliverMessage(messageId: string): Promise<void> {
-    const message = await this.repository.getMessageForDelivery(messageId);
+  async deliverMessage(messageOrId: string | NotificationMessageModel): Promise<void> {
+    const message = typeof messageOrId === 'string' ? await this.repository.getMessageForDelivery(messageOrId) : messageOrId;
     if (['sent', 'delivered', 'read', 'cancelled'].includes(message.status)) return;
     const channel = message.channel as NotificationChannel;
     const adapter = this.adapters.find((candidate) => candidate.supports(channel));
     if (!adapter) throw new Error(`NO_ADAPTER_FOR_CHANNEL_${channel}`);
 
+    // Resolución defensiva del id: algunos modelos Sequelize no exponen `.id` directamente y hay que
+    // leerlo con getDataValue('id'). Se conserva esta robustez ahora que el modelo se pasa directo.
+    const messageId = resolveMessageId(message);
     const tenantId = message.tenantId === null ? null : String(message.tenantId);
     const fcmTokens =
       channel === 'push' && message.recipientType === 'customer'
@@ -126,7 +140,7 @@ export class NotificationOrchestratorService {
       message.recipientType === 'customer' ? await this.repository.getCustomerContactTargets(tenantId, message.recipientId, channel) : [];
     const storedTargets = await this.repository.getMessageDeliveryTargets(message);
     const payload: NotificationMessagePayload = {
-      id: String(message.id),
+      id: messageId,
       tenantId,
       recipientType: message.recipientType,
       recipientId: message.recipientId,
@@ -148,6 +162,13 @@ export class NotificationOrchestratorService {
       const result = await adapter.send(payload);
       await this.repository.recordDelivery(message, payload, result);
     } catch (error: unknown) {
+      // Antes el fallo de entrega solo quedaba como fila en notification_deliveries (status='failed'),
+      // sin log ni métrica: para saber si las notificaciones estaban cayendo había que consultar la
+      // tabla. Se registra con contexto (canal, proveedor) para que sea alertable.
+      this.logger.warn(
+        `Entrega FALLIDA del mensaje ${messageId} por ${channel}/${adapter.getProviderName()}: ` +
+          `${error instanceof Error ? error.message : 'error desconocido'}`,
+      );
       await this.repository.recordDelivery(message, payload, {
         status: 'failed',
         provider: adapter.getProviderName(),

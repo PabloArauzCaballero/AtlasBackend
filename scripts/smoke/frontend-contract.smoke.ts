@@ -13,11 +13,7 @@ function assert(condition: boolean, message: string): void {
 }
 
 function getItems(value: unknown, label: string): JsonRecord[] {
-  const items = getArrayFromPaths<JsonRecord>(value, [
-    ['data', 'items'],
-    ['items'],
-    ['data', 'data', 'items'],
-  ]);
+  const items = getArrayFromPaths<JsonRecord>(value, [['data', 'items'], ['items'], ['data', 'data', 'items']]);
   assert(items.length > 0, `${label} devolvió items vacío. Esto no debe fallar silenciosamente.`);
   return items;
 }
@@ -68,7 +64,12 @@ async function main(): Promise<void> {
   await expectNonEmptyGet(ctx, '/internal/permissions', 'permisos internos');
 
   const glossary = await expectNonEmptyGet(ctx, '/internal/business-metadata/glossary', 'glosario negocio');
-  await expectOk(ctx, 'GET', `/internal/business-metadata/terms/${encodeURIComponent(firstId(glossary, ['termId'], 'glosario'))}`, 'detalle término');
+  await expectOk(
+    ctx,
+    'GET',
+    `/internal/business-metadata/terms/${encodeURIComponent(firstId(glossary, ['termId'], 'glosario'))}`,
+    'detalle término',
+  );
 
   const exportsList = await expectNonEmptyGet(ctx, '/internal/exports', 'exports');
   await expectOk(ctx, 'GET', `/internal/exports/${firstId(exportsList, ['exportId'], 'exports')}`, 'detalle export');
@@ -124,7 +125,10 @@ async function main(): Promise<void> {
   const entities = await expectNonEmptyGet(ctx, '/systems/data-entities', 'entidades datos');
   const entityId = firstId(entities, ['entityId', 'id'], 'entidades datos');
   await expectOk(ctx, 'GET', `/systems/data-entities/${entityId}`, 'detalle entidad datos');
-  await expectOk(ctx, 'PATCH', `/systems/data-entities/${entityId}/metadata`, 'patch metadata entidad', { businessPurpose: 'Smoke frontend contract verified', reason: 'frontend-contract-smoke' });
+  await expectOk(ctx, 'PATCH', `/systems/data-entities/${entityId}/metadata`, 'patch metadata entidad', {
+    businessPurpose: 'Smoke frontend contract verified',
+    reason: 'frontend-contract-smoke',
+  });
 
   await expectNonEmptyGet(ctx, '/systems/action-logs', 'action logs');
   await expectOk(ctx, 'GET', '/systems/action-logs/request/seed-req-dashboard-101', 'action logs por request');
@@ -134,6 +138,14 @@ async function main(): Promise<void> {
   await expectNonEmptyGet(ctx, '/systems/stress-profiles', 'stress profiles');
   await expectNonEmptyGet(ctx, '/systems/stress-matrix', 'stress matrix');
   await expectOk(ctx, 'GET', '/internal/search?q=customer', 'búsqueda global');
+
+  await expectOk(ctx, 'GET', '/internal/views/customers?fields=customerId,displayName,latestRiskBand', 'vista admin clientes');
+  await expectOk(ctx, 'GET', '/internal/views/risk-assessments?fields=riskAssessmentRunId,customerId,decision', 'vista admin riesgo');
+  await expectOk(ctx, 'GET', '/internal/views/work-queue?fields=type,itemId,status,priority', 'vista admin cola operativa');
+  await expectOk(ctx, 'GET', '/internal/views/provider-health?fields=providerId,providerCode,healthStatus', 'vista admin proveedores');
+  await expectOk(ctx, 'GET', '/internal/views/notification-deliveries?fields=messageId,status,attemptCount', 'vista admin notificaciones');
+  await expectOk(ctx, 'GET', '/internal/views/endpoint-coverage?fields=endpointId,fullPath,releaseReady', 'vista admin cobertura');
+  await expectOk(ctx, 'GET', '/internal/views/audit-events?fields=sourceTable,sourceId,occurredAt,eventType', 'vista admin auditoría');
 
   console.log('[OK] Frontend contract smoke completo: llamadas críticas del portal no devolvieron tablas vacías ni errores silenciosos.');
 }

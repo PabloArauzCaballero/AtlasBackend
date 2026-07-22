@@ -88,7 +88,11 @@ async function callResilient(
         }
         return raw;
       },
-      { provider, maxAttempts: env.NOTIFICATION_PROVIDER_HTTP_RETRIES + 1, baseDelayMs: env.NOTIFICATION_PROVIDER_HTTP_RETRY_BASE_DELAY_MS },
+      {
+        provider,
+        maxAttempts: env.NOTIFICATION_PROVIDER_HTTP_RETRIES + 1,
+        baseDelayMs: env.NOTIFICATION_PROVIDER_HTTP_RETRY_BASE_DELAY_MS,
+      },
     );
     return { ok: true, status: result.status, json: result.json };
   } catch (error) {

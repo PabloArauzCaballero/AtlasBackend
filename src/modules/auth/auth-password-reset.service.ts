@@ -8,6 +8,13 @@ import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
 
 /**
+ * Cooldown por destino: máximo un correo de reset cada 60s por actor. Constante local (no env)
+ * porque es una salvaguarda anti-abuso fija, no un parámetro operativo a tunear por ambiente —
+ * mismo criterio que el cooldown de 30s de verificación de contacto en onboarding.
+ */
+const PASSWORD_RESET_RESEND_COOLDOWN_MS = 60_000;
+
+/**
  * Flujo de "olvidé mi contraseña" en dos pasos (solicitud de código por correo + confirmación con
  * contraseña nueva), extraído de `AuthService` (Fase 2.2 del plan 10/10). Comparte la resolución de
  * actor con `AuthService` a través de `AuthActorResolverService`, así que ambos ven exactamente la
@@ -45,6 +52,15 @@ export class AuthPasswordResetService {
 
     const credential = await this.authRepository.findCredentialsByActor(input.actorType, actor.id);
     if (!credential) return genericResponse;
+
+    // Cooldown por destino (mismo patrón que la verificación de contacto en onboarding: se consulta
+    // el último código emitido en DB). Si el último código activo se creó hace menos del cooldown,
+    // NO se reenvía el correo, pero la respuesta sigue siendo la genérica: revelar que el cooldown
+    // aplicó confirmaría que la cuenta existe (enumeración).
+    const activeCode = await this.authRepository.findActiveOneTimeCodeByActor(input.actorType, actor.id, 'password_reset');
+    if (activeCode?.createdAtValue && Date.now() - activeCode.createdAtValue.getTime() < PASSWORD_RESET_RESEND_COOLDOWN_MS) {
+      return genericResponse;
+    }
 
     const code = generateNumericCode();
     const ttlMinutes = env.AUTH_ONE_TIME_CODE_TTL_MINUTES;

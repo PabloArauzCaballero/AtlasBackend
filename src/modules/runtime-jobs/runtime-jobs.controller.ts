@@ -36,7 +36,10 @@ function requireHeaders(tenantIdHeader: string | undefined, idempotencyKey: stri
 export class RuntimeJobsController {
   constructor(private readonly service: RuntimeJobsService) {}
 
-  @ApiOperation({ summary: 'Procesar el outbox de eventos pendientes', description: 'Job de mantenimiento. Restringido a admin/platform_admin/system.' })
+  @ApiOperation({
+    summary: 'Procesar el outbox de eventos pendientes',
+    description: 'Job de mantenimiento. Restringido a admin/platform_admin/system.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiBody({ schema: zodToApiSchema(processOutboxSchema) })
@@ -52,7 +55,10 @@ export class RuntimeJobsController {
     return this.service.processOutbox({ tenantId: requireHeaders(tenantIdHeader, idempotencyKey), body, currentUser });
   }
 
-  @ApiOperation({ summary: 'Procesar eventos de dominio pendientes', description: 'Job de mantenimiento. Restringido a admin/platform_admin/system.' })
+  @ApiOperation({
+    summary: 'Procesar eventos de dominio pendientes',
+    description: 'Job de mantenimiento. Restringido a admin/platform_admin/system.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiBody({ schema: zodToApiSchema(processEventsSchema) })
@@ -84,7 +90,10 @@ export class RuntimeJobsController {
     return this.service.expireStaleSessions({ tenantId: requireHeaders(tenantIdHeader, idempotencyKey), body, currentUser });
   }
 
-  @ApiOperation({ summary: 'Aplicar políticas de retención de datos', description: 'Job de mantenimiento. Restringido a admin/platform_admin/system.' })
+  @ApiOperation({
+    summary: 'Aplicar políticas de retención de datos',
+    description: 'Job de mantenimiento. Restringido a admin/platform_admin/system.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiBody({ schema: zodToApiSchema(applyRetentionPoliciesSchema) })
@@ -100,7 +109,10 @@ export class RuntimeJobsController {
     return this.service.applyRetentionPolicies({ tenantId: requireHeaders(tenantIdHeader, idempotencyKey), body, currentUser });
   }
 
-  @ApiOperation({ summary: 'Recalcular métricas de calidad de datos', description: 'Job de mantenimiento. Restringido a admin/platform_admin/system.' })
+  @ApiOperation({
+    summary: 'Recalcular métricas de calidad de datos',
+    description: 'Job de mantenimiento. Restringido a admin/platform_admin/system.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiBody({ schema: zodToApiSchema(recalculateDataQualitySchema) })

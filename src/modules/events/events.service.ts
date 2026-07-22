@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { decodeCursor, paginateWithCursor } from '../../common/utils/pagination/cursor-pagination.util.js';
 import { listEventDefinitions, getEventDefinition } from './event-registry.js';
 import { EventsRepository } from './events.repository.js';
@@ -44,6 +44,8 @@ function eventToResponse(event: OutboxEventModel): Record<string, unknown> {
 
 @Injectable()
 export class EventsService {
+  private readonly logger = new Logger(EventsService.name);
+
   constructor(
     private readonly repository: EventsRepository,
     private readonly notificationOrchestrator: NotificationOrchestratorService,
@@ -181,10 +183,17 @@ export class EventsService {
           event.status = 'failed';
           event.failedAt = new Date();
           result.failed += 1;
+          // Sin este log, un evento que agota los reintentos solo dejaba rastro en la fila
+          // (status='failed') — invisible para alertas/observabilidad. Se registra con stack.
+          this.logger.error(
+            `Evento ${String(event.id)} (${event.eventCode}) FALLIDO tras ${attempts}/${maxAttempts} intentos: ${message}`,
+            error instanceof Error ? error.stack : undefined,
+          );
         } else {
           event.status = 'pending';
           event.availableAt = addBackoff(new Date(), attempts);
           result.skipped += 1;
+          this.logger.warn(`Evento ${String(event.id)} (${event.eventCode}) reintentará (${attempts}/${maxAttempts}): ${message}`);
         }
         event.updatedAtValue = new Date();
         await event.save();

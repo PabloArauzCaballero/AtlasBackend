@@ -34,8 +34,16 @@ export class CustomersController {
       'riesgo reducido (decisión + nivel, sin el desglose completo del modelo). Un `customer` solo puede leer su propio perfil ' +
       '(`assertOwnCustomerResource`); los roles internos listados pueden leer el de cualquier cliente del tenant.',
   })
-  @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional para `customer` (se toma del token); requerido para roles internos.' })
-  @ApiParam({ name: 'customerId', schema: zodToApiSchema(customerIdParamsSchema.shape.customerId), description: 'Id numérico del cliente.' })
+  @ApiHeader({
+    name: 'x-tenant-id',
+    required: false,
+    description: 'Opcional para `customer` (se toma del token); requerido para roles internos.',
+  })
+  @ApiParam({
+    name: 'customerId',
+    schema: zodToApiSchema(customerIdParamsSchema.shape.customerId),
+    description: 'Id numérico del cliente.',
+  })
   @ApiResponse({ status: 200, description: 'Perfil del cliente.' })
   @ApiResponse({ status: 400, description: 'x-tenant-id ausente o no es un entero positivo válido.' })
   @ApiResponse({ status: 403, description: 'Un actor con rol customer intentó leer el perfil de otro cliente.' })

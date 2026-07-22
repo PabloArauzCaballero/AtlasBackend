@@ -55,6 +55,9 @@ jobs:
       - name: Check no overfetching in read_api layer
         run: yarn check:overfetching
 
+      - name: Check explicit ORM domain schemas
+        run: yarn check:domain-schemas
+
       # Fase 2.1 del plan 10/10: congela la deuda de tamaño — ningún archivo runtime NUEVO grande
       # entra sin excepción documentada. Los umbrales de complejidad los aplica ESLint arriba.
       - name: Check runtime file size (complexity gate)
@@ -62,6 +65,19 @@ jobs:
 
       - name: Type-check
         run: yarn type-check
+
+      # tsconfig.json solo incluye src/ y scripts/. Los specs se transforman con warnOnly, así que un
+      # error de tipos en un test compilaba en verde. Este paso type-checkea test/ contra
+      # tsconfig.spec.json y hace VISIBLE la deuda en el log del PR.
+      # TODO(deuda): NO bloqueante (continue-on-error). Al activarlo destapó ~248 errores de tipo
+      # PREEXISTENTES en ~50 specs — en su gran mayoría artefactos del tipado de mocks de jest
+      # (`jest.fn().mockResolvedValue(x)` infiere el parámetro como `never`), no bugs reales. El arreglo
+      # CORRECTO es tipar cada mock (`jest.fn<() => Promise<T>>()`) de forma incremental; NO añadir
+      # `as never` masivo, que borraría la verificación del valor del mock. Una vez a cero, quitar
+      # `continue-on-error`. Ver docs/audit/cierre-correcciones-2026-07-21.md.
+      - name: Type-check tests
+        run: yarn type-check:tests
+        continue-on-error: true
 
       # Fase 1.1: los unit tests dan feedback rápido en el PR (~1 min). La suite COMPLETA con el
       # gate de cobertura corre en paralelo en el job `coverage`, para no serializar el feedback.
@@ -179,6 +195,18 @@ jobs:
       - name: Run migrations against real Postgres
         run: yarn db:migration:up
 
+      # Ejercita la REVERSIBILIDAD de la migración más reciente (su `down` nunca se corría en CI).
+      # `db:migration:down` revierte solo la última (umzug.down() sin args); se revierte y se vuelve a
+      # aplicar. No cubre el rollback completo de las 57 (el runner no soporta down --all), pero sí
+      # garantiza que el `down` del cambio nuevo no está roto — que es donde vive el riesgo real.
+      - name: Verify latest migration is reversible (down → up)
+        run: |
+          yarn db:migration:down
+          yarn db:migration:up
+
+      - name: Verify physical domain schema layout
+        run: yarn check:domain-schema-layout
+
       # Perfil demo = production + development + demo: reproduce el dataset completo que antes cargaba
       # `db:seed:up` (todos los seeders), ahora reorganizado por perfil, para los smoke tests.
       - name: Run seeders (demo profile)
@@ -216,7 +244,7 @@ jobs:
           DB_PASSWORD: ci_app_rw_pw
           DB_READ_USER: atlas_app_ro
           DB_READ_PASSWORD: ci_app_ro_pw
-        run: yarn check:db-privileges
+        run: yarn check:db-privileges --strict
 
       - name: Boot API in background
         run: |
@@ -244,6 +272,27 @@ jobs:
           yarn smoke:events
           yarn smoke:notifications
           yarn smoke:external-providers:all
+          yarn smoke:external-providers:governance
+
+      # Los smokes de CONTRATO con el Admin Portal autentican de verdad como el admin interno
+      # (`pablo@atlas.internal`), cuya contraseña en claro no está versionada (solo el hash Argon2id).
+      # Se fija una contraseña CI conocida hasheándola con la misma capa de la app y actualizando
+      # auth_credentials, luego se corren los smokes con esa credencial. `frontend-contract` garantiza
+      # que el Admin Portal no reciba tablas vacías; `internal-rbac` verifica los permisos internos
+      # (crea su propio usuario QA vía /internal/auth/signup, solo necesita QA_PASSWORD, no un seed).
+      - name: Contract smokes (frontend-contract + internal-rbac) with seeded admin
+        env:
+          PGPASSWORD: atlas
+          INTERNAL_SMOKE_EMAIL: pablo@atlas.internal
+        run: |
+          CI_ADMIN_PW='AtlasCiSmoke1!'
+          CI_ADMIN_HASH="$(yarn --silent hash-password "$CI_ADMIN_PW")"
+          psql -h localhost -U atlas -d atlas -c \
+            "UPDATE auth_credentials SET password_hash = '$CI_ADMIN_HASH', token_version = token_version + 1, failed_login_attempts = 0, locked_until = NULL WHERE actor_type = 'internal_user' AND actor_id = 1;"
+          export INTERNAL_SMOKE_PASSWORD="$CI_ADMIN_PW"
+          export INTERNAL_SMOKE_QA_PASSWORD='AtlasCiQa1!'
+          yarn smoke:frontend-contract
+          yarn smoke:internal-rbac
 
       - name: Stop API
         if: always()

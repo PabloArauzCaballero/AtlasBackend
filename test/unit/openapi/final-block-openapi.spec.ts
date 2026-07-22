@@ -19,6 +19,7 @@ import { RuntimeJobsController } from '../../../src/modules/runtime-jobs/runtime
 import { RuntimeJobsService } from '../../../src/modules/runtime-jobs/runtime-jobs.service.js';
 import { HealthController } from '../../../src/modules/health/health.controller.js';
 import { getConnectionToken } from '@nestjs/sequelize';
+import { REDIS_CLIENT } from '../../../src/common/redis/redis.module.js';
 import { JwtAuthGuard } from '../../../src/common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../../src/common/guards/roles.guard.js';
 
@@ -124,6 +125,8 @@ describe('final block — OpenAPI document generation (8 controllers, 7 modules)
           },
         },
         { provide: getConnectionToken(), useValue: { authenticate: jest.fn() } },
+        // HealthController ahora inyecta REDIS_CLIENT (readiness verifica Redis si está configurado).
+        { provide: REDIS_CLIENT, useValue: null },
       ],
     })
       .overrideGuard(JwtAuthGuard)

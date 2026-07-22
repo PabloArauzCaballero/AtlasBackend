@@ -1,5 +1,7 @@
-import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
+import Redis from 'ioredis';
 import { env } from '../../config/env.js';
+import { REDIS_CLIENT } from '../../common/redis/redis.module.js';
 import { NotificationBroadcastService } from '../notifications/notification-broadcast.service.js';
 import { SystemsHealthService } from './systems-health.service.js';
 
@@ -14,17 +16,27 @@ import { SystemsHealthService } from './systems-health.service.js';
  * Solo dispara en transiciones de estado (no en cada chequeo) para no inundar el inbox de
  * notificaciones con un aviso repetido cada `SYSTEM_HEALTH_MONITOR_INTERVAL_MS` mientras un
  * servicio sigue caído.
+ *
+ * El último estado conocido por herramienta se respalda en Redis (hash
+ * `systems-health:last-known-healthy`): sin eso, un reinicio del backend vaciaba el mapa en
+ * memoria y la transición caído→saludable ocurrida durante/tras el reinicio nunca emitía el
+ * "Servicio recuperado" (el inbox quedaba con el "Servicio caído" huérfano para siempre). Si no
+ * hay cliente Redis (dev sin REDIS_URL) se degrada al comportamiento solo-en-memoria.
  */
 @Injectable()
 export class SystemsHealthMonitorService implements OnApplicationBootstrap, OnModuleDestroy {
+  private static readonly REDIS_STATE_KEY = 'systems-health:last-known-healthy';
+
   private readonly logger = new Logger(SystemsHealthMonitorService.name);
   private readonly lastKnownHealthy = new Map<string, boolean | null>();
   private timer: NodeJS.Timeout | null = null;
   private checkInFlight: Promise<void> | null = null;
+  private persistedStateLoaded = false;
 
   constructor(
     private readonly healthService: SystemsHealthService,
     private readonly broadcastService: NotificationBroadcastService,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis | null,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -57,6 +69,8 @@ export class SystemsHealthMonitorService implements OnApplicationBootstrap, OnMo
   }
 
   private async checkOnce(): Promise<void> {
+    await this.loadPersistedState();
+
     let statuses;
     try {
       statuses = await this.healthService.getToolsHealth();
@@ -71,6 +85,7 @@ export class SystemsHealthMonitorService implements OnApplicationBootstrap, OnMo
       const previous = this.lastKnownHealthy.get(status.code);
       const current = status.isHealthy;
       this.lastKnownHealthy.set(status.code, current);
+      await this.persistState(status.code, current);
 
       // Solo interesan transiciones explícitas hacia/desde `false` — `null` (sin probe activo,
       // solo chequeo de configuración) no cuenta como "caído" ni como "recuperado".
@@ -103,6 +118,32 @@ export class SystemsHealthMonitorService implements OnApplicationBootstrap, OnMo
           }`,
         );
       }
+    }
+  }
+
+  /** Siembra el mapa en memoria con el estado respaldado en Redis; solo la primera vez. */
+  private async loadPersistedState(): Promise<void> {
+    if (this.persistedStateLoaded) return;
+    this.persistedStateLoaded = true;
+    if (!this.redis) return;
+
+    try {
+      const stored = await this.redis.hgetall(SystemsHealthMonitorService.REDIS_STATE_KEY);
+      for (const [code, value] of Object.entries(stored)) {
+        if (this.lastKnownHealthy.has(code)) continue;
+        this.lastKnownHealthy.set(code, value === 'true' ? true : value === 'false' ? false : null);
+      }
+    } catch (error) {
+      this.logger.warn(`No se pudo leer el estado de salud respaldado en Redis: ${error instanceof Error ? error.message : error}`);
+    }
+  }
+
+  private async persistState(code: string, current: boolean | null): Promise<void> {
+    if (!this.redis) return;
+    try {
+      await this.redis.hset(SystemsHealthMonitorService.REDIS_STATE_KEY, code, String(current));
+    } catch (error) {
+      this.logger.warn(`No se pudo respaldar en Redis el estado de salud de ${code}: ${error instanceof Error ? error.message : error}`);
     }
   }
 }

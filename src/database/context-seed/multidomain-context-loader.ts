@@ -172,7 +172,7 @@ async function affectedRows(sequelize: Sequelize, sql: string, rows: JsonRecord[
 
 const UPSERT_SOURCES_SQL = `
 WITH changed AS (
-  INSERT INTO public.context_sources
+  INSERT INTO catalog.context_sources
     (source_code, source_name, source_type, reliability_score, refresh_frequency, notes, is_active, _created_at, _updated_at)
   SELECT source_code, source_name, source_type, reliability_score::numeric, refresh_frequency, notes, is_active, NOW(), NOW()
   FROM jsonb_to_recordset(CAST($rows AS jsonb)) AS x(
@@ -193,7 +193,7 @@ SELECT count(*)::int AS affected FROM changed;`;
 
 const UPSERT_CATALOGS_SQL = `
 WITH changed AS (
-  INSERT INTO public.context_catalogs
+  INSERT INTO catalog.context_catalogs
     (catalog_code, catalog_name, domain, description, owner_team, is_active, _created_at, _updated_at)
   SELECT catalog_code, catalog_name, domain, description, owner_team, is_active, NOW(), NOW()
   FROM jsonb_to_recordset(CAST($rows AS jsonb)) AS x(
@@ -212,7 +212,7 @@ SELECT count(*)::int AS affected FROM changed;`;
 
 const UPSERT_VERSIONS_SQL = `
 WITH changed AS (
-  INSERT INTO public.context_catalog_versions
+  INSERT INTO catalog.context_catalog_versions
     (catalog_id, version_code, status, valid_from, valid_until, created_by_type, approved_by_type, approved_at, notes, _created_at)
   SELECT c._id, x.version_code, x.status, x.valid_from::date, x.valid_until::date,
          x.created_by_type, x.approved_by_type, x.approved_at::timestamptz, x.notes, NOW()
@@ -220,7 +220,7 @@ WITH changed AS (
     catalog_code text, version_code text, status text, valid_from text, valid_until text,
     created_by_type text, approved_by_type text, approved_at text, notes text
   )
-  JOIN public.context_catalogs c ON c.catalog_code = x.catalog_code
+  JOIN catalog.context_catalogs c ON c.catalog_code = x.catalog_code
   ON CONFLICT (catalog_id, version_code)
     WHERE catalog_id IS NOT NULL AND version_code IS NOT NULL
   DO UPDATE SET
@@ -237,7 +237,7 @@ SELECT count(*)::int AS affected FROM changed;`;
 
 const UPSERT_ITEMS_SQL = `
 WITH changed AS (
-  INSERT INTO public.context_items
+  INSERT INTO catalog.context_items
     (catalog_version_id, item_code, item_name, item_type, attributes_json, source_id,
      confidence_score, is_active, _created_at, _updated_at)
   SELECT v._id, x.item_code, x.item_name, x.item_type, x.attributes, s._id,
@@ -246,9 +246,9 @@ WITH changed AS (
     catalog_code text, version_code text, item_code text, item_name text, item_type text,
     attributes jsonb, source_code text, confidence_score text, is_active boolean
   )
-  JOIN public.context_catalogs c ON c.catalog_code = x.catalog_code
-  JOIN public.context_catalog_versions v ON v.catalog_id = c._id AND v.version_code = x.version_code
-  JOIN public.context_sources s ON s.source_code = x.source_code
+  JOIN catalog.context_catalogs c ON c.catalog_code = x.catalog_code
+  JOIN catalog.context_catalog_versions v ON v.catalog_id = c._id AND v.version_code = x.version_code
+  JOIN catalog.context_sources s ON s.source_code = x.source_code
   ON CONFLICT (catalog_version_id, item_code)
     WHERE catalog_version_id IS NOT NULL AND item_code IS NOT NULL
   DO UPDATE SET
@@ -265,16 +265,16 @@ SELECT count(*)::int AS affected FROM changed;`;
 
 const UPSERT_ALIASES_SQL = `
 WITH changed AS (
-  INSERT INTO public.context_item_aliases
+  INSERT INTO catalog.context_item_aliases
     (context_item_id, alias_value, alias_type, normalized_alias, confidence_score, _created_at)
   SELECT i._id, x.alias_value, x.alias_type, x.normalized_alias, x.confidence_score::numeric, NOW()
   FROM jsonb_to_recordset(CAST($rows AS jsonb)) AS x(
     catalog_code text, version_code text, item_code text, alias_value text,
     alias_type text, normalized_alias text, confidence_score text
   )
-  JOIN public.context_catalogs c ON c.catalog_code = x.catalog_code
-  JOIN public.context_catalog_versions v ON v.catalog_id = c._id AND v.version_code = x.version_code
-  JOIN public.context_items i ON i.catalog_version_id = v._id AND i.item_code = x.item_code
+  JOIN catalog.context_catalogs c ON c.catalog_code = x.catalog_code
+  JOIN catalog.context_catalog_versions v ON v.catalog_id = c._id AND v.version_code = x.version_code
+  JOIN catalog.context_items i ON i.catalog_version_id = v._id AND i.item_code = x.item_code
   ON CONFLICT (context_item_id, normalized_alias, alias_type)
     WHERE context_item_id IS NOT NULL AND normalized_alias IS NOT NULL AND alias_type IS NOT NULL
   DO UPDATE SET
@@ -286,7 +286,7 @@ SELECT count(*)::int AS affected FROM changed;`;
 
 const UPSERT_RISK_MAPPINGS_SQL = `
 WITH changed AS (
-  INSERT INTO public.context_risk_mappings
+  INSERT INTO catalog.context_risk_mappings
     (context_item_id, risk_dimension, risk_band, score_points_suggested, reason_code,
      explanation, model_usage, valid_from, valid_until, allowed_for_direct_adverse_credit_action,
      requires_calibration, _created_at)
@@ -299,9 +299,9 @@ WITH changed AS (
     valid_from text, valid_until text, allowed_for_direct_adverse_credit_action boolean,
     requires_calibration boolean
   )
-  JOIN public.context_catalogs c ON c.catalog_code = x.catalog_code
-  JOIN public.context_catalog_versions v ON v.catalog_id = c._id AND v.version_code = x.version_code
-  JOIN public.context_items i ON i.catalog_version_id = v._id AND i.item_code = x.item_code
+  JOIN catalog.context_catalogs c ON c.catalog_code = x.catalog_code
+  JOIN catalog.context_catalog_versions v ON v.catalog_id = c._id AND v.version_code = x.version_code
+  JOIN catalog.context_items i ON i.catalog_version_id = v._id AND i.item_code = x.item_code
   ON CONFLICT (context_item_id, risk_dimension, risk_band, reason_code, valid_from)
     WHERE context_item_id IS NOT NULL AND risk_dimension IS NOT NULL AND risk_band IS NOT NULL AND reason_code IS NOT NULL
   DO UPDATE SET
@@ -445,7 +445,7 @@ async function loadBootstrap(sequelize: Sequelize, bootstrap: BootstrapSeed): Pr
 async function checkpointMatches(sequelize: Sequelize, chunk: ManifestChunk, sha256: string, transaction: Transaction): Promise<boolean> {
   const rows = await sequelize.query<{ content_sha256: string }>(
     `SELECT content_sha256
-       FROM public.context_seed_import_checkpoints
+       FROM catalog.context_seed_import_checkpoints
       WHERE catalog_code = $catalogCode AND relative_path = $relativePath AND item_count = $itemCount`,
     {
       bind: { catalogCode: chunk.catalogCode, relativePath: chunk.relativePath, itemCount: chunk.itemCount },
@@ -464,7 +464,7 @@ async function saveCheckpoint(
   transaction: Transaction,
 ): Promise<void> {
   await sequelize.query(
-    `INSERT INTO public.context_seed_import_checkpoints
+    `INSERT INTO catalog.context_seed_import_checkpoints
        (package_build_version, catalog_code, relative_path, item_count, content_sha256, completed_at)
      VALUES ($packageBuildVersion, $catalogCode, $relativePath, $itemCount, $sha256, NOW())
      ON CONFLICT (catalog_code, relative_path, item_count) DO UPDATE SET
@@ -496,9 +496,9 @@ async function reconcile(
     expectedByCatalog.set(chunk.catalogCode, (expectedByCatalog.get(chunk.catalogCode) ?? 0) + chunk.itemCount);
   const counts = await sequelize.query<{ catalog_code: string; count: string }>(
     `SELECT c.catalog_code, count(*)::text AS count
-       FROM public.context_items i
-       JOIN public.context_catalog_versions v ON v._id = i.catalog_version_id
-       JOIN public.context_catalogs c ON c._id = v.catalog_id
+       FROM catalog.context_items i
+       JOIN catalog.context_catalog_versions v ON v._id = i.catalog_version_id
+       JOIN catalog.context_catalogs c ON c._id = v.catalog_id
       WHERE i.item_type = 'context_binding'
         AND c.catalog_code IN (SELECT jsonb_array_elements_text(CAST($catalogCodes AS jsonb)))
       GROUP BY c.catalog_code`,
@@ -517,8 +517,8 @@ async function reconcile(
   }
   const referenceCounts = await sequelize.query<{ item_type: string; count: string }>(
     `SELECT i.item_type, count(*)::text AS count
-       FROM public.context_items i
-       JOIN public.context_catalog_versions v ON v._id = i.catalog_version_id
+       FROM catalog.context_items i
+       JOIN catalog.context_catalog_versions v ON v._id = i.catalog_version_id
       WHERE v.version_code = $versionCode
         AND i.item_type IN (SELECT jsonb_array_elements_text(CAST($itemTypes AS jsonb)))
       GROUP BY i.item_type`,
@@ -537,10 +537,10 @@ async function reconcile(
     `SELECT
        count(DISTINCT a._id)::text AS aliases,
        count(DISTINCT r._id)::text AS risk_mappings
-     FROM public.context_catalog_versions v
-     JOIN public.context_items i ON i.catalog_version_id = v._id
-     LEFT JOIN public.context_item_aliases a ON a.context_item_id = i._id
-     LEFT JOIN public.context_risk_mappings r ON r.context_item_id = i._id
+     FROM catalog.context_catalog_versions v
+     JOIN catalog.context_items i ON i.catalog_version_id = v._id
+     LEFT JOIN catalog.context_item_aliases a ON a.context_item_id = i._id
+     LEFT JOIN catalog.context_risk_mappings r ON r.context_item_id = i._id
      WHERE v.version_code = $versionCode`,
     { bind: { versionCode: supporting.versionCode }, type: QueryTypes.SELECT },
   );

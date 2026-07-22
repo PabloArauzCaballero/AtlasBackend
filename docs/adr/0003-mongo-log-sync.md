@@ -30,11 +30,23 @@ con estas condiciones:
    siendo el log de aplicación / stdout que consume la plataforma. Mongo es una
    comodidad operativa consultable para el portal interno, no el sistema de retención de
    registros de auditoría (esos viven en PostgreSQL).
-3. **Retención acotada.** El destino Mongo debe tener una política de retención/TTL
-   definida en infraestructura (ver runbook de operación de logs) para que no crezca sin
-   límite. No se conserva historial indefinido.
-4. **Sin PII ni secretos.** Aplica la misma política de no-PII/no-secretos que el resto
-   de logs de aplicación (ver [`SECURITY.md`](../../SECURITY.md) y plan Fase 3.2).
+3. **Retención acotada.** El destino Mongo debe tener una política de retención/TTL para
+   que no crezca sin límite. **Actualización 2026-07-21 (hardening O-A1/DB-M5):** además de
+   la política de infraestructura, `log-sync.service.ts` ahora crea un **índice TTL** sobre
+   `capturedAt` (retención por defecto 30 días, constante local) — el TTL deja de depender
+   solo de que alguien lo configure fuera. No se conserva historial indefinido.
+4. **Sin PII ni secretos.** Aplica la misma política de no-PII/no-secretos que el resto de
+   logs de aplicación (ver [`SECURITY.md`](../../SECURITY.md) y plan Fase 3.2).
+   **Actualización 2026-07-21:** se aplica una redacción activa por patrón
+   (`redactSensitiveText`) tanto en el logger de archivo (`AppFileLogger`) como en el
+   `content` antes de insertar en Mongo — segunda capa defensiva, no solo política.
+
+**Formato del log (actualización 2026-07-21, O-A1):** `Archivo.log` (y por tanto el `content`
+sincronizado a Mongo) pasó de texto plano a **JSON estructurado por línea**
+(`{ ts, level, context, correlationId, traceId, message, stack? }`), con el `correlationId` del
+request (vía `AsyncLocalStorage`) y el `traceId` del span OTel activo. El visor de Mongo hace
+búsqueda full-text sobre `content` y `log-sync` solo cuenta líneas, así que el cambio de formato
+es transparente para ambos. La CONSOLA sigue siendo human-readable.
 
 ## Alternativas consideradas
 

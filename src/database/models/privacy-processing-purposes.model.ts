@@ -1,6 +1,7 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { atlasSchemaFor } from '../domain-schemas.js';
 
-@Table({ tableName: 'privacy_processing_purposes', timestamps: false })
+@Table({ tableName: 'privacy_processing_purposes', schema: atlasSchemaFor('privacy_processing_purposes'), timestamps: false })
 export class PrivacyProcessingPurposeModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;

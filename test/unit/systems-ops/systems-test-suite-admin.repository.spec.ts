@@ -96,8 +96,8 @@ describe('SystemsTestSuiteAdminRepository', () => {
         { stepId: '2', stepOrder: 1 },
       ],
     } as never);
-    expect((steps[0] as { stepOrder: number }).stepOrder).toBe(2);
-    expect((steps[1] as { stepOrder: number }).stepOrder).toBe(1);
+    expect((steps[0] as unknown as { stepOrder: number }).stepOrder).toBe(2);
+    expect((steps[1] as unknown as { stepOrder: number }).stepOrder).toBe(1);
     expect(save1).toHaveBeenCalled();
     expect(save2).toHaveBeenCalled();
   });

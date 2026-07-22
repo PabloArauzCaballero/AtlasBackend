@@ -5,6 +5,7 @@ import { SYSTEM_TOOL_SEEDS } from '../../../modules/systems-ops/systems-ops.cons
 import { EndpointSeed } from '../../../modules/systems-ops/systems-ops.types.js';
 import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from '../../../modules/systems-ops/endpoint-code.util.js';
 import { CURATED_ENDPOINTS, STRESS_PROFILE_SEEDS } from '../../../modules/systems-ops/systems-seed-fixtures.js';
+import { atlasSchemaFor } from '../../domain-schemas.js';
 
 type SeedContext = { context: QueryInterface };
 
@@ -282,6 +283,7 @@ function classifyTable(tableName: string, modelName: string | null) {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
   return {
+    schemaName: atlasSchemaFor(tableName),
     tableName,
     modelName,
     entityName,
@@ -438,7 +440,7 @@ async function upsertDataEntity(queryInterface: QueryInterface, table: DataEntit
       contains_location_data, is_audit_critical, status, detected_from, confidence_level, review_status,
       _created_at, _updated_at
     ) VALUES (
-      'public', :tableName, :modelName, :entityName, :module, :businessPurpose, 'systems',
+      :schemaName, :tableName, :modelName, :entityName, :module, :businessPurpose, 'systems',
       :containsPii, :containsFinancialData, :containsRiskData, :containsLegalData, :containsDeviceData,
       :containsLocationData, :isAuditCritical, 'ACTIVE', 'model_scan', 'HIGH', 'AUTO_DETECTED',
       :createdAt, :createdAt
@@ -719,7 +721,7 @@ async function upsertDataImpact(
     `WITH endpoint AS (
        SELECT _id FROM system_endpoint_catalog WHERE method = :method AND full_path = :fullPath
      ), entity AS (
-       SELECT _id FROM system_data_entity_catalog WHERE schema_name = 'public' AND table_name = :tableName
+       SELECT _id FROM system_data_entity_catalog WHERE schema_name = :schemaName AND table_name = :tableName
      )
      INSERT INTO system_endpoint_data_entity_impacts (
        endpoint_id, data_entity_id, operation_type, impact_level, is_primary_entity, is_transactional,
@@ -752,6 +754,7 @@ async function upsertDataImpact(
       replacements: {
         method: endpoint.method,
         fullPath: endpoint.fullPath,
+        schemaName: atlasSchemaFor(impact.table),
         tableName: impact.table,
         operationType: impact.operation,
         impactLevel: impact.level ?? 'MEDIUM',
@@ -860,7 +863,7 @@ async function upsertFieldImpact(
     `WITH endpoint AS (
        SELECT _id FROM system_endpoint_catalog WHERE method = :method AND full_path = :fullPath
      ), entity AS (
-       SELECT _id FROM system_data_entity_catalog WHERE schema_name = 'public' AND table_name = :tableName
+       SELECT _id FROM system_data_entity_catalog WHERE schema_name = :schemaName AND table_name = :tableName
      )
      INSERT INTO system_endpoint_field_impacts (
        endpoint_id, data_entity_id, field_name, field_operation, is_required_input, is_generated,
@@ -885,6 +888,7 @@ async function upsertFieldImpact(
       replacements: {
         method: endpoint.method,
         fullPath: endpoint.fullPath,
+        schemaName: atlasSchemaFor(seed.table),
         tableName: seed.table,
         fieldName: field.name,
         fieldOperation: field.operation,

@@ -10,8 +10,26 @@ describe('redactSensitiveObject', () => {
     }) as Record<string, unknown>;
 
     expect(result.email).toBe('[REDACTED]');
-    expect(result.profile).toEqual({ firstName: 'Ana', phone: '[REDACTED]' });
+    // Hardening 2026-07-21 (S-M1): en un backend KYC el nombre del cliente es PII. Esta utilidad
+    // solo se aplica a payloads PERSISTIDOS de auditoría/telemetría (no a los DTOs de display, que
+    // no pasan por aquí), así que firstName/lastName/fullName ahora también se redactan.
+    expect(result.profile).toEqual({ firstName: '[REDACTED]', phone: '[REDACTED]' });
     expect(result.safe).toBe('visible');
+  });
+
+  it('redacts the login `identifier` (email/teléfono) — el leak concreto de S-M1', () => {
+    const result = redactSensitiveObject({ identifier: 'demo@atlas.test', deviceId: 'abc' }) as Record<string, unknown>;
+    expect(result.identifier).toBe('[REDACTED]');
+    // Claves técnicas con sufijo/prefijo "name" NO se redactan (solo `^name$` exacto).
+    expect(result.deviceId).toBe('abc');
+  });
+
+  it('does not over-redact technical *Name keys (jobName, screenName)', () => {
+    // jobName/screenName no contienen ninguna clave sensible como substring ni son `^name$` exacto.
+    // (templateName se omite a propósito: colisiona con la regla `lat` — ver docstring del util.)
+    const result = redactSensitiveObject({ jobName: 'sync', screenName: 'home' }) as Record<string, unknown>;
+    expect(result.jobName).toBe('sync');
+    expect(result.screenName).toBe('home');
   });
 });
 

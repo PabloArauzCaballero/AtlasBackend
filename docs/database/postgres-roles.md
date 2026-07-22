@@ -5,12 +5,12 @@ diferenciados en vez de una sola identidad `DB_USER` con permisos amplios.
 
 ## Jerarquía
 
-| Rol              | Login | Para qué sirve                                                        | Privilegios                                                   |
-| ---------------- | :---: | -------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `atlas_owner`    |  No   | Propietario de schemas, tablas, secuencias, vistas y funciones.      | Owner. Nadie se conecta como owner.                          |
-| `atlas_migrator` |  Sí   | Aplica migraciones y grants en el pipeline de despliegue.            | `LOGIN`, miembro de `atlas_owner` (puede `SET ROLE`). No runtime. |
-| `atlas_app_rw`   |  Sí   | Runtime normal del backend.                                          | CRUD en tablas del core + USAGE/SELECT en secuencias. Sin DDL, sin TRUNCATE, sin ownership. |
-| `atlas_app_ro`   |  Sí   | Lecturas puras: BI, dashboards, exportaciones, endpoints read-only.  | USAGE en `read_api` + SELECT solo en vistas curadas. Read-only por defecto. |
+| Rol              | Login | Para qué sirve                                                      | Privilegios                                                                                                     |
+| ---------------- | :---: | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `atlas_owner`    |  No   | Propietario de schemas, tablas, secuencias, vistas y funciones.     | Owner. Nadie se conecta como owner.                                                                             |
+| `atlas_migrator` |  Sí   | Aplica migraciones y grants en el pipeline de despliegue.           | `LOGIN`, miembro de `atlas_owner` (puede `SET ROLE`). No runtime.                                               |
+| `atlas_app_rw`   |  Sí   | Runtime normal del backend.                                         | CRUD en tablas de los 11 schemas de dominio + USAGE/SELECT en secuencias. Sin DDL, sin TRUNCATE, sin ownership. |
+| `atlas_app_ro`   |  Sí   | Lecturas puras: BI, dashboards, exportaciones, endpoints read-only. | USAGE en `read_api` + SELECT solo en vistas curadas. Read-only por defecto.                                     |
 
 ## Por qué así (y no otra cosa)
 
@@ -22,6 +22,14 @@ diferenciados en vez de una sola identidad `DB_USER` con permisos amplios.
   explícitas y ocultan PII/secretos. Así se puede conectar BI sin exponer el modelo operativo.
 - **Beneficio inicial = seguridad y gobierno, no rendimiento.** Si RW y RO apuntan al mismo primario,
   no hay menos CPU ni I/O. La ganancia de rendimiento llega cuando RO apunte a una réplica (§13.3).
+- **Timeouts defensivos por rol (hardening 2026-07-21, DB-A2).** Ambos roles de runtime fijan
+  `statement_timeout` e `idle_in_transaction_session_timeout` a nivel de rol (`ALTER ROLE ... SET`),
+  para que una query o transacción colgada no retenga locks ni agote el pool:
+  - `atlas_app_ro`: `statement_timeout=5s`, `idle_in_transaction_session_timeout=15s`, `lock_timeout=1s`.
+  - `atlas_app_rw`: `statement_timeout=30s`, `idle_in_transaction_session_timeout=60s`, `lock_timeout=5s`
+    (márgenes más holgados: el runtime OLTP tiene transacciones legítimamente más largas —
+    onboarding multi-tabla, outbox). Se aplican en `ops/postgres/bootstrap-roles.sql` y en
+    `scripts/bootstrap-db-roles.ts`.
 
 ## Camino rápido: crear los roles desde el ORM (`yarn db:roles:bootstrap`)
 
@@ -45,7 +53,7 @@ Además de crear los roles, el script:
 
 - **Adopta la propiedad** de las tablas/vistas/secuencias existentes hacia `atlas_owner`. Sin esto,
   `atlas_migrator` no puede alterar objetos creados antes por otro rol (PostgreSQL exige ser dueño o
-  miembro del rol dueño) y las migraciones fallarían con *"debe ser dueño de la tabla"*.
+  miembro del rol dueño) y las migraciones fallarían con _"debe ser dueño de la tabla"_.
 - Ejecuta `ALTER ROLE atlas_migrator IN DATABASE <db> SET role TO atlas_owner`, de modo que todo lo
   que cree una migración quede propiedad de `atlas_owner` sin que cada migración recuerde hacer
   `SET ROLE`.
@@ -79,24 +87,24 @@ psql "$ADMIN_DATABASE_URL" \
   -f ops/postgres/bootstrap-roles.sql
 
 # 2) Otorgar privilegios (como owner, o migrator con SET ROLE atlas_owner).
-psql "$OWNER_DATABASE_URL" -v core_schema=public -v read_schema=read_api -f ops/postgres/grants.sql
+psql "$OWNER_DATABASE_URL" -v read_schema=read_api -f ops/postgres/grants.sql
 
 # 3) Verificar (read-only).
-psql "$DATABASE_URL" -v core_schema=public -v read_schema=read_api -f ops/postgres/verify-privileges.sql
+psql "$DATABASE_URL" -v read_schema=read_api -f ops/postgres/verify-privileges.sql
 ```
 
 Todos los scripts son idempotentes y re-ejecutables.
 
 ## Matriz de privilegios esperada
 
-| Operación               | owner | migrator | app_rw          | app_ro          |
-| ----------------------- | :---: | :------: | :-------------: | :-------------: |
-| SELECT vista `read_api` |  Sí   |   Sí     | Sí              | Sí              |
-| SELECT tabla operativa  |  Sí   |   Sí     | Sí              | **No** (default)|
-| INSERT/UPDATE/DELETE    |  Sí   |   Sí     | Sí (según módulo)| **No**         |
-| TRUNCATE                |  Sí   | Solo despliegue excepcional | **No** | **No** |
-| CREATE / ALTER TABLE    |  Sí   | Vía owner | **No**         | **No**          |
-| CREATE ROLE             |  No necesario | No | No          | No              |
+| Operación               |    owner     |          migrator           |      app_rw       |      app_ro      |
+| ----------------------- | :----------: | :-------------------------: | :---------------: | :--------------: |
+| SELECT vista `read_api` |      Sí      |             Sí              |        Sí         |        Sí        |
+| SELECT tabla operativa  |      Sí      |             Sí              |        Sí         | **No** (default) |
+| INSERT/UPDATE/DELETE    |      Sí      |             Sí              | Sí (según módulo) |      **No**      |
+| TRUNCATE                |      Sí      | Solo despliegue excepcional |      **No**       |      **No**      |
+| CREATE / ALTER TABLE    |      Sí      |          Vía owner          |      **No**       |      **No**      |
+| CREATE ROLE             | No necesario |             No              |        No         |        No        |
 
 ## Relación con la configuración del backend
 

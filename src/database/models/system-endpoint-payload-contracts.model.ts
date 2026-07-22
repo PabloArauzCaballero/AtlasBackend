@@ -1,7 +1,8 @@
 import { Column, DataType, ForeignKey, Model, Table } from 'sequelize-typescript';
+import { atlasSchemaFor } from '../domain-schemas.js';
 import { SystemEndpointCatalogModel } from './system-endpoint-catalog.model.js';
 
-@Table({ tableName: 'system_endpoint_payload_contracts', timestamps: false })
+@Table({ tableName: 'system_endpoint_payload_contracts', schema: atlasSchemaFor('system_endpoint_payload_contracts'), timestamps: false })
 export class SystemEndpointPayloadContractModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;

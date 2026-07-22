@@ -1,0 +1,36 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { trace } from '@opentelemetry/api';
+
+/**
+ * Contexto por-request propagado con AsyncLocalStorage (CLS). Permite que CUALQUIER `logger.log()`
+ * de un servicio incluya el `correlationId` del request en curso, no solo el exception filter. Antes,
+ * una línea de log de un servicio salía sin correlación, así que era imposible reconstruir la
+ * secuencia de un request en el agregador (o en la colección Mongo de logs).
+ *
+ * El `trace_id` de OpenTelemetry se lee del span activo (si el tracing está habilitado), para poder
+ * saltar de un log a su traza distribuida.
+ */
+type RequestContext = {
+  correlationId: string;
+};
+
+const storage = new AsyncLocalStorage<RequestContext>();
+
+/** Ejecuta `fn` con el contexto del request activo; todo el trabajo async descendiente lo hereda. */
+export function runWithRequestContext<T>(context: RequestContext, fn: () => T): T {
+  return storage.run(context, fn);
+}
+
+/** correlationId del request en curso, o `undefined` fuera de un request (arranque, jobs, tests). */
+export function getCorrelationId(): string | undefined {
+  return storage.getStore()?.correlationId;
+}
+
+const EMPTY_TRACE_ID = '00000000000000000000000000000000';
+
+/** trace_id del span OTel activo, o `undefined` si el tracing está deshabilitado o no hay span. */
+export function getTraceId(): string | undefined {
+  const spanContext = trace.getActiveSpan()?.spanContext();
+  if (!spanContext || spanContext.traceId === EMPTY_TRACE_ID) return undefined;
+  return spanContext.traceId;
+}

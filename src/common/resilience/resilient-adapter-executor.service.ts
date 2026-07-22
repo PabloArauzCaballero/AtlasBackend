@@ -1,5 +1,6 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { MetricsService } from '../observability/metrics.service.js';
+import { AdapterError } from './adapter-error.js';
 import { CircuitBreakerRegistry } from './circuit-breaker.js';
 import { withRetry } from './retry.util.js';
 
@@ -8,7 +9,43 @@ export type ResilientExecuteOptions = {
   maxAttempts?: number;
   baseDelayMs?: number;
   maxDelayMs?: number;
+  /**
+   * Timeout POR INTENTO en ms. Si un intento no resuelve en este plazo, se corta con un
+   * AdapterError TIMEOUT (retryable) que alimenta el retry y el circuit breaker. Sin esto, un
+   * adaptador cuyo fetch se cuelga retiene el intento indefinidamente y el breaker nunca cuenta el
+   * fallo. Default 30s. Nota: el `fn` subyacente puede seguir vivo (no se cancela el socket); lo
+   * que se garantiza es que el ejecutor libera el intento y contabiliza el fallo.
+   */
+  timeoutMs?: number;
 };
+
+const DEFAULT_ATTEMPT_TIMEOUT_MS = 30_000;
+
+function withTimeout<T>(fn: () => Promise<T>, timeoutMs: number, provider: string): Promise<T> {
+  return new Promise<T>((resolvePromise, rejectPromise) => {
+    const timer = setTimeout(() => {
+      rejectPromise(
+        new AdapterError({
+          code: 'TIMEOUT',
+          provider,
+          message: `Intento excedió el timeout de ${timeoutMs}ms`,
+          retryable: true,
+        }),
+      );
+    }, timeoutMs);
+    timer.unref?.();
+    fn().then(
+      (value) => {
+        clearTimeout(timer);
+        resolvePromise(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        rejectPromise(error);
+      },
+    );
+  });
+}
 
 /**
  * Punto de entrada único para que CUALQUIER adaptador (notificaciones, proveedores de datos
@@ -29,9 +66,10 @@ export class ResilientAdapterExecutorService {
 
   async run<T>(fn: () => Promise<T>, options: ResilientExecuteOptions): Promise<T> {
     const breaker = this.registry.getOrCreate(options.provider);
+    const timeoutMs = options.timeoutMs ?? DEFAULT_ATTEMPT_TIMEOUT_MS;
     try {
       const result = await breaker.execute(() =>
-        withRetry(fn, {
+        withRetry(() => withTimeout(fn, timeoutMs, options.provider), {
           provider: options.provider,
           maxAttempts: options.maxAttempts ?? 3,
           baseDelayMs: options.baseDelayMs ?? 200,

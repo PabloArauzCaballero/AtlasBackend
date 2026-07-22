@@ -90,14 +90,17 @@ describe('HttpActionLogInterceptor', () => {
     const lastCall = (actionLog: { createHttpAction: jest.Mock }) =>
       (actionLog.createHttpAction as jest.Mock).mock.calls.at(-1)?.[0] as Record<string, unknown>;
 
-    it('actor autenticado en ruta PII: tenant/rol del usuario, ip del x-forwarded-for, requestId del header y riesgo MEDIUM', async () => {
+    it('actor autenticado en ruta PII: tenant/rol del usuario, ip de request.ip (resuelta por Express con trust proxy), requestId del header y riesgo MEDIUM', async () => {
       const { interceptor, actionLog } = build();
       const request = {
         method: 'POST',
         originalUrl: '/api/v1/customers/9/consents?x=1',
         params: { customerId: '9' },
         headers: { 'x-forwarded-for': '203.0.113.7, 10.0.0.1', 'user-agent': 'ua', 'x-request-id': 'req-1', 'x-idempotency-key': 'idem-1' },
-        ip: '10.0.0.9',
+        // Fuente forense = `request.ip`: Express ya lo resuelve del x-forwarded-for respetando
+        // `trust proxy 1` (no es spoofable más allá del proxy de confianza), a diferencia de leer el
+        // header crudo. En producción req.ip para este XFF sería la IP pública del cliente.
+        ip: '203.0.113.7',
         user: { tenantId: '1', role: 'customer', sub: 'u1', customerId: '9', internalUserId: null, platformUserId: null },
         route: { path: '/customers/:customerId/consents' },
       };

@@ -23,10 +23,22 @@ function tool(overrides: Partial<SystemsHealthStatus> = {}): SystemsHealthStatus
   };
 }
 
-function buildService(getToolsHealthImpl: () => Promise<SystemsHealthStatus[]>) {
+type FakeRedis = {
+  hgetall: jest.Mock;
+  hset: jest.Mock;
+};
+
+function fakeRedis(stored: Record<string, string> = {}): FakeRedis {
+  return {
+    hgetall: jest.fn(async () => stored),
+    hset: jest.fn(async () => 1),
+  };
+}
+
+function buildService(getToolsHealthImpl: () => Promise<SystemsHealthStatus[]>, redis: FakeRedis | null = null) {
   const healthService = { getToolsHealth: jest.fn(getToolsHealthImpl) };
   const broadcastService = { notifyAllInternalUsers: jest.fn(async () => []) };
-  const service = new SystemsHealthMonitorService(healthService as never, broadcastService as never);
+  const service = new SystemsHealthMonitorService(healthService as never, broadcastService as never, redis as never);
   return { service, healthService, broadcastService };
 }
 
@@ -158,5 +170,60 @@ describe('SystemsHealthMonitorService', () => {
     expect(() => service.onApplicationBootstrap()).not.toThrow();
     // Limpia cualquier setInterval que el bootstrap haya podido crear (según env) para no filtrar timers.
     await service.onModuleDestroy();
+  });
+
+  describe('persistencia del estado en Redis (sobrevive reinicios del backend)', () => {
+    it('notifica "recuperado" en el PRIMER chequeo tras un reinicio si Redis recuerda que estaba caído', async () => {
+      const redis = fakeRedis({ POSTGRES: 'false' });
+      const { service, broadcastService } = buildService(async () => [tool({ isHealthy: true })], redis);
+
+      await runCheckOnce(service);
+
+      expect(broadcastService.notifyAllInternalUsers).toHaveBeenCalledTimes(1);
+      const [, content] = (broadcastService.notifyAllInternalUsers as jest.Mock).mock.calls[0] as [string | null, { title: string }];
+      expect(content.title).toContain('recuperado');
+    });
+
+    it('respalda en Redis el estado de cada herramienta crítica tras cada chequeo', async () => {
+      const redis = fakeRedis();
+      const { service } = buildService(async () => [tool({ isHealthy: false })], redis);
+
+      await runCheckOnce(service);
+
+      expect(redis.hset).toHaveBeenCalledWith('systems-health:last-known-healthy', 'POSTGRES', 'false');
+    });
+
+    it('el estado respaldado solo se lee una vez; los chequeos siguientes usan el mapa en memoria', async () => {
+      const redis = fakeRedis({ POSTGRES: 'true' });
+      const { service, broadcastService } = buildService(async () => [tool({ isHealthy: true })], redis);
+
+      await runCheckOnce(service);
+      await runCheckOnce(service);
+
+      expect(redis.hgetall).toHaveBeenCalledTimes(1);
+      expect(broadcastService.notifyAllInternalUsers).not.toHaveBeenCalled();
+    });
+
+    it('sin cliente Redis (dev sin REDIS_URL) se comporta como antes: solo memoria y sin errores', async () => {
+      const { service, broadcastService } = buildService(async () => [tool({ isHealthy: true })], null);
+      await expect(runCheckOnce(service)).resolves.toBeUndefined();
+      expect(broadcastService.notifyAllInternalUsers).not.toHaveBeenCalled();
+    });
+
+    it('un fallo de Redis al leer/escribir no rompe el ciclo de chequeo', async () => {
+      const redis: FakeRedis = {
+        hgetall: jest.fn(async () => {
+          throw new Error('Redis down');
+        }),
+        hset: jest.fn(async () => {
+          throw new Error('Redis down');
+        }),
+      };
+      const { service, broadcastService } = buildService(async () => [tool({ isHealthy: false })], redis);
+
+      await expect(runCheckOnce(service)).resolves.toBeUndefined();
+      // La transición en memoria sigue funcionando aunque el respaldo falle.
+      expect(broadcastService.notifyAllInternalUsers).toHaveBeenCalledTimes(1);
+    });
   });
 });

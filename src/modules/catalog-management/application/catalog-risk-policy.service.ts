@@ -5,7 +5,14 @@ import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { riskPolicyDto } from '../catalog-management.mapper.js';
 import { CatalogManagementRepository } from '../catalog-management.repository.js';
 import { ActivateRiskRulesetVersionDto, CreateRiskRulesetVersionDto } from '../catalog-management.schemas.js';
-import { actorPlatformUserId, assertAdmin, assertInternal, auditBase, RequestContext, requireIdempotency } from './catalog-management.shared.js';
+import {
+  actorPlatformUserId,
+  assertAdmin,
+  assertInternal,
+  auditBase,
+  RequestContext,
+  requireIdempotency,
+} from './catalog-management.shared.js';
 
 @Injectable()
 export class CatalogRiskPolicyService {
