@@ -29,6 +29,7 @@ import { ExternalDataExecutionService } from './application/external-data-execut
 import { ExternalDataGovernanceService } from './application/external-data-governance.service.js';
 import { ExternalProviderRegistryService } from './application/external-provider-registry.service.js';
 import { ExternalProviderConvenienceService } from './application/external-provider-convenience.service.js';
+import { BankingQrService } from './application/banking-qr.service.js';
 import { SegipAdapter } from './infrastructure/adapters/segip/segip.adapter.js';
 import { InfoCenterAdapter } from './infrastructure/adapters/infocenter/infocenter.adapter.js';
 import { QrGenericAdapter } from './infrastructure/adapters/qr-generic/qr-generic.adapter.js';
@@ -71,6 +72,7 @@ import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-tr
     ExternalDataExecutionService,
     ExternalDataGovernanceService,
     ExternalProviderConvenienceService,
+    BankingQrService,
     SegipAdapter,
     InfoCenterAdapter,
     QrGenericAdapter,

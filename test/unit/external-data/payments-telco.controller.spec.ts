@@ -31,6 +31,22 @@ describe('Payments/Telco external-data controllers', () => {
     expect(service.executeBankTransfer).toHaveBeenCalledWith(expectedCall(btBody));
   });
 
+  it('generateBankQr delega en generateBankQr del servicio con los campos del body', async () => {
+    const service = { generateBankQr: jest.fn(async () => ({ status: 'QR_GENERATED' })) };
+    const controller = new PaymentsExternalDataController(service as never);
+    const body = { customerId: '9', amount: 250, currency: 'BOB', reference: 'R1', scenario: undefined } as never;
+    await controller.generateBankQr('1', body, user);
+    expect(service.generateBankQr).toHaveBeenCalledWith({
+      tenantId: tenantIdFromHeader('1', user),
+      customerId: '9',
+      amount: 250,
+      currency: 'BOB',
+      reference: 'R1',
+      scenario: undefined,
+      requestedByUserId: actorId(user),
+    });
+  });
+
   it('verifyPhoneTrust delega en executeTelcoPhoneTrust', async () => {
     const service = { executeTelcoPhoneTrust: jest.fn(async () => ({})) };
     const controller = new TelcoExternalDataController(service as never);

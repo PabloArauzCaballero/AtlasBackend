@@ -12,6 +12,8 @@ import { tenantIdFromHeader } from '../../../common/utils/http/headers.util.js';
 import { actorId, assertCustomerAccess } from '../external-data-controller.util.js';
 import { ExternalDataService } from '../external-data.service.js';
 import {
+  bankQrGenerateSchema,
+  BankQrGenerateDto,
   bankTransferVerifySchema,
   BankTransferVerifyDto,
   customerIdParamsSchema,
@@ -85,6 +87,35 @@ export class PaymentsExternalDataController {
       customerId: body.customerId,
       body,
       idempotencyKey,
+      requestedByUserId: actorId(currentUser),
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Generar QR de cobro bancario',
+    description:
+      'Genera un QR de cobro contra el proveedor bancario genérico. En modo mock (local o server) devuelve un QR de ' +
+      'PRUEBA (payload + imagen SVG data URL) — no un QR EMV real escaneable. Es una acción, no una verificación: ' +
+      'no persiste observaciones de riesgo.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiBody({ schema: zodToApiSchema(bankQrGenerateSchema) })
+  @ApiResponse({ status: 200, description: 'QR de cobro generado (payload + imagen).' })
+  @Post('bank-transfer/qr')
+  @HttpCode(HttpStatus.OK)
+  generateBankQr(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Body(new ZodValidationPipe(bankQrGenerateSchema)) body: BankQrGenerateDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    assertCustomerAccess(currentUser, body.customerId);
+    return this.externalDataService.generateBankQr({
+      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      customerId: body.customerId,
+      amount: body.amount,
+      currency: body.currency,
+      reference: body.reference,
+      scenario: body.scenario,
       requestedByUserId: actorId(currentUser),
     });
   }

@@ -2134,6 +2134,37 @@ Roles de clase: `customer, internal_operator, risk_analyst, admin, platform_admi
 
 **Response/Errores**: idénticos a `POST /external-data/requests`.
 
+#### POST /api/v1/payments/bank-transfer/qr
+
+**Propósito:** Generar un QR de cobro contra el proveedor bancario genérico (`BANKING_GENERIC`). Es una **acción** (no una verificación): NO pasa por el pipeline de observaciones de riesgo ni persiste features. En modo mock (`mock_local` o `mock_server`) devuelve un QR de **PRUEBA** — no un QR EMV real escaneable.
+**Auth:** mismo grupo de roles del controller. `assertCustomerAccess`.
+**Headers:** `x-tenant-id` (requerido).
+
+**Request body**
+| Campo | Tipo | Requerido | Constraints | Descripción |
+|---|---|---|---|---|
+| `customerId` | string | Sí | `^\d+$` | — |
+| `amount` | number | Sí | `> 0` | Monto del cobro |
+| `currency` | string | No | length 3, default `"BOB"` | — |
+| `reference` | string | No | trim, max 64 | Referencia del cobro |
+| `scenario` | string | No | max 80 | `expired` marca el QR como expirado |
+
+**Response 200**
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `providerCode` | string | `"BANKING_GENERIC"` |
+| `mode` | string | Modo resuelto (`mock_local` \| `mock_server` \| …) |
+| `customerId` | string | — |
+| `status` | string | `QR_GENERATED` \| `QR_EXPIRED` |
+| `qrId` | string | Id determinista del QR |
+| `qrPayload` | string | Payload de texto del QR (de prueba) |
+| `qrImageSvgDataUrl` | string | Imagen SVG "tipo QR" como `data:image/svg+xml;base64,...` (renderiza en el navegador) |
+| `amount` / `currency` / `reference` | number/string | Eco del input |
+| `expiresAt` | string (ISO) | Vencimiento (fijo en mock) |
+| `providerReference` | string | `"BANK-QR-MOCK-001"` |
+
+> Modo: en `mock_server` el QR lo genera el mock (`POST /mock/banking/qr/generate`); en `mock_local` se genera en proceso con el mismo formato. `disabled` → error `BANKING_PROVIDER_DISABLED`; `production` (sin integración real) → `BANKING_QR_PRODUCTION_NOT_IMPLEMENTED`.
+
 ---
 
 ### Sub-módulo: `TelcoExternalDataController` (`@Controller('telco')`)

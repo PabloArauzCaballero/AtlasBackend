@@ -12,6 +12,24 @@ describe('BankingGenericAdapter', () => {
     expect((await adapter.execute(local('anything'))).status).toBe('PENDING');
   });
 
+  it('generateQr: mock_local genera un QR de prueba determinista; disabled/production lanzan', async () => {
+    const qr = await adapter.generateQr({ mode: 'mock_local', input: { amount: 250, currency: 'BOB', reference: 'R1' } } as never);
+    expect(qr.status).toBe('QR_GENERATED');
+    expect(qr.amount).toBe(250);
+    expect(qr.qrImageSvgDataUrl).toMatch(/^data:image\/svg\+xml;base64,/);
+    expect(qr.qrPayload).toContain('amount=250');
+    const again = await adapter.generateQr({ mode: 'mock_local', input: { amount: 250, currency: 'BOB', reference: 'R1' } } as never);
+    expect(again.qrId).toBe(qr.qrId);
+
+    await expect(adapter.generateQr({ mode: 'disabled', input: {} } as never)).rejects.toThrow('BANKING_PROVIDER_DISABLED');
+    await expect(adapter.generateQr({ mode: 'production', input: {} } as never)).rejects.toThrow('BANKING_QR_PRODUCTION_NOT_IMPLEMENTED');
+  });
+
+  it('generateQr: el escenario "expired" marca QR_EXPIRED', async () => {
+    const qr = await adapter.generateQr({ mode: 'mock_local', input: {}, scenario: 'expired' } as never);
+    expect(qr.status).toBe('QR_EXPIRED');
+  });
+
   it('normalize (VERIFIED, matches true) verifica y reconcilia como MATCHED', async () => {
     const obs = await adapter.normalize({
       status: 'VERIFIED',

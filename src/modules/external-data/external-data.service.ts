@@ -4,6 +4,7 @@ import { ExternalDataExecutionService } from './application/external-data-execut
 import { ExternalDataGovernanceService } from './application/external-data-governance.service.js';
 import { ExternalProviderRegistryService } from './application/external-provider-registry.service.js';
 import { ExternalProviderConvenienceService } from './application/external-provider-convenience.service.js';
+import { BankingQrService } from './application/banking-qr.service.js';
 import { toProviderCode } from './application/external-data-policy.util.js';
 import { ExternalDataRepository } from './external-data.repository.js';
 import { ExternalConsentDto, ExternalDataRequestDto } from './external-data.schemas.js';
@@ -17,6 +18,7 @@ export class ExternalDataService {
     private readonly convenience: ExternalProviderConvenienceService,
     private readonly evidence: ExternalDataEvidenceService,
     private readonly governance: ExternalDataGovernanceService,
+    private readonly bankingQr: BankingQrService,
   ) {}
 
   async createConsent(input: { tenantId: string; body: ExternalConsentDto; ipAddress?: string; userAgent?: string }) {
@@ -148,6 +150,18 @@ export class ExternalDataService {
     requestedByUserId?: string;
   }) {
     return this.convenience.executeBankTransfer(input);
+  }
+
+  generateBankQr(input: {
+    tenantId: string;
+    customerId: string;
+    amount: number;
+    currency: string;
+    reference?: string;
+    scenario?: string;
+    requestedByUserId?: string;
+  }) {
+    return this.bankingQr.generateQr(input);
   }
 
   executeTelcoPhoneTrust(input: {

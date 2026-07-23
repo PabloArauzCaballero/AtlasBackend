@@ -98,6 +98,15 @@ export const bankTransferVerifySchema = z.object({
 });
 export type BankTransferVerifyDto = z.infer<typeof bankTransferVerifySchema>;
 
+export const bankQrGenerateSchema = z.object({
+  customerId: idStringSchema,
+  amount: z.number().positive(),
+  currency: z.string().trim().length(3).default('BOB'),
+  reference: z.string().trim().max(64).optional(),
+  scenario: scenarioSchema,
+});
+export type BankQrGenerateDto = z.infer<typeof bankQrGenerateSchema>;
+
 export const telcoPhoneTrustSchema = z.object({
   customerId: idStringSchema,
   phoneNumber: z.string().trim().min(8).max(30),
