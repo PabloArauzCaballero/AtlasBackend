@@ -62,24 +62,35 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
     const hitKey = `throttle:${throttlerName}:${key}`;
     const blockKey = `throttle-block:${throttlerName}:${key}`;
 
-    const blockTtlMs = await this.redis.pttl(blockKey);
-    if (blockTtlMs > 0) {
-      return { totalHits: limit + 1, timeToExpire: 0, isBlocked: true, timeToBlockExpire: Math.ceil(blockTtlMs / 1000) };
-    }
+    try {
+      const blockTtlMs = await this.redis.pttl(blockKey);
+      if (blockTtlMs > 0) {
+        return { totalHits: limit + 1, timeToExpire: 0, isBlocked: true, timeToBlockExpire: Math.ceil(blockTtlMs / 1000) };
+      }
 
-    const totalHits = await this.redis.incr(hitKey);
-    if (totalHits === 1) {
-      await this.redis.pexpire(hitKey, ttl);
-    }
-    const remainingTtlMs = await this.redis.pttl(hitKey);
-    const timeToExpire = remainingTtlMs > 0 ? Math.ceil(remainingTtlMs / 1000) : Math.ceil(ttl / 1000);
+      const totalHits = await this.redis.incr(hitKey);
+      if (totalHits === 1) {
+        await this.redis.pexpire(hitKey, ttl);
+      }
+      const remainingTtlMs = await this.redis.pttl(hitKey);
+      const timeToExpire = remainingTtlMs > 0 ? Math.ceil(remainingTtlMs / 1000) : Math.ceil(ttl / 1000);
 
-    if (totalHits > limit) {
-      const effectiveBlockDuration = blockDuration > 0 ? blockDuration : ttl;
-      await this.redis.set(blockKey, '1', 'PX', effectiveBlockDuration);
-      return { totalHits, timeToExpire, isBlocked: true, timeToBlockExpire: Math.ceil(effectiveBlockDuration / 1000) };
-    }
+      if (totalHits > limit) {
+        const effectiveBlockDuration = blockDuration > 0 ? blockDuration : ttl;
+        await this.redis.set(blockKey, '1', 'PX', effectiveBlockDuration);
+        return { totalHits, timeToExpire, isBlocked: true, timeToBlockExpire: Math.ceil(effectiveBlockDuration / 1000) };
+      }
 
-    return { totalHits, timeToExpire, isBlocked: false, timeToBlockExpire: 0 };
+      return { totalHits, timeToExpire, isBlocked: false, timeToBlockExpire: 0 };
+    } catch (error) {
+      // Redis caído/inalcanzable/lento (con enableOfflineQueue=false los comandos rechazan de
+      // inmediato). Se DEGRADA fail-open: se permite el request en vez de colgarlo o tumbarlo. El
+      // rate limiting distribuido queda temporalmente inactivo, pero una caída de Redis no debe
+      // dejar la API entera sin responder. Se loguea con severidad alta para que salte en alertas.
+      this.logger.error(
+        `Redis no disponible para rate limiting; se degrada fail-open (request permitido): ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return { totalHits: 1, timeToExpire: Math.ceil(ttl / 1000), isBlocked: false, timeToBlockExpire: 0 };
+    }
   }
 }

@@ -22,7 +22,15 @@ export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
         const client = new Redis(env.REDIS_URL, {
           lazyConnect: false,
           maxRetriesPerRequest: 2,
-          enableOfflineQueue: true,
+          // Fail-fast si Redis está caído/inalcanzable en vez de colgar: con enableOfflineQueue=true
+          // (default de ioredis) los comandos se ENCOLABAN esperando reconexión indefinidamente, lo
+          // que colgaba cualquier request no-@SkipThrottle (el ThrottlerGuard usa Redis) hasta el
+          // timeout del cliente. Ahora los comandos rechazan de inmediato y los consumidores (p. ej.
+          // RedisThrottlerStorage) degradan con gracia (fail-open). `commandTimeout` cubre el caso de
+          // un Redis conectado pero lento. (Hallazgo B4 de la auditoría 2026-07-21.)
+          enableOfflineQueue: false,
+          connectTimeout: 3000,
+          commandTimeout: 1000,
         });
         const logger = new Logger('RedisModule');
         client.on('error', (error: Error) => logger.error(`Redis connection error: ${error.message}`));

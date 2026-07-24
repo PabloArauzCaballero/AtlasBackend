@@ -48,6 +48,16 @@ describe('RedisThrottlerStorage', () => {
       const result = await buildStorage(null).increment('ip:1', 60_000, 10, 0, 'default');
       expect(result).toEqual({ totalHits: 1, timeToExpire: 60, isBlocked: false, timeToBlockExpire: 0 });
     });
+
+    it('si Redis está caído/inalcanzable (el comando rechaza), degrada FAIL-OPEN sin colgar ni tumbar el request', async () => {
+      const brokenRedis = buildRedis({
+        pttl: jest.fn(async () => {
+          throw new Error('Stream isn’t writeable and enableOfflineQueue options is false');
+        }),
+      });
+      const result = await buildStorage(brokenRedis).increment('ip:1', 60_000, 10, 0, 'default');
+      expect(result).toEqual({ totalHits: 1, timeToExpire: 60, isBlocked: false, timeToBlockExpire: 0 });
+    });
   });
 
   describe('ventana fija', () => {
