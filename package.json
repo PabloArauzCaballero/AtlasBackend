@@ -103,7 +103,14 @@
     "audit:external-providers:quality-10": "yarn audit:external-providers:v7 && yarn smoke:external-providers:governance",
     "smoke:internal-rbac": "tsx scripts/smoke/internal-rbac.smoke.ts",
     "smoke:frontend-contract": "tsx scripts/smoke/frontend-contract.smoke.ts",
-    "check:openapi": "tsx scripts/check-openapi-contract.ts"
+    "check:openapi": "tsx scripts/check-openapi-contract.ts",
+    "docs:openapi:lint": "redocly lint docs/endpoints/openapi.yaml",
+    "docs:openapi:bundle": "redocly bundle docs/endpoints/openapi.yaml -o dist/openapi.yaml",
+    "docs:openapi:stats": "redocly stats docs/endpoints/openapi.yaml",
+    "docs:install": "pip install -r docs/requirements.txt",
+    "docs:serve": "python -m mkdocs serve",
+    "docs:build": "python -m mkdocs build --strict",
+    "docs:validate": "yarn docs:openapi && yarn check:openapi && yarn docs:openapi:lint && yarn docs:build"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1096.0",
@@ -121,6 +128,7 @@
     "@opentelemetry/resources": "^2.9.0",
     "@opentelemetry/sdk-node": "^0.220.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
+    "@scalar/nestjs-api-reference": "^1.2.12",
     "argon2": "^0.41.1",
     "compression": "^1.7.5",
     "dotenv": "^17.4.2",
@@ -144,6 +152,7 @@
   "devDependencies": {
     "@eslint/js": "^9.18.0",
     "@nestjs/testing": "^11.1.6",
+    "@redocly/cli": "^2.43.2",
     "@types/compression": "^1.7.5",
     "@types/jest": "^29.5.14",
     "@types/js-yaml": "^4.0.9",

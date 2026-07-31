@@ -6,6 +6,7 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule, OpenAPIObject } from '@nestjs/swagger';
 import { enrichOpenApiDocument } from './openapi/enrich-document.js';
+import { CONTRACT_TAGS } from './openapi/contract-tags.js';
 
 /**
  * Builder oficial de OpenAPI para `/docs` y para `docs/endpoints/openapi.yaml`.
@@ -37,10 +38,12 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     .addServer('https://api.staging.atlas.local', 'Staging')
     .addServer('https://api.atlas.local', 'Producción')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'access-token')
-    .addTag('auth', 'Autenticación: login, refresh, logout, provisión de credenciales internas.')
-    .addTag('catalog-management', 'Catálogos versionados, definiciones semánticas y mapeos de riesgo consumidos por el motor de decisión.')
-    .addTag('internal-portal', 'Glosario de negocio, gobierno y trazabilidad para operadores internos.')
     .build();
+
+  // Las 35 etiquetas EN USO se declaran globalmente y en el orden del recorrido de negocio. Nest
+  // emite `tags` por operación desde `@ApiTags` pero no genera la lista global: sólo 3 de las 35
+  // estaban declaradas, y `redocly lint` fallaba con 96 errores `operation-tag-defined`.
+  config.tags = CONTRACT_TAGS.map((tag) => ({ name: tag.name, description: tag.description }));
 
   // El documento que devuelve Nest describe cada endpoint por separado; `enrichOpenApiDocument`
   // añade lo transversal (sobre de éxito, modelo de error, 429/500 globales) que ningún decorador

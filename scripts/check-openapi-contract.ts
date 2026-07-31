@@ -49,6 +49,10 @@ const FORBIDDEN_PATTERNS: Array<[RegExp, string]> = [
   [/\b10\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/, 'una IP privada 10.x'],
   [/\b192\.168\.\d{1,3}\.\d{1,3}\b/, 'una IP privada 192.168.x'],
   [/postgres(?:ql)?:\/\/[^\s"']*:[^\s"'@]+@/, 'una cadena de conexión con contraseña'],
+  // `example.com` como servidor es el marcador de posición clásico que se queda para siempre. Se
+  // comprueba aquí porque en `redocly.yaml` la regla equivalente está en modo aviso, para poder
+  // conservar `localhost` como servidor de desarrollo sin renunciar a esta protección.
+  [/https?:\/\/[^\s"']*example\.(?:com|org|net)/, 'un servidor o URL de marcador de posición (example.com)'],
 ];
 
 const errors: string[] = [];
@@ -163,7 +167,9 @@ function report(stats: { operations: number; paths: number }): void {
     process.exit(1);
   }
 
-  console.log(`✅ Contrato OpenAPI válido: ${stats.paths} rutas / ${stats.operations} operaciones, todas con operationId, seguridad y esquema de respuesta.`);
+  console.log(
+    `✅ Contrato OpenAPI válido: ${stats.paths} rutas / ${stats.operations} operaciones, todas con operationId, seguridad y esquema de respuesta.`,
+  );
 }
 
 main();

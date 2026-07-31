@@ -1,0 +1,82 @@
+# Gobierno automático del contrato OpenAPI.
+#
+# Complementa a `yarn check:openapi`, no lo sustituye. La división de trabajo es deliberada:
+#
+#   redocly lint        → valida el ESTÁNDAR OpenAPI y las convenciones de estilo del contrato.
+#   yarn check:openapi  → valida las reglas PROPIAS de Atlas que ningún linter genérico conoce
+#                         (que el sobre de respuesta esté declarado, que no haya secretos en los
+#                         ejemplos, que 429/500 estén en toda operación porque el throttler y el
+#                         filtro son globales).
+#
+# Uso:
+#   yarn docs:openapi:lint     · falla el PR si el contrato se degrada
+#   yarn docs:openapi:bundle   · empaqueta el contrato resuelto para publicar
+#
+# Ver ADR-0007 y docs/reports/documentation-gap-analysis.md.
+
+apis:
+  atlas@v1:
+    root: docs/endpoints/openapi.yaml
+
+extends:
+  - recommended
+
+rules:
+  # --- Identidad de las operaciones -----------------------------------------------------------
+  # `operationId` es lo que usan los generadores de cliente para nombrar métodos. Sin él, cada
+  # regeneración produce nombres distintos y el cliente rompe sin que nadie cambiara la API.
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-operationId-url-safe: error
+  operation-summary: error
+
+  # --- Seguridad ------------------------------------------------------------------------------
+  # Una operación sin `security` declarada es ambigua: no se distingue "es pública" de "se olvidó
+  # documentarlo". En este repositorio `@Public()` emite `security: []`, así que la ambigüedad no
+  # puede existir y exigirlo es gratis.
+  security-defined: error
+
+  # --- Respuestas -----------------------------------------------------------------------------
+  # El agujero real del contrato antes de la Fase 3: 252 de 263 respuestas 2xx sin ningún esquema.
+  operation-4xx-response: error
+  operation-2xx-response: error
+  no-invalid-media-type-examples: error
+  no-invalid-schema-examples: error
+
+  # --- Estructura y navegabilidad -------------------------------------------------------------
+  operation-tag-defined: error
+  tags-alphabetical: off # El orden de las etiquetas expresa el recorrido del negocio, no el alfabeto.
+  info-contact: error
+  info-license: error
+  no-empty-servers: error
+  # AVISO y no error, con motivo: la regla existe para impedir que se publique un servidor
+  # de marcador de posición (`example.com`). Aquí `http://localhost:3005` es DELIBERADO — el consumidor
+  # principal de esta API es un frontend interno que la corre en local, y sin ese servidor Scalar no
+  # sabría contra qué host disparar una prueba en desarrollo. El riesgo real que la regla cubre
+  # —publicar un placeholder— lo comprueba `yarn check:openapi`, que rechaza `example.com` y
+  # cualquier host o secreto que no deba salir en un contrato público.
+  no-server-example.com: warn
+
+  # --- Higiene del contrato -------------------------------------------------------------------
+  no-unused-components: warn
+  path-declaration-must-exist: error
+  path-not-include-query: error
+  no-identical-paths: error
+  # AVISO con deuda registrada (ATLAS-API-001): `/external-data/consents/user/{customerId}` y
+  # `/external-data/consents/{consentId}/revoke` sólo colisionan para la URL patológica
+  # `/external-data/consents/user/revoke`. Renombrar una de las dos es un cambio incompatible para el
+  # frontend, así que la decisión es de producto y no se toma en un endurecimiento de infraestructura.
+  no-ambiguous-paths: warn
+  spec-strict-refs: warn
+
+  # --- Deuda declarada ------------------------------------------------------------------------
+  # 146 de 264 operaciones tienen `summary` pero no `description` larga (ATLAS-DOC-006). Se
+  # mantiene como AVISO y no como error a propósito: convertirlo en error produciría 146 párrafos
+  # escritos para satisfacer un linter en vez de para explicar algo. El conteo queda visible en cada
+  # ejecución, así que la deuda es medible en lugar de invisible.
+  operation-description: warn
+  # Idéntico criterio: describir los 264 parámetros de una vez sería relleno.
+  parameter-description: warn
+  # `data` queda sin tipar salvo donde el endpoint lo declare (ver ADR-0007). El contrato dice la
+  # verdad sobre la envoltura y calla sobre la carga en vez de inventarla.
+  struct: warn

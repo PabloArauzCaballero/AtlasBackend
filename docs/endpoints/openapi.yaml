@@ -5,16 +5,8 @@ paths:
       description: Job de mantenimiento. Restringido a admin/platform_admin/system.
       operationId: RuntimeJobsController_processOutbox
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -63,16 +55,8 @@ paths:
       description: Job de mantenimiento. Restringido a admin/platform_admin/system.
       operationId: RuntimeJobsController_processEvents
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -121,16 +105,8 @@ paths:
       description: Job de mantenimiento. Restringido a admin/platform_admin/system.
       operationId: RuntimeJobsController_expireStaleSessions
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -182,16 +158,8 @@ paths:
         Restringido a admin/platform_admin/system.
       operationId: RuntimeJobsController_retryStuckNotifications
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -251,16 +219,8 @@ paths:
         admin/platform_admin/system.
       operationId: RuntimeJobsController_deliverPendingNotifications
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -312,16 +272,8 @@ paths:
         petición en vuelo. Restringido a admin/platform_admin/system.
       operationId: RuntimeJobsController_purgeIdempotencyKeys
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -376,16 +328,8 @@ paths:
       description: Job de mantenimiento. Restringido a admin/platform_admin/system.
       operationId: RuntimeJobsController_applyRetentionPolicies
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -432,16 +376,8 @@ paths:
       description: Job de mantenimiento. Restringido a admin/platform_admin/system.
       operationId: RuntimeJobsController_recalculateDataQuality
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -519,6 +455,10 @@ paths:
           schema:
             type: string
             maxLength: 500
+          description: >-
+            Cursor opaco devuelto por la página anterior. Los listados con
+            cursor no aceptan `page`: son excluyentes, porque paginar por
+            desplazamiento sobre datos que cambian salta o repite filas.
         - name: pagination
           required: false
           in: query
@@ -536,6 +476,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -544,6 +487,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: correlationId
           required: false
           in: query
@@ -576,11 +520,10 @@ paths:
               - processed
               - failed
               - cancelled
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Lista paginada de eventos.
@@ -606,16 +549,8 @@ paths:
     post:
       operationId: EventsController_createEvent
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -723,11 +658,8 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador del evento de dominio en el outbox.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Detalle del evento.
@@ -762,16 +694,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador del evento de dominio en el outbox.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Evento re-encolado para reintento.
@@ -808,16 +733,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador del evento de dominio en el outbox.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Evento cancelado.
@@ -860,6 +778,7 @@ paths:
               - sms
               - whatsapp
               - phone
+          description: Canal de comunicación (`email`, `sms`, `push`, `whatsapp`).
         - name: status
           required: false
           in: query
@@ -875,11 +794,10 @@ paths:
               - failed
               - retrying
               - cancelled
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Lista paginada de mensajes.
@@ -913,11 +831,8 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador del mensaje de notificación.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Detalle del mensaje con sus deliveries.
@@ -952,16 +867,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador del mensaje de notificación.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Reintento encolado — devuelve el mensaje actualizado.
@@ -998,16 +906,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador del mensaje de notificación.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Mensaje cancelado.
@@ -1055,6 +956,7 @@ paths:
               - sms
               - whatsapp
               - phone
+          description: Canal de comunicación (`email`, `sms`, `push`, `whatsapp`).
         - name: code
           required: false
           in: query
@@ -1062,11 +964,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 160
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Lista paginada de plantillas.
@@ -1092,16 +990,8 @@ paths:
     post:
       operationId: NotificationsController_createTemplate
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -1210,16 +1100,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador de la plantilla de notificación.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -1323,11 +1206,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Preferencias del cliente por evento/canal.
@@ -1364,16 +1246,11 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -1450,16 +1327,8 @@ paths:
         plantillas de eventos de dominio).
       operationId: NotificationsController_broadcastNotification
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -1563,6 +1432,7 @@ paths:
               - sms
               - whatsapp
               - phone
+          description: Canal de comunicación (`email`, `sms`, `push`, `whatsapp`).
         - name: status
           required: false
           in: query
@@ -1578,12 +1448,18 @@ paths:
               - failed
               - retrying
               - cancelled
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
         - name: customerId
           required: true
           in: path
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
         - name: x-tenant-id
           in: header
           description: Opcional para customer (se toma del token).
@@ -1624,11 +1500,18 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
         - name: x-tenant-id
           in: header
           required: false
           schema:
             type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
       responses:
         '200':
           description: Cantidad de notificaciones no leídas.
@@ -1663,17 +1546,25 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la notificación del cliente.
         - name: customerId
           required: true
           in: path
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
         - name: x-tenant-id
           in: header
           required: false
           schema:
             type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
       responses:
         '200':
           description: Notificación marcada como leída.
@@ -1710,11 +1601,18 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
         - name: x-tenant-id
           in: header
           required: false
           schema:
             type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
       responses:
         '200':
           description: Cantidad de notificaciones actualizadas.
@@ -1754,11 +1652,18 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
         - name: x-tenant-id
           in: header
           required: false
           schema:
             type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
       requestBody:
         required: true
         content:
@@ -1821,17 +1726,25 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador del token de dispositivo registrado.
         - name: customerId
           required: true
           in: path
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
         - name: x-tenant-id
           in: header
           required: false
           schema:
             type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
       responses:
         '200':
           description: Token de dispositivo desactivado.
@@ -1874,6 +1787,7 @@ paths:
               - sms
               - whatsapp
               - phone
+          description: Canal de comunicación (`email`, `sms`, `push`, `whatsapp`).
         - name: status
           required: false
           in: query
@@ -1889,6 +1803,9 @@ paths:
               - failed
               - retrying
               - cancelled
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
         - name: x-tenant-id
           in: header
           description: Opcional (se toma del token).
@@ -1926,6 +1843,10 @@ paths:
           required: false
           schema:
             type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
       responses:
         '200':
           description: Cantidad de notificaciones no leídas.
@@ -1958,11 +1879,16 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la notificación del cliente.
         - name: x-tenant-id
           in: header
           required: false
           schema:
             type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
       responses:
         '200':
           description: Notificación marcada como leída.
@@ -1998,6 +1924,10 @@ paths:
           required: false
           schema:
             type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
       responses:
         '200':
           description: Cantidad de notificaciones actualizadas.
@@ -2087,6 +2017,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
         - name: x-tenant-id
           in: header
           description: Opcional para `customer` (se toma del token).
@@ -2133,11 +2066,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -2231,17 +2163,13 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           description: Credenciales inválidas.
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-        - '': []
+      security: []
       summary: Login interno
       tags:
         - internal-auth
@@ -2281,17 +2209,13 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           description: PIN inválido, expirado o con intentos agotados.
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-        - '': []
+      security: []
       summary: Verificar PIN de login interno
       tags:
         - internal-auth
@@ -2322,17 +2246,13 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           description: Refresh token inválido o revocado.
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-        - '': []
+      security: []
       summary: Refresh interno
       tags:
         - internal-auth
@@ -2366,19 +2286,13 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-        - '': []
+      security: []
       summary: Logout interno
       tags:
         - internal-auth
@@ -2534,6 +2448,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -2542,6 +2459,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
       responses:
         '200':
           description: Lista paginada de usuarios internos.
@@ -2574,6 +2492,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del usuario interno (operador, analista o
+            administrador).
       responses:
         '200':
           description: Detalle del usuario interno (con roles).
@@ -2607,6 +2528,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del usuario interno (operador, analista o
+            administrador).
       requestBody:
         required: true
         content:
@@ -2688,6 +2612,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del usuario interno (operador, analista o
+            administrador).
       requestBody:
         required: true
         content:
@@ -2790,6 +2717,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador de ruta `roleId` del recurso direccionado por la
+            operación.
       responses:
         '200':
           description: Detalle del rol (con permisos asociados).
@@ -2849,12 +2779,7 @@ paths:
         consecutivos (`AUTH_LOCKOUT_MINUTES`).
       operationId: AuthController_login
       parameters:
-        - name: x-tenant-id
-          in: header
-          description: Tenant al que pertenece el actor (entero positivo como string).
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -2898,16 +2823,13 @@ paths:
           description: >-
             Credenciales inválidas, o cuenta bloqueada temporalmente por
             intentos fallidos.
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - '': []
+      security: []
       summary: Login
       tags:
         - auth
@@ -2950,16 +2872,13 @@ paths:
           description: >-
             PIN inválido, expirado, agotó intentos, o el actor ya no está
             disponible.
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - '': []
+      security: []
       summary: Verificar PIN de login
       tags:
         - auth
@@ -2971,12 +2890,7 @@ paths:
         permitir enumeración.
       operationId: AuthController_requestPasswordReset
       parameters:
-        - name: x-tenant-id
-          in: header
-          description: Tenant al que pertenece el actor (entero positivo como string).
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -3011,10 +2925,6 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
@@ -3023,8 +2933,7 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           description: El servicio de correo (MailSender) no está configurado.
-      security:
-        - '': []
+      security: []
       summary: Solicitar cambio de contraseña
       tags:
         - auth
@@ -3036,12 +2945,7 @@ paths:
         access tokens vigentes (tokenVersion).
       operationId: AuthController_confirmPasswordReset
       parameters:
-        - name: x-tenant-id
-          in: header
-          description: Tenant al que pertenece el actor (entero positivo como string).
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -3089,16 +2993,13 @@ paths:
           description: >-
             Código inválido/expirado o la contraseña nueva no cumple el mínimo
             de seguridad.
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - '': []
+      security: []
       summary: Confirmar cambio de contraseña
       tags:
         - auth
@@ -3135,16 +3036,13 @@ paths:
           description: >-
             Refresh token inválido, expirado, o el actor asociado ya no está
             disponible.
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - '': []
+      security: []
       summary: Refresh
       tags:
         - auth
@@ -3184,18 +3082,13 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - '': []
+      security: []
       summary: Logout
       tags:
         - auth
@@ -3353,16 +3246,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - '': []
+      security: []
       summary: Health check del servicio (público, sin auth)
       tags:
         - health
@@ -3380,16 +3268,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - '': []
+      security: []
       summary: Liveness probe (¿el proceso está vivo?)
       tags:
         - health
@@ -3408,18 +3291,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
         '503':
           description: 'No listo: una dependencia obligatoria no responde.'
-      security:
-        - '': []
+      security: []
       summary: Readiness probe (¿puede atender tráfico?)
       tags:
         - health
@@ -3453,6 +3331,9 @@ paths:
               - published
               - retired
               - all
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
         - name: domain
           required: false
           in: query
@@ -3490,18 +3371,23 @@ paths:
                                 catalogName:
                                   type: string
                                 domain:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 description:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 ownerTeam:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 isActive:
                                   type: boolean
                                 currentVersion:
-                                  type: object
+                                  type:
+                                    - object
+                                    - 'null'
                                   properties:
                                     catalogVersionId:
                                       type: string
@@ -3518,20 +3404,21 @@ paths:
                                         - retired
                                         - rejected
                                     validFrom:
-                                      type: string
+                                      type:
+                                        - string
+                                        - 'null'
                                       format: date
-                                      nullable: true
                                     validUntil:
-                                      type: string
+                                      type:
+                                        - string
+                                        - 'null'
                                       format: date
-                                      nullable: true
                                   required:
                                     - catalogVersionId
                                     - versionCode
                                     - status
                                     - validFrom
                                     - validUntil
-                                  nullable: true
                               required:
                                 - catalogId
                                 - catalogCode
@@ -3568,6 +3455,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la versión del catálogo.
         - name: catalogCode
           required: true
           in: path
@@ -3576,6 +3464,7 @@ paths:
             minLength: 2
             maxLength: 140
             pattern: ^[a-zA-Z0-9_.:-]+$
+          description: Código del catálogo de contexto.
       responses:
         '200':
           description: Versión, items, alias y mapeos de riesgo del catálogo.
@@ -3603,18 +3492,23 @@ paths:
                               catalogName:
                                 type: string
                               domain:
-                                type: string
-                                nullable: true
+                                type:
+                                  - string
+                                  - 'null'
                               description:
-                                type: string
-                                nullable: true
+                                type:
+                                  - string
+                                  - 'null'
                               ownerTeam:
-                                type: string
-                                nullable: true
+                                type:
+                                  - string
+                                  - 'null'
                               isActive:
                                 type: boolean
                               currentVersion:
-                                type: object
+                                type:
+                                  - object
+                                  - 'null'
                                 properties:
                                   catalogVersionId:
                                     type: string
@@ -3631,20 +3525,21 @@ paths:
                                       - retired
                                       - rejected
                                   validFrom:
-                                    type: string
+                                    type:
+                                      - string
+                                      - 'null'
                                     format: date
-                                    nullable: true
                                   validUntil:
-                                    type: string
+                                    type:
+                                      - string
+                                      - 'null'
                                     format: date
-                                    nullable: true
                                 required:
                                   - catalogVersionId
                                   - versionCode
                                   - status
                                   - validFrom
                                   - validUntil
-                                nullable: true
                             required:
                               - catalogId
                               - catalogCode
@@ -3672,20 +3567,24 @@ paths:
                                   - retired
                                   - rejected
                               validFrom:
-                                type: string
+                                type:
+                                  - string
+                                  - 'null'
                                 format: date
-                                nullable: true
                               validUntil:
-                                type: string
+                                type:
+                                  - string
+                                  - 'null'
                                 format: date
-                                nullable: true
                               approvedAt:
-                                type: string
+                                type:
+                                  - string
+                                  - 'null'
                                 format: date-time
-                                nullable: true
                               notes:
-                                type: string
-                                nullable: true
+                                type:
+                                  - string
+                                  - 'null'
                             required:
                               - catalogVersionId
                               - versionCode
@@ -3710,12 +3609,14 @@ paths:
                                   type: object
                                   additionalProperties: true
                                 sourceId:
-                                  type: string
+                                  type:
+                                    - string
+                                    - 'null'
                                   pattern: ^[1-9][0-9]*$
-                                  nullable: true
                                 confidenceScore:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 isActive:
                                   type: boolean
                                 aliases:
@@ -3733,8 +3634,9 @@ paths:
                                       normalizedAlias:
                                         type: string
                                       confidenceScore:
-                                        type: string
-                                        nullable: true
+                                        type:
+                                          - string
+                                          - 'null'
                                 riskMappings:
                                   type: array
                                   items:
@@ -3751,24 +3653,29 @@ paths:
                                       riskBand:
                                         type: string
                                       scorePointsSuggested:
-                                        type: string
-                                        nullable: true
+                                        type:
+                                          - string
+                                          - 'null'
                                       reasonCode:
                                         type: string
                                       explanation:
-                                        type: string
-                                        nullable: true
+                                        type:
+                                          - string
+                                          - 'null'
                                       modelUsage:
-                                        type: string
-                                        nullable: true
+                                        type:
+                                          - string
+                                          - 'null'
                                       validFrom:
-                                        type: string
+                                        type:
+                                          - string
+                                          - 'null'
                                         format: date
-                                        nullable: true
                                       validUntil:
-                                        type: string
+                                        type:
+                                          - string
+                                          - 'null'
                                         format: date
-                                        nullable: true
                         required:
                           - catalog
                           - version
@@ -3802,16 +3709,9 @@ paths:
             minLength: 2
             maxLength: 140
             pattern: ^[a-zA-Z0-9_.:-]+$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Código del catálogo de contexto.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -4001,6 +3901,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la versión del catálogo.
         - name: catalogCode
           required: true
           in: path
@@ -4009,16 +3910,9 @@ paths:
             minLength: 2
             maxLength: 140
             pattern: ^[a-zA-Z0-9_.:-]+$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Código del catálogo de contexto.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -4085,6 +3979,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la versión del catálogo.
         - name: catalogCode
           required: true
           in: path
@@ -4093,16 +3988,9 @@ paths:
             minLength: 2
             maxLength: 140
             pattern: ^[a-zA-Z0-9_.:-]+$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Código del catálogo de contexto.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -4157,9 +4045,10 @@ paths:
                           status:
                             type: string
                           publishedAt:
-                            type: string
+                            type:
+                              - string
+                              - 'null'
                             format: date-time
-                            nullable: true
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -4185,16 +4074,8 @@ paths:
     post:
       operationId: CatalogManagementController_ingestCatalog
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -4308,16 +4189,8 @@ paths:
     post:
       operationId: CatalogManagementController_decideStagingItems
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -4504,6 +4377,9 @@ paths:
               - active
               - inactive
               - all
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
         - name: type
           required: false
           in: query
@@ -4516,6 +4392,7 @@ paths:
               - attribute
               - feature
               - all
+          description: Filtra por tipo del recurso dentro de su catálogo.
       responses:
         '200':
           description: Definiciones agrupadas por tipo.
@@ -4545,25 +4422,31 @@ paths:
                                 observationName:
                                   type: string
                                 dataType:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 riskDimension:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 isActive:
                                   type: boolean
                                 ownerTeam:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 domainCode:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 reviewStatus:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 sourceGroup:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                               required:
                                 - observationDefinitionId
                                 - observationCode
@@ -4581,28 +4464,35 @@ paths:
                                 eventName:
                                   type: string
                                 dataType:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 riskDimension:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 isActive:
                                   type: boolean
                                 ownerTeam:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 domainCode:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 reviewStatus:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 eventFamily:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 sourcePackage:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 isHighVolume:
                                   type: boolean
                                 relatedTables:
@@ -4626,25 +4516,31 @@ paths:
                                 attributeName:
                                   type: string
                                 dataType:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 riskDimension:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 isActive:
                                   type: boolean
                                 ownerTeam:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 domainCode:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 reviewStatus:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 entityScope:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 isSensitive:
                                   type: boolean
                               required:
@@ -4664,25 +4560,31 @@ paths:
                                 featureName:
                                   type: string
                                 dataType:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 riskDimension:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 isActive:
                                   type: boolean
                                 ownerTeam:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 domainCode:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 reviewStatus:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 featureFamily:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 isModelInput:
                                   type: boolean
                                 isPolicyRuleInput:
@@ -4718,16 +4620,8 @@ paths:
         dominio de decisión.
       operationId: CatalogManagementController_upsertDefinitionsPackage
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -5125,16 +5019,8 @@ paths:
     post:
       operationId: CatalogManagementController_createRiskRulesetVersion
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -5366,16 +5252,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador de la versión del conjunto de reglas de riesgo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -5449,16 +5328,8 @@ paths:
     post:
       operationId: CatalogManagementController_upsertDataGovernancePackage
       parameters:
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -5760,18 +5631,8 @@ paths:
         otorgados (`REQUIRED_CONSENT_MISSING` si falta alguno obligatorio).
       operationId: CustomerOnboardingController_startOnboarding
       parameters:
-        - name: x-idempotency-key
-          in: header
-          description: Evita crear el mismo cliente dos veces ante un reintento.
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          description: Tenant en el que se registra el cliente.
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -5945,10 +5806,6 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
         '400':
           description: x-tenant-id/x-idempotency-key ausente, o body inválido.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '409':
           description: >-
             CUSTOMER_ALREADY_EXISTS — ya existe un cliente con el mismo
@@ -5961,8 +5818,7 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - '': []
+      security: []
       summary: Iniciar onboarding de un cliente nuevo
       tags:
         - customer-onboarding
@@ -5979,16 +5835,11 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -6059,16 +5910,11 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -6140,16 +5986,11 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -6297,16 +6138,11 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -6417,11 +6253,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -6501,11 +6336,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -6596,11 +6430,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Referencias registradas (solo últimos 4 dígitos del teléfono).
@@ -6638,11 +6471,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -6724,9 +6556,17 @@ paths:
       description: 'Borrado lógico: la declaración original se conserva.'
       operationId: CustomerOnboardingProfileController_removeReference
       parameters:
-        - name: x-tenant-id
-          in: header
+        - $ref: '#/components/parameters/TenantId'
+        - name: customerId
+          in: path
           required: true
+          description: Identificador de ruta `customerId`.
+          schema:
+            type: string
+        - name: referenceId
+          in: path
+          required: true
+          description: Identificador de ruta `referenceId`.
           schema:
             type: string
       responses:
@@ -6769,11 +6609,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -6841,11 +6680,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -6926,16 +6764,11 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -7011,11 +6844,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Estado, secciones, porcentaje de avance y próximo paso.
@@ -7056,16 +6888,11 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -7124,11 +6951,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Observaciones, casos abiertos y bloqueadores vigentes.
@@ -7162,11 +6988,7 @@ paths:
         existe tasa de abandono.
       operationId: CustomerOnboardingStatusController_markAbandoned
       parameters:
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -7223,11 +7045,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -7295,11 +7116,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Resultado del screening y elegibilidad resultante.
@@ -7341,11 +7161,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -7406,16 +7225,11 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -7620,22 +7434,18 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la sesión del cliente.
         - name: customerId
           required: true
           in: path
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -7813,22 +7623,18 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la sesión del cliente.
         - name: customerId
           required: true
           in: path
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -7891,11 +7697,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Estado de sesión (puede no haber ninguna sesión activa).
@@ -7935,11 +7740,8 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador de la sesión del cliente.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Resumen de investigación de la sesión.
@@ -7989,11 +7791,8 @@ paths:
             type: string
             minLength: 2
             maxLength: 10
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Idioma del contenido solicitado, en código ISO-639-1 (`es`, `en`).
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Lista de documentos activos (puede ser vacía).
@@ -8003,16 +7802,11 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
         '400':
           description: x-tenant-id ausente o inválido.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-      security:
-        - '': []
+      security: []
       summary: Listar documentos de consentimiento activos
       tags:
         - consents
@@ -8023,11 +7817,7 @@ paths:
         datos externos específico (KYC, buró, telco, etc.).
       operationId: ExternalDataController_createConsent
       parameters:
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -8103,11 +7893,10 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Lista de consentimientos.
@@ -8142,11 +7931,8 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador del consentimiento otorgado.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Consentimiento revocado.
@@ -8181,11 +7967,7 @@ paths:
         costosos o en producción.
       operationId: ExternalDataController_previewRequest
       parameters:
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -8263,11 +8045,11 @@ paths:
           required: false
           schema:
             type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -8343,11 +8125,8 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador de la petición a un proveedor externo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Detalle de la solicitud.
@@ -8418,11 +8197,10 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Features del cliente.
@@ -8457,11 +8235,10 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Input de scoring del cliente.
@@ -8513,11 +8290,10 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Paquete de decisión.
@@ -8555,11 +8331,10 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Observaciones del cliente.
@@ -8700,6 +8475,7 @@ paths:
           required: false
           in: query
           schema: {}
+          description: Filtra por proveedor externo.
       responses:
         '200':
           description: Estado del gate de producción.
@@ -8734,15 +8510,15 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 366
+          description: >-
+            Ventana en días hacia atrás desde ahora. Alternativa a `from`/`to`
+            para consultas rápidas.
         - name: providerCode
           required: false
           in: query
           schema: {}
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Filtra por proveedor externo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Reporte de SLA.
@@ -8777,15 +8553,15 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 366
+          description: >-
+            Ventana en días hacia atrás desde ahora. Alternativa a `from`/`to`
+            para consultas rápidas.
         - name: providerCode
           required: false
           in: query
           schema: {}
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Filtra por proveedor externo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Reporte de uso/costo.
@@ -8820,6 +8596,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 10000
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: days
           required: false
           in: query
@@ -8828,11 +8607,10 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 366
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Ventana en días hacia atrás desde ahora. Alternativa a `from`/`to`
+            para consultas rápidas.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Auditoría de idempotencia.
@@ -8870,6 +8648,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 500
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: days
           required: false
           in: query
@@ -8878,6 +8659,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 3650
+          description: >-
+            Ventana en días hacia atrás desde ahora. Alternativa a `from`/`to`
+            para consultas rápidas.
       responses:
         '200':
           description: Vista previa de purga.
@@ -8915,6 +8699,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 500
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
       responses:
         '200':
           description: Auditoría de sanitización.
@@ -8941,11 +8728,7 @@ paths:
     post:
       operationId: AdminExternalProvidersController_previewPolicy
       parameters:
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -9019,6 +8802,7 @@ paths:
           required: true
           in: path
           schema: {}
+          description: Código del proveedor externo (`segip`, `infocenter`, …).
       requestBody:
         required: true
         content:
@@ -9090,6 +8874,7 @@ paths:
           required: true
           in: path
           schema: {}
+          description: Código del proveedor externo (`segip`, `infocenter`, …).
       requestBody:
         required: true
         content:
@@ -9158,6 +8943,7 @@ paths:
           required: true
           in: path
           schema: {}
+          description: Código del proveedor externo (`segip`, `infocenter`, …).
       responses:
         '200':
           description: Políticas de costo del proveedor.
@@ -9200,6 +8986,7 @@ paths:
           required: true
           in: path
           schema: {}
+          description: Código del proveedor externo (`segip`, `infocenter`, …).
       requestBody:
         required: true
         content:
@@ -9316,11 +9103,8 @@ paths:
           required: true
           in: path
           schema: {}
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Código del proveedor externo (`segip`, `infocenter`, …).
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Resultado de la ejecución de prueba.
@@ -9360,11 +9144,8 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador de la petición a un proveedor externo.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -9415,11 +9196,8 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador de la petición a un proveedor externo.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -9488,11 +9266,8 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador de la petición a un proveedor externo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Snapshot de features reconstruido.
@@ -9531,11 +9306,11 @@ paths:
           required: false
           schema:
             type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -9613,11 +9388,11 @@ paths:
           required: false
           schema:
             type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -9684,11 +9459,11 @@ paths:
           required: false
           schema:
             type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -9765,11 +9540,11 @@ paths:
           required: false
           schema:
             type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -9846,11 +9621,7 @@ paths:
         verificación: no persiste observaciones de riesgo.
       operationId: PaymentsExternalDataController_generateBankQr
       parameters:
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -9916,11 +9687,11 @@ paths:
           required: false
           schema:
             type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -9983,11 +9754,10 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Features de confianza telefónica.
@@ -10022,11 +9792,7 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: URL de conexión OAuth.
@@ -10061,11 +9827,11 @@ paths:
           required: false
           schema:
             type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -10123,11 +9889,10 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Features derivados de la conexión Facebook.
@@ -10164,11 +9929,11 @@ paths:
           required: false
           schema:
             type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -10231,11 +9996,11 @@ paths:
           required: false
           schema:
             type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -10299,11 +10064,10 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Features derivados de la verificación de WhatsApp.
@@ -10340,11 +10104,11 @@ paths:
           required: false
           schema:
             type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -10410,11 +10174,10 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Features de confianza digital.
@@ -10453,6 +10216,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
         - name: x-tenant-id
           in: header
           description: Opcional para `customer` (se toma del token).
@@ -10499,16 +10265,11 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -10577,11 +10338,18 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
         - name: x-tenant-id
           in: header
           required: false
           schema:
             type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
       responses:
         '200':
           description: Solicitudes del cliente, más recientes primero.
@@ -10610,11 +10378,7 @@ paths:
     get:
       operationId: CreditOperationsController_listProducts
       parameters:
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Productos del tenant.
@@ -10643,11 +10407,7 @@ paths:
         auditable, no un efecto de haberlo creado.
       operationId: CreditOperationsController_createProduct
       parameters:
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -10752,11 +10512,8 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador del producto crediticio.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -10818,11 +10575,8 @@ paths:
           in: path
           schema:
             type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador de la solicitud de crédito.
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -10882,11 +10636,8 @@ paths:
           in: path
           schema:
             type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador de la solicitud de crédito.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Solicitud + eventos, más recientes primero.
@@ -10928,22 +10679,17 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
         - name: x-client-channel
           in: header
           description: 'Canal de origen (default: mobile_app).'
           required: false
           schema:
             type: string
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -11033,16 +10779,11 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -11109,16 +10850,11 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -11274,16 +11010,11 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -11369,11 +11100,8 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador de la corrida de evaluación de riesgo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Detalle completo de la evaluación de riesgo.
@@ -11411,11 +11139,8 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador de la corrida de evaluación de riesgo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Explicación de la evaluación de riesgo.
@@ -11462,6 +11187,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 40
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
         - name: queue
           required: false
           in: query
@@ -11472,11 +11200,7 @@ paths:
               - manual_review
               - fraud
               - all
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Cola de trabajo paginada.
@@ -11510,6 +11234,10 @@ paths:
             type: string
             minLength: 1
             maxLength: 500
+          description: >-
+            Cursor opaco devuelto por la página anterior. Los listados con
+            cursor no aceptan `page`: son excluyentes, porque paginar por
+            desplazamiento sobre datos que cambian salta o repite filas.
         - name: status
           required: false
           in: query
@@ -11517,11 +11245,10 @@ paths:
             type: string
             minLength: 1
             maxLength: 40
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Página de casos de revisión manual.
@@ -11555,6 +11282,10 @@ paths:
             type: string
             minLength: 1
             maxLength: 500
+          description: >-
+            Cursor opaco devuelto por la página anterior. Los listados con
+            cursor no aceptan `page`: son excluyentes, porque paginar por
+            desplazamiento sobre datos que cambian salta o repite filas.
         - name: status
           required: false
           in: query
@@ -11562,11 +11293,10 @@ paths:
             type: string
             minLength: 1
             maxLength: 40
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Página de casos de fraude.
@@ -11602,11 +11332,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Resumen de investigación.
@@ -11645,16 +11374,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador del caso de revisión manual o de fraude.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -11735,16 +11457,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador del caso de revisión manual o de fraude.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -11841,11 +11556,10 @@ paths:
             type: string
             minLength: 1
             maxLength: 40
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Lista paginada de issues.
@@ -11878,16 +11592,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: Identificador del hallazgo de calidad de datos.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
       requestBody:
         required: true
         content:
@@ -11961,6 +11668,7 @@ paths:
             format: date-time
             pattern: >-
               ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+          description: Fin del rango temporal (ISO-8601, UTC). Exclusivo.
         - name: from
           required: false
           in: query
@@ -11969,6 +11677,7 @@ paths:
             format: date-time
             pattern: >-
               ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+          description: Inicio del rango temporal (ISO-8601, UTC). Inclusivo.
         - name: eventType
           required: false
           in: query
@@ -11991,11 +11700,10 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Historial de auditoría paginado.
@@ -12034,17 +11742,20 @@ paths:
             type: string
             minLength: 1
             maxLength: 500
+          description: >-
+            Cursor opaco devuelto por la página anterior. Los listados con
+            cursor no aceptan `page`: son excluyentes, porque paginar por
+            desplazamiento sobre datos que cambian salta o repite filas.
         - name: customerId
           required: true
           in: path
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
           description: Página del feed de auditoría.
@@ -12105,6 +11816,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -12113,6 +11827,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: q
           required: false
           in: query
@@ -12120,6 +11835,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 200
+          description: >-
+            Texto de búsqueda libre. Se compara de forma insensible a mayúsculas
+            sobre los campos indexados del recurso.
         - name: reviewStatus
           required: false
           in: query
@@ -12147,6 +11865,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 40
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
         - name: backendService
           required: false
           in: query
@@ -12161,6 +11882,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: >-
+            Filtra por módulo funcional del backend (`auth`, `credit`,
+            `customer_onboarding`, …).
       responses:
         '200':
           description: Lista paginada de endpoints.
@@ -12193,6 +11917,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador del endpoint en el catálogo técnico.
       responses:
         '200':
           description: Detalle del endpoint.
@@ -12325,6 +12050,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -12333,6 +12061,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: q
           required: false
           in: query
@@ -12340,6 +12069,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 200
+          description: >-
+            Texto de búsqueda libre. Se compara de forma insensible a mayúsculas
+            sobre los campos indexados del recurso.
         - name: status
           required: false
           in: query
@@ -12347,6 +12079,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 40
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
         - name: module
           required: false
           in: query
@@ -12354,6 +12089,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: >-
+            Filtra por módulo funcional del backend (`auth`, `credit`,
+            `customer_onboarding`, …).
       responses:
         '200':
           description: Lista paginada de herramientas.
@@ -12386,6 +12124,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la herramienta o dependencia externa catalogada.
       responses:
         '200':
           description: Detalle de la herramienta.
@@ -12504,6 +12243,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -12512,6 +12254,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: q
           required: false
           in: query
@@ -12519,6 +12262,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 200
+          description: >-
+            Texto de búsqueda libre. Se compara de forma insensible a mayúsculas
+            sobre los campos indexados del recurso.
         - name: status
           required: false
           in: query
@@ -12526,6 +12272,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 40
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
         - name: module
           required: false
           in: query
@@ -12533,6 +12282,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: >-
+            Filtra por módulo funcional del backend (`auth`, `credit`,
+            `customer_onboarding`, …).
       responses:
         '200':
           description: Lista paginada de entidades de datos.
@@ -12567,6 +12319,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -12575,6 +12330,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: q
           required: false
           in: query
@@ -12582,6 +12338,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 200
+          description: >-
+            Texto de búsqueda libre. Se compara de forma insensible a mayúsculas
+            sobre los campos indexados del recurso.
       responses:
         '200':
           description: Lista paginada de dominios.
@@ -12615,6 +12374,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: Código del dominio de negocio del catálogo técnico.
       responses:
         '200':
           description: Detalle del dominio.
@@ -12649,6 +12409,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la entidad de datos en el catálogo técnico.
       responses:
         '200':
           description: Detalle de la entidad de datos.
@@ -12683,6 +12444,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la entidad de datos en el catálogo técnico.
       requestBody:
         required: true
         content:
@@ -12769,6 +12531,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador del endpoint en el catálogo técnico.
       responses:
         '200':
           description: Impacto de datos asociado al endpoint.
@@ -12804,6 +12567,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 180
+          description: Nombre físico de la tabla dentro del schema.
         - name: schemaName
           required: true
           in: path
@@ -12811,6 +12575,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: >-
+            Nombre del schema PostgreSQL (`customer`, `credit`, `platform_ops`,
+            …).
       responses:
         '200':
           description: Impacto de datos asociado a la tabla.
@@ -12871,6 +12638,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -12879,6 +12649,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: reviewStatus
           required: false
           in: query
@@ -12897,6 +12668,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: >-
+            Filtra por módulo funcional del backend (`auth`, `credit`,
+            `customer_onboarding`, …).
         - name: type
           required: false
           in: query
@@ -12911,6 +12685,7 @@ paths:
               - field_impacts
               - data_column_impacts
               - tool_requirements
+          description: Filtra por tipo del recurso dentro de su catálogo.
       responses:
         '200':
           description: Cola de revisión paginada.
@@ -12943,6 +12718,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador del endpoint en el catálogo técnico.
       requestBody:
         required: true
         content:
@@ -13004,6 +12780,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador del requerimiento de herramienta del catálogo técnico.
       requestBody:
         required: true
         content:
@@ -13065,6 +12842,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la entidad de datos en el catálogo técnico.
       requestBody:
         required: true
         content:
@@ -13126,6 +12904,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador del impacto de datos catalogado.
       requestBody:
         required: true
         content:
@@ -13187,6 +12966,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador del impacto a nivel de campo.
       requestBody:
         required: true
         content:
@@ -13248,6 +13028,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la columna en el catálogo de datos.
       requestBody:
         required: true
         content:
@@ -13404,6 +13185,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -13412,6 +13196,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: enabled
           required: false
           in: query
@@ -13431,6 +13216,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: >-
+            Filtra por módulo funcional del backend (`auth`, `credit`,
+            `customer_onboarding`, …).
       responses:
         '200':
           description: Lista paginada de suites.
@@ -13463,6 +13251,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la suite de pruebas del portal de sistemas.
       responses:
         '200':
           description: Detalle de la suite.
@@ -13496,6 +13285,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la suite de pruebas del portal de sistemas.
       requestBody:
         required: true
         content:
@@ -13582,6 +13372,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la suite de pruebas del portal de sistemas.
       requestBody:
         required: true
         content:
@@ -13713,12 +13504,14 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador del paso dentro de la suite de pruebas.
         - name: suiteId
           required: true
           in: path
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la suite de pruebas del portal de sistemas.
       requestBody:
         required: true
         content:
@@ -13826,6 +13619,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la suite de pruebas del portal de sistemas.
       requestBody:
         required: true
         content:
@@ -13890,6 +13684,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la suite de pruebas del portal de sistemas.
       requestBody:
         required: true
         content:
@@ -13973,6 +13768,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -13981,6 +13779,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: environment
           required: false
           in: query
@@ -14001,6 +13800,9 @@ paths:
               - PASSED
               - FAILED
               - CANCELLED
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
         - name: suiteId
           required: false
           in: query
@@ -14039,6 +13841,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador de la ejecución de pruebas.
       responses:
         '200':
           description: Detalle de la corrida.
@@ -14075,6 +13878,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -14083,6 +13889,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: q
           required: false
           in: query
@@ -14090,6 +13897,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 200
+          description: >-
+            Texto de búsqueda libre. Se compara de forma insensible a mayúsculas
+            sobre los campos indexados del recurso.
         - name: enabled
           required: false
           in: query
@@ -14102,6 +13912,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 40
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
         - name: endpointId
           required: false
           in: query
@@ -14251,6 +14064,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador del perfil de estrés.
       responses:
         '200':
           description: Detalle del perfil de estrés.
@@ -14288,6 +14102,7 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Identificador del perfil de estrés.
       requestBody:
         required: true
         content:
@@ -14373,6 +14188,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -14381,6 +14199,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: q
           required: false
           in: query
@@ -14388,6 +14207,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 200
+          description: >-
+            Texto de búsqueda libre. Se compara de forma insensible a mayúsculas
+            sobre los campos indexados del recurso.
         - name: reviewStatus
           required: false
           in: query
@@ -14415,6 +14237,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 40
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
         - name: module
           required: false
           in: query
@@ -14422,6 +14247,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: >-
+            Filtra por módulo funcional del backend (`auth`, `credit`,
+            `customer_onboarding`, …).
       responses:
         '200':
           description: Matriz de cobertura de estrés.
@@ -14456,6 +14284,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -14464,6 +14295,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: environment
           required: false
           in: query
@@ -14484,6 +14316,9 @@ paths:
               - PASSED
               - FAILED
               - CANCELLED
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
         - name: suiteId
           required: false
           in: query
@@ -14524,6 +14359,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -14532,6 +14370,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: to
           required: false
           in: query
@@ -14540,6 +14379,7 @@ paths:
             format: date-time
             pattern: >-
               ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+          description: Fin del rango temporal (ISO-8601, UTC). Exclusivo.
         - name: from
           required: false
           in: query
@@ -14548,6 +14388,7 @@ paths:
             format: date-time
             pattern: >-
               ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+          description: Inicio del rango temporal (ISO-8601, UTC). Inclusivo.
         - name: containsPii
           required: false
           in: query
@@ -14570,6 +14411,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: >-
+            Filtra por módulo funcional del backend (`auth`, `credit`,
+            `customer_onboarding`, …).
         - name: actorType
           required: false
           in: query
@@ -14650,6 +14494,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: Identificador de la petición a un proveedor externo.
       responses:
         '200':
           description: Action logs asociados al request.
@@ -14685,6 +14530,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: Identificador de la petición a un proveedor externo.
       responses:
         '200':
           description: Action logs asociados al request.
@@ -14805,6 +14651,9 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
       responses:
         '200':
           description: Lista paginada de versiones de esquema.
@@ -14836,6 +14685,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador de la versión del catálogo.
       responses:
         '200':
           description: Detalle de la versión de esquema.
@@ -14880,6 +14730,9 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: tableType
           required: false
           in: query
@@ -15070,6 +14923,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador de la tabla en el catálogo de esquema.
       responses:
         '200':
           description: Detalle de la tabla.
@@ -15114,6 +14968,9 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: requesterUserId
           required: false
           in: query
@@ -15170,6 +15027,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador de la propuesta de cambio de esquema.
       requestBody:
         required: true
         content:
@@ -15327,26 +15185,7 @@ paths:
                                 - metadata
                                 - updatedAt
                           meta:
-                            type: object
-                            properties:
-                              page:
-                                type: integer
-                                minimum: 1
-                              limit:
-                                type: integer
-                                minimum: 1
-                                maximum: 100
-                              total:
-                                type: integer
-                                minimum: 0
-                              totalPages:
-                                type: integer
-                                minimum: 1
-                            required:
-                              - page
-                              - limit
-                              - total
-                              - totalPages
+                            $ref: '#/components/schemas/PaginationMeta'
                         required:
                           - items
                           - meta
@@ -15465,13 +15304,15 @@ paths:
                                 sourceTable:
                                   type: string
                                 sourceColumn:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                                 targetTable:
                                   type: string
                                 targetColumn:
-                                  type: string
-                                  nullable: true
+                                  type:
+                                    - string
+                                    - 'null'
                               required:
                                 - relationId
                                 - relationType
@@ -15565,6 +15406,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador de la exportación solicitada.
       responses:
         '200':
           description: Detalle del export.
@@ -15622,6 +15464,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador de la regla de calidad de datos.
       responses:
         '200':
           description: Detalle de la regla.
@@ -15655,6 +15498,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador de la regla de calidad de datos.
       responses:
         '200':
           description: Resultado de la ejecución de la regla.
@@ -15690,6 +15534,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador de la política de gobierno de datos.
       responses:
         '200':
           description: Detalle de la política.
@@ -15722,6 +15567,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador de la política de gobierno de datos.
       responses:
         '200':
           description: Política actualizada.
@@ -15781,6 +15627,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador del nodo de linaje de datos.
       responses:
         '200':
           description: Detalle del nodo de linaje.
@@ -15862,6 +15709,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador de la alerta operativa.
       responses:
         '200':
           description: Alerta reconocida.
@@ -15921,6 +15769,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador de la ejecución de un job.
       responses:
         '200':
           description: Detalle de la corrida de job.
@@ -15954,6 +15803,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador de la ejecución de un job.
       responses:
         '200':
           description: Job re-encolado.
@@ -15989,6 +15839,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador de la ejecución de un job.
       responses:
         '200':
           description: Job cancelado.
@@ -16072,6 +15923,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador del reporte del portal interno.
       responses:
         '200':
           description: Detalle del reporte.
@@ -16105,6 +15957,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador del reporte del portal interno.
       responses:
         '200':
           description: Snapshot del reporte generado.
@@ -16140,6 +15993,7 @@ paths:
           in: path
           schema:
             type: string
+          description: Identificador del reporte del portal interno.
       responses:
         '200':
           description: Lista de snapshots del reporte.
@@ -16417,6 +16271,9 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 200
+          description: >-
+            Tamaño de página. El backend impone un máximo por endpoint; pedir
+            más lo recorta en vez de fallar.
         - name: page
           required: false
           in: query
@@ -16425,6 +16282,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
         - name: to
           required: false
           in: query
@@ -16433,6 +16291,7 @@ paths:
             format: date-time
             pattern: >-
               ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+          description: Fin del rango temporal (ISO-8601, UTC). Exclusivo.
         - name: from
           required: false
           in: query
@@ -16441,6 +16300,7 @@ paths:
             format: date-time
             pattern: >-
               ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+          description: Inicio del rango temporal (ISO-8601, UTC). Inclusivo.
         - name: q
           required: false
           in: query
@@ -16448,6 +16308,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 200
+          description: >-
+            Texto de búsqueda libre. Se compara de forma insensible a mayúsculas
+            sobre los campos indexados del recurso.
         - name: service
           required: false
           in: query
@@ -16464,6 +16327,7 @@ paths:
               - startup
               - append
               - rotation
+          description: Filtra por tipo del recurso dentro de su catálogo.
       responses:
         '200':
           description: Lista paginada de logs desde MongoDB.
@@ -16505,6 +16369,7 @@ paths:
           required: false
           in: query
           schema: {}
+          description: Filtra por rol autorizado del sistema de autorización.
         - name: moduleCode
           required: false
           in: query
@@ -16521,6 +16386,9 @@ paths:
           required: false
           in: query
           schema: {}
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
       responses:
         '200':
           description: Flujos registrados, ordenados por código y versión descendente.
@@ -16555,6 +16423,9 @@ paths:
             minLength: 2
             maxLength: 80
             pattern: ^[a-z][a-z0-9_]*$
+          description: >-
+            Código del flujo de trabajo en `snake_case`
+            (`customer_credit_journey`).
       responses:
         '200':
           description: Versiones del flujo, de la más reciente a la más antigua.
@@ -16599,6 +16470,7 @@ paths:
           required: false
           in: query
           schema: {}
+          description: Filtra por rol autorizado del sistema de autorización.
         - name: moduleCode
           required: false
           in: query
@@ -16616,6 +16488,9 @@ paths:
             minLength: 2
             maxLength: 80
             pattern: ^[a-z][a-z0-9_]*$
+          description: >-
+            Código del flujo de trabajo en `snake_case`
+            (`customer_credit_journey`).
       responses:
         '200':
           description: >-
@@ -16657,6 +16532,9 @@ paths:
             minLength: 2
             maxLength: 80
             pattern: ^[a-z][a-z0-9_]*$
+          description: >-
+            Código del flujo de trabajo en `snake_case`
+            (`customer_credit_journey`).
       responses:
         '200':
           description: Etapas ordenadas, con sus pasos.
@@ -16693,6 +16571,9 @@ paths:
             minLength: 2
             maxLength: 80
             pattern: ^[a-z][a-z0-9_]*$
+          description: >-
+            Código del flujo de trabajo en `snake_case`
+            (`customer_credit_journey`).
       responses:
         '200':
           description: Transiciones con su condición, origen y destino.
@@ -16732,6 +16613,9 @@ paths:
             minLength: 2
             maxLength: 80
             pattern: ^[a-z][a-z0-9_]*$
+          description: >-
+            Código del flujo de trabajo en `snake_case`
+            (`customer_credit_journey`).
       responses:
         '200':
           description: Grafo del flujo.
@@ -16773,6 +16657,9 @@ paths:
             minLength: 2
             maxLength: 80
             pattern: ^[a-z][a-z0-9_]*$
+          description: >-
+            Código del flujo de trabajo en `snake_case`
+            (`customer_credit_journey`).
       requestBody:
         required: true
         content:
@@ -16865,6 +16752,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
         - name: x-tenant-id
           in: header
           description: Opcional para `customer` (se toma del token).
@@ -16918,6 +16808,9 @@ paths:
             minLength: 2
             maxLength: 80
             pattern: ^[a-z][a-z0-9_]*$
+          description: >-
+            Código del flujo de trabajo en `snake_case`
+            (`customer_credit_journey`).
       responses:
         '200':
           description: Informe de consistencia con la lista completa de hallazgos.
@@ -16962,13 +16855,114 @@ info:
     url: https://github.com/atlas/backend
 tags:
   - name: auth
-    description: 'Autenticación: login, refresh, logout, provisión de credenciales internas.'
+    description: >-
+      Autenticación: login, verificación por PIN, refresh, logout y recuperación
+      de contraseña.
+  - name: sessions
+    description: Sesiones activas del cliente, dispositivos asociados y cierre remoto.
+  - name: customer-onboarding
+    description: >-
+      Alta y captura de datos del solicitante en seis secciones (contacto,
+      personales, perfil financiero, domicilio, documentos, referencias) hasta
+      el envío del paquete.
+  - name: customers
+    description: >-
+      Datos del cliente, su estado en la máquina de estados y su ficha
+      consolidada.
+  - name: customer-eligibility
+    description: >-
+      Elegibilidad crediticia. No responde sí/no: devuelve los BLOQUEADORES
+      nombrados que impiden avanzar, y persiste la evidencia del cálculo.
+  - name: consents
+    description: Documentos de consentimiento vigentes y aceptaciones del titular.
+  - name: customer-privacy
+    description: >-
+      Derechos del titular: consentimientos de tratamiento, retención y
+      solicitudes de privacidad.
+  - name: customer-telemetry
+    description: Señales de comportamiento y dispositivo capturadas durante el recorrido.
+  - name: credit
+    description: >-
+      Catálogo de productos de crédito, solicitudes y su ciclo hasta la
+      decisión.
+  - name: risk
+    description: >-
+      Evaluación de riesgo versionada y explicable, con las features y el
+      ruleset usados en cada decisión.
+  - name: external-data
+    description: >-
+      Orquestación de consultas a proveedores externos, con consentimiento,
+      coste, caché e idempotencia.
+  - name: kyc
+    description: Verificación de identidad contra fuentes autoritativas.
+  - name: bureau
+    description: >-
+      Consulta a buró crediticio. Proveedor costoso: bloqueado por política
+      salvo aprobación explícita.
+  - name: telco
+    description: >-
+      Señales de operadora móvil: antigüedad de línea, actividad y cambio de
+      SIM.
+  - name: social
+    description: >-
+      Señales sociales por OAuth voluntario. Sin scraping ni credenciales de
+      terceros.
+  - name: whatsapp
+    description: Contactabilidad y códigos de un solo uso por WhatsApp.
+  - name: payments-external
+    description: Generación de QR de cobro bancario.
+  - name: digital-trust
+    description: >-
+      Reputación digital: riesgo de correo, IP y dispositivo, e identidad
+      sintética.
+  - name: operations
+    description: >-
+      Back office: revisión de identidad, cumplimiento, observaciones, fraude y
+      decisión de crédito.
+  - name: internal-auth
+    description: Autenticación del personal interno.
+  - name: internal-users
+    description: Usuarios internos, roles y permisos (RBAC interno).
+  - name: internal-admin-views
+    description: Vistas consolidadas para el portal administrativo.
+  - name: internal-access-catalog
+    description: 'Catálogo de accesos: qué puede ver y hacer cada rol interno.'
+  - name: external-data-admin
+    description: >-
+      Administración de proveedores externos: modos, políticas de coste, SLA y
+      consumo.
+  - name: notifications
+    description: >-
+      Notificaciones multicanal, preferencias del destinatario y evidencia de
+      entrega.
   - name: catalog-management
     description: >-
-      Catálogos versionados, definiciones semánticas y mapeos de riesgo
-      consumidos por el motor de decisión.
+      Catálogos versionados, definiciones semánticas y mapeos de riesgo que
+      consume el motor de decisión.
   - name: internal-portal
     description: Glosario de negocio, gobierno y trazabilidad para operadores internos.
+  - name: workflow-catalog
+    description: >-
+      El recorrido estándar como dato versionado, y su verificación contra las
+      rutas realmente montadas.
+  - name: audit
+    description: Registro de acciones de actores sobre recursos, con payload redactado.
+  - name: events
+    description: Eventos de dominio y outbox transaccional.
+  - name: runtime-jobs
+    description: >-
+      Trabajos de fondo: outbox, eventos, sesiones, retención, notificaciones e
+      idempotencia.
+  - name: data-quality
+    description: Indicadores de calidad del dato y sus reglas.
+  - name: schema-management
+    description: >-
+      Gobierno del catálogo de esquema. El DDL físico sigue saliendo por
+      migraciones revisadas en PR.
+  - name: systems-ops
+    description: Salud, catálogo y pruebas controladas del propio backend.
+  - name: health
+    description: Sondas de liveness y readiness. Públicas, sin autenticación.
 servers:
   - url: http://localhost:3005
     description: Desarrollo local
@@ -17038,22 +17032,7 @@ components:
                 Sólo en 400: el detalle campo a campo del fallo de validación.
                 Ausente en el resto de errores.
               items:
-                type: object
-                description: >-
-                  Un fallo de validación concreto, tal y como lo reporta el
-                  esquema Zod del endpoint.
-                required:
-                  - path
-                  - message
-                properties:
-                  path:
-                    type: string
-                    description: Ruta del campo dentro del cuerpo o la query.
-                    example: body.email
-                  message:
-                    type: string
-                    description: Motivo del rechazo.
-                    example: Debe contener un correo válido
+                $ref: '#/components/schemas/ValidationIssue'
         timestamp:
           type: string
           format: date-time
@@ -17109,6 +17088,7 @@ components:
         - total
         - page
         - limit
+        - totalPages
       properties:
         total:
           type: integer
@@ -17122,6 +17102,10 @@ components:
           type: integer
           minimum: 1
           description: Tamaño de página solicitado.
+        totalPages:
+          type: integer
+          minimum: 0
+          description: Número de páginas para ese `limit`.
   responses:
     BadRequest:
       description: >-

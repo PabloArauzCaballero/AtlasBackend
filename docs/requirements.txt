@@ -1,0 +1,16 @@
+# Dependencias del portal de documentación (MkDocs). Fijadas a versión exacta.
+#
+# Por qué existe este archivo: `yarn docs:build` corre `mkdocs build --strict`, que es un GATE — un
+# enlace roto o una página huérfana deben romper el PR. Un gate que solo funciona si quien lo ejecuta
+# tuvo la suerte de tener MkDocs instalado no es un gate: es una sugerencia. Con estas versiones
+# fijas, el portal se construye igual en la máquina de cualquiera y en CI.
+#
+# Instalación:  yarn docs:install     (equivale a: pip install -r docs/requirements.txt)
+#
+# Las versiones se suben a propósito, no por rango: `mkdocs-material` cambia de tema y de reglas de
+# navegación entre menores, y un build estricto que empieza a fallar por una actualización silenciosa
+# de una dependencia es exactamente el ruido que este gate debe evitar.
+
+mkdocs==1.6.1
+mkdocs-material==9.6.23
+pymdown-extensions==10.16.1

@@ -198,9 +198,53 @@ async function getRulesetId(queryInterface: QueryInterface, transaction: Transac
   return Number(rows[0]._id);
 }
 
+/**
+ * Política de retención de las features de riesgo, resuelta por CÓDIGO.
+ *
+ * Antes, este seeder escribía el literal `retention_policy_id = 102`. La fila 102 sólo la crea un
+ * seeder del perfil **demo** (`risk-features-730d`, dentro del rango de ids 100+ que demo reserva
+ * para sus filas de PK fija), así que sobre una base vacía con el perfil `production` la FK reventaba
+ * y **provisionar un entorno productivo era imposible**.
+ *
+ * No se reutiliza la fila de demo a propósito: demo la borra y la reinserta por `_id` en cada
+ * ejecución, y una fila productiva referenciada por `feature_definitions` no puede estar sujeta al
+ * ciclo de vida de datos de demostración. Producción tiene su propia entrada de catálogo.
+ *
+ * 730 días y `aggregate_then_delete` conservan la capacidad de auditar un modelo pasado sin
+ * conservar indefinidamente las señales individuales del cliente. Periodo pendiente de confirmación
+ * legal: ATLAS-DATA-001.
+ */
+const RISK_RETENTION_POLICY_CODE = 'risk-model-inputs-730d';
+
+async function upsertRiskRetentionPolicy(queryInterface: QueryInterface, transaction: Transaction): Promise<number> {
+  await queryInterface.sequelize.query(
+    `INSERT INTO retention_policies
+       (policy_code, applies_to, retention_days, post_retention_action, legal_basis, description, is_active, _created_at, _updated_at)
+     VALUES (:code, 'risk_features_and_score_inputs', 730, 'aggregate_then_delete', 'risk_management_and_model_monitoring',
+       'Features, observaciones y señales usadas para scoring y auditoría de modelo. Periodo pendiente de confirmación legal: ATLAS-DATA-001.',
+       true, :createdAt, :createdAt)
+     ON CONFLICT (policy_code) WHERE policy_code IS NOT NULL DO UPDATE SET
+       applies_to = EXCLUDED.applies_to,
+       retention_days = EXCLUDED.retention_days,
+       post_retention_action = EXCLUDED.post_retention_action,
+       legal_basis = EXCLUDED.legal_basis,
+       is_active = true,
+       _updated_at = EXCLUDED._updated_at;`,
+    { replacements: { code: RISK_RETENTION_POLICY_CODE, createdAt: CREATED_AT }, transaction },
+  );
+
+  const rows = await queryInterface.sequelize.query<{ _id: number }>(
+    `SELECT _id FROM retention_policies WHERE policy_code = :code LIMIT 1;`,
+    { replacements: { code: RISK_RETENTION_POLICY_CODE }, type: QueryTypes.SELECT, transaction },
+  );
+  if (!rows[0]) throw new Error(`No se pudo resolver la política de retención ${RISK_RETENTION_POLICY_CODE}.`);
+  return Number(rows[0]._id);
+}
+
 export async function up({ context: queryInterface }: { context: QueryInterface }): Promise<void> {
   await queryInterface.sequelize.transaction(async (transaction) => {
     const rulesetId = await getRulesetId(queryInterface, transaction);
+    const retentionPolicyId = await upsertRiskRetentionPolicy(queryInterface, transaction);
     for (const feature of FEATURES) {
       await queryInterface.sequelize.query(
         `INSERT INTO feature_definitions
@@ -210,12 +254,12 @@ export async function up({ context: queryInterface }: { context: QueryInterface 
            fairness_review_required, retention_policy_id, owner_team, is_active, _created_at, _updated_at)
          VALUES (:code, :name, :family, :dimension, :dataType, 'production_baseline', 'MVP', 'RISK_SENSITIVE',
            'deterministic_or_verified_source', 'manual_review_if_missing', false, true, true, true, false,
-           'requires_local_compliance_validation', false, 102, 'risk', true, :createdAt, :createdAt)
+           'requires_local_compliance_validation', false, :retentionPolicyId, 'risk', true, :createdAt, :createdAt)
          ON CONFLICT (feature_code) DO UPDATE SET
            feature_name = EXCLUDED.feature_name, feature_family = EXCLUDED.feature_family,
            risk_dimension = EXCLUDED.risk_dimension, data_type = EXCLUDED.data_type,
            is_policy_rule_input = true, is_active = true, _updated_at = EXCLUDED._updated_at;`,
-        { replacements: { ...feature, createdAt: CREATED_AT }, transaction },
+        { replacements: { ...feature, retentionPolicyId, createdAt: CREATED_AT }, transaction },
       );
     }
     for (const rule of RULES) {

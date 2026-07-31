@@ -6,6 +6,10 @@ dist/
 coverage/
 tmp-*.log
 
+# Portal de documentación construido por `yarn docs:build` (mkdocs `site_dir`). Es salida, no
+# fuente: se regenera en cada build y en CI se publica como artefacto del job `contract-and-docs`.
+site/
+
 # Grafo de conocimiento generado por graphify (artefacto local, se regenera con `graphify update .`).
 graphify-out/
 

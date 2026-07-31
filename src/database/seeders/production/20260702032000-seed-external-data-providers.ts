@@ -121,6 +121,61 @@ const PROVIDERS: ProviderSeed[] = [
   },
 ];
 
+/**
+ * Código de la política de retención que se aplica por defecto a la evidencia que devuelven los
+ * proveedores externos.
+ *
+ * Antes, este seeder escribía el literal `default_retention_policy_id = 1`, y eso rompía de dos
+ * formas distintas:
+ *
+ *  1. Sobre una base VACÍA con el perfil `production`, la fila 1 de `retention_policies` no existe
+ *     —sólo la crea un seeder de `development`— así que la FK reventaba y **provisionar un entorno
+ *     productivo nuevo era imposible**.
+ *  2. En desarrollo sí existía, pero es una política declarada `legal_basis: 'dev_testing_only'`:
+ *     los nueve proveedores quedaban atados en silencio a una política de pruebas.
+ *
+ * Se resuelve por CÓDIGO y no por id: un identificador numérico compartido entre dos seeders de
+ * perfiles distintos es una dependencia invisible que sólo falla al provisionar desde cero.
+ */
+const PROVIDER_RETENTION_POLICY_CODE = 'external-provider-evidence-1825d';
+
+/**
+ * Política de retención de la evidencia de proveedores externos.
+ *
+ * 1825 días (5 años) es el periodo de conservación de registros que exige la normativa KYC/AML en la
+ * mayoría de jurisdicciones, contado desde el fin de la relación. `anonymize` y no `delete` porque la
+ * evidencia agregada sigue siendo necesaria para explicar decisiones de riesgo pasadas.
+ *
+ * **El periodo exacto debe confirmarlo el área legal por jurisdicción** (registrado como
+ * ATLAS-DATA-001 en docs/pending/pending-items.md). Lo que este seeder garantiza no es que 1825 sea
+ * el número correcto, sino que exista una política productiva explícita y auditable en vez de
+ * ninguna o una de pruebas.
+ */
+async function upsertProviderRetentionPolicy(queryInterface: QueryInterface): Promise<void> {
+  await queryInterface.sequelize.query(
+    `
+    INSERT INTO retention_policies (
+      policy_code, applies_to, retention_days, post_retention_action, legal_basis, description,
+      is_active, _created_at, _updated_at
+    )
+    VALUES (
+      :policy_code, 'external_provider_evidence', 1825, 'anonymize', 'kyc_aml_record_keeping',
+      'Retención por defecto de la evidencia devuelta por proveedores externos (identidad, buró, telco, banca). Periodo pendiente de confirmación legal por jurisdicción: ATLAS-DATA-001.',
+      true, :created_at, :created_at
+    )
+    ON CONFLICT (policy_code) WHERE policy_code IS NOT NULL DO UPDATE SET
+      applies_to = EXCLUDED.applies_to,
+      retention_days = EXCLUDED.retention_days,
+      post_retention_action = EXCLUDED.post_retention_action,
+      legal_basis = EXCLUDED.legal_basis,
+      description = EXCLUDED.description,
+      is_active = true,
+      _updated_at = EXCLUDED._updated_at;
+    `,
+    { replacements: { policy_code: PROVIDER_RETENTION_POLICY_CODE, created_at: CREATED_AT } },
+  );
+}
+
 async function upsertProvider(queryInterface: QueryInterface, provider: ProviderSeed): Promise<void> {
   await queryInterface.sequelize.query(
     `
@@ -129,10 +184,11 @@ async function upsertProvider(queryInterface: QueryInterface, provider: Provider
       requires_consent, requires_manual_approval, is_costly, reliability_score, supports_retro_data,
       default_retention_policy_id, is_active, description, _created_at, _updated_at
     )
-    VALUES (
+    SELECT
       :provider_code, :provider_name, :provider_type, :provider_category, :provider_status, :default_mode,
-      :requires_consent, :requires_manual_approval, :is_costly, 90.00, false, 1, true, :description, :created_at, :created_at
-    )
+      :requires_consent, :requires_manual_approval, :is_costly, 90.00, false, rp._id, true, :description, :created_at, :created_at
+    FROM retention_policies rp
+    WHERE rp.policy_code = :retention_policy_code
     ON CONFLICT (provider_code) WHERE provider_code IS NOT NULL DO UPDATE SET
       provider_name = EXCLUDED.provider_name,
       provider_type = EXCLUDED.provider_type,
@@ -146,7 +202,7 @@ async function upsertProvider(queryInterface: QueryInterface, provider: Provider
       is_active = true,
       _updated_at = EXCLUDED._updated_at;
     `,
-    { replacements: { ...provider, created_at: CREATED_AT } },
+    { replacements: { ...provider, created_at: CREATED_AT, retention_policy_code: PROVIDER_RETENTION_POLICY_CODE } },
   );
 }
 
@@ -213,6 +269,8 @@ async function upsertPolicy(
 }
 
 export async function up({ context: queryInterface }: SeedContext): Promise<void> {
+  // La politica va PRIMERO: `upsertProvider` la resuelve por codigo y no inserta nada si no existe.
+  await upsertProviderRetentionPolicy(queryInterface);
   for (const provider of PROVIDERS) await upsertProvider(queryInterface, provider);
 
   await upsertPolicy(

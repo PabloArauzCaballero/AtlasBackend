@@ -102,6 +102,77 @@ jobs:
       - name: Build
         run: yarn build
 
+  # ATLAS-DOC-007: ADR-0007 y `strict: true` en mkdocs.yml solo tienen sentido si algo los aplica.
+  # Hasta este patch existían los scripts (`check:openapi`, `docs:openapi:lint`, `docs:build`) pero
+  # ningún job los corría: un contrato sin esquema de respuesta o un enlace roto pasaban el PR sin
+  # que nadie se enterara, que es exactamente lo que esos gates prometen impedir.
+  #
+  # El contrato se REGENERA aquí antes de validarlo, en vez de validar el YAML versionado: así el
+  # job falla si alguien tocó un controller y no corrió `yarn docs:openapi`, en lugar de bendecir un
+  # artefacto obsoleto.
+  contract-and-docs:
+    name: contrato OpenAPI + portal de documentación (build estricto)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'yarn'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: docs/requirements.txt
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      # Versiones fijas: un build estricto que empieza a fallar por una actualización silenciosa de
+      # mkdocs-material es ruido, no señal.
+      - name: Install documentation toolchain
+        run: yarn docs:install
+
+      - name: Regenerate OpenAPI contract from the running application
+        run: yarn docs:openapi
+
+      # Falla si el YAML regenerado difiere del versionado: el contrato es un artefacto revisable en
+      # el PR, no algo que se descubra al desplegar.
+      - name: Fail if the committed contract is stale
+        run: |
+          if ! git diff --quiet -- docs/endpoints/openapi.yaml; then
+            echo "❌ docs/endpoints/openapi.yaml está desactualizado. Corre 'yarn docs:openapi' y commitea el resultado."
+            git --no-pager diff --stat -- docs/endpoints/openapi.yaml
+            exit 1
+          fi
+          echo "✅ El contrato versionado coincide con el generado desde los controladores."
+
+      - name: Check OpenAPI contract completeness
+        run: yarn check:openapi
+
+      - name: Lint OpenAPI contract (Redocly)
+        run: yarn docs:openapi:lint
+
+      # `--strict`: un enlace interno roto o una página fuera de la navegación abortan el build.
+      - name: Build documentation portal (strict)
+        run: yarn docs:build
+
+      - name: Upload documentation portal
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-docs-site
+          path: site
+          retention-days: 14
+          if-no-files-found: warn
+
   # Fase 1.1 + 1.2 del plan 10/10: la suite COMPLETA (unit + e2e) corre aquí, sin límite artificial
   # de proceso — antes un corte de 60 s la mataba y ocultaba si pasaba (pasa: 108 suites / 985 tests).
   # Este job es el que aplica el GATE DE COBERTURA (jest coverageThreshold) y publica el reporte.

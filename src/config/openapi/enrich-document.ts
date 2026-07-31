@@ -19,6 +19,7 @@ import {
   VALIDATION_ISSUE_SCHEMA,
   buildErrorResponses,
 } from './contract-components.js';
+import { describeParameters, normalizeDocument, shareCommonHeaderParameters } from './normalize-contract.js';
 
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'] as const;
 type HttpMethod = (typeof HTTP_METHODS)[number];
@@ -46,14 +47,24 @@ export function enrichOpenApiDocument<T extends object>(document: T): T {
   const target = document as unknown as OpenApiLike;
   registerComponents(target);
 
-  for (const pathItem of Object.values(target.paths ?? {})) {
+  for (const [path, pathItem] of Object.entries(target.paths ?? {})) {
     for (const method of HTTP_METHODS) {
       const operation = pathItem[method];
       if (!operation) continue;
+      normalizePublicSecurity(operation);
+      ensurePathParametersDeclared(path, operation);
+      // El orden importa: primero se comparten los encabezados transversales (los que quedan inline
+      // heredan la descripción del componente) y sólo después se rellena lo que siga sin describir.
+      shareCommonHeaderParameters(operation);
+      describeParameters(operation);
       applyEnvelopeToSuccessResponses(operation);
       applyStandardErrorResponses(operation, method);
     }
   }
+
+  // Al final: las normalizaciones de documento completo recorren también lo que este paso acaba de
+  // insertar (envolturas, respuestas de error y parámetros compartidos).
+  normalizeDocument(target);
 
   return document;
 }
@@ -69,6 +80,66 @@ function registerComponents(document: OpenApiLike): void {
   };
   document.components.responses = { ...(document.components.responses ?? {}), ...buildErrorResponses() };
   document.components.parameters = { ...(document.components.parameters ?? {}), ...COMMON_PARAMETERS };
+}
+
+/**
+ * Traduce la marca de "endpoint público" a la forma que define el estándar.
+ *
+ * `@Public()` aplica `ApiSecurity('')`, que es la única manera que ofrece Nest de marcar una
+ * operación sin esquema de seguridad. Lo que emite es `security: [{ '': [] }]`: una referencia a un
+ * esquema llamado cadena vacía, que no existe en `components.securitySchemes`. Un validador lo
+ * rechaza con razón, y una herramienta que lo lea intentará resolver un esquema inexistente.
+ *
+ * La forma correcta en OpenAPI para "esta operación NO requiere autenticación" es el array **vacío**:
+ * `security: []`. Se normaliza aquí, y no cambiando el decorador, porque el decorador tiene que
+ * seguir haciendo su trabajo principal —marcar el metadato que lee `JwtAuthGuard`— y `ApiSecurity('')`
+ * es el gancho que Nest ofrece para acompañarlo.
+ */
+function normalizePublicSecurity(operation: OperationLike): void {
+  if (!Array.isArray(operation.security)) return;
+  const marksPublic = operation.security.some((requirement) => Object.prototype.hasOwnProperty.call(requirement, ''));
+  if (marksPublic) operation.security = [];
+}
+
+/**
+ * Declara los parámetros de ruta que la plantilla exige y la operación no menciona.
+ *
+ * Origen del problema: un handler que valida con `@Param(new ZodValidationPipe(schema))` —sin nombre
+ * de parámetro— recibe el objeto completo, y Nest no puede inferir de ahí qué segmentos son
+ * variables. El contrato salía con rutas como `/customer-onboarding/{customerId}/reference-contacts/{referenceId}`
+ * cuya operación no declaraba ninguno de los dos: un generador de cliente producía un método sin
+ * argumentos y una URL literal con llaves.
+ *
+ * La plantilla de la ruta es la autoridad: si el path dice `{referenceId}`, ese parámetro existe, es
+ * de tipo `path` y es obligatorio. No hay nada que suponer. Se completa aquí y no endpoint por
+ * endpoint porque es una propiedad de la RUTA, no de cada handler, y porque así queda cubierto
+ * también el próximo endpoint que se escriba con el mismo patrón.
+ *
+ * Lo que sí queda fuera: el TIPO real del parámetro y su descripción. Un endpoint que quiera
+ * declararlos con `@ApiParam` gana, porque nunca se pisa uno ya declarado.
+ */
+function ensurePathParametersDeclared(path: string, operation: OperationLike): void {
+  const templated = [...path.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]).filter((name): name is string => Boolean(name));
+  if (templated.length === 0) return;
+
+  operation.parameters ??= [];
+  const declared = new Set(
+    operation.parameters
+      .filter((parameter): parameter is ParameterLike => !isReference(parameter))
+      .filter((parameter) => parameter.in === 'path')
+      .map((parameter) => parameter.name),
+  );
+
+  for (const name of templated) {
+    if (declared.has(name)) continue;
+    operation.parameters.push({
+      name,
+      in: 'path',
+      required: true,
+      description: `Identificador de ruta \`${name}\`.`,
+      schema: { type: 'string' },
+    });
+  }
 }
 
 /**
@@ -118,7 +189,10 @@ function applyStandardErrorResponses(operation: OperationLike, method: HttpMetho
   );
   const mutating = method === 'post' || method === 'put' || method === 'patch' || method === 'delete';
 
-  const applicable: Array<[string, string]> = [['429', 'TooManyRequests'], ['500', 'InternalError']];
+  const applicable: Array<[string, string]> = [
+    ['429', 'TooManyRequests'],
+    ['500', 'InternalError'],
+  ];
   if (hasInput) applicable.unshift(['400', 'BadRequest']);
   if (authenticated) applicable.unshift(['401', 'Unauthorized'], ['403', 'Forbidden']);
   if (hasPathParameter) applicable.unshift(['404', 'NotFound']);

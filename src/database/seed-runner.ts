@@ -92,7 +92,14 @@ export function buildStageRunner(sequelize: Sequelize, stage: SeedStage): StageR
  */
 export async function assertProductionStageIsClean(runner: StageRunner): Promise<void> {
   if (runner.stage.directory !== 'production') return;
-  const [pending, executed] = await Promise.all([runner.umzug.pending(), runner.umzug.executed()]);
+  // En SERIE, no con `Promise.all`. Ambas llamadas hacen que `SequelizeStorage` sincronice su tabla
+  // de tracking, y sobre una base VACÍA eso son dos `CREATE TABLE IF NOT EXISTS` concurrentes sobre
+  // la misma tabla: PostgreSQL las deja competir por el índice único de `pg_type` y una de las dos
+  // aborta con `duplicate key value violates unique constraint "pg_type_typname_nsp_index"`.
+  // Sólo se manifestaba al provisionar un entorno desde cero —el caso del job `migrate` del
+  // despliegue—, que es precisamente cuando no puede fallar.
+  const pending = await runner.umzug.pending();
+  const executed = await runner.umzug.executed();
   const offenders = [...pending, ...executed]
     .map((migration) => migration.name)
     .filter((name) => findForbiddenProductionTokens(name).length > 0);

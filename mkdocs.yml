@@ -1,0 +1,279 @@
+# Portal técnico de Atlas Backend.
+#
+#   yarn docs:serve   → servidor local con recarga
+#   yarn docs:build   → build ESTRICTO: un enlace roto o una página huérfana hacen fallar el build
+#
+# `strict: true` es el punto entero de tener portal. Sin él, la documentación se degrada en silencio:
+# alguien renombra un archivo, tres enlaces dejan de funcionar y nadie se entera hasta que un
+# integrador se topa con un 404. Con él, ese renombrado rompe el PR.
+
+site_name: Atlas Backend
+site_description: >-
+  Backend fintech Atlas: identidad, onboarding KYC, elegibilidad, crédito, riesgo y operaciones.
+  Documentación técnica, contrato de API y runbooks de operación.
+site_author: Equipo Backend Atlas
+docs_dir: docs
+site_dir: site
+
+# `repo_url` alimenta el botón "editar esta página" (feature `content.action.edit`) y es la base que
+# el hook de enlaces usa para apuntar al código.
+repo_url: https://github.com/PabloArauzCaballero/AtlasBackend
+repo_name: PabloArauzCaballero/AtlasBackend
+edit_uri: edit/main/docs/
+
+# `yarn docs:project` genera un README.md de inventario por carpeta: son útiles navegando el
+# repositorio, pero en el portal chocarían con la página `index.md` curada de esa misma sección.
+# MkDocs ya los descarta solo; declararlo aquí lo vuelve intencional en vez de un aviso que bajo
+# `strict: true` abortaría el build. Los README que SÍ son contenido (por ejemplo `adr/README.md`)
+# no se excluyen.
+exclude_docs: |
+  /README.md
+  /architecture/README.md
+  /security/README.md
+
+# Falla el build ante enlaces internos rotos, referencias a anclas inexistentes y avisos de
+# navegación. Es lo que convierte la documentación en algo verificable.
+strict: true
+
+theme:
+  name: material
+  language: es
+  icon:
+    logo: material/bank-outline
+    repo: fontawesome/brands/github
+  palette:
+    - media: '(prefers-color-scheme: light)'
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Cambiar a modo oscuro
+    - media: '(prefers-color-scheme: dark)'
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Cambiar a modo claro
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  # Los diagramas se escriben como texto versionable y se compilan al renderizar: nada de imágenes
+  # que nadie puede mantener.
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+plugins:
+  - search:
+      lang: es
+
+# La documentación enlaza código a propósito con rutas relativas (`../../src/...`), porque así se
+# navegan desde GitHub y desde el IDE, que es donde más se leen. MkDocs las resuelve contra `docs/`
+# y, al escaparse, no encontraría destino: con `strict: true` eso abortaría el build. El hook las
+# traduce a URLs del repositorio SOLO al publicar, sin tocar la fuente ni relajar el gate.
+hooks:
+  - scripts/mkdocs/repo_links.py
+
+extra:
+  # Rama contra la que el hook resuelve los enlaces a código.
+  repo_ref: main
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/PabloArauzCaballero/AtlasBackend
+
+# La navegación es explícita, no automática. Una página que no aparece aquí es una página huérfana, y
+# con `strict: true` el build lo dice.
+nav:
+  - Inicio: index.md
+
+  - Empezar:
+      - getting-started/index.md
+      - Configuración local: getting-started/local-setup.md
+      - Variables de entorno: config/environment.md
+      - config/README.md
+      - Validación en Windows: testing/validacion-local-windows.md
+      - Credenciales requeridas: config/credenciales-requeridas.md
+
+  - Negocio:
+      - business/business-context.md
+      - Actores y roles: business/actors-and-roles.md
+      - Flujos críticos: business/critical-workflows.md
+      - Reglas de negocio: business/business-rules.md
+      - Glosario: business/glossary.md
+
+  - Arquitectura:
+      - architecture/index.md
+      - Modelo C4: architecture/c4-model.md
+      - Dependencias entre módulos: architecture/module-dependencies.md
+      - Procesamiento en segundo plano: architecture/background-processing.md
+      - Onboarding y habilitación crediticia: architecture/onboarding-habilitacion-credito.md
+      - Verificación del split de migraciones: architecture/migration-split-verification.md
+      - Arquitectura general (histórico): architecture/architecture.md
+      - Flujos internos: architecture/flows.md
+      - Onboarding · flujo corregido: architecture/onboarding-flujo-corregido.md
+      - Decisiones (ADR):
+          - adr/README.md
+          - adr/0001-outbox-en-postgresql.md
+          - adr/0002-redis-solo-en-produccion.md
+          - adr/0003-mongo-log-sync.md
+          - adr/0004-kms-envelope-encryption.md
+          - adr/0005-paginacion-por-cursor.md
+          - adr/0006-separacion-de-roles-api-worker.md
+          - adr/0007-contrato-openapi-enriquecido.md
+          - Plantilla: adr/_template.md
+
+  - API:
+      - api/index.md
+      - Convenciones: api/conventions.md
+      - Modelo de error: api/error-model.md
+      - endpoints/README.md
+      - Catálogo de endpoints: endpoints/endpoints.md
+      - Contrato para el frontend: endpoints/api-contract.md
+      - Catálogo de flujos: endpoints/workflow-catalog.md
+      - Colección Postman: postman/README.md
+      - Proveedores externos:
+          - external-providers/README.md
+          - Cómo añadir un proveedor: external-providers/how-to-add-provider.md
+          - Política de coste: external-providers/cost-policy.md
+          - Manejo de errores: external-providers/error-handling.md
+          - Servidor de mocks: external-providers/mock-server.md
+      - Notificaciones:
+          - notifications/README.md
+          - Adaptadores de canal: notifications/channel-adapters.md
+          - Plantillas: notifications/templates.md
+          - Preferencias: notifications/preferences.md
+          - Política de reintentos: notifications/retry-policy.md
+          - Smokes: notifications/smoke-tests.md
+
+  - Datos y eventos:
+      - data/index.md
+      - Arquitectura de datos: data/data-architecture.md
+      - Catálogo de entidades: data/entity-catalog.md
+      - Migraciones y seeds: data/migrations.md
+      - Retención y clasificación: data/retention.md
+      - Modelo de datos: database/README.md
+      - Esquemas de dominio: database/domain-schemas.md
+      - Migraciones (detalle): database/migrations.md
+      - Seeds (detalle): database/seeds.md
+      - Roles de PostgreSQL: database/postgres-roles.md
+      - Modelos de lectura: database/read-models.md
+      - Inventario de carga de lectura: database/read-workload-inventory.md
+      - Candidatas a vista: database/view-candidates.md
+      - Baseline de consultas: database/query-baseline.md
+      - Credenciales de desarrollo: database/dev-credentials.md
+      - Estado del plan de modelo de datos: database/data-model-plan-status.md
+      - Eventos:
+          - events/overview.md
+          - events/README.md
+          - Catálogo de eventos: events/event-catalog.md
+          - Flujo del outbox: events/outbox-flow.md
+          - Job de procesamiento: events/process-events-job.md
+
+  - Seguridad:
+      - security/index.md
+      - Modelo de amenazas: security/threat-model.md
+      - Matriz RBAC de administración: security/admin-rbac-matrix.md
+
+  - Operación:
+      - operations/index.md
+      - Despliegue a producción: runbooks/despliegue-produccion.md
+      - Observabilidad: observability/overview.md
+      - Runbooks:
+          - runbooks/README.md
+          - Respuesta a incidentes: runbooks/incident-response.md
+          - Rotación de claves: runbooks/rotacion-de-claves.md
+          - Expiración y revocación de sesiones: runbooks/expiracion-y-revocacion-de-sesiones.md
+
+  - Pruebas y gobierno:
+      - testing/strategy.md
+      - Trinquete de cobertura: testing/coverage-ratchet.md
+      - testing/README.md
+      - Smokes: testing/smoke-tests.md
+      - Resultados de smokes: testing/smoke-results.md
+      - Matriz de pruebas de proveedores: testing/external-providers-test-matrix.md
+      - Estrés de notificaciones: testing/stress-notifications.md
+      - Matriz de trazabilidad: governance/traceability-matrix.md
+      - Pendientes:
+          - pending/pending-items.md
+          - pending/README.md
+      - Progreso:
+          - progress/README.md
+          - Registro de remediación: progress/remediation-register.md
+      - Configuración de Claude:
+          - claude/README.md
+          - Guía de uso: claude/usage-guide.md
+          - Matriz de selección de plugins: claude/plugin-selection-matrix.md
+          - Trazabilidad de skills: claude/skills-traceability.md
+          - Inventario de entorno: claude/environment-inventory.md
+          - Auditoría de configuración: claude/current-configuration-audit.md
+          - Informe de instalación: claude/installation-report.md
+          - Informe de validación: claude/validation-report.md
+
+  - Informes:
+      - reports/index.md
+      - Línea base: reports/baseline.md
+      - Auditoría Graphify: reports/graphify-audit.md
+      - Brechas documentales: reports/documentation-gap-analysis.md
+      - Preparación para producción: reports/production-readiness.md
+      - Validación final: reports/final-validation.md
+      - Auditoría integral 2026-07-30: audit/auditoria-integral-2026-07-30.md
+      - Auditorías por módulo:
+          - audit/README.md
+          - Revisión completa 2026-07-21: audit/revision-completa-backend-2026-07-21.md
+          - Cierre de correcciones 2026-07-21: audit/cierre-correcciones-2026-07-21.md
+          - Documentación y correcciones 2026-07-27: audit/documentacion-y-correcciones-2026-07-27.md
+          - Consolidado seguridad/calidad/coste: audit/consolidated-security-quality-cost-2026-07.md
+          - auth: audit/auth.md
+          - customers: audit/customers.md
+          - customer-onboarding: audit/customer-onboarding.md
+          - customer-privacy: audit/customer-privacy.md
+          - customer-telemetry: audit/customer-telemetry.md
+          - consents: audit/consents.md
+          - sessions: audit/sessions.md
+          - risk: audit/risk.md
+          - fraud: audit/fraud.md
+          - external-data: audit/external-data.md
+          - notifications: audit/notifications.md
+          - events: audit/events.md
+          - operations: audit/operations.md
+          - internal-users: audit/internal-users.md
+          - internal-portal: audit/internal-portal.md
+          - catalog-management: audit/catalog-management.md
+          - data-quality: audit/data-quality.md
+          - schema-management: audit/schema-management.md
+          - runtime-jobs: audit/runtime-jobs.md
+          - runtime-hardening: audit/runtime-hardening.md
+          - systems-ops: audit/systems-ops.md
+          - audit: audit/audit.md
+          - health: audit/health.md

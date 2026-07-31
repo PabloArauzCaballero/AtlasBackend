@@ -1,0 +1,300 @@
+# Contrato de los eventos de dominio de Atlas.
+#
+# El transporte no es un broker: es una TABLA de PostgreSQL (`outbox_events`), escrita en la misma
+# transacción que el cambio de negocio y despachada por el worker. Ver ADR-0001 y
+# docs/events/overview.md.
+#
+# AsyncAPI se usa igualmente porque lo que hay que publicar es el CONTRATO —qué eventos existen, con
+# qué forma y con qué garantías—, y eso es independiente de si el transporte es Kafka o una tabla.
+# Un consumidor necesita lo mismo en ambos casos.
+#
+# Validar:  npx @asyncapi/cli validate asyncapi/asyncapi.yaml
+
+asyncapi: 3.0.0
+
+info:
+  title: Atlas Backend · Eventos de dominio
+  version: 0.3.0
+  description: |
+    Eventos de dominio publicados por Atlas mediante outbox transaccional en PostgreSQL.
+
+    **Garantía de entrega: at-least-once.** Un consumidor DEBE ser idempotente: el mismo evento
+    puede llegar más de una vez. El orden NO está garantizado entre agregados distintos.
+
+    El registro canónico de códigos es `src/modules/events/event-registry.ts`. Publicar un código
+    que no esté en ese registro se rechaza.
+  license:
+    name: UNLICENSED
+  contact:
+    name: Equipo Backend Atlas
+    email: backend@atlas.local
+
+defaultContentType: application/json
+
+servers:
+  outbox:
+    host: postgresql
+    protocol: postgres
+    description: |
+      Tabla `outbox_events`. No hay endpoint de suscripción: un consumidor externo se integra por el
+      webhook de notificaciones o consultando el propio backend. Se declara como servidor para que el
+      contrato exprese dónde vive la fuente de verdad.
+
+channels:
+  userSecurity:
+    address: outbox_events/user_security
+    description: Registro, verificación de contacto, sesiones, dispositivos y bloqueo de cuenta.
+    messages:
+      userRegistered:
+        $ref: '#/components/messages/UserRegistered'
+      userAccountLocked:
+        $ref: '#/components/messages/UserAccountLocked'
+
+  kycLegal:
+    address: outbox_events/kyc_legal
+    description: Ciclo de verificación de identidad, consentimientos y documentos legales.
+    messages:
+      kycSubmitted:
+        $ref: '#/components/messages/KycSubmitted'
+      kycApproved:
+        $ref: '#/components/messages/KycApproved'
+      consentRevoked:
+        $ref: '#/components/messages/ConsentRevoked'
+
+  riskScoringFraud:
+    address: outbox_events/risk_scoring_fraud
+    description: Evaluación de riesgo, señales y casos de fraude.
+    messages:
+      scoreCalculated:
+        $ref: '#/components/messages/ScoreCalculated'
+      fraudCaseOpened:
+        $ref: '#/components/messages/FraudCaseOpened'
+
+  notifications:
+    address: outbox_events/notifications
+    description: Ciclo de vida de la entrega de notificaciones multicanal.
+    messages:
+      notificationSent:
+        $ref: '#/components/messages/NotificationSent'
+      notificationFailed:
+        $ref: '#/components/messages/NotificationFailed'
+
+operations:
+  receiveUserSecurity:
+    action: receive
+    channel:
+      $ref: '#/channels/userSecurity'
+    summary: Consumir eventos de identidad y sesión.
+  receiveKycLegal:
+    action: receive
+    channel:
+      $ref: '#/channels/kycLegal'
+    summary: Consumir eventos de KYC y consentimientos.
+  receiveRiskScoringFraud:
+    action: receive
+    channel:
+      $ref: '#/channels/riskScoringFraud'
+    summary: Consumir eventos de riesgo y fraude.
+  receiveNotifications:
+    action: receive
+    channel:
+      $ref: '#/channels/notifications'
+    summary: Consumir eventos de entrega de notificaciones.
+
+components:
+  schemas:
+    EventEnvelope:
+      type: object
+      description: |
+        Envoltura común a TODOS los eventos, tal y como la persiste `outbox_events`. Es lo que
+        permite a un consumidor tratar cualquier evento de forma uniforme.
+      required: [eventCode, eventFamily, eventVersion, aggregateType, occurredAt]
+      properties:
+        eventCode:
+          type: string
+          description: Código del catálogo. Estable; un cambio incompatible sube `eventVersion`, no el código.
+          examples: ['kyc.approved']
+        eventFamily:
+          type: string
+          examples: ['kyc_legal']
+        eventVersion:
+          type: integer
+          minimum: 1
+          description: Versión del esquema del payload.
+        aggregateType:
+          type: string
+          description: Tipo de la entidad afectada.
+          examples: ['customer']
+        aggregateId:
+          type: [string, 'null']
+          description: Identificador de la entidad afectada.
+        tenantId:
+          type: [string, 'null']
+          description: Tenant. `null` en eventos de plataforma compartida.
+        correlationId:
+          type: [string, 'null']
+          description: Enlaza el evento con la petición HTTP que lo originó y con sus logs.
+        causationId:
+          type: [string, 'null']
+          description: Evento que causó este. Permite reconstruir la cadena completa.
+        occurredAt:
+          type: string
+          format: date-time
+        priority:
+          type: [integer, 'null']
+          description: Menor valor = se despacha antes dentro del lote.
+
+    CustomerReference:
+      type: object
+      description: Referencia a un cliente. NUNCA lleva PII en claro; sólo el identificador.
+      required: [customerId]
+      properties:
+        customerId:
+          type: string
+
+  messages:
+    UserRegistered:
+      name: user.registered
+      title: Cliente registrado
+      summary: Se creó la cuenta del solicitante y comienza el recorrido de onboarding.
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              payload:
+                $ref: '#/components/schemas/CustomerReference'
+
+    UserAccountLocked:
+      name: user.account.locked
+      title: Cuenta bloqueada
+      summary: Se bloqueó la cuenta por intentos fallidos. Relevante para detección de credential stuffing.
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                properties:
+                  customerId: { type: string }
+                  reason: { type: string, examples: ['invalid_password_threshold'] }
+
+    KycSubmitted:
+      name: kyc.submitted
+      title: Paquete de identidad enviado
+      summary: El solicitante completó las seis secciones y envió su paquete a revisión.
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              payload:
+                $ref: '#/components/schemas/CustomerReference'
+
+    KycApproved:
+      name: kyc.approved
+      title: Identidad aprobada
+      summary: La revisión de back office aprobó la identidad. Habilita las etapas siguientes del recorrido.
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                properties:
+                  customerId: { type: string }
+                  decidedBy: { type: string, description: 'Actor interno que decidió.' }
+
+    ConsentRevoked:
+      name: consent.revoked
+      title: Consentimiento revocado
+      summary: |
+        El titular revocó un consentimiento. Un consumidor que trate datos amparados por ese
+        consentimiento DEBE dejar de hacerlo: es la señal con más consecuencias legales del catálogo.
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                properties:
+                  customerId: { type: string }
+                  purposeCode: { type: string }
+
+    ScoreCalculated:
+      name: score.calculated
+      title: Riesgo evaluado
+      summary: |
+        Se calculó una evaluación de riesgo. El payload incluye la versión del modelo y del ruleset
+        usados: sin ellas, la decisión no es explicable meses después.
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                properties:
+                  customerId: { type: string }
+                  modelCode: { type: string, examples: ['risk_heuristic_v0'] }
+                  modelVersion: { type: string }
+                  rulesetVersion: { type: string }
+
+    FraudCaseOpened:
+      name: fraud.case.opened
+      title: Caso de fraude abierto
+      summary: Se abrió un caso de fraude. Bloquea la elegibilidad hasta su resolución.
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                properties:
+                  customerId: { type: string }
+                  caseId: { type: string }
+
+    NotificationSent:
+      name: notification.sent
+      title: Notificación entregada
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                properties:
+                  messageId: { type: string }
+                  channel: { type: string, examples: ['in_app', 'email', 'sms', 'whatsapp', 'push'] }
+
+    NotificationFailed:
+      name: notification.failed
+      title: Notificación fallida
+      summary: |
+        Agotó los reintentos del adaptador. El mensaje permanece en `notification_messages`; el job
+        `retry_stuck_notifications` del worker es quien recoge los que quedaron a medias.
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                properties:
+                  messageId: { type: string }
+                  channel: { type: string }
+                  errorCode: { type: string }

@@ -89,7 +89,9 @@ export const API_ERROR_SCHEMA: SchemaLike = {
         issues: {
           type: 'array',
           description: 'Sólo en 400: el detalle campo a campo del fallo de validación. Ausente en el resto de errores.',
-          items: VALIDATION_ISSUE_SCHEMA,
+          // Referencia y no copia: `ValidationIssue` se publica como componente, y duplicar su forma
+          // aquí garantizaría que un día las dos definiciones digan cosas distintas.
+          items: { $ref: '#/components/schemas/ValidationIssue' },
         },
       },
     },
@@ -113,14 +115,25 @@ export const API_SUCCESS_SCHEMA: SchemaLike = {
   },
 };
 
+/**
+ * Forma EXACTA de lo que devuelve `buildPaginationMeta`
+ * (`src/common/utils/pagination/pagination.util.ts`), incluido `totalPages`, que faltaba: un
+ * componente que declara tres campos cuando el backend emite cuatro es una promesa incumplida en la
+ * dirección más fácil de no notar.
+ *
+ * Viaja dentro de `data`, no en el sobre: `ResponseInterceptor` no añade `meta`. Cada listado la
+ * declara en su propia carga y el enriquecido la sustituye por esta referencia cuando la forma
+ * coincide campo por campo.
+ */
 export const PAGINATION_META_SCHEMA: SchemaLike = {
   type: 'object',
   description: 'Metadatos de paginación de los listados que los exponen.',
-  required: ['total', 'page', 'limit'],
+  required: ['total', 'page', 'limit', 'totalPages'],
   properties: {
     total: { type: 'integer', minimum: 0, description: 'Total de elementos que cumplen el filtro.' },
     page: { type: 'integer', minimum: 1, description: 'Página devuelta, empezando en 1.' },
     limit: { type: 'integer', minimum: 1, description: 'Tamaño de página solicitado.' },
+    totalPages: { type: 'integer', minimum: 0, description: 'Número de páginas para ese `limit`.' },
   },
 };
 
