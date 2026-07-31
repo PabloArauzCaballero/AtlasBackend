@@ -4,6 +4,9 @@ Pasos para llevar AtlasBackend a producción de forma segura. Derivado de las va
 propio `src/config/env.ts` hace al arrancar (el proceso **se niega a iniciar** si faltan) y de las
 features añadidas en las Fases 3.3/3.4/4.2 del plan 10/10.
 
+> Inventario completo de credenciales —qué falta, quién la provee y qué se apaga sin ella— en
+> [docs/config/credenciales-requeridas.md](../config/credenciales-requeridas.md).
+
 ## 1. Variables de entorno obligatorias en producción
 
 El arranque **falla con un mensaje claro** si alguna de estas no está bien configurada
@@ -78,6 +81,33 @@ Hallazgo A-03: sin planificador, el outbox no se despacha, las sesiones caducada
       `idempotency_keys` crezca sin techo. Revisar `RUNTIME_JOBS_IDEMPOTENCY_RETENTION_DAYS` (30 por
       defecto) contra la ventana de reintento real de los clientes antes del corte.
 
+## 4-quater. Separación de roles: API y worker
+
+Ver [background-processing.md](../architecture/background-processing.md). La MISMA imagen se
+despliega con dos comandos y dos valores de `APP_ROLE`; lo que cambia es qué arranca cada proceso.
+
+| | Réplicas de API | Worker |
+|---|---|---|
+| `APP_ROLE` | `api` | `worker` |
+| Comando | `node dist/src/main.js` | `node dist/src/worker.js` |
+| `RUNTIME_JOBS_SCHEDULER_ENABLED` | `false` | `true` |
+| `SYSTEM_HEALTH_MONITOR_ENABLED` | `false` | `true` |
+| Puerto | `APP_PORT` (público, tras el balanceador) | `WORKER_PROBE_PORT` (**red interna**) |
+| Readiness | `/{API_PREFIX}/health/readiness` | `/health/readiness` |
+| Escalado | por tráfico | 1 réplica basta; más sólo por tolerancia a fallos |
+
+- [ ] Las dos combinaciones incoherentes las rechaza `env.ts` al arrancar (`APP_ROLE=worker` sin
+      planificador, `APP_ROLE=api` con planificador). No hace falta vigilarlas a mano: el proceso no
+      arranca.
+- [ ] `NOTIFICATIONS_DELIVERY_MODE=deferred` **sólo** con un worker desplegado. Con `all` y sin
+      worker, dejarlo en `inline`: en `deferred` nadie entregaría los mensajes.
+- [ ] Publicar `WORKER_PROBE_PORT` únicamente en la red interna: expone `/metrics` sin autenticación.
+- [ ] Verificar tras el despliegue que **existen las dos series**: `atlas_app_info{role="api"}` y
+      `atlas_app_info{role="worker"}`. Las alertas `AtlasApiRoleAbsent` / `AtlasWorkerRoleAbsent`
+      cubren el caso contrario, que de otro modo es un fallo silencioso.
+- [ ] `stop_grace_period` (o `terminationGracePeriodSeconds`) del worker **mayor** que el de la API:
+      una tanda de jobs en curso tarda más en cerrar limpiamente que una petición HTTP.
+
 ## 5. Observabilidad (Fase 3.4)
 
 - [ ] `METRICS_ENABLED=true` (default). **Restringir `GET /metrics` a la red interna de scrape** —
@@ -100,6 +130,18 @@ Hallazgo A-03: sin planificador, el outbox no se despacha, las sesiones caducada
 
 - [ ] Construir con el `Dockerfile` del repositorio:
       `docker build --build-arg NODE_VERSION=$(cat .nvmrc) --build-arg APP_VERSION=... -t atlas-backend:<tag> .`
+- [ ] Desplegar con [docker-compose.prod.yml](../../docker-compose.prod.yml), que orquesta los tres
+      roles: `migrate` (one-shot, con la identidad DDL `DB_MIGRATION_USER`) → `api` → `worker`.
+      `depends_on: migrate: condition: service_completed_successfully` impide que la API sirva contra
+      un esquema a medio migrar.
+      ```
+      export ATLAS_IMAGE=registry.example.com/atlas-backend:<tag>
+      docker compose -f docker-compose.prod.yml up -d --scale api=4 --scale worker=1
+      ```
+      El manifiesto **aborta** si falta cualquier secreto obligatorio: no hay ningún valor por
+      defecto que permita un despliegue a medias.
+- [ ] El `HEALTHCHECK` de la imagen elige puerto y ruta según `APP_ROLE`, así que la misma imagen se
+      sonda correctamente siendo API o siendo worker (`ops/docker/healthcheck.mjs`).
 - [ ] El `ENTRYPOINT` usa `tini` para que `SIGTERM` llegue al proceso Node: sin eso, el drenado
       ordenado no se ejecuta.
 - [ ] `SHUTDOWN_DRAIN_MS` **mayor** que el intervalo del readiness probe del orquestador (15 s con un

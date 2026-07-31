@@ -1,5 +1,10 @@
 # Variables de entorno — ATLAS Backend
 
+> **¿Buscas qué credenciales faltan por conseguir?** Están en
+> [credenciales-requeridas.md](./credenciales-requeridas.md): qué secreto pide cada integración, quién
+> lo provee y qué deja de funcionar sin él. Este documento explica la configuración; aquel, lo que hay
+> que ir a pedir.
+
 Este documento explica los grupos de configuración que cambian comportamiento. La lista exhaustiva
 y copiable vive en [`.env.example`](../../.env.example); el contrato de tipos, defaults y validaciones
 vive en [`src/config/env.schema.ts`](../../src/config/env.schema.ts). Si difieren, el esquema es la

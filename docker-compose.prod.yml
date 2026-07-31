@@ -1,0 +1,153 @@
+# Forma PRODUCTIVA del despliegue de Atlas Backend.
+#
+# Diferencias con `docker-compose.yml` (que es el stack local) y por qué:
+#
+#   1. NINGÚN secreto ni credencial por defecto. Todo llega del entorno del host o del gestor de
+#      secretos: `${DB_PASSWORD:?...}` hace que Compose ABORTE si la variable falta, en vez de
+#      arrancar con un valor de ejemplo. Un despliegue a medias es peor que uno que no arranca.
+#   2. Sin PostgreSQL, Redis ni MongoDB: en producción son servicios gestionados, con sus copias de
+#      seguridad y su alta disponibilidad. Meterlos aquí invitaría a correr la base de datos de un
+#      fintech en un contenedor efímero.
+#   3. La imagen se TRAE de un registro (`${ATLAS_IMAGE}`), no se construye en el host de producción.
+#      Lo que se despliega es exactamente el artefacto que CI construyó y escaneó.
+#   4. API y worker escalan por separado, que es la razón de existir de la separación de roles.
+#   5. Sistema de archivos de solo lectura salvo los puntos que el proceso necesita escribir.
+#
+# Uso:
+#   export ATLAS_IMAGE=registry.example.com/atlas-backend:1.4.2
+#   docker compose -f docker-compose.prod.yml up -d
+#   docker compose -f docker-compose.prod.yml up -d --scale api=4 --scale worker=1
+#
+# `worker` NO debe escalarse por encima de 1 sin necesidad: la elección de líder por Redis ya impide
+# que dos instancias procesen el mismo lote, así que réplicas extra sólo aportan tolerancia a fallos.
+#
+# Ver docs/runbooks/despliegue-produccion.md y docs/architecture/background-processing.md.
+
+x-atlas-image: &atlas-image
+  image: ${ATLAS_IMAGE:?Define ATLAS_IMAGE con la imagen construida por CI, p. ej. registry/atlas-backend:1.4.2}
+  # `no-new-privileges` impide que un binario setuid dentro del contenedor eleve privilegios.
+  security_opt:
+    - no-new-privileges:true
+  read_only: true
+  tmpfs:
+    # El proceso no escribe fuera de /tmp y /app/logs; con el resto en solo lectura, un atacante que
+    # logre ejecución no puede dejar nada persistente en la imagen.
+    - /tmp
+  logging:
+    driver: json-file
+    options:
+      max-size: '20m'
+      max-file: '5'
+
+x-atlas-env: &atlas-env
+  NODE_ENV: production
+  # `LOG_FORMAT=json` es el default en producción, pero se explicita: es lo que hace que stdout lleve
+  # la misma línea redactada y correlacionada que el archivo (hallazgo A-04).
+  LOG_FORMAT: json
+  APP_VERSION: ${APP_VERSION:-}
+  APP_COMMIT_SHA: ${APP_COMMIT_SHA:-}
+  DB_HOST: ${DB_HOST:?Falta DB_HOST}
+  DB_PORT: ${DB_PORT:-5432}
+  DB_NAME: ${DB_NAME:?Falta DB_NAME}
+  DB_USER: ${DB_USER:?Falta DB_USER}
+  DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD}
+  DB_SCHEMA: ${DB_SCHEMA:-public}
+  DB_SSL: ${DB_SSL:-true}
+  DB_SSL_REJECT_UNAUTHORIZED: 'true'
+  # Redis es obligatorio en producción: sin él, el rate limiting sólo protege por instancia y la
+  # elección de líder de los jobs no existe. `env.ts` ya lo exige; aquí se falla antes de arrancar.
+  REDIS_URL: ${REDIS_URL:?Falta REDIS_URL}
+  JWT_ACCESS_TOKEN_SECRET: ${JWT_ACCESS_TOKEN_SECRET:?Falta JWT_ACCESS_TOKEN_SECRET}
+  JWT_ISSUER: ${JWT_ISSUER:?Falta JWT_ISSUER}
+  JWT_AUDIENCE: ${JWT_AUDIENCE:?Falta JWT_AUDIENCE}
+  NOTIFICATION_TOKEN_ENCRYPTION_KEY: ${NOTIFICATION_TOKEN_ENCRYPTION_KEY:?Falta NOTIFICATION_TOKEN_ENCRYPTION_KEY}
+  CORS_ORIGINS: ${CORS_ORIGINS:?Falta CORS_ORIGINS}
+  INTERNAL_FRONTEND_ORIGIN: ${INTERNAL_FRONTEND_ORIGIN:?Falta INTERNAL_FRONTEND_ORIGIN}
+  # Mayor que el intervalo del readiness probe del balanceador. Ver docs/runbooks/despliegue-produccion.md.
+  SHUTDOWN_DRAIN_MS: ${SHUTDOWN_DRAIN_MS:-15000}
+  REQUEST_TIMEOUT_MS: ${REQUEST_TIMEOUT_MS:-30000}
+
+services:
+  # Job de despliegue: corre UNA vez, antes que la API y el worker, y con una identidad de base de
+  # datos distinta (`DB_MIGRATION_USER`) que sí tiene privilegios DDL. El runtime no los tiene.
+  migrate:
+    <<: *atlas-image
+    environment:
+      <<: *atlas-env
+      APP_ROLE: all
+      DB_USER: ${DB_MIGRATION_USER:?Falta DB_MIGRATION_USER}
+      DB_PASSWORD: ${DB_MIGRATION_PASSWORD:?Falta DB_MIGRATION_PASSWORD}
+    command: >
+      sh -c "node dist/src/database/migrate.js up &&
+             node dist/src/database/seed.js up --profile=production"
+    restart: 'no'
+
+  api:
+    <<: *atlas-image
+    environment:
+      <<: *atlas-env
+      APP_ROLE: api
+      APP_PORT: '3005'
+      # El trabajo de fondo NO corre en las réplicas que atienden clientes. El cross-check de
+      # `env.ts` rechaza `APP_ROLE=api` con el planificador encendido, así que esto no puede
+      # desalinearse en silencio.
+      RUNTIME_JOBS_SCHEDULER_ENABLED: 'false'
+      NOTIFICATIONS_DELIVERY_MODE: deferred
+    ports:
+      - '${API_PUBLISH_PORT:-3005}:3005'
+    volumes:
+      - atlas-api-logs:/app/logs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    # Debe superar SHUTDOWN_DRAIN_MS: si Docker matara el contenedor durante el drenado, drenar no
+    # serviría de nada y cada despliegue seguiría tirando peticiones.
+    stop_grace_period: 45s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  worker:
+    <<: *atlas-image
+    environment:
+      <<: *atlas-env
+      APP_ROLE: worker
+      WORKER_PROBE_PORT: '3006'
+      RUNTIME_JOBS_SCHEDULER_ENABLED: 'true'
+      # Sin Redis no arranca (fail-closed): con varias instancias no hay forma de impedir que
+      # procesen el mismo lote. Se deja explícito para que nadie lo active por descuido.
+      RUNTIME_JOBS_ALLOW_WITHOUT_LOCK: 'false'
+      NOTIFICATIONS_DELIVERY_MODE: deferred
+      SYSTEM_HEALTH_MONITOR_ENABLED: 'true'
+    # SIN `ports`: la sonda y `/metrics` del worker se quedan en la red interna. Prometheus hace
+    # scrape desde dentro; publicarlo expondría métricas operativas a internet sin autenticación.
+    expose:
+      - '3006'
+    volumes:
+      - atlas-worker-logs:/app/logs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    # Más holgado que el de la API: una tanda de jobs en curso debe poder terminar. El planificador
+    # comprueba `stopped` entre tenants, así que aborta en el siguiente límite limpio.
+    stop_grace_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          memory: 384M
+
+volumes:
+  # Cada rol escribe su propio Archivo.log y lo sincroniza a MongoDB por su cuenta: el tail del log
+  # es per-proceso, así que un volumen compartido mezclaría dos flujos y ambos competirían por el
+  # mismo offset.
+  atlas-api-logs:
+  atlas-worker-logs:

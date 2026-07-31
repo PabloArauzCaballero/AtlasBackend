@@ -11,7 +11,7 @@ import { IdempotencyKeyModel } from '../../database/models/index.js';
 import { NotificationOrchestratorService } from '../notifications/notification-orchestrator.service.js';
 import { NotificationsRepository } from '../notifications/notifications.repository.js';
 import { JobRunRecorderService } from './job-run-recorder.service.js';
-import { PurgeIdempotencyKeysDto, RetryStuckNotificationsDto } from './runtime-jobs.schemas.js';
+import { DeliverPendingNotificationsDto, PurgeIdempotencyKeysDto, RetryStuckNotificationsDto } from './runtime-jobs.schemas.js';
 
 /**
  * Trabajos de SANEAMIENTO de colas: no procesan dominio, recogen lo que el dominio deja atrás.
@@ -77,6 +77,49 @@ export class RuntimeMaintenanceJobsService {
           }
         }
         return { selected: stuck.length, retried, failed, dryRun: false };
+      },
+    );
+  }
+
+  /**
+   * Entrega los mensajes que el request dejó en `pending` a propósito.
+   *
+   * Con `NOTIFICATIONS_DELIVERY_MODE=deferred` el `POST` de broadcast sólo persiste los mensajes; la
+   * entrega es trabajo de fondo y corre aquí. La diferencia con `retryStuckNotifications` no es
+   * cosmética: aquel busca lo que quedó VARADO (mensajes viejos, cada 5 minutos) y este lo que está
+   * RECIÉN creado (sin corte por antigüedad, cada 10 segundos). Un solo umbral no puede servir a los
+   * dos casos.
+   *
+   * Ambos entregan por el mismo `deliverMessage`, que corta solo si el mensaje ya alcanzó un estado
+   * terminal — por eso solaparse es seguro, y por eso un mensaje no se entrega dos veces aunque las
+   * dos tandas lo seleccionen.
+   */
+  deliverPendingNotifications(input: { tenantId: string; body: DeliverPendingNotificationsDto; currentUser: AuthenticatedUser }) {
+    return this.jobRuns.run(
+      { tenantId: input.tenantId, jobCode: 'deliver_pending_notifications', body: input.body, currentUser: input.currentUser },
+      async () => {
+        const pending = await this.notificationsRepository.listStuckMessages({
+          tenantId: input.tenantId,
+          olderThanMinutes: 0,
+          limit: input.body.limit,
+        });
+
+        if (input.body.dryRun) return { selected: pending.length, delivered: 0, failed: 0, dryRun: true };
+
+        let delivered = 0;
+        let failed = 0;
+        for (const message of pending) {
+          try {
+            await this.notificationOrchestrator.deliverMessage(message);
+            delivered += 1;
+          } catch (error) {
+            failed += 1;
+            this.logger.warn(
+              `No se pudo entregar el mensaje pendiente ${String(message.id)}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+        }
+        return { selected: pending.length, delivered, failed, dryRun: false };
       },
     );
   }

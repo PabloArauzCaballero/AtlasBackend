@@ -13,6 +13,7 @@ import { MetricsService } from '../../common/observability/metrics.service.js';
 import { TenantModel } from '../../database/models/index.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { env } from '../../config/env.js';
+import { appRole, runsBackgroundWork } from '../../config/app-role.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
 
@@ -108,6 +109,22 @@ export class RuntimeJobsSchedulerService implements OnApplicationBootstrap, OnMo
             currentUser: SCHEDULER_ACTOR,
           }),
       },
+      // Sólo tiene sentido cuando la API NO entrega dentro del request: si la entrega es `inline`,
+      // este job competiría por los mismos mensajes que el proceso que acaba de crearlos.
+      ...(env.NOTIFICATIONS_DELIVERY_MODE === 'deferred'
+        ? [
+            {
+              jobCode: 'deliver_pending_notifications',
+              intervalMs: env.RUNTIME_JOBS_NOTIFICATION_DELIVERY_INTERVAL_MS,
+              run: (tenantId: string) =>
+                this.maintenance.deliverPendingNotifications({
+                  tenantId,
+                  body: { limit, dryRun: false },
+                  currentUser: SCHEDULER_ACTOR,
+                }),
+            },
+          ]
+        : []),
       {
         jobCode: 'purge_idempotency_keys',
         intervalMs: env.RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS,
@@ -127,6 +144,11 @@ export class RuntimeJobsSchedulerService implements OnApplicationBootstrap, OnMo
   }
 
   onApplicationBootstrap(): void {
+    if (!runsBackgroundWork()) {
+      this.logger.log(`Planificador de trabajos no arrancado: este proceso tiene APP_ROLE=${appRole()} y sólo atiende HTTP.`);
+      return;
+    }
+
     if (!env.RUNTIME_JOBS_SCHEDULER_ENABLED) {
       this.logger.log('Planificador de trabajos deshabilitado (RUNTIME_JOBS_SCHEDULER_ENABLED=false). Los jobs solo corren por HTTP.');
       return;

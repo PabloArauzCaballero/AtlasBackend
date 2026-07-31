@@ -24,6 +24,12 @@ export class TelcoGenericAdapter implements ExternalProviderAdapter {
   async execute(request: ExternalProviderExecutionInput): Promise<ExternalProviderRawResult> {
     if (request.mode === 'mock_server') return callMockServer(request, '/phone-trust/check');
     if (request.mode === 'disabled') throw new Error('TELCO_PROVIDER_DISABLED');
+    // Sin esta guarda, `production`/`sandbox` caían al payload fabricado de abajo. El portón de
+    // `productionIntegrationBlockers` normalmente lo impide, pero depende de que
+    // `TELCO_GENERIC_REAL_INTEGRATION_IMPLEMENTED` sea honesto: es una bandera de entorno que un operador puede
+    // poner en `true` sin que exista integración alguna. Aquí el adaptador se niega por sí mismo, que
+    // es la única defensa que no depende de que la configuración diga la verdad.
+    if (request.mode === 'production' || request.mode === 'sandbox') throw new Error('TELCO_GENERIC_REAL_INTEGRATION_NOT_CONFIGURED');
     const started = Date.now();
     const scenario = scenarioFromInput(request);
     const payload =

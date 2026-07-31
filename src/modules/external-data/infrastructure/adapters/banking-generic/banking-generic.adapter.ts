@@ -24,8 +24,10 @@ export class BankingGenericAdapter implements ExternalProviderAdapter {
 
   /**
    * Genera un QR de cobro de PRUEBA. En `mock_server` delega en el mock (`/qr/generate`); en
-   * `mock_local`/`sandbox` lo genera en proceso (mismo formato). `disabled` y `production` (sin
-   * integración real) fallan explícitamente.
+   * `mock_local` lo genera en proceso (mismo formato). `disabled`, `production` y `sandbox` fallan
+   * explícitamente: no hay integración bancaria real, y un QR de cobro generado en proceso es un QR
+   * al que alguien transferiría dinero de verdad. `sandbox` entra en la lista porque sin integración
+   * no significa "el entorno de pruebas del banco", significa exactamente lo mismo que `mock_local`.
    */
   async generateQr(request: ExternalProviderExecutionInput): Promise<BankQrResult> {
     const input: BankQrInput = {
@@ -35,7 +37,7 @@ export class BankingGenericAdapter implements ExternalProviderAdapter {
       scenario: request.scenario,
     };
     if (request.mode === 'disabled') throw new Error('BANKING_PROVIDER_DISABLED');
-    if (request.mode === 'production') throw new Error('BANKING_QR_PRODUCTION_NOT_IMPLEMENTED');
+    if (request.mode === 'production' || request.mode === 'sandbox') throw new Error('BANKING_QR_PRODUCTION_NOT_IMPLEMENTED');
     if (request.mode === 'mock_server') {
       const raw = await callMockServer(request, '/qr/generate');
       return mapMockQrPayload(raw.payload, input);
@@ -46,6 +48,10 @@ export class BankingGenericAdapter implements ExternalProviderAdapter {
   async execute(request: ExternalProviderExecutionInput): Promise<ExternalProviderRawResult> {
     if (request.mode === 'mock_server') return callMockServer(request, '/transfer/verify');
     if (request.mode === 'disabled') throw new Error('BANKING_PROVIDER_DISABLED');
+    // La verificación de transferencia no tenía guarda propia (solo `generateQr` la tenía): confirmar
+    // que un pago entró es, si cabe, más grave que emitir el QR — un `VERIFIED` fabricado libera
+    // producto contra un dinero que nadie recibió.
+    if (request.mode === 'production' || request.mode === 'sandbox') throw new Error('BANKING_GENERIC_REAL_INTEGRATION_NOT_CONFIGURED');
     const started = Date.now();
     const scenario = scenarioFromInput(request);
     const payload =

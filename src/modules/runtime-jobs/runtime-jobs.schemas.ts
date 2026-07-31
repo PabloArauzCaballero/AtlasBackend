@@ -50,6 +50,16 @@ export const retryStuckNotificationsSchema = z.object({
 });
 
 /**
+ * Entrega de los mensajes recién creados por un broadcast, cuando la API no entrega dentro del
+ * request (`NOTIFICATIONS_DELIVERY_MODE=deferred`). No lleva corte por antigüedad —a diferencia de
+ * `retryStuckNotifications`— porque su pregunta es la contraria: aquí interesa lo MÁS reciente.
+ */
+export const deliverPendingNotificationsSchema = z.object({
+  limit: z.number().int().positive().max(500).default(100),
+  dryRun: z.boolean().default(true),
+});
+
+/**
  * Purga de claves de idempotencia ya resueltas. `retentionDays` no baja de 1 a propósito: la ventana
  * de reintento de un cliente es de minutos u horas, pero borrar una clave que todavía podría
  * replayearse convertiría un reintento en una segunda ejecución del comando.
@@ -62,6 +72,7 @@ export const purgeIdempotencyKeysSchema = z.object({
 
 export type ExpireStaleSessionsDto = z.infer<typeof expireStaleSessionsSchema>;
 export type RetryStuckNotificationsDto = z.infer<typeof retryStuckNotificationsSchema>;
+export type DeliverPendingNotificationsDto = z.infer<typeof deliverPendingNotificationsSchema>;
 export type PurgeIdempotencyKeysDto = z.infer<typeof purgeIdempotencyKeysSchema>;
 export type ProcessOutboxDto = z.infer<typeof processOutboxSchema>;
 export type ProcessEventsDto = z.infer<typeof processEventsSchema>;

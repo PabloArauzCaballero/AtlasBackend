@@ -21,6 +21,8 @@ import {
   PurgeIdempotencyKeysDto,
   retryStuckNotificationsSchema,
   RetryStuckNotificationsDto,
+  deliverPendingNotificationsSchema,
+  DeliverPendingNotificationsDto,
   expireStaleSessionsSchema,
   processOutboxSchema,
   processEventsSchema,
@@ -127,6 +129,29 @@ export class RuntimeJobsController {
   ) {
     requireIdempotencyKey(idempotencyKey);
     return this.maintenance.retryStuckNotifications({ tenantId, body, currentUser });
+  }
+
+  @ApiOperation({
+    summary: 'Entregar notificaciones pendientes',
+    description:
+      'Entrega los mensajes que el request dejó en pending cuando NOTIFICATIONS_DELIVERY_MODE=deferred. ' +
+      'A diferencia de retry-stuck-notifications, no aplica corte por antigüedad: busca lo recién creado. ' +
+      'Job de mantenimiento. Restringido a admin/platform_admin/system.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-idempotency-key', required: true })
+  @ApiBody({ schema: zodToApiSchema(deliverPendingNotificationsSchema) })
+  @ApiResponse({ status: 200, description: 'Resultado de la entrega de notificaciones pendientes.' })
+  @Post('deliver-pending-notifications')
+  @HttpCode(HttpStatus.OK)
+  deliverPendingNotifications(
+    @CurrentTenant() tenantId: string,
+    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
+    @Body(new ZodValidationPipe(deliverPendingNotificationsSchema)) body: DeliverPendingNotificationsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    requireIdempotencyKey(idempotencyKey);
+    return this.maintenance.deliverPendingNotifications({ tenantId, body, currentUser });
   }
 
   @ApiOperation({

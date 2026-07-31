@@ -1,45 +1,105 @@
-# Dependencias locales de Atlas Backend: PostgreSQL, Redis y (opcional) MongoDB.
+# Stack local de Atlas Backend: infraestructura + los tres roles de proceso.
 #
-# Hallazgo A-06 de docs/audit/auditoria-integral-2026-07-30.md: levantar el backend en local exigía
-# instalar y configurar a mano tres servicios cuyas versiones no estaban declaradas en ninguna parte,
-# y las que usa CI (postgres:16, redis:7) solo existían dentro de .github/workflows/ci.yml.
+# Este archivo describe el DESPLIEGUE LOCAL. La forma de producción vive en
+# `docker-compose.prod.yml`, que no lleva ningún secreto por defecto.
 #
-# El BACKEND no está aquí a propósito: en desarrollo se corre con `yarn start:dev` para conservar el
-# ciclo de recarga. Esto levanta únicamente lo que el backend necesita alrededor.
+# Perfiles — cada uno responde a una forma distinta de trabajar:
 #
-#   docker compose up -d            # levanta postgres + redis
-#   docker compose --profile logs up -d   # además MongoDB, para el visor de logs
-#   docker compose down -v          # borra también los volúmenes
+#   docker compose up -d
+#       Sólo la infraestructura (PostgreSQL + Redis). Es lo que hace falta para `yarn start:dev`,
+#       que conserva el ciclo de recarga en caliente.
 #
-# Las versiones coinciden con las del job `db-and-cache-integration` de CI. Cambiar una aquí sin
-# cambiarla allí reintroduce la divergencia que este archivo existe para evitar.
+#   docker compose --profile app up -d --build
+#       Stack completo containerizado: migraciones (one-shot) → API → worker. Ningún proceso queda
+#       fuera de un contenedor.
+#
+#   docker compose --profile app --profile logs up -d --build
+#       Además MongoDB, para el visor de logs (`GET /systems/logs/mongo`).
+#
+#   docker compose down -v      # borra también los volúmenes
+#
+# Eficiencia de la orquestación:
+#   - UNA sola imagen para `migrate`, `api` y `worker`: mismo `image:` y mismo contexto de build, así
+#     que Compose la construye una vez y las otras dos la reutilizan desde la caché.
+#   - `depends_on` por CONDICIÓN, no por orden: la API no arranca hasta que las migraciones
+#     terminaron con éxito y Postgres/Redis responden a su healthcheck. Sin esto, el arranque es una
+#     carrera que se gana por casualidad.
+#   - Los healthchecks son los reales del producto (readiness), no un `sleep`.
+#
+#   - Los puertos publicados son configurables (`POSTGRES_PUBLISH_PORT`, `API_PUBLISH_PORT`…). Un
+#     puerto fijo hace que el stack no arranque en una maquina que ya corre un Postgres local, que es
+#     la situacion normal de cualquier desarrollador.
+#
+# Las versiones de Postgres y Redis coinciden con el job `db-and-cache-integration` de CI. Cambiar
+# una aquí sin cambiarla allí reintroduce la divergencia que este archivo existe para evitar.
+
+# Bloque de build compartido por los tres roles. El `image:` idéntico es lo que hace que Compose
+# construya una sola vez.
+x-atlas-build: &atlas-build
+  image: atlas-backend:local
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      APP_VERSION: local
+      APP_COMMIT_SHA: local
+    # `cache_from` permite reutilizar las capas de una imagen ya construida al reconstruir.
+    cache_from:
+      - atlas-backend:local
+
+# Configuración común a los tres roles: a dónde se conectan y con qué credenciales de DESARROLLO.
+# NODE_ENV=development a propósito — este stack es local, y `env.ts` exige secretos reales en
+# producción. Para la forma productiva, ver `docker-compose.prod.yml`.
+x-atlas-env: &atlas-env
+  NODE_ENV: development
+  DB_HOST: postgres
+  DB_PORT: '5432'
+  DB_NAME: atlas
+  DB_USER: atlas
+  DB_PASSWORD: atlas
+  DB_SCHEMA: public
+  REDIS_URL: redis://redis:6379
+  LOG_FORMAT: json
+  # Drenado ordenado ante SIGTERM. En local basta con 5 s: es mayor que el intervalo del healthcheck
+  # (15 s no, pero aquí no hay balanceador) y suficiente para ver el comportamiento sin alargar cada
+  # `docker compose down`.
+  SHUTDOWN_DRAIN_MS: '5000'
+
+# Sin `container_name`: Compose nombra los contenedores `<proyecto>-<servicio>-<n>`. Un nombre fijo
+# impide levantar dos stacks a la vez, choca con cualquier contenedor homónimo que ya exista en la
+# máquina y —lo decisivo— hace imposible `--scale api=4`, que es justo la razón de separar los roles.
 
 services:
+  # ---------------------------------------------------------------------------------------------
+  # Infraestructura
+  # ---------------------------------------------------------------------------------------------
   postgres:
     image: postgres:16
-    container_name: atlas-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: atlas
       POSTGRES_PASSWORD: atlas
       POSTGRES_DB: atlas
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PUBLISH_PORT:-5432}:5432'
     volumes:
       - atlas-postgres-data:/var/lib/postgresql/data
       # Los scripts de roles se montan en solo lectura para poder aplicarlos con `psql` desde el
-      # contenedor sin copiarlos: `docker compose exec postgres psql -U atlas -d atlas -f /ops/bootstrap-roles.sql`
+      # contenedor sin copiarlos:
+      #   docker compose exec postgres psql -U atlas -d atlas -f /ops/bootstrap-roles.sql
       - ./ops/postgres:/ops:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U atlas']
+      test: ['CMD-SHELL', 'pg_isready -U atlas -d atlas']
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 10s
 
   redis:
     image: redis:7
-    container_name: atlas-redis
+    restart: unless-stopped
     ports:
-      - '6379:6379'
+      - '${REDIS_PUBLISH_PORT:-6379}:6379'
     volumes:
       - atlas-redis-data:/data
     healthcheck:
@@ -48,14 +108,14 @@ services:
       timeout: 5s
       retries: 10
 
-  # Solo para el visor de logs (`GET /systems/logs/mongo`). El backend arranca sin esto: si
+  # Sólo para el visor de logs (`GET /systems/logs/mongo`). El backend arranca sin esto: si
   # MONGO_DB_URL_CONNECTION no está configurado, el sync a Mongo queda apagado sin romper nada.
   mongo:
     image: mongo:7
-    container_name: atlas-mongo
+    restart: unless-stopped
     profiles: ['logs']
     ports:
-      - '27017:27017'
+      - '${MONGO_PUBLISH_PORT:-27017}:27017'
     volumes:
       - atlas-mongo-data:/data/db
     healthcheck:
@@ -64,7 +124,104 @@ services:
       timeout: 5s
       retries: 10
 
+  # ---------------------------------------------------------------------------------------------
+  # Roles de proceso (perfil `app`)
+  # ---------------------------------------------------------------------------------------------
+
+  # Job ONE-SHOT: aplica migraciones y siembra el perfil de desarrollo. Corre hasta terminar y sale.
+  # Existe como servicio propio, y no como un paso dentro del arranque de la API, porque migrar es
+  # mutar el esquema: con N réplicas de API sería una carrera, y un fallo de migración debe impedir
+  # que la API arranque en vez de dejarla servir contra un esquema a medias.
+  migrate:
+    <<: *atlas-build
+    profiles: ['app']
+    environment:
+      <<: *atlas-env
+      APP_ROLE: all
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Las migraciones y los seeders corren desde el build compilado (`dist/`), no con tsx: la imagen
+    # de producción no lleva devDependencies. Ver src/database/migrate.ts.
+    command: >
+      sh -c "node dist/src/database/migrate.js up &&
+             node dist/src/database/seed.js up --profile=development"
+    restart: 'no'
+
+  api:
+    <<: *atlas-build
+    profiles: ['app']
+    environment:
+      <<: *atlas-env
+      APP_ROLE: api
+      APP_PORT: '3005'
+      # El planificador NO corre aquí: es el worker quien ejecuta el trabajo de fondo. El
+      # cross-check de `env.ts` rechaza la combinación contraria, así que esto no puede desalinearse
+      # en silencio.
+      RUNTIME_JOBS_SCHEDULER_ENABLED: 'false'
+      NOTIFICATIONS_DELIVERY_MODE: deferred
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5273
+    ports:
+      - '${API_PUBLISH_PORT:-3005}:3005'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - atlas-api-logs:/app/logs
+    restart: unless-stopped
+    # Mayor que SHUTDOWN_DRAIN_MS: si Docker matara el contenedor antes de que termine el drenado,
+    # tener drenado no serviría de nada.
+    stop_grace_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+
+  worker:
+    <<: *atlas-build
+    profiles: ['app']
+    environment:
+      <<: *atlas-env
+      APP_ROLE: worker
+      WORKER_PROBE_PORT: '3006'
+      RUNTIME_JOBS_SCHEDULER_ENABLED: 'true'
+      NOTIFICATIONS_DELIVERY_MODE: deferred
+      # El monitor de salud avisa al staff interno cuando una herramienta crítica cae; vive donde
+      # vive el trabajo de fondo.
+      SYSTEM_HEALTH_MONITOR_ENABLED: 'true'
+    ports:
+      # Se publica sólo para poder inspeccionar la sonda y las métricas en local. En producción este
+      # puerto se queda en la red interna: ver docker-compose.prod.yml.
+      - '${WORKER_PROBE_PUBLISH_PORT:-3006}:3006'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - atlas-worker-logs:/app/logs
+    command: ['node', 'dist/src/worker.js']
+    restart: unless-stopped
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 768M
+
 volumes:
   atlas-postgres-data:
   atlas-redis-data:
   atlas-mongo-data:
+  # Cada rol escribe SU propio Archivo.log y lo sincroniza a MongoDB por su cuenta: el tail del log
+  # es per-proceso, así que compartir un volumen entre API y worker mezclaría dos flujos y ambos
+  # procesos competirían por el mismo offset.
+  atlas-api-logs:
+  atlas-worker-logs:

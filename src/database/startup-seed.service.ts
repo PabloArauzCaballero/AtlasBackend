@@ -5,6 +5,7 @@
  */
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { env } from '../config/env.js';
+import { appRole, runsBackgroundWork } from '../config/app-role.js';
 import { seedOnStartup } from './seed-runner.js';
 
 /**
@@ -24,6 +25,15 @@ export class StartupSeedService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap(): Promise<void> {
     if (!env.DATABASE_SEED_ON_STARTUP) return;
+
+    // Sembrar es MUTAR: con N réplicas de API arrancando a la vez, N procesos aplicarían los mismos
+    // seeders en paralelo. Se restringe al proceso que ejecuta trabajo de fondo (worker, o `all` en
+    // un despliegue de una sola pieza). El camino recomendado en producción sigue siendo el job
+    // one-shot `migrate` del compose, que corre antes que la API y el worker.
+    if (!runsBackgroundWork()) {
+      this.logger.log(`Seeding al arrancar omitido: este proceso tiene APP_ROLE=${appRole()} y sólo atiende HTTP.`);
+      return;
+    }
 
     this.logger.log('DATABASE_SEED_ON_STARTUP=true: aplicando seeders pendientes al arrancar (idempotente)...');
     try {

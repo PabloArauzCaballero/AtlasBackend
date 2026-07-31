@@ -81,6 +81,30 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
     });
   }
 
+  // Rol del proceso contra planificador. Las dos combinaciones de abajo no "funcionan a medias":
+  // fallan en silencio, que es peor. Un worker con el planificador apagado arranca, se declara sano
+  // y no ejecuta absolutamente nada; una API con el planificador encendido hace creer que los jobs
+  // corren cuando el gate de rol los desactiva. Ver docs/architecture/background-processing.md.
+  if (data.APP_ROLE === 'worker' && !data.RUNTIME_JOBS_SCHEDULER_ENABLED) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['RUNTIME_JOBS_SCHEDULER_ENABLED'],
+      message:
+        'APP_ROLE=worker exige RUNTIME_JOBS_SCHEDULER_ENABLED=true: un worker con el planificador apagado ' +
+        'arranca sano y no ejecuta ningún trabajo de fondo.',
+    });
+  }
+
+  if (data.APP_ROLE === 'api' && data.RUNTIME_JOBS_SCHEDULER_ENABLED) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['RUNTIME_JOBS_SCHEDULER_ENABLED'],
+      message:
+        'APP_ROLE=api no ejecuta trabajos de fondo, así que RUNTIME_JOBS_SCHEDULER_ENABLED=true no tendría efecto. ' +
+        'Usa APP_ROLE=all para un despliegue de una sola pieza, o mueve el planificador a un proceso APP_ROLE=worker.',
+    });
+  }
+
   if (data.NODE_ENV === 'production' && data.DB_SSL && !data.DB_SSL_REJECT_UNAUTHORIZED) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

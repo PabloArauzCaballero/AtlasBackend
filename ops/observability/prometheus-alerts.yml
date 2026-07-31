@@ -181,3 +181,42 @@ groups:
           description: >-
             purge_idempotency_keys corre cada 24 h. Sin él, idempotency_keys crece sin techo y degrada
             el claim que protege cada comando con X-Idempotency-Key.
+
+      # Separación de roles de proceso (docs/architecture/background-processing.md). Con la API y el
+      # worker desplegados por separado, "el worker no está corriendo" es un fallo SILENCIOSO: nadie
+      # recibe un error, simplemente el trabajo de fondo deja de ocurrir. `atlas_app_info` es una
+      # serie de identidad que cada proceso publica siempre en 1, así que su ausencia es la señal.
+      - alert: AtlasWorkerRoleAbsent
+        expr: absent(atlas_app_info{role="worker"}) and absent(atlas_app_info{role="all"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Ningún proceso está ejecutando el trabajo de fondo'
+          description: >-
+            No hay ninguna instancia con role=worker ni role=all publicando métricas. El outbox no se
+            despacha, las sesiones caducadas no expiran y las políticas de retención de datos
+            personales no se aplican. Revisa el despliegue del contenedor `worker`.
+
+      - alert: AtlasApiRoleAbsent
+        expr: absent(atlas_app_info{role="api"}) and absent(atlas_app_info{role="all"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Ninguna instancia está atendiendo la API'
+          description: 'No hay procesos con role=api ni role=all publicando métricas: el backend no atiende tráfico.'
+
+      # Sólo aplica con NOTIFICATIONS_DELIVERY_MODE=deferred: en ese modo la API deja los mensajes en
+      # `pending` y este job es el ÚNICO que los entrega. Si deja de correr, nadie recibe nada y no
+      # hay ningún error visible en la API, que sigue respondiendo 200 al POST del broadcast.
+      - alert: AtlasPendingNotificationDeliveryJobNotRunning
+        expr: sum(increase(atlas_scheduled_job_runs_total{job="deliver_pending_notifications",outcome="success"}[1h])) == 0
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'La entrega diferida de notificaciones no corre desde hace >1h'
+          description: >-
+            deliver_pending_notifications corre cada 10 s en modo deferred. Sin él, cada broadcast se
+            persiste pero no llega a ningún destinatario, y la API no reporta ningún fallo.

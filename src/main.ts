@@ -15,6 +15,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule } from './app.module.js';
 import { env, getAllowedCorsOrigins } from './config/env.js';
+import { appRole, runsHttpApi } from './config/app-role.js';
 import { buildOpenApiDocument } from './config/swagger.js';
 import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encryption.util.js';
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
@@ -23,6 +24,14 @@ import { shutdownTracing } from './observability/tracing.js';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('AtlasBootstrap');
+
+  // Simétrico al guard de `worker.ts`. Arrancar la API completa con `APP_ROLE=worker` expondría los
+  // controllers de negocio en un contenedor que el manifiesto trata como interno, así que se falla
+  // en vez de montarlos: un rol mal puesto tiene que doler al desplegar, no en la primera auditoría.
+  if (!runsHttpApi()) {
+    logger.error(`APP_ROLE=${appRole()}: este entrypoint es el de la API. Arranca el worker con \`node dist/src/worker.js\`.`);
+    process.exit(1);
+  }
 
   // Fase 3.3 del plan 10/10: si KMS está configurado (KMS_KEY_ID + AWS_REGION), se ACTIVA como
   // proveedor de cifrado de envelope encryption. A partir de ahí, todas las escrituras nuevas de

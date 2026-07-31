@@ -4,59 +4,34 @@
  * @system valida y compone configuración tipada al arrancar.
  */
 import { z } from 'zod';
+import {
+  booleanEnvSchema,
+  optionalBooleanEnvSchema,
+  optionalMongoUrlEnvSchema,
+  optionalNonEmptyStringEnvSchema,
+  optionalUrlEnvSchema,
+} from './env.primitives.js';
+import { runtimeJobsEnvShape } from './env.runtime-jobs.schema.js';
 
 export const DEFAULT_JWT_SECRET = 'dev-only-atlas-access-token-secret-change-me';
 export const DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY = 'change-this-32-plus-character-key-for-device-tokens';
 
-const optionalUrlEnvSchema = z.preprocess((value) => {
-  if (typeof value === 'string' && value.trim() === '') return undefined;
-  return value;
-}, z.string().url().optional());
-
-const optionalMongoUrlEnvSchema = z.preprocess(
-  (value) => {
-    if (typeof value === 'string' && value.trim() === '') return undefined;
-    return value;
-  },
-  z
-    .string()
-    .regex(/^mongodb(\+srv)?:\/\//, 'Debe iniciar con mongodb:// o mongodb+srv://')
-    .optional(),
-);
-
-const booleanEnvSchema = z
-  .preprocess((value) => {
-    if (typeof value !== 'string') {
-      return value;
-    }
-
-    const normalized = value.trim().toLowerCase();
-
-    if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) {
-      return true;
-    }
-
-    if (['false', '0', 'no', 'n', 'off', ''].includes(normalized)) {
-      return false;
-    }
-
-    return value;
-  }, z.boolean())
-  .default(false);
-
-const optionalBooleanEnvSchema = z
-  .preprocess((value) => {
-    if (typeof value !== 'string') return value;
-    const normalized = value.trim().toLowerCase();
-    if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) return true;
-    if (['false', '0', 'no', 'n', 'off', ''].includes(normalized)) return false;
-    return value;
-  }, z.boolean())
-  .optional();
-
 export const envBaseSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+
+  // Rol de ESTE proceso. Un mismo artefacto se despliega como API, como worker o como ambos:
+  //   api    → atiende HTTP; no arranca ningún trabajo de fondo.
+  //   worker → no monta la API de negocio; ejecuta el trabajo de fondo y expone sólo sonda y métricas.
+  //   all    → ambas cosas (el comportamiento histórico y el default, para dev, tests y despliegues
+  //            de una sola pieza: sin configurar nada, nada cambia).
+  // Ver docs/architecture/background-processing.md.
+  APP_ROLE: z.enum(['api', 'worker', 'all']).default('all'),
   APP_PORT: z.coerce.number().int().positive().default(3005),
+
+  // Puerto de la sonda del worker (`/health/liveness`, `/health/readiness`, `/metrics`). Es un
+  // puerto distinto del de la API porque en un despliegue de una sola máquina ambos procesos
+  // conviven, y porque así el manifiesto puede publicar uno sin publicar el otro.
+  WORKER_PROBE_PORT: z.coerce.number().int().positive().default(3006),
   API_PREFIX: z.string().min(1).default('api/v1'),
   API_JSON_BODY_LIMIT: z
     .string()
@@ -195,26 +170,9 @@ export const envBaseSchema = z.object({
   MAILSENDER_ADMIN_USERNAME: z.string().optional(),
   MAILSENDER_ADMIN_PASSWORD: z.string().optional(),
 
-  // Planificador de trabajos de fondo (`RuntimeJobsSchedulerService`). Opt-in: un proceso que arranca
-  // en un test, un script o una consola de mantenimiento no debe empezar a mutar datos por su cuenta.
-  // En producción exige Redis para la elección de líder, salvo que se asuma lo contrario a propósito.
-  // Ver hallazgo A-03 de docs/audit/auditoria-integral-2026-07-30.md.
-  RUNTIME_JOBS_SCHEDULER_ENABLED: booleanEnvSchema,
-  RUNTIME_JOBS_ALLOW_WITHOUT_LOCK: booleanEnvSchema,
-  RUNTIME_JOBS_BATCH_LIMIT: z.coerce.number().int().positive().max(500).default(100),
-  RUNTIME_JOBS_LEADER_LOCK_TTL_MS: z.coerce.number().int().positive().max(3_600_000).default(900_000),
-  RUNTIME_JOBS_OUTBOX_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
-  RUNTIME_JOBS_EVENTS_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
-  RUNTIME_JOBS_SESSIONS_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
-  RUNTIME_JOBS_SESSION_MAX_IDLE_MINUTES: z.coerce.number().int().positive().max(43_200).default(120),
-  RUNTIME_JOBS_RETENTION_INTERVAL_MS: z.coerce.number().int().positive().default(86_400_000),
-  RUNTIME_JOBS_DATA_QUALITY_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
-  // Barrido de mensajes de notificación que quedaron a medio entregar tras un reinicio, y purga de
-  // claves de idempotencia ya resueltas (ambas colas crecían sin que nada las recogiera).
-  RUNTIME_JOBS_NOTIFICATION_RETRY_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
-  RUNTIME_JOBS_NOTIFICATION_STUCK_MINUTES: z.coerce.number().int().positive().max(1_440).default(15),
-  RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS: z.coerce.number().int().positive().default(86_400_000),
-  RUNTIME_JOBS_IDEMPOTENCY_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  // Trabajo de fondo: planificador, intervalos y modo de entrega de notificaciones.
+  // Bloque propio en env.runtime-jobs.schema.ts — ver docs/architecture/background-processing.md.
+  ...runtimeJobsEnvShape,
 
   // Proveedores externos (KYC, buró, telco, banca, confianza digital). El modo EFECTIVO de cada uno
   // sale de la base (`external_data_providers.default_mode`) o del override `${CODE}_MODE`; estas dos
@@ -305,9 +263,14 @@ export const envBaseSchema = z.object({
   // Identidad del artefacto desplegado, inyectada por el pipeline al construir la imagen. Sin ella,
   // `/health` no puede decir qué build está corriendo (hallazgo A-05 de
   // docs/audit/auditoria-integral-2026-07-30.md).
-  APP_VERSION: z.string().min(1).optional(),
-  APP_COMMIT_SHA: z.string().min(1).optional(),
-  APP_BUILT_AT: z.string().min(1).optional(),
+  // Metadatos del build. Se tratan con `optionalNonEmptyStringEnvSchema` y no con `.min(1).optional()`
+  // porque un `ARG` de Docker no declarado se convierte en `ENV VAR=""`, no en "variable ausente":
+  // con `.min(1)` eso rompia el arranque de CUALQUIER contenedor construido sin `--build-arg`, que es
+  // exactamente el caso de un build local. Una cadena vacia significa "el pipeline no lo inyecto",
+  // que es justo el caso que `build-info.ts` ya sabe degradar.
+  APP_VERSION: optionalNonEmptyStringEnvSchema,
+  APP_COMMIT_SHA: optionalNonEmptyStringEnvSchema,
+  APP_BUILT_AT: optionalNonEmptyStringEnvSchema,
 
   // Formato de la salida por CONSOLA (stdout). `json` emite una línea JSON por evento, con
   // correlationId/traceId y la MISMA redacción de PII que ya se aplicaba al archivo; `pretty`

@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { randomUUID } from 'node:crypto';
 import { mapWithConcurrency } from '../../common/utils/concurrency.util.js';
+import { deliversNotificationsInProcess } from '../../config/app-role.js';
 import { TenantModel } from '../../database/models/index.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { InternalRbacRepository } from '../internal-users/internal-rbac.repository.js';
@@ -148,6 +149,18 @@ export class NotificationBroadcastService {
     if (options.awaitDelivery) {
       await this.deliverBroadcastMessages(messages, broadcastId);
       return { broadcastId, targeted: recipients.length, created: messages.length, status: 'completed' };
+    }
+
+    // Entrega DIFERIDA: los mensajes quedan en `pending` y los entrega el job
+    // `deliver_pending_notifications` del worker (cada 10 s por defecto). El proceso de API no toca
+    // el orquestador, así que un despliegue a mitad de tanda ya no puede varar mensajes: no hay
+    // ninguna tanda en curso dentro de este proceso que perder.
+    if (!deliversNotificationsInProcess()) {
+      this.logger.log(
+        `Broadcast ${broadcastId}: ${messages.length} mensaje(s) creado(s) en pending; la entrega corre en el worker ` +
+          '(NOTIFICATIONS_DELIVERY_MODE=deferred).',
+      );
+      return { broadcastId, targeted: recipients.length, created: messages.length, status: 'queued' };
     }
 
     // Fire-and-forget: la entrega corre fuera del request. `void` + `.catch` para que un fallo no

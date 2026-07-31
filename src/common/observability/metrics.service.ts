@@ -6,6 +6,8 @@
 import { Injectable } from '@nestjs/common';
 import { Counter, Gauge, Histogram, Registry, collectDefaultMetrics } from 'prom-client';
 import { readObservabilityConfig } from './observability.config.js';
+import { env } from '../../config/env.js';
+import { buildInfo } from '../../config/build-info.js';
 
 /** Estado del circuit breaker, codificado numéricamente para poder graficarlo/alertar. */
 const CIRCUIT_STATE_VALUE: Record<string, number> = { closed: 0, half_open: 1, open: 2 };
@@ -97,6 +99,17 @@ export class MetricsService {
       labelNames: ['actor_type', 'outcome'],
       registers: [this.registry],
     });
+
+    // Serie de identidad del proceso, siempre 1. Con la API y el worker desplegados por separado,
+    // "el worker no está corriendo" es un fallo silencioso: nadie recibe un error, simplemente el
+    // trabajo de fondo deja de ocurrir. `absent(atlas_app_info{role="worker"})` convierte ese
+    // silencio en una alerta, y las etiquetas dicen además qué build hay desplegado en cada rol.
+    new Gauge({
+      name: 'atlas_app_info',
+      help: 'Identidad del proceso: siempre 1, etiquetado por rol y build. Permite alertar sobre un rol ausente.',
+      labelNames: ['role', 'version', 'commit'],
+      registers: [this.registry],
+    }).set({ role: env.APP_ROLE, version: buildInfo.version, commit: buildInfo.commit ?? 'unknown' }, 1);
   }
 
   /** Registra una ejecución de un job programado. `outcome`: success | failure. */

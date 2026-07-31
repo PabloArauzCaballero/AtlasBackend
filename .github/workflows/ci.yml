@@ -354,9 +354,35 @@ jobs:
         run: |
           docker run --rm --entrypoint node atlas-backend:ci --version
           docker run --rm --entrypoint sh atlas-backend:ci -c 'test -f dist/src/main.js'
-          docker run --rm --entrypoint sh atlas-backend:ci -c 'test -d src/database/migrations'
+          # Los TRES roles salen de la misma imagen, así que los tres entrypoints tienen que estar.
+          docker run --rm --entrypoint sh atlas-backend:ci -c 'test -f dist/src/worker.js'
+          docker run --rm --entrypoint sh atlas-backend:ci -c 'test -f dist/src/database/migrate.js'
+          docker run --rm --entrypoint sh atlas-backend:ci -c 'test -f dist/src/database/seed.js'
+          # El job de migraciones corre desde dist/, no con tsx: las migraciones COMPILADAS tienen
+          # que viajar en la imagen. Si sólo viajaran los .ts, migrar en el despliegue sería imposible.
+          docker run --rm --entrypoint sh atlas-backend:ci -c 'ls dist/src/database/migrations/*.js > /dev/null'
+          docker run --rm --entrypoint sh atlas-backend:ci -c 'test -f ops/docker/healthcheck.mjs'
           # Las dependencias de desarrollo no deben viajar en la imagen.
           docker run --rm --entrypoint sh atlas-backend:ci -c '! test -d node_modules/typescript'
+          # La imagen no debe correr como root.
+          test "$(docker run --rm --entrypoint id atlas-backend:ci -u)" != "0"
+
+      # Un `docker-compose.yml` con una referencia rota o un `depends_on` mal escrito no falla hasta
+      # el día del despliegue. `config` resuelve perfiles, anclas y variables, así que lo detecta aquí.
+      - name: Validate compose manifests
+        run: |
+          docker compose --profile app --profile logs config --quiet
+          # El manifiesto de producción DEBE abortar sin sus secretos: si arrancara con valores por
+          # defecto, un despliegue incompleto pasaría desapercibido.
+          if docker compose -f docker-compose.prod.yml config --quiet 2>/dev/null; then
+            echo "docker-compose.prod.yml no exige sus variables obligatorias" >&2
+            exit 1
+          fi
+          ATLAS_IMAGE=atlas-backend:ci DB_HOST=db DB_NAME=atlas DB_USER=u DB_PASSWORD=p \
+          DB_MIGRATION_USER=m DB_MIGRATION_PASSWORD=mp REDIS_URL=redis://r:6379 \
+          JWT_ACCESS_TOKEN_SECRET=s JWT_ISSUER=i JWT_AUDIENCE=a \
+          NOTIFICATION_TOKEN_ENCRYPTION_KEY=k CORS_ORIGINS=https://x INTERNAL_FRONTEND_ORIGIN=https://x \
+            docker compose -f docker-compose.prod.yml config --quiet
 
   # ATLAS-P10-040: escaneo de vulnerabilidades de dependencias. No existía ningún job de este
   # tipo — un CVE `high`/`critical` en una dependencia (p. ej. jsonwebtoken, argon2, pg) podía

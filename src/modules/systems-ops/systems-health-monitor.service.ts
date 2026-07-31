@@ -6,6 +6,7 @@
 import { Inject, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
 import { env } from '../../config/env.js';
+import { appRole, runsBackgroundWork } from '../../config/app-role.js';
 import { REDIS_CLIENT } from '../../common/redis/redis.module.js';
 import { NotificationBroadcastService } from '../notifications/notification-broadcast.service.js';
 import { SystemsHealthService } from './systems-health.service.js';
@@ -45,6 +46,13 @@ export class SystemsHealthMonitorService implements OnApplicationBootstrap, OnMo
   ) {}
 
   onApplicationBootstrap(): void {
+    // Observador GLOBAL de infraestructura, no de esta instancia: corre donde corre el trabajo de
+    // fondo. Dejarlo en cada réplica de API multiplicaría los sondeos sin añadir información.
+    if (!runsBackgroundWork()) {
+      this.logger.log(`Monitor de salud no arrancado: este proceso tiene APP_ROLE=${appRole()} y sólo atiende HTTP.`);
+      return;
+    }
+
     if (!env.SYSTEM_HEALTH_MONITOR_ENABLED) {
       this.logger.log('Monitor de salud de herramientas críticas desactivado (SYSTEM_HEALTH_MONITOR_ENABLED=false).');
       return;

@@ -28,6 +28,8 @@ logs/
 test/
 docs/
 ops/
+# …salvo la sonda del contenedor, que sí forma parte de la imagen: el HEALTHCHECK la ejecuta.
+!ops/docker/
 
 # Evidencia local de smoke tests
 scripts/smoke/results/

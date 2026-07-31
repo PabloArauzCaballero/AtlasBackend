@@ -1,5 +1,4 @@
 {
-  "src/config/env.schema.ts": 332,
   "src/database/context-seed/multidomain-context-loader.ts": 714,
   "src/modules/audit/audit.repository.ts": 314,
   "src/modules/auth/auth.repository.ts": 383,
@@ -23,7 +22,7 @@
   "src/modules/operations/operations.repository.ts": 412,
   "src/modules/risk/risk.repository.ts": 506,
   "src/modules/risk/risk.service.ts": 322,
-  "src/modules/runtime-jobs/runtime-jobs.service.ts": 370,
+  "src/modules/runtime-jobs/runtime-jobs.service.ts": 312,
   "src/modules/schema-management/schema-management.repository.ts": 476,
   "src/modules/schema-management/services/schema-management.service.ts": 343,
   "src/modules/sessions/repositories/sessions-telemetry.repository.ts": 304,
