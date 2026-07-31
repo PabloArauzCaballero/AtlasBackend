@@ -1,11 +1,16 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza preserva evidencia operativa suficiente para diagnosticar incidentes con retención limitada.
+ * @system sincroniza logs redactados hacia MongoDB, aplica TTL y ofrece consultas administrativas.
+ */
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
-import { createReadStream } from 'node:fs';
-import { stat, truncate } from 'node:fs/promises';
+import { truncate } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { Collection, MongoClient } from 'mongodb';
 import { env } from '../../config/env.js';
 import { redactSensitiveText } from '../../common/utils/privacy/redact-text.util.js';
+import { countLines, formatError, getFileSize, mongoSyncHint, readLogDelta } from './log-sync.reader.util.js';
 
 // Retención de la colección de logs en Mongo. Sin TTL la colección crece sin límite y, como el
 // archivo local se trunca tras sincronizar, Mongo pasa a ser la única copia. 30 días es un punto
@@ -60,16 +65,6 @@ type RemoteLogDocument =
 type LogSource = {
   filePath: string;
   fileName: string;
-};
-
-export type LogDelta = {
-  exists: boolean;
-  rotated: boolean;
-  previousOffset: number;
-  offsetFrom: number;
-  offsetTo: number;
-  content: string;
-  fileSize: number;
 };
 
 @Injectable()
@@ -332,97 +327,4 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
 
     return env.LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT ? 0 : fileSizeAtStartup;
   }
-}
-
-export async function readLogDelta(filePath: string, lastOffset: number, maxChunkBytes: number): Promise<LogDelta> {
-  const safeLastOffset = Math.max(0, lastOffset);
-  const fileSize = await getFileSize(filePath);
-
-  if (fileSize < 0) {
-    return {
-      exists: false,
-      rotated: false,
-      previousOffset: safeLastOffset,
-      offsetFrom: safeLastOffset,
-      offsetTo: safeLastOffset,
-      content: '',
-      fileSize: 0,
-    };
-  }
-
-  const rotated = fileSize < safeLastOffset;
-  const offsetFrom = rotated ? 0 : safeLastOffset;
-  const offsetTo = Math.min(fileSize, offsetFrom + maxChunkBytes);
-
-  if (offsetTo <= offsetFrom) {
-    return {
-      exists: true,
-      rotated,
-      previousOffset: safeLastOffset,
-      offsetFrom,
-      offsetTo,
-      content: '',
-      fileSize,
-    };
-  }
-
-  const chunks: Buffer[] = [];
-  const stream = createReadStream(filePath, { start: offsetFrom, end: offsetTo - 1 });
-
-  for await (const chunk of stream) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-
-  return {
-    exists: true,
-    rotated,
-    previousOffset: safeLastOffset,
-    offsetFrom,
-    offsetTo,
-    content: Buffer.concat(chunks).toString('utf8'),
-    fileSize,
-  };
-}
-
-export function countLines(content: string): number {
-  if (content.length === 0) return 0;
-  const lines = content.split(/\r\n|\r|\n/);
-  if (lines.at(-1) === '') lines.pop();
-  return lines.length;
-}
-
-async function getFileSize(filePath: string): Promise<number> {
-  try {
-    const fileStat = await stat(filePath);
-    return fileStat.size;
-  } catch (error) {
-    if (isNodeError(error) && error.code === 'ENOENT') return -1;
-    throw error;
-  }
-}
-
-function isNodeError(error: unknown): error is NodeJS.ErrnoException {
-  return typeof error === 'object' && error !== null && 'code' in error;
-}
-
-function formatError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function mongoSyncHint(message: string): string {
-  const normalized = message.toLowerCase();
-  if (normalized.includes('tls') || normalized.includes('ssl') || normalized.includes('alert internal error')) {
-    return (
-      'fallo TLS al conectar con MongoDB. Revisa MONGO_DB_URL_CONNECTION, host SRV, usuario/password, TLS del cluster ' +
-      'y allowlist de IP en MongoDB Atlas. Detalle: ' +
-      message
-    );
-  }
-  if (normalized.includes('authentication failed') || normalized.includes('auth')) {
-    return `credenciales MongoDB rechazadas. Revisa usuario, password y authSource. Detalle: ${message}`;
-  }
-  if (normalized.includes('server selection') || normalized.includes('enotfound') || normalized.includes('econnrefused')) {
-    return `MongoDB no esta alcanzable desde este backend. Revisa red, DNS, cluster host y allowlist. Detalle: ${message}`;
-  }
-  return message;
 }

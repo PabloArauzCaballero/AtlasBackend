@@ -1,3 +1,8 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza desacopla procesos de negocio y permite reintentos auditables sin perder eventos.
+ * @system registra definiciones, outbox y procesamiento idempotente de eventos de dominio.
+ */
 import { z } from 'zod';
 
 export const eventStatusSchema = z.enum(['pending', 'processing', 'processed', 'failed', 'cancelled']);

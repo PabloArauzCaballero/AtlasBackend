@@ -1,5 +1,9 @@
 # Auditoría — Módulo `customer-onboarding`
 
+> **Registro histórico.** La corrección provisional descrita abajo (bloquear el código fijo solo en
+> producción) fue reemplazada el 2026-07-27 por emisión y validación real: hash, TTL, máximo de
+> intentos, consumo único y entrega por el canal configurado. Runtime ya no acepta `123456`.
+
 **Alcance revisado:** `customer-onboarding.controller.ts`, `.service.ts` (facade),
 `.mapper.ts`, `.dtos.ts`, `.schemas.ts`, `.repository.ts` (facade); los 4 servicios de
 aplicación (`customer-onboarding-start.service.ts`,

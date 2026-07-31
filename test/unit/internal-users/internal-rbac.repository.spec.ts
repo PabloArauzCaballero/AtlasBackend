@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { InternalRbacRepository } from '../../../src/modules/internal-users/internal-rbac.repository.js';
 
 /**
@@ -9,12 +10,12 @@ import { InternalRbacRepository } from '../../../src/modules/internal-users/inte
 describe('InternalRbacRepository', () => {
   function buildRepo() {
     const make = () => ({
-      findOne: jest.fn(),
-      findAll: jest.fn(),
-      findAndCountAll: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      bulkCreate: jest.fn(),
+      findOne: asyncMock(),
+      findAll: asyncMock(),
+      findAndCountAll: asyncMock(),
+      create: asyncMock(),
+      update: asyncMock(),
+      bulkCreate: asyncMock(),
     });
     const models = {
       internalUser: make(),
@@ -25,7 +26,7 @@ describe('InternalRbacRepository', () => {
       credential: make(),
       audit: make(),
     };
-    const sequelize = { query: jest.fn(), transaction: jest.fn(async (cb: (tx: string) => unknown) => cb('tx')) };
+    const sequelize = { query: asyncMock(), transaction: jest.fn(async (cb: (tx: string) => unknown) => cb('tx')) };
     // Orden del constructor: sequelize primero.
     const repo = new InternalRbacRepository(
       sequelize as never,
@@ -45,14 +46,14 @@ describe('InternalRbacRepository', () => {
     (models.internalUser.findOne as jest.Mock).mockResolvedValue({ id: 'u1' } as never);
     const result = await repo.findUserById('t1', 'u1');
     expect(result).toEqual({ id: 'u1' });
-    expect((models.internalUser.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({ id: 'u1', tenantId: 't1' });
+    expect(callArg<CallArgRecord>(models.internalUser.findOne, 0, 0).where).toMatchObject({ id: 'u1', tenantId: 't1' });
   });
 
   it('findUserByEmail normaliza el email a minúsculas y sin espacios', async () => {
     const { repo, models } = buildRepo();
     (models.internalUser.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findUserByEmail('t1', '  Ana@Atlas.TEST  ');
-    expect((models.internalUser.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({ email: 'ana@atlas.test', tenantId: 't1' });
+    expect(callArg<CallArgRecord>(models.internalUser.findOne, 0, 0).where).toMatchObject({ email: 'ana@atlas.test', tenantId: 't1' });
   });
 
   it('listUsers devuelve rows + total desde findAndCountAll', async () => {
@@ -67,14 +68,14 @@ describe('InternalRbacRepository', () => {
     (models.internalUser.findAll as jest.Mock).mockResolvedValue([{ id: 1 }, { id: 2 }] as never);
     const result = await repo.listActiveInternalUserIds('t1');
     expect(result).toEqual(['1', '2']);
-    expect((models.internalUser.findAll as jest.Mock).mock.calls[0][0].where).toMatchObject({ tenantId: 't1', status: 'active' });
+    expect(callArg<CallArgRecord>(models.internalUser.findAll, 0, 0).where).toMatchObject({ tenantId: 't1', status: 'active' });
   });
 
   it('findRolesByCodes usa Op.in y exige rol activo no borrado', async () => {
     const { repo, models } = buildRepo();
     (models.role.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.findRolesByCodes(['admin', 'risk_analyst']);
-    const where = (models.role.findAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+    const where = callArg<CallArgRecord>(models.role.findAll, 0, 0).where as Record<string, unknown>;
     expect(where.roleCode).toBeDefined(); // { [Op.in]: [...] }
     expect(where).toMatchObject({ status: 'active', deleted: false });
   });
@@ -146,7 +147,7 @@ describe('InternalRbacRepository', () => {
       payloadJson: { reason: 'r', k: 1 },
     });
     await repo.createAudit({ tenantId: 't1', actorInternalUserId: null, actionCode: 'X', targetType: 't', targetId: null, reason: null });
-    expect((models.audit.create as jest.Mock).mock.calls[1][0].actorType).toBe('system');
+    expect(callArg<CallArgRecord>(models.audit.create, 1, 0).actorType).toBe('system');
   });
 
   // --- Perfiles de acceso y permisos (SQL crudo) ----------------------------------------------

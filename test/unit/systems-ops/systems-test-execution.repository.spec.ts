@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { Op } from 'sequelize';
 import { SystemsTestExecutionRepository } from '../../../src/modules/systems-ops/systems-test-execution.repository.js';
 
@@ -9,10 +10,10 @@ import { SystemsTestExecutionRepository } from '../../../src/modules/systems-ops
  */
 describe('SystemsTestExecutionRepository', () => {
   function buildRepo() {
-    const suiteModel = { upsert: jest.fn(), findAndCountAll: jest.fn(), findByPk: jest.fn() };
-    const stepModel = { upsert: jest.fn(), findAll: jest.fn() };
-    const runModel = { create: jest.fn(), findAndCountAll: jest.fn(), update: jest.fn(), findOne: jest.fn() };
-    const stepRunModel = { create: jest.fn(), findAll: jest.fn() };
+    const suiteModel = { upsert: asyncMock(), findAndCountAll: asyncMock(), findByPk: asyncMock() };
+    const stepModel = { upsert: asyncMock(), findAll: asyncMock() };
+    const runModel = { create: asyncMock(), findAndCountAll: asyncMock(), update: asyncMock(), findOne: asyncMock() };
+    const stepRunModel = { create: asyncMock(), findAll: asyncMock() };
     const repo = new SystemsTestExecutionRepository(suiteModel as never, stepModel as never, runModel as never, stepRunModel as never);
     return { repo, suiteModel, stepModel, runModel, stepRunModel };
   }
@@ -103,7 +104,7 @@ describe('SystemsTestExecutionRepository', () => {
     (runModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
     await repo.listTestRuns({ status: 'PASSED', page: 1, limit: 20 } as never, 't1');
     expect(runModel.update).toHaveBeenCalled();
-    expect((runModel.findAndCountAll as jest.Mock).mock.calls[0][0].where).toMatchObject({ status: 'PASSED', tenantId: 't1' });
+    expect(callArg<CallArgRecord>(runModel.findAndCountAll, 0, 0).where).toMatchObject({ status: 'PASSED', tenantId: 't1' });
   });
 
   it('markStaleRunsFailed marca RUNNING con startedAt anterior a 2h como FAILED', async () => {
@@ -122,7 +123,7 @@ describe('SystemsTestExecutionRepository', () => {
     const { repo, runModel } = buildRepo();
     (runModel.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findTestRunById('r1', null);
-    expect((runModel.findOne as jest.Mock).mock.calls[0][0].where).toEqual({ id: 'r1' });
+    expect(callArg<CallArgRecord>(runModel.findOne, 0, 0).where).toEqual({ id: 'r1' });
   });
 
   it('findStepRunsByRun filtra por testRunId y ordena por id asc', async () => {

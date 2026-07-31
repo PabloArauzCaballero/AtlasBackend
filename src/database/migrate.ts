@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
+ * @system define database para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
+ */
 import { Umzug, SequelizeStorage } from 'umzug';
 import { createMigrationSequelizeInstance } from './sequelize.js';
 

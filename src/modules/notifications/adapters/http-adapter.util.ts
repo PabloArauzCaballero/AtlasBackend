@@ -1,3 +1,8 @@
+/**
+ * @file Utilidad pura o acotada reutilizable dentro de su capa.
+ * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
+ * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
+ */
 import { env } from '../../../config/env.js';
 import { toAdapterError } from '../../../common/resilience/adapter-error.js';
 import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';

@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
+ * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
+ */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   mapDataEntity,
@@ -10,6 +15,7 @@ import {
   mapTool,
   mapToolRequirement,
 } from './systems-ops.mapper.js';
+import { mapDataEntityNarrative } from './systems-entity-narrative.mapper.js';
 import { CatalogSeedRefreshDto, DiscoverEndpointsDto, SystemsListQueryDto } from './systems-ops.schemas.js';
 import { EndpointDiscoveryService } from './endpoint-discovery.service.js';
 import { SystemsCatalogSeedService } from './systems-catalog-seed.service.js';
@@ -98,6 +104,7 @@ export class SystemsCatalogQueryService {
     ]);
     return {
       ...mapDataEntity(entity),
+      narrative: mapDataEntityNarrative(entity),
       columns: columns.map(mapDataField),
       relatedColumns: columns.map(mapDataField),
       relations: relations.map(mapDataRelationship),
@@ -145,6 +152,7 @@ export class SystemsCatalogQueryService {
     ]);
     return {
       entity: mapDataEntity(entity),
+      narrative: mapDataEntityNarrative(entity),
       endpointImpacts: impacts.map((impact) => mapDataImpact(impact, entity)),
       columns: columns.map(mapDataField),
       relations: relations.map(mapDataRelationship),

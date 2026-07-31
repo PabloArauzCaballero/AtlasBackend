@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
+ * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Transaction } from 'sequelize';
@@ -61,6 +66,28 @@ export class CustomerOnboardingFlowRepository {
       ],
       transaction: options.transaction,
     } as import('sequelize').FindOptions);
+  }
+
+  /**
+   * Cierra el flujo de onboarding.
+   *
+   * `completion_status` se escribía UNA sola vez, como `in_progress`, y no se actualizaba nunca:
+   * `completed_at`, `abandoned_at` y `total_duration_seconds` quedaban en `null` para siempre. Sin
+   * este cierre no existen tasa de conversión, tasa de abandono ni tiempo por etapa — es decir,
+   * ninguna de las métricas con las que se opera un onboarding.
+   */
+  async closeOnboardingFlow(
+    flow: OnboardingFlowModel,
+    values: { completionStatus: 'completed' | 'abandoned' | 'superseded'; closedAt: Date },
+    options: RepositoryOptions,
+  ): Promise<OnboardingFlowModel> {
+    flow.completionStatus = values.completionStatus;
+    if (values.completionStatus === 'completed') flow.completedAt = values.closedAt;
+    if (values.completionStatus === 'abandoned') flow.abandonedAt = values.closedAt;
+    if (flow.startedAt) {
+      flow.totalDurationSeconds = Math.max(0, Math.round((values.closedAt.getTime() - flow.startedAt.getTime()) / 1000));
+    }
+    return flow.save({ transaction: options.transaction });
   }
 
   createOnboardingStepEvent(

@@ -1,4 +1,5 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
+import { callArg } from '../../support/jest-mocks.js';
 
 /**
  * ATLAS-P11-T06 (cubre el código nuevo de ATLAS-P11-T13): valida que `KmsKeyProvider` traduce
@@ -33,6 +34,12 @@ describe('KmsKeyProvider', () => {
     expect(sendMock).not.toHaveBeenCalled();
   });
 
+  it('throws immediately if constructed with an empty AWS region', async () => {
+    const { KmsKeyProvider } = await import('../../../src/common/utils/crypto/kms-key-provider.js');
+    expect(() => new KmsKeyProvider('alias/atlas-pii', '  ')).toThrow(/región AWS/);
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
   it('generateDataKey() maps GenerateDataKeyCommand output to DataEncryptionKey', async () => {
     const { KmsKeyProvider } = await import('../../../src/common/utils/crypto/kms-key-provider.js');
     sendMock.mockResolvedValueOnce({
@@ -46,6 +53,20 @@ describe('KmsKeyProvider', () => {
     expect(result.keyId).toBe('arn:aws:kms:us-east-1:111111111111:key/test-key');
     expect(result.plaintextKey.toString()).toBe('plaintext-data-key-32-bytes-long');
     expect(result.encryptedKey).toBe(Buffer.from('wrapped-key-bytes').toString('base64'));
+  });
+
+  it('reuses the lazy SDK and KMS client across multiple data keys', async () => {
+    const { KmsKeyProvider } = await import('../../../src/common/utils/crypto/kms-key-provider.js');
+    sendMock.mockResolvedValue({
+      Plaintext: Buffer.alloc(32, 1),
+      CiphertextBlob: Buffer.from('wrapped-key'),
+    } as never);
+    const provider = new KmsKeyProvider('alias/atlas-pii', 'us-east-1');
+
+    await provider.generateDataKey();
+    await provider.generateDataKey();
+
+    expect(sendMock).toHaveBeenCalledTimes(2);
   });
 
   it('generateDataKey() throws a clear error when AWS returns an unexpected empty response', async () => {
@@ -65,7 +86,7 @@ describe('KmsKeyProvider', () => {
 
     expect(result.toString()).toBe('recovered-key');
     expect(sendMock).toHaveBeenCalledTimes(1);
-    const sentCommand = sendMock.mock.calls[0][0] as { input: { CiphertextBlob: Buffer; KeyId: string } };
+    const sentCommand = callArg<{ input: { CiphertextBlob: Buffer; KeyId: string } }>(sendMock, 0, 0);
     expect(sentCommand.input.CiphertextBlob.toString()).toBe('wrapped-key-bytes');
     expect(sentCommand.input.KeyId).toBe('alias/atlas-pii');
   });

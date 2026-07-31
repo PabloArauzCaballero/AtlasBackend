@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza implementa las capacidades operativas, de identidad, riesgo y crédito de Atlas.
+ * @system organiza el runtime NestJS en módulos con límites explícitos y dependencias dirigidas.
+ */
 import 'reflect-metadata';
 // Fase 3.4: el bootstrap de OpenTelemetry debe importarse ANTES que cualquier módulo instrumentable
 // (HTTP/Express/PG) para poder envolverlos. Es no-op salvo OTEL_ENABLED=true.

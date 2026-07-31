@@ -1,0 +1,70 @@
+# Dependencias locales de Atlas Backend: PostgreSQL, Redis y (opcional) MongoDB.
+#
+# Hallazgo A-06 de docs/audit/auditoria-integral-2026-07-30.md: levantar el backend en local exigía
+# instalar y configurar a mano tres servicios cuyas versiones no estaban declaradas en ninguna parte,
+# y las que usa CI (postgres:16, redis:7) solo existían dentro de .github/workflows/ci.yml.
+#
+# El BACKEND no está aquí a propósito: en desarrollo se corre con `yarn start:dev` para conservar el
+# ciclo de recarga. Esto levanta únicamente lo que el backend necesita alrededor.
+#
+#   docker compose up -d            # levanta postgres + redis
+#   docker compose --profile logs up -d   # además MongoDB, para el visor de logs
+#   docker compose down -v          # borra también los volúmenes
+#
+# Las versiones coinciden con las del job `db-and-cache-integration` de CI. Cambiar una aquí sin
+# cambiarla allí reintroduce la divergencia que este archivo existe para evitar.
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: atlas-postgres
+    environment:
+      POSTGRES_USER: atlas
+      POSTGRES_PASSWORD: atlas
+      POSTGRES_DB: atlas
+    ports:
+      - '5432:5432'
+    volumes:
+      - atlas-postgres-data:/var/lib/postgresql/data
+      # Los scripts de roles se montan en solo lectura para poder aplicarlos con `psql` desde el
+      # contenedor sin copiarlos: `docker compose exec postgres psql -U atlas -d atlas -f /ops/bootstrap-roles.sql`
+      - ./ops/postgres:/ops:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U atlas']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: atlas-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - atlas-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Solo para el visor de logs (`GET /systems/logs/mongo`). El backend arranca sin esto: si
+  # MONGO_DB_URL_CONNECTION no está configurado, el sync a Mongo queda apagado sin romper nada.
+  mongo:
+    image: mongo:7
+    container_name: atlas-mongo
+    profiles: ['logs']
+    ports:
+      - '27017:27017'
+    volumes:
+      - atlas-mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand("ping")']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  atlas-postgres-data:
+  atlas-redis-data:
+  atlas-mongo-data:

@@ -1,3 +1,8 @@
+/**
+ * @file Utilidad pura o acotada reutilizable dentro de su capa.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de crypto sin introducir reglas de un dominio específico.
+ */
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { Logger } from '@nestjs/common';
 import { DataKeyProvider } from './data-key-provider.interface.js';

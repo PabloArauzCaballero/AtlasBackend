@@ -1,3 +1,8 @@
+/**
+ * @file Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso.
+ * @business Esta pieza permite retirar instancias enfermas antes de afectar a clientes u operadores.
+ * @system expone liveness y readiness con estados HTTP útiles para orquestadores.
+ */
 import { Controller, Get, HttpCode, Inject, ServiceUnavailableException } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { InjectConnection } from '@nestjs/sequelize';
@@ -6,11 +11,17 @@ import { SkipThrottle } from '@nestjs/throttler';
 import type Redis from 'ioredis';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { REDIS_CLIENT } from '../../common/redis/redis.module.js';
+import { buildInfo } from '../../config/build-info.js';
+import { GracefulShutdownService } from '../../common/lifecycle/graceful-shutdown.service.js';
 
 type HealthStatus = {
   status: 'ok' | 'degraded';
   service: string;
   version: string;
+  /** Commit del que se construyó la imagen. `null` si el pipeline no lo inyectó. */
+  commit: string | null;
+  /** Momento de construcción de la imagen. `null` si el pipeline no lo inyectó. */
+  builtAt: string | null;
   database: 'ok' | 'unreachable';
   uptime: number;
   timestamp: string;
@@ -21,6 +32,8 @@ type DependencyState = 'ok' | 'unreachable' | 'not_configured';
 type ReadinessStatus = {
   status: 'ready' | 'not_ready';
   checks: { postgres: DependencyState; redis: DependencyState };
+  /** `true` desde que llega SIGTERM: la instancia sigue sirviendo pero pide salir del balanceador. */
+  shuttingDown: boolean;
   timestamp: string;
 };
 
@@ -33,6 +46,7 @@ export class HealthController {
   constructor(
     @InjectConnection() private readonly sequelize: Sequelize,
     @Inject(REDIS_CLIENT) private readonly redis: Redis | null,
+    private readonly shutdown: GracefulShutdownService,
   ) {}
 
   @ApiOperation({
@@ -47,7 +61,9 @@ export class HealthController {
     return {
       status: dbStatus === 'ok' ? 'ok' : 'degraded',
       service: 'atlas-backend',
-      version: process.env['npm_package_version'] ?? '0.1.0',
+      version: buildInfo.version,
+      commit: buildInfo.commit,
+      builtAt: buildInfo.builtAt,
       database: dbStatus,
       uptime: Math.floor(process.uptime()),
       timestamp: new Date().toISOString(),
@@ -77,11 +93,17 @@ export class HealthController {
   @Public()
   @Get('readiness')
   async readiness(): Promise<ReadinessStatus> {
-    const [postgres, redis] = await Promise.all([this.checkPostgres(), this.checkRedis()]);
-    const ready = postgres === 'ok' && redis !== 'unreachable';
+    // El drenado se comprueba PRIMERO y sin tocar dependencias: durante el apagado la respuesta
+    // debe ser inmediata y negativa, no depender de que Postgres conteste (hallazgo A-07).
+    const shuttingDown = this.shutdown.isShuttingDown();
+    const [postgres, redis] = shuttingDown
+      ? (['ok', 'not_configured'] as const)
+      : await Promise.all([this.checkPostgres(), this.checkRedis()]);
+    const ready = !shuttingDown && postgres === 'ok' && redis !== 'unreachable';
     const body: ReadinessStatus = {
       status: ready ? 'ready' : 'not_ready',
       checks: { postgres, redis },
+      shuttingDown,
       timestamp: new Date().toISOString(),
     };
     if (!ready) {

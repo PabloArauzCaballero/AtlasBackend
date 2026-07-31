@@ -1,3 +1,8 @@
+/**
+ * @file Mapper: transforma modelos internos a contratos de transporte.
+ * @business Esta pieza demuestra qué tratamiento de datos aceptó o rechazó cada cliente y bajo qué versión legal.
+ * @system registra decisiones y eventos de consentimiento con separación entre DTO, reglas y persistencia.
+ */
 import { ConsentDocumentModel, CustomerConsentModel } from '../../database/models/index.js';
 import { ConsentDocumentResponseDto, CustomerConsentResponseDto } from './consents.dtos.js';
 import { toIsoOrNull } from '../../common/utils/dates/date.util.js';

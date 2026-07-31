@@ -126,6 +126,108 @@ paths:
       summary: Expirar sesiones inactivas
       tags:
         - runtime-jobs
+  /operations/jobs/retry-stuck-notifications:
+    post:
+      description: >-
+        Reintenta los mensajes que quedaron en pending/sending (p. ej. porque el
+        proceso se reinició a mitad de un broadcast). Job de mantenimiento.
+        Restringido a admin/platform_admin/system.
+      operationId: RuntimeJobsController_retryStuckNotifications
+      parameters:
+        - name: x-idempotency-key
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                olderThanMinutes:
+                  default: 15
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 1440
+                limit:
+                  default: 100
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 500
+                dryRun:
+                  default: true
+                  type: boolean
+              required:
+                - olderThanMinutes
+                - limit
+                - dryRun
+              additionalProperties: false
+      responses:
+        '200':
+          description: Resultado del reintento de notificaciones atascadas.
+      security:
+        - access-token: []
+      summary: Reintentar notificaciones atascadas
+      tags:
+        - runtime-jobs
+  /operations/jobs/purge-idempotency-keys:
+    post:
+      description: >-
+        Borra las claves completed/failed anteriores al período de retención.
+        Las claves en processing nunca se tocan: podrían pertenecer a una
+        petición en vuelo. Restringido a admin/platform_admin/system.
+      operationId: RuntimeJobsController_purgeIdempotencyKeys
+      parameters:
+        - name: x-idempotency-key
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                retentionDays:
+                  default: 30
+                  type: integer
+                  minimum: 1
+                  maximum: 365
+                limit:
+                  default: 1000
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 10000
+                dryRun:
+                  default: true
+                  type: boolean
+              required:
+                - retentionDays
+                - limit
+                - dryRun
+              additionalProperties: false
+      responses:
+        '200':
+          description: Resultado de la purga de claves de idempotencia.
+      security:
+        - access-token: []
+      summary: Purgar claves de idempotencia resueltas
+      tags:
+        - runtime-jobs
   /operations/jobs/apply-retention-policies:
     post:
       description: Job de mantenimiento. Restringido a admin/platform_admin/system.
@@ -717,6 +819,18 @@ paths:
                         type: string
                       additionalProperties: {}
                     - type: 'null'
+                category:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 60
+                    - type: 'null'
+                icon:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 60
+                    - type: 'null'
                 isActive:
                   default: true
                   type: boolean
@@ -808,6 +922,18 @@ paths:
                       propertyNames:
                         type: string
                       additionalProperties: {}
+                    - type: 'null'
+                category:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 60
+                    - type: 'null'
+                icon:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 60
                     - type: 'null'
                 isActive:
                   default: true
@@ -922,6 +1048,98 @@ paths:
       security:
         - access-token: []
       summary: Editar preferencias de notificación de un cliente (operaciones)
+      tags:
+        - notifications
+  /operations/notifications/broadcast:
+    post:
+      description: >-
+        Crea y entrega una notificación in-app real a customers y/o usuarios
+        internos — a los ids indicados, o a todos los activos del tenant si no
+        se indican. No usa email/SMS/push (esos canales siguen disponibles vía
+        plantillas de eventos de dominio).
+      operationId: NotificationsController_broadcastNotification
+      parameters:
+        - name: x-idempotency-key
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+                priority:
+                  default: 0
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                category:
+                  default: custom_broadcast
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+                icon:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 60
+                    - type: 'null'
+                audience:
+                  type: string
+                  enum:
+                    - customers
+                    - internal_users
+                    - both
+                customerIds:
+                  minItems: 1
+                  maxItems: 5000
+                  type: array
+                  items:
+                    type: string
+                    pattern: ^[1-9][0-9]*$
+                internalUserIds:
+                  minItems: 1
+                  maxItems: 5000
+                  type: array
+                  items:
+                    type: string
+                    pattern: ^[1-9][0-9]*$
+              required:
+                - title
+                - body
+                - priority
+                - category
+                - audience
+              additionalProperties: false
+      responses:
+        '202':
+          description: >-
+            Broadcast aceptado — los mensajes se crearon (devuelve
+            targeted/created) y la entrega corre en background (status:
+            "queued"). Un broadcast grande no bloquea el request.
+        '400':
+          description: >-
+            X-Idempotency-Key ausente, o customerIds/internalUserIds usado con
+            la audience equivocada.
+      security:
+        - access-token: []
+      summary: Enviar notificación in-app personalizada (broadcast de admin)
       tags:
         - notifications
   /customers/{customerId}/notifications:
@@ -1147,6 +1365,1077 @@ paths:
       summary: Desactivar token de dispositivo (push)
       tags:
         - notifications
+  /internal-users/me/notifications:
+    get:
+      operationId: NotificationsController_listMyNotifications
+      parameters:
+        - name: channel
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - in_app
+              - push
+              - email
+              - sms
+              - whatsapp
+              - phone
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending
+              - queued
+              - sending
+              - sent
+              - delivered
+              - read
+              - failed
+              - retrying
+              - cancelled
+        - name: x-tenant-id
+          in: header
+          description: Opcional (se toma del token).
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista paginada de mis notificaciones.
+        '403':
+          description: INTERNAL_USER_TOKEN_REQUIRED.
+      security:
+        - access-token: []
+      summary: Listar mis notificaciones (usuario interno, autoservicio)
+      tags:
+        - notifications
+  /internal-users/me/notifications/unread-count:
+    get:
+      operationId: NotificationsController_myUnreadNotificationsCount
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cantidad de notificaciones no leídas.
+        '403':
+          description: INTERNAL_USER_TOKEN_REQUIRED.
+      security:
+        - access-token: []
+      summary: Contador de mis notificaciones no leídas (usuario interno)
+      tags:
+        - notifications
+  /internal-users/me/notifications/{notificationId}/read:
+    post:
+      operationId: NotificationsController_markMyNotificationRead
+      parameters:
+        - name: notificationId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notificación marcada como leída.
+        '403':
+          description: INTERNAL_USER_TOKEN_REQUIRED.
+        '404':
+          description: NOTIFICATION_NOT_FOUND.
+      security:
+        - access-token: []
+      summary: Marcar una de mis notificaciones como leída (usuario interno)
+      tags:
+        - notifications
+  /internal-users/me/notifications/read-all:
+    post:
+      operationId: NotificationsController_markAllMyNotificationsRead
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cantidad de notificaciones actualizadas.
+        '403':
+          description: INTERNAL_USER_TOKEN_REQUIRED.
+      security:
+        - access-token: []
+      summary: Marcar todas mis notificaciones como leídas (usuario interno)
+      tags:
+        - notifications
+  /customers/{customerId}/me:
+    get:
+      description: >-
+        Devuelve el perfil vigente del cliente: datos de identidad, contactos,
+        consentimientos otorgados y el último resultado de riesgo reducido
+        (decisión + nivel, sin el desglose completo del modelo). Un `customer`
+        solo puede leer su propio perfil (`assertOwnCustomerResource`); los
+        roles internos listados pueden leer el de cualquier cliente del tenant.
+      operationId: CustomersController_getCustomerMe
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: Id numérico del cliente.
+        - name: x-tenant-id
+          in: header
+          description: >-
+            Opcional para `customer` (se toma del token); requerido para roles
+            internos.
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Perfil del cliente.
+        '400':
+          description: x-tenant-id ausente o no es un entero positivo válido.
+        '403':
+          description: Un actor con rol customer intentó leer el perfil de otro cliente.
+        '404':
+          description: Cliente no encontrado.
+      security:
+        - access-token: []
+      summary: Perfil resumido del cliente ("mi perfil")
+      tags:
+        - customers
+  /customers/{customerId}/eligibility:
+    get:
+      description: >-
+        Evalúa la regla de habilitación y devuelve `{ eligible, blockers[],
+        sections[], completionPercentage, nextStep }`. Cada consulta deja una
+        fila de evidencia en `customer_eligibility_evaluations` con la versión
+        de la regla aplicada. Un `customer` solo puede consultar su propia
+        habilitación.
+      operationId: CustomerEligibilityController_getEligibility
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          description: Opcional para `customer` (se toma del token).
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Resultado de la evaluación, con la lista completa de bloqueadores.
+        '403':
+          description: Un customer intentó consultar la habilitación de otro cliente.
+        '404':
+          description: Cliente no encontrado.
+      security:
+        - access-token: []
+      summary: Habilitación crediticia del cliente
+      tags:
+        - customer-eligibility
+  /operations/customers/{customerId}/eligibility/decision:
+    post:
+      description: >-
+        Aprueba, rechaza, observa, suspende o reincorpora a un cliente. La
+        transición se valida contra la máquina de estados y se escribe junto a
+        su evento de historial en la misma transacción. Aprobar con bloqueadores
+        pendientes se registra como excepción autorizada (`decision_source =
+        manual_override`), con la lista de bloqueadores omitidos.
+      operationId: CustomerEligibilityController_decideEligibility
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decision:
+                  type: string
+                  enum:
+                    - approve
+                    - reject
+                    - observe
+                    - suspend
+                    - reinstate
+                reasonCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                notes:
+                  type: string
+                  maxLength: 2000
+              required:
+                - decision
+                - reasonCode
+              additionalProperties: false
+      responses:
+        '200':
+          description: >-
+            Decisión aplicada — estado anterior, estado nuevo y bloqueadores
+            vigentes.
+        '404':
+          description: Cliente no encontrado.
+        '422':
+          description: >-
+            INVALID_STATUS_TRANSITION — la máquina de estados no permite esa
+            transición.
+      security:
+        - access-token: []
+      summary: Decidir la habilitación de un cliente (operaciones)
+      tags:
+        - customer-eligibility
+  /internal/auth/login:
+    post:
+      description: Autentica usuarios internos para el panel administrativo ATLAS.
+      operationId: InternalAuthController_login
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+                email: {}
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+              required:
+                - email
+                - password
+              additionalProperties: false
+      responses:
+        '200':
+          description: Login exitoso, retorna tokens de sesión interna.
+        '401':
+          description: Credenciales inválidas.
+      security:
+        - access-token: []
+      summary: Login interno
+      tags:
+        - internal-auth
+  /internal/auth/login/pin:
+    post:
+      description: >-
+        Segundo paso del login para super admins: canjea el `challengeToken`
+        devuelto por el login más el PIN recibido por correo por los tokens y el
+        perfil de la sesión interna.
+      operationId: InternalAuthController_verifyLoginPin
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                challengeToken:
+                  type: string
+                  minLength: 20
+                pin:
+                  type: string
+                  pattern: ^\d{6}$
+              required:
+                - challengeToken
+                - pin
+              additionalProperties: false
+      responses:
+        '200':
+          description: PIN correcto — tokens + perfil interno.
+        '401':
+          description: PIN inválido, expirado o con intentos agotados.
+      security:
+        - access-token: []
+      summary: Verificar PIN de login interno
+      tags:
+        - internal-auth
+  /internal/auth/refresh:
+    post:
+      description: Rota refresh token de una sesión interna.
+      operationId: InternalAuthController_refresh
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  minLength: 20
+              additionalProperties: false
+      responses:
+        '200':
+          description: Token rotado.
+        '401':
+          description: Refresh token inválido o revocado.
+      security:
+        - access-token: []
+      summary: Refresh interno
+      tags:
+        - internal-auth
+  /internal/auth/logout:
+    post:
+      description: Revoca refresh token de una sesión interna.
+      operationId: InternalAuthController_logout
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  minLength: 20
+                allDevices:
+                  default: false
+                  type: boolean
+              required:
+                - allDevices
+              additionalProperties: false
+      responses:
+        '200':
+          description: Sesión(es) revocada(s).
+      security:
+        - access-token: []
+      summary: Logout interno
+      tags:
+        - internal-auth
+  /internal/auth/me:
+    get:
+      description: >-
+        Devuelve usuario, roles y permisos efectivos para renderizar menú
+        dinámico.
+      operationId: InternalAuthController_me
+      parameters: []
+      responses:
+        '200':
+          description: Perfil, roles y permisos efectivos del usuario interno actual.
+      security:
+        - access-token: []
+      summary: Perfil interno actual
+      tags:
+        - internal-auth
+  /internal/auth/signup:
+    post:
+      description: >-
+        Signup interno controlado para el panel admin; no es autorregistro
+        público.
+      operationId: InternalAuthController_signup
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+                email: {}
+                fullName:
+                  type: string
+                  minLength: 3
+                  maxLength: 180
+                userCode:
+                  type: string
+                  minLength: 3
+                  maxLength: 60
+                department:
+                  default: OPERATIONS
+                  type: string
+                  enum:
+                    - OPERATIONS
+                    - RISK
+                    - COLLECTIONS
+                    - COMPLIANCE
+                    - FINANCE
+                    - SUPPORT
+                    - SYSTEMS
+                    - AUDIT
+                    - EXECUTIVE
+                jobTitle:
+                  type: string
+                  maxLength: 120
+                password:
+                  type: string
+                  minLength: 10
+                  maxLength: 128
+                mustChangePassword:
+                  default: true
+                  type: boolean
+                roles:
+                  minItems: 1
+                  maxItems: 8
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - SUPER_ADMIN
+                      - SYSTEMS_ADMIN
+                      - INTERNAL_IDENTITY_ADMIN
+                      - OPERATIONS_MANAGER
+                      - OPERATIONS_ANALYST
+                      - RISK_MANAGER
+                      - RISK_ANALYST
+                      - FRAUD_ANALYST
+                      - COMPLIANCE_MANAGER
+                      - COMPLIANCE_ANALYST
+                      - COLLECTIONS_MANAGER
+                      - COLLECTIONS_AGENT
+                      - FINANCE_MANAGER
+                      - MERCHANT_OPERATIONS
+                      - DATA_GOVERNANCE_MANAGER
+                      - DATA_QUALITY_ANALYST
+                      - QA_ENGINEER
+                      - AUDITOR_READONLY
+                      - SUPPORT_AGENT
+                      - EXECUTIVE_READONLY
+                reason:
+                  type: string
+                  minLength: 8
+                  maxLength: 500
+              required:
+                - email
+                - fullName
+                - department
+                - password
+                - mustChangePassword
+                - roles
+                - reason
+              additionalProperties: false
+      responses:
+        '201':
+          description: Usuario interno creado.
+      security:
+        - access-token: []
+      summary: Crear usuario interno
+      tags:
+        - internal-auth
+  /internal/users:
+    get:
+      operationId: InternalUsersController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 50
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+        - name: page
+          required: false
+          in: query
+          schema:
+            default: 1
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 9007199254740991
+      responses:
+        '200':
+          description: Lista paginada de usuarios internos.
+      security:
+        - access-token: []
+      summary: Listar usuarios internos
+      tags:
+        - internal-users
+  /internal/users/{internalUserId}:
+    get:
+      operationId: InternalUsersController_get
+      parameters:
+        - name: internalUserId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+      responses:
+        '200':
+          description: Detalle del usuario interno (con roles).
+        '404':
+          description: INTERNAL_USER_NOT_FOUND.
+      security:
+        - access-token: []
+      summary: Consultar usuario interno
+      tags:
+        - internal-users
+    patch:
+      operationId: InternalUsersController_update
+      parameters:
+        - name: internalUserId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName:
+                  type: string
+                  minLength: 3
+                  maxLength: 180
+                department:
+                  type: string
+                  enum:
+                    - OPERATIONS
+                    - RISK
+                    - COLLECTIONS
+                    - COMPLIANCE
+                    - FINANCE
+                    - SUPPORT
+                    - SYSTEMS
+                    - AUDIT
+                    - EXECUTIVE
+                jobTitle:
+                  anyOf:
+                    - type: string
+                      maxLength: 120
+                    - type: 'null'
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - invited
+                    - suspended
+                    - locked
+                    - disabled
+                mustChangePassword:
+                  type: boolean
+                reason:
+                  type: string
+                  minLength: 8
+                  maxLength: 500
+              required:
+                - reason
+              additionalProperties: false
+      responses:
+        '200':
+          description: Usuario interno actualizado.
+        '404':
+          description: INTERNAL_USER_NOT_FOUND.
+      security:
+        - access-token: []
+      summary: Editar usuario interno
+      tags:
+        - internal-users
+  /internal/users/{internalUserId}/roles:
+    patch:
+      operationId: InternalUsersController_replaceRoles
+      parameters:
+        - name: internalUserId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roles:
+                  minItems: 1
+                  maxItems: 8
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - SUPER_ADMIN
+                      - SYSTEMS_ADMIN
+                      - INTERNAL_IDENTITY_ADMIN
+                      - OPERATIONS_MANAGER
+                      - OPERATIONS_ANALYST
+                      - RISK_MANAGER
+                      - RISK_ANALYST
+                      - FRAUD_ANALYST
+                      - COMPLIANCE_MANAGER
+                      - COMPLIANCE_ANALYST
+                      - COLLECTIONS_MANAGER
+                      - COLLECTIONS_AGENT
+                      - FINANCE_MANAGER
+                      - MERCHANT_OPERATIONS
+                      - DATA_GOVERNANCE_MANAGER
+                      - DATA_QUALITY_ANALYST
+                      - QA_ENGINEER
+                      - AUDITOR_READONLY
+                      - SUPPORT_AGENT
+                      - EXECUTIVE_READONLY
+                reason:
+                  type: string
+                  minLength: 8
+                  maxLength: 500
+              required:
+                - roles
+                - reason
+              additionalProperties: false
+      responses:
+        '200':
+          description: Roles reemplazados.
+        '404':
+          description: INTERNAL_USER_NOT_FOUND.
+      security:
+        - access-token: []
+      summary: Reemplazar roles de usuario interno
+      tags:
+        - internal-users
+  /internal/roles:
+    get:
+      operationId: InternalAccessCatalogController_listRoles
+      parameters: []
+      responses:
+        '200':
+          description: Lista de roles internos.
+      security:
+        - access-token: []
+      summary: Listar roles internos
+      tags:
+        - internal-access-catalog
+  /internal/roles/{roleId}:
+    get:
+      operationId: InternalAccessCatalogController_getRole
+      parameters:
+        - name: roleId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+      responses:
+        '200':
+          description: Detalle del rol (con permisos asociados).
+        '404':
+          description: INTERNAL_ROLE_NOT_FOUND.
+      security:
+        - access-token: []
+      summary: Consultar rol interno
+      tags:
+        - internal-access-catalog
+  /internal/permissions:
+    get:
+      operationId: InternalAccessCatalogController_listPermissions
+      parameters: []
+      responses:
+        '200':
+          description: Lista de permisos internos.
+      security:
+        - access-token: []
+      summary: Listar permisos internos
+      tags:
+        - internal-access-catalog
+  /auth/login:
+    post:
+      description: >-
+        Autentica a un `customer`, `internal_user` o `platform_user` y emite un
+        access+refresh token. El identificador de login depende de `actorType`:
+        para `customer` es el mismo teléfono/email usado en onboarding; para
+        `internal_user`/`platform_user` es el email corporativo. Bloquea
+        temporalmente tras `AUTH_MAX_FAILED_LOGIN_ATTEMPTS` intentos fallidos
+        consecutivos (`AUTH_LOCKOUT_MINUTES`).
+      operationId: AuthController_login
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: Tenant al que pertenece el actor (entero positivo como string).
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actorType:
+                  type: string
+                  enum:
+                    - customer
+                    - internal_user
+                    - platform_user
+                identifier:
+                  type: string
+                  minLength: 3
+                  maxLength: 180
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+              required:
+                - actorType
+                - identifier
+                - password
+              additionalProperties: false
+      responses:
+        '200':
+          description: >-
+            Login exitoso — access token + refresh token. Para super admins
+            (roles admin/platform_admin) con MailSender configurado, responde en
+            cambio `{ pinChallengeRequired, challengeToken, expiresInMinutes }`:
+            completar con POST /auth/login/pin.
+        '400':
+          description: x-tenant-id ausente o no es un entero positivo válido.
+        '401':
+          description: >-
+            Credenciales inválidas, o cuenta bloqueada temporalmente por
+            intentos fallidos.
+      summary: Login
+      tags:
+        - auth
+  /auth/login/pin:
+    post:
+      description: >-
+        Segundo paso del login para super admins (roles admin/platform_admin)
+        cuando MailSender está configurado: canjea el `challengeToken` devuelto
+        por `POST /auth/login` más el PIN de 6 dígitos recibido por correo por
+        el par access+refresh token definitivo.
+      operationId: AuthController_verifyLoginPin
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                challengeToken:
+                  type: string
+                  minLength: 20
+                pin:
+                  type: string
+                  pattern: ^\d{6}$
+              required:
+                - challengeToken
+                - pin
+              additionalProperties: false
+      responses:
+        '200':
+          description: PIN correcto — access token + refresh token.
+        '401':
+          description: >-
+            PIN inválido, expirado, agotó intentos, o el actor ya no está
+            disponible.
+      summary: Verificar PIN de login
+      tags:
+        - auth
+  /auth/password-reset/request:
+    post:
+      description: >-
+        Envía por correo (MailSender) un código de un solo uso para restablecer
+        la contraseña. La respuesta es idéntica exista o no la cuenta, para no
+        permitir enumeración.
+      operationId: AuthController_requestPasswordReset
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: Tenant al que pertenece el actor (entero positivo como string).
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actorType:
+                  type: string
+                  enum:
+                    - customer
+                    - internal_user
+                    - platform_user
+                identifier:
+                  type: string
+                  maxLength: 180
+                  format: email
+                  pattern: >-
+                    ^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+              required:
+                - actorType
+                - identifier
+              additionalProperties: false
+      responses:
+        '200':
+          description: >-
+            Solicitud registrada (si la cuenta existe, el código fue enviado por
+            correo).
+        '503':
+          description: El servicio de correo (MailSender) no está configurado.
+      summary: Solicitar cambio de contraseña
+      tags:
+        - auth
+  /auth/password-reset/confirm:
+    post:
+      description: >-
+        Fija la contraseña nueva usando el código recibido por correo. Al
+        confirmarse, revoca todos los refresh tokens del actor e invalida los
+        access tokens vigentes (tokenVersion).
+      operationId: AuthController_confirmPasswordReset
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: Tenant al que pertenece el actor (entero positivo como string).
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actorType:
+                  type: string
+                  enum:
+                    - customer
+                    - internal_user
+                    - platform_user
+                identifier:
+                  type: string
+                  maxLength: 180
+                  format: email
+                  pattern: >-
+                    ^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                code:
+                  type: string
+                  pattern: ^\d{6}$
+                newPassword:
+                  type: string
+                  minLength: 10
+                  maxLength: 128
+              required:
+                - actorType
+                - identifier
+                - code
+                - newPassword
+              additionalProperties: false
+      responses:
+        '200':
+          description: >-
+            Contraseña actualizada; todas las sesiones previas quedaron
+            revocadas.
+        '401':
+          description: >-
+            Código inválido/expirado o la contraseña nueva no cumple el mínimo
+            de seguridad.
+      summary: Confirmar cambio de contraseña
+      tags:
+        - auth
+  /auth/refresh:
+    post:
+      description: >-
+        Rota un refresh token vigente por un nuevo access+refresh token
+        (rotación en cada uso — el refresh token anterior queda revocado).
+      operationId: AuthController_refresh
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  minLength: 20
+              required:
+                - refreshToken
+              additionalProperties: false
+      responses:
+        '200':
+          description: Rotación exitosa — nuevo access token + refresh token.
+        '401':
+          description: >-
+            Refresh token inválido, expirado, o el actor asociado ya no está
+            disponible.
+      summary: Refresh
+      tags:
+        - auth
+  /auth/logout:
+    post:
+      description: >-
+        Revoca un refresh token (o todos los refresh tokens vigentes del mismo
+        actor, si `allDevices=true`). Idempotente: revocar un token ya revocado
+        no falla.
+      operationId: AuthController_logout
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  minLength: 20
+                allDevices:
+                  default: false
+                  type: boolean
+              required:
+                - refreshToken
+                - allDevices
+              additionalProperties: false
+      responses:
+        '200':
+          description: >-
+            Logout procesado (siempre, incluso si el token ya estaba revocado o
+            no existía).
+      summary: Logout
+      tags:
+        - auth
+  /auth/me:
+    get:
+      description: >-
+        Devuelve el tipo de actor, su rol, su tenant y —para un cliente— su
+        `customerId`. Es la forma soportada de que el frontend conozca su propio
+        identificador sin decodificar el access token.
+      operationId: AuthController_getMe
+      parameters: []
+      responses:
+        '200':
+          description: Identidad del actor del token.
+        '401':
+          description: Token ausente, inválido o revocado.
+      security:
+        - access-token: []
+      summary: Identidad del actor autenticado
+      tags:
+        - auth
+  /auth/mfa:
+    post:
+      description: >-
+        Un cliente autenticado activa o desactiva su segundo factor (OTP por
+        correo). Con MFA activo, su próximo login responde `{
+        pinChallengeRequired, challengeToken, expiresInMinutes }` y debe
+        completarse con POST /auth/login/pin. Activar exige que MailSender esté
+        configurado (si no, no habría cómo entregar el OTP).
+      operationId: AuthController_setMfaPreference
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+              required:
+                - enabled
+              additionalProperties: false
+      responses:
+        '200':
+          description: Preferencia de MFA actualizada — `{ mfaEnabled }`.
+        '403':
+          description: El actor autenticado no es un cliente.
+        '503':
+          description: >-
+            Se intentó activar MFA pero el servicio de correo no está
+            configurado.
+      security:
+        - access-token: []
+      summary: Activar/desactivar MFA (cliente)
+      tags:
+        - auth
+  /auth/provision-credentials:
+    post:
+      description: >-
+        Crea la contraseña inicial de un `internal_user` o `platform_user` ya
+        existente (creado por seed/migración, sin credenciales todavía).
+        Requiere un access token vigente con rol `admin` o `platform_admin` —
+        verificado tanto por el guard de roles como, en defensa en profundidad,
+        dentro del propio `AuthService`.
+      operationId: AuthController_provisionCredentials
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actorType:
+                  type: string
+                  enum:
+                    - internal_user
+                    - platform_user
+                actorId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+                password:
+                  type: string
+                  minLength: 10
+                  maxLength: 128
+              required:
+                - actorType
+                - actorId
+                - password
+              additionalProperties: false
+      responses:
+        '201':
+          description: Credenciales provisionadas correctamente.
+        '401':
+          description: >-
+            La contraseña no cumple el mínimo de seguridad requerido, o el actor
+            indicado no existe.
+        '403':
+          description: El actor autenticado no tiene rol admin/platform_admin.
+        '409':
+          description: >-
+            CREDENTIALS_ALREADY_PROVISIONED — el actor ya tiene contraseña
+            configurada.
+      security:
+        - access-token: []
+      summary: Provisionar credenciales
+      tags:
+        - auth
   /health:
     get:
       description: >-
@@ -1160,11 +2449,40 @@ paths:
       summary: Health check del servicio (público, sin auth)
       tags:
         - health
+  /health/liveness:
+    get:
+      description: >-
+        Trivial: si responde, el event loop atiende peticiones. No verifica
+        dependencias.
+      operationId: HealthController_liveness
+      parameters: []
+      responses:
+        '200':
+          description: El proceso está vivo.
+      summary: Liveness probe (¿el proceso está vivo?)
+      tags:
+        - health
+  /health/readiness:
+    get:
+      description: >-
+        Verifica Postgres (obligatorio) y Redis (si está configurado). Devuelve
+        503 si Postgres no responde, para que el balanceador/orquestador saque
+        la instancia del pool. Redis no configurado (dev) no falla.
+      operationId: HealthController_readiness
+      parameters: []
+      responses:
+        '200':
+          description: Listo para recibir tráfico.
+        '503':
+          description: 'No listo: una dependencia obligatoria no responde.'
+      summary: Readiness probe (¿puede atender tráfico?)
+      tags:
+        - health
   /operations/catalogs:
     get:
       description: >-
-        Devuelve los catálogos que normalizan señales de negocio y su versión más
-        reciente.
+        Devuelve los catálogos que normalizan señales de negocio y su versión
+        más reciente.
       operationId: CatalogManagementController_listCatalogs
       parameters:
         - name: active
@@ -1308,8 +2626,8 @@ paths:
                   catalog:
                     type: object
                     description: >-
-                      Catálogo de contexto usado para normalizar señales antes de
-                      una evaluación del motor de decisión.
+                      Catálogo de contexto usado para normalizar señales antes
+                      de una evaluación del motor de decisión.
                     properties:
                       catalogId:
                         type: string
@@ -1456,8 +2774,8 @@ paths:
                           items:
                             type: object
                             description: >-
-                              Interpretación de un valor de catálogo para scoring,
-                              reglas o explicabilidad.
+                              Interpretación de un valor de catálogo para
+                              scoring, reglas o explicabilidad.
                             properties:
                               riskMappingId:
                                 type: string
@@ -2104,8 +3422,8 @@ paths:
   /operations/definitions:
     get:
       description: >-
-        Consulta observaciones, eventos, atributos y features que pueden alimentar
-        reglas, scoring y explicabilidad.
+        Consulta observaciones, eventos, atributos y features que pueden
+        alimentar reglas, scoring y explicabilidad.
       operationId: CatalogManagementController_listDefinitions
       parameters:
         - name: domain
@@ -3267,637 +4585,6 @@ paths:
       summary: Publicar un paquete de políticas de gobernanza de datos
       tags:
         - catalog-management
-  /auth/login:
-    post:
-      description: >-
-        Autentica a un `customer`, `internal_user` o `platform_user` y emite un
-        access+refresh token. El identificador de login depende de `actorType`:
-        para `customer` es el mismo teléfono/email usado en onboarding; para
-        `internal_user`/`platform_user` es el email corporativo. Bloquea
-        temporalmente tras `AUTH_MAX_FAILED_LOGIN_ATTEMPTS` intentos fallidos
-        consecutivos (`AUTH_LOCKOUT_MINUTES`).
-      operationId: AuthController_login
-      parameters:
-        - name: x-tenant-id
-          in: header
-          description: Tenant al que pertenece el actor (entero positivo como string).
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                actorType:
-                  type: string
-                  enum:
-                    - customer
-                    - internal_user
-                    - platform_user
-                identifier:
-                  type: string
-                  minLength: 3
-                  maxLength: 180
-                password:
-                  type: string
-                  minLength: 1
-                  maxLength: 128
-              required:
-                - actorType
-                - identifier
-                - password
-              additionalProperties: false
-      responses:
-        '200':
-          description: Login exitoso — access token + refresh token.
-        '400':
-          description: x-tenant-id ausente o no es un entero positivo válido.
-        '401':
-          description: >-
-            Credenciales inválidas, o cuenta bloqueada temporalmente por
-            intentos fallidos.
-      summary: Login
-      tags:
-        - auth
-  /auth/refresh:
-    post:
-      description: >-
-        Rota un refresh token vigente por un nuevo access+refresh token
-        (rotación en cada uso — el refresh token anterior queda revocado).
-      operationId: AuthController_refresh
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refreshToken:
-                  type: string
-                  minLength: 20
-              required:
-                - refreshToken
-              additionalProperties: false
-      responses:
-        '200':
-          description: Rotación exitosa — nuevo access token + refresh token.
-        '401':
-          description: >-
-            Refresh token inválido, expirado, o el actor asociado ya no está
-            disponible.
-      summary: Refresh
-      tags:
-        - auth
-  /auth/logout:
-    post:
-      description: >-
-        Revoca un refresh token (o todos los refresh tokens vigentes del mismo
-        actor, si `allDevices=true`). Idempotente: revocar un token ya revocado
-        no falla.
-      operationId: AuthController_logout
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refreshToken:
-                  type: string
-                  minLength: 20
-                allDevices:
-                  default: false
-                  type: boolean
-              required:
-                - refreshToken
-                - allDevices
-              additionalProperties: false
-      responses:
-        '200':
-          description: >-
-            Logout procesado (siempre, incluso si el token ya estaba revocado o
-            no existía).
-      summary: Logout
-      tags:
-        - auth
-  /auth/provision-credentials:
-    post:
-      description: >-
-        Crea la contraseña inicial de un `internal_user` o `platform_user` ya
-        existente (creado por seed/migración, sin credenciales todavía).
-        Requiere un access token vigente con rol `admin` o `platform_admin` —
-        verificado tanto por el guard de roles como, en defensa en profundidad,
-        dentro del propio `AuthService`.
-      operationId: AuthController_provisionCredentials
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                actorType:
-                  type: string
-                  enum:
-                    - internal_user
-                    - platform_user
-                actorId:
-                  type: string
-                  pattern: ^[1-9][0-9]*$
-                password:
-                  type: string
-                  minLength: 10
-                  maxLength: 128
-              required:
-                - actorType
-                - actorId
-                - password
-              additionalProperties: false
-      responses:
-        '201':
-          description: Credenciales provisionadas correctamente.
-        '401':
-          description: >-
-            La contraseña no cumple el mínimo de seguridad requerido, o el actor
-            indicado no existe.
-        '403':
-          description: El actor autenticado no tiene rol admin/platform_admin.
-        '409':
-          description: >-
-            CREDENTIALS_ALREADY_PROVISIONED — el actor ya tiene contraseña
-            configurada.
-      security:
-        - access-token: []
-      summary: Provisionar credenciales
-      tags:
-        - auth
-  /customers/{customerId}/me:
-    get:
-      description: >-
-        Devuelve el perfil vigente del cliente: datos de identidad, contactos,
-        consentimientos otorgados y el último resultado de riesgo reducido
-        (decisión + nivel, sin el desglose completo del modelo). Un `customer`
-        solo puede leer su propio perfil (`assertOwnCustomerResource`); los
-        roles internos listados pueden leer el de cualquier cliente del tenant.
-      operationId: CustomersController_getCustomerMe
-      parameters:
-        - name: customerId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-          description: Id numérico del cliente.
-        - name: x-tenant-id
-          in: header
-          description: >-
-            Opcional para `customer` (se toma del token); requerido para roles
-            internos.
-          required: false
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Perfil del cliente.
-        '400':
-          description: x-tenant-id ausente o no es un entero positivo válido.
-        '403':
-          description: Un actor con rol customer intentó leer el perfil de otro cliente.
-        '404':
-          description: Cliente no encontrado.
-      security:
-        - access-token: []
-      summary: Perfil resumido del cliente ("mi perfil")
-      tags:
-        - customers
-  /internal/auth/login:
-    post:
-      description: Autentica usuarios internos para el panel administrativo ATLAS.
-      operationId: InternalAuthController_login
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                tenantId:
-                  type: string
-                  pattern: ^[1-9][0-9]*$
-                email: {}
-                password:
-                  type: string
-                  minLength: 1
-                  maxLength: 128
-              required:
-                - email
-                - password
-              additionalProperties: false
-      responses:
-        '200':
-          description: Login exitoso, retorna tokens de sesión interna.
-        '401':
-          description: Credenciales inválidas.
-      security:
-        - access-token: []
-      summary: Login interno
-      tags:
-        - internal-auth
-  /internal/auth/refresh:
-    post:
-      description: Rota refresh token de una sesión interna.
-      operationId: InternalAuthController_refresh
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refreshToken:
-                  type: string
-                  minLength: 20
-              required:
-                - refreshToken
-              additionalProperties: false
-      responses:
-        '200':
-          description: Token rotado.
-        '401':
-          description: Refresh token inválido o revocado.
-      security:
-        - access-token: []
-      summary: Refresh interno
-      tags:
-        - internal-auth
-  /internal/auth/logout:
-    post:
-      description: Revoca refresh token de una sesión interna.
-      operationId: InternalAuthController_logout
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refreshToken:
-                  type: string
-                  minLength: 20
-                allDevices:
-                  default: false
-                  type: boolean
-              required:
-                - refreshToken
-                - allDevices
-              additionalProperties: false
-      responses:
-        '200':
-          description: Sesión(es) revocada(s).
-      security:
-        - access-token: []
-      summary: Logout interno
-      tags:
-        - internal-auth
-  /internal/auth/me:
-    get:
-      description: >-
-        Devuelve usuario, roles y permisos efectivos para renderizar menú
-        dinámico.
-      operationId: InternalAuthController_me
-      parameters: []
-      responses:
-        '200':
-          description: Perfil, roles y permisos efectivos del usuario interno actual.
-      security:
-        - access-token: []
-      summary: Perfil interno actual
-      tags:
-        - internal-auth
-  /internal/auth/signup:
-    post:
-      description: >-
-        Signup interno controlado para el panel admin; no es autorregistro
-        público.
-      operationId: InternalAuthController_signup
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                tenantId:
-                  type: string
-                  pattern: ^[1-9][0-9]*$
-                email: {}
-                fullName:
-                  type: string
-                  minLength: 3
-                  maxLength: 180
-                userCode:
-                  type: string
-                  minLength: 3
-                  maxLength: 60
-                department:
-                  default: OPERATIONS
-                  type: string
-                  enum:
-                    - OPERATIONS
-                    - RISK
-                    - COLLECTIONS
-                    - COMPLIANCE
-                    - FINANCE
-                    - SUPPORT
-                    - SYSTEMS
-                    - AUDIT
-                    - EXECUTIVE
-                jobTitle:
-                  type: string
-                  maxLength: 120
-                password:
-                  type: string
-                  minLength: 10
-                  maxLength: 128
-                mustChangePassword:
-                  default: true
-                  type: boolean
-                roles:
-                  minItems: 1
-                  maxItems: 8
-                  type: array
-                  items:
-                    type: string
-                    enum:
-                      - SUPER_ADMIN
-                      - SYSTEMS_ADMIN
-                      - INTERNAL_IDENTITY_ADMIN
-                      - OPERATIONS_MANAGER
-                      - OPERATIONS_ANALYST
-                      - RISK_MANAGER
-                      - RISK_ANALYST
-                      - FRAUD_ANALYST
-                      - COMPLIANCE_MANAGER
-                      - COMPLIANCE_ANALYST
-                      - COLLECTIONS_MANAGER
-                      - COLLECTIONS_AGENT
-                      - FINANCE_MANAGER
-                      - MERCHANT_OPERATIONS
-                      - DATA_GOVERNANCE_MANAGER
-                      - DATA_QUALITY_ANALYST
-                      - QA_ENGINEER
-                      - AUDITOR_READONLY
-                      - SUPPORT_AGENT
-                      - EXECUTIVE_READONLY
-                reason:
-                  type: string
-                  minLength: 8
-                  maxLength: 500
-              required:
-                - email
-                - fullName
-                - department
-                - password
-                - mustChangePassword
-                - roles
-                - reason
-              additionalProperties: false
-      responses:
-        '201':
-          description: Usuario interno creado.
-      security:
-        - access-token: []
-      summary: Crear usuario interno
-      tags:
-        - internal-auth
-  /internal/users:
-    get:
-      operationId: InternalUsersController_list
-      parameters:
-        - name: limit
-          required: false
-          in: query
-          schema:
-            default: 50
-            type: integer
-            exclusiveMinimum: 0
-            maximum: 100
-        - name: page
-          required: false
-          in: query
-          schema:
-            default: 1
-            type: integer
-            exclusiveMinimum: 0
-            maximum: 9007199254740991
-      responses:
-        '200':
-          description: Lista paginada de usuarios internos.
-      security:
-        - access-token: []
-      summary: Listar usuarios internos
-      tags:
-        - internal-users
-  /internal/users/{internalUserId}:
-    get:
-      operationId: InternalUsersController_get
-      parameters:
-        - name: internalUserId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-      responses:
-        '200':
-          description: Detalle del usuario interno (con roles).
-        '404':
-          description: INTERNAL_USER_NOT_FOUND.
-      security:
-        - access-token: []
-      summary: Consultar usuario interno
-      tags:
-        - internal-users
-    patch:
-      operationId: InternalUsersController_update
-      parameters:
-        - name: internalUserId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                fullName:
-                  type: string
-                  minLength: 3
-                  maxLength: 180
-                department:
-                  type: string
-                  enum:
-                    - OPERATIONS
-                    - RISK
-                    - COLLECTIONS
-                    - COMPLIANCE
-                    - FINANCE
-                    - SUPPORT
-                    - SYSTEMS
-                    - AUDIT
-                    - EXECUTIVE
-                jobTitle:
-                  anyOf:
-                    - type: string
-                      maxLength: 120
-                    - type: 'null'
-                status:
-                  type: string
-                  enum:
-                    - active
-                    - invited
-                    - suspended
-                    - locked
-                    - disabled
-                mustChangePassword:
-                  type: boolean
-                reason:
-                  type: string
-                  minLength: 8
-                  maxLength: 500
-              required:
-                - reason
-              additionalProperties: false
-      responses:
-        '200':
-          description: Usuario interno actualizado.
-        '404':
-          description: INTERNAL_USER_NOT_FOUND.
-      security:
-        - access-token: []
-      summary: Editar usuario interno
-      tags:
-        - internal-users
-  /internal/users/{internalUserId}/roles:
-    patch:
-      operationId: InternalUsersController_replaceRoles
-      parameters:
-        - name: internalUserId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                roles:
-                  minItems: 1
-                  maxItems: 8
-                  type: array
-                  items:
-                    type: string
-                    enum:
-                      - SUPER_ADMIN
-                      - SYSTEMS_ADMIN
-                      - INTERNAL_IDENTITY_ADMIN
-                      - OPERATIONS_MANAGER
-                      - OPERATIONS_ANALYST
-                      - RISK_MANAGER
-                      - RISK_ANALYST
-                      - FRAUD_ANALYST
-                      - COMPLIANCE_MANAGER
-                      - COMPLIANCE_ANALYST
-                      - COLLECTIONS_MANAGER
-                      - COLLECTIONS_AGENT
-                      - FINANCE_MANAGER
-                      - MERCHANT_OPERATIONS
-                      - DATA_GOVERNANCE_MANAGER
-                      - DATA_QUALITY_ANALYST
-                      - QA_ENGINEER
-                      - AUDITOR_READONLY
-                      - SUPPORT_AGENT
-                      - EXECUTIVE_READONLY
-                reason:
-                  type: string
-                  minLength: 8
-                  maxLength: 500
-              required:
-                - roles
-                - reason
-              additionalProperties: false
-      responses:
-        '200':
-          description: Roles reemplazados.
-        '404':
-          description: INTERNAL_USER_NOT_FOUND.
-      security:
-        - access-token: []
-      summary: Reemplazar roles de usuario interno
-      tags:
-        - internal-users
-  /internal/roles:
-    get:
-      operationId: InternalAccessCatalogController_listRoles
-      parameters: []
-      responses:
-        '200':
-          description: Lista de roles internos.
-      security:
-        - access-token: []
-      summary: Listar roles internos
-      tags:
-        - internal-access-catalog
-  /internal/roles/{roleId}:
-    get:
-      operationId: InternalAccessCatalogController_getRole
-      parameters:
-        - name: roleId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-      responses:
-        '200':
-          description: Detalle del rol (con permisos asociados).
-        '404':
-          description: INTERNAL_ROLE_NOT_FOUND.
-      security:
-        - access-token: []
-      summary: Consultar rol interno
-      tags:
-        - internal-access-catalog
-  /internal/permissions:
-    get:
-      operationId: InternalAccessCatalogController_listPermissions
-      parameters: []
-      responses:
-        '200':
-          description: Lista de permisos internos.
-      security:
-        - access-token: []
-      summary: Listar permisos internos
-      tags:
-        - internal-access-catalog
   /customer-onboarding/start:
     post:
       description: >-
@@ -4078,6 +4765,7 @@ paths:
                   additionalProperties: false
               required:
                 - customer
+                - password
                 - consents
                 - device
               additionalProperties: false
@@ -4304,6 +4992,7 @@ paths:
                     - documentNumberHash
                     - documentLast4
                     - countryCode
+                    - expiresAt
                   additionalProperties: false
                 evidence:
                   minItems: 1
@@ -4482,6 +5171,745 @@ paths:
       security:
         - access-token: []
       summary: Enviar paquete de dirección
+      tags:
+        - customer-onboarding
+  /customer-onboarding/{customerId}/profile:
+    patch:
+      description: >-
+        Persiste los campos enviados creando una versión nueva del perfil y
+        cerrando la anterior. Acepta actualizaciones parciales: es la base del
+        autoguardado por sección. Valida edad mínima y máxima cuando se envía
+        `birthDate`.
+      operationId: CustomerOnboardingProfileController_updateProfile
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                lastName:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                birthDate:
+                  type: string
+                  pattern: ^\d{4}-\d{2}-\d{2}$
+                genderDeclared:
+                  type: string
+                  enum:
+                    - female
+                    - male
+                    - other
+                    - undisclosed
+                preferredLanguage:
+                  type: string
+                  enum:
+                    - es
+                    - en
+                    - qu
+                    - ay
+                marketingOptIn:
+                  type: boolean
+              additionalProperties: false
+      responses:
+        '200':
+          description: Perfil actualizado — devuelve la versión vigente.
+        '422':
+          description: >-
+            PROFILE_NOT_EDITABLE_IN_STATUS — el estado del cliente no admite
+            edición.
+      security:
+        - access-token: []
+      summary: Actualizar datos personales (guardado parcial)
+      tags:
+        - customer-onboarding
+  /customer-onboarding/{customerId}/financial-profile:
+    put:
+      description: >-
+        Persiste los atributos económicos declarados sobre
+        `customer_attribute_values`, cerrando la vigencia del valor anterior de
+        cada atributo. Acepta actualizaciones parciales.
+      operationId: CustomerOnboardingProfileController_upsertFinancialProfile
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                employmentStatus:
+                  type: string
+                  enum:
+                    - employee
+                    - self_employed
+                    - business_owner
+                    - retired
+                    - student
+                    - unemployed
+                employerName:
+                  type: string
+                  minLength: 1
+                  maxLength: 180
+                employmentSeniorityMonths:
+                  type: integer
+                  minimum: 0
+                  maximum: 960
+                monthlyIncomeDeclared:
+                  type: number
+                  minimum: 0
+                  maximum: 99999999
+                otherMonthlyIncome:
+                  type: number
+                  minimum: 0
+                  maximum: 99999999
+                monthlyExpensesDeclared:
+                  type: number
+                  minimum: 0
+                  maximum: 99999999
+                economicActivityCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                sourceOfFunds:
+                  type: string
+                  enum:
+                    - salary
+                    - business_income
+                    - rental_income
+                    - pension
+                    - remittances
+                    - savings
+                    - other
+              additionalProperties: false
+      responses:
+        '200':
+          description: Atributos económicos actualizados.
+        '422':
+          description: PROFILE_NOT_EDITABLE_IN_STATUS o ATTRIBUTE_CATALOG_NOT_SEEDED.
+      security:
+        - access-token: []
+      summary: Registrar información laboral y económica (guardado parcial)
+      tags:
+        - customer-onboarding
+  /customer-onboarding/{customerId}/reference-contacts:
+    get:
+      description: Devuelve las referencias sin exponer nombre ni teléfono.
+      operationId: CustomerOnboardingProfileController_listReferences
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Referencias registradas (solo últimos 4 dígitos del teléfono).
+      security:
+        - access-token: []
+      summary: Listar referencias personales
+      tags:
+        - customer-onboarding
+    post:
+      description: >-
+        Alta de una o varias referencias. Nombre y teléfono se guardan hasheados
+        y cifrados: son datos de un tercero. `consentBasis` es obligatorio y
+        declara la base legal del tratamiento.
+      operationId: CustomerOnboardingProfileController_addReferences
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                references:
+                  minItems: 1
+                  maxItems: 5
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      relationshipType:
+                        type: string
+                        enum:
+                          - family
+                          - friend
+                          - coworker
+                          - employer
+                          - commercial
+                          - other
+                      fullName:
+                        type: string
+                        minLength: 3
+                        maxLength: 180
+                      phone:
+                        type: string
+                        minLength: 6
+                        maxLength: 40
+                      consentBasis:
+                        type: string
+                        enum:
+                          - customer_declared
+                          - legitimate_interest
+                          - reference_informed
+                    required:
+                      - relationshipType
+                      - fullName
+                      - phone
+                      - consentBasis
+                    additionalProperties: false
+              required:
+                - references
+              additionalProperties: false
+      responses:
+        '201':
+          description: Referencias registradas.
+        '409':
+          description: >-
+            REFERENCE_ALREADY_REGISTERED — ese teléfono ya figura como
+            referencia.
+        '422':
+          description: REFERENCE_LIMIT_EXCEEDED o REFERENCE_CANNOT_BE_THE_CUSTOMER.
+      security:
+        - access-token: []
+      summary: Registrar referencias personales
+      tags:
+        - customer-onboarding
+  /customer-onboarding/{customerId}/reference-contacts/{referenceId}:
+    delete:
+      description: 'Borrado lógico: la declaración original se conserva.'
+      operationId: CustomerOnboardingProfileController_removeReference
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Referencia retirada.
+        '404':
+          description: REFERENCE_NOT_FOUND.
+      security:
+        - access-token: []
+      summary: Quitar una referencia personal
+      tags:
+        - customer-onboarding
+  /customer-onboarding/{customerId}/contact-methods:
+    post:
+      description: >-
+        Registra un teléfono o correo adicional en estado `unverified`. Resuelve
+        el caso de un contacto mal escrito en el registro, que antes dejaba la
+        cuenta sin forma de recibir el código de verificación.
+      operationId: CustomerOnboardingProfileController_addContactMethod
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contactType:
+                  type: string
+                  enum:
+                    - phone
+                    - email
+                value:
+                  type: string
+                  minLength: 6
+                  maxLength: 180
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+              required:
+                - contactType
+                - value
+              additionalProperties: false
+      responses:
+        '201':
+          description: Contacto registrado — queda pendiente de verificación.
+        '409':
+          description: CONTACT_ALREADY_REGISTERED.
+      security:
+        - access-token: []
+      summary: Agregar o corregir un método de contacto
+      tags:
+        - customer-onboarding
+  /customer-onboarding/{customerId}/documents/upload-url:
+    post:
+      description: >-
+        Devuelve una URL prefirmada de un solo uso para subir un documento
+        directamente al almacenamiento. El servidor IMPONE la ruta del objeto
+        (`tenant/cliente/tipo/uuid`) y firma `Content-Type` y `Content-Length`:
+        subir algo distinto a lo autorizado es rechazado por el almacenamiento.
+        El `storageKey` devuelto es el que debe enviarse luego en el paquete de
+        identidad.
+      operationId: CustomerOnboardingProfileController_createUploadUrl
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                documentType:
+                  type: string
+                  enum:
+                    - identity_front
+                    - identity_back
+                    - selfie
+                    - proof_of_address
+                    - other
+                contentType:
+                  type: string
+                  enum:
+                    - image/jpeg
+                    - image/png
+                    - application/pdf
+                sizeBytes:
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 15728640
+              required:
+                - documentType
+                - contentType
+                - sizeBytes
+              additionalProperties: false
+      responses:
+        '201':
+          description: >-
+            Permiso de subida — `{ storageKey, uploadUrl, method,
+            requiredHeaders, expiresAt }`.
+        '422':
+          description: PROFILE_NOT_EDITABLE_IN_STATUS o EVIDENCE_OBJECT_TOO_LARGE.
+        '503':
+          description: DOCUMENT_STORAGE_NOT_CONFIGURED — no hay almacenamiento configurado.
+      security:
+        - access-token: []
+      summary: Solicitar una URL de subida de documento
+      tags:
+        - customer-onboarding
+  /customer-onboarding/{customerId}/identity-verification:
+    post:
+      description: >-
+        Consulta el registro estatal de identidad con los datos ya declarados y
+        resuelve el expediente según lo que responda: `FOUND` sin observaciones
+        ⇒ `verified` (y aprueba la evidencia documental); `NOT_FOUND` ⇒
+        `rejected` y el cliente vuelve a `observed`; `PARTIAL_MATCH` o una caída
+        del proveedor ⇒ queda `pending_review` para un analista. El número de
+        documento se usa para consultar y NO se persiste; debe coincidir por
+        hash con el ya declarado en el paquete de identidad.
+      operationId: CustomerOnboardingProfileController_verifyIdentity
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-idempotency-key
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                documentNumber:
+                  type: string
+                  minLength: 3
+                  maxLength: 30
+                documentComplement:
+                  type: string
+                  maxLength: 10
+                scenario:
+                  type: string
+                  enum:
+                    - happy_path
+                    - random
+                    - partial_match
+                    - not_found
+                    - provider_down
+                    - data_not_available
+              required:
+                - documentNumber
+              additionalProperties: false
+      responses:
+        '200':
+          description: >-
+            Resultado del proveedor, veredicto aplicado y elegibilidad
+            resultante.
+        '422':
+          description: >-
+            IDENTITY_PACKAGE_REQUIRED, IDENTITY_ALREADY_VERIFIED,
+            DOCUMENT_NUMBER_MISMATCH o PROFILE_INCOMPLETE_FOR_VERIFICATION.
+      security:
+        - access-token: []
+      summary: Verificar la identidad contra el registro externo
+      tags:
+        - customer-onboarding
+  /customer-onboarding/{customerId}/status:
+    get:
+      description: >-
+        Devuelve el estado del cliente, el flujo vigente, el porcentaje de
+        avance calculado en el SERVIDOR, el estado de cada sección con sus
+        campos faltantes, los bloqueadores de habilitación y el `nextStep`. Es
+        el endpoint que el frontend consulta al abrir la app para saber dónde
+        retomar. El porcentaje no se calcula en el cliente a propósito: dos
+        versiones de la app mostrarían avances distintos con los mismos datos.
+      operationId: CustomerOnboardingStatusController_getStatus
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Estado, secciones, porcentaje de avance y próximo paso.
+        '403':
+          description: El token no permite operar sobre este cliente.
+        '404':
+          description: Cliente no encontrado.
+      security:
+        - access-token: []
+      summary: Estado y avance del onboarding
+      tags:
+        - customer-onboarding
+  /customer-onboarding/{customerId}/submit:
+    post:
+      description: >-
+        Verifica que TODAS las secciones obligatorias estén completas, mueve al
+        cliente a `under_review`, cierra el flujo de onboarding
+        (`completion_status = completed`, `completed_at`) y dispara una
+        evaluación de habilitación que puede promoverlo a `active`. Es el único
+        punto del flujo donde se valida completitud.
+      operationId: CustomerOnboardingStatusController_submitForReview
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-idempotency-key
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                acknowledgement:
+                  type: boolean
+                  const: true
+              required:
+                - acknowledgement
+              additionalProperties: false
+      responses:
+        '200':
+          description: >-
+            Paquete enviado — estado resultante, elegibilidad y bloqueadores
+            vigentes.
+        '422':
+          description: >-
+            ONBOARDING_INCOMPLETE (con las secciones pendientes) o
+            ONBOARDING_ALREADY_SUBMITTED.
+      security:
+        - access-token: []
+      summary: Enviar el paquete de onboarding a revisión
+      tags:
+        - customer-onboarding
+  /customer-onboarding/{customerId}/observations:
+    get:
+      description: >-
+        Lista lo que el cliente debe corregir para avanzar. NO expone las notas
+        internas del analista, que pueden contener criterio de riesgo reservado.
+      operationId: CustomerOnboardingStatusController_listObservations
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Observaciones, casos abiertos y bloqueadores vigentes.
+      security:
+        - access-token: []
+      summary: Observaciones abiertas del cliente
+      tags:
+        - customer-onboarding
+  /customer-onboarding/jobs/mark-abandoned:
+    post:
+      description: >-
+        Cierra con `completion_status = abandoned` los flujos sin terminar cuya
+        última actividad supera el umbral. Marca el FLUJO, no al cliente: quien
+        dejó el registro a medias puede volver y retomar. Sin este cierre no
+        existe tasa de abandono.
+      operationId: CustomerOnboardingStatusController_markAbandoned
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                olderThanDays:
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 365
+                limit:
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 2000
+              additionalProperties: false
+      responses:
+        '200':
+          description: Cantidad evaluada y marcada, con la fecha de corte aplicada.
+      security:
+        - access-token: []
+      summary: Marcar como abandonados los onboardings inactivos (job)
+      tags:
+        - customer-onboarding
+  /operations/customers/{customerId}/identity-verification/decision:
+    post:
+      description: >-
+        Aprueba o rechaza el expediente de identidad en bloque: el intento de
+        verificación, el documento y todas sus evidencias pendientes. Aprobar NO
+        habilita al cliente por sí solo — la habilitación sigue dependiendo de
+        las quince condiciones de la regla, que se reevalúa y se registra en la
+        misma transacción.
+      operationId: CustomerVerificationController_decideIdentity
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decision:
+                  type: string
+                  enum:
+                    - approve
+                    - reject
+                reasonCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                notes:
+                  type: string
+                  maxLength: 2000
+              required:
+                - decision
+                - reasonCode
+              additionalProperties: false
+      responses:
+        '200':
+          description: >-
+            Decisión aplicada — incluye la elegibilidad resultante y sus
+            bloqueadores.
+        '404':
+          description: IDENTITY_VERIFICATION_ATTEMPT_NOT_FOUND o cliente inexistente.
+      security:
+        - access-token: []
+      summary: Resolver la verificación de identidad del cliente
+      tags:
+        - customer-onboarding
+  /operations/customers/{customerId}/compliance/screening:
+    post:
+      description: >-
+        Coteja por HASH el nombre normalizado y los contactos primarios del
+        cliente contra las entradas vigentes de `watchlist_entries` (del tenant
+        y globales). Una coincidencia nueva bloquea la habilitación y lleva al
+        cliente a `under_review`. Es idempotente: reejecutarlo no duplica
+        coincidencias ya registradas.
+      operationId: CustomerVerificationController_screen
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Resultado del screening y elegibilidad resultante.
+      security:
+        - access-token: []
+      summary: Ejecutar el screening de listas restrictivas
+      tags:
+        - customer-onboarding
+  /operations/customers/{customerId}/compliance/clear-matches:
+    post:
+      description: >-
+        Cierra los falsos positivos de cumplimiento. Exige código de razón y
+        nota: descartar una coincidencia sin motivo escrito es exactamente la
+        decisión que después nadie puede defender. Exclusivo de cumplimiento y
+        administración.
+      operationId: CustomerVerificationController_clearMatches
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reasonCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                notes:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+              required:
+                - reasonCode
+                - notes
+              additionalProperties: false
+      responses:
+        '200':
+          description: Coincidencias descartadas y elegibilidad recalculada.
+      security:
+        - access-token: []
+      summary: Descartar las coincidencias de listas restrictivas
       tags:
         - customer-onboarding
   /customers/{customerId}/sessions/start:
@@ -5027,457 +6455,6 @@ paths:
       summary: Listar documentos de consentimiento activos
       tags:
         - consents
-  /customers/{customerId}/privacy/consent-decisions:
-    post:
-      description: >-
-        Registra hasta 20 decisiones de consentimiento
-        (otorgado/rechazado/revocado) en una sola llamada transaccional. Si
-        alguna decisión es `revoked`, se crea automáticamente un evento de
-        cambio de estado del cliente (`requires_review`). Cada
-        `consentDocumentId` se valida contra el catálogo de documentos activos
-        antes de escribir.
-      operationId: CustomerPrivacyController_registerConsentDecisions
-      parameters:
-        - name: customerId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-        - name: x-client-channel
-          in: header
-          description: 'Canal de origen (default: mobile_app).'
-          required: false
-          schema:
-            type: string
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                decisions:
-                  minItems: 1
-                  maxItems: 20
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      consentDocumentId:
-                        type: string
-                        pattern: ^[1-9][0-9]*$
-                      purposeCode:
-                        type: string
-                        minLength: 1
-                        maxLength: 80
-                      decision:
-                        type: string
-                        enum:
-                          - granted
-                          - declined
-                          - revoked
-                      decidedAt:
-                        type: string
-                        format: date-time
-                        pattern: >-
-                          ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
-                      sessionId:
-                        type: string
-                        pattern: ^[1-9][0-9]*$
-                    required:
-                      - consentDocumentId
-                      - purposeCode
-                      - decision
-                    additionalProperties: false
-              required:
-                - decisions
-              additionalProperties: false
-      responses:
-        '200':
-          description: >-
-            Decisiones procesadas — cantidad procesada y estado de
-            consentimiento resultante.
-        '400':
-          description: X-Idempotency-Key ausente.
-        '403':
-          description: Un customer intentó operar sobre otro cliente.
-        '404':
-          description: Cliente no encontrado.
-        '422':
-          description: >-
-            CONSENT_DOCUMENT_NOT_ACTIVE — algún consentDocumentId no está
-            activo/vigente.
-      security:
-        - access-token: []
-      summary: Registrar decisiones de consentimiento (batch)
-      tags:
-        - customer-privacy
-  /customers/{customerId}/privacy/data-subject-requests:
-    post:
-      description: >-
-        Registra una solicitud de acceso/rectificación/cancelación/oposición (o
-        portabilidad/restricción) sobre los datos del cliente. El plazo legal de
-        resolución (`dueAt`) se fija en 15 días desde la recepción.
-      operationId: CustomerPrivacyController_createDataSubjectRequest
-      parameters:
-        - name: customerId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                requestType:
-                  type: string
-                  enum:
-                    - access
-                    - rectification
-                    - deletion
-                    - portability
-                    - revocation
-                    - restriction
-                description:
-                  type: string
-                  minLength: 5
-                  maxLength: 1000
-              required:
-                - requestType
-              additionalProperties: false
-      responses:
-        '201':
-          description: Solicitud creada — estado "received", vence en 15 días.
-        '400':
-          description: X-Idempotency-Key ausente.
-        '403':
-          description: Un customer intentó operar sobre otro cliente.
-        '404':
-          description: Cliente no encontrado.
-      security:
-        - access-token: []
-      summary: Crear solicitud de derechos ARCO/GDPR
-      tags:
-        - customer-privacy
-  /customers/{customerId}/telemetry/batch:
-    post:
-      description: >-
-        Recibe hasta 100 eventos + 100 métricas on-device por batch (interacción
-        de formulario, permisos, auth, riesgo de dispositivo, SIM, reputación de
-        IP, pasos de onboarding, acciones del cliente). Rechaza el batch
-        completo si detecta indicios de volcado de agenda de contactos cruda
-        (`RAW_CONTACTS_NOT_ALLOWED`). Un `customer` solo puede reportar
-        telemetría de un dispositivo/sesión vinculados a sí mismo.
-      operationId: CustomerTelemetryController_ingestBatch
-      parameters:
-        - name: customerId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                sessionId:
-                  type: string
-                  pattern: ^[1-9][0-9]*$
-                deviceId:
-                  type: string
-                  pattern: ^[1-9][0-9]*$
-                clientBatchId:
-                  type: string
-                  minLength: 3
-                  maxLength: 120
-                capturedFrom:
-                  type: string
-                  format: date-time
-                  pattern: >-
-                    ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
-                capturedUntil:
-                  type: string
-                  format: date-time
-                  pattern: >-
-                    ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
-                events:
-                  default: []
-                  maxItems: 100
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      eventType:
-                        type: string
-                        enum:
-                          - form_field_interaction
-                          - permission_event
-                          - auth_event
-                          - device_risk_event
-                          - sim_observation
-                          - ip_reputation_observation
-                          - customer_observation
-                          - customer_action
-                          - onboarding_step_event
-                      eventCode:
-                        type: string
-                        minLength: 1
-                        maxLength: 120
-                      occurredAt:
-                        type: string
-                        format: date-time
-                        pattern: >-
-                          ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
-                      metadata:
-                        type: object
-                        propertyNames:
-                          type: string
-                        additionalProperties: {}
-                    required:
-                      - eventType
-                      - eventCode
-                      - occurredAt
-                    additionalProperties: false
-                onDeviceMetrics:
-                  default: []
-                  maxItems: 100
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      metricCode:
-                        type: string
-                        minLength: 1
-                        maxLength: 120
-                      value:
-                        anyOf:
-                          - type: number
-                          - type: string
-                            maxLength: 500
-                          - type: boolean
-                          - type: object
-                            propertyNames:
-                              type: string
-                            additionalProperties: {}
-                      computedAt:
-                        type: string
-                        format: date-time
-                        pattern: >-
-                          ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
-                      confidenceScore:
-                        type: number
-                        minimum: 0
-                        maximum: 1
-                    required:
-                      - metricCode
-                      - value
-                    additionalProperties: false
-              required:
-                - sessionId
-                - deviceId
-                - clientBatchId
-                - capturedFrom
-                - capturedUntil
-                - events
-                - onDeviceMetrics
-              additionalProperties: false
-      responses:
-        '202':
-          description: Batch aceptado — cantidad de eventos/métricas procesados.
-        '400':
-          description: X-Idempotency-Key ausente, batch vacío, o payload > 250 KB.
-        '403':
-          description: El dispositivo o la sesión no pertenecen al cliente.
-        '404':
-          description: Cliente no encontrado.
-        '422':
-          description: >-
-            RAW_CONTACTS_NOT_ALLOWED — el batch contiene indicios de agenda de
-            contactos cruda.
-      security:
-        - access-token: []
-      summary: Ingerir batch de telemetría del cliente
-      tags:
-        - customer-telemetry
-  /customers/{customerId}/risk-assessments:
-    post:
-      description: >-
-        Calcula un score de riesgo/fraude nuevo para el cliente (identidad,
-        contacto, dispositivo, comportamiento) y registra la decisión
-        resultante. Exige al menos un consentimiento vigente otorgado antes de
-        ejecutar. Si faltan datos obligatorios (documento de identidad, contacto
-        verificado), la decisión resultante es `manual_review_required` y se
-        crea automáticamente el caso de revisión manual correspondiente.
-      operationId: RiskController_createRiskAssessment
-      parameters:
-        - name: customerId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-        - name: x-idempotency-key
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                assessmentType:
-                  type: string
-                  enum:
-                    - onboarding_initial
-                    - behavior_update
-                    - manual_recheck
-                    - fraud_recheck
-                channel:
-                  type: string
-                  enum:
-                    - mobile_app
-                    - operations_panel
-                    - system
-                sessionId:
-                  type: string
-                  pattern: ^[1-9][0-9]*$
-                deviceId:
-                  type: string
-                  pattern: ^[1-9][0-9]*$
-                requestedLimitContext:
-                  type: object
-                  properties:
-                    purpose:
-                      type: string
-                      minLength: 1
-                      maxLength: 120
-                  required:
-                    - purpose
-                  additionalProperties: false
-              required:
-                - assessmentType
-                - channel
-              additionalProperties: false
-      responses:
-        '201':
-          description: >-
-            Evaluación creada — decisión, nivel de riesgo, y razones (sin
-            desglose de scores internos).
-        '400':
-          description: X-Idempotency-Key ausente, o x-tenant-id inválido.
-        '404':
-          description: Cliente no encontrado.
-        '422':
-          description: CUSTOMER_BLOCKED_FOR_RISK_ASSESSMENT o REQUIRED_CONSENT_MISSING.
-      security:
-        - access-token: []
-      summary: Crear evaluación de riesgo
-      tags:
-        - risk
-  /operations/risk-assessments/{riskAssessmentRunId}:
-    get:
-      description: >-
-        Devuelve el desglose completo del modelo de riesgo (scores por
-        dimensión, reason codes, versión de modelo/ruleset). Exclusivo de roles
-        internos — nunca `customer`, para no exponer el detalle exacto del
-        scoring al cliente evaluado.
-      operationId: RiskController_getRiskAssessmentDetail
-      parameters:
-        - name: riskAssessmentRunId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Detalle completo de la evaluación de riesgo.
-        '404':
-          description: Evaluación no encontrada.
-      security:
-        - access-token: []
-      summary: Detalle de una evaluación de riesgo (operaciones)
-      tags:
-        - risk
-  /operations/risk-assessments/{riskAssessmentRunId}/explanation:
-    get:
-      description: >-
-        Devuelve la explicación legible (reason codes traducidos, factores que
-        más pesaron) de una evaluación de riesgo.
-      operationId: RiskController_getRiskAssessmentExplanation
-      parameters:
-        - name: riskAssessmentRunId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-        - name: x-tenant-id
-          in: header
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Explicación de la evaluación de riesgo.
-        '404':
-          description: Evaluación no encontrada.
-      security:
-        - access-token: []
-      summary: Explicación de una evaluación de riesgo (operaciones)
-      tags:
-        - risk
   /external-data/consents:
     post:
       description: >-
@@ -6791,6 +7768,57 @@ paths:
       summary: Verificar transferencia bancaria
       tags:
         - payments-external
+  /payments/bank-transfer/qr:
+    post:
+      description: >-
+        Genera un QR de cobro contra el proveedor bancario genérico. En modo
+        mock (local o server) devuelve un QR de PRUEBA (payload + imagen SVG
+        data URL) — no un QR EMV real escaneable. Es una acción, no una
+        verificación: no persiste observaciones de riesgo.
+      operationId: PaymentsExternalDataController_generateBankQr
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customerId:
+                  type: string
+                  pattern: ^\d+$
+                amount:
+                  type: number
+                  exclusiveMinimum: 0
+                currency:
+                  default: BOB
+                  type: string
+                  minLength: 3
+                  maxLength: 3
+                reference:
+                  type: string
+                  maxLength: 64
+                scenario:
+                  type: string
+                  maxLength: 80
+              required:
+                - customerId
+                - amount
+                - currency
+              additionalProperties: false
+      responses:
+        '200':
+          description: QR de cobro generado (payload + imagen).
+      security:
+        - access-token: []
+      summary: Generar QR de cobro bancario
+      tags:
+        - payments-external
   /telco/phone-trust/verify:
     post:
       description: >-
@@ -7168,6 +8196,809 @@ paths:
       summary: Perfil de confianza digital de un cliente
       tags:
         - digital-trust
+  /customers/{customerId}/credit-products:
+    get:
+      description: >-
+        Devuelve los productos vigentes del tenant junto con la elegibilidad del
+        cliente y sus bloqueadores. `canApply` refleja la elegibilidad real, de
+        modo que el catálogo y la puerta de entrada no puedan discrepar.
+      operationId: CreditController_listProducts
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          description: Opcional para `customer` (se toma del token).
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Catálogo de productos + elegibilidad del cliente.
+      security:
+        - access-token: []
+      summary: Productos crediticios disponibles
+      tags:
+        - credit
+  /customers/{customerId}/credit-applications:
+    post:
+      description: >-
+        Valida el producto, el monto y el plazo, REEVALÚA la elegibilidad del
+        cliente en el servidor y, solo si resulta elegible, crea la solicitud
+        guardando la evaluación que la autorizó. Un cliente no elegible recibe
+        `422 CUSTOMER_NOT_ELIGIBLE` con la lista de bloqueadores y no se
+        persiste ninguna solicitud.
+      operationId: CreditController_createApplication
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-idempotency-key
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                productId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+                requestedAmount:
+                  type: number
+                  exclusiveMinimum: 0
+                  maximum: 99999999
+                requestedTermMonths:
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 360
+                purposeCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+              required:
+                - productId
+                - requestedAmount
+                - requestedTermMonths
+              additionalProperties: false
+      responses:
+        '201':
+          description: Solicitud creada.
+        '404':
+          description: CREDIT_PRODUCT_NOT_FOUND.
+        '409':
+          description: >-
+            CREDIT_APPLICATION_ALREADY_OPEN — el cliente ya tiene una solicitud
+            viva.
+        '422':
+          description: >-
+            CUSTOMER_NOT_ELIGIBLE, CREDIT_PRODUCT_NOT_AVAILABLE,
+            REQUESTED_AMOUNT_OUT_OF_RANGE o REQUESTED_TERM_OUT_OF_RANGE.
+      security:
+        - access-token: []
+      summary: Crear una solicitud de crédito
+      tags:
+        - credit
+    get:
+      operationId: CreditController_listApplications
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Solicitudes del cliente, más recientes primero.
+      security:
+        - access-token: []
+      summary: Listar las solicitudes del cliente
+      tags:
+        - credit
+  /operations/credit/products:
+    get:
+      operationId: CreditOperationsController_listProducts
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Productos del tenant.
+      security:
+        - access-token: []
+      summary: Listar los productos vigentes (operaciones)
+      tags:
+        - credit
+    post:
+      description: >-
+        El producto nace en `draft`: activarlo es una decisión aparte y
+        auditable, no un efecto de haberlo creado.
+      operationId: CreditOperationsController_createProduct
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                productCode:
+                  type: string
+                  minLength: 2
+                  maxLength: 60
+                  pattern: ^[a-z0-9_-]+$
+                productName:
+                  type: string
+                  minLength: 3
+                  maxLength: 180
+                description:
+                  type: string
+                  maxLength: 2000
+                currencyCode:
+                  type: string
+                  minLength: 3
+                  maxLength: 3
+                minAmount:
+                  type: number
+                  exclusiveMinimum: 0
+                  maximum: 99999999
+                maxAmount:
+                  type: number
+                  exclusiveMinimum: 0
+                  maximum: 99999999
+                minTermMonths:
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 360
+                maxTermMonths:
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 360
+                annualInterestRate:
+                  type: number
+                  minimum: 0
+                  maximum: 999
+                minMonthlyIncome:
+                  type: number
+                  minimum: 0
+                  maximum: 99999999
+                requiresManualReview:
+                  default: false
+                  type: boolean
+                effectiveFrom:
+                  type: string
+                  format: date-time
+                  pattern: >-
+                    ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                effectiveUntil:
+                  type: string
+                  format: date-time
+                  pattern: >-
+                    ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+              required:
+                - productCode
+                - productName
+                - currencyCode
+                - minAmount
+                - maxAmount
+                - minTermMonths
+                - maxTermMonths
+                - requiresManualReview
+              additionalProperties: false
+      responses:
+        '201':
+          description: Producto creado en estado `draft`.
+        '409':
+          description: CREDIT_PRODUCT_CODE_ALREADY_EXISTS.
+      security:
+        - access-token: []
+      summary: Crear un producto crediticio
+      tags:
+        - credit
+  /operations/credit/products/{productId}/status:
+    patch:
+      operationId: CreditOperationsController_changeProductStatus
+      parameters:
+        - name: productId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - draft
+                    - active
+                    - suspended
+                    - retired
+                reasonCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+              required:
+                - status
+                - reasonCode
+              additionalProperties: false
+      responses:
+        '200':
+          description: Estado actualizado.
+        '404':
+          description: CREDIT_PRODUCT_NOT_FOUND.
+      security:
+        - access-token: []
+      summary: Cambiar el estado de un producto (activar, suspender, retirar)
+      tags:
+        - credit
+  /operations/credit/applications/{applicationId}/decision:
+    post:
+      description: >-
+        Aprueba, rechaza o pide más información. Estado e historial se escriben
+        en la misma transacción; rechazar o pedir información exige nota. Una
+        solicitud ya resuelta responde `409 CREDIT_APPLICATION_ALREADY_DECIDED`.
+      operationId: CreditOperationsController_decideApplication
+      parameters:
+        - name: applicationId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decision:
+                  type: string
+                  enum:
+                    - approve
+                    - reject
+                    - request_more_information
+                reasonCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                notes:
+                  type: string
+                  maxLength: 2000
+              required:
+                - decision
+                - reasonCode
+              additionalProperties: false
+      responses:
+        '200':
+          description: Decisión aplicada.
+        '404':
+          description: CREDIT_APPLICATION_NOT_FOUND.
+        '409':
+          description: CREDIT_APPLICATION_ALREADY_DECIDED.
+      security:
+        - access-token: []
+      summary: Decidir una solicitud de crédito
+      tags:
+        - credit
+  /operations/credit/applications/{applicationId}:
+    get:
+      operationId: CreditOperationsController_getApplicationDetail
+      parameters:
+        - name: applicationId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Solicitud + eventos, más recientes primero.
+      security:
+        - access-token: []
+      summary: Detalle de una solicitud, con su historial completo
+      tags:
+        - credit
+  /customers/{customerId}/privacy/consent-decisions:
+    post:
+      description: >-
+        Registra hasta 20 decisiones de consentimiento
+        (otorgado/rechazado/revocado) en una sola llamada transaccional. Si
+        alguna decisión es `revoked`, se crea automáticamente un evento de
+        cambio de estado del cliente (`requires_review`). Cada
+        `consentDocumentId` se valida contra el catálogo de documentos activos
+        antes de escribir.
+      operationId: CustomerPrivacyController_registerConsentDecisions
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-client-channel
+          in: header
+          description: 'Canal de origen (default: mobile_app).'
+          required: false
+          schema:
+            type: string
+        - name: x-idempotency-key
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decisions:
+                  minItems: 1
+                  maxItems: 20
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      consentDocumentId:
+                        type: string
+                        pattern: ^[1-9][0-9]*$
+                      purposeCode:
+                        type: string
+                        minLength: 1
+                        maxLength: 80
+                      decision:
+                        type: string
+                        enum:
+                          - granted
+                          - declined
+                          - revoked
+                      decidedAt:
+                        type: string
+                        format: date-time
+                        pattern: >-
+                          ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                      sessionId:
+                        type: string
+                        pattern: ^[1-9][0-9]*$
+                    required:
+                      - consentDocumentId
+                      - purposeCode
+                      - decision
+                    additionalProperties: false
+              required:
+                - decisions
+              additionalProperties: false
+      responses:
+        '200':
+          description: >-
+            Decisiones procesadas — cantidad procesada y estado de
+            consentimiento resultante.
+        '400':
+          description: X-Idempotency-Key ausente.
+        '403':
+          description: Un customer intentó operar sobre otro cliente.
+        '404':
+          description: Cliente no encontrado.
+        '422':
+          description: >-
+            CONSENT_DOCUMENT_NOT_ACTIVE — algún consentDocumentId no está
+            activo/vigente.
+      security:
+        - access-token: []
+      summary: Registrar decisiones de consentimiento (batch)
+      tags:
+        - customer-privacy
+  /customers/{customerId}/privacy/data-subject-requests:
+    post:
+      description: >-
+        Registra una solicitud de acceso/rectificación/cancelación/oposición (o
+        portabilidad/restricción) sobre los datos del cliente. El plazo legal de
+        resolución (`dueAt`) se fija en 15 días desde la recepción.
+      operationId: CustomerPrivacyController_createDataSubjectRequest
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-idempotency-key
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requestType:
+                  type: string
+                  enum:
+                    - access
+                    - rectification
+                    - deletion
+                    - portability
+                    - revocation
+                    - restriction
+                description:
+                  type: string
+                  minLength: 5
+                  maxLength: 1000
+              required:
+                - requestType
+              additionalProperties: false
+      responses:
+        '201':
+          description: Solicitud creada — estado "received", vence en 15 días.
+        '400':
+          description: X-Idempotency-Key ausente.
+        '403':
+          description: Un customer intentó operar sobre otro cliente.
+        '404':
+          description: Cliente no encontrado.
+      security:
+        - access-token: []
+      summary: Crear solicitud de derechos ARCO/GDPR
+      tags:
+        - customer-privacy
+  /customers/{customerId}/telemetry/batch:
+    post:
+      description: >-
+        Recibe hasta 100 eventos + 100 métricas on-device por batch (interacción
+        de formulario, permisos, auth, riesgo de dispositivo, SIM, reputación de
+        IP, pasos de onboarding, acciones del cliente). Rechaza el batch
+        completo si detecta indicios de volcado de agenda de contactos cruda
+        (`RAW_CONTACTS_NOT_ALLOWED`). Un `customer` solo puede reportar
+        telemetría de un dispositivo/sesión vinculados a sí mismo.
+      operationId: CustomerTelemetryController_ingestBatch
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-idempotency-key
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+                deviceId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+                clientBatchId:
+                  type: string
+                  minLength: 3
+                  maxLength: 120
+                capturedFrom:
+                  type: string
+                  format: date-time
+                  pattern: >-
+                    ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                capturedUntil:
+                  type: string
+                  format: date-time
+                  pattern: >-
+                    ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                events:
+                  default: []
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      eventType:
+                        type: string
+                        enum:
+                          - form_field_interaction
+                          - permission_event
+                          - auth_event
+                          - device_risk_event
+                          - sim_observation
+                          - ip_reputation_observation
+                          - customer_observation
+                          - customer_action
+                          - onboarding_step_event
+                      eventCode:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                      occurredAt:
+                        type: string
+                        format: date-time
+                        pattern: >-
+                          ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                      metadata:
+                        type: object
+                        propertyNames:
+                          type: string
+                        additionalProperties: {}
+                    required:
+                      - eventType
+                      - eventCode
+                      - occurredAt
+                    additionalProperties: false
+                onDeviceMetrics:
+                  default: []
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      metricCode:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                      value:
+                        anyOf:
+                          - type: number
+                          - type: string
+                            maxLength: 500
+                          - type: boolean
+                          - type: object
+                            propertyNames:
+                              type: string
+                            additionalProperties: {}
+                      computedAt:
+                        type: string
+                        format: date-time
+                        pattern: >-
+                          ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                      confidenceScore:
+                        type: number
+                        minimum: 0
+                        maximum: 1
+                    required:
+                      - metricCode
+                      - value
+                    additionalProperties: false
+              required:
+                - sessionId
+                - deviceId
+                - clientBatchId
+                - capturedFrom
+                - capturedUntil
+                - events
+                - onDeviceMetrics
+              additionalProperties: false
+      responses:
+        '202':
+          description: Batch aceptado — cantidad de eventos/métricas procesados.
+        '400':
+          description: X-Idempotency-Key ausente, batch vacío, o payload > 250 KB.
+        '403':
+          description: El dispositivo o la sesión no pertenecen al cliente.
+        '404':
+          description: Cliente no encontrado.
+        '422':
+          description: >-
+            RAW_CONTACTS_NOT_ALLOWED — el batch contiene indicios de agenda de
+            contactos cruda.
+      security:
+        - access-token: []
+      summary: Ingerir batch de telemetría del cliente
+      tags:
+        - customer-telemetry
+  /customers/{customerId}/risk-assessments:
+    post:
+      description: >-
+        Calcula un score de riesgo/fraude nuevo para el cliente (identidad,
+        contacto, dispositivo, comportamiento) y registra la decisión
+        resultante. Exige al menos un consentimiento vigente otorgado antes de
+        ejecutar. Si faltan datos obligatorios (documento de identidad, contacto
+        verificado), la decisión resultante es `manual_review_required` y se
+        crea automáticamente el caso de revisión manual correspondiente.
+      operationId: RiskController_createRiskAssessment
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-idempotency-key
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assessmentType:
+                  type: string
+                  enum:
+                    - onboarding_initial
+                    - behavior_update
+                    - manual_recheck
+                    - fraud_recheck
+                channel:
+                  type: string
+                  enum:
+                    - mobile_app
+                    - operations_panel
+                    - system
+                sessionId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+                deviceId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+                requestedLimitContext:
+                  type: object
+                  properties:
+                    purpose:
+                      type: string
+                      minLength: 1
+                      maxLength: 120
+                  required:
+                    - purpose
+                  additionalProperties: false
+              required:
+                - assessmentType
+                - channel
+              additionalProperties: false
+      responses:
+        '201':
+          description: >-
+            Evaluación creada — decisión, nivel de riesgo, y razones (sin
+            desglose de scores internos).
+        '400':
+          description: X-Idempotency-Key ausente, o x-tenant-id inválido.
+        '404':
+          description: Cliente no encontrado.
+        '422':
+          description: CUSTOMER_BLOCKED_FOR_RISK_ASSESSMENT o REQUIRED_CONSENT_MISSING.
+      security:
+        - access-token: []
+      summary: Crear evaluación de riesgo
+      tags:
+        - risk
+  /operations/risk-assessments/{riskAssessmentRunId}:
+    get:
+      description: >-
+        Devuelve el desglose completo del modelo de riesgo (scores por
+        dimensión, reason codes, versión de modelo/ruleset). Exclusivo de roles
+        internos — nunca `customer`, para no exponer el detalle exacto del
+        scoring al cliente evaluado.
+      operationId: RiskController_getRiskAssessmentDetail
+      parameters:
+        - name: riskAssessmentRunId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detalle completo de la evaluación de riesgo.
+        '404':
+          description: Evaluación no encontrada.
+      security:
+        - access-token: []
+      summary: Detalle de una evaluación de riesgo (operaciones)
+      tags:
+        - risk
+  /operations/risk-assessments/{riskAssessmentRunId}/explanation:
+    get:
+      description: >-
+        Devuelve la explicación legible (reason codes traducidos, factores que
+        más pesaron) de una evaluación de riesgo.
+      operationId: RiskController_getRiskAssessmentExplanation
+      parameters:
+        - name: riskAssessmentRunId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Explicación de la evaluación de riesgo.
+        '404':
+          description: Evaluación no encontrada.
+      security:
+        - access-token: []
+      summary: Explicación de una evaluación de riesgo (operaciones)
+      tags:
+        - risk
   /operations/work-queue:
     get:
       description: >-
@@ -7352,11 +9183,12 @@ paths:
                 nextCustomerStatus:
                   type: string
                   enum:
-                    - approved_for_next_step
+                    - active
+                    - observed
+                    - under_review
                     - rejected
-                    - pending_more_information
-                    - pending_fraud_review
-                    - registered
+                    - blocked
+                    - suspended
               required:
                 - decision
                 - reasonCode
@@ -7556,11 +9388,16 @@ paths:
         - data-quality
   /operations/audit/customer/{customerId}:
     get:
+      deprecated: true
       description: >-
-        Combina 8 fuentes de eventos (status, auth, consent, manual_review,
-        fraud, data_change, customer_action, operational_audit). eventType=risk
-        no tiene fuente dedicada — se ve mezclado en operational_audit bajo
-        actionCode risk_assessment.created.
+        DEPRECADO (Fase 4 del plan de mejora del modelo de datos, §25): usar GET
+        .../customer/:customerId/feed, que pagina por cursor real sobre la vista
+        audit_event_feed en vez de pedir offset+limit de cada fuente y ordenar
+        en memoria. Esta ruta se retirará cuando su uso sea cero durante dos
+        releases. Combina 8 fuentes de eventos (status, auth, consent,
+        manual_review, fraud, data_change, customer_action, operational_audit).
+        eventType=risk no tiene fuente dedicada — se ve mezclado en
+        operational_audit bajo actionCode risk_assessment.created.
       operationId: AuditController_getCustomerAudit
       parameters:
         - name: to
@@ -7611,7 +9448,7 @@ paths:
           description: Historial de auditoría paginado.
       security:
         - access-token: []
-      summary: Historial de auditoría de un cliente (paginado por offset)
+      summary: Historial de auditoría de un cliente (paginado por offset) — DEPRECADO
       tags:
         - audit
   /operations/audit/customer/{customerId}/feed:
@@ -7713,6 +9550,13 @@ paths:
             type: string
             minLength: 1
             maxLength: 40
+        - name: backendService
+          required: false
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
         - name: module
           required: false
           in: query
@@ -7772,7 +9616,7 @@ paths:
                 - persist
               additionalProperties: false
       responses:
-        '200':
+        '201':
           description: Resultado del descubrimiento de endpoints.
       security:
         - access-token: []
@@ -7805,7 +9649,7 @@ paths:
                 - includeEndpointSeeds
               additionalProperties: false
       responses:
-        '200':
+        '201':
           description: Seed del catálogo refrescado.
       security:
         - access-token: []
@@ -7899,7 +9743,7 @@ paths:
                 - persist
               additionalProperties: false
       responses:
-        '200':
+        '201':
           description: Requisitos inferidos.
       security:
         - access-token: []
@@ -7924,7 +9768,7 @@ paths:
                 - persist
               additionalProperties: false
       responses:
-        '200':
+        '201':
           description: Impactos endpoint-tabla inferidos.
       security:
         - access-token: []
@@ -8976,7 +10820,7 @@ paths:
                 - steps
               additionalProperties: false
       responses:
-        '200':
+        '201':
           description: Steps reordenados.
         '404':
           description: TEST_SUITE_NOT_FOUND.
@@ -9265,7 +11109,7 @@ paths:
                 - status
               additionalProperties: false
       responses:
-        '200':
+        '201':
           description: Perfil de estrés creado/actualizado.
       security:
         - access-token: []
@@ -10017,36 +11861,36 @@ paths:
   /internal/business-metadata/glossary:
     get:
       description: >-
-        Unifica dominios, tablas y campos para dar contexto semántico, ownership y
-        trazabilidad a las decisiones.
+        Unifica dominios, tablas y campos para dar contexto semántico, ownership
+        y trazabilidad a las decisiones.
       operationId: InternalPortalController_listBusinessTerms
       parameters:
         - name: pageSize
           required: false
           in: query
-          deprecated: true
-          description: Alias legado de limit.
           schema:
             type: integer
             minimum: 1
             maximum: 100
+          deprecated: true
+          description: Alias legado de limit.
         - name: limit
           required: false
           in: query
-          description: Elementos por página (1-100).
           schema:
-            default: 20
             type: integer
             minimum: 1
             maximum: 100
+            default: 20
+          description: Elementos por página (1-100).
         - name: page
           required: false
           in: query
-          description: Página, desde 1.
           schema:
-            default: 1
             type: integer
             minimum: 1
+            default: 1
+          description: Página, desde 1.
         - name: q
           required: false
           in: query
@@ -10066,8 +11910,8 @@ paths:
                     items:
                       type: object
                       description: >-
-                        Término unificado proveniente de un dominio, tabla o campo
-                        del catálogo de datos.
+                        Término unificado proveniente de un dominio, tabla o
+                        campo del catálogo de datos.
                       properties:
                         termId:
                           type: string
@@ -10629,6 +12473,125 @@ paths:
       summary: Búsqueda global dentro del panel interno
       tags:
         - internal-portal
+  /internal/views/customers:
+    get:
+      operationId: AdminReadController_listCustomers
+      parameters:
+        - name: fields
+          required: false
+          in: query
+          description: Campos camelCase separados por coma.
+          schema: {}
+      responses:
+        '200':
+          description: ''
+      security:
+        - access-token: []
+      summary: Vista paginada de clientes con proyección de campos
+      tags:
+        - internal-admin-views
+  /internal/views/risk-assessments:
+    get:
+      operationId: AdminReadController_listRiskAssessments
+      parameters:
+        - name: fields
+          required: false
+          in: query
+          description: Campos camelCase separados por coma.
+          schema: {}
+      responses:
+        '200':
+          description: ''
+      security:
+        - access-token: []
+      summary: Vista paginada de decisiones de riesgo
+      tags:
+        - internal-admin-views
+  /internal/views/work-queue:
+    get:
+      operationId: AdminReadController_listWorkQueue
+      parameters:
+        - name: fields
+          required: false
+          in: query
+          description: Campos camelCase separados por coma.
+          schema: {}
+      responses:
+        '200':
+          description: ''
+      security:
+        - access-token: []
+      summary: Cola operativa unificada y paginada
+      tags:
+        - internal-admin-views
+  /internal/views/provider-health:
+    get:
+      operationId: AdminReadController_listProviderHealth
+      parameters:
+        - name: fields
+          required: false
+          in: query
+          description: Campos camelCase separados por coma.
+          schema: {}
+      responses:
+        '200':
+          description: ''
+      security:
+        - access-token: []
+      summary: Último estado de salud por proveedor
+      tags:
+        - internal-admin-views
+  /internal/views/notification-deliveries:
+    get:
+      operationId: AdminReadController_listNotificationDeliveries
+      parameters:
+        - name: fields
+          required: false
+          in: query
+          description: Campos camelCase separados por coma.
+          schema: {}
+      responses:
+        '200':
+          description: ''
+      security:
+        - access-token: []
+      summary: Resumen paginado de entrega de notificaciones
+      tags:
+        - internal-admin-views
+  /internal/views/endpoint-coverage:
+    get:
+      operationId: AdminReadController_listEndpointCoverage
+      parameters:
+        - name: fields
+          required: false
+          in: query
+          description: Campos camelCase separados por coma.
+          schema: {}
+      responses:
+        '200':
+          description: ''
+      security:
+        - access-token: []
+      summary: Cobertura y release readiness por endpoint
+      tags:
+        - internal-admin-views
+  /internal/views/audit-events:
+    get:
+      operationId: AdminReadController_listAuditEvents
+      parameters:
+        - name: fields
+          required: false
+          in: query
+          description: Campos camelCase separados por coma.
+          schema: {}
+      responses:
+        '200':
+          description: ''
+      security:
+        - access-token: []
+      summary: Feed de auditoría curado y paginado
+      tags:
+        - internal-admin-views
   /systems/logs/mongo:
     get:
       operationId: MongoLogsController_listMongoLogs
@@ -10698,15 +12661,338 @@ paths:
       summary: Listar logs sincronizados a MongoDB (Archivo.log remoto)
       tags:
         - systems-ops
+  /workflows:
+    get:
+      description: >-
+        Devuelve una fila por versión de flujo. `moduleCode` y `role` filtran
+        por lo que el flujo contiene, no por atributos de la cabecera: un flujo
+        aparece si alguna de sus etapas pertenece al módulo o si alguno de sus
+        pasos autoriza al rol.
+      operationId: WorkflowCatalogController_list
+      parameters:
+        - name: includeDeprecated
+          required: false
+          in: query
+          schema: {}
+        - name: role
+          required: false
+          in: query
+          schema: {}
+        - name: moduleCode
+          required: false
+          in: query
+          schema: {}
+        - name: ownerDomain
+          required: false
+          in: query
+          schema: {}
+        - name: processType
+          required: false
+          in: query
+          schema: {}
+        - name: status
+          required: false
+          in: query
+          schema: {}
+      responses:
+        '200':
+          description: Flujos registrados, ordenados por código y versión descendente.
+      security:
+        - access-token: []
+      summary: Listar los flujos de trabajo registrados
+      tags:
+        - workflow-catalog
+  /workflows/{workflowCode}/versions:
+    get:
+      operationId: WorkflowCatalogController_listVersions
+      parameters:
+        - name: workflowCode
+          required: true
+          in: path
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 80
+            pattern: ^[a-z][a-z0-9_]*$
+      responses:
+        '200':
+          description: Versiones del flujo, de la más reciente a la más antigua.
+        '404':
+          description: WORKFLOW_NOT_FOUND.
+      security:
+        - access-token: []
+      summary: Versiones registradas de un flujo
+      tags:
+        - workflow-catalog
+  /workflows/{workflowCode}:
+    get:
+      description: >-
+        Etapas anidadas con sus subetapas y pasos, más las transiciones y
+        dependencias. `version=latest` (por defecto) resuelve la versión marcada
+        como predeterminada y, si no hay ninguna, la activa más reciente.
+      operationId: WorkflowCatalogController_getTree
+      parameters:
+        - name: actorType
+          required: false
+          in: query
+          schema: {}
+        - name: lifecycleStatus
+          required: false
+          in: query
+          schema: {}
+        - name: role
+          required: false
+          in: query
+          schema: {}
+        - name: moduleCode
+          required: false
+          in: query
+          schema: {}
+        - name: version
+          required: false
+          in: query
+          description: '`latest` o una versión concreta (`v1`).'
+          schema: {}
+        - name: workflowCode
+          required: true
+          in: path
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 80
+            pattern: ^[a-z][a-z0-9_]*$
+      responses:
+        '200':
+          description: >-
+            Árbol del flujo con totales de etapas, pasos, transiciones y
+            dependencias.
+        '404':
+          description: WORKFLOW_NOT_FOUND.
+      security:
+        - access-token: []
+      summary: Árbol completo de un flujo
+      tags:
+        - workflow-catalog
+  /workflows/{workflowCode}/stages:
+    get:
+      description: >-
+        Versión aplanada del árbol con `depth`, para pintar un recorrido lineal
+        sin recorrer la jerarquía.
+      operationId: WorkflowCatalogController_listStages
+      parameters:
+        - name: workflowCode
+          required: true
+          in: path
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 80
+            pattern: ^[a-z][a-z0-9_]*$
+      responses:
+        '200':
+          description: Etapas ordenadas, con sus pasos.
+      security:
+        - access-token: []
+      summary: Etapas del flujo en orden de ejecución
+      tags:
+        - workflow-catalog
+  /workflows/{workflowCode}/transitions:
+    get:
+      operationId: WorkflowCatalogController_listTransitions
+      parameters:
+        - name: workflowCode
+          required: true
+          in: path
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 80
+            pattern: ^[a-z][a-z0-9_]*$
+      responses:
+        '200':
+          description: Transiciones con su condición, origen y destino.
+      security:
+        - access-token: []
+      summary: Transiciones declaradas del flujo
+      tags:
+        - workflow-catalog
+  /workflows/{workflowCode}/graph:
+    get:
+      description: >-
+        Nodos (etapas y pasos) y aristas (transiciones y dependencias) listos
+        para una librería de diagramas.
+      operationId: WorkflowCatalogController_getGraph
+      parameters:
+        - name: workflowCode
+          required: true
+          in: path
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 80
+            pattern: ^[a-z][a-z0-9_]*$
+      responses:
+        '200':
+          description: Grafo del flujo.
+      security:
+        - access-token: []
+      summary: Representación de grafo para visualización
+      tags:
+        - workflow-catalog
+  /workflows/{workflowCode}/transitions/validate:
+    post:
+      description: >-
+        Comprueba el grafo declarado: que la transición exista, que las
+        dependencias obligatorias estén cubiertas y que rol y estado encajen con
+        el paso destino. NO sustituye a los guards ni a las reglas del servicio
+        real, que se siguen aplicando al ejecutar el endpoint.
+      operationId: WorkflowCatalogController_validateTransition
+      parameters:
+        - name: workflowCode
+          required: true
+          in: path
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 80
+            pattern: ^[a-z][a-z0-9_]*$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                version:
+                  default: latest
+                  type: string
+                  minLength: 1
+                  maxLength: 20
+                  pattern: ^(latest|v[0-9]+(?:\.[0-9]+)?)$
+                fromStepCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                toStepCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                role:
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+                lifecycleStatus:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                completedStepCodes:
+                  default: []
+                  maxItems: 200
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 120
+              required:
+                - version
+                - toStepCode
+                - completedStepCodes
+              additionalProperties: false
+      responses:
+        '200':
+          description: Resultado con `allowed` y un `reasonCode` explícito.
+        '404':
+          description: WORKFLOW_NOT_FOUND.
+      security:
+        - access-token: []
+      summary: Validar si una transición está permitida
+      tags:
+        - workflow-catalog
+  /customers/{customerId}/workflow-progress:
+    get:
+      description: >-
+        Devuelve etapas completadas, pendientes y bloqueadas, el porcentaje de
+        avance y el siguiente paso válido (método, ruta y roles). Un `customer`
+        solo puede consultar su propio avance.
+      operationId: WorkflowProgressController_getProgress
+      parameters:
+        - name: version
+          required: false
+          in: query
+          description: '`latest` o una versión concreta (`v1`).'
+          schema: {}
+        - name: workflowCode
+          required: false
+          in: query
+          description: Por defecto, el recorrido estándar del cliente.
+          schema: {}
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: x-tenant-id
+          in: header
+          description: Opcional para `customer` (se toma del token).
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Avance del cliente, con la siguiente llamada a realizar.
+        '403':
+          description: Un customer intentó consultar el avance de otro cliente.
+        '404':
+          description: WORKFLOW_NOT_FOUND o cliente no encontrado.
+      security:
+        - access-token: []
+      summary: Avance del cliente dentro del flujo estándar
+      tags:
+        - workflow-catalog
+  /operations/workflows/{workflowCode}/consistency:
+    get:
+      description: >-
+        Compara cada paso sembrado con las rutas que ESTE proceso tiene
+        montadas: ruta inexistente, código de endpoint incoherente, estado de
+        ciclo de vida desconocido (errores); roles divergentes, endpoint aún no
+        descubierto y rutas del mismo dominio sin mapear (avisos). `status` es
+        `drift_detected` si hay al menos un error.
+      operationId: WorkflowOperationsController_checkConsistency
+      parameters:
+        - name: version
+          required: false
+          in: query
+          description: '`latest` o una versión concreta (`v1`).'
+          schema: {}
+        - name: workflowCode
+          required: true
+          in: path
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 80
+            pattern: ^[a-z][a-z0-9_]*$
+      responses:
+        '200':
+          description: Informe de consistencia con la lista completa de hallazgos.
+        '404':
+          description: WORKFLOW_NOT_FOUND.
+      security:
+        - access-token: []
+      summary: Informe de consistencia del flujo contra los endpoints reales
+      tags:
+        - workflow-catalog
 info:
   title: Atlas API
   description: >-
     API de Proyecto Atlas: identidad de cliente, autenticación, sesiones,
-    consentimientos, privacidad, telemetría, riesgo/scoring y plataforma
-    administrativa. Incluye catálogos versionados, definiciones semánticas y
-    glosario de negocio para dar contexto trazable al motor de decisión. El
-    dominio BNPL (compras, cuotas, línea de crédito, comercios) corresponde a
-    Fase 3 y todavía no está implementado — ver docs/pending/pending-items.md.
+    consentimientos, privacidad, telemetría, riesgo/scoring, onboarding,
+    elegibilidad crediticia y plataforma administrativa. Incluye catálogos
+    versionados, definiciones semánticas y glosario de negocio para dar contexto
+    trazable al motor de decisión. El dominio de crédito cubre el catálogo de
+    productos y el ciclo de solicitud y decisión; compras, cuotas y comercios
+    permanecen fuera del alcance actual.
   version: 0.3.0
   contact: {}
 tags:
@@ -10718,3 +13004,11 @@ tags:
       consumidos por el motor de decisión.
   - name: internal-portal
     description: Glosario de negocio, gobierno y trazabilidad para operadores internos.
+servers: []
+components:
+  securitySchemes:
+    access-token:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+  schemas: {}

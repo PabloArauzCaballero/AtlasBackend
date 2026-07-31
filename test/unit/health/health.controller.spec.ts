@@ -12,10 +12,11 @@ import { HealthController } from '../../../src/modules/health/health.controller.
  * configurado (dev) no invalida readiness; Redis configurado pero caído sí.
  */
 describe('HealthController', () => {
-  function buildController(opts: { authenticate: () => Promise<void>; redis?: Pick<Redis, 'ping'> | null }) {
+  function buildController(opts: { authenticate: () => Promise<void>; redis?: Pick<Redis, 'ping'> | null; shuttingDown?: boolean }) {
     const sequelize = { authenticate: jest.fn(opts.authenticate) };
     const redis = opts.redis === undefined ? null : opts.redis;
-    const controller = new HealthController(sequelize as never, redis as never);
+    const shutdown = { isShuttingDown: () => opts.shuttingDown ?? false };
+    const controller = new HealthController(sequelize as never, redis as never, shutdown as never);
     return { controller, sequelize };
   }
 
@@ -64,7 +65,7 @@ describe('HealthController', () => {
 
     it('is ready when both Postgres and a configured Redis respond', async () => {
       const redis = { ping: jest.fn(async () => 'PONG') };
-      const { controller } = buildController({ authenticate: async () => undefined, redis });
+      const { controller } = buildController({ authenticate: async () => undefined, redis: redis as never });
       const result = await controller.readiness();
       expect(result.status).toBe('ready');
       expect(result.checks).toEqual({ postgres: 'ok', redis: 'ok' });
@@ -85,8 +86,49 @@ describe('HealthController', () => {
           throw new Error('redis down');
         }),
       };
-      const { controller } = buildController({ authenticate: async () => undefined, redis });
+      const { controller } = buildController({ authenticate: async () => undefined, redis: redis as never });
       await expect(controller.readiness()).rejects.toBeInstanceOf(ServiceUnavailableException);
+    });
+
+    /**
+     * Hallazgo A-07: durante el apagado la instancia debe pedir salir del balanceador de inmediato,
+     * y sin depender de que Postgres conteste — si el drenado tuviera que esperar una comprobación
+     * de base, un Postgres lento retrasaría justo el momento en que hay que ser rápido.
+     */
+    it('responde 503 en cuanto empieza el apagado, sin consultar dependencias', async () => {
+      const { controller, sequelize } = buildController({ authenticate: async () => undefined, shuttingDown: true });
+
+      await expect(controller.readiness()).rejects.toBeInstanceOf(ServiceUnavailableException);
+      expect(sequelize.authenticate).not.toHaveBeenCalled();
+    });
+
+    it('el cuerpo del 503 indica explícitamente que la causa es el apagado', async () => {
+      const { controller } = buildController({ authenticate: async () => undefined, shuttingDown: true });
+
+      const error = await controller.readiness().catch((thrown: unknown) => thrown);
+      const body = (error as ServiceUnavailableException).getResponse() as { status: string; shuttingDown: boolean };
+      expect(body.status).toBe('not_ready');
+      expect(body.shuttingDown).toBe(true);
+    });
+
+    it('mientras no haya apagado, readiness reporta shuttingDown=false', async () => {
+      const { controller } = buildController({ authenticate: async () => undefined, redis: null });
+
+      expect((await controller.readiness()).shuttingDown).toBe(false);
+    });
+  });
+
+  /** Hallazgo A-05: `/health` debe decir QUÉ build está corriendo, no un literal fijo. */
+  describe('identidad del build', () => {
+    it('reporta version, commit y builtAt del artefacto', async () => {
+      const { controller } = buildController({ authenticate: async () => undefined });
+
+      const result = await controller.check();
+
+      expect(result.version).not.toBe('0.1.0');
+      expect(result.version).toMatch(/^\d+\.\d+\.\d+/);
+      expect(result).toHaveProperty('commit');
+      expect(result).toHaveProperty('builtAt');
     });
   });
 });

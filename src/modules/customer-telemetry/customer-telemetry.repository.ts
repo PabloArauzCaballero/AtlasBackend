@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza captura señales de comportamiento y dispositivo necesarias para prevención de fraude y mejora de conversión.
+ * @system valida e ingiere lotes de telemetría con límites, redacción y escritura transaccional.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Transaction } from 'sequelize';

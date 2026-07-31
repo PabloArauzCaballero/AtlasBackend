@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza evita operar con parámetros inseguros o ambiguos.
+ * @system valida y compone configuración tipada al arrancar.
+ */
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule, OpenAPIObject } from '@nestjs/swagger';
 
@@ -12,10 +17,11 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     .setTitle('Atlas API')
     .setDescription(
       'API de Proyecto Atlas: identidad de cliente, autenticación, sesiones, consentimientos, ' +
-        'privacidad, telemetría, riesgo/scoring y plataforma administrativa. Incluye catálogos ' +
-        'versionados, definiciones semánticas y glosario de negocio para dar contexto trazable al motor de decisión. ' +
-        'El dominio BNPL (compras, cuotas, línea de crédito, comercios) corresponde a Fase 3 y ' +
-        'todavía no está implementado — ver docs/pending/pending-items.md.',
+        'privacidad, telemetría, riesgo/scoring, onboarding, elegibilidad crediticia y plataforma ' +
+        'administrativa. Incluye catálogos versionados, definiciones semánticas y glosario de ' +
+        'negocio para dar contexto trazable al motor de decisión. El dominio de crédito cubre el ' +
+        'catálogo de productos y el ciclo de solicitud y decisión; compras, cuotas y comercios ' +
+        'permanecen fuera del alcance actual.',
     )
     .setVersion('0.3.0')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'access-token')

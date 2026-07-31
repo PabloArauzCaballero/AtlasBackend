@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg } from '../../support/jest-mocks.js';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { SystemsActionLogController } from '../../../src/modules/systems-ops/systems-action-log.controller.js';
@@ -18,10 +19,10 @@ import { buildSystemsOpsTestApp, authHeader } from './support/systems-ops-test-a
 describe('SystemsActionLogController (e2e/supertest)', () => {
   let app: INestApplication;
   const service = {
-    listActionLogs: jest.fn(async () => ({ items: [], meta: { page: 1, limit: 20, total: 0 } })),
-    getActionLogsByRequest: jest.fn(async () => ({ items: [] })),
+    listActionLogs: asyncMock(),
+    getActionLogsByRequest: asyncMock(),
     getTrafficLatencyReport: jest.fn(async () => ({ windowHours: 24, summary: {}, routes: [] })),
-    getTrafficLatencyTimeseries: jest.fn(async () => ({ windowHours: 24, bucketMinutes: 30, buckets: [] })),
+    getTrafficLatencyTimeseries: asyncMock(),
   };
 
   beforeAll(async () => {
@@ -79,7 +80,7 @@ describe('SystemsActionLogController (e2e/supertest)', () => {
 
       expect(res.body).toEqual(payload);
       expect(service.listActionLogs).toHaveBeenCalledTimes(1);
-      expect(service.listActionLogs.mock.calls[0][0]).toMatchObject({ page: 1, limit: 20 });
+      expect(callArg(service.listActionLogs, 0, 0)).toMatchObject({ page: 1, limit: 20 });
     });
 
     it('propaga filtros explícitos al service (method, riskLevel, page, limit)', async () => {
@@ -88,7 +89,7 @@ describe('SystemsActionLogController (e2e/supertest)', () => {
         .set(...authHeader('system_admin'))
         .expect(200);
 
-      expect(service.listActionLogs.mock.calls[0][0]).toMatchObject({
+      expect(callArg(service.listActionLogs, 0, 0)).toMatchObject({
         method: 'POST',
         riskLevel: 'HIGH',
         page: 2,

@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza controla quién puede operar Atlas y deja evidencia de cada asignación de privilegios.
+ * @system implementa identidad interna, RBAC, catálogo de permisos y guards de autorización granular.
+ */
 import { InternalRoleCode } from './internal-rbac.roles.js';
 
 export type InternalPermissionSeed = {

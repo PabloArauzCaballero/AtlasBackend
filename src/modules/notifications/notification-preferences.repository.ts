@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
+ * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
+ */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { UserNotificationPreferenceModel } from '../../database/models/index.js';

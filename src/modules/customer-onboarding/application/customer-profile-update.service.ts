@@ -1,0 +1,152 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
+ * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
+ */
+import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { InjectConnection } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize-typescript';
+import { AuthenticatedUser } from '../../../common/types/auth.types.js';
+import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
+import { calculateAgeInYears } from '../../customers/application/customer-eligibility.evaluator.js';
+import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
+import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
+import { CustomersRepository } from '../../customers/customers.repository.js';
+import { UpdateProfileDto } from '../customer-onboarding-profile.schemas.js';
+import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerProfileDataRepository } from '../repositories/customer-profile-data.repository.js';
+
+function normalizeFullName(firstName: string | null, lastName: string | null): string | null {
+  const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+  return fullName.length === 0 ? null : fullName.toLocaleLowerCase('es-BO');
+}
+
+/**
+ * Registro progresivo de los datos personales (N2).
+ *
+ * Antes, nombre, apellido y fecha de nacimiento solo podían enviarse —opcionalmente— en el momento
+ * del registro, y después NO existía forma de completarlos ni de corregirlos. Este endpoint sostiene
+ * el guardado parcial: persiste lo que llega, campo a campo, sin exigir completitud. La verificación
+ * de obligatoriedad vive en el envío del paquete y en la regla de habilitación.
+ *
+ * Cada cambio crea una VERSIÓN nueva del perfil y cierra la anterior (`valid_until`,
+ * `supersedes_version_id`). El versionado ya estaba en el esquema y se usaba una sola vez; aquí pasa
+ * a cumplir su función: un dato corregido nunca borra al anterior.
+ */
+@Injectable()
+export class CustomerProfileUpdateService {
+  constructor(
+    private readonly customersRepository: CustomersRepository,
+    private readonly profileDataRepository: CustomerProfileDataRepository,
+    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly lifecycleService: CustomerLifecycleService,
+    @InjectConnection() private readonly sequelize: Sequelize,
+  ) {}
+
+  async updateProfile(input: {
+    tenantId: string;
+    customerId: string;
+    body: UpdateProfileDto;
+    currentUser: AuthenticatedUser;
+    ipAddress: string | null;
+  }) {
+    assertOwnCustomerResourceOrInternalOperational(input.currentUser, input.customerId);
+
+    const customer = await this.customersRepository.findById(input.tenantId, input.customerId);
+    if (!customer) throw new NotFoundException('Cliente no encontrado.');
+
+    const status = normalizeLifecycleStatus(customer.lifecycleStatus);
+    if (!EDITABLE_ONBOARDING_STATUSES.includes(status)) {
+      throw new UnprocessableEntityException(`PROFILE_NOT_EDITABLE_IN_STATUS: ${status}`);
+    }
+
+    const now = new Date();
+
+    return this.sequelize.transaction(async (transaction) => {
+      const current = await this.profileDataRepository.findCurrentProfile(input.tenantId, input.customerId, { transaction });
+
+      const firstName = input.body.firstName ?? current?.firstName ?? null;
+      const lastName = input.body.lastName ?? current?.lastName ?? null;
+      const birthDate = input.body.birthDate ?? current?.birthDate ?? null;
+
+      if (current) {
+        await this.profileDataRepository.closeProfileVersion(current, now, { transaction });
+      }
+
+      const profile = await this.profileDataRepository.createProfileVersion(
+        {
+          tenantId: input.tenantId,
+          customerId: input.customerId,
+          firstName,
+          lastName,
+          fullNameNormalized: normalizeFullName(firstName, lastName),
+          birthDate,
+          ageAtCapture: birthDate ? calculateAgeInYears(birthDate, now) : null,
+          genderDeclared: input.body.genderDeclared ?? current?.genderDeclared ?? null,
+          preferredLanguage: input.body.preferredLanguage ?? current?.preferredLanguage ?? 'es',
+          marketingOptIn: input.body.marketingOptIn ?? current?.marketingOptIn ?? false,
+          sourceType: 'customer_self_service',
+          supersedesVersionId: current ? String(current.id) : null,
+          validFrom: now,
+        },
+        { transaction },
+      );
+
+      await this.customersRepository.updateCurrentProfileVersion(customer, String(profile.id), now, { transaction });
+
+      const flow = await this.onboardingRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
+      await this.onboardingRepository.createOnboardingStepEvent(
+        {
+          tenantId: input.tenantId,
+          onboardingFlowId: flow ? String(flow.id) : null,
+          stepCode: 'personal_data_updated',
+          eventType: 'completed',
+          happenedAt: now,
+          payloadJson: { updatedFields: Object.keys(input.body), profileVersionId: String(profile.id) },
+        },
+        { transaction },
+      );
+
+      // Avance de mejor esfuerzo: completar datos personales no debe fallar porque el cliente ya
+      // esté en revisión; el dato sí se guarda y la transición simplemente se descarta.
+      await this.lifecycleService.advance({
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        toStatus: 'onboarding_in_progress',
+        reasonCode: 'personal_data_updated',
+        changedByType: input.currentUser.role,
+        changedByInternalUserId: input.currentUser.internalUserId ?? null,
+        notes: 'Datos personales actualizados por el cliente.',
+        transaction,
+      });
+
+      await this.onboardingRepository.createOperationalAuditLog(
+        {
+          tenantId: input.tenantId,
+          actorType: input.currentUser.role,
+          actorInternalUserId: input.currentUser.internalUserId ?? null,
+          actionCode: 'customer_onboarding.profile_updated',
+          targetType: 'customer',
+          targetId: input.customerId,
+          ipAddress: input.ipAddress,
+          userAgent: null,
+          payloadJson: { updatedFields: Object.keys(input.body), profileVersionId: String(profile.id) },
+          occurredAt: now,
+        },
+        { transaction },
+      );
+
+      return {
+        customerId: input.customerId,
+        profileVersionId: String(profile.id),
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        birthDate: profile.birthDate,
+        genderDeclared: profile.genderDeclared,
+        preferredLanguage: profile.preferredLanguage,
+        marketingOptIn: profile.marketingOptIn,
+        supersedesVersionId: profile.supersedesVersionId,
+      };
+    });
+  }
+}

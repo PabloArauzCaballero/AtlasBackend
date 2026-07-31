@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { SessionsTelemetryRepository } from '../../../src/modules/sessions/repositories/sessions-telemetry.repository.js';
 
 /**
@@ -8,7 +9,7 @@ import { SessionsTelemetryRepository } from '../../../src/modules/sessions/repos
  */
 describe('SessionsTelemetryRepository', () => {
   function buildRepo() {
-    const make = () => ({ findAll: jest.fn(), create: jest.fn() });
+    const make = () => ({ findAll: asyncMock(), create: asyncMock() });
     const models = {
       permissionEvent: make(),
       authEvent: make(),
@@ -61,17 +62,17 @@ describe('SessionsTelemetryRepository', () => {
     (models.customerActionLog.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.findSessionAuthEvents('t1', 's1');
     await repo.findSessionCustomerActions('t1', 's1');
-    expect((models.authEvent.findAll as jest.Mock).mock.calls[0][0].where).toMatchObject({ tenantId: 't1', sessionId: 's1' });
-    expect((models.customerActionLog.findAll as jest.Mock).mock.calls[0][0].where).toMatchObject({ tenantId: 't1', sessionId: 's1' });
+    expect(callArg<CallArgRecord>(models.authEvent.findAll, 0, 0).where).toMatchObject({ tenantId: 't1', sessionId: 's1' });
+    expect(callArg<CallArgRecord>(models.customerActionLog.findAll, 0, 0).where).toMatchObject({ tenantId: 't1', sessionId: 's1' });
     // límite por defecto distinto para acciones (30).
-    expect((models.customerActionLog.findAll as jest.Mock).mock.calls[0][0].limit).toBe(30);
+    expect(callArg<CallArgRecord>(models.customerActionLog.findAll, 0, 0).limit).toBe(30);
   });
 
   it('findSessionCustomerObservations acepta un límite explícito', async () => {
     const { repo, models } = buildRepo();
     (models.customerObservation.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.findSessionCustomerObservations('t1', 's1', 5);
-    expect((models.customerObservation.findAll as jest.Mock).mock.calls[0][0].limit).toBe(5);
+    expect(callArg<CallArgRecord>(models.customerObservation.findAll, 0, 0).limit).toBe(5);
   });
 
   it('createAuthEvent copia occurredAt a createdAtValue', async () => {

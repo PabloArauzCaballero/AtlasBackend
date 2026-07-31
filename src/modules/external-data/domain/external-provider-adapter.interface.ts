@@ -1,3 +1,8 @@
+/**
+ * @file Puerto tipado: desacopla un caso de uso de su implementación.
+ * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
+ * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
+ */
 import {
   ExternalProviderExecutionInput,
   ExternalProviderRawResult,

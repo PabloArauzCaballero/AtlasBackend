@@ -1,3 +1,8 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza ofrece a operaciones una vista gobernada del negocio sin acceso directo a tablas sensibles.
+ * @system compone consultas read-only, reportes, glosario, linaje y búsqueda para el portal administrativo.
+ */
 import { z } from 'zod';
 
 const page = z.coerce.number().int().min(1).default(1);

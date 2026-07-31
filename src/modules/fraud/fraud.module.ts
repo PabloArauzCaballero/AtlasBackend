@@ -1,3 +1,8 @@
+/**
+ * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
+ * @business Esta pieza reduce pérdidas y habilita revisión humana explicable de señales sospechosas.
+ * @system administra casos, decisiones y eventos de fraude dentro de transacciones auditables.
+ */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {

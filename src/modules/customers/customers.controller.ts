@@ -1,3 +1,8 @@
+/**
+ * @file Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso.
+ * @business Esta pieza mantiene la identidad operativa, ciclo de vida y elegibilidad del cliente como fuente de verdad.
+ * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
+ */
 import { Controller, Get, Headers, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';

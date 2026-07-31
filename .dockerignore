@@ -1,0 +1,35 @@
+# Lo que NO debe entrar en el contexto de build.
+#
+# Además de acelerar el build, esto es una barrera de seguridad: `.env` con secretos reales, los
+# resultados de smoke (que pueden contener tokens aunque estén redactados) y el historial de git
+# no tienen por qué estar disponibles dentro de la imagen ni en sus capas intermedias.
+
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Artefactos generados
+node_modules/
+dist/
+coverage/
+graphify-out/
+logs/
+*.log
+
+# Historial y metadatos de desarrollo
+.git/
+.github/
+.claude/
+.agents/
+
+# Pruebas y documentación: no se ejecutan ni se sirven desde la imagen
+test/
+docs/
+ops/
+
+# Evidencia local de smoke tests
+scripts/smoke/results/
+scripts/smoke/smoke-results.json
+scripts/smoke/*.results.json

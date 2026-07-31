@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { UnauthorizedException, ForbiddenException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 
 // Se mockean las utilidades criptográficas para aislar la lógica de negocio de `AuthService`.
@@ -21,43 +22,44 @@ import { hashOneTimeCode } from '../../../src/common/utils/crypto/one-time-code.
 
 function buildAuthRepositoryMock() {
   return {
-    findInternalUserByEmail: jest.fn(),
-    findPlatformUserByEmail: jest.fn(),
-    findInternalUserById: jest.fn(),
-    findPlatformUserById: jest.fn(),
-    findCredentialsByActor: jest.fn(),
-    createCredentials: jest.fn(),
-    updatePasswordHash: jest.fn(),
-    setMfaEnabled: jest.fn(),
-    createOneTimeCode: jest.fn(),
-    findActiveOneTimeCodeByActor: jest.fn(),
-    findActiveOneTimeCodeByChallenge: jest.fn(),
-    registerOneTimeCodeFailedAttempt: jest.fn(),
-    consumeOneTimeCode: jest.fn(),
-    recordFailedAttempt: jest.fn(),
-    recordSuccessfulLogin: jest.fn(),
+    findInternalUserByEmail: asyncMock(),
+    findPlatformUserByEmail: asyncMock(),
+    findInternalUserById: asyncMock(),
+    findPlatformUserById: asyncMock(),
+    findCredentialsByActor: asyncMock(),
+    createCredentials: asyncMock(),
+    updatePasswordHash: asyncMock(),
+    setMfaEnabled: asyncMock(),
+    createOneTimeCode: asyncMock(),
+    findActiveOneTimeCodeByActor: asyncMock(),
+    findActiveOneTimeCodeByChallenge: asyncMock(),
+    registerOneTimeCodeFailedAttempt: asyncMock(),
+    consumeOneTimeCode: asyncMock(),
+    recordFailedAttempt: asyncMock(),
+    recordSuccessfulLogin: asyncMock(),
     createRefreshToken: jest.fn(async () => ({ id: 'refresh-row-1' })),
-    findActiveRefreshTokenByHash: jest.fn(),
-    findRefreshTokenForUpdate: jest.fn(),
-    revokeRefreshToken: jest.fn(),
-    revokeAllRefreshTokensForActor: jest.fn(),
-    revokeDescendantChain: jest.fn(async () => []),
-    recordRefreshReuseEvent: jest.fn(),
-    recordLoginAttemptEvent: jest.fn(),
+    findActiveRefreshTokenByHash: asyncMock(),
+    findRefreshTokenForUpdate: asyncMock(),
+    revokeRefreshToken: asyncMock(),
+    revokeAllRefreshTokensForActor: asyncMock(),
+    revokeDescendantChain: jest.fn(async (): Promise<string[]> => []),
+    recordRefreshReuseEvent: asyncMock(),
+    recordLoginAttemptEvent: asyncMock(),
   };
 }
 
 function buildCustomersRepositoryMock() {
   return {
-    findByContactHash: jest.fn(),
-    findById: jest.fn(),
+    findContactMethods: jest.fn(async () => []),
+    findByContactHash: asyncMock(),
+    findById: asyncMock(),
   };
 }
 
 function buildTokenRevocationServiceMock() {
   return {
-    getCurrentTokenVersion: jest.fn(),
-    bumpTokenVersion: jest.fn(),
+    getCurrentTokenVersion: asyncMock(),
+    bumpTokenVersion: asyncMock(),
   };
 }
 
@@ -67,9 +69,9 @@ function buildTokenRevocationServiceMock() {
 function buildMailSenderServiceMock() {
   return {
     isEnabled: jest.fn(() => false),
-    sendLoginPin: jest.fn(),
-    sendPasswordResetCode: jest.fn(),
-    sendInitialCredentials: jest.fn(),
+    sendLoginPin: asyncMock(),
+    sendPasswordResetCode: asyncMock(),
+    sendInitialCredentials: asyncMock(),
   };
 }
 
@@ -95,6 +97,7 @@ function buildService(
   tokenRevocationService: ReturnType<typeof buildTokenRevocationServiceMock>,
   mailSenderService: ReturnType<typeof buildMailSenderServiceMock> = buildMailSenderServiceMock(),
   sequelize: ReturnType<typeof buildSequelizeMock> = buildSequelizeMock(),
+  metrics?: { recordAuthAttempt: jest.Mock },
 ) {
   // Los colaboradores extraídos (Fase 2.2) se construyen con los MISMOS mocks, de modo que los
   // tests públicos de `AuthService` ejercitan la resolución de actor y el reset reales, sin
@@ -113,6 +116,7 @@ function buildService(
     tokenRevocationService as never,
     mailSenderService as never,
     sequelize as never,
+    metrics as never,
   );
 }
 
@@ -820,5 +824,72 @@ describe('AuthService.verifyLoginPin (2FA por PIN de super admin / MFA cliente)'
     expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
       expect.objectContaining({ successful: true, failureReasonCode: null, actorId: '5' }),
     );
+  });
+});
+
+/**
+ * Hallazgo A-10 de `docs/audit/auditoria-integral-2026-07-30.md`: los intentos de login quedaban en
+ * `auth_events` (base), que sirve para investigar UN caso pero no para ver un patrón. Un pico de
+ * `invalid_password` sobre muchos identificadores es credential stuffing, y sin serie temporal nadie
+ * se entera en el momento.
+ *
+ * La métrica se emite desde el MISMO embudo que el evento de auditoría (`logAttempt`), justamente
+ * para que ninguna rama de fallo pueda olvidarse de contarse.
+ */
+describe('AuthService — métrica de intentos de login', () => {
+  const loginDto = { actorType: 'customer' as const, identifier: '70000000', password: 'correct-password' };
+
+  function buildWithMetrics() {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const metrics = { recordAuthAttempt: jest.fn() };
+    customersRepository.findByContactHash.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'registered' });
+    authRepository.findCredentialsByActor.mockResolvedValue({
+      passwordHash: 'hashed:correct-password',
+      tokenVersion: 3,
+      lockedUntil: null,
+      failedLoginAttempts: 0,
+    });
+    const service = buildService(
+      authRepository,
+      customersRepository,
+      tokenRevocationService,
+      buildMailSenderServiceMock(),
+      buildSequelizeMock(),
+      metrics,
+    );
+    return { service, authRepository, customersRepository, metrics };
+  }
+
+  it('cuenta el login exitoso como outcome=success', async () => {
+    const { service, metrics } = buildWithMetrics();
+
+    await service.login({ tenantId: '1', dto: loginDto, ip: null, userAgent: null });
+
+    expect(metrics.recordAuthAttempt).toHaveBeenCalledWith({ actorType: 'customer', outcome: 'success' });
+  });
+
+  it('cuenta la contraseña incorrecta con su código de fallo, no como un genérico', async () => {
+    const { service, authRepository, metrics } = buildWithMetrics();
+    authRepository.findCredentialsByActor.mockResolvedValue({
+      passwordHash: 'hashed:otra-password',
+      tokenVersion: 3,
+      lockedUntil: null,
+      failedLoginAttempts: 0,
+    });
+
+    await expect(service.login({ tenantId: '1', dto: loginDto, ip: null, userAgent: null })).rejects.toThrow();
+
+    expect(metrics.recordAuthAttempt).toHaveBeenCalledWith({ actorType: 'customer', outcome: 'invalid_password' });
+  });
+
+  it('cuenta también el actor inexistente, que es la rama que un instrumentador olvidaría', async () => {
+    const { service, customersRepository, metrics } = buildWithMetrics();
+    customersRepository.findByContactHash.mockResolvedValue(null);
+
+    await expect(service.login({ tenantId: '1', dto: loginDto, ip: null, userAgent: null })).rejects.toThrow();
+
+    expect(metrics.recordAuthAttempt).toHaveBeenCalledWith({ actorType: 'customer', outcome: 'actor_not_found' });
   });
 });

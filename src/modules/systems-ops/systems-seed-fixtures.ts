@@ -1,3 +1,8 @@
+/**
+ * @file Seeder idempotente: instala datos de referencia o fixtures del perfil.
+ * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
+ * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
+ */
 import { EndpointSeed } from './systems-ops.types.js';
 
 export const CURATED_ENDPOINTS: EndpointSeed[] = [

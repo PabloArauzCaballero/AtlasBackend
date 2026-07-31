@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
+ * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions } from 'sequelize';

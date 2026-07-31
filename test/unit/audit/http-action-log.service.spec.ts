@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import type { AsyncMock } from '../../support/jest-mocks.js';
 import { HttpActionLogService } from '../../../src/modules/audit/http-action-log.service.js';
 
 /**
@@ -29,7 +30,7 @@ describe('HttpActionLogService', () => {
     occurredAt: new Date('2026-01-01T00:00:00.000Z'),
   };
 
-  const systemArgs = (m: { create: jest.Mock }) => (m.create.mock.calls[0] as [Record<string, unknown>])[0];
+  const systemArgs = (m: { create: AsyncMock }) => (m.create.mock.calls[0] as unknown as [Record<string, unknown>])[0];
 
   it('createHttpAction escribe ambos logs y, sin método, no busca endpoint', async () => {
     const { service, auditModel, systemActionLogModel, endpointCatalogModel } = build();
@@ -42,7 +43,7 @@ describe('HttpActionLogService', () => {
   it('el log de auditoría copia actionCode y occurredAt (=createdAtValue) con payload redactado', async () => {
     const { service, auditModel } = build();
     await service.createHttpAction(baseInput as never);
-    const args = (auditModel.create.mock.calls[0] as [Record<string, unknown>])[0];
+    const args = (auditModel.create.mock.calls[0] as unknown as [Record<string, unknown>])[0];
     expect(args).toMatchObject({ actionCode: 'DO_THING', occurredAt: baseInput.occurredAt, createdAtValue: baseInput.occurredAt });
     expect(args.payloadJson).toBeDefined();
   });

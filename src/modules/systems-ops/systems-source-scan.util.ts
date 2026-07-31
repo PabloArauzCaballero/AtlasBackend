@@ -1,3 +1,8 @@
+/**
+ * @file Utilidad pura o acotada reutilizable dentro de su capa.
+ * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
+ * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
+ */
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { SystemEndpointCatalogModel } from '../../database/models/index.js';

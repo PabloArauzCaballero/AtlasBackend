@@ -1,3 +1,8 @@
+/**
+ * @file Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso.
+ * @business Esta pieza preserva evidencia operativa suficiente para diagnosticar incidentes con retención limitada.
+ * @system sincroniza logs redactados hacia MongoDB, aplica TTL y ofrece consultas administrativas.
+ */
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { zodObjectPropertySchemas } from '../../common/openapi/zod-to-schema.util.js';

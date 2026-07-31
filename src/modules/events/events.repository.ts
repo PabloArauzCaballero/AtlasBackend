@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza desacopla procesos de negocio y permite reintentos auditables sin perder eventos.
+ * @system registra definiciones, outbox y procesamiento idempotente de eventos de dominio.
+ */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Op, QueryTypes, WhereOptions } from 'sequelize';

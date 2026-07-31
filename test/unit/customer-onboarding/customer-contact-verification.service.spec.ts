@@ -1,274 +1,227 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CustomerContactVerificationService } from '../../../src/modules/customer-onboarding/application/customer-contact-verification.service.js';
 
 /**
- * ATLAS-P12d (extensión — `docs/testing/PLAN_RED_DE_PRUEBAS_ATLAS_P12.md` §9, punto 5):
- * `CustomerContactVerificationService` (269 líneas) — el flujo de verificación de teléfono/email
- * por código (OTP). Tres reglas de negocio reales conviven aquí: rate limiting (30s entre
- * solicitudes), expiración del código (10 min), y un código de desarrollo hardcodeado
- * (`'123456'`) documentado explícitamente en el propio código como "placeholder mientras no
- * exista un proveedor real de OTP".
+ * Verificación de contacto con OTP REAL.
  *
- * Auditoría de producción (ver docs/audit/customer-onboarding.md, hallazgo 1): el placeholder
- * se aceptaba en CUALQUIER ambiente, incluida producción — un bypass real de verificación de
- * contacto. Ahora está bloqueado explícitamente cuando `env.NODE_ENV === 'production'` (test
- * dedicado al final de `submitContactVerification`); en development/test el atajo se mantiene
- * sin cambios para smoke tests locales, y los tests de este archivo corren con `NODE_ENV=test`.
+ * Este flujo era un placeholder: `request` registraba el intento sin llamar a ningún proveedor y
+ * `submit` aceptaba el literal `'123456'`. Una auditoría previa encontró que ese atajo estaba activo
+ * en cualquier ambiente y lo bloqueó en producción con un 422, lo que dejó el onboarding
+ * inutilizable fuera de desarrollo.
+ *
+ * Ahora el código lo emite y valida `ContactVerificationCodeService` contra `auth_one_time_codes`, y
+ * la entrega ocurre por el canal elegido. Estos tests fijan el contrato resultante.
  */
 describe('CustomerContactVerificationService', () => {
   function buildService() {
-    const customersRepository = { findById: jest.fn() };
+    const customersRepository = { findById: jest.fn(async () => ({ id: 'c1', lifecycleStatus: 'registered' })) };
     const onboardingRepository = {
-      findCustomerContactMethod: jest.fn(),
-      findLatestContactVerificationAttempt: jest.fn(),
-      createContactVerificationAttempt: jest.fn(),
+      findCustomerContactMethod: jest.fn(async () => ({ id: 'contact-1', status: 'pending' })),
+      findLatestContactVerificationAttempt: jest.fn(async () => null),
+      createContactVerificationAttempt: jest.fn(async () => ({ id: 'attempt-1' })),
       updateContactVerificationAttempt: jest.fn(),
       markContactMethodVerified: jest.fn(),
-      findLatestOnboardingFlow: jest.fn(),
-      createOnboardingStepEvent: jest.fn(),
-      createAuthEvent: jest.fn(),
-      createCustomerActionLog: jest.fn(),
-      createOperationalAuditLog: jest.fn(),
     };
+    const lifecycleService = { advance: jest.fn(), transition: jest.fn() };
+    const codeService = {
+      assertChannelAvailable: jest.fn(),
+      issueAndDeliver: jest.fn(async () => ({ delivered: true, provider: 'twilio_sms', errorCode: null })),
+      verify: jest.fn(async () => ({ ok: true })),
+    };
+    const journal = { recordRequested: jest.fn(), recordFailure: jest.fn(), recordVerified: jest.fn() };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-    const service = new CustomerContactVerificationService(customersRepository as never, onboardingRepository as never, sequelize as never);
-    return { service, customersRepository, onboardingRepository };
+
+    const service = new CustomerContactVerificationService(
+      customersRepository as never,
+      onboardingRepository as never,
+      lifecycleService as never,
+      codeService as never,
+      journal as never,
+      sequelize as never,
+    );
+    return { service, customersRepository, onboardingRepository, lifecycleService, codeService, journal };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null, platformUserId: null } as never;
 
-  describe('requestContactVerification', () => {
-    function baseInput(overrides: Record<string, unknown> = {}) {
-      return {
-        tenantId: 't1',
-        customerId: 'c1',
-        body: { contactType: 'phone', verificationChannel: 'sms' } as never,
-        currentUser: customerUser,
-        ipAddress: '10.0.0.1',
-        idempotencyKey: 'idem-1',
-        ...overrides,
-      };
-    }
+  function baseInput(overrides: Record<string, unknown> = {}) {
+    return {
+      tenantId: 't1',
+      customerId: 'c1',
+      body: { contactType: 'phone', verificationChannel: 'sms' } as never,
+      currentUser: customerUser,
+      ipAddress: '10.0.0.1',
+      idempotencyKey: 'idem-1',
+      ...overrides,
+    };
+  }
 
-    it('throws BadRequestException without an idempotency key', async () => {
+  describe('requestContactVerification', () => {
+    it('exige clave de idempotencia y ownership antes de cualquier lectura', async () => {
       const { service } = buildService();
       await expect(service.requestContactVerification(baseInput({ idempotencyKey: '' }))).rejects.toThrow(BadRequestException);
+      await expect(service.requestContactVerification(baseInput({ customerId: 'otro' }))).rejects.toThrow(ForbiddenException);
     });
 
-    it('throws ForbiddenException when a customer token requests verification for a different customerId', async () => {
-      const { service } = buildService();
-      await expect(service.requestContactVerification(baseInput({ customerId: 'someone-else' }))).rejects.toThrow(ForbiddenException);
-    });
-
-    it('throws NotFoundException when the customer does not exist', async () => {
+    it('lanza NotFoundException cuando el cliente no existe', async () => {
       const { service, customersRepository } = buildService();
       (customersRepository.findById as jest.Mock).mockResolvedValueOnce(null as never);
       await expect(service.requestContactVerification(baseInput())).rejects.toThrow(NotFoundException);
     });
 
-    it('throws UnprocessableEntityException CUSTOMER_BLOCKED for a blocked customer', async () => {
+    it('rechaza a un cliente bloqueado', async () => {
       const { service, customersRepository } = buildService();
       (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'blocked' } as never);
       await expect(service.requestContactVerification(baseInput())).rejects.toThrow(/CUSTOMER_BLOCKED/);
     });
 
-    it('throws CONTACT_NOT_REGISTERED when the customer has no contact method of that type', async () => {
-      const { service, customersRepository, onboardingRepository } = buildService();
-      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
-      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce(null as never);
-      await expect(service.requestContactVerification(baseInput())).rejects.toThrow(/CONTACT_NOT_REGISTERED/);
+    /**
+     * Se comprueba ANTES de tocar la base: registrar un intento por un canal que nadie puede
+     * despachar deja al cliente esperando un código que jamás se envió.
+     */
+    it('falla ruidosamente si el canal pedido no tiene proveedor configurado, sin registrar el intento', async () => {
+      const { service, codeService, onboardingRepository } = buildService();
+      (codeService.assertChannelAvailable as jest.Mock).mockImplementationOnce(() => {
+        throw new ServiceUnavailableException('VERIFICATION_CHANNEL_UNAVAILABLE: sms');
+      });
+      await expect(service.requestContactVerification(baseInput())).rejects.toThrow(/VERIFICATION_CHANNEL_UNAVAILABLE/);
+      expect(onboardingRepository.createContactVerificationAttempt).not.toHaveBeenCalled();
     });
 
-    it('throws ConflictException CONTACT_ALREADY_VERIFIED when the contact is already verified', async () => {
-      const { service, customersRepository, onboardingRepository } = buildService();
-      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
-      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce({ id: 'contact-1', status: 'verified' } as never);
-      await expect(service.requestContactVerification(baseInput())).rejects.toThrow(/CONTACT_ALREADY_VERIFIED/);
+    it('rechaza si el contacto no está registrado o ya está verificado', async () => {
+      const first = buildService();
+      (first.onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce(null as never);
+      await expect(first.service.requestContactVerification(baseInput())).rejects.toThrow(/CONTACT_NOT_REGISTERED/);
+
+      const second = buildService();
+      (second.onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce({
+        id: 'contact-1',
+        status: 'verified',
+      } as never);
+      await expect(second.service.requestContactVerification(baseInput())).rejects.toThrow(ConflictException);
     });
 
-    it('throws ConflictException VERIFICATION_RATE_LIMITED when the last attempt was less than 30 seconds ago', async () => {
-      const { service, customersRepository, onboardingRepository } = buildService();
-      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
-      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce({ id: 'contact-1', status: 'pending' } as never);
+    it('aplica el cooldown de 30 s entre reenvíos', async () => {
+      const { service, onboardingRepository, codeService } = buildService();
       (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({
         attemptedAt: new Date(Date.now() - 5_000),
       } as never);
       await expect(service.requestContactVerification(baseInput())).rejects.toThrow(/VERIFICATION_RATE_LIMITED/);
-      expect(onboardingRepository.createContactVerificationAttempt).not.toHaveBeenCalled();
+      expect(codeService.issueAndDeliver).not.toHaveBeenCalled();
     });
 
-    it('allows a new attempt once at least 30 seconds have passed since the last one', async () => {
-      const { service, customersRepository, onboardingRepository } = buildService();
-      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
-      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce({ id: 'contact-1', status: 'pending' } as never);
+    it('permite un intento nuevo pasados los 30 s', async () => {
+      const { service, onboardingRepository, codeService } = buildService();
       (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({
-        attemptedAt: new Date(Date.now() - 31_000),
+        attemptedAt: new Date(Date.now() - 45_000),
       } as never);
-      (onboardingRepository.createContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({ id: 'attempt-1' } as never);
-      (onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
-
-      const result = await service.requestContactVerification(baseInput());
-
-      expect(result.deliveryStatus).toBe('accepted');
+      await expect(service.requestContactVerification(baseInput())).resolves.toMatchObject({ deliveryStatus: 'sent' });
+      expect(codeService.issueAndDeliver).toHaveBeenCalledTimes(1);
     });
 
-    it('sets expiresAt to exactly 10 minutes after the request is accepted', async () => {
-      const { service, customersRepository, onboardingRepository } = buildService();
-      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
-      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce({ id: 'contact-1', status: 'pending' } as never);
-      (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce(null as never);
-      (onboardingRepository.createContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({ id: 'attempt-1' } as never);
-      (onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
+    /** Regresión: antes se respondía `accepted` fijo sin haber llamado a ningún proveedor. */
+    it('emite y entrega un código real, y refleja el resultado de la entrega en la respuesta', async () => {
+      const { service, codeService, onboardingRepository, journal } = buildService();
 
-      const before = Date.now();
       const result = await service.requestContactVerification(baseInput());
-      const expiresAtMs = new Date(result.expiresAt).getTime();
 
-      expect(expiresAtMs - before).toBeGreaterThanOrEqual(10 * 60_000 - 1000);
-      expect(expiresAtMs - before).toBeLessThanOrEqual(10 * 60_000 + 1000);
+      expect(codeService.issueAndDeliver).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: 't1', customerId: 'c1', contactType: 'phone', channel: 'sms' }),
+      );
+      expect(result).toMatchObject({ verificationAttemptId: 'attempt-1', deliveryStatus: 'sent' });
+      expect((onboardingRepository.createContactVerificationAttempt as jest.Mock).mock.calls[0][0]).toMatchObject({
+        verificationStatus: 'requested',
+        failureReasonCode: null,
+      });
+      expect(journal.recordRequested).toHaveBeenCalled();
+    });
+
+    it('registra el intento como delivery_failed cuando el proveedor no pudo entregar', async () => {
+      const { service, codeService, onboardingRepository } = buildService();
+      (codeService.issueAndDeliver as jest.Mock).mockResolvedValueOnce({
+        delivered: false,
+        provider: 'twilio_sms',
+        errorCode: 'TWILIO_SMS_SEND_FAILED',
+      } as never);
+
+      const result = await service.requestContactVerification(baseInput());
+
+      expect(result.deliveryStatus).toBe('delivery_failed');
+      expect((onboardingRepository.createContactVerificationAttempt as jest.Mock).mock.calls[0][0]).toMatchObject({
+        verificationStatus: 'delivery_failed',
+        failureReasonCode: 'TWILIO_SMS_SEND_FAILED',
+      });
     });
   });
 
   describe('submitContactVerification', () => {
-    function baseInput(overrides: Record<string, unknown> = {}) {
-      return {
-        tenantId: 't1',
-        customerId: 'c1',
-        body: { contactType: 'phone', verificationCode: '123456' } as never,
-        currentUser: customerUser,
-        ipAddress: '10.0.0.1',
-        idempotencyKey: 'idem-1',
-        ...overrides,
-      };
-    }
+    const submitInput = (overrides: Record<string, unknown> = {}) =>
+      baseInput({ body: { contactType: 'phone', verificationChannel: 'sms', verificationCode: '123456' } as never, ...overrides });
 
-    it('throws BadRequestException without an idempotency key', async () => {
-      const { service } = buildService();
-      await expect(service.submitContactVerification(baseInput({ idempotencyKey: '' }))).rejects.toThrow(BadRequestException);
+    it('rechaza si el contacto ya está verificado, antes siquiera de mirar el código', async () => {
+      const { service, onboardingRepository, codeService } = buildService();
+      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce({
+        id: 'contact-1',
+        status: 'verified',
+      } as never);
+      await expect(service.submitContactVerification(submitInput())).rejects.toThrow(ConflictException);
+      expect(codeService.verify).not.toHaveBeenCalled();
     });
 
-    it('throws CONTACT_NOT_REGISTERED when there is no contact method of that type', async () => {
-      const { service, customersRepository, onboardingRepository } = buildService();
-      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
-      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce(null as never);
-      await expect(service.submitContactVerification(baseInput())).rejects.toThrow(/CONTACT_NOT_REGISTERED/);
-    });
-
-    it('throws ConflictException CONTACT_ALREADY_VERIFIED when already verified — before even checking the code', async () => {
-      const { service, customersRepository, onboardingRepository } = buildService();
-      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
-      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce({ id: 'contact-1', status: 'verified' } as never);
-      await expect(service.submitContactVerification(baseInput())).rejects.toThrow(ConflictException);
-      expect(onboardingRepository.findLatestContactVerificationAttempt).not.toHaveBeenCalled();
-    });
-
-    it('throws NotFoundException VERIFICATION_ATTEMPT_NOT_FOUND when no verification was ever requested', async () => {
-      const { service, customersRepository, onboardingRepository } = buildService();
-      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
-      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce({ id: 'contact-1', status: 'pending' } as never);
+    it('lanza VERIFICATION_ATTEMPT_NOT_FOUND cuando nunca se pidió un código', async () => {
+      const { service, onboardingRepository } = buildService();
       (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce(null as never);
-      await expect(service.submitContactVerification(baseInput())).rejects.toThrow(/VERIFICATION_ATTEMPT_NOT_FOUND/);
+      await expect(service.submitContactVerification(submitInput())).rejects.toThrow(NotFoundException);
     });
 
-    it('throws UnauthorizedException VERIFICATION_CODE_EXPIRED after 10 minutes, and marks the attempt as "expired" as a side effect', async () => {
-      const { service, customersRepository, onboardingRepository } = buildService();
-      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
-      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce({ id: 'contact-1', status: 'pending' } as never);
-      (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({
-        id: 'attempt-1',
-        attemptedAt: new Date(Date.now() - 11 * 60_000),
-      } as never);
+    /**
+     * Regresión del hallazgo crítico: `'123456'` era el código de desarrollo aceptado en cualquier
+     * ambiente. Ahora no tiene ningún significado especial — se valida contra el código emitido.
+     */
+    it('rechaza un código incorrecto y registra el intento fallido, sin importar cuál sea el literal', async () => {
+      const { service, onboardingRepository, codeService, journal } = buildService();
+      (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({ id: 'attempt-1' } as never);
+      (codeService.verify as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'invalid' } as never);
 
-      await expect(service.submitContactVerification(baseInput())).rejects.toThrow(UnauthorizedException);
-
-      const updateArgs = (onboardingRepository.updateContactVerificationAttempt as jest.Mock).mock.calls[0][1] as {
-        verificationStatus: string;
-      };
-      expect(updateArgs.verificationStatus).toBe('expired');
-    });
-
-    it('a correct code just under the 10-minute mark is still accepted', async () => {
-      const { service, customersRepository, onboardingRepository } = buildService();
-      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
-      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce({ id: 'contact-1', status: 'pending' } as never);
-      (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({
-        id: 'attempt-1',
-        attemptedAt: new Date(Date.now() - 9 * 60_000),
-      } as never);
-      (onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
-
-      const result = await service.submitContactVerification(baseInput());
-
-      expect(result.verificationStatus).toBe('verified');
-    });
-
-    it('throws UnauthorizedException INVALID_VERIFICATION_CODE for any code other than the dev placeholder "123456", and records a failed attempt + auth event', async () => {
-      const { service, customersRepository, onboardingRepository } = buildService();
-      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
-      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce({ id: 'contact-1', status: 'pending' } as never);
-      (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({
-        id: 'attempt-1',
-        attemptedAt: new Date(),
-      } as never);
-
-      await expect(
-        service.submitContactVerification(baseInput({ body: { contactType: 'phone', verificationCode: '000000' } })),
-      ).rejects.toThrow(/INVALID_VERIFICATION_CODE/);
-
-      const updateArgs = (onboardingRepository.updateContactVerificationAttempt as jest.Mock).mock.calls[0][1] as {
-        verificationStatus: string;
-      };
-      expect(updateArgs.verificationStatus).toBe('failed');
-      const authArgs = (onboardingRepository.createAuthEvent as jest.Mock).mock.calls[0][0] as {
-        loginSuccessful: boolean;
-        failureReasonCode: string;
-      };
-      expect(authArgs).toMatchObject({ loginSuccessful: false, failureReasonCode: 'invalid_code' });
+      await expect(service.submitContactVerification(submitInput())).rejects.toThrow(UnauthorizedException);
+      expect((onboardingRepository.updateContactVerificationAttempt as jest.Mock).mock.calls[0][1]).toMatchObject({
+        verificationStatus: 'failed',
+        failureReasonCode: 'invalid_code',
+      });
+      expect(journal.recordFailure).toHaveBeenCalledWith(expect.anything(), { failureReasonCode: 'invalid_code' });
       expect(onboardingRepository.markContactMethodVerified).not.toHaveBeenCalled();
     });
 
-    it('marks the contact method verified and returns nextStep "identity_capture" on a correct code', async () => {
-      const { service, customersRepository, onboardingRepository } = buildService();
-      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
-      const contactMethod = { id: 'contact-1', status: 'pending' };
-      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce(contactMethod as never);
-      (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({
-        id: 'attempt-1',
-        attemptedAt: new Date(),
-      } as never);
-      (onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
-
-      const result = await service.submitContactVerification(baseInput());
-
-      expect(onboardingRepository.markContactMethodVerified).toHaveBeenCalledWith(contactMethod, expect.any(Date), { transaction: {} });
-      expect(result).toMatchObject({ verificationStatus: 'verified', nextStep: 'identity_capture' });
+    it('traduce un código vencido a VERIFICATION_CODE_EXPIRED', async () => {
+      const { service, onboardingRepository, codeService } = buildService();
+      (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({ id: 'attempt-1' } as never);
+      (codeService.verify as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'expired' } as never);
+      await expect(service.submitContactVerification(submitInput())).rejects.toThrow(/VERIFICATION_CODE_EXPIRED/);
     });
 
-    it('rejects the dev placeholder "123456" in production, even though it is a syntactically correct code (regression)', async () => {
-      // Antes de este fix, `'123456'` se aceptaba como OTP válido en CUALQUIER ambiente,
-      // incluida producción — un bypass real de verificación de contacto. Ahora, en
-      // producción, el atajo de desarrollo debe estar completamente bloqueado.
-      const { env } = await import('../../../src/config/env.js');
-      const originalNodeEnv = env.NODE_ENV;
-      env.NODE_ENV = 'production';
-      try {
-        const { service, customersRepository, onboardingRepository } = buildService();
-        (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
-        (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce({
-          id: 'contact-1',
-          status: 'pending',
-        } as never);
-        (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({
-          id: 'attempt-1',
-          attemptedAt: new Date(),
-        } as never);
+    it('con el código correcto: marca verificado, avanza el estado y devuelve nextStep personal_data', async () => {
+      const { service, onboardingRepository, lifecycleService, journal } = buildService();
+      const contactMethod = { id: 'contact-1', status: 'pending' };
+      (onboardingRepository.findCustomerContactMethod as jest.Mock).mockResolvedValueOnce(contactMethod as never);
+      (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({ id: 'attempt-1' } as never);
 
-        await expect(service.submitContactVerification(baseInput())).rejects.toThrow(/CONTACT_VERIFICATION_OTP_PROVIDER_NOT_CONFIGURED/);
-        expect(onboardingRepository.markContactMethodVerified).not.toHaveBeenCalled();
-      } finally {
-        env.NODE_ENV = originalNodeEnv;
-      }
+      const result = await service.submitContactVerification(submitInput());
+
+      expect(onboardingRepository.markContactMethodVerified).toHaveBeenCalledWith(contactMethod, expect.any(Date), { transaction: {} });
+      // Verificar el contacto es el evento que abre el resto del onboarding: antes no cambiaba nada.
+      expect(lifecycleService.advance).toHaveBeenCalledWith(
+        expect.objectContaining({ toStatus: 'onboarding_in_progress', reasonCode: 'contact_verified' }),
+      );
+      expect(journal.recordVerified).toHaveBeenCalled();
+      expect(result).toMatchObject({ verificationStatus: 'verified', nextStep: 'personal_data' });
     });
   });
 });

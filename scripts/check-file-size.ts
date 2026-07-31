@@ -11,7 +11,8 @@
  *
  * Exentos (datos declarativos, como define la auditoría del repo): migraciones, seeders, fixtures,
  * seed-data y constants — más líneas ahí no implica menos revisable, a diferencia del código con
- * lógica de control.
+ * lógica de control. Las cabeceras JSDoc de archivo generadas por `docs:project` tampoco cuentan:
+ * el trinquete mide código mantenible, no penaliza explicar su responsabilidad.
  *
  * Uso:
  *   yarn check:file-size
@@ -47,7 +48,16 @@ function walk(directory: string): string[] {
 }
 
 function countLines(file: string): number {
-  return readFileSync(file, 'utf8').split(/\r?\n/).length;
+  const lines = readFileSync(file, 'utf8').split(/\r?\n/);
+  if (lines[0]?.trim() !== '/**') return lines.length;
+
+  const headerEnd = lines.slice(0, 10).findIndex((line) => line.trim() === '*/');
+  const header = lines.slice(0, headerEnd + 1).join('\n');
+  if (headerEnd >= 0 && header.includes('@file') && header.includes('@business') && header.includes('@system')) {
+    return lines.length - (headerEnd + 1);
+  }
+
+  return lines.length;
 }
 
 function collect(): Map<string, number> {

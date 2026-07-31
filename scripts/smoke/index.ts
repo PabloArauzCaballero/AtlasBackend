@@ -9,6 +9,7 @@ import { runNotificationsSmoke } from './notifications.smoke.js';
 import { runExternalProvidersSmoke } from './external-providers.smoke.js';
 import { runSessionsSmoke } from './sessions.smoke.js';
 import { runInternalRbacSmoke } from './internal-rbac.smoke.js';
+import { runWorkflowCatalogSmoke } from './workflow-catalog.smoke.js';
 
 async function main(): Promise<void> {
   logSmokeConfig();
@@ -22,6 +23,7 @@ async function main(): Promise<void> {
   await runEventsSmoke();
   await runNotificationsSmoke();
   await runExternalProvidersSmoke();
+  await runWorkflowCatalogSmoke();
   console.log('[OK] Smoke suite completa');
 }
 

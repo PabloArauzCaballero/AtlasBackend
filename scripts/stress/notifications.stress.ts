@@ -1,4 +1,5 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
+import { accessTokenSignOptions } from '../../src/common/utils/auth/jwt-claims.util.js';
 import { performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { env } from '../../src/config/env.js';
@@ -98,7 +99,10 @@ function makeToken(role: Role): string {
     tenantId: TENANT_ID,
     ...(role === 'customer' ? { customerId: CUSTOMER_ID } : { internalUserId: '1' }),
   };
-  const options: SignOptions = { algorithm: 'HS256', expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN as SignOptions['expiresIn'] };
+  const options: SignOptions = accessTokenSignOptions({
+    algorithm: 'HS256',
+    expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN as SignOptions['expiresIn'],
+  });
   return jwt.sign(payload, env.JWT_ACCESS_TOKEN_SECRET, options);
 }
 

@@ -9,7 +9,7 @@ gates están verdes. Esta guía te lleva del clon al PR pasando cada gate en loc
 - **Node** según [`.nvmrc`](.nvmrc) (`nvm use`). CI usa exactamente esa versión.
 - **Yarn 1** (el repo usa `yarn.lock`, no `package-lock.json`).
 - **PostgreSQL 16** y **Redis 7** para las pruebas de integración/smoke (en CI corren
-  como *services*; en local puedes usar Docker).
+  como _services_; en local puedes usar Docker).
 
 ```bash
 nvm use
@@ -33,10 +33,12 @@ Corre esto en orden; es lo que valida [`.github/workflows/ci.yml`](.github/workf
 yarn lint                 # ESLint (incluye límites de complejidad y tamaño de función)
 yarn format:check         # Prettier
 yarn check:no-env-file    # ningún .env real commiteado
+yarn check:env-example    # .env.example cubre todo el esquema Zod y no duplica claves
 yarn check:seed-profiles  # seeders separados por perfil; production/ sin datos ficticios
 yarn check:overfetching   # sin SELECT * en la capa read_api
 yarn check:file-size      # gate de tamaño: ningún archivo runtime NUEVO grande sin excepción
 yarn type-check           # tsc --noEmit
+yarn type-check:tests     # contratos de tipos de mocks y fixtures (bloqueante)
 yarn test:unit:randomized # unit tests en orden aleatorio (una dependencia de orden falla el PR)
 yarn build                # compila
 ```
@@ -97,6 +99,8 @@ conocimiento tribal; el ADR lo convierte en activo del proyecto.
   comentarios, patrones de módulo de NestJS).
 - Deja que ESLint + Prettier decidan el formato; no pelees con ellos.
 - Escribe el comentario que explica el **porqué**, no el **qué**.
+- Si agregas, mueves o eliminas archivos/carpetas, corre `yarn docs:project`. El comando actualiza
+  inventarios y cabeceras faltantes sin reemplazar los README escritos a mano.
 
 ## Seguridad
 

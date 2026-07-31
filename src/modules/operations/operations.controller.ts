@@ -1,3 +1,8 @@
+/**
+ * @file Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso.
+ * @business Esta pieza permite resolver excepciones y revisiones manuales con responsabilidad y trazabilidad.
+ * @system gestiona colas y decisiones operativas mediante servicios transaccionales y repositorios aislados.
+ */
 import { BadRequestException, Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { DatabaseError } from 'sequelize';
-import { HttpExceptionFilter } from '../../../../src/common/filters/http-exception.filter.js';
+import { HttpExceptionFilter, sanitizeUrlForLog } from '../../../../src/common/filters/http-exception.filter.js';
 
 /**
  * Endurecimiento de diagnóstico: un fallo real de Postgres (columna inexistente por migración
@@ -22,10 +22,10 @@ function buildDatabaseError(input: { message: string; code: string; sql: string 
   return new DatabaseError(driverError as DriverError & { sql: string });
 }
 
-function buildHost(): { host: ArgumentsHost; statusMock: jest.Mock; jsonMock: jest.Mock } {
+function buildHost(url = '/api/v1/internal/auth/login'): { host: ArgumentsHost; statusMock: jest.Mock; jsonMock: jest.Mock } {
   const jsonMock = jest.fn();
   const statusMock = jest.fn(() => ({ json: jsonMock }));
-  const request = { method: 'POST', url: '/api/v1/internal/auth/login', correlationId: 'test-correlation-id' };
+  const request = { method: 'POST', url, correlationId: 'test-correlation-id' };
 
   const host = {
     switchToHttp: () => ({
@@ -116,5 +116,39 @@ describe('HttpExceptionFilter', () => {
     expect(errorSpy).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledTimes(1);
     expect(statusMock).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+  });
+
+  /**
+   * Hallazgo A-04: la URL cruda incluye la query string, y en un backend KYC esos valores son PII
+   * (`?identifier=...`, `?email=...`). El log necesita saber QUÉ endpoint falló y con qué filtros,
+   * no con qué valores.
+   */
+  describe('sanitizeUrlForLog', () => {
+    it('conserva la ruta intacta cuando no hay query string', () => {
+      expect(sanitizeUrlForLog('/api/v1/customers/42')).toBe('/api/v1/customers/42');
+    });
+
+    it('conserva los NOMBRES de los parámetros y descarta sus valores', () => {
+      expect(sanitizeUrlForLog('/api/v1/customers?identifier=7654321&email=ana@example.com')).toBe(
+        '/api/v1/customers?identifier&email=[REDACTED]',
+      );
+    });
+
+    it('una query vacía deja solo la ruta', () => {
+      expect(sanitizeUrlForLog('/api/v1/customers?')).toBe('/api/v1/customers');
+    });
+
+    it('una url ausente no rompe el log', () => {
+      expect(sanitizeUrlForLog(undefined)).toBe('unknown');
+    });
+
+    it('el filtro no filtra el valor del parámetro al log', () => {
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const { host } = buildHost('/api/v1/customers?identifier=7654321');
+
+      new HttpExceptionFilter().catch(new HttpException('No encontrado.', HttpStatus.NOT_FOUND), host);
+
+      expect(String(warnSpy.mock.calls[0][0])).not.toContain('7654321');
+    });
   });
 });

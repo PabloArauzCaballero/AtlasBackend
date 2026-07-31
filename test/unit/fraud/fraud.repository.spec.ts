@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { FraudRepository } from '../../../src/modules/fraud/fraud.repository.js';
 
 /**
@@ -10,13 +11,13 @@ import { FraudRepository } from '../../../src/modules/fraud/fraud.repository.js'
 describe('FraudRepository', () => {
   function buildRepo() {
     const models = {
-      fraudCaseModel: { findOne: jest.fn() },
-      fraudCaseEventModel: { create: jest.fn() },
-      watchlistEntryModel: { create: jest.fn() },
-      customerStatusEventModel: { create: jest.fn() },
-      customerObservationModel: { create: jest.fn() },
-      operationalAuditLogModel: { create: jest.fn() },
-      dataChangeLogModel: { create: jest.fn() },
+      fraudCaseModel: { findOne: asyncMock() },
+      fraudCaseEventModel: { create: asyncMock() },
+      watchlistEntryModel: { create: asyncMock() },
+      customerStatusEventModel: { create: asyncMock() },
+      customerObservationModel: { create: asyncMock() },
+      operationalAuditLogModel: { create: asyncMock() },
+      dataChangeLogModel: { create: asyncMock() },
     };
     const repo = new FraudRepository(
       models.fraudCaseModel as never,
@@ -39,7 +40,7 @@ describe('FraudRepository', () => {
     const result = await repo.findFraudCaseById('t1', 'c1');
 
     expect(result).toEqual({ id: 'c1' });
-    const where = (models.fraudCaseModel.findOne as jest.Mock).mock.calls[0][0].where;
+    const where = callArg<CallArgRecord>(models.fraudCaseModel.findOne, 0, 0).where;
     expect(where).toMatchObject({ tenantId: 't1', id: 'c1' });
     expect(where.deleted).toBeDefined(); // { [Op.ne]: true }
   });
@@ -173,7 +174,7 @@ describe('FraudRepository', () => {
       { transaction: tx },
     );
 
-    const [values] = (models.operationalAuditLogModel.create as jest.Mock).mock.calls[0];
+    const values = callArg<CallArgRecord>(models.operationalAuditLogModel.create, 0, 0);
     expect(values).toMatchObject({ actionCode: 'operations.fraud.decision', targetId: 'c1', payloadJson: { decision: 'blocked' } });
     expect(values.occurredAt).toEqual(new Date('2026-01-01'));
   });

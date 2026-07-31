@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza mantiene continuidad, seguridad y señales de uso durante la interacción del cliente.
+ * @system orquesta inicio, heartbeat, cierre, ubicación, dispositivo y auditoría del ciclo de sesión.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op, Transaction } from 'sequelize';

@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza ofrece a operaciones una vista gobernada del negocio sin acceso directo a tablas sensibles.
+ * @system compone consultas read-only, reportes, glosario, linaje y búsqueda para el portal administrativo.
+ */
 import { NotFoundException } from '@nestjs/common';
 import { clean, containsQuery, id, iso, nullableText, paginate, Query, Row } from './portal-format.util.js';
 import { NOW_SEED } from './portal-report-definitions.js';

@@ -1,3 +1,8 @@
+/**
+ * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
+ * @business Esta pieza captura señales de comportamiento y dispositivo necesarias para prevención de fraude y mejora de conversión.
+ * @system valida e ingiere lotes de telemetría con límites, redacción y escritura transaccional.
+ */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {

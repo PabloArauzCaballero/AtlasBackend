@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza mantiene continuidad, seguridad y señales de uso durante la interacción del cliente.
+ * @system orquesta inicio, heartbeat, cierre, ubicación, dispositivo y auditoría del ciclo de sesión.
+ */
 import { Injectable } from '@nestjs/common';
 import { Transaction } from 'sequelize';
 import { SessionGpsResult } from '../sessions.dtos.js';

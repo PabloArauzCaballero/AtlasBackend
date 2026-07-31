@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza controla quién puede operar Atlas y deja evidencia de cada asignación de privilegios.
+ * @system implementa identidad interna, RBAC, catálogo de permisos y guards de autorización granular.
+ */
 import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { hashPassword, isPasswordStrongEnough } from '../../common/utils/crypto/password.util.js';

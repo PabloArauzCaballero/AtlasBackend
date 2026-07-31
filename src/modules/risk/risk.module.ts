@@ -1,3 +1,8 @@
+/**
+ * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
+ * @business Esta pieza produce una recomendación explicable para reducir pérdida crediticia y trato inconsistente.
+ * @system calcula evaluaciones versionadas, contribuciones y reglas disparadas sin presentarlas como un modelo validado.
+ */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {

@@ -1,3 +1,8 @@
+/**
+ * @file Utilidad pura o acotada reutilizable dentro de su capa.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de pagination sin introducir reglas de un dominio específico.
+ */
 export type PaginationInput = {
   page: number;
   limit: number;

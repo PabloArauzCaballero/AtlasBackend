@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { countLines, readLogDelta } from '../../../src/modules/log-sync/log-sync.service.js';
+import { countLines, readLogDelta } from '../../../src/modules/log-sync/log-sync.reader.util.js';
 
 describe('readLogDelta', () => {
   let dir: string;

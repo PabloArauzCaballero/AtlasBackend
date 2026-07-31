@@ -26,9 +26,28 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
       createCustomerActionLog: jest.fn(),
       createOperationalAuditLog: jest.fn(),
     };
+    // La transición de estado del cliente la aplica ahora `CustomerLifecycleService`, que
+    // valida contra la máquina de estados y escribe estado + evento en la misma transacción.
+    const lifecycleService = { transition: jest.fn(), advance: jest.fn() };
+    // El backend ahora DESCARGA cada objeto y recalcula su hash antes de aceptar el paquete: hasta
+    // esta versión guardaba la ruta y el hash que declaraba el propio cliente, sin ver el archivo.
+    const storageService = {
+      isConfigured: jest.fn(() => true),
+      getBucket: jest.fn(() => 'atlas-evidence'),
+      verifyDeclaredObject: jest.fn(async () => ({
+        ok: true,
+        metadata: { sizeBytes: 2048, contentType: 'image/jpeg', sha256Hex: 'v'.repeat(64) },
+      })),
+    };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-    const service = new CustomerIdentityPackageService(customersRepository as never, onboardingRepository as never, sequelize as never);
-    return { service, customersRepository, onboardingRepository };
+    const service = new CustomerIdentityPackageService(
+      customersRepository as never,
+      onboardingRepository as never,
+      lifecycleService as never,
+      storageService as never,
+      sequelize as never,
+    );
+    return { service, customersRepository, onboardingRepository, lifecycleService, storageService };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null, platformUserId: null } as never;
@@ -187,8 +206,8 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
     expect(extractionArgs.requiresReview).toBe(true);
   });
 
-  it('transitions the customer status to "pending_identity_review", preserving the previous status for the audit trail', async () => {
-    const { service, customersRepository, onboardingRepository } = buildService();
+  it('delega la transición de estado en CustomerLifecycleService en vez de escribir el estado a mano', async () => {
+    const { service, customersRepository, onboardingRepository, lifecycleService } = buildService();
     const customer = { id: 'c1', lifecycleStatus: 'registered' };
     (customersRepository.findById as jest.Mock).mockResolvedValueOnce(customer as never);
     (onboardingRepository.createEvidenceDocument as jest.Mock).mockResolvedValueOnce({ id: 'e1' } as never);
@@ -198,14 +217,14 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
 
     const result = await service.submitIdentityPackage(baseInput());
 
-    const statusEventArgs = (customersRepository.createStatusEvent as jest.Mock).mock.calls[0][0] as {
-      previousStatus: string;
-      newStatus: string;
-    };
-    expect(statusEventArgs).toMatchObject({ previousStatus: 'registered', newStatus: 'pending_identity_review' });
-    expect(onboardingRepository.updateCustomerStatus).toHaveBeenCalledWith(customer, 'pending_identity_review', expect.any(Date), {
-      transaction: {},
-    });
-    expect(result.nextStep).toBe('risk_evaluation');
+    // El estado ya no se escribe aquí: `pending_identity_review` era un valor que este servicio
+    // producía y que ningún otro componente leía. Ahora la transición la aplica el servicio de
+    // ciclo de vida, que valida contra la máquina de estados y usa el estado anterior real.
+    expect(customersRepository.createStatusEvent).not.toHaveBeenCalled();
+    expect(onboardingRepository.updateCustomerStatus).not.toHaveBeenCalled();
+    expect(lifecycleService.advance).toHaveBeenCalledWith(
+      expect.objectContaining({ toStatus: 'onboarding_in_progress', reasonCode: 'identity_package_submitted', transaction: {} }),
+    );
+    expect(result.nextStep).toBe('reference_contacts');
   });
 });

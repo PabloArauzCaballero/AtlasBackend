@@ -1,3 +1,8 @@
+/**
+ * @file Utilidad pura o acotada reutilizable dentro de su capa.
+ * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
+ * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
+ */
 import { ForbiddenException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { canReadAllSystemsOpsTenants } from './systems-ops.constants.js';

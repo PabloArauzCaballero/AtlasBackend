@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { Op } from 'sequelize';
 import { SystemsActionLogRepository } from '../../../src/modules/systems-ops/systems-action-log.repository.js';
 
@@ -10,8 +11,8 @@ import { SystemsActionLogRepository } from '../../../src/modules/systems-ops/sys
  */
 describe('SystemsActionLogRepository', () => {
   function buildRepo() {
-    const actionLogModel = { findAndCountAll: jest.fn(), findAll: jest.fn() };
-    const sequelize = { query: jest.fn() };
+    const actionLogModel = { findAndCountAll: asyncMock(), findAll: asyncMock() };
+    const sequelize = { query: asyncMock() };
     const repo = new SystemsActionLogRepository(actionLogModel as never, sequelize as never);
     return { repo, actionLogModel, sequelize };
   }
@@ -29,14 +30,14 @@ describe('SystemsActionLogRepository', () => {
     const { repo, actionLogModel } = buildRepo();
     (actionLogModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
     await repo.listActionLogs({ page: 1, limit: 10 } as never, null);
-    expect((actionLogModel.findAndCountAll as jest.Mock).mock.calls[0][0].where.tenantId).toBeUndefined();
+    expect(callArg<CallArgRecord>(actionLogModel.findAndCountAll, 0, 0).where.tenantId).toBeUndefined();
   });
 
   it('listActionLogs traduce el rango from/to a occurredAt gte/lte', async () => {
     const { repo, actionLogModel } = buildRepo();
     (actionLogModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
     await repo.listActionLogs({ from: '2026-01-01T00:00:00.000Z', to: '2026-02-01T00:00:00.000Z', page: 1, limit: 10 } as never, null);
-    const occurredAt = (actionLogModel.findAndCountAll as jest.Mock).mock.calls[0][0].where.occurredAt as Record<symbol, Date>;
+    const occurredAt = callArg<CallArgRecord>(actionLogModel.findAndCountAll, 0, 0).where.occurredAt as unknown as Record<symbol, Date>;
     expect(occurredAt[Op.gte]).toEqual(new Date('2026-01-01T00:00:00.000Z'));
     expect(occurredAt[Op.lte]).toEqual(new Date('2026-02-01T00:00:00.000Z'));
   });

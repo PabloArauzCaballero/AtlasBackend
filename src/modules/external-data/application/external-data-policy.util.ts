@@ -1,3 +1,8 @@
+/**
+ * @file Utilidad pura o acotada reutilizable dentro de su capa.
+ * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
+ * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
+ */
 import { ForbiddenException } from '@nestjs/common';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { stableStringify } from '../../../common/utils/privacy/redaction.util.js';
@@ -37,6 +42,36 @@ export function toProviderCode(providerCode: string): ExternalProviderCode {
   return (normalized === 'CGIP' ? 'SEGIP' : normalized) as ExternalProviderCode;
 }
 
+/**
+ * Modos en los que el adaptador NO habla con el proveedor real: `mock_local` fabrica el payload en
+ * proceso y `mock_server` lo pide al servidor de mocks (`AtlasExternalProvidersMock`). En ambos, la
+ * evidencia que se persiste como observaciones y features del cliente es inventada.
+ */
+export const MOCK_MODES: readonly ExternalProviderMode[] = ['mock_local', 'mock_server'];
+
+export function isMockMode(mode: ExternalProviderMode): boolean {
+  return MOCK_MODES.includes(mode);
+}
+
+/**
+ * Escape hatch explícito para servir datos simulados en producción (una demo comercial sobre un
+ * despliegue productivo, por ejemplo). Por defecto es `false`: en producción, un proveedor en modo
+ * simulado queda BLOQUEADO, no degradado en silencio. Ver `productionIntegrationBlockers`.
+ */
+export function mockDataAllowedInProduction(): boolean {
+  return envBoolean('EXTERNAL_PROVIDERS_ALLOW_MOCK_IN_PRODUCTION', false);
+}
+
+export function isProductionRuntime(): boolean {
+  return envValue('NODE_ENV') === 'production';
+}
+
+/**
+ * Normaliza un modo ya DECLARADO (columna `default_mode` de `external_data_providers`, override por
+ * `${CODE}_MODE`, o el `mode_used` histórico de una request). El default `mock_local` es el correcto
+ * para desarrollo y para releer filas antiguas; NO es una autorización para servir datos simulados
+ * en producción — eso lo decide `productionIntegrationBlockers`, que bloquea la ejecución.
+ */
 export function toMode(value: string | null | undefined): ExternalProviderMode {
   const normalized = (value ?? 'mock_local').trim().toLowerCase();
   if (['mock_local', 'mock_server', 'sandbox', 'production', 'disabled'].includes(normalized)) return normalized as ExternalProviderMode;
@@ -52,11 +87,20 @@ export function providerModeFromEnv(providerCode: string, fallback: string | nul
   return toMode(envValue(`${providerCode}_MODE`) ?? fallback);
 }
 
+/**
+ * URL base del servidor de mocks. En producción NO hay default: si nadie configuró
+ * `EXTERNAL_PROVIDERS_MOCK_BASE_URL`, devuelve `undefined` y `callMockServer` falla con
+ * `*_MOCK_BASE_URL_NOT_CONFIGURED` en vez de intentar un `localhost` que en un contenedor de
+ * producción apunta al propio pod. Fuera de producción se mantiene el default de desarrollo, que es
+ * el puerto del repo `AtlasExternalProvidersMock`.
+ */
 export function mockBaseUrlFor(providerCode: string): string | undefined {
   const explicit = envValue(`${providerCode}_MOCK_BASE_URL`);
   if (explicit) return explicit;
   const normalizedProvider = providerCode.toUpperCase();
-  const base = envValue('EXTERNAL_PROVIDERS_MOCK_BASE_URL') ?? 'http://localhost:4010/mock';
+  const configuredBase = envValue('EXTERNAL_PROVIDERS_MOCK_BASE_URL');
+  if (!configuredBase && isProductionRuntime()) return undefined;
+  const base = configuredBase ?? 'http://localhost:4010/mock';
   const paths: Record<string, string> = {
     SEGIP: '/segip',
     INFOCENTER: '/infocenter',
@@ -84,8 +128,26 @@ export function envNumber(key: string, defaultValue: number): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : defaultValue;
 }
 
+/**
+ * Razones por las que un proveedor NO puede servir evidencia con la configuración actual. La lista
+ * vacía significa "puede ejecutar"; cualquier elemento bloquea la request con
+ * `PROVIDER_UNAVAILABLE` + `PRODUCTION_GATE_BLOCKED:<razones>` y deja constancia en
+ * `data_provider_requests`, en vez de devolver un resultado.
+ *
+ * El bloqueo por modo simulado (hallazgo A-02 de la auditoría integral 2026-07-30) es el que impide
+ * el fallo silencioso más grave: los nueve proveedores se siembran con `default_mode = 'mock_local'`
+ * (`seeders/production/20260702032000-seed-external-data-providers.ts`) y `toMode` también cae a
+ * `mock_local`, así que un despliegue productivo que no fije `${CODE}_MODE=production`
+ * verificaba identidades y calculaba riesgo sobre payloads inventados por el propio adaptador,
+ * persistidos como observaciones y features del cliente. Ahora falla cerrado.
+ */
 export function productionIntegrationBlockers(providerCode: string, mode: ExternalProviderMode): string[] {
   const code = toProviderCode(providerCode);
+
+  if (isProductionRuntime() && isMockMode(mode) && !mockDataAllowedInProduction()) {
+    return [`${code}_MOCK_MODE_IN_PRODUCTION`];
+  }
+
   if (mode !== 'production') return [];
   const blockers: string[] = [];
   if (!envBoolean(`${code}_REAL_INTEGRATION_IMPLEMENTED`, false)) blockers.push(`${code}_REAL_INTEGRATION_NOT_IMPLEMENTED`);

@@ -1,3 +1,8 @@
+/**
+ * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
+ * @business Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
+ * @system define database para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
+ */
 import { DynamicModule, Global, Logger, Module } from '@nestjs/common';
 import { getConnectionToken, SequelizeModule } from '@nestjs/sequelize';
 import { buildReadSequelizeOptions, isDedicatedReadConnection } from '../config/database.config.js';

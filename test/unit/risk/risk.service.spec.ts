@@ -1,4 +1,5 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
+import { asyncMock, callArg } from '../../support/jest-mocks.js';
 import { ForbiddenException, NotFoundException, UnprocessableEntityException, BadRequestException } from '@nestjs/common';
 import { RiskService } from '../../../src/modules/risk/risk.service.js';
 import { AuthenticatedUser } from '../../../src/common/types/auth.types.js';
@@ -27,8 +28,8 @@ function nextId(): string {
 
 function buildRiskRepositoryMock() {
   return {
-    findLatestCustomerRiskResult: jest.fn(),
-    findCustomerConsents: jest.fn(async () => [{ granted: true, revokedAt: null }]),
+    findLatestCustomerRiskResult: asyncMock(),
+    findCustomerConsents: jest.fn(async (): Promise<Record<string, unknown>[]> => [{ granted: true, revokedAt: null }]),
     findCustomerContacts: jest.fn(async () => [{ status: 'verified' }]),
     findIdentityDocuments: jest.fn(async () => [{ id: 'doc-1' }]),
     createFeatureComputationRun: jest.fn(async () => ({ id: nextId() })),
@@ -43,11 +44,11 @@ function buildRiskRepositoryMock() {
     createManualReviewCase: jest.fn(async () => ({ id: nextId() })),
     createDataQualityIssue: jest.fn(async () => ({ id: nextId() })),
     createAudit: jest.fn(async () => ({ id: nextId() })),
-    findRiskRun: jest.fn(),
-    findRiskResultByRun: jest.fn(),
-    findRulesByRun: jest.fn(async () => []),
-    findContributionsByRun: jest.fn(async () => []),
-    findSnapshotByRun: jest.fn(),
+    findRiskRun: asyncMock(),
+    findRiskResultByRun: asyncMock(),
+    findRulesByRun: jest.fn(async (): Promise<Record<string, unknown>[]> => []),
+    findContributionsByRun: jest.fn(async (): Promise<Record<string, unknown>[]> => []),
+    findSnapshotByRun: asyncMock(),
   };
 }
 
@@ -257,7 +258,7 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     });
 
     expect(riskRepository.createRiskResult).toHaveBeenCalledTimes(1);
-    const createRiskResultArgs = riskRepository.createRiskResult.mock.calls[0][0] as { integrityHash: string; recommendedAction: string };
+    const createRiskResultArgs = callArg<{ integrityHash: string; recommendedAction: string }>(riskRepository.createRiskResult, 0, 0);
     expect(createRiskResultArgs.integrityHash).toEqual(expect.any(String));
     expect(createRiskResultArgs.integrityHash.length).toBeGreaterThan(0);
   });

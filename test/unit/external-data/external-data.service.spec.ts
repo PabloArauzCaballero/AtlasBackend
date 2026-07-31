@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, type AsyncMock } from '../../support/jest-mocks.js';
 import { ExternalDataService } from '../../../src/modules/external-data/external-data.service.js';
 
 /**
@@ -10,10 +11,10 @@ import { ExternalDataService } from '../../../src/modules/external-data/external
  * equivocado.
  */
 describe('ExternalDataService', () => {
-  const mocks = (...names: string[]) => Object.fromEntries(names.map((n) => [n, jest.fn(async () => ({}))])) as Record<string, jest.Mock>;
+  const mocks = (...names: string[]) => Object.fromEntries(names.map((n) => [n, jest.fn(async () => ({}))])) as Record<string, AsyncMock>;
 
   function buildService() {
-    const repository = { createCustomerConsent: jest.fn() };
+    const repository = { createCustomerConsent: asyncMock() };
     const registry = mocks('listProviders', 'getProviderHealth');
     const execution = mocks('executeExternalDataRequest', 'previewExternalDataRequest');
     const convenience = mocks(
@@ -53,6 +54,7 @@ describe('ExternalDataService', () => {
       'getProductionGate',
       'getProviderSlaReport',
     );
+    const bankingQr = mocks('generateBankQr');
     const service = new ExternalDataService(
       repository as never,
       registry as never,
@@ -60,8 +62,9 @@ describe('ExternalDataService', () => {
       convenience as never,
       evidence as never,
       governance as never,
+      bankingQr as never,
     );
-    return { service, repository, registry, execution, convenience, evidence, governance };
+    return { service, repository, registry, execution, convenience, evidence, governance, bankingQr };
   }
 
   describe('createConsent — derivación de purposeCode', () => {
@@ -198,7 +201,7 @@ describe('ExternalDataService', () => {
       const svc = s.service as unknown as Record<string, (i: unknown) => Promise<unknown>>;
       for (const [method, collab] of routes) {
         await svc[method](input);
-        expect((s[collab] as Record<string, jest.Mock>)[method]).toHaveBeenCalledTimes(1);
+        expect((s[collab] as Record<string, AsyncMock>)[method]).toHaveBeenCalledTimes(1);
       }
     });
 

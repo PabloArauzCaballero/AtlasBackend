@@ -1,3 +1,8 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza controla quién puede operar Atlas y deja evidencia de cada asignación de privilegios.
+ * @system implementa identidad interna, RBAC, catálogo de permisos y guards de autorización granular.
+ */
 import { z } from 'zod';
 import { INTERNAL_ROLE_CODES } from './internal-rbac.seed-data.js';
 

@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { Op } from 'sequelize';
 import { InternalAccessCatalogRepository } from '../../../src/modules/internal-users/internal-access-catalog.repository.js';
 
@@ -8,8 +9,8 @@ import { InternalAccessCatalogRepository } from '../../../src/modules/internal-u
  */
 describe('InternalAccessCatalogRepository', () => {
   function buildRepo() {
-    const sequelize = { query: jest.fn() };
-    const permissionModel = { findAll: jest.fn() };
+    const sequelize = { query: asyncMock() };
+    const permissionModel = { findAll: asyncMock() };
     const repo = new InternalAccessCatalogRepository(sequelize as never, permissionModel as never);
     return { repo, sequelize, permissionModel };
   }
@@ -56,7 +57,7 @@ describe('InternalAccessCatalogRepository', () => {
       },
     ] as never);
     const result = await repo.listPermissions();
-    const where = (permissionModel.findAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+    const where = callArg<CallArgRecord>(permissionModel.findAll, 0, 0).where as Record<string, unknown>;
     expect(where.status).toBe('active');
     expect((where.deleted as Record<symbol, unknown>)[Op.ne]).toBe(true);
     expect(result[0]).toEqual({

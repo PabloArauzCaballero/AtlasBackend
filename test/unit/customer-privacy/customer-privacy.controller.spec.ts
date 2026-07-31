@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { callArg } from '../../support/jest-mocks.js';
 import { CustomerPrivacyController } from '../../../src/modules/customer-privacy/customer-privacy.controller.js';
 import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.js';
 
@@ -37,7 +38,7 @@ describe('CustomerPrivacyController', () => {
   it('registerConsentDecisions respeta el x-client-channel explícito', async () => {
     const { controller, service } = build();
     await controller.registerConsentDecisions('1', 'idem', 'web_portal', params, { decisions: [] } as never, user, req);
-    expect((service.registerConsentDecisions.mock.calls[0][0] as { channel: string }).channel).toBe('web_portal');
+    expect(callArg<{ channel: string }>(service.registerConsentDecisions, 0, 0).channel).toBe('web_portal');
   });
 
   it('registerConsentDecisions exige el x-idempotency-key', () => {

@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
+ * @system define models para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
+ */
 export { TenantModel } from './tenants.model.js';
 export { PlatformUserModel } from './platform-users.model.js';
 export { InternalUserModel } from './internal-users.model.js';
@@ -23,6 +28,10 @@ export { CustomerAddressModel } from './customer-addresses.model.js';
 export { CustomerAddressVersionModel } from './customer-address-versions.model.js';
 export { AddressGpsObservationModel } from './address-gps-observations.model.js';
 export { CustomerReferenceContactModel } from './customer-reference-contacts.model.js';
+export { CustomerEligibilityEvaluationModel } from './customer-eligibility-evaluations.model.js';
+export { CreditProductModel } from './credit-products.model.js';
+export { CreditApplicationModel } from './credit-applications.model.js';
+export { CreditApplicationEventModel } from './credit-application-events.model.js';
 export { PrivacyProcessingPurposeModel } from './privacy-processing-purposes.model.js';
 export { ConsentDocumentModel } from './consent-documents.model.js';
 export { CustomerConsentModel } from './customer-consents.model.js';
@@ -120,3 +129,8 @@ export { SystemDataFieldCatalogModel } from './system-data-field-catalog.model.j
 export { SystemDataRelationshipCatalogModel } from './system-data-relationship-catalog.model.js';
 export { SystemOperationalRuleCatalogModel } from './system-operational-rule-catalog.model.js';
 export { SystemCatalogReviewEventModel } from './system-catalog-review-events.model.js';
+export { WorkflowDefinitionModel } from './workflow-definitions.model.js';
+export { WorkflowStageModel } from './workflow-stages.model.js';
+export { WorkflowStepModel } from './workflow-steps.model.js';
+export { WorkflowStepDependencyModel } from './workflow-step-dependencies.model.js';
+export { WorkflowTransitionModel } from './workflow-transitions.model.js';

@@ -18,7 +18,7 @@ import { pathToFileURL } from 'node:url';
 import { join, resolve } from 'node:path';
 import { QueryInterface, QueryTypes } from 'sequelize';
 import { env } from '../src/config/env.js';
-import { createSequelizeInstance } from '../src/database/sequelize.js';
+import { createMigrationSequelizeInstance } from '../src/database/sequelize.js';
 
 const PRODUCTION_DIR = resolve(process.cwd(), 'src', 'database', 'seeders', 'production');
 
@@ -32,6 +32,13 @@ const WATCHED_TABLES = [
   'risk_ruleset_versions',
   'risk_model_versions',
   'data_providers',
+  // Catálogo de flujos: el seeder del árbol de endpoints sincroniza cinco tablas encadenadas, así
+  // que un upsert mal escrito duplicaría etapas, pasos o aristas sin que ninguna otra tabla lo note.
+  'workflow_definitions',
+  'workflow_stages',
+  'workflow_steps',
+  'workflow_step_dependencies',
+  'workflow_transitions',
 ];
 
 type SeederModule = { up: (args: { context: QueryInterface }) => Promise<void> };
@@ -68,7 +75,11 @@ async function main(): Promise<void> {
     throw new Error('verify-prod-seed-idempotency no debe correr con NODE_ENV=production. Úsalo en una base descartable.');
   }
 
-  const sequelize = createSequelizeInstance();
+  // Rol de MIGRACIÓN, no el de runtime. Los seeders solo se ejecutan desde `seed.ts`/`seed-runner.ts`,
+  // que usan `createMigrationSequelizeInstance()`; verificarlos con `atlas_app_rw` no reproduce las
+  // condiciones reales y falla por privilegios que ese rol no tiene a propósito (p. ej. `setval()`
+  // sobre una secuencia, que exige UPDATE y no solo USAGE).
+  const sequelize = createMigrationSequelizeInstance();
   try {
     try {
       await sequelize.authenticate();

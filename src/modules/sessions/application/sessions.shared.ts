@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza mantiene continuidad, seguridad y señales de uso durante la interacción del cliente.
+ * @system orquesta inicio, heartbeat, cierre, ubicación, dispositivo y auditoría del ciclo de sesión.
+ */
 import { ForbiddenException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { isInternalOrSystemRole } from '../../../common/utils/auth/role-groups.util.js';

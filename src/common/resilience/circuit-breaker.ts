@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de resilience sin introducir reglas de un dominio específico.
+ */
 import { AdapterError } from './adapter-error.js';
 
 export type CircuitState = 'closed' | 'open' | 'half_open';

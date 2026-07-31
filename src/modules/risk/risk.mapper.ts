@@ -1,3 +1,8 @@
+/**
+ * @file Mapper: transforma modelos internos a contratos de transporte.
+ * @business Esta pieza produce una recomendación explicable para reducir pérdida crediticia y trato inconsistente.
+ * @system calcula evaluaciones versionadas, contribuciones y reglas disparadas sin presentarlas como un modelo validado.
+ */
 import { RiskAssessmentResultModel } from '../../database/models/index.js';
 import { RiskAssessmentResultResponseDto } from './risk.dtos.js';
 import { toNumberOrNull } from '../../common/utils/numbers/number.util.js';

@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
+ * @system define database para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
+ */
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { env } from '../config/env.js';
 import { seedOnStartup } from './seed-runner.js';

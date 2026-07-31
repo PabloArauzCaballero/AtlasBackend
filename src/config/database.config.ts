@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza evita operar con parámetros inseguros o ambiguos.
+ * @system valida y compone configuración tipada al arrancar.
+ */
 import { SequelizeModuleOptions } from '@nestjs/sequelize';
 import { env } from './env.js';
 import { ATLAS_MIGRATION_SEARCH_PATH, ATLAS_RUNTIME_SEARCH_PATH } from '../database/domain-schemas.js';

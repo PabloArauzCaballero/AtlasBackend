@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { SessionsLifecycleRepository } from '../../../src/modules/sessions/repositories/sessions-lifecycle.repository.js';
 
 /**
@@ -8,7 +9,7 @@ import { SessionsLifecycleRepository } from '../../../src/modules/sessions/repos
  */
 describe('SessionsLifecycleRepository', () => {
   function buildRepo() {
-    const customerSessionModel = { create: jest.fn(), findOne: jest.fn(), findAndCountAll: jest.fn() };
+    const customerSessionModel = { create: asyncMock(), findOne: asyncMock(), findAndCountAll: asyncMock() };
     const repo = new SessionsLifecycleRepository(customerSessionModel as never);
     return { repo, customerSessionModel };
   }
@@ -58,7 +59,7 @@ describe('SessionsLifecycleRepository', () => {
     const { repo, customerSessionModel } = buildRepo();
     (customerSessionModel.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findSessionForOperations('t1', 's1');
-    expect((customerSessionModel.findOne as jest.Mock).mock.calls[0][0].where).toEqual({ tenantId: 't1', id: 's1' });
+    expect(callArg<CallArgRecord>(customerSessionModel.findOne, 0, 0).where).toEqual({ tenantId: 't1', id: 's1' });
   });
 
   it('findLatestActiveSession filtra por estado activo y ordena desc', async () => {

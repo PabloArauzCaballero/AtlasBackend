@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza reduce el tiempo de detección y recuperación de incidentes.
+ * @system inicializa trazas y telemetría antes del runtime.
+ */
 import { Logger } from '@nestjs/common';
 import { startTracing } from './tracing.js';
 

@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { SystemsStressProfileRepository } from '../../../src/modules/systems-ops/systems-stress-profile.repository.js';
 
 /**
@@ -8,8 +9,8 @@ import { SystemsStressProfileRepository } from '../../../src/modules/systems-ops
  */
 describe('SystemsStressProfileRepository', () => {
   function buildRepo() {
-    const endpointModel = { findAndCountAll: jest.fn() };
-    const stressProfileModel = { findAndCountAll: jest.fn(), findByPk: jest.fn(), upsert: jest.fn(), findAll: jest.fn() };
+    const endpointModel = { findAndCountAll: asyncMock() };
+    const stressProfileModel = { findAndCountAll: asyncMock(), findByPk: asyncMock(), upsert: asyncMock(), findAll: asyncMock() };
     const repo = new SystemsStressProfileRepository(endpointModel as never, stressProfileModel as never);
     return { repo, endpointModel, stressProfileModel };
   }
@@ -58,14 +59,14 @@ describe('SystemsStressProfileRepository', () => {
     const { repo, stressProfileModel } = buildRepo();
     (stressProfileModel.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.findStressProfilesByEndpointIds(['e1', 'e2']);
-    expect((stressProfileModel.findAll as jest.Mock).mock.calls[0][0].where).toEqual({ endpointId: ['e1', 'e2'] });
+    expect(callArg<CallArgRecord>(stressProfileModel.findAll, 0, 0).where).toEqual({ endpointId: ['e1', 'e2'] });
   });
 
   it('listStressRequiredEndpoints impone status por defecto ACTIVE y requiresStressTest true', async () => {
     const { repo, endpointModel } = buildRepo();
     (endpointModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
     await repo.listStressRequiredEndpoints({ page: 1, limit: 10 } as never);
-    const where = (endpointModel.findAndCountAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+    const where = callArg<CallArgRecord>(endpointModel.findAndCountAll, 0, 0).where as Record<string, unknown>;
     expect(where).toMatchObject({ status: 'ACTIVE', requiresStressTest: true });
   });
 
@@ -73,6 +74,6 @@ describe('SystemsStressProfileRepository', () => {
     const { repo, endpointModel } = buildRepo();
     (endpointModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
     await repo.listStressRequiredEndpoints({ status: 'DEPRECATED', page: 1, limit: 10 } as never);
-    expect((endpointModel.findAndCountAll as jest.Mock).mock.calls[0][0].where.status).toBe('DEPRECATED');
+    expect(callArg<CallArgRecord>(endpointModel.findAndCountAll, 0, 0).where.status).toBe('DEPRECATED');
   });
 });

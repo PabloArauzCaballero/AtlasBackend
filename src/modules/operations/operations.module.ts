@@ -1,3 +1,8 @@
+/**
+ * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
+ * @business Esta pieza permite resolver excepciones y revisiones manuales con responsabilidad y trazabilidad.
+ * @system gestiona colas y decisiones operativas mediante servicios transaccionales y repositorios aislados.
+ */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {

@@ -1,5 +1,10 @@
 # Cierre de correcciones — auditoría 2026-07-21
 
+> **Evidencia histórica del 2026-07-21.** El estado actual está en
+> [`documentacion-y-correcciones-2026-07-27.md`](./documentacion-y-correcciones-2026-07-27.md).
+> En particular, `type-check:tests` está limpio y pasó a ser bloqueante, y `brace-expansion` quedó en
+> 5.0.8 por el aviso publicado el 2026-07-23.
+
 Implementación de las correcciones de `revision-completa-backend-2026-07-21.md` + ejecución de las fases pendientes de `CLAUDE_ORGANIZAR_SKILLS_BACKEND.md`. Corrida autónoma.
 
 > **Nota de proceso:** 7 subagentes de implementación en paralelo se cortaron por límite de sesión de API; el trabajo se retomó y completó en el hilo principal. El estado en disco de cada agente se recuperó del working tree.

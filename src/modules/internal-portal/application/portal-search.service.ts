@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza ofrece a operaciones una vista gobernada del negocio sin acceso directo a tablas sensibles.
+ * @system compone consultas read-only, reportes, glosario, linaje y búsqueda para el portal administrativo.
+ */
 import { boolValue, clean, containsQuery, id, Query } from './portal-format.util.js';
 import { reportDefinitions } from './portal-report-definitions.js';
 import { PortalQueryBase } from './portal-query.base.js';

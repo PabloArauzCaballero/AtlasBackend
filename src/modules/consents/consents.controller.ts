@@ -1,3 +1,8 @@
+/**
+ * @file Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso.
+ * @business Esta pieza demuestra qué tratamiento de datos aceptó o rechazó cada cliente y bajo qué versión legal.
+ * @system registra decisiones y eventos de consentimiento con separación entre DTO, reglas y persistencia.
+ */
 import { Controller, Get, Headers, Query, UseGuards } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas } from '../../common/openapi/zod-to-schema.util.js';

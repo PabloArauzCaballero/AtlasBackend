@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SystemsTestRunnerService } from '../../../src/modules/systems-ops/systems-test-runner.service.js';
 import { SystemsTestAssertionService } from '../../../src/modules/systems-ops/systems-test-assertion.service.js';
@@ -34,11 +35,11 @@ describe('SystemsTestRunnerService.runSuite', () => {
       findTestSuiteById: jest.fn(async () => suite),
       findTestStepsBySuite: jest.fn(async () => steps),
       createTestRun: jest.fn(async () => ({ id: 'run1', suiteId: 1 })),
-      createTestStepRun: jest.fn(async () => ({})),
+      createTestStepRun: asyncMock(),
       finishTestRun: jest.fn(async (_run: unknown, patch: { status: string }) => ({ id: 'run1', suiteId: 1, status: patch.status })),
       findStepRunsByRun: jest.fn(async () => [{ id: 1, testRunId: 'run1', stepId: '1', status: 'PASSED' }]),
     };
-    const httpClient = { execute: jest.fn() };
+    const httpClient = { execute: asyncMock() };
     const service = new SystemsTestRunnerService(
       repository as never,
       new SystemsTestAssertionService(),
@@ -75,9 +76,9 @@ describe('SystemsTestRunnerService.runSuite', () => {
 
   it('bloquea la ejecución en PRODUCTION_READONLY sobre una suite no segura', async () => {
     const { service } = build(enabledSuite({ environmentScope: ['PRODUCTION_READONLY'], isSafeForProduction: false }), [step()]);
-    await expect(service.runSuite('1', { ...dryBody, environment: 'PRODUCTION_READONLY' } as never, user)).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.runSuite('1', { ...(dryBody as object), environment: 'PRODUCTION_READONLY' } as never, user),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('lanza BadRequest si la suite no tiene pasos o excede el máximo', async () => {
@@ -96,7 +97,10 @@ describe('SystemsTestRunnerService.runSuite', () => {
     const res = await service.runSuite('1', dryBody, user);
     expect(httpClient.execute).not.toHaveBeenCalled();
     expect(res.run).toBeDefined();
-    const [, patch] = repository.finishTestRun.mock.calls[0] as [unknown, { status: string; summary: { passed: number; failed: number } }];
+    const [, patch] = repository.finishTestRun.mock.calls[0] as unknown as [
+      unknown,
+      { status: string; summary: { passed: number; failed: number } },
+    ];
     expect(patch.status).toBe('PASSED');
     expect(patch.summary).toMatchObject({ passed: 1, failed: 0 });
   });
@@ -108,10 +112,13 @@ describe('SystemsTestRunnerService.runSuite', () => {
     ];
     const { service, repository } = build(enabledSuite(), steps);
     await service.runSuite('1', dryBody, user);
-    const [, patch] = repository.finishTestRun.mock.calls[0] as [unknown, { status: string; summary: { failed: number; skipped: number } }];
+    const [, patch] = repository.finishTestRun.mock.calls[0] as unknown as [
+      unknown,
+      { status: string; summary: { failed: number; skipped: number } },
+    ];
     expect(patch.status).toBe('FAILED');
     expect(patch.summary).toMatchObject({ failed: 1, skipped: 1 });
-    const statuses = repository.createTestStepRun.mock.calls.map((call) => (call[0] as { status: string }).status);
+    const statuses = repository.createTestStepRun.mock.calls.map((call) => (call[0] as unknown as { status: string }).status);
     expect(statuses).toContain('SKIPPED');
   });
 });

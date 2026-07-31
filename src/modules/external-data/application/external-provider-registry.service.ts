@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
+ * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
+ */
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { assertAllProvidersConfigured } from '../../../common/resilience/provider-config-validator.js';
 import { ExternalDataRepository } from '../external-data.repository.js';
 import { ExternalProviderAdapter } from '../domain/external-provider-adapter.interface.js';
@@ -10,11 +15,19 @@ import { TelcoGenericAdapter } from '../infrastructure/adapters/telco-generic/te
 import { FacebookMetaAdapter } from '../infrastructure/adapters/facebook-meta/facebook-meta.adapter.js';
 import { WhatsappAdapter } from '../infrastructure/adapters/whatsapp/whatsapp.adapter.js';
 import { DigitalTrustGenericAdapter } from '../infrastructure/adapters/digital-trust-generic/digital-trust-generic.adapter.js';
-import { externalProviderBootRequirements, mockBaseUrlFor, providerModeFromEnv } from './external-data-policy.util.js';
+import {
+  externalProviderBootRequirements,
+  mockBaseUrlFor,
+  productionIntegrationBlockers,
+  providerModeFromEnv,
+} from './external-data-policy.util.js';
 
 @Injectable()
 export class ExternalProviderRegistryService implements OnModuleInit {
   private readonly adapters: Map<string, ExternalProviderAdapter>;
+  private readonly logger = new Logger(ExternalProviderRegistryService.name);
+  /** Proveedores que, con la configuración actual, no pueden ejecutar. Se calcula al arrancar. */
+  private blockedProviders: Array<{ providerCode: string; mode: string; blockers: string[] }> = [];
 
   /**
    * ATLAS-ROBUSTEZ: fail-fast — si un operador activa `${CODE}_MODE=production` para cualquier
@@ -22,8 +35,50 @@ export class ExternalProviderRegistryService implements OnModuleInit {
    * primera señal de un `SEGIP_CLIENT_SECRET` faltante era un `PRODUCTION_GATE_BLOCKED` en la
    * primera request real de un cliente en producción.
    */
-  onModuleInit(): void {
+  async onModuleInit(): Promise<void> {
     assertAllProvidersConfigured(externalProviderBootRequirements());
+    await this.reportBlockedProviders();
+  }
+
+  /**
+   * Hallazgo A-02: el modo efectivo de cada proveedor vive en la BASE (`default_mode`), no solo en
+   * `env`, así que el fail-fast síncrono de arriba no puede verlo. Esto lo audita al arrancar y lo
+   * deja visible en el log y en `/external-data/providers/readiness`, para que un despliegue
+   * productivo con proveedores en modo simulado se note antes de la primera request, no después.
+   *
+   * NO tumba el proceso: un backend que no puede consultar buró debe seguir sirviendo login,
+   * onboarding y consultas. Las requests a esos proveedores fallan cerradas una a una.
+   */
+  private async reportBlockedProviders(): Promise<void> {
+    try {
+      const providers = await this.repository.listProviders();
+      this.blockedProviders = providers
+        .filter((provider) => provider)
+        .map((provider) => {
+          const providerCode = String(provider.providerCode);
+          const mode = providerModeFromEnv(providerCode, provider.defaultMode);
+          return { providerCode, mode, blockers: productionIntegrationBlockers(providerCode, mode) };
+        })
+        .filter((entry) => entry.blockers.length > 0);
+
+      for (const entry of this.blockedProviders) {
+        this.logger.error(
+          `Proveedor externo ${entry.providerCode} NO puede ejecutar (modo ${entry.mode}): ${entry.blockers.join(', ')}. ` +
+            'Las requests a este proveedor responderán PROVIDER_UNAVAILABLE hasta que se configure la integración real.',
+        );
+      }
+    } catch (error) {
+      // Sin base disponible al arrancar, la auditoría se pierde pero el portón por request sigue
+      // vigente: es un aviso menos, no un agujero.
+      this.logger.warn(
+        `No se pudo auditar el modo de los proveedores externos al arrancar: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  /** Proveedores bloqueados detectados al arrancar. Lo consume la readiness de external-data. */
+  listBlockedProviders(): ReadonlyArray<{ providerCode: string; mode: string; blockers: string[] }> {
+    return this.blockedProviders;
   }
 
   constructor(

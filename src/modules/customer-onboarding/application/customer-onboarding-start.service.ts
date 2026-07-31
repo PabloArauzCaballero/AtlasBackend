@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, UnprocessableEntityException } from '@nestjs/common';
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
+ * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
+ */
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { randomUUID } from 'node:crypto';
 import { Transaction, UniqueConstraintError } from 'sequelize';
@@ -19,7 +24,9 @@ import { SessionsRepository } from '../../sessions/sessions.repository.js';
 import { StartOnboardingResponseDto } from '../customer-onboarding.dtos.js';
 import { toStartOnboardingResponse } from '../customer-onboarding.mapper.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingGuardsService } from './customer-onboarding-guards.service.js';
 import { StartOnboardingDto } from '../customer-onboarding.schemas.js';
+import { INITIAL_CUSTOMER_LIFECYCLE_STATUS } from '../../customers/customer-lifecycle.constants.js';
 
 function emailDomain(email: string | undefined): string | null {
   if (!email) return null;
@@ -40,6 +47,7 @@ export class CustomerOnboardingStartService {
     private readonly consentsRepository: ConsentsRepository,
     private readonly onboardingRepository: CustomerOnboardingRepository,
     private readonly authRepository: AuthRepository,
+    private readonly guardsService: CustomerOnboardingGuardsService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -62,8 +70,8 @@ export class CustomerOnboardingStartService {
     const phoneHash = input.customer.phone ? hashSensitiveText(input.customer.phone) : null;
     const emailHash = input.customer.email ? hashSensitiveText(input.customer.email) : null;
 
-    await this.assertNoDuplicateCustomer(tenantId, phoneHash, emailHash);
-    await this.assertConsentDocumentsAreValid(tenantId, input.consents);
+    await this.guardsService.assertNoDuplicateCustomer(tenantId, phoneHash, emailHash);
+    await this.guardsService.assertConsentDocumentsAreValid(tenantId, input.consents);
 
     // La garantía de integridad real la dan los índices únicos parciales de la base de datos.
     // Este try/catch traduce colisiones concurrentes al mismo error de
@@ -81,7 +89,7 @@ export class CustomerOnboardingStartService {
     // Se hashea ANTES de abrir la transacción a propósito: Argon2id es una operación
     // intencionalmente costosa en CPU/memoria; hacerla dentro de la transacción de base de
     // datos extendería innecesariamente el tiempo que la transacción mantiene locks abiertos.
-    const passwordHash = input.password ? await hashPassword(input.password) : null;
+    const passwordHash = await hashPassword(input.password);
 
     try {
       return await this.sequelize.transaction(async (transaction) => {
@@ -145,39 +153,13 @@ export class CustomerOnboardingStartService {
     }
   }
 
-  private async assertNoDuplicateCustomer(tenantId: string, phoneHash: string | null, emailHash: string | null): Promise<void> {
-    const existing = await this.customersRepository.findByContactHash(tenantId, {
-      phoneHash: phoneHash ?? undefined,
-      emailHash: emailHash ?? undefined,
-    });
-
-    if (existing) {
-      throw new ConflictException('CUSTOMER_ALREADY_EXISTS');
-    }
-  }
-
-  private async assertConsentDocumentsAreValid(tenantId: string, consents: StartOnboardingDto['consents']): Promise<void> {
-    // Validate all referenced consent documents exist before opening the transaction
-    for (const consentInput of consents) {
-      if (!consentInput.granted) {
-        throw new UnprocessableEntityException('REQUIRED_CONSENT_MISSING');
-      }
-      const doc = await this.consentsRepository.findActiveDocumentById(tenantId, consentInput.consentDocumentId);
-      if (!doc) {
-        throw new UnprocessableEntityException(
-          `Consent document ${consentInput.consentDocumentId} not found, not published, or not active.`,
-        );
-      }
-    }
-  }
-
   // 1 + 1b. Create customer, then credenciales de autenticación si se envió contraseña.
   private async createCustomerAndCredentials(input: {
     tenantId: string;
     input: StartOnboardingDto;
     phoneHash: string | null;
     emailHash: string | null;
-    passwordHash: string | null;
+    passwordHash: string;
     now: Date;
     transaction: Transaction;
   }) {
@@ -190,19 +172,17 @@ export class CustomerOnboardingStartService {
         primaryPhoneLast4: input.input.customer.phone ? lastCharacters(input.input.customer.phone, 4) : null,
         primaryEmailHash: input.emailHash,
         primaryEmailDomain: emailDomain(input.input.customer.email),
-        lifecycleStatus: 'registered',
+        lifecycleStatus: INITIAL_CUSTOMER_LIFECYCLE_STATUS,
         createdAt: input.now,
       },
       { transaction: input.transaction },
     );
 
-    // Credenciales de autenticación opcionales para clientes registrados por onboarding.
-    if (input.passwordHash) {
-      await this.authRepository.createCredentials(
-        { tenantId: input.tenantId, actorType: 'customer', actorId: String(customer.id), passwordHash: input.passwordHash },
-        { transaction: input.transaction },
-      );
-    }
+    // Credenciales siempre presentes: sin ellas el cliente no puede iniciar sesión nunca más.
+    await this.authRepository.createCredentials(
+      { tenantId: input.tenantId, actorType: 'customer', actorId: String(customer.id), passwordHash: input.passwordHash },
+      { transaction: input.transaction },
+    );
 
     return customer;
   }
@@ -303,7 +283,7 @@ export class CustomerOnboardingStartService {
         tenantId: input.tenantId,
         customerId: String(input.customer.id),
         previousStatus: null,
-        newStatus: 'registered',
+        newStatus: INITIAL_CUSTOMER_LIFECYCLE_STATUS,
         reasonCode: 'customer_registered',
         changedByType: 'system',
         happenedAt: input.now,

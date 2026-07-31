@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
 /**
@@ -22,40 +23,51 @@ jest.mock('../../../src/modules/operations/operations.mapper.js', () => ({
   toInvestigationSummaryResponse: jest.fn((input: unknown) => ({ mapped: true, input })),
 }));
 
+/**
+ * El mapper de `operations` está mockeado en este archivo, así que los items de la respuesta no son
+ * `WorkQueueItemDto` reales sino los objetos que devuelve el mock (`{ id, kind, ... }`). Este helper
+ * hace explícita esa diferencia en un solo lugar, en vez de repartir casts por cada aserción.
+ */
+function mockedIds(items: readonly unknown[]): Array<string | undefined> {
+  return items.map((item) => (item as { id?: string }).id);
+}
+
 describe('OperationsService', () => {
   async function buildService() {
     const { OperationsService } = await import('../../../src/modules/operations/operations.service.js');
     const operationsRepository = {
-      findManualReviewCasesForQueueWithCursor: jest.fn(),
-      findFraudCasesForQueueWithCursor: jest.fn(),
-      findManualReviewCasesForQueue: jest.fn(),
-      findFraudCasesForQueue: jest.fn(),
-      findOpenManualReviewCasesForCustomer: jest.fn(),
-      findFraudCasesForCustomer: jest.fn(),
-      findManualReviewCaseById: jest.fn(),
-      closeManualReviewCase: jest.fn(),
-      createManualReviewEvent: jest.fn(),
-      createStatusEvent: jest.fn(),
-      createCustomerObservation: jest.fn(),
-      createOperationalAudit: jest.fn(),
-      createDataChange: jest.fn(),
+      findManualReviewCasesForQueueWithCursor: asyncMock(),
+      findFraudCasesForQueueWithCursor: asyncMock(),
+      findManualReviewCasesForQueue: asyncMock(),
+      findFraudCasesForQueue: asyncMock(),
+      findOpenManualReviewCasesForCustomer: asyncMock(),
+      findFraudCasesForCustomer: asyncMock(),
+      findManualReviewCaseById: asyncMock(),
+      closeManualReviewCase: asyncMock(),
+      createManualReviewEvent: asyncMock(),
+      createStatusEvent: asyncMock(),
+      createCustomerObservation: asyncMock(),
+      createOperationalAudit: asyncMock(),
+      createDataChange: asyncMock(),
     };
     const customersRepository = {
-      findById: jest.fn(),
-      findCurrentProfile: jest.fn(),
-      findContactMethods: jest.fn(),
-      findCustomerConsents: jest.fn(),
+      findById: asyncMock(),
+      findCurrentProfile: asyncMock(),
+      findContactMethods: asyncMock(),
+      findCustomerConsents: asyncMock(),
     };
-    const riskRepository = { findLatestCustomerRiskResult: jest.fn() };
+    const riskRepository = { findLatestCustomerRiskResult: asyncMock() };
+    const lifecycleService = { transition: asyncMock() };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
 
     const service = new OperationsService(
       operationsRepository as never,
       customersRepository as never,
       riskRepository as never,
+      lifecycleService as never,
       sequelize as never,
     );
-    return { service, operationsRepository, customersRepository, riskRepository };
+    return { service, operationsRepository, customersRepository, riskRepository, lifecycleService };
   }
 
   const internalUser = { role: 'internal_operator', internalUserId: 'iu1', platformUserId: null } as never;
@@ -122,7 +134,7 @@ describe('OperationsService', () => {
 
       const result = await service.getWorkQueue('t1', { queue: 'all', page: 1, limit: 20, sortOrder: 'desc' } as never);
 
-      expect(result.items.map((i: { id: string }) => i.id)).toEqual(['f1', 'm1']);
+      expect(mockedIds(result.items)).toEqual(['f1', 'm1']);
       expect(result.meta.total).toBe(2);
     });
 
@@ -139,7 +151,7 @@ describe('OperationsService', () => {
 
       const result = await service.getWorkQueue('t1', { queue: 'all', page: 1, limit: 20, sortOrder: 'asc' } as never);
 
-      expect(result.items.map((i: { id: string }) => i.id)).toEqual(['m1', 'f1']);
+      expect(mockedIds(result.items)).toEqual(['m1', 'f1']);
     });
 
     it('queue: "all" slices to the requested page after merging, not before', async () => {
@@ -162,7 +174,7 @@ describe('OperationsService', () => {
       const result = await service.getWorkQueue('t1', { queue: 'all', page: 2, limit: 2, sortOrder: 'desc' } as never);
 
       // merged+sorted desc: f2, f1, m2, m1 -> page 2 with limit 2 -> [m2, m1]
-      expect(result.items.map((i: { id: string }) => i.id)).toEqual(['m2', 'm1']);
+      expect(mockedIds(result.items)).toEqual(['m2', 'm1']);
     });
 
     it('queue: "all" asks each source for its top page*limit rows (offset 0), not the same page/limit as the caller', async () => {
@@ -203,32 +215,30 @@ describe('OperationsService', () => {
       // Fake que respeta offset/limit de verdad, como haría Postgres — a diferencia de los demás
       // tests de este describe (que usan mockResolvedValueOnce con datos fijos, ignorando los
       // argumentos), esto es lo que hacía que el bug original pasara desapercibido.
-      (operationsRepository.findManualReviewCasesForQueue as jest.Mock).mockImplementation(
-        async (_tenantId: string, query: { page: number; limit: number }) => {
-          const offset = (query.page - 1) * query.limit;
-          return { rows: manualRows.slice(offset, offset + query.limit), meta: { total: manualRows.length } };
-        },
-      );
-      (operationsRepository.findFraudCasesForQueue as jest.Mock).mockImplementation(
-        async (_tenantId: string, query: { page: number; limit: number }) => {
-          const offset = (query.page - 1) * query.limit;
-          return { rows: fraudRows.slice(offset, offset + query.limit), meta: { total: fraudRows.length } };
-        },
-      );
+      operationsRepository.findManualReviewCasesForQueue.mockImplementation(async (...args: unknown[]) => {
+        const query = args[1] as { page: number; limit: number };
+        const offset = (query.page - 1) * query.limit;
+        return { rows: manualRows.slice(offset, offset + query.limit), meta: { total: manualRows.length } };
+      });
+      operationsRepository.findFraudCasesForQueue.mockImplementation(async (...args: unknown[]) => {
+        const query = args[1] as { page: number; limit: number };
+        const offset = (query.page - 1) * query.limit;
+        return { rows: fraudRows.slice(offset, offset + query.limit), meta: { total: fraudRows.length } };
+      });
 
       const page1 = await service.getWorkQueue('t1', { queue: 'all', page: 1, limit: 2, sortOrder: 'desc' } as never);
       const page2 = await service.getWorkQueue('t1', { queue: 'all', page: 2, limit: 2, sortOrder: 'desc' } as never);
       const page3 = await service.getWorkQueue('t1', { queue: 'all', page: 3, limit: 2, sortOrder: 'desc' } as never);
       const page4 = await service.getWorkQueue('t1', { queue: 'all', page: 4, limit: 2, sortOrder: 'desc' } as never);
 
-      expect(page1.items.map((i: { id: string }) => i.id)).toEqual(['m1', 'f1']);
-      expect(page2.items.map((i: { id: string }) => i.id)).toEqual(['m2', 'm3']);
-      expect(page3.items.map((i: { id: string }) => i.id)).toEqual(['f2', 'm4']);
-      expect(page4.items.map((i: { id: string }) => i.id)).toEqual(['m5', 'f3']);
+      expect(mockedIds(page1.items)).toEqual(['m1', 'f1']);
+      expect(mockedIds(page2.items)).toEqual(['m2', 'm3']);
+      expect(mockedIds(page3.items)).toEqual(['f2', 'm4']);
+      expect(mockedIds(page4.items)).toEqual(['m5', 'f3']);
       expect(page1.meta.total).toBe(8);
 
       // Ninguna página debe repetir ni saltarse ids frente a las demás.
-      const allIds = [page1, page2, page3, page4].flatMap((p) => p.items.map((i: { id: string }) => i.id));
+      const allIds = [page1, page2, page3, page4].flatMap((p) => mockedIds(p.items));
       expect(new Set(allIds).size).toBe(8);
     });
   });
@@ -299,28 +309,41 @@ describe('OperationsService', () => {
       await expect(service.decideManualReviewCase(baseInput())).rejects.toThrow(ConflictException);
     });
 
-    it('creates a status event and observation ONLY when both customerId and nextCustomerStatus are present', async () => {
-      const { service, operationsRepository } = await buildService();
+    /**
+     * Regresión de H1. Antes, esta rama insertaba el evento de historial con `previousStatus: null`
+     * y NUNCA actualizaba `customers.lifecycle_status`: el historial decía "aprobado" y el cliente
+     * seguía en su estado anterior. La transición ahora la aplica `CustomerLifecycleService`, que
+     * valida contra la máquina de estados y escribe estado + evento en la misma transacción.
+     */
+    it('aplica la transición REAL de estado vía CustomerLifecycleService, no solo un evento de historial', async () => {
+      const { service, operationsRepository, lifecycleService } = await buildService();
       (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce({
         closedAt: null,
         status: 'open',
         customerId: 'c1',
       } as never);
+      (lifecycleService.transition as jest.Mock).mockResolvedValueOnce({
+        previousStatus: 'under_review',
+        newStatus: 'active',
+        changed: true,
+      } as never);
 
-      await service.decideManualReviewCase(
-        baseInput({ body: { decision: 'approved', reasonCode: 'r1', nextCustomerStatus: 'approved_for_next_step' } }),
+      const result = await service.decideManualReviewCase(
+        baseInput({ body: { decision: 'approved', reasonCode: 'r1', nextCustomerStatus: 'active' } }),
       );
 
-      expect(operationsRepository.createStatusEvent).toHaveBeenCalledTimes(1);
+      expect(lifecycleService.transition).toHaveBeenCalledWith(
+        expect.objectContaining({ customerId: 'c1', toStatus: 'active', reasonCode: 'r1', changedByInternalUserId: 'iu1' }),
+      );
+      // El evento de historial ya no se escribe aquí a mano: lo emite el servicio de ciclo de vida
+      // junto con el UPDATE del estado, para que no puedan divergir.
+      expect(operationsRepository.createStatusEvent).not.toHaveBeenCalled();
       expect(operationsRepository.createCustomerObservation).toHaveBeenCalledTimes(1);
-      // changedByInternalUserId debe reflejar al actor real, no quedar null fijo.
-      expect((operationsRepository.createStatusEvent as jest.Mock).mock.calls[0][0]).toEqual(
-        expect.objectContaining({ actorInternalUserId: expect.anything() }),
-      );
+      expect(result.nextCustomerStatus).toBe('active');
     });
 
     it('does NOT create a status event when nextCustomerStatus is missing, even if the case has a customerId', async () => {
-      const { service, operationsRepository } = await buildService();
+      const { service, operationsRepository, lifecycleService } = await buildService();
       (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce({
         closedAt: null,
         status: 'open',
@@ -329,6 +352,7 @@ describe('OperationsService', () => {
 
       await service.decideManualReviewCase(baseInput({ body: { decision: 'approved', reasonCode: 'r1' } }));
 
+      expect(lifecycleService.transition).not.toHaveBeenCalled();
       expect(operationsRepository.createStatusEvent).not.toHaveBeenCalled();
     });
 

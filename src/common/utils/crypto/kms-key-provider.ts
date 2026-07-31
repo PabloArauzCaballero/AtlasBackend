@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de crypto sin introducir reglas de un dominio específico.
+ */
 import { DataEncryptionKey, DataKeyProvider } from './data-key-provider.interface.js';
 
 type KmsCommandInput = Record<string, unknown>;
@@ -28,10 +33,9 @@ type KmsSdk = {
 /**
  * Proveedor opcional de AWS KMS para envelope encryption.
  *
- * Importante para desarrollo local: este archivo no importa `@aws-sdk/client-kms` de forma
- * estática. Así el backend compila y arranca aunque el SDK de AWS no esté instalado, siempre que
- * KMS no esté configurado en `.env`. En producción, si se define `KMS_KEY_ID` + `AWS_REGION`, el
- * paquete `@aws-sdk/client-kms` debe estar instalado en la imagen final.
+ * El SDK se importa de forma diferida para no inicializar clientes AWS cuando KMS está apagado. El
+ * paquete `@aws-sdk/client-kms` es una dependencia de producción declarada: una imagen construida
+ * con `yarn install --production` puede activar KMS sin instalar componentes a mano.
  */
 export class KmsKeyProvider implements DataKeyProvider {
   readonly providerId = 'kms';
@@ -115,7 +119,7 @@ export class KmsKeyProvider implements DataKeyProvider {
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       throw new Error(
-        `AWS_KMS_SDK_NOT_INSTALLED: instala @aws-sdk/client-kms para usar KMS real o elimina KMS_KEY_ID/AWS_REGION del entorno local. Detalle: ${reason}`,
+        `AWS_KMS_SDK_UNAVAILABLE: la imagen debe incluir @aws-sdk/client-kms; si KMS no se usará, elimina KMS_KEY_ID/AWS_REGION. Detalle: ${reason}`,
       );
     }
   }

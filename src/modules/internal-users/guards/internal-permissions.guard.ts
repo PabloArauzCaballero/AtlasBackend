@@ -1,3 +1,8 @@
+/**
+ * @file Guard: aplica autenticación o autorización antes del caso de uso.
+ * @business Esta pieza controla quién puede operar Atlas y deja evidencia de cada asignación de privilegios.
+ * @system implementa identidad interna, RBAC, catálogo de permisos y guards de autorización granular.
+ */
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { INTERNAL_PERMISSIONS_KEY } from '../internal-permissions.decorator.js';

@@ -1,8 +1,9 @@
 # Atlas Backend — API (NestJS + Sequelize + PostgreSQL)
 
 > **Estado real del proyecto:** este backend implementa la base de Atlas para identidad,
-> autenticación, sesiones, consentimientos, privacidad, telemetría, riesgo, fraude, operaciones,
-> catálogo de datos, auditoría, notificaciones, eventos y proveedores externos. La documentación
+> autenticación, onboarding KYC, sesiones, consentimientos, privacidad, telemetría, elegibilidad,
+> crédito, riesgo, fraude, operaciones, catálogo de datos, auditoría, notificaciones, eventos y
+> proveedores externos. La documentación
 > del repositorio se mantiene enfocada en operación, contratos técnicos y mantenimiento de
 > producción.
 
@@ -14,7 +15,7 @@ Atlas es una fintech BNPL (Buy Now Pay Later) para Bolivia. Este repositorio con
 
 ## Stack
 
-- Node.js 20+, TypeScript strict, NestJS.
+- Node.js 22+, TypeScript strict, NestJS.
 - Sequelize (`sequelize-typescript`) + PostgreSQL.
 - Zod para validación de entrada en todos los controladores.
 - JWT (`jsonwebtoken`) para auth, con refresh tokens propios (tabla `auth_refresh_tokens`).
@@ -35,8 +36,9 @@ src/
 ├── database/                # modelos Sequelize, migraciones, seeders
 └── modules/
     ├── auth/                  # login, refresh, logout, provisión de credenciales internas
-    ├── customers/             # perfil "me" del cliente
-    ├── customer-onboarding/   # registro (= alta de cliente), KYC básico, verificación de contacto
+    ├── customers/             # perfil, ciclo de vida y elegibilidad del cliente
+    ├── credit/                # productos, solicitudes, decisiones y eventos de crédito
+    ├── customer-onboarding/   # registro, perfil, OTP, KYC, compliance y envío a revisión
     ├── customer-privacy/      # consentimientos, solicitudes de datos personales
     ├── customer-telemetry/    # señales de dispositivo/comportamiento (privacidad estricta)
     ├── consents/              # documentos de consentimiento
@@ -67,7 +69,7 @@ que crecieron más allá de una sola responsabilidad clara (`sessions`, `custome
 
 ## Requisitos previos
 
-- Node.js ≥ 20. Recomendado para desarrollo: Node.js 22 LTS (`.nvmrc`).
+- Node.js ≥ 22 (`.nvmrc` fija la versión recomendada).
 - Yarn (`packageManager` fija `yarn@1.22.22`).
 - PostgreSQL accesible (local, Docker, o RDS de desarrollo).
 - Redis accesible si vas a probar rate limiting distribuido o a ejecutar en más de una instancia
@@ -102,7 +104,6 @@ yarn start:dev
 # La API queda en http://localhost:3000/api/v1
 # Swagger UI (si API_DOCS_ENABLED=true, por defecto fuera de producción): /api/v1/docs
 ```
-
 
 ### Error común: Zod pide REDIS_URL o secretos de producción al usar `yarn start:dev`
 
@@ -140,25 +141,27 @@ NOTIFICATION_TOKEN_ENCRYPTION_KEY=<otro-secreto-largo-distinto>
 
 ## Comandos principales
 
-| Comando | Qué hace |
-|---|---|
-| `yarn lint` / `yarn lint:fix` | ESLint sobre `src/`, `test/`, `scripts/`. |
-| `yarn format` / `yarn format:check` | Prettier. |
-| `yarn type-check` | `tsc --noEmit`. |
-| `yarn test` | Suite de Jest. |
-| `yarn test:coverage` | Jest con reporte de cobertura. |
-| `yarn build` | Compila a `dist/`. |
-| `yarn start` | Levanta `dist/src/main.js` como está el entorno actual (producción si `NODE_ENV=production`). |
-| `yarn start:dev` | Compila y levanta local forzando `NODE_ENV=development` incluso si Windows tiene `NODE_ENV=production` global. |
-| `yarn start:prod` | Compila y levanta respetando configuración de producción; exige `REDIS_URL` y secretos reales. |
-| `yarn env:doctor` | Diagnostica variables críticas y explica si el entorno está en modo local o producción. |
-| `yarn db:migration:up` / `down` / `status` | Migraciones Sequelize/Umzug. |
-| `yarn db:seed:up` / `down` / `status` | Seeders mínimos de desarrollo. |
-| `yarn docs:openapi` | Genera `docs/endpoints/openapi.yaml` a partir del código (requiere una base de datos real disponible para levantar el `AppModule`). |
-| `yarn smoke` | Corre la suite de smoke tests contra un servidor real ya levantado (`BASE_URL` por defecto `http://localhost:3000/api/v1`). |
-| `yarn check:no-env-file` | Falla si hay un `.env` real en el repo (lo corre CI). |
-| `yarn crypto:reencrypt-pii:dry-run` | Cuenta (sin escribir) cuántos valores de PII/tokens siguen en formato legado `v1` (clave maestra única) contra una base real. |
-| `yarn crypto:reencrypt-pii` | Re-cifra en caliente, en lotes e idempotente, los valores `v1` a `v2` (envelope encryption). |
+| Comando                                    | Qué hace                                                                                                                            |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `yarn lint` / `yarn lint:fix`              | ESLint sobre `src/`, `test/`, `scripts/`.                                                                                           |
+| `yarn format` / `yarn format:check`        | Prettier.                                                                                                                           |
+| `yarn type-check`                          | `tsc --noEmit`.                                                                                                                     |
+| `yarn test`                                | Suite de Jest.                                                                                                                      |
+| `yarn test:coverage`                       | Jest con reporte de cobertura.                                                                                                      |
+| `yarn build`                               | Compila a `dist/`.                                                                                                                  |
+| `yarn start`                               | Levanta `dist/src/main.js` como está el entorno actual (producción si `NODE_ENV=production`).                                       |
+| `yarn start:dev`                           | Compila y levanta local forzando `NODE_ENV=development` incluso si Windows tiene `NODE_ENV=production` global.                      |
+| `yarn start:prod`                          | Compila y levanta respetando configuración de producción; exige `REDIS_URL` y secretos reales.                                      |
+| `yarn env:doctor`                          | Diagnostica variables críticas y explica si el entorno está en modo local o producción.                                             |
+| `yarn db:migration:up` / `down` / `status` | Migraciones Sequelize/Umzug.                                                                                                        |
+| `yarn db:seed:up` / `down` / `status`      | Seeders mínimos de desarrollo.                                                                                                      |
+| `yarn docs:openapi`                        | Genera `docs/endpoints/openapi.yaml` a partir del código (requiere una base de datos real disponible para levantar el `AppModule`). |
+| `yarn docs:project`                        | Actualiza los `README.md` por carpeta y completa cabeceras JSDoc faltantes sin reemplazar documentación manual.                     |
+| `yarn docs:folders` / `yarn docs:inline`   | Ejecuta por separado el inventario por carpetas o la documentación inline.                                                          |
+| `yarn smoke`                               | Corre la suite de smoke tests contra un servidor real ya levantado (`BASE_URL` por defecto `http://localhost:3000/api/v1`).         |
+| `yarn check:no-env-file`                   | Falla si Git rastrea un `.env` real; permite el `.env` local ignorado y plantillas `.example`.                                      |
+| `yarn crypto:reencrypt-pii:dry-run`        | Cuenta (sin escribir) cuántos valores de PII/tokens siguen en formato legado `v1` (clave maestra única) contra una base real.       |
+| `yarn crypto:reencrypt-pii`                | Re-cifra en caliente, en lotes e idempotente, los valores `v1` a `v2` (envelope encryption).                                        |
 
 ## Autenticación (módulo `auth`)
 
@@ -167,8 +170,10 @@ NOTIFICATION_TOKEN_ENCRYPTION_KEY=<otro-secreto-largo-distinto>
 - `POST /auth/logout` — body: `{ refreshToken, allDevices? }`. Público (opera sobre el refresh token, no sobre el access token).
 - `POST /auth/provision-credentials` — body: `{ actorType: 'internal_user'|'platform_user', actorId, password }`. Requiere rol `admin`/`platform_admin`. Fija la contraseña inicial de un actor interno ya existente (no crea el actor).
 
-Para clientes (`customer`), el registro **es** el onboarding: `POST /customer-onboarding/start`
-acepta un campo `password` opcional. El mecanismo final para consumidores puede evolucionar a OTP u otro flujo, pero el backend ya soporta contraseña cuando el cliente se crea desde onboarding.
+Para clientes (`customer`), el registro inicia el onboarding: `POST /customer-onboarding/start`
+requiere una contraseña fuerte, crea credenciales y deja el flujo listo para verificar contacto,
+identidad, cumplimiento y elegibilidad. Los códigos de contacto y login se almacenan hasheados, con
+TTL y máximo de intentos; no existe un código fijo aceptado por runtime.
 
 ## Documentación relacionada
 
@@ -177,6 +182,7 @@ acepta un campo `password` opcional. El mecanismo final para consumidores puede 
 - `docs/database/migrations.md` / `docs/database/seeds.md` — operación de base de datos.
 - `docs/endpoints/endpoints.md` — documentación narrativa de endpoints, complementaria al OpenAPI generado.
 - `docs/testing/smoke-tests.md` — guía práctica para validar el backend levantado.
+- `docs/README.md` y los `README.md` de cada carpeta — propósito de negocio, responsabilidad de sistema e inventario local.
 
 ## Seguridad — reglas no negociables
 

@@ -1,4 +1,9 @@
-import { Body, Controller, ForbiddenException, Headers, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+/**
+ * @file Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso.
+ * @business Esta pieza protege el acceso de clientes y operadores, la recuperación de cuenta y la continuidad segura de sesiones.
+ * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
+ */
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
@@ -200,6 +205,34 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   logout(@Body(new ZodValidationPipe(logoutSchema)) body: LogoutDto) {
     return this.authService.logout({ refreshToken: body.refreshToken, allDevices: body.allDevices });
+  }
+
+  /**
+   * Identidad del actor autenticado (N15).
+   *
+   * El frontend necesita el `customerId` para llamar a cualquier endpoint `:customerId`, y hasta
+   * ahora la única forma de obtenerlo era decodificar el JWT en el cliente: `POST /auth/login`
+   * devuelve solo los tokens, y `GET /internal-auth/me` existe únicamente para actores internos.
+   * Decodificar el token en el frontend funciona, pero acopla la app al formato interno del claim.
+   */
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Identidad del actor autenticado',
+    description:
+      'Devuelve el tipo de actor, su rol, su tenant y —para un cliente— su `customerId`. Es la forma soportada de que el ' +
+      'frontend conozca su propio identificador sin decodificar el access token.',
+  })
+  @ApiResponse({ status: 200, description: 'Identidad del actor del token.' })
+  @ApiResponse({ status: 401, description: 'Token ausente, inválido o revocado.' })
+  @Get('me')
+  getMe(@CurrentUser() currentUser: AuthenticatedUser) {
+    return {
+      actorType: currentUser.customerId ? 'customer' : currentUser.internalUserId ? 'internal_user' : 'platform_user',
+      role: currentUser.role,
+      tenantId: currentUser.tenantId ?? null,
+      customerId: currentUser.customerId ?? null,
+      internalUserId: currentUser.internalUserId ?? null,
+    };
   }
 
   /**

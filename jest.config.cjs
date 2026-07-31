@@ -36,10 +36,8 @@ const config = {
   },
   testMatch: ['**/test/**/*.spec.ts', '**/test/**/*.test.ts'],
 
-  // Fase 1.1 del plan 10/10: la suite completa tarda ~170 s y estaba siendo matada por un corte de
-  // 60 s del proceso, lo que ocultaba si realmente pasa (sí pasa: 108 suites / 985 tests verdes).
-  // No se limita el proceso: se fija un timeout POR TEST razonable (para que un test colgado falle
-  // rápido en vez de colgar el job) y `maxWorkers` para que el tiempo sea estable entre local y CI.
+  // El timeout es por prueba, no para la suite completa. La validación del 28-jul-2026 ejecutó 263
+  // suites / 2.191 tests con cobertura; el proceso completo puede tardar varios minutos según I/O.
   testTimeout: 15000,
   // '50%' para el dev loop; 1 para el gate de cobertura (ver `isCoverageRun` arriba: evita el flake
   // de fusión de coverage maps entre workers).
@@ -60,60 +58,19 @@ const config = {
   // umbrales por grupo al subir el trinquete (ver docs/testing/coverage-ratchet.md).
   coverageReporters: ['text-summary', 'text', 'lcov', 'json', 'json-summary', 'clover'],
 
-  // Fase 1.2 del plan 10/10 — GATE DE COBERTURA POR TRINQUETE.
-  //
-  // Los umbrales están fijados en el nivel REAL medido hoy (no en un número aspiracional), con ~1
-  // punto de margen para no romper por fluctuaciones. Su función es IMPEDIR REGRESIONES: un PR que
-  // baje la cobertura falla. Cada sprint se suben estos números; el objetivo del plan es ≥85% global
-  // y ≥90% en auth/risk/fraud/crypto.
-  //
-  // OJO (comportamiento de Jest): cuando se declaran umbrales por path, los archivos que hacen match
-  // se RESTAN del cómputo `global`. Por eso `global` está calibrado contra el "resto" (61.91/43.97/
-  // 38.20/62.22 medido), no contra el total de 62.18. Medido con `yarn test:coverage`.
+  // Gate por trinquete medido el 28-jul-2026. Los paths críticos se restan del cómputo `global` de
+  // Jest, de modo que `global` representa el resto del backend. Evidencia y cifras completas:
+  // docs/testing/coverage-ratchet.md.
   coverageThreshold: {
-    // El "resto" (scope de `global`, todo menos los paths con umbral propio) subió fuerte tras cubrir
-    // con specs directos TODO el service layer testeable (auth extraídos, systems-ops completo,
-    // mail-sender, http-action-log, audit, mongo-logs, etc.) y TODOS los controllers testeables (audit,
-    // events, operations, sessions, customer-onboarding, catalog-management, notifications, external-data
-    // verticales, systems-ops×N, etc.) + un push de BRANCH coverage sobre los mappers puros y los 8
-    // adapters de external-data + extensión de repos (internal-rbac, schema-management, external-data,
-    // repos, servicios (notifications/data-quality/external-data facades), guards y los adapters de
-    // notificación y external-data). Fase 1.2. Medido con `test:coverage` capado: total repo
-    // 80.65/62.52/70.4/81.36 (1749 tests); el "resto" queda ~1 pt por debajo. Umbral con ~2-3 pt de
-    // colchón para que el gate aguante aunque CI corra sin los specs untracked ajenos.
-    //
-    // Bump 79/60/70/79 -> 81/62/74/81 (2026-07-19, 2º del ciclo): 2º lote de cobertura (data-quality.repo,
-    // notifications.repo [159 stmts, no era delegador], sessions-device/telemetry, health-monitor,
-    // mail-sender.client, systems-test-http-client, mongo-logs-query) subió el "resto" a 84.31/64.95/77.83/
-    // 85.13 (repo total 84.61 stmts / 85.41 lines — cruzando el objetivo de 85% en líneas; 238 suites / 1865
-    // tests, exit 0, sin flake con maxWorkers=1). Colchón ~3-4 pt para absorber que CI corre sin los 3 specs
-    // untracked ajenos (http-exception.filter, domain-schemas, admin-read.service).
-    // Historial previo: 77/58/66/77 -> 79/60/70/79 (1er lote: external-data controller+repo, catalog-management.
-    // repo, runtime-jobs, systems-catalog-query, adapters de notificación).
-    // Bump 81/62/74/81 -> 82/65/76/82 (2026-07-19, 3º del ciclo): lote de BRANCHES en utils puros,
-    // interceptores, servicios y repos (systems-repository-where, external-data-policy, outbox.interceptor,
-    // session-query, external-data-evidence, http-action-log.interceptor, governance, session-heartbeat,
-    // customer-telemetry, notification-templates, events) — el "resto" quedó en 84.96/68.02/79.03/85.57
-    // (repo total 85.58/68.55/80.09/86.23, 242 suites / 1961 tests). Branches +3.1 pt respecto del bump previo.
-    // Bump 82/65/76/82 -> 83/67/77/83 (2026-07-19, 4º y último del ciclo): 2º lote de branches
-    // (orchestrator, audit.repo, catalog-definitions, session-start, operations.repo, decision.service,
-    // notifications.repo) dejó el "resto" en 85.01/69.15/79.12/85.62. Branches +7 pt en el ciclo (62→69).
+    // Medido: 85.05 / 67.04 / 77.25 / 85.58.
     global: { statements: 83, branches: 67, functions: 77, lines: 83 },
-    // Dominios críticos con umbral propio (medidos: ver docs/testing/coverage-ratchet.md).
-    // Re-baseline Fase 1.2 (medido in-band, 1770 tests): estos 4 paths no dependen de specs untracked
-    // ni de código sin commitear (working tree limpio bajo ellos), así que su nivel es reproducible en
-    // CI y se ratchetea con ~1.5-2.5 pt de colchón. El `global` NO se sube: su medición está inflada
-    // por specs untracked ajenas del "resto", así que quedaría por encima de lo que CI vería.
-    // auth: 96.56/74.53/94.92/97.14 tras cubrir auth.controller (8 endpoints), verifyLoginPin (login 2FA) y
-    // los finders/mutaciones restantes de auth.repository — CRUZA el objetivo del plan ≥90% en stmts/funcs/lines.
+    // Medido: 96.46 / 72.32 / 93.65 / 96.99.
     './src/modules/auth/': { statements: 94, branches: 72, functions: 92, lines: 95 },
-    // risk: 98.85/81.40/100/100 tras cubrir los 11 create* de RiskRepository y getDetail/getExplanation del
-    // controller — 100% de funciones y líneas.
+    // Medido: 98.85 / 81.40 / 100 / 100.
     './src/modules/risk/': { statements: 97, branches: 80, functions: 98, lines: 98 },
-    // fraud: 97.26/80.00/100/96.97 tras el spec directo de FraudRepository — 100% de funciones. El
-    // branch (80.0) se mantiene en 79 (colchón ~1 pt) porque no subió con el resto.
+    // Medido: 97.26 / 80.00 / 100 / 96.97.
     './src/modules/fraud/': { statements: 95, branches: 79, functions: 98, lines: 95 },
-    // crypto: 91.33/77.55/94.29/92.77 tras los tests de KMS (Fase 3.3) y el PIN de 2FA (Fase 4.2).
+    // Medido: 91.01 / 76.47 / 94.29 / 91.86.
     './src/common/utils/crypto/': { statements: 90, branches: 75, functions: 92, lines: 91 },
   },
   clearMocks: true,

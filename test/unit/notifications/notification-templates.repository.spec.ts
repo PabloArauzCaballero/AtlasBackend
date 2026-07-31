@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { Op } from 'sequelize';
 import { NotificationTemplatesRepository } from '../../../src/modules/notifications/notification-templates.repository.js';
 
@@ -9,7 +10,7 @@ import { NotificationTemplatesRepository } from '../../../src/modules/notificati
  */
 describe('NotificationTemplatesRepository', () => {
   function buildRepo() {
-    const templateModel = { findOne: jest.fn(), findAndCountAll: jest.fn(), create: jest.fn() };
+    const templateModel = { findOne: asyncMock(), findAndCountAll: asyncMock(), create: asyncMock() };
     const repo = new NotificationTemplatesRepository(templateModel as never);
     return { repo, templateModel };
   }
@@ -19,7 +20,7 @@ describe('NotificationTemplatesRepository', () => {
     (templateModel.findOne as jest.Mock).mockResolvedValue({ id: 'tpl-tenant' } as never);
     const result = await repo.findTemplate({ tenantId: 't1', code: 'welcome', channel: 'push' as never });
     expect(result).toEqual({ id: 'tpl-tenant' });
-    expect((templateModel.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({ tenantId: 't1', locale: 'es-BO', isActive: true });
+    expect(callArg<CallArgRecord>(templateModel.findOne, 0, 0).where).toMatchObject({ tenantId: 't1', locale: 'es-BO', isActive: true });
     // No cae a global porque encontró la del tenant.
     expect(templateModel.findOne).toHaveBeenCalledTimes(1);
   });
@@ -29,7 +30,7 @@ describe('NotificationTemplatesRepository', () => {
     (templateModel.findOne as jest.Mock).mockResolvedValueOnce(null as never).mockResolvedValueOnce({ id: 'tpl-global' } as never);
     const result = await repo.findTemplate({ tenantId: 't1', code: 'welcome', channel: 'push' as never, locale: 'en-US' });
     expect(result).toEqual({ id: 'tpl-global' });
-    expect((templateModel.findOne as jest.Mock).mock.calls[1][0].where).toMatchObject({ tenantId: null, locale: 'en-US' });
+    expect(callArg<CallArgRecord>(templateModel.findOne, 1, 0).where).toMatchObject({ tenantId: null, locale: 'en-US' });
   });
 
   it('findTemplate sin tenantId consulta directamente la global', async () => {
@@ -38,7 +39,7 @@ describe('NotificationTemplatesRepository', () => {
     await repo.findTemplate({ tenantId: null, code: 'welcome', channel: 'push' as never });
     // Solo una consulta (la global), sin la del tenant.
     expect(templateModel.findOne).toHaveBeenCalledTimes(1);
-    expect((templateModel.findOne as jest.Mock).mock.calls[0][0].where.tenantId).toBeNull();
+    expect(callArg<CallArgRecord>(templateModel.findOne, 0, 0).where.tenantId).toBeNull();
   });
 
   it('listTemplates arma Op.or tenant/null y aplica filtros + offset', async () => {

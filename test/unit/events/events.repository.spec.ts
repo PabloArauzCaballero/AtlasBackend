@@ -1,4 +1,5 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { Op } from 'sequelize';
 
 // El repositorio deriva los códigos válidos del registro de eventos; lo mockeamos para controlar
@@ -20,8 +21,8 @@ import { getEventDefinition, listEventDefinitions } from '../../../src/modules/e
  */
 describe('EventsRepository', () => {
   function buildRepo() {
-    const outboxModel = { findOne: jest.fn(), findAll: jest.fn(), create: jest.fn(), findAndCountAll: jest.fn() };
-    const sequelize = { query: jest.fn(), transaction: jest.fn() };
+    const outboxModel = { findOne: asyncMock(), findAll: asyncMock(), create: asyncMock(), findAndCountAll: asyncMock() };
+    const sequelize = { query: asyncMock(), transaction: asyncMock() };
     const repo = new EventsRepository(outboxModel as never, sequelize as never);
     return { repo, outboxModel, sequelize };
   }
@@ -130,7 +131,7 @@ describe('EventsRepository', () => {
       const { repo, outboxModel } = buildRepo();
       (outboxModel.findAll as jest.Mock).mockResolvedValue([] as never);
       await repo.listWithCursor('t1', { page: 1, limit: 10 } as never, { createdAt: '2026-01-01T00:00:00Z', id: '50' });
-      const where = (outboxModel.findAll as jest.Mock).mock.calls[0][0].where as Record<string | symbol, unknown>;
+      const where = callArg<CallArgRecord>(outboxModel.findAll, 0, 0).where as Record<string | symbol, unknown>;
       expect(where[Op.and as unknown as string]).toBeDefined();
     });
   });
@@ -162,7 +163,7 @@ describe('EventsRepository', () => {
       const { repo, outboxModel } = buildRepo();
       (outboxModel.findAll as jest.Mock).mockResolvedValue([] as never);
       await repo.listPending({ tenantId: 't1', limit: 5 });
-      const where = (outboxModel.findAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+      const where = callArg<CallArgRecord>(outboxModel.findAll, 0, 0).where as Record<string, unknown>;
       expect(where.status).toBe('pending');
       expect((where.eventCode as Record<symbol, unknown>)[Op.in]).toEqual(['customer.created', 'customer.updated']);
       expect(where.tenantId).toBe('t1');
@@ -172,7 +173,7 @@ describe('EventsRepository', () => {
       const { repo, outboxModel } = buildRepo();
       (outboxModel.findAll as jest.Mock).mockResolvedValue([] as never);
       await repo.listPending({ tenantId: null, limit: 5 });
-      expect((outboxModel.findAll as jest.Mock).mock.calls[0][0].where.tenantId).toBeUndefined();
+      expect(callArg<CallArgRecord>(outboxModel.findAll, 0, 0).where.tenantId).toBeUndefined();
     });
   });
 
@@ -192,7 +193,10 @@ describe('EventsRepository', () => {
       (outboxModel.findAll as jest.Mock).mockResolvedValue([{ id: '1' }, { id: '2' }] as never);
       const result = await repo.claimPending({ tenantId: 't1', limit: 10, workerId: 'w1' });
       expect(result).toHaveLength(2);
-      const findWhere = (outboxModel.findAll as jest.Mock).mock.calls[0][0].where as { id: Record<symbol, unknown>; lockedBy: string };
+      const findWhere = callArg<CallArgRecord>(outboxModel.findAll, 0, 0).where as unknown as {
+        id: Record<symbol, unknown>;
+        lockedBy: string;
+      };
       expect(findWhere.id[Op.in]).toEqual(['1', '2']);
       expect(findWhere.lockedBy).toBe('w1');
     });

@@ -1,5 +1,9 @@
 # Revisión completa del backend — Informe de fallas y puntos de mejora por área
 
+> **Registro histórico.** Sus hallazgos se corrigieron o revaluaron después de esta fecha. Consultar
+> [`cierre-correcciones-2026-07-21.md`](./cierre-correcciones-2026-07-21.md) y la revisión vigente
+> [`documentacion-y-correcciones-2026-07-27.md`](./documentacion-y-correcciones-2026-07-27.md).
+
 - **Fecha:** 2026-07-21
 - **Rama auditada:** `plan-10-10-docs-kms-refactors` (working tree, incluye cambios sin commitear)
 - **Método:** 6 auditorías paralelas de solo lectura (seguridad, arquitectura/clean code, base de datos, observabilidad, rendimiento, testing/CI) aplicando los checklists de las skills `security-audit`, `clean-code-review`, `backend-hardening`, `observability-audit`, `performance-audit` y `production-verification` del catálogo `claude_backend_skills_recomendadas.json`. Todo hallazgo cita `archivo:línea`. No se modificó código ni se ejecutó nada contra bases de datos.

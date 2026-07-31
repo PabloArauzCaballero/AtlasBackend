@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { SessionsLocationRepository } from '../../../src/modules/sessions/repositories/sessions-location.repository.js';
 
 /**
@@ -8,9 +9,9 @@ import { SessionsLocationRepository } from '../../../src/modules/sessions/reposi
  */
 describe('SessionsLocationRepository', () => {
   function buildRepo() {
-    const customerAddressModel = { findOne: jest.fn() };
-    const customerAddressVersionModel = { findOne: jest.fn() };
-    const addressGpsObservationModel = { create: jest.fn(), findOne: jest.fn(), findAll: jest.fn() };
+    const customerAddressModel = { findOne: asyncMock() };
+    const customerAddressVersionModel = { findOne: asyncMock() };
+    const addressGpsObservationModel = { create: asyncMock(), findOne: asyncMock(), findAll: asyncMock() };
     const repo = new SessionsLocationRepository(
       customerAddressModel as never,
       customerAddressVersionModel as never,
@@ -41,7 +42,7 @@ describe('SessionsLocationRepository', () => {
     (customerAddressModel.findOne as jest.Mock).mockResolvedValue({ id: 7, currentVersionId: null } as never);
     (customerAddressVersionModel.findOne as jest.Mock).mockResolvedValue({ id: 42 } as never);
     const result = await repo.findCurrentAddressContext('t1', 'c1', opts);
-    expect((customerAddressVersionModel.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({
+    expect(callArg<CallArgRecord>(customerAddressVersionModel.findOne, 0, 0).where).toMatchObject({
       tenantId: 't1',
       customerAddressId: '7',
       validUntil: null,
@@ -87,7 +88,7 @@ describe('SessionsLocationRepository', () => {
     const { repo, addressGpsObservationModel } = buildRepo();
     (addressGpsObservationModel.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findLatestGpsObservation('t1', 's1');
-    expect((addressGpsObservationModel.findOne as jest.Mock).mock.calls[0][0].order).toEqual([
+    expect(callArg<CallArgRecord>(addressGpsObservationModel.findOne, 0, 0).order).toEqual([
       ['capturedAt', 'DESC'],
       ['id', 'DESC'],
     ]);
@@ -97,6 +98,6 @@ describe('SessionsLocationRepository', () => {
     const { repo, addressGpsObservationModel } = buildRepo();
     (addressGpsObservationModel.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.findSessionGpsObservations('t1', 's1');
-    expect((addressGpsObservationModel.findAll as jest.Mock).mock.calls[0][0].limit).toBe(30);
+    expect(callArg<CallArgRecord>(addressGpsObservationModel.findAll, 0, 0).limit).toBe(30);
   });
 });

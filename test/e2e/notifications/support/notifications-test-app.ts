@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 import type { INestApplication, Provider } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import jwt from 'jsonwebtoken';
+import { accessTokenSignOptions } from '../../../../src/common/utils/auth/jwt-claims.util.js';
 import { JwtAuthGuard } from '../../../../src/common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../../../src/common/guards/roles.guard.js';
 import { TenantGuard } from '../../../../src/common/guards/tenant.guard.js';
@@ -34,10 +35,11 @@ export async function buildNotificationsTestApp(services: Provider[]): Promise<I
 }
 
 export function signNotificationsToken(role: AtlasUserRole, overrides: Record<string, unknown> = {}): string {
-  return jwt.sign({ sub: 'e2e-notifications-user', role, tenantId: '1', ...overrides }, env.JWT_ACCESS_TOKEN_SECRET, {
-    algorithm: 'HS256',
-    expiresIn: '5m',
-  });
+  return jwt.sign(
+    { sub: 'e2e-notifications-user', role, tenantId: '1', ...overrides },
+    env.JWT_ACCESS_TOKEN_SECRET,
+    accessTokenSignOptions({ algorithm: 'HS256', expiresIn: '5m' }),
+  );
 }
 
 export function authHeader(role: AtlasUserRole, overrides?: Record<string, unknown>): [string, string] {

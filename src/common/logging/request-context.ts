@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de logging sin introducir reglas de un dominio específico.
+ */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { trace } from '@opentelemetry/api';
 

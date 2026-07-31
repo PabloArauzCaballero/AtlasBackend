@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { NotificationOrchestratorService } from '../../../src/modules/notifications/notification-orchestrator.service.js';
 
 /**
@@ -21,7 +22,7 @@ describe('NotificationOrchestratorService', () => {
   }
 
   function buildService() {
-    const rulesService = { getRulesForEvent: jest.fn() };
+    const rulesService = { getRulesForEvent: asyncMock() };
     const repository = {
       isChannelEnabled: jest.fn(async () => true),
       findTemplate: jest.fn(async () => null),
@@ -198,7 +199,7 @@ describe('NotificationOrchestratorService', () => {
           templatePrefix: 'x',
         },
       ] as never);
-      (repository.isChannelEnabled as jest.Mock).mockImplementation(async (args: { channel: string }) => args.channel !== 'email');
+      repository.isChannelEnabled.mockImplementation(async (...args: unknown[]) => (args[0] as { channel: string }).channel !== 'email');
 
       await service.handleEvent(fakeEvent({ eventPayloadJson: { customerId: 'c1' } }) as never);
 

@@ -71,7 +71,9 @@ function requestWith(cookieHeader?: string) {
 const loginBody = { tenantId: '1', email: 'qa@atlas.internal', password: 'secreto' };
 
 describe('InternalAuthController · login', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   it('NO devuelve los tokens en el body', async () => {
     const { controller } = buildController();
@@ -142,7 +144,9 @@ describe('InternalAuthController · login', () => {
 });
 
 describe('InternalAuthController · refresh', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   it('toma el refresh token de la cookie cuando el body va vacio', async () => {
     const { controller, authService } = buildController();
@@ -190,7 +194,9 @@ describe('InternalAuthController · refresh', () => {
 });
 
 describe('InternalAuthController · logout', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   it('revoca el token de la cookie y limpia ambas cookies', async () => {
     const { controller, authService } = buildController();

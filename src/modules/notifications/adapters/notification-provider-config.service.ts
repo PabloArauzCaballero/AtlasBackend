@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
+ * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
+ */
 import { Injectable } from '@nestjs/common';
 import { env } from '../../../config/env.js';
 import { NotificationChannel } from '../notification-types.js';

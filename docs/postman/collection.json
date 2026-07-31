@@ -6,7 +6,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3000"
+      "value": "http://localhost:3005"
     },
     {
       "key": "token",
@@ -15,6 +15,10 @@
     {
       "key": "sessionId",
       "value": "1"
+    },
+    {
+      "key": "verificationCode",
+      "value": "<código recibido por el canal configurado>"
     },
     {
       "key": "deviceId",
@@ -167,7 +171,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"contactType\": \"phone\",\n  \"verificationChannel\": \"sms\",\n  \"verificationCode\": \"123456\",\n  \"sessionId\": \"1\"\n}"
+          "raw": "{\n  \"contactType\": \"phone\",\n  \"verificationChannel\": \"sms\",\n  \"verificationCode\": \"{{verificationCode}}\",\n  \"sessionId\": \"1\"\n}"
         }
       }
     },
@@ -1268,16 +1272,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/operations/events/catalog",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "operations",
-                "events",
-                "catalog"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "operations", "events", "catalog"]
             }
           }
         },
@@ -1309,15 +1305,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/operations/events",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "operations",
-                "events"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "operations", "events"]
             }
           }
         },
@@ -1349,16 +1338,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/operations/jobs/process-events",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "operations",
-                "jobs",
-                "process-events"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "operations", "jobs", "process-events"]
             }
           }
         },
@@ -1378,16 +1359,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/operations/notifications/messages?page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "operations",
-                "notifications",
-                "messages"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "operations", "notifications", "messages"],
               "query": [
                 {
                   "key": "page",
@@ -1417,16 +1390,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}/notifications?page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "customers",
-                "{{customerId}}",
-                "notifications"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "customers", "{{customerId}}", "notifications"],
               "query": [
                 {
                   "key": "page",

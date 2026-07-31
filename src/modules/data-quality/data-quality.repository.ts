@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza evita decisiones crediticias basadas en datos incompletos, incoherentes o sin linaje.
+ * @system administra reglas, ejecuciones y hallazgos de calidad consultables por operaciones.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindAndCountOptions, FindOptions, Op, Transaction, WhereOptions } from 'sequelize';

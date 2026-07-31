@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { CatalogDefinitionsRepository } from '../../../src/modules/catalog-management/catalog-definitions.repository.js';
 
 /**
@@ -9,10 +10,10 @@ import { CatalogDefinitionsRepository } from '../../../src/modules/catalog-manag
 describe('CatalogDefinitionsRepository', () => {
   function buildRepo() {
     const models = {
-      observationDefinitionModel: { findAll: jest.fn(async () => []), findOne: jest.fn(), create: jest.fn() },
-      eventDefinitionModel: { findAll: jest.fn(async () => []), findOne: jest.fn(), create: jest.fn() },
-      attributeDefinitionModel: { findAll: jest.fn(async () => []), findOne: jest.fn(), create: jest.fn() },
-      featureDefinitionModel: { findAll: jest.fn(async () => []), findOne: jest.fn(), create: jest.fn() },
+      observationDefinitionModel: { findAll: jest.fn(async () => []), findOne: asyncMock(), create: asyncMock() },
+      eventDefinitionModel: { findAll: jest.fn(async () => []), findOne: asyncMock(), create: asyncMock() },
+      attributeDefinitionModel: { findAll: jest.fn(async () => []), findOne: asyncMock(), create: asyncMock() },
+      featureDefinitionModel: { findAll: jest.fn(async () => []), findOne: asyncMock(), create: asyncMock() },
     };
     const repo = new CatalogDefinitionsRepository(
       models.observationDefinitionModel as never,
@@ -44,7 +45,7 @@ describe('CatalogDefinitionsRepository', () => {
     it('status=active filtra por isActive:true y domain aplica el campo de familia correcto', async () => {
       const { repo, models } = buildRepo();
       await repo.listDefinitions({ type: 'event', status: 'active', domain: 'risk' } as never);
-      const where = (models.eventDefinitionModel.findAll as jest.Mock).mock.calls[0][0].where;
+      const where = callArg<CallArgRecord>(models.eventDefinitionModel.findAll, 0, 0).where;
       expect(where).toMatchObject({ isActive: true, eventFamily: 'risk' });
     });
   });

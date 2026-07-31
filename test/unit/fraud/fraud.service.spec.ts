@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { FraudService } from '../../../src/modules/fraud/fraud.service.js';
 
@@ -8,14 +9,14 @@ import { FraudService } from '../../../src/modules/fraud/fraud.service.js';
  */
 function buildFraudRepositoryMock() {
   return {
-    findFraudCaseById: jest.fn(),
-    closeFraudCase: jest.fn(),
-    createFraudCaseEvent: jest.fn(),
-    createWatchlistEntry: jest.fn(),
-    createStatusEvent: jest.fn(),
-    createCustomerObservation: jest.fn(),
-    createOperationalAudit: jest.fn(),
-    createDataChange: jest.fn(),
+    findFraudCaseById: asyncMock(),
+    closeFraudCase: asyncMock(),
+    createFraudCaseEvent: asyncMock(),
+    createWatchlistEntry: asyncMock(),
+    createStatusEvent: asyncMock(),
+    createCustomerObservation: asyncMock(),
+    createOperationalAudit: asyncMock(),
+    createDataChange: asyncMock(),
   };
 }
 

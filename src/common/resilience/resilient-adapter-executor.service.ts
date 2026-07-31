@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de resilience sin introducir reglas de un dominio específico.
+ */
 import { Injectable, Optional } from '@nestjs/common';
 import { MetricsService } from '../observability/metrics.service.js';
 import { AdapterError } from './adapter-error.js';

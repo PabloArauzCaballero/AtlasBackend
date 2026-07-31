@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza gobierna propuestas de estructura sin permitir DDL directo desde el portal.
+ * @system valida y audita el catálogo de cambios; la ejecución física permanece en migraciones revisadas.
+ */
 import { BadRequestException, Injectable } from '@nestjs/common';
 
 /**

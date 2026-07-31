@@ -1,6 +1,11 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza gobierna los catálogos que convierten datos externos y reglas de riesgo en decisiones consistentes.
+ * @system implementa ingesta, versionado, aprobación, activación y consulta transaccional de catálogos.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions } from 'sequelize';
+import { CreationAttributes, FindOptions } from 'sequelize';
 import {
   DataClassificationPolicyModel,
   DataProviderModel,
@@ -73,7 +78,9 @@ export class CatalogDataGovernanceRepository {
       await existing.update({ ...values, updatedAtValue: values.updatedAtValue }, { transaction: options.transaction });
       return { record: existing, created: false };
     }
-    const record = await this.sensitiveFieldRuleModel.create(values as any, { transaction: options.transaction });
+    const record = await this.sensitiveFieldRuleModel.create(values as CreationAttributes<SensitiveFieldRuleModel>, {
+      transaction: options.transaction,
+    });
     return { record, created: true };
   }
 }

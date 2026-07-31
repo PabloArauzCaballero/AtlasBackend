@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza reduce pérdidas y habilita revisión humana explicable de señales sospechosas.
+ * @system administra casos, decisiones y eventos de fraude dentro de transacciones auditables.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op, Transaction } from 'sequelize';

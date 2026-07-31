@@ -1,3 +1,8 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza aporta trazabilidad verificable de acciones y cambios para investigación, cumplimiento y soporte.
+ * @system consolida consultas y persistencia de eventos de auditoría sin exponer modelos ORM al transporte.
+ */
 import { z } from 'zod';
 
 export const auditCustomerParamsSchema = z.object({ customerId: z.string().regex(/^[1-9][0-9]*$/) });

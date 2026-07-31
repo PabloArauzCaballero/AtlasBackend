@@ -1,3 +1,8 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza preserva evidencia operativa suficiente para diagnosticar incidentes con retención limitada.
+ * @system sincroniza logs redactados hacia MongoDB, aplica TTL y ofrece consultas administrativas.
+ */
 import { z } from 'zod';
 
 export const mongoLogsQuerySchema = z.object({

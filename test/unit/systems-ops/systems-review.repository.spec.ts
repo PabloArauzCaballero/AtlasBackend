@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { SystemsReviewRepository } from '../../../src/modules/systems-ops/systems-review.repository.js';
 
 /**
@@ -9,9 +10,9 @@ import { SystemsReviewRepository } from '../../../src/modules/systems-ops/system
 describe('SystemsReviewRepository', () => {
   function buildRepo() {
     const make = () => ({
-      findAndCountAll: jest.fn().mockResolvedValue({ rows: [], count: 0 } as never),
-      findByPk: jest.fn(),
-      create: jest.fn(),
+      findAndCountAll: asyncMock().mockResolvedValue({ rows: [], count: 0 } as never),
+      findByPk: asyncMock(),
+      create: asyncMock(),
     });
     const models = {
       endpoint: make(),
@@ -51,7 +52,7 @@ describe('SystemsReviewRepository', () => {
       await repo.listReviewQueue({ type: 'endpoints', reviewStatus: 'pending', page: 3, limit: 10 } as never);
       expect(models.endpoint.findAndCountAll).toHaveBeenCalled();
       expect(models.dataEntity.findAndCountAll).not.toHaveBeenCalled();
-      expect((models.endpoint.findAndCountAll as jest.Mock).mock.calls[0][0].offset).toBe(20);
+      expect(callArg<CallArgRecord>(models.endpoint.findAndCountAll, 0, 0).offset).toBe(20);
     });
   });
 
@@ -93,7 +94,7 @@ describe('SystemsReviewRepository', () => {
       (models.reviewEvent.create as jest.Mock).mockResolvedValue({} as never);
       await repo.updateEndpointReview('e1', { reviewStatus: 'rejected' } as never, null, 'reviewer', null);
       expect((row as { confidenceLevel: string }).confidenceLevel).toBe('medium');
-      expect((models.reviewEvent.create as jest.Mock).mock.calls[0][0].newConfidence).toBe('medium');
+      expect(callArg<CallArgRecord>(models.reviewEvent.create, 0, 0).newConfidence).toBe('medium');
     });
   });
 
@@ -107,7 +108,7 @@ describe('SystemsReviewRepository', () => {
       await repo.updateDataColumnReview('col1', { reviewStatus: 'approved', notes: 'ok' } as never, 'u1', 'admin', 't1');
       expect((row as { detectedFrom: string; operationalNotes: string }).detectedFrom).toBe('manual');
       expect((row as { operationalNotes: string }).operationalNotes).toBe('ok');
-      expect((models.reviewEvent.create as jest.Mock).mock.calls[0][0].targetType).toBe('data_column');
+      expect(callArg<CallArgRecord>(models.reviewEvent.create, 0, 0).targetType).toBe('data_column');
     });
   });
 

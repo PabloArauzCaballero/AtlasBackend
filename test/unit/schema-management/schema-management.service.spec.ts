@@ -1,4 +1,5 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
+import { asyncMock, type AsyncMock } from '../../support/jest-mocks.js';
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SchemaManagementService } from '../../../src/modules/schema-management/services/schema-management.service.js';
 import { SchemaManagementValidationService } from '../../../src/modules/schema-management/services/schema-management-validation.service.js';
@@ -21,26 +22,26 @@ import type { AuthenticatedUser } from '../../../src/common/types/auth.types.js'
  */
 
 type RepoMock = {
-  [K in keyof SchemaManagementRepository]: jest.Mock;
+  [K in keyof SchemaManagementRepository]: AsyncMock;
 };
 
 function makeRepoMock(): RepoMock {
   return {
-    getSchemaVersion: jest.fn(),
-    listSchemaVersions: jest.fn(),
+    getSchemaVersion: asyncMock(),
+    listSchemaVersions: asyncMock(),
     countTablesInVersion: jest.fn(async () => 0),
     countColumnsInVersion: jest.fn(async () => 0),
     countRelationshipsInVersion: jest.fn(async () => 0),
     countTablesColumnsRelationshipsForVersions: jest.fn(async () => new Map()),
-    getSchemaTable: jest.fn(),
-    listSchemaTables: jest.fn(),
+    getSchemaTable: asyncMock(),
+    listSchemaTables: asyncMock(),
     getSchemaColumns: jest.fn(async () => []),
     getSchemaRelationshipsForTable: jest.fn(async () => []),
-    createChangeLogEntry: jest.fn(),
-    getChangeLogEntry: jest.fn(),
-    getChangeLogEntryForUpdate: jest.fn(),
-    listChangeLog: jest.fn(),
-    resolveChangeLogEntry: jest.fn(),
+    createChangeLogEntry: asyncMock(),
+    getChangeLogEntry: asyncMock(),
+    getChangeLogEntryForUpdate: asyncMock(),
+    listChangeLog: asyncMock(),
+    resolveChangeLogEntry: asyncMock(),
     // withTransaction real-ish: ejecuta el callback con un token de transacción falso
     withTransaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown>) => cb({ id: 'tx-1' })),
   } as unknown as RepoMock;

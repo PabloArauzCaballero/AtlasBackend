@@ -1,3 +1,8 @@
+/**
+ * @file Utilidad pura o acotada reutilizable dentro de su capa.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de ids sin introducir reglas de un dominio específico.
+ */
 import { BadRequestException } from '@nestjs/common';
 
 const positiveIntegerPattern = /^[1-9][0-9]*$/;

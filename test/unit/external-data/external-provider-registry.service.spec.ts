@@ -193,19 +193,66 @@ describe('ExternalProviderRegistryService', () => {
       process.env = { ...ORIGINAL_ENV };
     });
 
-    it('does not throw when no provider is forced to production mode', () => {
+    it('does not throw when no provider is forced to production mode', async () => {
       delete process.env.SEGIP_MODE;
-      const { service } = buildService();
-      expect(() => service.onModuleInit()).not.toThrow();
+      const { service, repository } = buildService();
+      (repository.listProviders as jest.Mock).mockResolvedValueOnce([] as never);
+      await expect(service.onModuleInit()).resolves.toBeUndefined();
     });
 
-    it('throws when SEGIP_MODE=production is set without its required credentials', () => {
+    it('throws when SEGIP_MODE=production is set without its required credentials', async () => {
       process.env.SEGIP_MODE = 'production';
       delete process.env.SEGIP_BASE_URL;
       delete process.env.SEGIP_CLIENT_ID;
       delete process.env.SEGIP_CLIENT_SECRET;
       const { service } = buildService();
-      expect(() => service.onModuleInit()).toThrow(/SEGIP_MODE/);
+      await expect(service.onModuleInit()).rejects.toThrow(/SEGIP_MODE/);
+    });
+  });
+
+  /**
+   * Hallazgo A-02 de docs/audit/auditoria-integral-2026-07-30.md: el modo efectivo de cada proveedor
+   * vive en la BASE (`default_mode`), así que el fail-fast síncrono de arriba no lo ve. Esta
+   * auditoría de arranque lo deja visible antes de la primera request, sin tumbar el proceso: un
+   * backend que no puede consultar buró debe seguir sirviendo login y onboarding.
+   */
+  describe('onModuleInit — auditoría de proveedores en modo simulado', () => {
+    const ORIGINAL_ENV = { ...process.env };
+    afterEach(() => {
+      process.env = { ...ORIGINAL_ENV };
+    });
+
+    it('en producción registra los proveedores bloqueados por modo simulado', async () => {
+      process.env.NODE_ENV = 'production';
+      delete process.env.SEGIP_MODE;
+      const { service, repository } = buildService();
+      (repository.listProviders as jest.Mock).mockResolvedValueOnce([
+        { providerCode: 'SEGIP', defaultMode: 'mock_local' },
+        { providerCode: 'INFOCENTER', defaultMode: 'sandbox' },
+      ] as never);
+
+      await service.onModuleInit();
+
+      expect(service.listBlockedProviders()).toEqual([
+        { providerCode: 'SEGIP', mode: 'mock_local', blockers: ['SEGIP_MOCK_MODE_IN_PRODUCTION'] },
+      ]);
+    });
+
+    it('fuera de producción no bloquea a nadie', async () => {
+      const { service, repository } = buildService();
+      (repository.listProviders as jest.Mock).mockResolvedValueOnce([{ providerCode: 'SEGIP', defaultMode: 'mock_local' }] as never);
+
+      await service.onModuleInit();
+
+      expect(service.listBlockedProviders()).toEqual([]);
+    });
+
+    it('si la base no responde al arrancar, degrada a aviso y no rompe el boot', async () => {
+      const { service, repository } = buildService();
+      (repository.listProviders as jest.Mock).mockRejectedValueOnce(new Error('ECONNREFUSED') as never);
+
+      await expect(service.onModuleInit()).resolves.toBeUndefined();
+      expect(service.listBlockedProviders()).toEqual([]);
     });
   });
 });

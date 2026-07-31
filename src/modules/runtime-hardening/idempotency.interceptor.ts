@@ -1,3 +1,8 @@
+/**
+ * @file Interceptor: aplica una política transversal al ciclo HTTP.
+ * @business Esta pieza evita duplicados y pérdida de efectos ante reintentos, concurrencia o fallos parciales.
+ * @system centraliza idempotencia y outbox como garantías transversales del runtime HTTP.
+ */
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable, catchError, from, mergeMap, of, throwError } from 'rxjs';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';

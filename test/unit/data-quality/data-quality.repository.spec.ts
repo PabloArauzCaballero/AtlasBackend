@@ -1,4 +1,5 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
+import { asyncMock, type AsyncMock, callArg } from '../../support/jest-mocks.js';
 import { Op } from 'sequelize';
 import { DataQualityRepository } from '../../../src/modules/data-quality/data-quality.repository.js';
 import { decodeCursor, encodeCursor } from '../../../src/common/utils/pagination/cursor-pagination.util.js';
@@ -12,8 +13,8 @@ function makeRow(id: string, detectedAt: string) {
 }
 
 function buildRepository(
-  issueModelMock: { findAll: jest.Mock; findAndCountAll?: jest.Mock },
-  ruleModelMock: { findAll: jest.Mock } = { findAll: jest.fn(async () => []) },
+  issueModelMock: { findAll: AsyncMock; findAndCountAll?: AsyncMock },
+  ruleModelMock: { findAll: AsyncMock } = { findAll: jest.fn(async () => []) },
 ) {
   return new DataQualityRepository(issueModelMock as never, ruleModelMock as never, {} as never, {} as never);
 }
@@ -35,7 +36,7 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
     const result = await repository.findIssuesWithCursor('tenant-1', { limit: 2 });
 
     expect(findAll).toHaveBeenCalledTimes(1);
-    const callArgs = findAll.mock.calls[0][0] as { limit: number; where: Record<string, unknown> };
+    const callArgs = callArg<{ limit: number; where: Record<string, unknown> }>(findAll, 0, 0);
     expect(callArgs.limit).toBe(3); // limit + 1
     expect(callArgs.where).toEqual({ tenantId: 'tenant-1' }); // sin cursor todavía
 
@@ -64,7 +65,7 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
 
     await repository.findIssuesWithCursor('tenant-1', { limit: 10, cursor });
 
-    const callArgs = findAll.mock.calls[0][0] as { where: Record<string, unknown> };
+    const callArgs = callArg<{ where: Record<string, unknown> }>(findAll, 0, 0);
     // El filtro de cursor se agrega bajo una key Symbol (Op.and), invisible a Object.keys();
     // Reflect.ownKeys() sí la incluye. Alcanza con confirmar que se agregó ese filtro además
     // de tenantId, sin reconstruir el operador exacto.
@@ -78,7 +79,7 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
 
     await repository.findIssuesWithCursor('tenant-1', { limit: 10, status: 'open', entityType: 'customers', customerId: 'cust-1' });
 
-    const callArgs = findAll.mock.calls[0][0] as { where: Record<string, unknown> };
+    const callArgs = callArg<{ where: Record<string, unknown> }>(findAll, 0, 0);
     expect(callArgs.where).toMatchObject({ tenantId: 'tenant-1', issueStatus: 'open', targetTable: 'customers', targetRecordId: 'cust-1' });
   });
 
@@ -90,7 +91,7 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
     await repository.findIssuesWithCursor('tenant-1', { limit: 10, severity: 'critical' });
 
     expect(ruleFindAll).toHaveBeenCalledWith(expect.objectContaining({ where: { severity: 'critical' } }));
-    const callArgs = issueFindAll.mock.calls[0][0] as { where: Record<string, unknown> };
+    const callArgs = callArg<{ where: Record<string, unknown> }>(issueFindAll, 0, 0);
     expect(callArgs.where).toMatchObject({ tenantId: 'tenant-1', qualityRuleId: { [Op.in]: ['rule-1', 'rule-2'] } });
   });
 
@@ -108,7 +109,7 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
 
 describe('DataQualityRepository — findIssues / finders / mutaciones', () => {
   function buildFull() {
-    const issueModel = { findAll: jest.fn(), findAndCountAll: jest.fn(), findOne: jest.fn() };
+    const issueModel = { findAll: asyncMock(), findAndCountAll: asyncMock(), findOne: asyncMock() };
     const ruleModel = { findAll: jest.fn(async () => []) };
     const auditModel = { create: jest.fn(async () => ({ id: 'a' })) };
     const dataChangeLogModel = { create: jest.fn(async () => ({ id: 'd' })) };

@@ -1,3 +1,8 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza gobierna los catálogos que convierten datos externos y reglas de riesgo en decisiones consistentes.
+ * @system implementa ingesta, versionado, aprobación, activación y consulta transaccional de catálogos.
+ */
 import { z } from 'zod';
 
 const positiveId = z.string().regex(/^[1-9][0-9]*$/, 'Debe ser un entero positivo representado como texto.');

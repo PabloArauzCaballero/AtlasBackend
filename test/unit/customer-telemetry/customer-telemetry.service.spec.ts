@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg } from '../../support/jest-mocks.js';
 import { BadRequestException, ForbiddenException, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
 import { CustomerTelemetryService } from '../../../src/modules/customer-telemetry/customer-telemetry.service.js';
 
@@ -12,25 +13,25 @@ import { CustomerTelemetryService } from '../../../src/modules/customer-telemetr
 describe('CustomerTelemetryService.ingestBatch', () => {
   function buildService() {
     const telemetryRepository = {
-      findCustomerDeviceLink: jest.fn(),
-      findCustomerSession: jest.fn().mockResolvedValue({ id: 'session1' } as never),
-      findLatestOnboardingFlow: jest.fn(),
-      createFormFieldEvent: jest.fn(),
-      createPermissionEvent: jest.fn(),
-      createAuthEvent: jest.fn(),
-      createDeviceRiskEvent: jest.fn(),
-      createSimObservation: jest.fn(),
-      createIpReputation: jest.fn(),
-      createOnboardingStepEvent: jest.fn(),
-      createCustomerAction: jest.fn(),
-      createCustomerObservation: jest.fn(),
-      createOnDeviceRun: jest.fn(),
+      findCustomerDeviceLink: asyncMock(),
+      findCustomerSession: asyncMock().mockResolvedValue({ id: 'session1' } as never),
+      findLatestOnboardingFlow: asyncMock(),
+      createFormFieldEvent: asyncMock(),
+      createPermissionEvent: asyncMock(),
+      createAuthEvent: asyncMock(),
+      createDeviceRiskEvent: asyncMock(),
+      createSimObservation: asyncMock(),
+      createIpReputation: asyncMock(),
+      createOnboardingStepEvent: asyncMock(),
+      createCustomerAction: asyncMock(),
+      createCustomerObservation: asyncMock(),
+      createOnDeviceRun: asyncMock(),
       createOnDeviceMetrics: jest.fn(async (values: unknown[]) => values),
-      createBehaviorSummary: jest.fn(),
-      upsertActivitySummary: jest.fn(),
-      createAudit: jest.fn(),
+      createBehaviorSummary: asyncMock(),
+      upsertActivitySummary: asyncMock(),
+      createAudit: asyncMock(),
     };
-    const customersRepository = { findById: jest.fn() };
+    const customersRepository = { findById: asyncMock() };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
 
     const service = new CustomerTelemetryService(telemetryRepository as never, customersRepository as never, sequelize as never);
@@ -73,7 +74,7 @@ describe('CustomerTelemetryService.ingestBatch', () => {
   it('throws ForbiddenException when a customer token requests telemetry for a different customerId', async () => {
     const { service } = buildService();
     await expect(
-      service.ingestBatch(baseInput({ customerId: 'someone-else', currentUser: { ...customerUser, customerId: 'c1' } })),
+      service.ingestBatch(baseInput({ customerId: 'someone-else', currentUser: { ...(customerUser as object), customerId: 'c1' } })),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -264,7 +265,7 @@ describe('CustomerTelemetryService.ingestBatch', () => {
     expect(telemetryRepository.createOnDeviceRun).toHaveBeenCalledTimes(1);
     // Un solo bulkCreate para las N métricas (no una llamada por métrica — regresión N+1).
     expect(telemetryRepository.createOnDeviceMetrics).toHaveBeenCalledTimes(1);
-    expect(telemetryRepository.createOnDeviceMetrics.mock.calls[0][0]).toHaveLength(2);
+    expect(callArg(telemetryRepository.createOnDeviceMetrics, 0, 0)).toHaveLength(2);
     expect(result.acceptedMetrics).toBe(2);
   });
 

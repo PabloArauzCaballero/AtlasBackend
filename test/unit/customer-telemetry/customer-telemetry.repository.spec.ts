@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { CustomerTelemetryRepository } from '../../../src/modules/customer-telemetry/customer-telemetry.repository.js';
 
 /**
@@ -8,7 +9,7 @@ import { CustomerTelemetryRepository } from '../../../src/modules/customer-telem
  */
 describe('CustomerTelemetryRepository', () => {
   function buildRepo() {
-    const make = () => ({ findOne: jest.fn(), findAll: jest.fn(), create: jest.fn(), bulkCreate: jest.fn() });
+    const make = () => ({ findOne: asyncMock(), findAll: asyncMock(), create: asyncMock(), bulkCreate: asyncMock() });
     // Orden EXACTO del constructor (17 modelos).
     const order = [
       'customerDeviceLink',
@@ -233,9 +234,9 @@ describe('CustomerTelemetryRepository', () => {
       const { repo, models } = buildRepo();
       await repo.createBehaviorSummary({ ...base, formEventCount: 0, permissionEventCount: 2, computedAt: base.occurredAt } as never, tx);
       await repo.createBehaviorSummary({ ...base, formEventCount: 0, permissionEventCount: 0, computedAt: base.occurredAt } as never, tx);
-      const calls = (models.onboardingBehaviorSummary.create as jest.Mock).mock.calls;
-      expect(calls[0][0].permissionGrantScore).toBe('1.0000');
-      expect(calls[1][0].permissionGrantScore).toBeNull();
+      const create = models.onboardingBehaviorSummary.create;
+      expect(callArg<CallArgRecord>(create, 0, 0).permissionGrantScore).toBe('1.0000');
+      expect(callArg<CallArgRecord>(create, 1, 0).permissionGrantScore).toBeNull();
     });
 
     it('upsertActivitySummary crea si no existe, o actualiza (totalSessions+1) el existente', async () => {

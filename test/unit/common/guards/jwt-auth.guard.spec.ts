@@ -2,6 +2,7 @@ import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import jwt from 'jsonwebtoken';
+import { accessTokenSignOptions } from '../../../../src/common/utils/auth/jwt-claims.util.js';
 import { JwtAuthGuard } from '../../../../src/common/guards/jwt-auth.guard.js';
 import { TokenRevocationService } from '../../../../src/common/services/token-revocation.service.js';
 import { env } from '../../../../src/config/env.js';
@@ -20,7 +21,7 @@ import { RequestWithAuth } from '../../../../src/common/types/auth.types.js';
  */
 
 function signToken(payload: Record<string, unknown>): string {
-  return jwt.sign(payload, env.JWT_ACCESS_TOKEN_SECRET, { algorithm: 'HS256', expiresIn: '5m' });
+  return jwt.sign(payload, env.JWT_ACCESS_TOKEN_SECRET, accessTokenSignOptions({ algorithm: 'HS256', expiresIn: '5m' }));
 }
 
 function buildContext(headers: Record<string, string | undefined>): {
@@ -132,6 +133,46 @@ describe('JwtAuthGuard', () => {
   it('rechaza un token con firma inválida', async () => {
     const badToken = jwt.sign({ sub: '1', role: 'customer' }, 'clave-incorrecta', { algorithm: 'HS256' });
     const { context, reflector } = buildContext({ authorization: `Bearer ${badToken}` });
+    const guard = new JwtAuthGuard(reflector, buildRevocationServiceMock(null));
+
+    await expect(guard.canActivate(context)).rejects.toThrow('Token inválido o expirado');
+  });
+
+  /**
+   * Hallazgo A-08 de docs/audit/auditoria-integral-2026-07-30.md: el mismo
+   * `JWT_ACCESS_TOKEN_SECRET` lo usan también otros firmantes (p. ej. el probe de
+   * `systems-health.service.ts`). Sin `iss`/`aud`, la firma correcta bastaba para que un token
+   * emitido con ese secreto para OTRO propósito fuera candidato a sesión.
+   */
+  it('rechaza un token bien firmado pero de otro emisor', async () => {
+    const foreignToken = jwt.sign({ sub: '1', role: 'customer' }, env.JWT_ACCESS_TOKEN_SECRET, {
+      algorithm: 'HS256',
+      expiresIn: '5m',
+      issuer: 'otro-servicio',
+      audience: env.JWT_AUDIENCE,
+    });
+    const { context, reflector } = buildContext({ authorization: `Bearer ${foreignToken}` });
+    const guard = new JwtAuthGuard(reflector, buildRevocationServiceMock(null));
+
+    await expect(guard.canActivate(context)).rejects.toThrow('Token inválido o expirado');
+  });
+
+  it('rechaza un token bien firmado pero para otra audiencia', async () => {
+    const foreignToken = jwt.sign({ sub: '1', role: 'customer' }, env.JWT_ACCESS_TOKEN_SECRET, {
+      algorithm: 'HS256',
+      expiresIn: '5m',
+      issuer: env.JWT_ISSUER,
+      audience: 'otra-api',
+    });
+    const { context, reflector } = buildContext({ authorization: `Bearer ${foreignToken}` });
+    const guard = new JwtAuthGuard(reflector, buildRevocationServiceMock(null));
+
+    await expect(guard.canActivate(context)).rejects.toThrow('Token inválido o expirado');
+  });
+
+  it('rechaza un token sin iss/aud, como los emitidos antes de este cambio', async () => {
+    const legacyToken = jwt.sign({ sub: '1', role: 'customer' }, env.JWT_ACCESS_TOKEN_SECRET, { algorithm: 'HS256', expiresIn: '5m' });
+    const { context, reflector } = buildContext({ authorization: `Bearer ${legacyToken}` });
     const guard = new JwtAuthGuard(reflector, buildRevocationServiceMock(null));
 
     await expect(guard.canActivate(context)).rejects.toThrow('Token inválido o expirado');

@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 import type { INestApplication, Provider, Type } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import jwt from 'jsonwebtoken';
+import { accessTokenSignOptions } from '../../../../src/common/utils/auth/jwt-claims.util.js';
 import { JwtAuthGuard } from '../../../../src/common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../../../src/common/guards/roles.guard.js';
 import { TokenRevocationService } from '../../../../src/common/services/token-revocation.service.js';
@@ -34,10 +35,11 @@ export async function buildSystemsOpsTestApp(controllers: Type<unknown>[], servi
 // Sin tokenVersion en el payload — igual que scripts/create-dev-jwt.ts, el guard nunca consulta
 // TokenRevocationService en ese caso (ver jwt-auth.guard.ts), así que no hace falta simular Redis/DB.
 export function signSystemsOpsToken(role: AtlasUserRole, overrides: Record<string, unknown> = {}): string {
-  return jwt.sign({ sub: 'e2e-systems-ops-user', role, ...overrides }, env.JWT_ACCESS_TOKEN_SECRET, {
-    algorithm: 'HS256',
-    expiresIn: '5m',
-  });
+  return jwt.sign(
+    { sub: 'e2e-systems-ops-user', role, ...overrides },
+    env.JWT_ACCESS_TOKEN_SECRET,
+    accessTokenSignOptions({ algorithm: 'HS256', expiresIn: '5m' }),
+  );
 }
 
 export function authHeader(role: AtlasUserRole, overrides?: Record<string, unknown>): [string, string] {

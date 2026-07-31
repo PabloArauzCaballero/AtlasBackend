@@ -63,7 +63,7 @@ describe('SystemsStressRunService', () => {
     (stressProfileModel.findByPk as jest.Mock).mockResolvedValueOnce(activeProfile() as never);
     const res = await service.queueStressRun('5', input({ headers: { Authorization: 'Bearer x', 'X-Trace': 'ok' } }) as never, user);
     expect(res.queued).toBe(true);
-    const [args] = jobRunModel.create.mock.calls[0] as [{ inputJson: { headers: Record<string, string> }; status: string }];
+    const [args] = jobRunModel.create.mock.calls[0] as unknown as [{ inputJson: { headers: Record<string, string> }; status: string }];
     expect(args.status).toBe('queued');
     expect(args.inputJson.headers).toEqual({ Authorization: '[REDACTED]', 'X-Trace': 'ok' });
   });
@@ -75,7 +75,7 @@ describe('SystemsStressRunService', () => {
       count: 1,
     } as never);
     const res = await service.listStressRuns({ status: 'QUEUED', page: 1, limit: 10 } as never, user);
-    const [opts] = jobRunModel.findAndCountAll.mock.calls[0] as [{ where: Record<string, unknown> }];
+    const [opts] = jobRunModel.findAndCountAll.mock.calls[0] as unknown as [{ where: Record<string, unknown> }];
     expect(opts.where).toMatchObject({ jobCode: 'systems_stress_run', status: 'queued', tenantId: 't1' });
     expect(res.items[0]).toMatchObject({ jobRunId: '1' });
     expect(res.meta).toMatchObject({ total: 1, page: 1, limit: 10 });

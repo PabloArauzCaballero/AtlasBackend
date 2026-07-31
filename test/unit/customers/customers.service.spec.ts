@@ -22,8 +22,14 @@ describe('CustomersService.getCustomerMe', () => {
       findCustomerConsents: jest.fn(),
       findLatestRiskResult: jest.fn(),
     };
-    const service = new CustomersService(repository as never);
-    return { service, repository };
+    // `onboarding` y `nextStep` ya no se derivan en el mapper: vienen de `onboarding_flows` y del
+    // mismo evaluador que decide la habilitación.
+    const eligibilityRepository = { findLatestOnboardingFlow: jest.fn() };
+    const eligibilityService = {
+      evaluate: jest.fn(async () => ({ eligible: false, blockers: [], sections: [], completionPercentage: 0, nextStep: 'personal_data' })),
+    };
+    const service = new CustomersService(repository as never, eligibilityRepository as never, eligibilityService as never);
+    return { service, repository, eligibilityRepository, eligibilityService };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null, platformUserId: null } as never;
@@ -75,14 +81,15 @@ describe('CustomersService.getCustomerMe', () => {
     expect(order).toHaveLength(4);
   });
 
-  it('passes all 5 pieces of data to the mapper, including a null riskResult when the customer has none', async () => {
-    const { service, repository } = await buildService();
+  it('pasa al mapper el flujo de onboarding real y la evaluación de habilitación (regresión H3)', async () => {
+    const { service, repository, eligibilityRepository } = await buildService();
     const customer = { id: 'c1' };
     (repository.findById as jest.Mock).mockResolvedValueOnce(customer as never);
     (repository.findCurrentProfile as jest.Mock).mockResolvedValueOnce({ id: 'profile-1' } as never);
     (repository.findContactMethods as jest.Mock).mockResolvedValueOnce([{ id: 'contact-1' }] as never);
     (repository.findCustomerConsents as jest.Mock).mockResolvedValueOnce([] as never);
     (repository.findLatestRiskResult as jest.Mock).mockResolvedValueOnce(null as never);
+    (eligibilityRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce({ id: 'flow-1' } as never);
 
     const { toCustomerMeResponse } = await import('../../../src/modules/customers/customers.mapper.js');
     await service.getCustomerMe('t1', 'c1', customerUser);
@@ -93,6 +100,8 @@ describe('CustomersService.getCustomerMe', () => {
       contacts: [{ id: 'contact-1' }],
       consents: [],
       riskResult: null,
+      onboardingFlow: { id: 'flow-1' },
+      assessment: expect.objectContaining({ nextStep: 'personal_data' }),
     });
   });
 });

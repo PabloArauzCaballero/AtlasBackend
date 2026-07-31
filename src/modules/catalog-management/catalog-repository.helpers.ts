@@ -1,4 +1,9 @@
-import { FindOptions, Transaction } from 'sequelize';
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza gobierna los catálogos que convierten datos externos y reglas de riesgo en decisiones consistentes.
+ * @system implementa ingesta, versionado, aprobación, activación y consulta transaccional de catálogos.
+ */
+import { CreationAttributes, FindOptions, Model, ModelStatic, Transaction } from 'sequelize';
 
 export type RepositoryOptions = { transaction?: Transaction };
 
@@ -7,13 +12,8 @@ export type RepositoryOptions = { transaction?: Transaction };
  * repos por agregado de `catalog-management` (Fase 2.3 del plan 10/10). Es `this`-free: opera solo
  * sobre el modelo que recibe, por lo que no acopla a ningún repositorio concreto.
  */
-export async function upsertByCode<
-  T extends { update: (values: Record<string, unknown>, options?: { transaction?: Transaction }) => Promise<unknown> },
->(
-  model: {
-    findOne: (options: FindOptions) => Promise<T | null>;
-    create: (values: any, options?: { transaction?: Transaction }) => Promise<T>;
-  },
+export async function upsertByCode<T extends Model>(
+  model: ModelStatic<T>,
   fieldName: string,
   fieldValue: string,
   values: Record<string, unknown>,
@@ -24,6 +24,6 @@ export async function upsertByCode<
     await existing.update({ ...values, updatedAtValue: values.updatedAtValue }, { transaction: options.transaction });
     return { record: existing, created: false };
   }
-  const record = await model.create(values, { transaction: options.transaction });
+  const record = await model.create(values as CreationAttributes<T>, { transaction: options.transaction });
   return { record, created: true };
 }

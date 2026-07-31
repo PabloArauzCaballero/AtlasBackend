@@ -1,3 +1,8 @@
+/**
+ * @file Utilidad pura o acotada reutilizable dentro de su capa.
+ * @business Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
+ * @system define migration-support para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
+ */
 import { DataTypes, Model, ModelAttributeColumnOptions, ModelAttributes, QueryInterface } from 'sequelize';
 
 /**

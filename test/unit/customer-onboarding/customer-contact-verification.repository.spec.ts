@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { CustomerContactVerificationRepository } from '../../../src/modules/customer-onboarding/repositories/customer-contact-verification.repository.js';
 
 /**
@@ -8,8 +9,8 @@ import { CustomerContactVerificationRepository } from '../../../src/modules/cust
  */
 describe('CustomerContactVerificationRepository', () => {
   function buildRepo() {
-    const contactMethodModel = { findOne: jest.fn(), create: jest.fn() };
-    const contactVerificationAttemptModel = { findOne: jest.fn(), create: jest.fn() };
+    const contactMethodModel = { findOne: asyncMock(), create: asyncMock() };
+    const contactVerificationAttemptModel = { findOne: asyncMock(), create: asyncMock() };
     const repo = new CustomerContactVerificationRepository(contactMethodModel as never, contactVerificationAttemptModel as never);
     return { repo, contactMethodModel, contactVerificationAttemptModel };
   }
@@ -67,7 +68,7 @@ describe('CustomerContactVerificationRepository', () => {
     const { repo, contactVerificationAttemptModel } = buildRepo();
     (contactVerificationAttemptModel.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findLatestContactVerificationAttempt('t1', 'm1');
-    expect((contactVerificationAttemptModel.findOne as jest.Mock).mock.calls[0][0].order).toEqual([
+    expect(callArg<CallArgRecord>(contactVerificationAttemptModel.findOne, 0, 0).order).toEqual([
       ['attemptedAt', 'DESC'],
       ['id', 'DESC'],
     ]);

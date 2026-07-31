@@ -1,30 +1,39 @@
 /**
- * Gate de seguridad: CI falla si encuentra archivos `.env*` reales en la raíz del repo.
+ * Gate de seguridad: CI falla si Git rastrea archivos `.env*` reales.
+ *
+ * El archivo `.env` local forma parte del flujo de desarrollo documentado y está ignorado. Revisar
+ * el filesystem hacía que el gate fallara precisamente después de configurar el proyecto. La
+ * frontera de seguridad correcta es el índice de Git: un secreto solo puede llegar al repositorio o
+ * al checkout de CI si está rastreado (incluso mediante `git add -f`).
  */
-import { readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 function isAllowedTemplate(name: string): boolean {
   return name.endsWith('.example');
 }
 
-function main(): void {
-  const rootDir = resolve(process.cwd());
-  const entries = readdirSync(rootDir, { withFileTypes: true });
+function trackedEnvFiles(): string[] {
+  try {
+    return execFileSync('git', ['ls-files', '--', '.env', '.env.*'], { encoding: 'utf-8' })
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((name) => name.length > 0 && !isAllowedTemplate(name));
+  } catch (error) {
+    throw new Error(`No se pudo verificar el índice de Git: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
 
-  const offendingFiles = entries
-    .filter((entry) => entry.isFile())
-    .map((entry) => entry.name)
-    .filter((name) => name === '.env' || (name.startsWith('.env.') && !isAllowedTemplate(name)));
+function main(): void {
+  const offendingFiles = trackedEnvFiles();
 
   if (offendingFiles.length > 0) {
     console.error('❌ Se encontraron archivos .env reales en el repositorio:');
     offendingFiles.forEach((file) => console.error(`   - ${file}`));
-    console.error('   Elimínalos del repo/paquete. Usa .env.example como referencia y crea tu .env localmente.');
+    console.error('   Sácalos del índice. Usa .env.example como referencia y conserva tu .env solo localmente.');
     process.exit(1);
   }
 
-  console.log('✅ No se encontraron archivos .env reales en el repositorio.');
+  console.log('✅ Git no rastrea archivos .env reales; las plantillas .example están permitidas.');
 }
 
 main();

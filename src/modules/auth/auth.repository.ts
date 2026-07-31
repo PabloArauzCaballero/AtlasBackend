@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza protege el acceso de clientes y operadores, la recuperación de cuenta y la continuidad segura de sesiones.
+ * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Op, QueryTypes, Transaction, fn, where, col } from 'sequelize';
@@ -14,7 +19,7 @@ import {
 
 export type ActorType = 'customer' | 'internal_user' | 'platform_user';
 
-export type OneTimeCodePurpose = 'password_reset' | 'login_pin';
+export type OneTimeCodePurpose = 'password_reset' | 'login_pin' | 'contact_verification_phone' | 'contact_verification_email';
 
 export type LoginAttemptEvent = {
   tenantId: string | null;

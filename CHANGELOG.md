@@ -5,6 +5,62 @@ Este proyecto es privado (`UNLICENSED`); el versionado sigue `package.json`.
 
 ## [No publicado]
 
+### Auditoría integral 2026-07-30
+
+Ocho fases de endurecimiento derivadas de
+[`docs/audit/auditoria-integral-2026-07-30.md`](docs/audit/auditoria-integral-2026-07-30.md). Los
+gates existentes estaban todos en verde y aun así el sistema no era desplegable desde cero: ese es el
+hilo del que tira esta auditoría.
+
+#### Corregido — bloqueaban producción
+
+- **Provisionar un entorno nuevo era imposible** (A-01, regresión de ATLAS-TECH-001): la migración
+  monolítica `20260626154044-create-atlas-user-intelligence-fraud-schema-v5-2-1.ts` seguía en el
+  repositorio creando las mismas 86 tablas que `schema-part-0..9`, y ganaba el orden alfabético de
+  Umzug. Eliminada tras verificar la equivalencia (86/86 tablas, 244/244 FKs, 5/5 checks, 385/385
+  índices).
+- **En producción los proveedores externos servían datos fabricados** (A-02): los nueve se siembran
+  con `default_mode = 'mock_local'` y `toMode()` caía ahí, así que un despliegue que no fijara
+  `${CODE}_MODE` verificaba identidades y calculaba riesgo sobre payloads inventados, persistidos
+  como features del cliente. Ahora falla cerrado salvo escape hatch explícito.
+- **Ningún trabajo de fondo se ejecutaba solo** (A-03): sin planificador, el outbox no se despachaba,
+  las sesiones caducadas no expiraban y las políticas de retención de datos personales no se
+  aplicaban nunca.
+- **La PII se redactaba en el archivo de log pero no en stdout** (A-04) — el canal que recoge el
+  agregador en un contenedor. Y stdout no era parseable ni correlacionable.
+
+#### Añadido
+
+- `yarn check:migrations`: gate estático (sin base de datos) que bloquea colisiones de tabla no
+  idempotentes, prefijos de timestamp repetidos sin excepción documentada, migraciones sin `down` y
+  nombres fuera de patrón.
+- `yarn check:tenant-header`: trinquete que congela la duplicación de `@Headers('x-tenant-id')`
+  (ATLAS-SEC-002) en 26 controllers / 129 usos.
+- Dos jobs de saneamiento que faltaban: `retry-stuck-notifications` (los mensajes de un broadcast
+  interrumpido se quedaban en `pending` para siempre, porque la entrega corre fuera del request) y
+  `purge-idempotency-keys` (`idempotency_keys` solo crecía; nunca se borran las `processing`).
+- `RuntimeJobsSchedulerService`: ejecuta los siete jobs por su cuenta, opt-in
+  (`RUNTIME_JOBS_SCHEDULER_ENABLED`), con elección de líder por Redis `SET NX PX` y fail-closed en
+  producción sin lock. Sin dependencia nueva.
+- `LOG_FORMAT=json` (default en producción): stdout emite una línea JSON por evento, con
+  `correlationId`/`traceId` y la misma redacción de PII que el archivo.
+- `/health` reporta `version`, `commit` y `builtAt` reales (`src/config/build-info.ts`).
+- Métricas `atlas_db_pool_connections`, `atlas_auth_attempts_total` y
+  `atlas_scheduled_job_runs_total`, con 8 reglas de alerta nuevas (16 en total).
+- Drenado ordenado en `SIGTERM` (`SHUTDOWN_DRAIN_MS`: readiness a 503 antes de cerrar), cierre
+  ordenado de Redis y techo de duración por petición (`REQUEST_TIMEOUT_MS`).
+- `Dockerfile` multi-stage con `tini`, usuario sin privilegios y `HEALTHCHECK` contra readiness;
+  `.dockerignore`; `docker-compose.yml` con las versiones de Postgres/Redis/Mongo de CI; job
+  `docker-image` en el workflow.
+
+#### Seguridad
+
+- El token de acceso lleva y exige `iss`/`aud` (`JWT_ISSUER`/`JWT_AUDIENCE`), centralizados en
+  `jwt-claims.util.ts`. **Al desplegar, los tokens de acceso emitidos antes se rechazan durante como
+  mucho `JWT_ACCESS_TOKEN_EXPIRES_IN`; los refresh tokens son opacos y los clientes renuevan solos.**
+- `sanitizeUrlForLog`: el filtro de excepciones ya no registra los valores de la query string.
+- Eliminada la dependencia `joi`, sin usar en todo el repositorio.
+
 ### Añadido
 
 - **Gate de cobertura por trinquete** (`jest.config.cjs`): umbrales fijados en el nivel real medido,

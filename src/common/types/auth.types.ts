@@ -1,3 +1,8 @@
+/**
+ * @file Tipos de dominio: hacen explícitos estados y contratos internos.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de types sin introducir reglas de un dominio específico.
+ */
 export type AtlasUserRole =
   | 'customer'
   | 'internal_operator'

@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { ExternalDataRepository } from '../../../src/modules/external-data/external-data.repository.js';
 
 /**
@@ -10,13 +11,13 @@ import { ExternalDataRepository } from '../../../src/modules/external-data/exter
 describe('ExternalDataRepository', () => {
   function buildRepo() {
     const make = () => ({
-      findOne: jest.fn(),
-      findAll: jest.fn(),
-      findByPk: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      count: jest.fn(),
-      bulkCreate: jest.fn(),
+      findOne: asyncMock(),
+      findAll: asyncMock(),
+      findByPk: asyncMock(),
+      create: asyncMock(),
+      update: asyncMock(),
+      count: asyncMock(),
+      bulkCreate: asyncMock(),
     });
     const models = {
       dataProvider: make(),
@@ -75,7 +76,7 @@ describe('ExternalDataRepository', () => {
       const since = new Date('2026-01-01');
 
       await repo.findReusableProviderRequest({ tenantId: 't1', providerId: 'p1', queryType: 'q', requestPayloadHash: 'h', since });
-      let where = (models.dataProviderRequest.findOne as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+      let where = callArg<CallArgRecord>(models.dataProviderRequest.findOne, 0, 0).where as Record<string, unknown>;
       expect(where).toMatchObject({ tenantId: 't1', providerId: 'p1', requestType: 'q', requestPayloadHash: 'h' });
       expect(where.responseStatus).toBeDefined(); // { [Op.in]: [COMPLETED, MOCKED, DATA_NOT_AVAILABLE] }
       expect(where.customerId).toBeUndefined();
@@ -88,7 +89,7 @@ describe('ExternalDataRepository', () => {
         requestPayloadHash: 'h',
         since,
       });
-      where = (models.dataProviderRequest.findOne as jest.Mock).mock.calls[1][0].where as Record<string, unknown>;
+      where = callArg<CallArgRecord>(models.dataProviderRequest.findOne, 1, 0).where as Record<string, unknown>;
       expect(where.customerId).toBe('c1');
     });
   });
@@ -105,7 +106,7 @@ describe('ExternalDataRepository', () => {
         statuses: ['COMPLETED'],
       });
       expect(result).toBe(7);
-      const where = (models.dataProviderRequest.count as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+      const where = callArg<CallArgRecord>(models.dataProviderRequest.count, 0, 0).where as Record<string, unknown>;
       expect(where).toMatchObject({ providerId: 'p1', customerId: 'c1' });
       expect(where.responseStatus).toBeDefined();
     });
@@ -114,7 +115,7 @@ describe('ExternalDataRepository', () => {
       const { repo, models } = buildRepo();
       (models.dataProviderRequest.count as jest.Mock).mockResolvedValue(0 as never);
       await repo.countRequests({ providerId: 'p1', from: new Date('2026-01-01') });
-      const where = (models.dataProviderRequest.count as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+      const where = callArg<CallArgRecord>(models.dataProviderRequest.count, 0, 0).where as Record<string, unknown>;
       expect(where.customerId).toBeUndefined();
       expect(where.responseStatus).toBeUndefined();
     });
@@ -124,7 +125,7 @@ describe('ExternalDataRepository', () => {
     const { repo, models } = buildRepo();
     (models.dataProviderRequest.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.listProviderRequests({ from: new Date('2026-01-01'), to: new Date('2026-02-01'), tenantId: 't1' });
-    const where = (models.dataProviderRequest.findAll as jest.Mock).mock.calls[0][0].where as Record<string, { [k: symbol]: unknown }>;
+    const where = callArg<CallArgRecord>(models.dataProviderRequest.findAll, 0, 0).where as Record<string, { [k: symbol]: unknown }>;
     // requestedAt debe tener ambos límites (gte + lt) cuando hay `to`.
     expect(Object.getOwnPropertySymbols(where.requestedAt).length).toBe(2);
   });
@@ -133,7 +134,7 @@ describe('ExternalDataRepository', () => {
     const { repo, models } = buildRepo();
     (models.dataProviderRequest.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.listIdempotencyAuditRequests({ from: new Date('2026-01-01') });
-    const where = (models.dataProviderRequest.findAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+    const where = callArg<CallArgRecord>(models.dataProviderRequest.findAll, 0, 0).where as Record<string, unknown>;
     expect(where.idempotencyKey).toBeDefined(); // { [Op.ne]: null }
   });
 

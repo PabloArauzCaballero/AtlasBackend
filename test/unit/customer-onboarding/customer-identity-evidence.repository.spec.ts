@@ -33,7 +33,7 @@ describe('CustomerIdentityEvidenceRepository', () => {
   const opts = { transaction: 'tx' as never };
   const now = new Date('2026-01-10');
 
-  it('createEvidenceDocument mapea storageKey→s3Key, sha256→fileHashSha256 y nace uploaded/no borrado', async () => {
+  it('createEvidenceDocument mapea storageKey→s3Key, persiste el bucket real, sha256→fileHashSha256 y nace uploaded/no borrado', async () => {
     const { repo, models } = buildRepo();
     (models.evidenceDocument.create as jest.Mock).mockResolvedValue({ id: 'e1' } as never);
     await repo.createEvidenceDocument(
@@ -42,6 +42,7 @@ describe('CustomerIdentityEvidenceRepository', () => {
         customerId: 'c1',
         documentType: 'id_card',
         storageKey: 'k',
+        bucket: 'atlas-evidence',
         mimeType: 'image/png',
         sha256Hash: 'h',
         fileSizeBytes: '100',

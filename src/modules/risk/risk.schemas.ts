@@ -1,3 +1,8 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza produce una recomendación explicable para reducir pérdida crediticia y trato inconsistente.
+ * @system calcula evaluaciones versionadas, contribuciones y reglas disparadas sin presentarlas como un modelo validado.
+ */
 import { z } from 'zod';
 
 export const customerRiskParamsSchema = z.object({

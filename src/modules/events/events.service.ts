@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza desacopla procesos de negocio y permite reintentos auditables sin perder eventos.
+ * @system registra definiciones, outbox y procesamiento idempotente de eventos de dominio.
+ */
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { decodeCursor, paginateWithCursor } from '../../common/utils/pagination/cursor-pagination.util.js';
 import { listEventDefinitions, getEventDefinition } from './event-registry.js';

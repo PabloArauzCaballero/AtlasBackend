@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { SystemsDataImpactInferenceRepository } from '../../../src/modules/systems-ops/systems-data-impact-inference.repository.js';
 
 /**
@@ -8,10 +9,10 @@ import { SystemsDataImpactInferenceRepository } from '../../../src/modules/syste
  */
 describe('SystemsDataImpactInferenceRepository', () => {
   function buildRepo() {
-    const endpointModel = { findAll: jest.fn() };
-    const dataEntityModel = { findAll: jest.fn() };
-    const impactModel = { upsert: jest.fn() };
-    const relationshipModel = { findAll: jest.fn() };
+    const endpointModel = { findAll: asyncMock() };
+    const dataEntityModel = { findAll: asyncMock() };
+    const impactModel = { upsert: asyncMock() };
+    const relationshipModel = { findAll: asyncMock() };
     const repo = new SystemsDataImpactInferenceRepository(
       endpointModel as never,
       dataEntityModel as never,
@@ -25,14 +26,14 @@ describe('SystemsDataImpactInferenceRepository', () => {
     const { repo, endpointModel } = buildRepo();
     (endpointModel.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.listActiveEndpoints();
-    expect((endpointModel.findAll as jest.Mock).mock.calls[0][0].where).toEqual({ status: 'ACTIVE' });
+    expect(callArg<CallArgRecord>(endpointModel.findAll, 0, 0).where).toEqual({ status: 'ACTIVE' });
   });
 
   it('listRelationships ordena por sourceTable', async () => {
     const { repo, relationshipModel } = buildRepo();
     (relationshipModel.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.listRelationships();
-    expect((relationshipModel.findAll as jest.Mock).mock.calls[0][0].order).toEqual([['sourceTable', 'ASC']]);
+    expect(callArg<CallArgRecord>(relationshipModel.findAll, 0, 0).order).toEqual([['sourceTable', 'ASC']]);
   });
 
   it('upsertImpact para UPSERT sobre entidad audit-critical deriva impactLevel HIGH y flags transaccionales', async () => {

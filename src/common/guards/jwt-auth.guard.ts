@@ -1,3 +1,8 @@
+/**
+ * @file Guard: aplica autenticación o autorización antes del caso de uso.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de guards sin introducir reglas de un dominio específico.
+ */
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import jwt from 'jsonwebtoken';
@@ -6,6 +11,7 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { TokenRevocationService } from '../services/token-revocation.service.js';
 import { AuthenticatedUser, RequestWithAuth } from '../types/auth.types.js';
 import { ACCESS_TOKEN_COOKIE, readCookie } from '../utils/http/auth-cookies.util.js';
+import { accessTokenVerifyOptions } from '../utils/auth/jwt-claims.util.js';
 
 const KNOWN_ROLES: ReadonlySet<AuthenticatedUser['role']> = new Set([
   'customer',
@@ -110,7 +116,7 @@ export class JwtAuthGuard implements CanActivate {
 
     let payload: string | jwt.JwtPayload;
     try {
-      payload = jwt.verify(token, env.JWT_ACCESS_TOKEN_SECRET, { algorithms: ['HS256'] });
+      payload = jwt.verify(token, env.JWT_ACCESS_TOKEN_SECRET, accessTokenVerifyOptions());
     } catch {
       throw new UnauthorizedException('Token inválido o expirado.');
     }

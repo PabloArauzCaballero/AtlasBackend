@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { OperationsRepository } from '../../../src/modules/operations/operations.repository.js';
 import { encodeCursor } from '../../../src/common/utils/pagination/cursor-pagination.util.js';
 
@@ -9,7 +10,7 @@ import { encodeCursor } from '../../../src/common/utils/pagination/cursor-pagina
  */
 describe('OperationsRepository', () => {
   function buildRepo() {
-    const make = () => ({ findOne: jest.fn(), findAll: jest.fn(), findAndCountAll: jest.fn(), create: jest.fn() });
+    const make = () => ({ findOne: asyncMock(), findAll: asyncMock(), findAndCountAll: asyncMock(), create: asyncMock() });
     const models = {
       manualReviewCase: make(),
       fraudCase: make(),
@@ -169,7 +170,7 @@ describe('OperationsRepository', () => {
         page: 1,
         limit: 10,
       } as never);
-      expect((models.fraudCase.findAndCountAll as jest.Mock).mock.calls[0][0].where).toMatchObject({
+      expect(callArg<CallArgRecord>(models.fraudCase.findAndCountAll, 0, 0).where).toMatchObject({
         caseStatus: 'open',
         severity: 'high',
       });
@@ -199,7 +200,7 @@ describe('OperationsRepository', () => {
       (models.fraudCase.findAll as jest.Mock).mockResolvedValue([] as never);
       const cursor = encodeCursor({ createdAt: '2026-01-01T00:00:00.000Z', id: 'x' });
       await repo.findFraudCasesForQueueWithCursor('t1', { sortBy: 'updatedAt', limit: 5, cursor });
-      const where = (models.fraudCase.findAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+      const where = callArg<CallArgRecord>(models.fraudCase.findAll, 0, 0).where as Record<string, unknown>;
       expect(Object.getOwnPropertySymbols(where).length).toBeGreaterThan(0); // Op.and del keyset
     });
   });
@@ -266,7 +267,7 @@ describe('OperationsRepository', () => {
       } as never);
       expect(page.items).toHaveLength(2);
       expect(page.nextCursor).not.toBeNull();
-      const where = (models.fraudCase.findAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+      const where = callArg<CallArgRecord>(models.fraudCase.findAll, 0, 0).where as Record<string, unknown>;
       expect(where).toMatchObject({ caseStatus: 'open', severity: 'high', customerId: 'c1' });
 
       (models.fraudCase.findAll as jest.Mock).mockResolvedValueOnce([rows[0]] as never);

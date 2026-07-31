@@ -1,3 +1,8 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza evita decisiones crediticias basadas en datos incompletos, incoherentes o sin linaje.
+ * @system administra reglas, ejecuciones y hallazgos de calidad consultables por operaciones.
+ */
 import { z } from 'zod';
 
 export const dataQualityQuerySchema = z.object({

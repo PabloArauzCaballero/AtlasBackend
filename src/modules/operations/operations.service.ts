@@ -1,9 +1,16 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza permite resolver excepciones y revisiones manuales con responsabilidad y trazabilidad.
+ * @system gestiona colas y decisiones operativas mediante servicios transaccionales y repositorios aislados.
+ */
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { buildPaginationMeta } from '../../common/utils/pagination/pagination.util.js';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
+import { CustomerLifecycleService } from '../customers/application/customer-lifecycle.service.js';
+import { CustomerLifecycleStatus } from '../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { RiskRepository } from '../risk/risk.repository.js';
 import { InvestigationSummaryResponseDto, PaginatedWorkQueueResponseDto } from './operations.dtos.js';
@@ -25,6 +32,7 @@ export class OperationsService {
     private readonly operationsRepository: OperationsRepository,
     private readonly customersRepository: CustomersRepository,
     private readonly riskRepository: RiskRepository,
+    private readonly lifecycleService: CustomerLifecycleService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -153,21 +161,24 @@ export class OperationsService {
         },
         { transaction },
       );
+      // CORRECCIÓN (H1): antes esta rama insertaba el evento de historial con `previousStatus: null`
+      // y NUNCA actualizaba `customers.lifecycle_status`. El historial decía "aprobado" y el cliente
+      // seguía en su estado anterior; desde la primera decisión manual, estado e historial divergían.
+      // Ahora la transición la aplica `CustomerLifecycleService`, que valida contra la máquina de
+      // estados y escribe estado + evento (con el estado anterior REAL) en esta misma transacción.
+      let appliedStatus: CustomerLifecycleStatus | null = null;
       if (reviewCase.customerId && input.body.nextCustomerStatus) {
-        await this.operationsRepository.createStatusEvent(
-          {
-            tenantId: input.tenantId,
-            customerId: String(reviewCase.customerId),
-            previousStatus: null,
-            newStatus: input.body.nextCustomerStatus,
-            reasonCode: input.body.reasonCode,
-            actorType: input.currentUser.role,
-            actorInternalUserId: input.currentUser.internalUserId ?? null,
-            happenedAt: now,
-            notes: input.body.notes ?? null,
-          },
-          { transaction },
-        );
+        const transition = await this.lifecycleService.transition({
+          tenantId: input.tenantId,
+          customerId: String(reviewCase.customerId),
+          toStatus: input.body.nextCustomerStatus,
+          reasonCode: input.body.reasonCode,
+          changedByType: input.currentUser.role,
+          changedByInternalUserId: input.currentUser.internalUserId ?? null,
+          notes: input.body.notes ?? null,
+          transaction,
+        });
+        appliedStatus = transition.newStatus;
         await this.operationsRepository.createCustomerObservation(
           {
             tenantId: input.tenantId,
@@ -210,7 +221,7 @@ export class OperationsService {
         customerId: reviewCase.customerId ? String(reviewCase.customerId) : null,
         decision: input.body.decision,
         caseStatus: 'closed',
-        nextCustomerStatus: input.body.nextCustomerStatus ?? null,
+        nextCustomerStatus: appliedStatus,
       };
     });
   }

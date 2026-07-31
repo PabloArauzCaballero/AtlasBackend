@@ -1,3 +1,8 @@
+/**
+ * @file DTOs: contrato estable de salida sin filtrar modelos de persistencia.
+ * @business Esta pieza produce una recomendación explicable para reducir pérdida crediticia y trato inconsistente.
+ * @system calcula evaluaciones versionadas, contribuciones y reglas disparadas sin presentarlas como un modelo validado.
+ */
 export type RiskAssessmentResultResponseDto = {
   id: string;
   tenantId: string;

@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { ConflictException } from '@nestjs/common';
 import { UniqueConstraintError } from 'sequelize';
 import { CustomerOnboardingStartService } from '../../../src/modules/customer-onboarding/application/customer-onboarding-start.service.js';
@@ -15,20 +16,22 @@ import { CustomerOnboardingService } from '../../../src/modules/customer-onboard
 describe('CustomerOnboardingService — condición de carrera en alta de cliente', () => {
   function buildService(overrides: { createCustomerImpl: () => Promise<never> }) {
     const customersRepository = {
-      findByContactHash: jest.fn().mockResolvedValue(null), // "no encontrado" — como en una carrera real
+      findByContactHash: asyncMock().mockResolvedValue(null), // "no encontrado" — como en una carrera real
       createCustomer: jest.fn(overrides.createCustomerImpl),
     };
     const sessionsRepository = {};
     const consentsRepository = {
-      findActiveDocumentById: jest.fn().mockResolvedValue({ id: '1' }),
+      findActiveDocumentById: asyncMock().mockResolvedValue({ id: '1' }),
     };
     const onboardingRepository = {};
     const authRepository = {
-      createCredentials: jest.fn(),
+      createCredentials: asyncMock(),
     };
     const sequelize = {
       transaction: jest.fn((callback: (t: unknown) => Promise<unknown>) => callback({})),
     };
+
+    const guardsService = { assertNoDuplicateCustomer: asyncMock(), assertConsentDocumentsAreValid: asyncMock() };
 
     const startService = new CustomerOnboardingStartService(
       customersRepository as never,
@@ -36,6 +39,7 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
       consentsRepository as never,
       onboardingRepository as never,
       authRepository as never,
+      guardsService as never,
       sequelize as never,
     );
 
@@ -47,6 +51,7 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
   const baseInput = {
     customer: { phone: '+59170000000', email: 'race-condition@atlas.test' },
     consents: [{ consentDocumentId: '1', purposeCode: 'onboarding', granted: true }],
+    password: 'Contrasena-Muy-Segura-1',
     device: { deviceFingerprintHash: 'a'.repeat(32), fingerprintVersion: 'v1', channel: 'mobile_app' as const },
   };
 

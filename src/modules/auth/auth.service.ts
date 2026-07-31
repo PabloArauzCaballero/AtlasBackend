@@ -1,5 +1,19 @@
-import { Injectable, UnauthorizedException, ForbiddenException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza protege el acceso de clientes y operadores, la recuperación de cuenta y la continuidad segura de sesiones.
+ * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
+ */
+import {
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException,
+  ConflictException,
+  Optional,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
+import { MetricsService } from '../../common/observability/metrics.service.js';
+import { accessTokenSignOptions } from '../../common/utils/auth/jwt-claims.util.js';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
@@ -58,6 +72,8 @@ export class AuthService {
     private readonly tokenRevocationService: TokenRevocationService,
     private readonly mailSenderService: MailSenderService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    // `@Optional()` y ÚLTIMO a propósito: los specs lo construyen posicionalmente.
+    @Optional() private readonly metrics?: MetricsService,
   ) {}
 
   private issueAccessToken(actor: ResolvedActor, actorType: ActorType, tokenVersion: number): string {
@@ -71,10 +87,10 @@ export class AuthService {
       ...(actorType === 'platform_user' ? { platformUserId: actor.id } : {}),
     };
 
-    const options: SignOptions = {
+    const options: SignOptions = accessTokenSignOptions({
       algorithm: 'HS256',
       expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN as SignOptions['expiresIn'],
-    };
+    });
 
     return jwt.sign(payload, env.JWT_ACCESS_TOKEN_SECRET, options);
   }
@@ -114,8 +130,11 @@ export class AuthService {
     // registrados a través de mensajes de error distintos.
     const invalidCredentialsError = new UnauthorizedException('Credenciales inválidas.');
 
-    const logAttempt = (failed: { actorId: string | null; reasonCode: string } | null) =>
-      this.authRepository.recordLoginAttemptEvent({
+    // La métrica va en el MISMO embudo que el evento de auditoría (hallazgo A-10): así ninguna rama
+    // de fallo puede olvidarse de contarse, que es justo lo que pasaría instrumentando cada `throw`.
+    const logAttempt = (failed: { actorId: string | null; reasonCode: string } | null) => {
+      this.metrics?.recordAuthAttempt({ actorType: input.dto.actorType, outcome: failed?.reasonCode ?? 'success' });
+      return this.authRepository.recordLoginAttemptEvent({
         tenantId: input.tenantId,
         actorType: input.dto.actorType,
         actorId: failed ? failed.actorId : (actor?.id ?? null),
@@ -125,6 +144,7 @@ export class AuthService {
         ipAddress: input.ip,
         userAgent: input.userAgent,
       });
+    };
 
     if (!actor) {
       await logAttempt({ actorId: null, reasonCode: 'actor_not_found' });

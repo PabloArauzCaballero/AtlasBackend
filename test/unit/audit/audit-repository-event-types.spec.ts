@@ -39,7 +39,7 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
     return { repository, models };
   }
 
-  const baseQuery = { page: 1, limit: 50 } as never;
+  const baseQuery = { page: 1, limit: 50 };
 
   it('eventType=consent resolves customer_consents ids first, then queries consent_events by those ids', async () => {
     const { repository, models } = buildRepository({
@@ -57,7 +57,7 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
       },
     });
 
-    const result = await repository.findCustomerAuditEvents('t1', 'c1', { ...baseQuery, eventType: 'consent' });
+    const result = await repository.findCustomerAuditEvents('t1', 'c1', { ...baseQuery, eventType: 'consent' } as never);
 
     expect(models.customerConsentModel.findAll).toHaveBeenCalledWith(
       expect.objectContaining({ where: { tenantId: 't1', customerId: 'c1' } }),
@@ -72,7 +72,7 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
       customerConsentModel: { findAll: jest.fn(async () => []) },
     });
 
-    const result = await repository.findCustomerAuditEvents('t1', 'c1', { ...baseQuery, eventType: 'consent' });
+    const result = await repository.findCustomerAuditEvents('t1', 'c1', { ...baseQuery, eventType: 'consent' } as never);
 
     expect(models.consentEventModel.findAll).not.toHaveBeenCalled();
     expect(result).toEqual([]);
@@ -94,7 +94,7 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
       },
     });
 
-    const result = await repository.findCustomerAuditEvents('t1', 'c1', { ...baseQuery, eventType: 'manual_review' });
+    const result = await repository.findCustomerAuditEvents('t1', 'c1', { ...baseQuery, eventType: 'manual_review' } as never);
 
     expect(models.manualReviewEventModel.findAll).toHaveBeenCalledTimes(1);
     expect(result[0]?.eventType).toBe('manual_review');
@@ -116,7 +116,7 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
       },
     });
 
-    const result = await repository.findCustomerAuditEvents('t1', 'c1', { ...baseQuery, eventType: 'fraud' });
+    const result = await repository.findCustomerAuditEvents('t1', 'c1', { ...baseQuery, eventType: 'fraud' } as never);
 
     expect(models.fraudCaseEventModel.findAll).toHaveBeenCalledTimes(1);
     expect(result[0]?.eventType).toBe('fraud');
@@ -162,7 +162,7 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
       },
     });
 
-    const result = await repository.findCustomerAuditEvents('t1', 'c1', { ...baseQuery, eventType: 'all' });
+    const result = await repository.findCustomerAuditEvents('t1', 'c1', { ...baseQuery, eventType: 'all' } as never);
 
     const eventTypes = result.map((event) => event.eventType);
     expect(eventTypes).toEqual(expect.arrayContaining(['consent', 'manual_review', 'fraud']));

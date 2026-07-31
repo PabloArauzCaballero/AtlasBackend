@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
+ * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
+ */
 import { Injectable } from '@nestjs/common';
 import { env } from '../../../config/env.js';
 import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';

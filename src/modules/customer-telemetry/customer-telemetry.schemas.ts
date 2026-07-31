@@ -1,3 +1,8 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza captura señales de comportamiento y dispositivo necesarias para prevención de fraude y mejora de conversión.
+ * @system valida e ingiere lotes de telemetría con límites, redacción y escritura transaccional.
+ */
 import { z } from 'zod';
 
 export const telemetryCustomerParamsSchema = z.object({

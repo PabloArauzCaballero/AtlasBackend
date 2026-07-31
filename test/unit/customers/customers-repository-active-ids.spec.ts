@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { type CallArgRecord } from '../../support/jest-mocks.js';
 import { Op } from 'sequelize';
 import { CustomersRepository } from '../../../src/modules/customers/customers.repository.js';
 
@@ -17,7 +18,7 @@ describe('CustomersRepository.listActiveCustomerIds', () => {
     const ids = await repository.listActiveCustomerIds('t1');
 
     expect(ids).toEqual(['1', '2']);
-    const callArgs = (customerModel.findAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown> };
+    const callArgs = (customerModel.findAll as jest.Mock).mock.calls[0][0] as unknown as { where: CallArgRecord };
     expect(callArgs.where).toMatchObject({ tenantId: 't1', deleted: { [Op.ne]: true } });
     expect(callArgs.where[Op.or]).toEqual([{ lifecycleStatus: null }, { lifecycleStatus: { [Op.ne]: 'blocked' } }]);
   });

@@ -1,3 +1,8 @@
+/**
+ * @file Tipos de dominio: hacen explícitos estados y contratos internos.
+ * @business Esta pieza controla quién puede operar Atlas y deja evidencia de cada asignación de privilegios.
+ * @system implementa identidad interna, RBAC, catálogo de permisos y guards de autorización granular.
+ */
 export type InternalPermissionListItem = {
   id: string;
   code: string;

@@ -1,3 +1,8 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza reduce pérdidas y habilita revisión humana explicable de señales sospechosas.
+ * @system administra casos, decisiones y eventos de fraude dentro de transacciones auditables.
+ */
 import { z } from 'zod';
 
 /**

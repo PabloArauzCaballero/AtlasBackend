@@ -1,4 +1,5 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
+import { accessTokenSignOptions } from '../src/common/utils/auth/jwt-claims.util.js';
 import { env } from '../src/config/env.js';
 import { AtlasUserRole } from '../src/common/types/auth.types.js';
 
@@ -37,10 +38,10 @@ const payload = {
   ...(platformUserId ? { platformUserId } : {}),
 };
 
-const options: SignOptions = {
+const options: SignOptions = accessTokenSignOptions({
   algorithm: 'HS256',
   expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN as SignOptions['expiresIn'],
-};
+});
 
 const token = jwt.sign(payload, env.JWT_ACCESS_TOKEN_SECRET, options);
 console.log(token);

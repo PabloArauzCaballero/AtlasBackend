@@ -1,3 +1,8 @@
+/**
+ * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
+ * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
+ * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
+ */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
@@ -58,6 +63,16 @@ import { NotificationsService } from './notifications.service.js';
     SmsNotificationAdapter,
     WhatsAppNotificationAdapter,
   ],
-  exports: [NotificationOrchestratorService, NotificationsService, NotificationsRepository, NotificationBroadcastService],
+  // Los adaptadores de SMS/WhatsApp se exportan para que `customer-onboarding` pueda entregar el
+  // código de verificación de contacto por el canal que el cliente eligió. Antes solo los usaba el
+  // orquestador de notificaciones, y el OTP de onboarding no tenía por dónde salir.
+  exports: [
+    NotificationOrchestratorService,
+    NotificationsService,
+    NotificationsRepository,
+    NotificationBroadcastService,
+    SmsNotificationAdapter,
+    WhatsAppNotificationAdapter,
+  ],
 })
 export class NotificationsModule {}

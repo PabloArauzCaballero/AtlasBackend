@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { EventsService } from '../../../src/modules/events/events.service.js';
 
 /**
@@ -10,14 +11,14 @@ import { EventsService } from '../../../src/modules/events/events.service.js';
 describe('EventsService', () => {
   function buildService() {
     const repository = {
-      createEvent: jest.fn(),
-      listWithCursor: jest.fn(),
-      list: jest.fn(),
-      getById: jest.fn(),
-      listPending: jest.fn(),
-      claimPending: jest.fn(),
+      createEvent: asyncMock(),
+      listWithCursor: asyncMock(),
+      list: asyncMock(),
+      getById: asyncMock(),
+      listPending: asyncMock(),
+      claimPending: asyncMock(),
     };
-    const notificationOrchestrator = { handleEvent: jest.fn() };
+    const notificationOrchestrator = { handleEvent: asyncMock() };
     const service = new EventsService(repository as never, notificationOrchestrator as never);
     return { service, repository, notificationOrchestrator };
   }
@@ -49,7 +50,7 @@ describe('EventsService', () => {
       metadataJson: {},
       createdAtValue: new Date('2026-01-01'),
       updatedAtValue: new Date('2026-01-01'),
-      save: jest.fn(),
+      save: asyncMock(),
       ...overrides,
     };
   }
@@ -186,7 +187,7 @@ describe('EventsService', () => {
 
       expect(result.processed).toBe(1);
       expect(event.status).toBe('processed');
-      expect(event.lockedAt).toBeNull();
+      expect((event as unknown as { lockedAt: unknown }).lockedAt).toBeNull();
     });
 
     it('a failing event below maxAttempts goes back to pending with a backed-off availableAt, not to failed', async () => {

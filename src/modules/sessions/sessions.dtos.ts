@@ -1,3 +1,8 @@
+/**
+ * @file DTOs: contrato estable de salida sin filtrar modelos de persistencia.
+ * @business Esta pieza mantiene continuidad, seguridad y señales de uso durante la interacción del cliente.
+ * @system orquesta inicio, heartbeat, cierre, ubicación, dispositivo y auditoría del ciclo de sesión.
+ */
 export type SessionGpsResult = {
   gpsObservationId: string | null;
   gpsObservationCreated: boolean;

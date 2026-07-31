@@ -1,21 +1,24 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza completa trabajo asíncrono y recuperable fuera de la latencia del request.
+ * @system reclama, procesa y reintenta jobs/outbox con locks y métricas operativas.
+ */
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { MetricsService } from '../../common/observability/metrics.service.js';
 import { Op, QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { actorId } from '../../common/utils/auth/actor.util.js';
 import {
   AddressGpsObservationModel,
   CustomerSessionModel,
   DataQualityIssueModel,
   DeviceSnapshotModel,
   FormFieldInteractionEventModel,
-  OperationalAuditLogModel,
   OutboxEventModel,
   RetentionPolicyModel,
-  SystemJobRunModel,
 } from '../../database/models/index.js';
+import { JobRunRecorderService } from './job-run-recorder.service.js';
 import { listEventDefinitions } from '../events/event-registry.js';
 import { EventsService } from '../events/events.service.js';
 import {
@@ -73,17 +76,16 @@ export class RuntimeJobsService {
   private readonly logger = new Logger(RuntimeJobsService.name);
 
   constructor(
-    @InjectModel(SystemJobRunModel) private readonly jobRunModel: typeof SystemJobRunModel,
     @InjectModel(OutboxEventModel) private readonly outboxModel: typeof OutboxEventModel,
     @InjectModel(CustomerSessionModel) private readonly sessionModel: typeof CustomerSessionModel,
     @InjectModel(RetentionPolicyModel) private readonly retentionPolicyModel: typeof RetentionPolicyModel,
     @InjectModel(DataQualityIssueModel) private readonly dataQualityIssueModel: typeof DataQualityIssueModel,
-    @InjectModel(OperationalAuditLogModel) private readonly auditModel: typeof OperationalAuditLogModel,
     @InjectModel(AddressGpsObservationModel) private readonly gpsObservationModel: typeof AddressGpsObservationModel,
     @InjectModel(DeviceSnapshotModel) private readonly deviceSnapshotModel: typeof DeviceSnapshotModel,
     @InjectModel(FormFieldInteractionEventModel) private readonly formInteractionModel: typeof FormFieldInteractionEventModel,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly eventsService: EventsService,
+    private readonly jobRuns: JobRunRecorderService,
     // Fase 3.4: publica la profundidad del backlog del outbox. `@Optional()` y último a propósito:
     // varios tests construyen este servicio posicionalmente y no deben romperse por instrumentar.
     @Optional() private readonly metrics?: MetricsService,
@@ -138,7 +140,7 @@ export class RuntimeJobsService {
    * Dos ejecuciones concurrentes se reparten las filas sin solaparse.
    */
   async processOutbox(input: { tenantId: string; body: ProcessOutboxDto; currentUser: AuthenticatedUser }) {
-    return this.runJob(
+    return this.jobRuns.run(
       { tenantId: input.tenantId, jobCode: 'process_outbox', body: input.body, currentUser: input.currentUser },
       async () => {
         const excludedCodes = registeredEventCodesOrSentinel();
@@ -218,7 +220,7 @@ export class RuntimeJobsService {
   }
 
   async processEvents(input: { tenantId: string; body: ProcessEventsDto; currentUser: AuthenticatedUser }) {
-    return this.runJob(
+    return this.jobRuns.run(
       { tenantId: input.tenantId, jobCode: 'process_events', body: input.body, currentUser: input.currentUser },
       async () => {
         return this.eventsService.processPendingEvents({
@@ -232,7 +234,7 @@ export class RuntimeJobsService {
   }
 
   async expireStaleSessions(input: { tenantId: string; body: ExpireStaleSessionsDto; currentUser: AuthenticatedUser }) {
-    return this.runJob(
+    return this.jobRuns.run(
       { tenantId: input.tenantId, jobCode: 'expire_stale_sessions', body: input.body, currentUser: input.currentUser },
       async () => {
         const cutoff = new Date(Date.now() - input.body.maxIdleMinutes * 60_000);
@@ -249,7 +251,7 @@ export class RuntimeJobsService {
   }
 
   async applyRetentionPolicies(input: { tenantId: string; body: ApplyRetentionPoliciesDto; currentUser: AuthenticatedUser }) {
-    return this.runJob(
+    return this.jobRuns.run(
       { tenantId: input.tenantId, jobCode: 'apply_retention_policies', body: input.body, currentUser: input.currentUser },
       async () => {
         const where: Record<string, unknown> = { isActive: true };
@@ -293,7 +295,7 @@ export class RuntimeJobsService {
   }
 
   async recalculateDataQuality(input: { tenantId: string; body: RecalculateDataQualityDto; currentUser: AuthenticatedUser }) {
-    return this.runJob(
+    return this.jobRuns.run(
       { tenantId: input.tenantId, jobCode: 'recalculate_data_quality', body: input.body, currentUser: input.currentUser },
       async () => {
         const where: Record<string, unknown> = { tenantId: input.tenantId, issueStatus: 'open' };
@@ -310,60 +312,5 @@ export class RuntimeJobsService {
         };
       },
     );
-  }
-
-  private async runJob(
-    input: { tenantId: string; jobCode: string; body: Record<string, unknown>; currentUser: AuthenticatedUser },
-    handler: () => Promise<Record<string, unknown>>,
-  ) {
-    const now = new Date();
-    const run = await this.jobRunModel.create({
-      tenantId: input.tenantId,
-      jobCode: input.jobCode,
-      status: 'running',
-      startedAt: now,
-      completedAt: null,
-      inputJson: input.body,
-      resultJson: null,
-      errorMessage: null,
-      triggeredByType: input.currentUser.role,
-      triggeredById: actorId(input.currentUser),
-      createdAtValue: now,
-    });
-
-    try {
-      const result = await this.sequelize.transaction(async (transaction) => {
-        const jobResult = await handler();
-        await this.auditModel.create(
-          {
-            tenantId: input.tenantId,
-            actorType: input.currentUser.role,
-            actorInternalUserId: input.currentUser.internalUserId ?? null,
-            actorPlatformUserId: input.currentUser.platformUserId ?? null,
-            actionCode: `job_${input.jobCode}_executed`,
-            targetType: 'system_job_run',
-            targetId: String(run.id),
-            ipAddress: null,
-            userAgent: null,
-            payloadJson: jobResult,
-            occurredAt: new Date(),
-            createdAtValue: new Date(),
-          },
-          { transaction },
-        );
-        return jobResult;
-      });
-      run.status = 'completed';
-      run.completedAt = new Date();
-      run.resultJson = result;
-      await run.save();
-      return { jobRunId: String(run.id), status: 'completed', result };
-    } catch (error) {
-      run.status = 'failed';
-      run.completedAt = new Date();
-      run.errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      await run.save();
-      throw error;
-    }
   }
 }

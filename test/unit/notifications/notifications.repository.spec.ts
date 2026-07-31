@@ -15,6 +15,7 @@ describe('NotificationsRepository — núcleo', () => {
       findOne: jest.fn(),
       create: jest.fn(async (v: unknown) => ({ id: 'm1', ...(v as object) })),
       findAndCountAll: jest.fn(async () => ({ rows: [], count: 0 })),
+      findAll: jest.fn(async () => []),
       count: jest.fn(),
       update: jest.fn(),
     };
@@ -414,5 +415,43 @@ describe('NotificationsRepository — núcleo', () => {
     expect(preferencesRepository.getPreferences).toHaveBeenCalledWith('t1', 'c1');
     expect(preferencesRepository.upsertPreferences).toHaveBeenCalled();
     expect(preferencesRepository.isChannelEnabled).toHaveBeenCalled();
+  });
+  /**
+   * Hallazgo A-03: la entrega de un broadcast corre fuera del request, así que un reinicio a mitad
+   * de tanda dejaba mensajes creados en `pending` que nadie volvía a intentar. `sending` entra
+   * también: es el estado intermedio donde un proceso muerto deja el mensaje clavado.
+   */
+  describe('listStuckMessages', () => {
+    it('recoge pending y sending anteriores al corte, del tenant, y los más viejos primero', async () => {
+      const { repo, messageModel } = build();
+
+      await repo.listStuckMessages({ tenantId: 't1', olderThanMinutes: 15, limit: 50 });
+
+      const call = (messageModel.findAll as jest.Mock).mock.calls[0][0] as {
+        where: { tenantId: string; status: Record<symbol, string[]>; createdAtValue: Record<symbol, Date> };
+        order: [string, string][];
+        limit: number;
+      };
+      expect(call.where.tenantId).toBe('t1');
+      const statuses = Object.getOwnPropertySymbols(call.where.status).map((symbol) => call.where.status[symbol])[0];
+      expect(statuses).toEqual(['pending', 'sending']);
+      expect(call.order).toEqual([['createdAtValue', 'ASC']]);
+      expect(call.limit).toBe(50);
+    });
+
+    it('el corte por antigüedad no recoge lo que acaba de crearse', async () => {
+      const { repo, messageModel } = build();
+      const before = Date.now();
+
+      await repo.listStuckMessages({ tenantId: 't1', olderThanMinutes: 15, limit: 10 });
+
+      const call = (messageModel.findAll as jest.Mock).mock.calls[0][0] as {
+        where: { createdAtValue: Record<symbol, Date> };
+      };
+      const cutoff = Object.getOwnPropertySymbols(call.where.createdAtValue).map((symbol) => call.where.createdAtValue[symbol])[0] as Date;
+      // Debe quedar ~15 minutos por detrás del momento de la llamada, nunca en el futuro.
+      expect(cutoff.getTime()).toBeLessThanOrEqual(before - 15 * 60_000 + 1_000);
+      expect(cutoff.getTime()).toBeGreaterThan(before - 16 * 60_000);
+    });
   });
 });

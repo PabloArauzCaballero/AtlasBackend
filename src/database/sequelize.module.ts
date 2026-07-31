@@ -1,6 +1,12 @@
+/**
+ * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
+ * @business Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
+ * @system define database para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
+ */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { buildSequelizeOptions } from '../config/database.config.js';
+import { DbPoolMetricsService } from '../common/observability/db-pool-metrics.service.js';
 import { StartupSeedService } from './startup-seed.service.js';
 import {
   TenantModel,
@@ -28,6 +34,10 @@ import {
   CustomerAddressVersionModel,
   AddressGpsObservationModel,
   CustomerReferenceContactModel,
+  CustomerEligibilityEvaluationModel,
+  CreditProductModel,
+  CreditApplicationModel,
+  CreditApplicationEventModel,
   PrivacyProcessingPurposeModel,
   ConsentDocumentModel,
   CustomerConsentModel,
@@ -125,6 +135,11 @@ import {
   SystemDataRelationshipCatalogModel,
   SystemOperationalRuleCatalogModel,
   SystemCatalogReviewEventModel,
+  WorkflowDefinitionModel,
+  WorkflowStageModel,
+  WorkflowStepModel,
+  WorkflowStepDependencyModel,
+  WorkflowTransitionModel,
 } from './models/index.js';
 
 export const databaseModels = [
@@ -153,6 +168,10 @@ export const databaseModels = [
   CustomerAddressVersionModel,
   AddressGpsObservationModel,
   CustomerReferenceContactModel,
+  CustomerEligibilityEvaluationModel,
+  CreditProductModel,
+  CreditApplicationModel,
+  CreditApplicationEventModel,
   PrivacyProcessingPurposeModel,
   ConsentDocumentModel,
   CustomerConsentModel,
@@ -250,6 +269,11 @@ export const databaseModels = [
   SystemDataRelationshipCatalogModel,
   SystemOperationalRuleCatalogModel,
   SystemCatalogReviewEventModel,
+  WorkflowDefinitionModel,
+  WorkflowStageModel,
+  WorkflowStepModel,
+  WorkflowStepDependencyModel,
+  WorkflowTransitionModel,
 ];
 
 @Module({
@@ -260,6 +284,9 @@ export const databaseModels = [
     }),
   ],
   // Seeding idempotente al arrancar (opt-in vía DATABASE_SEED_ON_STARTUP). No-op si la var está apagada.
-  providers: [StartupSeedService],
+  // `DbPoolMetricsService` se registra AQUÍ y no en `ObservabilityModule` a propósito: necesita la
+  // conexión Sequelize, y este es el módulo que la provee. `MetricsService` llega por el módulo
+  // global de observabilidad.
+  providers: [StartupSeedService, DbPoolMetricsService],
 })
 export class DatabaseModule {}

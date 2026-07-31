@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza gobierna los catálogos que convierten datos externos y reglas de riesgo en decisiones consistentes.
+ * @system implementa ingesta, versionado, aprobación, activación y consulta transaccional de catálogos.
+ */
 import { Injectable } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { CatalogDataGovernanceService } from './application/catalog-data-governance.service.js';

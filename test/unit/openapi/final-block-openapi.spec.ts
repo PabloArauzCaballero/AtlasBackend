@@ -1,4 +1,5 @@
-import { beforeAll, describe, expect, it, jest } from '@jest/globals';
+import { beforeAll, describe, expect, it } from '@jest/globals';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { Test } from '@nestjs/testing';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -17,9 +18,11 @@ import { EventsController } from '../../../src/modules/events/events.controller.
 import { EventsService } from '../../../src/modules/events/events.service.js';
 import { RuntimeJobsController } from '../../../src/modules/runtime-jobs/runtime-jobs.controller.js';
 import { RuntimeJobsService } from '../../../src/modules/runtime-jobs/runtime-jobs.service.js';
+import { RuntimeMaintenanceJobsService } from '../../../src/modules/runtime-jobs/runtime-maintenance-jobs.service.js';
 import { HealthController } from '../../../src/modules/health/health.controller.js';
 import { getConnectionToken } from '@nestjs/sequelize';
 import { REDIS_CLIENT } from '../../../src/common/redis/redis.module.js';
+import { GracefulShutdownService } from '../../../src/common/lifecycle/graceful-shutdown.service.js';
 import { JwtAuthGuard } from '../../../src/common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../../src/common/guards/roles.guard.js';
 
@@ -48,85 +51,94 @@ describe('final block — OpenAPI document generation (8 controllers, 7 modules)
         {
           provide: SchemaManagementService,
           useValue: {
-            listSchemaVersions: jest.fn(),
-            getSchemaVersion: jest.fn(),
-            listSchemaTables: jest.fn(),
-            getSchemaTable: jest.fn(),
-            proposeNewTable: jest.fn(),
-            listSchemaChangeLog: jest.fn(),
-            approveSchemaChange: jest.fn(),
+            listSchemaVersions: asyncMock(),
+            getSchemaVersion: asyncMock(),
+            listSchemaTables: asyncMock(),
+            getSchemaTable: asyncMock(),
+            proposeNewTable: asyncMock(),
+            listSchemaChangeLog: asyncMock(),
+            approveSchemaChange: asyncMock(),
           },
         },
         {
           provide: InternalPortalService,
           useValue: {
-            listBusinessTerms: jest.fn(),
-            getBusinessTerm: jest.fn(),
-            listExports: jest.fn(),
-            getExport: jest.fn(),
-            listDataQualityRules: jest.fn(),
-            getDataQualityRule: jest.fn(),
-            runDataQualityRule: jest.fn(),
-            getGovernancePolicy: jest.fn(),
-            updateGovernancePolicy: jest.fn(),
-            getLineage: jest.fn(),
-            getLineageNode: jest.fn(),
-            getLineageImpact: jest.fn(),
-            listAlerts: jest.fn(),
-            acknowledgeAlert: jest.fn(),
-            listJobs: jest.fn(),
-            getJob: jest.fn(),
-            retryJob: jest.fn(),
-            cancelJob: jest.fn(),
-            getReleaseReadiness: jest.fn(),
-            listReports: jest.fn(),
-            getReport: jest.fn(),
-            runReport: jest.fn(),
-            listReportSnapshots: jest.fn(),
-            search: jest.fn(),
+            listBusinessTerms: asyncMock(),
+            getBusinessTerm: asyncMock(),
+            listExports: asyncMock(),
+            getExport: asyncMock(),
+            listDataQualityRules: asyncMock(),
+            getDataQualityRule: asyncMock(),
+            runDataQualityRule: asyncMock(),
+            getGovernancePolicy: asyncMock(),
+            updateGovernancePolicy: asyncMock(),
+            getLineage: asyncMock(),
+            getLineageNode: asyncMock(),
+            getLineageImpact: asyncMock(),
+            listAlerts: asyncMock(),
+            acknowledgeAlert: asyncMock(),
+            listJobs: asyncMock(),
+            getJob: asyncMock(),
+            retryJob: asyncMock(),
+            cancelJob: asyncMock(),
+            getReleaseReadiness: asyncMock(),
+            listReports: asyncMock(),
+            getReport: asyncMock(),
+            runReport: asyncMock(),
+            listReportSnapshots: asyncMock(),
+            search: asyncMock(),
           },
         },
-        { provide: InternalAuthService, useValue: { login: jest.fn(), refresh: jest.fn(), logout: jest.fn() } },
+        { provide: InternalAuthService, useValue: { login: asyncMock(), refresh: asyncMock(), logout: asyncMock() } },
         {
           provide: InternalAccessCatalogService,
-          useValue: { listRoles: jest.fn(), getRole: jest.fn(), listPermissions: jest.fn() },
+          useValue: { listRoles: asyncMock(), getRole: asyncMock(), listPermissions: asyncMock() },
         },
         {
           provide: InternalUsersService,
           useValue: {
-            getMyProfile: jest.fn(),
-            createUser: jest.fn(),
-            listUsers: jest.fn(),
-            getUser: jest.fn(),
-            updateUser: jest.fn(),
-            replaceRoles: jest.fn(),
+            getMyProfile: asyncMock(),
+            createUser: asyncMock(),
+            listUsers: asyncMock(),
+            getUser: asyncMock(),
+            updateUser: asyncMock(),
+            replaceRoles: asyncMock(),
           },
         },
         { provide: InternalPermissionsGuard, useValue: { canActivate: () => true } },
         {
           provide: EventsService,
           useValue: {
-            listDefinitions: jest.fn(),
-            listEvents: jest.fn(),
-            getEvent: jest.fn(),
-            publishFromDto: jest.fn(),
-            retryEvent: jest.fn(),
-            cancelEvent: jest.fn(),
+            listDefinitions: asyncMock(),
+            listEvents: asyncMock(),
+            getEvent: asyncMock(),
+            publishFromDto: asyncMock(),
+            retryEvent: asyncMock(),
+            cancelEvent: asyncMock(),
           },
         },
         {
           provide: RuntimeJobsService,
           useValue: {
-            processOutbox: jest.fn(),
-            processEvents: jest.fn(),
-            expireStaleSessions: jest.fn(),
-            applyRetentionPolicies: jest.fn(),
-            recalculateDataQuality: jest.fn(),
+            processOutbox: asyncMock(),
+            processEvents: asyncMock(),
+            expireStaleSessions: asyncMock(),
+            applyRetentionPolicies: asyncMock(),
+            recalculateDataQuality: asyncMock(),
           },
         },
-        { provide: getConnectionToken(), useValue: { authenticate: jest.fn() } },
+        // Los dos jobs de saneamiento viven en su propio servicio (extraídos para no seguir
+        // engordando `runtime-jobs.service.ts`, ya muy por encima del límite de tamaño).
+        {
+          provide: RuntimeMaintenanceJobsService,
+          useValue: { retryStuckNotifications: asyncMock(), purgeIdempotencyKeys: asyncMock() },
+        },
+        { provide: getConnectionToken(), useValue: { authenticate: asyncMock() } },
         // HealthController ahora inyecta REDIS_CLIENT (readiness verifica Redis si está configurado).
         { provide: REDIS_CLIENT, useValue: null },
+        // ...y GracefulShutdownService: durante el drenado por SIGTERM, readiness responde 503 para
+        // que el balanceador retire la instancia antes de que se cierre (hallazgo A-07).
+        { provide: GracefulShutdownService, useValue: { isShuttingDown: () => false } },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -188,7 +200,7 @@ describe('final block — OpenAPI document generation (8 controllers, 7 modules)
     const parameterNames = operation?.parameters?.map((parameter) => ('$ref' in parameter ? parameter.$ref : parameter.name));
     expect(parameterNames).toEqual(expect.arrayContaining(['q', 'page', 'limit', 'pageSize']));
 
-    const response = operation?.responses?.['200'] as {
+    const response = operation?.responses?.['200'] as unknown as {
       content: { 'application/json': { schema: { properties: Record<string, unknown> } } };
     };
     expect(response.content['application/json'].schema.properties).toEqual(
@@ -199,7 +211,7 @@ describe('final block — OpenAPI document generation (8 controllers, 7 modules)
   it('documents glossary term details and the not-found contract', () => {
     const operation = document.paths['/internal/business-metadata/terms/{termId}']?.get;
     expect(operation?.responses?.['404']).toBeDefined();
-    const response = operation?.responses?.['200'] as {
+    const response = operation?.responses?.['200'] as unknown as {
       content: { 'application/json': { schema: { properties: Record<string, unknown> } } };
     };
     expect(response.content['application/json'].schema.properties).toEqual(

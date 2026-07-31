@@ -3,6 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import jwt from 'jsonwebtoken';
+import { accessTokenSignOptions } from '../../../src/common/utils/auth/jwt-claims.util.js';
 import request from 'supertest';
 import { JwtAuthGuard } from '../../../src/common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../../src/common/guards/roles.guard.js';
@@ -41,10 +42,11 @@ describe('CatalogManagementController ingestion (e2e/supertest)', () => {
   });
 
   function authorization(): string {
-    const token = jwt.sign({ sub: 'context-seed-e2e', role: 'system' }, env.JWT_ACCESS_TOKEN_SECRET, {
-      algorithm: 'HS256',
-      expiresIn: '5m',
-    });
+    const token = jwt.sign(
+      { sub: 'context-seed-e2e', role: 'system' },
+      env.JWT_ACCESS_TOKEN_SECRET,
+      accessTokenSignOptions({ algorithm: 'HS256', expiresIn: '5m' }),
+    );
     return `Bearer ${token}`;
   }
 

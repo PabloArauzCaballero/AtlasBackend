@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
+ * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
+ */
 import { Injectable } from '@nestjs/common';
 import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from '../notification-types.js';
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';

@@ -1,3 +1,8 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza hace exigibles los derechos de privacidad y limita el uso de datos personales.
+ * @system gestiona decisiones de tratamiento y solicitudes del titular con auditoría y aislamiento por tenant.
+ */
 import { z } from 'zod';
 
 export const privacyCustomerParamsSchema = z.object({ customerId: z.string().regex(/^[1-9][0-9]*$/) });

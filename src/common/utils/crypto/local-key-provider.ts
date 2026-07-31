@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de crypto sin introducir reglas de un dominio específico.
+ */
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { env } from '../../../config/env.js';
 import { DataEncryptionKey, DataKeyProvider } from './data-key-provider.interface.js';

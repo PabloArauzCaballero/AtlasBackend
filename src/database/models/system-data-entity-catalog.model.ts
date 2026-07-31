@@ -1,7 +1,32 @@
+/**
+ * @file Modelo ORM: mapea una tabla y su contrato tipado.
+ * @business Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
+ * @system define models para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
+ */
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
 import { atlasSchemaFor } from '../domain-schemas.js';
 
-@Table({ tableName: 'system_data_entity_catalog', schema: atlasSchemaFor('system_data_entity_catalog'), timestamps: false })
+/**
+ * Columnas de narrativa: cinco textos largos (~6 KB por fila) que solo tienen sentido en el detalle
+ * de una entidad. Se excluyen por defecto para que el listado de 130 entidades no traiga ~800 KB de
+ * texto que el mapper descarta; el detalle los pide con `.unscoped()`.
+ */
+const NARRATIVE_ATTRIBUTES = [
+  // Nombres de ATRIBUTO, no de columna: `attributes.exclude` de Sequelize trabaja sobre las claves
+  // del modelo. Poner aquí `business_why_exists` no excluiría nada y el filtro sería un no-op.
+  'businessWhyExists',
+  'businessWhyNotDelete',
+  'businessDecisionContribution',
+  'businessUsageExample',
+  'systemsExplanation',
+];
+
+@Table({
+  tableName: 'system_data_entity_catalog',
+  schema: atlasSchemaFor('system_data_entity_catalog'),
+  timestamps: false,
+  defaultScope: { attributes: { exclude: NARRATIVE_ATTRIBUTES } },
+})
 export class SystemDataEntityCatalogModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;
@@ -23,6 +48,30 @@ export class SystemDataEntityCatalogModel extends Model {
 
   @Column({ field: 'business_purpose', type: DataType.TEXT, allowNull: false })
   declare businessPurpose: string;
+
+  // Narrativa de gobierno curada a mano (seeder `*-seed-data-entity-business-narrative.ts`).
+  // Responde por qué existe la tabla, por qué no se borra, qué decide, un ejemplo y cómo funciona.
+  @Column({ field: 'business_why_exists', type: DataType.TEXT })
+  declare businessWhyExists: string | null;
+
+  @Column({ field: 'business_why_not_delete', type: DataType.TEXT })
+  declare businessWhyNotDelete: string | null;
+
+  @Column({ field: 'business_decision_contribution', type: DataType.TEXT })
+  declare businessDecisionContribution: string | null;
+
+  @Column({ field: 'business_usage_example', type: DataType.TEXT })
+  declare businessUsageExample: string | null;
+
+  @Column({ field: 'systems_explanation', type: DataType.TEXT })
+  declare systemsExplanation: string | null;
+
+  /** `CURATED` (revisada por una persona) o `DOMAIN_TEMPLATE` (derivada del dominio). */
+  @Column({ field: 'narrative_source', type: DataType.STRING(40) })
+  declare narrativeSource: string | null;
+
+  @Column({ field: 'narrative_updated_at', type: DataType.DATE })
+  declare narrativeUpdatedAt: Date | null;
 
   @Column({ field: 'data_owner', type: DataType.STRING(120), allowNull: false })
   declare dataOwner: string;

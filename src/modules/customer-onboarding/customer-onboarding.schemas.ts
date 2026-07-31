@@ -1,4 +1,10 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
+ * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
+ */
 import { z } from 'zod';
+import { birthDateSchema } from './customer-onboarding-profile.schemas.js';
 
 const ALLOWED_PERMISSION_CODES = ['location', 'camera', 'contacts', 'notifications', 'storage'] as const;
 
@@ -9,19 +15,19 @@ export const startOnboardingSchema = z.object({
       email: z.string().trim().email().max(180).optional(),
       firstName: z.string().trim().min(1).max(120).optional(),
       lastName: z.string().trim().min(1).max(120).optional(),
-      birthDate: z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/, 'birthDate debe tener formato YYYY-MM-DD.')
-        .optional(),
+      // Validación de edad (antes inexistente): nada impedía registrar a un menor de edad.
+      birthDate: birthDateSchema.optional(),
     })
     .refine((v) => v.phone !== undefined || v.email !== undefined, {
       message: 'Se requiere al menos teléfono o email para iniciar onboarding.',
       path: ['phone'],
     }),
 
-  // La contraseña es opcional porque el registro de negocio ocurre en onboarding. Si se omite,
-  // el cliente queda registrado sin credenciales de contraseña.
-  password: z.string().trim().min(10, 'La contraseña debe tener al menos 10 caracteres.').max(128).optional(),
+  // La contraseña es OBLIGATORIA. Antes era opcional, y un cliente registrado sin ella quedaba sin
+  // ninguna forma de entrar jamás: no existe endpoint para fijarla después y
+  // `POST /auth/password-reset/request` retorna sin hacer nada si el actor no tiene credenciales
+  // (`auth-password-reset.service.ts`). Es decir, la cuenta nacía muerta y en silencio.
+  password: z.string().trim().min(10, 'La contraseña debe tener al menos 10 caracteres.').max(128),
 
   consents: z
     .array(
@@ -127,10 +133,14 @@ export const identityPackageSchema = z.object({
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional(),
+    // La vigencia pasa a ser obligatoria y se valida contra la fecha actual: antes se aceptaba
+    // —y se daba por buena como evidencia KYC— un documento vencido, o sin fecha de vencimiento.
     expiresAt: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .optional(),
+      .refine((value) => new Date(`${value}T23:59:59.999Z`).getTime() > Date.now(), {
+        message: 'El documento de identidad está vencido.',
+      }),
   }),
   evidence: z.array(identityEvidenceSchema).min(1).max(5),
   provider: z

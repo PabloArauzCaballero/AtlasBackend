@@ -1,3 +1,8 @@
+/**
+ * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
+ * @business Esta pieza sostiene una parte mantenida del backend Atlas.
+ * @system agrupa artefactos relacionados bajo un límite navegable.
+ */
 import { Global, Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AuthCredentialModel } from '../database/models/index.js';

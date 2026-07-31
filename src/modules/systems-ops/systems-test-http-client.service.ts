@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
+ * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
+ */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { assertResolvedTargetSafe, buildAllowedTestUrl, SystemTestEnvironment } from './systems-test-url-policy.util.js';
 

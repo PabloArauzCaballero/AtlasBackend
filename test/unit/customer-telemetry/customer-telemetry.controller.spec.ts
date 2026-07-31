@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { callArg } from '../../support/jest-mocks.js';
 import { CustomerTelemetryController } from '../../../src/modules/customer-telemetry/customer-telemetry.controller.js';
 import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.js';
 
@@ -32,7 +33,7 @@ describe('CustomerTelemetryController', () => {
   it('usa null como IP cuando el request no la trae', async () => {
     const { controller, service } = build();
     await controller.ingestBatch('1', 'idem', params, { events: [] } as never, user, {} as never);
-    expect((service.ingestBatch.mock.calls[0][0] as { ipAddress: string | null }).ipAddress).toBeNull();
+    expect(callArg<{ ipAddress: string | null }>(service.ingestBatch, 0, 0).ipAddress).toBeNull();
   });
 
   it('exige el x-idempotency-key', () => {

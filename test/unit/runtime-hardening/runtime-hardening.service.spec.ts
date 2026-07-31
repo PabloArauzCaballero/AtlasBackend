@@ -1,4 +1,5 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { ConflictException } from '@nestjs/common';
 import { UniqueConstraintError } from 'sequelize';
 import { RuntimeHardeningService } from '../../../src/modules/runtime-hardening/runtime-hardening.service.js';
@@ -14,7 +15,7 @@ import { RuntimeHardeningService } from '../../../src/modules/runtime-hardening/
 
 function buildIdempotencyModelMock() {
   return {
-    findOne: jest.fn(),
+    findOne: asyncMock(),
     create: jest.fn(async (values: Record<string, unknown>) => ({ ...values, save: jest.fn(async () => undefined) })),
   };
 }
@@ -49,7 +50,7 @@ describe('RuntimeHardeningService.claimIdempotency', () => {
 
     expect(result.mode).toBe('execute');
     expect(idempotencyModel.create).toHaveBeenCalledTimes(1);
-    const created = idempotencyModel.create.mock.calls[0][0] as Record<string, unknown>;
+    const created = callArg<CallArgRecord>(idempotencyModel.create, 0, 0);
     expect(created.status).toBe('processing');
     expect(created.lockedUntil).toEqual(new Date(NOW.getTime() + 5 * 60_000));
   });
@@ -220,10 +221,10 @@ describe('RuntimeHardeningService — outbox', () => {
     });
 
     expect(outboxModel.create).toHaveBeenCalledTimes(1);
-    const created = outboxModel.create.mock.calls[0][0] as Record<string, unknown>;
+    const created = callArg<CallArgRecord>(outboxModel.create, 0, 0);
     expect(created.status).toBe('pending');
     expect(created.attempts).toBe(0);
-    expect((created.eventPayloadJson as { authToken: string }).authToken).toBe('[REDACTED]');
+    expect((created.eventPayloadJson as unknown as { authToken: string }).authToken).toBe('[REDACTED]');
   });
 
   it('listPendingOutbox consulta solo eventos pending disponibles, ordenados FIFO', async () => {
@@ -232,7 +233,7 @@ describe('RuntimeHardeningService — outbox', () => {
     await service.listPendingOutbox(50);
 
     expect(outboxModel.findAll).toHaveBeenCalledTimes(1);
-    const callArgs = outboxModel.findAll.mock.calls[0][0] as { where: { status: string }; limit: number; order: unknown[] };
+    const callArgs = callArg<{ where: { status: string }; limit: number; order: unknown[] }>(outboxModel.findAll, 0, 0);
     expect(callArgs.where.status).toBe('pending');
     expect(callArgs.limit).toBe(50);
     expect(callArgs.order).toEqual([

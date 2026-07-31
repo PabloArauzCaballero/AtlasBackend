@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza protege el acceso de clientes y operadores, la recuperación de cuenta y la continuidad segura de sesiones.
+ * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
+ */
 import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { env } from '../../config/env.js';
 import { hashPassword, isPasswordStrongEnough } from '../../common/utils/crypto/password.util.js';

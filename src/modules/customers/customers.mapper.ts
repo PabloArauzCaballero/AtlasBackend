@@ -1,23 +1,19 @@
+/**
+ * @file Mapper: transforma modelos internos a contratos de transporte.
+ * @business Esta pieza mantiene la identidad operativa, ciclo de vida y elegibilidad del cliente como fuente de verdad.
+ * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
+ */
 import {
   CustomerConsentModel,
   CustomerContactMethodModel,
   CustomerModel,
   CustomerProfileVersionModel,
+  OnboardingFlowModel,
   RiskAssessmentResultModel,
 } from '../../database/models/index.js';
+import { EligibilityAssessment } from './application/customer-eligibility.evaluator.js';
 import { CustomerMeResponseDto, CustomerProfileResponseDto, CustomerResponseDto } from './customers.dtos.js';
 import { toIsoOrNull } from '../../common/utils/dates/date.util.js';
-
-function deriveNextStep(lifecycleStatus: string | null, contacts: CustomerContactMethodModel[]): string {
-  if (lifecycleStatus === 'blocked') return 'blocked';
-  if (lifecycleStatus === 'pending_review') return 'pending_review';
-  if (lifecycleStatus === 'approved') return 'complete';
-
-  const hasUnverifiedContact = contacts.some((c) => c.status === 'unverified' || c.status === null);
-  if (hasUnverifiedContact) return 'verify_contact';
-
-  return 'identity_capture';
-}
 
 export function toCustomerResponse(customer: CustomerModel): CustomerResponseDto {
   return {
@@ -52,6 +48,8 @@ export function toCustomerMeResponse(input: {
   contacts: CustomerContactMethodModel[];
   consents: CustomerConsentModel[];
   riskResult: RiskAssessmentResultModel | null;
+  onboardingFlow: OnboardingFlowModel | null;
+  assessment: EligibilityAssessment;
 }): CustomerMeResponseDto {
   const acceptedPurposeCodes = input.consents
     .filter((c) => c.granted === true)
@@ -79,8 +77,25 @@ export function toCustomerMeResponse(input: {
           preferredLanguage: input.profile.preferredLanguage,
         }
       : null,
-    // BLOCKED: onboarding_flows table not present in current schema.
-    onboarding: null,
+    // CORRECCIÓN (H3): este campo estaba fijado en `null` con el comentario "onboarding_flows table
+    // not present in current schema". La tabla SÍ existe, se escribe en el registro y la consultan
+    // tres servicios de onboarding; el comentario venía de una fase anterior del proyecto y nadie
+    // volvió a conectar el dato real con la respuesta.
+    onboarding: input.onboardingFlow
+      ? {
+          onboardingFlowId: String(input.onboardingFlow.id),
+          flowVersion: input.onboardingFlow.flowVersion,
+          completionStatus: input.onboardingFlow.completionStatus,
+          startedAt: toIsoOrNull(input.onboardingFlow.startedAt),
+          completedAt: toIsoOrNull(input.onboardingFlow.completedAt),
+          abandonedAt: toIsoOrNull(input.onboardingFlow.abandonedAt),
+        }
+      : null,
+    eligibility: {
+      eligible: input.assessment.eligible,
+      completionPercentage: input.assessment.completionPercentage,
+      blockerCodes: input.assessment.blockers.map((blocker) => blocker.code),
+    },
     contacts: input.contacts.map((c) => ({
       contactType: c.contactType,
       status: c.status,
@@ -97,6 +112,9 @@ export function toCustomerMeResponse(input: {
           latestRiskLevel: input.riskResult.riskLevel,
         }
       : null,
-    nextStep: deriveNextStep(input.customer.lifecycleStatus, input.contacts),
+    // El `nextStep` viene del MISMO evaluador que decide la habilitación. Antes se calculaba aquí
+    // sobre `pending_review`/`approved`, valores que ningún código escribía: un cliente que ya había
+    // enviado sus documentos recibía `identity_capture` y la app le pedía volver a subirlos.
+    nextStep: input.assessment.nextStep,
   };
 }

@@ -38,7 +38,7 @@ describe('catalog-management — OpenAPI del contexto de decisión', () => {
   });
 
   it('expone la estructura de catálogo, versión, items y mapeos de riesgo', () => {
-    const response = document.paths['/operations/catalogs/{catalogCode}/versions/{versionId}']?.get?.responses?.['200'] as {
+    const response = document.paths['/operations/catalogs/{catalogCode}/versions/{versionId}']?.get?.responses?.['200'] as unknown as {
       content: { 'application/json': { schema: Record<string, unknown> } };
     };
     const properties = response.content['application/json'].schema.properties as Record<string, unknown>;
@@ -48,7 +48,7 @@ describe('catalog-management — OpenAPI del contexto de decisión', () => {
   });
 
   it('expone las cuatro familias de definiciones semánticas', () => {
-    const response = document.paths['/operations/definitions']?.get?.responses?.['200'] as {
+    const response = document.paths['/operations/definitions']?.get?.responses?.['200'] as unknown as {
       content: { 'application/json': { schema: { properties: Record<string, unknown> } } };
     };
     expect(response.content['application/json'].schema.properties).toEqual(

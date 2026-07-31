@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza preserva evidencia operativa suficiente para diagnosticar incidentes con retención limitada.
+ * @system sincroniza logs redactados hacia MongoDB, aplica TTL y ofrece consultas administrativas.
+ */
 import { Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Collection, Document, Filter, MongoClient } from 'mongodb';
 import { env } from '../../config/env.js';

@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { callArg } from '../../support/jest-mocks.js';
 import { CustomerSessionsController, OperationsSessionsController } from '../../../src/modules/sessions/sessions.controller.js';
 import { tenantIdFromHeader, userAgentFrom } from '../../../src/common/utils/http/headers.util.js';
 
@@ -30,7 +31,7 @@ describe('sessions controllers', () => {
     const service = { heartbeat: jest.fn(async () => ({})) };
     const controller = new CustomerSessionsController(service as never);
     await controller.heartbeat('1', 'idem', { customerId: '9', sessionId: 's1' } as never, { deviceId: 'd1' } as never, user, request);
-    expect((service.heartbeat.mock.calls[0][0] as { sessionId: string }).sessionId).toBe('s1');
+    expect(callArg<{ sessionId: string }>(service.heartbeat, 0, 0).sessionId).toBe('s1');
     expect(() => controller.heartbeat('1', undefined, { customerId: '9', sessionId: 's1' } as never, {} as never, user, request)).toThrow();
   });
 

@@ -1,9 +1,23 @@
-import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
+ * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
+ */
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
+import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
+import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { IdentityPackageDto } from '../customer-onboarding.schemas.js';
@@ -13,6 +27,8 @@ export class CustomerIdentityPackageService {
   constructor(
     private readonly customersRepository: CustomersRepository,
     private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly lifecycleService: CustomerLifecycleService,
+    private readonly storageService: DocumentStorageService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -29,8 +45,20 @@ export class CustomerIdentityPackageService {
     const customer = await this.customersRepository.findById(input.tenantId, input.customerId);
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
 
+    const status = normalizeLifecycleStatus(customer.lifecycleStatus);
+    if (!EDITABLE_ONBOARDING_STATUSES.includes(status)) {
+      throw new UnprocessableEntityException(`PROFILE_NOT_EDITABLE_IN_STATUS: ${status}`);
+    }
+
     const front = input.body.evidence.find((item) => item.evidenceType === 'identity_front');
     if (!front) throw new UnprocessableEntityException('REQUIRED_EVIDENCE_MISSING');
+
+    // Verificación server-side ANTES de abrir la transacción. Hasta ahora el backend nunca veía el
+    // archivo: guardaba la ruta y el hash que el propio cliente declaraba. Aquí se descarga cada
+    // objeto, se recalcula el SHA-256, se contrasta el tamaño y se comprueban los bytes mágicos
+    // contra el tipo declarado — renombrar un ejecutable a `.jpg` ya no alcanza.
+    const verifiedEvidence = await this.verifyEvidenceObjects(input.body.evidence);
+
     const now = new Date();
 
     return this.sequelize.transaction(async (transaction) => {
@@ -69,9 +97,11 @@ export class CustomerIdentityPackageService {
             customerId: input.customerId,
             documentType: evidenceInput.evidenceType,
             storageKey: evidenceInput.storageKey,
+            bucket: this.storageService.getBucket(),
             mimeType: evidenceInput.mimeType,
-            sha256Hash: evidenceInput.sha256Hash,
-            fileSizeBytes: evidenceInput.fileSizeBytes ?? null,
+            // Metadatos verificados contra el objeto real, no los declarados por el cliente.
+            sha256Hash: verifiedEvidence.get(evidenceInput.storageKey)?.sha256Hex ?? evidenceInput.sha256Hash,
+            fileSizeBytes: String(verifiedEvidence.get(evidenceInput.storageKey)?.sizeBytes ?? 0),
             sessionId: input.body.sessionId ?? null,
             ipAddress: input.ipAddress,
             uploadedAt: now,
@@ -145,20 +175,20 @@ export class CustomerIdentityPackageService {
         },
         { transaction },
       );
-      await this.customersRepository.createStatusEvent(
-        {
-          tenantId: input.tenantId,
-          customerId: input.customerId,
-          previousStatus: customer.lifecycleStatus,
-          newStatus: 'pending_identity_review',
-          reasonCode: 'identity_package_submitted',
-          changedByType: input.currentUser.role,
-          happenedAt: now,
-          notes: 'Paquete KYC recibido.',
-        },
-        { transaction },
-      );
-      await this.onboardingRepository.updateCustomerStatus(customer, 'pending_identity_review', now, { transaction });
+      // El estado y su evento de historial los escribe ahora `CustomerLifecycleService`, que valida
+      // la transición y usa el estado anterior REAL. `pending_identity_review` era un estado que
+      // este servicio escribía y que ningún otro componente leía; el destino canónico del avance de
+      // onboarding es `onboarding_in_progress`, y a revisión se pasa al enviar el paquete completo.
+      await this.lifecycleService.advance({
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        toStatus: 'onboarding_in_progress',
+        reasonCode: 'identity_package_submitted',
+        changedByType: input.currentUser.role,
+        changedByInternalUserId: input.currentUser.internalUserId ?? null,
+        notes: 'Paquete KYC recibido.',
+        transaction,
+      });
       await this.onboardingRepository.createCustomerActionLog(
         {
           tenantId: input.tenantId,
@@ -192,8 +222,33 @@ export class CustomerIdentityPackageService {
         customerId: input.customerId,
         identityVerificationAttemptId: String(attempt.id),
         status: 'pending_review',
-        nextStep: 'risk_evaluation',
+        nextStep: 'reference_contacts',
       };
     });
+  }
+
+  /**
+   * Descarga y valida cada objeto declarado. Falla el paquete completo ante el primer problema: una
+   * evidencia que no se pudo verificar no es evidencia, y aceptar el resto dejaría un documento de
+   * identidad a medio respaldar.
+   */
+  private async verifyEvidenceObjects(evidence: IdentityPackageDto['evidence']) {
+    if (!this.storageService.isConfigured()) {
+      throw new ServiceUnavailableException('DOCUMENT_STORAGE_NOT_CONFIGURED');
+    }
+    const verified = new Map<string, { sizeBytes: number; sha256Hex: string }>();
+    for (const item of evidence) {
+      const result = await this.storageService.verifyDeclaredObject({
+        storageKey: item.storageKey,
+        declaredSha256: item.sha256Hash,
+        declaredMimeType: item.mimeType,
+        declaredSizeBytes: item.fileSizeBytes ? Number(item.fileSizeBytes) : null,
+      });
+      if (!result.ok) {
+        throw new UnprocessableEntityException(`${result.reason}: ${item.evidenceType}`);
+      }
+      verified.set(item.storageKey, { sizeBytes: result.metadata.sizeBytes, sha256Hex: result.metadata.sha256Hex });
+    }
+    return verified;
   }
 }

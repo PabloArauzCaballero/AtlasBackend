@@ -1,5 +1,11 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza protege el acceso de clientes y operadores, la recuperación de cuenta y la continuidad segura de sesiones.
+ * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
+ */
 import { Injectable } from '@nestjs/common';
 import { AtlasUserRole } from '../../common/types/auth.types.js';
+import { decryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { hashSensitiveText } from '../../common/utils/crypto/hash.util.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
@@ -56,9 +62,12 @@ export class AuthActorResolverService {
         emailHash: identifierHash,
       });
       if (!customer || customer.lifecycleStatus === 'closed') return null;
-      // El email/teléfono del cliente se almacena hasheado; el único valor en claro disponible
-      // es el identificador que el propio cliente acaba de escribir (y que coincidió por hash).
-      const email = identifier.includes('@') ? identifier : null;
+      // El email/teléfono del cliente se almacena hasheado. Si el identificador escrito ES un
+      // email, ese valor en claro sirve directamente. Si el cliente entró con su TELÉFONO, antes se
+      // devolvía `email: null` y la recuperación de contraseña quedaba silenciosamente muerta,
+      // aunque el cliente tuviera un correo registrado y verificado. Ahora se recupera de
+      // `customer_contact_methods` descifrando el sobre.
+      const email = identifier.includes('@') ? identifier : await this.resolveCustomerEmail(tenantId, String(customer.id));
       return { id: customer.id, tenantId: customer.tenantId, role: 'customer', email, displayName: null };
     }
 
@@ -89,6 +98,26 @@ export class AuthActorResolverService {
       email: platformUser.email,
       displayName: platformUser.fullName,
     };
+  }
+
+  /**
+   * Correo de contacto del cliente para mensajes transaccionales.
+   *
+   * Prefiere un correo ya verificado; si no hay ninguno verificado, acepta uno declarado. Un fallo
+   * de descifrado no puede tumbar el login ni revelar la existencia de la cuenta: se degrada a
+   * `null`, que el llamador trata como "no hay canal disponible".
+   */
+  private async resolveCustomerEmail(tenantId: string, customerId: string): Promise<string | null> {
+    const contacts = await this.customersRepository.findContactMethods(tenantId, customerId);
+    const emails = contacts.filter((contact) => contact.contactType === 'email' && contact.contactValueEncrypted !== null);
+    const preferred = emails.find((contact) => contact.status === 'verified') ?? emails[0];
+    if (!preferred) return null;
+    try {
+      return await decryptSecretEnvelope(preferred.contactValueEncrypted);
+    } catch {
+      // Sobre ilegible (rotación de clave incompleta, dato corrupto): sin canal, sin filtración.
+      return null;
+    }
   }
 
   /** Re-resuelve el rol/tenant vigentes de un actor ya conocido por su id (refresh y verificación de PIN). */

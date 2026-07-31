@@ -1,3 +1,8 @@
+/**
+ * @file Mapper: transforma modelos internos a contratos de transporte.
+ * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
+ * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
+ */
 import {
   DeviceTokenModel,
   NotificationDeliveryModel,

@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { SessionsDeviceRepository } from '../../../src/modules/sessions/repositories/sessions-device.repository.js';
 
 /**
@@ -8,7 +9,7 @@ import { SessionsDeviceRepository } from '../../../src/modules/sessions/reposito
  */
 describe('SessionsDeviceRepository', () => {
   function buildRepo() {
-    const make = () => ({ findOne: jest.fn(), create: jest.fn(), findAll: jest.fn() });
+    const make = () => ({ findOne: asyncMock(), create: asyncMock(), findAll: asyncMock() });
     const models = {
       globalDevice: make(),
       device: make(),
@@ -32,7 +33,7 @@ describe('SessionsDeviceRepository', () => {
     const { repo, models } = buildRepo();
     (models.globalDevice.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findGlobalDevice('fp', 'v1', opts);
-    expect((models.globalDevice.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({
+    expect(callArg<CallArgRecord>(models.globalDevice.findOne, 0, 0).where).toMatchObject({
       deviceFingerprint: 'fp',
       fingerprintVersion: 'v1',
     });
@@ -59,8 +60,8 @@ describe('SessionsDeviceRepository', () => {
     (models.device.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findDevice('t1', 'fp', 'v1', opts);
     await repo.findDeviceById('t1', 'd1');
-    expect((models.device.findOne as jest.Mock).mock.calls[0][0].where.deleted).toBeDefined();
-    expect((models.device.findOne as jest.Mock).mock.calls[1][0].where).toMatchObject({ tenantId: 't1', id: 'd1' });
+    expect(callArg<CallArgRecord>(models.device.findOne, 0, 0).where.deleted).toBeDefined();
+    expect(callArg<CallArgRecord>(models.device.findOne, 1, 0).where).toMatchObject({ tenantId: 't1', id: 'd1' });
   });
 
   it('createDevice nace con tenantReuseCount=1 y no borrado', async () => {
@@ -89,7 +90,7 @@ describe('SessionsDeviceRepository', () => {
     const { repo, models } = buildRepo();
     (models.customerDeviceLink.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findCustomerDeviceLink('t1', 'c1', 'd1', opts);
-    expect((models.customerDeviceLink.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({
+    expect(callArg<CallArgRecord>(models.customerDeviceLink.findOne, 0, 0).where).toMatchObject({
       tenantId: 't1',
       customerId: 'c1',
       deviceId: 'd1',

@@ -1,3 +1,8 @@
+/**
+ * @file Mapper: transforma modelos internos a contratos de transporte.
+ * @business Esta pieza gobierna los catálogos que convierten datos externos y reglas de riesgo en decisiones consistentes.
+ * @system implementa ingesta, versionado, aprobación, activación y consulta transaccional de catálogos.
+ */
 import {
   AttributeDefinitionModel,
   ContextCatalogModel,

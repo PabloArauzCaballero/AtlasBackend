@@ -7,7 +7,10 @@ import {
   envValue,
   featuresFromObservations,
   isConsentRequiredError,
+  isMockMode,
   mockBaseUrlFor,
+  mockDataAllowedInProduction,
+  MOCK_MODES,
   payloadHash,
   percentile,
   policyNumber,
@@ -121,6 +124,70 @@ describe('external-data-policy.util', () => {
     it('un proveedor sin requisitos registrados exige su <CODE>_BASE_URL', () => {
       setEnv('OTRO_REAL_INTEGRATION_IMPLEMENTED', 'true');
       expect(productionIntegrationBlockers('OTRO', 'production')).toEqual(['OTRO_BASE_URL_MISSING']);
+    });
+  });
+
+  /**
+   * Hallazgo A-02 de docs/audit/auditoria-integral-2026-07-30.md: los nueve proveedores se siembran
+   * con `default_mode = 'mock_local'` y `toMode` también cae ahí, así que un despliegue productivo
+   * que no fije `${CODE}_MODE=production` servía evidencia KYC INVENTADA y la persistía como
+   * features del cliente. Estas pruebas fijan que en producción eso queda bloqueado.
+   */
+  describe('modo simulado en producción', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const runAsProduction = (assertions: () => void) => {
+      process.env.NODE_ENV = 'production';
+      try {
+        assertions();
+      } finally {
+        process.env.NODE_ENV = originalNodeEnv;
+      }
+    };
+
+    it('isMockMode distingue los modos que no hablan con el proveedor real', () => {
+      expect(MOCK_MODES).toEqual(['mock_local', 'mock_server']);
+      expect(isMockMode('mock_local')).toBe(true);
+      expect(isMockMode('mock_server')).toBe(true);
+      expect(isMockMode('production')).toBe(false);
+      expect(isMockMode('sandbox')).toBe(false);
+      expect(isMockMode('disabled')).toBe(false);
+    });
+
+    it('en producción bloquea mock_local y mock_server, y no toca sandbox ni disabled', () => {
+      runAsProduction(() => {
+        expect(productionIntegrationBlockers('SEGIP', 'mock_local')).toEqual(['SEGIP_MOCK_MODE_IN_PRODUCTION']);
+        expect(productionIntegrationBlockers('INFOCENTER', 'mock_server')).toEqual(['INFOCENTER_MOCK_MODE_IN_PRODUCTION']);
+        expect(productionIntegrationBlockers('SEGIP', 'sandbox')).toEqual([]);
+        expect(productionIntegrationBlockers('SEGIP', 'disabled')).toEqual([]);
+      });
+    });
+
+    it('el alias CGIP se normaliza a SEGIP también en el bloqueo', () => {
+      runAsProduction(() => {
+        expect(productionIntegrationBlockers('CGIP', 'mock_local')).toEqual(['SEGIP_MOCK_MODE_IN_PRODUCTION']);
+      });
+    });
+
+    it('fuera de producción el modo simulado es legítimo y no bloquea', () => {
+      expect(productionIntegrationBlockers('SEGIP', 'mock_local')).toEqual([]);
+      expect(productionIntegrationBlockers('SEGIP', 'mock_server')).toEqual([]);
+    });
+
+    it('el escape hatch explícito desbloquea, y solo él', () => {
+      runAsProduction(() => {
+        expect(mockDataAllowedInProduction()).toBe(false);
+        setEnv('EXTERNAL_PROVIDERS_ALLOW_MOCK_IN_PRODUCTION', 'true');
+        expect(mockDataAllowedInProduction()).toBe(true);
+        expect(productionIntegrationBlockers('SEGIP', 'mock_local')).toEqual([]);
+      });
+    });
+
+    it('mockBaseUrlFor no inventa un localhost en producción', () => {
+      runAsProduction(() => {
+        expect(mockBaseUrlFor('SEGIP')).toBeUndefined();
+        setEnv('EXTERNAL_PROVIDERS_MOCK_BASE_URL', 'https://mocks.interno');
+        expect(mockBaseUrlFor('SEGIP')).toBe('https://mocks.interno/segip');
+      });
     });
   });
 

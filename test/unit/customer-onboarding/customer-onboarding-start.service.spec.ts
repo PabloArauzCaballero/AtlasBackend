@@ -57,6 +57,9 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
       createOperationalAuditLog: jest.fn(),
     };
     const authRepository = { createCredentials: jest.fn() };
+    // Las validaciones previas a la transacción viven ahora en `CustomerOnboardingGuardsService`
+    // (duplicados + consentimientos obligatorios), donde se pueden probar en aislamiento.
+    const guardsService = { assertNoDuplicateCustomer: jest.fn(), assertConsentDocumentsAreValid: jest.fn() };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
 
     const service = new CustomerOnboardingStartService(
@@ -65,10 +68,11 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
       consentsRepository as never,
       onboardingRepository as never,
       authRepository as never,
+      guardsService as never,
       sequelize as never,
     );
 
-    return { service, customersRepository, sessionsRepository, consentsRepository, onboardingRepository, authRepository };
+    return { service, customersRepository, sessionsRepository, consentsRepository, onboardingRepository, authRepository, guardsService };
   }
 
   function validInput(overrides: Record<string, unknown> = {}) {
@@ -81,6 +85,7 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
         userAgent: 'AtlasApp/1.0',
       },
       consents: [{ consentDocumentId: 'doc-1', purposeCode: 'terms', granted: true }],
+      password: 'Contrasena-Muy-Segura-1',
       permissions: [],
       onboarding: {},
       ...overrides,
@@ -107,59 +112,35 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
     it('throws BadRequestException without an idempotency key, before checking for duplicates', async () => {
       const mocks = await buildService();
       await expect(mocks.service.startOnboarding('t1', validInput(), null, '')).rejects.toThrow(BadRequestException);
-      expect(mocks.customersRepository.findByContactHash).not.toHaveBeenCalled();
+      expect(mocks.guardsService.assertNoDuplicateCustomer).not.toHaveBeenCalled();
     });
 
-    it('throws ConflictException CUSTOMER_ALREADY_EXISTS when a customer with the same phone/email hash already exists', async () => {
+    it('delega la detección de duplicados en el guard y no abre la transacción si este falla', async () => {
       const mocks = await buildService();
-      (mocks.customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce({ id: 'existing-customer' } as never);
+      (mocks.guardsService.assertNoDuplicateCustomer as jest.Mock).mockRejectedValueOnce(
+        new ConflictException('CUSTOMER_ALREADY_EXISTS') as never,
+      );
       await expect(mocks.service.startOnboarding('t1', validInput(), null, 'idem-1')).rejects.toThrow(/CUSTOMER_ALREADY_EXISTS/);
       expect(mocks.customersRepository.createCustomer).not.toHaveBeenCalled();
     });
 
-    it('throws UnprocessableEntityException REQUIRED_CONSENT_MISSING when any consent in the batch is not granted', async () => {
+    it('delega la validación de consentimientos en el guard y no crea nada si este falla', async () => {
       const mocks = await buildService();
-      (mocks.customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce(null as never);
-      await expect(
-        mocks.service.startOnboarding(
-          't1',
-          validInput({ consents: [{ consentDocumentId: 'doc-1', purposeCode: 'terms', granted: false }] }),
-          null,
-          'idem-1',
-        ),
-      ).rejects.toThrow(/REQUIRED_CONSENT_MISSING/);
-    });
-
-    it('throws UnprocessableEntityException when a referenced consent document is not active/does not exist', async () => {
-      const mocks = await buildService();
-      (mocks.customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce(null as never);
-      (mocks.consentsRepository.findActiveDocumentById as jest.Mock).mockResolvedValueOnce(null as never);
-      await expect(mocks.service.startOnboarding('t1', validInput(), null, 'idem-1')).rejects.toThrow(UnprocessableEntityException);
+      (mocks.guardsService.assertConsentDocumentsAreValid as jest.Mock).mockRejectedValueOnce(
+        new UnprocessableEntityException('REQUIRED_CONSENT_MISSING') as never,
+      );
+      await expect(mocks.service.startOnboarding('t1', validInput(), null, 'idem-1')).rejects.toThrow(/REQUIRED_CONSENT_MISSING/);
       expect(mocks.customersRepository.createCustomer).not.toHaveBeenCalled();
-    });
-
-    it('all consent documents are validated BEFORE the transaction opens — none of them are created if even one is invalid', async () => {
-      const mocks = await buildService();
-      (mocks.customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce(null as never);
-      (mocks.consentsRepository.findActiveDocumentById as jest.Mock)
-        .mockResolvedValueOnce({ id: 'doc-1' } as never)
-        .mockResolvedValueOnce(null as never);
-
-      await expect(
-        mocks.service.startOnboarding(
-          't1',
-          validInput({
-            consents: [
-              { consentDocumentId: 'doc-1', purposeCode: 'terms', granted: true },
-              { consentDocumentId: 'doc-2', purposeCode: 'marketing', granted: true },
-            ],
-          }),
-          null,
-          'idem-1',
-        ),
-      ).rejects.toThrow(UnprocessableEntityException);
       expect(mocks.consentsRepository.createCustomerConsent).not.toHaveBeenCalled();
     });
+
+    it('ambos guards corren ANTES de abrir la transacción', async () => {
+      const mocks = await buildService();
+      await primeHappyPathMocks(mocks);
+      await mocks.service.startOnboarding('t1', validInput(), null, 'idem-1');
+      expect(mocks.guardsService.assertNoDuplicateCustomer).toHaveBeenCalled();
+      expect(mocks.guardsService.assertConsentDocumentsAreValid).toHaveBeenCalled();
+    }, 10_000);
   });
 
   describe('condición de carrera: UniqueConstraintError se traduce al mismo error de negocio', () => {
@@ -347,6 +328,7 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
         't1',
         validInput({
           consents: [{ consentDocumentId: 'doc-1', purposeCode: 'terms', granted: true }],
+          password: 'Contrasena-Muy-Segura-1',
         }),
         null,
         'idem-1',
@@ -359,14 +341,14 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
   });
 
   describe('camino feliz — orquestación completa', () => {
-    it('creates credentials only when a password is supplied', async () => {
+    it('siempre crea credenciales: la contraseña dejó de ser opcional en el registro', async () => {
+      // Antes era opcional, y un cliente registrado sin contraseña quedaba sin ninguna forma de
+      // entrar jamás: no hay endpoint para fijarla después y el reset no hace nada sin credencial.
       const mocks = await buildService();
       await primeHappyPathMocks(mocks);
-
       await mocks.service.startOnboarding('t1', validInput(), null, 'idem-1');
-
-      expect(mocks.authRepository.createCredentials).not.toHaveBeenCalled();
-    });
+      expect(mocks.authRepository.createCredentials).toHaveBeenCalledTimes(1);
+    }, 10_000);
 
     it('creates credentials with a hashed password when one is supplied', async () => {
       const mocks = await buildService();

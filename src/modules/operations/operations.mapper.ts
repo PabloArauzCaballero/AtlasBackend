@@ -1,3 +1,8 @@
+/**
+ * @file Mapper: transforma modelos internos a contratos de transporte.
+ * @business Esta pieza permite resolver excepciones y revisiones manuales con responsabilidad y trazabilidad.
+ * @system gestiona colas y decisiones operativas mediante servicios transaccionales y repositorios aislados.
+ */
 import {
   CustomerConsentModel,
   CustomerContactMethodModel,

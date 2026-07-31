@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza entrega comunicaciones transaccionales indispensables para verificación y recuperación de acceso.
+ * @system encapsula el cliente HTTP de correo y sus plantillas, timeouts y errores tipados.
+ */
 import { Injectable } from '@nestjs/common';
 import { MailSenderClient } from './mail-sender.client.js';
 
@@ -34,6 +39,23 @@ export class MailSenderService {
         codigo: input.code,
         minutos: String(input.ttlMinutes),
       },
+    });
+  }
+
+  /** Código de verificación del correo declarado por un cliente durante el onboarding. */
+  async sendContactVerificationCode(input: {
+    to: string;
+    code: string;
+    ttlMinutes: number;
+    reference: string;
+  }): Promise<{ trackingId: string }> {
+    return this.client.sendTemplateEmail({
+      template: 'atlas-verificacion-contacto',
+      to: input.to,
+      recipientName: null,
+      sourceModule: 'customer-onboarding',
+      reference: input.reference,
+      variables: { codigo: input.code, minutos: String(input.ttlMinutes) },
     });
   }
 

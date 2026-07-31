@@ -1,3 +1,8 @@
+/**
+ * @file Pipe: valida o transforma datos antes de invocar el controlador.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de pipes sin introducir reglas de un dominio específico.
+ */
 import { ArgumentMetadata, BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
 import { ZodError, ZodType } from 'zod';
 

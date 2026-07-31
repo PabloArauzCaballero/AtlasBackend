@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { RuntimeJobsService } from '../../../src/modules/runtime-jobs/runtime-jobs.service.js';
 
 /**
@@ -17,36 +18,46 @@ describe('RuntimeJobsService', () => {
 
   function buildService() {
     const jobRunModel = { create: jest.fn(async () => buildRun()) };
-    const outboxModel = { count: jest.fn() };
-    const sessionModel = { count: jest.fn(), update: jest.fn() };
-    const retentionPolicyModel = { findAll: jest.fn() };
-    const dataQualityIssueModel = { count: jest.fn() };
-    const auditModel = { create: jest.fn() };
-    const gpsObservationModel = { count: jest.fn(), destroy: jest.fn() };
-    const deviceSnapshotModel = { count: jest.fn(), update: jest.fn(async () => [0]) };
-    const formInteractionModel = { count: jest.fn(), destroy: jest.fn() };
+    const outboxModel = { count: asyncMock() };
+    const sessionModel = { count: asyncMock(), update: asyncMock() };
+    const retentionPolicyModel = { findAll: asyncMock() };
+    const dataQualityIssueModel = { count: asyncMock() };
+    const auditModel = { create: asyncMock() };
+    const gpsObservationModel = { count: asyncMock(), destroy: asyncMock() };
+    const deviceSnapshotModel = { count: asyncMock(), update: jest.fn(async () => [0]) };
+    const formInteractionModel = { count: asyncMock(), destroy: asyncMock() };
     const sequelize = {
       transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})),
-      query: jest.fn(),
+      query: asyncMock(),
     };
-    const eventsService = { processPendingEvents: jest.fn() };
+    const eventsService = { processPendingEvents: asyncMock() };
+    // El registrador de ejecuciones se extrajo a `JobRunRecorderService`; aquí se sustituye por un
+    // doble que ejecuta el handler y devuelve su resultado con la misma forma.
+    const jobRuns = {
+      run: jest.fn(async (_input: unknown, handler: () => Promise<Record<string, unknown>>) => {
+        const result = await handler();
+        await jobRunModel.create();
+        await auditModel.create({});
+        return { jobRunId: 'jr1', status: 'completed' as const, result };
+      }),
+    };
 
     const service = new RuntimeJobsService(
-      jobRunModel as never,
       outboxModel as never,
       sessionModel as never,
       retentionPolicyModel as never,
       dataQualityIssueModel as never,
-      auditModel as never,
       gpsObservationModel as never,
       deviceSnapshotModel as never,
       formInteractionModel as never,
       sequelize as never,
       eventsService as never,
+      jobRuns as never,
     );
 
     return {
       service,
+      jobRuns,
       jobRunModel,
       retentionPolicyModel,
       gpsObservationModel,
@@ -73,7 +84,7 @@ describe('RuntimeJobsService', () => {
       const response = await service.applyRetentionPolicies({ tenantId: 't1', body: { dryRun: true } as never, currentUser: internalUser });
 
       expect(gpsObservationModel.destroy).not.toHaveBeenCalled();
-      const result = (response as { result: { destructiveActionsExecuted: number; outcomes: unknown[] } }).result;
+      const result = response.result as { destructiveActionsExecuted: number; outcomes: unknown[] };
       expect(result.destructiveActionsExecuted).toBe(0);
       expect(result.outcomes).toEqual([{ table: 'address_gps_observations', action: 'delete', affected: 42 }]);
     });
@@ -92,7 +103,7 @@ describe('RuntimeJobsService', () => {
       });
 
       expect(gpsObservationModel.count).not.toHaveBeenCalled();
-      const result = (response as { result: { destructiveActionsExecuted: number } }).result;
+      const result = response.result as { destructiveActionsExecuted: number };
       expect(result.destructiveActionsExecuted).toBe(42);
     });
 
@@ -127,7 +138,7 @@ describe('RuntimeJobsService', () => {
       expect(gpsObservationModel.destroy).not.toHaveBeenCalled();
       expect(deviceSnapshotModel.update).not.toHaveBeenCalled();
       expect(formInteractionModel.destroy).not.toHaveBeenCalled();
-      const result = (response as { result: { unmappedPolicies: string[]; destructiveActionsExecuted: number } }).result;
+      const result = response.result as { unmappedPolicies: string[]; destructiveActionsExecuted: number };
       expect(result.unmappedPolicies).toEqual(['risk-data-365d']);
       expect(result.destructiveActionsExecuted).toBe(0);
     });
@@ -140,7 +151,7 @@ describe('RuntimeJobsService', () => {
       ] as never);
 
       const response = await service.applyRetentionPolicies({ tenantId: 't1', body: { dryRun: true } as never, currentUser: internalUser });
-      const result = (response as { result: { policiesScanned: number; outcomes: unknown[] } }).result;
+      const result = response.result as { policiesScanned: number; outcomes: unknown[] };
       expect(result.policiesScanned).toBe(2);
       expect(result.outcomes).toEqual([]);
     });
@@ -172,7 +183,7 @@ describe('RuntimeJobsService', () => {
       });
 
       expect(sessionModel.update).not.toHaveBeenCalled();
-      const result = (response as { result: { selected: number; expired: number } }).result;
+      const result = response.result as { selected: number; expired: number };
       expect(result).toMatchObject({ selected: 3, expired: 0 });
     });
 
@@ -187,42 +198,35 @@ describe('RuntimeJobsService', () => {
         currentUser: internalUser,
       });
 
-      const result = (response as { result: { selected: number; expired: number } }).result;
+      const result = response.result as { selected: number; expired: number };
       expect(result).toMatchObject({ selected: 3, expired: 3 });
       const updateArgs = (sessionModel.update as jest.Mock).mock.calls[0][0] as { sessionStatus: string };
       expect(updateArgs.sessionStatus).toBe('expired');
     });
   });
 
-  describe('runJob wrapper — job run bookkeeping', () => {
-    it('records the job run as completed and stores the handler result', async () => {
-      const { service, jobRunModel, retentionPolicyModel } = buildService();
+  describe('envoltura de ejecución — se delega en JobRunRecorderService', () => {
+    it('cada job pasa por el registrador con su jobCode, tenant y actor', async () => {
+      const { service, jobRuns, retentionPolicyModel } = buildService();
       (retentionPolicyModel.findAll as jest.Mock).mockResolvedValueOnce([] as never);
 
       const response = await service.applyRetentionPolicies({ tenantId: 't1', body: { dryRun: true } as never, currentUser: internalUser });
 
-      expect(jobRunModel.create).toHaveBeenCalledTimes(1);
+      expect((jobRuns.run as jest.Mock).mock.calls[0][0]).toMatchObject({
+        tenantId: 't1',
+        jobCode: 'apply_retention_policies',
+        currentUser: internalUser,
+      });
       expect((response as { status: string }).status).toBe('completed');
     });
 
-    it('records the job run as failed and re-throws when the handler throws', async () => {
+    it('un handler que falla propaga el error (el registrador lo marca como failed)', async () => {
       const { service, retentionPolicyModel } = buildService();
       (retentionPolicyModel.findAll as jest.Mock).mockRejectedValueOnce(new Error('DB unreachable') as never);
 
       await expect(
         service.applyRetentionPolicies({ tenantId: 't1', body: { dryRun: true } as never, currentUser: internalUser }),
       ).rejects.toThrow('DB unreachable');
-    });
-
-    it('writes an audit log entry for every successful job run', async () => {
-      const { service, auditModel, retentionPolicyModel } = buildService();
-      (retentionPolicyModel.findAll as jest.Mock).mockResolvedValueOnce([] as never);
-
-      await service.applyRetentionPolicies({ tenantId: 't1', body: { dryRun: true } as never, currentUser: internalUser });
-
-      expect(auditModel.create).toHaveBeenCalledTimes(1);
-      const auditArgs = (auditModel.create as jest.Mock).mock.calls[0][0] as { actionCode: string };
-      expect(auditArgs.actionCode).toBe('job_apply_retention_policies_executed');
     });
   });
 
@@ -239,7 +243,7 @@ describe('RuntimeJobsService', () => {
         currentUser: internalUser,
       });
       expect(dry.formInteractionModel.destroy).not.toHaveBeenCalled();
-      expect((dryResp as { result: { outcomes: unknown[] } }).result.outcomes).toEqual([
+      expect((dryResp.result as { outcomes: unknown[] }).outcomes).toEqual([
         { table: 'form_field_interaction_events', action: 'delete', affected: 9 },
       ]);
 
@@ -254,7 +258,7 @@ describe('RuntimeJobsService', () => {
         currentUser: internalUser,
       });
       expect(real.formInteractionModel.count).not.toHaveBeenCalled();
-      expect((realResp as { result: { destructiveActionsExecuted: number } }).result.destructiveActionsExecuted).toBe(9);
+      expect((realResp.result as { destructiveActionsExecuted: number }).destructiveActionsExecuted).toBe(9);
     });
   });
 
@@ -269,8 +273,7 @@ describe('RuntimeJobsService', () => {
         body: { dryRun: true, limit: 100 } as never,
         currentUser: internalUser,
       });
-      const result = (response as { result: { selected: number; processed: number; skippedBusinessEvents: number; dryRun: boolean } })
-        .result;
+      const result = response.result as { selected: number; processed: number; skippedBusinessEvents: number; dryRun: boolean };
       expect(result).toMatchObject({ selected: 5, processed: 0, skippedBusinessEvents: 3, dryRun: true });
     });
 
@@ -284,8 +287,7 @@ describe('RuntimeJobsService', () => {
         body: { dryRun: false, limit: 100 } as never,
         currentUser: internalUser,
       });
-      const result = (response as { result: { selected: number; processed: number; skippedBusinessEvents: number; dryRun: boolean } })
-        .result;
+      const result = response.result as { selected: number; processed: number; skippedBusinessEvents: number; dryRun: boolean };
       expect(result).toMatchObject({ selected: 2, processed: 2, skippedBusinessEvents: 4, dryRun: false });
       expect(sequelize.transaction).toHaveBeenCalled();
     });
@@ -307,35 +309,41 @@ describe('RuntimeJobsService', () => {
         dryRun: false,
         workerId: 'runtime_jobs_process_events',
       });
-      expect((response as { result: { processed: number } }).result).toMatchObject({ processed: 3 });
+      expect(response.result as { processed: number }).toMatchObject({ processed: 3 });
     });
   });
 
   describe('recalculateDataQuality', () => {
     function buildServiceWithDataQuality() {
       const jobRunModel = { create: jest.fn(async () => buildRun()) };
-      const outboxModel = { count: jest.fn() };
-      const sessionModel = { count: jest.fn(), update: jest.fn() };
-      const retentionPolicyModel = { findAll: jest.fn() };
-      const dataQualityIssueModel = { count: jest.fn() };
-      const auditModel = { create: jest.fn() };
-      const gpsObservationModel = { count: jest.fn(), destroy: jest.fn() };
-      const deviceSnapshotModel = { count: jest.fn(), update: jest.fn(async () => [0]) };
-      const formInteractionModel = { count: jest.fn(), destroy: jest.fn() };
-      const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})), query: jest.fn() };
-      const eventsService = { processPendingEvents: jest.fn() };
+      const outboxModel = { count: asyncMock() };
+      const sessionModel = { count: asyncMock(), update: asyncMock() };
+      const retentionPolicyModel = { findAll: asyncMock() };
+      const dataQualityIssueModel = { count: asyncMock() };
+      const auditModel = { create: asyncMock() };
+      const gpsObservationModel = { count: asyncMock(), destroy: asyncMock() };
+      const deviceSnapshotModel = { count: asyncMock(), update: jest.fn(async () => [0]) };
+      const formInteractionModel = { count: asyncMock(), destroy: asyncMock() };
+      const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})), query: asyncMock() };
+      const eventsService = { processPendingEvents: asyncMock() };
+      const jobRuns = {
+        run: jest.fn(async (_input: unknown, handler: () => Promise<Record<string, unknown>>) => {
+          await jobRunModel.create();
+          await auditModel.create({});
+          return { jobRunId: 'jr1', status: 'completed' as const, result: await handler() };
+        }),
+      };
       const service = new RuntimeJobsService(
-        jobRunModel as never,
         outboxModel as never,
         sessionModel as never,
         retentionPolicyModel as never,
         dataQualityIssueModel as never,
-        auditModel as never,
         gpsObservationModel as never,
         deviceSnapshotModel as never,
         formInteractionModel as never,
         sequelize as never,
         eventsService as never,
+        jobRuns as never,
       );
       return { service, dataQualityIssueModel };
     }
@@ -347,7 +355,7 @@ describe('RuntimeJobsService', () => {
       const response = await service.recalculateDataQuality({ tenantId: 't1', body: { dryRun: true } as never, currentUser: internalUser });
 
       expect(dataQualityIssueModel.count).toHaveBeenCalledWith({ where: { tenantId: 't1', issueStatus: 'open' } });
-      const result = (response as { result: { openIssues: number; issuesCreated: number } }).result;
+      const result = response.result as { openIssues: number; issuesCreated: number };
       expect(result).toMatchObject({ openIssues: 7, issuesCreated: 0 });
     });
 
@@ -376,7 +384,7 @@ describe('RuntimeJobsService', () => {
         currentUser: internalUser,
       });
 
-      const result = (response as { result: { issuesCreated: number } }).result;
+      const result = response.result as { issuesCreated: number };
       expect(result.issuesCreated).toBe(0);
     });
   });

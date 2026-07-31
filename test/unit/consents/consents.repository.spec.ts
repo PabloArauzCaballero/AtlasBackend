@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { Op } from 'sequelize';
 import { ConsentsRepository } from '../../../src/modules/consents/consents.repository.js';
 
@@ -9,9 +10,9 @@ import { ConsentsRepository } from '../../../src/modules/consents/consents.repos
  */
 describe('ConsentsRepository', () => {
   function buildRepo() {
-    const consentDocumentModel = { findAll: jest.fn(), findOne: jest.fn() };
-    const customerConsentModel = { create: jest.fn() };
-    const consentEventModel = { create: jest.fn() };
+    const consentDocumentModel = { findAll: asyncMock(), findOne: asyncMock() };
+    const customerConsentModel = { create: asyncMock() };
+    const consentEventModel = { create: asyncMock() };
     const repo = new ConsentsRepository(consentDocumentModel as never, customerConsentModel as never, consentEventModel as never);
     return { repo, consentDocumentModel, customerConsentModel, consentEventModel };
   }
@@ -22,7 +23,7 @@ describe('ConsentsRepository', () => {
     const { repo, consentDocumentModel } = buildRepo();
     (consentDocumentModel.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.findActiveDocuments('t1', { language: 'es' });
-    const where = (consentDocumentModel.findAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+    const where = callArg<CallArgRecord>(consentDocumentModel.findAll, 0, 0).where as Record<string, unknown>;
     expect(where).toMatchObject({ tenantId: 't1', language: 'es', status: 'published' });
     expect(where.documentCode).toBeUndefined();
     expect(where[Op.and as unknown as string]).toBeDefined();
@@ -32,7 +33,7 @@ describe('ConsentsRepository', () => {
     const { repo, consentDocumentModel } = buildRepo();
     (consentDocumentModel.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.findActiveDocuments('t1', { language: 'es', purposeCode: 'kyc' });
-    const where = (consentDocumentModel.findAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+    const where = callArg<CallArgRecord>(consentDocumentModel.findAll, 0, 0).where as Record<string, unknown>;
     expect(where.documentCode).toBe('kyc');
   });
 
@@ -40,7 +41,7 @@ describe('ConsentsRepository', () => {
     const { repo, consentDocumentModel } = buildRepo();
     (consentDocumentModel.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findActiveDocumentById('t1', 'd1');
-    expect((consentDocumentModel.findOne as jest.Mock).mock.calls[0][0].where).toMatchObject({
+    expect(callArg<CallArgRecord>(consentDocumentModel.findOne, 0, 0).where).toMatchObject({
       id: 'd1',
       tenantId: 't1',
       status: 'published',
@@ -58,7 +59,7 @@ describe('ConsentsRepository', () => {
     const { repo, consentDocumentModel } = buildRepo();
     (consentDocumentModel.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.findActiveDocumentsByIds('t1', ['d1', 'd2']);
-    const where = (consentDocumentModel.findAll as jest.Mock).mock.calls[0][0].where as { id: Record<symbol, unknown> };
+    const where = callArg<CallArgRecord>(consentDocumentModel.findAll, 0, 0).where as { id: Record<symbol, unknown> };
     expect(where.id[Op.in]).toEqual(['d1', 'd2']);
   });
 

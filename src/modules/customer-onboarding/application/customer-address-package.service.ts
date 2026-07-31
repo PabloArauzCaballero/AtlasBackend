@@ -1,9 +1,15 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
+ * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
+ */
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
+import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { AddressPackageDto } from '../customer-onboarding.schemas.js';
@@ -13,6 +19,7 @@ export class CustomerAddressPackageService {
   constructor(
     private readonly customersRepository: CustomersRepository,
     private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly lifecycleService: CustomerLifecycleService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -96,6 +103,19 @@ export class CustomerAddressPackageService {
         );
       }
 
+      // Registrar la dirección tampoco cambiaba el estado del cliente: el paso quedaba invisible
+      // para cualquier regla que mirara `lifecycle_status`.
+      await this.lifecycleService.advance({
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        toStatus: 'onboarding_in_progress',
+        reasonCode: 'address_package_submitted',
+        changedByType: input.currentUser.role,
+        changedByInternalUserId: input.currentUser.internalUserId ?? null,
+        notes: 'Dirección declarada por el cliente.',
+        transaction,
+      });
+
       const flow = await this.onboardingRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
       await this.onboardingRepository.createOnboardingStepEvent(
         {
@@ -142,7 +162,7 @@ export class CustomerAddressPackageService {
         addressId: String(address.id),
         addressVersionId: String(version.id),
         status: 'recorded',
-        nextStep: 'risk_evaluation',
+        nextStep: 'identity_documents',
       };
     });
   }

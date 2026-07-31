@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import jwt, { SignOptions } from 'jsonwebtoken';
+import { accessTokenSignOptions } from '../../src/common/utils/auth/jwt-claims.util.js';
 import { env } from '../../src/config/env.js';
 import { AtlasUserRole } from '../../src/common/types/auth.types.js';
 import { redactSensitive } from './redact.js';
@@ -97,7 +98,10 @@ export function token(role: AtlasUserRole, overrides: Record<string, string> = {
     ...(role !== 'customer' ? { internalUserId: overrides.internalUserId ?? INTERNAL_USER_ID } : {}),
     ...(role === 'platform_admin' ? { platformUserId: overrides.platformUserId ?? PLATFORM_USER_ID } : {}),
   };
-  const options: SignOptions = { algorithm: 'HS256', expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN as SignOptions['expiresIn'] };
+  const options: SignOptions = accessTokenSignOptions({
+    algorithm: 'HS256',
+    expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN as SignOptions['expiresIn'],
+  });
   return jwt.sign(payload, env.JWT_ACCESS_TOKEN_SECRET, options);
 }
 

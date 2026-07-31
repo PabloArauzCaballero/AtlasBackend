@@ -1,4 +1,5 @@
 import { describe, expect, it, jest, afterEach } from '@jest/globals';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ExternalDataGovernanceService } from '../../../src/modules/external-data/application/external-data-governance.service.js';
 
@@ -13,19 +14,19 @@ import { ExternalDataGovernanceService } from '../../../src/modules/external-dat
 describe('ExternalDataGovernanceService', () => {
   function buildService() {
     const repository = {
-      findProviderRequestByIdAndTenant: jest.fn(),
-      updateProviderRequest: jest.fn(),
-      listProviders: jest.fn(),
-      listCostPolicies: jest.fn(),
-      countRequests: jest.fn(),
-      updateCostPolicy: jest.fn(),
-      listProviderRequests: jest.fn(),
-      listIdempotencyAuditRequests: jest.fn(),
-      updateProviderRuntime: jest.fn(),
-      listRecentProviderResponses: jest.fn(),
-      findCostPolicy: jest.fn(),
+      findProviderRequestByIdAndTenant: asyncMock(),
+      updateProviderRequest: asyncMock(),
+      listProviders: asyncMock(),
+      listCostPolicies: asyncMock(),
+      countRequests: asyncMock(),
+      updateCostPolicy: asyncMock(),
+      listProviderRequests: asyncMock(),
+      listIdempotencyAuditRequests: asyncMock(),
+      updateProviderRuntime: asyncMock(),
+      listRecentProviderResponses: asyncMock(),
+      findCostPolicy: asyncMock(),
     };
-    const registry = { hasAdapter: jest.fn(), requireAdapter: jest.fn(), requireProviderAllowDisabled: jest.fn() };
+    const registry = { hasAdapter: asyncMock(), requireAdapter: asyncMock(), requireProviderAllowDisabled: asyncMock() };
     const service = new ExternalDataGovernanceService(repository as never, registry as never);
     return { service, repository, registry };
   }
@@ -46,7 +47,7 @@ describe('ExternalDataGovernanceService', () => {
 
     it('marks approvalStatus as "approved" and records the admin id', async () => {
       const { service, repository } = buildService();
-      const request = { id: 'req-1', responseStatus: null, responseCode: null, respondedAt: null, metadataJson: {}, update: jest.fn() };
+      const request = { id: 'req-1', responseStatus: null, responseCode: null, respondedAt: null, metadataJson: {}, update: asyncMock() };
       (repository.findProviderRequestByIdAndTenant as jest.Mock).mockResolvedValueOnce(request as never);
 
       const result = await service.approveRequest({
@@ -441,7 +442,7 @@ describe('ExternalDataGovernanceService', () => {
       } as never);
       (repository.updateProviderRuntime as jest.Mock).mockImplementationOnce(async (_id, patch) => ({
         providerCode: 'INFOCENTER',
-        ...patch,
+        ...(patch as object),
       }));
 
       const result = await service.activateProviderKillSwitch({ providerCode: 'INFOCENTER' });

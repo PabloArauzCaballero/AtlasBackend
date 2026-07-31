@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
+ * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindAndCountOptions, FindOptions, Op } from 'sequelize';
@@ -239,11 +244,11 @@ export class SystemsCatalogRepository {
   }
 
   findDataEntityById(entityId: string): Promise<SystemDataEntityCatalogModel | null> {
-    return this.dataEntityModel.findByPk(entityId);
+    return this.dataEntityModel.unscoped().findByPk(entityId); // unscoped: el detalle sí muestra la narrativa larga.
   }
 
   findDataEntityByTable(schemaName: string, tableName: string): Promise<SystemDataEntityCatalogModel | null> {
-    return this.dataEntityModel.findOne({ where: { schemaName, tableName } } as FindOptions);
+    return this.dataEntityModel.unscoped().findOne({ where: { schemaName, tableName } } as FindOptions);
   }
 
   findDataEntitiesByIds(entityIds: string[]): Promise<SystemDataEntityCatalogModel[]> {

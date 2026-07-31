@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
+ * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
+ */
 export type NotificationChannel = 'in_app' | 'push' | 'email' | 'sms' | 'whatsapp' | 'phone';
 export type NotificationStatus = 'pending' | 'queued' | 'sending' | 'sent' | 'delivered' | 'read' | 'failed' | 'retrying' | 'cancelled';
 export type DeliveryStatus = 'sent' | 'delivered' | 'failed' | 'skipped';

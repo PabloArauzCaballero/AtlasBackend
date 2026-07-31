@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza demuestra qué tratamiento de datos aceptó o rechazó cada cliente y bajo qué versión legal.
+ * @system registra decisiones y eventos de consentimiento con separación entre DTO, reglas y persistencia.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op, Transaction } from 'sequelize';
@@ -63,6 +68,28 @@ export class ConsentsRepository {
         id: { [Op.in]: [...consentDocumentIds] },
         tenantId,
         status: 'published',
+        [Op.and]: [
+          { [Op.or]: [{ effectiveFrom: null }, { effectiveFrom: { [Op.lte]: now } }] },
+          { [Op.or]: [{ effectiveUntil: null }, { effectiveUntil: { [Op.gt]: now } }] },
+        ],
+      },
+    } as FindOptions);
+  }
+
+  /**
+   * Documentos legales OBLIGATORIOS y vigentes del tenant.
+   *
+   * `requires_explicit_action` es la marca de obligatoriedad que la tabla ya declaraba; se usa esa
+   * columna en vez de inventar una configuración paralela, para no tener dos fuentes de verdad
+   * sobre qué debe aceptar un cliente antes de operar.
+   */
+  findRequiredActiveDocuments(tenantId: string): Promise<ConsentDocumentModel[]> {
+    const now = new Date();
+    return this.consentDocumentModel.findAll({
+      where: {
+        tenantId,
+        status: 'published',
+        requiresExplicitAction: true,
         [Op.and]: [
           { [Op.or]: [{ effectiveFrom: null }, { effectiveFrom: { [Op.lte]: now } }] },
           { [Op.or]: [{ effectiveUntil: null }, { effectiveUntil: { [Op.gt]: now } }] },

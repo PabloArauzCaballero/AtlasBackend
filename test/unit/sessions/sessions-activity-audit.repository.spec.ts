@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { SessionsActivityAuditRepository } from '../../../src/modules/sessions/repositories/sessions-activity-audit.repository.js';
 
 /**
@@ -8,8 +9,8 @@ import { SessionsActivityAuditRepository } from '../../../src/modules/sessions/r
  */
 describe('SessionsActivityAuditRepository', () => {
   function buildRepo() {
-    const customerActivitySummaryModel = { findOne: jest.fn(), create: jest.fn() };
-    const operationalAuditLogModel = { create: jest.fn(), findAll: jest.fn() };
+    const customerActivitySummaryModel = { findOne: asyncMock(), create: asyncMock() };
+    const operationalAuditLogModel = { create: asyncMock(), findAll: asyncMock() };
     const repo = new SessionsActivityAuditRepository(customerActivitySummaryModel as never, operationalAuditLogModel as never);
     return { repo, customerActivitySummaryModel, operationalAuditLogModel };
   }
@@ -35,7 +36,7 @@ describe('SessionsActivityAuditRepository', () => {
     (customerActivitySummaryModel.findOne as jest.Mock).mockResolvedValue(null as never);
     (customerActivitySummaryModel.create as jest.Mock).mockResolvedValue({} as never);
     await repo.upsertActivitySummary({ tenantId: 't1', customerId: 'c1', deviceId: 'd1', now, incrementSessionCount: false }, opts);
-    expect((customerActivitySummaryModel.create as jest.Mock).mock.calls[0][0].totalSessions).toBe(0);
+    expect(callArg<CallArgRecord>(customerActivitySummaryModel.create, 0, 0).totalSessions).toBe(0);
   });
 
   it('upsertActivitySummary actualiza el existente e incrementa totalSessions', async () => {

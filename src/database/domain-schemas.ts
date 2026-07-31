@@ -7,6 +7,7 @@
  */
 export const ATLAS_SCHEMAS = {
   IAM: 'iam',
+  CREDIT: 'credit',
   CUSTOMER: 'customer',
   PRIVACY: 'privacy',
   TELEMETRY: 'telemetry',
@@ -46,6 +47,7 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'customer_address_versions',
     'address_gps_observations',
     'customer_reference_contacts',
+    'customer_eligibility_evaluations',
   ],
   [ATLAS_SCHEMAS.PRIVACY]: [
     'privacy_processing_purposes',
@@ -99,6 +101,7 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'catalog_entries',
     'context_seed_import_checkpoints',
   ],
+  [ATLAS_SCHEMAS.CREDIT]: ['credit_products', 'credit_applications', 'credit_application_events'],
   [ATLAS_SCHEMAS.RISK]: [
     'feature_definitions',
     'feature_computation_runs',
@@ -167,6 +170,11 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'system_data_relationship_catalog',
     'system_operational_rule_catalog',
     'system_catalog_review_events',
+    'workflow_definitions',
+    'workflow_stages',
+    'workflow_steps',
+    'workflow_step_dependencies',
+    'workflow_transitions',
     'schema_versions',
     'schema_tables',
     'schema_columns',

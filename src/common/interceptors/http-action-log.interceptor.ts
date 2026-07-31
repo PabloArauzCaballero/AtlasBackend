@@ -1,3 +1,8 @@
+/**
+ * @file Interceptor: aplica una política transversal al ciclo HTTP.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de interceptors sin introducir reglas de un dominio específico.
+ */
 import { CallHandler, ExecutionContext, HttpException, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Observable, catchError, from, mergeMap, of, tap, throwError } from 'rxjs';

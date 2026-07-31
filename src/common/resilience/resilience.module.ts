@@ -1,3 +1,8 @@
+/**
+ * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de resilience sin introducir reglas de un dominio específico.
+ */
 import { Global, Module } from '@nestjs/common';
 import { ResilientAdapterExecutorService } from './resilient-adapter-executor.service.js';
 

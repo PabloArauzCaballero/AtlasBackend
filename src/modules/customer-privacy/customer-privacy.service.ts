@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza hace exigibles los derechos de privacidad y limita el uso de datos personales.
+ * @system gestiona decisiones de tratamiento y solicitudes del titular con auditoría y aislamiento por tenant.
+ */
 import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';

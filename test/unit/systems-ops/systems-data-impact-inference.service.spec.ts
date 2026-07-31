@@ -6,7 +6,7 @@ import { describe, expect, it, jest } from '@jest/globals';
  * referencia "bare" al modelo, y propagación INDIRECTA por FK. Se mockea readSourcesForEndpoint
  * (escaneo de disco) para controlar el "fuente" y ejercitar cada rama de clasificación.
  */
-const mockReadSources = jest.fn(async () => '');
+const mockReadSources = jest.fn(async (_endpoint?: unknown) => '');
 jest.mock('../../../src/modules/systems-ops/systems-source-scan.util.js', () => ({
   readSourcesForEndpoint: (endpoint: unknown) => mockReadSources(endpoint),
   clearSourceScanCacheForTests: () => undefined,

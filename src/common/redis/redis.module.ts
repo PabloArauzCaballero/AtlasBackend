@@ -1,3 +1,8 @@
+/**
+ * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de redis sin introducir reglas de un dominio específico.
+ */
 import { Global, Logger, Module } from '@nestjs/common';
 import Redis from 'ioredis';
 import { env } from '../../config/env.js';

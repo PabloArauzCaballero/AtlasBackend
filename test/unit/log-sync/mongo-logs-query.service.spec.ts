@@ -11,7 +11,7 @@ import { escapeRegex } from '../../../src/common/utils/strings/regex.util.js';
  */
 describe('MongoLogsQueryService', () => {
   function build(items: unknown[] = [], total = 0) {
-    const chain: Record<string, jest.Mock> = {
+    const chain: Record<string, unknown> = {
       sort: jest.fn(() => chain),
       skip: jest.fn(() => chain),
       limit: jest.fn(() => chain),
@@ -34,7 +34,7 @@ describe('MongoLogsQueryService', () => {
       page: 2,
       limit: 10,
     } as never);
-    const filter = (collection.find.mock.calls[0] as [Record<string, { $gte?: Date; $lte?: Date }>])[0];
+    const filter = (collection.find.mock.calls[0] as unknown as [Record<string, { $gte?: Date; $lte?: Date }>])[0];
     expect(filter).toMatchObject({ type: 'error', service: 'atlas', content: { $regex: escapeRegex('a.b*c'), $options: 'i' } });
     expect(filter.capturedAt.$gte).toBeInstanceOf(Date);
     expect(filter.capturedAt.$lte).toBeInstanceOf(Date);
@@ -52,7 +52,7 @@ describe('MongoLogsQueryService', () => {
   it('sin filtros opcionales manda un filtro vacío', async () => {
     const { service, collection } = build([], 5);
     await service.listLogs({ page: 1, limit: 20 } as never);
-    expect((collection.find.mock.calls[0] as [Record<string, unknown>])[0]).toEqual({});
+    expect((collection.find.mock.calls[0] as unknown as [Record<string, unknown>])[0]).toEqual({});
   });
 
   it('onModuleDestroy cierra el cliente si existe y no falla si no', async () => {

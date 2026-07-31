@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 /**
@@ -18,14 +19,14 @@ describe('CatalogQueryService', () => {
   async function buildService() {
     const { CatalogQueryService } = await import('../../../src/modules/catalog-management/application/catalog-query.service.js');
     const repository = {
-      listCatalogs: jest.fn(),
-      findLatestVersion: jest.fn(),
+      listCatalogs: asyncMock(),
+      findLatestVersion: asyncMock(),
       findLatestVersionsByCatalogIds: jest.fn(async () => new Map()),
-      findCatalogByCode: jest.fn(),
-      findCatalogVersion: jest.fn(),
-      findItemsByVersion: jest.fn(),
-      findAliasesByItemIds: jest.fn(),
-      findRiskMappingsByItemIds: jest.fn(),
+      findCatalogByCode: asyncMock(),
+      findCatalogVersion: asyncMock(),
+      findItemsByVersion: asyncMock(),
+      findAliasesByItemIds: asyncMock(),
+      findRiskMappingsByItemIds: asyncMock(),
     };
     const service = new CatalogQueryService(repository as never);
     return { service, repository };
@@ -125,12 +126,13 @@ describe('CatalogQueryService', () => {
 
       const result = await service.getCatalogVersion({ catalogCode: 'c1', versionId: 'v1', currentUser: internalUser });
 
-      const item1 = result.items.find((i: { id: string }) => i.id === 'item-1') as { aliases: unknown[]; mappings: unknown[] };
-      const item2 = result.items.find((i: { id: string }) => i.id === 'item-2') as { aliases: unknown[]; mappings: unknown[] };
-      expect(item1.aliases).toHaveLength(1);
-      expect(item1.mappings).toHaveLength(1);
-      expect(item2.aliases).toHaveLength(1);
-      expect(item2.mappings).toHaveLength(0);
+      const items = result.items as unknown as { id: string; aliases: unknown[]; mappings: unknown[] }[];
+      const item1 = items.find((i) => i.id === 'item-1');
+      const item2 = items.find((i) => i.id === 'item-2');
+      expect(item1?.aliases).toHaveLength(1);
+      expect(item1?.mappings).toHaveLength(1);
+      expect(item2?.aliases).toHaveLength(1);
+      expect(item2?.mappings).toHaveLength(0);
     });
   });
 });

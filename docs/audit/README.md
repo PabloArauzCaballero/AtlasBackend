@@ -1,6 +1,14 @@
 # Auditoría de producción — Atlas Backend
 
-Consolidado más reciente: [seguridad, calidad y costo — 2026-07-10](./consolidated-security-quality-cost-2026-07.md).
+Más reciente: [**auditoría integral y plan de mejora — 2026-07-30**](./auditoria-integral-2026-07-30.md).
+A diferencia del resto de este directorio, esa no va módulo por módulo: es transversal (preparación
+para producción, seguridad, observabilidad, robustez, eficiencia y clean code) e incluye el plan por
+fases y su ejecución. Es la que hay que leer primero si la pregunta es «¿esto se puede desplegar?».
+
+Consolidado anterior: [documentación y correcciones — 2026-07-27](./documentacion-y-correcciones-2026-07-27.md).
+
+> Los reportes están fechados: describen lo observado en esa revisión. Para arquitectura y contrato
+> vigentes prevalecen código/pruebas, `docs/architecture/architecture.md` y OpenAPI.
 
 Auditoría módulo por módulo del backend, en orden de criticidad de negocio. Por cada
 módulo: lectura completa del código (controller, service, repository, schemas/DTOs,

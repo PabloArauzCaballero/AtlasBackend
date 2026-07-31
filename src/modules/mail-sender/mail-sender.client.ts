@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza entrega comunicaciones transaccionales indispensables para verificación y recuperación de acceso.
+ * @system encapsula el cliente HTTP de correo y sus plantillas, timeouts y errores tipados.
+ */
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { env } from '../../config/env.js';
 import { ResilientAdapterExecutorService } from '../../common/resilience/resilient-adapter-executor.service.js';

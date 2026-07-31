@@ -1,3 +1,8 @@
+/**
+ * @file Filtro: traduce errores a un contrato HTTP controlado.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de filters sin introducir reglas de un dominio específico.
+ */
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { UniqueConstraintError, ValidationError } from 'sequelize';
 
@@ -86,6 +91,27 @@ function extractValidationIssues(exception: unknown): ValidationIssue[] | undefi
   );
 }
 
+/**
+ * La URL cruda incluye la query string, y en un backend KYC esos valores son PII
+ * (`?identifier=...`, `?documentNumber=...`, `?email=...`). El log necesita saber QUÉ endpoint
+ * falló y con qué filtros, no con qué valores, así que se conservan los NOMBRES de los parámetros y
+ * se descartan sus valores. Hallazgo A-04 de `docs/audit/auditoria-integral-2026-07-30.md`.
+ */
+export function sanitizeUrlForLog(url: string | undefined): string {
+  if (!url) return 'unknown';
+  const separator = url.indexOf('?');
+  if (separator === -1) return url;
+
+  const path = url.slice(0, separator);
+  const parameterNames = url
+    .slice(separator + 1)
+    .split('&')
+    .map((pair) => pair.split('=')[0])
+    .filter((name) => name.length > 0);
+
+  return parameterNames.length > 0 ? `${path}?${parameterNames.join('&')}=[REDACTED]` : path;
+}
+
 function buildStatusCode(exception: unknown): number {
   if (exception instanceof HttpException) {
     return exception.getStatus();
@@ -127,15 +153,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const message = buildErrorMessage(exception);
     const correlationId = request.correlationId;
 
+    const safeUrl = sanitizeUrlForLog(request.url);
+
     if (statusCode >= 500) {
       const cause = buildInternalCause(exception);
       this.logger.error(
         `[${statusCode}] ${message}${cause && cause !== message ? ` — causa: ${cause}` : ''}`,
         exception instanceof Error ? exception.stack : undefined,
-        JSON.stringify({ method: request.method, path: request.url, correlationId }),
+        JSON.stringify({ method: request.method, path: safeUrl, correlationId }),
       );
     } else if (statusCode >= 400) {
-      this.logger.warn(`[${statusCode}] ${message} — ${request.method} ${request.url} (${correlationId ?? 'no-id'})`);
+      this.logger.warn(`[${statusCode}] ${message} — ${request.method} ${safeUrl} (${correlationId ?? 'no-id'})`);
     }
 
     const issues = statusCode === HttpStatus.BAD_REQUEST ? extractValidationIssues(exception) : undefined;

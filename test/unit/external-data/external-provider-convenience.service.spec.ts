@@ -1,4 +1,5 @@
 import { describe, expect, it, jest, afterEach } from '@jest/globals';
+import { asyncMock, type AsyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ExternalProviderConvenienceService } from '../../../src/modules/external-data/application/external-provider-convenience.service.js';
 
@@ -14,7 +15,7 @@ import { ExternalProviderConvenienceService } from '../../../src/modules/externa
  */
 describe('ExternalProviderConvenienceService', () => {
   function buildService() {
-    const repository = { findProviderRequestByIdAndTenant: jest.fn(), findProviderById: jest.fn() };
+    const repository = { findProviderRequestByIdAndTenant: asyncMock(), findProviderById: asyncMock() };
     const execution = { executeExternalDataRequest: jest.fn(async () => ({ status: 'PENDING' })) };
     const service = new ExternalProviderConvenienceService(repository as never, execution as never);
     return { service, repository, execution };
@@ -25,8 +26,8 @@ describe('ExternalProviderConvenienceService', () => {
     process.env = { ...ORIGINAL_ENV };
   });
 
-  function lastCallBody(execution: { executeExternalDataRequest: jest.Mock }) {
-    return execution.executeExternalDataRequest.mock.calls[0][0].body as Record<string, unknown>;
+  function lastCallBody(execution: { executeExternalDataRequest: AsyncMock }) {
+    return callArg<CallArgRecord>(execution.executeExternalDataRequest, 0, 0).body as Record<string, unknown>;
   }
 
   describe('mapeo exacto de cada método de conveniencia', () => {
@@ -210,7 +211,7 @@ describe('ExternalProviderConvenienceService', () => {
 
       await service.retryProviderRequest({ tenantId: 't1', requestId: 'req-1', body: { input: { documentNumber: '999' } } });
 
-      const call = execution.executeExternalDataRequest.mock.calls[0][0] as { retryOfRequestId: string };
+      const call = callArg<{ retryOfRequestId: string }>(execution.executeExternalDataRequest, 0, 0);
       expect(call.retryOfRequestId).toBe('req-1');
     });
 

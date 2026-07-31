@@ -6,7 +6,7 @@
  * inicial.
  */
 
-export type MailTemplateName = 'atlas-password-reset' | 'atlas-login-pin' | 'atlas-credenciales-iniciales';
+export type MailTemplateName = 'atlas-password-reset' | 'atlas-login-pin' | 'atlas-credenciales-iniciales' | 'atlas-verificacion-contacto';
 
 export type MailTemplateDefinition = {
   nombre: MailTemplateName;
@@ -51,6 +51,23 @@ export const MAIL_TEMPLATE_DEFINITIONS: Record<MailTemplateName, MailTemplateDef
       'El PIN vence en {{minutos}} minutos y solo puede usarse una vez.\n' +
       'Si no fuiste tú, cambia tu contraseña de inmediato.',
     variablesRequeridas: ['nombre', 'pin', 'minutos'],
+  },
+  'atlas-verificacion-contacto': {
+    nombre: 'atlas-verificacion-contacto',
+    descripcion: 'Código de un solo uso para verificar el correo declarado por un cliente en onboarding.',
+    emailAsunto: 'ATLAS — Verifica tu correo',
+    emailHtmlBody:
+      '<p>Hola,</p>' +
+      '<p>Para continuar con tu registro en ATLAS necesitamos confirmar que este correo es tuyo. Ingresa este código:</p>' +
+      '<p style="font-size:24px;font-weight:bold;letter-spacing:4px">{{codigo}}</p>' +
+      '<p>El código vence en {{minutos}} minutos y solo puede usarse una vez.</p>' +
+      '<p>Si no estás registrándote en ATLAS, ignora este correo.</p>',
+    emailTextBody:
+      'Hola,\n\n' +
+      'Para continuar con tu registro en ATLAS necesitamos confirmar que este correo es tuyo. Ingresa este código: {{codigo}}\n\n' +
+      'El código vence en {{minutos}} minutos y solo puede usarse una vez.\n' +
+      'Si no estás registrándote en ATLAS, ignora este correo.',
+    variablesRequeridas: ['codigo', 'minutos'],
   },
   'atlas-credenciales-iniciales': {
     nombre: 'atlas-credenciales-iniciales',

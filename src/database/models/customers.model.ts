@@ -1,3 +1,8 @@
+/**
+ * @file Modelo ORM: mapea una tabla y su contrato tipado.
+ * @business Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
+ * @system define models para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
+ */
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
 import { atlasSchemaFor } from '../domain-schemas.js';
 
@@ -33,8 +38,20 @@ export class CustomerModel extends Model {
   @Column({ field: 'primary_email_domain', type: DataType.STRING(120) })
   declare primaryEmailDomain: string | null;
 
-  @Column({ field: 'lifecycle_status', type: DataType.STRING(40) })
-  declare lifecycleStatus: string | null;
+  /**
+   * Estado del ciclo de vida. Desde la migración `20260728090000` es NOT NULL con CHECK sobre el
+   * conjunto de `CUSTOMER_LIFECYCLE_STATUSES`; su único escritor autorizado es
+   * `CustomerLifecycleService`.
+   */
+  @Column({ field: 'lifecycle_status', type: DataType.STRING(40), allowNull: false })
+  declare lifecycleStatus: string;
+
+  /** Caché del estado derivado de habilitación. La fuente de verdad es el cálculo del servicio. */
+  @Column({ field: 'credit_eligibility_status', type: DataType.STRING(40) })
+  declare creditEligibilityStatus: string | null;
+
+  @Column({ field: 'eligibility_evaluated_at', type: DataType.DATE })
+  declare eligibilityEvaluatedAt: Date | null;
 
   @Column({ field: 'current_profile_version_id', type: DataType.BIGINT })
   declare currentProfileVersionId: string | null;

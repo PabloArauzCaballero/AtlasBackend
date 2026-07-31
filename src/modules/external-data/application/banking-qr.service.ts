@@ -1,8 +1,13 @@
-import { Injectable } from '@nestjs/common';
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
+ * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
+ */
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ExternalProviderExecutionInput } from '../domain/external-provider.types.js';
 import { BankingGenericAdapter } from '../infrastructure/adapters/banking-generic/banking-generic.adapter.js';
 import { BankQrResult } from '../infrastructure/adapters/banking-generic/banking-qr.util.js';
-import { mockBaseUrlFor, providerModeFromEnv } from './external-data-policy.util.js';
+import { mockBaseUrlFor, productionIntegrationBlockers, providerModeFromEnv } from './external-data-policy.util.js';
 import { ExternalProviderRegistryService } from './external-provider-registry.service.js';
 
 const PROVIDER_CODE = 'BANKING_GENERIC';
@@ -38,6 +43,15 @@ export class BankingQrService {
   }): Promise<BankQrGenerationResult> {
     const provider = await this.registry.requireProviderAllowDisabled(PROVIDER_CODE);
     const mode = providerModeFromEnv(PROVIDER_CODE, provider.defaultMode);
+
+    // A diferencia de las verificaciones, este flujo no pasa por el pipeline de políticas de
+    // `ExternalDataExecutionService`, así que aplica el mismo portón aquí. Es el caso más grave de
+    // los que cubre A-02: un QR de COBRO generado en modo simulado es un QR al que un cliente le
+    // transfiere dinero de verdad. Se prefiere 503 a devolver un QR que no cobra a nadie.
+    const blockers = productionIntegrationBlockers(PROVIDER_CODE, mode);
+    if (blockers.length > 0) {
+      throw new ServiceUnavailableException(`PRODUCTION_GATE_BLOCKED:${blockers.join(',')}`);
+    }
 
     const executionInput: ExternalProviderExecutionInput = {
       tenantId: input.tenantId,

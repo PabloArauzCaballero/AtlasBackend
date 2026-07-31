@@ -1,5 +1,13 @@
 import { describe, expect, it, jest } from '@jest/globals';
+
+// El correo del cliente se guarda cifrado con envelope encryption; aquí solo interesa que el
+// resolutor lo BUSQUE y lo descifre, no el algoritmo, que tiene su propio spec.
+jest.mock('../../../src/common/utils/crypto/envelope-encryption.util.js', () => ({
+  decryptSecretEnvelope: jest.fn(async () => 'ana@example.com'),
+}));
+
 import { AuthActorResolverService, isKnownRole } from '../../../src/modules/auth/auth-actor-resolver.service.js';
+import { decryptSecretEnvelope } from '../../../src/common/utils/crypto/envelope-encryption.util.js';
 
 /**
  * `AuthActorResolverService` se extrajo de `AuthService` (Fase 2.2) para unificar la resolución de
@@ -18,6 +26,7 @@ describe('AuthActorResolverService', () => {
     const customersRepository = {
       findByContactHash: jest.fn(async () => null),
       findById: jest.fn(async () => null),
+      findContactMethods: jest.fn(async () => []),
     };
     const service = new AuthActorResolverService(authRepository as never, customersRepository as never);
     return { service, authRepository, customersRepository };
@@ -42,15 +51,66 @@ describe('AuthActorResolverService', () => {
     expect(actor).toEqual({ id: 'c1', tenantId: 't1', role: 'customer', email: 'user@mail.com', displayName: null });
   });
 
-  it('resolveActorForLogin(customer) deja email null cuando el identificador no es un correo', async () => {
+  /**
+   * Antes, entrar con el TELÉFONO devolvía siempre `email: null`, y como
+   * `AuthPasswordResetService` corta cuando no hay email, la recuperación de contraseña quedaba
+   * silenciosamente muerta incluso para clientes que sí tenían un correo registrado y verificado.
+   */
+  it('resolveActorForLogin(customer) recupera el correo registrado cuando el identificador es un teléfono', async () => {
     const { service, customersRepository } = build();
     (customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce({
       id: 'c1',
       tenantId: 't1',
       lifecycleStatus: 'active',
     } as never);
+    (customersRepository.findContactMethods as jest.Mock).mockResolvedValueOnce([
+      { contactType: 'email', status: 'verified', contactValueEncrypted: 'envelope-1' },
+    ] as never);
+    const actor = await service.resolveActorForLogin('t1', 'customer', '5215500000000');
+    expect(actor?.email).toBe('ana@example.com');
+  });
+
+  it('resolveActorForLogin(customer) deja email null cuando el cliente no tiene ningún correo registrado', async () => {
+    const { service, customersRepository } = build();
+    (customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce({
+      id: 'c1',
+      tenantId: 't1',
+      lifecycleStatus: 'active',
+    } as never);
+    (customersRepository.findContactMethods as jest.Mock).mockResolvedValueOnce([
+      { contactType: 'phone', status: 'verified', contactValueEncrypted: 'envelope-2' },
+    ] as never);
     const actor = await service.resolveActorForLogin('t1', 'customer', '5215500000000');
     expect(actor?.email).toBeNull();
+  });
+
+  it('resolveActorForLogin(customer) usa el primer correo declarado si ninguno está verificado', async () => {
+    const { service, customersRepository } = build();
+    (customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce({
+      id: 'c1',
+      tenantId: 't1',
+      lifecycleStatus: 'active',
+    } as never);
+    (customersRepository.findContactMethods as jest.Mock).mockResolvedValueOnce([
+      { contactType: 'email', status: 'declared', contactValueEncrypted: 'envelope-declared' },
+    ] as never);
+    await expect(service.resolveActorForLogin('t1', 'customer', '5215500000000')).resolves.toMatchObject({
+      email: 'ana@example.com',
+    });
+  });
+
+  it('resolveActorForLogin(customer) degrada a email null si el sobre no puede descifrarse', async () => {
+    const { service, customersRepository } = build();
+    (customersRepository.findByContactHash as jest.Mock).mockResolvedValueOnce({
+      id: 'c1',
+      tenantId: 't1',
+      lifecycleStatus: 'active',
+    } as never);
+    (customersRepository.findContactMethods as jest.Mock).mockResolvedValueOnce([
+      { contactType: 'email', status: 'verified', contactValueEncrypted: 'broken-envelope' },
+    ] as never);
+    (decryptSecretEnvelope as jest.Mock).mockRejectedValueOnce(new Error('invalid envelope') as never);
+    await expect(service.resolveActorForLogin('t1', 'customer', '5215500000000')).resolves.toMatchObject({ email: null });
   });
 
   it('resolveActorForLogin(customer) => null si no existe o está closed', async () => {
@@ -143,5 +203,23 @@ describe('AuthActorResolverService', () => {
     const { service, authRepository } = build();
     (authRepository.findPlatformUserById as jest.Mock).mockResolvedValueOnce({ id: 'p1', status: 'disabled', roleCode: 'admin' } as never);
     expect(await service.reResolveActorRole('platform_user', 'p1', null)).toBeNull();
+  });
+
+  it('reResolveActorRole(platform_user) devuelve un actor activo con rol conocido', async () => {
+    const { service, authRepository } = build();
+    (authRepository.findPlatformUserById as jest.Mock).mockResolvedValueOnce({
+      id: 'p1',
+      status: 'active',
+      roleCode: 'platform_admin',
+      email: 'platform@atlas.io',
+      fullName: 'Platform Admin',
+    } as never);
+    await expect(service.reResolveActorRole('platform_user', 'p1', null)).resolves.toEqual({
+      id: 'p1',
+      tenantId: null,
+      role: 'platform_admin',
+      email: 'platform@atlas.io',
+      displayName: 'Platform Admin',
+    });
   });
 });

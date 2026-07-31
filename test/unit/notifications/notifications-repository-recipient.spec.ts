@@ -1,4 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock } from '../../support/jest-mocks.js';
+import type { AsyncMock } from '../../support/jest-mocks.js';
 import { NotFoundException } from '@nestjs/common';
 import { NotificationsRepository } from '../../../src/modules/notifications/notifications.repository.js';
 
@@ -11,7 +13,7 @@ import { NotificationsRepository } from '../../../src/modules/notifications/noti
  * 1) los métodos nuevos filtran por el `recipientType` que se les pasa (no siempre 'customer'), y
  * 2) los métodos viejos de customer siguen funcionando exactamente igual (son wrappers).
  */
-function buildRepository(messageModel: Record<string, jest.Mock>) {
+function buildRepository(messageModel: Record<string, AsyncMock>) {
   // Fase 2.3: plantillas y preferencias salieron a repos por agregado, así que ya no se inyectan
   // sus modelos aquí — la fachada recibe esos repos (no usados por estos tests de inbox).
   return new NotificationsRepository(
@@ -137,7 +139,10 @@ describe('NotificationsRepository — generalized recipient inbox methods', () =
     });
 
     it('bulkCreate is called once with one row per recipient, all channel: in_app and pending', async () => {
-      const messageModel = { bulkCreate: jest.fn(async (rows: unknown[]) => rows.map((r, i) => ({ id: `m${i}`, ...(r as object) }))) };
+      const messageModel = { bulkCreate: asyncMock() };
+      messageModel.bulkCreate.mockImplementation(async (...args: unknown[]) =>
+        (args[0] as unknown[]).map((r, i) => ({ id: `m${i}`, ...(r as object) })),
+      );
       const repository = buildRepository(messageModel);
 
       await repository.createBroadcastMessages(

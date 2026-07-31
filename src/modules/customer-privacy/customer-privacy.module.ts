@@ -1,3 +1,8 @@
+/**
+ * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
+ * @business Esta pieza hace exigibles los derechos de privacidad y limita el uso de datos personales.
+ * @system gestiona decisiones de tratamiento y solicitudes del titular con auditoría y aislamiento por tenant.
+ */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {

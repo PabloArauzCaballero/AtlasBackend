@@ -1,3 +1,8 @@
+/**
+ * @file Artefacto de soporte específico de esta carpeta.
+ * @business Esta pieza desacopla procesos de negocio y permite reintentos auditables sin perder eventos.
+ * @system registra definiciones, outbox y procesamiento idempotente de eventos de dominio.
+ */
 import { EventRegistryItem } from './event-types.js';
 
 const eventGroups: Array<{ family: string; events: string[]; aggregateTypes: string[]; priority?: number }> = [

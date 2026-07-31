@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza evita decisiones crediticias basadas en datos incompletos, incoherentes o sin linaje.
+ * @system administra reglas, ejecuciones y hallazgos de calidad consultables por operaciones.
+ */
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';

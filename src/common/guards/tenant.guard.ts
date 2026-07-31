@@ -1,3 +1,8 @@
+/**
+ * @file Guard: aplica autenticación o autorización antes del caso de uso.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de guards sin introducir reglas de un dominio específico.
+ */
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { RequestWithAuth } from '../types/auth.types.js';
 import { firstHeaderValue } from '../utils/http/headers.util.js';

@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza hace exigibles los derechos de privacidad y limita el uso de datos personales.
+ * @system gestiona decisiones de tratamiento y solicitudes del titular con auditoría y aislamiento por tenant.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Transaction } from 'sequelize';

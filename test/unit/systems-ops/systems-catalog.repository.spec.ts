@@ -8,14 +8,22 @@ import { SystemsCatalogRepository } from '../../../src/modules/systems-ops/syste
  */
 describe('SystemsCatalogRepository', () => {
   function buildRepo() {
-    const make = () => ({
-      findAndCountAll: jest.fn(),
-      findByPk: jest.fn(),
-      findOne: jest.fn(),
-      findAll: jest.fn(),
-      upsert: jest.fn(),
-      update: jest.fn(),
-    });
+    const make = () => {
+      const model = {
+        findAndCountAll: jest.fn(),
+        findByPk: jest.fn(),
+        findOne: jest.fn(),
+        findAll: jest.fn(),
+        upsert: jest.fn(),
+        update: jest.fn(),
+        // `SystemDataEntityCatalogModel` excluye la narrativa larga por `defaultScope`; el detalle
+        // la pide con `.unscoped()`. El mock devuelve el mismo objeto para que las aserciones sobre
+        // `findByPk`/`findOne` sigan valiendo con y sin scope.
+        unscoped: jest.fn(),
+      };
+      model.unscoped.mockReturnValue(model as never);
+      return model;
+    };
     const models = Array.from({ length: 11 }, make);
     const repo = new SystemsCatalogRepository(
       models[0] as never,

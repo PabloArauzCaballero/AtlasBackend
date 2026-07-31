@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
+ * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
+ */
 import { Injectable } from '@nestjs/common';
 import { ExternalDataEvidenceService } from './application/external-data-evidence.service.js';
 import { ExternalDataExecutionService } from './application/external-data-execution.service.js';

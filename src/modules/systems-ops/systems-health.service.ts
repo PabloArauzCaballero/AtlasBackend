@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
+ * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
+ */
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import argon2 from 'argon2';

@@ -1,3 +1,8 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza gobierna propuestas de estructura sin permitir DDL directo desde el portal.
+ * @system valida y audita el catálogo de cambios; la ejecución física permanece en migraciones revisadas.
+ */
 import { z } from 'zod';
 
 /**

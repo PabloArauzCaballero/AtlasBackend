@@ -1,3 +1,8 @@
+/**
+ * @file Mapper: transforma modelos internos a contratos de transporte.
+ * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
+ * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
+ */
 import { CustomerModel, CustomerSessionModel, DeviceModel, OnboardingFlowModel } from '../../database/models/index.js';
 import { StartOnboardingResponseDto } from './customer-onboarding.dtos.js';
 

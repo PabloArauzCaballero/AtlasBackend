@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { Op } from 'sequelize';
 import { AuditRepository, decodeAuditCursor, encodeAuditCursor } from '../../../src/modules/audit/audit.repository.js';
 import type { AuditQueryDto } from '../../../src/modules/audit/audit.schemas.js';
@@ -11,7 +12,7 @@ import type { AuditQueryDto } from '../../../src/modules/audit/audit.schemas.js'
  */
 describe('AuditRepository', () => {
   function buildRepo() {
-    const make = () => ({ findAll: jest.fn().mockResolvedValue([] as never) });
+    const make = () => ({ findAll: asyncMock().mockResolvedValue([] as never) });
     const models = {
       operationalAuditLog: make(),
       dataChangeLog: make(),
@@ -25,7 +26,7 @@ describe('AuditRepository', () => {
       manualReviewCase: make(),
       fraudCase: make(),
     };
-    const sequelize = { query: jest.fn() };
+    const sequelize = { query: asyncMock() };
     const repo = new AuditRepository(
       models.operationalAuditLog as never,
       models.dataChangeLog as never,
@@ -75,7 +76,9 @@ describe('AuditRepository', () => {
         'c1',
         baseQuery({ eventType: 'status', from: '2026-01-01T00:00:00.000Z', to: '2026-02-01T00:00:00.000Z' }),
       );
-      const where = (models.customerStatusEvent.findAll as jest.Mock).mock.calls[0][0].where as { happenedAt: Record<symbol, Date> };
+      const where = callArg<CallArgRecord>(models.customerStatusEvent.findAll, 0, 0).where as unknown as {
+        happenedAt: Record<symbol, Date>;
+      };
       expect(where.happenedAt[Op.gte]).toEqual(new Date('2026-01-01T00:00:00.000Z'));
       expect(where.happenedAt[Op.lte]).toEqual(new Date('2026-02-01T00:00:00.000Z'));
     });
@@ -83,7 +86,7 @@ describe('AuditRepository', () => {
     it('sin from/to no añade filtro de fecha', async () => {
       const { repo, models } = buildRepo();
       await repo.findCustomerAuditEvents('t1', 'c1', baseQuery({ eventType: 'auth' }));
-      const where = (models.authEvent.findAll as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+      const where = callArg<CallArgRecord>(models.authEvent.findAll, 0, 0).where as Record<string, unknown>;
       expect(where.occurredAt).toBeUndefined();
     });
 
@@ -93,7 +96,7 @@ describe('AuditRepository', () => {
         { changedAt: new Date('2026-01-03'), changedByType: 'system', tableName: 'customers', changeType: 'update', changeReason: 'x' },
       ] as never);
       const [event] = await repo.findCustomerAuditEvents('t1', 'c1', baseQuery({ eventType: 'data_change' }));
-      expect((models.dataChangeLog.findAll as jest.Mock).mock.calls[0][0].where).toMatchObject({ recordId: 'c1' });
+      expect(callArg<CallArgRecord>(models.dataChangeLog.findAll, 0, 0).where).toMatchObject({ recordId: 'c1' });
       expect(event.summary).toBe('customers:update');
     });
 
@@ -112,7 +115,9 @@ describe('AuditRepository', () => {
         { happenedAt: new Date('2026-01-04'), triggeredByType: 'customer', eventType: 'granted', notes: null },
       ] as never);
       const [event] = await repo.findCustomerAuditEvents('t1', 'c1', baseQuery({ eventType: 'consent' }));
-      const where = (models.consentEvent.findAll as jest.Mock).mock.calls[0][0].where as { customerConsentId: Record<symbol, unknown> };
+      const where = callArg<CallArgRecord>(models.consentEvent.findAll, 0, 0).where as unknown as {
+        customerConsentId: Record<symbol, unknown>;
+      };
       expect(where.customerConsentId[Op.in]).toEqual([5, 6]);
       expect(event.eventType).toBe('consent');
     });
@@ -136,7 +141,7 @@ describe('AuditRepository', () => {
     it('limita la profundidad por fuente a MAX_DEPTH (1000)', async () => {
       const { repo, models } = buildRepo();
       await repo.findCustomerAuditEvents('t1', 'c1', baseQuery({ eventType: 'status', page: 100, limit: 100 }));
-      expect((models.customerStatusEvent.findAll as jest.Mock).mock.calls[0][0].limit).toBe(1000);
+      expect(callArg<CallArgRecord>(models.customerStatusEvent.findAll, 0, 0).limit).toBe(1000);
     });
   });
 
@@ -215,7 +220,7 @@ describe('AuditRepository', () => {
       (models.customerConsent.findAll as jest.Mock).mockResolvedValue([] as never);
 
       const result = await repo.findCustomerAuditEvents('t1', 'c1', baseQuery({ eventType: 'all' }));
-      const events = Array.isArray(result) ? result : result.events;
+      const events = result;
 
       for (const event of events) expect(event.occurredAt).toEqual(createdAtValue);
       const summaries = events.map((event: { summary: string }) => event.summary);

@@ -1,3 +1,8 @@
+/**
+ * @file Tipos de dominio: hacen explícitos estados y contratos internos.
+ * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
+ * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
+ */
 export type ExternalProviderMode = 'mock_local' | 'mock_server' | 'sandbox' | 'production' | 'disabled';
 
 export type ExternalProviderCode =

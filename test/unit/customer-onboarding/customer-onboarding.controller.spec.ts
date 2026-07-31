@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { callArg } from '../../support/jest-mocks.js';
 import { CustomerOnboardingController } from '../../../src/modules/customer-onboarding/customer-onboarding.controller.js';
 import { requireIdempotencyKey, tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.js';
 
@@ -49,7 +50,7 @@ describe('CustomerOnboardingController', () => {
     const { controller, service } = build();
     await controller.submitIdentityPackage('1', 'idem', params, { docs: [] } as never, user, req);
     await controller.submitAddressPackage('1', 'idem', params, { address: {} } as never, user, req);
-    expect((service.submitIdentityPackage.mock.calls[0][0] as { customerId: string }).customerId).toBe('9');
-    expect((service.submitAddressPackage.mock.calls[0][0] as { ipAddress: string }).ipAddress).toBe('7.7.7.7');
+    expect(callArg<{ customerId: string }>(service.submitIdentityPackage, 0, 0).customerId).toBe('9');
+    expect(callArg<{ ipAddress: string }>(service.submitAddressPackage, 0, 0).ipAddress).toBe('7.7.7.7');
   });
 });

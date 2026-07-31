@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { Op } from 'sequelize';
 import { CustomersRepository } from '../../../src/modules/customers/customers.repository.js';
 
@@ -10,12 +11,12 @@ import { CustomersRepository } from '../../../src/modules/customers/customers.re
  */
 describe('CustomersRepository', () => {
   function buildRepo() {
-    const customerModel = { findOne: jest.fn(), findAll: jest.fn(), create: jest.fn() };
-    const profileModel = { create: jest.fn(), findOne: jest.fn() };
-    const contactMethodModel = { create: jest.fn(), findAll: jest.fn() };
-    const statusEventModel = { create: jest.fn() };
-    const customerConsentModel = { findAll: jest.fn() };
-    const riskResultModel = { findOne: jest.fn() };
+    const customerModel = { findOne: asyncMock(), findAll: asyncMock(), create: asyncMock() };
+    const profileModel = { create: asyncMock(), findOne: asyncMock() };
+    const contactMethodModel = { create: asyncMock(), findAll: asyncMock() };
+    const statusEventModel = { create: asyncMock() };
+    const customerConsentModel = { findAll: asyncMock() };
+    const riskResultModel = { findOne: asyncMock() };
     const repo = new CustomersRepository(
       customerModel as never,
       profileModel as never,
@@ -34,7 +35,7 @@ describe('CustomersRepository', () => {
     const { repo, customerModel } = buildRepo();
     (customerModel.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findById('t1', 'c1', opts);
-    const where = (customerModel.findOne as jest.Mock).mock.calls[0][0].where as Record<string, unknown>;
+    const where = callArg<CallArgRecord>(customerModel.findOne, 0, 0).where as Record<string, unknown>;
     expect(where).toMatchObject({ id: 'c1', tenantId: 't1' });
     expect(where.deleted).toBeDefined();
   });
@@ -44,8 +45,8 @@ describe('CustomersRepository', () => {
     (customerModel.findAll as jest.Mock).mockResolvedValue([{ id: 1 }, { id: 2 }] as never);
     const result = await repo.listActiveCustomerIds('t1');
     expect(result).toEqual(['1', '2']);
-    const where = (customerModel.findAll as jest.Mock).mock.calls[0][0].where as Record<symbol, unknown>;
-    const or = where[Op.or] as Array<Record<string, unknown>>;
+    const where = callArg<CallArgRecord>(customerModel.findAll, 0, 0).where as Record<symbol, unknown>;
+    const or = where[Op.or] as unknown as Array<Record<string, unknown>>;
     expect(or[0]).toEqual({ lifecycleStatus: null });
     expect((or[1].lifecycleStatus as Record<symbol, unknown>)[Op.ne]).toBe('blocked');
   });
@@ -61,7 +62,7 @@ describe('CustomersRepository', () => {
     const { repo, customerModel } = buildRepo();
     (customerModel.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findByContactHash('t1', { phoneHash: 'ph', emailHash: 'eh' });
-    const or = (customerModel.findOne as jest.Mock).mock.calls[0][0].where[Op.or] as Array<Record<string, unknown>>;
+    const or = callArg<CallArgRecord>(customerModel.findOne, 0, 0).where[Op.or] as unknown as Array<Record<string, unknown>>;
     expect(or).toEqual([{ primaryPhoneHash: 'ph' }, { primaryEmailHash: 'eh' }]);
   });
 
@@ -187,7 +188,7 @@ describe('CustomersRepository', () => {
       },
       opts,
     );
-    expect((contactMethodModel.create as jest.Mock).mock.calls[0][0].label).toBe('primary_email');
+    expect(callArg<CallArgRecord>(contactMethodModel.create, 0, 0).label).toBe('primary_email');
   });
 
   it('findCurrentProfile filtra validUntil null y ordena por validFrom desc', async () => {
@@ -206,14 +207,14 @@ describe('CustomersRepository', () => {
     const { repo, contactMethodModel } = buildRepo();
     (contactMethodModel.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.findContactMethods('t1', 'c1');
-    expect((contactMethodModel.findAll as jest.Mock).mock.calls[0][0].where.deleted).toBeDefined();
+    expect(callArg<CallArgRecord>(contactMethodModel.findAll, 0, 0).where.deleted).toBeDefined();
   });
 
   it('findLatestRiskResult ordena por decidedAt desc', async () => {
     const { repo, riskResultModel } = buildRepo();
     (riskResultModel.findOne as jest.Mock).mockResolvedValue(null as never);
     await repo.findLatestRiskResult('t1', 'c1');
-    expect((riskResultModel.findOne as jest.Mock).mock.calls[0][0].order).toEqual([
+    expect(callArg<CallArgRecord>(riskResultModel.findOne, 0, 0).order).toEqual([
       ['decidedAt', 'DESC'],
       ['id', 'DESC'],
     ]);

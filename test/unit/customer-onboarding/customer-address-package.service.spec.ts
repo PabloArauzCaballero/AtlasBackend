@@ -26,9 +26,17 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
       createCustomerActionLog: jest.fn(),
       createOperationalAuditLog: jest.fn(),
     };
+    // La transición de estado del cliente la aplica ahora `CustomerLifecycleService`, que
+    // valida contra la máquina de estados y escribe estado + evento en la misma transacción.
+    const lifecycleService = { transition: jest.fn(), advance: jest.fn() };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-    const service = new CustomerAddressPackageService(customersRepository as never, onboardingRepository as never, sequelize as never);
-    return { service, customersRepository, onboardingRepository };
+    const service = new CustomerAddressPackageService(
+      customersRepository as never,
+      onboardingRepository as never,
+      lifecycleService as never,
+      sequelize as never,
+    );
+    return { service, customersRepository, onboardingRepository, lifecycleService };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null, platformUserId: null } as never;
@@ -159,7 +167,7 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
     expect(versionArgs.normalizedAddressText).toBeNull();
   });
 
-  it('returns nextStep "risk_evaluation" — the same next step as the identity package, both feed the same downstream decision', async () => {
+  it('returns nextStep "identity_documents" — the same next step as the identity package, both feed the same downstream decision', async () => {
     const { service, customersRepository, onboardingRepository } = buildService();
     (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
     (onboardingRepository.findCurrentAddress as jest.Mock).mockResolvedValueOnce({ id: 'address-1' } as never);
@@ -172,7 +180,7 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
       addressId: 'address-1',
       addressVersionId: 'version-1',
       status: 'recorded',
-      nextStep: 'risk_evaluation',
+      nextStep: 'identity_documents',
     });
   });
 });

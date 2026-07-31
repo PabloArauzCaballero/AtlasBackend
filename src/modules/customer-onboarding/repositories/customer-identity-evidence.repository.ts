@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
+ * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Transaction } from 'sequelize';
@@ -41,6 +46,7 @@ export class CustomerIdentityEvidenceRepository {
       customerId: string;
       documentType: string;
       storageKey: string;
+      bucket: string | null;
       mimeType: string;
       sha256Hash: string;
       fileSizeBytes: string | null;
@@ -55,7 +61,9 @@ export class CustomerIdentityEvidenceRepository {
         tenantId: values.tenantId,
         customerId: values.customerId,
         documentType: values.documentType,
-        s3Bucket: null,
+        // Se persiste el bucket real: antes quedaba `null`, así que la referencia al objeto era
+        // incompleta y nadie podía recuperarlo sin conocer la configuración de runtime.
+        s3Bucket: values.bucket,
         s3Key: values.storageKey,
         fileHashSha256: values.sha256Hash,
         mimeType: values.mimeType,

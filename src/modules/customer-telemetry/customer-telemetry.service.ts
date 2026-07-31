@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza captura señales de comportamiento y dispositivo necesarias para prevención de fraude y mejora de conversión.
+ * @system valida e ingiere lotes de telemetría con límites, redacción y escritura transaccional.
+ */
 import {
   BadRequestException,
   ForbiddenException,

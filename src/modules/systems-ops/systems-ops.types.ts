@@ -1,3 +1,8 @@
+/**
+ * @file Tipos de dominio: hacen explícitos estados y contratos internos.
+ * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
+ * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
+ */
 export type SystemRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type SystemReviewStatus = 'AUTO_DETECTED' | 'NEEDS_REVIEW' | 'APPROVED' | 'REJECTED';
 export type SystemConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH';

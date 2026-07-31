@@ -1,3 +1,8 @@
+/**
+ * @file Utilidad pura o acotada reutilizable dentro de su capa.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de auth sin introducir reglas de un dominio específico.
+ */
 import { ForbiddenException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../types/auth.types.js';
 import { isInternalOperationalRole } from './role-groups.util.js';

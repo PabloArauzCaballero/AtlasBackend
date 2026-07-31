@@ -1,3 +1,8 @@
+/**
+ * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
+ * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+ * @system provee infraestructura transversal de observability sin introducir reglas de un dominio específico.
+ */
 import { Injectable } from '@nestjs/common';
 import { Counter, Gauge, Histogram, Registry, collectDefaultMetrics } from 'prom-client';
 import { readObservabilityConfig } from './observability.config.js';
@@ -23,6 +28,8 @@ export class MetricsService {
   private readonly providerCallsTotal: Counter<'provider' | 'outcome'>;
   private readonly circuitBreakerState: Gauge<'provider'>;
   private readonly outboxPendingEvents: Gauge<'tenant_id'>;
+  private readonly scheduledJobRuns: Counter<'job' | 'outcome'>;
+  private readonly authAttemptsTotal: Counter<'actor_type' | 'outcome'>;
 
   constructor() {
     this.registry = new Registry();
@@ -70,6 +77,40 @@ export class MetricsService {
       labelNames: ['tenant_id'],
       registers: [this.registry],
     });
+
+    // Hallazgo A-03: los jobs de fondo pasaron de "los dispara alguien a mano" a "corren solos". Sin
+    // esta serie, un job que falla en cada tanda es indistinguible de uno que nadie llamó nunca:
+    // ambos se ven como silencio. `rate(...{outcome="failure"}) > 0` es la alerta.
+    this.scheduledJobRuns = new Counter({
+      name: 'atlas_scheduled_job_runs_total',
+      help: 'Ejecuciones de trabajos de fondo programados, por job y resultado.',
+      labelNames: ['job', 'outcome'],
+      registers: [this.registry],
+    });
+
+    // Hallazgo A-10: los intentos de login quedaban en `auth_events` (base), que sirve para
+    // investigar UN caso pero no para ver un patrón. Un pico de `invalid_password` sobre muchos
+    // identificadores es credential stuffing, y sin serie temporal nadie se entera en el momento.
+    this.authAttemptsTotal = new Counter({
+      name: 'atlas_auth_attempts_total',
+      help: 'Intentos de login por tipo de actor y resultado (success o código de fallo).',
+      labelNames: ['actor_type', 'outcome'],
+      registers: [this.registry],
+    });
+  }
+
+  /** Registra una ejecución de un job programado. `outcome`: success | failure. */
+  recordScheduledJob(input: { job: string; outcome: 'success' | 'failure' }): void {
+    this.scheduledJobRuns.inc({ job: input.job, outcome: input.outcome });
+  }
+
+  /**
+   * Registra un intento de login. `outcome` es `success` o el código de fallo
+   * (`actor_not_found`, `no_credentials`, `account_locked`, `invalid_password`): un conjunto
+   * acotado, así que la cardinalidad de la serie está controlada.
+   */
+  recordAuthAttempt(input: { actorType: string; outcome: string }): void {
+    this.authAttemptsTotal.inc({ actor_type: input.actorType, outcome: input.outcome });
   }
 
   /** Registra una llamada saliente a un proveedor externo. `outcome`: success | failure | circuit_open. */

@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza gobierna propuestas de estructura sin permitir DDL directo desde el portal.
+ * @system valida y audita el catálogo de cambios; la ejecución física permanece en migraciones revisadas.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes, Transaction } from 'sequelize';

@@ -1,3 +1,8 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
+ * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
+ */
 import { Injectable } from '@nestjs/common';
 import {
   AddressGpsObservationModel,
@@ -27,7 +32,6 @@ import { CustomerIdentityEvidenceRepository } from './repositories/customer-iden
 import { CustomerOnboardingFlowRepository, RepositoryOptions } from './repositories/customer-onboarding-flow.repository.js';
 
 export type { RepositoryOptions } from './repositories/customer-onboarding-flow.repository.js';
-
 /**
  * ATLAS-P11-T12 (cierra ATLAS-P11-013 / hallazgo de la revisión de calidad post-Fase 4):
  * `CustomerOnboardingRepository` era un único archivo de 751 líneas con 20 modelos Sequelize
@@ -200,6 +204,7 @@ export class CustomerOnboardingRepository {
       customerId: string;
       documentType: string;
       storageKey: string;
+      bucket: string | null;
       mimeType: string;
       sha256Hash: string;
       fileSizeBytes: string | null;

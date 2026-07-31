@@ -1,3 +1,8 @@
+/**
+ * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
+ * @business Esta pieza demuestra qué tratamiento de datos aceptó o rechazó cada cliente y bajo qué versión legal.
+ * @system registra decisiones y eventos de consentimiento con separación entre DTO, reglas y persistencia.
+ */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { ConsentDocumentModel, ConsentEventModel, CustomerConsentModel } from '../../database/models/index.js';

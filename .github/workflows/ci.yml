@@ -35,6 +35,9 @@ jobs:
       - name: Check no real .env file is committed
         run: yarn check:no-env-file
 
+      - name: Check environment template covers the typed schema
+        run: yarn check:env-example
+
       # ATLAS-P0-SMOKE-001: falla el build si un JSON de resultado de smoke (con potenciales
       # tokens/passwords, aunque redactados) quedó rastreado por Git, sin importar cómo llegó ahí.
       - name: Verify smoke result JSON files are never tracked
@@ -58,6 +61,20 @@ jobs:
       - name: Check explicit ORM domain schemas
         run: yarn check:domain-schemas
 
+      # ATLAS-TECH-001 (regresión, hallazgo A-01 de docs/audit/auditoria-integral-2026-07-30.md):
+      # una migración monolítica duplicaba las 86 tablas del split `schema-part-*` y, por el orden
+      # alfabético de Umzug, corría primero y rompía `db:migration:up` desde cero. Este gate estático
+      # (sin base de datos, milisegundos) bloquea la colisión en el PR; el job de integración de abajo
+      # la confirma contra un Postgres real, pero ese llega tarde y cuesta minutos.
+      - name: Check migrations can apply to an empty database
+        run: yarn check:migrations
+
+      # ATLAS-SEC-002: `@CurrentTenant()` ya encapsula la lectura de x-tenant-id. La brecha real la
+      # cierra TenantGuard, así que lo que queda es duplicación y se migra al tocar cada controller
+      # por otra razón — acuerdo que solo se sostiene si la deuda no CRECE. Este trinquete lo asegura.
+      - name: Check x-tenant-id duplication does not grow
+        run: yarn check:tenant-header
+
       # Fase 2.1 del plan 10/10: congela la deuda de tamaño — ningún archivo runtime NUEVO grande
       # entra sin excepción documentada. Los umbrales de complejidad los aplica ESLint arriba.
       - name: Check runtime file size (complexity gate)
@@ -66,18 +83,11 @@ jobs:
       - name: Type-check
         run: yarn type-check
 
-      # tsconfig.json solo incluye src/ y scripts/. Los specs se transforman con warnOnly, así que un
-      # error de tipos en un test compilaba en verde. Este paso type-checkea test/ contra
-      # tsconfig.spec.json y hace VISIBLE la deuda en el log del PR.
-      # TODO(deuda): NO bloqueante (continue-on-error). Al activarlo destapó ~248 errores de tipo
-      # PREEXISTENTES en ~50 specs — en su gran mayoría artefactos del tipado de mocks de jest
-      # (`jest.fn().mockResolvedValue(x)` infiere el parámetro como `never`), no bugs reales. El arreglo
-      # CORRECTO es tipar cada mock (`jest.fn<() => Promise<T>>()`) de forma incremental; NO añadir
-      # `as never` masivo, que borraría la verificación del valor del mock. Una vez a cero, quitar
-      # `continue-on-error`. Ver docs/audit/cierre-correcciones-2026-07-21.md.
+      # tsconfig.json solo incluye src/ y scripts/. Este gate separado verifica que mocks y fixtures
+      # respeten los contratos TypeScript reales. La deuda histórica quedó en cero el 2026-07-27;
+      # desde entonces una regresión de tipos en tests bloquea el cambio.
       - name: Type-check tests
         run: yarn type-check:tests
-        continue-on-error: true
 
       # Fase 1.1: los unit tests dan feedback rápido en el PR (~1 min). La suite COMPLETA con el
       # gate de cobertura corre en paralelo en el job `coverage`, para no serializar el feedback.
@@ -317,6 +327,36 @@ jobs:
           path: scripts/smoke/results/*.json
           retention-days: 7
           if-no-files-found: warn
+
+  # Hallazgo A-06 de docs/audit/auditoria-integral-2026-07-30.md: no existía artefacto de despliegue.
+  # Ahora que existe, tiene que construirse en cada PR — un Dockerfile que solo se prueba el día del
+  # despliegue es un Dockerfile roto esperando su turno. Se verifica además que la imagen arranca
+  # (`--version` del binario que el CMD ejecuta) y que dist/ quedó dentro.
+  docker-image:
+    name: build de la imagen de producción
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg NODE_VERSION="$(cat .nvmrc)" \
+            --build-arg APP_VERSION="$(node -p "require('./package.json').version")" \
+            --build-arg APP_COMMIT_SHA="${GITHUB_SHA}" \
+            --build-arg APP_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -t atlas-backend:ci .
+
+      - name: Verify the image contains a runnable build
+        run: |
+          docker run --rm --entrypoint node atlas-backend:ci --version
+          docker run --rm --entrypoint sh atlas-backend:ci -c 'test -f dist/src/main.js'
+          docker run --rm --entrypoint sh atlas-backend:ci -c 'test -d src/database/migrations'
+          # Las dependencias de desarrollo no deben viajar en la imagen.
+          docker run --rm --entrypoint sh atlas-backend:ci -c '! test -d node_modules/typescript'
 
   # ATLAS-P10-040: escaneo de vulnerabilidades de dependencias. No existía ningún job de este
   # tipo — un CVE `high`/`critical` en una dependencia (p. ej. jsonwebtoken, argon2, pg) podía
