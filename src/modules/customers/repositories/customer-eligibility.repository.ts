@@ -27,25 +27,7 @@ import {
   RiskAssessmentResultModel,
   WatchlistMatchModel,
 } from '../../../database/models/index.js';
-
-/** Fotografía de todo lo que la regla de habilitación necesita, leída en una sola pasada. */
-export type EligibilityFacts = {
-  hasCredentials: boolean;
-  verifiedContactCount: number;
-  profile: CustomerProfileVersionModel | null;
-  presentFinancialAttributeCodes: string[];
-  hasCurrentAddress: boolean;
-  referenceContactCount: number;
-  identityDocument: CustomerIdentityDocumentModel | null;
-  identityVerificationResult: string | null;
-  pendingEvidenceReviewCount: number;
-  grantedConsentDocumentIds: string[];
-  requiredConsentDocumentIds: string[];
-  openObservationCount: number;
-  unclearedWatchlistMatchCount: number;
-  latestRisk: RiskAssessmentResultModel | null;
-  openFraudCaseCount: number;
-};
+import type { EligibilityFacts } from './customer-eligibility.facts.js';
 
 const OPEN_CASE_STATUSES = ['open', 'in_review', 'pending', 'escalated'];
 
@@ -86,7 +68,7 @@ export class CustomerEligibilityRepository {
       hasCredentials,
       verifiedContactCount,
       profile,
-      presentFinancialAttributeCodes,
+      financialAttributes,
       hasCurrentAddress,
       referenceContactCount,
       identityDocument,
@@ -102,7 +84,7 @@ export class CustomerEligibilityRepository {
       this.hasCredentials(customerId),
       this.countVerifiedContacts(tenantId, customerId),
       this.findCurrentProfile(tenantId, customerId),
-      this.findPresentFinancialAttributeCodes(tenantId, customerId),
+      this.findFinancialAttributes(tenantId, customerId),
       this.hasCurrentAddress(tenantId, customerId),
       this.countReferenceContacts(tenantId, customerId),
       this.findLatestIdentityDocument(tenantId, customerId),
@@ -120,7 +102,8 @@ export class CustomerEligibilityRepository {
       hasCredentials,
       verifiedContactCount,
       profile,
-      presentFinancialAttributeCodes,
+      presentFinancialAttributeCodes: financialAttributes.codes,
+      financialAttributeValues: financialAttributes.values,
       hasCurrentAddress,
       referenceContactCount,
       identityDocument,
@@ -154,20 +137,40 @@ export class CustomerEligibilityRepository {
     } as FindOptions);
   }
 
-  /** Códigos económicos con un valor vigente. Resuelve la definición por código, no por id. */
-  private async findPresentFinancialAttributeCodes(tenantId: string, customerId: string): Promise<string[]> {
-    const values = await this.attributeValueModel.findAll({
+  /**
+   * Atributos económicos vigentes: qué códigos hay y, para los numéricos, su valor.
+   *
+   * Devuelve ambas cosas de una sola pasada porque salen de la misma consulta: la completitud
+   * (condición C5) mira los códigos y la elegibilidad por producto mira los valores. Separarlas
+   * duplicaría el par de consultas sin ganar nada.
+   */
+  private async findFinancialAttributes(
+    tenantId: string,
+    customerId: string,
+  ): Promise<{ codes: string[]; values: Record<string, number> }> {
+    const rows = await this.attributeValueModel.findAll({
       where: { tenantId, customerId, validUntil: null },
-      attributes: ['attributeDefinitionId'],
+      attributes: ['attributeDefinitionId', 'valueNumber'],
     } as FindOptions);
-    const definitionIds = values.map((row) => String(row.attributeDefinitionId)).filter((id) => id !== 'null');
-    if (definitionIds.length === 0) return [];
+    const definitionIds = rows.map((row) => String(row.attributeDefinitionId)).filter((id) => id !== 'null');
+    if (definitionIds.length === 0) return { codes: [], values: {} };
 
     const definitions = await this.attributeDefinitionModel.findAll({
       where: { id: { [Op.in]: definitionIds } },
       attributes: ['id', 'attributeCode'],
     } as FindOptions);
-    return definitions.map((row) => row.attributeCode).filter((code): code is string => code !== null);
+    const codeByDefinitionId = new Map(definitions.map((row) => [String(row.id), row.attributeCode]));
+
+    const codes: string[] = [];
+    const values: Record<string, number> = {};
+    for (const row of rows) {
+      const code = codeByDefinitionId.get(String(row.attributeDefinitionId));
+      if (!code) continue;
+      codes.push(code);
+      const numeric = row.valueNumber === null ? Number.NaN : Number(row.valueNumber);
+      if (Number.isFinite(numeric)) values[code] = numeric;
+    }
+    return { codes, values };
   }
 
   private async hasCurrentAddress(tenantId: string, customerId: string): Promise<boolean> {

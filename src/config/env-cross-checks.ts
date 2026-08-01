@@ -14,25 +14,13 @@ import { DEFAULT_JWT_SECRET, DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY, type Raw
  * Vive fuera de `env.schema.ts` porque son dos responsabilidades distintas: aquella declara QUÉ
  * variables existen y su forma; esta declara qué combinaciones son inválidas.
  */
-export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void {
-  function requireWhen(enabled: boolean, path: keyof typeof data, message: string): void {
-    const value = data[path];
-    if (enabled && (typeof value !== 'string' || value.trim().length === 0)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
-    }
-  }
+type RequireWhen = (enabled: boolean, path: keyof RawAppEnv, message: string) => void;
 
-  function requireWebhook(channelProvider: string, channelUrl: keyof typeof data, channelName: string): void {
-    const channelSpecificUrl = data[channelUrl];
-    if (channelProvider === 'webhook' && !channelSpecificUrl && !data.NOTIFICATION_WEBHOOK_URL) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: [channelUrl],
-        message: `${channelName} usa provider webhook. Configura ${String(channelUrl)} o NOTIFICATION_WEBHOOK_URL.`,
-      });
-    }
-  }
-
+/**
+ * Secretos que no pueden ser los de ejemplo en producción, ni compartirse entre sí: comprometer uno
+ * comprometería ambos usos.
+ */
+function checkSecrets(data: RawAppEnv, ctx: z.RefinementCtx): void {
   if (data.NODE_ENV === 'production' && data.JWT_ACCESS_TOKEN_SECRET === DEFAULT_JWT_SECRET) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -57,7 +45,10 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
       });
     }
   }
+}
 
+/** Dependencias de infraestructura sin las cuales producción no es segura. */
+function checkInfrastructure(data: RawAppEnv, ctx: z.RefinementCtx): void {
   if (data.NODE_ENV === 'production' && !data.REDIS_URL) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -66,6 +57,17 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
     });
   }
 
+  if (data.NODE_ENV === 'production' && data.DB_SSL && !data.DB_SSL_REJECT_UNAUTHORIZED) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['DB_SSL_REJECT_UNAUTHORIZED'],
+      message: 'DB_SSL_REJECT_UNAUTHORIZED debe permanecer activo en produccion para validar el certificado PostgreSQL.',
+    });
+  }
+}
+
+/** Escape hatch de datos simulados en producción (hallazgo A-02). */
+function checkSimulatedDataEscapeHatch(data: RawAppEnv, ctx: z.RefinementCtx): void {
   // Hallazgo A-02: activar el escape hatch de mocks en producción es una decisión legítima solo para
   // una demo comercial, y entonces el servidor de mocks tiene que existir. Sin URL, cada proveedor en
   // `mock_server` fallaría con MOCK_BASE_URL_NOT_CONFIGURED y `mock_local` serviría datos inventados
@@ -80,7 +82,10 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
         'Si no querías servir datos simulados en producción, deja el flag en false.',
     });
   }
+}
 
+/** Coherencia entre el rol del proceso y el planificador de trabajos de fondo. */
+function checkProcessRole(data: RawAppEnv, ctx: z.RefinementCtx): void {
   // Rol del proceso contra planificador. Las dos combinaciones de abajo no "funcionan a medias":
   // fallan en silencio, que es peor. Un worker con el planificador apagado arranca, se declara sano
   // y no ejecuta absolutamente nada; una API con el planificador encendido hace creer que los jobs
@@ -104,15 +109,10 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
         'Usa APP_ROLE=all para un despliegue de una sola pieza, o mueve el planificador a un proceso APP_ROLE=worker.',
     });
   }
+}
 
-  if (data.NODE_ENV === 'production' && data.DB_SSL && !data.DB_SSL_REJECT_UNAUTHORIZED) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['DB_SSL_REJECT_UNAUTHORIZED'],
-      message: 'DB_SSL_REJECT_UNAUTHORIZED debe permanecer activo en produccion para validar el certificado PostgreSQL.',
-    });
-  }
-
+/** MailSender: configurar la URL obliga a configurar sus credenciales. */
+function checkMailSender(data: RawAppEnv, requireWhen: RequireWhen): void {
   requireWhen(
     Boolean(data.MAILSENDER_BASE_URL),
     'MAILSENDER_EXTERNAL_API_KEY',
@@ -128,7 +128,10 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
     'MAILSENDER_ADMIN_PASSWORD',
     'MAILSENDER_ADMIN_PASSWORD es requerido cuando MAILSENDER_BASE_URL está configurado.',
   );
+}
 
+/** Email: cada proveedor trae su propio juego de credenciales. */
+function checkEmailProvider(data: RawAppEnv, requireWhen: RequireWhen): void {
   requireWhen(
     data.NOTIFICATION_EMAIL_PROVIDER === 'resend',
     'RESEND_API_KEY',
@@ -169,7 +172,10 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
     'GMAIL_FROM_EMAIL',
     'GMAIL_FROM_EMAIL es requerido cuando NOTIFICATION_EMAIL_PROVIDER=gmail_api.',
   );
+}
 
+/** Push (FCM): las tres piezas de la cuenta de servicio de Firebase. */
+function checkPushProvider(data: RawAppEnv, requireWhen: RequireWhen): void {
   requireWhen(
     data.NOTIFICATION_PUSH_PROVIDER === 'fcm',
     'FCM_PROJECT_ID',
@@ -185,7 +191,10 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
     'FCM_PRIVATE_KEY',
     'FCM_PRIVATE_KEY es requerido cuando NOTIFICATION_PUSH_PROVIDER=fcm.',
   );
+}
 
+/** Twilio: SMS y WhatsApp comparten credenciales de cuenta, pero cada uno exige su remitente. */
+function checkTwilioProviders(data: RawAppEnv, requireWhen: RequireWhen): void {
   requireWhen(
     data.NOTIFICATION_SMS_PROVIDER === 'twilio' || data.NOTIFICATION_WHATSAPP_PROVIDER === 'twilio',
     'TWILIO_ACCOUNT_SID',
@@ -206,7 +215,10 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
     'TWILIO_WHATSAPP_FROM',
     'TWILIO_WHATSAPP_FROM es requerido cuando NOTIFICATION_WHATSAPP_PROVIDER=twilio.',
   );
+}
 
+/** WhatsApp por Meta Cloud API. */
+function checkMetaWhatsAppProvider(data: RawAppEnv, requireWhen: RequireWhen): void {
   requireWhen(
     data.NOTIFICATION_WHATSAPP_PROVIDER === 'meta_cloud',
     'META_WHATSAPP_TOKEN',
@@ -217,10 +229,63 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
     'META_WHATSAPP_PHONE_NUMBER_ID',
     'META_WHATSAPP_PHONE_NUMBER_ID es requerido cuando NOTIFICATION_WHATSAPP_PROVIDER=meta_cloud.',
   );
+}
 
+/** Cualquier canal en `webhook` necesita URL: la suya o la compartida. */
+function checkWebhookUrls(data: RawAppEnv, requireWebhook: RequireWebhook): void {
   requireWebhook(data.NOTIFICATION_EMAIL_PROVIDER, 'NOTIFICATION_EMAIL_WEBHOOK_URL', 'Email');
   requireWebhook(data.NOTIFICATION_PUSH_PROVIDER, 'NOTIFICATION_PUSH_WEBHOOK_URL', 'Push');
   requireWebhook(data.NOTIFICATION_SMS_PROVIDER, 'NOTIFICATION_SMS_WEBHOOK_URL', 'SMS');
   requireWebhook(data.NOTIFICATION_WHATSAPP_PROVIDER, 'NOTIFICATION_WHATSAPP_WEBHOOK_URL', 'WhatsApp');
   requireWebhook(data.NOTIFICATION_PHONE_PROVIDER, 'NOTIFICATION_PHONE_WEBHOOK_URL', 'Phone');
+}
+
+/**
+ * Cada canal de notificación con proveedor elegido exige sus credenciales. Un canal que dice estar
+ * activo y falla en cada envío es peor que uno declarado `disabled`.
+ */
+function checkNotificationProviders(data: RawAppEnv, requireWhen: RequireWhen, requireWebhook: RequireWebhook): void {
+  checkEmailProvider(data, requireWhen);
+  checkPushProvider(data, requireWhen);
+  checkTwilioProviders(data, requireWhen);
+  checkMetaWhatsAppProvider(data, requireWhen);
+  checkWebhookUrls(data, requireWebhook);
+}
+
+type RequireWebhook = (channelProvider: string, channelUrl: keyof RawAppEnv, channelName: string) => void;
+
+/**
+ * Validaciones CRUZADAS del entorno: las que dependen de más de una variable a la vez y por eso no
+ * caben en el esquema por campo.
+ *
+ * El cuerpo es deliberadamente una LISTA de qué se valida: cada bloque vive en su propia función, de
+ * modo que añadir una integración nueva no siga engordando una sola función de 187 líneas (que es lo
+ * que era antes de dividirla). Las 30 pruebas de `test/unit/config/env-cross-checks.spec.ts` fijan el
+ * comportamiento de cada bloque.
+ */
+export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void {
+  const requireWhen: RequireWhen = (enabled, path, message) => {
+    const value = data[path];
+    if (enabled && (typeof value !== 'string' || value.trim().length === 0)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+    }
+  };
+
+  const requireWebhook: RequireWebhook = (channelProvider, channelUrl, channelName) => {
+    const channelSpecificUrl = data[channelUrl];
+    if (channelProvider === 'webhook' && !channelSpecificUrl && !data.NOTIFICATION_WEBHOOK_URL) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [channelUrl],
+        message: `${channelName} usa provider webhook. Configura ${String(channelUrl)} o NOTIFICATION_WEBHOOK_URL.`,
+      });
+    }
+  };
+
+  checkSecrets(data, ctx);
+  checkInfrastructure(data, ctx);
+  checkSimulatedDataEscapeHatch(data, ctx);
+  checkProcessRole(data, ctx);
+  checkMailSender(data, requireWhen);
+  checkNotificationProviders(data, requireWhen, requireWebhook);
 }

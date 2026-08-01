@@ -70,7 +70,10 @@ describe('CustomerEligibilityRepository', () => {
     models.credential.count.mockResolvedValueOnce(1);
     models.contact.count.mockResolvedValueOnce(2);
     models.profile.findOne.mockResolvedValueOnce(profile as never);
-    models.attributeValue.findAll.mockResolvedValueOnce([{ attributeDefinitionId: '101' }, { attributeDefinitionId: null }] as never);
+    models.attributeValue.findAll.mockResolvedValueOnce([
+      { attributeDefinitionId: '101', valueNumber: '4500.0000' },
+      { attributeDefinitionId: null, valueNumber: null },
+    ] as never);
     models.attributeDefinition.findAll.mockResolvedValueOnce([
       { id: '101', attributeCode: 'monthly_income' },
       { id: '102', attributeCode: null },
@@ -93,6 +96,9 @@ describe('CustomerEligibilityRepository', () => {
       verifiedContactCount: 2,
       profile,
       presentFinancialAttributeCodes: ['monthly_income'],
+      // Los valores numéricos salen de la MISMA consulta que los códigos: la completitud (C5) mira
+      // los códigos y la elegibilidad por producto mira los valores.
+      financialAttributeValues: { monthly_income: 4500 },
       hasCurrentAddress: true,
       referenceContactCount: 3,
       identityDocument,

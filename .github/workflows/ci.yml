@@ -61,6 +61,13 @@ jobs:
       - name: Check explicit ORM domain schemas
         run: yarn check:domain-schemas
 
+      # El catálogo de entidades se autopobla desde `information_schema`, así que una tabla nueva
+      # aparece documentada "a medias" (descripción genérica, sin el porqué de negocio) y eso no se
+      # distingue de un catálogo completo. Este gate exige que toda tabla con modelo ORM traiga su
+      # narrativa curada antes de mergear, en vez de descubrir el hueco al reseedear semanas después.
+      - name: Check curated business narrative for every ORM table
+        run: yarn check:entity-narratives
+
       # ATLAS-TECH-001 (regresión, hallazgo A-01 de docs/audit/auditoria-integral-2026-07-30.md):
       # una migración monolítica duplicaba las 86 tablas del split `schema-part-*` y, por el orden
       # alfabético de Umzug, corría primero y rompía `db:migration:up` desde cero. Este gate estático

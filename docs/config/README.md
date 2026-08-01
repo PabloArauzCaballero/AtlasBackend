@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`credenciales-requeridas.md`](./credenciales-requeridas.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`environment.md`](./environment.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 
 ## Reglas de mantenimiento

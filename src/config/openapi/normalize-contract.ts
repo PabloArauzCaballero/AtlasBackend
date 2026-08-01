@@ -84,6 +84,27 @@ export function shareCommonHeaderParameters(operation: OperationLike): void {
 }
 
 /**
+ * Declara el encabezado de correlación en toda operación.
+ *
+ * `CorrelationIdMiddleware` lo lee en CADA petición y, si no viene, genera uno; el valor vuelve en
+ * `requestId` de la respuesta y es lo que hay que citar al reportar una incidencia. Es decir: aplica
+ * literalmente a las 264 operaciones, y ninguna lo declaraba porque ningún controller lo anota con
+ * `@ApiHeader` — no es asunto de ningún endpoint en particular.
+ *
+ * Se añade como referencia al componente para no repetir la descripción 264 veces.
+ */
+export function ensureCorrelationIdParameter(operation: OperationLike): void {
+  operation.parameters ??= [];
+  const alreadyDeclared = operation.parameters.some((parameter) =>
+    isReference(parameter)
+      ? parameter.$ref === '#/components/parameters/CorrelationId'
+      : (parameter as ParameterLike).name?.toLowerCase() === 'x-correlation-id',
+  );
+  if (alreadyDeclared) return;
+  operation.parameters.push({ $ref: '#/components/parameters/CorrelationId' });
+}
+
+/**
  * Rellena la descripción de los parámetros que no la traen, con texto curado por nombre.
  *
  * Nunca pisa una descripción existente: si un endpoint se molestó en explicar su parámetro, ese

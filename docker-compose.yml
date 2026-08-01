@@ -93,7 +93,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 10s
+      # 45 s y no 10: tras un cierre sucio (un OOM, un `docker kill`) PostgreSQL tiene que reproducir
+      # el WAL antes de aceptar conexiones, y con 10 s el arranque se declaraba fallido justo cuando
+      # la base estaba recuperandose bien. `start_period` no cuenta los fallos como definitivos, asi
+      # que subirlo no retrasa un arranque sano: solo evita abortar uno lento.
+      start_period: 45s
 
   redis:
     image: redis:7

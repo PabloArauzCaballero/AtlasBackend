@@ -31,6 +31,30 @@ añadir superficie de ataque o cambiar un control.
 Límites de confianza: Internet↔API, API↔DB (roles diferenciados), API↔proveedores
 externos (salida controlada).
 
+### Superficie añadida por la separación de roles de proceso (2026-07-31)
+
+Desde la separación `APP_ROLE` (ver [ADR-0006](../adr/0006-separacion-de-roles-api-worker.md)) el
+sistema despliega **tres procesos** desde una sola imagen, y eso mueve el límite de confianza:
+
+```
+                       ┌── ZONA PÚBLICA ──┐   ┌──────────── RED PRIVADA ────────────┐
+[Cliente / Portal] --HTTPS--> [Balanceador] --> [api    · APP_ROLE=api    · :3005]
+                                                [worker · APP_ROLE=worker · :3006]  ← NO publicado
+                                                [migrate· one-shot · atlas_migrator] ← DDL, y termina
+[Prometheus] --scrape--> api:/metrics , worker:3006/metrics
+```
+
+| Elemento nuevo | Riesgo que introduce | Control vigente |
+|---|---|---|
+| Proceso `worker` | Ejecuta trabajo de fondo con el mismo acceso a datos que la API, sin que ninguna petición HTTP lo audite | Cada ejecución queda en `system_job_runs` con actor `runtime-jobs-scheduler`; lock de líder por Redis; nunca corre en `dryRun` |
+| Sonda del worker (`:3006`) | Expone `/metrics` **sin autenticación de aplicación** | No se publica en `docker-compose.prod.yml` (`expose`, no `ports`). Sólo responde `GET` y sólo a tres rutas; cualquier otra devuelve 404 |
+| Entrypoint equivocado en un despliegue | Montaría la API de negocio completa en un contenedor que el manifiesto trata como interno | `main.ts` **aborta** con `APP_ROLE=worker` y `worker.ts` aborta con `APP_ROLE=api`. El worker usa `createApplicationContext()`: los controllers no existen en ese proceso. Verificado en vivo (`/customers` → 404) |
+| `NOTIFICATIONS_DELIVERY_MODE=deferred` sin worker | Los mensajes se persisten y **nadie los entrega**: la API responde 200 y el cliente no recibe nada | El default es `inline`; alerta `AtlasPendingNotificationDeliveryJobNotRunning` |
+| Ausencia de un rol | Fallo **silencioso**: el outbox deja de despacharse y la retención de PII deja de aplicarse sin ningún error visible | `atlas_app_info{role}` + `AtlasWorkerRoleAbsent` / `AtlasApiRoleAbsent` |
+| Manifiesto de producción | Despliegue a medias con secretos de ejemplo | Aborta si falta cualquier variable obligatoria; CI verifica que **falla** sin ellas |
+| Imagen de contenedor | Escalada de privilegios desde el contenedor | Usuario sin privilegios (verificado en CI), sin devDependencies, `read_only` con `tmpfs` sólo en `/tmp`, `no-new-privileges`, y sin `curl` instalado |
+| Job `migrate` con DDL | Es la única identidad con privilegios de esquema | Corre una vez y termina; `api` y `worker` no arrancan hasta que sale con código 0, y usan `atlas_app_rw` sin DDL |
+
 ---
 
 ## S — Spoofing (suplantación)

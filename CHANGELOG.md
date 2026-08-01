@@ -5,6 +5,87 @@ Este proyecto es privado (`UNLICENSED`); el versionado sigue `package.json`.
 
 ## [No publicado]
 
+### Separación de roles, dockerización y documentación · 2026-07-31
+
+Dos trabajos encadenados: sacar el trabajo de fondo del proceso que atiende clientes, y llevar la
+documentación al estándar del plan maestro. Lo más relevante no fue ninguno de los dos, sino los
+**cuatro fallos bloqueantes que sólo aparecieron al EJECUTAR el artefacto de despliegue**: los gates
+seguían en verde y el sistema no se podía provisionar desde cero.
+
+#### Corregido — impedían provisionar un entorno nuevo
+
+- **El job de migraciones no podía correr desde la imagen** (ATLAS-DEPLOY-001): `migrate.ts` globaba
+  la ruta literal `src/database/migrations/*.ts`, y ésas son fuentes TypeScript que la imagen no
+  puede importar (`tsx` es devDependency y no viaja en ella). El `Dockerfile` copiaba `src/database`
+  justamente para eso. Ahora el glob se resuelve desde `__dirname` con la extensión del entorno, y
+  el nombre canónico en `SequelizeMeta` sigue siendo `.ts` para que una migración aplicada por CLI no
+  se repita al correr el runner compilado.
+- **Cualquier imagen construida sin `--build-arg` abortaba al arrancar** (ATLAS-DEPLOY-002): un `ARG`
+  de Docker no declarado produce `ENV VAR=""`, no una variable ausente, y `APP_BUILT_AT` se validaba
+  con `.min(1)`.
+- **Carrera de `CREATE TABLE IF NOT EXISTS` sobre base vacía** (ATLAS-DEPLOY-003): el guard de
+  seeders pedía `pending()` y `executed()` con `Promise.all`, y ambas sincronizan la misma tabla de
+  tracking. PostgreSQL las dejaba competir por el índice único de `pg_type`.
+- **Dos seeders de `production` referenciaban políticas de retención por id literal**
+  (ATLAS-DEPLOY-004): las filas `1` y `102` sólo las crea el perfil `development`/`demo`. Sobre base
+  vacía la FK reventaba; en desarrollo, los nueve proveedores quedaban atados en silencio a una
+  política etiquetada `dev_testing_only`. Ambos resuelven ahora **por código**, no por id.
+
+#### Añadido
+
+- **Separación de roles de proceso** (`APP_ROLE` = `api` | `worker` | `all`, default `all`): una sola
+  imagen, tres entrypoints. El worker arranca con `createApplicationContext()` —sin ninguna ruta de
+  negocio— más una sonda `node:http` con `/health/liveness`, `/health/readiness` y `/metrics`. Ver
+  [ADR-0006](docs/adr/0006-separacion-de-roles-api-worker.md).
+- **Entrega diferida de notificaciones** (`NOTIFICATIONS_DELIVERY_MODE=deferred`) con el job
+  `deliver_pending_notifications` cada 10 s: un despliegue a mitad de broadcast dejaba mensajes
+  varados hasta 20 minutos.
+- **`atlas_app_info{role,version,commit}`** y tres alertas de **ausencia de señal**
+  (`AtlasWorkerRoleAbsent`, `AtlasApiRoleAbsent`, `AtlasPendingNotificationDeliveryJobNotRunning`):
+  "el worker no está corriendo" era un fallo que nadie reportaba.
+- **`docker-compose.prod.yml`**: los tres roles, cero secretos por defecto (aborta si falta uno),
+  `read_only`, límites de recursos y `depends_on` por condición.
+- **Contrato OpenAPI 3.1** con los componentes `ApiSuccess`/`ApiError` derivados del interceptor y el
+  filtro reales, errores transversales por operación, 35 etiquetas declaradas y servidores por
+  ambiente. Ver [ADR-0007](docs/adr/0007-contrato-openapi-enriquecido.md).
+- **Referencia interactiva Scalar** en `/api/v1/reference`, con el contrato que genera el propio
+  proceso (no el YAML versionado, que puede estar desactualizado).
+- **Portal MkDocs Material** con navegación explícita y `--strict`, **gobierno con Redocly**,
+  **contrato AsyncAPI** de los 89 eventos y **workspace Structurizr**.
+- Gates nuevos en CI: `check:openapi`, `docs:openapi:lint`, `docs:build --strict`, verificación de
+  los tres entrypoints y de las migraciones compiladas dentro de la imagen, comprobación de que no
+  corre como root, y validación de ambos manifiestos de compose.
+
+#### Cambiado
+
+- `@Public()` emite además `ApiSecurity('')`: un endpoint público **declara** que no requiere
+  autenticación en vez de omitirlo, que era indistinguible de un olvido.
+- `env.schema.ts` se dividió (`env.primitives.ts`, `env.runtime-jobs.schema.ts`) al superar el gate
+  de tamaño, en vez de subir el piso.
+- `container_name` fijo eliminado del compose: impedía levantar dos stacks y hacía imposible
+  `--scale api=4`, que es justo la razón de separar los roles. Los puertos publicados son ahora
+  configurables.
+- El `HEALTHCHECK` de la imagen elige puerto y ruta según `APP_ROLE`, y ya no necesita `curl`: un
+  binario menos de superficie de CVE.
+- `start_period` de PostgreSQL subido a 45 s: tras un cierre sucio tiene que reproducir el WAL, y con
+  10 s el arranque se declaraba fallido mientras la base se recuperaba bien.
+
+#### Documentado
+
+- Informes de [línea base](docs/reports/baseline.md), [auditoría Graphify](docs/reports/graphify-audit.md)
+  (8 987 nodos, 32 aristas módulo→módulo, **0 dependencias circulares**),
+  [brechas](docs/reports/documentation-gap-analysis.md) (26 clasificadas),
+  [preparación](docs/reports/production-readiness.md) y [validación final](docs/reports/final-validation.md).
+- Negocio, C4, catálogo de datos, eventos, seguridad, observabilidad, estrategia de pruebas y matriz
+  de trazabilidad.
+
+#### Pendiente declarado
+
+El informe final declara **NO APTO PARA PRODUCCIÓN** por dos motivos, y sólo dos: los periodos de
+retención esperan confirmación legal (ATLAS-DATA-001) y backup/rollback no se han ensayado. Todo lo
+demás está cerrado y verificado.
+
+
 ### Auditoría integral 2026-07-30
 
 Ocho fases de endurecimiento derivadas de

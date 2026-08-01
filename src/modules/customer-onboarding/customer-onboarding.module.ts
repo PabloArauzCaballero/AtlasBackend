@@ -46,6 +46,7 @@ import { CustomerOnboardingStatusController } from './customer-onboarding-status
 import { CustomerVerificationController } from './customer-verification.controller.js';
 import { CustomerAddressPackageService } from './application/customer-address-package.service.js';
 import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
+import { MalwareScannerService } from '../../common/storage/malware-scanner.service.js';
 import { CustomerDocumentUploadService } from './application/customer-document-upload.service.js';
 import { CustomerIdentityProviderVerificationService } from './application/customer-identity-provider-verification.service.js';
 import { ExternalDataModule } from '../external-data/external-data.module.js';
@@ -128,6 +129,7 @@ import { CustomerOnboardingService } from './customer-onboarding.service.js';
     CustomerDocumentUploadService,
     CustomerIdentityProviderVerificationService,
     DocumentStorageService,
+    MalwareScannerService,
     ContactVerificationJournalService,
     CustomerIdentityPackageService,
     CustomerAddressPackageService,

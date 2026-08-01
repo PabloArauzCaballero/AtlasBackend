@@ -7,6 +7,8 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
+import { CustomerEligibilityRepository } from '../../customers/repositories/customer-eligibility.repository.js';
+import { qualifiesForProduct } from './credit-product-eligibility.js';
 import { CreateCreditProductDto } from '../credit.schemas.js';
 import { CreditRepository } from '../credit.repository.js';
 
@@ -22,15 +24,17 @@ export class CreditProductService {
   constructor(
     private readonly creditRepository: CreditRepository,
     private readonly eligibilityService: CustomerEligibilityService,
+    private readonly eligibilityRepository: CustomerEligibilityRepository,
   ) {}
 
   /** Catálogo para el cliente, con su elegibilidad vigente. */
   async listForCustomer(input: { tenantId: string; customerId: string; currentUser: AuthenticatedUser }) {
     assertOwnCustomerResourceOrInternalOperational(input.currentUser, input.customerId);
 
-    const [products, assessment] = await Promise.all([
+    const [products, assessment, facts] = await Promise.all([
       this.creditRepository.findOfferableProducts(input.tenantId, new Date()),
       this.eligibilityService.evaluate(input.tenantId, input.customerId),
+      this.eligibilityRepository.loadFacts(input.tenantId, input.customerId),
     ]);
 
     return {
@@ -49,8 +53,11 @@ export class CreditProductService {
         maxTermMonths: product.maxTermMonths,
         annualInterestRate: product.annualInterestRate,
         requiresManualReview: product.requiresManualReview,
-        // El cliente puede ver el catálogo aunque no sea elegible; lo que no puede es solicitar.
-        canApply: assessment.eligible,
+        minMonthlyIncome: product.minMonthlyIncome,
+        // Dos capas: la habilitación general del cliente Y los requisitos de ESTE producto. Un
+        // cliente habilitado puede no alcanzar el ingreso mínimo de un producto y sí el de otro, y
+        // el catálogo tiene que reflejar esa diferencia en vez de ofrecerlo todo por igual.
+        canApply: assessment.eligible && qualifiesForProduct(product, facts.financialAttributeValues),
       })),
     };
   }

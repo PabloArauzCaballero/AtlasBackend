@@ -1,6 +1,6 @@
 # Estrategia de pruebas
 
-**290 suites, 2 469 pruebas.** Cobertura con trinquete calibrado al valor medido, no aspiracional.
+**292 suites, 2 519 pruebas.** Cobertura con trinquete calibrado al valor medido, no aspiracional.
 
 ---
 

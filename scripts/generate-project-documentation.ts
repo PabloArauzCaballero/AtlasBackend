@@ -11,7 +11,9 @@ type Context = { business: string; system: string };
 
 const ROOTS = ['.github', 'config', 'docs', 'ops', 'scripts', 'src', 'test'];
 const GENERATED_MARKER = '<!-- Generado por scripts/generate-project-documentation.ts. No editar a mano. -->';
-const IGNORED_PARTS = new Set(['node_modules', 'dist', 'coverage', 'graphify-out', 'logs', 'results']);
+// `site` y `__pycache__` son salida de `mkdocs build` y del intérprete de Python: documentarlas
+// produce README dentro de artefactos regenerables que nadie va a leer ni a mantener.
+const IGNORED_PARTS = new Set(['node_modules', 'dist', 'coverage', 'graphify-out', 'logs', 'results', 'site', '__pycache__']);
 
 const MODULES: Record<string, Context> = {
   audit: {

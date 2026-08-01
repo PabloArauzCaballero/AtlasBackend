@@ -30,8 +30,8 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     // `nullable` sustituido por uniones de tipo. Redocly y Scalar lo consumen nativamente y es lo que
     // pide el estándar del proyecto. Nest emite 3.0.0 salvo que se le indique lo contrario.
     .setOpenAPIVersion('3.1.0')
-    .setContact('Equipo Backend Atlas', 'https://github.com/atlas/backend', 'backend@atlas.local')
-    .setLicense('UNLICENSED', 'https://github.com/atlas/backend')
+    .setContact('Equipo Backend Atlas', 'https://github.com/PabloArauzCaballero/AtlasBackend', 'backend@atlas.local')
+    .setLicense('UNLICENSED', 'https://github.com/PabloArauzCaballero/AtlasBackend')
     // Los servidores son parte del contrato: sin ellos, Scalar no sabe contra qué host disparar una
     // prueba y cada integrador inventa el suyo.
     .addServer('http://localhost:3005', 'Desarrollo local')

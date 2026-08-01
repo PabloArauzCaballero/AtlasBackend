@@ -19,7 +19,7 @@ import {
   VALIDATION_ISSUE_SCHEMA,
   buildErrorResponses,
 } from './contract-components.js';
-import { describeParameters, normalizeDocument, shareCommonHeaderParameters } from './normalize-contract.js';
+import { describeParameters, ensureCorrelationIdParameter, normalizeDocument, shareCommonHeaderParameters } from './normalize-contract.js';
 
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'] as const;
 type HttpMethod = (typeof HTTP_METHODS)[number];
@@ -56,6 +56,7 @@ export function enrichOpenApiDocument<T extends object>(document: T): T {
       // El orden importa: primero se comparten los encabezados transversales (los que quedan inline
       // heredan la descripción del componente) y sólo después se rellena lo que siga sin describir.
       shareCommonHeaderParameters(operation);
+      ensureCorrelationIdParameter(operation);
       describeParameters(operation);
       applyEnvelopeToSuccessResponses(operation);
       applyStandardErrorResponses(operation, method);
@@ -182,6 +183,19 @@ function applyEnvelopeToSuccessResponses(operation: OperationLike): void {
 function applyStandardErrorResponses(operation: OperationLike, method: HttpMethod): void {
   operation.responses ??= {};
 
+  for (const [statusCode, componentName] of applicableErrorResponses(operation, method)) {
+    if (operation.responses[statusCode]) continue;
+    operation.responses[statusCode] = { $ref: `#/components/responses/${componentName}` };
+  }
+}
+
+/**
+ * Qué errores puede producir esta operación, deducido del propio documento.
+ *
+ * Se separa del bucle que las escribe para que cada mitad quede legible: aquí vive el CRITERIO
+ * (qué aplica y por qué), y allí la mecánica de no pisar lo ya declarado.
+ */
+function applicableErrorResponses(operation: OperationLike, method: HttpMethod): Array<[string, string]> {
   const authenticated = Array.isArray(operation.security) && operation.security.length > 0;
   const hasInput = Boolean(operation.requestBody) || (operation.parameters?.length ?? 0) > 0;
   const hasPathParameter = (operation.parameters ?? []).some(
@@ -189,17 +203,18 @@ function applyStandardErrorResponses(operation: OperationLike, method: HttpMetho
   );
   const mutating = method === 'post' || method === 'put' || method === 'patch' || method === 'delete';
 
-  const applicable: Array<[string, string]> = [
+  return [
+    // El orden es el de lectura del contrato: del error más específico al más genérico.
+    ...(mutating ? ([['409', 'Conflict']] as Array<[string, string]>) : []),
+    ...(hasPathParameter ? ([['404', 'NotFound']] as Array<[string, string]>) : []),
+    ...(authenticated
+      ? ([
+          ['401', 'Unauthorized'],
+          ['403', 'Forbidden'],
+        ] as Array<[string, string]>)
+      : []),
+    ...(hasInput ? ([['400', 'BadRequest']] as Array<[string, string]>) : []),
     ['429', 'TooManyRequests'],
     ['500', 'InternalError'],
   ];
-  if (hasInput) applicable.unshift(['400', 'BadRequest']);
-  if (authenticated) applicable.unshift(['401', 'Unauthorized'], ['403', 'Forbidden']);
-  if (hasPathParameter) applicable.unshift(['404', 'NotFound']);
-  if (mutating) applicable.unshift(['409', 'Conflict']);
-
-  for (const [statusCode, componentName] of applicable) {
-    if (operation.responses[statusCode]) continue;
-    operation.responses[statusCode] = { $ref: `#/components/responses/${componentName}` };
-  }
 }

@@ -40,14 +40,26 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
       })),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
+    // La verificación contra el proveedor vive en su propio servicio y corre FUERA de la
+    // transacción, encadenada sólo si el paquete trae `documentNumber`. Se dobla porque estas
+    // pruebas fijan lo que ocurre al GUARDAR el paquete; el contrato de la verificación lo fija
+    // `customer-verification.service.spec.ts`.
+    const providerVerificationService = {
+      verifyWithProvider: jest.fn(async () => ({
+        providerStatus: 'verified',
+        identityVerificationResult: 'verified',
+        requiresManualReview: false,
+      })),
+    };
     const service = new CustomerIdentityPackageService(
       customersRepository as never,
       onboardingRepository as never,
       lifecycleService as never,
       storageService as never,
+      providerVerificationService as never,
       sequelize as never,
     );
-    return { service, customersRepository, onboardingRepository, lifecycleService, storageService };
+    return { service, customersRepository, onboardingRepository, lifecycleService, storageService, providerVerificationService };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null, platformUserId: null } as never;
@@ -226,5 +238,76 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
       expect.objectContaining({ toStatus: 'onboarding_in_progress', reasonCode: 'identity_package_submitted', transaction: {} }),
     );
     expect(result.nextStep).toBe('reference_contacts');
+  });
+
+  describe('verificación encadenada con el proveedor', () => {
+    function primed() {
+      const mocks = buildService();
+      (mocks.customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
+      (mocks.onboardingRepository.createEvidenceDocument as jest.Mock).mockResolvedValue({ id: 'evidence-1' } as never);
+      (mocks.onboardingRepository.createIdentityDocument as jest.Mock).mockResolvedValueOnce({ id: 'identity-doc-1' } as never);
+      (mocks.onboardingRepository.createIdentityVerificationAttempt as jest.Mock).mockResolvedValueOnce({ id: 'attempt-1' } as never);
+      (mocks.onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
+      return mocks;
+    }
+
+    function inputWithDocumentNumber() {
+      const input = baseInput();
+      (input.body as { identity: Record<string, unknown> }).identity.documentNumber = '1234567';
+      return input;
+    }
+
+    /**
+     * El encadenamiento es OPCIONAL a propósito: hay despliegues donde el número de documento no
+     * debe salir del dispositivo. Sin él, el paquete se guarda igual y la verificación queda como
+     * paso explícito (`POST .../identity-verification`).
+     */
+    it('no llama al proveedor cuando el paquete no trae el número en claro', async () => {
+      const { service, providerVerificationService } = primed();
+      const result = await service.submitIdentityPackage(baseInput());
+      expect(providerVerificationService.verifyWithProvider).not.toHaveBeenCalled();
+      expect(result.status).toBe('pending_review');
+    });
+
+    it('encadena la verificación cuando el paquete trae el número, y refleja su veredicto', async () => {
+      const { service, providerVerificationService } = primed();
+      (providerVerificationService.verifyWithProvider as jest.Mock).mockResolvedValueOnce({
+        providerStatus: 'FOUND',
+        identityVerificationResult: 'verified',
+        requiresManualReview: false,
+        reasonCode: 'identity_verified_by_provider',
+      } as never);
+
+      const result = await service.submitIdentityPackage(inputWithDocumentNumber());
+
+      expect(providerVerificationService.verifyWithProvider).toHaveBeenCalledWith(
+        expect.objectContaining({ body: { documentNumber: '1234567' } }),
+      );
+      expect(result.status).toBe('verified');
+    });
+
+    it('un veredicto negativo devuelve al cliente a la captura de documentos', async () => {
+      const { service, providerVerificationService } = primed();
+      (providerVerificationService.verifyWithProvider as jest.Mock).mockResolvedValueOnce({
+        providerStatus: 'NOT_FOUND',
+        identityVerificationResult: 'rejected',
+        requiresManualReview: false,
+        reasonCode: 'identity_document_not_found',
+      } as never);
+
+      const result = await service.submitIdentityPackage(inputWithDocumentNumber());
+
+      expect(result).toMatchObject({ status: 'rejected', nextStep: 'identity_documents' });
+    });
+
+    /** Perder el paquete por una caída ajena sería peor que dejar la verificación para después. */
+    it('si el proveedor falla, el paquete YA quedó guardado y la verificación se difiere', async () => {
+      const { service, providerVerificationService } = primed();
+      (providerVerificationService.verifyWithProvider as jest.Mock).mockRejectedValueOnce(new Error('proveedor caído') as never);
+
+      const result = await service.submitIdentityPackage(inputWithDocumentNumber());
+
+      expect(result).toMatchObject({ identityVerificationAttemptId: 'attempt-1', verification: { skipped: true } });
+    });
   });
 });

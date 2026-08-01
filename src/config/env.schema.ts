@@ -11,6 +11,7 @@ import {
   optionalNonEmptyStringEnvSchema,
   optionalUrlEnvSchema,
 } from './env.primitives.js';
+import { databaseEnvShape } from './env.database.schema.js';
 import { runtimeJobsEnvShape } from './env.runtime-jobs.schema.js';
 
 export const DEFAULT_JWT_SECRET = 'dev-only-atlas-access-token-secret-change-me';
@@ -58,62 +59,8 @@ export const envBaseSchema = z.object({
   DB_POOL_IDLE_MS: z.coerce.number().int().positive().max(120_000).default(10_000),
   DB_READ_POOL_MAX: z.coerce.number().int().positive().max(200).default(10),
 
-  // Pool de LECTURA opcional (Fase 2/5 del plan de mejora del modelo de datos). La conexión
-  // write/default sigue siendo DB_HOST/DB_USER/... (apúntala a atlas_app_rw). Cuando
-  // DB_READ_ENABLED=true, `ReadDatabaseModule` registra una segunda conexión "read" usando estas
-  // variables (apúntalas a atlas_app_ro y, en el futuro, a una réplica). Cualquier campo DB_READ_*
-  // ausente cae al valor de la conexión de escritura equivalente. No usar el pool read en auth,
-  // outbox, idempotencia, riesgo transaccional ni read-after-write.
-  DB_READ_ENABLED: booleanEnvSchema,
-  DB_READ_HOST: z.string().min(1).optional(),
-  DB_READ_PORT: z.coerce.number().int().positive().optional(),
-  DB_READ_NAME: z.string().min(1).optional(),
-  DB_READ_USER: z.string().min(1).optional(),
-  DB_READ_PASSWORD: z.string().optional(),
-  DB_READ_SCHEMA: z.string().min(1).optional(),
-  DB_READ_SSL: optionalBooleanEnvSchema,
+  ...databaseEnvShape,
 
-  // --- Separación de identidades PostgreSQL (docs/database/postgres-roles.md) ---------------
-  // DB_USER/DB_PASSWORD  = RUNTIME del backend. Debe apuntar a `atlas_app_rw` (CRUD, sin DDL).
-  //
-  // DB_MIGRATION_USER/PASSWORD = identidad que aplica migraciones y seeds (DDL). Si se omite, cae
-  // a DB_USER — cómodo en local, pero en un entorno con roles diferenciados el runtime NO debe
-  // poder alterar el schema, así que aquí se apunta a `atlas_migrator` (o al owner/admin).
-  DB_MIGRATION_USER: z.string().min(1).optional(),
-  DB_MIGRATION_PASSWORD: z.string().optional(),
-
-  // DB_ADMIN_USER/PASSWORD = identidad con CREATE ROLE usada SOLO por `yarn db:roles:bootstrap`
-  // para crear los roles del cluster. Si se omite, cae a DB_USER. Nunca la usa el runtime.
-  DB_ADMIN_USER: z.string().min(1).optional(),
-  DB_ADMIN_PASSWORD: z.string().optional(),
-
-  // Contraseñas que `yarn db:roles:bootstrap` asigna a cada rol. No tienen default a propósito:
-  // una contraseña "de repuesto" en código es indistinguible de una credencial filtrada.
-  DB_APP_RW_PASSWORD: z.string().optional(),
-  DB_APP_RO_PASSWORD: z.string().optional(),
-  DB_MIGRATOR_PASSWORD: z.string().optional(),
-
-  // Limpieza previa a seeds. Por defecto está apagada. En producción exige doble confirmación
-  // para evitar borrar datos reales por accidente. Preserva SequelizeMeta y limpia los datos
-  // de aplicación para que los seeders vuelvan a poblar un entorno consistente.
-  DATABASE_CLEAN_BEFORE_SEED: booleanEnvSchema,
-  DATABASE_CLEAN_ALLOW_PRODUCTION: booleanEnvSchema,
-  DATABASE_CLEAN_CONFIRM: z.string().optional(),
-
-  // Perfil de seeds a ejecutar (production | development | demo | test). Si no se define, el runner
-  // lo deriva de NODE_ENV (production→production, test→test, resto→development). Ver
-  // `src/database/seed-profiles.ts`. Se puede sobrescribir por comando con `--profile=...`.
-  SEED_PROFILE: z.enum(['production', 'development', 'demo', 'test']).optional(),
-
-  // Seeding idempotente AL ARRANCAR (opt-in). Si es true, el backend aplica los seeders pendientes
-  // del perfil (derivado de SEED_PROFILE/NODE_ENV) al iniciar, de forma idempotente (Umzug solo
-  // corre los no ejecutados). NUNCA corre seeders de dev/demo en producción: el perfil production
-  // solo incluye el stage `production`. Usa la identidad de migración (DB_MIGRATION_USER, cae a
-  // DB_USER en local), así que en un despliegue con roles separados requiere esa credencial.
-  DATABASE_SEED_ON_STARTUP: booleanEnvSchema,
-  // Si el seeding al arrancar falla y esto es true, el arranque ABORTA (exit). Por defecto false:
-  // se loguea el error y el backend arranca igual (un fallo de seed no debería tumbar la API).
-  DATABASE_SEED_ON_STARTUP_FAIL_FAST: booleanEnvSchema,
   JWT_ACCESS_TOKEN_SECRET: z.string().min(32).default(DEFAULT_JWT_SECRET),
   JWT_ACCESS_TOKEN_EXPIRES_IN: z.string().default('1h'),
   // Emisor y audiencia del token de acceso (hallazgo A-08 de
@@ -189,9 +136,14 @@ export const envBaseSchema = z.object({
   EXTERNAL_PROVIDERS_MOCK_BASE_URL: optionalUrlEnvSchema,
   EXTERNAL_PROVIDERS_ALLOW_MOCK_IN_PRODUCTION: booleanEnvSchema,
 
-  // Almacenamiento de evidencia documental (compatible con S3: AWS, MinIO, R2, B2).
-  // Vacío = integración apagada; el endpoint de subida responde 503 y el paquete de identidad
-  // rechaza la evidencia en vez de aceptar un `storageKey` que nadie puede verificar.
+  // Escaneo antimalware de la evidencia (clamd por TCP). Vacío = apagado (solo desarrollo).
+  MALWARE_SCAN_HOST: z.string().optional(),
+  MALWARE_SCAN_PORT: z.coerce.number().int().positive().max(65535).optional(),
+  MALWARE_SCAN_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(20_000),
+  MALWARE_SCAN_FAIL_CLOSED: booleanEnvSchema.default(true),
+
+  // Almacenamiento de evidencia (compatible con S3). Vacío = apagado: los endpoints responden 503
+  // en vez de aceptar un `storageKey` que nadie puede verificar.
   STORAGE_S3_ENDPOINT: optionalUrlEnvSchema,
   STORAGE_S3_BUCKET: z.string().optional(),
   STORAGE_S3_REGION: z.string().default('us-east-1'),

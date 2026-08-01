@@ -6,7 +6,7 @@ import {
   calculateAgeInYears,
   isAgeAcceptable,
 } from '../../../src/modules/customers/application/customer-eligibility.evaluator.js';
-import { EligibilityFacts } from '../../../src/modules/customers/repositories/customer-eligibility.repository.js';
+import { EligibilityFacts } from '../../../src/modules/customers/repositories/customer-eligibility.facts.js';
 
 /**
  * Regla técnica de habilitación crediticia.
@@ -32,6 +32,10 @@ function eligibleFacts(overrides: Partial<EligibilityFacts> = {}): EligibilityFa
       'economic_activity_code',
       'source_of_funds',
     ],
+    // Los VALORES numéricos son un hecho distinto de los códigos presentes: la completitud del
+    // perfil mira que el código exista, y la elegibilidad POR PRODUCTO mira su valor
+    // (`min_monthly_income`). Por eso el helper declara ambos.
+    financialAttributeValues: { monthly_income_declared: 8000 },
     hasCurrentAddress: true,
     referenceContactCount: 2,
     identityDocument: { id: 9, expiresAt: '2030-01-01' } as never,

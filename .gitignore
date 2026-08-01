@@ -10,6 +10,11 @@ tmp-*.log
 # fuente: se regenera en cada build y en CI se publica como artefacto del job `contract-and-docs`.
 site/
 
+# Caché de bytecode del hook de MkDocs (`scripts/mkdocs/`). Lo genera el intérprete al
+# construir el portal.
+__pycache__/
+*.pyc
+
 # Grafo de conocimiento generado por graphify (artefacto local, se regenera con `graphify update .`).
 graphify-out/
 

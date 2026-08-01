@@ -104,7 +104,11 @@ describe('DocumentStorageService', () => {
     const configModule = await import('../../../src/config/env.js');
     Object.assign(configModule.env, env);
     const { DocumentStorageService } = await import('../../../src/common/storage/document-storage.service.js');
-    return new DocumentStorageService();
+    // El servicio recibe ahora el escáner de malware. Se dobla como "limpio" porque estas pruebas
+    // fijan el contrato de ALMACENAMIENTO (configuración, verificación del objeto declarado); el
+    // veredicto del escáner tiene su propio spec.
+    const malwareScanner = { isEnabled: jest.fn(() => false), scan: jest.fn(async () => ({ clean: true, verdict: 'clean' })) };
+    return new DocumentStorageService(malwareScanner as never);
   }
 
   const CONFIGURED = {

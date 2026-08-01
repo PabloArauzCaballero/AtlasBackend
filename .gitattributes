@@ -1,0 +1,22 @@
+# Finales de línea normalizados a LF.
+#
+# Sin esto, un checkout en Windows con `core.autocrlf=true` (el default del instalador de Git)
+# escribe CRLF en el árbol de trabajo mientras el índice guarda LF. Prettier está configurado con
+# `endOfLine: lf`, así que `yarn format:check` falla en decenas de archivos que nadie tocó y la
+# única salida es un `prettier --write` masivo que ensucia el diff. Declarar la política aquí gana
+# sobre la config local de cada quien y hace que el repo se comporte igual en Windows, macOS y CI.
+* text=auto eol=lf
+
+# Binarios: nunca convertir ni intentar diff textual.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+
+# Scripts de shell de Windows: CRLF es obligatorio para que cmd.exe los interprete.
+*.bat text eol=crlf
+*.cmd text eol=crlf

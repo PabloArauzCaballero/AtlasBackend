@@ -24,6 +24,7 @@ describe('CreditApplicationService', () => {
     minTermMonths: 3,
     maxTermMonths: 24,
     requiresManualReview: false,
+    minMonthlyIncome: null,
   };
 
   function build(options: { eligible?: boolean; blockers?: Array<{ code: string }>; product?: Record<string, unknown> } = {}) {
@@ -53,9 +54,18 @@ describe('CreditApplicationService', () => {
       })),
       getLatestEvaluation: jest.fn(async () => ({ id: 'ev-9' })),
     };
+    // Los atributos económicos alimentan la elegibilidad POR PRODUCTO (`min_monthly_income`).
+    const eligibilityRepository = {
+      loadFacts: jest.fn(async () => ({ financialAttributeValues: { monthly_income_declared: 8000 } })),
+    };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-    const service = new CreditApplicationService(creditRepository as never, eligibilityService as never, sequelize as never);
-    return { service, creditRepository, eligibilityService };
+    const service = new CreditApplicationService(
+      creditRepository as never,
+      eligibilityService as never,
+      eligibilityRepository as never,
+      sequelize as never,
+    );
+    return { service, creditRepository, eligibilityService, eligibilityRepository };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null } as never;

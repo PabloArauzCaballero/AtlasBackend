@@ -79,7 +79,7 @@ Se declara explícitamente. El criterio del proyecto es no dar por cerrado un ga
 | Elemento | Motivo | Dónde se cubre |
 |---|---|---|
 | Migración `up → down → up` sobre base limpia | Se verificó `up` completo desde cero en el stack containerizado; el ciclo con `down` es un job de CI | Job `db-and-cache-integration` |
-| Smokes de API con credenciales reales | Exigen credenciales inyectadas que no deben versionarse | Job de integración de CI |
+| Smokes **de contrato** (`frontend-contract`, `internal-rbac`) | Exigen las contraseñas reales de los usuarios internos sembrados; ni versionarlas ni inventarlas es aceptable. Los **seis** smokes que no requieren credenciales sí corrieron en verde contra el stack containerizado | Job de integración de CI |
 | `yarn check:db-privileges --strict` | Exige los roles `atlas_app_rw` / `atlas_migrator` creados | Job de integración de CI |
 | **Backup y restauración** | Depende del proveedor de PostgreSQL gestionado, que no existe en local | Procedimiento del proveedor; pendiente de ensayo en staging |
 | **Rollback de despliegue** | Requiere dos versiones publicadas en un registro | Ensayo en staging |
@@ -106,5 +106,5 @@ impiden una declaración incondicional. Ver [Validación final](final-validation
 | Marcadores TODO/TBD en documentación | 0 | **0** |
 | Riesgos críticos abiertos | 0 | **0** |
 | Runbooks críticos disponibles | 100 % | Despliegue sí; backup/restore pendiente de ensayo |
-| Pruebas en verde | 100 % | **2 469 / 2 469** |
+| Pruebas en verde | 100 % | **2 533 / 2 533** (293 suites) |
 | Operaciones con `description` larga | — | 118/264 (deuda declarada ATLAS-DOC-006) |

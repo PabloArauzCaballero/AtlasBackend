@@ -6,6 +6,7 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { env } from '../../config/env.js';
+import { MalwareScannerService } from './malware-scanner.service.js';
 import { S3Credentials, presignS3Url } from './s3-signature.util.js';
 
 export type UploadTicket = {
@@ -56,6 +57,8 @@ export const MAX_EVIDENCE_BYTES = 15 * 1024 * 1024;
 @Injectable()
 export class DocumentStorageService {
   private readonly logger = new Logger(DocumentStorageService.name);
+
+  constructor(private readonly malwareScanner: MalwareScannerService) {}
 
   isConfigured(): boolean {
     return Boolean(env.STORAGE_S3_ENDPOINT && env.STORAGE_S3_BUCKET && env.STORAGE_S3_ACCESS_KEY_ID && env.STORAGE_S3_SECRET_ACCESS_KEY);
@@ -175,6 +178,19 @@ export class DocumentStorageService {
     }
     if (!matchesMagicBytes(buffer, input.declaredMimeType)) {
       return { ok: false, reason: 'EVIDENCE_CONTENT_TYPE_MISMATCH' };
+    }
+
+    // Antimalware al final: es la comprobación más cara y no tiene sentido pagarla por un objeto que
+    // ya falló el hash o el tipo. Se aprovecha el mismo buffer ya descargado.
+    const scan = await this.malwareScanner.scan(buffer);
+    if (scan.status === 'infected') {
+      this.logger.warn(`Evidencia rechazada por malware (${scan.signature}): ${input.storageKey}`);
+      return { ok: false, reason: 'EVIDENCE_MALWARE_DETECTED' };
+    }
+    if (scan.status === 'error' && this.malwareScanner.failsClosed()) {
+      // Con el escáner configurado, un fallo de conexión no puede degradar a "aceptar": un antivirus
+      // que se cae en silencio es peor que no tenerlo, porque genera confianza infundada.
+      return { ok: false, reason: 'EVIDENCE_SCAN_UNAVAILABLE' };
     }
 
     return {

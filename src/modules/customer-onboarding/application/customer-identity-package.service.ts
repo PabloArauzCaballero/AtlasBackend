@@ -6,6 +6,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
   UnprocessableEntityException,
@@ -20,15 +21,19 @@ import { CustomerLifecycleService } from '../../customers/application/customer-l
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerIdentityProviderVerificationService } from './customer-identity-provider-verification.service.js';
 import { IdentityPackageDto } from '../customer-onboarding.schemas.js';
 
 @Injectable()
 export class CustomerIdentityPackageService {
+  private readonly logger = new Logger(CustomerIdentityPackageService.name);
+
   constructor(
     private readonly customersRepository: CustomersRepository,
     private readonly onboardingRepository: CustomerOnboardingRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly storageService: DocumentStorageService,
+    private readonly providerVerificationService: CustomerIdentityProviderVerificationService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -61,7 +66,7 @@ export class CustomerIdentityPackageService {
 
     const now = new Date();
 
-    return this.sequelize.transaction(async (transaction) => {
+    const packageResult = await this.sequelize.transaction(async (transaction) => {
       let providerRequestId: string | null = null;
       if (input.body.provider) {
         const providerRequest = await this.onboardingRepository.createDataProviderRequest(
@@ -225,6 +230,41 @@ export class CustomerIdentityPackageService {
         nextStep: 'reference_contacts',
       };
     });
+
+    // Encadenamiento OPCIONAL de la verificación externa, fuera de la transacción a propósito: una
+    // llamada HTTP a un proveedor dentro de una transacción mantendría locks abiertos durante toda
+    // su latencia. Si el proveedor falla, el paquete ya quedó guardado y la verificación puede
+    // reintentarse por su endpoint dedicado — perder el paquete por una caída ajena sería peor.
+    if (!input.body.identity.documentNumber) return packageResult;
+
+    try {
+      const verification = await this.providerVerificationService.verifyWithProvider({
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        body: { documentNumber: input.body.identity.documentNumber },
+        currentUser: input.currentUser,
+        ipAddress: input.ipAddress,
+        idempotencyKey: `${input.idempotencyKey}:identity-verification`,
+      });
+      return {
+        ...packageResult,
+        status: verification.identityVerificationResult,
+        verification: {
+          providerStatus: verification.providerStatus,
+          identityVerificationResult: verification.identityVerificationResult,
+          requiresManualReview: verification.requiresManualReview,
+          reasonCode: verification.reasonCode,
+        },
+        nextStep: verification.identityVerificationResult === 'rejected' ? 'identity_documents' : packageResult.nextStep,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Paquete de identidad guardado, pero la verificación encadenada del cliente ${input.customerId} falló: ${
+          error instanceof Error ? error.message : 'error desconocido'
+        }. Queda disponible el endpoint dedicado.`,
+      );
+      return { ...packageResult, verification: { skipped: true, reason: 'VERIFICATION_DEFERRED' } };
+    }
   }
 
   /**

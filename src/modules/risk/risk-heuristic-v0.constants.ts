@@ -11,3 +11,20 @@
 export const RISK_MODEL_CODE = 'risk_heuristic_v0';
 export const RISK_MODEL_VERSION = 'v0';
 export const RISK_RULESET_VERSION = 'rules-v1';
+
+/**
+ * Umbrales del nivel de riesgo heurístico, sobre el puntaje total de 0 a 100.
+ *
+ * Estaban escritos como literales dentro de `createRiskAssessment` (`>= 75 ? 'low' : >= 55 ? …`).
+ * Aquí quedan con nombre porque son la frontera que un analista quiere leer y discutir sin abrir el
+ * servicio — y porque el día que los decida una política versionada, este es el único sitio a mirar.
+ */
+export const RISK_LEVEL_THRESHOLDS = { low: 75, medium: 55 } as const;
+
+/**
+ * Puntaje mínimo con el que la decisión de RESPALDO aprueba el paso siguiente.
+ *
+ * Sólo aplica cuando no hay ruleset activo que decida. No es un umbral de crédito: es el mínimo para
+ * seguir el onboarding sin intervención humana.
+ */
+export const RISK_APPROVAL_MIN_SCORE = 65;

@@ -12,8 +12,12 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`architecture.md`](./architecture.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`background-processing.md`](./background-processing.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`c4-model.md`](./c4-model.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`flows.md`](./flows.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`index.md`](./index.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`migration-split-verification.md`](./migration-split-verification.md) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`module-dependencies.md`](./module-dependencies.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`onboarding-flujo-corregido.md`](./onboarding-flujo-corregido.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`onboarding-habilitacion-credito.md`](./onboarding-habilitacion-credito.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 

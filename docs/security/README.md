@@ -12,6 +12,7 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`admin-rbac-matrix.md`](./admin-rbac-matrix.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`index.md`](./index.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`threat-model.md`](./threat-model.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 
 ## Reglas de mantenimiento

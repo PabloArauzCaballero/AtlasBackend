@@ -93,7 +93,7 @@ mkdocs.yml  ·  redocly.yaml
 | | Antes | Después |
 |---|---:|---:|
 | Errores | **236** | **0** |
-| Avisos | 675 | 677 (deuda declarada: `description` y `parameter-description`) |
+| Avisos | 675 | **162** (sólo la deuda declarada: `description` larga, servidor local y rutas ambiguas) |
 
 ## 8. Portal MkDocs
 
@@ -104,7 +104,7 @@ construcción.
 ## 9. Arquitectura C4 y ADR
 
 Cinco vistas (contexto, contenedores, componentes de API, componentes de worker, despliegue) en
-Mermaid dentro del portal, con [`structurizr/workspace.dsl`](https://github.com/atlas/backend/blob/main/structurizr/workspace.dsl)
+Mermaid dentro del portal, con [`structurizr/workspace.dsl`](../../structurizr/workspace.dsl)
 como fuente estructural. Siete ADR, dos de ellos nuevos:
 
 - [ADR-0006](../adr/0006-separacion-de-roles-api-worker.md) — separación de roles de proceso.
@@ -130,7 +130,7 @@ existe y un job de entrega que dejó de correr son fallos que nadie reporta.
 
 ## 13. Pruebas y CI/CD
 
-290 suites / **2 469 pruebas** en verde (+6 suites, +44 pruebas). CI añade `check:openapi`,
+293 suites / **2 533 pruebas** en verde (+9 suites, +108 pruebas sobre la línea base). CI añade `check:openapi`,
 `docs:openapi:lint`, `docs:build --strict`, verificación de los tres entrypoints y de las migraciones
 compiladas dentro de la imagen, comprobación de que no corre como root, y validación de ambos
 manifiestos de compose —incluida la comprobación de que el de producción **falla** sin sus secretos—.
@@ -138,28 +138,33 @@ manifiestos de compose —incluida la comprobación de que el de producción **f
 ## 14. Métricas finales
 
 Ver [production-readiness.md](production-readiness.md) §9. Todas las métricas de cobertura documental
-están al 100 %, salvo la deuda declarada de `description` larga (118 de 264).
+están al 100 %, salvo la deuda declarada de `description` larga (146 de 264 operaciones sin descripción
+extensa, ATLAS-DOC-006). La cobertura de **descripciones de parámetros sí llegó al 100 %**: era 33 de
+505 y ahora la regla `parameter-description` es un error del linter.
 
 ## 15. Evidencias de comandos ejecutados
 
 | Comando | Resultado |
 |---|---|
 | `yarn type-check` · `yarn type-check:tests` | ✅ sin errores |
-| `yarn lint` | ✅ 0 errores (152 avisos de complejidad, deuda congelada) |
+| `yarn lint` | ✅ 0 errores (151 avisos de complejidad, deuda congelada) |
 | `yarn format:check` | ✅ |
-| `yarn test` | ✅ **290 suites / 2 469 pruebas** |
+| `yarn test` | ✅ **293 suites / 2 533 pruebas** |
 | `yarn check:migrations` | ✅ 61 migraciones verificadas |
 | `yarn check:file-size` | ✅ |
 | `yarn check:env-example` | ✅ 148 variables cubiertas |
 | `yarn check:openapi` | ✅ 252 rutas / 264 operaciones |
-| `yarn docs:openapi:lint` (Redocly) | ✅ **0 errores** |
+| `yarn docs:openapi:lint` (Redocly) | ✅ **0 errores**, 148 avisos (eran 236 errores / 675 avisos). Tras cerrar ATLAS-API-002/003, las reglas `struct`, `parameter-description` y `no-unused-components` pasaron a **error** con cero ocurrencias; los 148 restantes son las tres decisiones documentadas |
 | `mkdocs build --strict` | ✅ |
 | `docker compose --profile app build` | ✅ |
 | `docker compose --profile app up -d` desde base **vacía** | ✅ `migrate` exit 0; `api` y `worker` *healthy* |
 | Sonda real de ambos roles | ✅ `/health`, `/health/readiness`, `/metrics` |
 | `atlas_app_info` | ✅ dos series distintas: `role="api"` y `role="worker"` |
-| Planificador en el worker | ✅ 8 jobs programados; `deliver_pending_notifications` con 4 ejecuciones correctas |
-| Aislamiento de rutas del worker | ✅ `/customers` y `/api/v1/health` responden **404** en el worker |
+| Planificador en el worker | ✅ 8 jobs programados; `deliver_pending_notifications` con ejecuciones correctas acumuladas |
+| Aislamiento de rutas del worker | ✅ `/customers` y `/api/v1/reference` responden **404** en el worker |
+| Referencia interactiva en el contenedor | ✅ `/api/v1/reference` (Scalar), `/api/v1/docs` (Swagger UI) y `/api/v1/docs/openapi.json` responden **200** |
+| Contrato servido por el proceso vivo | ✅ OpenAPI 3.1, 252 rutas / 264 operaciones, 264 con seguridad, **0** respuestas 2xx sin esquema, 35 etiquetas, 3 servidores |
+| **Smokes contra el stack containerizado** | ✅ `smoke:core`, `smoke:catalog`, `smoke:workflow`, `smoke:runtime`, `smoke:events` y `smoke:sessions` en verde contra `http://127.0.0.1:53005/api/v1` |
 
 ## 16. Riesgos residuales
 
@@ -167,9 +172,9 @@ están al 100 %, salvo la deuda declarada de `description` larga (118 de 264).
 |---|---|---|---|
 | R-01 | Los periodos de retención (1825 y 730 días) **no están confirmados por el área legal** | Alta | Abierto — ATLAS-DATA-001 |
 | R-02 | Backup, restauración y rollback **no ensayados** | Alta | Abierto — depende del proveedor gestionado y de dos versiones publicadas |
-| R-03 | Smokes con credenciales reales y `check:db-privileges --strict` no ejecutables en esta máquina | Media | Cubiertos por el job de integración de CI |
+| R-03 | Los smokes **de contrato** (`frontend-contract`, `internal-rbac`) y `check:db-privileges --strict` no se pudieron ejecutar aquí: los primeros exigen las contraseñas reales de los usuarios internos sembrados —que no deben versionarse ni inventarse— y el segundo, los roles `atlas_app_rw` / `atlas_migrator` creados | Media | Acotado: los seis smokes que **no** requieren credenciales sí corrieron en verde contra el stack containerizado. El resto queda cubierto por el job de integración de CI |
 | R-04 | 146 operaciones con `summary` pero sin `description` larga | Baja | Aceptado — ATLAS-DOC-006 |
-| R-05 | 152 avisos de complejidad ciclomática en `systems-ops` | Baja | Congelado — `lint` falla con 0 errores |
+| R-05 | 151 avisos de complejidad ciclomática en `systems-ops` | Baja | Congelado — `lint` falla con 0 errores |
 | R-06 | Dos rutas ambiguas en `external-data/consents` | Baja | Aceptado — ATLAS-API-001; renombrar es incompatible para el frontend |
 | R-07 | 26 controllers con `@Headers('x-tenant-id')` | Baja | Congelado con trinquete — ATLAS-SEC-002 |
 

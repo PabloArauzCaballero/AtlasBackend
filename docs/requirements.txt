@@ -11,6 +11,13 @@
 # navegación entre menores, y un build estricto que empieza a fallar por una actualización silenciosa
 # de una dependencia es exactamente el ruido que este gate debe evitar.
 
+# Estas tres versiones son EXACTAMENTE con las que se verificó `mkdocs build --strict` en verde el
+# 2026-07-31. Fijar una versión que nadie ha ejecutado convierte el pin en una suposición.
+#
+# `pymdown-extensions` queda en la serie 10.x a propósito, aunque exista 11.0.1: `mkdocs-material
+# 9.6.23` declara `pymdown-extensions~=10.2`, así que con 11.x `pip install -r` aborta con
+# ResolutionImpossible. Un entorno con 11.x instalado a la fuerza construye igual, pero CI parte de
+# cero y no puede resolverlo: el pin tiene que ser instalable, no sólo funcionar donde ya está roto.
 mkdocs==1.6.1
 mkdocs-material==9.6.23
 pymdown-extensions==10.16.1

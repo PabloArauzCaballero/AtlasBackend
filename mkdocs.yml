@@ -21,15 +21,6 @@ repo_url: https://github.com/PabloArauzCaballero/AtlasBackend
 repo_name: PabloArauzCaballero/AtlasBackend
 edit_uri: edit/main/docs/
 
-# `yarn docs:project` genera un README.md de inventario por carpeta: son útiles navegando el
-# repositorio, pero en el portal chocarían con la página `index.md` curada de esa misma sección.
-# MkDocs ya los descarta solo; declararlo aquí lo vuelve intencional en vez de un aviso que bajo
-# `strict: true` abortaría el build. Los README que SÍ son contenido (por ejemplo `adr/README.md`)
-# no se excluyen.
-exclude_docs: |
-  /README.md
-  /architecture/README.md
-  /security/README.md
 
 # Falla el build ante enlaces internos rotos, referencias a anclas inexistentes y avisos de
 # navegación. Es lo que convierte la documentación en algo verificable.
@@ -104,6 +95,11 @@ plugins:
 # traduce a URLs del repositorio SOLO al publicar, sin tocar la fuente ni relajar el gate.
 hooks:
   - scripts/mkdocs/repo_links.py
+  # `yarn docs:project` genera un README.md de inventario por carpeta. En el repositorio son útiles;
+  # en el portal chocan con la página `index.md` curada de esa misma sección y, con `strict: true`,
+  # el aviso aborta el build. El hook los descarta comprobando la condición real —"hay un index.md
+  # al lado"— en vez de mantener a mano una lista que cada sección nueva volvería a romper.
+  - scripts/mkdocs/generated_readmes.py
 
 extra:
   # Rama contra la que el hook resuelve los enlaces a código.
@@ -111,6 +107,18 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/PabloArauzCaballero/AtlasBackend
+
+# MkDocs trata `README.md` como el índice de su carpeta, así que en las cinco carpetas que ya tienen
+# un `index.md` escrito para el portal ambos compiten por la misma URL. Se excluye el README, no el
+# index: el README lo genera `yarn docs:folders` para quien navega el repositorio en GitHub o en el
+# IDE —donde sigue siendo útil— y el index es el que da contexto dentro del portal. Borrar el README
+# rompería la navegación del repositorio para arreglar la del sitio.
+exclude_docs: |
+  api/README.md
+  data/README.md
+  getting-started/README.md
+  operations/README.md
+  reports/README.md
 
 # La navegación es explícita, no automática. Una página que no aparece aquí es una página huérfana, y
 # con `strict: true` el build lo dice.

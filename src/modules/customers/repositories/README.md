@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`customer-eligibility.facts.ts`](./customer-eligibility.facts.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`customer-eligibility.repository.ts`](./customer-eligibility.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`customer-lifecycle.repository.ts`](./customer-lifecycle.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 

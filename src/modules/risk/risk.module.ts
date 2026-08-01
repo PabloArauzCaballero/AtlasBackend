@@ -22,11 +22,15 @@ import {
   RiskAssessmentResultModel,
   RiskAssessmentRunModel,
   RiskFeatureContributionModel,
+  RiskPolicyRuleModel,
   RiskRuleFiredModel,
+  RiskRulesetVersionModel,
   WatchlistMatchModel,
 } from '../../database/models/index.js';
 import { CustomersModule } from '../customers/customers.module.js';
 import { RiskController } from './risk.controller.js';
+import { RiskPolicyDecisionService } from './application/risk-policy-decision.service.js';
+import { RiskPolicyRepository } from './repositories/risk-policy.repository.js';
 import { RiskRepository } from './risk.repository.js';
 import { RiskService } from './risk.service.js';
 
@@ -36,7 +40,9 @@ import { RiskService } from './risk.service.js';
       RiskAssessmentResultModel,
       RiskAssessmentRunModel,
       RiskAssessmentContextModel,
+      RiskPolicyRuleModel,
       RiskRuleFiredModel,
+      RiskRulesetVersionModel,
       RiskFeatureContributionModel,
       FeatureComputationRunModel,
       FeatureValueModel,
@@ -55,7 +61,7 @@ import { RiskService } from './risk.service.js';
     CustomersModule,
   ],
   controllers: [RiskController],
-  providers: [RiskRepository, RiskService],
+  providers: [RiskRepository, RiskPolicyRepository, RiskPolicyDecisionService, RiskService],
   exports: [RiskRepository, RiskService],
 })
 export class RiskModule {}

@@ -7,6 +7,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -57,6 +58,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -107,6 +109,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -160,6 +163,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -221,6 +225,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -274,6 +279,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -330,6 +336,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -378,6 +385,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -421,7 +429,8 @@ paths:
   /operations/events/catalog:
     get:
       operationId: EventsController_listCatalog
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista de definiciones de eventos registradas.
@@ -429,6 +438,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -468,6 +479,9 @@ paths:
             enum:
               - offset
               - cursor
+          description: >-
+            Estrategia de paginación pedida (`page` u `offset`) cuando el
+            listado admite ambas.
         - name: limit
           required: false
           in: query
@@ -495,6 +509,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: >-
+            Filtra por el identificador de correlación con el que se registró la
+            operación.
         - name: aggregateType
           required: false
           in: query
@@ -502,6 +519,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: Filtra por tipo de agregado al que pertenece el evento.
         - name: eventCode
           required: false
           in: query
@@ -509,6 +527,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 160
+          description: Filtra por código del evento en el catálogo de definiciones.
         - name: status
           required: false
           in: query
@@ -524,6 +543,7 @@ paths:
             Filtra por estado del recurso. Los valores admitidos son los del
             dominio de ese recurso.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de eventos.
@@ -551,6 +571,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -660,6 +681,7 @@ paths:
             pattern: ^[1-9][0-9]*$
           description: Identificador del evento de dominio en el outbox.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle del evento.
@@ -697,6 +719,7 @@ paths:
           description: Identificador del evento de dominio en el outbox.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Evento re-encolado para reintento.
@@ -736,6 +759,7 @@ paths:
           description: Identificador del evento de dominio en el outbox.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Evento cancelado.
@@ -798,6 +822,7 @@ paths:
             Filtra por estado del recurso. Los valores admitidos son los del
             dominio de ese recurso.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de mensajes.
@@ -833,6 +858,7 @@ paths:
             pattern: ^[1-9][0-9]*$
           description: Identificador del mensaje de notificación.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle del mensaje con sus deliveries.
@@ -870,6 +896,7 @@ paths:
           description: Identificador del mensaje de notificación.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Reintento encolado — devuelve el mensaje actualizado.
@@ -909,6 +936,7 @@ paths:
           description: Identificador del mensaje de notificación.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Mensaje cancelado.
@@ -944,6 +972,7 @@ paths:
           in: query
           schema:
             type: boolean
+          description: Restringe a los registros vigentes cuando es `true`.
         - name: channel
           required: false
           in: query
@@ -964,7 +993,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 160
+          description: Filtra por el código natural del recurso.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de plantillas.
@@ -992,6 +1023,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -1103,6 +1135,7 @@ paths:
           description: Identificador de la plantilla de notificación.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -1210,6 +1243,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Preferencias del cliente por evento/canal.
@@ -1251,6 +1285,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -1329,6 +1364,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -1466,6 +1502,7 @@ paths:
           required: false
           schema:
             type: string
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de notificaciones del cliente.
@@ -1512,6 +1549,7 @@ paths:
             Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
             `tenantId` del token y responde 403 si no coinciden, así que no es
             un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Cantidad de notificaciones no leídas.
@@ -1565,6 +1603,7 @@ paths:
             Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
             `tenantId` del token y responde 403 si no coinciden, así que no es
             un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Notificación marcada como leída.
@@ -1613,6 +1652,7 @@ paths:
             Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
             `tenantId` del token y responde 403 si no coinciden, así que no es
             un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Cantidad de notificaciones actualizadas.
@@ -1664,6 +1704,7 @@ paths:
             Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
             `tenantId` del token y responde 403 si no coinciden, así que no es
             un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -1745,6 +1786,7 @@ paths:
             Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
             `tenantId` del token y responde 403 si no coinciden, así que no es
             un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Token de dispositivo desactivado.
@@ -1812,6 +1854,7 @@ paths:
           required: false
           schema:
             type: string
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de mis notificaciones.
@@ -1847,6 +1890,7 @@ paths:
             Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
             `tenantId` del token y responde 403 si no coinciden, así que no es
             un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Cantidad de notificaciones no leídas.
@@ -1889,6 +1933,7 @@ paths:
             Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
             `tenantId` del token y responde 403 si no coinciden, así que no es
             un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Notificación marcada como leída.
@@ -1928,6 +1973,7 @@ paths:
             Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
             `tenantId` del token y responde 403 si no coinciden, así que no es
             un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Cantidad de notificaciones actualizadas.
@@ -1977,6 +2023,7 @@ paths:
           required: false
           schema:
             type: string
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Perfil del cliente.
@@ -2026,6 +2073,7 @@ paths:
           required: false
           schema:
             type: string
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Resultado de la evaluación, con la lista completa de bloqueadores.
@@ -2070,6 +2118,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -2132,7 +2181,8 @@ paths:
     post:
       description: Autentica usuarios internos para el panel administrativo ATLAS.
       operationId: InternalAuthController_login
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -2180,7 +2230,8 @@ paths:
         devuelto por el login más el PIN recibido por correo por los tokens y el
         perfil de la sesión interna.
       operationId: InternalAuthController_verifyLoginPin
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -2223,7 +2274,8 @@ paths:
     post:
       description: Rota refresh token de una sesión interna.
       operationId: InternalAuthController_refresh
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -2260,7 +2312,8 @@ paths:
     post:
       description: Revoca refresh token de una sesión interna.
       operationId: InternalAuthController_logout
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -2302,7 +2355,8 @@ paths:
         Devuelve usuario, roles y permisos efectivos para renderizar menú
         dinámico.
       operationId: InternalAuthController_me
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Perfil, roles y permisos efectivos del usuario interno actual.
@@ -2310,6 +2364,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2329,7 +2385,8 @@ paths:
         Signup interno controlado para el panel admin; no es autorregistro
         público.
       operationId: InternalAuthController_signup
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -2460,6 +2517,7 @@ paths:
             exclusiveMinimum: 0
             maximum: 9007199254740991
           description: Página solicitada, empezando en 1.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de usuarios internos.
@@ -2495,6 +2553,7 @@ paths:
           description: >-
             Identificador del usuario interno (operador, analista o
             administrador).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle del usuario interno (con roles).
@@ -2531,6 +2590,7 @@ paths:
           description: >-
             Identificador del usuario interno (operador, analista o
             administrador).
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -2615,6 +2675,7 @@ paths:
           description: >-
             Identificador del usuario interno (operador, analista o
             administrador).
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -2686,7 +2747,8 @@ paths:
   /internal/roles:
     get:
       operationId: InternalAccessCatalogController_listRoles
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista de roles internos.
@@ -2694,6 +2756,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2720,6 +2784,7 @@ paths:
           description: >-
             Identificador de ruta `roleId` del recurso direccionado por la
             operación.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle del rol (con permisos asociados).
@@ -2747,7 +2812,8 @@ paths:
   /internal/permissions:
     get:
       operationId: InternalAccessCatalogController_listPermissions
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista de permisos internos.
@@ -2755,6 +2821,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2780,6 +2848,7 @@ paths:
       operationId: AuthController_login
       parameters:
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -2841,7 +2910,8 @@ paths:
         por `POST /auth/login` más el PIN de 6 dígitos recibido por correo por
         el par access+refresh token definitivo.
       operationId: AuthController_verifyLoginPin
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -2891,6 +2961,7 @@ paths:
       operationId: AuthController_requestPasswordReset
       parameters:
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -2946,6 +3017,7 @@ paths:
       operationId: AuthController_confirmPasswordReset
       parameters:
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -3009,7 +3081,8 @@ paths:
         Rota un refresh token vigente por un nuevo access+refresh token
         (rotación en cada uso — el refresh token anterior queda revocado).
       operationId: AuthController_refresh
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -3053,7 +3126,8 @@ paths:
         actor, si `allDevices=true`). Idempotente: revocar un token ya revocado
         no falla.
       operationId: AuthController_logout
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -3099,7 +3173,8 @@ paths:
         `customerId`. Es la forma soportada de que el frontend conozca su propio
         identificador sin decodificar el access token.
       operationId: AuthController_getMe
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Identidad del actor del token.
@@ -3107,6 +3182,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           description: Token ausente, inválido o revocado.
         '403':
@@ -3129,7 +3206,8 @@ paths:
         completarse con POST /auth/login/pin. Activar exige que MailSender esté
         configurado (si no, no habría cómo entregar el OTP).
       operationId: AuthController_setMfaPreference
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -3179,7 +3257,8 @@ paths:
         verificado tanto por el guard de roles como, en defensa en profundidad,
         dentro del propio `AuthService`.
       operationId: AuthController_provisionCredentials
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -3238,7 +3317,8 @@ paths:
         Verifica conectividad a la base de datos y reporta uptime/versión. No
         requiere autenticación.
       operationId: HealthController_check
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Servicio saludable o degradado (nunca falla por sí mismo).
@@ -3246,6 +3326,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -3260,7 +3342,8 @@ paths:
         Trivial: si responde, el event loop atiende peticiones. No verifica
         dependencias.
       operationId: HealthController_liveness
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: El proceso está vivo.
@@ -3268,6 +3351,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -3283,7 +3368,8 @@ paths:
         503 si Postgres no responde, para que el balanceador/orquestador saque
         la instancia del pool. Redis no configurado (dev) no falla.
       operationId: HealthController_readiness
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Listo para recibir tráfico.
@@ -3291,6 +3377,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -3318,6 +3406,7 @@ paths:
               - 'true'
               - 'false'
               - all
+          description: Restringe a los registros vigentes cuando es `true`.
         - name: status
           required: false
           in: query
@@ -3341,6 +3430,8 @@ paths:
             type: string
             minLength: 2
             maxLength: 80
+          description: Filtra por dominio de negocio del catálogo técnico.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista de catálogos y su versión vigente o más reciente.
@@ -3465,6 +3556,7 @@ paths:
             maxLength: 140
             pattern: ^[a-zA-Z0-9_.:-]+$
           description: Código del catálogo de contexto.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Versión, items, alias y mapeos de riesgo del catálogo.
@@ -3712,6 +3804,7 @@ paths:
           description: Código del catálogo de contexto.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -3913,6 +4006,7 @@ paths:
           description: Código del catálogo de contexto.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -3991,6 +4085,7 @@ paths:
           description: Código del catálogo de contexto.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -4076,6 +4171,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -4191,6 +4287,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -4367,6 +4464,7 @@ paths:
             type: string
             minLength: 2
             maxLength: 80
+          description: Filtra por dominio de negocio del catálogo técnico.
         - name: status
           required: false
           in: query
@@ -4393,6 +4491,7 @@ paths:
               - feature
               - all
           description: Filtra por tipo del recurso dentro de su catálogo.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Definiciones agrupadas por tipo.
@@ -4622,6 +4721,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -4994,7 +5094,8 @@ paths:
   /operations/risk-policy/current:
     get:
       operationId: CatalogManagementController_getCurrentRiskPolicy
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Política de riesgo actual (ruleset activo).
@@ -5002,6 +5103,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5021,6 +5124,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -5255,6 +5359,7 @@ paths:
           description: Identificador de la versión del conjunto de reglas de riesgo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -5303,7 +5408,8 @@ paths:
   /operations/data-governance/policies:
     get:
       operationId: CatalogManagementController_getDataGovernancePolicies
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Políticas de gobernanza (propósitos, clasificaciones, retenciones).
@@ -5311,6 +5417,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5330,6 +5438,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -5633,6 +5742,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -5840,6 +5950,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -5915,6 +6026,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -5991,6 +6103,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -6011,6 +6124,10 @@ paths:
                       type: string
                       minLength: 32
                       maxLength: 128
+                    documentNumber:
+                      type: string
+                      minLength: 3
+                      maxLength: 30
                     documentLast4:
                       type: string
                       minLength: 2
@@ -6143,6 +6260,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -6257,6 +6375,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -6340,6 +6459,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -6434,6 +6554,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Referencias registradas (solo últimos 4 dígitos del teléfono).
@@ -6475,6 +6596,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -6569,6 +6691,7 @@ paths:
           description: Identificador de ruta `referenceId`.
           schema:
             type: string
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Referencia retirada.
@@ -6613,6 +6736,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -6684,6 +6808,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -6769,6 +6894,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -6848,6 +6974,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Estado, secciones, porcentaje de avance y próximo paso.
@@ -6893,6 +7020,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -6955,6 +7083,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Observaciones, casos abiertos y bloqueadores vigentes.
@@ -6989,6 +7118,7 @@ paths:
       operationId: CustomerOnboardingStatusController_markAbandoned
       parameters:
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -7049,6 +7179,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -7120,6 +7251,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Resultado del screening y elegibilidad resultante.
@@ -7165,6 +7297,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -7230,6 +7363,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -7446,6 +7580,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -7635,6 +7770,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -7701,6 +7837,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Estado de sesión (puede no haber ninguna sesión activa).
@@ -7742,6 +7879,7 @@ paths:
             pattern: ^[1-9][0-9]*$
           description: Identificador de la sesión del cliente.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Resumen de investigación de la sesión.
@@ -7783,6 +7921,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 80
+          description: Filtra por finalidad de tratamiento de datos personales.
         - name: language
           required: false
           in: query
@@ -7793,6 +7932,7 @@ paths:
             maxLength: 10
           description: Idioma del contenido solicitado, en código ISO-639-1 (`es`, `en`).
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista de documentos activos (puede ser vacía).
@@ -7818,6 +7958,7 @@ paths:
       operationId: ExternalDataController_createConsent
       parameters:
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -7897,6 +8038,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista de consentimientos.
@@ -7933,6 +8075,7 @@ paths:
             pattern: ^\d+$
           description: Identificador del consentimiento otorgado.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Consentimiento revocado.
@@ -7968,6 +8111,7 @@ paths:
       operationId: ExternalDataController_previewRequest
       parameters:
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -8050,6 +8194,7 @@ paths:
             devuelve el resultado de la primera ejecución en vez de ejecutar el
             comando dos veces.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -8127,6 +8272,7 @@ paths:
             pattern: ^\d+$
           description: Identificador de la petición a un proveedor externo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle de la solicitud.
@@ -8161,6 +8307,7 @@ paths:
           description: Filtra por un proveedor específico; sin filtro devuelve todos.
           schema:
             type: string
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Estado de salud por proveedor.
@@ -8201,6 +8348,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Features del cliente.
@@ -8239,6 +8387,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Input de scoring del cliente.
@@ -8278,12 +8427,18 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 8760
+          description: >-
+            Antigüedad máxima aceptada de las variables derivadas, en horas. Por
+            encima se recalculan.
         - name: includeRawResponses
           required: false
           in: query
           schema:
             default: false
             type: boolean
+          description: >-
+            Incluye la respuesta cruda del proveedor externo. Puede contener
+            datos personales: se limita a roles de auditoría.
         - name: customerId
           required: true
           in: path
@@ -8294,6 +8449,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Paquete de decisión.
@@ -8335,6 +8491,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Observaciones del cliente.
@@ -8362,7 +8519,8 @@ paths:
   /admin/external-providers:
     get:
       operationId: AdminExternalProvidersController_listProviders
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Catálogo de proveedores.
@@ -8370,6 +8528,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -8386,7 +8546,8 @@ paths:
   /admin/external-providers/health:
     get:
       operationId: AdminExternalProvidersController_health
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Estado de salud por proveedor.
@@ -8394,6 +8555,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -8413,7 +8576,8 @@ paths:
         Evalúa si cada proveedor tiene credenciales/integración real lista para
         modo production.
       operationId: AdminExternalProvidersController_readiness
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Reporte de readiness.
@@ -8421,6 +8585,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -8440,7 +8606,8 @@ paths:
         Detecta configuraciones riesgosas (p. ej. HIGH_COST_NOT_BLOCKED —
         proveedor costoso sin gate de aprobación).
       operationId: AdminExternalProvidersController_qualityAudit
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Hallazgos de auditoría de calidad.
@@ -8448,6 +8615,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -8471,11 +8640,15 @@ paths:
           schema:
             default: true
             type: boolean
+          description: >-
+            Aplica la variante estricta de la comprobación: los avisos pasan a
+            considerarse fallos.
         - name: providerCode
           required: false
           in: query
           schema: {}
           description: Filtra por proveedor externo.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Estado del gate de producción.
@@ -8519,6 +8692,7 @@ paths:
           schema: {}
           description: Filtra por proveedor externo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Reporte de SLA.
@@ -8562,6 +8736,7 @@ paths:
           schema: {}
           description: Filtra por proveedor externo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Reporte de uso/costo.
@@ -8611,6 +8786,7 @@ paths:
             Ventana en días hacia atrás desde ahora. Alternativa a `from`/`to`
             para consultas rápidas.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Auditoría de idempotencia.
@@ -8662,6 +8838,7 @@ paths:
           description: >-
             Ventana en días hacia atrás desde ahora. Alternativa a `from`/`to`
             para consultas rápidas.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Vista previa de purga.
@@ -8702,6 +8879,7 @@ paths:
           description: >-
             Tamaño de página. El backend impone un máximo por endpoint; pedir
             más lo recorta en vez de fallar.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Auditoría de sanitización.
@@ -8729,6 +8907,7 @@ paths:
       operationId: AdminExternalProvidersController_previewPolicy
       parameters:
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -8803,6 +8982,7 @@ paths:
           in: path
           schema: {}
           description: Código del proveedor externo (`segip`, `infocenter`, …).
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -8875,6 +9055,7 @@ paths:
           in: path
           schema: {}
           description: Código del proveedor externo (`segip`, `infocenter`, …).
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -8944,6 +9125,7 @@ paths:
           in: path
           schema: {}
           description: Código del proveedor externo (`segip`, `infocenter`, …).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Políticas de costo del proveedor.
@@ -8987,6 +9169,7 @@ paths:
           in: path
           schema: {}
           description: Código del proveedor externo (`segip`, `infocenter`, …).
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -9105,6 +9288,7 @@ paths:
           schema: {}
           description: Código del proveedor externo (`segip`, `infocenter`, …).
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Resultado de la ejecución de prueba.
@@ -9146,6 +9330,7 @@ paths:
             pattern: ^\d+$
           description: Identificador de la petición a un proveedor externo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -9198,6 +9383,7 @@ paths:
             pattern: ^\d+$
           description: Identificador de la petición a un proveedor externo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -9268,6 +9454,7 @@ paths:
             pattern: ^\d+$
           description: Identificador de la petición a un proveedor externo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Snapshot de features reconstruido.
@@ -9311,6 +9498,7 @@ paths:
             devuelve el resultado de la primera ejecución en vez de ejecutar el
             comando dos veces.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -9393,6 +9581,7 @@ paths:
             devuelve el resultado de la primera ejecución en vez de ejecutar el
             comando dos veces.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -9464,6 +9653,7 @@ paths:
             devuelve el resultado de la primera ejecución en vez de ejecutar el
             comando dos veces.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -9545,6 +9735,7 @@ paths:
             devuelve el resultado de la primera ejecución en vez de ejecutar el
             comando dos veces.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -9622,6 +9813,7 @@ paths:
       operationId: PaymentsExternalDataController_generateBankQr
       parameters:
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -9692,6 +9884,7 @@ paths:
             devuelve el resultado de la primera ejecución en vez de ejecutar el
             comando dos veces.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -9758,6 +9951,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Features de confianza telefónica.
@@ -9792,7 +9986,11 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
+          description: >-
+            Filtra por cliente. No sustituye a la comprobación de pertenencia:
+            un `customer` sigue viendo solo lo suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: URL de conexión OAuth.
@@ -9832,6 +10030,7 @@ paths:
             devuelve el resultado de la primera ejecución en vez de ejecutar el
             comando dos veces.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -9893,6 +10092,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Features derivados de la conexión Facebook.
@@ -9934,6 +10134,7 @@ paths:
             devuelve el resultado de la primera ejecución en vez de ejecutar el
             comando dos veces.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -10001,6 +10202,7 @@ paths:
             devuelve el resultado de la primera ejecución en vez de ejecutar el
             comando dos veces.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -10068,6 +10270,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Features derivados de la verificación de WhatsApp.
@@ -10109,6 +10312,7 @@ paths:
             devuelve el resultado de la primera ejecución en vez de ejecutar el
             comando dos veces.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -10178,6 +10382,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Features de confianza digital.
@@ -10225,6 +10430,7 @@ paths:
           required: false
           schema:
             type: string
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Catálogo de productos + elegibilidad del cliente.
@@ -10270,6 +10476,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -10350,6 +10557,7 @@ paths:
             Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
             `tenantId` del token y responde 403 si no coinciden, así que no es
             un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Solicitudes del cliente, más recientes primero.
@@ -10379,6 +10587,7 @@ paths:
       operationId: CreditOperationsController_listProducts
       parameters:
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Productos del tenant.
@@ -10408,6 +10617,7 @@ paths:
       operationId: CreditOperationsController_createProduct
       parameters:
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -10514,6 +10724,7 @@ paths:
             pattern: ^[1-9][0-9]*$
           description: Identificador del producto crediticio.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -10577,6 +10788,7 @@ paths:
             type: string
           description: Identificador de la solicitud de crédito.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -10638,6 +10850,7 @@ paths:
             type: string
           description: Identificador de la solicitud de crédito.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Solicitud + eventos, más recientes primero.
@@ -10690,6 +10903,7 @@ paths:
             type: string
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -10784,6 +10998,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -10855,6 +11070,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -11015,6 +11231,7 @@ paths:
             operar sobre el suyo.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -11102,6 +11319,7 @@ paths:
             pattern: ^[1-9][0-9]*$
           description: Identificador de la corrida de evaluación de riesgo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle completo de la evaluación de riesgo.
@@ -11141,6 +11359,7 @@ paths:
             pattern: ^[1-9][0-9]*$
           description: Identificador de la corrida de evaluación de riesgo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Explicación de la evaluación de riesgo.
@@ -11180,6 +11399,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 40
+          description: Prioridad asignada al caso o a la alerta.
         - name: status
           required: false
           in: query
@@ -11200,7 +11420,9 @@ paths:
               - manual_review
               - fraud
               - all
+          description: Cola de trabajo de operaciones sobre la que se consulta.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Cola de trabajo paginada.
@@ -11249,6 +11471,7 @@ paths:
             Filtra por estado del recurso. Los valores admitidos son los del
             dominio de ese recurso.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Página de casos de revisión manual.
@@ -11297,6 +11520,7 @@ paths:
             Filtra por estado del recurso. Los valores admitidos son los del
             dominio de ese recurso.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Página de casos de fraude.
@@ -11336,6 +11560,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Resumen de investigación.
@@ -11377,6 +11602,7 @@ paths:
           description: Identificador del caso de revisión manual o de fraude.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -11460,6 +11686,7 @@ paths:
           description: Identificador del caso de revisión manual o de fraude.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -11535,6 +11762,9 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: >-
+            Filtra por cliente. No sustituye a la comprobación de pertenencia:
+            un `customer` sigue viendo solo lo suyo.
         - name: entityType
           required: false
           in: query
@@ -11542,6 +11772,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: Filtra por tipo de entidad del catálogo de datos.
         - name: severity
           required: false
           in: query
@@ -11549,6 +11780,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 40
+          description: Severidad del hallazgo.
         - name: status
           required: false
           in: query
@@ -11560,6 +11792,7 @@ paths:
             Filtra por estado del recurso. Los valores admitidos son los del
             dominio de ese recurso.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de issues.
@@ -11595,6 +11828,7 @@ paths:
           description: Identificador del hallazgo de calidad de datos.
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -11694,6 +11928,7 @@ paths:
               - fraud
               - data_change
               - customer_action
+          description: Filtra por tipo de evento de dominio.
         - name: customerId
           required: true
           in: path
@@ -11704,6 +11939,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Historial de auditoría paginado.
@@ -11756,6 +11992,7 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Página del feed de auditoría.
@@ -11783,7 +12020,8 @@ paths:
   /systems/dashboard:
     get:
       operationId: SystemsCatalogController_getDashboard
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Contadores y resumen del catálogo interno.
@@ -11791,6 +12029,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -11848,6 +12088,9 @@ paths:
               - NEEDS_REVIEW
               - APPROVED
               - REJECTED
+          description: >-
+            Estado de revisión humana de la ficha del catálogo técnico
+            (`AUTO_DETECTED`, `APPROVED`, …).
         - name: riskLevel
           required: false
           in: query
@@ -11858,6 +12101,9 @@ paths:
               - MEDIUM
               - HIGH
               - CRITICAL
+          description: >-
+            Nivel de riesgo clasificado del endpoint (`LOW`, `MEDIUM`, `HIGH`,
+            `CRITICAL`).
         - name: status
           required: false
           in: query
@@ -11875,6 +12121,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: Filtra por servicio backend que expone el endpoint catalogado.
         - name: module
           required: false
           in: query
@@ -11885,6 +12132,7 @@ paths:
           description: >-
             Filtra por módulo funcional del backend (`auth`, `credit`,
             `customer_onboarding`, …).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de endpoints.
@@ -11918,6 +12166,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador del endpoint en el catálogo técnico.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle del endpoint.
@@ -11945,7 +12194,8 @@ paths:
   /systems/endpoints/discover:
     post:
       operationId: SystemsCatalogController_discoverEndpoints
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -11992,7 +12242,8 @@ paths:
   /systems/endpoints/catalog-seed/refresh:
     post:
       operationId: SystemsCatalogController_refreshCatalogSeed
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -12092,6 +12343,7 @@ paths:
           description: >-
             Filtra por módulo funcional del backend (`auth`, `credit`,
             `customer_onboarding`, …).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de herramientas.
@@ -12125,6 +12377,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador de la herramienta o dependencia externa catalogada.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle de la herramienta.
@@ -12152,7 +12405,8 @@ paths:
   /systems/tools/infer-requirements:
     post:
       operationId: SystemsCatalogController_inferToolRequirements
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -12193,7 +12447,8 @@ paths:
   /systems/data-entities/infer-impacts:
     post:
       operationId: SystemsCatalogController_inferDataImpacts
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -12285,6 +12540,7 @@ paths:
           description: >-
             Filtra por módulo funcional del backend (`auth`, `credit`,
             `customer_onboarding`, …).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de entidades de datos.
@@ -12341,6 +12597,7 @@ paths:
           description: >-
             Texto de búsqueda libre. Se compara de forma insensible a mayúsculas
             sobre los campos indexados del recurso.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de dominios.
@@ -12375,6 +12632,7 @@ paths:
             minLength: 1
             maxLength: 120
           description: Código del dominio de negocio del catálogo técnico.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle del dominio.
@@ -12410,6 +12668,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador de la entidad de datos en el catálogo técnico.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle de la entidad de datos.
@@ -12445,6 +12704,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador de la entidad de datos en el catálogo técnico.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -12532,6 +12792,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador del endpoint en el catálogo técnico.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Impacto de datos asociado al endpoint.
@@ -12578,6 +12839,7 @@ paths:
           description: >-
             Nombre del schema PostgreSQL (`customer`, `credit`, `platform_ops`,
             …).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Impacto de datos asociado a la tabla.
@@ -12605,7 +12867,8 @@ paths:
   /systems/health/tools:
     get:
       operationId: SystemsCatalogController_getToolsHealth
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Estado de salud de las herramientas.
@@ -12613,6 +12876,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -12661,6 +12926,9 @@ paths:
               - NEEDS_REVIEW
               - APPROVED
               - REJECTED
+          description: >-
+            Estado de revisión humana de la ficha del catálogo técnico
+            (`AUTO_DETECTED`, `APPROVED`, …).
         - name: module
           required: false
           in: query
@@ -12686,6 +12954,7 @@ paths:
               - data_column_impacts
               - tool_requirements
           description: Filtra por tipo del recurso dentro de su catálogo.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Cola de revisión paginada.
@@ -12719,6 +12988,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador del endpoint en el catálogo técnico.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -12781,6 +13051,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador del requerimiento de herramienta del catálogo técnico.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -12843,6 +13114,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador de la entidad de datos en el catálogo técnico.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -12905,6 +13177,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador del impacto de datos catalogado.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -12967,6 +13240,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador del impacto a nivel de campo.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -13029,6 +13303,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador de la columna en el catálogo de datos.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -13083,7 +13358,8 @@ paths:
   /systems/test-suites:
     post:
       operationId: SystemsTestController_createTestSuite
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -13202,6 +13478,7 @@ paths:
           in: query
           schema:
             type: boolean
+          description: Restringe a los registros habilitados cuando es `true`.
         - name: suiteType
           required: false
           in: query
@@ -13209,6 +13486,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 200
+          description: Filtra por tipo de suite de pruebas.
         - name: module
           required: false
           in: query
@@ -13219,6 +13497,7 @@ paths:
           description: >-
             Filtra por módulo funcional del backend (`auth`, `credit`,
             `customer_onboarding`, …).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de suites.
@@ -13252,6 +13531,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador de la suite de pruebas del portal de sistemas.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle de la suite.
@@ -13286,6 +13566,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador de la suite de pruebas del portal de sistemas.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -13373,6 +13654,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador de la suite de pruebas del portal de sistemas.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -13512,6 +13794,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador de la suite de pruebas del portal de sistemas.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -13620,6 +13903,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador de la suite de pruebas del portal de sistemas.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -13685,6 +13969,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador de la suite de pruebas del portal de sistemas.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -13789,6 +14074,9 @@ paths:
               - LOCAL
               - STAGING
               - PRODUCTION_READONLY
+          description: >-
+            Entorno de ejecución sobre el que aplica la consulta (`LOCAL`,
+            `STAGING`, `PRODUCTION_READONLY`).
         - name: status
           required: false
           in: query
@@ -13809,6 +14097,8 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Filtra por suite de pruebas.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de corridas.
@@ -13842,6 +14132,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador de la ejecución de pruebas.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle de la corrida.
@@ -13905,6 +14196,7 @@ paths:
           in: query
           schema:
             type: boolean
+          description: Restringe a los registros habilitados cuando es `true`.
         - name: status
           required: false
           in: query
@@ -13921,6 +14213,8 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Filtra por endpoint del catálogo técnico.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de perfiles de estrés.
@@ -13945,7 +14239,8 @@ paths:
         - systems-ops
     post:
       operationId: SystemsStressController_upsertStressProfile
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -14065,6 +14360,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador del perfil de estrés.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle del perfil de estrés.
@@ -14103,6 +14399,7 @@ paths:
             type: string
             pattern: ^[1-9][0-9]*$
           description: Identificador del perfil de estrés.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -14220,6 +14517,9 @@ paths:
               - NEEDS_REVIEW
               - APPROVED
               - REJECTED
+          description: >-
+            Estado de revisión humana de la ficha del catálogo técnico
+            (`AUTO_DETECTED`, `APPROVED`, …).
         - name: riskLevel
           required: false
           in: query
@@ -14230,6 +14530,9 @@ paths:
               - MEDIUM
               - HIGH
               - CRITICAL
+          description: >-
+            Nivel de riesgo clasificado del endpoint (`LOW`, `MEDIUM`, `HIGH`,
+            `CRITICAL`).
         - name: status
           required: false
           in: query
@@ -14250,6 +14553,7 @@ paths:
           description: >-
             Filtra por módulo funcional del backend (`auth`, `credit`,
             `customer_onboarding`, …).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Matriz de cobertura de estrés.
@@ -14305,6 +14609,9 @@ paths:
               - LOCAL
               - STAGING
               - PRODUCTION_READONLY
+          description: >-
+            Entorno de ejecución sobre el que aplica la consulta (`LOCAL`,
+            `STAGING`, `PRODUCTION_READONLY`).
         - name: status
           required: false
           in: query
@@ -14325,6 +14632,8 @@ paths:
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Filtra por suite de pruebas.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de corridas de estrés.
@@ -14394,6 +14703,9 @@ paths:
           in: query
           schema:
             type: boolean
+          description: >-
+            Restringe a los registros marcados como portadores de datos
+            personales.
         - name: riskLevel
           required: false
           in: query
@@ -14404,6 +14716,9 @@ paths:
               - MEDIUM
               - HIGH
               - CRITICAL
+          description: >-
+            Nivel de riesgo clasificado del endpoint (`LOW`, `MEDIUM`, `HIGH`,
+            `CRITICAL`).
         - name: module
           required: false
           in: query
@@ -14421,6 +14736,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 80
+          description: >-
+            Filtra por tipo de actor que originó el registro (`customer`,
+            `internal_user`, `system`).
         - name: statusCode
           required: false
           in: query
@@ -14428,6 +14746,9 @@ paths:
             type: integer
             minimum: 100
             maximum: 599
+          description: >-
+            Filtra por el código de estado HTTP con el que respondió la petición
+            registrada.
         - name: method
           required: false
           in: query
@@ -14441,6 +14762,7 @@ paths:
               - DELETE
               - OPTIONS
               - HEAD
+          description: Filtra por método HTTP (`GET`, `POST`, …).
         - name: correlationId
           required: false
           in: query
@@ -14448,6 +14770,9 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: >-
+            Filtra por el identificador de correlación con el que se registró la
+            operación.
         - name: requestId
           required: false
           in: query
@@ -14455,12 +14780,17 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: >-
+            Filtra por el identificador de la petición registrada en el log de
+            acciones.
         - name: endpointId
           required: false
           in: query
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Filtra por endpoint del catálogo técnico.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de action logs.
@@ -14495,6 +14825,7 @@ paths:
             minLength: 1
             maxLength: 120
           description: Identificador de la petición a un proveedor externo.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Action logs asociados al request.
@@ -14531,6 +14862,7 @@ paths:
             minLength: 1
             maxLength: 120
           description: Identificador de la petición a un proveedor externo.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Action logs asociados al request.
@@ -14567,6 +14899,8 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 720
+          description: Ventana de agregación en horas hacia atrás desde ahora.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Resumen de tráfico y latencia por ruta/método.
@@ -14601,6 +14935,8 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 168
+          description: Ventana de agregación en horas hacia atrás desde ahora.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Serie de tiempo de requests y latencia por bucket.
@@ -14635,6 +14971,9 @@ paths:
           schema:
             default: false
             type: boolean
+          description: >-
+            Incluye también los registros dados de baja. Por omisión sólo se
+            devuelven los vigentes.
         - name: offset
           required: false
           in: query
@@ -14643,6 +14982,9 @@ paths:
             type: integer
             minimum: 0
             maximum: 9007199254740991
+          description: >-
+            Desplazamiento en número de elementos. Alternativa a `page` en los
+            listados que la exponen.
         - name: limit
           required: false
           in: query
@@ -14654,6 +14996,7 @@ paths:
           description: >-
             Tamaño de página. El backend impone un máximo por endpoint; pedir
             más lo recorta en vez de fallar.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de versiones de esquema.
@@ -14686,6 +15029,7 @@ paths:
           schema:
             type: string
           description: Identificador de la versión del catálogo.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle de la versión de esquema.
@@ -14722,6 +15066,9 @@ paths:
             type: integer
             minimum: 0
             maximum: 9007199254740991
+          description: >-
+            Desplazamiento en número de elementos. Alternativa a `page` en los
+            listados que la exponen.
         - name: limit
           required: false
           in: query
@@ -14743,12 +15090,15 @@ paths:
               - catalog
               - audit
               - operational
+          description: Filtra por tipo de objeto de esquema (`BASE TABLE`, `VIEW`).
         - name: versionId
           required: false
           in: query
           schema:
             type: string
             pattern: ^\d+$
+          description: Filtra por versión concreta del recurso versionado.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de tablas.
@@ -14776,7 +15126,8 @@ paths:
         Registra una propuesta de cambio de esquema pendiente de aprobación (4
         ojos) por platform_admin.
       operationId: SchemaManagementController_proposeTable
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -14924,6 +15275,7 @@ paths:
           schema:
             type: string
           description: Identificador de la tabla en el catálogo de esquema.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle de la tabla.
@@ -14960,6 +15312,9 @@ paths:
             type: integer
             minimum: 0
             maximum: 9007199254740991
+          description: >-
+            Desplazamiento en número de elementos. Alternativa a `page` en los
+            listados que la exponen.
         - name: limit
           required: false
           in: query
@@ -14977,6 +15332,7 @@ paths:
           schema:
             type: string
             pattern: ^\d+$
+          description: Filtra por el usuario interno que solicitó el cambio.
         - name: changeType
           required: false
           in: query
@@ -14984,6 +15340,9 @@ paths:
             type: string
             maxLength: 30
             pattern: ^[A-Z_]+$
+          description: >-
+            Filtra por tipo de cambio de esquema propuesto (`create_table`,
+            `add_column`, …).
         - name: approvalStatus
           required: false
           in: query
@@ -14993,6 +15352,10 @@ paths:
               - pending
               - approved
               - rejected
+          description: >-
+            Filtra por estado de aprobación de la propuesta (`pending`,
+            `approved`, `rejected`).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada del change-log.
@@ -15028,6 +15391,7 @@ paths:
           schema:
             type: string
           description: Identificador de la propuesta de cambio de esquema.
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -15112,6 +15476,7 @@ paths:
           description: Busca en los campos textuales y relaciones del término.
           schema:
             type: string
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de términos del glosario.
@@ -15220,6 +15585,7 @@ paths:
           description: >-
             Identificador retornado por el glosario; debe enviarse URL-encoded
             cuando corresponda.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle enriquecido del término.
@@ -15376,7 +15742,8 @@ paths:
   /internal/exports:
     get:
       operationId: InternalPortalController_listExports
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista de exports.
@@ -15384,6 +15751,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -15407,6 +15776,7 @@ paths:
           schema:
             type: string
           description: Identificador de la exportación solicitada.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle del export.
@@ -15434,7 +15804,8 @@ paths:
   /internal/data-quality/rules:
     get:
       operationId: InternalPortalController_listDataQualityRules
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista de reglas de calidad de datos.
@@ -15442,6 +15813,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -15465,6 +15838,7 @@ paths:
           schema:
             type: string
           description: Identificador de la regla de calidad de datos.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle de la regla.
@@ -15499,6 +15873,7 @@ paths:
           schema:
             type: string
           description: Identificador de la regla de calidad de datos.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Resultado de la ejecución de la regla.
@@ -15535,6 +15910,7 @@ paths:
           schema:
             type: string
           description: Identificador de la política de gobierno de datos.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle de la política.
@@ -15568,6 +15944,7 @@ paths:
           schema:
             type: string
           description: Identificador de la política de gobierno de datos.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Política actualizada.
@@ -15597,7 +15974,8 @@ paths:
   /internal/lineage:
     get:
       operationId: InternalPortalController_getLineage
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Grafo de linaje de datos.
@@ -15605,6 +15983,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -15628,6 +16008,7 @@ paths:
           schema:
             type: string
           description: Identificador del nodo de linaje de datos.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle del nodo de linaje.
@@ -15655,7 +16036,8 @@ paths:
   /internal/lineage/impact:
     get:
       operationId: InternalPortalController_getLineageImpact
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Análisis de impacto de linaje.
@@ -15663,6 +16045,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -15679,7 +16063,8 @@ paths:
   /internal/alerts:
     get:
       operationId: InternalPortalController_listAlerts
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista de alertas.
@@ -15687,6 +16072,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -15710,6 +16097,7 @@ paths:
           schema:
             type: string
           description: Identificador de la alerta operativa.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Alerta reconocida.
@@ -15739,7 +16127,8 @@ paths:
   /internal/jobs:
     get:
       operationId: InternalPortalController_listJobs
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista de corridas de jobs.
@@ -15747,6 +16136,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -15770,6 +16161,7 @@ paths:
           schema:
             type: string
           description: Identificador de la ejecución de un job.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle de la corrida de job.
@@ -15804,6 +16196,7 @@ paths:
           schema:
             type: string
           description: Identificador de la ejecución de un job.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Job re-encolado.
@@ -15840,6 +16233,7 @@ paths:
           schema:
             type: string
           description: Identificador de la ejecución de un job.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Job cancelado.
@@ -15869,7 +16263,8 @@ paths:
   /internal/release-readiness:
     get:
       operationId: InternalPortalController_getReleaseReadiness
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Resumen de release readiness.
@@ -15877,6 +16272,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -15893,7 +16290,8 @@ paths:
   /internal/reports:
     get:
       operationId: InternalPortalController_listReports
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista de reportes.
@@ -15901,6 +16299,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -15924,6 +16324,7 @@ paths:
           schema:
             type: string
           description: Identificador del reporte del portal interno.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Detalle del reporte.
@@ -15958,6 +16359,7 @@ paths:
           schema:
             type: string
           description: Identificador del reporte del portal interno.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Snapshot del reporte generado.
@@ -15994,6 +16396,7 @@ paths:
           schema:
             type: string
           description: Identificador del reporte del portal interno.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista de snapshots del reporte.
@@ -16021,7 +16424,8 @@ paths:
   /internal/search:
     get:
       operationId: InternalPortalController_search
-      parameters: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Resultados de búsqueda.
@@ -16029,6 +16433,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -16051,6 +16457,7 @@ paths:
           in: query
           description: Campos camelCase separados por coma.
           schema: {}
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: ''
@@ -16082,6 +16489,7 @@ paths:
           in: query
           description: Campos camelCase separados por coma.
           schema: {}
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: ''
@@ -16113,6 +16521,7 @@ paths:
           in: query
           description: Campos camelCase separados por coma.
           schema: {}
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: ''
@@ -16144,6 +16553,7 @@ paths:
           in: query
           description: Campos camelCase separados por coma.
           schema: {}
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: ''
@@ -16175,6 +16585,7 @@ paths:
           in: query
           description: Campos camelCase separados por coma.
           schema: {}
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: ''
@@ -16206,6 +16617,7 @@ paths:
           in: query
           description: Campos camelCase separados por coma.
           schema: {}
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: ''
@@ -16237,6 +16649,7 @@ paths:
           in: query
           description: Campos camelCase separados por coma.
           schema: {}
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: ''
@@ -16318,6 +16731,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 120
+          description: Filtra por servicio backend que originó el registro.
         - name: type
           required: false
           in: query
@@ -16328,6 +16742,7 @@ paths:
               - append
               - rotation
           description: Filtra por tipo del recurso dentro de su catálogo.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Lista paginada de logs desde MongoDB.
@@ -16365,6 +16780,9 @@ paths:
           required: false
           in: query
           schema: {}
+          description: >-
+            Incluye también las versiones retiradas del catálogo. Por omisión se
+            omiten.
         - name: role
           required: false
           in: query
@@ -16374,14 +16792,19 @@ paths:
           required: false
           in: query
           schema: {}
+          description: Filtra por módulo funcional del backend.
         - name: ownerDomain
           required: false
           in: query
           schema: {}
+          description: Filtra por dominio de negocio propietario del recurso.
         - name: processType
           required: false
           in: query
           schema: {}
+          description: >-
+            Filtra por familia del proceso (`customer_journey`, `back_office`,
+            `system_job`, `integration`).
         - name: status
           required: false
           in: query
@@ -16389,6 +16812,7 @@ paths:
           description: >-
             Filtra por estado del recurso. Los valores admitidos son los del
             dominio de ese recurso.
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Flujos registrados, ordenados por código y versión descendente.
@@ -16426,6 +16850,7 @@ paths:
           description: >-
             Código del flujo de trabajo en `snake_case`
             (`customer_credit_journey`).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Versiones del flujo, de la más reciente a la más antigua.
@@ -16462,10 +16887,16 @@ paths:
           required: false
           in: query
           schema: {}
+          description: >-
+            Filtra por tipo de actor que originó el registro (`customer`,
+            `internal_user`, `system`).
         - name: lifecycleStatus
           required: false
           in: query
           schema: {}
+          description: >-
+            Filtra por estado del ciclo de vida del cliente (`registered`,
+            `under_review`, `active`, …).
         - name: role
           required: false
           in: query
@@ -16475,6 +16906,7 @@ paths:
           required: false
           in: query
           schema: {}
+          description: Filtra por módulo funcional del backend.
         - name: version
           required: false
           in: query
@@ -16491,6 +16923,7 @@ paths:
           description: >-
             Código del flujo de trabajo en `snake_case`
             (`customer_credit_journey`).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: >-
@@ -16535,6 +16968,7 @@ paths:
           description: >-
             Código del flujo de trabajo en `snake_case`
             (`customer_credit_journey`).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Etapas ordenadas, con sus pasos.
@@ -16574,6 +17008,7 @@ paths:
           description: >-
             Código del flujo de trabajo en `snake_case`
             (`customer_credit_journey`).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Transiciones con su condición, origen y destino.
@@ -16616,6 +17051,7 @@ paths:
           description: >-
             Código del flujo de trabajo en `snake_case`
             (`customer_credit_journey`).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Grafo del flujo.
@@ -16660,6 +17096,7 @@ paths:
           description: >-
             Código del flujo de trabajo en `snake_case`
             (`customer_credit_journey`).
+        - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
@@ -16761,6 +17198,7 @@ paths:
           required: false
           schema:
             type: string
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Avance del cliente, con la siguiente llamada a realizar.
@@ -16811,6 +17249,7 @@ paths:
           description: >-
             Código del flujo de trabajo en `snake_case`
             (`customer_credit_journey`).
+        - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
           description: Informe de consistencia con la lista completa de hallazgos.
@@ -16848,11 +17287,11 @@ info:
   version: 0.3.0
   contact:
     name: Equipo Backend Atlas
-    url: https://github.com/atlas/backend
+    url: https://github.com/PabloArauzCaballero/AtlasBackend
     email: backend@atlas.local
   license:
     name: UNLICENSED
-    url: https://github.com/atlas/backend
+    url: https://github.com/PabloArauzCaballero/AtlasBackend
 tags:
   - name: auth
     description: >-

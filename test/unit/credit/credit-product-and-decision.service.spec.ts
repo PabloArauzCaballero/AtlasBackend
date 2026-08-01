@@ -24,6 +24,7 @@ function buildProductService() {
     maxTermMonths: 12,
     annualInterestRate: '18.5000',
     requiresManualReview: false,
+    minMonthlyIncome: null,
     status: 'active',
   };
   const creditRepository = {
@@ -36,11 +37,17 @@ function buildProductService() {
   const eligibilityService = {
     evaluate: jest.fn(async () => ({ eligible: true, blockers: [] })),
   };
+  // Los valores económicos alimentan la elegibilidad POR PRODUCTO: un cliente habilitado puede no
+  // alcanzar el ingreso mínimo de un producto y sí el de otro.
+  const eligibilityRepository = {
+    loadFacts: jest.fn(async () => ({ financialAttributeValues: { monthly_income_declared: 6000 } })),
+  };
   return {
     product,
     creditRepository,
     eligibilityService,
-    service: new CreditProductService(creditRepository as never, eligibilityService as never),
+    eligibilityRepository,
+    service: new CreditProductService(creditRepository as never, eligibilityService as never, eligibilityRepository as never),
   };
 }
 
@@ -57,6 +64,16 @@ describe('CreditProductService', () => {
     });
     expect(creditRepository.findOfferableProducts).toHaveBeenCalledWith('7', expect.any(Date));
     expect(eligibilityService.evaluate).toHaveBeenCalledWith('7', '10');
+  });
+
+  it('canApply es false para un producto cuyo ingreso mínimo el cliente no alcanza, aunque esté habilitado', async () => {
+    const { service, creditRepository, product } = buildProductService();
+    (creditRepository.findOfferableProducts as jest.Mock).mockResolvedValueOnce([{ ...product, minMonthlyIncome: '12000.00' }] as never);
+
+    const result = await service.listForCustomer({ tenantId: '7', customerId: '10', currentUser: customerUser });
+
+    expect(result.eligible).toBe(true);
+    expect(result.products[0].canApply).toBe(false);
   });
 
   it('impide que un cliente consulte el catálogo contextualizado de otro cliente', async () => {

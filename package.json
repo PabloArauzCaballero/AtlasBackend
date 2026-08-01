@@ -37,6 +37,7 @@
     "db:roles:bootstrap": "tsx scripts/bootstrap-db-roles.ts",
     "check:overfetching": "tsx scripts/check-overfetching.ts",
     "check:domain-schemas": "tsx scripts/check-domain-schemas.ts",
+    "check:entity-narratives": "tsx scripts/check-entity-narratives.ts",
     "check:domain-schema-layout": "tsx scripts/check-domain-schema-layout.ts",
     "check:file-size": "tsx scripts/check-file-size.ts",
     "check:migrations": "tsx scripts/check-migrations.ts",

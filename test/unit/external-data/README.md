@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`adapters-production-guard.spec.ts`](./adapters-production-guard.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`banking-generic.adapter.spec.ts`](./banking-generic.adapter.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`banking-qr.service.spec.ts`](./banking-qr.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`banking-qr.util.spec.ts`](./banking-qr.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |

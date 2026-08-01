@@ -18,7 +18,7 @@ import {
   RISK_ASSESSMENT_TTL_DAYS,
 } from '../customer-eligibility.constants.js';
 import { CREDIT_ELIGIBLE_STATUS, CustomerLifecycleStatus } from '../customer-lifecycle.constants.js';
-import { EligibilityFacts } from '../repositories/customer-eligibility.repository.js';
+import type { EligibilityFacts } from '../repositories/customer-eligibility.facts.js';
 
 export type EligibilityBlocker = {
   code: EligibilityBlockerCode;

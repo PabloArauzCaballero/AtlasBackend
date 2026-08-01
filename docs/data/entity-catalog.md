@@ -110,6 +110,7 @@ real— y `external_oauth_connections` no tiene consumidor todavía.
 
 | Comando | Qué comprueba |
 |---|---|
+| `yarn check:entity-narratives` | Que toda tabla con modelo ORM trae su narrativa curada (los cinco campos, sin stubs) |
 | `yarn check:domain-schemas` | Que cada modelo resuelve en el esquema que le corresponde |
 | `yarn check:domain-schema-layout` | Que el mapa tabla → esquema es único y coherente |
 | `yarn check:read-api-views` | Que las vistas `read_api` no exponen hashes ni blobs cifrados |

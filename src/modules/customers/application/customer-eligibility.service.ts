@@ -12,7 +12,8 @@ import { assertOwnCustomerResource } from '../../../common/utils/auth/ownership.
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { CustomersRepository } from '../customers.repository.js';
 import { CustomerLifecycleStatus, normalizeLifecycleStatus } from '../customer-lifecycle.constants.js';
-import { CustomerEligibilityRepository, EligibilityFacts } from '../repositories/customer-eligibility.repository.js';
+import { CustomerEligibilityRepository } from '../repositories/customer-eligibility.repository.js';
+import type { EligibilityFacts } from '../repositories/customer-eligibility.facts.js';
 import { CustomerLifecycleRepository } from '../repositories/customer-lifecycle.repository.js';
 import { CustomerLifecycleService } from './customer-lifecycle.service.js';
 import { EligibilityAssessment, assess } from './customer-eligibility.evaluator.js';

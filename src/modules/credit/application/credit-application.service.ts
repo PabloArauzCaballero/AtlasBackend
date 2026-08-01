@@ -11,6 +11,8 @@ import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { createStableCode, sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
+import { CustomerEligibilityRepository } from '../../customers/repositories/customer-eligibility.repository.js';
+import { evaluateProductEligibility } from './credit-product-eligibility.js';
 import { CreateCreditApplicationDto } from '../credit.schemas.js';
 import { CreditRepository } from '../credit.repository.js';
 
@@ -32,6 +34,7 @@ export class CreditApplicationService {
   constructor(
     private readonly creditRepository: CreditRepository,
     private readonly eligibilityService: CustomerEligibilityService,
+    private readonly eligibilityRepository: CustomerEligibilityRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -51,7 +54,16 @@ export class CreditApplicationService {
         const product = await this.creditRepository.findProductById(input.tenantId, input.body.productId, { transaction });
         if (!product) throw new NotFoundException('CREDIT_PRODUCT_NOT_FOUND');
         assertProductIsOfferable(product, now);
-        assertRequestFitsProduct(product, input.body);
+
+        // Elegibilidad POR PRODUCTO: rangos de monto/plazo e ingreso mínimo declarado. Es una capa
+        // distinta de la habilitación general — un cliente habilitado puede no alcanzar el umbral de
+        // ESTE producto y sí el de otro. `min_monthly_income` estaba declarado en el modelo desde el
+        // principio y no lo evaluaba nadie.
+        const facts = await this.eligibilityRepository.loadFacts(input.tenantId, input.customerId);
+        const productBlockers = evaluateProductEligibility(product, input.body, facts.financialAttributeValues);
+        if (productBlockers.length > 0) {
+          throw new UnprocessableEntityException(productBlockers.map((blocker) => `${blocker.code}: ${blocker.detail}`).join(' · '));
+        }
 
         const existing = await this.creditRepository.findOpenApplication(input.tenantId, input.customerId, { transaction });
         if (existing) throw new ConflictException('CREDIT_APPLICATION_ALREADY_OPEN');
@@ -176,17 +188,5 @@ function assertProductIsOfferable(product: { status: string; effectiveFrom: Date
   }
   if (product.effectiveUntil && product.effectiveUntil.getTime() <= now.getTime()) {
     throw new UnprocessableEntityException('CREDIT_PRODUCT_NOT_AVAILABLE');
-  }
-}
-
-function assertRequestFitsProduct(
-  product: { minAmount: string; maxAmount: string; minTermMonths: number; maxTermMonths: number },
-  request: { requestedAmount: number; requestedTermMonths: number },
-): void {
-  if (request.requestedAmount < Number(product.minAmount) || request.requestedAmount > Number(product.maxAmount)) {
-    throw new UnprocessableEntityException(`REQUESTED_AMOUNT_OUT_OF_RANGE: ${product.minAmount}-${product.maxAmount}`);
-  }
-  if (request.requestedTermMonths < product.minTermMonths || request.requestedTermMonths > product.maxTermMonths) {
-    throw new UnprocessableEntityException(`REQUESTED_TERM_OUT_OF_RANGE: ${product.minTermMonths}-${product.maxTermMonths}`);
   }
 }

@@ -13,6 +13,7 @@
 |---|---|
 | [`app.module.ts`](./app.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
 | [`main.ts`](./main.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`worker.ts`](./worker.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Subcarpetas
 
@@ -21,6 +22,7 @@
 - [`database/`](./database/README.md)
 - [`modules/`](./modules/README.md)
 - [`observability/`](./observability/README.md)
+- [`worker/`](./worker/README.md)
 
 ## Reglas de mantenimiento
 

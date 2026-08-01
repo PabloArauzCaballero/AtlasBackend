@@ -53,6 +53,10 @@ def _escapes_docs_dir(page_dir: str, target: str) -> str | None:
     return None if remainder.startswith("../") else remainder
 
 
+# Delimitador de bloque de código cercado (``` o ~~~, con o sin lenguaje).
+_FENCE = re.compile(r"^\s{0,3}(`{3,}|~{3,})")
+
+
 def on_page_markdown(markdown: str, page: Any, config: Any, files: Any) -> str:  # noqa: ARG001
     base = _repo_blob_base(config)
     if not base:
@@ -71,4 +75,21 @@ def on_page_markdown(markdown: str, page: Any, config: Any, files: Any) -> str: 
         suffix = f"#{fragment}" if fragment else ""
         return f"[{text}]({base}/{repo_path}{suffix}{title})"
 
-    return _LINK.sub(replace, markdown)
+    # Se procesa línea a línea saltando los bloques de código: dentro de un ejemplo, `[x](../../y)`
+    # es texto que el lector debe ver tal cual —muchas veces es precisamente el fragmento markdown
+    # que se está explicando—, no un enlace que reescribir.
+    lines = markdown.split("\n")
+    inside_fence = False
+    fence_marker = ""
+    for index, line in enumerate(lines):
+        fence = _FENCE.match(line)
+        if fence:
+            marker = fence.group(1)
+            if not inside_fence:
+                inside_fence, fence_marker = True, marker[0]
+            elif marker[0] == fence_marker:
+                inside_fence, fence_marker = False, ""
+            continue
+        if not inside_fence:
+            lines[index] = _LINK.sub(replace, line)
+    return "\n".join(lines)

@@ -31,6 +31,7 @@
 - [`auth/`](./auth/README.md)
 - [`catalog-management/`](./catalog-management/README.md)
 - [`common/`](./common/README.md)
+- [`config/`](./config/README.md)
 - [`consents/`](./consents/README.md)
 - [`credit/`](./credit/README.md)
 - [`crypto/`](./crypto/README.md)
@@ -61,6 +62,7 @@
 - [`smoke/`](./smoke/README.md)
 - [`storage/`](./storage/README.md)
 - [`systems-ops/`](./systems-ops/README.md)
+- [`worker/`](./worker/README.md)
 - [`workflow-catalog/`](./workflow-catalog/README.md)
 
 ## Reglas de mantenimiento

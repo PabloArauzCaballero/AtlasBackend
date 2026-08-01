@@ -207,7 +207,27 @@ por eso el trabajo de fondo tiene documentación propia y explícita:
 4. Registro del sobre de respuesta y del modelo de error como componentes del contrato.
 5. Confirmación —no suposición— de que no hay ciclos entre módulos.
 
-## 10. Evidencia
+## 10. Regeneración posterior a la intervención
+
+El análisis de este informe se hizo sobre el commit `c518697`, **antes** de implementar la separación
+de roles y el resto de los cambios. Al terminar se regeneró el grafo (`graphify update .`) y se
+repitió la comprobación que más importa:
+
+| Métrica | Antes (`c518697`) | Después de la intervención |
+|---|---:|---:|
+| Nodos | 8 987 | 9 363 |
+| Aristas | 23 203 | 23 728 |
+| Comunidades | 481 | 476 |
+| **Aristas módulo → módulo** | **32** | **32** |
+| **Dependencias circulares** | **0** | **0** |
+| Fan-in / fan-out por módulo | — | Idénticos |
+
+El grafo creció por los archivos nuevos, pero **el mapa de dependencias entre módulos no cambió en
+absoluto**. Era lo esperado y conviene dejarlo escrito: el worker reutiliza el mismo `AppModule` y no
+introduce acoplamiento nuevo entre dominios. Si esa tabla hubiera cambiado, la separación de roles
+habría traído una dependencia que nadie pidió.
+
+## 11. Evidencia
 
 Los recuentos de este informe son reproducibles sobre `graphify-out/graph.json`: nodos y aristas por
 tipo, grado de cada nodo, y proyección `módulo → módulo` filtrando por `imports`, `imports_from` y

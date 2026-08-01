@@ -58,7 +58,12 @@ rules:
   no-server-example.com: warn
 
   # --- Higiene del contrato -------------------------------------------------------------------
-  no-unused-components: warn
+  # ERROR desde el 2026-07-31: los cinco componentes que estaban declarados y sin usar
+  # (`CorrelationId`, `IdempotencyKey`, `TenantId`, `ValidationIssue`, `PaginationMeta`) ya se
+  # referencian desde las operaciones y los esquemas. Un componente sin usar suele ser el rastro de
+  # una definición que se duplicó inline en otro sitio, que es exactamente lo que este contrato
+  # dejó de hacer.
+  no-unused-components: error
   path-declaration-must-exist: error
   path-not-include-query: error
   no-identical-paths: error
@@ -75,8 +80,14 @@ rules:
   # escritos para satisfacer un linter en vez de para explicar algo. El conteo queda visible en cada
   # ejecución, así que la deuda es medible en lugar de invisible.
   operation-description: warn
-  # Idéntico criterio: describir los 264 parámetros de una vez sería relleno.
-  parameter-description: warn
-  # `data` queda sin tipar salvo donde el endpoint lo declare (ver ADR-0007). El contrato dice la
-  # verdad sobre la envoltura y calla sobre la carga en vez de inventarla.
-  struct: warn
+  # ERROR desde el 2026-07-31. Era aviso cuando faltaban 472 de 505 descripciones y anotarlas a mano
+  # habría sido relleno. Ya no aplica: los encabezados transversales se referencian desde
+  # `components.parameters` (una descripción, no 175 copias) y el resto se resuelve con el mapa
+  # curado de `src/config/openapi/contract-parameters.ts`. Con cero pendientes, el error impide que
+  # el próximo parámetro entre sin explicar qué filtra.
+  parameter-description: error
+  # ERROR desde el 2026-07-31. Los 52 hallazgos eran todos el mismo defecto: el generador emitía
+  # `nullable: true`, sintaxis de OpenAPI 3.0 que NO existe en 3.1 (el documento declara 3.1.0). Un
+  # generador de clientes trataba esos campos como no nulables. Se normaliza a `type: [x, 'null']`
+  # en `normalize-contract.ts`; el error congela la corrección.
+  struct: error

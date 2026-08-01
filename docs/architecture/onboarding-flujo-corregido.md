@@ -25,14 +25,16 @@ Este documento describe el flujo **tal como quedó implementado** tras corregir 
 | **Datos**        | `customer_attribute_values`, `attribute_definitions` y `customer_reference_contacts` estaban migradas con **cero uso**: no había forma de registrar datos económicos ni referencias.                     | **Corregido.** Endpoints, catálogo sembrado y persistencia versionada.                                                                                                                     |
 | **Reanudación**  | No existía guardado parcial ni endpoint de progreso: cerrar la app era perder todo.                                                                                                                      | **Corregido.** Guardado parcial por sección + `GET .../status` con avance calculado en el servidor.                                                                                        |
 | **Habilitación** | No existía ninguna forma técnica de responder "¿este cliente puede pedir un crédito?".                                                                                                                   | **Corregido.** `CustomerEligibilityService`: 15 condiciones verificables, evidencia persistida por evaluación.                                                                             |
-
 | **OTP** | `request` no llamaba a ningún proveedor y `submit` aceptaba el literal `'123456'`, bloqueado en producción con un 422. El onboarding no podía completarse fuera de desarrollo. | **Corregido.** Código real hasheado en `auth_one_time_codes`, entregado por correo/SMS/WhatsApp. Ver §9.1. |
 | **Documentos** | El cliente elegía la ruta del objeto y declaraba su hash; `s3_bucket` quedaba `null` y el backend **nunca veía el archivo**. | **Corregido.** URL prefirmada con ruta impuesta por el servidor + verificación server-side de hash, tamaño y bytes mágicos. Ver §9.2. |
 | **Crédito** | Cero tablas, modelos y endpoints: el recorrido terminaba al quedar habilitado. | **Corregido.** Catálogo de productos y ciclo de vida de la solicitud, con reevaluación de elegibilidad en el servidor. Ver §9.3. |
 | **Verificación** | El endpoint de SEGIP existía pero **su resultado no llegaba a ninguna parte**: el expediente seguía en `pending_review` para siempre. | **Corregido.** Verificación automática que traduce el veredicto del proveedor al expediente. Ver §9.4. |
 | **C9/C10/C13** | Identidad y evidencia se creaban en `pending_review` **sin camino de salida** y las listas restrictivas no se consultaban: nadie podía llegar a ser elegible. | **Corregido.** Vía automática (§9.4) y vía humana: resolución en bloque y screening idempotente. Ver §9.5. |
+| **Riesgo** | La decisión salía de seis constantes escritas a mano; las tablas de ruleset versionado existían, sembradas, y nadie las leía. | **Corregido.** Motor que evalúa el ruleset activo, con degradación a la heurística si no hay política cargada. Ver §9.7. |
+| **Antivirus** | La evidencia se almacenaba sin escanear. | **Corregido.** Escaneo `clamd` sobre el buffer ya descargado, con postura fail-closed configurable. Ver §9.8. |
+| **Producto** | `min_monthly_income` estaba en el modelo y no se evaluaba: la elegibilidad era global. | **Corregido.** Capa de elegibilidad por producto en el catálogo y en la solicitud. Ver §9.9. |
 
-**Sigue pendiente:** antivirus sobre la evidencia, motor de riesgo productivo, encadenamiento automático desde el paquete de identidad y reglas de elegibilidad por producto. Ver §9.7.
+**Sigue pendiente:** nada de lo identificado en el diagnóstico. Lo que queda son decisiones de negocio —cargar el catálogo de productos, contratar los proveedores y calibrar el ruleset de riesgo— no de implementación. Ver §9.11.
 
 ---
 
@@ -554,12 +556,56 @@ Aprobar la identidad **no habilita por sí solo**: reevalúa la regla completa y
 - **Evento de dominio por transición.** `CustomerLifecycleService` escribe un `outbox_events` (`customer.lifecycle.<estado>`) en la **misma transacción** que el cambio de estado. Patrón outbox: no puede existir un cambio sin evento ni un evento de un cambio revertido. El orquestador de notificaciones lo consume y avisa al cliente — antes, un cliente observado o rechazado no se enteraba nunca.
 - **Job de abandono.** `POST /customer-onboarding/jobs/mark-abandoned` cierra los flujos inactivos (30 días por defecto) con `completion_status = 'abandoned'`. Marca el **flujo**, no al cliente: quien dejó el registro a medias puede volver y retomar. Con esto y el cierre por envío, la tasa de conversión y la de abandono existen por primera vez.
 
-### 9.7 Lo que sigue pendiente
+### 9.7 Motor de riesgo por ruleset versionado
 
-- **Motor de riesgo heurístico.** `risk.service.ts` sigue usando seis constantes escritas a mano; las tablas de ruleset versionado existen y están vacías. La regla de habilitación ya consume su resultado (C14), así que sustituir el motor no exige tocar el flujo.
-- **Disparo automático desde el paquete de identidad.** La verificación con proveedor existe (§9.4) pero es un paso explícito: el frontend la invoca tras subir los documentos. Encadenarla dentro del propio `identity-package` exigiría que el número de documento viaje en ese paquete, y hoy solo transporta su hash — una decisión de privacidad, no de implementación.
-- **Antivirus** sobre la evidencia subida.
-- **Reglas de elegibilidad por producto** (`min_monthly_income` ya está en el modelo y no se evalúa todavía): hoy la elegibilidad es global, no por producto.
+`risk.service.ts` decidía con seis constantes escritas a mano: cambiar un umbral era un despliegue. Las tablas `risk_ruleset_versions` y `risk_policy_rules` existían desde el inicio, con reglas ya sembradas, y **nadie las leía**.
+
+Ahora la decisión sale del ruleset activo:
+
+- [`risk-rule-expression.ts`](../../src/modules/risk/application/risk-rule-expression.ts) interpreta el DSL que los seeders ya usaban (`all` / `any` / `not`, con `missing`, `equals`, `in`, `gte`, `gt`, `lte`, `lt`).
+- [`risk-ruleset-evaluator.ts`](../../src/modules/risk/application/risk-ruleset-evaluator.ts) resuelve la decisión por **severidad, no por orden de aparición**: basta una regla `BLOCK` para bloquear. Depender del orden de las filas haría que la decisión cambiara al reordenar el catálogo.
+- [`risk-policy-decision.service.ts`](../../src/modules/risk/application/risk-policy-decision.service.ts) carga el ruleset vigente y, si no hay ninguno, **degrada a la heurística de arranque** en vez de bloquear el onboarding. El `rulesetVersionCode` que queda persistido en la corrida distingue siempre una decisión de política aprobada de una del motor de arranque.
+
+Tres decisiones del evaluador que evitan fallos silenciosos:
+
+| Situación | Comportamiento | Por qué |
+|---|---|---|
+| Predicado sobre una feature ausente | **Falso** (salvo `missing: true`) | Si no, "ingreso residual ≤ 0" se dispararía con `undefined` y el sistema bloquearía por falta de datos en vez de pedirlos. |
+| Expresión vacía o irreconocible | **No se dispara** | Tratarla como verdadera haría que un error de configuración bloqueara clientes en masa. |
+| Regla con acción desconocida | **Revisión manual** | Descartarla en silencio convertiría un error de configuración en una aprobación. |
+
+Los puntajes por dimensión siguen siendo heurísticos y ahora viven en [`risk-heuristic-scoring.ts`](../../src/modules/risk/application/risk-heuristic-scoring.ts): alimentan el desglose explicativo y el nivel de riesgo, **no la decisión**.
+
+### 9.8 Antivirus sobre la evidencia
+
+[`malware-scanner.service.ts`](../../src/common/storage/malware-scanner.service.ts) habla el protocolo `INSTREAM` de `clamd` directamente sobre TCP con `node:net` — mismo criterio que la firma SigV4: el protocolo son tres primitivas y agregar una librería exige un ADR. Funciona contra cualquier `clamd` accesible por TCP.
+
+Se ejecuta al final de la verificación del objeto, sobre el mismo buffer ya descargado: es la comprobación más cara y no tiene sentido pagarla por un archivo que ya falló el hash o el tipo.
+
+**Postura ante fallos:** con el escáner apagado (`MALWARE_SCAN_HOST` vacío) la evidencia se acepta sin escanear — válido solo en desarrollo. Con el escáner **configurado**, un fallo de conexión rechaza la evidencia (`EVIDENCE_SCAN_UNAVAILABLE`) salvo que se apague explícitamente `MALWARE_SCAN_FAIL_CLOSED`. Un antivirus que se cae en silencio es peor que no tenerlo: genera confianza infundada.
+
+### 9.9 Elegibilidad por producto
+
+`credit_products.min_monthly_income` estaba declarado desde que se creó la tabla y no lo evaluaba nadie. [`credit-product-eligibility.ts`](../../src/modules/credit/application/credit-product-eligibility.ts) lo cierra:
+
+- Es una capa **distinta** de la habilitación general: un cliente habilitado puede no alcanzar el umbral de un producto y sí el de otro.
+- `GET /customers/:id/credit-products` devuelve `canApply` por producto, combinando ambas capas — el catálogo ya no ofrece todo por igual.
+- La creación de la solicitud rechaza con `INSUFFICIENT_DECLARED_INCOME`, `DECLARED_INCOME_MISSING`, `REQUESTED_AMOUNT_OUT_OF_RANGE` o `REQUESTED_TERM_OUT_OF_RANGE`, acumulando todos los bloqueadores en vez de cortar en el primero.
+- El ingreso se compara contra lo **declarado**: verificarlo contra un extracto o el buró es una etapa posterior; aquí solo se filtra lo que ni en el papel alcanza.
+
+### 9.10 Verificación encadenada desde el paquete de identidad
+
+`identityPackageSchema` acepta ahora un `documentNumber` **opcional** en claro. Si viene, el backend encadena la verificación externa en el mismo viaje y **no lo persiste**; si no viene, el paquete se guarda igual y la verificación queda como paso explícito.
+
+Es una decisión del frontend, no del backend: hay despliegues donde ese dato no debe salir del dispositivo. El encadenamiento ocurre **fuera de la transacción** — una llamada HTTP dentro de ella mantendría locks abiertos durante toda su latencia — y si el proveedor falla, el paquete ya quedó guardado y la verificación se difiere (`verification.skipped`). Perder el paquete por una caída ajena sería peor.
+
+### 9.11 Lo que sigue pendiente
+
+Nada de lo identificado en el diagnóstico. Quedan decisiones de negocio, no de implementación:
+
+- **Cargar el catálogo de productos** (`POST /operations/credit/products`): el backend impone estructura y coherencia, las condiciones comerciales las define negocio.
+- **Contratar y configurar** proveedor de OTP, almacenamiento S3 y `clamd`. Sin ellos los endpoints responden `503` explícito en vez de degradar en silencio.
+- **Calibrar el ruleset de riesgo**: el motor ya lo consume; los umbrales son de riesgo, no de ingeniería.
 
 ---
 

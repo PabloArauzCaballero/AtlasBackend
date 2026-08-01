@@ -15,6 +15,7 @@
 | [`external-providers-test-matrix.md`](./external-providers-test-matrix.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`smoke-results.md`](./smoke-results.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`smoke-tests.md`](./smoke-tests.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`strategy.md`](./strategy.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`stress-notifications.md`](./stress-notifications.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`validacion-local-windows.md`](./validacion-local-windows.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 

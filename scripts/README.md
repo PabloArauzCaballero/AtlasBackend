@@ -16,11 +16,13 @@
 | [`check-db-privileges.ts`](./check-db-privileges.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-domain-schema-layout.ts`](./check-domain-schema-layout.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-domain-schemas.ts`](./check-domain-schemas.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`check-entity-narratives.ts`](./check-entity-narratives.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-env-example.ts`](./check-env-example.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-file-size.ts`](./check-file-size.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-migrations.ts`](./check-migrations.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`check-no-env-file.ts`](./check-no-env-file.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-no-tracked-smoke-results.ts`](./check-no-tracked-smoke-results.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`check-openapi-contract.ts`](./check-openapi-contract.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-overfetching.ts`](./check-overfetching.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-read-api-views.ts`](./check-read-api-views.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-seed-profile.ts`](./check-seed-profile.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
@@ -46,6 +48,7 @@
 
 ## Subcarpetas
 
+- [`mkdocs/`](./mkdocs/README.md)
 - [`smoke/`](./smoke/README.md)
 - [`stress/`](./stress/README.md)
 

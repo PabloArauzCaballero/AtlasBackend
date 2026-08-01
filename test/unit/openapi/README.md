@@ -15,6 +15,7 @@
 | [`catalog-management-openapi.spec.ts`](./catalog-management-openapi.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`external-data-openapi.spec.ts`](./external-data-openapi.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`final-block-openapi.spec.ts`](./final-block-openapi.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`normalize-contract.spec.ts`](./normalize-contract.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`sessions-openapi.spec.ts`](./sessions-openapi.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-ops-openapi.spec.ts`](./systems-ops-openapi.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`zod-to-schema.util.spec.ts`](./zod-to-schema.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |

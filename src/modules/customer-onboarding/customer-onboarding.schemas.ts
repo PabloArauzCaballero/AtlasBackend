@@ -126,6 +126,14 @@ export const identityPackageSchema = z.object({
   identity: z.object({
     documentType: z.enum(['ci', 'passport', 'foreign_id']),
     documentNumberHash: z.string().trim().min(32).max(128),
+    /**
+     * Número en claro, OPCIONAL. Si viene, el backend encadena la verificación contra el registro
+     * externo en el mismo viaje y NO lo persiste: se usa para consultar y se descarta. Si no viene,
+     * el paquete se guarda igual y la verificación queda como paso explícito
+     * (`POST .../identity-verification`). Es una decisión del frontend, no del backend: hay
+     * despliegues donde ese dato no debe salir del dispositivo.
+     */
+    documentNumber: z.string().trim().min(3).max(30).optional(),
     documentLast4: z.string().trim().min(2).max(4),
     countryCode: z.string().trim().length(3).default('BOL'),
     issuedIn: z.string().trim().max(60).optional(),

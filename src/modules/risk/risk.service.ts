@@ -10,7 +10,13 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { assertOwnCustomerResource } from '../../common/utils/auth/ownership.util.js';
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
-import { RISK_MODEL_CODE, RISK_MODEL_VERSION, RISK_RULESET_VERSION } from './risk-heuristic-v0.constants.js';
+// `RISK_RULESET_VERSION` ya no se importa aquí: la versión del ruleset la resuelve
+// `RiskPolicyDecisionService`, que es quien decide si la evaluación vino del ruleset persistido o
+// del fallback heurístico. Dejarlo importado hacía creer que este servicio todavía la usaba.
+import { RISK_MODEL_CODE, RISK_MODEL_VERSION } from './risk-heuristic-v0.constants.js';
+import { RiskPolicyDecisionService } from './application/risk-policy-decision.service.js';
+import { toPolicyFeatures } from './application/risk-policy-features.js';
+import { buildHeuristicFallback, computeHeuristicScores, toPersistedFeatureMap } from './application/risk-heuristic-scoring.js';
 import { RiskAssessmentResultResponseDto } from './risk.dtos.js';
 import { toRiskAssessmentResultResponse } from './risk.mapper.js';
 import { RiskRepository } from './risk.repository.js';
@@ -25,6 +31,7 @@ export class RiskService {
   constructor(
     private readonly riskRepository: RiskRepository,
     private readonly customersRepository: CustomersRepository,
+    private readonly policyDecisionService: RiskPolicyDecisionService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -69,29 +76,28 @@ export class RiskService {
     const hasGrantedConsent = consents.some((consent) => consent.granted === true && !consent.revokedAt);
     if (!hasGrantedConsent) throw new UnprocessableEntityException('REQUIRED_CONSENT_MISSING');
 
-    // NOTA (P1-03 del reporte de auditoría): esto es un motor heurístico v0 — puntajes fijos
-    // codificados a mano, no un scorecard crediticio calibrado ni versionado en base de datos.
-    // Sirve para el flujo de onboarding actual pero no debe presentarse como score financiero
-    // final. `RISK_MODEL_CODE`/`RISK_MODEL_VERSION` (ver risk-heuristic-v0.constants.ts) hacen
-    // ese límite explícito en la respuesta y en el registro persistido de cada corrida.
+    // Los puntajes por dimensión siguen siendo heurísticos: alimentan el desglose explicativo y el
+    // nivel de riesgo, NO la decisión. La decisión la toma el ruleset versionado en base de datos
+    // cuando hay uno activo — cambiar un umbral pasó a ser configuración auditada, no un despliegue.
     const verifiedContactCount = contacts.filter((contact) => contact.status === 'verified').length;
     const hasIdentity = identities.length > 0;
-    const identityScore = hasIdentity ? 70 : 30;
-    const contactScore = verifiedContactCount > 0 ? 90 : 45;
-    const deviceScore = input.body.deviceId ? 70 : 55;
-    const behaviorScore = 50;
-    const consistencyScore = hasIdentity && verifiedContactCount > 0 ? 75 : 45;
-    const fraudScore = hasIdentity && verifiedContactCount > 0 ? 20 : 55;
-    const totalScore = Math.round((identityScore + contactScore + deviceScore + behaviorScore + consistencyScore + (100 - fraudScore)) / 6);
+    const scores = computeHeuristicScores({ hasIdentity, verifiedContactCount, hasDevice: Boolean(input.body.deviceId) });
+    const { identityScore, contactScore, deviceScore, behaviorScore, consistencyScore, fraudScore, totalScore, riskLevel, missing } =
+      scores;
 
-    const missing: string[] = [];
-    if (!hasIdentity) missing.push('identity_document');
-    if (verifiedContactCount === 0) missing.push('verified_contact');
-
-    const decision = missing.length > 0 ? 'manual_review_required' : totalScore >= 65 ? 'approved_for_next_step' : 'manual_review_required';
-    const riskLevel = totalScore >= 75 ? 'low' : totalScore >= 55 ? 'medium' : 'high';
     const now = new Date();
-    const reasons = missing.length > 0 ? missing.map((code) => `missing_${code}`) : ['minimum_onboarding_risk_passed'];
+
+    const policy = await this.policyDecisionService.resolve({
+      assessmentType: input.body.assessmentType,
+      now,
+      // Se difunden los puntajes en vez de enumerarlos: `toPolicyFeatures` ya declara qué campos
+      // consume, y repetir la lista aquí garantizaba que al añadir una dimensión al modelo se
+      // olvidara en este punto — el sitio donde su ausencia es más difícil de notar.
+      features: toPolicyFeatures({ hasIdentity, verifiedContactCount, hasGrantedConsent, ...scores }),
+      fallback: buildHeuristicFallback(scores),
+    });
+    const decision = policy.decision;
+    const reasons = policy.reasons;
 
     return this.sequelize.transaction(async (transaction) => {
       const featureRun = await this.riskRepository.createFeatureComputationRun(
@@ -108,17 +114,7 @@ export class RiskService {
         { transaction },
       );
 
-      const featureMap = {
-        hasGrantedConsent,
-        verifiedContactCount,
-        hasIdentity,
-        identityScore,
-        contactScore,
-        deviceScore,
-        behaviorScore,
-        consistencyScore,
-        fraudScore,
-      };
+      const featureMap = toPersistedFeatureMap(scores, { hasGrantedConsent, verifiedContactCount, hasIdentity });
       for (const [featureCode, value] of Object.entries(featureMap)) {
         await this.riskRepository.createFeatureValue(
           {
@@ -189,7 +185,7 @@ export class RiskService {
             severity: decision === 'manual_review_required' ? 'medium' : 'low',
             isHardStop: false,
             inputValues: featureMap,
-            rulesetVersionCode: RISK_RULESET_VERSION,
+            rulesetVersionCode: policy.rulesetVersionCode,
             now,
           },
           { transaction },
@@ -230,14 +226,14 @@ export class RiskService {
           featureSnapshotId: String(snapshot.id),
           integrityHash: sha256Hex(`${run.id}:${decision}:${totalScore}`),
           modelVersionCode: RISK_MODEL_VERSION,
-          rulesetVersionCode: RISK_RULESET_VERSION,
+          rulesetVersionCode: policy.rulesetVersionCode,
           now,
         },
         { transaction },
       );
 
       let manualReviewCaseId: string | null = null;
-      if (decision === 'manual_review_required') {
+      if (decision !== 'approved_for_next_step') {
         const manualCase = await this.riskRepository.createManualReviewCase(
           {
             tenantId: input.tenantId,
@@ -282,7 +278,7 @@ export class RiskService {
         reasons: reasons.map((code) => ({ code, message: code.replaceAll('_', ' ') })),
         modelCode: RISK_MODEL_CODE,
         modelVersion: RISK_MODEL_VERSION,
-        rulesetVersion: RISK_RULESET_VERSION,
+        rulesetVersion: policy.rulesetVersionCode,
       };
     });
   }
