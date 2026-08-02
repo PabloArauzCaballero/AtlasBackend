@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat \"C:/Users/DELL/AppData/Local/npm-cache/_logs/2026-06-28T20_56_09_209Z-debug-0.log\" | tail -30)",
+      "Read(//c/Users/DELL/AppData/Local/npm-cache/_logs/**)",
+      "Bash(yarn config *)",
+      "Bash(sed -i 's|https://packages.applied-caas-gateway1.internal.api.openai.org/artifactory/api/npm/npm-public/|https://registry.npmjs.org/|g' package-lock.json && echo \"Done\" && grep -c \"applied-caas\" package-lock.json)",
+      "Bash(yarn install *)",
+      "Bash(echo \"EXIT_CODE: $?\")",
+      "Bash(yarn *)",
+      "Bash(node scripts/dev-build-and-start.mjs)",
+      "Bash(npx tsx *)",
+      "Bash(node -e \"require\\('dotenv'\\).config\\(\\); const { execSync } = require\\('child_process'\\); try { execSync\\('npx tsx src/main.ts', {stdio: 'inherit', timeout: 10000}\\); } catch\\(e\\) { console.error\\(e.message\\); }\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\DELL\\Documents\\GitHub\\AtlasBackend"
+    ]
+  }
+}
