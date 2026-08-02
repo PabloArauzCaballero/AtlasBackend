@@ -14,7 +14,7 @@ import argon2 from 'argon2';
  * hay que tocar: ningún otro módulo importa `argon2` directamente.
  */
 
-const ARGON2_OPTIONS: argon2.Options = {
+const ARGON2_OPTIONS: argon2.HashOptions = {
   type: argon2.argon2id,
   memoryCost: 19456, // ~19 MB, recomendación OWASP 2023 para argon2id interactivo
   timeCost: 2,
