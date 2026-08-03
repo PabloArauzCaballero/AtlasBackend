@@ -116,7 +116,7 @@
     "docs:validate": "yarn docs:openapi && yarn check:openapi && yarn docs:openapi:lint && yarn docs:build"
   },
   "dependencies": {
-    "@aws-sdk/client-kms": "^3.1096.0",
+    "@aws-sdk/client-kms": "^3.1101.0",
     "@nestjs/common": "^11.1.28",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.28",
