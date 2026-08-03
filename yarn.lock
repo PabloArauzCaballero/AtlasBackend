@@ -802,10 +802,10 @@
   dependencies:
     sparse-bitfield "^3.0.3"
 
-"@nestjs/common@^11.1.6":
-  version "11.1.27"
-  resolved "https://registry.yarnpkg.com/@nestjs/common/-/common-11.1.27.tgz"
-  integrity sha512-kEGSzqM2lWr4whh4Ubflw+oPZSEzxvRMu9WL+LveZploJWTjec5bBlCiRVlVzTPg2kIwBiLwWSvCCW7Wnin1gg==
+"@nestjs/common@^11.1.28":
+  version "11.1.28"
+  resolved "https://registry.yarnpkg.com/@nestjs/common/-/common-11.1.28.tgz#5963f799dcf59aacb1c4db77108a538b6d893d66"
+  integrity sha512-bRImsxibie+AM7xjdwcrm/gr5YeacI65kSBNzTufa1Ib5iwziaY/lqMtRh9THq6pbV4e1HP9aI2ZxGUumnmaoQ==
   dependencies:
     uid "2.0.2"
     file-type "21.3.4"
@@ -822,10 +822,10 @@
     dotenv-expand "12.0.3"
     lodash "4.18.1"
 
-"@nestjs/core@^11.1.6":
-  version "11.1.27"
-  resolved "https://registry.yarnpkg.com/@nestjs/core/-/core-11.1.27.tgz"
-  integrity sha512-K6DX7hcqmZdeXkv7tsPakKBRCgqL19a4mtbX4FluY0hWtFdtPKp6lbe+lb8gWPfvLdbOWr/CPScn7BSjBX+Ecg==
+"@nestjs/core@^11.1.28":
+  version "11.1.28"
+  resolved "https://registry.yarnpkg.com/@nestjs/core/-/core-11.1.28.tgz#366ce726211358d5022520cead7a84830bbca7af"
+  integrity sha512-06m63xIRj8+l8uOeh/8LnYupGubkyu4f+bPKIadaSui6vK9KpXgoz7HveT1yOVLcEt0M0oCOEW5EuEXZkEmBBQ==
   dependencies:
     uid "2.0.2"
     fast-safe-stringify "2.1.1"
@@ -838,14 +838,14 @@
   resolved "https://registry.yarnpkg.com/@nestjs/mapped-types/-/mapped-types-2.1.1.tgz#9530ac3250ab433ba6ef831e9dd5d483f5fc8144"
   integrity sha512-SCCoMEJ6jdeI5h/N+KCVF1+pmg/hmEkNA5nHTS8Gvww7T/LCl4o1gFLinw2iQ60w7slFkszHcGLKGdazVI4F8A==
 
-"@nestjs/platform-express@^11.1.27":
-  version "11.1.27"
-  resolved "https://registry.yarnpkg.com/@nestjs/platform-express/-/platform-express-11.1.27.tgz"
-  integrity sha512-0ZFhz6H6EdGh4xQVbUNwjoAwBuz73P7FvUAl67h9CTdMqQlJDaQYJApBv8pKfVZ1fGjMCbl0m9DcC6pXaZPWSQ==
+"@nestjs/platform-express@^11.1.28":
+  version "11.1.28"
+  resolved "https://registry.yarnpkg.com/@nestjs/platform-express/-/platform-express-11.1.28.tgz#d90edd6329d8a23a33e851727b876a52e3bd53c3"
+  integrity sha512-hU+9Sz4m+onHrR5AmelI59QKmY/Re546bPnygnpqqeQdHDiJpBgjWbL4t6Jr73CBpS60cpyng7WzjgphNB9iwA==
   dependencies:
     cors "2.8.6"
     express "5.2.1"
-    multer "2.1.1"
+    multer "2.2.0"
     path-to-regexp "8.4.2"
     tslib "2.8.1"
 
@@ -854,14 +854,14 @@
   resolved "https://registry.yarnpkg.com/@nestjs/sequelize/-/sequelize-11.0.1.tgz"
   integrity sha512-Zh1D2jRm736JeY9W+UyXGqHc7hfisl9232DY0//cbEGudom7s4LlJyWx+YP3n2GBS7z/G91+UFKPDq3UxttVpQ==
 
-"@nestjs/swagger@^11.4.5":
-  version "11.4.5"
-  resolved "https://registry.yarnpkg.com/@nestjs/swagger/-/swagger-11.4.5.tgz#6ea68a89943dda16feab5f57760aa98e822ef88f"
-  integrity sha512-lvndlJmWBVDOUT0uEtLi6sSpW1syK2/nbAlHBhiELBORMpJGe9+EiWAT9qHtB10jW91L2Jmlwkr0/lttsYZrig==
+"@nestjs/swagger@^11.4.6":
+  version "11.4.6"
+  resolved "https://registry.yarnpkg.com/@nestjs/swagger/-/swagger-11.4.6.tgz#aef2d5890fb711c85966046e957514cc576f7570"
+  integrity sha512-Le136h2WC7HGsd70+WyK1qrm+Zq7kFxBLkYC1JgAVqNRCt8kNh7bMF7Qkn65D5j2t/aks0+VbWmUVlYIwPrs3A==
   dependencies:
     "@microsoft/tsdoc" "0.16.0"
     "@nestjs/mapped-types" "2.1.1"
-    js-yaml "4.3.0"
+    js-yaml "5.2.1"
     lodash "4.18.1"
     path-to-regexp "8.4.2"
     swagger-ui-dist "5.32.8"
@@ -2954,7 +2954,7 @@ js-tokens@^4.0.0:
   resolved "https://registry.yarnpkg.com/js-tokens/-/js-tokens-4.0.0.tgz"
   integrity sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==
 
-js-yaml@4.3.0, js-yaml@^3.13.1, js-yaml@^4.1.0, js-yaml@^4.1.1, js-yaml@^4.2.0:
+js-yaml@5.2.1, js-yaml@^3.13.1, js-yaml@^4.1.0, js-yaml@^4.1.1, js-yaml@^4.2.0:
   version "4.3.0"
   resolved "https://registry.yarnpkg.com/js-yaml/-/js-yaml-4.3.0.tgz#d1900572a7f7cf0b5f540c83673e60bad3436592"
   integrity sha512-1td788aAnnZ5qs7V2QIRl1owjtYpbKt749Y3xauqQgwIIGF/xXWz1wMTEBx5O3LK3lXLVuqXPdPxj2BoFHaW9Q==
@@ -3303,7 +3303,7 @@ ms@^2.1.1, ms@^2.1.3:
   resolved "https://registry.yarnpkg.com/ms/-/ms-2.1.3.tgz"
   integrity sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==
 
-multer@2.1.1, multer@^2.2.0:
+multer@2.2.0, multer@^2.2.0:
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/multer/-/multer-2.2.0.tgz#f005268ca816324ba7335e3b48166896a3fa5d79"
   integrity sha512-6rdyFg2kLrMh9Jee7/BMPuV9lEAd7lLW2YUpF9/YxR7njyoUwwQ0ZPh3TaIY50Sw6vlyD2HW3wGOkTS4P79xrQ==
@@ -4072,17 +4072,10 @@ supports-preserve-symlinks-flag@^1.0.0:
   resolved "https://registry.yarnpkg.com/supports-preserve-symlinks-flag/-/supports-preserve-symlinks-flag-1.0.0.tgz"
   integrity sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==
 
-swagger-ui-dist@5.32.8:
+swagger-ui-dist@5.32.8, swagger-ui-dist@>=5.0.0:
   version "5.32.8"
   resolved "https://registry.yarnpkg.com/swagger-ui-dist/-/swagger-ui-dist-5.32.8.tgz#14a5e6ba016875dfb31de26cff5c3bea725a3c89"
   integrity sha512-dgMdWXIgnI4zX4OPhKEdWnlDODbgm8W3AX0Ivn/BBqcUh6xZsBxhZMnvk6DJyRz1BTrj8dPxtarmEGgkz30oyA==
-  dependencies:
-    "@scarf/scarf" "=1.4.0"
-
-swagger-ui-dist@>=5.0.0:
-  version "5.18.2"
-  resolved "https://registry.yarnpkg.com/swagger-ui-dist/-/swagger-ui-dist-5.18.2.tgz"
-  integrity sha512-J+y4mCw/zXh1FOj5wGJvnAajq6XgHOyywsa9yITmwxIlJbMqITq3gYRZHaeqLVH/eV/HOPphE6NjF+nbSNC5Zw==
   dependencies:
     "@scarf/scarf" "=1.4.0"
 
