@@ -36,17 +36,28 @@ Esta credencial existe para desarrollo local y pruebas iniciales. No debe usarse
 
 ## Login interno de prueba
 
+> El puerto publicado del contenedor `api` es `API_PUBLISH_PORT` (`.env`, por defecto `53005`), no
+> `3000` — ese puerto puede estar ocupado por otro stack local (p. ej. `atlas-integrated-backend` /
+> `atlas-decision-engine`). Verifica `docker ps` si tienes dudas de qué servicio responde en cada puerto.
+
 ```bash
-curl -X POST http://localhost:3000/api/v1/internal/auth/login \
+curl -X POST http://localhost:53005/api/v1/internal/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"pablo@atlas.internal","password":"<pedir la contraseña actual — no está versionada>"}'
+  -d '{"email":"pablo@atlas.internal","password":"<pedir la contraseña actual — no está versionada>","tenantId":"1"}'
 ```
 
-Guarda el access token retornado y úsalo en endpoints internos:
+`tenantId` es obligatorio en el body (string numérico) — sin él el login falla con `VALIDATION_ERROR`
+antes de llegar a validar credenciales.
+
+La respuesta mueve `accessToken`/`refreshToken` a cookies `HttpOnly` (ver `InternalAuthController`);
+no vienen en el body. Para probar con curl, usa `-c` para guardarlas y `-b` para reenviarlas:
 
 ```bash
-curl http://localhost:3000/api/v1/systems/dashboard \
-  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+curl -c cookies.txt -X POST http://localhost:53005/api/v1/internal/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"pablo@atlas.internal","password":"<contraseña actual>","tenantId":"1"}'
+
+curl -b cookies.txt http://localhost:53005/api/v1/systems/dashboard \
   -H "x-tenant-id: 1"
 ```
 
