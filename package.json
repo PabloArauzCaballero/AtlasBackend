@@ -129,7 +129,7 @@
     "@opentelemetry/core": "^2.9.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.220.0",
     "@opentelemetry/resources": "^2.9.0",
-    "@opentelemetry/sdk-node": "^0.220.0",
+    "@opentelemetry/sdk-node": "^0.221.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "@scalar/nestjs-api-reference": "^1.2.12",
     "argon2": "^0.45.0",
