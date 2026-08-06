@@ -105,7 +105,9 @@ async function main(): Promise<void> {
 
   const host = captureHostSnapshot(PROJECT_ROOT);
   console.log('── Prueba de carga ───────────────────────────────────────────────');
-  console.log(`Escenario : ${SCENARIO} (${shape.arrivalRatePerSecond} req/s durante ${shape.durationSeconds}s, warm-up ${shape.warmupSeconds}s)`);
+  console.log(
+    `Escenario : ${SCENARIO} (${shape.arrivalRatePerSecond} req/s durante ${shape.durationSeconds}s, warm-up ${shape.warmupSeconds}s)`,
+  );
   console.log(`Destino   : ${API_BASE}`);
   console.log(`Commit    : ${currentCommit()}`);
   console.log(`Mezcla    : ${READ_FLOWS.map((flow) => `${flow.name}×${flow.weight}`).join(', ')}`);
@@ -118,14 +120,16 @@ async function main(): Promise<void> {
   }
 
   const metricsBefore = await sampleBackendMetrics(ORIGIN);
-  if (!metricsBefore.reachable) console.log('⚠️  /metrics no responde: el informe no podrá atribuir la latencia a pool, heap o event loop.');
+  if (!metricsBefore.reachable)
+    console.log('⚠️  /metrics no responde: el informe no podrá atribuir la latencia a pool, heap o event loop.');
 
   const result = await runLoadScenario({
     shape,
     flows: READ_FLOWS,
     execute,
     onProgress: (second, snapshot) => {
-      if (second % 10 === 0) console.log(`  t+${second}s  completadas=${snapshot.completed} errores=${snapshot.errors} en-vuelo=${snapshot.inFlight}`);
+      if (second % 10 === 0)
+        console.log(`  t+${second}s  completadas=${snapshot.completed} errores=${snapshot.errors} en-vuelo=${snapshot.inFlight}`);
     },
   });
 
@@ -138,7 +142,9 @@ async function main(): Promise<void> {
   console.log(`Peticiones        : ${result.completed} completadas, ${result.dropped} descartadas por maxInFlight`);
   console.log(`Throughput        : ${result.throughputPerSecond} req/s`);
   console.log(`Tasa de error     : ${result.errorRatePercent}%  (5xx=${result.errors.serverErrors}, timeouts=${result.errors.timeouts})`);
-  console.log(`Latencia global   : p50=${result.overall.p50Ms}ms p95=${result.overall.p95Ms}ms p99=${result.overall.p99Ms}ms max=${result.overall.maxMs}ms`);
+  console.log(
+    `Latencia global   : p50=${result.overall.p50Ms}ms p95=${result.overall.p95Ms}ms p99=${result.overall.p99Ms}ms max=${result.overall.maxMs}ms`,
+  );
   console.log(`Retraso generador : p95=${Math.round(result.schedulerLagMs.p95)}ms max=${Math.round(result.schedulerLagMs.max)}ms`);
   if (result.schedulerLagMs.p95 > 100) {
     console.log('  ⚠️  El generador se retrasó: parte de la latencia medida es de este proceso, no del backend.');
@@ -146,12 +152,18 @@ async function main(): Promise<void> {
   console.log('');
   console.log('Por flujo:');
   for (const flow of result.perFlow) {
-    console.log(`  ${flow.flow.padEnd(24)} n=${String(flow.count).padStart(6)} p50=${flow.p50Ms}ms p95=${flow.p95Ms}ms p99=${flow.p99Ms}ms errores=${flow.errors}`);
+    console.log(
+      `  ${flow.flow.padEnd(24)} n=${String(flow.count).padStart(6)} p50=${flow.p50Ms}ms p95=${flow.p95Ms}ms p99=${flow.p99Ms}ms errores=${flow.errors}`,
+    );
   }
   if (metricsAfter.reachable) {
     console.log('');
-    console.log(`Backend al cierre : pool using=${metricsAfter.dbPoolUsing ?? 'n/d'} waiting=${metricsAfter.dbPoolWaiting ?? 'n/d'} size=${metricsAfter.dbPoolSize ?? 'n/d'}`);
-    console.log(`                    event-loop lag p99=${metricsAfter.eventLoopLagP99Seconds ?? 'n/d'}s, crecimiento de heap=${heapGrowth ?? 'n/d'}%`);
+    console.log(
+      `Backend al cierre : pool using=${metricsAfter.dbPoolUsing ?? 'n/d'} waiting=${metricsAfter.dbPoolWaiting ?? 'n/d'} size=${metricsAfter.dbPoolSize ?? 'n/d'}`,
+    );
+    console.log(
+      `                    event-loop lag p99=${metricsAfter.eventLoopLagP99Seconds ?? 'n/d'}s, crecimiento de heap=${heapGrowth ?? 'n/d'}%`,
+    );
   }
   printVerdict(verdict);
 

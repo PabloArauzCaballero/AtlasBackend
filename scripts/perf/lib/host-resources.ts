@@ -115,14 +115,22 @@ function diskFor(path: string): DiskSnapshot {
   // columnas desde el final devuelve inodos libres como si fueran bytes disponibles.
   const output = run('df', ['-k', '-P', path]);
   if (!output) {
-    return { path, availableBytes: { value: null, source: 'df (no disponible)' }, usedPercent: { value: null, source: 'df (no disponible)' } };
+    return {
+      path,
+      availableBytes: { value: null, source: 'df (no disponible)' },
+      usedPercent: { value: null, source: 'df (no disponible)' },
+    };
   }
   // Se ancla en la forma numérica (bloques, usados, disponibles, capacidad%) en vez de en índices de
   // columna: un punto de montaje con espacios rompe cualquier conteo posicional.
   const line = output.trim().split('\n').at(-1) ?? '';
   const match = /\s(\d+)\s+(\d+)\s+(\d+)\s+(\d+)%/.exec(line);
   if (!match) {
-    return { path, availableBytes: { value: null, source: 'df -k -P (formato inesperado)' }, usedPercent: { value: null, source: 'df -k -P (formato inesperado)' } };
+    return {
+      path,
+      availableBytes: { value: null, source: 'df -k -P (formato inesperado)' },
+      usedPercent: { value: null, source: 'df -k -P (formato inesperado)' },
+    };
   }
   return {
     path,

@@ -20,7 +20,12 @@ function numberEnv(name: string, fallback: number): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
-export function capacityThresholds(): { minAvailableMemoryBytes: number; maxSwapUsedBytes: number; minDiskBytes: number; maxLoadPerCore: number } {
+export function capacityThresholds(): {
+  minAvailableMemoryBytes: number;
+  maxSwapUsedBytes: number;
+  minDiskBytes: number;
+  maxLoadPerCore: number;
+} {
   return {
     // ~1.5 GiB: `tsc -p tsconfig.json` sobre este proyecto más el proceso Nest arrancado.
     minAvailableMemoryBytes: numberEnv('PERF_MIN_AVAILABLE_MEMORY_MB', 1536) * 1024 ** 2,

@@ -63,9 +63,29 @@ export class TokenRevocationService {
   }
 
   async bumpTokenVersion(actorType: string, actorId: string): Promise<number> {
+    const version = await this.bumpTokenVersionIfPresent(actorType, actorId);
+    if (version === null) {
+      throw new Error(`No existen credenciales para ${actorType}:${actorId}.`);
+    }
+
+    return version;
+  }
+
+  /**
+   * Igual que `bumpTokenVersion`, pero devuelve `null` en vez de lanzar cuando el actor no tiene
+   * credenciales.
+   *
+   * Un actor sin fila en `auth_credentials` no puede iniciar sesión, así que no existe ningún access
+   * token vigente que revocar: no hay nada que hacer y tampoco nada que reportar. Los llamantes que
+   * revocan como **efecto secundario** de un cambio de privilegios (suspender un usuario, reemplazar
+   * sus roles) deben usar esta variante — con la que lanza, un usuario interno creado por seed y aún
+   * sin contraseña provisionada convertiría un cambio legítimo en un 500 **con el cambio ya escrito**,
+   * dejando al operador convencido de que la operación falló cuando en realidad se aplicó.
+   */
+  async bumpTokenVersionIfPresent(actorType: string, actorId: string): Promise<number | null> {
     const record = await this.credentialModel.findOne({ where: { actorType, actorId, deleted: false } as never });
     if (!record) {
-      throw new Error(`No existen credenciales para ${actorType}:${actorId}.`);
+      return null;
     }
     record.tokenVersion += 1;
     await record.save();

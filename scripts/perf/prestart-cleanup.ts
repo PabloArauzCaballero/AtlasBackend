@@ -116,7 +116,9 @@ async function main(): Promise<void> {
   // Se reporta todo lo que no es nuestro pero estorba: tanto lo no identificable como lo que
   // demostradamente pertenece a otro repositorio pero está sentado en un puerto que necesitamos.
   // Ninguno de los dos se toca; `prestart:verify` es quien convierte esto en un bloqueo.
-  const undetermined = discovered.filter((item) => item.verdict === 'unknown' || (item.verdict === 'foreign' && item.listeningPorts.length > 0));
+  const undetermined = discovered.filter(
+    (item) => item.verdict === 'unknown' || (item.verdict === 'foreign' && item.listeningPorts.length > 0),
+  );
 
   console.log('── Higiene previa · limpieza ─────────────────────────────────────');
   if (DRY_RUN) console.log('MODO SIMULACIÓN: no se enviará ninguna señal ni se borrará nada.');
@@ -139,7 +141,9 @@ async function main(): Promise<void> {
 
   console.log('');
   for (const record of records) {
-    console.log(`  pid=${record.pid} [${record.role}] → ${record.outcome}${record.error ? ` (${record.error})` : ''} tras ${record.waitedMs} ms`);
+    console.log(
+      `  pid=${record.pid} [${record.role}] → ${record.outcome}${record.error ? ` (${record.error})` : ''} tras ${record.waitedMs} ms`,
+    );
   }
   console.log('');
   console.log(`Memoria disponible después: ${formatBytes(after.memory.availableBytes.value)}`);
@@ -149,7 +153,9 @@ async function main(): Promise<void> {
     console.log('');
     console.log(`⚠️  ${undetermined.length} proceso(s) ajenos o sin pertenencia demostrable — NO se tocaron:`);
     for (const item of undetermined) {
-      console.log(`    [${item.verdict}] pid=${item.pid} puertos=${item.listeningPorts.join(',') || 'ninguno'} ${item.command.slice(0, 120)}`);
+      console.log(
+        `    [${item.verdict}] pid=${item.pid} puertos=${item.listeningPorts.join(',') || 'ninguno'} ${item.command.slice(0, 120)}`,
+      );
     }
   }
 

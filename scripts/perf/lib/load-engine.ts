@@ -197,11 +197,13 @@ export async function runLoadScenario(input: {
       serverErrors: measured.filter((outcome) => outcome.status !== null && outcome.status >= 500).length,
       timeouts: measured.filter((outcome) => outcome.failure === 'timeout').length,
     },
-    throughputPerSecond:
-      measuredWindowSeconds > 0 ? Math.round((successes.length / measuredWindowSeconds) * 100) / 100 : 0,
-    errorRatePercent:
-      measured.length > 0 ? Math.round(((measured.length - successes.length) / measured.length) * 10000) / 100 : 0,
-    overall: statsFor('__all__', successes.map((outcome) => outcome.latencyMs), measured.length - successes.length),
+    throughputPerSecond: measuredWindowSeconds > 0 ? Math.round((successes.length / measuredWindowSeconds) * 100) / 100 : 0,
+    errorRatePercent: measured.length > 0 ? Math.round(((measured.length - successes.length) / measured.length) * 10000) / 100 : 0,
+    overall: statsFor(
+      '__all__',
+      successes.map((outcome) => outcome.latencyMs),
+      measured.length - successes.length,
+    ),
     perFlow,
     schedulerLagMs: { p95: percentile(lagsSorted, 95), max: lagsSorted.at(-1) ?? 0 },
   };

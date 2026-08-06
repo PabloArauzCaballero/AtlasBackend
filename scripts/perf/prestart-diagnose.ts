@@ -44,11 +44,15 @@ function main(): void {
   console.log(
     `  CPU               : ${snapshot.cpu.cores} núcleos, load1=${snapshot.cpu.loadAverage.value?.[0].toFixed(2) ?? 'n/d'}  [${snapshot.cpu.loadAverage.source}]`,
   );
-  console.log(`  disco libre       : ${formatBytes(snapshot.disk.availableBytes.value)} (uso ${snapshot.disk.usedPercent.value ?? 'n/d'}%)`);
+  console.log(
+    `  disco libre       : ${formatBytes(snapshot.disk.availableBytes.value)} (uso ${snapshot.disk.usedPercent.value ?? 'n/d'}%)`,
+  );
   console.log(`  límite de fds     : ${snapshot.openFileLimit.value ?? 'n/d'}  [${snapshot.openFileLimit.source}]`);
   console.log('');
 
-  console.log(`Procesos candidatos: ${processes.length} (del proyecto: ${owned.length}, ajenos: ${foreign.length}, sin determinar: ${undetermined.length})`);
+  console.log(
+    `Procesos candidatos: ${processes.length} (del proyecto: ${owned.length}, ajenos: ${foreign.length}, sin determinar: ${undetermined.length})`,
+  );
   if (processes.length === 0) console.log('  ninguno: no hay instancias previas de Atlas en esta máquina.');
   for (const item of processes) console.log(describe(item));
   console.log('');

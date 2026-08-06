@@ -201,7 +201,11 @@ export class InternalUsersService {
       // `JwtAuthGuard` hasta su expiración natural (por defecto 1h) pese a que el admin lo
       // acaba de suspender/bloquear/deshabilitar.
       // cerró para "logout en todos los dispositivos", pero que nunca se aplicó a este flujo.
-      await this.tokenRevocationService.bumpTokenVersion('internal_user', targetUserId);
+      // `IfPresent`: un usuario interno creado por seed y todavía sin contraseña provisionada no
+      // tiene fila en `auth_credentials`. Con la variante que lanza, suspenderlo devolvía 500 con el
+      // estado ya escrito y sin registrar la auditoría, aparentando un fallo donde no lo hubo. Sin
+      // credenciales no hay sesión que revocar, así que no queda nada pendiente.
+      await this.tokenRevocationService.bumpTokenVersionIfPresent('internal_user', targetUserId);
     }
 
     await this.rbacRepository.createAudit({
@@ -254,6 +258,22 @@ export class InternalUsersService {
       legacyRoleCode: legacyRoleForInternalRoles(roleCodes),
       reason: dto.reason,
     });
+
+    // Mismo motivo que en `updateUser` al suspender, aplicado a la degradación de privilegios:
+    // `replaceUserRoles` reescribe `internal_users.role_code`, que es de donde sale el claim `role`
+    // del access token (`auth-actor-resolver.service.ts` → `AuthService.issueAccessToken`), pero
+    // `RolesGuard` autoriza leyendo ese claim del token, no la base. Sin este bump, degradar a un
+    // administrador lo deja operando con su rol anterior hasta que el token expire por su cuenta
+    // (`JWT_ACCESS_TOKEN_EXPIRES_IN`) — y en esa ventana conserva endpoints como
+    // `POST /auth/provision-credentials` (`@Roles('admin', 'platform_admin')`), con los que puede
+    // fabricarse acceso que sobreviva a la propia degradación.
+    //
+    // Se revoca ante CUALQUIER reemplazo de roles, no solo cuando cambia el claim: dos conjuntos de
+    // roles distintos pueden colapsar al mismo rol legacy (`legacyRoleForInternalRoles`) y aun así
+    // recortar privilegios. El coste de revocar de más es un refresh silencioso — el flujo de
+    // refresh re-resuelve el rol vigente y emite el token con la versión nueva, así que el usuario
+    // no queda deslogueado, solo actualizado.
+    await this.tokenRevocationService.bumpTokenVersionIfPresent('internal_user', targetUserId);
 
     await this.rbacRepository.createAudit({
       tenantId: actor.tenantId,

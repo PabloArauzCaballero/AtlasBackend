@@ -73,6 +73,7 @@ function makeTokenRevocationService(overrides: Record<string, unknown> = {}) {
   return {
     getCurrentTokenVersion: jest.fn(),
     bumpTokenVersion: jest.fn(),
+    bumpTokenVersionIfPresent: jest.fn(async () => 2),
     ...overrides,
   };
 }
@@ -177,7 +178,79 @@ describe('InternalUsersService security boundaries', () => {
       { ipAddress: null, userAgent: null },
     );
 
-    expect(tokenRevocationService.bumpTokenVersion).toHaveBeenCalledWith('internal_user', '11');
+    expect(tokenRevocationService.bumpTokenVersionIfPresent).toHaveBeenCalledWith('internal_user', '11');
+  });
+
+  it('invalidates the currently active access token when internal roles are replaced (regression)', async () => {
+    // El claim `role` del access token sale de `internal_users.role_code`, que `replaceUserRoles`
+    // reescribe; `RolesGuard` autoriza leyendo ese claim, no la base. Sin revocación, degradar a un
+    // administrador lo dejaba operando con su rol anterior hasta que el token expirara solo, y en esa
+    // ventana conservaba `POST /auth/provision-credentials` para fabricarse acceso persistente.
+    const nonPrivilegedProfile = jest.fn(async (user: { id: string }) => ({
+      user: {
+        id: user.id,
+        tenantId: '1',
+        email: 'x@atlas.internal',
+        fullName: 'X',
+        userCode: 'x',
+        status: 'active',
+        department: 'SYSTEMS',
+        jobTitle: null,
+        mustChangePassword: false,
+        mfaEnabled: false,
+        roles: ['SUPPORT_AGENT'],
+        permissions: [],
+      },
+    }));
+    const repository = makeRepository({ buildAccessProfile: nonPrivilegedProfile });
+    const tokenRevocationService = makeTokenRevocationService();
+    const service = new InternalUsersService(repository as never, tokenRevocationService as never);
+
+    await service.replaceRoles(
+      currentUser,
+      '11',
+      { roles: ['RISK_ANALYST'], reason: 'reorganizacion de equipo' },
+      { ipAddress: null, userAgent: null },
+    );
+
+    expect(repository.replaceUserRoles).toHaveBeenCalled();
+    expect(tokenRevocationService.bumpTokenVersionIfPresent).toHaveBeenCalledWith('internal_user', '11');
+  });
+
+  it('still replaces roles when the target has no credentials to revoke', async () => {
+    // Un usuario interno creado por seed y aún sin contraseña provisionada no tiene fila en
+    // `auth_credentials`. No hay sesión que revocar, así que el cambio de roles debe completarse y
+    // auditarse igual — no convertirse en un 500 con los roles ya reemplazados.
+    const nonPrivilegedProfile = jest.fn(async (user: { id: string }) => ({
+      user: {
+        id: user.id,
+        tenantId: '1',
+        email: 'x@atlas.internal',
+        fullName: 'X',
+        userCode: 'x',
+        status: 'active',
+        department: 'SYSTEMS',
+        jobTitle: null,
+        mustChangePassword: false,
+        mfaEnabled: false,
+        roles: ['SUPPORT_AGENT'],
+        permissions: [],
+      },
+    }));
+    const repository = makeRepository({ buildAccessProfile: nonPrivilegedProfile });
+    const tokenRevocationService = makeTokenRevocationService({ bumpTokenVersionIfPresent: jest.fn(async () => null) });
+    const service = new InternalUsersService(repository as never, tokenRevocationService as never);
+
+    await expect(
+      service.replaceRoles(
+        currentUser,
+        '11',
+        { roles: ['RISK_ANALYST'], reason: 'reorganizacion de equipo' },
+        { ipAddress: null, userAgent: null },
+      ),
+    ).resolves.toBeDefined();
+
+    expect(repository.createAudit).toHaveBeenCalled();
   });
 
   it('listUsers batches role/permission lookups via buildAccessProfiles instead of one call per user (N+1 regression)', async () => {
