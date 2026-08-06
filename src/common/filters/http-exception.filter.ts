@@ -5,6 +5,7 @@
  */
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { UniqueConstraintError, ValidationError } from 'sequelize';
+import { normalizePostgresError, type NormalizedPostgresError } from '../database/postgres-error.js';
 
 type HttpResponse = {
   status: (statusCode: number) => HttpResponse;
@@ -17,7 +18,7 @@ type HttpRequest = {
   correlationId?: string;
 };
 
-function buildErrorMessage(exception: unknown): string {
+function buildErrorMessage(exception: unknown, postgres: NormalizedPostgresError | null): string {
   if (exception instanceof HttpException) {
     const response = exception.getResponse();
     if (typeof response === 'string') {
@@ -28,6 +29,11 @@ function buildErrorMessage(exception: unknown): string {
       const responseMessage = (response as { message: unknown }).message;
       return Array.isArray(responseMessage) ? responseMessage.join(', ') : String(responseMessage);
     }
+  }
+
+  // El mensaje del catálogo SQLSTATE ya viene saneado (sin tabla, columna ni valores).
+  if (postgres) {
+    return postgres.clientMessage;
   }
 
   if (exception instanceof UniqueConstraintError) {
@@ -112,9 +118,15 @@ export function sanitizeUrlForLog(url: string | undefined): string {
   return parameterNames.length > 0 ? `${path}?${parameterNames.join('&')}=[REDACTED]` : path;
 }
 
-function buildStatusCode(exception: unknown): number {
+function buildStatusCode(exception: unknown, postgres: NormalizedPostgresError | null): number {
   if (exception instanceof HttpException) {
     return exception.getStatus();
+  }
+
+  // Un SQLSTATE conocido es más preciso que el tipo de Sequelize: distingue 23503 (409) de 23502
+  // (422) y cubre las consultas crudas, que no producen `UniqueConstraintError`.
+  if (postgres) {
+    return postgres.httpStatus;
   }
 
   if (exception instanceof UniqueConstraintError || exception instanceof ValidationError) {
@@ -137,6 +149,7 @@ function buildErrorCode(statusCode: number): string {
     429: 'RATE_LIMIT_EXCEEDED',
     500: 'INTERNAL_ERROR',
     503: 'SERVICE_UNAVAILABLE',
+    504: 'GATEWAY_TIMEOUT',
   };
   return codes[statusCode] ?? 'INTERNAL_ERROR';
 }
@@ -149,11 +162,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const context = host.switchToHttp();
     const response = context.getResponse<HttpResponse>();
     const request = context.getRequest<HttpRequest>();
-    const statusCode = buildStatusCode(exception);
-    const message = buildErrorMessage(exception);
+    // Se normaliza una sola vez y se comparte: el estado, el mensaje y el log deben coincidir.
+    const postgres = exception instanceof HttpException ? null : normalizePostgresError(exception);
+    const statusCode = buildStatusCode(exception, postgres);
+    const message = buildErrorMessage(exception, postgres);
     const correlationId = request.correlationId;
 
     const safeUrl = sanitizeUrlForLog(request.url);
+
+    // Un fallo de privilegios (42501) o una escritura por la conexión read-only (25006) son bugs de
+    // aprovisionamiento/enrutamiento NUESTROS: el cliente ve un 5xx opaco, pero el log debe gritar
+    // qué invariante se rompió, porque es justo lo que la separación read/write existe para cazar.
+    if (postgres?.operatorFault) {
+      this.logger.error(`[db:${postgres.kind}] SQLSTATE ${postgres.sqlState} — ${request.method} ${safeUrl} (${correlationId ?? 'no-id'})`);
+    }
 
     if (statusCode >= 500) {
       const cause = buildInternalCause(exception);

@@ -32,6 +32,30 @@ export const runtimeJobsEnvShape = {
   RUNTIME_JOBS_RETENTION_INTERVAL_MS: z.coerce.number().int().positive().default(86_400_000),
   RUNTIME_JOBS_DATA_QUALITY_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
 
+  // Recuperación de eventos VARADOS. `claimPending` marca el evento como `processing` y le pone
+  // `locked_by`; si el proceso muere entre esa marca y el `save()` final, el evento queda en
+  // `processing` para siempre — ninguna consulta de reclamo vuelve a mirarlo, porque todas filtran
+  // por `status='pending'`. Este job devuelve a la cola los que llevan demasiado tiempo bloqueados.
+  //
+  // El umbral debe superar la duración normal de una entrega (un `handleEvent` con fan-out de
+  // notificaciones puede tardar): reclamar demasiado pronto crearía la duplicidad que se quiere
+  // evitar. 15 minutos es holgado frente a esa duración y corto frente a un SLA de notificación.
+  RUNTIME_JOBS_STUCK_EVENTS_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
+  RUNTIME_JOBS_STUCK_EVENT_MINUTES: z.coerce.number().int().positive().max(1_440).default(15),
+
+  // Techo de duración de UNA tanda del planificador (todos los tenants de un job). Sin él, un job
+  // colgado en una consulta que no vuelve deja su hueco de ejecución ocupado indefinidamente: el
+  // guard de reentrada impide que el siguiente tick arranque, así que ese job deja de correr para
+  // siempre sin que nada lo reporte. Al vencer, la tanda se abandona (se registra como fallo) y el
+  // siguiente tick vuelve a intentarlo. `0` lo desactiva.
+  RUNTIME_JOBS_TICK_TIMEOUT_MS: z.coerce.number().int().min(0).max(3_600_000).default(300_000),
+
+  // Dispersión aleatoria del PRIMER tick de cada job. Con N réplicas arrancando a la vez tras un
+  // despliegue, todas piden el mismo lock de liderazgo en el mismo milisegundo y todas consultan la
+  // lista de tenants: un pico sincronizado sobre Redis y Postgres justo cuando el servicio está más
+  // frágil. Un desfase aleatorio dentro de esta ventana lo aplana. `0` lo desactiva.
+  RUNTIME_JOBS_START_JITTER_MS: z.coerce.number().int().min(0).max(300_000).default(15_000),
+
   // Barrido de mensajes de notificación que quedaron a medio entregar tras un reinicio, y purga de
   // claves de idempotencia ya resueltas (ambas colas crecían sin que nada las recogiera).
   RUNTIME_JOBS_NOTIFICATION_RETRY_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),

@@ -195,6 +195,7 @@ nav:
       - Migraciones (detalle): database/migrations.md
       - Seeds (detalle): database/seeds.md
       - Roles de PostgreSQL: database/postgres-roles.md
+      - Errores de PostgreSQL: database/postgres-error-mapping.md
       - Modelos de lectura: database/read-models.md
       - Inventario de carga de lectura: database/read-workload-inventory.md
       - Candidatas a vista: database/view-candidates.md
@@ -222,6 +223,7 @@ nav:
           - Respuesta a incidentes: runbooks/incident-response.md
           - Rotación de claves: runbooks/rotacion-de-claves.md
           - Expiración y revocación de sesiones: runbooks/expiracion-y-revocacion-de-sesiones.md
+          - Resiliencia, caos y recuperación: runbooks/resiliencia-y-caos.md
 
   - Pruebas y gobierno:
       - testing/strategy.md
@@ -256,6 +258,7 @@ nav:
       - Preparación para producción: reports/production-readiness.md
       - Validación final: reports/final-validation.md
       - Auditoría integral 2026-07-30: audit/auditoria-integral-2026-07-30.md
+      - Hardening de resiliencia 2026-08-05: audit/hardening-resiliencia-2026-08-05.md
       - Auditorías por módulo:
           - audit/README.md
           - Revisión completa 2026-07-21: audit/revision-completa-backend-2026-07-21.md

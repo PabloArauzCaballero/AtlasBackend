@@ -23,6 +23,7 @@ import { HealthController } from '../../../src/modules/health/health.controller.
 import { getConnectionToken } from '@nestjs/sequelize';
 import { REDIS_CLIENT } from '../../../src/common/redis/redis.module.js';
 import { GracefulShutdownService } from '../../../src/common/lifecycle/graceful-shutdown.service.js';
+import { ReadQueryService } from '../../../src/common/database/read-query.service.js';
 import { JwtAuthGuard } from '../../../src/common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../../src/common/guards/roles.guard.js';
 
@@ -131,7 +132,7 @@ describe('final block — OpenAPI document generation (8 controllers, 7 modules)
         // engordando `runtime-jobs.service.ts`, ya muy por encima del límite de tamaño).
         {
           provide: RuntimeMaintenanceJobsService,
-          useValue: { retryStuckNotifications: asyncMock(), purgeIdempotencyKeys: asyncMock() },
+          useValue: { retryStuckNotifications: asyncMock(), purgeIdempotencyKeys: asyncMock(), reclaimStuckEvents: asyncMock() },
         },
         { provide: getConnectionToken(), useValue: { authenticate: asyncMock() } },
         // HealthController ahora inyecta REDIS_CLIENT (readiness verifica Redis si está configurado).
@@ -139,6 +140,8 @@ describe('final block — OpenAPI document generation (8 controllers, 7 modules)
         // ...y GracefulShutdownService: durante el drenado por SIGTERM, readiness responde 503 para
         // que el balanceador retire la instancia antes de que se cierre (hallazgo A-07).
         { provide: GracefulShutdownService, useValue: { isShuttingDown: () => false } },
+        // ...y ReadQueryService: readiness reporta también el estado del pool de LECTURA dedicado.
+        { provide: ReadQueryService, useValue: { getConnection: () => ({ authenticate: asyncMock() }) } },
       ],
     })
       .overrideGuard(JwtAuthGuard)

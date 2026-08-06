@@ -269,6 +269,68 @@ paths:
       summary: Entregar notificaciones pendientes
       tags:
         - runtime-jobs
+  /operations/jobs/reclaim-stuck-events:
+    post:
+      description: >-
+        Devuelve a la cola los eventos que un proceso reclamó y no llegó a
+        resolver (murió a mitad de la tanda). Los que aún tienen intentos
+        vuelven a pending; los que los agotaron caen a failed, desde donde se
+        reintentan a mano con POST /events/:id/retry. Restringido a
+        admin/platform_admin/system.
+      operationId: RuntimeJobsController_reclaimStuckEvents
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                olderThanMinutes:
+                  default: 15
+                  type: integer
+                  minimum: 1
+                  maximum: 1440
+                limit:
+                  default: 100
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 500
+                dryRun:
+                  default: true
+                  type: boolean
+              required:
+                - olderThanMinutes
+                - limit
+                - dryRun
+              additionalProperties: false
+      responses:
+        '200':
+          description: Resultado de la recuperación de eventos varados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Recuperar eventos varados en processing
+      tags:
+        - runtime-jobs
   /operations/jobs/purge-idempotency-keys:
     post:
       description: >-
@@ -3364,9 +3426,10 @@ paths:
   /health/readiness:
     get:
       description: >-
-        Verifica Postgres (obligatorio) y Redis (si está configurado). Devuelve
-        503 si Postgres no responde, para que el balanceador/orquestador saque
-        la instancia del pool. Redis no configurado (dev) no falla.
+        Verifica Postgres (obligatorio), el pool de lectura dedicado
+        (informativo) y Redis (si está configurado). Devuelve 503 si Postgres no
+        responde, para que el balanceador/orquestador saque la instancia del
+        pool. Redis no configurado (dev) no falla.
       operationId: HealthController_readiness
       parameters:
         - $ref: '#/components/parameters/CorrelationId'

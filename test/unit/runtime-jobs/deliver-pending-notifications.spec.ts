@@ -23,11 +23,15 @@ describe('RuntimeMaintenanceJobsService.deliverPendingNotifications', () => {
         result: await handler(),
       })),
     };
+    const eventsService = { reclaimStuckEvents: jest.fn(async () => ({ selected: 0, requeued: 0, deadLettered: 0 })) };
     const service = new RuntimeMaintenanceJobsService(
       { count: jest.fn(), destroy: jest.fn() } as never,
       notificationsRepository as never,
       notificationOrchestrator as never,
       jobRuns as never,
+      // El rescate de eventos varados delega en `EventsService`, que es el dueño del ciclo de vida
+      // del outbox; aquí solo se comprueba la envoltura de auditoría del job.
+      eventsService as never,
     );
     return { service, notificationsRepository, notificationOrchestrator, jobRuns };
   }

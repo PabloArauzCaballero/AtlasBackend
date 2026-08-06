@@ -15,6 +15,7 @@
 | [`dev-credentials.md`](./dev-credentials.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`domain-schemas.md`](./domain-schemas.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`migrations.md`](./migrations.md) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`postgres-error-mapping.md`](./postgres-error-mapping.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`postgres-roles.md`](./postgres-roles.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`query-baseline.md`](./query-baseline.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 | [`read-models.md`](./read-models.md) | Documento versionado: explica decisiones, contratos o procedimientos. |

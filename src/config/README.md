@@ -15,6 +15,7 @@
 | [`build-info.ts`](./build-info.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`database.config.ts`](./database.config.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`env-cross-checks.ts`](./env-cross-checks.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`env.database.schema.ts`](./env.database.schema.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`env.primitives.ts`](./env.primitives.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`env.runtime-jobs.schema.ts`](./env.runtime-jobs.schema.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`env.schema.ts`](./env.schema.ts) | Artefacto de soporte específico de esta carpeta. |

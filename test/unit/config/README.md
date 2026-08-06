@@ -12,6 +12,7 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`app-role.spec.ts`](./app-role.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`database-session-timeouts.spec.ts`](./database-session-timeouts.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`env-cross-checks.spec.ts`](./env-cross-checks.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento

@@ -10,6 +10,7 @@ import type Redis from 'ioredis';
 import type { MetricsService } from '../common/observability/metrics.service.js';
 import type { GracefulShutdownService } from '../common/lifecycle/graceful-shutdown.service.js';
 import { buildInfo } from '../config/build-info.js';
+import { env } from '../config/env.js';
 
 const REDIS_PING_TIMEOUT_MS = 2000;
 
@@ -107,26 +108,35 @@ async function metrics(response: ServerResponse, deps: WorkerProbeDependencies):
   response.end(body);
 }
 
-async function checkPostgres(sequelize: Sequelize): Promise<'ok' | 'unreachable'> {
+/**
+ * Sondeo con techo de tiempo. Mismo motivo que en la API (`probeWithTimeout` de
+ * `health.controller.ts`): con el pool agotado, `authenticate()` espera hasta `DB_POOL_ACQUIRE_MS`
+ * por una conexión, y el probe deja de responder justo cuando su respuesta es la información más
+ * valiosa. El worker es aún más sensible: sus jobs compiten por ese mismo pool, así que es el
+ * proceso donde el pool se agota primero.
+ */
+async function probeWithTimeout(probe: () => Promise<unknown>, timeoutMs: number): Promise<'ok' | 'unreachable'> {
+  const timedOut = Symbol('probe_timeout');
   try {
-    await sequelize.authenticate();
-    return 'ok';
+    const outcome = await Promise.race([
+      probe().then(() => 'ok' as const),
+      new Promise<typeof timedOut>((resolve) => {
+        setTimeout(() => resolve(timedOut), timeoutMs).unref();
+      }),
+    ]);
+    return outcome === timedOut ? 'unreachable' : 'ok';
   } catch {
     return 'unreachable';
   }
 }
 
-async function checkRedis(redis: Redis | null): Promise<'ok' | 'unreachable' | 'not_configured'> {
-  if (!redis) return 'not_configured';
-  try {
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('redis ping timeout')), REDIS_PING_TIMEOUT_MS).unref(),
-    );
-    await Promise.race([redis.ping(), timeout]);
-    return 'ok';
-  } catch {
-    return 'unreachable';
-  }
+function checkPostgres(sequelize: Sequelize): Promise<'ok' | 'unreachable'> {
+  return probeWithTimeout(() => sequelize.authenticate(), env.HEALTH_DB_PING_TIMEOUT_MS);
+}
+
+function checkRedis(redis: Redis | null): Promise<'ok' | 'unreachable' | 'not_configured'> {
+  if (!redis) return Promise.resolve('not_configured');
+  return probeWithTimeout(() => redis.ping(), REDIS_PING_TIMEOUT_MS);
 }
 
 function json(response: ServerResponse, status: number, body: Record<string, unknown>): void {

@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`http-exception.filter.postgres.spec.ts`](./http-exception.filter.postgres.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`http-exception.filter.spec.ts`](./http-exception.filter.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento

@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`postgres-error.ts`](./postgres-error.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`read-query.service.ts`](./read-query.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento

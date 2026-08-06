@@ -12,6 +12,7 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`document-storage.service.ts`](./document-storage.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`malware-scanner.service.ts`](./malware-scanner.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`s3-signature.util.ts`](./s3-signature.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 
 ## Reglas de mantenimiento

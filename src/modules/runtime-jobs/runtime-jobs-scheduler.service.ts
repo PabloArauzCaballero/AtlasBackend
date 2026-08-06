@@ -11,24 +11,12 @@ import type Redis from 'ioredis';
 import { REDIS_CLIENT } from '../../common/redis/redis.module.js';
 import { MetricsService } from '../../common/observability/metrics.service.js';
 import { TenantModel } from '../../database/models/index.js';
-import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { env } from '../../config/env.js';
 import { appRole, runsBackgroundWork } from '../../config/app-role.js';
+import { JobTickGuard } from './job-tick-guard.js';
+import { buildScheduledJobs, type ScheduledJob } from './scheduled-jobs.catalog.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
-
-/**
- * Actor con el que se registran las ejecuciones automáticas en `system_job_runs` y en la auditoría.
- * `role: 'system'` es el mismo rol que ya autoriza el controller para disparos máquina-a-máquina, y
- * `sub` deja rastro de que el disparo vino del planificador y no de un operador.
- */
-const SCHEDULER_ACTOR: AuthenticatedUser = { sub: 'runtime-jobs-scheduler', role: 'system' };
-
-type ScheduledJob = {
-  jobCode: string;
-  intervalMs: number;
-  run: (tenantId: string) => Promise<unknown>;
-};
 
 /**
  * Ejecuta los trabajos de fondo por su cuenta.
@@ -53,8 +41,15 @@ type ScheduledJob = {
  * - **Sin Redis, fail-closed en producción.** Sin lock distribuido no hay forma de impedir que N
  *   instancias procesen el mismo lote a la vez. En desarrollo (una sola instancia) se ejecuta igual;
  *   en producción hace falta `RUNTIME_JOBS_ALLOW_WITHOUT_LOCK=true` para asumirlo a conciencia.
- * - **Nunca `dryRun`.** Los DTO tienen `dryRun: true` por defecto para proteger el disparo manual;
- *   el planificador pasa `false` explícito porque su razón de ser es ejecutar.
+ * - **El lock de liderazgo no basta para evitar el solapamiento.** Su TTL se acota al intervalo del
+ *   job para no distorsionar la cadencia, así que expira justo cuando llega el siguiente tick: una
+ *   tanda más lenta que su intervalo se solaparía consigo misma. Eso lo cubre `JobTickGuard`, que
+ *   además convierte una tanda atascada en una señal alertable en vez de en silencio.
+ * - **Arranque desfasado.** El primer tick de cada job se reparte dentro de una ventana aleatoria
+ *   para que N réplicas que arrancan juntas no golpeen Redis y Postgres en el mismo instante.
+ *
+ * QUÉ se ejecuta y cada cuánto vive en `scheduled-jobs.catalog.ts`: esa lista cambia con cada
+ * trabajo de fondo nuevo, mientras que las garantías de concurrencia de este archivo casi nunca.
  */
 @Injectable()
 export class RuntimeJobsSchedulerService implements OnApplicationBootstrap, OnModuleDestroy {
@@ -62,6 +57,22 @@ export class RuntimeJobsSchedulerService implements OnApplicationBootstrap, OnMo
   private readonly instanceId = randomUUID();
   private readonly timers: NodeJS.Timeout[] = [];
   private stopped = false;
+
+  /**
+   * Impide que una tanda se solape consigo misma y avisa cuando una se atasca. Ver `JobTickGuard`
+   * para el porqué de cada decisión; aquí solo se conecta el aviso a las métricas y al log.
+   */
+  private readonly tickGuard = new JobTickGuard({
+    timeoutMs: env.RUNTIME_JOBS_TICK_TIMEOUT_MS,
+    onStall: ({ jobCode, elapsedMs }) => {
+      this.metrics?.recordScheduledJob({ job: jobCode, outcome: 'stalled' });
+      this.logger.error(
+        `Job ${jobCode} ATASCADO: la tanda lleva ${elapsedMs} ms, por encima de RUNTIME_JOBS_TICK_TIMEOUT_MS ` +
+          `(${env.RUNTIME_JOBS_TICK_TIMEOUT_MS} ms). El job no volverá a ejecutarse hasta que termine: revisa consultas ` +
+          'bloqueadas y proveedores externos sin respuesta antes de reiniciar el proceso.',
+      );
+    },
+  });
 
   constructor(
     private readonly runtimeJobs: RuntimeJobsService,
@@ -72,75 +83,7 @@ export class RuntimeJobsSchedulerService implements OnApplicationBootstrap, OnMo
   ) {}
 
   private jobs(): ScheduledJob[] {
-    const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
-    return [
-      {
-        jobCode: 'process_outbox',
-        intervalMs: env.RUNTIME_JOBS_OUTBOX_INTERVAL_MS,
-        run: (tenantId) => this.runtimeJobs.processOutbox({ tenantId, body: { limit, dryRun: false }, currentUser: SCHEDULER_ACTOR }),
-      },
-      {
-        jobCode: 'process_events',
-        intervalMs: env.RUNTIME_JOBS_EVENTS_INTERVAL_MS,
-        run: (tenantId) => this.runtimeJobs.processEvents({ tenantId, body: { limit, dryRun: false }, currentUser: SCHEDULER_ACTOR }),
-      },
-      {
-        jobCode: 'expire_stale_sessions',
-        intervalMs: env.RUNTIME_JOBS_SESSIONS_INTERVAL_MS,
-        run: (tenantId) =>
-          this.runtimeJobs.expireStaleSessions({
-            tenantId,
-            body: { maxIdleMinutes: env.RUNTIME_JOBS_SESSION_MAX_IDLE_MINUTES, dryRun: false },
-            currentUser: SCHEDULER_ACTOR,
-          }),
-      },
-      {
-        jobCode: 'apply_retention_policies',
-        intervalMs: env.RUNTIME_JOBS_RETENTION_INTERVAL_MS,
-        run: (tenantId) => this.runtimeJobs.applyRetentionPolicies({ tenantId, body: { dryRun: false }, currentUser: SCHEDULER_ACTOR }),
-      },
-      {
-        jobCode: 'retry_stuck_notifications',
-        intervalMs: env.RUNTIME_JOBS_NOTIFICATION_RETRY_INTERVAL_MS,
-        run: (tenantId) =>
-          this.maintenance.retryStuckNotifications({
-            tenantId,
-            body: { olderThanMinutes: env.RUNTIME_JOBS_NOTIFICATION_STUCK_MINUTES, limit, dryRun: false },
-            currentUser: SCHEDULER_ACTOR,
-          }),
-      },
-      // Sólo tiene sentido cuando la API NO entrega dentro del request: si la entrega es `inline`,
-      // este job competiría por los mismos mensajes que el proceso que acaba de crearlos.
-      ...(env.NOTIFICATIONS_DELIVERY_MODE === 'deferred'
-        ? [
-            {
-              jobCode: 'deliver_pending_notifications',
-              intervalMs: env.RUNTIME_JOBS_NOTIFICATION_DELIVERY_INTERVAL_MS,
-              run: (tenantId: string) =>
-                this.maintenance.deliverPendingNotifications({
-                  tenantId,
-                  body: { limit, dryRun: false },
-                  currentUser: SCHEDULER_ACTOR,
-                }),
-            },
-          ]
-        : []),
-      {
-        jobCode: 'purge_idempotency_keys',
-        intervalMs: env.RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS,
-        run: (tenantId) =>
-          this.maintenance.purgeIdempotencyKeys({
-            tenantId,
-            body: { retentionDays: env.RUNTIME_JOBS_IDEMPOTENCY_RETENTION_DAYS, limit: 1_000, dryRun: false },
-            currentUser: SCHEDULER_ACTOR,
-          }),
-      },
-      {
-        jobCode: 'recalculate_data_quality',
-        intervalMs: env.RUNTIME_JOBS_DATA_QUALITY_INTERVAL_MS,
-        run: (tenantId) => this.runtimeJobs.recalculateDataQuality({ tenantId, body: { dryRun: false }, currentUser: SCHEDULER_ACTOR }),
-      },
-    ];
+    return buildScheduledJobs({ runtimeJobs: this.runtimeJobs, maintenance: this.maintenance });
   }
 
   onApplicationBootstrap(): void {
@@ -162,28 +105,68 @@ export class RuntimeJobsSchedulerService implements OnApplicationBootstrap, OnMo
       return;
     }
 
-    for (const job of this.jobs()) {
-      const timer = setInterval(() => void this.tick(job), job.intervalMs);
+    for (const job of this.jobs()) this.schedule(job);
+  }
+
+  /**
+   * Programa un job con un desfase inicial aleatorio.
+   *
+   * Sin el desfase, N réplicas que arrancan juntas tras un despliegue disparan el mismo tick en el
+   * mismo instante: todas piden el mismo lock a Redis y todas leen la lista de tenants a la vez.
+   * Es un pico sincronizado (thundering herd) sobre las dos dependencias más críticas, justo en el
+   * minuto en que el servicio está menos asentado. El desfase lo reparte y no cambia la cadencia:
+   * solo mueve el punto de partida de cada serie.
+   */
+  private schedule(job: ScheduledJob): void {
+    const jitterMs = env.RUNTIME_JOBS_START_JITTER_MS > 0 ? Math.floor(Math.random() * env.RUNTIME_JOBS_START_JITTER_MS) : 0;
+
+    const startTimer = setTimeout(() => {
+      if (this.stopped) return;
+      void this.tick(job);
+      const interval = setInterval(() => void this.tick(job), job.intervalMs);
       // `unref` para que un proceso que solo espera a estos timers pueda terminar (scripts, tests).
-      timer.unref();
-      this.timers.push(timer);
-      this.logger.log(`Job ${job.jobCode} programado cada ${job.intervalMs} ms.`);
-    }
+      interval.unref();
+      this.timers.push(interval);
+    }, jitterMs);
+    startTimer.unref();
+    this.timers.push(startTimer);
+
+    this.logger.log(`Job ${job.jobCode} programado cada ${job.intervalMs} ms (primer disparo en ${jitterMs} ms).`);
   }
 
   onModuleDestroy(): void {
     this.stopped = true;
+    // `clearInterval` y `clearTimeout` son el mismo cierre en Node: la lista mezcla los temporizadores
+    // de arranque (con desfase) y los periódicos, y ambos se cancelan igual.
     for (const timer of this.timers.splice(0)) clearInterval(timer);
   }
 
   /**
-   * Una tanda: intenta ser líder de este job y, si lo consigue, lo corre para cada tenant activo.
-   * Los tenants se recorren en serie a propósito — son jobs de fondo, no hay prisa, y en paralelo
-   * competirían por el mismo pool de conexiones que atiende el tráfico HTTP.
+   * Una tanda, protegida contra el solapamiento consigo misma (ver `JobTickGuard`).
+   *
+   * El orden importa: el guard de reentrada va ANTES de pedir el liderazgo. Si la tanda anterior
+   * sigue viva, esta no debe ni consultar a Redis — pedir un lock que se va a descartar solo añade
+   * carga a la dependencia y ruido a las métricas.
    */
   private async tick(job: ScheduledJob): Promise<void> {
     if (this.stopped) return;
 
+    const outcome = await this.tickGuard.run(job.jobCode, () => this.runBatch(job));
+    if (outcome === 'skipped_overlap') {
+      this.metrics?.recordScheduledJob({ job: job.jobCode, outcome: 'skipped' });
+      this.logger.warn(
+        `Job ${job.jobCode}: se salta esta tanda porque la anterior sigue en curso ` +
+          `(${this.tickGuard.runningForMs(job.jobCode) ?? 0} ms). Si se repite, el intervalo es más corto que la duración real del job.`,
+      );
+    }
+  }
+
+  /**
+   * El trabajo en sí: intenta ser líder de este job y, si lo consigue, lo corre para cada tenant
+   * activo. Los tenants se recorren en serie a propósito — son jobs de fondo, no hay prisa, y en
+   * paralelo competirían por el mismo pool de conexiones que atiende el tráfico HTTP.
+   */
+  private async runBatch(job: ScheduledJob): Promise<void> {
     const leader = await this.acquireLeadership(job);
     if (!leader) return;
 

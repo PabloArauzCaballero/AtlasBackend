@@ -41,9 +41,30 @@ para crear los roles y aplicar los grants, de forma idempotente.
 export DB_APP_RW_PASSWORD='...'
 export DB_APP_RO_PASSWORD='...'
 export DB_MIGRATOR_PASSWORD='...'
-yarn db:roles:bootstrap
-yarn check:db-privileges   # verifica la matriz de forma no destructiva
+yarn db:provision:dev      # = db:roles:bootstrap && check:db-privileges
 ```
+
+`yarn db:provision:dev` es el atajo recomendado en local: aprovisiona y **verifica** en un paso, y
+termina con código distinto de cero si la matriz de privilegios no queda como se espera. Los dos
+comandos siguen disponibles por separado (`yarn db:roles:bootstrap`, `yarn check:db-privileges`).
+
+### El aprovisionamiento está prohibido fuera de desarrollo/pruebas
+
+`db:roles:bootstrap` no es un comando inocuo: crea roles, **cambia contraseñas** y **reasigna la
+propiedad** de tablas, vistas y secuencias. Por eso comprueba `NODE_ENV` antes de abrir siquiera la
+conexión (`src/database/provisioning-guard.ts`):
+
+| `NODE_ENV`                          | Comportamiento                                                       |
+| ----------------------------------- | -------------------------------------------------------------------- |
+| `development`, `test`               | Se ejecuta sin ceremonia. Es el flujo normal.                        |
+| Cualquier otro (incl. `production`) | **Se niega y termina en 1**, salvo que se pase `--allow-production`. |
+| Valor desconocido o con typo        | Se trata como no-desarrollo: **falla cerrado**.                      |
+
+En producción las credenciales las aprovisiona **infraestructura** (IaC/DBA) con revisión y
+registro, aplicando `ops/postgres/bootstrap-roles.sql`. La aplicación no debe tener —ni ejercer—
+permiso para crear usuarios. La bandera `--allow-production` existe solo para entornos efímeros que
+el operador controla; no concede un permiso general, solo convierte el bloqueo en una advertencia
+explícita en la salida.
 
 Se conecta con `DB_ADMIN_USER`/`DB_ADMIN_PASSWORD` (cae a `DB_USER`). Esa identidad necesita
 **CREATE ROLE**; si no lo tiene, el script lo dice y no toca nada — los roles son objetos de

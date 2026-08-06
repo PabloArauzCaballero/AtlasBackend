@@ -8,10 +8,16 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { IdempotencyKeyModel } from '../../database/models/index.js';
+import { EventsService } from '../events/events.service.js';
 import { NotificationOrchestratorService } from '../notifications/notification-orchestrator.service.js';
 import { NotificationsRepository } from '../notifications/notifications.repository.js';
 import { JobRunRecorderService } from './job-run-recorder.service.js';
-import { DeliverPendingNotificationsDto, PurgeIdempotencyKeysDto, RetryStuckNotificationsDto } from './runtime-jobs.schemas.js';
+import {
+  DeliverPendingNotificationsDto,
+  PurgeIdempotencyKeysDto,
+  ReclaimStuckEventsDto,
+  RetryStuckNotificationsDto,
+} from './runtime-jobs.schemas.js';
 
 /**
  * Trabajos de SANEAMIENTO de colas: no procesan dominio, recogen lo que el dominio deja atrás.
@@ -33,7 +39,37 @@ export class RuntimeMaintenanceJobsService {
     private readonly notificationsRepository: NotificationsRepository,
     private readonly notificationOrchestrator: NotificationOrchestratorService,
     private readonly jobRuns: JobRunRecorderService,
+    // Va AL FINAL a propósito, siguiendo el mismo criterio que `MetricsService` en
+    // `RuntimeJobsService`: varias pruebas construyen este servicio posicionalmente, y una
+    // dependencia nueva intercalada las rompería sin que nada del comportamiento haya cambiado.
+    private readonly eventsService: EventsService,
   ) {}
+
+  /**
+   * Rescata los eventos de dominio que quedaron bloqueados en `processing`.
+   *
+   * Es el mismo tipo de trabajo que `retryStuckNotifications` —recoger lo que el dominio dejó
+   * atrás— pero una capa más abajo: allí se rescatan MENSAJES que nadie entregó, aquí EVENTOS que
+   * nadie llegó a convertir en mensajes. Sin este barrido, un despliegue a mitad de una tanda de
+   * `process_events` dejaba eventos reclamados que ninguna consulta volvía a mirar: la única cola
+   * del sistema con pérdida permanente y silenciosa.
+   *
+   * La lógica de qué se considera varado y a dónde va cada evento vive en `EventsService`, que es
+   * el dueño del ciclo de vida del outbox; aquí solo se le pone la envoltura de auditoría común a
+   * todos los jobs para que la ejecución quede en `system_job_runs` como cualquier otra.
+   */
+  reclaimStuckEvents(input: { tenantId: string; body: ReclaimStuckEventsDto; currentUser: AuthenticatedUser }) {
+    return this.jobRuns.run(
+      { tenantId: input.tenantId, jobCode: 'reclaim_stuck_events', body: input.body, currentUser: input.currentUser },
+      () =>
+        this.eventsService.reclaimStuckEvents({
+          tenantId: input.tenantId,
+          olderThanMinutes: input.body.olderThanMinutes,
+          limit: input.body.limit,
+          dryRun: input.body.dryRun,
+        }),
+    );
+  }
 
   /**
    * Reintenta los mensajes de notificación que quedaron en `pending`/`sending`.

@@ -14,6 +14,7 @@
 | [`events.controller.spec.ts`](./events.controller.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`events.repository.spec.ts`](./events.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`events.service.spec.ts`](./events.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`reclaim-stuck-events.spec.ts`](./reclaim-stuck-events.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento
 

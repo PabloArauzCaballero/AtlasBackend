@@ -112,8 +112,17 @@ export class MetricsService {
     }).set({ role: env.APP_ROLE, version: buildInfo.version, commit: buildInfo.commit ?? 'unknown' }, 1);
   }
 
-  /** Registra una ejecución de un job programado. `outcome`: success | failure. */
-  recordScheduledJob(input: { job: string; outcome: 'success' | 'failure' }): void {
+  /**
+   * Registra el desenlace de una ejecución de un job programado:
+   *
+   * - `success` / `failure`: la tanda corrió (para un tenant) y terminó bien o mal.
+   * - `skipped`: no arrancó porque la tanda anterior seguía en curso. No es un fallo, pero si
+   *   domina la serie significa que el intervalo configurado es menor que la duración real del job.
+   * - `stalled`: la tanda superó `RUNTIME_JOBS_TICK_TIMEOUT_MS`. Es la señal que convierte "el job
+   *   dejó de correr" —el fallo más caro de un planificador, porque no produce ningún error— en
+   *   algo alertable: `increase(atlas_scheduled_job_runs_total{outcome="stalled"}[15m]) > 0`.
+   */
+  recordScheduledJob(input: { job: string; outcome: 'success' | 'failure' | 'skipped' | 'stalled' }): void {
     this.scheduledJobRuns.inc({ job: input.job, outcome: input.outcome });
   }
 

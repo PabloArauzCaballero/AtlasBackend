@@ -18,6 +18,7 @@
 | [`events.repository.ts`](./events.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`events.schemas.ts`](./events.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
 | [`events.service.ts`](./events.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`outbox-queries.constants.ts`](./outbox-queries.constants.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento
 

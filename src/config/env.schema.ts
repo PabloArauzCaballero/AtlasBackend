@@ -59,6 +59,28 @@ export const envBaseSchema = z.object({
   DB_POOL_IDLE_MS: z.coerce.number().int().positive().max(120_000).default(10_000),
   DB_READ_POOL_MAX: z.coerce.number().int().positive().max(200).default(10),
 
+  // Techos del lado del SERVIDOR para una sesión de Postgres. `REQUEST_TIMEOUT_MS` corta el
+  // Observable del request, pero no cancela la consulta: el socket sigue esperando y la conexión
+  // del pool sigue ocupada. Sólo Postgres puede abortar su propio trabajo, y estas dos opciones son
+  // el mecanismo para pedírselo.
+  //
+  //   DB_STATEMENT_TIMEOUT_MS               → aborta una sentencia que excede el plazo.
+  //   DB_IDLE_IN_TRANSACTION_TIMEOUT_MS     → aborta una transacción ABIERTA pero inactiva (el caso
+  //                                           en que el cliente murió a mitad y dejó locks tomados).
+  //
+  // Se aplican a los pools de escritura y lectura del RUNTIME, nunca a la conexión de migraciones
+  // (un DDL/backfill legítimo puede durar mucho más). `0` desactiva cada techo, que es el
+  // comportamiento previo. El de statement debe ser mayor que REQUEST_TIMEOUT_MS: la petición
+  // debería rendirse antes de que la base mate la consulta, para que el 503 sea del servicio.
+  DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().min(0).max(600_000).default(60_000),
+  DB_IDLE_IN_TRANSACTION_TIMEOUT_MS: z.coerce.number().int().min(0).max(600_000).default(60_000),
+
+  // Techo del ping de Postgres del readiness probe. Sin él, `sequelize.authenticate()` queda a
+  // merced del `acquire` del pool (30 s por defecto): con el pool agotado, cada sondeo se cuelga y
+  // retiene un turno de la cola, de modo que el propio probe agrava la saturación que debía
+  // detectar. Redis ya tenía este techo; Postgres no.
+  HEALTH_DB_PING_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(2_000),
+
   ...databaseEnvShape,
 
   JWT_ACCESS_TOKEN_SECRET: z.string().min(32).default(DEFAULT_JWT_SECRET),

@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`generated_readmes.py`](./generated_readmes.py) | Artefacto de soporte específico de esta carpeta. |
 | [`repo_links.py`](./repo_links.py) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento

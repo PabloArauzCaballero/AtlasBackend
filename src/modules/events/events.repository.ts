@@ -10,6 +10,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { redactSensitiveObject } from '../../common/utils/privacy/redaction.util.js';
 import { OutboxEventModel } from '../../database/models/index.js';
 import { getEventDefinition, listEventDefinitions } from './event-registry.js';
+import { CLAIM_PENDING_EVENTS_SQL, EVENT_LOCK_EXPIRED_MESSAGE, RECLAIM_STUCK_EVENTS_SQL } from './outbox-queries.constants.js';
 import { ListEventsQueryDto } from './events.schemas.js';
 import { PublishEventInput } from './event-types.js';
 
@@ -163,47 +164,78 @@ export class EventsRepository {
     });
   }
 
+  /**
+   * Devuelve a la cola los eventos VARADOS en `processing`.
+   *
+   * `claimPending` marca el evento como `processing` y le pone `locked_by` en una transacción propia;
+   * la resolución (`processed` / `pending` con backoff / `failed`) ocurre después, en otra escritura.
+   * Si el proceso muere entre ambas —despliegue, OOM, `SIGKILL`, pérdida de la conexión— el evento se
+   * queda en `processing` para siempre: TODAS las consultas de reclamo filtran por `status='pending'`,
+   * así que nadie vuelve a mirarlo. Es pérdida silenciosa de un evento ya contabilizado como intento.
+   *
+   * El criterio de "varado" es temporal (`locked_at` más viejo que el corte), no de proceso: no se
+   * puede saber si el `locked_by` que lo tomó sigue vivo, y preguntarlo requeriría un registro de
+   * workers que sería otra cosa más que puede quedar desincronizada. Un corte holgado frente a la
+   * duración normal de una entrega es suficiente y no puede duplicar trabajo en curso.
+   *
+   * El destino depende del presupuesto de intentos, que `claimPending` YA consumió al reclamar:
+   * si quedan intentos vuelve a `pending` y disponible ahora; si no, cae a `failed`, que es el
+   * estado de dead-letter del que `retryEvent` lo saca a mano. Nunca se pierde: cambia de cola.
+   *
+   * `FOR UPDATE SKIP LOCKED` mantiene la misma garantía que el reclamo normal: dos reapers
+   * simultáneos se reparten filas en vez de pelearse por ellas.
+   */
+  async reclaimStuckProcessing(input: { tenantId?: string | null; olderThan: Date; limit: number }): Promise<{
+    requeued: number;
+    deadLettered: number;
+    eventIds: string[];
+  }> {
+    const now = new Date();
+    const rows = await this.sequelize.transaction(async (transaction) =>
+      this.sequelize.query<{ id: string; status: string }>(RECLAIM_STUCK_EVENTS_SQL, {
+        replacements: {
+          tenantId: input.tenantId ?? null,
+          olderThan: input.olderThan,
+          limit: input.limit,
+          now,
+          lastError: EVENT_LOCK_EXPIRED_MESSAGE,
+        },
+        type: QueryTypes.SELECT,
+        transaction,
+      }),
+    );
+
+    return {
+      requeued: rows.filter((row) => row.status === 'pending').length,
+      deadLettered: rows.filter((row) => row.status === 'failed').length,
+      eventIds: rows.map((row) => String(row.id)),
+    };
+  }
+
+  /** Cuántos eventos hay varados en `processing` por encima del corte (para dry-run y métricas). */
+  countStuckProcessing(input: { tenantId?: string | null; olderThan: Date }): Promise<number> {
+    const where: Record<string, unknown> = { status: 'processing', lockedAt: { [Op.lt]: input.olderThan } };
+    if (input.tenantId) where.tenantId = input.tenantId;
+    return this.outboxModel.count({ where: where as never });
+  }
+
   async claimPending(input: { tenantId?: string | null; limit: number; workerId: string }): Promise<OutboxEventModel[]> {
     const eventCodes = registeredEventCodes();
     if (eventCodes.length === 0) return [];
     const now = new Date();
 
     return this.sequelize.transaction(async (transaction) => {
-      const claimed = await this.sequelize.query<{ id: string }>(
-        `
-        WITH candidates AS (
-          SELECT _id
-          FROM outbox_events
-          WHERE status = 'pending'
-            AND event_code IN (:eventCodes)
-            AND COALESCE(available_at, now()) <= now()
-            AND (:tenantId IS NULL OR _tenant_id = CAST(:tenantId AS BIGINT))
-          ORDER BY priority DESC NULLS LAST, available_at ASC NULLS FIRST, _id ASC
-          LIMIT :limit
-          FOR UPDATE SKIP LOCKED
-        )
-        UPDATE outbox_events AS event
-        SET status = 'processing',
-            locked_at = :now,
-            locked_by = :workerId,
-            attempts = COALESCE(event.attempts, 0) + 1,
-            _updated_at = :now
-        FROM candidates
-        WHERE event._id = candidates._id
-        RETURNING event._id AS id;
-      `,
-        {
-          replacements: {
-            eventCodes,
-            tenantId: input.tenantId ?? null,
-            limit: input.limit,
-            now,
-            workerId: input.workerId,
-          },
-          type: QueryTypes.SELECT,
-          transaction,
+      const claimed = await this.sequelize.query<{ id: string }>(CLAIM_PENDING_EVENTS_SQL, {
+        replacements: {
+          eventCodes,
+          tenantId: input.tenantId ?? null,
+          limit: input.limit,
+          now,
+          workerId: input.workerId,
         },
-      );
+        type: QueryTypes.SELECT,
+        transaction,
+      });
 
       const ids = claimed.map((row) => String(row.id));
       if (ids.length === 0) return [];

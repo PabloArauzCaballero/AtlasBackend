@@ -7,13 +7,39 @@ import { SequelizeModuleOptions } from '@nestjs/sequelize';
 import { env } from './env.js';
 import { ATLAS_MIGRATION_SEARCH_PATH, ATLAS_RUNTIME_SEARCH_PATH } from '../database/domain-schemas.js';
 
+/**
+ * Opciones de arranque de la SESIÓN de Postgres, en el formato `-c clave=valor` que `pg` pasa al
+ * servidor al conectar.
+ *
+ * Además del `search_path`, aquí se fijan los dos techos que sólo el servidor puede aplicar:
+ *
+ * - `statement_timeout`: aborta una sentencia que excede el plazo. Es la única defensa real contra
+ *   una consulta colgada reteniendo su conexión del pool. `RequestTimeoutInterceptor` corta el
+ *   Observable del request y devuelve 503, pero la consulta subyacente sigue viva y la conexión
+ *   sigue ocupada: sin este techo, N peticiones lentas agotan el pool aunque todas hayan respondido.
+ * - `idle_in_transaction_session_timeout`: aborta una transacción abierta pero inactiva. Cubre el
+ *   caso en que el cliente muere entre el `BEGIN` y el `COMMIT` y deja locks tomados sobre filas
+ *   que nadie más puede tocar.
+ *
+ * `0` desactiva cada uno (el comportamiento previo a este cambio). Se aplican al runtime, no a la
+ * conexión de migraciones: un DDL o un backfill legítimo puede durar mucho más que cualquier
+ * consulta de una petición, y matarlo a la mitad es peor que dejarlo terminar.
+ */
+function sessionStartupOptions(searchPath: readonly string[], timeouts: { statementMs: number; idleInTransactionMs: number }): string {
+  const parts = [`-c search_path=${searchPath.join(',')}`];
+  if (timeouts.statementMs > 0) parts.push(`-c statement_timeout=${timeouts.statementMs}`);
+  if (timeouts.idleInTransactionMs > 0) parts.push(`-c idle_in_transaction_session_timeout=${timeouts.idleInTransactionMs}`);
+  return parts.join(' ');
+}
+
 function buildDialectOptions(
   useSsl: boolean,
   rejectUnauthorized: boolean,
   searchPath: readonly string[],
+  timeouts: { statementMs: number; idleInTransactionMs: number } = { statementMs: 0, idleInTransactionMs: 0 },
 ): SequelizeModuleOptions['dialectOptions'] {
   return {
-    options: `-c search_path=${searchPath.join(',')}`,
+    options: sessionStartupOptions(searchPath, timeouts),
     ...(useSsl
       ? {
           ssl: {
@@ -23,6 +49,11 @@ function buildDialectOptions(
         }
       : {}),
   };
+}
+
+/** Techos de sesión del RUNTIME (no de migraciones). Ver `sessionStartupOptions`. */
+function runtimeSessionTimeouts(): { statementMs: number; idleInTransactionMs: number } {
+  return { statementMs: env.DB_STATEMENT_TIMEOUT_MS, idleInTransactionMs: env.DB_IDLE_IN_TRANSACTION_TIMEOUT_MS };
 }
 
 /**
@@ -48,7 +79,7 @@ export function buildSequelizeOptions(): SequelizeModuleOptions {
       acquire: env.DB_POOL_ACQUIRE_MS,
       idle: env.DB_POOL_IDLE_MS,
     },
-    dialectOptions: buildDialectOptions(env.DB_SSL, env.DB_SSL_REJECT_UNAUTHORIZED, ATLAS_RUNTIME_SEARCH_PATH),
+    dialectOptions: buildDialectOptions(env.DB_SSL, env.DB_SSL_REJECT_UNAUTHORIZED, ATLAS_RUNTIME_SEARCH_PATH, runtimeSessionTimeouts()),
   };
 }
 
@@ -81,7 +112,7 @@ export function buildReadSequelizeOptions(): SequelizeModuleOptions {
       acquire: env.DB_POOL_ACQUIRE_MS,
       idle: env.DB_POOL_IDLE_MS,
     },
-    dialectOptions: buildDialectOptions(useSsl, env.DB_SSL_REJECT_UNAUTHORIZED, ['read_api', 'public']),
+    dialectOptions: buildDialectOptions(useSsl, env.DB_SSL_REJECT_UNAUTHORIZED, ['read_api', 'public'], runtimeSessionTimeouts()),
   };
 }
 

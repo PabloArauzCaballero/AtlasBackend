@@ -13,6 +13,7 @@
 |---|---|
 | [`deliver-pending-notifications.spec.ts`](./deliver-pending-notifications.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`job-run-recorder.service.spec.ts`](./job-run-recorder.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`job-tick-guard.spec.ts`](./job-tick-guard.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`runtime-jobs-scheduler.roles.spec.ts`](./runtime-jobs-scheduler.roles.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`runtime-jobs-scheduler.service.spec.ts`](./runtime-jobs-scheduler.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`runtime-jobs.controller.spec.ts`](./runtime-jobs.controller.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |

@@ -11,6 +11,9 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`risk-policy-decision.service.spec.ts`](./risk-policy-decision.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`risk-policy.repository.spec.ts`](./risk-policy.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`risk-ruleset-evaluator.spec.ts`](./risk-ruleset-evaluator.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`risk.controller.spec.ts`](./risk.controller.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`risk.mapper.spec.ts`](./risk.mapper.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`risk.repository.spec.ts`](./risk.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |

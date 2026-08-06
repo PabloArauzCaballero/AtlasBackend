@@ -35,6 +35,7 @@
     "check:seed-profiles": "tsx scripts/check-seed-profile.ts",
     "check:db-privileges": "tsx scripts/check-db-privileges.ts",
     "db:roles:bootstrap": "tsx scripts/bootstrap-db-roles.ts",
+    "db:provision:dev": "yarn db:roles:bootstrap && yarn check:db-privileges",
     "check:overfetching": "tsx scripts/check-overfetching.ts",
     "check:domain-schemas": "tsx scripts/check-domain-schemas.ts",
     "check:entity-narratives": "tsx scripts/check-entity-narratives.ts",

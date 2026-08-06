@@ -135,9 +135,47 @@ export class EventsService {
     event.failedAt = null;
     event.lastError = null;
     event.errorCode = null;
+    // El presupuesto de intentos se devuelve al reintentar a mano. Sin esto, un evento que llegó a
+    // `failed` por agotarlos volvía a `pending` con `attempts >= maxAttempts`: `claimPending` lo
+    // reclamaba (sumando uno más) y el PRIMER fallo lo mandaba de vuelta a `failed` sin reintento
+    // alguno. El operador que pulsa "reintentar" pide otra oportunidad real, no un intento único.
+    event.attempts = 0;
+    event.lockedAt = null;
+    event.lockedBy = null;
     event.updatedAtValue = now;
     await event.save();
     return eventToResponse(event);
+  }
+
+  /**
+   * Devuelve a la cola los eventos que quedaron bloqueados en `processing` porque el proceso que los
+   * reclamó murió antes de resolverlos. Ver `EventsRepository.reclaimStuckProcessing` para el
+   * porqué del criterio temporal y del destino según el presupuesto de intentos.
+   */
+  async reclaimStuckEvents(input: { tenantId: string; olderThanMinutes: number; limit: number; dryRun: boolean }) {
+    const olderThan = new Date(Date.now() - input.olderThanMinutes * 60_000);
+
+    if (input.dryRun) {
+      const stuck = await this.repository.countStuckProcessing({ tenantId: input.tenantId, olderThan });
+      return { selected: stuck, requeued: 0, deadLettered: 0, cutoff: olderThan.toISOString(), dryRun: true };
+    }
+
+    const outcome = await this.repository.reclaimStuckProcessing({ tenantId: input.tenantId, olderThan, limit: input.limit });
+    if (outcome.eventIds.length > 0) {
+      // Un evento varado nunca es normal: significa que un proceso murió a mitad de una entrega.
+      // Se registra con los IDs para poder auditar qué se reprocesó y qué cayó a dead-letter.
+      this.logger.warn(
+        `Eventos varados recuperados (tenant=${input.tenantId}): ${outcome.requeued} devueltos a la cola, ` +
+          `${outcome.deadLettered} a dead-letter. IDs: ${outcome.eventIds.join(', ')}.`,
+      );
+    }
+    return {
+      selected: outcome.eventIds.length,
+      requeued: outcome.requeued,
+      deadLettered: outcome.deadLettered,
+      cutoff: olderThan.toISOString(),
+      dryRun: false,
+    };
   }
 
   async cancelEvent(tenantId: string, eventId: string) {

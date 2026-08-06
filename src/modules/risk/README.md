@@ -20,6 +20,11 @@
 | [`risk.schemas.ts`](./risk.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
 | [`risk.service.ts`](./risk.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
+## Subcarpetas
+
+- [`application/`](./application/README.md)
+- [`repositories/`](./repositories/README.md)
+
 ## Reglas de mantenimiento
 
 - Mantener las reglas de negocio fuera de controladores y adaptadores de infraestructura.

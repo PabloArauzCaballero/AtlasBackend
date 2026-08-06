@@ -1,18 +1,17 @@
 <!-- Generado por scripts/generate-project-documentation.ts. No editar a mano. -->
 
-# test/unit/storage
+# src/modules/risk/repositories
 
 ## Por qué existe
 
-- **Negocio:** esta carpeta previene regresiones que afectarían los contratos críticos del backend.
-- **Sistema:** esta carpeta contiene pruebas unitarias y soporte reproducible; valida componentes aislados.
+- **Negocio:** esta carpeta produce una recomendación explicable para reducir pérdida crediticia y trato inconsistente.
+- **Sistema:** esta carpeta calcula evaluaciones versionadas, contribuciones y reglas disparadas sin presentarlas como un modelo validado.
 
 ## Contenido
 
 | Documento o código | Responsabilidad |
 |---|---|
-| [`document-storage.spec.ts`](./document-storage.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`malware-scanner.spec.ts`](./malware-scanner.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`risk-policy.repository.ts`](./risk-policy.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 
 ## Reglas de mantenimiento
 

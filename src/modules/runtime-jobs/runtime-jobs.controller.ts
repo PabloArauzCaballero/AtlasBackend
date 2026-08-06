@@ -23,6 +23,8 @@ import {
   RetryStuckNotificationsDto,
   deliverPendingNotificationsSchema,
   DeliverPendingNotificationsDto,
+  reclaimStuckEventsSchema,
+  ReclaimStuckEventsDto,
   expireStaleSessionsSchema,
   processOutboxSchema,
   processEventsSchema,
@@ -152,6 +154,29 @@ export class RuntimeJobsController {
   ) {
     requireIdempotencyKey(idempotencyKey);
     return this.maintenance.deliverPendingNotifications({ tenantId, body, currentUser });
+  }
+
+  @ApiOperation({
+    summary: 'Recuperar eventos varados en processing',
+    description:
+      'Devuelve a la cola los eventos que un proceso reclamó y no llegó a resolver (murió a mitad de la tanda). ' +
+      'Los que aún tienen intentos vuelven a pending; los que los agotaron caen a failed, desde donde se ' +
+      'reintentan a mano con POST /events/:id/retry. Restringido a admin/platform_admin/system.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-idempotency-key', required: true })
+  @ApiBody({ schema: zodToApiSchema(reclaimStuckEventsSchema) })
+  @ApiResponse({ status: 200, description: 'Resultado de la recuperación de eventos varados.' })
+  @Post('reclaim-stuck-events')
+  @HttpCode(HttpStatus.OK)
+  reclaimStuckEvents(
+    @CurrentTenant() tenantId: string,
+    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
+    @Body(new ZodValidationPipe(reclaimStuckEventsSchema)) body: ReclaimStuckEventsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    requireIdempotencyKey(idempotencyKey);
+    return this.maintenance.reclaimStuckEvents({ tenantId, body, currentUser });
   }
 
   @ApiOperation({

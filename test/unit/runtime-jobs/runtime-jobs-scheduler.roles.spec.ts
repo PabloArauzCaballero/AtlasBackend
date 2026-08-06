@@ -19,7 +19,9 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
   };
 
   beforeEach(() => {
-    jest.spyOn(global, 'setInterval');
+    // El arranque de cada job pasa por un `setTimeout` de desfase antes de armar su `setInterval`,
+    // así que es ese temporizador el que delata si se programó trabajo de fondo o no.
+    jest.spyOn(global, 'setTimeout');
   });
 
   afterEach(() => {
@@ -40,6 +42,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
       retryStuckNotifications: jest.fn(async () => ({ status: 'completed' })),
       purgeIdempotencyKeys: jest.fn(async () => ({ status: 'completed' })),
       deliverPendingNotifications: jest.fn(async () => ({ status: 'completed' })),
+      reclaimStuckEvents: jest.fn(async () => ({ status: 'completed' })),
     };
     const service = new RuntimeJobsSchedulerService(
       runtimeJobs as never,
@@ -60,7 +63,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
 
     service.onApplicationBootstrap();
 
-    expect(setInterval).not.toHaveBeenCalled();
+    expect(setTimeout).not.toHaveBeenCalled();
   });
 
   it('con APP_ROLE=worker programa los jobs', () => {
@@ -70,7 +73,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
 
     service.onApplicationBootstrap();
 
-    expect(setInterval).toHaveBeenCalledTimes(7);
+    expect(setTimeout).toHaveBeenCalledTimes(8);
     service.onModuleDestroy();
   });
 

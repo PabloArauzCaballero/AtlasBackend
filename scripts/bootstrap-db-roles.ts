@@ -12,6 +12,10 @@
  *   # contraseñas desde tu gestor de secretos; NUNCA se versionan
  *   DB_APP_RW_PASSWORD=... DB_APP_RO_PASSWORD=... yarn db:roles:bootstrap
  *
+ * Solo corre en `development`/`test`. Fuera de ahí exige `--allow-production` explícito: en
+ * producción las credenciales las aprovisiona infraestructura (IaC/DBA), no el backend. Ver
+ * `src/database/provisioning-guard.ts`.
+ *
  * Se conecta con DB_ADMIN_USER/DB_ADMIN_PASSWORD (cae a DB_USER/DB_PASSWORD). Esa identidad necesita
  * CREATE ROLE (superuser o rol con CREATEROLE); si no lo tiene, el script lo dice y termina sin
  * tocar nada, porque los roles son objetos de CLUSTER y muchos proveedores administrados restringen
@@ -23,6 +27,7 @@ import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { env } from '../src/config/env.js';
 import { ATLAS_SCHEMAS } from '../src/database/domain-schemas.js';
+import { decideProvisioningExecution } from '../src/database/provisioning-guard.js';
 
 const OWNER = 'atlas_owner';
 const MIGRATOR = 'atlas_migrator';
@@ -66,6 +71,15 @@ async function ensureRole(sequelize: Sequelize, role: string, attributes: string
 }
 
 async function main(): Promise<void> {
+  // Paso 1, antes de abrir cualquier conexión: ¿este entorno puede tocar roles? Crear roles y
+  // reasignar propiedad de objetos en producción es trabajo de infraestructura, no del backend.
+  const decision = decideProvisioningExecution(env.NODE_ENV, process.argv);
+  if (!decision.allowed) {
+    console.error(`❌ Aprovisionamiento bloqueado.\n   ${decision.reason}`);
+    process.exit(1);
+  }
+  console.log(decision.notice);
+
   const appRwPassword = env.DB_APP_RW_PASSWORD;
   const appRoPassword = env.DB_APP_RO_PASSWORD;
 

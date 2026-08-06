@@ -39,6 +39,7 @@ describe('RuntimeJobsSchedulerService', () => {
     const maintenance = {
       retryStuckNotifications: jest.fn(async () => ({ status: 'completed' })),
       purgeIdempotencyKeys: jest.fn(async () => ({ status: 'completed' })),
+      reclaimStuckEvents: jest.fn(async () => ({ status: 'completed' })),
     };
     const tenantModel = { findAll: jest.fn(async () => [{ id: 1 }, { id: 2 }]) };
     const metrics = { recordScheduledJob: jest.fn() };
@@ -63,6 +64,7 @@ describe('RuntimeJobsSchedulerService', () => {
   describe('arranque', () => {
     beforeEach(() => {
       jest.spyOn(global, 'setInterval');
+      jest.spyOn(global, 'setTimeout');
     });
 
     it('no programa nada si el planificador está deshabilitado', () => {
@@ -71,16 +73,47 @@ describe('RuntimeJobsSchedulerService', () => {
 
       service.onApplicationBootstrap();
 
+      expect(setTimeout).not.toHaveBeenCalled();
       expect(setInterval).not.toHaveBeenCalled();
     });
 
-    it('programa los siete jobs cuando está habilitado', () => {
+    // El arranque de cada job pasa por un `setTimeout` de desfase antes de armar su `setInterval`:
+    // sin ese desfase, N réplicas que arrancan juntas disparan la misma tanda en el mismo instante.
+    it('programa los ocho jobs cuando está habilitado', () => {
       setEnv('RUNTIME_JOBS_SCHEDULER_ENABLED', true);
       const { service } = build();
 
       service.onApplicationBootstrap();
 
-      expect(setInterval).toHaveBeenCalledTimes(7);
+      expect(setTimeout).toHaveBeenCalledTimes(8);
+      service.onModuleDestroy();
+    });
+
+    it('reparte el primer disparo dentro de la ventana de jitter en vez de dispararlos todos a la vez', () => {
+      setEnv('RUNTIME_JOBS_SCHEDULER_ENABLED', true);
+      setEnv('RUNTIME_JOBS_START_JITTER_MS', 15_000);
+      const { service } = build();
+
+      service.onApplicationBootstrap();
+
+      const delays = (setTimeout as unknown as jest.Mock).mock.calls.map((call) => call[1] as number);
+      expect(delays).toHaveLength(8);
+      for (const delay of delays) {
+        expect(delay).toBeGreaterThanOrEqual(0);
+        expect(delay).toBeLessThan(15_000);
+      }
+      service.onModuleDestroy();
+    });
+
+    it('sin jitter configurado el primer disparo es inmediato', () => {
+      setEnv('RUNTIME_JOBS_SCHEDULER_ENABLED', true);
+      setEnv('RUNTIME_JOBS_START_JITTER_MS', 0);
+      const { service } = build();
+
+      service.onApplicationBootstrap();
+
+      const delays = (setTimeout as unknown as jest.Mock).mock.calls.map((call) => call[1] as number);
+      expect(delays.every((delay) => delay === 0)).toBe(true);
       service.onModuleDestroy();
     });
 
@@ -92,7 +125,7 @@ describe('RuntimeJobsSchedulerService', () => {
 
       service.onApplicationBootstrap();
 
-      expect(setInterval).not.toHaveBeenCalled();
+      expect(setTimeout).not.toHaveBeenCalled();
     });
 
     it('en producción sin Redis arranca si se asume el riesgo explícitamente', () => {
@@ -103,7 +136,7 @@ describe('RuntimeJobsSchedulerService', () => {
 
       service.onApplicationBootstrap();
 
-      expect(setInterval).toHaveBeenCalledTimes(7);
+      expect(setTimeout).toHaveBeenCalledTimes(8);
       service.onModuleDestroy();
     });
   });
@@ -175,6 +208,7 @@ describe('RuntimeJobsSchedulerService', () => {
         (runtimeJobs.recalculateDataQuality as jest.Mock).mock.calls[0][0],
         (maintenance.retryStuckNotifications as jest.Mock).mock.calls[0][0],
         (maintenance.purgeIdempotencyKeys as jest.Mock).mock.calls[0][0],
+        (maintenance.reclaimStuckEvents as jest.Mock).mock.calls[0][0],
       ] as Array<{ body: { dryRun: boolean }; currentUser: { role: string; sub: string } }>;
 
       for (const call of bodies) {
@@ -196,6 +230,49 @@ describe('RuntimeJobsSchedulerService', () => {
       expect(runtimeJobs.processOutbox).toHaveBeenCalledTimes(2);
       expect(metrics.recordScheduledJob).toHaveBeenCalledWith({ job: 'process_outbox', outcome: 'failure' });
       expect(metrics.recordScheduledJob).toHaveBeenCalledWith({ job: 'process_outbox', outcome: 'success' });
+    });
+
+    /**
+     * `setInterval` dispara pase lo que pase. Si una tanda dura más que su intervalo, la siguiente
+     * arrancaba encima: el mismo proceso procesando el mismo lote dos veces en paralelo. El lock de
+     * Redis no lo impide (su TTL se acota al intervalo, así que expira justo cuando llega el
+     * siguiente tick).
+     */
+    it('se salta la tanda si la anterior sigue en curso, en vez de solaparse', async () => {
+      const { service, runtimeJobs, metrics, redis } = build();
+      // Una única promesa compartida por todas las llamadas: la tanda queda en vuelo hasta que la
+      // prueba la libera, sin depender de cuántos tenants recorra.
+      let release = (): void => {};
+      const inFlight = new Promise((resolve) => {
+        release = () => resolve({ status: 'completed' });
+      });
+      (runtimeJobs.processOutbox as jest.Mock).mockImplementation(() => inFlight as never);
+      const outbox = jobsOf(service).find((job) => job.jobCode === 'process_outbox');
+
+      const first = tick(service, outbox!);
+      // Deja correr los microtasks del lock y de la lista de tenants: sin esto la segunda tanda
+      // arrancaría antes de que la primera haya llegado siquiera a marcar el job como en vuelo.
+      await new Promise((resolve) => setImmediate(resolve));
+      await tick(service, outbox!);
+
+      expect(metrics.recordScheduledJob).toHaveBeenCalledWith({ job: 'process_outbox', outcome: 'skipped' });
+      // La tanda saltada no llega siquiera a pedir el lock: pedir uno que se va a descartar solo
+      // añade carga a Redis.
+      expect((redis as { set: jest.Mock }).set).toHaveBeenCalledTimes(1);
+
+      release();
+      await first;
+    });
+
+    it('liberada la tanda anterior, la siguiente vuelve a ejecutarse con normalidad', async () => {
+      const { service, runtimeJobs } = build();
+      const outbox = jobsOf(service).find((job) => job.jobCode === 'process_outbox');
+
+      await tick(service, outbox!);
+      await tick(service, outbox!);
+
+      // 2 tenants × 2 tandas: el guard no deja residuo que bloquee ejecuciones posteriores.
+      expect(runtimeJobs.processOutbox).toHaveBeenCalledTimes(4);
     });
 
     it('tras onModuleDestroy una tanda en vuelo no ejecuta nada más', async () => {

@@ -70,6 +70,19 @@ export const purgeIdempotencyKeysSchema = z.object({
   dryRun: z.boolean().default(true),
 });
 
+/**
+ * Recuperación de eventos varados en `processing` porque el proceso que los reclamó murió antes de
+ * resolverlos. `olderThanMinutes` no baja de 1 a propósito: el corte debe superar la duración normal
+ * de una entrega, o el reaper devolvería a la cola eventos que SÍ se están procesando ahora mismo y
+ * crearía la duplicidad que el bloqueo existe para evitar.
+ */
+export const reclaimStuckEventsSchema = z.object({
+  olderThanMinutes: z.number().int().min(1).max(1_440).default(15),
+  limit: z.number().int().positive().max(500).default(100),
+  dryRun: z.boolean().default(true),
+});
+
+export type ReclaimStuckEventsDto = z.infer<typeof reclaimStuckEventsSchema>;
 export type ExpireStaleSessionsDto = z.infer<typeof expireStaleSessionsSchema>;
 export type RetryStuckNotificationsDto = z.infer<typeof retryStuckNotificationsSchema>;
 export type DeliverPendingNotificationsDto = z.infer<typeof deliverPendingNotificationsSchema>;
