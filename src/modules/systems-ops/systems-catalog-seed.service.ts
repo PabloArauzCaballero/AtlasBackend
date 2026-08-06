@@ -22,6 +22,7 @@ import { SystemJobRunModel } from '../../database/models/index.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { actorId } from '../../common/utils/auth/actor.util.js';
 import { systemsTenantScope } from './systems-tenant-scope.util.js';
+import { classifyColumn, humanizeIdentifier } from './column-classification.util.js';
 
 /** Cuántas filas/archivos se procesan en paralelo por lote al reseedear el catálogo. */
 const SEED_CONCURRENCY = 20;
@@ -367,10 +368,10 @@ SELECT c.table_schema AS "schemaName",
         ? this.catalogRepository.findDataEntityByTable(column.referencedSchema, column.referencedTable)
         : Promise.resolve(null),
     ]);
-    const signals = this.classifyColumn(column.columnName, column.tableName);
+    const signals = classifyColumn(column.columnName, column.tableName);
     const reviewStatus =
       signals.containsPii || signals.containsFinancialData || signals.containsSensitive ? 'NEEDS_REVIEW' : 'AUTO_DETECTED';
-    const businessName = this.humanize(column.columnName);
+    const businessName = humanizeIdentifier(column.columnName);
     const systemPurpose = column.isPrimaryKey
       ? `Identifica de forma única registros de ${column.tableName} dentro de la base Atlas.`
       : column.isForeignKey && column.referencedTable
@@ -622,48 +623,6 @@ UPDATE system_data_field_catalog
 `,
       { replacements: { activeKeys: [...activeKeys] } },
     );
-  }
-
-  private classifyColumn(columnName: string, tableName: string) {
-    const normalized = `${tableName}.${columnName}`.toLowerCase();
-    const piiType = /email/.test(normalized)
-      ? 'EMAIL'
-      : /phone|mobile|whatsapp/.test(normalized)
-        ? 'PHONE'
-        : /dni|document|identity|passport|nit/.test(normalized)
-          ? 'IDENTITY_DOCUMENT'
-          : /address|gps|lat|lon|location/.test(normalized)
-            ? 'LOCATION'
-            : /token|password|secret|credential/.test(normalized)
-              ? 'CREDENTIAL'
-              : null;
-    const containsPii = Boolean(piiType) || /customer|user|name|birth/.test(normalized);
-    const containsFinancialData = /amount|balance|income|salary|payment|loan|debt|credit|currency|limit/.test(normalized);
-    const containsRiskData = /risk|score|rating|policy|rule|decision|quality/.test(normalized);
-    const containsFraudSignal = /fraud|watchlist|reputation|fingerprint/.test(normalized);
-    const containsCapacitySignal = /capacity|quota|limit|usage/.test(normalized);
-    const usedInScoring = /score|risk|feature|model|assessment/.test(normalized);
-    const usedInMl = /feature|model|prediction|embedding|ml_/.test(normalized);
-    return {
-      containsPii,
-      piiType,
-      containsFinancialData,
-      containsRiskData,
-      containsFraudSignal,
-      containsCapacitySignal,
-      containsSensitive: containsPii || containsFinancialData || containsRiskData || containsFraudSignal,
-      isMlCandidate: usedInMl || usedInScoring,
-      usedInScoring,
-      usedInMl,
-    };
-  }
-
-  private humanize(value: string): string {
-    return value
-      .split('_')
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
   }
 
   private async upsertImpactForTable(

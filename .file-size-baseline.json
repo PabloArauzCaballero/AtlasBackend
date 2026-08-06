@@ -26,7 +26,7 @@
   "src/modules/schema-management/services/schema-management.service.ts": 343,
   "src/modules/sessions/repositories/sessions-telemetry.repository.ts": 304,
   "src/modules/sessions/sessions.repository.ts": 413,
-  "src/modules/systems-ops/systems-catalog-seed.service.ts": 731,
+  "src/modules/systems-ops/systems-catalog-seed.service.ts": 690,
   "src/modules/systems-ops/systems-catalog.repository.ts": 542,
   "src/modules/systems-ops/systems-ops.mapper.ts": 383,
   "src/modules/systems-ops/systems-ops.schemas.ts": 339,

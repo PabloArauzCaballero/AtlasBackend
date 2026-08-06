@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc --noEmit -p tsconfig.json",
     "type-check:tests": "tsc --noEmit -p tsconfig.spec.json",
-    "lint": "eslint --config eslint.config.mjs \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" --max-warnings=153",
+    "lint": "eslint --config eslint.config.mjs \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" --max-warnings=152",
     "lint:fix": "eslint --config eslint.config.mjs \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
