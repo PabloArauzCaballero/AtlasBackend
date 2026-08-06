@@ -28,13 +28,16 @@ export type ReportDefinition = {
   permissions: Row;
   widgets: Array<Row>;
   filters: Array<Row>;
-  updatedAt: string;
+  /**
+   * `null` a propósito: estas definiciones viven en código, no en una tabla, así que no existe una
+   * fecha de actualización real que publicar. Antes se rellenaba con la constante `NOW_SEED`
+   * (2026-01-01), que el panel mostraba como si fuera un dato.
+   */
+  updatedAt: string | null;
 };
 
-export const NOW_SEED = new Date('2026-01-01T00:00:00.000Z').toISOString();
-
 export function reportDefinitions(): ReportDefinition[] {
-  const updatedAt = NOW_SEED;
+  const updatedAt: string | null = null;
   return [
     {
       reportId: 'operations-overview',
