@@ -33,6 +33,7 @@ Hallazgos de **análisis estático** en la revisión `80fc741`. Ninguno procede 
 | [[#ARCH-002]] | Arquitectura | `platform_ops` agrupa 4 subdominios en 25 tablas | Baja | Abierto |
 | [[#DATA-002]] | Datos | Relaciones polimórficas sin integridad referencial | Baja | Abierto |
 | [[#OPS-001]] | Operación | Los jobs se agendan solo por intervalo, sin ventana horaria | Baja | Abierto |
+| [[#DATA-003]] | Datos | `outbox_events` crece sin purga: **confirmado** | Media | Abierto |
 | [[#DATA-001]] | Datos | Ninguna FK usa `ON DELETE CASCADE` | Informativo | Por diseño |
 | [[#DOC-001]] | Documentación | 40 de 92 eventos describen dominios sin persistencia | Media | Ver [[14-audits/contradictions]] |
 
@@ -83,15 +84,24 @@ La estrategia actual indexa `_tenant_id` en casi toda tabla y añade algunas com
 
 ---
 
-## SEC-004 — `/metrics` sin autenticación de aplicación
+## SEC-004 — `/metrics` de la API es alcanzable donde lo sea la API
 
-**Severidad:** Media, condicionada a la exposición de red · **Estado:** Mitigación externa
+**Severidad:** Media · **Estado:** Confirmado parcialmente; mitigación fuera del código
 
 **Observado.** `/metrics` se excluye del prefijo global (`main.ts:72`) y no pasa por `JwtAuthGuard`. Expone nombres de ruta, códigos de estado y latencias.
 
-**Impacto.** Facilita perfilar el sistema. La regla del proyecto ya exige red aislada y `@SkipThrottle` para endpoints de infraestructura, pero **esa condición no es verificable desde el código**.
+**Confirmado en `docker-compose.prod.yml`:**
 
-**Recomendación.** Confirmar el aislamiento de red en el despliegue real y dejarlo documentado en [[10-operations/deployment]].
+| Proceso | Publicación | Consecuencia |
+|---|---|---|
+| `api` | `ports: '${API_PUBLISH_PORT:-3005}:3005'` | `/metrics` **comparte puerto con la API**: es alcanzable dondequiera que lo sea la API |
+| `worker` | `expose: '3006'`, **sin `ports`** | La sonda y `/metrics` del worker **no salen** de la red interna ✅ |
+
+El compose del worker documenta la decisión: *"SIN `ports`: la sonda y `/metrics` del worker se quedan en la red interna. Prometheus hace scrape desde dentro; publicarlo expondría métricas operativas a internet sin autenticación."*
+
+**Lectura.** El worker está resuelto. El de la API **no puede aislarse por puerto** porque comparte el de negocio: la única mitigación es que el proxy inverso bloquee la ruta `/metrics` desde fuera, y eso vive en la configuración del borde, no en este repositorio.
+
+**Recomendación.** Bloquear `/metrics` en el reverse proxy y dejarlo documentado en [[10-operations/deployment]]. Añadir `@SkipThrottle` según la regla del proyecto.
 
 ---
 
@@ -136,6 +146,22 @@ La estrategia actual indexa `_tenant_id` en casi toda tabla y añade algunas com
 **Observado.** Los 9 jobs se agendan por `intervalMs`, no por expresión cron. `apply_retention_policies` y `recalculate_data_quality` —los más pesados— pueden ejecutarse en hora punta.
 
 **Recomendación.** Revisar los intervalos configurados en producción, o introducir ventana horaria para los jobs de mantenimiento.
+
+---
+
+## DATA-003 — `outbox_events` crece sin purga
+
+**Severidad:** Media · **Probabilidad:** Alta con el tiempo · **Estado:** Abierto
+
+**Observado.** Una búsqueda de operaciones de borrado (`DELETE FROM`, `destroy`, `purge`, `prune`) sobre `outbox_events` en todo `src/` **no devuelve ninguna coincidencia**. Existen purgas para claves de idempotencia (`purge_idempotency_keys`) y un job general de retención (`apply_retention_policies`), pero **ninguna toca el outbox**.
+
+Ya no es un `NO_CONFIRMADO`: la ausencia está verificada en el código. Lo que queda abierto es si alguna fila de `privacy.retention_policies` lo cubre **por configuración**, lo cual solo se ve consultando un entorno.
+
+**Impacto.** `outbox_events` es la tabla con mayor tasa de inserción del sistema: recibe una fila por cada cambio de negocio **y** una por cada comando HTTP (vía `ApiCommandOutboxInterceptor`). Los eventos en `processed` se acumulan indefinidamente.
+
+Efecto secundario relevante: la consulta de reclamo filtra por `status = 'pending'`, así que un volumen creciente de `processed` degrada el índice y el barrido salvo que exista un índice parcial adecuado.
+
+**Recomendación.** Añadir un job de purga o archivado de `processed` con retención configurable, siguiendo el patrón ya existente de `purge_idempotency_keys`. Conservar `failed` hasta resolución manual — es la dead-letter.
 
 ---
 

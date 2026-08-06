@@ -36,7 +36,7 @@ Deuda **observable en el código**, distinta de los riesgos de [[14-audits/risks
 | `TD-07` | `.env.example` con 208 nombres frente a 159 en el esquema | Ambigüedad sobre qué se valida | [[15-reference/environment-variables]] |
 | `TD-08` | Scripts `audit:external-providers:*` con múltiples variantes casi idénticas | `v5`, `v6`, `v7`, `quality-10`, `go-live`… conviven en `package.json` sin criterio claro de cuál usar | `package.json` |
 | `TD-09` | Sin ADR para dos decisiones estructurales | El *porqué* vive en comentarios dispersos | [[02-architecture/adr/index]] |
-| `TD-10` | Sin purga visible de `outbox_events` procesados | La tabla de mayor tasa de inserción crece sin límite conocido | [[05-data/retention-and-deletion]] |
+| `TD-10` | **Sin purga de `outbox_events` procesados** (verificado) | La tabla de mayor tasa de inserción crece sin límite | [[14-audits/risks-register\|DATA-003]] |
 
 ## Deuda que NO se encontró
 

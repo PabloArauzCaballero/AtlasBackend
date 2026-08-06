@@ -102,9 +102,17 @@ El tamaño de lote es `RUNTIME_JOBS_BATCH_LIMIT` para todos.
 |---|---|
 | Durabilidad | **Fuerte** — el evento se confirma con el cambio de negocio |
 | Entrega | **Al menos una vez** — un fallo tras entregar y antes de marcar `processed` reentrega |
-| Orden | **No garantizado** entre agregados. `INFERIDO` para el orden dentro de un agregado: depende del criterio de reclamo del lote |
+| Orden de **reclamo** | Determinista: `ORDER BY priority DESC NULLS LAST, available_at ASC NULLS FIRST, _id ASC` |
+| Orden de **entrega** | **No garantizado** — ver abajo |
 | Idempotencia del consumidor | **Obligatoria** — se deduce de la entrega "al menos una vez" |
 | Latencia | Acotada por el intervalo del job, no por el instante de escritura |
+
+> [!warning] Reclamo ordenado no significa entrega ordenada
+> `CLAIM_PENDING_EVENTS_SQL` ordena por prioridad, disponibilidad e `_id`, y usa `FOR UPDATE SKIP LOCKED`. Dentro de un lote el orden es determinista — pero `SKIP LOCKED` existe precisamente para que **varios workers reclamen lotes distintos en paralelo**.
+>
+> Dos eventos del mismo agregado pueden caer en lotes diferentes y procesarse a la vez. **No construyas lógica que dependa de recibir `kyc.submitted` antes que `kyc.approved`.** La forma robusta es que el evento lleve el estado necesario, o que el consumidor consulte el estado actual.
+
+La columna `priority` respeta las prioridades declaradas por familia en el registro de eventos: `kyc_legal` y `notifications` (10) se reclaman antes que `payments` o `installments_collections` (40).
 
 ## Relaciones
 

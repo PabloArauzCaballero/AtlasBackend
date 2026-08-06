@@ -3,7 +3,7 @@
  "project": "AtlasBackend",
  "generatedAt": "2026-08-06T00:00:00Z",
  "sourceRevision": "80fc741",
- "executionMode": "bootstrap",
+ "executionMode": "bootstrap+update",
  "language": "es",
  "stats": {
   "routes": 266,
@@ -16,7 +16,7 @@
   "events": 92,
   "tests": 304,
   "notes": 330,
-  "words": 176887,
+  "words": 178979,
   "brokenLinks": 0,
   "orphanNotes": 0
  },
@@ -1615,5 +1615,22 @@
    "documentedIn": [],
    "symbols": []
   }
+ },
+ "secondPass": {
+  "date": "2026-08-06",
+  "resolved": [
+   "U-001",
+   "U-002",
+   "U-003",
+   "U-004",
+   "U-005",
+   "U-010"
+  ],
+  "stillOpen": [
+   "U-006",
+   "U-007",
+   "U-008",
+   "U-009"
+  ]
  }
 }

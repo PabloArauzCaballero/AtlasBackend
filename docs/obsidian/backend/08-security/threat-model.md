@@ -61,8 +61,29 @@ Modelo documental derivado del código. **No** sustituye una prueba de penetraci
 | T-16 | Escalada vía DDL desde el runtime | Identidad de runtime **sin** privilegios de DDL | ✅ |
 | T-17 | Manipulación de decisión de riesgo | Auditoría + versionado de reglas y modelos | ✅ |
 | T-18 | Borrado de evidencia | Sin `CASCADE`; `RESTRICT` lo impide | ✅ |
-| T-19 | SSRF vía proveedores | `NO_CONFIRMADO` — no se verificó validación de URL de destino | ❓ |
+| T-19 | **SSRF** vía URL suministrada por el cliente | Allowlist de host por entorno + bloqueo de metadata + rangos privados + **verificación DNS** | ✅ ver abajo |
 | T-20 | Dependencias vulnerables | `PENDIENTE` — `yarn audit` no se ejecutó | ❓ |
+
+## T-19 en detalle — la única URL que controla el cliente
+
+`VERIFICADO` — el único punto donde una URL suministrada por el cliente dirige una petición saliente es `baseUrl` en los endpoints de pruebas de sistema (`systems-ops.schemas.ts`). Está defendido en `src/modules/systems-ops/systems-test-url-policy.util.ts`, que aplica en cadena:
+
+| Control | Qué rechaza |
+|---|---|
+| Protocolo | Todo lo que no sea `http:`/`https:` |
+| Credenciales embebidas | `user:pass@host` |
+| **Allowlist por entorno** | Host que no esté en `SYSTEM_TEST_ALLOWED_HOSTS_{LOCAL,STAGING,PRODUCTION_READONLY}` |
+| Metadata cloud | `169.254.169.254` (AWS/GCP), `169.254.170.2` (ECS), `metadata.google.internal` |
+| Rangos privados | `10/8`, `127/8`, `172.16–31`, `192.168`, `169.254`, `0.x`, IPv6 loopback/link-local/ULA |
+| **Resolución DNS** | `assertResolvedTargetSafe` resuelve el host y rechaza si **alguna** dirección resuelta es interna |
+| Ruta | `path` debe ser relativo y no empezar por `//` |
+
+> [!info] La verificación DNS es lo que cierra el rebinding
+> Validar solo el *hostname* deja abierto el DNS rebinding: un dominio en la allowlist puede resolver a `169.254.169.254`. `assertResolvedTargetSafe` comprueba las **direcciones resueltas**, no el nombre, y exige que ninguna sea interna.
+>
+> Los defaults refuerzan el fail-closed: `SYSTEM_TEST_ALLOWED_HOSTS_STAGING` y `..._PRODUCTION_READONLY` vienen **vacíos**. Sin configuración explícita, ningún host es alcanzable fuera de local.
+
+Los demás destinos salientes (proveedores externos, S3) se configuran por **variable de entorno**, no por petición: no son vector de SSRF, aunque tampoco tienen allowlist de host. `artifactUrl` en `catalog-management` solo se **almacena**; no se descarga.
 
 ## Fronteras
 

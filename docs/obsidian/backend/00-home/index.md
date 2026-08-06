@@ -82,6 +82,7 @@ Base de conocimiento técnica, operativa y funcional del backend **Atlas**: una 
 | [[14-audits/risks-register\|PERF-001]] | 168 de 244 columnas FK no encabezan ningún índice | Media |
 | [[14-audits/risks-register\|SEC-001]] | `TenantGuard` no **exige** `x-tenant-id`: solo rechaza si contradice al token | Media |
 | [[14-audits/risks-register\|SEC-002]] | Sin `KMS_KEY_ID`, en producción la PII se cifra con clave derivada de una variable de entorno | Alta |
+| [[14-audits/risks-register\|DATA-003]] | `outbox_events` no tiene purga: la tabla de mayor inserción crece sin límite | Media |
 | [[14-audits/risks-register\|DATA-001]] | Ninguna FK usa `ON DELETE CASCADE`: el borrado físico de un padre con hijos es imposible por diseño | Informativo |
 
 ## Relaciones

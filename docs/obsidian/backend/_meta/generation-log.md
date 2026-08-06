@@ -56,11 +56,44 @@ Análisis estático por patrones sobre el árbol de fuentes. **No** se ejecutó 
 
 10 riesgos (`SEC-001..004`, `PERF-001`, `ARCH-001..002`, `DATA-001..002`, `OPS-001`), 4 contradicciones (`C-001..004`), 10 elementos de deuda técnica.
 
-### Limitación del método encontrada y corregida
+### Limitación del método encontrada y resuelta
 
-El extractor lee decoradores por patrón, así que **no atraviesa decoradores compuestos**. Los controllers de `systems-ops` y `log-sync` aplican `@SystemsOpsControllerSecurity()`, que compone `ApiTags`, `UseGuards` y `Roles` con `applyDecorators`: 46 rutas aparecieron inicialmente sin etiqueta y sin roles, como si estuvieran desprotegidas.
+El extractor lee decoradores por patrón, así que no atravesaba **decoradores compuestos**. Los controllers de `systems-ops` y `log-sync` aplican `@SystemsOpsControllerSecurity()`, que compone `ApiTags`, `UseGuards` y `Roles` con `applyDecorators`: 46 rutas aparecieron inicialmente sin etiqueta y sin roles, **como si estuvieran desprotegidas**.
 
-Se corrigió leyendo el decorador y reescribiendo la nota ([[04-api/rest/systems-ops]]). **Al regenerar la bóveda hay que repetir esa corrección**, o enseñar al extractor a resolver decoradores compuestos.
+Resuelto en dos pasos:
+
+1. Se corrigió la nota afectada ([[04-api/rest/systems-ops]]) con los valores reales: etiqueta `systems-ops`, `JwtAuthGuard` + `RolesGuard`, y los 8 roles de `SYSTEMS_OPS_ROLES`.
+2. Se añadió un **resolutor de decoradores compuestos** al instrumental de extracción, que localiza toda función que devuelva `applyDecorators(...)`, resuelve las constantes de rol referenciadas (`Roles(...CONST)`) y las aplica a los controllers que las usan.
+
+Barrido completo del repositorio con el resolutor: **1 decorador compuesto, 6 controllers afectados**, todos resolviendo a `systems-ops` con 8 roles. No hay más casos ocultos.
+
+## 2026-08-06 — segunda pasada — modo `update`
+
+Cierre de las preguntas abiertas de la primera generación.
+
+### Resueltas leyendo el código (6 de 9)
+
+| Id | Pregunta | Respuesta |
+|---|---|---|
+| U-001 | ¿Se purga el outbox? | **No** — pasa a riesgo verificado `DATA-003` |
+| U-002 | ¿Se propaga el `correlationId`? | **Sí** — columna `correlation_id` en `outbox_events` |
+| U-003 | ¿Qué orden garantiza el reclamo? | Determinista al reclamar; **no** en la entrega (`SKIP LOCKED`) |
+| U-004 | ¿Hay defensa SSRF? | **Sí**, con allowlist, bloqueo de metadata y verificación DNS |
+| U-005 | ¿Está aislada la sonda? | **Sí** el worker (`expose`); **no** `/metrics` de la API (comparte puerto) |
+| U-010 | ¿Puede quedarse sin trabajo de fondo? | **No** — dos cross-checks lo impiden al arrancar |
+
+### Correcciones a la primera pasada
+
+- [[07-async-processing/retry-and-dead-letter]] decía *"no hay dead letter queue como tal"*. **Es incorrecto**: `failed` es la dead-letter explícita, con presupuesto de intentos (`max_attempts`, 3 por defecto), backoff vía `available_at` y causa en `error_code`/`last_error`.
+- [[09-observability/correlation-ids]] decía que el id **no** cruzaba a los jobs. **Es incorrecto**: sí cruza.
+- `T-19` (SSRF) pasa de ❓ a ✅ en [[08-security/threat-model]].
+- `SEC-004` se precisa: el worker **sí** está aislado; el `/metrics` de la API no puede aislarse por puerto.
+
+### Enriquecimientos
+
+Prioridad de eventos en el reclamo, `stop_grace_period` real (45 s API / 60 s worker) y su relación con `SHUTDOWN_DRAIN_MS`, cross-checks de rol contra planificador, y `RUNTIME_JOBS_ALLOW_WITHOUT_LOCK` como fail-closed sin Redis.
+
+### Limitaciones
 
 ### Limitaciones
 

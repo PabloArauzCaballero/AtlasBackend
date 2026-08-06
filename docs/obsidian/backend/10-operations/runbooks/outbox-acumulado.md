@@ -33,7 +33,7 @@ GROUP BY status;
 |---|---|---|
 | `pending` | Nadie los está drenando | ¿Corre el worker? → [[10-operations/runbooks/worker-detenido]] |
 | `processing` **antiguo** | Un proceso murió a mitad | ¿Corre `reclaim_stuck_events`? |
-| `failed` | Los consumidores rechazan | Revisar la causa **antes** de reintentar |
+| `failed` | Presupuesto de intentos agotado (`max_attempts`, 3 por defecto) | Revisar `error_code` y `last_error` **antes** de reintentar |
 
 > [!danger] `processing` antiguo es el caso grave
 > Ninguna consulta de reclamo mira ese estado: sin `reclaim_stuck_events` esos eventos **se pierden en silencio**. Si se acumulan, ese job no está corriendo — es la prioridad.
@@ -42,7 +42,15 @@ GROUP BY status;
 
 - **`pending` creciendo:** restablecer el worker. Si el ritmo no da abasto, subir `RUNTIME_JOBS_BATCH_LIMIT` o bajar `RUNTIME_JOBS_OUTBOX_INTERVAL_MS`, vigilando el pool.
 - **`processing` atascado:** verificar que `reclaim_stuck_events` corre y revisar `RUNTIME_JOBS_STUCK_EVENT_MINUTES`.
-- **`failed`:** diagnosticar la causa. Reintentar sin corregirla solo repite el fallo.
+- **`failed`:** es la **dead-letter**, y nada la vacía sola. Diagnosticar con `error_code` y `last_error`; los rescatados por expiración de bloqueo llevan `EVENT_LOCK_EXPIRED`. Reintentar sin corregir la causa solo repite el fallo.
+
+```sql
+-- por qué murieron
+SELECT error_code, COUNT(*), MAX(failed_at) AS ultimo
+FROM platform_ops.outbox_events
+WHERE status = 'failed'
+GROUP BY error_code ORDER BY 2 DESC;
+```
 
 ## Verificación
 

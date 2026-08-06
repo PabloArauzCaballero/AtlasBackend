@@ -72,6 +72,8 @@ Las clasificaciones de sensibilidad de datos están marcadas `INFERIDO` en cada 
 
 ## Elementos sin resolver
 
+Tras una segunda pasada, **6 de 9 preguntas abiertas se cerraron leyendo el código**. Las 3 restantes —si producción usa KMS, quién es propietario de cada módulo y cuál es la política de copias— requieren un entorno real o una decisión humana, y no se pueden cerrar desde el repositorio por ningún método.
+
 El registro vivo está en [[_meta/unresolved-items]].
 
 ## Relaciones

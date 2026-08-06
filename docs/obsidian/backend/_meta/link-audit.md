@@ -21,7 +21,7 @@ Generada automáticamente sobre el estado real de la bóveda.
 | Métrica | Valor |
 |---|---:|
 | Notas | 330 |
-| Enlaces internos (ocurrencias) | 3842 |
+| Enlaces internos (ocurrencias) | 3855 |
 | Destinos distintos | 330 |
 | **Enlaces rotos** | **0** |
 | Notas sin enlaces entrantes | 0 |
@@ -39,7 +39,7 @@ Generada automáticamente sobre el estado real de la bóveda.
 | [[15-reference/entity-catalog]] | 137 |
 | [[05-data/schemas]] | 135 |
 | [[tenants]] | 128 |
-| [[14-audits/risks-register]] | 119 |
+| [[14-audits/risks-register]] | 123 |
 | [[08-security/authorization]] | 87 |
 | [[customers]] | 86 |
 | [[customer_sessions]] | 58 |

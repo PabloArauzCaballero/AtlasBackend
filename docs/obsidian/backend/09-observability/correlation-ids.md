@@ -38,7 +38,14 @@ flowchart LR
 
 **Ante un 500:** el log lleva el `requestId` **y** la causa real del driver (`buildInternalCause()`), que el cliente nunca vio.
 
-**Entre procesos:** el id no cruza a los jobs del worker. Un evento del outbox procesado después no lleva el `correlationId` del request que lo originó salvo que se propague en el payload. `NO_CONFIRMADO` — no se verificó que se propague.
+**Entre procesos: sí cruza.**
+
+> [!info] Verificado — el outbox conserva la correlación
+> `platform_ops.outbox_events` tiene una columna dedicada `correlation_id` (`outbox-events.model.ts:71-72`), y `ApiCommandOutboxInterceptor` la rellena con `request.correlationId` al emitir (`outbox.interceptor.ts:52`).
+>
+> Consecuencia práctica: un evento procesado por el worker **minutos después** sigue atado al request HTTP que lo originó. Se puede recorrer la cadena completa —petición del cliente → cambio de negocio → evento → procesamiento en el worker— con un solo identificador, aunque cruce dos procesos y un intervalo de job.
+>
+> El módulo `events` además permite **filtrar por `correlationId`** en sus consultas de listado (`events.repository.ts`, `events.schemas.ts`), así que es una vía de diagnóstico de primera clase, no un dato enterrado.
 
 ## Propagación desde el cliente
 

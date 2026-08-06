@@ -55,11 +55,31 @@ sequenceDiagram
 
 ## Requisitos del orquestador
 
-| Requisito | Por qué |
-|---|---|
-| Margen entre `SIGTERM` y `SIGKILL` | Sin él, el drenado no sirve de nada |
-| `tini` como PID 1 | Ya está en el `Dockerfile`: propaga señales y recoge zombies |
-| Readiness antes de enviar tráfico | Evita mandar peticiones a una instancia que aún no puede servir |
+| Requisito | Valor real | Por qué |
+|---|---|---|
+| Margen entre `SIGTERM` y `SIGKILL` | `api`: **45 s** · `worker`: **60 s** | Sin él, el drenado no sirve de nada |
+| `tini` como PID 1 | Ya en el `Dockerfile` | Propaga señales y recoge zombies |
+| Readiness antes de enviar tráfico | — | Evita mandar peticiones a una instancia que aún no puede servir |
+
+> [!info] Verificado — `stop_grace_period` está dimensionado a propósito
+> `docker-compose.prod.yml` lo justifica en el propio fichero:
+>
+> - **`api`: 45 s** — *"Debe superar `SHUTDOWN_DRAIN_MS`: si Docker matara el contenedor durante el drenado, drenar no serviría de nada y cada despliegue seguiría tirando peticiones."*
+> - **`worker`: 60 s** — más holgado: *"una tanda de jobs en curso debe poder terminar. El planificador comprueba `stopped` entre tenants, así que aborta en el siguiente límite limpio."*
+>
+> Si cambias `SHUTDOWN_DRAIN_MS`, revisa ambos valores. Un margen menor que el drenado convierte el apagado ordenado en un `SIGKILL` con peticiones en vuelo.
+
+## Cross-checks que impiden un despliegue mudo
+
+> [!info] Verificado — dos combinaciones no arrancan
+> `env-cross-checks.ts:89-111` rechaza las dos formas de quedarse sin trabajo de fondo sin enterarse:
+>
+> | Combinación | Por qué se rechaza |
+> |---|---|
+> | `APP_ROLE=worker` + planificador **apagado** | *"arranca sano y no ejecuta ningún trabajo de fondo"* |
+> | `APP_ROLE=api` + planificador **encendido** | Haría *"creer que los jobs corren cuando el gate de rol los desactiva"* |
+>
+> El comentario resume el criterio: *"no funcionan a medias: fallan en silencio, que es peor"*. En producción, además, `RUNTIME_JOBS_ALLOW_WITHOUT_LOCK: 'false'` hace **fail-closed sin Redis** — con varias instancias no hay forma de impedir que procesen el mismo lote.
 
 ## Fallos asíncronos
 

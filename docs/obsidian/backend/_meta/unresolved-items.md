@@ -12,68 +12,86 @@ tags:
 aliases: []
 related: []
 ---
+
 # Elementos sin resolver
 
-Preguntas abiertas que requieren una persona o un entorno para cerrarse.
+Segunda pasada sobre las preguntas abiertas de la primera generación. **Seis de nueve se cerraron leyendo el código**; las tres restantes requieren un entorno real o una decisión humana, y no se pueden cerrar desde el repositorio.
 
-## U-001 — ¿Se purgan los eventos procesados del outbox?
+## Resueltas
 
-- **Estado:** `NO_CONFIRMADO`
-- **Evidencia:** existen jobs de purga para claves de idempotencia y políticas de retención generales, pero **ninguno específico** para `outbox_events` en estado `processed`.
-- **Riesgo:** es la tabla con mayor tasa de inserción del sistema. Sin purga, crece sin límite.
-- **Acción:** consultar el tamaño real en un entorno y revisar si alguna `retention_policy` la cubre por configuración.
+### ✅ U-001 — ¿Se purgan los eventos procesados del outbox?
 
-## U-002 — ¿Se propaga el `correlationId` a los jobs?
+**Respuesta: no.** Una búsqueda de `DELETE FROM`, `destroy`, `purge` y `prune` sobre `outbox_events` en todo `src/` no devuelve nada. Existen `purge_idempotency_keys` y `apply_retention_policies`, pero ninguno toca el outbox.
 
-- **Estado:** `NO_CONFIRMADO`
-- **Evidencia:** el middleware lo asigna a todo request, pero no se verificó que viaje en el payload del evento hasta el consumidor.
-- **Riesgo:** trazabilidad rota entre el request que originó un evento y el procesamiento que lo consumió.
-- **Acción:** revisar el payload de `outbox_events` en un entorno.
+Pasa de `NO_CONFIRMADO` a **riesgo verificado**: [[14-audits/risks-register|DATA-003]]. Queda un residuo menor: si alguna fila de `retention_policies` lo cubre por configuración, solo se ve en un entorno.
 
-## U-003 — ¿Qué orden garantiza el reclamo de lote?
+### ✅ U-002 — ¿Se propaga el `correlationId` a los jobs?
 
-- **Estado:** `NO_CONFIRMADO`
-- **Evidencia:** la entrega es "al menos una vez"; no se determinó si el reclamo ordena por `_id` o por otro criterio dentro de un mismo agregado.
-- **Riesgo:** un consumidor podría asumir un orden que no está garantizado.
-- **Acción:** revisar `outbox-queries.constants.ts`.
+**Respuesta: sí.** `outbox_events` tiene columna dedicada `correlation_id` (`outbox-events.model.ts:71-72`) y `ApiCommandOutboxInterceptor` la rellena desde `request.correlationId` (`outbox.interceptor.ts:52`). El módulo `events` además permite filtrar por ese campo.
 
-## U-004 — ¿Se valida el destino de las llamadas a proveedores (SSRF)?
+La trazabilidad request → evento → procesamiento en el worker está intacta. Documentado en [[09-observability/correlation-ids]].
 
-- **Estado:** `NO_CONFIRMADO`
-- **Evidencia:** `provider-config-validator.ts` valida configuración, pero no se verificó si restringe el host de destino.
-- **Riesgo:** SSRF si la URL del proveedor es configurable sin allowlist.
-- **Acción:** revisar el validador y la configuración de cada adaptador.
+### ✅ U-003 — ¿Qué orden garantiza el reclamo de lote?
 
-## U-005 — ¿Está `/metrics` aislado en la red real?
+**Respuesta: el reclamo es determinista; la entrega no.**
+
+```sql
+ORDER BY priority DESC NULLS LAST, available_at ASC NULLS FIRST, _id ASC
+LIMIT :limit FOR UPDATE SKIP LOCKED
+```
+
+`SKIP LOCKED` permite que varios workers tomen lotes distintos en paralelo, así que dos eventos del mismo agregado pueden procesarse a la vez. Documentado en [[07-async-processing/events]].
+
+Hallazgo colateral: el modelo de reintentos es más completo de lo documentado inicialmente — `attempts`, `max_attempts` (3 por defecto), `available_at` como backoff, y `failed` como **dead-letter explícita**. Corregido en [[07-async-processing/retry-and-dead-letter]].
+
+### ✅ U-004 — ¿Se valida el destino de las llamadas salientes (SSRF)?
+
+**Respuesta: sí, y a fondo.** El único punto donde una URL del cliente dirige una petición saliente es `baseUrl` de las pruebas de sistema. `systems-test-url-policy.util.ts` aplica allowlist de host por entorno, bloqueo de metadata cloud, rangos privados IPv4/IPv6, **verificación de las direcciones DNS resueltas** (anti-rebinding) y exigencia de ruta relativa. Los defaults de staging y producción vienen **vacíos**: fail-closed.
+
+`T-19` pasa de ❓ a ✅ en [[08-security/threat-model]].
+
+### ✅ U-005 — ¿Está aislada la sonda del worker?
+
+**Respuesta: sí para el worker; no para la API.**
+
+`docker-compose.prod.yml` declara el worker con `expose: '3006'` y **sin `ports`** — no sale de la red interna, con la razón escrita en el propio fichero. La API publica `3005`, y `/metrics` **comparte ese puerto**, así que es alcanzable dondequiera que lo sea la API.
+
+Precisado en [[14-audits/risks-register|SEC-004]]: la única mitigación posible es bloquear la ruta en el proxy inverso.
+
+### ✅ U-010 — ¿Puede un despliegue quedar sin trabajo de fondo por error?
+
+**Respuesta: no, falla al arrancar.** `env-cross-checks.ts:89-111` rechaza las dos combinaciones peligrosas: `APP_ROLE=worker` con el planificador apagado (arrancaría sano sin ejecutar nada) y `APP_ROLE=api` con el planificador encendido (haría creer que los jobs corren). El comentario lo justifica: *"no funcionan a medias: fallan en silencio, que es peor"*.
+
+Además, `RUNTIME_JOBS_ALLOW_WITHOUT_LOCK: 'false'` en producción hace fail-closed sin Redis.
+
+---
+
+## Abiertas — requieren entorno o decisión humana
+
+### ❓ U-006 — ¿Producción usa KMS?
 
 - **Estado:** `PENDIENTE` — no verificable desde el código
-- **Riesgo:** exposición de información de perfilado. Ver [[14-audits/risks-register|SEC-004]].
-- **Acción:** confirmar con quien opera el despliegue y documentarlo en [[10-operations/deployment]].
+- **Riesgo:** sin `KMS_KEY_ID` + `AWS_REGION`, la clave maestra de PII se deriva de una variable de entorno. Ver [[14-audits/risks-register|SEC-002]].
+- **Cómo cerrarlo:** comprobar ambas variables en el entorno real. El arranque emite un `console.warn` ruidoso si faltan — buscarlo en los logs de producción es la vía más rápida.
 
-## U-006 — ¿Producción usa KMS?
+### ❓ U-007 — ¿Quién es propietario de cada módulo?
 
-- **Estado:** `PENDIENTE`
-- **Riesgo:** si no, la PII se cifra con clave derivada de variable de entorno. Ver [[14-audits/risks-register|SEC-002]].
-- **Acción:** verificar `KMS_KEY_ID` y `AWS_REGION` en el entorno real.
+- **Estado:** `PENDIENTE` — decisión organizativa
+- **Evidencia:** no hay `CODEOWNERS` ni asignación de equipos. Las 330 notas llevan `owner: unknown`.
+- **Cómo cerrarlo:** definir propietarios y rellenar el frontmatter. Un `CODEOWNERS` permitiría además generarlo automáticamente en la próxima regeneración.
 
-## U-007 — ¿Quién es propietario de cada módulo?
+### ❓ U-008 — ¿Cuál es la política de copias de seguridad?
 
-- **Estado:** `PENDIENTE`
-- **Evidencia:** no hay `CODEOWNERS` ni asignación de equipos. Las 315 notas llevan `owner: unknown`.
-- **Acción:** definir propietarios y rellenar el frontmatter.
+- **Estado:** `PENDIENTE` — vive en la plataforma, no en el repositorio
+- **Evidencia:** ningún script ni configuración. Ver [[05-data/backups-and-restore]].
+- **Cómo cerrarlo:** documentar RPO, RTO y un procedimiento de restauración **probado**. Incluir la recuperación de la clave de cifrado: restaurar PostgreSQL sin poder descifrar deja la PII ilegible.
 
-## U-008 — ¿Cuál es la política de backup?
+### ❓ U-009 — ¿Están vivas las familias de eventos de compras y cuotas?
 
-- **Estado:** `PENDIENTE`
-- **Evidencia:** ningún procedimiento en el repositorio. Ver [[05-data/backups-and-restore]].
-- **Acción:** documentar RPO, RTO y el procedimiento de restauración probado.
-
-## U-009 — ¿Están vivas las familias de eventos de compras y cuotas?
-
-- **Estado:** `PENDIENTE` — decisión de producto
-- **Evidencia:** 40 eventos declarados sin dominio persistido. Ver [[14-audits/contradictions|C-001]].
-- **Acción:** confirmar si es roadmap y marcarlo como tal, o retirarlos.
+- **Estado:** `PENDIENTE` — decisión de producto, no técnica
+- **Evidencia:** 40 de 92 eventos sin dominio persistido. Ver [[14-audits/contradictions|C-001]].
+- **Cómo cerrarlo:** confirmar si es roadmap y marcarlo como tal en el propio registro, o retirarlos.
 
 ## Relaciones
 
-- [[01-overview/assumptions-and-gaps]] · [[14-audits/contradictions]] · [[14-audits/risks-register]]
+- [[01-overview/assumptions-and-gaps]] · [[14-audits/contradictions]] · [[14-audits/risks-register]] · [[_meta/generation-log]]

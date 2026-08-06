@@ -43,9 +43,9 @@ Estas cifras son estimaciones basadas en si el área tiene nota propia, con evid
 |---|---|---|
 | Arquitectura | **Alta** | ADR de la separación en esquemas y del patrón de PII |
 | Datos | **Alta** | Volumetría; medición de rendimiento |
-| Seguridad | **Buena** | Verificación en entorno; `yarn audit`; SSRF |
+| Seguridad | **Alta** | Verificación en entorno; `yarn audit` (SSRF ya resuelto) |
 | API | **Buena** | Ejemplos de petición/respuesta por endpoint |
-| Asíncrono | **Alta** | Confirmar el orden dentro de un agregado |
+| Asíncrono | **Alta** | — (orden y dead-letter resueltos en la segunda pasada) |
 | Integraciones | **Media** | Una nota por proveedor; contratos reales |
 | Observabilidad | **Media** | SLO, alertas y dashboards no existen en el repositorio |
 | Operación | **Media** | Backup, recuperación, RPO/RTO no definidos |

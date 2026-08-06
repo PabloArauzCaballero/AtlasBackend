@@ -49,12 +49,20 @@ La migración `20260721120000-harden-deleted-flag-not-null` convirtió `_deleted
 |---|---|
 | Claves de idempotencia | `RUNTIME_JOBS_IDEMPOTENCY_RETENTION_DAYS`, job dedicado, lotes de 1 000 |
 | Sesiones inactivas | Expiran tras `RUNTIME_JOBS_SESSION_MAX_IDLE_MINUTES` |
-| Eventos del outbox | `NO_CONFIRMADO` — no se detectó purga específica |
+| Eventos del outbox | **Ninguna** — verificado, ver abajo |
 | Logs de aplicación | Sincronizados a MongoDB; retención según ese almacén |
 | Evidencia documental | `data_providers.default_retention_policy_id`, `data_provider_responses.retention_policy_id` |
 
-> [!question] Pendiente
-> **El crecimiento de `outbox_events` no tiene purga visible.** Los eventos en `processed` se acumulan salvo que una política de retención los cubra por configuración. Conviene confirmarlo contra un entorno real: es la tabla con mayor tasa de inserción del sistema.
+> [!warning] Verificado — `outbox_events` no tiene purga
+> Una búsqueda de `DELETE FROM`, `destroy`, `purge` y `prune` sobre `outbox_events` en todo `src/` **no devuelve ninguna coincidencia**. Existen `purge_idempotency_keys` y el job general `apply_retention_policies`, pero ninguno toca el outbox.
+>
+> Es la tabla con **mayor tasa de inserción** del sistema: recibe una fila por cada cambio de negocio y otra por cada comando HTTP (vía `ApiCommandOutboxInterceptor`). Los `processed` se acumulan indefinidamente.
+>
+> Efecto secundario: la consulta de reclamo filtra por `status = 'pending'`, así que un volumen creciente de `processed` degrada el barrido salvo que exista un índice parcial adecuado.
+>
+> Registrado como [[14-audits/risks-register|DATA-003]]. Único residuo abierto: si alguna fila de `retention_policies` lo cubre **por configuración**, cosa que solo se ve consultando un entorno.
+
+Al diseñar la purga, conservar `failed`: es la dead-letter de la que un operador saca los eventos a mano. Ver [[07-async-processing/retry-and-dead-letter]].
 
 ## Trazabilidad del borrado
 
