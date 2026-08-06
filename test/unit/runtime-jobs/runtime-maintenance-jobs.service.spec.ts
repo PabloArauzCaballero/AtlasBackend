@@ -32,6 +32,9 @@ describe('RuntimeMaintenanceJobsService', () => {
       // El rescate de eventos varados delega en `EventsService`, que es el dueño del ciclo de vida
       // del outbox; aquí solo se comprueba la envoltura de auditoría del job.
       eventsService as never,
+      // `OutboxEventModel` solo lo usa `purgeProcessedOutbox`, que tiene sus propias pruebas más
+      // abajo con su doble; aquí no se ejercita, pero el constructor lo exige.
+      {} as never,
     );
     return { service, idempotencyKeyModel, notificationsRepository, notificationOrchestrator, jobRuns, eventsService };
   }
@@ -159,5 +162,94 @@ describe('RuntimeMaintenanceJobsService', () => {
       expect(result).toMatchObject({ selected: 9, deleted: 9, dryRun: false });
       expect(() => new Date(result.cutoff).toISOString()).not.toThrow();
     });
+  });
+});
+
+/**
+ * ATLAS-DATA-003 — purga del outbox.
+ *
+ * `process_outbox` marcaba los eventos como `processed` y nadie los borraba: la tabla crecía sin
+ * techo en la ruta más caliente de escritura del backend, degradando el índice por el que se
+ * reclaman los pendientes. Lo que estas pruebas fijan no es solo que borre, sino QUÉ NO borra:
+ * un `pending` o un `processing` eliminado es un efecto de negocio perdido en silencio.
+ */
+describe('RuntimeMaintenanceJobsService.purgeProcessedOutbox', () => {
+  function buildWithOutbox() {
+    const outboxEventModel = { count: jest.fn(async () => 7), destroy: jest.fn(async () => 7) };
+    const jobRuns = {
+      run: jest.fn(async (_input: unknown, handler: () => Promise<Record<string, unknown>>) => ({
+        jobRunId: 'jr1',
+        status: 'completed' as const,
+        result: await handler(),
+      })),
+    };
+    const service = new RuntimeMaintenanceJobsService(
+      {} as never,
+      {} as never,
+      {} as never,
+      jobRuns as never,
+      {} as never,
+      outboxEventModel as never,
+    );
+    return { service, outboxEventModel, jobRuns };
+  }
+
+  const currentUser = { sub: 'scheduler', role: 'system' } as never;
+
+  it('en dryRun cuenta pero no borra', async () => {
+    const { service, outboxEventModel } = buildWithOutbox();
+
+    const run = await service.purgeProcessedOutbox({
+      tenantId: '1',
+      body: { retentionDays: 30, limit: 100, dryRun: true },
+      currentUser,
+    });
+
+    expect(run.result).toMatchObject({ selected: 7, deleted: 0, dryRun: true });
+    expect(outboxEventModel.destroy).not.toHaveBeenCalled();
+  });
+
+  it('borra SOLO eventos processed anteriores al corte, nunca pending ni processing', async () => {
+    const { service, outboxEventModel } = buildWithOutbox();
+
+    await service.purgeProcessedOutbox({
+      tenantId: '1',
+      body: { retentionDays: 30, limit: 100, dryRun: false },
+      currentUser,
+    });
+
+    const where = (outboxEventModel.destroy as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; limit: number };
+    expect(where.where.status).toBe('processed');
+    expect(where.where.tenantId).toBe('1');
+    // El corte va sobre `processedAt`: una fila `processed` sin marca de procesado es un estado
+    // inconsistente y debe sobrevivir para poder investigarse, no desaparecer con la purga.
+    expect(where.where).toHaveProperty('processedAt');
+    expect(where.limit).toBe(100);
+  });
+
+  it('se registra como corrida de job con su propio jobCode', async () => {
+    const { service, jobRuns } = buildWithOutbox();
+
+    await service.purgeProcessedOutbox({ tenantId: '1', body: { retentionDays: 30, limit: 100, dryRun: false }, currentUser });
+
+    expect((jobRuns.run as jest.Mock).mock.calls[0][0]).toMatchObject({ jobCode: 'purge_processed_outbox', tenantId: '1' });
+  });
+
+  it('sin el modelo inyectado falla ruidosamente en vez de reportar 0 borrados', async () => {
+    const jobRuns = {
+      run: jest.fn(async (_input: unknown, handler: () => Promise<Record<string, unknown>>) => handler()),
+    };
+    const service = new RuntimeMaintenanceJobsService(
+      {} as never,
+      {} as never,
+      {} as never,
+      jobRuns as never,
+      {} as never,
+      undefined as never,
+    );
+
+    await expect(
+      service.purgeProcessedOutbox({ tenantId: '1', body: { retentionDays: 30, limit: 100, dryRun: false }, currentUser }),
+    ).rejects.toThrow(/OutboxEventModel no inyectado/);
   });
 });

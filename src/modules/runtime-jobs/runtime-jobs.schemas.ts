@@ -66,6 +66,25 @@ export const purgeIdempotencyKeysSchema = z.object({
 });
 
 /**
+ * Purga de eventos de outbox ya resueltos (ATLAS-DATA-003).
+ *
+ * `process_outbox` marcaba los eventos como `processed` y nadie los borraba nunca: la tabla crecía
+ * sin techo en la ruta más caliente de escritura del backend, y el índice por el que se reclaman los
+ * pendientes se degrada con cada fila muerta acumulada.
+ *
+ * `retentionDays` tiene un piso de 1 por el mismo motivo que la purga de idempotencia: los eventos
+ * recién procesados son la evidencia con la que se diagnostica un incidente del día. Solo se borra el
+ * estado TERMINAL `processed`; `pending` y `processing` no se tocan jamás, porque
+ * borrar uno perdería un efecto de negocio en silencio — exactamente lo contrario de lo que el
+ * patrón outbox garantiza.
+ */
+export const purgeProcessedOutboxSchema = z.object({
+  retentionDays: z.number().int().min(1).max(365).default(30),
+  limit: z.number().int().positive().max(10_000).default(1_000),
+  dryRun: z.boolean().default(true),
+});
+
+/**
  * Recuperación de eventos varados en `processing` porque el proceso que los reclamó murió antes de
  * resolverlos. `olderThanMinutes` no baja de 1 a propósito: el corte debe superar la duración normal
  * de una entrega, o el reaper devolvería a la cola eventos que SÍ se están procesando ahora mismo y
@@ -82,6 +101,7 @@ export type ExpireStaleSessionsDto = z.infer<typeof expireStaleSessionsSchema>;
 export type RetryStuckNotificationsDto = z.infer<typeof retryStuckNotificationsSchema>;
 export type DeliverPendingNotificationsDto = z.infer<typeof deliverPendingNotificationsSchema>;
 export type PurgeIdempotencyKeysDto = z.infer<typeof purgeIdempotencyKeysSchema>;
+export type PurgeProcessedOutboxDto = z.infer<typeof purgeProcessedOutboxSchema>;
 export type ProcessOutboxDto = z.infer<typeof processOutboxSchema>;
 export type ProcessEventsDto = z.infer<typeof processEventsSchema>;
 export type ApplyRetentionPoliciesDto = z.infer<typeof applyRetentionPoliciesSchema>;

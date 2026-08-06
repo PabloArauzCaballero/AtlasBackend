@@ -18,7 +18,9 @@ import { requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/ht
 import {
   applyRetentionPoliciesSchema,
   purgeIdempotencyKeysSchema,
+  purgeProcessedOutboxSchema,
   PurgeIdempotencyKeysDto,
+  PurgeProcessedOutboxDto,
   retryStuckNotificationsSchema,
   RetryStuckNotificationsDto,
   deliverPendingNotificationsSchema,
@@ -202,6 +204,30 @@ export class RuntimeJobsController {
   ) {
     requireIdempotencyKey(idempotencyKey);
     return this.maintenance.purgeIdempotencyKeys({ tenantId, body, currentUser });
+  }
+
+  @ApiOperation({
+    summary: 'Purgar eventos de outbox ya procesados',
+    description:
+      'ATLAS-DATA-003. `process-outbox` marca los eventos como `processed` y nadie los borraba: la tabla crecía sin techo ' +
+      'en la ruta más caliente de escritura, degradando el índice por el que se reclaman los pendientes. Solo borra ' +
+      '`processed` anteriores al período de retención; `pending` y `processing` nunca se tocan. Restringido a ' +
+      'admin/platform_admin/system.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-idempotency-key', required: true })
+  @ApiBody({ schema: zodToApiSchema(purgeProcessedOutboxSchema) })
+  @ApiResponse({ status: 200, description: 'Resultado de la purga del outbox.' })
+  @Post('purge-processed-outbox')
+  @HttpCode(HttpStatus.OK)
+  purgeProcessedOutbox(
+    @CurrentTenant() tenantId: string,
+    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
+    @Body(new ZodValidationPipe(purgeProcessedOutboxSchema)) body: PurgeProcessedOutboxDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    requireIdempotencyKey(idempotencyKey);
+    return this.maintenance.purgeProcessedOutbox({ tenantId, body, currentUser });
   }
 
   @ApiOperation({
