@@ -2,7 +2,7 @@
 title: "Supuestos y vacíos"
 type: "overview"
 status: "verified"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "high"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"
@@ -48,7 +48,7 @@ Qué se puede afirmar de esta documentación y qué no.
 > 4. **Comportamiento de los proveedores externos.** Los adaptadores están documentados por su código; no se validaron contra ningún sandbox real.
 > 5. **Volumetría.** No se conoce el número de filas, el crecimiento ni la distribución de datos en ningún entorno.
 > 6. **SLO/SLA acordados.** No aparecen en el repositorio.
-> 7. **Propietarios.** Ninguna nota tiene `owner` real: no hay `CODEOWNERS` ni asignación de equipos en el repositorio. Todas dicen `unknown`.
+> 7. **Que la revisión por propietario esté activa.** `.github/CODEOWNERS` existe y asigna propietario, pero la protección de rama que lo hace obligatorio (*Require review from Code Owners*) se configura **en GitHub**, no en el repositorio, y no es verificable desde aquí. Ver [[08-security/security-overview]].
 
 ## Supuestos aplicados
 

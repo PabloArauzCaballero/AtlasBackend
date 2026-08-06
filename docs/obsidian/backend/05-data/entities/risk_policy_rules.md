@@ -2,7 +2,7 @@
 title: "risk_policy_rules"
 type: "data"
 status: "verified"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "medium"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"

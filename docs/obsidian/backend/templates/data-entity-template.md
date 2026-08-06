@@ -2,7 +2,7 @@
 title: "Plantilla — entidad de datos"
 type: "reference"
 status: "draft"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "low"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"

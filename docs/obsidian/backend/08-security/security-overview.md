@@ -2,7 +2,7 @@
 title: "Visión de seguridad"
 type: "security"
 status: "verified"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "critical"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"
@@ -65,6 +65,14 @@ Si `KMS_KEY_ID` o `AWS_REGION` faltan en producción, la clave maestra de cifrad
 `env.ts:44-50` emite un `console.warn` ruidoso pero **no bloquea el arranque**. El propio comentario lo reconoce como *"un despliegue legítimo en la etapa actual"* y remite al hallazgo S-M3 de la auditoría interna.
 
 **Mitigación existente:** `yarn crypto:reencrypt-pii` migra los valores ya cifrados al proveedor KMS. El `providerId` va embebido en cada valor, así que conviven valores cifrados con `local` y con KMS sin romper el descifrado.
+
+### `SEC-005` — `CODEOWNERS` con propietarios que no resolvían
+
+`CORREGIDO` · Severidad media
+
+`.github/CODEOWNERS` asignaba las rutas sensibles —cifrado, auth, guards, migraciones, motor de riesgo— a equipos de organización que **no existen en un repositorio personal**. GitHub ignora en silencio a los propietarios irresolubles, así que la revisión obligatoria no se solicitaba a nadie.
+
+Corregido: las rutas apuntan a `@PabloArauzCaballero`. Queda pendiente activar la protección de rama en GitHub, que no es verificable desde el repositorio. Detalle en [[14-audits/risks-register|SEC-005]].
 
 ### `SEC-003` — 16 endpoints públicos
 

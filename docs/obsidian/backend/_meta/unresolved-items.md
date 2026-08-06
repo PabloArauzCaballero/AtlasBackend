@@ -2,7 +2,7 @@
 title: "Elementos sin resolver"
 type: "reference"
 status: "verified"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "medium"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"
@@ -15,7 +15,9 @@ related: []
 
 # Elementos sin resolver
 
-Segunda pasada sobre las preguntas abiertas de la primera generación. **Seis de nueve se cerraron leyendo el código**; las tres restantes requieren un entorno real o una decisión humana, y no se pueden cerrar desde el repositorio.
+Segunda pasada sobre las preguntas abiertas de la primera generación. **Seis se cerraron leyendo el código**, una con una decisión del propietario (`U-007`) y otra queda con la política ya escrita pero pendiente de aprobar e implementar (`U-008`).
+
+Solo dos siguen realmente abiertas: si producción usa KMS (`U-006`) y si las familias de eventos sin persistencia son roadmap (`U-009`).
 
 ## Resueltas
 
@@ -74,17 +76,33 @@ Además, `RUNTIME_JOBS_ALLOW_WITHOUT_LOCK: 'false'` en producción hace fail-clo
 - **Riesgo:** sin `KMS_KEY_ID` + `AWS_REGION`, la clave maestra de PII se deriva de una variable de entorno. Ver [[14-audits/risks-register|SEC-002]].
 - **Cómo cerrarlo:** comprobar ambas variables en el entorno real. El arranque emite un `console.warn` ruidoso si faltan — buscarlo en los logs de producción es la vía más rápida.
 
-### ❓ U-007 — ¿Quién es propietario de cada módulo?
+### ✅ U-007 — ¿Quién es propietario de cada módulo?
 
-- **Estado:** `PENDIENTE` — decisión organizativa
-- **Evidencia:** no hay `CODEOWNERS` ni asignación de equipos. Las 330 notas llevan `owner: unknown`.
-- **Cómo cerrarlo:** definir propietarios y rellenar el frontmatter. Un `CODEOWNERS` permitiría además generarlo automáticamente en la próxima regeneración.
+**Resuelto.** `@PabloArauzCaballero` es el propietario. Las 330 notas llevan ese `owner` en el frontmatter y `.github/CODEOWNERS` lo asigna por ruta.
 
-### ❓ U-008 — ¿Cuál es la política de copias de seguridad?
+> [!warning] Corrección — el CODEOWNERS ya existía
+> La primera pasada afirmó que **no había** `CODEOWNERS`. Era **falso**: existe desde antes, pero asignaba las rutas a equipos de organización (`@atlas-backend-team`, `@atlas-security-team`, …).
+>
+> Eso tenía una consecuencia que el error tapaba: los equipos solo resuelven dentro de una **organización** de GitHub, y este es un repositorio personal. GitHub **ignora en silencio** a los propietarios que no puede resolver, así que *Require review from Code Owners* no habría solicitado revisión a nadie. Un control que parecía configurado y no lo estaba.
+>
+> Ahora las rutas apuntan a `@PabloArauzCaballero`, que sí resuelve. La partición por áreas se conserva como comentario, lista para volver a equipos el día que exista una organización.
 
-- **Estado:** `PENDIENTE` — vive en la plataforma, no en el repositorio
-- **Evidencia:** ningún script ni configuración. Ver [[05-data/backups-and-restore]].
-- **Cómo cerrarlo:** documentar RPO, RTO y un procedimiento de restauración **probado**. Incluir la recuperación de la clave de cifrado: restaurar PostgreSQL sin poder descifrar deja la PII ilegible.
+**Residuo:** la protección de rama que hace obligatoria la revisión se activa **en GitHub** (Settings → Branches), no en el repositorio. El propio `CODEOWNERS` lo documenta. No es verificable desde aquí.
+
+### ⚠️ U-008 — ¿Cuál es la política de copias de seguridad?
+
+**Propuesta escrita; falta aprobarla e implementarla.**
+
+[[05-data/backups-and-restore]] y [[10-operations/disaster-recovery]] contienen ahora una política recomendada con valores concretos: PITR con RPO 5 min / RTO 1 h para PostgreSQL, retención de 30 días de WAL y 12 meses de snapshots mensuales, copias cifradas e inmutables fuera de la cuenta de producción, y simulacro mensual de restauración que incluye **una prueba de descifrado de PII**.
+
+**Sigue abierto** porque una política no aprobada ni implementada no protege de nada:
+
+- [ ] Aprobar o ajustar los RPO/RTO
+- [ ] Implementarlo en la infraestructura
+- [ ] Ejecutar el primer simulacro y registrar el RTO real
+
+> [!danger] El punto que no admite recuperación
+> Todo escenario de desastre se recupera con tiempo **salvo uno**: la destrucción de la clave maestra de cifrado. Los datos seguirían ahí y nadie podría leerlos. Configurar una alerta sobre el borrado programado de la CMK es la mitigación más barata del sistema.
 
 ### ❓ U-009 — ¿Están vivas las familias de eventos de compras y cuotas?
 

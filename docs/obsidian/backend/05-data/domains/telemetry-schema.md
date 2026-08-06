@@ -2,7 +2,7 @@
 title: "Esquema telemetry — Telemetría, dispositivos y sesiones"
 type: "data"
 status: "verified"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "high"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"

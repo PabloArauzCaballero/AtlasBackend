@@ -2,7 +2,7 @@
 title: "Registro de riesgos"
 type: "audit"
 status: "verified"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "critical"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"
@@ -29,6 +29,7 @@ Hallazgos de **análisis estático** en la revisión `80fc741`. Ninguno procede 
 | [[#PERF-001]] | Rendimiento | 168 de 244 columnas FK sin índice en el lado hijo | Media | Abierto |
 | [[#SEC-001]] | Seguridad | `TenantGuard` no exige tenant; solo detecta contradicción | Media | Abierto |
 | [[#SEC-004]] | Seguridad | `/metrics` sin autenticación de aplicación | Media | Mitigación externa |
+| [[#SEC-005]] | Seguridad | `CODEOWNERS` apuntaba a equipos inexistentes: revisión obligatoria inoperante | Media | **Corregido** |
 | [[#ARCH-001]] | Arquitectura | 153 FK cruzan esquemas de dominio | Media | Aceptado por diseño |
 | [[#ARCH-002]] | Arquitectura | `platform_ops` agrupa 4 subdominios en 25 tablas | Baja | Abierto |
 | [[#DATA-002]] | Datos | Relaciones polimórficas sin integridad referencial | Baja | Abierto |
@@ -102,6 +103,24 @@ El compose del worker documenta la decisión: *"SIN `ports`: la sonda y `/metric
 **Lectura.** El worker está resuelto. El de la API **no puede aislarse por puerto** porque comparte el de negocio: la única mitigación es que el proxy inverso bloquee la ruta `/metrics` desde fuera, y eso vive en la configuración del borde, no en este repositorio.
 
 **Recomendación.** Bloquear `/metrics` en el reverse proxy y dejarlo documentado en [[10-operations/deployment]]. Añadir `@SkipThrottle` según la regla del proyecto.
+
+---
+
+## SEC-005 — `CODEOWNERS` con propietarios que no resolvían
+
+**Severidad:** Media · **Estado:** **Corregido en esta revisión**
+
+**Observado.** `.github/CODEOWNERS` asignaba todas las rutas a equipos de organización: `@atlas-backend-team`, `@atlas-security-team`, `@atlas-data-team`, `@atlas-risk-team`, `@atlas-product-team`, `@atlas-infra-team`.
+
+Los equipos de GitHub **solo existen dentro de una organización**, y `PabloArauzCaballero/AtlasBackend` es un repositorio personal. GitHub **ignora en silencio** a los propietarios que no puede resolver: no falla, no avisa, simplemente no asigna revisor.
+
+**Impacto.** El control que protegía las rutas más sensibles —`src/common/utils/crypto/`, `src/modules/auth/`, `src/common/guards/`, migraciones y motor de riesgo— **no habría solicitado revisión a nadie**. Un cambio en el cifrado de PII o en los guards podría haberse fusionado sin la revisión que el fichero declaraba exigir.
+
+Es el peor tipo de fallo de control: el que aparenta estar configurado. Un `CODEOWNERS` ausente se nota; uno que no resuelve, no.
+
+**Corrección aplicada.** Las rutas apuntan ahora a `@PabloArauzCaballero`, que sí resuelve. La partición por áreas se conserva como comentario para restaurarla cuando exista una organización con equipos reales.
+
+**Residuo abierto.** `CODEOWNERS` es solo la mitad versionable del control. La otra mitad —*Require a pull request*, *Require review from Code Owners*, *Do not allow bypassing* — se activa en GitHub y **no es verificable desde el repositorio**. El propio fichero lo documenta desde el principio.
 
 ---
 

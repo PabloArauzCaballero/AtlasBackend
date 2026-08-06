@@ -2,7 +2,7 @@
 title: "Registro de generación"
 type: "reference"
 status: "verified"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "low"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"
@@ -92,6 +92,23 @@ Cierre de las preguntas abiertas de la primera generación.
 ### Enriquecimientos
 
 Prioridad de eventos en el reclamo, `stop_grace_period` real (45 s API / 60 s worker) y su relación con `SHUTDOWN_DRAIN_MS`, cross-checks de rol contra planificador, y `RUNTIME_JOBS_ALLOW_WITHOUT_LOCK` como fail-closed sin Redis.
+
+## 2026-08-06 — tercera pasada — propiedad y continuidad
+
+### Corrección importante
+
+La primera pasada afirmó que **no existía `CODEOWNERS`**. Era falso: existía. El error vino de inventariar `.github/workflows/` sin listar `.github/` — un fallo de método, no de lectura.
+
+Al abrirlo apareció algo que el error tapaba: asignaba las rutas sensibles a **equipos de organización** que no resuelven en un repositorio personal, y GitHub ignora en silencio a los propietarios irresolubles. El control aparentaba estar activo sin estarlo. Registrado como [[14-audits/risks-register|SEC-005]] y corregido.
+
+### Cambios
+
+- `.github/CODEOWNERS` reescrito a `@PabloArauzCaballero`, conservando la partición por áreas como comentario para cuando exista una organización.
+- Las **330 notas** pasan de `owner: unknown` a `owner: "@PabloArauzCaballero"`. Cierra `U-007`.
+- [[05-data/backups-and-restore]] y [[10-operations/disaster-recovery]] reescritas con una **política recomendada** concreta: PITR (RPO 5 min / RTO 1 h), retención 30 días de WAL + 12 meses de snapshots, copias cifradas e inmutables fuera de la cuenta de producción, y simulacro mensual que incluye prueba de descifrado de PII.
+
+> [!warning] La política de copias es una PROPUESTA
+> Está marcada `status: draft` y con avisos explícitos. Escribirla no la implementa: sigue abierta como `U-008` hasta que se apruebe, se implemente y se ejecute el primer simulacro.
 
 ### Limitaciones
 

@@ -2,7 +2,7 @@
 title: "internal-users"
 type: "domain"
 status: "verified"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "critical"
 last_reviewed: "2026-08-06"
 source_revision: "670e9b2"

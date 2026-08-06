@@ -2,7 +2,7 @@
 title: "Auditoría de enlaces"
 type: "reference"
 status: "verified"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "low"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"
@@ -21,7 +21,7 @@ Generada automáticamente sobre el estado real de la bóveda.
 | Métrica | Valor |
 |---|---:|
 | Notas | 330 |
-| Enlaces internos (ocurrencias) | 3855 |
+| Enlaces internos (ocurrencias) | 3866 |
 | Destinos distintos | 330 |
 | **Enlaces rotos** | **0** |
 | Notas sin enlaces entrantes | 0 |
@@ -39,12 +39,12 @@ Generada automáticamente sobre el estado real de la bóveda.
 | [[15-reference/entity-catalog]] | 137 |
 | [[05-data/schemas]] | 135 |
 | [[tenants]] | 128 |
-| [[14-audits/risks-register]] | 123 |
+| [[14-audits/risks-register]] | 126 |
 | [[08-security/authorization]] | 87 |
 | [[customers]] | 86 |
 | [[customer_sessions]] | 58 |
 | [[devices]] | 50 |
-| [[05-data/sensitive-data]] | 47 |
+| [[05-data/sensitive-data]] | 48 |
 | [[15-reference/endpoint-catalog]] | 45 |
 | [[04-api/conventions]] | 44 |
 | [[04-api/error-model]] | 43 |

@@ -2,7 +2,7 @@
 title: "customer_identity_documents"
 type: "data"
 status: "verified"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "high"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"

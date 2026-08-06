@@ -2,7 +2,7 @@
 title: "Cobertura documental"
 type: "audit"
 status: "verified"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "medium"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"
@@ -75,7 +75,7 @@ Por naturaleza del método (análisis estático, sin ejecución):
 3. Volumetría
 4. Estado del esquema desplegado
 5. SLO acordados
-6. Propietarios (`owner: unknown` en todas las notas — no hay `CODEOWNERS`)
+6. Si la protección de rama que exige revisión del propietario está activa en GitHub
 
 Ver [[01-overview/assumptions-and-gaps]].
 

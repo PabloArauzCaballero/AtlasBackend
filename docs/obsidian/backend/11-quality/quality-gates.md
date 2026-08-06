@@ -2,7 +2,7 @@
 title: "Gates de calidad"
 type: "reference"
 status: "verified"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "critical"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"

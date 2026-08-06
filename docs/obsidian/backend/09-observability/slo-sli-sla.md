@@ -2,7 +2,7 @@
 title: "SLO, SLI y SLA"
 type: "reference"
 status: "draft"
-owner: "unknown"
+owner: "@PabloArauzCaballero"
 criticality: "medium"
 last_reviewed: "2026-08-06"
 source_revision: "80fc741"
