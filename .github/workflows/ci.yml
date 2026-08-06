@@ -109,6 +109,29 @@ jobs:
       - name: Build
         run: yarn build
 
+      # Higiene de recursos (docs/performance/backend/00-prestart-resource-hygiene.md). En CI no hay
+      # instancias previas que limpiar, así que `cleanup` no aporta y se omite. Lo que sí aporta es
+      # `verify`: si el runner llega con un puerto del proyecto ocupado o sin memoria, cualquier paso
+      # posterior que arranque el backend fallaría con un síntoma confuso en vez de con la causa.
+      #
+      # Además es la única cobertura automatizada de estos scripts: se ejecutan de verdad en Linux,
+      # no sólo en la máquina de quien los escribió (macOS). Una regresión en el parseo de `ps`,
+      # `lsof` o `df` rompe aquí.
+      - name: Resource hygiene diagnose (inventory)
+        run: yarn prestart:diagnose
+
+      - name: Resource hygiene verify (gate)
+        run: yarn prestart:verify
+
+      - name: Upload resource hygiene evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-performance-hygiene
+          path: artifacts/performance/backend/reports/
+          if-no-files-found: warn
+          retention-days: 14
+
   # ATLAS-DOC-007: ADR-0007 y `strict: true` en mkdocs.yml solo tienen sentido si algo los aplica.
   # Hasta este patch existían los scripts (`check:openapi`, `docs:openapi:lint`, `docs:build`) pero
   # ningún job los corría: un contrato sin esquema de respuesta o un enlace roto pasaban el PR sin

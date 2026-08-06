@@ -10,7 +10,7 @@ yarn start:clean     # diagnose → cleanup → verify → start:dev
 ```
 
 Si falla, mirar el código de salida de `prestart:verify`
-([tabla completa](00-prestart-resource-hygiene.md#códigos-de-salida-de-prestartverify)):
+([tabla completa](00-prestart-resource-hygiene.md)):
 
 | Código | Acción |
 |---|---|
@@ -44,7 +44,7 @@ atlas_db_pool_connections{state="waiting"}
 
 `> 0` sostenido: las peticiones esperan una conexión y la latencia sube sin que ninguna query sea
 lenta. Buscar qué está consumiendo el pool — el sospechoso habitual es un fan-out de fondo
-(ver [R-01](02-bottleneck-map.md#r-01--el-fan-out-de-entregas-excede-por-sí-solo-el-pool-de-conexiones)).
+(ver el riesgo R-01 en el [mapa de cuellos de botella](02-bottleneck-map.md)).
 
 **2. ¿Es el event loop?**
 

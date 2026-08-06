@@ -49,6 +49,7 @@
 ## Subcarpetas
 
 - [`mkdocs/`](./mkdocs/README.md)
+- [`perf/`](./perf/README.md)
 - [`smoke/`](./smoke/README.md)
 - [`stress/`](./stress/README.md)
 

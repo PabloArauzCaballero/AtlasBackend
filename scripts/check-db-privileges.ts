@@ -18,6 +18,7 @@
  */
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { usesDedicatedMigrationIdentity } from '../src/config/database.config.js';
 import { env } from '../src/config/env.js';
 import { ATLAS_SCHEMAS } from '../src/database/domain-schemas.js';
 
@@ -198,6 +199,19 @@ async function main(): Promise<void> {
     );
   } else {
     console.log('[skip] DB_READ_USER no configurado; se omite la verificación de atlas_app_ro.');
+  }
+
+  // Tercera identidad de la separación de roles: la que aplica migraciones. El gate verificaba
+  // `atlas_app_rw` y `atlas_app_ro` pero nunca esta, así que un despliegue podía migrar con el
+  // usuario del runtime — es decir, con el usuario de la aplicación teniendo permisos DDL, que es
+  // exactamente lo que la separación pretende evitar. En local el fallback a DB_USER es
+  // deliberado (ver `buildMigrationSequelizeOptions`), así que solo es violación bajo --strict.
+  if (usesDedicatedMigrationIdentity()) {
+    console.log(`[ok] las migraciones usan una identidad dedicada (${env.DB_MIGRATION_USER}), distinta de la del runtime.`);
+  } else if (STRICT) {
+    errors.push('DB_MIGRATION_USER ausente o igual a DB_USER: las migraciones correrían con la identidad del runtime.');
+  } else {
+    console.log('[skip] DB_MIGRATION_USER ausente o igual a DB_USER; las migraciones usan la identidad del runtime (aceptable en local).');
   }
 
   if (errors.length > 0) {

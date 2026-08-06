@@ -32,24 +32,23 @@ import { MailSenderService } from '../mail-sender/mail-sender.service.js';
 import { AuthActorResolverService, ResolvedActor } from './auth-actor-resolver.service.js';
 import { AuthPasswordResetService } from './auth-password-reset.service.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
+import {
+  LoginPinChallengeResponseDto,
+  LoginResponseDto,
+  LogoutResponseDto,
+  PasswordResetConfirmedResponseDto,
+  PasswordResetRequestedResponseDto,
+  ProvisionCredentialsResponseDto,
+} from './auth.dtos.js';
 import { LoginDto, ProvisionCredentialsDto } from './auth.schemas.js';
 
-type LoginResult = {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: 'Bearer';
-  expiresIn: string;
-};
+type LoginResult = LoginResponseDto;
 
 /**
  * Segundo paso del login de super admins: la contraseña ya fue validada, pero los tokens recién
  * se emiten cuando el PIN enviado por correo se presenta junto con este token de desafío.
  */
-export type LoginPinChallenge = {
-  pinChallengeRequired: true;
-  challengeToken: string;
-  expiresInMinutes: number;
-};
+export type LoginPinChallenge = LoginPinChallengeResponseDto;
 
 export type LoginOutcome = LoginResult | LoginPinChallenge;
 
@@ -334,7 +333,7 @@ export class AuthService {
     identifier: string;
     ip: string | null;
     userAgent: string | null;
-  }): Promise<{ requested: boolean }> {
+  }): Promise<PasswordResetRequestedResponseDto> {
     return this.passwordReset.requestPasswordReset(input);
   }
 
@@ -347,7 +346,7 @@ export class AuthService {
     newPassword: string;
     ip: string | null;
     userAgent: string | null;
-  }): Promise<{ passwordChanged: boolean }> {
+  }): Promise<PasswordResetConfirmedResponseDto> {
     return this.passwordReset.confirmPasswordReset(input);
   }
 
@@ -454,7 +453,7 @@ export class AuthService {
     return { kind: 'success', accessToken, refreshToken: newRefreshToken.token };
   }
 
-  async logout(input: { refreshToken: string; allDevices: boolean }): Promise<{ loggedOut: boolean }> {
+  async logout(input: { refreshToken: string; allDevices: boolean }): Promise<LogoutResponseDto> {
     const tokenHash = hashRefreshToken(input.refreshToken);
     const stored = await this.authRepository.findActiveRefreshTokenByHash(tokenHash);
     if (!stored) {
@@ -494,7 +493,7 @@ export class AuthService {
    * correcto es: un `platform_admin` crea la fila en `internal_users`/`platform_users` y luego
    * usa este endpoint para fijar su contraseña inicial.
    */
-  async provisionCredentials(dto: ProvisionCredentialsDto, requestedBy: { role: AtlasUserRole }): Promise<{ provisioned: boolean }> {
+  async provisionCredentials(dto: ProvisionCredentialsDto, requestedBy: { role: AtlasUserRole }): Promise<ProvisionCredentialsResponseDto> {
     if (requestedBy.role !== 'admin' && requestedBy.role !== 'platform_admin') {
       throw new ForbiddenException('Solo un administrador puede provisionar credenciales.');
     }

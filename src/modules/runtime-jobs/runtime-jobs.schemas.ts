@@ -5,11 +5,6 @@
  */
 import { z } from 'zod';
 
-export const runJobHeadersSchema = z.object({
-  tenantId: z.string().regex(/^[1-9][0-9]*$/),
-  idempotencyKey: z.string().min(8),
-});
-
 export const expireStaleSessionsSchema = z.object({
   maxIdleMinutes: z.number().int().positive().max(43_200).default(120),
   dryRun: z.boolean().default(true),

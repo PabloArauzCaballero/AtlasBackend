@@ -1,21 +1,17 @@
 <!-- Generado por scripts/generate-project-documentation.ts. No editar a mano. -->
 
-# config
+# docs/audit/evidence
 
 ## Por qué existe
 
-- **Negocio:** esta carpeta mantiene visible el alcance y secuencia de evolución del producto.
-- **Sistema:** esta carpeta provee configuración declarativa consumible por herramientas y revisiones.
+- **Negocio:** esta carpeta conserva decisiones y contratos para reducir dependencia de conocimiento tácito.
+- **Sistema:** esta carpeta documenta evidence como fuente versionada para desarrollo y operación.
 
 ## Contenido
 
 | Documento o código | Responsabilidad |
 |---|---|
-| [`performance-budget.json`](./performance-budget.json) | Configuración o contrato serializado consumido por herramientas. |
-
-## Subcarpetas
-
-- [`roadmap/`](./roadmap/README.md)
+| [`commands-baseline.log`](./commands-baseline.log) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento
 
