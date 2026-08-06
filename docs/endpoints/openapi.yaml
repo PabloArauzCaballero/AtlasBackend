@@ -391,6 +391,68 @@ paths:
       summary: Purgar claves de idempotencia resueltas
       tags:
         - runtime-jobs
+  /operations/jobs/purge-processed-outbox:
+    post:
+      description: >-
+        ATLAS-DATA-003. `process-outbox` marca los eventos como `processed` y
+        nadie los borraba: la tabla crecía sin techo en la ruta más caliente de
+        escritura, degradando el índice por el que se reclaman los pendientes.
+        Solo borra `processed` anteriores al período de retención; `pending` y
+        `processing` nunca se tocan. Restringido a admin/platform_admin/system.
+      operationId: RuntimeJobsController_purgeProcessedOutbox
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                retentionDays:
+                  default: 30
+                  type: integer
+                  minimum: 1
+                  maximum: 365
+                limit:
+                  default: 1000
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 10000
+                dryRun:
+                  default: true
+                  type: boolean
+              required:
+                - retentionDays
+                - limit
+                - dryRun
+              additionalProperties: false
+      responses:
+        '200':
+          description: Resultado de la purga del outbox.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Purgar eventos de outbox ya procesados
+      tags:
+        - runtime-jobs
   /operations/jobs/apply-retention-policies:
     post:
       description: Job de mantenimiento. Restringido a admin/platform_admin/system.
@@ -3317,7 +3379,10 @@ paths:
         existente (creado por seed/migración, sin credenciales todavía).
         Requiere un access token vigente con rol `admin` o `platform_admin` —
         verificado tanto por el guard de roles como, en defensa en profundidad,
-        dentro del propio `AuthService`.
+        dentro del propio `AuthService`. Un `admin` solo puede provisionar
+        actores de SU MISMO tenant; provisionar en otro tenant, o provisionar un
+        `platform_user` (que opera sobre toda la plataforma), exige
+        `platform_admin`.
       operationId: AuthController_provisionCredentials
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
@@ -3359,7 +3424,9 @@ paths:
             La contraseña no cumple el mínimo de seguridad requerido, o el actor
             indicado no existe.
         '403':
-          description: El actor autenticado no tiene rol admin/platform_admin.
+          description: >-
+            El actor autenticado no tiene rol admin/platform_admin, o intenta
+            provisionar fuera de su tenant.
         '409':
           description: >-
             CREDENTIALS_ALREADY_PROVISIONED — el actor ya tiene contraseña
@@ -15507,6 +15574,33 @@ paths:
         y trazabilidad a las decisiones.
       operationId: InternalPortalController_listBusinessTerms
       parameters:
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: >-
+            Filtro de texto libre; se aplica sobre los campos descriptivos del
+            recurso.
+        - name: page
+          required: false
+          in: query
+          schema:
+            default: 1
+            type: integer
+            minimum: 1
+            maximum: 9007199254740991
+          description: Página solicitada, desde 1.
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 20
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Elementos por página (1-100).
         - name: pageSize
           required: false
           in: query
@@ -15515,30 +15609,9 @@ paths:
             minimum: 1
             maximum: 100
           deprecated: true
-          description: Alias legado de limit.
-        - name: limit
-          required: false
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-          description: Elementos por página (1-100).
-        - name: page
-          required: false
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-          description: Página, desde 1.
-        - name: q
-          required: false
-          in: query
-          description: Busca en los campos textuales y relaciones del término.
-          schema:
-            type: string
+          description: >-
+            Alias legado de `limit`, conservado por compatibilidad con el Admin
+            Portal.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -15804,12 +15877,17 @@ paths:
         - internal-portal
   /internal/exports:
     get:
+      description: >-
+        Descriptores de los catálogos que pueden descargarse y su volumen
+        actual. No son ejecuciones de export: el modelo no persiste exports, así
+        que no se publican `status`, `requestedBy` ni marcas de tiempo de una
+        ejecución inexistente.
       operationId: InternalPortalController_listExports
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Lista de exports.
+          description: Catálogos exportables disponibles.
           content:
             application/json:
               schema:
@@ -15826,7 +15904,7 @@ paths:
           $ref: '#/components/responses/InternalError'
       security:
         - access-token: []
-      summary: Listar exports registrados
+      summary: Listar catálogos exportables
       tags:
         - internal-portal
   /internal/exports/{exportId}:
@@ -15836,13 +15914,12 @@ paths:
         - name: exportId
           required: true
           in: path
-          schema:
-            type: string
+          schema: {}
           description: Identificador de la exportación solicitada.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Detalle del export.
+          description: Detalle del catálogo exportable.
           content:
             application/json:
               schema:
@@ -15854,20 +15931,61 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: DATA_EXPORT_NOT_FOUND.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
       security:
         - access-token: []
-      summary: Obtener un export registrado
+      summary: Obtener un catálogo exportable
       tags:
         - internal-portal
   /internal/data-quality/rules:
     get:
+      description: >-
+        El conteo de issues abiertos de cada regla está acotado al tenant del
+        token.
       operationId: InternalPortalController_listDataQualityRules
       parameters:
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: >-
+            Filtro de texto libre; se aplica sobre los campos descriptivos del
+            recurso.
+        - name: page
+          required: false
+          in: query
+          schema:
+            default: 1
+            type: integer
+            minimum: 1
+            maximum: 9007199254740991
+          description: Página solicitada, desde 1.
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 20
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Elementos por página (1-100).
+        - name: pageSize
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          deprecated: true
+          description: >-
+            Alias legado de `limit`, conservado por compatibilidad con el Admin
+            Portal.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -15898,8 +16016,7 @@ paths:
         - name: ruleId
           required: true
           in: path
-          schema:
-            type: string
+          schema: {}
           description: Identificador de la regla de calidad de datos.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -15916,7 +16033,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: DATA_QUALITY_RULE_NOT_FOUND.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -15926,52 +16043,18 @@ paths:
       summary: Obtener una regla de calidad de datos
       tags:
         - internal-portal
-  /internal/data-quality/rules/{ruleId}/run:
-    post:
-      operationId: InternalPortalController_runDataQualityRule
-      parameters:
-        - name: ruleId
-          required: true
-          in: path
-          schema:
-            type: string
-          description: Identificador de la regla de calidad de datos.
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Resultado de la ejecución de la regla.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Ejecutar una regla de calidad de datos bajo demanda
-      tags:
-        - internal-portal
   /internal/governance/policies/{policyId}:
     get:
+      description: >-
+        Solo lectura. Las políticas de gobierno son artefactos versionados
+        (migración o seeder revisable), no filas editables desde el panel: el
+        antiguo `PATCH` respondía 200 sin persistir nada.
       operationId: InternalPortalController_getGovernancePolicy
       parameters:
         - name: policyId
           required: true
           in: path
-          schema:
-            type: string
+          schema: {}
           description: Identificador de la política de gobierno de datos.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -15988,7 +16071,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: GOVERNANCE_POLICY_NOT_FOUND.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -15996,42 +16079,6 @@ paths:
       security:
         - access-token: []
       summary: Obtener una política de gobierno de datos
-      tags:
-        - internal-portal
-    patch:
-      operationId: InternalPortalController_updateGovernancePolicy
-      parameters:
-        - name: policyId
-          required: true
-          in: path
-          schema:
-            type: string
-          description: Identificador de la política de gobierno de datos.
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Política actualizada.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Actualizar una política de gobierno de datos
       tags:
         - internal-portal
   /internal/lineage:
@@ -16068,8 +16115,7 @@ paths:
         - name: nodeId
           required: true
           in: path
-          schema:
-            type: string
+          schema: {}
           description: Identificador del nodo de linaje de datos.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -16125,8 +16171,47 @@ paths:
         - internal-portal
   /internal/alerts:
     get:
+      description: Acotado al tenant del token.
       operationId: InternalPortalController_listAlerts
       parameters:
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: >-
+            Filtro de texto libre; se aplica sobre los campos descriptivos del
+            recurso.
+        - name: page
+          required: false
+          in: query
+          schema:
+            default: 1
+            type: integer
+            minimum: 1
+            maximum: 9007199254740991
+          description: Página solicitada, desde 1.
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 20
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Elementos por página (1-100).
+        - name: pageSize
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          deprecated: true
+          description: >-
+            Alias legado de `limit`, conservado por compatibilidad con el Admin
+            Portal.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -16152,13 +16237,15 @@ paths:
         - internal-portal
   /internal/alerts/{alertId}/acknowledge:
     post:
+      description: >-
+        Solo alertas del propio tenant. Una alerta de otro tenant responde 404,
+        igual que una inexistente.
       operationId: InternalPortalController_acknowledgeAlert
       parameters:
         - name: alertId
           required: true
           in: path
-          schema:
-            type: string
+          schema: {}
           description: Identificador de la alerta operativa.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -16175,7 +16262,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: DATA_QUALITY_ISSUE_NOT_FOUND.
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
@@ -16189,8 +16276,47 @@ paths:
         - internal-portal
   /internal/jobs:
     get:
+      description: Acotado al tenant del token.
       operationId: InternalPortalController_listJobs
       parameters:
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: >-
+            Filtro de texto libre; se aplica sobre los campos descriptivos del
+            recurso.
+        - name: page
+          required: false
+          in: query
+          schema:
+            default: 1
+            type: integer
+            minimum: 1
+            maximum: 9007199254740991
+          description: Página solicitada, desde 1.
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 20
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Elementos por página (1-100).
+        - name: pageSize
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          deprecated: true
+          description: >-
+            Alias legado de `limit`, conservado por compatibilidad con el Admin
+            Portal.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -16216,13 +16342,16 @@ paths:
         - internal-portal
   /internal/jobs/{jobRunId}:
     get:
+      description: >-
+        Solo corridas del propio tenant. Para volver a EJECUTAR un job usa los
+        endpoints de `runtime-jobs`, que disparan el trabajo real y registran su
+        corrida; el portal es de lectura.
       operationId: InternalPortalController_getJob
       parameters:
         - name: jobRunId
           required: true
           in: path
-          schema:
-            type: string
+          schema: {}
           description: Identificador de la ejecución de un job.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -16239,7 +16368,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: JOB_RUN_NOT_FOUND.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -16247,80 +16376,6 @@ paths:
       security:
         - access-token: []
       summary: Obtener una corrida de job
-      tags:
-        - internal-portal
-  /internal/jobs/{jobRunId}/retry:
-    post:
-      operationId: InternalPortalController_retryJob
-      parameters:
-        - name: jobRunId
-          required: true
-          in: path
-          schema:
-            type: string
-          description: Identificador de la ejecución de un job.
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Job re-encolado.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Reintentar una corrida de job
-      tags:
-        - internal-portal
-  /internal/jobs/{jobRunId}/cancel:
-    post:
-      operationId: InternalPortalController_cancelJob
-      parameters:
-        - name: jobRunId
-          required: true
-          in: path
-          schema:
-            type: string
-          description: Identificador de la ejecución de un job.
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Job cancelado.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Cancelar una corrida de job
       tags:
         - internal-portal
   /internal/release-readiness:
@@ -16384,8 +16439,7 @@ paths:
         - name: reportId
           required: true
           in: path
-          schema:
-            type: string
+          schema: {}
           description: Identificador del reporte del portal interno.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -16402,7 +16456,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: REPORT_NOT_FOUND.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -16414,18 +16468,35 @@ paths:
         - internal-portal
   /internal/reports/{reportId}/run:
     post:
+      description: >-
+        Calcula el reporte EN VIVO sobre los datos del tenant del token y
+        devuelve `persisted: false`: no existe tabla de snapshots, así que no se
+        almacena ni se puede recuperar después.
       operationId: InternalPortalController_runReport
       parameters:
         - name: reportId
           required: true
           in: path
-          schema:
-            type: string
+          schema: {}
           description: Identificador del reporte del portal interno.
         - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filters:
+                  type: object
+                  propertyNames:
+                    type: string
+                    maxLength: 120
+                  additionalProperties: {}
+              additionalProperties: false
       responses:
         '200':
-          description: Snapshot del reporte generado.
+          description: Reporte computado en vivo.
           content:
             application/json:
               schema:
@@ -16446,48 +16517,51 @@ paths:
           $ref: '#/components/responses/InternalError'
       security:
         - access-token: []
-      summary: Ejecutar un reporte bajo demanda
-      tags:
-        - internal-portal
-  /internal/reports/{reportId}/snapshots:
-    get:
-      operationId: InternalPortalController_listReportSnapshots
-      parameters:
-        - name: reportId
-          required: true
-          in: path
-          schema:
-            type: string
-          description: Identificador del reporte del portal interno.
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Lista de snapshots del reporte.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Listar snapshots históricos de un reporte
+      summary: Computar un reporte bajo demanda
       tags:
         - internal-portal
   /internal/search:
     get:
       operationId: InternalPortalController_search
       parameters:
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: >-
+            Filtro de texto libre; se aplica sobre los campos descriptivos del
+            recurso.
+        - name: page
+          required: false
+          in: query
+          schema:
+            default: 1
+            type: integer
+            minimum: 1
+            maximum: 9007199254740991
+          description: Página solicitada, desde 1.
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 20
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Elementos por página (1-100).
+        - name: pageSize
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          deprecated: true
+          description: >-
+            Alias legado de `limit`, conservado por compatibilidad con el Admin
+            Portal.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':

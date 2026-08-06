@@ -274,6 +274,9 @@ nav:
       - Validación final: reports/final-validation.md
       - Auditoría integral 2026-07-30: audit/auditoria-integral-2026-07-30.md
       - Hardening de resiliencia 2026-08-05: audit/hardening-resiliencia-2026-08-05.md
+      - Auditoría integral 2026-08-06: audit/auditoria-integral-2026-08-06.md
+      - Remediación integral 2026-08-06: audit/remediacion-integral-2026-08-06.md
+      - Evidencia de explotación en vivo 2026-08-06: audit/evidence/live-exploit-2026-08-06.md
       - Auditorías por módulo:
           - audit/README.md
           - Revisión completa 2026-07-21: audit/revision-completa-backend-2026-07-21.md
