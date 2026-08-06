@@ -74,7 +74,7 @@ aceptable, como documenta `buildMigrationSequelizeOptions`.
 
 ### `generateTemporaryPassword` — NO se tocó
 
-Registrado como `SEC-006` en [el registro de riesgos de la bóveda](../obsidian/backend/14-audits/risks-register.md).
+Registrado como `SEC-006` en [el registro de riesgos de la bóveda](../../obsidian/backend/14-audits/risks-register.md).
 Reconectarlo cambia el contrato de `POST /internal-users` (`password` de obligatorio a opcional) y
 supone decidir que Atlas envía contraseñas por correo. Es una decisión del propietario.
 

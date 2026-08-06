@@ -20,7 +20,7 @@ recorriendo los caminos de autorización de punta a punta con la aplicación lev
 | Gates que aprueban sin comprobar nada | 4 | **0** |
 | Endpoints sin validación de entrada | 15 | **0** |
 | Vulnerabilidades HIGH de dependencias | 11 (advisory publicado hoy) | **0** |
-| Suite | 305 suites / 2.872 tests | **306 suites / 2.903 tests** |
+| Suite | 305 suites / 2.872 tests | **309 suites / 2.938 tests** |
 | Cobertura (stmt/branch/func/line) | 85,83 / 68,35 / 78,94 / 86,40 | **86,11 / 68,66 / 79,50 / 86,71** |
 | Warnings de lint sin trinquete | 151 | 153, **congelados** (`--max-warnings`) |
 
@@ -229,11 +229,41 @@ Gates (todos en verde): `type-check`, `type-check:tests`, `lint`, `format:check`
 Base de datos real: migraciones `up`, reversibilidad `down → up`, seeders `demo` + `production`,
 `db:seed:verify-prod-idempotency`, `db:seed:verify-graph`.
 
-Suite: **306 suites / 2.903 tests**, cobertura por encima de todos los umbrales del trinquete.
+Suite: **309 suites / 2.938 tests**, cobertura por encima de todos los umbrales del trinquete.
 
 Smokes contra la API levantada (**15/15**): `core`, `auth`, `sessions`, `catalog`, `workflow`,
 `runtime`, `risk-telemetry`, `events`, `notifications`, `external-providers` (+`errors`,
 +`governance`), `internal-rbac`, `user-types`, `frontend-contract`.
+
+### `ATLAS-QUALITY-001` · MEDIA — Reglas importantes enterradas donde no se leen ni se prueban
+
+No es un refactor por estética. Tres reglas que **deciden cosas** estaban dentro de funciones de
+130-150 líneas, invisibles y sin prueba propia:
+
+1. **Los defaults de seguridad del catálogo de definiciones** — ninguna observación, atributo o
+   feature nace habilitada para decidir un crédito o marcar fraude, ni aprobada legalmente — vivían
+   dentro de un callback de transacción de 147 líneas con **complejidad ciclomática 57**, la peor del
+   repositorio. Comprobarlas exigía montar un doble de Sequelize.
+2. **La precedencia de la traza de auditoría** — el catálogo de endpoints manda sobre lo que declare
+   el request para `containsPii` y `riskLevel`, y la clave de idempotencia nunca se guarda en claro —
+   estaba mezclada con la llamada al ORM.
+3. **El clasificador que decide qué columnas son PII**, financieras o señal de fraude en
+   `system_data_field_catalog` —el catálogo que alimenta el portal de gobierno, el mapeo de políticas
+   de retención y la respuesta a "qué datos toca este endpoint"— era un método privado de un servicio
+   de 731 líneas **sin una sola prueba**.
+
+Extraídas a funciones puras con **35 pruebas nuevas** que fijan la regla y, en el caso del
+clasificador, también **su límite conocido**: mira NOMBRES, no contenido, así que una columna con
+nombre neutro que guarde un correo no se detecta. Dejarlo escrito evita que el catálogo se lea como
+una garantía que no da.
+
+Sin cambio de comportamiento: las pruebas previas siguen pasando. Los dos trinquetes BAJAN — tamaño
+de archivo (731 → 690) y `--max-warnings` (153 → 152).
+
+**Nota de método:** no se persiguió el número de ESLint. Extraer un objeto plano con 35 `??` a su
+propia función no baja la métrica —la mueve—, porque cada default cuenta como rama aunque no haya
+flujo de control. Se hicieron las extracciones que mejoran el diseño y se dejó constancia de esto en
+vez de partir objetos en trozos artificiales para que el contador bajase.
 
 ## 5. Riesgo residual
 
