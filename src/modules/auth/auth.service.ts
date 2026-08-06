@@ -3,14 +3,7 @@
  * @business Esta pieza protege el acceso de clientes y operadores, la recuperación de cuenta y la continuidad segura de sesiones.
  * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
  */
-import {
-  Injectable,
-  UnauthorizedException,
-  ForbiddenException,
-  ConflictException,
-  Optional,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException, ConflictException, Optional } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { MetricsService } from '../../common/observability/metrics.service.js';
 import { accessTokenSignOptions } from '../../common/utils/auth/jwt-claims.util.js';
@@ -21,16 +14,11 @@ import { env } from '../../config/env.js';
 import { AtlasUserRole } from '../../common/types/auth.types.js';
 import { hashPassword, isPasswordStrongEnough, verifyPassword } from '../../common/utils/crypto/password.util.js';
 import { generateRefreshToken, hashRefreshToken } from '../../common/utils/crypto/refresh-token.util.js';
-import {
-  generateChallengeToken,
-  generateNumericCode,
-  hashOneTimeCode,
-  verifyOneTimeCode,
-} from '../../common/utils/crypto/one-time-code.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
 import { AuthActorResolverService, ResolvedActor } from './auth-actor-resolver.service.js';
 import { AuthPasswordResetService } from './auth-password-reset.service.js';
+import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
 import {
   LoginPinChallengeResponseDto,
@@ -68,6 +56,7 @@ export class AuthService {
     private readonly authRepository: AuthRepository,
     private readonly actorResolver: AuthActorResolverService,
     private readonly passwordReset: AuthPasswordResetService,
+    private readonly secondFactor: AuthSecondFactorService,
     private readonly tokenRevocationService: TokenRevocationService,
     private readonly mailSenderService: MailSenderService,
     @InjectConnection() private readonly sequelize: Sequelize,
@@ -171,9 +160,14 @@ export class AuthService {
       throw invalidCredentialsError;
     }
 
-    if (this.isSecondFactorRequired(input.dto.actorType, credential)) {
-      return this.issueLoginPinChallenge(actor, input.dto.actorType, { ip: input.ip, userAgent: input.userAgent });
+    if (this.secondFactor.isRequired(input.dto.actorType, credential)) {
+      return this.secondFactor.issueChallenge(actor, input.dto.actorType, { ip: input.ip, userAgent: input.userAgent });
     }
+
+    // Llega aquí sin segundo factor. En producción eso solo es legítimo para un `customer` sin MFA
+    // opt-in: para un actor interno significa que el canal del PIN se cayó, y entonces no se emiten
+    // tokens (ATLAS-SEC-008).
+    this.secondFactor.assertDeliverable(input.dto.actorType);
 
     await this.authRepository.recordSuccessfulLogin(credential, input.ip);
     await logAttempt(null);
@@ -200,130 +194,25 @@ export class AuthService {
   }
 
   /**
-   * Fase 4.2 del plan 10/10: decide si el login exige un segundo factor (OTP por correo).
-   *  - Actores INTERNOS (`internal_user`, `platform_user`): 2FA OBLIGATORIO, no solo super admins.
-   *  - CLIENTES (`customer`): 2FA solo si activaron MFA opt-in (`credential.mfaEnabled`).
-   *
-   * En ambos casos solo se exige cuando hay forma real de entregar el PIN (MailSender configurado):
-   * sin correo el login queda en un paso en vez de bloquearse, y `AUTH_LOGIN_PIN_ENABLED=false` lo
-   * desactiva por completo (p. ej. entornos de test).
+   * MFA opt-in del cliente. Delegado en `AuthSecondFactorService` (ver ese archivo para la política
+   * completa del segundo factor).
    */
-  private isSecondFactorRequired(actorType: ActorType, credential: { mfaEnabled?: boolean }): boolean {
-    if (!env.AUTH_LOGIN_PIN_ENABLED || !this.mailSenderService.isEnabled()) return false;
-    if (actorType !== 'customer') return true;
-    return credential.mfaEnabled === true;
+  setCustomerMfaPreference(input: { actorId: string; enabled: boolean }): Promise<{ mfaEnabled: boolean }> {
+    return this.secondFactor.setCustomerMfaPreference(input);
   }
 
   /**
-   * Fase 4.2: MFA opt-in del cliente. Un cliente autenticado activa/desactiva su segundo factor.
-   * Devuelve el estado resultante. Solo aplica a `customer` (los internos tienen 2FA obligatorio).
+   * Completa el login con segundo factor: token de desafío (paso 1, contraseña) + PIN del correo.
+   *
+   * La verificación vive en `AuthSecondFactorService`; aquí queda solo lo que es competencia de este
+   * servicio — decidir qué claims lleva el par de tokens que se emite.
    */
-  async setCustomerMfaPreference(input: { actorId: string; enabled: boolean }): Promise<{ mfaEnabled: boolean }> {
-    const credential = await this.authRepository.findCredentialsByActor('customer', input.actorId);
-    if (!credential) {
-      throw new UnauthorizedException('No hay credenciales para este cliente.');
-    }
-    if (input.enabled && !this.mailSenderService.isEnabled()) {
-      // Fail-closed a la inversa: no dejar activar MFA si no hay canal para entregar el OTP, para no
-      // dejar al cliente bloqueado en el próximo login.
-      throw new ServiceUnavailableException('No es posible activar MFA: el servicio de correo no está configurado.');
-    }
-    await this.authRepository.setMfaEnabled(credential, input.enabled);
-    return { mfaEnabled: input.enabled };
-  }
-
-  private async issueLoginPinChallenge(
-    actor: ResolvedActor,
-    actorType: ActorType,
-    network: { ip: string | null; userAgent: string | null },
-  ): Promise<LoginPinChallenge> {
-    if (!actor.email) {
-      // Solo alcanzable si un super admin no tiene email registrado — no debería existir, pero
-      // fallar cerrado es lo correcto para un rol de administración total.
-      throw new UnauthorizedException('La cuenta de administrador no tiene un email registrado para recibir el PIN.');
-    }
-
-    const pin = generateNumericCode();
-    const challengeToken = generateChallengeToken();
-    const ttlMinutes = env.AUTH_ONE_TIME_CODE_TTL_MINUTES;
-    await this.authRepository.createOneTimeCode({
-      tenantId: actor.tenantId,
-      actorType,
-      actorId: actor.id,
-      purpose: 'login_pin',
-      codeHash: hashOneTimeCode(pin),
-      challengeHash: hashOneTimeCode(challengeToken),
-      expiresAt: new Date(Date.now() + ttlMinutes * 60_000),
-    });
-
-    await this.mailSenderService.sendLoginPin({
-      to: actor.email,
-      recipientName: actor.displayName,
-      pin,
-      ttlMinutes,
-      reference: `login-pin-${actorType}-${actor.id}`,
-    });
-
-    await this.authRepository.recordLoginAttemptEvent({
-      tenantId: actor.tenantId,
-      actorType,
-      actorId: actor.id,
-      eventType: 'login_pin_challenge',
-      successful: true,
-      failureReasonCode: null,
-      ipAddress: network.ip,
-      userAgent: network.userAgent,
-    });
-
-    return { pinChallengeRequired: true, challengeToken, expiresInMinutes: ttlMinutes };
-  }
-
-  /** Completa el login de un super admin: token de desafío (paso 1, contraseña) + PIN del correo. */
   async verifyLoginPin(input: { challengeToken: string; pin: string; ip: string | null; userAgent: string | null }): Promise<LoginResult> {
-    const invalidPinError = new UnauthorizedException('PIN inválido o expirado.');
-
-    const challenge = await this.authRepository.findActiveOneTimeCodeByChallenge(hashOneTimeCode(input.challengeToken));
-    if (!challenge || challenge.purpose !== 'login_pin' || challenge.expiresAt.getTime() < Date.now()) {
-      throw invalidPinError;
-    }
-
-    const actorType = challenge.actorType as ActorType;
-    if (!verifyOneTimeCode(input.pin, challenge.codeHash)) {
-      await this.authRepository.registerOneTimeCodeFailedAttempt(challenge, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
-      await this.authRepository.recordLoginAttemptEvent({
-        tenantId: challenge.tenantId,
-        actorType,
-        actorId: challenge.actorId,
-        eventType: 'login',
-        successful: false,
-        failureReasonCode: 'invalid_login_pin',
-        ipAddress: input.ip,
-        userAgent: input.userAgent,
-      });
-      throw invalidPinError;
-    }
-
-    await this.authRepository.consumeOneTimeCode(challenge);
-
-    const actor = await this.actorResolver.reResolveActorRole(actorType, challenge.actorId, challenge.tenantId);
-    const credential = actor ? await this.authRepository.findCredentialsByActor(actorType, actor.id) : null;
-    if (!actor || !credential) {
-      throw new UnauthorizedException('El actor asociado a este PIN ya no está disponible.');
-    }
-
-    await this.authRepository.recordSuccessfulLogin(credential, input.ip);
-    await this.authRepository.recordLoginAttemptEvent({
-      tenantId: actor.tenantId,
-      actorType,
-      actorId: actor.id,
-      eventType: 'login',
-      successful: true,
-      failureReasonCode: null,
-      ipAddress: input.ip,
+    const verified = await this.secondFactor.consumeChallenge(input);
+    return this.issueTokenPair(verified.actor, verified.actorType, verified.credential.tokenVersion, {
+      ip: input.ip,
       userAgent: input.userAgent,
     });
-
-    return this.issueTokenPair(actor, actorType, credential.tokenVersion, { ip: input.ip, userAgent: input.userAgent });
   }
 
   /** "Olvidé mi contraseña" (paso 1). Delegado en `AuthPasswordResetService`. */
@@ -492,14 +381,37 @@ export class AuthService {
    * una cuenta con rol `admin`/`platform_admin` sería una vulnerabilidad crítica. El flujo
    * correcto es: un `platform_admin` crea la fila en `internal_users`/`platform_users` y luego
    * usa este endpoint para fijar su contraseña inicial.
+   *
+   * ATLAS-SEC-007 — contención por tenant. Este endpoint fija la contraseña de una cuenta que el
+   * solicitante NO controla, así que es el único punto del backend donde un actor puede fabricarse
+   * un acceso ajeno. `TenantGuard` no lo cubre: el destino llega en `actorId` (cuerpo), no en
+   * `x-tenant-id`. Sin este chequeo, un `admin` del tenant A provisionaba a un usuario interno del
+   * tenant B sin credenciales y entraba como él con `x-tenant-id: B` — toma de cuenta entre
+   * tenants, verificada en vivo (docs/audit/evidence/live-exploit-2026-08-06.md).
+   *
+   * Reglas:
+   *  - `platform_admin` opera a nivel plataforma (su token no lleva `tenantId`): puede provisionar
+   *    en cualquier tenant, y es el único que puede provisionar un `platform_user`.
+   *  - `admin` es un rol DE TENANT: solo puede provisionar `internal_user` de su propio tenant.
    */
-  async provisionCredentials(dto: ProvisionCredentialsDto, requestedBy: { role: AtlasUserRole }): Promise<ProvisionCredentialsResponseDto> {
+  async provisionCredentials(
+    dto: ProvisionCredentialsDto,
+    requestedBy: { role: AtlasUserRole; tenantId: string | null },
+  ): Promise<ProvisionCredentialsResponseDto> {
     if (requestedBy.role !== 'admin' && requestedBy.role !== 'platform_admin') {
       throw new ForbiddenException('Solo un administrador puede provisionar credenciales.');
     }
 
     if (!isPasswordStrongEnough(dto.password)) {
       throw new UnauthorizedException('La contraseña no cumple el mínimo de seguridad requerido.');
+    }
+
+    const isPlatformAdmin = requestedBy.role === 'platform_admin';
+
+    // Un `platform_user` no pertenece a ningún tenant: darle credenciales es un acto de alcance
+    // plataforma y no puede autorizarlo un administrador de tenant.
+    if (dto.actorType === 'platform_user' && !isPlatformAdmin) {
+      throw new ForbiddenException('Solo un platform_admin puede provisionar credenciales de un usuario de plataforma.');
     }
 
     const actor =
@@ -511,12 +423,19 @@ export class AuthService {
       throw new UnauthorizedException('El actor indicado no existe.');
     }
 
+    const tenantId = 'tenantId' in actor ? (actor as { tenantId: string | null }).tenantId : null;
+
+    // El mismo `ForbiddenException` para "otro tenant" y para "mi token no trae tenant": distinguir
+    // ambos casos le confirmaría a un atacante que el `actorId` que probó SÍ existe en otro tenant.
+    if (!isPlatformAdmin && (requestedBy.tenantId === null || tenantId !== requestedBy.tenantId)) {
+      throw new ForbiddenException('No es posible provisionar credenciales de un actor de otro tenant.');
+    }
+
     const existing = await this.authRepository.findCredentialsByActor(dto.actorType, dto.actorId);
     if (existing) {
       throw new ConflictException('CREDENTIALS_ALREADY_PROVISIONED');
     }
 
-    const tenantId = 'tenantId' in actor ? (actor as { tenantId: string | null }).tenantId : null;
     const passwordHash = await hashPassword(dto.password);
     await this.authRepository.createCredentials({
       tenantId,

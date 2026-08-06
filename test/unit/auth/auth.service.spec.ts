@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { asyncMock } from '../../support/jest-mocks.js';
 import { UnauthorizedException, ForbiddenException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 
@@ -18,7 +18,9 @@ jest.mock('../../../src/common/utils/crypto/refresh-token.util.js', () => ({
 import { AuthService, isLoginPinChallenge, LoginOutcome } from '../../../src/modules/auth/auth.service.js';
 import { AuthActorResolverService } from '../../../src/modules/auth/auth-actor-resolver.service.js';
 import { AuthPasswordResetService } from '../../../src/modules/auth/auth-password-reset.service.js';
+import { AuthSecondFactorService } from '../../../src/modules/auth/auth-second-factor.service.js';
 import { hashOneTimeCode } from '../../../src/common/utils/crypto/one-time-code.util.js';
+import { env } from '../../../src/config/env.js';
 
 function buildAuthRepositoryMock() {
   return {
@@ -109,10 +111,12 @@ function buildService(
     mailSenderService as never,
     actorResolver,
   );
+  const secondFactor = new AuthSecondFactorService(authRepository as never, actorResolver, mailSenderService as never);
   return new AuthService(
     authRepository as never,
     actorResolver,
     passwordReset,
+    secondFactor,
     tokenRevocationService as never,
     mailSenderService as never,
     sequelize as never,
@@ -725,7 +729,10 @@ describe('AuthService.provisionCredentials', () => {
     const service = buildService(authRepository, customersRepository, tokenRevocationService);
 
     await expect(
-      service.provisionCredentials({ actorType: 'internal_user', actorId: '5', password: 'AtlasBnpl2026' }, { role: 'internal_operator' }),
+      service.provisionCredentials(
+        { actorType: 'internal_user', actorId: '5', password: 'AtlasBnpl2026' },
+        { role: 'internal_operator', tenantId: '1' },
+      ),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -739,7 +746,10 @@ describe('AuthService.provisionCredentials', () => {
     const service = buildService(authRepository, customersRepository, tokenRevocationService);
 
     await expect(
-      service.provisionCredentials({ actorType: 'internal_user', actorId: '5', password: 'AtlasBnpl2026' }, { role: 'admin' }),
+      service.provisionCredentials(
+        { actorType: 'internal_user', actorId: '5', password: 'AtlasBnpl2026' },
+        { role: 'admin', tenantId: '1' },
+      ),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -754,11 +764,100 @@ describe('AuthService.provisionCredentials', () => {
 
     const result = await service.provisionCredentials(
       { actorType: 'internal_user', actorId: '5', password: 'AtlasBnpl2026' },
-      { role: 'platform_admin' },
+      { role: 'platform_admin', tenantId: null },
     );
 
     expect(result).toEqual({ provisioned: true });
     expect(authRepository.createCredentials).toHaveBeenCalledTimes(1);
+  });
+
+  // ATLAS-SEC-007. La explotación real está en docs/audit/evidence/live-exploit-2026-08-06.md:
+  // un `admin` del tenant 1 fijaba la contraseña de un `internal_user` del tenant 2 y entraba como
+  // él. `TenantGuard` no puede cubrirlo porque el destino llega en el cuerpo, no en el header.
+  it('un admin NO puede provisionar credenciales de un actor de otro tenant', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    authRepository.findInternalUserById.mockResolvedValue({ id: '3', tenantId: '2' });
+    authRepository.findCredentialsByActor.mockResolvedValue(null);
+
+    const service = buildService(authRepository, customersRepository, tokenRevocationService);
+
+    await expect(
+      service.provisionCredentials(
+        { actorType: 'internal_user', actorId: '3', password: 'AtlasBnpl2026' },
+        { role: 'admin', tenantId: '1' },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(authRepository.createCredentials).not.toHaveBeenCalled();
+  });
+
+  it('un admin SÍ puede provisionar dentro de su propio tenant', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    authRepository.findInternalUserById.mockResolvedValue({ id: '5', tenantId: '1' });
+    authRepository.findCredentialsByActor.mockResolvedValue(null);
+
+    const service = buildService(authRepository, customersRepository, tokenRevocationService);
+
+    await expect(
+      service.provisionCredentials(
+        { actorType: 'internal_user', actorId: '5', password: 'AtlasBnpl2026' },
+        { role: 'admin', tenantId: '1' },
+      ),
+    ).resolves.toEqual({ provisioned: true });
+  });
+
+  it('un admin sin tenant en el token no puede provisionar nada', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    authRepository.findInternalUserById.mockResolvedValue({ id: '5', tenantId: '1' });
+    authRepository.findCredentialsByActor.mockResolvedValue(null);
+
+    const service = buildService(authRepository, customersRepository, tokenRevocationService);
+
+    await expect(
+      service.provisionCredentials(
+        { actorType: 'internal_user', actorId: '5', password: 'AtlasBnpl2026' },
+        { role: 'admin', tenantId: null },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  // Un platform_user no pertenece a ningún tenant: provisionarlo es un acto de alcance plataforma.
+  it('un admin de tenant no puede provisionar un platform_user', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+
+    const service = buildService(authRepository, customersRepository, tokenRevocationService);
+
+    await expect(
+      service.provisionCredentials(
+        { actorType: 'platform_user', actorId: '9', password: 'AtlasBnpl2026' },
+        { role: 'admin', tenantId: '1' },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(authRepository.findPlatformUserById).not.toHaveBeenCalled();
+  });
+
+  it('un platform_admin sí puede provisionar un platform_user', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    authRepository.findPlatformUserById.mockResolvedValue({ id: '9' });
+    authRepository.findCredentialsByActor.mockResolvedValue(null);
+
+    const service = buildService(authRepository, customersRepository, tokenRevocationService);
+
+    await expect(
+      service.provisionCredentials(
+        { actorType: 'platform_user', actorId: '9', password: 'AtlasBnpl2026' },
+        { role: 'platform_admin', tenantId: null },
+      ),
+    ).resolves.toEqual({ provisioned: true });
   });
 });
 
@@ -891,5 +990,85 @@ describe('AuthService — métrica de intentos de login', () => {
     await expect(service.login({ tenantId: '1', dto: loginDto, ip: null, userAgent: null })).rejects.toThrow();
 
     expect(metrics.recordAuthAttempt).toHaveBeenCalledWith({ actorType: 'customer', outcome: 'actor_not_found' });
+  });
+});
+
+/**
+ * ATLAS-SEC-008 — el segundo factor de un actor interno no puede evaporarse.
+ *
+ * `isSecondFactorRequired` devuelve `false` cuando MailSender no está disponible: sin canal no hay
+ * PIN que entregar. Esa degradación es correcta en local y es una rebaja silenciosa de
+ * autenticación en producción — verificada en vivo sobre la API real
+ * (docs/audit/evidence/live-exploit-2026-08-06.md): un `admin` recibía el par de tokens con solo la
+ * contraseña. `env-cross-checks.ts` impide desplegar así; esto cubre la ventana que la
+ * configuración no alcanza: el proveedor configurado pero CAÍDO en el instante del login.
+ */
+describe('AuthService — fail-closed del segundo factor interno en producción', () => {
+  const originalNodeEnv = env.NODE_ENV;
+  const restoreNodeEnv = () => {
+    (env as { NODE_ENV: string }).NODE_ENV = originalNodeEnv;
+  };
+  const asProduction = () => {
+    (env as { NODE_ENV: string }).NODE_ENV = 'production';
+  };
+
+  const internalLogin = {
+    tenantId: '1',
+    dto: { actorType: 'internal_user' as const, identifier: 'ops@atlas.internal', password: 'AtlasBnpl2026' },
+    ip: null,
+    userAgent: null,
+  };
+
+  function buildInternalLoginService(mailEnabled: boolean) {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const mailSenderService = buildMailSenderServiceMock();
+    mailSenderService.isEnabled.mockReturnValue(mailEnabled);
+
+    authRepository.findInternalUserByEmail.mockResolvedValue({
+      id: '5',
+      tenantId: '1',
+      status: 'active',
+      roleCode: 'admin',
+      email: 'ops@atlas.internal',
+      fullName: 'Ops',
+    });
+    authRepository.findCredentialsByActor.mockResolvedValue({
+      passwordHash: 'hashed:AtlasBnpl2026',
+      tokenVersion: 1,
+      actorType: 'internal_user',
+      actorId: '5',
+    });
+
+    return {
+      service: buildService(authRepository, customersRepository, tokenRevocationService, mailSenderService),
+      authRepository,
+    };
+  }
+
+  afterEach(restoreNodeEnv);
+
+  it('sin canal de correo, un actor interno NO recibe tokens: 503 en vez de un solo factor', async () => {
+    asProduction();
+    const { service, authRepository } = buildInternalLoginService(false);
+
+    await expect(service.login(internalLogin)).rejects.toThrow(ServiceUnavailableException);
+    expect(authRepository.recordSuccessfulLogin).not.toHaveBeenCalled();
+  });
+
+  it('con canal de correo disponible, el login interno sigue exigiendo el PIN', async () => {
+    asProduction();
+    const { service } = buildInternalLoginService(true);
+
+    const outcome = await service.login(internalLogin);
+    expect(isLoginPinChallenge(outcome)).toBe(true);
+  });
+
+  it('fuera de producción la degradación se conserva: el backend local no queda inaccesible', async () => {
+    const { service } = buildInternalLoginService(false);
+
+    const outcome = await service.login(internalLogin);
+    expect(isLoginPinChallenge(outcome)).toBe(false);
   });
 });
