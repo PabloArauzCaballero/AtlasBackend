@@ -19,6 +19,7 @@ import { join, resolve } from 'node:path';
 import { QueryInterface, QueryTypes } from 'sequelize';
 import { env } from '../src/config/env.js';
 import { createMigrationSequelizeInstance } from '../src/database/sequelize.js';
+import { handleUnreachableDatabase } from './gate-skip-policy.js';
 
 const PRODUCTION_DIR = resolve(process.cwd(), 'src', 'database', 'seeders', 'production');
 
@@ -84,7 +85,7 @@ async function main(): Promise<void> {
     try {
       await sequelize.authenticate();
     } catch (error) {
-      console.warn(`[skip] no se pudo conectar a Postgres: ${(error as Error).message}`);
+      handleUnreachableDatabase(error, 'db:seed:verify-prod-idempotency');
       return;
     }
 

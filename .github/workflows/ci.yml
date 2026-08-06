@@ -43,7 +43,11 @@ jobs:
       - name: Verify smoke result JSON files are never tracked
         run: yarn check:smoke-results-untracked
 
-      - name: Lint
+      # `yarn lint` lleva `--max-warnings=153`: el trinquete de complejidad (complexity, max-params,
+      # max-lines-per-function) estaba declarado como `warn` en eslint.config.mjs y CI no lo miraba,
+      # así que el "gate de complejidad" no bloqueaba nada. Ahora la deuda conocida está congelada y
+      # un warning NUEVO rompe el build. Al reducirla, bajar el número (nunca subirlo para pasar).
+      - name: Lint (0 errores, warnings congelados)
         run: yarn lint
 
       - name: Format check
@@ -75,6 +79,12 @@ jobs:
       # la confirma contra un Postgres real, pero ese llega tarde y cuesta minutos.
       - name: Check migrations can apply to an empty database
         run: yarn check:migrations
+
+      # ATLAS-DATA-004: una política de retención sembrada, activa y sin destino ejecutable es un
+      # control declarado que el sistema no ejerce — en KYC eso es un hallazgo de cumplimiento, no
+      # deuda técnica. El gate obliga a mapearla o a declarar por escrito por qué aún no se aplica.
+      - name: Check every seeded retention policy has an executable target or a declared decision
+        run: yarn check:retention-coverage
 
       # ATLAS-SEC-002: `@CurrentTenant()` ya encapsula la lectura de x-tenant-id. La brecha real la
       # cierra TenantGuard, así que lo que queda es duplicación y se migra al tocar cada controller

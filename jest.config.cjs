@@ -28,8 +28,13 @@ const config = {
       'ts-jest',
       {
         tsconfig: 'tsconfig.spec.json',
+        // ATLAS-TEST-002: antes `warnOnly: true`. Un error de tipos en un spec se imprimía como
+        // aviso y la suite seguía en verde, así que un mock que dejaba de encajar con el contrato
+        // real del servicio no rompía nada — justo el fallo que un doble de prueba debe delatar.
+        // `yarn type-check:tests` ya cubría el repositorio entero, pero solo en CI y como paso
+        // aparte: aquí el error aparece en el mismo comando que corre quien escribe la prueba.
         diagnostics: {
-          warnOnly: true,
+          warnOnly: false,
         },
       },
     ],

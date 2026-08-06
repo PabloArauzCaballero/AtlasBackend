@@ -12,6 +12,7 @@
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { buildSequelizeOptions } from '../src/config/database.config.js';
+import { handleUnreachableDatabase } from './gate-skip-policy.js';
 
 const EXPECTED_VIEWS = [
   'v_customer_overview_v1',
@@ -29,8 +30,8 @@ async function main(): Promise<void> {
   try {
     await sequelize.authenticate();
   } catch (error) {
-    console.warn(`[skip] no se pudo conectar a Postgres: ${(error as Error).message}`);
     await sequelize.close().catch(() => undefined);
+    handleUnreachableDatabase(error, 'check:read-api-views');
     return;
   }
 

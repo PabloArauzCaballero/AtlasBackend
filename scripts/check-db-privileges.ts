@@ -21,6 +21,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { usesDedicatedMigrationIdentity } from '../src/config/database.config.js';
 import { env } from '../src/config/env.js';
 import { ATLAS_SCHEMAS } from '../src/database/domain-schemas.js';
+import { handleUnreachableDatabase } from './gate-skip-policy.js';
 
 /** En modo estricto, un usuario conectado distinto al rol esperado es un fallo, no un skip. */
 const STRICT = process.argv.includes('--strict');
@@ -155,9 +156,12 @@ async function runCheck(spec: ConnectionSpec, check: (s: Sequelize) => Promise<s
   try {
     await sequelize.authenticate();
   } catch (error) {
-    console.warn(`[skip] no se pudo conectar como ${spec.label}: ${(error as Error).message}`);
+    // ATLAS-CI-002: no conectar NO es "sin errores". Antes devolvía `[]`, así que la matriz de
+    // privilegios —el gate que existe para cazar exactamente un aprovisionamiento mal hecho— se
+    // aprobaba sola cuando la credencial era incorrecta.
     await sequelize.close().catch(() => undefined);
-    return [];
+    handleUnreachableDatabase(error, `check:db-privileges (${spec.label})`);
+    return [`No se pudo conectar como ${spec.label}: la matriz de privilegios no pudo verificarse.`];
   }
   try {
     return await check(sequelize);
