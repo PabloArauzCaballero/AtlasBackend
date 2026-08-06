@@ -37,10 +37,10 @@ function parseEnv(): AppEnv {
     );
   }
 
-  // PII cifrada sin KMS: en producción sin KMS_KEY_ID+AWS_REGION, la master key se deriva de una env
-  // var (SHA-256). Es un despliegue legítimo en la etapa actual, pero comprometer esa variable
-  // descifra toda la PII, así que se avisa ruidosamente (no se bloquea el arranque). Ver
-  // docs/audit/revision-completa-backend-2026-07-21.md (S-M3).
+  // PII cifrada sin KMS. Desde ATLAS-SEC-011 este camino solo se alcanza si el despliegue DECLARÓ el
+  // riesgo con `PII_ENCRYPTION_ALLOW_ENV_MASTER_KEY=true` (si no, `env-cross-checks.ts` impide
+  // arrancar). El aviso se conserva porque la decisión está tomada, pero conviene que siga doliendo
+  // en cada arranque. Ver docs/audit/revision-completa-backend-2026-07-21.md (S-M3).
   if (parsed.data.NODE_ENV === 'production' && !(parsed.data.KMS_KEY_ID && parsed.data.AWS_REGION)) {
     console.warn(
       '[ATLAS][SEGURIDAD] Producción sin KMS: la PII se cifra con clave derivada de una variable de ' +

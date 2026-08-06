@@ -4,7 +4,7 @@
  * @system provee infraestructura transversal de logging sin introducir reglas de un dominio específico.
  */
 import { ConsoleLogger } from '@nestjs/common';
-import { appendFile } from 'node:fs/promises';
+import { appendFile, rename, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { env } from '../../config/env.js';
 import { redactSensitiveText } from '../utils/privacy/redact-text.util.js';
@@ -53,8 +53,11 @@ type LogLevel = 'log' | 'error' | 'warn' | 'debug' | 'verbose' | 'fatal';
  */
 export class AppFileLogger extends ConsoleLogger {
   private readonly filePath = resolve(env.LOG_SYNC_FILE_PATH);
+  private readonly rotatedPath = `${resolve(env.LOG_SYNC_FILE_PATH)}.1`;
   private readonly jsonConsole = (env.LOG_FORMAT ?? (env.NODE_ENV === 'production' ? 'json' : 'pretty')) === 'json';
   private writeQueue: Promise<void> = Promise.resolve();
+  /** Bytes escritos desde el último arranque o rotación. Evita un `stat` por línea. */
+  private bytesSinceRotation: number | null = null;
 
   private buildLine(level: LogLevel, context: string | undefined, message: unknown, extra?: string): string {
     // Scrubber de PII/secretos antes de emitir: la línea acaba en stdout y en Archivo.log, y de ahí
@@ -73,8 +76,44 @@ export class AppFileLogger extends ConsoleLogger {
     return `${JSON.stringify(entry)}\n`;
   }
 
+  /**
+   * ATLAS-OPS-012 — rotación por tamaño.
+   *
+   * `ArchivoLogMongoSyncService` trunca el archivo, pero SOLO después de sincronizar su contenido a
+   * MongoDB. En un despliegue sin Mongo configurado —que es una configuración soportada— nada lo
+   * truncaba nunca: el archivo crecía hasta llenar el disco del contenedor, y con él se cae el
+   * proceso entero, no solo el logging.
+   *
+   * La rotación es de un solo relevo (`Archivo.log` -> `Archivo.log.1`) a propósito: este archivo es
+   * un búfer hacia el pipeline de logs, no el archivo histórico. Conservar más generaciones daría
+   * una falsa sensación de retención en un fichero local que nadie respalda; la retención de verdad
+   * vive en Mongo (`log_sync`) y en el agregador que recoge stdout.
+   */
+  private async rotateIfTooLarge(incomingBytes: number): Promise<void> {
+    if (this.bytesSinceRotation === null) {
+      this.bytesSinceRotation = await stat(this.filePath)
+        .then((info) => info.size)
+        .catch(() => 0);
+    }
+
+    if (this.bytesSinceRotation + incomingBytes <= env.LOG_FILE_MAX_BYTES) {
+      this.bytesSinceRotation += incomingBytes;
+      return;
+    }
+
+    // `rename` sobre el mismo sistema de archivos es atómico: no hay ventana en la que el log activo
+    // no exista. Si falla (permisos, disco lleno), se sigue escribiendo en el archivo actual — perder
+    // la rotación es preferible a perder las líneas.
+    await rename(this.filePath, this.rotatedPath).catch((error: unknown) => {
+      process.stderr.write(`[AppFileLogger] No se pudo rotar ${this.filePath}: ${String(error)}\n`);
+    });
+    this.bytesSinceRotation = incomingBytes;
+  }
+
   private enqueueWrite(line: string): void {
+    const bytes = Buffer.byteLength(line, 'utf8');
     this.writeQueue = this.writeQueue
+      .then(() => this.rotateIfTooLarge(bytes))
       .then(() => appendFile(this.filePath, line, 'utf8'))
       .catch((error: unknown) => {
         process.stderr.write(`[AppFileLogger] No se pudo escribir en ${this.filePath}: ${String(error)}\n`);
