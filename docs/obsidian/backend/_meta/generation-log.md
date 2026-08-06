@@ -112,15 +112,31 @@ Al abrirlo apareció algo que el error tapaba: asignaba las rutas sensibles a **
 
 ### Limitaciones
 
-### Limitaciones
-
-Sin medición de rendimiento, sin cobertura de código, sin volumetría, sin verificación del esquema desplegado. Todas las notas llevan `owner: unknown`: no hay `CODEOWNERS` en el repositorio.
+Sin medición de rendimiento, sin cobertura de código, sin volumetría y sin verificación del esquema desplegado.
 
 Detalle en [[01-overview/assumptions-and-gaps]].
 
 ### Nota de proceso
 
 `graphify` no estaba instalado en el entorno de generación, así que no se usó el grafo de conocimiento del proyecto. La documentación se construyó leyendo las fuentes directamente.
+
+## 2026-08-06 — cuarta pasada — auditoría integral con ejecución
+
+Primera pasada que **ejecuta** el proyecto en vez de solo leerlo. Cierra la limitación principal de las tres anteriores: ya hay evidencia de gates reales.
+
+Alcance y resultados en [[../../../audit/backend-audit-report|el informe de auditoría]]. Lo que cambia para esta bóveda:
+
+| Nota | Cambio |
+|---|---|
+| [[14-audits/contradictions]] | `C-002` corregido en el README (dos apariciones, no una). `C-003` cerrado: el gate `check:env-example` ya reconcilia ambas plantillas |
+| [[14-audits/risks-register]] | `DATA-003` reforzado: el requisito de archivado está escrito en el propio catálogo de entidades del sistema. Añadido `DEP-001` |
+| [[_meta/unresolved-items]] | Sin cambios: `U-006`, `U-008` y `U-009` siguen necesitando entorno o decisión |
+
+Corrección a esta misma nota: la sección «Limitaciones» aparecía duplicada y afirmaba que *«todas las notas llevan `owner: unknown`: no hay CODEOWNERS en el repositorio»* — contradiciendo la corrección escrita dos párrafos más arriba en la misma pasada, que documenta que `CODEOWNERS` sí existía y que las 330 notas ya llevan propietario.
+
+### Novedad de método
+
+Se usó el grafo de `graphify` para el análisis de conectividad, que las tres pasadas anteriores no pudieron hacer. De 675 archivos de `src/`, 76 de los 77 no importados son entrypoints o carga dinámica del runner de migraciones y seeds; el único huérfano real resultó ser `auth.dtos.ts`.
 
 ## Próxima ejecución
 

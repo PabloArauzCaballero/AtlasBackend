@@ -37,6 +37,8 @@ Hallazgos de **análisis estático** en la revisión `80fc741`. Ninguno procede 
 | [[#DATA-003]] | Datos | `outbox_events` crece sin purga: **confirmado** | Media | Abierto |
 | [[#DATA-001]] | Datos | Ninguna FK usa `ON DELETE CASCADE` | Informativo | Por diseño |
 | [[#DOC-001]] | Documentación | 40 de 92 eventos describen dominios sin persistencia | Media | Ver [[14-audits/contradictions]] |
+| [[#SEC-006]] | Seguridad | La entrega segura de credenciales iniciales existe y no está conectada | **Alta** | Abierto |
+| [[#DEP-001]] | Dependencias | `brace-expansion` 5.0.8 con dos advisories HIGH | Alta | **Corregido** |
 
 ---
 
@@ -182,6 +184,16 @@ Efecto secundario relevante: la consulta de reclamo filtra por `status = 'pendin
 
 **Recomendación.** Añadir un job de purga o archivado de `processed` con retención configurable, siguiendo el patrón ya existente de `purge_idempotency_keys`. Conservar `failed` hasta resolución manual — es la dead-letter.
 
+> [!danger] Reforzado en la auditoría del 2026-08-06: el requisito está escrito en el propio sistema
+> No es un descuido que nadie advirtió. La narrativa de entidad de `outbox_events` —el texto que el backend sirve por su propia API de catálogo— dice literalmente:
+>
+> *«Es de alto volumen: requiere índice por (`status`, `available_at`) y **archivado de procesados**.»*
+> — `src/modules/systems-ops/entity-narratives/communications.fixtures.ts:34`
+>
+> De las dos mitades de ese requisito, **una está implementada y la otra no**: `ix_outbox_status_available_at` existe desde `20260629170000-add-runtime-hardening-tables.ts:51`; el archivado no existe en ninguna parte.
+>
+> Eso sube la severidad efectiva: el sistema documenta la necesidad, la cumple a medias y no tiene ningún control que avise de la mitad que falta.
+
 ---
 
 ## DATA-001 — Sin `ON DELETE CASCADE`
@@ -193,6 +205,40 @@ Efecto secundario relevante: la consulta de reclamo filtra por `status = 'pendin
 **Lectura.** Es deliberado y coherente con un sistema auditado: perder evidencia por un `DELETE` accidental es peor que acumular filas. La contrapartida es que **el borrado real de un cliente exige un procedimiento explícito** — no basta con `DELETE FROM customers`. Ver [[05-data/retention-and-deletion]] y las solicitudes de titular en `data_subject_requests`.
 
 ---
+
+---
+
+## SEC-006 — La entrega segura de credenciales iniciales está construida y desconectada
+
+**Severidad:** Alta · **Probabilidad:** Alta (cada alta de usuario interno) · **Estado:** Abierto
+
+**Observado.** Tres piezas de un mismo flujo existen, encajan entre sí y **ninguna llama a la siguiente**:
+
+| Pieza | Ubicación | Consumidores en `src/` |
+|---|---|---|
+| `generateTemporaryPassword()` | `common/utils/crypto/password.util.ts:56` | **0** |
+| `MailSenderService.sendInitialCredentials()` | `mail-sender/mail-sender.service.ts:83` | **0** (solo un spec) |
+| Plantilla `atlas-credenciales-iniciales` | referenciada por esa función | — |
+
+El generador ya está bien hecho: alfabeto sin caracteres ambiguos porque *«esta contraseña se transcribe desde un correo»*, 12 caracteres, y un bucle que reintenta hasta pasar `isPasswordStrongEnough`. Su docstring describe el flujo completo, incluido el `mustChangePassword` del primer login.
+
+**Lo que ocurre en su lugar.** `createInternalUserSchema:57` declara `password` como **obligatorio**. El administrador que da de alta a un usuario interno teclea la contraseña ajena en el cuerpo de una petición HTTP, y como no hay envío de correo, tiene que comunicarla por fuera del sistema — WhatsApp, teléfono, papel.
+
+**Impacto.** El camino inseguro es el único disponible, y el seguro está escrito a diez líneas de distancia. La contraseña inicial de un usuario interno —los que tienen acceso a PII de clientes— existe en claro en el portapapeles de un administrador, en un canal no auditado y fuera de toda política de rotación. Ninguna traza del sistema lo registra.
+
+**Por qué no se corrigió en esta auditoría.** Conectarlo cambia el contrato de `POST /internal-users`: `password` pasaría de obligatorio a opcional. Es compatible hacia atrás (quien siga enviándola conserva el comportamiento actual), pero decidir que Atlas envía contraseñas por correo es una decisión de seguridad del propietario, no de un auditor. La corrección concreta está en el plan de reconexión de la auditoría.
+
+## DEP-001 — `brace-expansion` vulnerable en el árbol transitivo
+
+**Severidad:** Alta (por CVSS) · **Explotabilidad real:** Baja · **Estado:** **Corregido en esta revisión**
+
+**Observado.** `yarn audit` **ejecutado** devolvía dos advisories HIGH, ambos del mismo paquete: `brace-expansion` 5.0.8, DoS por arrays intermedios sin cota, eludiendo la mitigación de CVE-2026-14257.
+
+Ruta: `@opentelemetry/auto-instrumentations-node > @opentelemetry/resource-detector-gcp > gcp-metadata > gaxios > rimraf > glob > minimatch > brace-expansion`. El proyecto nunca lo importa: el código vulnerable expande patrones de fichero, no entrada de usuario, así que la explotabilidad real es baja pese al CVSS.
+
+**Corrección aplicada.** Ya existía un pin en `resolutions` (`^5.0.8`) cuyo rango admitía la versión corregida, pero el lockfile la mantenía anclada. Se subió a `^5.0.9`. `yarn audit` pasa a 0 vulnerabilidades en todas las severidades.
+
+**Lectura para el futuro.** Un pin con `^` no basta: fija el rango, no la resolución. Sin `yarn audit` en CI —que sí está, y sin `continue-on-error` a propósito— este hallazgo dependía de que alguien lo ejecutara a mano.
 
 ## Relaciones
 

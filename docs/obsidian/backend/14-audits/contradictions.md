@@ -21,8 +21,8 @@ Puntos donde dos fuentes del repositorio se contradicen. En cada caso se indica 
 | ID | Fuente A | Fuente B | Contradicción | Impacto | Resolución sugerida |
 |---|---|---|---|---|---|
 | [[#C-001]] | `event-registry.ts` | Esquema físico (130 tablas) | 40 eventos para agregados sin tabla | Medio | Marcar las familias como roadmap |
-| [[#C-002]] | `README.md:104` | `env.schema.ts` + compose + OpenAPI | Puerto 3000 vs 3005 | Bajo | Corregir el README |
-| [[#C-003]] | `.env.example` | Esquema Zod | Nombres en el ejemplo sin schema | Bajo | Reconciliar ambos |
+| [[#C-002]] | `README.md:104` y `:161` | `env.schema.ts` + compose + OpenAPI | Puerto 3000 vs 3005 | Bajo | **Corregido** |
+| [[#C-003]] | `.env.example` | Esquema Zod | Nombres en el ejemplo sin schema | Bajo | **Cerrado** — lo reconcilia un gate |
 | [[#C-004]] | Vocabulario de roles | Esquema físico | El rol `merchant` existe sin tablas de comercio | Bajo | Documentar o retirar |
 
 ---
@@ -53,7 +53,8 @@ Puntos donde dos fuentes del repositorio se contradicen. En cada caso se indica 
 
 **Impacto.** Bajo, pero afecta al primer contacto de cualquier desarrollador nuevo.
 
-**Resolución sugerida.** Corregir el README.
+> [!success] Corregido en la auditoría del 2026-08-06
+> Eran **dos** apariciones, no una. Además de la línea 104, la tabla de comandos (`README.md:161`) documentaba `BASE_URL` por defecto como `http://localhost:3000/api/v1`. Ese valor ni siquiera es una constante: `scripts/smoke/http.ts:10` lo deriva de `env.APP_PORT` y `env.API_PREFIX`, así que el default real siempre fue 3005. Ambas quedan corregidas.
 
 ---
 
@@ -67,7 +68,12 @@ Puntos donde dos fuentes del repositorio se contradicen. En cada caso se indica 
 
 **Matiz.** Parte de la diferencia es legítima: variables de Docker Compose, de scripts o de herramientas externas no tienen por qué estar en el esquema de la aplicación. La lista concreta está en [[15-reference/environment-variables]].
 
-**Resolución sugerida.** Separar en `.env.example` las variables de aplicación de las de infraestructura, para que la diferencia deje de ser ambigua.
+> [!success] Cerrado en la auditoría del 2026-08-06 — la resolución ya estaba implementada
+> `yarn check:env-example` **ejecutado** responde: *«.env.example cubre 159 variables tipadas y 14 credenciales de proveedor externo; ambas plantillas están libres de duplicados»*.
+>
+> Es decir, la separación que esta contradicción pedía ya existe y además está protegida por un gate: la diferencia entre las 199 líneas del ejemplo y las 159 del esquema Zod ya no es ambigua, está clasificada y verificada en cada corrida. La contradicción venía de comparar dos recuentos sin la clasificación que el gate sí aplica.
+>
+> Esto ilustra el límite del método de las tres primeras pasadas: leyendo el código no se veía: hacía falta **ejecutar el gate**.
 
 ---
 
