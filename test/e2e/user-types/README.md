@@ -1,6 +1,6 @@
 <!-- Generado por scripts/generate-project-documentation.ts. No editar a mano. -->
 
-# test/e2e
+# test/e2e/user-types
 
 ## Por qué existe
 
@@ -11,15 +11,11 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
-| — | Esta carpeta funciona como agrupador; su contenido está en subcarpetas. |
+| [`user-types.spec.ts`](./user-types.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Subcarpetas
 
-- [`catalog-management/`](./catalog-management/README.md)
-- [`notifications/`](./notifications/README.md)
-- [`systems-ops/`](./systems-ops/README.md)
-- [`user-types/`](./user-types/README.md)
-- [`workflow-catalog/`](./workflow-catalog/README.md)
+- [`support/`](./support/README.md)
 
 ## Reglas de mantenimiento
 

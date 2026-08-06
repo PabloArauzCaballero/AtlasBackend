@@ -9,25 +9,11 @@ import jwt from 'jsonwebtoken';
 import { env } from '../../config/env.js';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { TokenRevocationService } from '../services/token-revocation.service.js';
-import { AuthenticatedUser, RequestWithAuth } from '../types/auth.types.js';
+import { ATLAS_USER_ROLES, AuthenticatedUser, RequestWithAuth } from '../types/auth.types.js';
 import { ACCESS_TOKEN_COOKIE, readCookie } from '../utils/http/auth-cookies.util.js';
 import { accessTokenVerifyOptions } from '../utils/auth/jwt-claims.util.js';
 
-const KNOWN_ROLES: ReadonlySet<AuthenticatedUser['role']> = new Set([
-  'customer',
-  'internal_operator',
-  'risk_analyst',
-  'compliance_analyst',
-  'fraud_analyst',
-  'system',
-  'system_admin',
-  'qa_engineer',
-  'devops',
-  'readonly_auditor',
-  'merchant',
-  'admin',
-  'platform_admin',
-]);
+const KNOWN_ROLES: ReadonlySet<AuthenticatedUser['role']> = new Set(ATLAS_USER_ROLES);
 
 function bearerTokenFromHeader(authorizationHeader: string | string[] | undefined): string | null {
   const header = Array.isArray(authorizationHeader) ? authorizationHeader[0] : authorizationHeader;

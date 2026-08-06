@@ -42,7 +42,12 @@ const SEED_TABLES: SeedTable[] = [
         user_code: 'pablo.platform',
         full_name: 'Pablo Platform Admin',
         email: 'pablo.platform@atlas.test',
-        role_code: 'platform_super_admin',
+        // `role_code` NO es texto libre: `AuthActorResolverService.resolveActorForLogin` descarta al
+        // actor cuyo rol no pertenece a `ATLAS_USER_ROLES` (auth.types.ts), y ese valor viaja tal
+        // cual al claim `role` del token. Con 'platform_super_admin' —fuera del vocabulario— este
+        // usuario de plataforma no podía iniciar sesión NUNCA, ni siquiera con credenciales
+        // provisionadas: el login devolvía 401 como si la contraseña fuera incorrecta.
+        role_code: 'platform_admin',
         status: 'active',
         _created_at: CREATED_AT,
         _updated_at: CREATED_AT,
@@ -59,7 +64,11 @@ const SEED_TABLES: SeedTable[] = [
         user_code: 'pablo.admin',
         full_name: 'Pablo Tenant Admin',
         email: 'pablo.admin@atlas.test',
-        role_code: 'tenant_admin',
+        // Mismo motivo que el usuario de plataforma de arriba: 'tenant_admin' no existe en
+        // `ATLAS_USER_ROLES`. Hoy el seeder de desarrollo `20260704121500-seed-pablo-admin-user`
+        // pisa esta fila con 'admin', así que el fallo quedaba oculto; sin esa dependencia de
+        // orden, este usuario tampoco podía autenticarse.
+        role_code: 'admin',
         status: 'active',
         _created_at: CREATED_AT,
         _updated_at: CREATED_AT,

@@ -28,6 +28,7 @@
 | [`risk-telemetry.smoke.ts`](./risk-telemetry.smoke.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`runtime.smoke.ts`](./runtime.smoke.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`sessions.smoke.ts`](./sessions.smoke.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`user-types.smoke.ts`](./user-types.smoke.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`workflow-catalog.smoke.ts`](./workflow-catalog.smoke.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento

@@ -3,6 +3,8 @@
  * @business Esta pieza controla quién puede operar Atlas y deja evidencia de cada asignación de privilegios.
  * @system implementa identidad interna, RBAC, catálogo de permisos y guards de autorización granular.
  */
+import { AtlasUserRole } from '../../common/types/auth.types.js';
+
 export const INTERNAL_ROLE_CODES = [
   'SUPER_ADMIN',
   'SYSTEMS_ADMIN',
@@ -134,7 +136,13 @@ export const INTERNAL_ROLE_SEEDS: readonly InternalRoleSeed[] = [
   ),
 ];
 
-export function legacyRoleForInternalRoles(roleCodes: readonly string[]): string {
+/**
+ * Traduce los roles RBAC internos al claim `role` del access token. El retorno es `AtlasUserRole`
+ * —no `string`— a propósito: si devolviera un valor fuera de ese vocabulario, `JwtAuthGuard`
+ * rechazaría con 401 el token del usuario recién creado y nadie sabría por qué. Con el tipo
+ * estrecho, ese error se detecta al compilar en vez de en producción.
+ */
+export function legacyRoleForInternalRoles(roleCodes: readonly string[]): AtlasUserRole {
   const normalized = new Set(roleCodes);
   if (normalized.has('SUPER_ADMIN') || normalized.has('SYSTEMS_ADMIN') || normalized.has('INTERNAL_IDENTITY_ADMIN')) return 'admin';
   if (normalized.has('RISK_MANAGER') || normalized.has('RISK_ANALYST')) return 'risk_analyst';

@@ -4,7 +4,7 @@
  * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
  */
 import { Injectable } from '@nestjs/common';
-import { AtlasUserRole } from '../../common/types/auth.types.js';
+import { ATLAS_USER_ROLES, AtlasUserRole } from '../../common/types/auth.types.js';
 import { decryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { hashSensitiveText } from '../../common/utils/crypto/hash.util.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
@@ -20,21 +20,9 @@ export type ResolvedActor = {
   displayName: string | null;
 };
 
-const KNOWN_ROLES: ReadonlySet<AtlasUserRole> = new Set([
-  'customer',
-  'internal_operator',
-  'risk_analyst',
-  'compliance_analyst',
-  'fraud_analyst',
-  'system',
-  'system_admin',
-  'qa_engineer',
-  'devops',
-  'readonly_auditor',
-  'merchant',
-  'admin',
-  'platform_admin',
-]);
+// Mismo vocabulario que acepta `JwtAuthGuard`: ambos derivan de `ATLAS_USER_ROLES` para que
+// "rol con el que se puede iniciar sesión" y "rol que el guard acepta en el token" no diverjan.
+const KNOWN_ROLES: ReadonlySet<AtlasUserRole> = new Set(ATLAS_USER_ROLES);
 
 export function isKnownRole(value: string): value is AtlasUserRole {
   return KNOWN_ROLES.has(value as AtlasUserRole);

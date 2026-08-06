@@ -11,6 +11,7 @@ import { env } from '../../config/env.js';
 import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from './endpoint-code.util.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
+import { SYSTEMS_OPS_ROLE_CONSTANTS } from './systems-ops.constants.js';
 import { EndpointSeed } from './systems-ops.types.js';
 
 const ROUTE_DECORATOR = /@(Get|Post|Put|Patch|Delete|Options|Head)\(([^)]*)\)([\s\S]*?)(?:\n\s*(?:async\s+)?([A-Za-z0-9_]+)\s*\()/g;
@@ -19,22 +20,6 @@ const CONTROLLER_DECORATOR = /@Controller\(([^)]*)\)[\s\S]*?export\s+class\s+([A
 export type DiscoveredEndpoint = EndpointSeed & {
   controllerName: string | null;
   handlerName: string | null;
-};
-
-const ROLE_CONSTANTS: Record<string, string[]> = {
-  SYSTEMS_OPS_ROLES: [
-    'system_admin',
-    'platform_admin',
-    'admin',
-    'qa_engineer',
-    'devops',
-    'risk_analyst',
-    'compliance_analyst',
-    'readonly_auditor',
-  ],
-  SYSTEMS_OPS_GOVERNANCE_ROLES: ['system_admin', 'platform_admin'],
-  SYSTEMS_OPS_QA_ROLES: ['system_admin', 'platform_admin', 'qa_engineer'],
-  SYSTEMS_OPS_STRESS_ROLES: ['system_admin', 'platform_admin', 'qa_engineer', 'devops'],
 };
 
 function methodDecoratorBlock(classBlock: string, routeIndex: number): string {
@@ -47,7 +32,7 @@ function rolesFromDecorators(decorators: string): string[] {
   const rolesCall = decorators.match(/@Roles\(([^)]*)\)/s)?.[1];
   if (!rolesCall) return [];
   const roles = [...rolesCall.matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
-  for (const constant of rolesCall.matchAll(/\.\.\.([A-Z0-9_]+)/g)) roles.push(...(ROLE_CONSTANTS[constant[1]] ?? []));
+  for (const constant of rolesCall.matchAll(/\.\.\.([A-Z0-9_]+)/g)) roles.push(...(SYSTEMS_OPS_ROLE_CONSTANTS[constant[1]] ?? []));
   return [...new Set(roles)];
 }
 
@@ -259,7 +244,8 @@ export class EndpointDiscoveryService {
           metadataCompletenessScore: 82,
           expectedStatusCodes: [method === 'POST' ? 201 : 200],
           requiresAuth: !isRoutePublic(classBlock, route.index ?? 0),
-          allowedRoles: explicitRoles.length > 0 ? explicitRoles : systemsController ? ROLE_CONSTANTS.SYSTEMS_OPS_ROLES : [],
+          allowedRoles:
+            explicitRoles.length > 0 ? explicitRoles : systemsController ? [...SYSTEMS_OPS_ROLE_CONSTANTS.SYSTEMS_OPS_ROLES] : [],
           containsPii: this.classifier.containsPiiForEndpoint(apiPath),
           riskLevel,
           isDestructive: method === 'DELETE',
