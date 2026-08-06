@@ -1,4 +1,5 @@
-import { getArrayFromPaths, getStringFromPaths, request, TENANT_ID, uniqueKey } from './http.js';
+import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '../../src/common/utils/http/auth-cookies.util.js';
+import { cookieValue, getArrayFromPaths, getStringFromPaths, request, TENANT_ID, uniqueKey } from './http.js';
 import { requireSmokeEnv } from './required-smoke-env.js';
 
 type JsonRecord = Record<string, unknown>;
@@ -47,7 +48,23 @@ function assertIncludesPermissionGroups(actual: readonly string[], expectedGroup
   );
 }
 
-async function loginInternal(email: string, password: string): Promise<JsonRecord> {
+/**
+ * Sesión interna resuelta: el perfil del cuerpo y los dos tokens.
+ *
+ * El portal interno responde `tokenType: 'Cookie'` y entrega access y refresh en cookies
+ * `HttpOnly` (`atlas_internal_access` / `atlas_internal_refresh`), no en el cuerpo — deliberado,
+ * para que un XSS en el portal no pueda leerlos. Se buscan primero en el cuerpo, por si alguna
+ * respuesta los sigue incluyendo, y si no, en las cookies.
+ */
+type InternalSession = { profile: JsonRecord; accessToken: string; refreshToken: string };
+
+function tokenFrom(response: { data: JsonRecord; setCookie: string[] }, bodyKey: string, cookieName: string): string {
+  const fromCookie = cookieValue(response.setCookie, cookieName);
+  if (fromCookie) return fromCookie;
+  return getStringFromPaths(response.data, [['data', bodyKey], [bodyKey]]);
+}
+
+async function loginInternal(email: string, password: string): Promise<InternalSession> {
   const login = await request<JsonRecord>({
     method: 'POST',
     path: '/internal/auth/login',
@@ -56,28 +73,27 @@ async function loginInternal(email: string, password: string): Promise<JsonRecor
     expected: [200],
   });
 
-  const accessToken = getStringFromPaths(login.data, [['data', 'accessToken'], ['accessToken']]);
-  const refreshToken = getStringFromPaths(login.data, [['data', 'refreshToken'], ['refreshToken']]);
+  const accessToken = tokenFrom(login, 'accessToken', ACCESS_TOKEN_COOKIE);
+  const refreshToken = tokenFrom(login, 'refreshToken', REFRESH_TOKEN_COOKIE);
   assert(accessToken.length > 20, 'login interno no devolvió accessToken válido.');
   assert(refreshToken.length > 20, 'login interno no devolvió refreshToken válido.');
 
-  return login.data;
+  return { profile: login.data, accessToken, refreshToken };
 }
 
-function authHeaders(login: JsonRecord): Record<string, string> {
-  const accessToken = getStringFromPaths(login, [['data', 'accessToken'], ['accessToken']]);
-  return { authorization: `Bearer ${accessToken}` };
+function authHeaders(login: InternalSession): Record<string, string> {
+  return { authorization: `Bearer ${login.accessToken}` };
 }
 
-function userIdFrom(login: JsonRecord): string {
-  return getStringFromPaths(login, [
+function userIdFrom(login: InternalSession): string {
+  return getStringFromPaths(login.profile, [
     ['data', 'user', 'id'],
     ['user', 'id'],
   ]);
 }
 
-function refreshTokenFrom(login: JsonRecord): string {
-  return getStringFromPaths(login, [['data', 'refreshToken'], ['refreshToken']]);
+function refreshTokenFrom(login: InternalSession): string {
+  return login.refreshToken;
 }
 
 export async function runInternalRbacSmoke(): Promise<void> {
@@ -87,7 +103,7 @@ export async function runInternalRbacSmoke(): Promise<void> {
   const pabloHeaders = authHeaders(pabloLogin);
   const pabloId = userIdFrom(pabloLogin);
   const pabloRoles = getArray(
-    pabloLogin,
+    pabloLogin.profile,
     [
       ['data', 'user', 'roles'],
       ['user', 'roles'],
@@ -95,7 +111,7 @@ export async function runInternalRbacSmoke(): Promise<void> {
     'roles de Pablo',
   );
   const pabloPermissions = getArray(
-    pabloLogin,
+    pabloLogin.profile,
     [
       ['data', 'user', 'permissions'],
       ['user', 'permissions'],
@@ -196,7 +212,7 @@ export async function runInternalRbacSmoke(): Promise<void> {
   const qaLogin = await loginInternal(qaEmail, QA_PASSWORD);
   const qaHeaders = authHeaders(qaLogin);
   const qaRoles = getArray(
-    qaLogin,
+    qaLogin.profile,
     [
       ['data', 'user', 'roles'],
       ['user', 'roles'],
@@ -204,7 +220,7 @@ export async function runInternalRbacSmoke(): Promise<void> {
     'roles QA login',
   );
   const qaPermissions = getArray(
-    qaLogin,
+    qaLogin.profile,
     [
       ['data', 'user', 'permissions'],
       ['user', 'permissions'],
@@ -268,7 +284,7 @@ export async function runInternalRbacSmoke(): Promise<void> {
     body: { refreshToken: refreshTokenFrom(pabloLogin) },
     expected: [200],
   });
-  const rotatedRefreshToken = getStringFromPaths(refreshed.data, [['data', 'refreshToken'], ['refreshToken']]);
+  const rotatedRefreshToken = tokenFrom(refreshed, 'refreshToken', REFRESH_TOKEN_COOKIE);
   assert(rotatedRefreshToken !== refreshTokenFrom(pabloLogin), 'refresh interno no rotó el refresh token.');
 
   await request({

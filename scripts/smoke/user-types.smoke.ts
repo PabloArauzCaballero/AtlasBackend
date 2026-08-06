@@ -5,7 +5,8 @@ import {
   legacyRoleForInternalRoles,
   type InternalRoleCode,
 } from '../../src/modules/internal-users/internal-rbac.seed-data.js';
-import { PLATFORM_USER_ID, TENANT_ID, getArrayFromPaths, getString, getStringFromPaths, request, uniqueKey } from './http.js';
+import { ACCESS_TOKEN_COOKIE } from '../../src/common/utils/http/auth-cookies.util.js';
+import { PLATFORM_USER_ID, TENANT_ID, cookieValue, getArrayFromPaths, getStringFromPaths, request, uniqueKey } from './http.js';
 import { requireSmokeEnv } from './required-smoke-env.js';
 
 /**
@@ -47,7 +48,17 @@ function bearer(accessToken: string): Record<string, string> {
   return { authorization: `Bearer ${accessToken}` };
 }
 
-async function loginInternal(email: string, password: string): Promise<JsonRecord> {
+/**
+ * Sesión interna ya resuelta: el perfil del cuerpo y el token, venga de donde venga.
+ *
+ * El login del portal interno responde `tokenType: 'Cookie'` y entrega el access token en una
+ * cookie `HttpOnly` (`atlas_internal_access`), no en el cuerpo — es deliberado, para que un XSS en
+ * el portal no pueda leerlo. Por eso el token se busca primero en el cuerpo (por si algún día
+ * vuelve a viajar ahí) y, si no está, en la cookie.
+ */
+type InternalSession = { profile: JsonRecord; accessToken: string };
+
+async function loginInternal(email: string, password: string): Promise<InternalSession> {
   const login = await request<JsonRecord>({
     method: 'POST',
     path: '/internal/auth/login',
@@ -55,16 +66,16 @@ async function loginInternal(email: string, password: string): Promise<JsonRecor
     body: { tenantId: TENANT_ID, email, password },
     expected: [200],
   });
-  return login.data;
+
+  const fromCookie = cookieValue(login.setCookie, ACCESS_TOKEN_COOKIE);
+  const accessToken = fromCookie ?? getStringFromPaths(login.data, [['data', 'accessToken'], ['accessToken']]);
+
+  return { profile: login.data, accessToken };
 }
 
-function accessTokenFrom(login: JsonRecord): string {
-  return getStringFromPaths(login, [['data', 'accessToken'], ['accessToken']]);
-}
-
-function profileArray(login: JsonRecord, field: 'roles' | 'permissions'): string[] {
+function profileArray(login: InternalSession, field: 'roles' | 'permissions'): string[] {
   return asStringArray(
-    getArrayFromPaths<unknown>(login, [
+    getArrayFromPaths<unknown>(login.profile, [
       ['data', 'user', field],
       ['user', field],
     ]),
@@ -170,7 +181,7 @@ async function createAndLoginInternalUser(
   const permissions = profileArray(login, 'permissions');
   assert(roles.includes(roleCode), `el login de ${roleCode} no devolvió ese rol: ${roles.join(', ')}`);
 
-  return { roleCode, email, permissions, accessToken: accessTokenFrom(login) };
+  return { roleCode, email, permissions, accessToken: login.accessToken };
 }
 
 /**
@@ -309,8 +320,14 @@ export async function runUserTypesSmoke(): Promise<void> {
   checkLegacyRoleMapping();
 
   const adminLogin = await loginInternal(ADMIN_EMAIL, requireSmokeEnv('INTERNAL_SMOKE_PASSWORD'));
-  const adminHeaders = bearer(accessTokenFrom(adminLogin));
-  const adminId = getString(adminLogin, ['data', 'user', 'id'], getString(adminLogin, ['user', 'id']));
+  const adminHeaders = bearer(adminLogin.accessToken);
+  // `getStringFromPaths` y no `getString(..., fallback)`: el argumento de respaldo se evalúa ANTES
+  // que la ruta principal, así que un respaldo que a su vez busca una ruta inexistente lanza
+  // siempre, aunque la ruta principal sí exista. Este helper prueba las rutas en orden.
+  const adminId = getStringFromPaths(adminLogin.profile, [
+    ['data', 'user', 'id'],
+    ['user', 'id'],
+  ]);
   console.log(`[SMOKE] admin interno autenticado: id=${adminId}`);
 
   await checkCustomerActor(unique);

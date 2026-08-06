@@ -19,6 +19,15 @@ export type SmokeResponse<T = unknown> = {
   status: number;
   data: T;
   text: string;
+  /**
+   * Cabeceras `Set-Cookie` de la respuesta.
+   *
+   * El login del portal interno (`POST /internal/auth/login`) NO devuelve el token en el cuerpo:
+   * responde `tokenType: 'Cookie'` y lo entrega en una cookie `HttpOnly`, precisamente para que un
+   * XSS en el portal no pueda leerlo. Un smoke que solo mire el cuerpo no encuentra el token y
+   * falla con un mensaje confuso sobre un campo ausente, en vez de con el motivo real.
+   */
+  setCookie: string[];
 };
 
 export type SmokeRecordedCall = {
@@ -156,7 +165,19 @@ export async function request<T = unknown>(input: {
     throw new Error(`${input.method} ${input.path} expected ${expected.join('/')} got ${res.status}: ${text}`);
   }
   console.log(`[OK] ${input.method} ${input.path} -> ${res.status}`);
-  return { status: res.status, data, text };
+  return { status: res.status, data, text, setCookie: res.headers.getSetCookie() };
+}
+
+/**
+ * Extrae el valor de una cookie de las cabeceras `Set-Cookie` de una respuesta. Devuelve `null` si
+ * la cookie no viene, para que quien llama decida si eso es un fallo o un caso legítimo.
+ */
+export function cookieValue(setCookie: readonly string[], name: string): string | null {
+  for (const entry of setCookie) {
+    const match = entry.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+    if (match?.[1]) return decodeURIComponent(match[1]);
+  }
+  return null;
 }
 
 export function uniqueKey(prefix: string): string {
