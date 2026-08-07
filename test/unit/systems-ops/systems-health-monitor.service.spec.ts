@@ -30,14 +30,14 @@ type FakeRedis = {
 
 function fakeRedis(stored: Record<string, string> = {}): FakeRedis {
   return {
-    hgetall: jest.fn(async () => stored),
-    hset: jest.fn(async () => 1),
+    hgetall: jest.fn(async (..._args: unknown[]) => stored),
+    hset: jest.fn(async (..._args: unknown[]) => 1),
   };
 }
 
 function buildService(getToolsHealthImpl: () => Promise<SystemsHealthStatus[]>, redis: FakeRedis | null = null) {
   const healthService = { getToolsHealth: jest.fn(getToolsHealthImpl) };
-  const broadcastService = { notifyAllInternalUsers: jest.fn(async () => []) };
+  const broadcastService = { notifyAllInternalUsers: jest.fn(async (..._args: unknown[]) => []) };
   const service = new SystemsHealthMonitorService(healthService as never, broadcastService as never, redis as never);
   return { service, healthService, broadcastService };
 }
@@ -212,10 +212,10 @@ describe('SystemsHealthMonitorService', () => {
 
     it('un fallo de Redis al leer/escribir no rompe el ciclo de chequeo', async () => {
       const redis: FakeRedis = {
-        hgetall: jest.fn(async () => {
+        hgetall: jest.fn(async (..._args: unknown[]) => {
           throw new Error('Redis down');
         }),
-        hset: jest.fn(async () => {
+        hset: jest.fn(async (..._args: unknown[]) => {
           throw new Error('Redis down');
         }),
       };

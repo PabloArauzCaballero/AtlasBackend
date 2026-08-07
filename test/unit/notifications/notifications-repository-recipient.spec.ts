@@ -29,7 +29,7 @@ function buildRepository(messageModel: Record<string, AsyncMock>) {
 describe('NotificationsRepository — generalized recipient inbox methods', () => {
   describe('getRecipientMessage / getCustomerMessage', () => {
     it('getRecipientMessage filters by the given recipientType, not hardcoded to customer', async () => {
-      const messageModel = { findOne: jest.fn(async () => ({ id: 'm1' })) };
+      const messageModel = { findOne: jest.fn(async (..._args: unknown[]) => ({ id: 'm1' })) };
       const repository = buildRepository(messageModel);
 
       await repository.getRecipientMessage('t1', 'internal_user', 'iu1', 'm1');
@@ -40,7 +40,7 @@ describe('NotificationsRepository — generalized recipient inbox methods', () =
     });
 
     it('getRecipientMessage throws NotFoundException with the given code when nothing matches', async () => {
-      const messageModel = { findOne: jest.fn(async () => null) };
+      const messageModel = { findOne: jest.fn(async (..._args: unknown[]) => null) };
       const repository = buildRepository(messageModel);
 
       await expect(repository.getRecipientMessage('t1', 'internal_user', 'iu1', 'missing', 'NOTIFICATION_NOT_FOUND')).rejects.toThrow(
@@ -49,7 +49,7 @@ describe('NotificationsRepository — generalized recipient inbox methods', () =
     });
 
     it('getCustomerMessage (regression) still hardcodes recipientType: customer', async () => {
-      const messageModel = { findOne: jest.fn(async () => ({ id: 'm1' })) };
+      const messageModel = { findOne: jest.fn(async (..._args: unknown[]) => ({ id: 'm1' })) };
       const repository = buildRepository(messageModel);
 
       await repository.getCustomerMessage('t1', 'c1', 'm1');
@@ -60,7 +60,7 @@ describe('NotificationsRepository — generalized recipient inbox methods', () =
     });
 
     it('getCustomerMessage (regression) still throws CUSTOMER_NOTIFICATION_NOT_FOUND, not the generic code', async () => {
-      const messageModel = { findOne: jest.fn(async () => null) };
+      const messageModel = { findOne: jest.fn(async (..._args: unknown[]) => null) };
       const repository = buildRepository(messageModel);
 
       await expect(repository.getCustomerMessage('t1', 'c1', 'missing')).rejects.toThrow('CUSTOMER_NOTIFICATION_NOT_FOUND');
@@ -69,7 +69,7 @@ describe('NotificationsRepository — generalized recipient inbox methods', () =
 
   describe('listRecipientMessages / listCustomerMessages', () => {
     it('listRecipientMessages filters by the given recipientType and always channel: in_app', async () => {
-      const messageModel = { findAndCountAll: jest.fn(async () => ({ rows: [], count: 0 })) };
+      const messageModel = { findAndCountAll: jest.fn(async (..._args: unknown[]) => ({ rows: [], count: 0 })) };
       const repository = buildRepository(messageModel);
 
       await repository.listRecipientMessages('t1', 'internal_user', 'iu1', { page: 1, limit: 20 } as never);
@@ -79,7 +79,7 @@ describe('NotificationsRepository — generalized recipient inbox methods', () =
     });
 
     it('listCustomerMessages (regression) delegates to listRecipientMessages with recipientType: customer', async () => {
-      const messageModel = { findAndCountAll: jest.fn(async () => ({ rows: [], count: 0 })) };
+      const messageModel = { findAndCountAll: jest.fn(async (..._args: unknown[]) => ({ rows: [], count: 0 })) };
       const repository = buildRepository(messageModel);
 
       await repository.listCustomerMessages('t1', 'c1', { page: 2, limit: 10 } as never);
@@ -91,7 +91,7 @@ describe('NotificationsRepository — generalized recipient inbox methods', () =
 
   describe('countUnreadMessages / countUnreadCustomerMessages', () => {
     it('countUnreadMessages counts unread in_app messages for the given recipientType/recipientId', async () => {
-      const messageModel = { count: jest.fn(async () => 3) };
+      const messageModel = { count: jest.fn(async (..._args: unknown[]) => 3) };
       const repository = buildRepository(messageModel);
 
       const unread = await repository.countUnreadMessages('t1', 'internal_user', 'iu1');
@@ -104,7 +104,7 @@ describe('NotificationsRepository — generalized recipient inbox methods', () =
 
   describe('markAllRecipientRead / markAllCustomerRead', () => {
     it('markAllRecipientRead marks all unread in_app messages of the given recipient as read', async () => {
-      const messageModel = { update: jest.fn(async () => [5]) };
+      const messageModel = { update: jest.fn(async (..._args: unknown[]) => [5]) };
       const repository = buildRepository(messageModel);
 
       const updated = await repository.markAllRecipientRead('t1', 'internal_user', 'iu1');
@@ -121,7 +121,7 @@ describe('NotificationsRepository — generalized recipient inbox methods', () =
 
   describe('createBroadcastMessages', () => {
     it('returns [] without calling bulkCreate when there are no recipients', async () => {
-      const messageModel = { bulkCreate: jest.fn(async () => []) };
+      const messageModel = { bulkCreate: jest.fn(async (..._args: unknown[]) => []) };
       const repository = buildRepository(messageModel);
 
       const result = await repository.createBroadcastMessages([], {

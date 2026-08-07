@@ -119,7 +119,7 @@ describe('CustomersRepository', () => {
 
   it('updateCurrentProfileVersion fija currentProfileVersionId y guarda', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const customer = { save } as never;
     await repo.updateCurrentProfileVersion(customer, 'p9', now, opts);
     expect((customer as { currentProfileVersionId: string }).currentProfileVersionId).toBe('p9');

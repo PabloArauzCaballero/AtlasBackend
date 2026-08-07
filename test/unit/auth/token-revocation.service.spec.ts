@@ -10,14 +10,16 @@ import { TokenRevocationService } from '../../../src/common/services/token-revoc
 
 function buildCredentialModelMock(tokenVersion: number | null) {
   return {
-    findOne: jest.fn(async () => (tokenVersion === null ? null : { tokenVersion, save: jest.fn(async () => undefined) })),
+    findOne: jest.fn(async (..._args: unknown[]) =>
+      tokenVersion === null ? null : { tokenVersion, save: jest.fn(async (..._args: unknown[]) => undefined) },
+    ),
   };
 }
 
 function buildRedisMock() {
   return {
-    get: jest.fn(async () => null as string | null),
-    set: jest.fn(async () => 'OK'),
+    get: jest.fn(async (..._args: unknown[]) => null as string | null),
+    set: jest.fn(async (..._args: unknown[]) => 'OK'),
   };
 }
 
@@ -86,8 +88,8 @@ describe('TokenRevocationService — caché de tokenVersion', () => {
 
   it('bumpTokenVersion incrementa en DB y escribe write-through en Redis de inmediato', async () => {
     const redis = buildRedisMock();
-    const record = { tokenVersion: 4, save: jest.fn(async () => undefined) };
-    const credentialModel = { findOne: jest.fn(async () => record) };
+    const record = { tokenVersion: 4, save: jest.fn(async (..._args: unknown[]) => undefined) };
+    const credentialModel = { findOne: jest.fn(async (..._args: unknown[]) => record) };
 
     const service = new TokenRevocationService(credentialModel as never, redis as never);
     const newVersion = await service.bumpTokenVersion('customer', 'cust-1');
@@ -99,7 +101,7 @@ describe('TokenRevocationService — caché de tokenVersion', () => {
 
   it('bumpTokenVersion lanza error explícito si el actor no existe', async () => {
     const redis = buildRedisMock();
-    const credentialModel = { findOne: jest.fn(async () => null) };
+    const credentialModel = { findOne: jest.fn(async (..._args: unknown[]) => null) };
     const service = new TokenRevocationService(credentialModel as never, redis as never);
 
     await expect(service.bumpTokenVersion('customer', 'ghost')).rejects.toThrow('No existen credenciales para customer:ghost.');
@@ -108,8 +110,8 @@ describe('TokenRevocationService — caché de tokenVersion', () => {
   it('bumpTokenVersion no lanza si la escritura en Redis falla (no bloqueante)', async () => {
     const redis = buildRedisMock();
     redis.set.mockRejectedValueOnce(new Error('Redis down'));
-    const record = { tokenVersion: 1, save: jest.fn(async () => undefined) };
-    const credentialModel = { findOne: jest.fn(async () => record) };
+    const record = { tokenVersion: 1, save: jest.fn(async (..._args: unknown[]) => undefined) };
+    const credentialModel = { findOne: jest.fn(async (..._args: unknown[]) => record) };
 
     const service = new TokenRevocationService(credentialModel as never, redis as never);
     await expect(service.bumpTokenVersion('customer', 'cust-9')).resolves.toBe(2);

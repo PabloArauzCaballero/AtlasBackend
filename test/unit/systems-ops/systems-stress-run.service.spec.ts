@@ -9,10 +9,10 @@ import { SystemsStressRunService } from '../../../src/modules/systems-ops/system
  */
 describe('SystemsStressRunService', () => {
   function build() {
-    const stressProfileModel = { findByPk: jest.fn(async () => null) };
+    const stressProfileModel = { findByPk: jest.fn(async (..._args: unknown[]) => null) };
     const jobRunModel = {
-      create: jest.fn(async () => ({ id: 1, jobCode: 'systems_stress_run', status: 'queued' })),
-      findAndCountAll: jest.fn(async () => ({ rows: [] as unknown[], count: 0 })),
+      create: jest.fn(async (..._args: unknown[]) => ({ id: 1, jobCode: 'systems_stress_run', status: 'queued' })),
+      findAndCountAll: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], count: 0 })),
     };
     const service = new SystemsStressRunService(stressProfileModel as never, jobRunModel as never);
     return { service, stressProfileModel, jobRunModel };

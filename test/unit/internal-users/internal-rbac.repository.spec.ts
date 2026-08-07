@@ -107,7 +107,7 @@ describe('InternalRbacRepository', () => {
 
   it('updateUser asigna solo los campos presentes y guarda', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => undefined);
+    const save = jest.fn(async (..._args: unknown[]) => undefined);
     const user = { fullName: 'orig', department: 'd', status: 's', save } as never;
     await repo.updateUser(user, { fullName: 'nuevo', updatedByInternalUserId: 'admin1' });
     expect((user as { fullName: string }).fullName).toBe('nuevo');

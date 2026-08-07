@@ -14,8 +14,8 @@ describe('RuntimeMaintenanceJobsService.deliverPendingNotifications', () => {
   const currentUser = { role: 'system', internalUserId: null, platformUserId: null } as never;
 
   function build() {
-    const notificationsRepository = { listStuckMessages: jest.fn(async () => [] as Array<{ id: number }>) };
-    const notificationOrchestrator = { deliverMessage: jest.fn(async () => undefined) };
+    const notificationsRepository = { listStuckMessages: jest.fn(async (..._args: unknown[]) => [] as Array<{ id: number }>) };
+    const notificationOrchestrator = { deliverMessage: jest.fn(async (..._args: unknown[]) => undefined) };
     const jobRuns = {
       run: jest.fn(async (_input: unknown, handler: () => Promise<Record<string, unknown>>) => ({
         jobRunId: 'jr1',
@@ -23,7 +23,7 @@ describe('RuntimeMaintenanceJobsService.deliverPendingNotifications', () => {
         result: await handler(),
       })),
     };
-    const eventsService = { reclaimStuckEvents: jest.fn(async () => ({ selected: 0, requeued: 0, deadLettered: 0 })) };
+    const eventsService = { reclaimStuckEvents: jest.fn(async (..._args: unknown[]) => ({ selected: 0, requeued: 0, deadLettered: 0 })) };
     const service = new RuntimeMaintenanceJobsService(
       { count: jest.fn(), destroy: jest.fn() } as never,
       notificationsRepository as never,

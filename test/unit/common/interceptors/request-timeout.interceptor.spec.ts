@@ -52,7 +52,7 @@ describe('RequestTimeoutInterceptor', () => {
 
   it('con REQUEST_TIMEOUT_MS=0 no aplica ningún techo', async () => {
     mutableEnv.REQUEST_TIMEOUT_MS = 0;
-    const handle = jest.fn(() => of('sin techo'));
+    const handle = jest.fn((..._args: unknown[]) => of('sin techo'));
 
     const result = await firstValueFrom(new RequestTimeoutInterceptor().intercept(contextFor('/api/v1/customers'), { handle }));
 
@@ -63,7 +63,7 @@ describe('RequestTimeoutInterceptor', () => {
     mutableEnv.REQUEST_TIMEOUT_MS = 20;
 
     for (const exempt of ['/metrics', '/api/v1/health', '/api/v1/health/readiness']) {
-      const handle = jest.fn(() => of('ok'));
+      const handle = jest.fn((..._args: unknown[]) => of('ok'));
       await expect(firstValueFrom(new RequestTimeoutInterceptor().intercept(contextFor(exempt), { handle }))).resolves.toBe('ok');
     }
   });

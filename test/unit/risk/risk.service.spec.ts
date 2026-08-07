@@ -29,31 +29,31 @@ function nextId(): string {
 function buildRiskRepositoryMock() {
   return {
     findLatestCustomerRiskResult: asyncMock(),
-    findCustomerConsents: jest.fn(async (): Promise<Record<string, unknown>[]> => [{ granted: true, revokedAt: null }]),
-    findCustomerContacts: jest.fn(async () => [{ status: 'verified' }]),
-    findIdentityDocuments: jest.fn(async () => [{ id: 'doc-1' }]),
-    createFeatureComputationRun: jest.fn(async () => ({ id: nextId() })),
-    createFeatureValue: jest.fn(async () => ({ id: nextId() })),
-    createFeatureSnapshot: jest.fn(async () => ({ id: nextId() })),
-    createRiskAssessmentRun: jest.fn(async () => ({ id: nextId() })),
-    attachSnapshotToRun: jest.fn(async () => undefined),
-    createRiskAssessmentContext: jest.fn(async () => ({ id: nextId() })),
-    createRuleFired: jest.fn(async () => ({ id: nextId() })),
-    createContribution: jest.fn(async () => ({ id: nextId() })),
-    createRiskResult: jest.fn(async () => ({ id: nextId() })),
-    createManualReviewCase: jest.fn(async () => ({ id: nextId() })),
-    createDataQualityIssue: jest.fn(async () => ({ id: nextId() })),
-    createAudit: jest.fn(async () => ({ id: nextId() })),
+    findCustomerConsents: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown>[]> => [{ granted: true, revokedAt: null }]),
+    findCustomerContacts: jest.fn(async (..._args: unknown[]) => [{ status: 'verified' }]),
+    findIdentityDocuments: jest.fn(async (..._args: unknown[]) => [{ id: 'doc-1' }]),
+    createFeatureComputationRun: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createFeatureValue: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createFeatureSnapshot: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createRiskAssessmentRun: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    attachSnapshotToRun: jest.fn(async (..._args: unknown[]) => undefined),
+    createRiskAssessmentContext: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createRuleFired: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createContribution: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createRiskResult: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createManualReviewCase: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createDataQualityIssue: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createAudit: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
     findRiskRun: asyncMock(),
     findRiskResultByRun: asyncMock(),
-    findRulesByRun: jest.fn(async (): Promise<Record<string, unknown>[]> => []),
-    findContributionsByRun: jest.fn(async (): Promise<Record<string, unknown>[]> => []),
+    findRulesByRun: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown>[]> => []),
+    findContributionsByRun: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown>[]> => []),
     findSnapshotByRun: asyncMock(),
   };
 }
 
 function buildCustomersRepositoryMock(customer: { lifecycleStatus: string } | null = { lifecycleStatus: 'active' }) {
-  return { findById: jest.fn(async () => customer) };
+  return { findById: jest.fn(async (..._args: unknown[]) => customer) };
 }
 
 /**

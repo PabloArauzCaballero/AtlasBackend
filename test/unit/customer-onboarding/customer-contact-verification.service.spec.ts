@@ -22,19 +22,19 @@ import { CustomerContactVerificationService } from '../../../src/modules/custome
  */
 describe('CustomerContactVerificationService', () => {
   function buildService() {
-    const customersRepository = { findById: jest.fn(async () => ({ id: 'c1', lifecycleStatus: 'registered' })) };
+    const customersRepository = { findById: jest.fn(async (..._args: unknown[]) => ({ id: 'c1', lifecycleStatus: 'registered' })) };
     const onboardingRepository = {
-      findCustomerContactMethod: jest.fn(async () => ({ id: 'contact-1', status: 'pending' })),
-      findLatestContactVerificationAttempt: jest.fn(async () => null),
-      createContactVerificationAttempt: jest.fn(async () => ({ id: 'attempt-1' })),
+      findCustomerContactMethod: jest.fn(async (..._args: unknown[]) => ({ id: 'contact-1', status: 'pending' })),
+      findLatestContactVerificationAttempt: jest.fn(async (..._args: unknown[]) => null),
+      createContactVerificationAttempt: jest.fn(async (..._args: unknown[]) => ({ id: 'attempt-1' })),
       updateContactVerificationAttempt: jest.fn(),
       markContactMethodVerified: jest.fn(),
     };
     const lifecycleService = { advance: jest.fn(), transition: jest.fn() };
     const codeService = {
       assertChannelAvailable: jest.fn(),
-      issueAndDeliver: jest.fn(async () => ({ delivered: true, provider: 'twilio_sms', errorCode: null })),
-      verify: jest.fn(async () => ({ ok: true })),
+      issueAndDeliver: jest.fn(async (..._args: unknown[]) => ({ delivered: true, provider: 'twilio_sms', errorCode: null })),
+      verify: jest.fn(async (..._args: unknown[]) => ({ ok: true })),
     };
     const journal = { recordRequested: jest.fn(), recordFailure: jest.fn(), recordVerified: jest.fn() };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };

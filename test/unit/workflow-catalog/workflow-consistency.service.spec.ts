@@ -26,10 +26,10 @@ const EXPOSED: ExposedRoute[] = [
 
 function buildService(options: { bundle?: WorkflowBundle; exposed?: ExposedRoute[]; catalogued?: string[] } = {}) {
   const bundle = options.bundle ?? buildBundle();
-  const catalogService = { loadBundle: jest.fn(async () => bundle) };
-  const routeScanner = { scan: jest.fn(() => options.exposed ?? EXPOSED) };
+  const catalogService = { loadBundle: jest.fn(async (..._args: unknown[]) => bundle) };
+  const routeScanner = { scan: jest.fn((..._args: unknown[]) => options.exposed ?? EXPOSED) };
   const codes = options.catalogued ?? bundle.steps.map((step) => step.endpointCode);
-  const endpointCatalogModel = { findAll: jest.fn(async () => codes.map((code) => ({ code }))) };
+  const endpointCatalogModel = { findAll: jest.fn(async (..._args: unknown[]) => codes.map((code) => ({ code }))) };
   return {
     service: new WorkflowConsistencyService(catalogService as never, routeScanner as never, endpointCatalogModel as never),
     bundle,

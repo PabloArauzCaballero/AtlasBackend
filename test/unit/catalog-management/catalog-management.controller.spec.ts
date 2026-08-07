@@ -10,13 +10,13 @@ import { tenantIdFromHeader, userAgentFrom } from '../../../src/common/utils/htt
 describe('CatalogManagementController', () => {
   function build() {
     const service = {
-      listCatalogs: jest.fn(async () => ({ items: [] })),
-      getCatalogVersion: jest.fn(async () => ({ version: {} })),
-      listDefinitions: jest.fn(async () => ({ definitions: {} })),
-      getCurrentRiskPolicy: jest.fn(async () => ({ ruleset: {} })),
-      getDataGovernancePolicies: jest.fn(async () => ({ policies: {} })),
-      createCatalogVersion: jest.fn(async () => ({ versionId: 'v1' })),
-      decideCatalogVersion: jest.fn(async () => ({ decided: true })),
+      listCatalogs: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getCatalogVersion: jest.fn(async (..._args: unknown[]) => ({ version: {} })),
+      listDefinitions: jest.fn(async (..._args: unknown[]) => ({ definitions: {} })),
+      getCurrentRiskPolicy: jest.fn(async (..._args: unknown[]) => ({ ruleset: {} })),
+      getDataGovernancePolicies: jest.fn(async (..._args: unknown[]) => ({ policies: {} })),
+      createCatalogVersion: jest.fn(async (..._args: unknown[]) => ({ versionId: 'v1' })),
+      decideCatalogVersion: jest.fn(async (..._args: unknown[]) => ({ decided: true })),
     };
     return { controller: new CatalogManagementController(service as never), service };
   }

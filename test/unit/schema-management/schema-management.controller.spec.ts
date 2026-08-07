@@ -9,13 +9,13 @@ import { SchemaManagementController } from '../../../src/modules/schema-manageme
 describe('SchemaManagementController', () => {
   function build() {
     const service = {
-      listSchemaVersions: jest.fn(async () => ({ items: [] })),
-      getSchemaVersion: jest.fn(async () => ({ id: 'v1' })),
-      listSchemaTables: jest.fn(async () => ({ items: [] })),
-      getSchemaTable: jest.fn(async () => ({ id: 't1' })),
-      proposeNewTable: jest.fn(async () => ({ changeId: 'c1' })),
-      listSchemaChangeLog: jest.fn(async () => ({ items: [] })),
-      approveSchemaChange: jest.fn(async () => ({ decided: true })),
+      listSchemaVersions: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getSchemaVersion: jest.fn(async (..._args: unknown[]) => ({ id: 'v1' })),
+      listSchemaTables: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getSchemaTable: jest.fn(async (..._args: unknown[]) => ({ id: 't1' })),
+      proposeNewTable: jest.fn(async (..._args: unknown[]) => ({ changeId: 'c1' })),
+      listSchemaChangeLog: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      approveSchemaChange: jest.fn(async (..._args: unknown[]) => ({ decided: true })),
     };
     return { controller: new SchemaManagementController(service as never), service };
   }

@@ -8,7 +8,10 @@ import { MailSenderService } from '../../../src/modules/mail-sender/mail-sender.
  */
 describe('MailSenderService', () => {
   function build() {
-    const client = { isConfigured: jest.fn(() => true), sendTemplateEmail: jest.fn(async () => ({ trackingId: 'tk1' })) };
+    const client = {
+      isConfigured: jest.fn((..._args: unknown[]) => true),
+      sendTemplateEmail: jest.fn(async (..._args: unknown[]) => ({ trackingId: 'tk1' })),
+    };
     const service = new MailSenderService(client as never);
     return { service, client };
   }

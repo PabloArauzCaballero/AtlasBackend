@@ -32,23 +32,23 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
 
   function build() {
     const runtimeJobs = {
-      processOutbox: jest.fn(async () => ({ status: 'completed' })),
-      processEvents: jest.fn(async () => ({ status: 'completed' })),
-      expireStaleSessions: jest.fn(async () => ({ status: 'completed' })),
-      applyRetentionPolicies: jest.fn(async () => ({ status: 'completed' })),
-      recalculateDataQuality: jest.fn(async () => ({ status: 'completed' })),
+      processOutbox: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      processEvents: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      expireStaleSessions: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      applyRetentionPolicies: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      recalculateDataQuality: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
     };
     const maintenance = {
-      retryStuckNotifications: jest.fn(async () => ({ status: 'completed' })),
-      purgeIdempotencyKeys: jest.fn(async () => ({ status: 'completed' })),
-      deliverPendingNotifications: jest.fn(async () => ({ status: 'completed' })),
-      reclaimStuckEvents: jest.fn(async () => ({ status: 'completed' })),
+      retryStuckNotifications: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      purgeIdempotencyKeys: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      deliverPendingNotifications: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      reclaimStuckEvents: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
     };
     const service = new RuntimeJobsSchedulerService(
       runtimeJobs as never,
       maintenance as never,
-      { findAll: jest.fn(async () => [{ id: 1 }]) } as never,
-      { set: jest.fn(async () => 'OK') } as never,
+      { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 1 }]) } as never,
+      { set: jest.fn(async (..._args: unknown[]) => 'OK') } as never,
       { recordScheduledJob: jest.fn() } as never,
     );
     return { service, maintenance };

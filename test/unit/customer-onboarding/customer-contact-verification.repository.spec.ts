@@ -32,7 +32,7 @@ describe('CustomerContactVerificationRepository', () => {
 
   it('markContactMethodVerified fija verified + updatedAtValue y guarda', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const contactMethod = { save } as never;
     const verifiedAt = new Date('2026-01-05');
     await repo.markContactMethodVerified(contactMethod, verifiedAt, opts);
@@ -76,7 +76,7 @@ describe('CustomerContactVerificationRepository', () => {
 
   it('updateContactVerificationAttempt copia los valores al modelo y guarda', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const attempt = { save } as never;
     await repo.updateContactVerificationAttempt(
       attempt,

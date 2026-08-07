@@ -18,12 +18,12 @@ describe('CustomerLifecycleService', () => {
   function build() {
     const customer = { id: 'c1', lifecycleStatus: 'registered', updatedAtValue: null };
     const repository = {
-      findForUpdate: jest.fn(async () => customer),
-      applyStatus: jest.fn(async () => customer),
-      createStatusEvent: jest.fn(async () => ({ id: 'ev1' })),
+      findForUpdate: jest.fn(async (..._args: unknown[]) => customer),
+      applyStatus: jest.fn(async (..._args: unknown[]) => customer),
+      createStatusEvent: jest.fn(async (..._args: unknown[]) => ({ id: 'ev1' })),
       // Patrón outbox: el evento de dominio se escribe en la MISMA transacción que el cambio de
       // estado, para que no exista un cambio sin evento ni un evento de un cambio revertido.
-      createTransitionEvent: jest.fn(async () => ({ id: 'outbox-1' })),
+      createTransitionEvent: jest.fn(async (..._args: unknown[]) => ({ id: 'outbox-1' })),
     };
     const service = new CustomerLifecycleService(repository as never);
     return { service, repository, customer };

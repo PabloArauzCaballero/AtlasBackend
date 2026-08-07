@@ -10,10 +10,10 @@ import { requestMeta } from '../../../src/common/utils/http/headers.util.js';
 describe('InternalUsersController', () => {
   function build() {
     const service = {
-      listUsers: jest.fn(async () => ({ items: [] })),
-      getUser: jest.fn(async () => ({ id: '5' })),
-      updateUser: jest.fn(async () => ({ id: '5' })),
-      replaceRoles: jest.fn(async () => ({ id: '5' })),
+      listUsers: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getUser: jest.fn(async (..._args: unknown[]) => ({ id: '5' })),
+      updateUser: jest.fn(async (..._args: unknown[]) => ({ id: '5' })),
+      replaceRoles: jest.fn(async (..._args: unknown[]) => ({ id: '5' })),
     };
     return { controller: new InternalUsersController(service as never), service };
   }

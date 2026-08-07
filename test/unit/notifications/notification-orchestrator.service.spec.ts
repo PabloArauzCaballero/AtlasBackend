@@ -14,9 +14,14 @@ describe('NotificationOrchestratorService', () => {
   function buildAdapter(channel: string, overrides: Record<string, unknown> = {}) {
     return {
       supports: jest.fn((c: string) => c === channel),
-      validatePayload: jest.fn(() => true),
-      send: jest.fn(async () => ({ status: 'sent', provider: `${channel}-provider`, providerMessageId: 'ext-1', response: null })),
-      getProviderName: jest.fn(() => `${channel}-provider`),
+      validatePayload: jest.fn((..._args: unknown[]) => true),
+      send: jest.fn(async (..._args: unknown[]) => ({
+        status: 'sent',
+        provider: `${channel}-provider`,
+        providerMessageId: 'ext-1',
+        response: null,
+      })),
+      getProviderName: jest.fn((..._args: unknown[]) => `${channel}-provider`),
       ...overrides,
     };
   }
@@ -24,11 +29,11 @@ describe('NotificationOrchestratorService', () => {
   function buildService() {
     const rulesService = { getRulesForEvent: asyncMock() };
     const repository = {
-      isChannelEnabled: jest.fn(async () => true),
-      findTemplate: jest.fn(async () => null),
+      isChannelEnabled: jest.fn(async (..._args: unknown[]) => true),
+      findTemplate: jest.fn(async (..._args: unknown[]) => null),
       // createMessage devuelve el modelo COMPLETO (como en producción): handleEvent ahora lo pasa
       // directo a deliverMessage sin re-leer (optimización #1), así que necesita channel/status/etc.
-      createMessage: jest.fn(async () => ({
+      createMessage: jest.fn(async (..._args: unknown[]) => ({
         id: 'msg-1',
         status: 'queued',
         channel: 'in_app',
@@ -41,7 +46,7 @@ describe('NotificationOrchestratorService', () => {
         payloadJson: {},
         correlationId: null,
       })),
-      getMessageForDelivery: jest.fn(async () => ({
+      getMessageForDelivery: jest.fn(async (..._args: unknown[]) => ({
         id: 'msg-1',
         status: 'queued',
         channel: 'in_app',
@@ -54,11 +59,11 @@ describe('NotificationOrchestratorService', () => {
         payloadJson: {},
         correlationId: null,
       })),
-      getActiveDeviceTokenSecrets: jest.fn(async () => []),
-      getCustomerContactTargets: jest.fn(async () => []),
-      getMessageDeliveryTargets: jest.fn(async () => []),
-      markMessageSending: jest.fn(async () => undefined),
-      recordDelivery: jest.fn(async () => undefined),
+      getActiveDeviceTokenSecrets: jest.fn(async (..._args: unknown[]) => []),
+      getCustomerContactTargets: jest.fn(async (..._args: unknown[]) => []),
+      getMessageDeliveryTargets: jest.fn(async (..._args: unknown[]) => []),
+      markMessageSending: jest.fn(async (..._args: unknown[]) => undefined),
+      recordDelivery: jest.fn(async (..._args: unknown[]) => undefined),
     };
     const renderer = { render: jest.fn((_template: unknown, _payload: unknown, fallback: string) => fallback) };
     const inAppAdapter = buildAdapter('in_app');
@@ -524,7 +529,7 @@ describe('NotificationOrchestratorService', () => {
       (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce([rule()] as never);
       (repository.createMessage as jest.Mock).mockResolvedValueOnce({
         id: undefined,
-        getDataValue: jest.fn(() => 'msg-from-datavalue'),
+        getDataValue: jest.fn((..._args: unknown[]) => 'msg-from-datavalue'),
         status: 'queued',
         channel: 'in_app',
         tenantId: 't1',

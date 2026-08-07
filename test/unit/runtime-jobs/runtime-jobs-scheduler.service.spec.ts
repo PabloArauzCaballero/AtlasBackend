@@ -30,20 +30,20 @@ describe('RuntimeJobsSchedulerService', () => {
 
   function build(options: { redis?: unknown } = {}) {
     const runtimeJobs = {
-      processOutbox: jest.fn(async () => ({ status: 'completed' })),
-      processEvents: jest.fn(async () => ({ status: 'completed' })),
-      expireStaleSessions: jest.fn(async () => ({ status: 'completed' })),
-      applyRetentionPolicies: jest.fn(async () => ({ status: 'completed' })),
-      recalculateDataQuality: jest.fn(async () => ({ status: 'completed' })),
+      processOutbox: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      processEvents: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      expireStaleSessions: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      applyRetentionPolicies: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      recalculateDataQuality: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
     };
     const maintenance = {
-      retryStuckNotifications: jest.fn(async () => ({ status: 'completed' })),
-      purgeIdempotencyKeys: jest.fn(async () => ({ status: 'completed' })),
-      reclaimStuckEvents: jest.fn(async () => ({ status: 'completed' })),
+      retryStuckNotifications: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      purgeIdempotencyKeys: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      reclaimStuckEvents: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
     };
-    const tenantModel = { findAll: jest.fn(async () => [{ id: 1 }, { id: 2 }]) };
+    const tenantModel = { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 1 }, { id: 2 }]) };
     const metrics = { recordScheduledJob: jest.fn() };
-    const redis = options.redis === undefined ? { set: jest.fn(async () => 'OK') } : options.redis;
+    const redis = options.redis === undefined ? { set: jest.fn(async (..._args: unknown[]) => 'OK') } : options.redis;
     const service = new RuntimeJobsSchedulerService(
       runtimeJobs as never,
       maintenance as never,
@@ -160,7 +160,7 @@ describe('RuntimeJobsSchedulerService', () => {
     });
 
     it('si otra instancia tiene el lock, se salta la tanda sin tocar la base', async () => {
-      const { service, runtimeJobs, tenantModel } = build({ redis: { set: jest.fn(async () => null) } });
+      const { service, runtimeJobs, tenantModel } = build({ redis: { set: jest.fn(async (..._args: unknown[]) => null) } });
       const outbox = jobsOf(service).find((job) => job.jobCode === 'process_outbox');
 
       await tick(service, outbox!);
@@ -172,7 +172,7 @@ describe('RuntimeJobsSchedulerService', () => {
     it('si Redis falla, se salta la tanda en vez de correr sin lock', async () => {
       const { service, runtimeJobs } = build({
         redis: {
-          set: jest.fn(async () => {
+          set: jest.fn(async (..._args: unknown[]) => {
             throw new Error('ECONNREFUSED');
           }),
         },

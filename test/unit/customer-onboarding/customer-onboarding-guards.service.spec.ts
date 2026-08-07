@@ -12,10 +12,10 @@ import { CustomerOnboardingGuardsService } from '../../../src/modules/customer-o
  */
 describe('CustomerOnboardingGuardsService', () => {
   function build() {
-    const customersRepository = { findByContactHash: jest.fn(async () => null) };
+    const customersRepository = { findByContactHash: jest.fn(async (..._args: unknown[]) => null) };
     const consentsRepository = {
-      findActiveDocumentById: jest.fn(async () => ({ id: 'doc-1' })),
-      findRequiredActiveDocuments: jest.fn(async () => []),
+      findActiveDocumentById: jest.fn(async (..._args: unknown[]) => ({ id: 'doc-1' })),
+      findRequiredActiveDocuments: jest.fn(async (..._args: unknown[]) => []),
     };
     const service = new CustomerOnboardingGuardsService(customersRepository as never, consentsRepository as never);
     return { service, customersRepository, consentsRepository };

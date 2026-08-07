@@ -14,7 +14,7 @@ function makeRow(id: string, detectedAt: string) {
 
 function buildRepository(
   issueModelMock: { findAll: AsyncMock; findAndCountAll?: AsyncMock },
-  ruleModelMock: { findAll: AsyncMock } = { findAll: jest.fn(async () => []) },
+  ruleModelMock: { findAll: AsyncMock } = { findAll: jest.fn(async (..._args: unknown[]) => []) },
 ) {
   return new DataQualityRepository(issueModelMock as never, ruleModelMock as never, {} as never, {} as never);
 }
@@ -30,7 +30,7 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
       makeRow('29', '2026-06-29T10:00:00.000Z'),
       makeRow('28', '2026-06-28T10:00:00.000Z'),
     ];
-    const findAll = jest.fn(async () => rows);
+    const findAll = jest.fn(async (..._args: unknown[]) => rows);
     const repository = buildRepository({ findAll });
 
     const result = await repository.findIssuesWithCursor('tenant-1', { limit: 2 });
@@ -49,7 +49,7 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
 
   it('última página: cuando vienen <= limit filas, nextCursor es null', async () => {
     const rows = [makeRow('2', '2026-06-02T10:00:00.000Z'), makeRow('1', '2026-06-01T10:00:00.000Z')];
-    const findAll = jest.fn(async () => rows);
+    const findAll = jest.fn(async (..._args: unknown[]) => rows);
     const repository = buildRepository({ findAll });
 
     const result = await repository.findIssuesWithCursor('tenant-1', { limit: 5 });
@@ -59,7 +59,7 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
   });
 
   it('con un cursor recibido, agrega el filtro de tupla (detected_at, id) al where', async () => {
-    const findAll = jest.fn(async () => []);
+    const findAll = jest.fn(async (..._args: unknown[]) => []);
     const repository = buildRepository({ findAll });
     const cursor = encodeCursor({ createdAt: '2026-06-15T00:00:00.000Z', id: '15' });
 
@@ -74,7 +74,7 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
   });
 
   it('aplica los filtros opcionales de status/entityType/customerId', async () => {
-    const findAll = jest.fn(async () => []);
+    const findAll = jest.fn(async (..._args: unknown[]) => []);
     const repository = buildRepository({ findAll });
 
     await repository.findIssuesWithCursor('tenant-1', { limit: 10, status: 'open', entityType: 'customers', customerId: 'cust-1' });
@@ -84,8 +84,8 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
   });
 
   it('resuelve severity contra data_quality_rules — antes se ignoraba en silencio, no filtraba nada', async () => {
-    const issueFindAll = jest.fn(async () => []);
-    const ruleFindAll = jest.fn(async () => [{ id: 'rule-1' }, { id: 'rule-2' }]);
+    const issueFindAll = jest.fn(async (..._args: unknown[]) => []);
+    const ruleFindAll = jest.fn(async (..._args: unknown[]) => [{ id: 'rule-1' }, { id: 'rule-2' }]);
     const repository = buildRepository({ findAll: issueFindAll }, { findAll: ruleFindAll });
 
     await repository.findIssuesWithCursor('tenant-1', { limit: 10, severity: 'critical' });
@@ -96,8 +96,8 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
   });
 
   it('cuando ninguna regla tiene esa severity, devuelve vacío sin consultar issues', async () => {
-    const issueFindAll = jest.fn(async () => []);
-    const ruleFindAll = jest.fn(async () => []);
+    const issueFindAll = jest.fn(async (..._args: unknown[]) => []);
+    const ruleFindAll = jest.fn(async (..._args: unknown[]) => []);
     const repository = buildRepository({ findAll: issueFindAll }, { findAll: ruleFindAll });
 
     const result = await repository.findIssuesWithCursor('tenant-1', { limit: 10, severity: 'nonexistent' });
@@ -110,9 +110,9 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
 describe('DataQualityRepository — findIssues / finders / mutaciones', () => {
   function buildFull() {
     const issueModel = { findAll: asyncMock(), findAndCountAll: asyncMock(), findOne: asyncMock() };
-    const ruleModel = { findAll: jest.fn(async () => []) };
-    const auditModel = { create: jest.fn(async () => ({ id: 'a' })) };
-    const dataChangeLogModel = { create: jest.fn(async () => ({ id: 'd' })) };
+    const ruleModel = { findAll: jest.fn(async (..._args: unknown[]) => []) };
+    const auditModel = { create: jest.fn(async (..._args: unknown[]) => ({ id: 'a' })) };
+    const dataChangeLogModel = { create: jest.fn(async (..._args: unknown[]) => ({ id: 'd' })) };
     const repo = new DataQualityRepository(issueModel as never, ruleModel as never, auditModel as never, dataChangeLogModel as never);
     return { repo, issueModel, ruleModel, auditModel, dataChangeLogModel };
   }
@@ -152,7 +152,7 @@ describe('DataQualityRepository — findIssues / finders / mutaciones', () => {
 
   it('resolveIssue fija estado/resolvedAt/notas y guarda en la transacción', async () => {
     const { repo } = buildFull();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const issue = { save } as never;
     const resolvedAt = new Date('2026-01-01T00:00:00.000Z');
     await repo.resolveIssue(issue, { status: 'resolved', notes: 'ok', resolvedAt }, { transaction: 'tx' as never });

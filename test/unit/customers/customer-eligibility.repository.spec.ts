@@ -8,9 +8,9 @@ import { CustomerEligibilityRepository } from '../../../src/modules/customers/re
 
 function model() {
   return {
-    count: jest.fn(async () => 0),
-    findOne: jest.fn(async () => null),
-    findAll: jest.fn(async () => []),
+    count: jest.fn(async (..._args: unknown[]) => 0),
+    findOne: jest.fn(async (..._args: unknown[]) => null),
+    findAll: jest.fn(async (..._args: unknown[]) => []),
   };
 }
 

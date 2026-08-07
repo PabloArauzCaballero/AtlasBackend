@@ -67,7 +67,7 @@ describe('OperationsRepository', () => {
 
   it('closeManualReviewCase pone el caso en closed y lo guarda en la transacción', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({ saved: true }));
+    const save = jest.fn(async (..._args: unknown[]) => ({ saved: true }));
     const caseModel = { save } as never;
     await repo.closeManualReviewCase(caseModel, { resolution: 'approved', notes: 'ok', closedAt: new Date('2026-01-01') }, tx);
     expect((caseModel as { status: string }).status).toBe('closed');

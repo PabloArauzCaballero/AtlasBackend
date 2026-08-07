@@ -8,13 +8,13 @@ import { buildSystemsOpsTestApp, authHeader } from './support/systems-ops-test-a
 describe('SystemsReviewController (e2e/supertest)', () => {
   let app: INestApplication;
   const service = {
-    getReviewQueue: jest.fn(async () => ({ items: [], meta: {} })),
-    reviewEndpoint: jest.fn(async () => ({ id: '1', reviewStatus: 'APPROVED' })),
-    reviewToolRequirement: jest.fn(async () => ({ id: '1', reviewStatus: 'APPROVED' })),
-    reviewDataEntity: jest.fn(async () => ({ id: '1', reviewStatus: 'APPROVED' })),
-    reviewDataImpact: jest.fn(async () => ({ id: '1', reviewStatus: 'APPROVED' })),
-    reviewFieldImpact: jest.fn(async () => ({ id: '1', reviewStatus: 'APPROVED' })),
-    reviewDataColumn: jest.fn(async () => ({ id: '1', reviewStatus: 'APPROVED' })),
+    getReviewQueue: jest.fn(async (..._args: unknown[]) => ({ items: [], meta: {} })),
+    reviewEndpoint: jest.fn(async (..._args: unknown[]) => ({ id: '1', reviewStatus: 'APPROVED' })),
+    reviewToolRequirement: jest.fn(async (..._args: unknown[]) => ({ id: '1', reviewStatus: 'APPROVED' })),
+    reviewDataEntity: jest.fn(async (..._args: unknown[]) => ({ id: '1', reviewStatus: 'APPROVED' })),
+    reviewDataImpact: jest.fn(async (..._args: unknown[]) => ({ id: '1', reviewStatus: 'APPROVED' })),
+    reviewFieldImpact: jest.fn(async (..._args: unknown[]) => ({ id: '1', reviewStatus: 'APPROVED' })),
+    reviewDataColumn: jest.fn(async (..._args: unknown[]) => ({ id: '1', reviewStatus: 'APPROVED' })),
   };
 
   beforeAll(async () => {

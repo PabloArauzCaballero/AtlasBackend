@@ -16,7 +16,7 @@ describe('RiskPolicyDecisionService', () => {
   const fallback = { decision: 'manual_review_required', reasons: ['missing_identity'] };
 
   function build(activeRuleset: unknown = null) {
-    const policyRepository = { findActiveRuleset: jest.fn(async () => activeRuleset) };
+    const policyRepository = { findActiveRuleset: jest.fn(async (..._args: unknown[]) => activeRuleset) };
     return { service: new RiskPolicyDecisionService(policyRepository as never), policyRepository };
   }
 

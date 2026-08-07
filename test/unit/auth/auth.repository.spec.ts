@@ -54,7 +54,7 @@ describe('AuthRepository', () => {
 
     it('updatePasswordHash resetea intentos y bloqueo', async () => {
       const { repo } = buildRepo();
-      const save = jest.fn(async () => undefined);
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
       const credential = { failedLoginAttempts: 3, lockedUntil: new Date(), save } as never;
       await repo.updatePasswordHash(credential, 'newhash');
       expect((credential as { passwordHash: string }).passwordHash).toBe('newhash');
@@ -65,7 +65,7 @@ describe('AuthRepository', () => {
 
     it('setMfaEnabled togglea el flag y guarda', async () => {
       const { repo } = buildRepo();
-      const save = jest.fn(async () => undefined);
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
       const credential = { mfaEnabled: false, save } as never;
       await repo.setMfaEnabled(credential, true);
       expect((credential as { mfaEnabled: boolean }).mfaEnabled).toBe(true);
@@ -76,7 +76,7 @@ describe('AuthRepository', () => {
   describe('lockout por fuerza bruta', () => {
     it('recordFailedAttempt incrementa el contador sin bloquear si no llega al máximo', async () => {
       const { repo } = buildRepo();
-      const save = jest.fn(async () => undefined);
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
       const credential = { failedLoginAttempts: 1, lockedUntil: null, save } as never;
       await repo.recordFailedAttempt(credential, { maxAttempts: 5, lockoutMinutes: 15 });
       expect((credential as { failedLoginAttempts: number }).failedLoginAttempts).toBe(2);
@@ -85,7 +85,7 @@ describe('AuthRepository', () => {
 
     it('recordFailedAttempt bloquea y resetea el contador al alcanzar el máximo', async () => {
       const { repo } = buildRepo();
-      const save = jest.fn(async () => undefined);
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
       const credential = { failedLoginAttempts: 4, lockedUntil: null, save } as never;
       await repo.recordFailedAttempt(credential, { maxAttempts: 5, lockoutMinutes: 15 });
       expect((credential as { failedLoginAttempts: number }).failedLoginAttempts).toBe(0);
@@ -94,7 +94,7 @@ describe('AuthRepository', () => {
 
     it('recordSuccessfulLogin limpia el bloqueo y, para internal_user, sella lastLoginAt en su tabla', async () => {
       const { repo, models } = buildRepo();
-      const save = jest.fn(async () => undefined);
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
       const credential = { actorType: 'internal_user', actorId: '5', failedLoginAttempts: 2, save } as never;
       await repo.recordSuccessfulLogin(credential, '127.0.0.1');
       expect((credential as { failedLoginAttempts: number }).failedLoginAttempts).toBe(0);
@@ -104,7 +104,7 @@ describe('AuthRepository', () => {
 
     it('recordSuccessfulLogin NO toca la tabla de internos cuando el actor es customer', async () => {
       const { repo, models } = buildRepo();
-      const credential = { actorType: 'customer', actorId: '10', save: jest.fn(async () => undefined) } as never;
+      const credential = { actorType: 'customer', actorId: '10', save: jest.fn(async (..._args: unknown[]) => undefined) } as never;
       await repo.recordSuccessfulLogin(credential, null);
       expect(models.internalUser.update).not.toHaveBeenCalled();
     });
@@ -129,7 +129,7 @@ describe('AuthRepository', () => {
 
     it('registerOneTimeCodeFailedAttempt consume el código al agotar los intentos', async () => {
       const { repo } = buildRepo();
-      const save = jest.fn(async () => undefined);
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
       const code = { attempts: 4, consumedAt: null, save } as never;
       await repo.registerOneTimeCodeFailedAttempt(code, 5);
       expect((code as { attempts: number }).attempts).toBe(5);
@@ -138,7 +138,7 @@ describe('AuthRepository', () => {
 
     it('registerOneTimeCodeFailedAttempt solo incrementa si aún quedan intentos', async () => {
       const { repo } = buildRepo();
-      const save = jest.fn(async () => undefined);
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
       const code = { attempts: 1, consumedAt: null, save } as never;
       await repo.registerOneTimeCodeFailedAttempt(code, 5);
       expect((code as { attempts: number }).attempts).toBe(2);
@@ -175,7 +175,7 @@ describe('AuthRepository', () => {
 
     it('revokeRefreshToken marca revocado con motivo y token de reemplazo', async () => {
       const { repo } = buildRepo();
-      const save = jest.fn(async () => undefined);
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
       const token = { save } as never;
       await repo.revokeRefreshToken(token, 'rotated', 'rt2');
       expect((token as { revokedReason: string }).revokedReason).toBe('rotated');
@@ -261,7 +261,7 @@ describe('AuthRepository', () => {
 
     it('consumeOneTimeCode marca consumedAt y guarda', async () => {
       const { repo } = buildRepo();
-      const save = jest.fn(async () => undefined);
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
       const code = { consumedAt: null, save } as never;
       await repo.consumeOneTimeCode(code);
       expect((code as { consumedAt: Date | null }).consumedAt).not.toBeNull();

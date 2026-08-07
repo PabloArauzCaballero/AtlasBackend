@@ -28,19 +28,19 @@ function buildProductService() {
     status: 'active',
   };
   const creditRepository = {
-    findOfferableProducts: jest.fn(async () => [product]),
-    findProductByCode: jest.fn(async () => null),
+    findOfferableProducts: jest.fn(async (..._args: unknown[]) => [product]),
+    findProductByCode: jest.fn(async (..._args: unknown[]) => null),
     createProduct: jest.fn(async (values: Record<string, unknown>) => ({ id: '22', ...values })),
-    findProductById: jest.fn(async () => product),
-    updateProductStatus: jest.fn(async () => undefined),
+    findProductById: jest.fn(async (..._args: unknown[]) => product),
+    updateProductStatus: jest.fn(async (..._args: unknown[]) => undefined),
   };
   const eligibilityService = {
-    evaluate: jest.fn(async () => ({ eligible: true, blockers: [] })),
+    evaluate: jest.fn(async (..._args: unknown[]) => ({ eligible: true, blockers: [] })),
   };
   // Los valores económicos alimentan la elegibilidad POR PRODUCTO: un cliente habilitado puede no
   // alcanzar el ingreso mínimo de un producto y sí el de otro.
   const eligibilityRepository = {
-    loadFacts: jest.fn(async () => ({ financialAttributeValues: { monthly_income_declared: 6000 } })),
+    loadFacts: jest.fn(async (..._args: unknown[]) => ({ financialAttributeValues: { monthly_income_declared: 6000 } })),
   };
   return {
     product,
@@ -193,10 +193,10 @@ describe('CreditProductService', () => {
 function buildDecisionService(application: Record<string, unknown> | null = { id: '31', status: 'under_review' }) {
   const transaction = { id: 'tx-1' };
   const creditRepository = {
-    findApplicationById: jest.fn(async () => application),
-    updateApplicationStatus: jest.fn(async () => undefined),
-    createApplicationEvent: jest.fn(async () => undefined),
-    findApplicationEvents: jest.fn(async () => [{ id: 'event-1' }]),
+    findApplicationById: jest.fn(async (..._args: unknown[]) => application),
+    updateApplicationStatus: jest.fn(async (..._args: unknown[]) => undefined),
+    createApplicationEvent: jest.fn(async (..._args: unknown[]) => undefined),
+    findApplicationEvents: jest.fn(async (..._args: unknown[]) => [{ id: 'event-1' }]),
   };
   const sequelize = {
     transaction: jest.fn(async (callback: (value: unknown) => Promise<unknown>) => callback(transaction)),

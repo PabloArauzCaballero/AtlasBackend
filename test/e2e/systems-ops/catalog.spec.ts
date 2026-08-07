@@ -10,24 +10,24 @@ import { buildSystemsOpsTestApp, authHeader } from './support/systems-ops-test-a
 describe('SystemsCatalogController (e2e/supertest)', () => {
   let app: INestApplication;
   const service = {
-    getDashboard: jest.fn(async () => ({ endpoints: 0, tools: 0 })),
-    listEndpoints: jest.fn(async () => ({ items: [], meta: {} })),
-    getEndpoint: jest.fn(async () => ({ id: '1' })),
-    discoverEndpoints: jest.fn(async () => ({ discovered: 0 })),
-    refreshCatalogSeed: jest.fn(async () => ({ refreshed: true })),
-    listTools: jest.fn(async () => ({ items: [], meta: {} })),
-    getTool: jest.fn(async () => ({ id: '1' })),
-    listDataEntities: jest.fn(async () => ({ items: [], meta: {} })),
-    getDataEntity: jest.fn(async () => ({ id: '1' })),
-    updateDataEntityMetadata: jest.fn(async () => ({ id: '1', metadata: {} })),
-    getImpactByEndpoint: jest.fn(async () => ({ endpointId: '1' })),
-    getImpactByTable: jest.fn(async () => ({ schemaName: 'public', tableName: 'x' })),
-    getToolsHealth: jest.fn(async () => ({ tools: [] })),
-    listDomains: jest.fn(async () => ({ items: [], meta: {} })),
-    getDomain: jest.fn(async () => ({ domainCode: 'RISK' })),
+    getDashboard: jest.fn(async (..._args: unknown[]) => ({ endpoints: 0, tools: 0 })),
+    listEndpoints: jest.fn(async (..._args: unknown[]) => ({ items: [], meta: {} })),
+    getEndpoint: jest.fn(async (..._args: unknown[]) => ({ id: '1' })),
+    discoverEndpoints: jest.fn(async (..._args: unknown[]) => ({ discovered: 0 })),
+    refreshCatalogSeed: jest.fn(async (..._args: unknown[]) => ({ refreshed: true })),
+    listTools: jest.fn(async (..._args: unknown[]) => ({ items: [], meta: {} })),
+    getTool: jest.fn(async (..._args: unknown[]) => ({ id: '1' })),
+    listDataEntities: jest.fn(async (..._args: unknown[]) => ({ items: [], meta: {} })),
+    getDataEntity: jest.fn(async (..._args: unknown[]) => ({ id: '1' })),
+    updateDataEntityMetadata: jest.fn(async (..._args: unknown[]) => ({ id: '1', metadata: {} })),
+    getImpactByEndpoint: jest.fn(async (..._args: unknown[]) => ({ endpointId: '1' })),
+    getImpactByTable: jest.fn(async (..._args: unknown[]) => ({ schemaName: 'public', tableName: 'x' })),
+    getToolsHealth: jest.fn(async (..._args: unknown[]) => ({ tools: [] })),
+    listDomains: jest.fn(async (..._args: unknown[]) => ({ items: [], meta: {} })),
+    getDomain: jest.fn(async (..._args: unknown[]) => ({ domainCode: 'RISK' })),
   };
-  const toolInferenceService = { infer: jest.fn(async () => ({ inferred: 0 })) };
-  const dataImpactInferenceService = { infer: jest.fn(async () => ({ inferred: 0 })) };
+  const toolInferenceService = { infer: jest.fn(async (..._args: unknown[]) => ({ inferred: 0 })) };
+  const dataImpactInferenceService = { infer: jest.fn(async (..._args: unknown[]) => ({ inferred: 0 })) };
 
   beforeAll(async () => {
     app = await buildSystemsOpsTestApp(

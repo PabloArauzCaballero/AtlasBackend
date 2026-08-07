@@ -53,7 +53,7 @@ const PUBLIC_API: Record<string, number> = {
 };
 
 function buildService(): InternalPortalService {
-  const sequelize = { query: jest.fn(async () => []) };
+  const sequelize = { query: jest.fn(async (..._args: unknown[]) => []) };
   return new InternalPortalService(sequelize as never);
 }
 

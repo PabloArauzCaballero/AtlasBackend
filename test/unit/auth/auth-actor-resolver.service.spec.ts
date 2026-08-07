@@ -3,7 +3,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 // El correo del cliente se guarda cifrado con envelope encryption; aquí solo interesa que el
 // resolutor lo BUSQUE y lo descifre, no el algoritmo, que tiene su propio spec.
 jest.mock('../../../src/common/utils/crypto/envelope-encryption.util.js', () => ({
-  decryptSecretEnvelope: jest.fn(async () => 'ana@example.com'),
+  decryptSecretEnvelope: jest.fn(async (..._args: unknown[]) => 'ana@example.com'),
 }));
 
 import { AuthActorResolverService, isKnownRole } from '../../../src/modules/auth/auth-actor-resolver.service.js';
@@ -18,15 +18,15 @@ import { decryptSecretEnvelope } from '../../../src/common/utils/crypto/envelope
 describe('AuthActorResolverService', () => {
   function build() {
     const authRepository = {
-      findInternalUserByEmail: jest.fn(async () => null),
-      findPlatformUserByEmail: jest.fn(async () => null),
-      findInternalUserById: jest.fn(async () => null),
-      findPlatformUserById: jest.fn(async () => null),
+      findInternalUserByEmail: jest.fn(async (..._args: unknown[]) => null),
+      findPlatformUserByEmail: jest.fn(async (..._args: unknown[]) => null),
+      findInternalUserById: jest.fn(async (..._args: unknown[]) => null),
+      findPlatformUserById: jest.fn(async (..._args: unknown[]) => null),
     };
     const customersRepository = {
-      findByContactHash: jest.fn(async () => null),
-      findById: jest.fn(async () => null),
-      findContactMethods: jest.fn(async () => []),
+      findByContactHash: jest.fn(async (..._args: unknown[]) => null),
+      findById: jest.fn(async (..._args: unknown[]) => null),
+      findContactMethods: jest.fn(async (..._args: unknown[]) => []),
     };
     const service = new AuthActorResolverService(authRepository as never, customersRepository as never);
     return { service, authRepository, customersRepository };

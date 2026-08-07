@@ -11,7 +11,8 @@ import { ExternalDataService } from '../../../src/modules/external-data/external
  * equivocado.
  */
 describe('ExternalDataService', () => {
-  const mocks = (...names: string[]) => Object.fromEntries(names.map((n) => [n, jest.fn(async () => ({}))])) as Record<string, AsyncMock>;
+  const mocks = (...names: string[]) =>
+    Object.fromEntries(names.map((n) => [n, jest.fn(async (..._args: unknown[]) => ({}))])) as Record<string, AsyncMock>;
 
   function buildService() {
     const repository = { createCustomerConsent: asyncMock() };

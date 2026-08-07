@@ -9,17 +9,17 @@ import { AuditRepository } from '../../../src/modules/audit/audit.repository.js'
 describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/fraud branches', () => {
   function buildRepository(overrides: Record<string, unknown> = {}) {
     const models = {
-      operationalAuditLogModel: { findAll: jest.fn(async () => []) },
-      dataChangeLogModel: { findAll: jest.fn(async () => []) },
-      customerStatusEventModel: { findAll: jest.fn(async () => []) },
-      customerActionLogModel: { findAll: jest.fn(async () => []) },
-      authEventModel: { findAll: jest.fn(async () => []) },
-      consentEventModel: { findAll: jest.fn(async () => []) },
-      manualReviewEventModel: { findAll: jest.fn(async () => []) },
-      fraudCaseEventModel: { findAll: jest.fn(async () => []) },
-      customerConsentModel: { findAll: jest.fn(async () => []) },
-      manualReviewCaseModel: { findAll: jest.fn(async () => []) },
-      fraudCaseModel: { findAll: jest.fn(async () => []) },
+      operationalAuditLogModel: { findAll: jest.fn(async (..._args: unknown[]) => []) },
+      dataChangeLogModel: { findAll: jest.fn(async (..._args: unknown[]) => []) },
+      customerStatusEventModel: { findAll: jest.fn(async (..._args: unknown[]) => []) },
+      customerActionLogModel: { findAll: jest.fn(async (..._args: unknown[]) => []) },
+      authEventModel: { findAll: jest.fn(async (..._args: unknown[]) => []) },
+      consentEventModel: { findAll: jest.fn(async (..._args: unknown[]) => []) },
+      manualReviewEventModel: { findAll: jest.fn(async (..._args: unknown[]) => []) },
+      fraudCaseEventModel: { findAll: jest.fn(async (..._args: unknown[]) => []) },
+      customerConsentModel: { findAll: jest.fn(async (..._args: unknown[]) => []) },
+      manualReviewCaseModel: { findAll: jest.fn(async (..._args: unknown[]) => []) },
+      fraudCaseModel: { findAll: jest.fn(async (..._args: unknown[]) => []) },
       ...overrides,
     };
     const repository = new AuditRepository(
@@ -43,9 +43,9 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
 
   it('eventType=consent resolves customer_consents ids first, then queries consent_events by those ids', async () => {
     const { repository, models } = buildRepository({
-      customerConsentModel: { findAll: jest.fn(async () => [{ id: 'cc-1' }, { id: 'cc-2' }]) },
+      customerConsentModel: { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 'cc-1' }, { id: 'cc-2' }]) },
       consentEventModel: {
-        findAll: jest.fn(async () => [
+        findAll: jest.fn(async (..._args: unknown[]) => [
           {
             happenedAt: new Date('2026-01-01T00:00:00.000Z'),
             createdAtValue: new Date(),
@@ -69,7 +69,7 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
 
   it('eventType=consent returns [] without querying consent_events when the customer has no consents at all', async () => {
     const { repository, models } = buildRepository({
-      customerConsentModel: { findAll: jest.fn(async () => []) },
+      customerConsentModel: { findAll: jest.fn(async (..._args: unknown[]) => []) },
     });
 
     const result = await repository.findCustomerAuditEvents('t1', 'c1', { ...baseQuery, eventType: 'consent' } as never);
@@ -80,9 +80,9 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
 
   it('eventType=manual_review resolves manual_review_cases ids first, then queries manual_review_events', async () => {
     const { repository, models } = buildRepository({
-      manualReviewCaseModel: { findAll: jest.fn(async () => [{ id: 'case-1' }]) },
+      manualReviewCaseModel: { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 'case-1' }]) },
       manualReviewEventModel: {
-        findAll: jest.fn(async () => [
+        findAll: jest.fn(async (..._args: unknown[]) => [
           {
             happenedAt: new Date('2026-01-01T00:00:00.000Z'),
             createdAtValue: new Date(),
@@ -102,9 +102,9 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
 
   it('eventType=fraud resolves fraud_cases ids first, then queries fraud_case_events', async () => {
     const { repository, models } = buildRepository({
-      fraudCaseModel: { findAll: jest.fn(async () => [{ id: 'fraud-1' }]) },
+      fraudCaseModel: { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 'fraud-1' }]) },
       fraudCaseEventModel: {
-        findAll: jest.fn(async () => [
+        findAll: jest.fn(async (..._args: unknown[]) => [
           {
             happenedAt: new Date('2026-01-01T00:00:00.000Z'),
             createdAtValue: new Date(),
@@ -124,9 +124,9 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
 
   it('eventType=all merges consent/manual_review/fraud together with the pre-existing 5 sources', async () => {
     const { repository, models } = buildRepository({
-      customerConsentModel: { findAll: jest.fn(async () => [{ id: 'cc-1' }]) },
+      customerConsentModel: { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 'cc-1' }]) },
       consentEventModel: {
-        findAll: jest.fn(async () => [
+        findAll: jest.fn(async (..._args: unknown[]) => [
           {
             happenedAt: new Date('2026-01-03T00:00:00.000Z'),
             createdAtValue: new Date(),
@@ -136,9 +136,9 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
           },
         ]),
       },
-      manualReviewCaseModel: { findAll: jest.fn(async () => [{ id: 'case-1' }]) },
+      manualReviewCaseModel: { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 'case-1' }]) },
       manualReviewEventModel: {
-        findAll: jest.fn(async () => [
+        findAll: jest.fn(async (..._args: unknown[]) => [
           {
             happenedAt: new Date('2026-01-02T00:00:00.000Z'),
             createdAtValue: new Date(),
@@ -148,9 +148,9 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
           },
         ]),
       },
-      fraudCaseModel: { findAll: jest.fn(async () => [{ id: 'fraud-1' }]) },
+      fraudCaseModel: { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 'fraud-1' }]) },
       fraudCaseEventModel: {
-        findAll: jest.fn(async () => [
+        findAll: jest.fn(async (..._args: unknown[]) => [
           {
             happenedAt: new Date('2026-01-01T00:00:00.000Z'),
             createdAtValue: new Date(),

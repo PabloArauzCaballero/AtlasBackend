@@ -16,14 +16,14 @@ import { RuntimeHardeningService } from '../../../src/modules/runtime-hardening/
 function buildIdempotencyModelMock() {
   return {
     findOne: asyncMock(),
-    create: jest.fn(async (values: Record<string, unknown>) => ({ ...values, save: jest.fn(async () => undefined) })),
+    create: jest.fn(async (values: Record<string, unknown>) => ({ ...values, save: jest.fn(async (..._args: unknown[]) => undefined) })),
   };
 }
 
 function buildOutboxModelMock() {
   return {
-    create: jest.fn(async (values: Record<string, unknown>) => ({ ...values, save: jest.fn(async () => undefined) })),
-    findAll: jest.fn(async () => []),
+    create: jest.fn(async (values: Record<string, unknown>) => ({ ...values, save: jest.fn(async (..._args: unknown[]) => undefined) })),
+    findAll: jest.fn(async (..._args: unknown[]) => []),
   };
 }
 
@@ -63,7 +63,7 @@ describe('RuntimeHardeningService.claimIdempotency', () => {
       requestHash: 'hash-1',
       status: 'processing',
       lockedUntil: new Date(NOW.getTime() + 60_000),
-      save: jest.fn(async () => undefined),
+      save: jest.fn(async (..._args: unknown[]) => undefined),
     };
     idempotencyModel.findOne.mockResolvedValueOnce(winner as never);
 
@@ -143,7 +143,7 @@ describe('RuntimeHardeningService.claimIdempotency', () => {
 
   it('registro "processing" con lock YA vencido: se reclama de nuevo (recupera de un worker/proceso caído) y devuelve mode=execute', async () => {
     const { service, idempotencyModel } = buildService();
-    const save = jest.fn(async () => undefined);
+    const save = jest.fn(async (..._args: unknown[]) => undefined);
     const existing = {
       requestHash: 'hash-1',
       status: 'processing',
@@ -171,7 +171,7 @@ describe('RuntimeHardeningService.claimIdempotency', () => {
 describe('RuntimeHardeningService.completeIdempotency / failIdempotency', () => {
   it('completeIdempotency marca completed, guarda el status HTTP y redacta el response body sensible', async () => {
     const { service } = buildService();
-    const save = jest.fn(async () => undefined);
+    const save = jest.fn(async (..._args: unknown[]) => undefined);
     const record = {
       status: 'processing',
       responseStatus: null,
@@ -194,7 +194,7 @@ describe('RuntimeHardeningService.completeIdempotency / failIdempotency', () => 
 
   it('failIdempotency marca failed y libera el lock (permite reintento)', async () => {
     const { service } = buildService();
-    const save = jest.fn(async () => undefined);
+    const save = jest.fn(async (..._args: unknown[]) => undefined);
     const record = { status: 'processing', lockedUntil: new Date(), save } as never as Parameters<
       RuntimeHardeningService['failIdempotency']
     >[0];
@@ -244,7 +244,7 @@ describe('RuntimeHardeningService — outbox', () => {
 
   it('markOutboxProcessed marca processed e incrementa attempts', async () => {
     const { service } = buildService();
-    const save = jest.fn(async () => undefined);
+    const save = jest.fn(async (..._args: unknown[]) => undefined);
     const event = { status: 'pending', attempts: 2, processedAt: null, save } as never as Parameters<
       RuntimeHardeningService['markOutboxProcessed']
     >[0];
@@ -259,7 +259,7 @@ describe('RuntimeHardeningService — outbox', () => {
 
   it('markOutboxProcessed trata attempts null/undefined como 0 antes de incrementar', async () => {
     const { service } = buildService();
-    const save = jest.fn(async () => undefined);
+    const save = jest.fn(async (..._args: unknown[]) => undefined);
     const event = { status: 'pending', attempts: null, processedAt: null, save } as never as Parameters<
       RuntimeHardeningService['markOutboxProcessed']
     >[0];

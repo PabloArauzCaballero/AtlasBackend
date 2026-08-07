@@ -13,7 +13,7 @@ import { buildNotificationsTestApp, authHeader } from './support/notifications-t
 describe('NotificationsController — POST /operations/notifications/broadcast (e2e/supertest)', () => {
   let app: INestApplication;
   const service = {
-    broadcast: jest.fn(async () => ({ broadcastId: 'bcast-1', targeted: 2, created: 2, status: 'queued' })),
+    broadcast: jest.fn(async (..._args: unknown[]) => ({ broadcastId: 'bcast-1', targeted: 2, created: 2, status: 'queued' })),
   };
 
   beforeAll(async () => {
