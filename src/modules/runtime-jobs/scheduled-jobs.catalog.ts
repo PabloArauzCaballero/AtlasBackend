@@ -98,6 +98,19 @@ export function buildScheduledJobs(deps: { runtimeJobs: RuntimeJobsService; main
           currentUser: SCHEDULER_ACTOR,
         }),
     },
+    // ATLAS-DATA-003: el outbox drenado seguía acumulando filas `processed` para siempre. Corre con
+    // la misma cadencia que la purga de idempotencia porque responde al mismo problema —evidencia
+    // operativa que deja de serlo pasado su período de retención— y comparte su ventana.
+    {
+      jobCode: 'purge_processed_outbox',
+      intervalMs: env.RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS,
+      run: (tenantId) =>
+        maintenance.purgeProcessedOutbox({
+          tenantId,
+          body: { retentionDays: env.RUNTIME_JOBS_OUTBOX_RETENTION_DAYS, limit: 1_000, dryRun: false },
+          currentUser: SCHEDULER_ACTOR,
+        }),
+    },
     {
       jobCode: 'recalculate_data_quality',
       intervalMs: env.RUNTIME_JOBS_DATA_QUALITY_INTERVAL_MS,

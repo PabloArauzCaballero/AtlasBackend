@@ -19,6 +19,7 @@ import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthPasswordResetService } from './auth-password-reset.service.js';
+import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { AuthRepository } from './auth.repository.js';
 import { AuthService } from './auth.service.js';
 
@@ -37,7 +38,7 @@ import { AuthService } from './auth.service.js';
     MailSenderModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthActorResolverService, AuthPasswordResetService, AuthRepository],
+  providers: [AuthService, AuthActorResolverService, AuthPasswordResetService, AuthSecondFactorService, AuthRepository],
   exports: [AuthService, AuthRepository],
 })
 export class AuthModule {}

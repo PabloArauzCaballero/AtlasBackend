@@ -101,7 +101,7 @@ yarn env:doctor
 # 6. Levantar el servidor local
 # Este comando fuerza NODE_ENV=development antes de cargar dist/src/main.js.
 yarn start:dev
-# La API queda en http://localhost:3000/api/v1
+# La API queda en http://localhost:3005/api/v1  (APP_PORT por defecto: 3005)
 # Swagger UI (si API_DOCS_ENABLED=true, por defecto fuera de producción): /api/v1/docs
 ```
 
@@ -158,7 +158,7 @@ NOTIFICATION_TOKEN_ENCRYPTION_KEY=<otro-secreto-largo-distinto>
 | `yarn docs:openapi`                        | Genera `docs/endpoints/openapi.yaml` a partir del código (requiere una base de datos real disponible para levantar el `AppModule`). |
 | `yarn docs:project`                        | Actualiza los `README.md` por carpeta y completa cabeceras JSDoc faltantes sin reemplazar documentación manual.                     |
 | `yarn docs:folders` / `yarn docs:inline`   | Ejecuta por separado el inventario por carpetas o la documentación inline.                                                          |
-| `yarn smoke`                               | Corre la suite de smoke tests contra un servidor real ya levantado (`BASE_URL` por defecto `http://localhost:3000/api/v1`).         |
+| `yarn smoke`                               | Corre la suite de smoke tests contra un servidor real ya levantado (`BASE_URL` por defecto se deriva de `APP_PORT`/`API_PREFIX`: `http://localhost:3005/api/v1`). |
 | `yarn check:no-env-file`                   | Falla si Git rastrea un `.env` real; permite el `.env` local ignorado y plantillas `.example`.                                      |
 | `yarn crypto:reencrypt-pii:dry-run`        | Cuenta (sin escribir) cuántos valores de PII/tokens siguen en formato legado `v1` (clave maestra única) contra una base real.       |
 | `yarn crypto:reencrypt-pii`                | Re-cifra en caliente, en lotes e idempotente, los valores `v1` a `v2` (envelope encryption).                                        |

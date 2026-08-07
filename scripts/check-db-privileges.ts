@@ -18,8 +18,10 @@
  */
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { usesDedicatedMigrationIdentity } from '../src/config/database.config.js';
 import { env } from '../src/config/env.js';
 import { ATLAS_SCHEMAS } from '../src/database/domain-schemas.js';
+import { handleUnreachableDatabase } from './gate-skip-policy.js';
 
 /** En modo estricto, un usuario conectado distinto al rol esperado es un fallo, no un skip. */
 const STRICT = process.argv.includes('--strict');
@@ -154,9 +156,12 @@ async function runCheck(spec: ConnectionSpec, check: (s: Sequelize) => Promise<s
   try {
     await sequelize.authenticate();
   } catch (error) {
-    console.warn(`[skip] no se pudo conectar como ${spec.label}: ${(error as Error).message}`);
+    // ATLAS-CI-002: no conectar NO es "sin errores". Antes devolvía `[]`, así que la matriz de
+    // privilegios —el gate que existe para cazar exactamente un aprovisionamiento mal hecho— se
+    // aprobaba sola cuando la credencial era incorrecta.
     await sequelize.close().catch(() => undefined);
-    return [];
+    handleUnreachableDatabase(error, `check:db-privileges (${spec.label})`);
+    return [`No se pudo conectar como ${spec.label}: la matriz de privilegios no pudo verificarse.`];
   }
   try {
     return await check(sequelize);
@@ -198,6 +203,19 @@ async function main(): Promise<void> {
     );
   } else {
     console.log('[skip] DB_READ_USER no configurado; se omite la verificación de atlas_app_ro.');
+  }
+
+  // Tercera identidad de la separación de roles: la que aplica migraciones. El gate verificaba
+  // `atlas_app_rw` y `atlas_app_ro` pero nunca esta, así que un despliegue podía migrar con el
+  // usuario del runtime — es decir, con el usuario de la aplicación teniendo permisos DDL, que es
+  // exactamente lo que la separación pretende evitar. En local el fallback a DB_USER es
+  // deliberado (ver `buildMigrationSequelizeOptions`), así que solo es violación bajo --strict.
+  if (usesDedicatedMigrationIdentity()) {
+    console.log(`[ok] las migraciones usan una identidad dedicada (${env.DB_MIGRATION_USER}), distinta de la del runtime.`);
+  } else if (STRICT) {
+    errors.push('DB_MIGRATION_USER ausente o igual a DB_USER: las migraciones correrían con la identidad del runtime.');
+  } else {
+    console.log('[skip] DB_MIGRATION_USER ausente o igual a DB_USER; las migraciones usan la identidad del runtime (aceptable en local).');
   }
 
   if (errors.length > 0) {

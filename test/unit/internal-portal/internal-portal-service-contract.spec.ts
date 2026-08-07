@@ -14,40 +14,46 @@ import { InternalPortalService } from '../../../src/modules/internal-portal/inte
  * existentes no cambian.
  */
 
-/** Método público -> número de parámetros declarados. */
+/**
+ * Método público -> número de parámetros declarados.
+ *
+ * La superficie cambió en la auditoría integral del 2026-08-06, y el cambio es DELIBERADO:
+ *
+ * - Los casos de uso que tocan tablas con `_tenant_id` reciben ahora un `PortalScope` como primer
+ *   parámetro (ATLAS-SEC-009). Que su aridad suba es justamente la señal que este contrato debe
+ *   fijar: si alguien vuelve a bajarla, ha quitado el aislamiento por tenant.
+ * - Se retiraron cinco métodos que respondían 200 sobre acciones que no ejecutaban:
+ *   `runDataQualityRule`, `updateGovernancePolicy`, `retryJob`, `cancelJob` y `listReportSnapshots`.
+ *   Ver `internal-portal.controller.ts` para las capacidades reales que los sustituyen.
+ */
 const PUBLIC_API: Record<string, number> = {
-  // Glosario de negocio
+  // Glosario de negocio (catálogo de plataforma: sin tenant)
   listBusinessTerms: 1,
   getBusinessTerm: 1,
-  // Exports
+  // Exports (catálogo de plataforma)
   listExports: 1,
   getExport: 1,
-  // Calidad de datos
-  listDataQualityRules: 1,
-  getDataQualityRule: 1,
-  runDataQualityRule: 1,
-  // Gobierno
+  // Calidad de datos (el conteo de issues es por tenant)
+  listDataQualityRules: 2,
+  getDataQualityRule: 2,
+  // Gobierno (solo lectura)
   getGovernancePolicy: 1,
-  updateGovernancePolicy: 2,
-  // Linaje
+  // Linaje (catálogo de plataforma)
   getLineage: 1,
   getLineageNode: 1,
   getLineageImpact: 1,
-  // Alertas
-  listAlerts: 1,
-  acknowledgeAlert: 1,
-  // Jobs
-  listJobs: 1,
-  getJob: 1,
-  retryJob: 1,
-  cancelJob: 1,
-  // Release readiness
-  getReleaseReadiness: 0,
+  // Alertas (data_quality_issues: por tenant)
+  listAlerts: 2,
+  acknowledgeAlert: 2,
+  // Jobs (system_job_runs: por tenant)
+  listJobs: 2,
+  getJob: 2,
+  // Release readiness (agrega dos tablas por tenant)
+  getReleaseReadiness: 1,
   // Reportes
   listReports: 1,
   getReport: 1,
-  runReport: 2,
-  listReportSnapshots: 2,
+  runReport: 3,
   // Búsqueda
   search: 1,
 };
@@ -79,7 +85,21 @@ describe('InternalPortalService — contrato de API pública', () => {
     expect(missing).toEqual([]);
   });
 
-  it('los 24 métodos del contrato siguen siendo exactamente los que consume el controller', () => {
-    expect(Object.keys(PUBLIC_API)).toHaveLength(24);
+  it('los 19 métodos del contrato siguen siendo exactamente los que consume el controller', () => {
+    expect(Object.keys(PUBLIC_API)).toHaveLength(19);
   });
+
+  /**
+   * Trinquete de honestidad: estos cinco métodos devolvían 200 describiendo un efecto que nunca
+   * ocurría (un job re-encolado, una política guardada, snapshots históricos). Si alguno reaparece,
+   * tiene que ser porque ahora hace de verdad lo que promete — y entonces este test se actualiza a
+   * conciencia, no por accidente.
+   */
+  it.each(['runDataQualityRule', 'updateGovernancePolicy', 'retryJob', 'cancelJob', 'listReportSnapshots'])(
+    '%s sigue retirado: no vuelve a existir un endpoint que reporte una acción que no ejecuta',
+    (method) => {
+      const service = buildService() as unknown as Record<string, unknown>;
+      expect(service[method]).toBeUndefined();
+    },
+  );
 });

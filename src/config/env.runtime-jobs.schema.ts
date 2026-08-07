@@ -63,6 +63,11 @@ export const runtimeJobsEnvShape = {
   RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS: z.coerce.number().int().positive().default(86_400_000),
   RUNTIME_JOBS_IDEMPOTENCY_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
 
+  // Retención de los eventos de outbox ya procesados (ATLAS-DATA-003). El default coincide con el de
+  // idempotencia porque responden al mismo criterio: cuánta evidencia operativa reciente se conserva
+  // para diagnosticar un incidente. Piso de 1 día — los eventos de hoy son justo los que se miran.
+  RUNTIME_JOBS_OUTBOX_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+
   // Entrega de los mensajes recién creados por un broadcast, cuando la entrega NO corre dentro del
   // proceso que atendió el request (NOTIFICATIONS_DELIVERY_MODE=deferred). Intervalo corto a
   // propósito: aquí la pregunta es "¿qué hay recién creado por entregar?", no "¿qué quedó varado?".

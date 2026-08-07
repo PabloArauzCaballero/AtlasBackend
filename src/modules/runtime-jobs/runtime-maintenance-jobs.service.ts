@@ -7,7 +7,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { IdempotencyKeyModel } from '../../database/models/index.js';
+import { IdempotencyKeyModel, OutboxEventModel } from '../../database/models/index.js';
 import { EventsService } from '../events/events.service.js';
 import { NotificationOrchestratorService } from '../notifications/notification-orchestrator.service.js';
 import { NotificationsRepository } from '../notifications/notifications.repository.js';
@@ -15,6 +15,7 @@ import { JobRunRecorderService } from './job-run-recorder.service.js';
 import {
   DeliverPendingNotificationsDto,
   PurgeIdempotencyKeysDto,
+  PurgeProcessedOutboxDto,
   ReclaimStuckEventsDto,
   RetryStuckNotificationsDto,
 } from './runtime-jobs.schemas.js';
@@ -43,6 +44,11 @@ export class RuntimeMaintenanceJobsService {
     // `RuntimeJobsService`: varias pruebas construyen este servicio posicionalmente, y una
     // dependencia nueva intercalada las rompería sin que nada del comportamiento haya cambiado.
     private readonly eventsService: EventsService,
+    // Mismo criterio que `eventsService`: las dependencias NUEVAS se añaden al final, porque varias
+    // pruebas construyen este servicio posicionalmente y una intercalada las rompería sin que el
+    // comportamiento haya cambiado. Nest SIEMPRE la inyecta (está en `RuntimeJobsModule`); si
+    // faltara, `purgeProcessedOutbox` falla ruidosamente en vez de reportar "0 borrados".
+    @InjectModel(OutboxEventModel) private readonly outboxEventModel: typeof OutboxEventModel,
   ) {}
 
   /**
@@ -186,6 +192,50 @@ export class RuntimeMaintenanceJobsService {
         if (input.body.dryRun) return { selected, deleted: 0, cutoff: cutoff.toISOString(), dryRun: true };
 
         const deleted = await this.idempotencyKeyModel.destroy({ where, limit: input.body.limit } as never);
+        return { selected, deleted, cutoff: cutoff.toISOString(), dryRun: false };
+      },
+    );
+  }
+
+  /**
+   * ATLAS-DATA-003 — purga de eventos de outbox en estado TERMINAL.
+   *
+   * `process_outbox` marca `status = 'processed'` y hasta ahora nadie borraba esas filas: la tabla
+   * crecía sin techo en la ruta más caliente de escritura del backend. El coste no es solo disco —
+   * el índice parcial por el que se reclaman los pendientes se degrada con cada fila muerta, así que
+   * el drenado se vuelve más lento justo cuando más carga hay.
+   *
+   * Nunca toca `pending` ni `processing`: borrar uno perdería un efecto de negocio en silencio, que
+   * es exactamente lo que el patrón outbox existe para impedir. El `dryRun: true` por defecto del
+   * DTO protege el disparo manual; el planificador pasa `false` explícito. Solo borra filas cuyo
+   * `processed_at` es anterior al corte, así que un evento sin marca de procesado (estado
+   * inconsistente) sobrevive para poder investigarse.
+   */
+  purgeProcessedOutbox(input: { tenantId: string; body: PurgeProcessedOutboxDto; currentUser: AuthenticatedUser }) {
+    return this.jobRuns.run(
+      { tenantId: input.tenantId, jobCode: 'purge_processed_outbox', body: input.body, currentUser: input.currentUser },
+      async () => {
+        // Un `deleted: 0` por falta de dependencia sería indistinguible de "no había nada que
+        // purgar", y la tabla seguiría creciendo sin que nadie se entere. Se falla en su lugar.
+        if (!this.outboxEventModel) throw new Error('OutboxEventModel no inyectado: purge_processed_outbox no puede ejecutarse.');
+
+        const cutoff = new Date(Date.now() - input.body.retentionDays * 24 * 60 * 60 * 1000);
+        const where = {
+          tenantId: input.tenantId,
+          // Solo `processed`. `pending`/`processing` no se tocan jamás (se perdería un efecto de
+          // negocio en silencio) y no existe ningún otro estado terminal en esta tabla: si mañana se
+          // añade uno, tiene que sumarse aquí a conciencia, no heredarse de una lista abierta.
+          status: 'processed',
+          processedAt: { [Op.lt]: cutoff },
+        };
+
+        const selected = await this.outboxEventModel.count({ where } as never);
+        if (input.body.dryRun) return { selected, deleted: 0, cutoff: cutoff.toISOString(), dryRun: true };
+
+        const deleted = await this.outboxEventModel.destroy({ where, limit: input.body.limit } as never);
+        if (deleted > 0) {
+          this.logger.log(`Outbox purgado: ${deleted} eventos terminales anteriores a ${cutoff.toISOString()} (tenant ${input.tenantId}).`);
+        }
         return { selected, deleted, cutoff: cutoff.toISOString(), dryRun: false };
       },
     );

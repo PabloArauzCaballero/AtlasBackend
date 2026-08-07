@@ -41,6 +41,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
     const maintenance = {
       retryStuckNotifications: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
       purgeIdempotencyKeys: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      purgeProcessedOutbox: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
       deliverPendingNotifications: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
       reclaimStuckEvents: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
     };
@@ -73,7 +74,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
 
     service.onApplicationBootstrap();
 
-    expect(setTimeout).toHaveBeenCalledTimes(8);
+    expect(setTimeout).toHaveBeenCalledTimes(9);
     service.onModuleDestroy();
   });
 

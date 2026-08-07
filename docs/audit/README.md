@@ -1,9 +1,13 @@
 # Auditoría de producción — Atlas Backend
 
-Más reciente: [**auditoría integral y plan de mejora — 2026-07-30**](./auditoria-integral-2026-07-30.md).
-A diferencia del resto de este directorio, esa no va módulo por módulo: es transversal (preparación
-para producción, seguridad, observabilidad, robustez, eficiencia y clean code) e incluye el plan por
-fases y su ejecución. Es la que hay que leer primero si la pregunta es «¿esto se puede desplegar?».
+Más reciente: [**auditoría integral — 2026-08-06**](./auditoria-integral-2026-08-06.md). Es la
+primera que **ejecuta** los gates en vez de solo leer el código, así que es la que responde
+«¿esto se puede desplegar?» con evidencia y no con inferencia. Incluye el
+[manifiesto de huérfanos](./orphans/orphan-manifest.md) y los logs de la corrida
+([baseline](./evidence/commands-baseline.log) · [final](./evidence/commands-final.log)).
+
+Transversal anterior: [auditoría integral y plan de mejora — 2026-07-30](./auditoria-integral-2026-07-30.md),
+con el plan por fases y su ejecución.
 
 Consolidado anterior: [documentación y correcciones — 2026-07-27](./documentacion-y-correcciones-2026-07-27.md).
 

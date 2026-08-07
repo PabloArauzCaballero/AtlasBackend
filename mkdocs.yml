@@ -218,6 +218,21 @@ nav:
       - operations/index.md
       - Despliegue a producción: runbooks/despliegue-produccion.md
       - Observabilidad: observability/overview.md
+      - Rendimiento:
+          - performance/index.md
+          # Inventario generado por `yarn docs:folders`. La carpeta `backend/` no tiene página
+          # curada propia (el índice de la sección es `performance/index.md`), así que su README
+          # sobrevive al hook `generated_readmes.py` y necesita entrada en la navegación: sin ella
+          # es una página huérfana y `strict: true` aborta el build.
+          - performance/backend/README.md
+          - Higiene previa de recursos: performance/backend/00-prestart-resource-hygiene.md
+          - Baseline: performance/backend/01-baseline.md
+          - Mapa de cuellos de botella: performance/backend/02-bottleneck-map.md
+          - Plan de optimización: performance/backend/03-optimization-plan.md
+          - Informe antes/después: performance/backend/04-before-after-report.md
+          - Presupuesto de rendimiento: performance/backend/05-performance-budget.md
+          - Observabilidad de rendimiento: performance/backend/06-observability.md
+          - Runbook de rendimiento: performance/backend/07-runbook.md
       - Runbooks:
           - runbooks/README.md
           - Respuesta a incidentes: runbooks/incident-response.md
@@ -259,6 +274,9 @@ nav:
       - Validación final: reports/final-validation.md
       - Auditoría integral 2026-07-30: audit/auditoria-integral-2026-07-30.md
       - Hardening de resiliencia 2026-08-05: audit/hardening-resiliencia-2026-08-05.md
+      - Auditoría integral 2026-08-06: audit/auditoria-integral-2026-08-06.md
+      - Remediación integral 2026-08-06: audit/remediacion-integral-2026-08-06.md
+      - Evidencia de explotación en vivo 2026-08-06: audit/evidence/live-exploit-2026-08-06.md
       - Auditorías por módulo:
           - audit/README.md
           - Revisión completa 2026-07-21: audit/revision-completa-backend-2026-07-21.md

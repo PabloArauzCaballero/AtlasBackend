@@ -107,6 +107,30 @@ describe('TokenRevocationService — caché de tokenVersion', () => {
     await expect(service.bumpTokenVersion('customer', 'ghost')).rejects.toThrow('No existen credenciales para customer:ghost.');
   });
 
+  it('bumpTokenVersionIfPresent devuelve null en vez de lanzar cuando el actor no tiene credenciales', async () => {
+    // Los llamantes que revocan como efecto secundario de un cambio de privilegios (suspender,
+    // reemplazar roles) no deben romperse por un actor sin contraseña provisionada: sin fila en
+    // `auth_credentials` no hay sesión que revocar.
+    const redis = buildRedisMock();
+    const credentialModel = { findOne: jest.fn(async () => null) };
+    const service = new TokenRevocationService(credentialModel as never, redis as never);
+
+    await expect(service.bumpTokenVersionIfPresent('internal_user', 'sin-credenciales')).resolves.toBeNull();
+    expect(redis.set).not.toHaveBeenCalled();
+  });
+
+  it('bumpTokenVersionIfPresent incrementa y hace write-through igual que bumpTokenVersion cuando el actor existe', async () => {
+    const redis = buildRedisMock();
+    const record = { tokenVersion: 8, save: jest.fn(async () => undefined) };
+    const credentialModel = { findOne: jest.fn(async () => record) };
+
+    const service = new TokenRevocationService(credentialModel as never, redis as never);
+
+    await expect(service.bumpTokenVersionIfPresent('internal_user', 'user-7')).resolves.toBe(9);
+    expect(record.save).toHaveBeenCalledTimes(1);
+    expect(redis.set).toHaveBeenCalledWith('atlas:auth:token-version:internal_user:user-7', '9', 'EX', 300);
+  });
+
   it('bumpTokenVersion no lanza si la escritura en Redis falla (no bloqueante)', async () => {
     const redis = buildRedisMock();
     redis.set.mockRejectedValueOnce(new Error('Redis down'));

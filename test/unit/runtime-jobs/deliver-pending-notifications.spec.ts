@@ -32,6 +32,9 @@ describe('RuntimeMaintenanceJobsService.deliverPendingNotifications', () => {
       // El rescate de eventos varados delega en `EventsService`, que es el dueño del ciclo de vida
       // del outbox; aquí solo se comprueba la envoltura de auditoría del job.
       eventsService as never,
+      // `OutboxEventModel` solo lo usa `purgeProcessedOutbox`, que tiene sus propias pruebas más
+      // abajo con su doble; aquí no se ejercita, pero el constructor lo exige.
+      {} as never,
     );
     return { service, notificationsRepository, notificationOrchestrator, jobRuns };
   }

@@ -84,10 +84,20 @@ describe('AuthController', () => {
     );
   });
 
-  it('provisionCredentials delega el body + el rol del actor autenticado', async () => {
+  // ATLAS-SEC-007: el TENANT del token es tan parte de la autorización como el rol. `TenantGuard`
+  // no cubre este endpoint (el actor destino viaja en el cuerpo), así que si el controller no
+  // propaga `tenantId`, el servicio no tiene con qué contener la provisión entre tenants.
+  it('provisionCredentials delega el body + el rol Y el tenant del actor autenticado', async () => {
     const { controller, authService } = build();
     const body = { actorType: 'internal_user', actorId: '5', password: 'Init1234!' } as never;
-    await controller.provisionCredentials(body, { role: 'admin' } as never);
-    expect(authService.provisionCredentials).toHaveBeenCalledWith(body, { role: 'admin' });
+    await controller.provisionCredentials(body, { role: 'admin', tenantId: '1' } as never);
+    expect(authService.provisionCredentials).toHaveBeenCalledWith(body, { role: 'admin', tenantId: '1' });
+  });
+
+  it('provisionCredentials propaga tenantId null cuando el token no lo trae (platform_admin)', async () => {
+    const { controller, authService } = build();
+    const body = { actorType: 'platform_user', actorId: '9', password: 'Init1234!' } as never;
+    await controller.provisionCredentials(body, { role: 'platform_admin' } as never);
+    expect(authService.provisionCredentials).toHaveBeenCalledWith(body, { role: 'platform_admin', tenantId: null });
   });
 });

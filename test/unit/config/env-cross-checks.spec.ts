@@ -19,12 +19,24 @@ import { DEFAULT_JWT_SECRET, DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY, envBaseS
 describe('applyEnvCrossChecks', () => {
   const schema = envBaseSchema.superRefine(applyEnvCrossChecks);
 
-  /** Configuración productiva MÍNIMA y válida. Cada prueba parte de aquí y rompe una sola cosa. */
+  /**
+   * Configuración productiva MÍNIMA y válida. Cada prueba parte de aquí y rompe una sola cosa.
+   *
+   * El bloque MailSender forma parte del mínimo desde ATLAS-SEC-008: en producción es el canal que
+   * entrega el PIN de segundo factor de los actores internos, así que un despliegue sin él ya no
+   * es una configuración válida.
+   */
   const validProduction = {
     NODE_ENV: 'production',
     JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-produccion-suficientemente-largo',
     NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
     REDIS_URL: 'redis://cache:6379',
+    MAILSENDER_BASE_URL: 'https://mail.interno',
+    MAILSENDER_EXTERNAL_API_KEY: 'mailsender-api-key',
+    MAILSENDER_ADMIN_USERNAME: 'atlas-ops',
+    MAILSENDER_ADMIN_PASSWORD: 'mailsender-admin-password',
+    // ATLAS-SEC-011: sin KMS, producción exige declarar el riesgo de la master key derivada de env.
+    PII_ENCRYPTION_ALLOW_ENV_MASTER_KEY: 'true',
   } as Record<string, unknown>;
 
   /** Códigos de error de las validaciones cruzadas, por la ruta (nombre de variable) que señalan. */
@@ -130,14 +142,112 @@ describe('applyEnvCrossChecks', () => {
 
   describe('MailSender', () => {
     it('configurar la URL sin credenciales deja una integración a medias', () => {
-      const paths = failedPaths({ ...validProduction, MAILSENDER_BASE_URL: 'https://mail.interno' });
+      const paths = failedPaths({
+        ...validProduction,
+        MAILSENDER_EXTERNAL_API_KEY: undefined,
+        MAILSENDER_ADMIN_USERNAME: undefined,
+        MAILSENDER_ADMIN_PASSWORD: undefined,
+      });
       expect(paths).toEqual(
         expect.arrayContaining(['MAILSENDER_EXTERNAL_API_KEY', 'MAILSENDER_ADMIN_USERNAME', 'MAILSENDER_ADMIN_PASSWORD']),
       );
     });
 
-    it('sin URL, la integración está apagada y no se exige nada', () => {
-      expect(failedPaths(validProduction)).toEqual([]);
+    it('fuera de producción la integración puede quedar apagada sin exigir nada', () => {
+      expect(
+        failedPaths({
+          NODE_ENV: 'development',
+          JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-desarrollo-suficientemente-largo',
+          NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
+        }),
+      ).toEqual([]);
+    });
+  });
+
+  /**
+   * ATLAS-SEC-011. El cifrado de PII sin KMS era un `console.warn` en el arranque: producción
+   * levantaba con la master key de toda la PII derivada de una variable de entorno y el aviso se
+   * perdía entre las líneas de inicio. Ahora el despliegue no arranca salvo que alguien haya firmado
+   * la decisión en el manifiesto.
+   */
+  describe('cifrado de PII en producción', () => {
+    it('sin KMS y sin declarar el riesgo, producción no arranca', () => {
+      expect(failedPaths({ ...validProduction, PII_ENCRYPTION_ALLOW_ENV_MASTER_KEY: undefined })).toContain('KMS_KEY_ID');
+    });
+
+    it('con KMS configurado no hace falta declarar nada', () => {
+      expect(
+        failedPaths({
+          ...validProduction,
+          PII_ENCRYPTION_ALLOW_ENV_MASTER_KEY: undefined,
+          KMS_KEY_ID: 'arn:aws:kms:us-east-1:1:key/abc',
+          AWS_REGION: 'us-east-1',
+        }),
+      ).toEqual([]);
+    });
+
+    it('fuera de producción no se exige ni KMS ni declaración', () => {
+      expect(
+        failedPaths({
+          NODE_ENV: 'development',
+          JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-desarrollo-suficientemente-largo',
+          NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
+        }),
+      ).toEqual([]);
+    });
+  });
+
+  /**
+   * ATLAS-SEC-012. Sequelize inlinea los valores en la sentencia que registra, así que activar el
+   * volcado de SQL en producción publica PII en claro en stdout, en `Archivo.log` y en el espejo de
+   * MongoDB que expone `/systems/logs/mongo`. La redacción por clave no alcanza a un valor
+   * posicional sin nombre, por eso la prohibición es absoluta y no depende de ella.
+   */
+  describe('volcado de SQL', () => {
+    it('producción no arranca con DB_LOG_SQL=true', () => {
+      expect(failedPaths({ ...validProduction, DB_LOG_SQL: 'true' })).toContain('DB_LOG_SQL');
+    });
+
+    it('el default (apagado) es válido en producción', () => {
+      expect(failedPaths({ ...validProduction, DB_LOG_SQL: 'false' })).toEqual([]);
+    });
+
+    it('fuera de producción se puede activar para depurar', () => {
+      expect(
+        failedPaths({
+          NODE_ENV: 'development',
+          JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-desarrollo-suficientemente-largo',
+          NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
+          DB_LOG_SQL: 'true',
+        }),
+      ).toEqual([]);
+    });
+  });
+
+  /**
+   * ATLAS-SEC-008. `AuthService.isSecondFactorRequired` degrada a "sin 2FA" cuando no hay canal de
+   * correo — degradación correcta en local, rebaja silenciosa de autenticación en producción. Estas
+   * pruebas fijan que un despliegue así no arranque, que es la única forma de que la degradación no
+   * pueda ocurrir sin que nadie la haya decidido.
+   */
+  describe('segundo factor de actores internos', () => {
+    it('producción sin canal de correo no arranca: el PIN interno no tendría cómo entregarse', () => {
+      expect(failedPaths({ ...validProduction, MAILSENDER_BASE_URL: undefined })).toContain('MAILSENDER_BASE_URL');
+    });
+
+    it('producción no admite apagar el PIN de login', () => {
+      expect(failedPaths({ ...validProduction, AUTH_LOGIN_PIN_ENABLED: 'false' })).toContain('AUTH_LOGIN_PIN_ENABLED');
+    });
+
+    it('fuera de producción sí se puede apagar (entornos de test/local)', () => {
+      expect(
+        failedPaths({
+          NODE_ENV: 'development',
+          JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-desarrollo-suficientemente-largo',
+          NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
+          AUTH_LOGIN_PIN_ENABLED: 'false',
+        }),
+      ).toEqual([]);
     });
   });
 

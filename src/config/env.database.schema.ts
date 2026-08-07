@@ -20,6 +20,24 @@ import { booleanEnvSchema, optionalBooleanEnvSchema } from './env.primitives.js'
  * base a propósito: son la conexión que TODO proceso necesita, incluido el que no siembra ni migra.
  */
 export const databaseEnvShape = {
+  /**
+   * ATLAS-PERF-004 / ATLAS-SEC-012 — volcado de SQL al log.
+   *
+   * Antes esto no era una variable: `database.config.ts` activaba `logging: console.log` con solo
+   * ver `NODE_ENV=development`. Sequelize **inlinea los valores** en la sentencia que registra, así
+   * que cada `INSERT`/`SELECT` arrastraba nombre, correo, teléfono y número de documento en claro a
+   * stdout — y de ahí a `Archivo.log` y al espejo en MongoDB. En un backend KYC eso es una fuga de
+   * PII, y contradice la regla explícita del propio proyecto («Nunca loguear SQL», ver
+   * `.claude/rules/30-security.md`). De paso invalidaba cualquier medición: 8 MB de log en una
+   * corrida de 150 s.
+   *
+   * Ahora es una decisión explícita, apagada por defecto y PROHIBIDA en producción
+   * (`env-cross-checks.ts`). Cuando se activa, el SQL pasa por el mismo redactor que el resto de los
+   * logs — que reduce la exposición, no la elimina: la depuración de una query sigue siendo una
+   * operación deliberada sobre datos sensibles. Ver `docs/adr/0008-logging-de-sql.md`.
+   */
+  DB_LOG_SQL: booleanEnvSchema,
+
   // Pool de LECTURA opcional (Fase 2/5 del plan de mejora del modelo de datos). La conexión
   // write/default sigue siendo DB_HOST/DB_USER/... (apúntala a atlas_app_rw). Cuando
   // DB_READ_ENABLED=true, `ReadDatabaseModule` registra una segunda conexión "read" usando estas
