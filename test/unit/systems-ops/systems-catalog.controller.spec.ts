@@ -9,14 +9,14 @@ import { SystemsCatalogController } from '../../../src/modules/systems-ops/syste
 describe('SystemsCatalogController', () => {
   function build() {
     const service = {
-      getDashboard: jest.fn(async () => ({ counts: {} })),
-      listEndpoints: jest.fn(async () => ({ items: [] })),
-      getEndpoint: jest.fn(async () => ({ endpoint: {} })),
-      getImpactByTable: jest.fn(async () => ({ entity: {} })),
-      getToolsHealth: jest.fn(async () => []),
+      getDashboard: jest.fn(async (..._args: unknown[]) => ({ counts: {} })),
+      listEndpoints: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getEndpoint: jest.fn(async (..._args: unknown[]) => ({ endpoint: {} })),
+      getImpactByTable: jest.fn(async (..._args: unknown[]) => ({ entity: {} })),
+      getToolsHealth: jest.fn(async (..._args: unknown[]) => []),
     };
-    const toolInferenceService = { infer: jest.fn(async () => ({ inferred: 1 })) };
-    const dataImpactInferenceService = { infer: jest.fn(async () => ({ inferred: 2 })) };
+    const toolInferenceService = { infer: jest.fn(async (..._args: unknown[]) => ({ inferred: 1 })) };
+    const dataImpactInferenceService = { infer: jest.fn(async (..._args: unknown[]) => ({ inferred: 2 })) };
     return {
       controller: new SystemsCatalogController(service as never, toolInferenceService as never, dataImpactInferenceService as never),
       service,

@@ -42,19 +42,19 @@ describe('SystemsTestHttpClientService', () => {
   });
 
   it('execute (éxito) devuelve statusCode + body parseado', async () => {
-    global.fetch = jest.fn(async () => ({ status: 200, text: async () => '{"ok":true}' })) as never;
+    global.fetch = jest.fn(async (..._args: unknown[]) => ({ status: 200, text: async () => '{"ok":true}' })) as never;
     const res = await service.execute(req());
     expect(res).toEqual({ statusCode: 200, responseBody: { ok: true }, errorMessage: null });
   });
 
   it('execute bloquea las redirecciones (3xx) sin seguirlas', async () => {
-    global.fetch = jest.fn(async () => ({ status: 302, text: async () => '' })) as never;
+    global.fetch = jest.fn(async (..._args: unknown[]) => ({ status: 302, text: async () => '' })) as never;
     const res = await service.execute(req());
     expect(res).toMatchObject({ statusCode: 302, errorMessage: 'SYSTEM_TEST_REDIRECT_BLOCKED' });
   });
 
   it('execute con cuerpo no-JSON lo envuelve en { raw }', async () => {
-    global.fetch = jest.fn(async () => ({ status: 200, text: async () => 'texto plano' })) as never;
+    global.fetch = jest.fn(async (..._args: unknown[]) => ({ status: 200, text: async () => 'texto plano' })) as never;
     const res = await service.execute(req({ method: 'GET' }));
     expect(res.responseBody).toEqual({ raw: 'texto plano' });
   });
@@ -69,7 +69,7 @@ describe('SystemsTestHttpClientService', () => {
   });
 
   it('execute captura un fallo de red (fetch lanza)', async () => {
-    global.fetch = jest.fn(async () => {
+    global.fetch = jest.fn(async (..._args: unknown[]) => {
       throw new Error('ECONNREFUSED');
     }) as never;
     const res = await service.execute(req());

@@ -48,7 +48,7 @@ describe('SessionsDeviceRepository', () => {
 
   it('touchGlobalDevice incrementa el contador de reuso global y guarda', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => undefined);
+    const save = jest.fn(async (..._args: unknown[]) => undefined);
     const device = { globalReuseCount: 4, save } as never;
     await repo.touchGlobalDevice(device, new Date('2026-01-02'), opts);
     expect((device as { globalReuseCount: number }).globalReuseCount).toBe(5);
@@ -80,7 +80,7 @@ describe('SessionsDeviceRepository', () => {
 
   it('touchDevice incrementa el contador de reuso por tenant', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => undefined);
+    const save = jest.fn(async (..._args: unknown[]) => undefined);
     const device = { tenantReuseCount: 0, save } as never;
     await repo.touchDevice(device, new Date('2026-01-02'), opts);
     expect((device as { tenantReuseCount: number }).tenantReuseCount).toBe(1);
@@ -111,7 +111,7 @@ describe('SessionsDeviceRepository', () => {
 
   it('touchCustomerDeviceLink fija lastSeenSessionId y firstSeen solo si estaba null', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => undefined);
+    const save = jest.fn(async (..._args: unknown[]) => undefined);
     const link = { firstSeenSessionId: null, save } as never;
     await repo.touchCustomerDeviceLink(link, 's1', new Date('2026-01-02'), opts);
     expect((link as { firstSeenSessionId: string; lastSeenSessionId: string }).firstSeenSessionId).toBe('s1');

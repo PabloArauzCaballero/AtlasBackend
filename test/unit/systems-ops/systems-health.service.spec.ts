@@ -7,11 +7,11 @@ import { SystemsHealthService } from '../../../src/modules/systems-ops/systems-h
  * variables de entorno requeridas. Spec directo con repo/sequelize/redis mockeados.
  */
 describe('SystemsHealthService', () => {
-  function build(rows: unknown[], redis: unknown = { ping: jest.fn(async () => 'PONG') }) {
-    const repository = { listTools: jest.fn(async () => ({ rows })) };
+  function build(rows: unknown[], redis: unknown = { ping: jest.fn(async (..._args: unknown[]) => 'PONG') }) {
+    const repository = { listTools: jest.fn(async (..._args: unknown[]) => ({ rows })) };
     const sequelize = {
-      authenticate: jest.fn(async () => undefined),
-      query: jest.fn(async () => []),
+      authenticate: jest.fn(async (..._args: unknown[]) => undefined),
+      query: jest.fn(async (..._args: unknown[]) => []),
       models: { UserModel: {}, OutboxEventModel: {} },
     };
     const service = new SystemsHealthService(repository as never, sequelize as never, redis as never);
@@ -50,7 +50,7 @@ describe('SystemsHealthService', () => {
   });
 
   it('REDIS: sano cuando responde PONG', async () => {
-    const redis = { ping: jest.fn(async () => 'PONG') };
+    const redis = { ping: jest.fn(async (..._args: unknown[]) => 'PONG') };
     const { service } = build([tool({ code: 'REDIS' })], redis);
     const [res] = await service.getToolsHealth();
     expect(redis.ping).toHaveBeenCalledTimes(1);
@@ -149,7 +149,11 @@ describe('SystemsHealthService', () => {
 
     it('ARCHIVO_LOG_MONGO_SYNC: usa el ping a MongoDB (stubbeado) y reporta LIVE', async () => {
       const { service } = build([tool({ code: 'ARCHIVO_LOG_MONGO_SYNC' })]);
-      const mongoPing = jest.fn(async () => ({ checkType: 'LIVE' as const, isHealthy: true, healthMessage: 'MongoDB respondió al ping.' }));
+      const mongoPing = jest.fn(async (..._args: unknown[]) => ({
+        checkType: 'LIVE' as const,
+        isHealthy: true,
+        healthMessage: 'MongoDB respondió al ping.',
+      }));
       (service as unknown as { mongoPing: typeof mongoPing }).mongoPing = mongoPing;
       const [res] = await service.getToolsHealth();
       expect(mongoPing).toHaveBeenCalledTimes(1);

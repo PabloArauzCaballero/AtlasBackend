@@ -11,9 +11,9 @@ describe('RuntimeMaintenanceJobsService', () => {
   const currentUser = { role: 'internal_operator', internalUserId: 'iu1', platformUserId: null } as never;
 
   function build() {
-    const idempotencyKeyModel = { count: jest.fn(async () => 0), destroy: jest.fn(async () => 0) };
-    const notificationsRepository = { listStuckMessages: jest.fn(async () => [] as Array<{ id: number }>) };
-    const notificationOrchestrator = { deliverMessage: jest.fn(async () => undefined) };
+    const idempotencyKeyModel = { count: jest.fn(async (..._args: unknown[]) => 0), destroy: jest.fn(async (..._args: unknown[]) => 0) };
+    const notificationsRepository = { listStuckMessages: jest.fn(async (..._args: unknown[]) => [] as Array<{ id: number }>) };
+    const notificationOrchestrator = { deliverMessage: jest.fn(async (..._args: unknown[]) => undefined) };
     // `JobRunRecorderService` ya tiene su propio contrato; aquí solo hace falta que ejecute el
     // handler y devuelva su resultado, para poder asertar sobre lo que el job REPORTA.
     const jobRuns = {
@@ -23,7 +23,7 @@ describe('RuntimeMaintenanceJobsService', () => {
         result: await handler(),
       })),
     };
-    const eventsService = { reclaimStuckEvents: jest.fn(async () => ({ selected: 0, requeued: 0, deadLettered: 0 })) };
+    const eventsService = { reclaimStuckEvents: jest.fn(async (..._args: unknown[]) => ({ selected: 0, requeued: 0, deadLettered: 0 })) };
     const service = new RuntimeMaintenanceJobsService(
       idempotencyKeyModel as never,
       notificationsRepository as never,

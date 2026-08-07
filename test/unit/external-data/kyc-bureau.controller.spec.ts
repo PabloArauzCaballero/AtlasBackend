@@ -15,7 +15,7 @@ describe('KYC/Bureau external-data controllers', () => {
   const internalUser = { role: 'risk_analyst', tenantId: '1', internalUserId: 'u1' } as never;
 
   it('verifySegip delega en executeSegip con tenant/customerId/actor', async () => {
-    const service = { executeSegip: jest.fn(async () => ({ ok: true })) };
+    const service = { executeSegip: jest.fn(async (..._args: unknown[]) => ({ ok: true })) };
     const controller = new KycExternalDataController(service as never);
     const body = { customerId: '9', documentNumber: 'X' } as never;
     await controller.verifySegip('1', 'idem', body, internalUser);
@@ -37,7 +37,7 @@ describe('KYC/Bureau external-data controllers', () => {
   });
 
   it('checkInfocenter delega en executeInfocenter con tenant/customerId/actor', async () => {
-    const service = { executeInfocenter: jest.fn(async () => ({ ok: true })) };
+    const service = { executeInfocenter: jest.fn(async (..._args: unknown[]) => ({ ok: true })) };
     const controller = new BureauExternalDataController(service as never);
     const body = { customerId: '9' } as never;
     await controller.checkInfocenter('1', 'idem', body, internalUser);

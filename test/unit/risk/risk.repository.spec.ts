@@ -131,7 +131,7 @@ describe('RiskRepository', () => {
 
   it('attachSnapshotToRun enlaza el snapshot con la corrida y guarda dentro de la transacción', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => undefined);
+    const save = jest.fn(async (..._args: unknown[]) => undefined);
     const snapshot = { save } as never;
 
     await repo.attachSnapshotToRun(snapshot, 'run1', { transaction: 'tx' as never });

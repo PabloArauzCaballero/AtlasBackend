@@ -155,7 +155,7 @@ describe('ExternalDataRepository', () => {
     expect(await missing.repo.updateCostPolicy('p1', 'q', {})).toBeNull();
 
     const found = buildRepo();
-    const policy = { update: jest.fn(async () => undefined) };
+    const policy = { update: jest.fn(async (..._args: unknown[]) => undefined) };
     (found.models.costPolicy.findOne as jest.Mock).mockResolvedValue(policy as never);
     const res = await found.repo.updateCostPolicy('p1', 'q', { unitCostAmount: 1.5, currency: 'BOB', active: false });
     expect(res).toBe(policy);
@@ -170,7 +170,7 @@ describe('ExternalDataRepository', () => {
     expect(await missing.repo.updateProviderRuntime('p1', {})).toBeNull();
 
     const found = buildRepo();
-    const provider = { update: jest.fn(async () => undefined) };
+    const provider = { update: jest.fn(async (..._args: unknown[]) => undefined) };
     (found.models.dataProvider.findByPk as jest.Mock).mockResolvedValue(provider as never);
     await found.repo.updateProviderRuntime('p1', { providerStatus: 'DEGRADED', isActive: false });
     expect((provider.update as jest.Mock).mock.calls[0][0]).toMatchObject({ providerStatus: 'DEGRADED', isActive: false });
@@ -182,7 +182,7 @@ describe('ExternalDataRepository', () => {
     expect(await missing.repo.revokeCustomerConsent('t1', 'c1', new Date())).toBeNull();
 
     const found = buildRepo();
-    const consent = { update: jest.fn(async () => undefined) };
+    const consent = { update: jest.fn(async (..._args: unknown[]) => undefined) };
     (found.models.customerConsent.findOne as jest.Mock).mockResolvedValue(consent as never);
     const now = new Date('2026-01-01');
     await found.repo.revokeCustomerConsent('t1', 'c1', now);

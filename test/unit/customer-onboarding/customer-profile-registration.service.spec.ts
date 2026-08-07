@@ -16,11 +16,11 @@ const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null 
 
 function commonMocks() {
   const customersRepository = {
-    findById: jest.fn(async () => ({ id: 'c1', lifecycleStatus: 'onboarding_in_progress' })),
+    findById: jest.fn(async (..._args: unknown[]) => ({ id: 'c1', lifecycleStatus: 'onboarding_in_progress' })),
     updateCurrentProfileVersion: jest.fn(),
   };
   const onboardingRepository = {
-    findLatestOnboardingFlow: jest.fn(async () => ({ id: 'flow-1' })),
+    findLatestOnboardingFlow: jest.fn(async (..._args: unknown[]) => ({ id: 'flow-1' })),
     createOnboardingStepEvent: jest.fn(),
     createOperationalAuditLog: jest.fn(),
   };
@@ -33,9 +33,9 @@ describe('CustomerProfileUpdateService', () => {
   function build() {
     const common = commonMocks();
     const profileDataRepository = {
-      findCurrentProfile: jest.fn(async () => null),
+      findCurrentProfile: jest.fn(async (..._args: unknown[]) => null),
       closeProfileVersion: jest.fn(),
-      createProfileVersion: jest.fn(async () => ({
+      createProfileVersion: jest.fn(async (..._args: unknown[]) => ({
         id: 'profile-2',
         firstName: 'Ana',
         lastName: 'Paz',
@@ -116,8 +116,8 @@ describe('CustomerFinancialProfileService', () => {
   function build() {
     const common = commonMocks();
     const profileDataRepository = {
-      findAttributeDefinitionsByCode: jest.fn(async () => DEFINITIONS),
-      findCurrentAttributeValues: jest.fn(async () => []),
+      findAttributeDefinitionsByCode: jest.fn(async (..._args: unknown[]) => DEFINITIONS),
+      findCurrentAttributeValues: jest.fn(async (..._args: unknown[]) => []),
       closeAttributeValue: jest.fn(),
       createAttributeValue: jest.fn(),
     };

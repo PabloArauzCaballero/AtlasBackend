@@ -16,14 +16,14 @@ describe('AuthController', () => {
 
   function build() {
     const authService = {
-      login: jest.fn(async () => ({ accessToken: 'a' })),
-      verifyLoginPin: jest.fn(async () => ({ accessToken: 'a' })),
-      requestPasswordReset: jest.fn(async () => ({ ok: true })),
-      confirmPasswordReset: jest.fn(async () => ({ ok: true })),
-      refresh: jest.fn(async () => ({ accessToken: 'a' })),
-      logout: jest.fn(async () => ({ ok: true })),
-      setCustomerMfaPreference: jest.fn(async () => ({ mfaEnabled: true })),
-      provisionCredentials: jest.fn(async () => ({ ok: true })),
+      login: jest.fn(async (..._args: unknown[]) => ({ accessToken: 'a' })),
+      verifyLoginPin: jest.fn(async (..._args: unknown[]) => ({ accessToken: 'a' })),
+      requestPasswordReset: jest.fn(async (..._args: unknown[]) => ({ ok: true })),
+      confirmPasswordReset: jest.fn(async (..._args: unknown[]) => ({ ok: true })),
+      refresh: jest.fn(async (..._args: unknown[]) => ({ accessToken: 'a' })),
+      logout: jest.fn(async (..._args: unknown[]) => ({ ok: true })),
+      setCustomerMfaPreference: jest.fn(async (..._args: unknown[]) => ({ mfaEnabled: true })),
+      provisionCredentials: jest.fn(async (..._args: unknown[]) => ({ ok: true })),
     };
     return { controller: new AuthController(authService as never), authService };
   }

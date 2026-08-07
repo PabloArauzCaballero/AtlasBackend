@@ -19,10 +19,10 @@ type FakeRedis = {
 function buildRedis(overrides: Partial<Record<keyof FakeRedis, unknown>> = {}): FakeRedis {
   return {
     // Por defecto: no hay bloqueo activo (pttl < 0 significa "sin TTL/clave").
-    pttl: jest.fn(async () => -2),
-    incr: jest.fn(async () => 1),
-    pexpire: jest.fn(async () => 1),
-    set: jest.fn(async () => 'OK'),
+    pttl: jest.fn(async (..._args: unknown[]) => -2),
+    incr: jest.fn(async (..._args: unknown[]) => 1),
+    pexpire: jest.fn(async (..._args: unknown[]) => 1),
+    set: jest.fn(async (..._args: unknown[]) => 'OK'),
     ...overrides,
   } as FakeRedis;
 }
@@ -51,7 +51,7 @@ describe('RedisThrottlerStorage', () => {
 
     it('si Redis está caído/inalcanzable (el comando rechaza), degrada FAIL-OPEN sin colgar ni tumbar el request', async () => {
       const brokenRedis = buildRedis({
-        pttl: jest.fn(async () => {
+        pttl: jest.fn(async (..._args: unknown[]) => {
           throw new Error('Stream isn’t writeable and enableOfflineQueue options is false');
         }),
       });

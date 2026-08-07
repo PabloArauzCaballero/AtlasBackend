@@ -8,13 +8,13 @@ import { SystemsReviewController } from '../../../src/modules/systems-ops/system
 describe('SystemsReviewController', () => {
   function build() {
     const service = {
-      getReviewQueue: jest.fn(async () => ({ endpoints: { items: [], total: 0 } })),
-      reviewEndpoint: jest.fn(async () => ({ endpointId: '1' })),
-      reviewToolRequirement: jest.fn(async () => ({ requirementId: '6' })),
-      reviewDataEntity: jest.fn(async () => ({ entityId: '2' })),
-      reviewDataImpact: jest.fn(async () => ({ impactId: '3' })),
-      reviewFieldImpact: jest.fn(async () => ({ fieldImpactId: '4' })),
-      reviewDataColumn: jest.fn(async () => ({ columnId: '5' })),
+      getReviewQueue: jest.fn(async (..._args: unknown[]) => ({ endpoints: { items: [], total: 0 } })),
+      reviewEndpoint: jest.fn(async (..._args: unknown[]) => ({ endpointId: '1' })),
+      reviewToolRequirement: jest.fn(async (..._args: unknown[]) => ({ requirementId: '6' })),
+      reviewDataEntity: jest.fn(async (..._args: unknown[]) => ({ entityId: '2' })),
+      reviewDataImpact: jest.fn(async (..._args: unknown[]) => ({ impactId: '3' })),
+      reviewFieldImpact: jest.fn(async (..._args: unknown[]) => ({ fieldImpactId: '4' })),
+      reviewDataColumn: jest.fn(async (..._args: unknown[]) => ({ columnId: '5' })),
     };
     return { controller: new SystemsReviewController(service as never), service };
   }

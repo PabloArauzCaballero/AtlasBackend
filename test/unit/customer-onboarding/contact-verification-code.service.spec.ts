@@ -9,7 +9,7 @@ import { ServiceUnavailableException } from '@nestjs/common';
  * comportamiento ante vencimiento, intentos agotados y fallo del proveedor.
  */
 jest.mock('../../../src/common/utils/crypto/envelope-encryption.util.js', () => ({
-  decryptSecretEnvelope: jest.fn(async () => '+59170000000'),
+  decryptSecretEnvelope: jest.fn(async (..._args: unknown[]) => '+59170000000'),
 }));
 
 describe('ContactVerificationCodeService', () => {
@@ -17,22 +17,22 @@ describe('ContactVerificationCodeService', () => {
     const { ContactVerificationCodeService, purposeFor } =
       await import('../../../src/modules/customer-onboarding/application/contact-verification-code.service.js');
     const authRepository = {
-      createOneTimeCode: jest.fn(async () => ({ id: 'otc-1' })),
-      findActiveOneTimeCodeByActor: jest.fn(async () => null),
+      createOneTimeCode: jest.fn(async (..._args: unknown[]) => ({ id: 'otc-1' })),
+      findActiveOneTimeCodeByActor: jest.fn(async (..._args: unknown[]) => null),
       registerOneTimeCodeFailedAttempt: jest.fn(),
       consumeOneTimeCode: jest.fn(),
     };
     const mailSenderService = {
-      isEnabled: jest.fn(() => options.emailEnabled ?? true),
-      sendContactVerificationCode: jest.fn(async () => ({ trackingId: 't1' })),
+      isEnabled: jest.fn((..._args: unknown[]) => options.emailEnabled ?? true),
+      sendContactVerificationCode: jest.fn(async (..._args: unknown[]) => ({ trackingId: 't1' })),
     };
     const smsAdapter = {
-      getProviderName: jest.fn(() => options.smsProvider ?? 'twilio'),
-      send: jest.fn(async () => ({ status: 'sent', provider: 'twilio_sms', errorCode: null })),
+      getProviderName: jest.fn((..._args: unknown[]) => options.smsProvider ?? 'twilio'),
+      send: jest.fn(async (..._args: unknown[]) => ({ status: 'sent', provider: 'twilio_sms', errorCode: null })),
     };
     const whatsappAdapter = {
-      getProviderName: jest.fn(() => options.whatsappProvider ?? 'disabled'),
-      send: jest.fn(async () => ({ status: 'sent', provider: 'whatsapp', errorCode: null })),
+      getProviderName: jest.fn((..._args: unknown[]) => options.whatsappProvider ?? 'disabled'),
+      send: jest.fn(async (..._args: unknown[]) => ({ status: 'sent', provider: 'whatsapp', errorCode: null })),
     };
     const service = new ContactVerificationCodeService(
       authRepository as never,

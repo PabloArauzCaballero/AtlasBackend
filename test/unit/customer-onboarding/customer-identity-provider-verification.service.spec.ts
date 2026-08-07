@@ -14,25 +14,33 @@ describe('CustomerIdentityProviderVerificationService', () => {
   const DOCUMENT_NUMBER = '1234567';
 
   function build(providerResult: Record<string, unknown> = { status: 'FOUND', manualReviewRequired: false }) {
-    const customersRepository = { findById: jest.fn(async () => ({ id: 'c1', lifecycleStatus: 'under_review' })) };
+    const customersRepository = { findById: jest.fn(async (..._args: unknown[]) => ({ id: 'c1', lifecycleStatus: 'under_review' })) };
     const verificationRepository = {
-      findLatestAttempt: jest.fn(async () => ({ id: 'attempt-1', finalResult: 'pending_review' })),
-      findLatestIdentityDocument: jest.fn(async () => ({ id: 'doc-1', declaredNumberHash: hashSensitiveText(DOCUMENT_NUMBER) })),
+      findLatestAttempt: jest.fn(async (..._args: unknown[]) => ({ id: 'attempt-1', finalResult: 'pending_review' })),
+      findLatestIdentityDocument: jest.fn(async (..._args: unknown[]) => ({
+        id: 'doc-1',
+        declaredNumberHash: hashSensitiveText(DOCUMENT_NUMBER),
+      })),
       resolveAttempt: jest.fn(),
       resolveIdentityDocument: jest.fn(),
-      findPendingReviews: jest.fn(async () => [{ id: 'rev-1' }]),
+      findPendingReviews: jest.fn(async (..._args: unknown[]) => [{ id: 'rev-1' }]),
       resolveReview: jest.fn(),
     };
     const profileDataRepository = {
-      findCurrentProfile: jest.fn(async () => ({ id: 'p1', firstName: 'Ana', lastName: 'Paz', birthDate: '1990-01-01' })),
+      findCurrentProfile: jest.fn(async (..._args: unknown[]) => ({
+        id: 'p1',
+        firstName: 'Ana',
+        lastName: 'Paz',
+        birthDate: '1990-01-01',
+      })),
     };
     const onboardingRepository = {
-      findLatestOnboardingFlow: jest.fn(async () => ({ id: 'flow-1' })),
+      findLatestOnboardingFlow: jest.fn(async (..._args: unknown[]) => ({ id: 'flow-1' })),
       createOnboardingStepEvent: jest.fn(),
       createOperationalAuditLog: jest.fn(),
     };
     const externalDataService = {
-      executeSegip: jest.fn(async () => ({
+      executeSegip: jest.fn(async (..._args: unknown[]) => ({
         requestId: 'req-1',
         providerCode: 'SEGIP',
         reasonCode: null,
@@ -44,7 +52,12 @@ describe('CustomerIdentityProviderVerificationService', () => {
     };
     const lifecycleService = { advance: jest.fn(), transition: jest.fn() };
     const eligibilityService = {
-      evaluateAndRecord: jest.fn(async () => ({ eligible: false, blockers: [], lifecycleStatus: 'under_review', evaluatedAt: 'now' })),
+      evaluateAndRecord: jest.fn(async (..._args: unknown[]) => ({
+        eligible: false,
+        blockers: [],
+        lifecycleStatus: 'under_review',
+        evaluatedAt: 'now',
+      })),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
 

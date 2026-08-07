@@ -246,7 +246,7 @@ describe('CustomerTelemetryRepository', () => {
       expect(creating.models.customerActivitySummary.create).toHaveBeenCalledTimes(1);
 
       const updating = buildRepo();
-      const save = jest.fn(async () => undefined);
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
       const existing = { totalSessions: 5, save } as Record<string, unknown>;
       (updating.models.customerActivitySummary.findOne as jest.Mock).mockResolvedValue(existing as never);
       await updating.repo.upsertActivitySummary({ ...base, eventCount: 1, now: base.occurredAt } as never, tx);

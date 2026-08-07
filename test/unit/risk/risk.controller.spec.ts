@@ -36,12 +36,12 @@ describe('RiskController (unit, real controller)', () => {
 
   beforeEach(() => {
     riskService = {
-      createRiskAssessment: jest.fn(async () => ({
+      createRiskAssessment: jest.fn(async (..._args: unknown[]) => ({
         riskAssessmentRunId: '1',
         status: 'approved',
       })),
-      getRiskAssessmentDetail: jest.fn(async () => ({ riskAssessmentRunId: '7' })),
-      getRiskAssessmentExplanation: jest.fn(async () => ({ reasons: [] })),
+      getRiskAssessmentDetail: jest.fn(async (..._args: unknown[]) => ({ riskAssessmentRunId: '7' })),
+      getRiskAssessmentExplanation: jest.fn(async (..._args: unknown[]) => ({ reasons: [] })),
     };
     controller = new RiskController(riskService as unknown as RiskService);
   });

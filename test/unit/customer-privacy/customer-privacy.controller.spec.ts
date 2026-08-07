@@ -11,8 +11,8 @@ import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.
 describe('CustomerPrivacyController', () => {
   function build() {
     const service = {
-      registerConsentDecisions: jest.fn(async () => ({ processed: 1 })),
-      createDataSubjectRequest: jest.fn(async () => ({ id: 'r1' })),
+      registerConsentDecisions: jest.fn(async (..._args: unknown[]) => ({ processed: 1 })),
+      createDataSubjectRequest: jest.fn(async (..._args: unknown[]) => ({ id: 'r1' })),
     };
     return { controller: new CustomerPrivacyController(service as never), service };
   }

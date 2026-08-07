@@ -7,11 +7,11 @@ import { UnauthorizedException, ForbiddenException, ConflictException, ServiceUn
 jest.mock('../../../src/common/utils/crypto/password.util.js', () => ({
   hashPassword: jest.fn(async (plain: string) => `hashed:${plain}`),
   verifyPassword: jest.fn(async (hash: string, plain: string) => hash === `hashed:${plain}`),
-  isPasswordStrongEnough: jest.fn(() => true),
+  isPasswordStrongEnough: jest.fn((..._args: unknown[]) => true),
 }));
 
 jest.mock('../../../src/common/utils/crypto/refresh-token.util.js', () => ({
-  generateRefreshToken: jest.fn(() => 'fixed-refresh-token'),
+  generateRefreshToken: jest.fn((..._args: unknown[]) => 'fixed-refresh-token'),
   hashRefreshToken: jest.fn((token: string) => `hash-of-${token}`),
 }));
 
@@ -37,12 +37,12 @@ function buildAuthRepositoryMock() {
     consumeOneTimeCode: asyncMock(),
     recordFailedAttempt: asyncMock(),
     recordSuccessfulLogin: asyncMock(),
-    createRefreshToken: jest.fn(async () => ({ id: 'refresh-row-1' })),
+    createRefreshToken: jest.fn(async (..._args: unknown[]) => ({ id: 'refresh-row-1' })),
     findActiveRefreshTokenByHash: asyncMock(),
     findRefreshTokenForUpdate: asyncMock(),
     revokeRefreshToken: asyncMock(),
     revokeAllRefreshTokensForActor: asyncMock(),
-    revokeDescendantChain: jest.fn(async (): Promise<string[]> => []),
+    revokeDescendantChain: jest.fn(async (..._args: unknown[]): Promise<string[]> => []),
     recordRefreshReuseEvent: asyncMock(),
     recordLoginAttemptEvent: asyncMock(),
   };
@@ -50,7 +50,7 @@ function buildAuthRepositoryMock() {
 
 function buildCustomersRepositoryMock() {
   return {
-    findContactMethods: jest.fn(async () => []),
+    findContactMethods: jest.fn(async (..._args: unknown[]) => []),
     findByContactHash: asyncMock(),
     findById: asyncMock(),
   };
@@ -68,7 +68,7 @@ function buildTokenRevocationServiceMock() {
 // flujo de PIN/reset) siguen recibiendo un `LoginResult` plano, igual que antes de que existiera.
 function buildMailSenderServiceMock() {
   return {
-    isEnabled: jest.fn(() => false),
+    isEnabled: jest.fn((..._args: unknown[]) => false),
     sendLoginPin: asyncMock(),
     sendPasswordResetCode: asyncMock(),
     sendInitialCredentials: asyncMock(),

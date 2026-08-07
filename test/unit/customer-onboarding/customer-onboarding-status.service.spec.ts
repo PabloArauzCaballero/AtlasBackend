@@ -26,10 +26,14 @@ describe('CustomerOnboardingStatusService', () => {
 
   function build(assessment: Record<string, unknown> = completeAssessment) {
     const customersRepository = {
-      findById: jest.fn(async () => ({ id: 'c1', lifecycleStatus: 'onboarding_in_progress', creditEligibilityStatus: null })),
+      findById: jest.fn(async (..._args: unknown[]) => ({
+        id: 'c1',
+        lifecycleStatus: 'onboarding_in_progress',
+        creditEligibilityStatus: null,
+      })),
     };
     const onboardingRepository = {
-      findLatestOnboardingFlow: jest.fn(async () => ({
+      findLatestOnboardingFlow: jest.fn(async (..._args: unknown[]) => ({
         id: 'flow-1',
         flowVersion: 'v1',
         completionStatus: 'in_progress',
@@ -42,10 +46,18 @@ describe('CustomerOnboardingStatusService', () => {
     };
     const flowRepository = { closeOnboardingFlow: jest.fn() };
     const eligibilityService = {
-      evaluate: jest.fn(async () => assessment),
-      evaluateAndRecord: jest.fn(async () => ({ ...assessment, eligible: true, lifecycleStatus: 'active', evaluatedAt: 'now' })),
+      evaluate: jest.fn(async (..._args: unknown[]) => assessment),
+      evaluateAndRecord: jest.fn(async (..._args: unknown[]) => ({
+        ...assessment,
+        eligible: true,
+        lifecycleStatus: 'active',
+        evaluatedAt: 'now',
+      })),
     };
-    const eligibilityRepository = { findOpenIssues: jest.fn(async () => []), findOpenReviewCases: jest.fn(async () => []) };
+    const eligibilityRepository = {
+      findOpenIssues: jest.fn(async (..._args: unknown[]) => []),
+      findOpenReviewCases: jest.fn(async (..._args: unknown[]) => []),
+    };
     const lifecycleService = { transition: jest.fn(), advance: jest.fn() };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
 

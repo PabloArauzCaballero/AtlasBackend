@@ -84,7 +84,7 @@ describe('NotificationTemplatesRepository', () => {
 
   it('updateTemplate solo modifica los campos definidos y guarda', async () => {
     const { repo, templateModel } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const template = { code: 'old', bodyTemplate: 'old', save } as never;
     (templateModel.findOne as jest.Mock).mockResolvedValue(template as never);
     await repo.updateTemplate('t1', 'tpl1', { bodyTemplate: 'new' } as never);
@@ -95,7 +95,7 @@ describe('NotificationTemplatesRepository', () => {
 
   it('updateTemplate con TODOS los campos definidos los asigna uno a uno', async () => {
     const { repo, templateModel } = buildRepo();
-    const save = jest.fn(async () => undefined);
+    const save = jest.fn(async (..._args: unknown[]) => undefined);
     const template = { save } as never;
     (templateModel.findOne as jest.Mock).mockResolvedValue(template as never);
 
@@ -131,7 +131,7 @@ describe('NotificationTemplatesRepository', () => {
 
   it('updateTemplate normaliza a null los opcionales enviados como null', async () => {
     const { repo, templateModel } = buildRepo();
-    const template = { save: jest.fn(async () => undefined) } as never;
+    const template = { save: jest.fn(async (..._args: unknown[]) => undefined) } as never;
     (templateModel.findOne as jest.Mock).mockResolvedValue(template as never);
 
     await repo.updateTemplate('t1', '1', {

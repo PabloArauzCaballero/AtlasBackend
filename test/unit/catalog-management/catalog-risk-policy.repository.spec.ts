@@ -8,15 +8,15 @@ import { CatalogRiskPolicyRepository } from '../../../src/modules/catalog-manage
 describe('CatalogRiskPolicyRepository', () => {
   function buildRepo() {
     const models = {
-      riskModelVersionModel: { findAll: jest.fn(async () => []), create: jest.fn() },
+      riskModelVersionModel: { findAll: jest.fn(async (..._args: unknown[]) => []), create: jest.fn() },
       riskRulesetVersionModel: {
-        findAll: jest.fn(async () => []),
+        findAll: jest.fn(async (..._args: unknown[]) => []),
         create: jest.fn(),
         findOne: jest.fn(),
-        update: jest.fn(async () => [0]),
+        update: jest.fn(async (..._args: unknown[]) => [0]),
       },
-      riskPolicyRuleModel: { findAll: jest.fn(async () => []), create: jest.fn() },
-      riskSignalSeedModel: { findAll: jest.fn(async () => []), create: jest.fn() },
+      riskPolicyRuleModel: { findAll: jest.fn(async (..._args: unknown[]) => []), create: jest.fn() },
+      riskSignalSeedModel: { findAll: jest.fn(async (..._args: unknown[]) => []), create: jest.fn() },
     };
     const repo = new CatalogRiskPolicyRepository(
       models.riskModelVersionModel as never,
@@ -45,7 +45,7 @@ describe('CatalogRiskPolicyRepository', () => {
 
   it('activateRuleset marca el ruleset activo y lo guarda en la transacción', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({ saved: true }));
+    const save = jest.fn(async (..._args: unknown[]) => ({ saved: true }));
     const version = { save } as never;
     const now = new Date('2026-01-01');
 

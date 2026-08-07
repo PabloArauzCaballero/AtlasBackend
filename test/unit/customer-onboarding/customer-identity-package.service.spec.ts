@@ -32,9 +32,9 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
     // El backend ahora DESCARGA cada objeto y recalcula su hash antes de aceptar el paquete: hasta
     // esta versión guardaba la ruta y el hash que declaraba el propio cliente, sin ver el archivo.
     const storageService = {
-      isConfigured: jest.fn(() => true),
-      getBucket: jest.fn(() => 'atlas-evidence'),
-      verifyDeclaredObject: jest.fn(async () => ({
+      isConfigured: jest.fn((..._args: unknown[]) => true),
+      getBucket: jest.fn((..._args: unknown[]) => 'atlas-evidence'),
+      verifyDeclaredObject: jest.fn(async (..._args: unknown[]) => ({
         ok: true,
         metadata: { sizeBytes: 2048, contentType: 'image/jpeg', sha256Hex: 'v'.repeat(64) },
       })),
@@ -45,7 +45,7 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
     // pruebas fijan lo que ocurre al GUARDAR el paquete; el contrato de la verificación lo fija
     // `customer-verification.service.spec.ts`.
     const providerVerificationService = {
-      verifyWithProvider: jest.fn(async () => ({
+      verifyWithProvider: jest.fn(async (..._args: unknown[]) => ({
         providerStatus: 'verified',
         identityVerificationResult: 'verified',
         requiresManualReview: false,

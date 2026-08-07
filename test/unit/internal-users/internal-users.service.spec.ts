@@ -57,13 +57,13 @@ function makeRepository(overrides: Record<string, unknown> = {}) {
         },
       })),
     ),
-    listUsers: jest.fn(async () => ({ rows: [], total: 0 })),
-    findUserByEmail: jest.fn(async () => null),
+    listUsers: jest.fn(async (..._args: unknown[]) => ({ rows: [], total: 0 })),
+    findUserByEmail: jest.fn(async (..._args: unknown[]) => null),
     findRolesByCodes: jest.fn(async (roleCodes: string[]) => roleCodes.map((roleCode, index) => ({ id: String(index + 1), roleCode }))),
     createUserWithCredentials: jest.fn(),
     updateUser: jest.fn(),
     replaceUserRoles: jest.fn(),
-    hasPermissions: jest.fn(async () => false),
+    hasPermissions: jest.fn(async (..._args: unknown[]) => false),
     createAudit: jest.fn(),
     ...overrides,
   };
@@ -100,7 +100,7 @@ describe('InternalUsersService security boundaries', () => {
   });
 
   it('requires explicit disable permission for disabled-like statuses', async () => {
-    const repository = makeRepository({ hasPermissions: jest.fn(async () => false) });
+    const repository = makeRepository({ hasPermissions: jest.fn(async (..._args: unknown[]) => false) });
     const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never);
 
     await expect(
@@ -164,7 +164,7 @@ describe('InternalUsersService security boundaries', () => {
 
   it('invalidates the currently active access token when an internal user is disabled (regression)', async () => {
     const repository = makeRepository({
-      hasPermissions: jest.fn(async () => true),
+      hasPermissions: jest.fn(async (..._args: unknown[]) => true),
       updateUser: jest.fn(async (user: { id: string }) => user),
     });
     const tokenRevocationService = makeTokenRevocationService();
@@ -186,7 +186,7 @@ describe('InternalUsersService security boundaries', () => {
       { id: '21', tenantId: '1' },
       { id: '22', tenantId: '1' },
     ];
-    const repository = makeRepository({ listUsers: jest.fn(async () => ({ rows, total: 3 })) });
+    const repository = makeRepository({ listUsers: jest.fn(async (..._args: unknown[]) => ({ rows, total: 3 })) });
     const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never);
 
     const result = await service.listUsers(currentUser, { page: 1, limit: 50 });

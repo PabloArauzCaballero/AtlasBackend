@@ -123,7 +123,7 @@ describe('SystemsCatalogRepository', () => {
       expect(await missing.repo.updateDataEntityMetadata('e1', {})).toBeNull();
 
       const found = buildRepo();
-      const save = jest.fn(async () => undefined);
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
       const entity = { businessPurpose: 'old', status: 'ACTIVE', save } as Record<string, unknown>;
       (found.models[3].findByPk as jest.Mock).mockResolvedValue(entity as never);
       await found.repo.updateDataEntityMetadata('e1', { businessPurpose: 'nuevo', containsPii: true });

@@ -11,11 +11,11 @@ import { requireIdempotencyKey, tenantIdFromHeader } from '../../../src/common/u
 describe('CustomerOnboardingController', () => {
   function build() {
     const service = {
-      startOnboarding: jest.fn(async () => ({ customerId: '9' })),
-      requestContactVerification: jest.fn(async () => ({ sent: true })),
-      submitContactVerification: jest.fn(async () => ({ verified: true })),
-      submitIdentityPackage: jest.fn(async () => ({ queued: true })),
-      submitAddressPackage: jest.fn(async () => ({ ok: true })),
+      startOnboarding: jest.fn(async (..._args: unknown[]) => ({ customerId: '9' })),
+      requestContactVerification: jest.fn(async (..._args: unknown[]) => ({ sent: true })),
+      submitContactVerification: jest.fn(async (..._args: unknown[]) => ({ verified: true })),
+      submitIdentityPackage: jest.fn(async (..._args: unknown[]) => ({ queued: true })),
+      submitAddressPackage: jest.fn(async (..._args: unknown[]) => ({ ok: true })),
     };
     return { controller: new CustomerOnboardingController(service as never), service };
   }

@@ -9,13 +9,13 @@ import { SystemsStressProfileService } from '../../../src/modules/systems-ops/sy
  */
 describe('SystemsStressProfileService', () => {
   function build() {
-    const catalogRepository = { findEndpointById: jest.fn(async () => null) };
+    const catalogRepository = { findEndpointById: jest.fn(async (..._args: unknown[]) => null) };
     const stressRepository = {
-      listStressProfiles: jest.fn(async () => ({ rows: [] as unknown[], meta: {} })),
-      findStressProfileById: jest.fn(async () => null),
-      upsertStressProfile: jest.fn(async () => ({ id: 1, endpointId: 5, code: 'STRESS_EP', isEnabled: true })),
-      listStressRequiredEndpoints: jest.fn(async () => ({ rows: [] as unknown[], meta: {} })),
-      findStressProfilesByEndpointIds: jest.fn(async () => [] as unknown[]),
+      listStressProfiles: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], meta: {} })),
+      findStressProfileById: jest.fn(async (..._args: unknown[]) => null),
+      upsertStressProfile: jest.fn(async (..._args: unknown[]) => ({ id: 1, endpointId: 5, code: 'STRESS_EP', isEnabled: true })),
+      listStressRequiredEndpoints: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], meta: {} })),
+      findStressProfilesByEndpointIds: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
     };
     const service = new SystemsStressProfileService(catalogRepository as never, stressRepository as never);
     return { service, catalogRepository, stressRepository };

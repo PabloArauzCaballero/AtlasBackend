@@ -30,7 +30,7 @@ describe('ExternalDataExecutionService', () => {
       createFeatureSnapshot: jest.fn(),
     };
     const registry = { requireProvider: jest.fn(), requireAdapter: jest.fn() };
-    const resilience = { run: jest.fn(async (fn: () => Promise<unknown>) => fn()) };
+    const resilience = { run: jest.fn(async (fn: () => Promise<unknown>, ..._rest: unknown[]) => fn()) };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
     const decision = new ExternalDataDecisionService(repository as never);
     const service = new ExternalDataExecutionService(
@@ -171,8 +171,14 @@ describe('ExternalDataExecutionService', () => {
         requiresConsent: false,
       } as never);
       const adapter = {
-        execute: jest.fn(async () => ({ providerCode: 'SEGIP', status: 'FOUND', payload: {}, latencyMs: 5, isMocked: true })),
-        normalize: jest.fn(async () => []),
+        execute: jest.fn(async (..._args: unknown[]) => ({
+          providerCode: 'SEGIP',
+          status: 'FOUND',
+          payload: {},
+          latencyMs: 5,
+          isMocked: true,
+        })),
+        normalize: jest.fn(async (..._args: unknown[]) => []),
       };
       (registry.requireAdapter as jest.Mock).mockReturnValueOnce(adapter as never);
       (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce({ retryMaxAttempts: 4, retryBackoffSeconds: 2 } as never);
@@ -209,8 +215,14 @@ describe('ExternalDataExecutionService', () => {
         requiresConsent: false,
       } as never);
       const adapter = {
-        execute: jest.fn(async () => ({ providerCode: 'SEGIP', status: 'FOUND', payload: {}, latencyMs: 5, isMocked: true })),
-        normalize: jest.fn(async () => []),
+        execute: jest.fn(async (..._args: unknown[]) => ({
+          providerCode: 'SEGIP',
+          status: 'FOUND',
+          payload: {},
+          latencyMs: 5,
+          isMocked: true,
+        })),
+        normalize: jest.fn(async (..._args: unknown[]) => []),
       };
       (registry.requireAdapter as jest.Mock).mockReturnValueOnce(adapter as never);
       (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce(null as never);
@@ -300,7 +312,7 @@ describe('ExternalDataExecutionService', () => {
       const { service, repository, registry } = buildService();
       (registry.requireProvider as jest.Mock).mockResolvedValueOnce(provider as never);
       const adapter = {
-        execute: jest.fn(async () => {
+        execute: jest.fn(async (..._args: unknown[]) => {
           throw new Error('provider boom');
         }),
         normalize: jest.fn(),
@@ -322,8 +334,14 @@ describe('ExternalDataExecutionService', () => {
       const { service, repository, registry } = buildService();
       (registry.requireProvider as jest.Mock).mockResolvedValueOnce(provider as never);
       const adapter = {
-        execute: jest.fn(async () => ({ providerCode: 'SEGIP', status: 'FOUND', payload: {}, latencyMs: 5, isMocked: true })),
-        normalize: jest.fn(async () => []),
+        execute: jest.fn(async (..._args: unknown[]) => ({
+          providerCode: 'SEGIP',
+          status: 'FOUND',
+          payload: {},
+          latencyMs: 5,
+          isMocked: true,
+        })),
+        normalize: jest.fn(async (..._args: unknown[]) => []),
       };
       (registry.requireAdapter as jest.Mock).mockReturnValueOnce(adapter as never);
       (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce(null as never);

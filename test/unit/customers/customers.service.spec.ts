@@ -26,7 +26,13 @@ describe('CustomersService.getCustomerMe', () => {
     // mismo evaluador que decide la habilitación.
     const eligibilityRepository = { findLatestOnboardingFlow: jest.fn() };
     const eligibilityService = {
-      evaluate: jest.fn(async () => ({ eligible: false, blockers: [], sections: [], completionPercentage: 0, nextStep: 'personal_data' })),
+      evaluate: jest.fn(async (..._args: unknown[]) => ({
+        eligible: false,
+        blockers: [],
+        sections: [],
+        completionPercentage: 0,
+        nextStep: 'personal_data',
+      })),
     };
     const service = new CustomersService(repository as never, eligibilityRepository as never, eligibilityService as never);
     return { service, repository, eligibilityRepository, eligibilityService };
@@ -102,7 +108,7 @@ describe('CustomersService.getCustomerMe', () => {
       riskResult: null,
       onboardingFlow: { id: 'flow-1' },
       assessment: expect.objectContaining({ nextStep: 'personal_data' }),
-    });
+    } as never);
   });
 });
 

@@ -17,10 +17,13 @@ describe('worker-probe-server', () => {
   let baseUrl: string;
 
   const deps = {
-    sequelize: { authenticate: jest.fn(async () => undefined) },
-    redis: { ping: jest.fn(async () => 'PONG') },
-    metrics: { render: jest.fn(async () => 'atlas_app_info{role="worker"} 1'), contentType: 'text/plain; version=0.0.4' },
-    shutdown: { isShuttingDown: jest.fn(() => false) },
+    sequelize: { authenticate: jest.fn(async (..._args: unknown[]) => undefined) },
+    redis: { ping: jest.fn(async (..._args: unknown[]) => 'PONG') },
+    metrics: {
+      render: jest.fn(async (..._args: unknown[]) => 'atlas_app_info{role="worker"} 1'),
+      contentType: 'text/plain; version=0.0.4',
+    },
+    shutdown: { isShuttingDown: jest.fn((..._args: unknown[]) => false) },
   };
 
   beforeEach(async () => {

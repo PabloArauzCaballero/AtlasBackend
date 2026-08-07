@@ -50,7 +50,7 @@ describe('ciclo de vida del proceso', () => {
 
   describe('RedisLifecycleService', () => {
     it('cierra el cliente ordenadamente con quit()', async () => {
-      const redis = { quit: jest.fn(async () => 'OK'), disconnect: jest.fn() };
+      const redis = { quit: jest.fn(async (..._args: unknown[]) => 'OK'), disconnect: jest.fn() };
 
       await new RedisLifecycleService(redis as never).onApplicationShutdown();
 
@@ -60,7 +60,7 @@ describe('ciclo de vida del proceso', () => {
 
     it('si quit() falla, corta la conexión y NO propaga el error: apagar no puede fallar por esto', async () => {
       const redis = {
-        quit: jest.fn(async () => {
+        quit: jest.fn(async (..._args: unknown[]) => {
           throw new Error('Connection is closed');
         }),
         disconnect: jest.fn(),

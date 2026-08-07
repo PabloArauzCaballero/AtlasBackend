@@ -11,21 +11,31 @@ import { CatalogManagementRepository } from '../../../src/modules/catalog-manage
 describe('CatalogManagementRepository', () => {
   function buildRepo() {
     const models = {
-      catalogModel: { findAll: jest.fn(async () => []), findOne: jest.fn(async () => null) },
-      catalogVersionModel: { findOne: jest.fn(async () => null), findAll: jest.fn(async () => []), create: jest.fn(async () => ({})) },
-      contextItemModel: { findAll: jest.fn(async () => []), create: jest.fn(async () => ({})) },
-      contextItemAliasModel: { findAll: jest.fn(async () => []), create: jest.fn(async () => ({})) },
-      contextRiskMappingModel: { findAll: jest.fn(async () => []), create: jest.fn(async () => ({})) },
-      contextSourceModel: { findOne: jest.fn(async () => null), create: jest.fn(async () => ({})) },
-      contextStagingItemModel: { findOne: jest.fn(async () => null), create: jest.fn(async () => ({})) },
-      contextApprovalEventModel: { create: jest.fn(async () => ({})) },
-      contextIngestionJobModel: { create: jest.fn(async () => ({})) },
-      auditModel: { create: jest.fn(async () => ({})) },
-      dataChangeLogModel: { create: jest.fn(async () => ({})) },
+      catalogModel: { findAll: jest.fn(async (..._args: unknown[]) => []), findOne: jest.fn(async (..._args: unknown[]) => null) },
+      catalogVersionModel: {
+        findOne: jest.fn(async (..._args: unknown[]) => null),
+        findAll: jest.fn(async (..._args: unknown[]) => []),
+        create: jest.fn(async (..._args: unknown[]) => ({})),
+      },
+      contextItemModel: { findAll: jest.fn(async (..._args: unknown[]) => []), create: jest.fn(async (..._args: unknown[]) => ({})) },
+      contextItemAliasModel: { findAll: jest.fn(async (..._args: unknown[]) => []), create: jest.fn(async (..._args: unknown[]) => ({})) },
+      contextRiskMappingModel: {
+        findAll: jest.fn(async (..._args: unknown[]) => []),
+        create: jest.fn(async (..._args: unknown[]) => ({})),
+      },
+      contextSourceModel: { findOne: jest.fn(async (..._args: unknown[]) => null), create: jest.fn(async (..._args: unknown[]) => ({})) },
+      contextStagingItemModel: {
+        findOne: jest.fn(async (..._args: unknown[]) => null),
+        create: jest.fn(async (..._args: unknown[]) => ({})),
+      },
+      contextApprovalEventModel: { create: jest.fn(async (..._args: unknown[]) => ({})) },
+      contextIngestionJobModel: { create: jest.fn(async (..._args: unknown[]) => ({})) },
+      auditModel: { create: jest.fn(async (..._args: unknown[]) => ({})) },
+      dataChangeLogModel: { create: jest.fn(async (..._args: unknown[]) => ({})) },
     };
     const subRepos = {
       dataGovernance: {
-        listDataGovernancePolicies: jest.fn(async () => ({})),
+        listDataGovernancePolicies: jest.fn(async (..._args: unknown[]) => ({})),
         upsertPrivacyPurpose: jest.fn(),
         upsertRetentionPolicy: jest.fn(),
         upsertDataProvider: jest.fn(),
@@ -34,15 +44,15 @@ describe('CatalogManagementRepository', () => {
         upsertSensitiveFieldRule: jest.fn(),
       },
       definitions: {
-        listDefinitions: jest.fn(async () => ({})),
+        listDefinitions: jest.fn(async (..._args: unknown[]) => ({})),
         upsertEventDefinition: jest.fn(),
         upsertObservationDefinition: jest.fn(),
         upsertAttributeDefinition: jest.fn(),
         upsertFeatureDefinition: jest.fn(),
       },
       riskPolicy: {
-        listCurrentRiskPolicy: jest.fn(async () => ({})),
-        findRulesByRulesetIds: jest.fn(async () => []),
+        listCurrentRiskPolicy: jest.fn(async (..._args: unknown[]) => ({})),
+        findRulesByRulesetIds: jest.fn(async (..._args: unknown[]) => []),
         createRiskModelVersion: jest.fn(),
         createRiskRulesetVersion: jest.fn(),
         createRiskPolicyRule: jest.fn(),
@@ -177,7 +187,7 @@ describe('CatalogManagementRepository', () => {
 
   it('updateCatalogVersionStatus solo asigna los campos presentes y guarda en la transacción', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({ saved: true }));
+    const save = jest.fn(async (..._args: unknown[]) => ({ saved: true }));
     const version = { status: 'draft', notes: 'orig', approvedByType: 'x', save } as never;
     await repo.updateCatalogVersionStatus(version, { status: 'active', notes: 'nuevo' }, { transaction: 'tx' as never });
     const v = version as { status: string; notes: string; approvedByType: string };
@@ -190,7 +200,7 @@ describe('CatalogManagementRepository', () => {
 
   it('updateStagingItemDecision fija estado, notas y updatedAt y guarda', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({ saved: true }));
+    const save = jest.fn(async (..._args: unknown[]) => ({ saved: true }));
     const item = { save } as never;
     await repo.updateStagingItemDecision(item, { reviewStatus: 'approved', reviewNotes: 'ok', now }, {});
     const it2 = item as { reviewStatus: string; reviewNotes: string; updatedAtValue: Date };

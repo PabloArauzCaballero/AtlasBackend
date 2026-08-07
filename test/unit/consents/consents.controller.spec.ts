@@ -8,7 +8,7 @@ import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.
  */
 describe('ConsentsController', () => {
   it('listActiveDocuments delega con el tenant parseado y la query', async () => {
-    const service = { listActiveDocuments: jest.fn(async () => ({ items: [] })) };
+    const service = { listActiveDocuments: jest.fn(async (..._args: unknown[]) => ({ items: [] })) };
     const controller = new ConsentsController(service as never);
     await controller.listActiveDocuments('1', { language: 'es' } as never);
     expect(service.listActiveDocuments).toHaveBeenCalledWith(tenantIdFromHeader('1'), { language: 'es' });

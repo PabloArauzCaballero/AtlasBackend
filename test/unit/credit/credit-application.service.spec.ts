@@ -30,9 +30,9 @@ describe('CreditApplicationService', () => {
   function build(options: { eligible?: boolean; blockers?: Array<{ code: string }>; product?: Record<string, unknown> } = {}) {
     const eligible = options.eligible ?? true;
     const creditRepository = {
-      findProductById: jest.fn(async () => ({ ...PRODUCT, ...(options.product ?? {}) })),
-      findOpenApplication: jest.fn(async () => null),
-      createApplication: jest.fn(async () => ({
+      findProductById: jest.fn(async (..._args: unknown[]) => ({ ...PRODUCT, ...(options.product ?? {}) })),
+      findOpenApplication: jest.fn(async (..._args: unknown[]) => null),
+      createApplication: jest.fn(async (..._args: unknown[]) => ({
         id: 'app-1',
         applicationCode: 'CRA-1',
         status: 'submitted',
@@ -42,21 +42,21 @@ describe('CreditApplicationService', () => {
         submittedAt: new Date('2026-07-28T12:00:00.000Z'),
       })),
       createApplicationEvent: jest.fn(),
-      findApplicationsByCustomer: jest.fn(async () => []),
+      findApplicationsByCustomer: jest.fn(async (..._args: unknown[]) => []),
     };
     const eligibilityService = {
-      evaluateAndRecord: jest.fn(async () => ({
+      evaluateAndRecord: jest.fn(async (..._args: unknown[]) => ({
         eligible,
         blockers: options.blockers ?? [],
         ruleVersion: 'eligibility-v1',
         evaluatedAt: '2026-07-28T12:00:00.000Z',
         lifecycleStatus: eligible ? 'active' : 'under_review',
       })),
-      getLatestEvaluation: jest.fn(async () => ({ id: 'ev-9' })),
+      getLatestEvaluation: jest.fn(async (..._args: unknown[]) => ({ id: 'ev-9' })),
     };
     // Los atributos económicos alimentan la elegibilidad POR PRODUCTO (`min_monthly_income`).
     const eligibilityRepository = {
-      loadFacts: jest.fn(async () => ({ financialAttributeValues: { monthly_income_declared: 8000 } })),
+      loadFacts: jest.fn(async (..._args: unknown[]) => ({ financialAttributeValues: { monthly_income_declared: 8000 } })),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
     const service = new CreditApplicationService(
