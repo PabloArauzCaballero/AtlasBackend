@@ -23,7 +23,7 @@ aliases:
 # `telemetry.form_field_interaction_events`
 
 > [!info] Verificado
-> Modelo ORM `FormFieldInteractionEventModel` en [`src/database/models/form-field-interaction-events.model.ts`](../../../../src/database/models/form-field-interaction-events.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('form_field_interaction_events')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `FormFieldInteractionEventModel` en [`src/database/models/form-field-interaction-events.model.ts`](../../../../../src/database/models/form-field-interaction-events.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('form_field_interaction_events')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -89,8 +89,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/form-field-interaction-events.model.ts`](../../../../src/database/models/form-field-interaction-events.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/form-field-interaction-events.model.ts`](../../../../../src/database/models/form-field-interaction-events.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154058-schema-relationships-part-4-onboarding-behavior.ts`
 
 ## Relaciones de la bóveda

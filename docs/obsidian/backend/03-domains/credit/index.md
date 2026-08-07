@@ -105,9 +105,9 @@ Roles que alcanzan este módulo: `internal_operator`, `risk_analyst`, `admin`, `
 
 ## Referencias al código
 
-- Módulo: [`src/modules/credit/credit.module.ts`](../../../../src/modules/credit/credit.module.ts)
-- Controller `CreditOperationsController`: [`src/modules/credit/credit-operations.controller.ts`](../../../../src/modules/credit/credit-operations.controller.ts)
-- Controller `CreditController`: [`src/modules/credit/credit.controller.ts`](../../../../src/modules/credit/credit.controller.ts)
+- Módulo: [`src/modules/credit/credit.module.ts`](../../../../../src/modules/credit/credit.module.ts)
+- Controller `CreditOperationsController`: [`src/modules/credit/credit-operations.controller.ts`](../../../../../src/modules/credit/credit-operations.controller.ts)
+- Controller `CreditController`: [`src/modules/credit/credit.controller.ts`](../../../../../src/modules/credit/credit.controller.ts)
 
 ## Relaciones
 

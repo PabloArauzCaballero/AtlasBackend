@@ -16,7 +16,7 @@ related: []
 # Redis obligatorio solo en producción
 
 > [!info] Documento canónico
-> El ADR completo vive en [`docs/adr/0002-redis-solo-en-produccion.md`](../../../adr/0002-redis-solo-en-produccion.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
+> El ADR completo vive en [`docs/adr/0002-redis-solo-en-produccion.md`](../../../../adr/0002-redis-solo-en-produccion.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
 
 | | |
 |---|---|

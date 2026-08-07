@@ -23,7 +23,7 @@ aliases:
 # `integrations.external_oauth_connections`
 
 > [!info] Verificado
-> Modelo ORM `ExternalOauthConnectionModel` en [`src/database/models/external-oauth-connections.model.ts`](../../../../src/database/models/external-oauth-connections.model.ts). Esquema físico `integrations` resuelto por `atlasSchemaFor('external_oauth_connections')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `ExternalOauthConnectionModel` en [`src/database/models/external-oauth-connections.model.ts`](../../../../../src/database/models/external-oauth-connections.model.ts). Esquema físico `integrations` resuelto por `atlasSchemaFor('external_oauth_connections')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -94,8 +94,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/external-oauth-connections.model.ts`](../../../../src/database/models/external-oauth-connections.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/external-oauth-connections.model.ts`](../../../../../src/database/models/external-oauth-connections.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

@@ -85,8 +85,8 @@ Sin rutas HTTP: no aplica autorización de transporte.
 
 ## Referencias al código
 
-- Módulo: [`src/modules/health/health.module.ts`](../../../../src/modules/health/health.module.ts)
-- Controller `HealthController`: [`src/modules/health/health.controller.ts`](../../../../src/modules/health/health.controller.ts)
+- Módulo: [`src/modules/health/health.module.ts`](../../../../../src/modules/health/health.module.ts)
+- Controller `HealthController`: [`src/modules/health/health.controller.ts`](../../../../../src/modules/health/health.controller.ts)
 
 ## Relaciones
 

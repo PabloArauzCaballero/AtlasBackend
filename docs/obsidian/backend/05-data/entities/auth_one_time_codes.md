@@ -23,7 +23,7 @@ aliases:
 # `iam.auth_one_time_codes`
 
 > [!info] Verificado
-> Modelo ORM `AuthOneTimeCodeModel` en [`src/database/models/auth-one-time-codes.model.ts`](../../../../src/database/models/auth-one-time-codes.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('auth_one_time_codes')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `AuthOneTimeCodeModel` en [`src/database/models/auth-one-time-codes.model.ts`](../../../../../src/database/models/auth-one-time-codes.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('auth_one_time_codes')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -89,8 +89,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/auth-one-time-codes.model.ts`](../../../../src/database/models/auth-one-time-codes.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/auth-one-time-codes.model.ts`](../../../../../src/database/models/auth-one-time-codes.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

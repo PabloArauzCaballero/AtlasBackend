@@ -17,7 +17,7 @@ tags:
 **244 claves foráneas**; **153** cruzan el límite de un esquema de dominio.
 
 > [!info] Verificado — semántica de borrado derivada, no declarada
-> `addForeignKeys` en [`src/database/migration-support/atlas-schema-builder.util.ts:177-197`](../../../src/database/migration-support/atlas-schema-builder.util.ts) fija la política **para todas** las FK del sistema:
+> `addForeignKeys` en [`src/database/migration-support/atlas-schema-builder.util.ts:177-197`](../../../../src/database/migration-support/atlas-schema-builder.util.ts) fija la política **para todas** las FK del sistema:
 > ```
 > onUpdate: 'CASCADE'
 > onDelete: allowNull ? 'SET NULL' : 'RESTRICT'

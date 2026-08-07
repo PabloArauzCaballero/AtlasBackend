@@ -23,7 +23,7 @@ aliases:
 # `iam.internal_user_roles`
 
 > [!info] Verificado
-> Modelo ORM `InternalUserRoleModel` en [`src/database/models/internal-user-roles.model.ts`](../../../../src/database/models/internal-user-roles.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('internal_user_roles')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `InternalUserRoleModel` en [`src/database/models/internal-user-roles.model.ts`](../../../../../src/database/models/internal-user-roles.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('internal_user_roles')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -89,8 +89,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/internal-user-roles.model.ts`](../../../../src/database/models/internal-user-roles.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/internal-user-roles.model.ts`](../../../../../src/database/models/internal-user-roles.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

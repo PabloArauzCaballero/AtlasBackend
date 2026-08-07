@@ -23,7 +23,7 @@ aliases:
 # `privacy.sensitive_field_rules`
 
 > [!info] Verificado
-> Modelo ORM `SensitiveFieldRuleModel` en [`src/database/models/sensitive-field-rules.model.ts`](../../../../src/database/models/sensitive-field-rules.model.ts). Esquema físico `privacy` resuelto por `atlasSchemaFor('sensitive_field_rules')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `SensitiveFieldRuleModel` en [`src/database/models/sensitive-field-rules.model.ts`](../../../../../src/database/models/sensitive-field-rules.model.ts). Esquema físico `privacy` resuelto por `atlasSchemaFor('sensitive_field_rules')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -90,8 +90,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/sensitive-field-rules.model.ts`](../../../../src/database/models/sensitive-field-rules.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/sensitive-field-rules.model.ts`](../../../../../src/database/models/sensitive-field-rules.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154056-schema-relationships-part-2-privacy-consents.ts`
 
 ## Relaciones de la bóveda

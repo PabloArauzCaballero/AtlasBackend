@@ -23,7 +23,7 @@ aliases:
 # `integrations.provider_health_logs`
 
 > [!info] Verificado
-> Modelo ORM `ProviderHealthLogModel` en [`src/database/models/provider-health-logs.model.ts`](../../../../src/database/models/provider-health-logs.model.ts). Esquema físico `integrations` resuelto por `atlasSchemaFor('provider_health_logs')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `ProviderHealthLogModel` en [`src/database/models/provider-health-logs.model.ts`](../../../../../src/database/models/provider-health-logs.model.ts). Esquema físico `integrations` resuelto por `atlasSchemaFor('provider_health_logs')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -86,8 +86,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/provider-health-logs.model.ts`](../../../../src/database/models/provider-health-logs.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/provider-health-logs.model.ts`](../../../../../src/database/models/provider-health-logs.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

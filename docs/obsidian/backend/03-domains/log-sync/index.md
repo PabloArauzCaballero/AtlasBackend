@@ -79,8 +79,8 @@ Sin rutas HTTP: no aplica autorización de transporte.
 
 ## Referencias al código
 
-- Módulo: [`src/modules/log-sync/log-sync.module.ts`](../../../../src/modules/log-sync/log-sync.module.ts)
-- Controller `MongoLogsController`: [`src/modules/log-sync/mongo-logs.controller.ts`](../../../../src/modules/log-sync/mongo-logs.controller.ts)
+- Módulo: [`src/modules/log-sync/log-sync.module.ts`](../../../../../src/modules/log-sync/log-sync.module.ts)
+- Controller `MongoLogsController`: [`src/modules/log-sync/mongo-logs.controller.ts`](../../../../../src/modules/log-sync/mongo-logs.controller.ts)
 
 ## Relaciones
 

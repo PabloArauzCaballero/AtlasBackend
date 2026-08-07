@@ -23,7 +23,7 @@ aliases:
 # `audit.data_quality_rules`
 
 > [!info] Verificado
-> Modelo ORM `DataQualityRuleModel` en [`src/database/models/data-quality-rules.model.ts`](../../../../src/database/models/data-quality-rules.model.ts). Esquema físico `audit` resuelto por `atlasSchemaFor('data_quality_rules')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `DataQualityRuleModel` en [`src/database/models/data-quality-rules.model.ts`](../../../../../src/database/models/data-quality-rules.model.ts). Esquema físico `audit` resuelto por `atlasSchemaFor('data_quality_rules')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -89,8 +89,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/data-quality-rules.model.ts`](../../../../src/database/models/data-quality-rules.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/data-quality-rules.model.ts`](../../../../../src/database/models/data-quality-rules.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

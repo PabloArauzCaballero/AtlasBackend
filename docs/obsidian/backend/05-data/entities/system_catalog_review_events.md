@@ -23,7 +23,7 @@ aliases:
 # `platform_ops.system_catalog_review_events`
 
 > [!info] Verificado
-> Modelo ORM `SystemCatalogReviewEventModel` en [`src/database/models/system-catalog-review-events.model.ts`](../../../../src/database/models/system-catalog-review-events.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('system_catalog_review_events')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `SystemCatalogReviewEventModel` en [`src/database/models/system-catalog-review-events.model.ts`](../../../../../src/database/models/system-catalog-review-events.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('system_catalog_review_events')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -90,8 +90,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/system-catalog-review-events.model.ts`](../../../../src/database/models/system-catalog-review-events.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/system-catalog-review-events.model.ts`](../../../../../src/database/models/system-catalog-review-events.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

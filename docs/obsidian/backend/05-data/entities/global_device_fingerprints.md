@@ -23,7 +23,7 @@ aliases:
 # `telemetry.global_device_fingerprints`
 
 > [!info] Verificado
-> Modelo ORM `GlobalDeviceFingerprintModel` en [`src/database/models/global-device-fingerprints.model.ts`](../../../../src/database/models/global-device-fingerprints.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('global_device_fingerprints')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `GlobalDeviceFingerprintModel` en [`src/database/models/global-device-fingerprints.model.ts`](../../../../../src/database/models/global-device-fingerprints.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('global_device_fingerprints')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -86,8 +86,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/global-device-fingerprints.model.ts`](../../../../src/database/models/global-device-fingerprints.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/global-device-fingerprints.model.ts`](../../../../../src/database/models/global-device-fingerprints.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

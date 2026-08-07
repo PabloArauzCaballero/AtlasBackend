@@ -23,7 +23,7 @@ aliases:
 # `privacy.customer_consents`
 
 > [!info] Verificado
-> Modelo ORM `CustomerConsentModel` en [`src/database/models/customer-consents.model.ts`](../../../../src/database/models/customer-consents.model.ts). Esquema físico `privacy` resuelto por `atlasSchemaFor('customer_consents')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `CustomerConsentModel` en [`src/database/models/customer-consents.model.ts`](../../../../../src/database/models/customer-consents.model.ts). Esquema físico `privacy` resuelto por `atlasSchemaFor('customer_consents')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -102,8 +102,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/customer-consents.model.ts`](../../../../src/database/models/customer-consents.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/customer-consents.model.ts`](../../../../../src/database/models/customer-consents.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154056-schema-relationships-part-2-privacy-consents.ts`
 
 ## Relaciones de la bóveda

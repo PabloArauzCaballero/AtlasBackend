@@ -141,9 +141,9 @@ Roles que alcanzan este módulo: `...ADMIN_READ_ROLES`, `...INTERNAL_PORTAL_ROLE
 
 ## Referencias al código
 
-- Módulo: [`src/modules/internal-portal/internal-portal.module.ts`](../../../../src/modules/internal-portal/internal-portal.module.ts)
-- Controller `AdminReadController`: [`src/modules/internal-portal/admin-read.controller.ts`](../../../../src/modules/internal-portal/admin-read.controller.ts)
-- Controller `InternalPortalController`: [`src/modules/internal-portal/internal-portal.controller.ts`](../../../../src/modules/internal-portal/internal-portal.controller.ts)
+- Módulo: [`src/modules/internal-portal/internal-portal.module.ts`](../../../../../src/modules/internal-portal/internal-portal.module.ts)
+- Controller `AdminReadController`: [`src/modules/internal-portal/admin-read.controller.ts`](../../../../../src/modules/internal-portal/admin-read.controller.ts)
+- Controller `InternalPortalController`: [`src/modules/internal-portal/internal-portal.controller.ts`](../../../../../src/modules/internal-portal/internal-portal.controller.ts)
 
 ## Relaciones
 

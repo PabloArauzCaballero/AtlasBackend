@@ -23,7 +23,7 @@ aliases:
 # `catalog.customer_attribute_values`
 
 > [!info] Verificado
-> Modelo ORM `CustomerAttributeValueModel` en [`src/database/models/customer-attribute-values.model.ts`](../../../../src/database/models/customer-attribute-values.model.ts). Esquema físico `catalog` resuelto por `atlasSchemaFor('customer_attribute_values')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `CustomerAttributeValueModel` en [`src/database/models/customer-attribute-values.model.ts`](../../../../../src/database/models/customer-attribute-values.model.ts). Esquema físico `catalog` resuelto por `atlasSchemaFor('customer_attribute_values')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -96,8 +96,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/customer-attribute-values.model.ts`](../../../../src/database/models/customer-attribute-values.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/customer-attribute-values.model.ts`](../../../../../src/database/models/customer-attribute-values.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154059-schema-relationships-part-5-catalog-context.ts`
 
 ## Relaciones de la bóveda

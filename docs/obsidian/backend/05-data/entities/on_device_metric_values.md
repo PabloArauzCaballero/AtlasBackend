@@ -23,7 +23,7 @@ aliases:
 # `telemetry.on_device_metric_values`
 
 > [!info] Verificado
-> Modelo ORM `OnDeviceMetricValueModel` en [`src/database/models/on-device-metric-values.model.ts`](../../../../src/database/models/on-device-metric-values.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('on_device_metric_values')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `OnDeviceMetricValueModel` en [`src/database/models/on-device-metric-values.model.ts`](../../../../../src/database/models/on-device-metric-values.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('on_device_metric_values')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -89,8 +89,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/on-device-metric-values.model.ts`](../../../../src/database/models/on-device-metric-values.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/on-device-metric-values.model.ts`](../../../../../src/database/models/on-device-metric-values.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154058-schema-relationships-part-4-onboarding-behavior.ts`
 
 ## Relaciones de la bóveda

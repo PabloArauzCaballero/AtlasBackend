@@ -143,8 +143,8 @@ Roles que alcanzan este módulo: `internal_operator`, `risk_analyst`, `complianc
 
 ## Referencias al código
 
-- Módulo: [`src/modules/notifications/notifications.module.ts`](../../../../src/modules/notifications/notifications.module.ts)
-- Controller `NotificationsController`: [`src/modules/notifications/notifications.controller.ts`](../../../../src/modules/notifications/notifications.controller.ts)
+- Módulo: [`src/modules/notifications/notifications.module.ts`](../../../../../src/modules/notifications/notifications.module.ts)
+- Controller `NotificationsController`: [`src/modules/notifications/notifications.controller.ts`](../../../../../src/modules/notifications/notifications.controller.ts)
 
 ## Relaciones
 

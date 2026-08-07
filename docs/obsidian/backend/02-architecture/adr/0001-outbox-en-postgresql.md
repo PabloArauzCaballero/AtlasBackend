@@ -16,7 +16,7 @@ related: []
 # Outbox transaccional en PostgreSQL (no cola dedicada)
 
 > [!info] Documento canónico
-> El ADR completo vive en [`docs/adr/0001-outbox-en-postgresql.md`](../../../adr/0001-outbox-en-postgresql.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
+> El ADR completo vive en [`docs/adr/0001-outbox-en-postgresql.md`](../../../../adr/0001-outbox-en-postgresql.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
 
 | | |
 |---|---|

@@ -23,7 +23,7 @@ aliases:
 # `platform_ops.idempotency_keys`
 
 > [!info] Verificado
-> Modelo ORM `IdempotencyKeyModel` en [`src/database/models/idempotency-keys.model.ts`](../../../../src/database/models/idempotency-keys.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('idempotency_keys')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `IdempotencyKeyModel` en [`src/database/models/idempotency-keys.model.ts`](../../../../../src/database/models/idempotency-keys.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('idempotency_keys')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -92,8 +92,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/idempotency-keys.model.ts`](../../../../src/database/models/idempotency-keys.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/idempotency-keys.model.ts`](../../../../../src/database/models/idempotency-keys.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

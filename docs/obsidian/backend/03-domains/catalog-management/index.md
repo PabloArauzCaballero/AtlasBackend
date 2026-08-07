@@ -143,8 +143,8 @@ Roles que alcanzan este módulo: `internal_operator`, `risk_analyst`, `complianc
 
 ## Referencias al código
 
-- Módulo: [`src/modules/catalog-management/catalog-management.module.ts`](../../../../src/modules/catalog-management/catalog-management.module.ts)
-- Controller `CatalogManagementController`: [`src/modules/catalog-management/catalog-management.controller.ts`](../../../../src/modules/catalog-management/catalog-management.controller.ts)
+- Módulo: [`src/modules/catalog-management/catalog-management.module.ts`](../../../../../src/modules/catalog-management/catalog-management.module.ts)
+- Controller `CatalogManagementController`: [`src/modules/catalog-management/catalog-management.controller.ts`](../../../../../src/modules/catalog-management/catalog-management.controller.ts)
 
 ## Relaciones
 

@@ -23,7 +23,7 @@ aliases:
 # `risk.risk_model_versions`
 
 > [!info] Verificado
-> Modelo ORM `RiskModelVersionModel` en [`src/database/models/risk-model-versions.model.ts`](../../../../src/database/models/risk-model-versions.model.ts). Esquema físico `risk` resuelto por `atlasSchemaFor('risk_model_versions')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `RiskModelVersionModel` en [`src/database/models/risk-model-versions.model.ts`](../../../../../src/database/models/risk-model-versions.model.ts). Esquema físico `risk` resuelto por `atlasSchemaFor('risk_model_versions')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -92,8 +92,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/risk-model-versions.model.ts`](../../../../src/database/models/risk-model-versions.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/risk-model-versions.model.ts`](../../../../../src/database/models/risk-model-versions.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154101-schema-relationships-part-7-risk-engine.ts`
 
 ## Relaciones de la bóveda

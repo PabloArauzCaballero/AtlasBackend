@@ -23,7 +23,7 @@ aliases:
 # `catalog.event_definitions`
 
 > [!info] Verificado
-> Modelo ORM `EventDefinitionModel` en [`src/database/models/event-definitions.model.ts`](../../../../src/database/models/event-definitions.model.ts). Esquema físico `catalog` resuelto por `atlasSchemaFor('event_definitions')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `EventDefinitionModel` en [`src/database/models/event-definitions.model.ts`](../../../../../src/database/models/event-definitions.model.ts). Esquema físico `catalog` resuelto por `atlasSchemaFor('event_definitions')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -96,8 +96,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/event-definitions.model.ts`](../../../../src/database/models/event-definitions.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/event-definitions.model.ts`](../../../../../src/database/models/event-definitions.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154059-schema-relationships-part-5-catalog-context.ts`
 
 ## Relaciones de la bóveda

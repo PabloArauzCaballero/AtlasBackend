@@ -23,7 +23,7 @@ aliases:
 # `audit.operational_audit_logs`
 
 > [!info] Verificado
-> Modelo ORM `OperationalAuditLogModel` en [`src/database/models/operational-audit-logs.model.ts`](../../../../src/database/models/operational-audit-logs.model.ts). Esquema físico `audit` resuelto por `atlasSchemaFor('operational_audit_logs')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `OperationalAuditLogModel` en [`src/database/models/operational-audit-logs.model.ts`](../../../../../src/database/models/operational-audit-logs.model.ts). Esquema físico `audit` resuelto por `atlasSchemaFor('operational_audit_logs')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -96,8 +96,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/operational-audit-logs.model.ts`](../../../../src/database/models/operational-audit-logs.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/operational-audit-logs.model.ts`](../../../../../src/database/models/operational-audit-logs.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154103-schema-relationships-part-9-audit-quality.ts`
 
 ## Relaciones de la bóveda

@@ -23,7 +23,7 @@ aliases:
 # `messaging.user_notification_preferences`
 
 > [!info] Verificado
-> Modelo ORM `UserNotificationPreferenceModel` en [`src/database/models/user-notification-preferences.model.ts`](../../../../src/database/models/user-notification-preferences.model.ts). Esquema físico `messaging` resuelto por `atlasSchemaFor('user_notification_preferences')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `UserNotificationPreferenceModel` en [`src/database/models/user-notification-preferences.model.ts`](../../../../../src/database/models/user-notification-preferences.model.ts). Esquema físico `messaging` resuelto por `atlasSchemaFor('user_notification_preferences')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -86,8 +86,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/user-notification-preferences.model.ts`](../../../../src/database/models/user-notification-preferences.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/user-notification-preferences.model.ts`](../../../../../src/database/models/user-notification-preferences.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

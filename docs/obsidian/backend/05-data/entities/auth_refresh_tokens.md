@@ -23,7 +23,7 @@ aliases:
 # `iam.auth_refresh_tokens`
 
 > [!info] Verificado
-> Modelo ORM `AuthRefreshTokenModel` en [`src/database/models/auth-refresh-tokens.model.ts`](../../../../src/database/models/auth-refresh-tokens.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('auth_refresh_tokens')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `AuthRefreshTokenModel` en [`src/database/models/auth-refresh-tokens.model.ts`](../../../../../src/database/models/auth-refresh-tokens.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('auth_refresh_tokens')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -91,8 +91,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/auth-refresh-tokens.model.ts`](../../../../src/database/models/auth-refresh-tokens.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/auth-refresh-tokens.model.ts`](../../../../../src/database/models/auth-refresh-tokens.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

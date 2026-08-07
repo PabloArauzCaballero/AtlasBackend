@@ -201,12 +201,12 @@ Roles que alcanzan este módulo: `...SYSTEMS_OPS_GOVERNANCE_ROLES`, `...SYSTEMS_
 
 ## Referencias al código
 
-- Módulo: [`src/modules/systems-ops/systems-ops.module.ts`](../../../../src/modules/systems-ops/systems-ops.module.ts)
-- Controller `SystemsActionLogController`: [`src/modules/systems-ops/systems-action-log.controller.ts`](../../../../src/modules/systems-ops/systems-action-log.controller.ts)
-- Controller `SystemsCatalogController`: [`src/modules/systems-ops/systems-catalog.controller.ts`](../../../../src/modules/systems-ops/systems-catalog.controller.ts)
-- Controller `SystemsReviewController`: [`src/modules/systems-ops/systems-review.controller.ts`](../../../../src/modules/systems-ops/systems-review.controller.ts)
-- Controller `SystemsStressController`: [`src/modules/systems-ops/systems-stress.controller.ts`](../../../../src/modules/systems-ops/systems-stress.controller.ts)
-- Controller `SystemsTestController`: [`src/modules/systems-ops/systems-test.controller.ts`](../../../../src/modules/systems-ops/systems-test.controller.ts)
+- Módulo: [`src/modules/systems-ops/systems-ops.module.ts`](../../../../../src/modules/systems-ops/systems-ops.module.ts)
+- Controller `SystemsActionLogController`: [`src/modules/systems-ops/systems-action-log.controller.ts`](../../../../../src/modules/systems-ops/systems-action-log.controller.ts)
+- Controller `SystemsCatalogController`: [`src/modules/systems-ops/systems-catalog.controller.ts`](../../../../../src/modules/systems-ops/systems-catalog.controller.ts)
+- Controller `SystemsReviewController`: [`src/modules/systems-ops/systems-review.controller.ts`](../../../../../src/modules/systems-ops/systems-review.controller.ts)
+- Controller `SystemsStressController`: [`src/modules/systems-ops/systems-stress.controller.ts`](../../../../../src/modules/systems-ops/systems-stress.controller.ts)
+- Controller `SystemsTestController`: [`src/modules/systems-ops/systems-test.controller.ts`](../../../../../src/modules/systems-ops/systems-test.controller.ts)
 
 ## Relaciones
 

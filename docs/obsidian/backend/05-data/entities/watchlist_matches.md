@@ -23,7 +23,7 @@ aliases:
 # `case_management.watchlist_matches`
 
 > [!info] Verificado
-> Modelo ORM `WatchlistMatchModel` en [`src/database/models/watchlist-matches.model.ts`](../../../../src/database/models/watchlist-matches.model.ts). Esquema físico `case_management` resuelto por `atlasSchemaFor('watchlist_matches')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `WatchlistMatchModel` en [`src/database/models/watchlist-matches.model.ts`](../../../../../src/database/models/watchlist-matches.model.ts). Esquema físico `case_management` resuelto por `atlasSchemaFor('watchlist_matches')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -101,8 +101,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/watchlist-matches.model.ts`](../../../../src/database/models/watchlist-matches.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/watchlist-matches.model.ts`](../../../../../src/database/models/watchlist-matches.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154102-schema-relationships-part-8-fraud-review.ts`
 
 ## Relaciones de la bóveda

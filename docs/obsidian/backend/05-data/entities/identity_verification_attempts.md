@@ -23,7 +23,7 @@ aliases:
 # `customer.identity_verification_attempts`
 
 > [!info] Verificado
-> Modelo ORM `IdentityVerificationAttemptModel` en [`src/database/models/identity-verification-attempts.model.ts`](../../../../src/database/models/identity-verification-attempts.model.ts). Esquema físico `customer` resuelto por `atlasSchemaFor('identity_verification_attempts')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `IdentityVerificationAttemptModel` en [`src/database/models/identity-verification-attempts.model.ts`](../../../../../src/database/models/identity-verification-attempts.model.ts). Esquema físico `customer` resuelto por `atlasSchemaFor('identity_verification_attempts')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -103,8 +103,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/identity-verification-attempts.model.ts`](../../../../src/database/models/identity-verification-attempts.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/identity-verification-attempts.model.ts`](../../../../../src/database/models/identity-verification-attempts.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154055-schema-relationships-part-1-customers-identity.ts`
 
 ## Relaciones de la bóveda

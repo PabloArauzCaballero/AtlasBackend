@@ -23,7 +23,7 @@ aliases:
 # `platform_ops.outbox_events`
 
 > [!info] Verificado
-> Modelo ORM `OutboxEventModel` en [`src/database/models/outbox-events.model.ts`](../../../../src/database/models/outbox-events.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('outbox_events')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `OutboxEventModel` en [`src/database/models/outbox-events.model.ts`](../../../../../src/database/models/outbox-events.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('outbox_events')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -104,8 +104,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/outbox-events.model.ts`](../../../../src/database/models/outbox-events.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/outbox-events.model.ts`](../../../../../src/database/models/outbox-events.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

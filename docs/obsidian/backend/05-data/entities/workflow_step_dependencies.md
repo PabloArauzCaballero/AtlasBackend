@@ -23,7 +23,7 @@ aliases:
 # `platform_ops.workflow_step_dependencies`
 
 > [!info] Verificado
-> Modelo ORM `WorkflowStepDependencyModel` en [`src/database/models/workflow-step-dependencies.model.ts`](../../../../src/database/models/workflow-step-dependencies.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('workflow_step_dependencies')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `WorkflowStepDependencyModel` en [`src/database/models/workflow-step-dependencies.model.ts`](../../../../../src/database/models/workflow-step-dependencies.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('workflow_step_dependencies')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -85,8 +85,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/workflow-step-dependencies.model.ts`](../../../../src/database/models/workflow-step-dependencies.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/workflow-step-dependencies.model.ts`](../../../../../src/database/models/workflow-step-dependencies.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

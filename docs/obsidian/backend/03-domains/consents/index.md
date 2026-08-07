@@ -89,8 +89,8 @@ Sin rutas HTTP: no aplica autorización de transporte.
 
 ## Referencias al código
 
-- Módulo: [`src/modules/consents/consents.module.ts`](../../../../src/modules/consents/consents.module.ts)
-- Controller `ConsentsController`: [`src/modules/consents/consents.controller.ts`](../../../../src/modules/consents/consents.controller.ts)
+- Módulo: [`src/modules/consents/consents.module.ts`](../../../../../src/modules/consents/consents.module.ts)
+- Controller `ConsentsController`: [`src/modules/consents/consents.controller.ts`](../../../../../src/modules/consents/consents.controller.ts)
 
 ## Relaciones
 

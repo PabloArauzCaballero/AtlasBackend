@@ -121,8 +121,8 @@ Roles que alcanzan este módulo: `admin`, `platform_admin`.
 
 ## Referencias al código
 
-- Módulo: [`src/modules/auth/auth.module.ts`](../../../../src/modules/auth/auth.module.ts)
-- Controller `AuthController`: [`src/modules/auth/auth.controller.ts`](../../../../src/modules/auth/auth.controller.ts)
+- Módulo: [`src/modules/auth/auth.module.ts`](../../../../../src/modules/auth/auth.module.ts)
+- Controller `AuthController`: [`src/modules/auth/auth.controller.ts`](../../../../../src/modules/auth/auth.controller.ts)
 
 ## Relaciones
 

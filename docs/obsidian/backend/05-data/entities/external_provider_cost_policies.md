@@ -23,7 +23,7 @@ aliases:
 # `integrations.external_provider_cost_policies`
 
 > [!info] Verificado
-> Modelo ORM `ExternalProviderCostPolicyModel` en [`src/database/models/external-provider-cost-policies.model.ts`](../../../../src/database/models/external-provider-cost-policies.model.ts). Esquema físico `integrations` resuelto por `atlasSchemaFor('external_provider_cost_policies')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `ExternalProviderCostPolicyModel` en [`src/database/models/external-provider-cost-policies.model.ts`](../../../../../src/database/models/external-provider-cost-policies.model.ts). Esquema físico `integrations` resuelto por `atlasSchemaFor('external_provider_cost_policies')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -99,8 +99,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/external-provider-cost-policies.model.ts`](../../../../src/database/models/external-provider-cost-policies.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/external-provider-cost-policies.model.ts`](../../../../../src/database/models/external-provider-cost-policies.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

@@ -124,9 +124,9 @@ Roles que alcanzan este módulo: `customer`, `internal_operator`, `risk_analyst`
 
 ## Referencias al código
 
-- Módulo: [`src/modules/sessions/sessions.module.ts`](../../../../src/modules/sessions/sessions.module.ts)
-- Controller `CustomerSessionsController`: [`src/modules/sessions/sessions.controller.ts`](../../../../src/modules/sessions/sessions.controller.ts)
-- Controller `OperationsSessionsController`: [`src/modules/sessions/sessions.controller.ts`](../../../../src/modules/sessions/sessions.controller.ts)
+- Módulo: [`src/modules/sessions/sessions.module.ts`](../../../../../src/modules/sessions/sessions.module.ts)
+- Controller `CustomerSessionsController`: [`src/modules/sessions/sessions.controller.ts`](../../../../../src/modules/sessions/sessions.controller.ts)
+- Controller `OperationsSessionsController`: [`src/modules/sessions/sessions.controller.ts`](../../../../../src/modules/sessions/sessions.controller.ts)
 
 ## Relaciones
 

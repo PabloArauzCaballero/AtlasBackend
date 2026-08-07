@@ -86,8 +86,8 @@ Roles que alcanzan este módulo: `internal_operator`, `risk_analyst`, `complianc
 
 ## Referencias al código
 
-- Módulo: [`src/modules/data-quality/data-quality.module.ts`](../../../../src/modules/data-quality/data-quality.module.ts)
-- Controller `DataQualityController`: [`src/modules/data-quality/data-quality.controller.ts`](../../../../src/modules/data-quality/data-quality.controller.ts)
+- Módulo: [`src/modules/data-quality/data-quality.module.ts`](../../../../../src/modules/data-quality/data-quality.module.ts)
+- Controller `DataQualityController`: [`src/modules/data-quality/data-quality.controller.ts`](../../../../../src/modules/data-quality/data-quality.controller.ts)
 
 ## Relaciones
 

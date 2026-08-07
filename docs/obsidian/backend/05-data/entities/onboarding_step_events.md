@@ -23,7 +23,7 @@ aliases:
 # `telemetry.onboarding_step_events`
 
 > [!info] Verificado
-> Modelo ORM `OnboardingStepEventModel` en [`src/database/models/onboarding-step-events.model.ts`](../../../../src/database/models/onboarding-step-events.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('onboarding_step_events')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `OnboardingStepEventModel` en [`src/database/models/onboarding-step-events.model.ts`](../../../../../src/database/models/onboarding-step-events.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('onboarding_step_events')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -90,8 +90,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/onboarding-step-events.model.ts`](../../../../src/database/models/onboarding-step-events.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/onboarding-step-events.model.ts`](../../../../../src/database/models/onboarding-step-events.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154058-schema-relationships-part-4-onboarding-behavior.ts`
 
 ## Relaciones de la bóveda

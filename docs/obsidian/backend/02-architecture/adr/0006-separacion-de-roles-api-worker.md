@@ -16,7 +16,7 @@ related: []
 # Separación de roles API y worker
 
 > [!info] Documento canónico
-> El ADR completo vive en [`docs/adr/0006-separacion-de-roles-api-worker.md`](../../../adr/0006-separacion-de-roles-api-worker.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
+> El ADR completo vive en [`docs/adr/0006-separacion-de-roles-api-worker.md`](../../../../adr/0006-separacion-de-roles-api-worker.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
 
 | | |
 |---|---|

@@ -170,11 +170,11 @@ Roles que alcanzan este módulo: `...CUSTOMER_AND_INTERNAL`, `customer`, `intern
 
 ## Referencias al código
 
-- Módulo: [`src/modules/customer-onboarding/customer-onboarding.module.ts`](../../../../src/modules/customer-onboarding/customer-onboarding.module.ts)
-- Controller `CustomerOnboardingProfileController`: [`src/modules/customer-onboarding/customer-onboarding-profile.controller.ts`](../../../../src/modules/customer-onboarding/customer-onboarding-profile.controller.ts)
-- Controller `CustomerOnboardingStatusController`: [`src/modules/customer-onboarding/customer-onboarding-status.controller.ts`](../../../../src/modules/customer-onboarding/customer-onboarding-status.controller.ts)
-- Controller `CustomerOnboardingController`: [`src/modules/customer-onboarding/customer-onboarding.controller.ts`](../../../../src/modules/customer-onboarding/customer-onboarding.controller.ts)
-- Controller `CustomerVerificationController`: [`src/modules/customer-onboarding/customer-verification.controller.ts`](../../../../src/modules/customer-onboarding/customer-verification.controller.ts)
+- Módulo: [`src/modules/customer-onboarding/customer-onboarding.module.ts`](../../../../../src/modules/customer-onboarding/customer-onboarding.module.ts)
+- Controller `CustomerOnboardingProfileController`: [`src/modules/customer-onboarding/customer-onboarding-profile.controller.ts`](../../../../../src/modules/customer-onboarding/customer-onboarding-profile.controller.ts)
+- Controller `CustomerOnboardingStatusController`: [`src/modules/customer-onboarding/customer-onboarding-status.controller.ts`](../../../../../src/modules/customer-onboarding/customer-onboarding-status.controller.ts)
+- Controller `CustomerOnboardingController`: [`src/modules/customer-onboarding/customer-onboarding.controller.ts`](../../../../../src/modules/customer-onboarding/customer-onboarding.controller.ts)
+- Controller `CustomerVerificationController`: [`src/modules/customer-onboarding/customer-verification.controller.ts`](../../../../../src/modules/customer-onboarding/customer-verification.controller.ts)
 
 ## Relaciones
 

@@ -4,21 +4,28 @@ Latencia, throughput y eficiencia de recursos del backend Atlas.
 
 ## Estado actual
 
-**No existe baseline medido.** El trabajo realizado construyó y verificó el instrumental; la
-medición está pendiente de un entorno con Postgres y Redis en ejecución. Ningún documento de esta
-carpeta contiene cifras de latencia inventadas, y el arnés avisa en voz alta cuando un umbral no
-está calibrado.
+**Baseline medido el 2026-08-06** contra PostgreSQL 16.14 real: tres corridas con 3.6 % de
+dispersión. p95 de 15 ms a 10 req/s y de 7.4 ms a 150 req/s, con 0 % de error y el pool sin
+saturarse.
+
+La medición **refutó la prioridad 1 del análisis estático** (el fan-out contra el tamaño del pool no
+se manifiesta en la ruta de lectura) y sacó a la luz un hallazgo que sólo se ve midiendo: en
+`development` se registra cada sentencia SQL en stdout — 8 MB por corrida, con PII en claro.
+
+No se aplicó ninguna optimización, porque en la ruta medida no hay ningún cuello que optimizar. El
+presupuesto sigue sin calibrar a propósito: el dataset era un seed de desarrollo con tablas casi
+vacías.
 
 ## Documentos
 
 | Documento | Contenido | Estado |
 |---|---|---|
 | [Higiene previa de recursos](backend/00-prestart-resource-hygiene.md) | Fase obligatoria antes de arrancar: diagnóstico, limpieza acotada y verificación | Implementado y verificado en vivo |
-| [Baseline](backend/01-baseline.md) | Inventario, modelo de carga, mezcla de tráfico y cómo producir el baseline | Arnés listo, medición pendiente |
-| [Mapa de cuellos de botella](backend/02-bottleneck-map.md) | Cinco riesgos con evidencia `archivo:línea` y método de medición | Análisis estático completo |
-| [Plan de optimización](backend/03-optimization-plan.md) | Orden previsto, con la regla de no tocar nada sin medir | Ninguna fase ejecutada |
-| [Informe antes/después](backend/04-before-after-report.md) | Plantilla y reglas | Vacío: no hay optimizaciones aceptadas |
-| [Presupuesto de rendimiento](backend/05-performance-budget.md) | Umbrales aplicados y provisionales, escenarios | Correctitud aplicada, latencia sin calibrar |
+| [Baseline](backend/01-baseline.md) | Cifras medidas, condiciones, modelo de carga y mezcla | **Medido** (3 corridas, 3.6 % de dispersión) |
+| [Mapa de cuellos de botella](backend/02-bottleneck-map.md) | Seis riesgos con evidencia `archivo:línea` y veredicto tras medir | 1 confirmado, 1 refutado, 4 sin medir |
+| [Plan de optimización](backend/03-optimization-plan.md) | Orden revisado tras la medición | Fase A hecha; A' es el bloqueo |
+| [Informe antes/después](backend/04-before-after-report.md) | Plantilla, reglas y por qué sigue vacío | Vacío: nada que optimizar en la ruta medida |
+| [Presupuesto de rendimiento](backend/05-performance-budget.md) | Umbrales aplicados, provisionales y datos de referencia | Correctitud aplicada, latencia sin calibrar |
 | [Observabilidad](backend/06-observability.md) | Señales existentes, huecos y consultas de diagnóstico | Inventario completo |
 | [Runbook](backend/07-runbook.md) | Procedimientos operativos y árboles de diagnóstico | Listo |
 

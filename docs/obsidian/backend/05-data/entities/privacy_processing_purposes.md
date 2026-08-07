@@ -23,7 +23,7 @@ aliases:
 # `privacy.privacy_processing_purposes`
 
 > [!info] Verificado
-> Modelo ORM `PrivacyProcessingPurposeModel` en [`src/database/models/privacy-processing-purposes.model.ts`](../../../../src/database/models/privacy-processing-purposes.model.ts). Esquema físico `privacy` resuelto por `atlasSchemaFor('privacy_processing_purposes')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `PrivacyProcessingPurposeModel` en [`src/database/models/privacy-processing-purposes.model.ts`](../../../../../src/database/models/privacy-processing-purposes.model.ts). Esquema físico `privacy` resuelto por `atlasSchemaFor('privacy_processing_purposes')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -86,8 +86,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/privacy-processing-purposes.model.ts`](../../../../src/database/models/privacy-processing-purposes.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/privacy-processing-purposes.model.ts`](../../../../../src/database/models/privacy-processing-purposes.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

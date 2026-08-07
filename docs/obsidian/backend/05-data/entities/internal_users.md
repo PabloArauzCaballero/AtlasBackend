@@ -23,7 +23,7 @@ aliases:
 # `iam.internal_users`
 
 > [!info] Verificado
-> Modelo ORM `InternalUserModel` en [`src/database/models/internal-users.model.ts`](../../../../src/database/models/internal-users.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('internal_users')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `InternalUserModel` en [`src/database/models/internal-users.model.ts`](../../../../../src/database/models/internal-users.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('internal_users')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -109,8 +109,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/internal-users.model.ts`](../../../../src/database/models/internal-users.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/internal-users.model.ts`](../../../../../src/database/models/internal-users.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154054-schema-relationships-part-0-platform-core.ts`
 
 ## Relaciones de la bóveda

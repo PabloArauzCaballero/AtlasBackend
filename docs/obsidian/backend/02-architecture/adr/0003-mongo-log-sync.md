@@ -16,7 +16,7 @@ related: []
 # Sincronía de logs a MongoDB como visor operativo opcional
 
 > [!info] Documento canónico
-> El ADR completo vive en [`docs/adr/0003-mongo-log-sync.md`](../../../adr/0003-mongo-log-sync.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
+> El ADR completo vive en [`docs/adr/0003-mongo-log-sync.md`](../../../../adr/0003-mongo-log-sync.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
 
 | | |
 |---|---|

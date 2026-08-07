@@ -23,7 +23,7 @@ aliases:
 # `integrations.data_provider_responses`
 
 > [!info] Verificado
-> Modelo ORM `DataProviderResponseModel` en [`src/database/models/data-provider-responses.model.ts`](../../../../src/database/models/data-provider-responses.model.ts). Esquema físico `integrations` resuelto por `atlasSchemaFor('data_provider_responses')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `DataProviderResponseModel` en [`src/database/models/data-provider-responses.model.ts`](../../../../../src/database/models/data-provider-responses.model.ts). Esquema físico `integrations` resuelto por `atlasSchemaFor('data_provider_responses')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -97,8 +97,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/data-provider-responses.model.ts`](../../../../src/database/models/data-provider-responses.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/data-provider-responses.model.ts`](../../../../../src/database/models/data-provider-responses.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154054-schema-relationships-part-0-platform-core.ts`
 
 ## Relaciones de la bóveda

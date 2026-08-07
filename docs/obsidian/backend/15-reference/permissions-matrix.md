@@ -23,8 +23,8 @@ source_files:
 > [!info] Verificado
 > Atlas distingue **el rol del token** del **rol organizacional**:
 >
-> 1. **`AtlasUserRole`** — 13 valores, el claim `role` del JWT. Fuente única: `ATLAS_USER_ROLES` en [`src/common/types/auth.types.ts`](../../../src/common/types/auth.types.ts). Es lo que evalúa `@Roles(...)` + `RolesGuard`.
-> 2. **`InternalRoleCode`** — 20 roles internos de negocio (`SUPER_ADMIN`, `RISK_ANALYST`, …) en [`src/modules/internal-users/internal-rbac.roles.ts`](../../../src/modules/internal-users/internal-rbac.roles.ts), persistidos en `iam.internal_roles`. Cada uno mapea a un `legacyRoleCode` del vocabulario anterior.
+> 1. **`AtlasUserRole`** — 13 valores, el claim `role` del JWT. Fuente única: `ATLAS_USER_ROLES` en [`src/common/types/auth.types.ts`](../../../../src/common/types/auth.types.ts). Es lo que evalúa `@Roles(...)` + `RolesGuard`.
+> 2. **`InternalRoleCode`** — 20 roles internos de negocio (`SUPER_ADMIN`, `RISK_ANALYST`, …) en [`src/modules/internal-users/internal-rbac.roles.ts`](../../../../src/modules/internal-users/internal-rbac.roles.ts), persistidos en `iam.internal_roles`. Cada uno mapea a un `legacyRoleCode` del vocabulario anterior.
 >
 > El comentario del propio código explica por qué la lista está centralizada: antes existía triplicada (tipo, guard y resolver), y añadir un rol en un sitio y olvidarlo en otro producía "un rol que el resolver acepta pero el guard rechaza".
 

@@ -15,7 +15,7 @@ related: []
 ---
 # Decisiones de arquitectura (ADR)
 
-Los ADR canónicos viven en [`docs/adr/`](../../../adr/). Estas notas los resumen y los enlazan con el resto de la bóveda.
+Los ADR canónicos viven en [`docs/adr/`](../../../../adr/). Estas notas los resumen y los enlazan con el resto de la bóveda.
 
 | ADR | Decisión | Estado |
 |---|---|---|
@@ -37,7 +37,7 @@ Los ADR canónicos viven en [`docs/adr/`](../../../adr/). Estas notas los resume
 
 ## Plantilla
 
-Para un ADR nuevo: [`docs/adr/_template.md`](../../../adr/_template.md) o [[templates/adr-template]].
+Para un ADR nuevo: [`docs/adr/_template.md`](../../../../adr/_template.md) o [[templates/adr-template]].
 
 ## Relaciones
 

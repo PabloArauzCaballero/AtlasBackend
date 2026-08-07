@@ -118,10 +118,10 @@ Roles que alcanzan este módulo: `...WORKFLOW_CATALOG_READ_ROLES`, `...WORKFLOW_
 
 ## Referencias al código
 
-- Módulo: [`src/modules/workflow-catalog/workflow-catalog.module.ts`](../../../../src/modules/workflow-catalog/workflow-catalog.module.ts)
-- Controller `WorkflowCatalogController`: [`src/modules/workflow-catalog/workflow-catalog.controller.ts`](../../../../src/modules/workflow-catalog/workflow-catalog.controller.ts)
-- Controller `WorkflowOperationsController`: [`src/modules/workflow-catalog/workflow-operations.controller.ts`](../../../../src/modules/workflow-catalog/workflow-operations.controller.ts)
-- Controller `WorkflowProgressController`: [`src/modules/workflow-catalog/workflow-progress.controller.ts`](../../../../src/modules/workflow-catalog/workflow-progress.controller.ts)
+- Módulo: [`src/modules/workflow-catalog/workflow-catalog.module.ts`](../../../../../src/modules/workflow-catalog/workflow-catalog.module.ts)
+- Controller `WorkflowCatalogController`: [`src/modules/workflow-catalog/workflow-catalog.controller.ts`](../../../../../src/modules/workflow-catalog/workflow-catalog.controller.ts)
+- Controller `WorkflowOperationsController`: [`src/modules/workflow-catalog/workflow-operations.controller.ts`](../../../../../src/modules/workflow-catalog/workflow-operations.controller.ts)
+- Controller `WorkflowProgressController`: [`src/modules/workflow-catalog/workflow-progress.controller.ts`](../../../../../src/modules/workflow-catalog/workflow-progress.controller.ts)
 
 ## Relaciones
 

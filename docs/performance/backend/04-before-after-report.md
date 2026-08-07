@@ -1,13 +1,27 @@
 # Informe antes/después
 
-## Estado: sin optimizaciones aceptadas
+## Estado: sin optimizaciones aceptadas, y ahora se sabe por qué
 
-No hay ninguna fila en las tablas de abajo. No es un descuido: **no se aplicó ninguna optimización**,
-porque no hay baseline contra el que comparar. Un cambio de rendimiento sin medición previa no se
-puede aceptar ni rechazar, sólo creer, y eso no es lo que este documento certifica.
+Ya existe baseline ([01-baseline.md](01-baseline.md)), así que la razón cambió. No es que no se
+pudiera comparar: es que **la medición no encontró nada que optimizar en la ruta medida**.
 
-Los riesgos identificados están en [02-bottleneck-map.md](02-bottleneck-map.md) y el orden previsto
-para atacarlos en [03-optimization-plan.md](03-optimization-plan.md).
+A 10 req/s el p95 es de 15 ms; a 150 req/s baja a 7.4 ms, con 0 % de error, el pool en
+`using=0 waiting=0 size=4` y el event-loop lag en 12 ms. No hay saturación de pool, ni de CPU, ni
+crecimiento de memoria. Aplicar cualquiera de las correcciones previstas ahora mismo produciría una
+tabla antes/después con ruido en las dos columnas.
+
+El resultado más útil de la medición fue **refutar la prioridad 1** del análisis estático: R-01
+(fan-out contra tamaño del pool) no se manifiesta en la ruta de lectura. Sin baseline se habría
+«optimizado» algo que no era el problema, y la tabla de abajo habría mostrado una mejora inventada
+por la varianza.
+
+A cambio apareció un hallazgo que sólo se ve midiendo: **R-06**, el logging de SQL en
+`development` — 8 MB de log por corrida y PII en claro en stdout. Su corrección es de seguridad y
+configuración, no de latencia, y requiere un ADR; por eso tampoco entra aquí.
+
+Lo que falta para poder llenar este documento está en la Fase A' de
+[03-optimization-plan.md](03-optimization-plan.md): un dataset representativo y una mezcla que
+recorra la ruta de escritura y el broadcast.
 
 ## Plantilla por optimización
 

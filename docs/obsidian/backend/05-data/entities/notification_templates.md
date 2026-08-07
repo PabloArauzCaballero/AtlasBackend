@@ -23,7 +23,7 @@ aliases:
 # `messaging.notification_templates`
 
 > [!info] Verificado
-> Modelo ORM `NotificationTemplateModel` en [`src/database/models/notification-templates.model.ts`](../../../../src/database/models/notification-templates.model.ts). Esquema físico `messaging` resuelto por `atlasSchemaFor('notification_templates')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `NotificationTemplateModel` en [`src/database/models/notification-templates.model.ts`](../../../../../src/database/models/notification-templates.model.ts). Esquema físico `messaging` resuelto por `atlasSchemaFor('notification_templates')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -92,8 +92,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/notification-templates.model.ts`](../../../../src/database/models/notification-templates.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/notification-templates.model.ts`](../../../../../src/database/models/notification-templates.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

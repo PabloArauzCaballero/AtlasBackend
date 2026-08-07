@@ -1,14 +1,24 @@
 # Mapa de latencia y riesgos de rendimiento
 
-> **Aviso metodológico.** Este mapa es **estático**: sale de leer el código, no de medir el sistema
-> en ejecución. Por tanto lo que contiene son **riesgos con evidencia**, no cuellos de botella
-> confirmados. Un riesgo se convierte en cuello cuando un perfil o una prueba de carga lo demuestra.
-> Cada hallazgo trae su método de medición precisamente para poder hacer esa conversión.
+> **Aviso metodológico.** El mapa nació de leer el código, así que su ranking original era de
+> **riesgos**, no de cuellos confirmados. El 2026-08-06 se produjo un baseline real
+> ([01-baseline.md](01-baseline.md)) y la medición **refutó la prioridad 1**. Los veredictos de
+> abajo distinguen lo que la medición dice de lo que sigue sin comprobarse.
 >
-> No se aplicó ninguna optimización a partir de este mapa. Optimizar sin baseline es exactamente lo
-> que el procedimiento prohíbe.
+> Sigue sin aplicarse ninguna optimización, y ahora por una razón más fuerte que al principio: en la
+> ruta medida no hay ningún cuello que optimizar.
 
-Fecha: 2026-08-06 · Commit analizado: `2451bd5` · Alcance: `src/`
+Fecha del análisis: 2026-08-06 · Commit: `2451bd5` · Medición: commit `a1b898e` · Alcance: `src/`
+
+## Qué dijo la medición
+
+A 10 req/s el p95 global es de 15 ms; a **150 req/s baja a 7.4 ms**, con 0 % de error y el pool en
+`using=0 waiting=0 size=4` — nunca se acercó a `DB_POOL_MAX=20`. En la mezcla de lectura no hay
+saturación de pool, ni de event loop, ni de memoria.
+
+Con la salvedad decisiva de que **el dataset es un seed de desarrollo con tablas casi vacías**: la
+medición demuestra que el pool no es un cuello *para queries que tardan fracciones de milisegundo*.
+No demuestra nada sobre el mismo pool con volumen real.
 
 ## Descomposición de la latencia por petición
 
@@ -27,17 +37,72 @@ entrada Express (helmet, compression, body parser)
 
 ## Ranking
 
-| # | Hallazgo | Evidencia | Impacto | Frecuencia | Riesgo | Esfuerzo | Prioridad |
-|---|---|---|---:|---:|---:|---:|---:|
-| R-01 | El fan-out de entregas excede por sí solo el pool de conexiones | `notification-broadcast.service.ts:35` vs `env.schema.ts:56` | Alto | Alta | Alto | Bajo | **1** |
-| R-02 | Descifrado de PII sin caché de data keys, en fan-out ilimitado | `notifications.repository.ts:506` · `kms-key-provider.ts:80` | Alto | Media | Alto | Medio | **2** |
-| R-03 | Ingesta por lotes con round trips secuenciales, hasta 500 ítems | `catalog-ingestion.service.ts:56` · `catalog-management.schemas.ts:75` | Medio | Media | Bajo | Medio | 3 |
-| R-04 | Lectura de código fuente en paralelo sin techo desde un handler HTTP | `systems-source-scan.util.ts:41` | Medio | Baja | Medio | Bajo | 4 |
-| R-05 | `statement_timeout` (60 s) mayor que `REQUEST_TIMEOUT_MS` (30 s) por defecto | `env.schema.ts:75` y `env.schema.ts:235` | Medio | Media | Medio | Bajo | 5 |
+| # | Hallazgo | Evidencia | Veredicto tras medir | Prioridad |
+|---|---|---|---|---:|
+| R-06 | En `development` se registra CADA sentencia SQL en stdout | `database.config.ts:75` | **Confirmado**: 8 MB de log en una corrida de 150 s | **1** |
+| R-02 | Descifrado de PII sin caché de data keys, en fan-out ilimitado | `notifications.repository.ts:506` · `kms-key-provider.ts:80` | Sin medir: exige KMS activo | 2 |
+| R-01 | El fan-out de entregas excede por sí solo el pool de conexiones | `notification-broadcast.service.ts:35` vs `env.schema.ts:56` | **Refutado en la ruta de lectura**; sigue abierto para el broadcast | 3 |
+| R-03 | Ingesta por lotes con round trips secuenciales, hasta 500 ítems | `catalog-ingestion.service.ts:56` · `catalog-management.schemas.ts:75` | Sin medir: la mezcla es de lectura | 4 |
+| R-04 | Lectura de código fuente en paralelo sin techo desde un handler HTTP | `systems-source-scan.util.ts:41` | Sin medir | 5 |
+| R-05 | `statement_timeout` (60 s) mayor que `REQUEST_TIMEOUT_MS` (30 s) | `env.schema.ts:75` y `env.schema.ts:235` | Sin reproducir: no hubo queries lentas | 6 |
 
 ---
 
-### R-01 · El fan-out de entregas excede por sí solo el pool de conexiones
+### R-06 · En `development` se registra cada sentencia SQL en stdout · CONFIRMADO
+
+**Evidencia.** [`database.config.ts:75`](../../../src/config/database.config.ts):
+`logging: env.NODE_ENV === 'development' ? console.log : false`.
+
+Apareció midiendo, no leyendo: la primera corrida del baseline generó **8 MB de log** en unos 150
+segundos, con el `INSERT` completo de `system_action_logs` y el `SELECT` de
+`system_endpoint_catalog` repetidos por cada petición.
+
+Dos consecuencias, y la segunda es la grave:
+
+1. **Invalida cualquier medición local.** Toda corrida hecha con `yarn start:dev` mide, además del
+   backend, la serialización y escritura de un log gigante. El baseline hubo de rehacerse con
+   `NODE_ENV=test`.
+2. **Contradice una regla de seguridad explícita del proyecto.** `.claude/rules/30-security.md`
+   dice: «*Nunca loguear SQL (Sequelize inlinea valores → fuga de PII)*». En un backend KYC, un
+   `INSERT` de `customers` o de `notification_messages` lleva nombre, correo y teléfono en claro al
+   stdout de la máquina de quien desarrolla, y de ahí a `Archivo.log`.
+
+Que sea sólo en desarrollo lo hace menos urgente, no conforme: los datos de un entorno de
+desarrollo con seed realista siguen siendo datos.
+
+**Cómo medirlo.** Ya está medido: comparar el tamaño de la salida del proceso entre
+`NODE_ENV=development` y `NODE_ENV=test` con la misma corrida.
+
+**Dirección de la corrección** (no aplicada, requiere decisión): el logging de SQL es útil al
+depurar. La forma habitual de conservar la utilidad sin la fuga es una variable propia
+(`DB_LOG_SQL`) desactivada por defecto, en vez de acoplarlo a `NODE_ENV`, y un `logQueryParameters`
+que no vuelque valores. Es un cambio de contrato de configuración: pertenece a un ADR, no a este
+documento.
+
+**Nota honesta sobre su efecto en latencia:** la corrida con logging activo dio p50 6.6 ms / p95
+12.9 ms, y las corridas con logging desactivado p50 ≈ 9.1 ms / p95 ≈ 15.0 ms. Es decir, salió
+*aparentemente más rápida*. No es creíble que escribir 8 MB acelere nada; lo más probable es que esa
+corrida difiriera en otras condiciones. **No se afirma ninguna mejora de latencia por desactivar el
+logging**: la evidencia sostiene el hallazgo de seguridad y de contaminación del log, no un número
+de latencia.
+
+---
+
+### R-01 · El fan-out de entregas excede por sí solo el pool de conexiones · REFUTADO EN LECTURA
+
+> **Lo que la medición dijo.** A 150 req/s de tráfico de lectura el pool se quedó en
+> `using=0 waiting=0 size=4`: ni una sola petición esperó una conexión, y el pool ni siquiera creció
+> hasta su mínimo útil, no digamos hasta los 20 de `DB_POOL_MAX`. Como cuello de la ruta de lectura,
+> **este riesgo queda descartado con las queries actuales**.
+>
+> Lo que la medición **no** toca, y por eso el hallazgo sigue abierto: la ruta de broadcast, que es
+> donde vive `DELIVERY_CONCURRENCY = 25`. La mezcla de carga es de lectura a propósito, así que
+> nunca disparó una entrega. Comprobarlo exige correr `yarn stress:notifications` en paralelo a un
+> escenario de carga y vigilar `waiting`, que es justo lo que dice el método de medición de abajo.
+>
+> Esto es lo que vale un baseline: la prioridad 1 del análisis estático resultó no serlo en la ruta
+> que se pudo medir. Sin medir, se habría «optimizado» algo que no era el problema.
+
 
 **Evidencia.** `DELIVERY_CONCURRENCY = 25` en
 [`notification-broadcast.service.ts:35`](../../../src/modules/notifications/notification-broadcast.service.ts),
@@ -184,7 +249,11 @@ Registrarlo importa: evita que una pasada futura «optimice» algo que ya se res
 
 Lo que este análisis **no** puede afirmar, y por qué:
 
-- **Ningún percentil de latencia.** No hay baseline: no había Postgres ni backend en ejecución.
+- **Nada sobre volumen real.** El baseline se tomó con tablas casi vacías. Es la limitación que más
+  condiciona: R-01, R-03 y R-05 dependen de queries que tarden lo suficiente como para retener una
+  conexión, y aquí ninguna lo hace.
+- **La ruta de escritura y el broadcast.** La mezcla es de lectura. R-01, R-02 y R-03 viven en
+  caminos que la carga nunca recorrió.
 - **Planes de ejecución.** Requieren una base con datos representativos.
 - **Índices faltantes más allá del outbox.** Sólo 5 migraciones declaran `addIndex`; determinar si
   faltan exige el patrón de consulta real, que se obtiene de `pg_stat_statements`, no leyendo código.

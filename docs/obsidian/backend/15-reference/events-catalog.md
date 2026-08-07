@@ -16,7 +16,7 @@ source_files:
 ---
 # Catálogo de eventos
 
-**92 tipos de evento** en **9 familias**, declarados en [`src/modules/events/event-registry.ts`](../../../src/modules/events/event-registry.ts).
+**92 tipos de evento** en **9 familias**, declarados en [`src/modules/events/event-registry.ts`](../../../../src/modules/events/event-registry.ts).
 
 Los eventos se publican mediante el patrón **outbox transaccional** (tabla `platform_ops.outbox_events`). Ver [[07-async-processing/events]] y [[02-architecture/adr/0001-outbox-en-postgresql|ADR-0001]].
 

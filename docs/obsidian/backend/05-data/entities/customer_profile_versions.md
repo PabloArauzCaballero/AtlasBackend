@@ -23,7 +23,7 @@ aliases:
 # `customer.customer_profile_versions`
 
 > [!info] Verificado
-> Modelo ORM `CustomerProfileVersionModel` en [`src/database/models/customer-profile-versions.model.ts`](../../../../src/database/models/customer-profile-versions.model.ts). Esquema físico `customer` resuelto por `atlasSchemaFor('customer_profile_versions')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `CustomerProfileVersionModel` en [`src/database/models/customer-profile-versions.model.ts`](../../../../../src/database/models/customer-profile-versions.model.ts). Esquema físico `customer` resuelto por `atlasSchemaFor('customer_profile_versions')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -99,8 +99,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/customer-profile-versions.model.ts`](../../../../src/database/models/customer-profile-versions.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/customer-profile-versions.model.ts`](../../../../../src/database/models/customer-profile-versions.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154055-schema-relationships-part-1-customers-identity.ts`
 
 ## Relaciones de la bóveda

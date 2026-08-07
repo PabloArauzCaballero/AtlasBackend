@@ -52,11 +52,11 @@ endpoints:
 - Convenciones comunes (envoltura de respuesta, correlación, paginación): [[04-api/conventions]]
 - Modelo de error: [[04-api/error-model]]
 - Autenticación: [[04-api/authentication]] · Autorización: [[04-api/authorization]]
-- Contrato OpenAPI generado: [`docs/endpoints/openapi.yaml`](../../../endpoints/openapi.yaml)
+- Contrato OpenAPI generado: [`docs/endpoints/openapi.yaml`](../../../../endpoints/openapi.yaml)
 
 ## Evidencia
 
-- [`src/modules/runtime-jobs/runtime-jobs.controller.ts`](../../../../src/modules/runtime-jobs/runtime-jobs.controller.ts)
+- [`src/modules/runtime-jobs/runtime-jobs.controller.ts`](../../../../../src/modules/runtime-jobs/runtime-jobs.controller.ts)
 
 ## Relaciones
 

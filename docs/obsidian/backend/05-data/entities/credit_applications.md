@@ -23,7 +23,7 @@ aliases:
 # `credit.credit_applications`
 
 > [!info] Verificado
-> Modelo ORM `CreditApplicationModel` en [`src/database/models/credit-applications.model.ts`](../../../../src/database/models/credit-applications.model.ts). Esquema físico `credit` resuelto por `atlasSchemaFor('credit_applications')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `CreditApplicationModel` en [`src/database/models/credit-applications.model.ts`](../../../../../src/database/models/credit-applications.model.ts). Esquema físico `credit` resuelto por `atlasSchemaFor('credit_applications')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -99,8 +99,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/credit-applications.model.ts`](../../../../src/database/models/credit-applications.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/credit-applications.model.ts`](../../../../../src/database/models/credit-applications.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

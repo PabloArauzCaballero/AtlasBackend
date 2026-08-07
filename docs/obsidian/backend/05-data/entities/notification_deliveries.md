@@ -23,7 +23,7 @@ aliases:
 # `messaging.notification_deliveries`
 
 > [!info] Verificado
-> Modelo ORM `NotificationDeliveryModel` en [`src/database/models/notification-deliveries.model.ts`](../../../../src/database/models/notification-deliveries.model.ts). Esquema físico `messaging` resuelto por `atlasSchemaFor('notification_deliveries')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `NotificationDeliveryModel` en [`src/database/models/notification-deliveries.model.ts`](../../../../../src/database/models/notification-deliveries.model.ts). Esquema físico `messaging` resuelto por `atlasSchemaFor('notification_deliveries')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -93,8 +93,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/notification-deliveries.model.ts`](../../../../src/database/models/notification-deliveries.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/notification-deliveries.model.ts`](../../../../../src/database/models/notification-deliveries.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

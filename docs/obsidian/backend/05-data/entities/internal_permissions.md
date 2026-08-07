@@ -23,7 +23,7 @@ aliases:
 # `iam.internal_permissions`
 
 > [!info] Verificado
-> Modelo ORM `InternalPermissionModel` en [`src/database/models/internal-permissions.model.ts`](../../../../src/database/models/internal-permissions.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('internal_permissions')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `InternalPermissionModel` en [`src/database/models/internal-permissions.model.ts`](../../../../../src/database/models/internal-permissions.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('internal_permissions')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -91,8 +91,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/internal-permissions.model.ts`](../../../../src/database/models/internal-permissions.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/internal-permissions.model.ts`](../../../../../src/database/models/internal-permissions.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

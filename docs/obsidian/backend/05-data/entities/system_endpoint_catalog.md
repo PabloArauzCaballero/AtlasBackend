@@ -23,7 +23,7 @@ aliases:
 # `platform_ops.system_endpoint_catalog`
 
 > [!info] Verificado
-> Modelo ORM `SystemEndpointCatalogModel` en [`src/database/models/system-endpoint-catalog.model.ts`](../../../../src/database/models/system-endpoint-catalog.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('system_endpoint_catalog')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `SystemEndpointCatalogModel` en [`src/database/models/system-endpoint-catalog.model.ts`](../../../../../src/database/models/system-endpoint-catalog.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('system_endpoint_catalog')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -125,8 +125,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/system-endpoint-catalog.model.ts`](../../../../src/database/models/system-endpoint-catalog.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/system-endpoint-catalog.model.ts`](../../../../../src/database/models/system-endpoint-catalog.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

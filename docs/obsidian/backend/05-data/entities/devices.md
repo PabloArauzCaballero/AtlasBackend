@@ -23,7 +23,7 @@ aliases:
 # `telemetry.devices`
 
 > [!info] Verificado
-> Modelo ORM `DeviceModel` en [`src/database/models/devices.model.ts`](../../../../src/database/models/devices.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('devices')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `DeviceModel` en [`src/database/models/devices.model.ts`](../../../../../src/database/models/devices.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('devices')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -110,8 +110,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/devices.model.ts`](../../../../src/database/models/devices.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/devices.model.ts`](../../../../../src/database/models/devices.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154057-schema-relationships-part-3-devices-sessions.ts`
 
 ## Relaciones de la bóveda

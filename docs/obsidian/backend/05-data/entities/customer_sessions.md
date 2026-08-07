@@ -23,7 +23,7 @@ aliases:
 # `telemetry.customer_sessions`
 
 > [!info] Verificado
-> Modelo ORM `CustomerSessionModel` en [`src/database/models/customer-sessions.model.ts`](../../../../src/database/models/customer-sessions.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('customer_sessions')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `CustomerSessionModel` en [`src/database/models/customer-sessions.model.ts`](../../../../../src/database/models/customer-sessions.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('customer_sessions')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -118,8 +118,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/customer-sessions.model.ts`](../../../../src/database/models/customer-sessions.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/customer-sessions.model.ts`](../../../../../src/database/models/customer-sessions.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154057-schema-relationships-part-3-devices-sessions.ts`
 
 ## Relaciones de la bóveda

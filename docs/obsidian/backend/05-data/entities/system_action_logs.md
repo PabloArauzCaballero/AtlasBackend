@@ -23,7 +23,7 @@ aliases:
 # `platform_ops.system_action_logs`
 
 > [!info] Verificado
-> Modelo ORM `SystemActionLogModel` en [`src/database/models/system-action-logs.model.ts`](../../../../src/database/models/system-action-logs.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('system_action_logs')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `SystemActionLogModel` en [`src/database/models/system-action-logs.model.ts`](../../../../../src/database/models/system-action-logs.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('system_action_logs')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -123,8 +123,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/system-action-logs.model.ts`](../../../../src/database/models/system-action-logs.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/system-action-logs.model.ts`](../../../../../src/database/models/system-action-logs.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

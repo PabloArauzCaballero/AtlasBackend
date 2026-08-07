@@ -93,8 +93,8 @@ Roles que alcanzan este módulo: `internal_operator`, `risk_analyst`, `complianc
 
 ## Referencias al código
 
-- Módulo: [`src/modules/events/events.module.ts`](../../../../src/modules/events/events.module.ts)
-- Controller `EventsController`: [`src/modules/events/events.controller.ts`](../../../../src/modules/events/events.controller.ts)
+- Módulo: [`src/modules/events/events.module.ts`](../../../../../src/modules/events/events.module.ts)
+- Controller `EventsController`: [`src/modules/events/events.controller.ts`](../../../../../src/modules/events/events.controller.ts)
 
 ## Relaciones
 

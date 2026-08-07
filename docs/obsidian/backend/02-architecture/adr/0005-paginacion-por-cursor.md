@@ -16,7 +16,7 @@ related: []
 # Paginación por cursor como camino por defecto de alto volumen
 
 > [!info] Documento canónico
-> El ADR completo vive en [`docs/adr/0005-paginacion-por-cursor.md`](../../../adr/0005-paginacion-por-cursor.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
+> El ADR completo vive en [`docs/adr/0005-paginacion-por-cursor.md`](../../../../adr/0005-paginacion-por-cursor.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
 
 | | |
 |---|---|

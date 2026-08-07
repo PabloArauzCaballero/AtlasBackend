@@ -23,7 +23,7 @@ aliases:
 # `iam.platform_users`
 
 > [!info] Verificado
-> Modelo ORM `PlatformUserModel` en [`src/database/models/platform-users.model.ts`](../../../../src/database/models/platform-users.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('platform_users')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `PlatformUserModel` en [`src/database/models/platform-users.model.ts`](../../../../../src/database/models/platform-users.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('platform_users')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -97,8 +97,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/platform-users.model.ts`](../../../../src/database/models/platform-users.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/platform-users.model.ts`](../../../../../src/database/models/platform-users.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

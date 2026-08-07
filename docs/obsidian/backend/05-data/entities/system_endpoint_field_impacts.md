@@ -23,7 +23,7 @@ aliases:
 # `platform_ops.system_endpoint_field_impacts`
 
 > [!info] Verificado
-> Modelo ORM `SystemEndpointFieldImpactModel` en [`src/database/models/system-endpoint-field-impacts.model.ts`](../../../../src/database/models/system-endpoint-field-impacts.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('system_endpoint_field_impacts')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `SystemEndpointFieldImpactModel` en [`src/database/models/system-endpoint-field-impacts.model.ts`](../../../../../src/database/models/system-endpoint-field-impacts.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('system_endpoint_field_impacts')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -96,8 +96,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/system-endpoint-field-impacts.model.ts`](../../../../src/database/models/system-endpoint-field-impacts.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/system-endpoint-field-impacts.model.ts`](../../../../../src/database/models/system-endpoint-field-impacts.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

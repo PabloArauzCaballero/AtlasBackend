@@ -24,7 +24,7 @@ source_files:
 > Esta tabla lista **nombres, tipos y defaults del código**. Los valores de producción viven fuera del repositorio. El gate `yarn check:no-env-file` impide versionar `.env`.
 
 > [!info] Verificado — fallo al arrancar, no en runtime
-> `parseEnv()` en [`src/config/env.ts:19-57`](../../../src/config/env.ts) hace `safeParse` del entorno y **lanza** con el detalle por campo si algo no valida. Una variable mal puesta impide el arranque en vez de degradar el servicio a mitad de camino. Las validaciones cruzadas viven en `env-cross-checks.ts`.
+> `parseEnv()` en [`src/config/env.ts:19-57`](../../../../src/config/env.ts) hace `safeParse` del entorno y **lanza** con el detalle por campo si algo no valida. Una variable mal puesta impide el arranque en vez de degradar el servicio a mitad de camino. Las validaciones cruzadas viven en `env-cross-checks.ts`.
 
 | Variable | Tipo | Requerida | Default (código) | Notas |
 |---|---|---|---|---|

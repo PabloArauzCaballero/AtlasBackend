@@ -93,8 +93,8 @@ Roles que alcanzan este módulo: `internal_operator`, `admin`, `platform_admin`,
 
 ## Referencias al código
 
-- Módulo: [`src/modules/schema-management/schema-management.module.ts`](../../../../src/modules/schema-management/schema-management.module.ts)
-- Controller `SchemaManagementController`: [`src/modules/schema-management/schema-management.controller.ts`](../../../../src/modules/schema-management/schema-management.controller.ts)
+- Módulo: [`src/modules/schema-management/schema-management.module.ts`](../../../../../src/modules/schema-management/schema-management.module.ts)
+- Controller `SchemaManagementController`: [`src/modules/schema-management/schema-management.controller.ts`](../../../../../src/modules/schema-management/schema-management.controller.ts)
 
 ## Relaciones
 

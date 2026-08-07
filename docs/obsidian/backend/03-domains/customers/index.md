@@ -118,9 +118,9 @@ Roles que alcanzan este módulo: `customer`, `internal_operator`, `risk_analyst`
 
 ## Referencias al código
 
-- Módulo: [`src/modules/customers/customers.module.ts`](../../../../src/modules/customers/customers.module.ts)
-- Controller `CustomerEligibilityController`: [`src/modules/customers/customer-eligibility.controller.ts`](../../../../src/modules/customers/customer-eligibility.controller.ts)
-- Controller `CustomersController`: [`src/modules/customers/customers.controller.ts`](../../../../src/modules/customers/customers.controller.ts)
+- Módulo: [`src/modules/customers/customers.module.ts`](../../../../../src/modules/customers/customers.module.ts)
+- Controller `CustomerEligibilityController`: [`src/modules/customers/customer-eligibility.controller.ts`](../../../../../src/modules/customers/customer-eligibility.controller.ts)
+- Controller `CustomersController`: [`src/modules/customers/customers.controller.ts`](../../../../../src/modules/customers/customers.controller.ts)
 
 ## Relaciones
 

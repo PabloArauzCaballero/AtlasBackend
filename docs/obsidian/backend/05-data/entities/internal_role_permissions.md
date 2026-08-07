@@ -23,7 +23,7 @@ aliases:
 # `iam.internal_role_permissions`
 
 > [!info] Verificado
-> Modelo ORM `InternalRolePermissionModel` en [`src/database/models/internal-role-permissions.model.ts`](../../../../src/database/models/internal-role-permissions.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('internal_role_permissions')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `InternalRolePermissionModel` en [`src/database/models/internal-role-permissions.model.ts`](../../../../../src/database/models/internal-role-permissions.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('internal_role_permissions')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -82,8 +82,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/internal-role-permissions.model.ts`](../../../../src/database/models/internal-role-permissions.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/internal-role-permissions.model.ts`](../../../../../src/database/models/internal-role-permissions.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

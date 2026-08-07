@@ -23,7 +23,7 @@ aliases:
 # `iam.auth_credentials`
 
 > [!info] Verificado
-> Modelo ORM `AuthCredentialModel` en [`src/database/models/auth-credentials.model.ts`](../../../../src/database/models/auth-credentials.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('auth_credentials')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `AuthCredentialModel` en [`src/database/models/auth-credentials.model.ts`](../../../../../src/database/models/auth-credentials.model.ts). Esquema físico `iam` resuelto por `atlasSchemaFor('auth_credentials')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -92,8 +92,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/auth-credentials.model.ts`](../../../../src/database/models/auth-credentials.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/auth-credentials.model.ts`](../../../../../src/database/models/auth-credentials.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

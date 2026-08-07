@@ -23,7 +23,7 @@ aliases:
 # `telemetry.auth_events`
 
 > [!info] Verificado
-> Modelo ORM `AuthEventModel` en [`src/database/models/auth-events.model.ts`](../../../../src/database/models/auth-events.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('auth_events')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `AuthEventModel` en [`src/database/models/auth-events.model.ts`](../../../../../src/database/models/auth-events.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('auth_events')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -95,8 +95,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/auth-events.model.ts`](../../../../src/database/models/auth-events.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/auth-events.model.ts`](../../../../../src/database/models/auth-events.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154057-schema-relationships-part-3-devices-sessions.ts`
 
 ## Relaciones de la bóveda

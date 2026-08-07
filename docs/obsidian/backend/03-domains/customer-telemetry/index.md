@@ -98,8 +98,8 @@ Roles que alcanzan este módulo: `customer`, `internal_operator`, `risk_analyst`
 
 ## Referencias al código
 
-- Módulo: [`src/modules/customer-telemetry/customer-telemetry.module.ts`](../../../../src/modules/customer-telemetry/customer-telemetry.module.ts)
-- Controller `CustomerTelemetryController`: [`src/modules/customer-telemetry/customer-telemetry.controller.ts`](../../../../src/modules/customer-telemetry/customer-telemetry.controller.ts)
+- Módulo: [`src/modules/customer-telemetry/customer-telemetry.module.ts`](../../../../../src/modules/customer-telemetry/customer-telemetry.module.ts)
+- Controller `CustomerTelemetryController`: [`src/modules/customer-telemetry/customer-telemetry.controller.ts`](../../../../../src/modules/customer-telemetry/customer-telemetry.controller.ts)
 
 ## Relaciones
 

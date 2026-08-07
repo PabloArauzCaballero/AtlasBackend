@@ -16,7 +16,7 @@ related: []
 # Envelope encryption con KMS para PII
 
 > [!info] Documento canónico
-> El ADR completo vive en [`docs/adr/0004-kms-envelope-encryption.md`](../../../adr/0004-kms-envelope-encryption.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
+> El ADR completo vive en [`docs/adr/0004-kms-envelope-encryption.md`](../../../../adr/0004-kms-envelope-encryption.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
 
 | | |
 |---|---|

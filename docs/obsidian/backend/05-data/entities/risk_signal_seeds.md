@@ -23,7 +23,7 @@ aliases:
 # `risk.risk_signal_seeds`
 
 > [!info] Verificado
-> Modelo ORM `RiskSignalSeedModel` en [`src/database/models/risk-signal-seeds.model.ts`](../../../../src/database/models/risk-signal-seeds.model.ts). Esquema físico `risk` resuelto por `atlasSchemaFor('risk_signal_seeds')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `RiskSignalSeedModel` en [`src/database/models/risk-signal-seeds.model.ts`](../../../../../src/database/models/risk-signal-seeds.model.ts). Esquema físico `risk` resuelto por `atlasSchemaFor('risk_signal_seeds')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -92,8 +92,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/risk-signal-seeds.model.ts`](../../../../src/database/models/risk-signal-seeds.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/risk-signal-seeds.model.ts`](../../../../../src/database/models/risk-signal-seeds.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

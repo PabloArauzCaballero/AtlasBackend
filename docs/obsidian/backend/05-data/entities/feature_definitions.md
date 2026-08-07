@@ -23,7 +23,7 @@ aliases:
 # `risk.feature_definitions`
 
 > [!info] Verificado
-> Modelo ORM `FeatureDefinitionModel` en [`src/database/models/feature-definitions.model.ts`](../../../../src/database/models/feature-definitions.model.ts). Esquema físico `risk` resuelto por `atlasSchemaFor('feature_definitions')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `FeatureDefinitionModel` en [`src/database/models/feature-definitions.model.ts`](../../../../../src/database/models/feature-definitions.model.ts). Esquema físico `risk` resuelto por `atlasSchemaFor('feature_definitions')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -104,8 +104,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/feature-definitions.model.ts`](../../../../src/database/models/feature-definitions.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/feature-definitions.model.ts`](../../../../../src/database/models/feature-definitions.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154100-schema-relationships-part-6-features-scoring.ts`
 
 ## Relaciones de la bóveda

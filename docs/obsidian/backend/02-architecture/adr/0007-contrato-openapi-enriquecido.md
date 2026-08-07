@@ -16,7 +16,7 @@ related: []
 # El contrato OpenAPI se completa por transformación, no por anotación repetida
 
 > [!info] Documento canónico
-> El ADR completo vive en [`docs/adr/0007-contrato-openapi-enriquecido.md`](../../../adr/0007-contrato-openapi-enriquecido.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
+> El ADR completo vive en [`docs/adr/0007-contrato-openapi-enriquecido.md`](../../../../adr/0007-contrato-openapi-enriquecido.md). Esta nota lo resume y lo enlaza con el resto de la bóveda; **ante discrepancia, prevalece el canónico**.
 
 | | |
 |---|---|

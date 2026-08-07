@@ -23,7 +23,7 @@ aliases:
 # `catalog.context_item_aliases`
 
 > [!info] Verificado
-> Modelo ORM `ContextItemAliasModel` en [`src/database/models/context-item-aliases.model.ts`](../../../../src/database/models/context-item-aliases.model.ts). Esquema físico `catalog` resuelto por `atlasSchemaFor('context_item_aliases')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `ContextItemAliasModel` en [`src/database/models/context-item-aliases.model.ts`](../../../../../src/database/models/context-item-aliases.model.ts). Esquema físico `catalog` resuelto por `atlasSchemaFor('context_item_aliases')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -85,8 +85,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/context-item-aliases.model.ts`](../../../../src/database/models/context-item-aliases.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/context-item-aliases.model.ts`](../../../../../src/database/models/context-item-aliases.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154059-schema-relationships-part-5-catalog-context.ts`
 
 ## Relaciones de la bóveda

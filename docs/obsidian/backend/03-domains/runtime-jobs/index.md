@@ -114,8 +114,8 @@ Roles que alcanzan este módulo: `admin`, `platform_admin`, `system`.
 
 ## Referencias al código
 
-- Módulo: [`src/modules/runtime-jobs/runtime-jobs.module.ts`](../../../../src/modules/runtime-jobs/runtime-jobs.module.ts)
-- Controller `RuntimeJobsController`: [`src/modules/runtime-jobs/runtime-jobs.controller.ts`](../../../../src/modules/runtime-jobs/runtime-jobs.controller.ts)
+- Módulo: [`src/modules/runtime-jobs/runtime-jobs.module.ts`](../../../../../src/modules/runtime-jobs/runtime-jobs.module.ts)
+- Controller `RuntimeJobsController`: [`src/modules/runtime-jobs/runtime-jobs.controller.ts`](../../../../../src/modules/runtime-jobs/runtime-jobs.controller.ts)
 
 ## Relaciones
 

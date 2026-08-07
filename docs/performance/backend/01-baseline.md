@@ -1,14 +1,65 @@
 # Baseline de rendimiento
 
-## Estado actual: NO EXISTE baseline medido
+## Baseline medido — 2026-08-06
 
-No hay cifras en este documento porque no se pudo medir. El entorno de trabajo no tenía Postgres
-ni Redis en ejecución, ni Docker disponible, así que el backend nunca llegó a arrancar. Rellenar
-esta página con números de otro sitio la convertiría en la peor clase de documento: uno que parece
-un baseline.
+Medido de verdad, contra el backend real con PostgreSQL 16.14 local. Tres corridas del escenario
+`baseline` con dispersión máxima del 3.6 %, muy por debajo del 15 % que este documento exige para
+considerar el entorno estable.
 
-Lo que sí existe es **el arnés para producirlo**, verificado de extremo a extremo. Esta página
-explica cómo usarlo y qué hay que registrar.
+**Condiciones** · commit `a1b898e` · macOS arm64, 10 núcleos, 16 GiB · `NODE_ENV=test` ·
+PostgreSQL 16.14 en `localhost` · sin Redis externo · `API_RATE_LIMIT_MAX` elevado ·
+147 tablas migradas + seed `development`.
+
+| Métrica | Corrida A | Corrida B | Corrida C | Dispersión |
+|---|---:|---:|---:|---:|
+| p50 | 8.97 ms | 9.15 ms | 9.15 ms | 2.0 % |
+| p95 | 14.76 ms | 15.29 ms | 15.00 ms | 3.6 % |
+| p99 | 16.69 ms | 17.01 ms | 16.87 ms | 1.9 % |
+| Throughput | 10.01 req/s | 10.01 req/s | 10.01 req/s | 0 % |
+| Tasa de error | 0 % | 0 % | 0 % | — |
+| Pool (`using`/`waiting`/`size`) | 0 / 0 / 4 | 0 / 0 / 4 | 0 / 0 / 4 | — |
+
+Por flujo (corrida A):
+
+| Flujo | n | p50 | p95 | p99 |
+|---|---:|---:|---:|---:|
+| `health` | 92 | 4.76 ms | 5.49 ms | 10.52 ms |
+| `catalogos-listado` | 372 | 8.24 ms | 9.49 ms | 9.97 ms |
+| `eventos-operaciones` | 276 | 8.42 ms | 9.85 ms | 10.30 ms |
+| `politica-riesgo-vigente` | 184 | 11.62 ms | 13.54 ms | 15.06 ms |
+| `definiciones` | 185 | 11.77 ms | 13.25 ms | 16.69 ms |
+| `glosario-negocio` | 92 | 15.31 ms | 17.05 ms | 20.02 ms |
+
+### Escenario `stress` — 150 req/s
+
+| Métrica | Valor |
+|---|---:|
+| Throughput | 150.00 req/s (absorbió el ritmo completo) |
+| Tasa de error | 0 % · 0 respuestas 5xx · 0 timeouts |
+| Latencia | p50 3.80 ms · p95 7.42 ms · p99 8.39 ms · max 15.77 ms |
+| Pool | `using=0 waiting=0 size=4` |
+| Event-loop lag p99 | 0.0116 s |
+
+**La latencia a 150 req/s es la MITAD que a 10 req/s.** No es un error de medición: a ritmo bajo el
+proceso está casi ocioso entre peticiones y cada una paga rutas frías y desoptimización del JIT; a
+150 req/s todo está caliente. Es la razón por la que un «baseline» tomado a carga baja puede ser
+más pesimista que la realidad bajo tráfico, y por la que el warm-up de 30 s no basta para eliminar
+el efecto a ritmos bajos.
+
+## La limitación que condiciona todo lo anterior
+
+**El dataset es un seed de desarrollo: tablas prácticamente vacías.** Las queries tardan fracciones
+de milisegundo porque no hay filas que recorrer, no porque el código sea rápido. Estos números
+sirven para:
+
+- detectar una regresión grosera en las mismas condiciones;
+- comparar el coste relativo entre flujos (el glosario cuesta 3× lo que `health`);
+- confirmar que no hay errores ni fugas evidentes bajo carga sostenida.
+
+**No** sirven para: fijar un SLO, dimensionar infraestructura, ni afirmar que un índice sobra. Por
+eso `config/performance-budget.json` mantiene `calibratedFrom: null` pese a existir ya un baseline:
+calibrar sobre estos datos daría un gate que pasa siempre en local y falla el día que alguien mida
+contra datos reales.
 
 ## Inventario del sistema
 

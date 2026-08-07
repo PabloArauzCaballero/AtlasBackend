@@ -81,7 +81,7 @@ Sin rutas HTTP: no aplica autorización de transporte.
 
 ## Referencias al código
 
-- Módulo: [`src/modules/fraud/fraud.module.ts`](../../../../src/modules/fraud/fraud.module.ts)
+- Módulo: [`src/modules/fraud/fraud.module.ts`](../../../../../src/modules/fraud/fraud.module.ts)
 
 
 ## Relaciones

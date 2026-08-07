@@ -73,7 +73,7 @@ Sin rutas HTTP: no aplica autorización de transporte.
 
 ## Referencias al código
 
-- Módulo: [`src/modules/mail-sender/mail-sender.module.ts`](../../../../src/modules/mail-sender/mail-sender.module.ts)
+- Módulo: [`src/modules/mail-sender/mail-sender.module.ts`](../../../../../src/modules/mail-sender/mail-sender.module.ts)
 
 
 ## Relaciones

@@ -23,7 +23,7 @@ aliases:
 # `messaging.device_tokens`
 
 > [!info] Verificado
-> Modelo ORM `DeviceTokenModel` en [`src/database/models/device-tokens.model.ts`](../../../../src/database/models/device-tokens.model.ts). Esquema físico `messaging` resuelto por `atlasSchemaFor('device_tokens')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `DeviceTokenModel` en [`src/database/models/device-tokens.model.ts`](../../../../../src/database/models/device-tokens.model.ts). Esquema físico `messaging` resuelto por `atlasSchemaFor('device_tokens')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -90,8 +90,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/device-tokens.model.ts`](../../../../src/database/models/device-tokens.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/device-tokens.model.ts`](../../../../../src/database/models/device-tokens.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

@@ -23,7 +23,7 @@ aliases:
 # `platform_ops.system_test_suites`
 
 > [!info] Verificado
-> Modelo ORM `SystemTestSuiteModel` en [`src/database/models/system-test-suites.model.ts`](../../../../src/database/models/system-test-suites.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('system_test_suites')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `SystemTestSuiteModel` en [`src/database/models/system-test-suites.model.ts`](../../../../../src/database/models/system-test-suites.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('system_test_suites')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -94,8 +94,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/system-test-suites.model.ts`](../../../../src/database/models/system-test-suites.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/system-test-suites.model.ts`](../../../../../src/database/models/system-test-suites.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

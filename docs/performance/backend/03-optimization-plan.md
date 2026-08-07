@@ -7,19 +7,28 @@ demuestre el cuello. El orden de abajo es el orden **previsto**, derivado del ra
 [02-bottleneck-map.md](02-bottleneck-map.md); la medición puede reordenarlo o descartar entradas
 enteras, y eso sería un resultado correcto, no un fracaso del plan.
 
-## Fase A · Producir el baseline
+## Fase A · Producir el baseline — HECHA (2026-08-06)
 
-Prerrequisito de todo lo demás.
+Tres corridas con dispersión máxima del 3.6 %, muy por debajo del 15 % exigido. Resultados en
+[01-baseline.md](01-baseline.md).
 
-1. Levantar Postgres y Redis con datos representativos.
-2. `yarn start:clean` — deja registrada la higiene y el arranque limpio.
-3. `yarn perf:load --scenario=smoke`, luego `--scenario=baseline` ×3.
-4. Registrar dataset, límites de recursos y estado de proveedores externos en
-   [01-baseline.md](01-baseline.md).
-5. Calibrar `config/performance-budget.json`: escribir los percentiles con su margen y rellenar
-   `calibratedFrom`. A partir de ahí los umbrales de latencia empiezan a fallar la corrida.
+El presupuesto **sigue sin calibrar a propósito**: el dataset era un seed de desarrollo con tablas
+casi vacías, y convertir esos percentiles en umbrales bloqueantes daría un gate que pasa siempre en
+local y falla el día que alguien mida contra datos reales.
 
-**Criterio de salida:** tres corridas con percentiles dentro de un 15 % entre sí.
+## Fase A' · El baseline que falta
+
+La Fase A midió lo que se podía medir. Lo que queda es lo que decide el resto del plan:
+
+1. **Dataset representativo.** Es la limitación dominante: R-01, R-03 y R-05 sólo se manifiestan con
+   queries que tarden lo suficiente como para retener una conexión.
+2. **Mezcla que recorra escritura y broadcast.** La actual es de lectura, así que nunca tocó los
+   caminos donde viven R-01, R-02 y R-03. Correr `yarn stress:notifications` en paralelo a
+   `--scenario=load` y vigilar `atlas_db_pool_connections{state="waiting"}` es la prueba concreta
+   que R-01 necesita.
+3. **KMS activo**, sin el cual R-02 no existe.
+
+Sólo entonces tiene sentido calibrar y pasar a la Fase C.
 
 ## Fase B · Instrumentar antes de tocar
 
@@ -35,7 +44,24 @@ Lo demás ya está publicado: `atlas_db_pool_connections` cubre R-01 y R-05 sin 
 
 ## Fase C · Correcciones, en orden de prioridad
 
+### C-0 · Desacoplar el logging de SQL de `NODE_ENV` (R-06) · el único con evidencia medida
+
+Hoy `database.config.ts:75` vuelca cada sentencia a stdout en `development`: 8 MB por corrida de
+150 s, con PII en claro, contra la regla explícita de `.claude/rules/30-security.md`.
+
+Cambio previsto: variable propia (`DB_LOG_SQL`, desactivada por defecto) en lugar del acoplamiento a
+`NODE_ENV`, y sin volcar valores de parámetros. Es un cambio de contrato de configuración y una
+decisión de seguridad: **requiere ADR**, no un parche.
+
+No mejora la latencia y no se venderá como tal (ver la nota honesta en
+[02-bottleneck-map.md](02-bottleneck-map.md)). Está el primero porque es el único hallazgo que la
+medición confirmó.
+
 ### C-1 · Alinear los techos de fan-out con el pool (R-01)
+
+> Rebajado de prioridad: la medición lo **refutó en la ruta de lectura**. No se toca hasta que la
+> Fase A' lo demuestre en la ruta de broadcast.
+
 
 Derivar los límites de concurrencia de `DB_POOL_MAX` en vez de declararlos como constantes en cinco
 archivos, dejando margen para el tráfico HTTP que comparte el mismo pool.

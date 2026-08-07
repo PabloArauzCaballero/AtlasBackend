@@ -23,7 +23,7 @@ aliases:
 # `catalog.attribute_definitions`
 
 > [!info] Verificado
-> Modelo ORM `AttributeDefinitionModel` en [`src/database/models/attribute-definitions.model.ts`](../../../../src/database/models/attribute-definitions.model.ts). Esquema físico `catalog` resuelto por `atlasSchemaFor('attribute_definitions')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `AttributeDefinitionModel` en [`src/database/models/attribute-definitions.model.ts`](../../../../../src/database/models/attribute-definitions.model.ts). Esquema físico `catalog` resuelto por `atlasSchemaFor('attribute_definitions')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -103,8 +103,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/attribute-definitions.model.ts`](../../../../src/database/models/attribute-definitions.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/attribute-definitions.model.ts`](../../../../../src/database/models/attribute-definitions.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154059-schema-relationships-part-5-catalog-context.ts`
 
 ## Relaciones de la bóveda

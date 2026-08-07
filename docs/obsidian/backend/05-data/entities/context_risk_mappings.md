@@ -23,7 +23,7 @@ aliases:
 # `catalog.context_risk_mappings`
 
 > [!info] Verificado
-> Modelo ORM `ContextRiskMappingModel` en [`src/database/models/context-risk-mappings.model.ts`](../../../../src/database/models/context-risk-mappings.model.ts). Esquema físico `catalog` resuelto por `atlasSchemaFor('context_risk_mappings')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `ContextRiskMappingModel` en [`src/database/models/context-risk-mappings.model.ts`](../../../../../src/database/models/context-risk-mappings.model.ts). Esquema físico `catalog` resuelto por `atlasSchemaFor('context_risk_mappings')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -91,8 +91,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/context-risk-mappings.model.ts`](../../../../src/database/models/context-risk-mappings.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/context-risk-mappings.model.ts`](../../../../../src/database/models/context-risk-mappings.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154059-schema-relationships-part-5-catalog-context.ts`
 
 ## Relaciones de la bóveda

@@ -76,7 +76,7 @@ Sin rutas HTTP: no aplica autorización de transporte.
 
 ## Referencias al código
 
-- Módulo: [`src/modules/runtime-hardening/runtime-hardening.module.ts`](../../../../src/modules/runtime-hardening/runtime-hardening.module.ts)
+- Módulo: [`src/modules/runtime-hardening/runtime-hardening.module.ts`](../../../../../src/modules/runtime-hardening/runtime-hardening.module.ts)
 
 
 ## Relaciones

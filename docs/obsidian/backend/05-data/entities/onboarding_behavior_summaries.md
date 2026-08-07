@@ -23,7 +23,7 @@ aliases:
 # `telemetry.onboarding_behavior_summaries`
 
 > [!info] Verificado
-> Modelo ORM `OnboardingBehaviorSummaryModel` en [`src/database/models/onboarding-behavior-summaries.model.ts`](../../../../src/database/models/onboarding-behavior-summaries.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('onboarding_behavior_summaries')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `OnboardingBehaviorSummaryModel` en [`src/database/models/onboarding-behavior-summaries.model.ts`](../../../../../src/database/models/onboarding-behavior-summaries.model.ts). Esquema físico `telemetry` resuelto por `atlasSchemaFor('onboarding_behavior_summaries')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -95,8 +95,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/onboarding-behavior-summaries.model.ts`](../../../../src/database/models/onboarding-behavior-summaries.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/onboarding-behavior-summaries.model.ts`](../../../../../src/database/models/onboarding-behavior-summaries.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154058-schema-relationships-part-4-onboarding-behavior.ts`
 
 ## Relaciones de la bóveda

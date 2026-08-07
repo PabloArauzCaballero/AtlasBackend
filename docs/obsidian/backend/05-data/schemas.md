@@ -23,7 +23,7 @@ PostgreSQL organiza las 130 tablas en **12 esquemas de dominio**, más `read_api
 ## Una sola fuente de verdad
 
 > [!info] Verificado
-> `ATLAS_DOMAIN_TABLES` en [`src/database/domain-schemas.ts`](../../../src/database/domain-schemas.ts) mapea cada tabla a su esquema. Los modelos no lo declaran a mano: escriben `schema: atlasSchemaFor('customers')`.
+> `ATLAS_DOMAIN_TABLES` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts) mapea cada tabla a su esquema. Los modelos no lo declaran a mano: escriben `schema: atlasSchemaFor('customers')`.
 >
 > `atlasSchemaFor()` **lanza** si la tabla no está registrada. Es imposible que un modelo nuevo resuelva a un esquema por accidente o quede en `public` sin que alguien lo note. La misma constante la comparten los decoradores de modelo y la migración que movió las instalaciones existentes: no hay dos fuentes que puedan divergir.
 

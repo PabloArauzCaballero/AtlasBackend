@@ -126,10 +126,10 @@ Sin rutas HTTP: no aplica autorización de transporte.
 
 ## Referencias al código
 
-- Módulo: [`src/modules/internal-users/internal-users.module.ts`](../../../../src/modules/internal-users/internal-users.module.ts)
-- Controller `InternalAccessCatalogController`: [`src/modules/internal-users/internal-access-catalog.controller.ts`](../../../../src/modules/internal-users/internal-access-catalog.controller.ts)
-- Controller `InternalAuthController`: [`src/modules/internal-users/internal-auth.controller.ts`](../../../../src/modules/internal-users/internal-auth.controller.ts)
-- Controller `InternalUsersController`: [`src/modules/internal-users/internal-users.controller.ts`](../../../../src/modules/internal-users/internal-users.controller.ts)
+- Módulo: [`src/modules/internal-users/internal-users.module.ts`](../../../../../src/modules/internal-users/internal-users.module.ts)
+- Controller `InternalAccessCatalogController`: [`src/modules/internal-users/internal-access-catalog.controller.ts`](../../../../../src/modules/internal-users/internal-access-catalog.controller.ts)
+- Controller `InternalAuthController`: [`src/modules/internal-users/internal-auth.controller.ts`](../../../../../src/modules/internal-users/internal-auth.controller.ts)
+- Controller `InternalUsersController`: [`src/modules/internal-users/internal-users.controller.ts`](../../../../../src/modules/internal-users/internal-users.controller.ts)
 
 ## Relaciones
 

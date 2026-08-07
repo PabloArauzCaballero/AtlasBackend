@@ -102,8 +102,8 @@ Roles que alcanzan este módulo: `internal_operator`, `risk_analyst`, `complianc
 
 ## Referencias al código
 
-- Módulo: [`src/modules/operations/operations.module.ts`](../../../../src/modules/operations/operations.module.ts)
-- Controller `OperationsController`: [`src/modules/operations/operations.controller.ts`](../../../../src/modules/operations/operations.controller.ts)
+- Módulo: [`src/modules/operations/operations.module.ts`](../../../../../src/modules/operations/operations.module.ts)
+- Controller `OperationsController`: [`src/modules/operations/operations.controller.ts`](../../../../../src/modules/operations/operations.controller.ts)
 
 ## Relaciones
 

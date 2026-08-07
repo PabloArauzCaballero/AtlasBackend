@@ -23,7 +23,7 @@ aliases:
 # `audit.schema_constraint_notes`
 
 > [!info] Verificado
-> Modelo ORM `SchemaConstraintNoteModel` en [`src/database/models/schema-constraint-notes.model.ts`](../../../../src/database/models/schema-constraint-notes.model.ts). Esquema físico `audit` resuelto por `atlasSchemaFor('schema_constraint_notes')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `SchemaConstraintNoteModel` en [`src/database/models/schema-constraint-notes.model.ts`](../../../../../src/database/models/schema-constraint-notes.model.ts). Esquema físico `audit` resuelto por `atlasSchemaFor('schema_constraint_notes')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -86,8 +86,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/schema-constraint-notes.model.ts`](../../../../src/database/models/schema-constraint-notes.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/schema-constraint-notes.model.ts`](../../../../../src/database/models/schema-constraint-notes.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

@@ -23,7 +23,7 @@ aliases:
 # `platform_ops.system_test_steps`
 
 > [!info] Verificado
-> Modelo ORM `SystemTestStepModel` en [`src/database/models/system-test-steps.model.ts`](../../../../src/database/models/system-test-steps.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('system_test_steps')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `SystemTestStepModel` en [`src/database/models/system-test-steps.model.ts`](../../../../../src/database/models/system-test-steps.model.ts). Esquema físico `platform_ops` resuelto por `atlasSchemaFor('system_test_steps')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -95,8 +95,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/system-test-steps.model.ts`](../../../../src/database/models/system-test-steps.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/system-test-steps.model.ts`](../../../../../src/database/models/system-test-steps.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 
 
 ## Relaciones de la bóveda

@@ -74,7 +74,7 @@ related: []
 46 endpoints de operación de plataforma: catálogos autodescriptivos del sistema, revisión, registro de acciones, pruebas y perfiles de estrés.
 
 > [!info] Verificado — la protección llega por un decorador compuesto
-> Estos controllers **no** declaran `@ApiTags`, `@UseGuards` ni `@Roles` de forma directa. Los aplica `@SystemsOpsControllerSecurity()` ([`src/modules/systems-ops/systems-controller.decorators.ts`](../../../../src/modules/systems-ops/systems-controller.decorators.ts)), que compone con `applyDecorators`:
+> Estos controllers **no** declaran `@ApiTags`, `@UseGuards` ni `@Roles` de forma directa. Los aplica `@SystemsOpsControllerSecurity()` ([`src/modules/systems-ops/systems-controller.decorators.ts`](../../../../../src/modules/systems-ops/systems-controller.decorators.ts)), que compone con `applyDecorators`:
 >
 > ```ts
 > ApiTags('systems-ops')
@@ -89,7 +89,7 @@ related: []
 
 `SYSTEMS_OPS_ROLES`: `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor`.
 
-El módulo además separa por superficie de acción — `SYSTEMS_OPS_GOVERNANCE_ROLES`, `SYSTEMS_OPS_QA_ROLES`, `SYSTEMS_OPS_STRESS_ROLES` — con la regla de que `readonly_auditor` **puede leer pero nunca escribir**. Ver [`systems-ops.constants.ts`](../../../../src/modules/systems-ops/systems-ops.constants.ts).
+El módulo además separa por superficie de acción — `SYSTEMS_OPS_GOVERNANCE_ROLES`, `SYSTEMS_OPS_QA_ROLES`, `SYSTEMS_OPS_STRESS_ROLES` — con la regla de que `readonly_auditor` **puede leer pero nunca escribir**. Ver [`systems-ops.constants.ts`](../../../../../src/modules/systems-ops/systems-ops.constants.ts).
 
 ## Endpoints
 
@@ -144,12 +144,12 @@ El módulo además separa por superficie de acción — `SYSTEMS_OPS_GOVERNANCE_
 
 ## Evidencia
 
-- [`src/modules/log-sync/mongo-logs.controller.ts`](../../../../src/modules/log-sync/mongo-logs.controller.ts)
-- [`src/modules/systems-ops/systems-action-log.controller.ts`](../../../../src/modules/systems-ops/systems-action-log.controller.ts)
-- [`src/modules/systems-ops/systems-catalog.controller.ts`](../../../../src/modules/systems-ops/systems-catalog.controller.ts)
-- [`src/modules/systems-ops/systems-review.controller.ts`](../../../../src/modules/systems-ops/systems-review.controller.ts)
-- [`src/modules/systems-ops/systems-stress.controller.ts`](../../../../src/modules/systems-ops/systems-stress.controller.ts)
-- [`src/modules/systems-ops/systems-test.controller.ts`](../../../../src/modules/systems-ops/systems-test.controller.ts)
+- [`src/modules/log-sync/mongo-logs.controller.ts`](../../../../../src/modules/log-sync/mongo-logs.controller.ts)
+- [`src/modules/systems-ops/systems-action-log.controller.ts`](../../../../../src/modules/systems-ops/systems-action-log.controller.ts)
+- [`src/modules/systems-ops/systems-catalog.controller.ts`](../../../../../src/modules/systems-ops/systems-catalog.controller.ts)
+- [`src/modules/systems-ops/systems-review.controller.ts`](../../../../../src/modules/systems-ops/systems-review.controller.ts)
+- [`src/modules/systems-ops/systems-stress.controller.ts`](../../../../../src/modules/systems-ops/systems-stress.controller.ts)
+- [`src/modules/systems-ops/systems-test.controller.ts`](../../../../../src/modules/systems-ops/systems-test.controller.ts)
 
 ## Relaciones
 

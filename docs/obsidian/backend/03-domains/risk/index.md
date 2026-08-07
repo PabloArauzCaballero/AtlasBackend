@@ -114,8 +114,8 @@ Roles que alcanzan este módulo: `customer`, `internal_operator`, `risk_analyst`
 
 ## Referencias al código
 
-- Módulo: [`src/modules/risk/risk.module.ts`](../../../../src/modules/risk/risk.module.ts)
-- Controller `RiskController`: [`src/modules/risk/risk.controller.ts`](../../../../src/modules/risk/risk.controller.ts)
+- Módulo: [`src/modules/risk/risk.module.ts`](../../../../../src/modules/risk/risk.module.ts)
+- Controller `RiskController`: [`src/modules/risk/risk.controller.ts`](../../../../../src/modules/risk/risk.controller.ts)
 
 ## Relaciones
 

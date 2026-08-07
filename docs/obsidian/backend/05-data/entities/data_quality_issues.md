@@ -23,7 +23,7 @@ aliases:
 # `audit.data_quality_issues`
 
 > [!info] Verificado
-> Modelo ORM `DataQualityIssueModel` en [`src/database/models/data-quality-issues.model.ts`](../../../../src/database/models/data-quality-issues.model.ts). Esquema físico `audit` resuelto por `atlasSchemaFor('data_quality_issues')` en [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts).
+> Modelo ORM `DataQualityIssueModel` en [`src/database/models/data-quality-issues.model.ts`](../../../../../src/database/models/data-quality-issues.model.ts). Esquema físico `audit` resuelto por `atlasSchemaFor('data_quality_issues')` en [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts).
 
 ## Identidad
 
@@ -89,8 +89,8 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 
 ## Evidencia y referencias
 
-- Modelo: [`src/database/models/data-quality-issues.model.ts`](../../../../src/database/models/data-quality-issues.model.ts)
-- Esquema: [`src/database/domain-schemas.ts`](../../../../src/database/domain-schemas.ts)
+- Modelo: [`src/database/models/data-quality-issues.model.ts`](../../../../../src/database/models/data-quality-issues.model.ts)
+- Esquema: [`src/database/domain-schemas.ts`](../../../../../src/database/domain-schemas.ts)
 - Relaciones: `src/database/migrations/20260626154103-schema-relationships-part-9-audit-quality.ts`
 
 ## Relaciones de la bóveda

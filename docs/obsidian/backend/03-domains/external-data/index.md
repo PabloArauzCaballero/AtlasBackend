@@ -194,16 +194,16 @@ Roles que alcanzan este módulo: `customer`, `internal_operator`, `risk_analyst`
 
 ## Referencias al código
 
-- Módulo: [`src/modules/external-data/external-data.module.ts`](../../../../src/modules/external-data/external-data.module.ts)
-- Controller `KycExternalDataController`: [`src/modules/external-data/controllers/kyc-bureau.controller.ts`](../../../../src/modules/external-data/controllers/kyc-bureau.controller.ts)
-- Controller `BureauExternalDataController`: [`src/modules/external-data/controllers/kyc-bureau.controller.ts`](../../../../src/modules/external-data/controllers/kyc-bureau.controller.ts)
-- Controller `PaymentsExternalDataController`: [`src/modules/external-data/controllers/payments-telco.controller.ts`](../../../../src/modules/external-data/controllers/payments-telco.controller.ts)
-- Controller `TelcoExternalDataController`: [`src/modules/external-data/controllers/payments-telco.controller.ts`](../../../../src/modules/external-data/controllers/payments-telco.controller.ts)
-- Controller `FacebookExternalDataController`: [`src/modules/external-data/controllers/social-trust.controller.ts`](../../../../src/modules/external-data/controllers/social-trust.controller.ts)
-- Controller `WhatsappExternalDataController`: [`src/modules/external-data/controllers/social-trust.controller.ts`](../../../../src/modules/external-data/controllers/social-trust.controller.ts)
-- Controller `DigitalTrustExternalDataController`: [`src/modules/external-data/controllers/social-trust.controller.ts`](../../../../src/modules/external-data/controllers/social-trust.controller.ts)
-- Controller `ExternalDataController`: [`src/modules/external-data/external-data.controller.ts`](../../../../src/modules/external-data/external-data.controller.ts)
-- Controller `AdminExternalProvidersController`: [`src/modules/external-data/external-data.controller.ts`](../../../../src/modules/external-data/external-data.controller.ts)
+- Módulo: [`src/modules/external-data/external-data.module.ts`](../../../../../src/modules/external-data/external-data.module.ts)
+- Controller `KycExternalDataController`: [`src/modules/external-data/controllers/kyc-bureau.controller.ts`](../../../../../src/modules/external-data/controllers/kyc-bureau.controller.ts)
+- Controller `BureauExternalDataController`: [`src/modules/external-data/controllers/kyc-bureau.controller.ts`](../../../../../src/modules/external-data/controllers/kyc-bureau.controller.ts)
+- Controller `PaymentsExternalDataController`: [`src/modules/external-data/controllers/payments-telco.controller.ts`](../../../../../src/modules/external-data/controllers/payments-telco.controller.ts)
+- Controller `TelcoExternalDataController`: [`src/modules/external-data/controllers/payments-telco.controller.ts`](../../../../../src/modules/external-data/controllers/payments-telco.controller.ts)
+- Controller `FacebookExternalDataController`: [`src/modules/external-data/controllers/social-trust.controller.ts`](../../../../../src/modules/external-data/controllers/social-trust.controller.ts)
+- Controller `WhatsappExternalDataController`: [`src/modules/external-data/controllers/social-trust.controller.ts`](../../../../../src/modules/external-data/controllers/social-trust.controller.ts)
+- Controller `DigitalTrustExternalDataController`: [`src/modules/external-data/controllers/social-trust.controller.ts`](../../../../../src/modules/external-data/controllers/social-trust.controller.ts)
+- Controller `ExternalDataController`: [`src/modules/external-data/external-data.controller.ts`](../../../../../src/modules/external-data/external-data.controller.ts)
+- Controller `AdminExternalProvidersController`: [`src/modules/external-data/external-data.controller.ts`](../../../../../src/modules/external-data/external-data.controller.ts)
 
 ## Relaciones
 

@@ -90,8 +90,8 @@ Roles que alcanzan este módulo: `customer`, `internal_operator`, `compliance_an
 
 ## Referencias al código
 
-- Módulo: [`src/modules/customer-privacy/customer-privacy.module.ts`](../../../../src/modules/customer-privacy/customer-privacy.module.ts)
-- Controller `CustomerPrivacyController`: [`src/modules/customer-privacy/customer-privacy.controller.ts`](../../../../src/modules/customer-privacy/customer-privacy.controller.ts)
+- Módulo: [`src/modules/customer-privacy/customer-privacy.module.ts`](../../../../../src/modules/customer-privacy/customer-privacy.module.ts)
+- Controller `CustomerPrivacyController`: [`src/modules/customer-privacy/customer-privacy.controller.ts`](../../../../../src/modules/customer-privacy/customer-privacy.controller.ts)
 
 ## Relaciones
 

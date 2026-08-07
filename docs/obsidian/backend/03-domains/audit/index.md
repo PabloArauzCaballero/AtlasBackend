@@ -99,8 +99,8 @@ Roles que alcanzan este módulo: `internal_operator`, `risk_analyst`, `complianc
 
 ## Referencias al código
 
-- Módulo: [`src/modules/audit/audit.module.ts`](../../../../src/modules/audit/audit.module.ts)
-- Controller `AuditController`: [`src/modules/audit/audit.controller.ts`](../../../../src/modules/audit/audit.controller.ts)
+- Módulo: [`src/modules/audit/audit.module.ts`](../../../../../src/modules/audit/audit.module.ts)
+- Controller `AuditController`: [`src/modules/audit/audit.controller.ts`](../../../../../src/modules/audit/audit.controller.ts)
 
 ## Relaciones
 
