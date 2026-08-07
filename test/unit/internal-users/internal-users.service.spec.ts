@@ -73,7 +73,7 @@ function makeTokenRevocationService(overrides: Record<string, unknown> = {}) {
   return {
     getCurrentTokenVersion: jest.fn(),
     bumpTokenVersion: jest.fn(),
-    bumpTokenVersionIfPresent: jest.fn(async () => 2),
+    bumpTokenVersionIfPresent: jest.fn(async (..._args: unknown[]) => 2),
     ...overrides,
   };
 }
@@ -238,7 +238,7 @@ describe('InternalUsersService security boundaries', () => {
       },
     }));
     const repository = makeRepository({ buildAccessProfile: nonPrivilegedProfile });
-    const tokenRevocationService = makeTokenRevocationService({ bumpTokenVersionIfPresent: jest.fn(async () => null) });
+    const tokenRevocationService = makeTokenRevocationService({ bumpTokenVersionIfPresent: jest.fn(async (..._args: unknown[]) => null) });
     const service = new InternalUsersService(repository as never, tokenRevocationService as never);
 
     await expect(
