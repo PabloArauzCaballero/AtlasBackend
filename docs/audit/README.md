@@ -1,6 +1,12 @@
 # Auditoría de producción — Atlas Backend
 
-Más reciente: [**auditoría integral — 2026-08-06**](./auditoria-integral-2026-08-06.md). Es la
+Más reciente: [**auditoría integral — 2026-08-07**](./auditoria-integral-2026-08-07.md). Recorre las
+rutas de ejecución (autorización efectiva por endpoint, caminos destructivos, degradación de
+controles de seguridad, transaccionalidad y disparadores de CI) con los gates ejecutados y su código
+de salida citado. Dos hallazgos Altos, ninguno solapado con los anteriores; además aporta evidencia
+nueva sobre `TEST-001` y retira un hallazgo propio al re-verificarlo contra el commit final.
+
+Anterior: [auditoría integral — 2026-08-06](./auditoria-integral-2026-08-06.md). Es la
 primera que **ejecuta** los gates en vez de solo leer el código, así que es la que responde
 «¿esto se puede desplegar?» con evidencia y no con inferencia. Incluye el
 [manifiesto de huérfanos](./orphans/orphan-manifest.md) y los logs de la corrida
