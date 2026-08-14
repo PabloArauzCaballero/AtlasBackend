@@ -81,11 +81,22 @@ export class DataNotebookDatasetService {
 
     return this.readQuery.select<Record<string, unknown>>(
       `SELECT * FROM ${this.relation(shape)}
-        WHERE ${quoteIdentifier(shape.tenantColumn)} = :tenantId
+        ${this.tenantFilter(shape)}
         ${orderClause}
         LIMIT :limit OFFSET :offset`,
       { tenantId, limit: query.pageSize, offset },
     );
+  }
+
+  /**
+   * El filtro de inquilino, o nada en un dataset de plataforma.
+   *
+   * `:tenantId` se sigue pasando aunque la cláusula no exista: un parámetro de más es inocuo y
+   * quitar la clave del objeto según la forma de la consulta era una segunda cosa que mantener
+   * sincronizada con la primera.
+   */
+  private tenantFilter(shape: DatasetShape): string {
+    return shape.tenantColumn ? `WHERE ${quoteIdentifier(shape.tenantColumn)} = :tenantId` : '';
   }
 
   /**
@@ -100,7 +111,7 @@ export class DataNotebookDatasetService {
     const rows = await this.readQuery.select<CountRow>(
       `SELECT count(*) AS total
          FROM (SELECT 1 FROM ${this.relation(shape)}
-                WHERE ${quoteIdentifier(shape.tenantColumn)} = :tenantId
+                ${this.tenantFilter(shape)}
                 LIMIT :ceiling) AS bounded`,
       { tenantId, ceiling: DATA_NOTEBOOK_LIMITS.countCeiling },
     );

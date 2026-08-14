@@ -23,6 +23,21 @@ export const DATA_NOTEBOOK_ROLES: readonly AtlasUserRole[] = [
  */
 export const DATA_NOTEBOOK_REVEAL_ROLES: readonly AtlasUserRole[] = ['platform_admin'];
 
+/**
+ * A quién pertenecen las filas de un dataset.
+ *
+ * `TENANT` se acota por la columna de inquilino y NO se sirve si esa columna falta: entregarlo
+ * sin acotar sería dar datos de otras organizaciones. `PLATFORM` describe la plataforma misma
+ * —la salud de los proveedores externos, el catálogo técnico de endpoints— y no tiene inquilino
+ * porque no habla de los clientes de nadie.
+ *
+ * Se DECLARA aquí y no se deduce de si la vista tiene la columna. La diferencia importa: dedujera
+ * lo que dedujera, una vista de clientes a la que una migración le quitara `tenant_id` pasaría en
+ * silencio de «acotada» a «todas las filas». Declarado, ese mismo caso se queda sin servir y
+ * alguien tiene que venir a cambiar esta línea a mano.
+ */
+export type NotebookDatasetScope = 'TENANT' | 'PLATFORM';
+
 export type NotebookDataset = {
   /** Identificador estable que viaja por la API y que el código del cuaderno usa para cargar. */
   code: string;
@@ -30,6 +45,7 @@ export type NotebookDataset = {
   view: string;
   label: string;
   description: string;
+  scope: NotebookDatasetScope;
 };
 
 /**
@@ -53,42 +69,51 @@ export const NOTEBOOK_DATASETS: readonly NotebookDataset[] = [
     view: 'v_customer_overview_v1',
     label: 'Panorama de clientes',
     description: 'Una fila por cliente con su estado, consentimientos, casos abiertos y última evaluación de riesgo.',
+    scope: 'TENANT',
   },
   {
     code: 'risk-assessment-summary',
     view: 'v_risk_assessment_summary_v1',
     label: 'Resumen de evaluaciones de riesgo',
     description: 'Corridas de evaluación con su desenlace, puntaje y motivo.',
+    scope: 'TENANT',
   },
   {
     code: 'operations-work-queue',
     view: 'v_operations_work_queue_v1',
     label: 'Cola de trabajo de operaciones',
     description: 'Revisiones manuales abiertas por prioridad y antigüedad.',
+    scope: 'TENANT',
   },
   {
     code: 'provider-health-latest',
     view: 'v_provider_health_latest_v1',
     label: 'Salud de proveedores',
     description: 'Último estado observado de cada proveedor externo.',
+    // Salud de proveedores externos: describe la plataforma, no a los clientes de nadie.
+    scope: 'PLATFORM',
   },
   {
     code: 'notification-delivery-summary',
     view: 'v_notification_delivery_summary_v1',
     label: 'Entrega de notificaciones',
     description: 'Envíos por canal y desenlace de entrega.',
+    scope: 'TENANT',
   },
   {
     code: 'system-endpoint-coverage',
     view: 'v_system_endpoint_coverage_v1',
     label: 'Cobertura de endpoints',
     description: 'Catálogo técnico de endpoints con su cobertura de pruebas y revisión.',
+    // Catalogo tecnico del propio backend: describe la plataforma, no a sus clientes.
+    scope: 'PLATFORM',
   },
   {
     code: 'audit-event-feed',
     view: 'v_audit_event_feed_v1',
     label: 'Bitácora de auditoría',
     description: 'Eventos de auditoría en orden cronológico inverso.',
+    scope: 'TENANT',
   },
 ];
 

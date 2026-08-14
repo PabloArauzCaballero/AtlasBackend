@@ -5,19 +5,14 @@
  */
 import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ReadQueryService } from '../../common/database/read-query.service.js';
-import {
-  NOTEBOOK_DATASETS,
-  NOTEBOOK_SCHEMA,
-  NOTEBOOK_TENANT_COLUMNS,
-  NotebookDataset,
-} from './data-notebook.constants.js';
+import { NOTEBOOK_DATASETS, NOTEBOOK_SCHEMA, NOTEBOOK_TENANT_COLUMNS, NotebookDataset } from './data-notebook.constants.js';
 
 export type DatasetShape = {
   dataset: NotebookDataset;
   /** Columnas reales de la vista, en el orden en que las declara. */
   columns: { name: string; dataType: string }[];
-  /** Columna por la que se acota el inquilino. */
-  tenantColumn: string;
+  /** Columna por la que se acota el inquilino, o `null` en un dataset de plataforma. */
+  tenantColumn: string | null;
 };
 
 type ColumnRow = { column_name: string; data_type: string };
@@ -73,18 +68,26 @@ export class DataNotebookCatalogService {
     }
 
     const columns = rows.map((row) => ({ name: row.column_name, dataType: row.data_type }));
-    const tenantColumn = NOTEBOOK_TENANT_COLUMNS.find((candidate) => columns.some((column) => column.name === candidate));
+    const tenantColumn = NOTEBOOK_TENANT_COLUMNS.find((candidate) => columns.some((column) => column.name === candidate)) ?? null;
 
-    if (!tenantColumn) {
-      // Servir la vista sin acotar por inquilino sería entregar datos de otras organizaciones. Se
-      // prefiere que el dataset NO esté disponible: un cuaderno con una vista menos es un defecto
-      // visible, y una fuga entre inquilinos no lo es hasta que alguien la encuentra.
+    if (dataset.scope === 'TENANT' && !tenantColumn) {
+      // El dataset se DECLARÓ por inquilino y la vista no publica por dónde acotarlo: servirlo
+      // sería entregar datos de otras organizaciones. Se prefiere que no esté disponible — un
+      // cuaderno con una vista menos es un defecto visible, y una fuga entre inquilinos no lo es
+      // hasta que alguien la encuentra.
       throw new ServiceUnavailableException(
-        `La vista ${NOTEBOOK_SCHEMA}.${dataset.view} no publica una columna de inquilino (${NOTEBOOK_TENANT_COLUMNS.join(' o ')}), así que no se puede acotar y no se sirve.`,
+        `El dataset «${dataset.code}» se declaró por inquilino, pero ${NOTEBOOK_SCHEMA}.${dataset.view} no publica ` +
+          `${NOTEBOOK_TENANT_COLUMNS.join(' ni ')}. No se sirve hasta que alguien decida por escrito si es de plataforma.`,
       );
     }
 
-    const shape: DatasetShape = { dataset, columns, tenantColumn };
+    const shape: DatasetShape = {
+      dataset,
+      columns,
+      // Un dataset de plataforma se sirve entero A PROPÓSITO, y por eso ignora la columna aunque
+      // exista: lo que decide es la declaración del catálogo, no lo que la vista tenga ese día.
+      tenantColumn: dataset.scope === 'TENANT' ? tenantColumn : null,
+    };
     this.shapes.set(code, shape);
     return shape;
   }
