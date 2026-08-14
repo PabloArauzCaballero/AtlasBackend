@@ -10,6 +10,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import Redis from 'ioredis';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { CommonAuthModule } from './common/common-auth.module.js';
+import { FilesModule } from './common/files/files.module.js';
 import { ResilienceModule } from './common/resilience/resilience.module.js';
 import { REDIS_CLIENT, RedisModule } from './common/redis/redis.module.js';
 import { RedisThrottlerStorage } from './common/throttler/redis-throttler-storage.js';
@@ -31,6 +32,8 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { CatalogManagementModule } from './modules/catalog-management/catalog-management.module.js';
 import { ConsentsModule } from './modules/consents/consents.module.js';
 import { CreditModule } from './modules/credit/credit.module.js';
+import { DecisionEngineModule } from './modules/decision-engine/decision-engine.module.js';
+import { LoansModule } from './modules/loans/loans.module.js';
 import { CustomerOnboardingModule } from './modules/customer-onboarding/customer-onboarding.module.js';
 import { CustomerPrivacyModule } from './modules/customer-privacy/customer-privacy.module.js';
 import { CustomerTelemetryModule } from './modules/customer-telemetry/customer-telemetry.module.js';
@@ -49,6 +52,7 @@ import { SessionsModule } from './modules/sessions/sessions.module.js';
 import { SchemaManagementModule } from './modules/schema-management/schema-management.module.js';
 import { InternalPortalModule } from './modules/internal-portal/internal-portal.module.js';
 import { LogSyncModule } from './modules/log-sync/log-sync.module.js';
+import { DataNotebookModule } from './modules/data-notebook/data-notebook.module.js';
 import { WorkflowCatalogModule } from './modules/workflow-catalog/workflow-catalog.module.js';
 import { env } from './config/env.js';
 
@@ -58,6 +62,7 @@ import { env } from './config/env.js';
     RedisModule,
     LifecycleModule,
     ResilienceModule,
+    FilesModule,
     ObservabilityModule,
     CommonAuthModule,
     // En producción, REDIS_URL mantiene el contador de rate limit compartido entre instancias.
@@ -82,6 +87,8 @@ import { env } from './config/env.js';
     CustomersModule,
     CustomerOnboardingModule,
     CreditModule,
+    DecisionEngineModule,
+    LoansModule,
     CustomerPrivacyModule,
     CustomerTelemetryModule,
     ConsentsModule,
@@ -97,6 +104,7 @@ import { env } from './config/env.js';
     InternalPortalModule,
     LogSyncModule,
     WorkflowCatalogModule,
+    DataNotebookModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
