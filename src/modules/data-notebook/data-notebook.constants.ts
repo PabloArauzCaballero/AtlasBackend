@@ -133,4 +133,22 @@ export const DATA_NOTEBOOK_LIMITS = {
   countCeiling: 200_000,
   /** Cargas de dataset por minuto y usuario. */
   ratePerMinute: 60,
+  /**
+   * Techo en BYTES de las filas que viajan en una respuesta.
+   *
+   * El techo por filas no basta, y la diferencia es de dos órdenes de magnitud: `pageSize` cuenta
+   * filas, pero una fila de la bitácora de auditoría con su carga JSON pesa cien veces lo que una
+   * de la cola de operaciones. Las mismas quinientas filas son decenas de KB en un dataset y
+   * decenas de MB en otro — y ese segundo caso no lo aguanta el navegador, que además tiene que
+   * meterlas dentro del intérprete de Python.
+   *
+   * Se recorta por filas ENTERAS y se DICE que se recortó: media fila serializada no es JSON, y
+   * una respuesta truncada en silencio produce un análisis sobre una muestra que nadie eligió,
+   * que es peor que un error.
+   */
+  maxResponseBytes: 8 * 1024 * 1024,
+  /** Longitud máxima del código que se guarda en el historial. */
+  maxHistorySourceLength: 20_000,
+  /** Entradas de historial que se devuelven de una vez. */
+  historyPageSize: 50,
 } as const;

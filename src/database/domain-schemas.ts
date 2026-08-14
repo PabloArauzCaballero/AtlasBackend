@@ -101,7 +101,18 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'catalog_entries',
     'context_seed_import_checkpoints',
   ],
-  [ATLAS_SCHEMAS.CREDIT]: ['credit_products', 'credit_applications', 'credit_application_events'],
+  [ATLAS_SCHEMAS.CREDIT]: [
+    'credit_products',
+    'credit_applications',
+    'credit_application_events',
+    'loans',
+    'loan_installments',
+    'loan_payments',
+    'loan_payment_allocations',
+    'loan_events',
+    'loan_outcome_reports',
+    'decision_subject_links',
+  ],
   [ATLAS_SCHEMAS.RISK]: [
     'feature_definitions',
     'feature_computation_runs',
@@ -163,6 +174,8 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'system_test_runs',
     'system_test_step_runs',
     'system_action_logs',
+    // Historial del cuaderno de datos: guarda el CÓDIGO de cada celda y nunca su resultado.
+    'data_notebook_query_history',
     'system_stress_profiles',
     'system_domain_catalog',
     'system_endpoint_payload_contracts',

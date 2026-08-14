@@ -127,6 +127,7 @@ import {
   SystemTestStepModel,
   SystemTestRunModel,
   SystemTestStepRunModel,
+  DataNotebookQueryHistoryModel,
   SystemActionLogModel,
   SystemStressProfileModel,
   SystemDomainCatalogModel,
@@ -141,8 +142,10 @@ import {
   WorkflowStepDependencyModel,
   WorkflowTransitionModel,
 } from './models/index.js';
+import { LOAN_BOOK_MODELS } from './loan-book-models.js';
 
 export const databaseModels = [
+  ...LOAN_BOOK_MODELS,
   TenantModel,
   PlatformUserModel,
   InternalUserModel,
@@ -261,6 +264,7 @@ export const databaseModels = [
   SystemTestStepModel,
   SystemTestRunModel,
   SystemTestStepRunModel,
+  DataNotebookQueryHistoryModel,
   SystemActionLogModel,
   SystemStressProfileModel,
   SystemDomainCatalogModel,

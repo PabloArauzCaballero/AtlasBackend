@@ -8,6 +8,7 @@ import { ReadQueryService } from '../../common/database/read-query.service.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { DataNotebookCatalogService, DatasetShape } from './data-notebook-catalog.service.js';
 import { applyColumnPolicies, describeColumns, NotebookColumnDescriptor } from './data-notebook-masking.js';
+import { recortarPorTamano } from './data-notebook-size.js';
 import { DATA_NOTEBOOK_LIMITS, DATA_NOTEBOOK_REVEAL_ROLES, NOTEBOOK_SCHEMA } from './data-notebook.constants.js';
 
 export type DatasetPageQuery = {
@@ -28,6 +29,10 @@ export type DatasetPage = {
   totalIsExact: boolean;
   /** Si alguna columna viaja enmascarada, y por tanto no sirve para comparar valores exactos. */
   masked: boolean;
+  /** Bytes que ocupan las filas servidas, ya recortadas si hizo falta. */
+  bytes: number;
+  /** Filas que el techo de bytes dejó fuera de esta página. Cero cuando cupo entera. */
+  droppedRows: number;
 };
 
 type CountRow = { total: string | number };
@@ -56,15 +61,21 @@ export class DataNotebookDatasetService {
       this.countRows(shape, tenantId),
     ]);
 
+    // El recorte va DESPUÉS de enmascarar: lo que se mide tiene que ser lo que se manda, y una
+    // máscara cambia el tamaño del valor.
+    const servidas = recortarPorTamano(applyColumnPolicies(rows, columns));
+
     return {
       dataset: { code: shape.dataset.code, label: shape.dataset.label, view: shape.dataset.view },
       columns,
-      rows: applyColumnPolicies(rows, columns),
+      rows: servidas.rows,
       page: query.page,
       pageSize,
       total: total.value,
       totalIsExact: total.exact,
       masked: columns.some((column) => column.policy !== 'PLAIN'),
+      bytes: servidas.bytes,
+      droppedRows: servidas.droppedRows,
     };
   }
 

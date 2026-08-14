@@ -3,22 +3,27 @@
  * @business Esta pieza abre los datos gobernados al análisis sin dejar que nadie los altere ni los extraiga en claro.
  * @system publica el catálogo de datasets del cuaderno y sus páginas de datos.
  */
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
-import { zodObjectPropertySchemas } from '../../common/openapi/zod-to-schema.util.js';
+import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { DataNotebookCatalogService } from './data-notebook-catalog.service.js';
 import { DataNotebookDatasetService } from './data-notebook-dataset.service.js';
+import { DataNotebookHistoryService } from './data-notebook-history.service.js';
 import { describeColumns } from './data-notebook-masking.js';
 import { DATA_NOTEBOOK_LIMITS, DATA_NOTEBOOK_REVEAL_ROLES, DATA_NOTEBOOK_ROLES } from './data-notebook.constants.js';
 import {
   notebookDatasetParamsSchema,
   NotebookDatasetParamsDto,
+  notebookHistoryEntrySchema,
+  NotebookHistoryEntryDto,
+  notebookHistoryQuerySchema,
+  NotebookHistoryQueryDto,
   notebookRowsQuerySchema,
   NotebookRowsQueryDto,
 } from './data-notebook.schemas.js';
@@ -26,12 +31,16 @@ import {
 const rowsQueryProperties = zodObjectPropertySchemas(notebookRowsQuerySchema);
 
 /**
- * La superficie del cuaderno es de LECTURA y de tres verbos, todos GET.
+ * Aquí no se ejecuta código, y el único POST tampoco lo hace.
  *
- * No hay endpoint que ejecute código: el Python y el JavaScript del cuaderno corren en el
- * navegador de quien los escribe (Pyodide y un Web Worker), nunca aquí. Es lo que hace que abrir
- * un cuaderno de análisis no añada al backend una superficie de ejecución remota, que es
- * exactamente el riesgo que suele traer consigo una herramienta con esta forma.
+ * El Python y el JavaScript del cuaderno corren en el navegador de quien los escribe (Pyodide y
+ * un Web Worker), nunca aquí: abrir un cuaderno de análisis no le añade al backend una superficie
+ * de ejecución remota, que es exactamente el riesgo que suele traer una herramienta con esta forma.
+ *
+ * `POST /history` recibe el TEXTO de una celda para guardarlo y jamás lo interpreta. Es la
+ * distinción que hay que tener presente al tocar este archivo: si algún día alguien añade aquí un
+ * `eval`, un `spawn` o una llamada a un ejecutor, la propiedad de arriba deja de ser cierta y toda
+ * la arquitectura del módulo —que se apoya en ella— pasa a estar mal argumentada.
  */
 @ApiTags('data-notebook')
 @ApiBearerAuth('access-token')
@@ -42,6 +51,7 @@ export class DataNotebookController {
   constructor(
     private readonly catalog: DataNotebookCatalogService,
     private readonly datasets: DataNotebookDatasetService,
+    private readonly history: DataNotebookHistoryService,
   ) {}
 
   @ApiOperation({ summary: 'Listar los datasets gobernados que el cuaderno puede cargar' })
@@ -76,6 +86,27 @@ export class DataNotebookController {
       dataset: shape.dataset,
       columns: shape.columns.map((column, index) => ({ ...column, ...policies[index] })),
     };
+  }
+
+  @ApiOperation({ summary: 'Registrar en el historial una celda ejecutada (nunca su resultado)' })
+  @ApiBody({ schema: zodToApiSchema(notebookHistoryEntrySchema) })
+  @ApiResponse({ status: 201, description: 'Entrada registrada.' })
+  @Post('history')
+  recordHistory(
+    @Body(new ZodValidationPipe(notebookHistoryEntrySchema)) body: NotebookHistoryEntryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.history.record(body, user);
+  }
+
+  @ApiOperation({ summary: 'Listar el historial PROPIO de consultas del cuaderno' })
+  @ApiResponse({ status: 200, description: 'Últimas celdas ejecutadas por quien pregunta.' })
+  @Get('history')
+  listHistory(
+    @Query(new ZodValidationPipe(notebookHistoryQuerySchema)) query: NotebookHistoryQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.history.listOwn(user, query.limit);
   }
 
   @ApiOperation({ summary: 'Leer una página de un dataset, acotada por inquilino y enmascarada' })

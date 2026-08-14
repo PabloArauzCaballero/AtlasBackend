@@ -32,3 +32,38 @@ export const notebookRowsQuerySchema = z.object({
 });
 
 export type NotebookRowsQueryDto = z.infer<typeof notebookRowsQuerySchema>;
+
+/**
+ * Lo que se registra de una celda ejecutada. Fíjate en lo que NO está.
+ *
+ * No hay campo para las filas devueltas, ni lo habrá: el historial existe para saber qué se
+ * preguntó, y guardar además lo obtenido lo convertiría en una segunda copia de datos personales
+ * fuera de `read_api`, sin enmascarado y sin caducidad. Al no declararse aquí, un cliente que las
+ * mandara por su cuenta se las encuentra descartadas en el borde — `.strict()` rechaza la
+ * petición en vez de guardar lo que nadie pidió guardar.
+ */
+export const notebookHistoryEntrySchema = z
+  .object({
+    language: z.enum(['python', 'javascript']),
+    source: z.string().trim().min(1).max(DATA_NOTEBOOK_LIMITS.maxHistorySourceLength),
+    datasetCode: z
+      .string()
+      .trim()
+      .max(64)
+      .regex(/^[a-z0-9-]+$/)
+      .optional(),
+    datasetPage: z.coerce.number().int().min(1).optional(),
+    rowCount: z.coerce.number().int().min(0).optional(),
+    durationMs: z.coerce.number().int().min(0).optional(),
+    status: z.enum(['ok', 'error']),
+    errorMessage: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export type NotebookHistoryEntryDto = z.infer<typeof notebookHistoryEntrySchema>;
+
+export const notebookHistoryQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(DATA_NOTEBOOK_LIMITS.historyPageSize).default(DATA_NOTEBOOK_LIMITS.historyPageSize),
+});
+
+export type NotebookHistoryQueryDto = z.infer<typeof notebookHistoryQuerySchema>;
