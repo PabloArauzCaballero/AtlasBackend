@@ -3,13 +3,13 @@
  * @business Esta pieza deja consultar los datos gobernados sin poder alterarlos ni extraer credenciales.
  * @system valida y ejecuta una consulta de solo lectura sobre read_api, enmascarando la PII.
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { QueryTypes } from 'sequelize';
 import { ReadQueryService } from '../../common/database/read-query.service.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { applyColumnPolicies, describeColumns } from '../data-notebook/data-notebook-masking.js';
 import { guardSqlStatement, SqlViolation } from './sql-statement-guard.js';
-import { SQL_CONSOLE_LIMITS, SQL_CONSOLE_REVEAL_ROLES, SQL_CONSOLE_SCHEMAS } from './sql-console.constants.js';
+import { SQL_CONSOLE_LIMITS, SQL_CONSOLE_REVEAL_ROLES } from './sql-console.constants.js';
 
 export type QueryEstimate = {
   estimatedRows: number;
@@ -34,6 +34,8 @@ type PlanRow = { 'QUERY PLAN': Array<{ Plan: { 'Total Cost': number; 'Plan Rows'
 
 @Injectable()
 export class SqlConsoleQueryService {
+  private esquemasCache: string[] | null = null;
+
   constructor(private readonly readQuery: ReadQueryService) {}
 
   /**
@@ -63,9 +65,21 @@ export class SqlConsoleQueryService {
   async execute(statement: string, user: AuthenticatedUser): Promise<QueryResult> {
     const verdict = guardSqlStatement(statement);
     if (!verdict.ok) {
-      const error = new Error(verdict.violations[0].message);
-      error.name = verdict.violations[0].code;
-      throw error;
+      /*
+       * Se lanza una excepcion de DOMINIO, no un Error pelado.
+       *
+       * Con un `Error` corriente Nest respondia 500 «Error interno no controlado», y el mensaje
+       * exacto del guard —«esta relacion guarda credenciales», «la palabra DELETE no se admite»—
+       * moria en el camino. Quien escribia la consulta veia un fallo del servidor y no sabia que
+       * habia sido rechazado ni por que: exactamente el «obliga a adivinar» que el guard existe
+       * para evitar. Ademas un 500 es mentira — la peticion se entendio perfectamente y se decidio
+       * no atenderla, que es 422.
+       */
+      throw new UnprocessableEntityException({
+        code: verdict.violations[0].code,
+        message: verdict.violations[0].message,
+        violations: verdict.violations,
+      });
     }
 
     const iniciado = Date.now();
@@ -109,10 +123,18 @@ export class SqlConsoleQueryService {
       await sequelize.query(`SET LOCAL statement_timeout = ${SQL_CONSOLE_LIMITS.timeoutMs}`, {
         transaction: transaccion,
       });
-      // El `search_path` lleva los esquemas abiertos y NADA más: un nombre sin calificar sólo
-      // puede resolver dentro de ellos, así que `FROM auth_credentials` no encuentra nada aunque
-      // el guard fallara. Se compone de la constante, no de la entrada del usuario.
-      await sequelize.query(`SET LOCAL search_path = ${SQL_CONSOLE_SCHEMAS.join(', ')}`, {
+      /*
+       * El `search_path` se DERIVA de los esquemas que existen, igual que el catalogo.
+       *
+       * Estaba escrito a mano y el catalogo ya no: un esquema nuevo aparecia en el explorador y sus
+       * tablas no resolvian sin calificar, con un «relation does not exist» que culpa a quien
+       * escribe la consulta de un desajuste entre dos listas que deberian ser una.
+       *
+       * Se compone del catalogo del servidor y nunca de la entrada del usuario, y los esquemas del
+       * sistema siguen fuera: un nombre sin calificar sigue sin poder resolver a `pg_catalog`.
+       */
+      const esquemas = await this.esquemasDisponibles();
+      await sequelize.query(`SET LOCAL search_path = ${esquemas.join(', ')}`, {
         transaction: transaccion,
       });
 
@@ -129,6 +151,23 @@ export class SqlConsoleQueryService {
       await transaccion.rollback();
       throw error;
     }
+  }
+
+  /**
+   * Los esquemas consultables, preguntados a Postgres y cacheados por proceso.
+   *
+   * Se entrecomillan porque un esquema puede llamarse como una palabra reservada, y el nombre sale
+   * del catalogo del servidor — nunca de la peticion — asi que la interpolacion es segura.
+   */
+  private async esquemasDisponibles(): Promise<string[]> {
+    if (this.esquemasCache) return this.esquemasCache;
+    const filas = await this.readQuery.select<{ nspname: string }>(
+      `SELECT nspname FROM pg_namespace
+        WHERE nspname NOT LIKE 'pg_%' AND nspname <> 'information_schema'
+        ORDER BY nspname`,
+    );
+    this.esquemasCache = filas.map((fila) => `"${fila.nspname.replace(/"/g, '""')}"`);
+    return this.esquemasCache;
   }
 
   private async explain(statement: string): Promise<QueryEstimate> {
