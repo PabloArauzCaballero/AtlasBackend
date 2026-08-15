@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { ReadQueryService } from '../../common/database/read-query.service.js';
-import { SQL_CONSOLE_LIMITS, SQL_CONSOLE_SCHEMAS, SQL_FORBIDDEN_RELATIONS } from './sql-console.constants.js';
+import { SQL_CONSOLE_LIMITS, SQL_FORBIDDEN_RELATIONS } from './sql-console.constants.js';
 
 export type CatalogColumn = { name: string; kind: string; description: string };
 export type CatalogTable = { name: string; description: string; grain: string; columns: CatalogColumn[] };
@@ -40,6 +40,23 @@ const DESCRIPCIONES: Readonly<Record<string, string>> = {
 
 const PROHIBIDAS = new Set<string>(SQL_FORBIDDEN_RELATIONS);
 
+/** Cuánto vive el catálogo en memoria antes de volver a preguntarle a Postgres. */
+const TTL_CATALOGO_MS = 60_000;
+
+/**
+ * Los esquemas se DESCUBREN; no hay lista que mantener.
+ *
+ * Tenerla escrita a mano significaba que una migración podía crear un esquema —o una vista dentro
+ * de uno nuevo— y la consola no lo vería hasta que alguien se acordara de añadirlo aquí. Ese
+ * «alguien se acuerda» es exactamente lo que falla: el catálogo publicaba una superficie que ya no
+ * era la real y nadie se enteraba, porque una vista que falta no da error, simplemente no está.
+ *
+ * Lo que sí queda escrito es lo que NUNCA se sirve: los esquemas del sistema y las relaciones con
+ * credenciales (`SQL_FORBIDDEN_RELATIONS`). Es la asimetría correcta — descubrir lo que hay,
+ * declarar lo que se niega — porque un descuido en la lista de negados es una fuga, y un descuido
+ * en una lista de permitidos sólo era una vista que no aparecía.
+ */
+
 /**
  * El catálogo se DESCUBRE contra `information_schema`, no se escribe a mano.
  *
@@ -56,26 +73,31 @@ const PROHIBIDAS = new Set<string>(SQL_FORBIDDEN_RELATIONS);
 @Injectable()
 export class SqlConsoleCatalogService {
   private cache: CatalogDataset[] | null = null;
+  private cacheExpiraEn = 0;
 
   constructor(private readonly readQuery: ReadQueryService) {}
 
   async datasets(): Promise<CatalogDataset[]> {
-    if (this.cache) return this.cache;
+    // La cache caduca en vez de vivir para siempre. Con una cache eterna, una vista nueva no
+    // aparecia hasta reiniciar el proceso: quien la creaba la veia en Postgres y no en la consola,
+    // y concluia que la migracion no habia corrido. Un minuto es invisible para quien usa la
+    // pantalla y suficiente para no interrogar al catalogo en cada tecla.
+    if (this.cache && Date.now() < this.cacheExpiraEn) return this.cache;
 
     const [relaciones, columnas] = await Promise.all([
       this.readQuery.select<RelacionRow>(
         `SELECT table_schema, table_name, table_type
            FROM information_schema.tables
-          WHERE table_schema = ANY(:schemas)
+          WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+            AND table_schema NOT LIKE 'pg_%'
           ORDER BY table_schema, table_name`,
-        { schemas: [...SQL_CONSOLE_SCHEMAS] },
       ),
       this.readQuery.select<ColumnaRow>(
         `SELECT table_schema, table_name, column_name, data_type
            FROM information_schema.columns
-          WHERE table_schema = ANY(:schemas)
+          WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+            AND table_schema NOT LIKE 'pg_%'
           ORDER BY table_schema, table_name, ordinal_position`,
-        { schemas: [...SQL_CONSOLE_SCHEMAS] },
       ),
     ]);
 
@@ -121,6 +143,7 @@ export class SqlConsoleCatalogService {
       if (b.name === 'read_api') return 1;
       return a.name.localeCompare(b.name);
     });
+    this.cacheExpiraEn = Date.now() + TTL_CATALOGO_MS;
     return this.cache;
   }
 
