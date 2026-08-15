@@ -37,33 +37,44 @@ export async function up({ context: queryInterface }: MigrationContext): Promise
    */
   await queryInterface.sequelize.query(`
     CREATE OR REPLACE VIEW read_api.v_risk_vintage_performance_v1 AS
+    WITH base AS (
+      SELECT l.*,
+        (EXTRACT(YEAR FROM age(now(), l.disbursed_at)) * 12
+         + EXTRACT(MONTH FROM age(now(), l.disbursed_at)))::int AS mob
+      FROM credit.loans l
+      WHERE l._deleted = false AND l.disbursed_at IS NOT NULL
+    )
     SELECT
-      l._tenant_id                                             AS tenant_id,
-      date_trunc('month', l.disbursed_at)::date                AS cosecha,
-      l.credit_product_id                                      AS credit_product_id,
-      count(*)                                                 AS creditos,
-      sum(l.principal_amount)                                  AS monto_desembolsado,
-      sum(l.outstanding_principal)                             AS saldo_vivo,
-      count(*) FILTER (WHERE l.days_past_due >= 30)            AS creditos_mora_30,
-      count(*) FILTER (WHERE l.days_past_due >= 90)            AS creditos_mora_90,
-      count(*) FILTER (WHERE l.written_off_at IS NOT NULL)     AS creditos_castigados,
-      sum(l.written_off_amount)                                AS monto_castigado,
-      -- Tasas con su denominador al lado, nunca solas. \`NULLIF\` deja NULL una cosecha vacia en
-      -- vez de dividir por cero y publicar un cero que se leeria como «sin mora».
-      round(count(*) FILTER (WHERE l.days_past_due >= 30)::numeric
-            / NULLIF(count(*), 0) * 100, 2)                    AS tasa_mora_30_pct,
-      round(count(*) FILTER (WHERE l.days_past_due >= 90)::numeric
-            / NULLIF(count(*), 0) * 100, 2)                    AS tasa_mora_90_pct,
-      -- Meses en libros: sin esto, dos cosechas de distinta edad no son comparables.
+      b._tenant_id                                      AS tenant_id,
+      date_trunc('month', b.disbursed_at)::date         AS cosecha,
+      b.credit_product_id                               AS credit_product_id,
+      count(*)                                          AS creditos,
+      sum(b.principal_amount)                           AS monto_desembolsado,
+      sum(b.outstanding_principal)                      AS saldo_vivo,
+      count(*) FILTER (WHERE b.days_past_due >= 30)     AS creditos_mora_30,
+      count(*) FILTER (WHERE b.days_past_due >= 90)     AS creditos_mora_90,
+      count(*) FILTER (WHERE b.written_off_at IS NOT NULL) AS creditos_castigados,
+      sum(b.written_off_amount)                         AS monto_castigado,
+      -- La foto de HOY. Util para operar, pero NO comparable entre cosechas.
+      round(count(*) FILTER (WHERE b.days_past_due >= 30)::numeric
+            / NULLIF(count(*), 0) * 100, 2)             AS tasa_mora_30_pct,
+      round(count(*) FILTER (WHERE b.days_past_due >= 90)::numeric
+            / NULLIF(count(*), 0) * 100, 2)             AS tasa_mora_90_pct,
+      min(b.mob)                                        AS meses_en_libros,
+      count(*) FILTER (WHERE b.mob >= 6)                AS creditos_mob6,
+      -- La que SI compara cosechas, y es la razon de ser de un analisis de vintage.
       --
-      -- \`min(disbursed_at)\` y no la columna a secas: aunque el GROUP BY agrupe por
-      -- \`date_trunc('month', disbursed_at)\`, Postgres no reconoce la expresion repetida dentro de
-      -- otra funcion y exige un agregado. Dentro del grupo todas las filas caen en el mismo mes,
-      -- asi que el minimo ES la cosecha.
-      round(EXTRACT(EPOCH FROM (now() - date_trunc('month', min(l.disbursed_at)))) / 2592000)::int
-                                                               AS meses_en_libros
-    FROM credit.loans l
-    WHERE l._deleted = false AND l.disbursed_at IS NOT NULL
+      -- Fija la ventana en 6 meses en libros y mira \`worst_days_past_due\` —alguna vez en mora—
+      -- en vez del estado de hoy. Sin fijar la ventana, la cosecha vieja siempre parece peor y no
+      -- se sabe si fue peor originacion o solo mas tiempo para deteriorarse: es la confusion que
+      -- lleva a apretar la politica por un dato que no dice lo que parece.
+      --
+      -- Una cosecha con menos de 6 meses devuelve NULL, no 0: no ha tenido ocasion de caer, y un
+      -- cero ahi se leeria como una cosecha impecable.
+      CASE WHEN count(*) FILTER (WHERE b.mob >= 6) = 0 THEN NULL
+           ELSE round(count(*) FILTER (WHERE b.mob >= 6 AND b.worst_days_past_due >= 30)::numeric
+                      / count(*) FILTER (WHERE b.mob >= 6) * 100, 2) END AS tasa_mora_30_mob6_pct
+    FROM base b
     GROUP BY 1, 2, 3
   `);
 
