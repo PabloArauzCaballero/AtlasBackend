@@ -124,7 +124,8 @@
     "docs:install": "pip install -r docs/requirements.txt",
     "docs:serve": "python -m mkdocs serve",
     "docs:build": "python -m mkdocs build --strict",
-    "docs:validate": "yarn docs:openapi && yarn check:openapi && yarn docs:openapi:lint && yarn docs:build"
+    "docs:validate": "yarn docs:openapi && yarn check:openapi && yarn docs:openapi:lint && yarn docs:build",
+    "check:read-api-honesty": "tsx scripts/check-read-api-honesty.ts"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1101.0",
