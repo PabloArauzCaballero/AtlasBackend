@@ -9,7 +9,7 @@ import { ReadQueryService } from '../../common/database/read-query.service.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { applyColumnPolicies, describeColumns } from '../data-notebook/data-notebook-masking.js';
 import { guardSqlStatement, SqlViolation } from './sql-statement-guard.js';
-import { SQL_CONSOLE_LIMITS, SQL_CONSOLE_REVEAL_ROLES, SQL_CONSOLE_SCHEMA } from './sql-console.constants.js';
+import { SQL_CONSOLE_LIMITS, SQL_CONSOLE_REVEAL_ROLES, SQL_CONSOLE_SCHEMAS } from './sql-console.constants.js';
 
 export type QueryEstimate = {
   estimatedRows: number;
@@ -109,7 +109,10 @@ export class SqlConsoleQueryService {
       await sequelize.query(`SET LOCAL statement_timeout = ${SQL_CONSOLE_LIMITS.timeoutMs}`, {
         transaction: transaccion,
       });
-      await sequelize.query(`SET LOCAL search_path = ${SQL_CONSOLE_SCHEMA}, pg_catalog`, {
+      // El `search_path` lleva los esquemas abiertos y NADA más: un nombre sin calificar sólo
+      // puede resolver dentro de ellos, así que `FROM auth_credentials` no encuentra nada aunque
+      // el guard fallara. Se compone de la constante, no de la entrada del usuario.
+      await sequelize.query(`SET LOCAL search_path = ${SQL_CONSOLE_SCHEMAS.join(', ')}`, {
         transaction: transaccion,
       });
 

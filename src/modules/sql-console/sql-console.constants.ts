@@ -22,8 +22,41 @@ export const SQL_CONSOLE_ROLES: readonly AtlasUserRole[] = [
 /** Quién puede ver los valores SIN enmascarar. */
 export const SQL_CONSOLE_REVEAL_ROLES: readonly AtlasUserRole[] = ['platform_admin', 'admin'];
 
-/** Esquema ÚNICO que la consola puede leer. */
-export const SQL_CONSOLE_SCHEMA = 'read_api';
+/**
+ * Esquemas que la consola puede leer.
+ *
+ * `read_api` va primero porque es la superficie versionada y ya desidentificada — la que alguien
+ * debería usar salvo que sepa por qué necesita otra cosa. Los demás son el modelo real, y están
+ * aquí porque una consola que sólo enseña siete vistas sobre una base de 158 relaciones no sirve
+ * para responder las preguntas por las que se abre.
+ *
+ * Es una lista y no «todo lo que no sea del sistema»: `pg_catalog` y `pg_toast` quedan fuera, y un
+ * esquema nuevo no entra solo — alguien tiene que añadirlo aquí, que es donde se mira al preguntar
+ * qué expone esta consola.
+ *
+ * Abrir el modelo real tiene un coste que conviene tener presente: en `read_api` la
+ * desidentificación está hecha a propósito y versionada, mientras que en las tablas base el
+ * enmascarado depende de la heurística por nombre de columna. Las credenciales no dependen de esa
+ * heurística —van por nombre exacto en `SQL_FORBIDDEN_RELATIONS`, que es una lista aparte
+ * justamente para que ampliar los esquemas no las arrastre—, pero un campo personal con un nombre
+ * inesperado sí podría pasar en claro.
+ */
+export const SQL_CONSOLE_SCHEMAS = [
+  'read_api',
+  'customer',
+  'credit',
+  'risk',
+  'case_management',
+  'privacy',
+  'telemetry',
+  'catalog',
+  'iam',
+  'audit',
+  'integrations',
+  'messaging',
+  'platform_ops',
+  'public',
+] as const;
 
 /** Sentencias con las que una consulta puede empezar. */
 export const SQL_ALLOWED_LEADING_KEYWORDS = ['select', 'with', 'table', 'values'] as const;
@@ -107,11 +140,21 @@ export const SQL_FORBIDDEN_FUNCTIONS = [
 ] as const;
 
 /**
- * Relaciones que nunca se sirven.
+ * Relaciones que nunca se sirven, ni se listan en el catálogo.
  *
- * `pg_authid` y `pg_shadow` guardan el hash de las contraseñas de la propia base; `pg_statistic`
- * publica los valores más comunes de cada columna, que para una tabla de documentos de identidad
- * ES el dato. Un SELECT sobre ellas no es diagnóstico: es extracción.
+ * Dos familias. Las del catálogo de Postgres: `pg_authid` y `pg_shadow` guardan el hash de las
+ * contraseñas de la propia base, y `pg_statistic` publica los valores más comunes de cada columna
+ * —que para una tabla de documentos de identidad ES el dato—.
+ *
+ * Y las de ATLAS, que entraron en juego al abrir la consola al modelo real: `iam.auth_credentials`
+ * guarda las contraseñas, `iam.auth_refresh_tokens` las sesiones vivas y `messaging.device_tokens`
+ * los identificadores de envío a dispositivo. Un SELECT sobre cualquiera de ellas no es un
+ * diagnóstico: es una extracción de credenciales, y con los refresh tokens es además una
+ * suplantación.
+ *
+ * Van por NOMBRE y no por heurística de columna a propósito: el enmascarado adivina por el nombre
+ * del campo y podría fallar; esta lista no adivina. Se comprobó contra la base qué relaciones de
+ * los esquemas abiertos llevan credenciales, en vez de suponerlo.
  */
 export const SQL_FORBIDDEN_RELATIONS = [
   'pg_authid',
@@ -120,6 +163,9 @@ export const SQL_FORBIDDEN_RELATIONS = [
   'pg_user_mappings',
   'pg_largeobject',
   'pg_stat_statements',
+  'auth_credentials',
+  'auth_refresh_tokens',
+  'device_tokens',
 ] as const;
 
 export const SQL_CONSOLE_LIMITS = {
