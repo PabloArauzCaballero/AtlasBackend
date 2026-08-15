@@ -53,6 +53,7 @@ import { SchemaManagementModule } from './modules/schema-management/schema-manag
 import { InternalPortalModule } from './modules/internal-portal/internal-portal.module.js';
 import { LogSyncModule } from './modules/log-sync/log-sync.module.js';
 import { DataNotebookModule } from './modules/data-notebook/data-notebook.module.js';
+import { SqlConsoleModule } from './modules/sql-console/sql-console.module.js';
 import { WorkflowCatalogModule } from './modules/workflow-catalog/workflow-catalog.module.js';
 import { env } from './config/env.js';
 
@@ -105,6 +106,7 @@ import { env } from './config/env.js';
     LogSyncModule,
     WorkflowCatalogModule,
     DataNotebookModule,
+    SqlConsoleModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

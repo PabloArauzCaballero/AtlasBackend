@@ -26,6 +26,6 @@ import { DataNotebookController } from './data-notebook.controller.js';
   imports: [SequelizeModule.forFeature([DataNotebookQueryHistoryModel])],
   controllers: [DataNotebookController],
   providers: [DataNotebookCatalogService, DataNotebookDatasetService, DataNotebookHistoryService],
-  exports: [DataNotebookCatalogService],
+  exports: [DataNotebookCatalogService, DataNotebookHistoryService],
 })
 export class DataNotebookModule {}

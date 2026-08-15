@@ -44,7 +44,10 @@ export type NotebookRowsQueryDto = z.infer<typeof notebookRowsQuerySchema>;
  */
 export const notebookHistoryEntrySchema = z
   .object({
-    language: z.enum(['python', 'javascript']),
+    // 'sql' entra aqui porque la consola SQL guarda en la MISMA tabla: partir el historial en dos
+    // obligaria a quien audite a acordarse de mirar en dos sitios, y el dia que se olvide veria la
+    // mitad de lo que se consulto.
+    language: z.enum(['python', 'javascript', 'sql']),
     source: z.string().trim().min(1).max(DATA_NOTEBOOK_LIMITS.maxHistorySourceLength),
     datasetCode: z
       .string()
