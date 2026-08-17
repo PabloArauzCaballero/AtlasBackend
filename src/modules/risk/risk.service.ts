@@ -13,7 +13,13 @@ import { CustomersRepository } from '../customers/customers.repository.js';
 // `RISK_RULESET_VERSION` ya no se importa aquí: la versión del ruleset la resuelve
 // `RiskPolicyDecisionService`, que es quien decide si la evaluación vino del ruleset persistido o
 // del fallback heurístico. Dejarlo importado hacía creer que este servicio todavía la usaba.
-import { RISK_MODEL_CODE, RISK_MODEL_VERSION } from './risk-heuristic-v0.constants.js';
+import {
+  openAssessmentRun,
+  openManualReviewCase,
+  recordDecisionEvidence,
+  type AssessmentSubject,
+} from './application/risk-assessment-persistence.js';
+import { resolveModelIdentity } from './application/risk-model-identity.js';
 import { RiskPolicyDecisionService } from './application/risk-policy-decision.service.js';
 import { toPolicyFeatures } from './application/risk-policy-features.js';
 import { buildHeuristicFallback, computeHeuristicScores, toPersistedFeatureMap } from './application/risk-heuristic-scoring.js';
@@ -24,6 +30,64 @@ import { CreateRiskAssessmentDto } from './risk.schemas.js';
 
 function toScore(value: number): string {
   return Math.max(0, Math.min(100, value)).toFixed(2);
+}
+
+/**
+ * A quién y en qué contexto se está evaluando.
+ *
+ * Se arma una sola vez y viaja completo a cada escritura: la corrida, el snapshot y el resultado
+ * comparten esta identidad, y construirla por separado en cada sitio es como una fila acaba
+ * apuntando a una sesión y su vecina a ninguna.
+ */
+function toAssessmentSubject(input: {
+  tenantId: string;
+  customerId: string;
+  body: CreateRiskAssessmentDto;
+  idempotencyKey: string;
+}): AssessmentSubject {
+  return {
+    tenantId: input.tenantId,
+    customerId: input.customerId,
+    sessionId: input.body.sessionId ?? null,
+    deviceId: input.body.deviceId ?? null,
+    assessmentType: input.body.assessmentType,
+    channel: input.body.channel,
+    idempotencyKey: input.idempotencyKey,
+  };
+}
+
+/**
+ * Lo que el consumidor necesita para actuar: qué sigue y por qué, en su idioma y no en el del modelo.
+ *
+ * `fraudRiskLevel` se deriva del puntaje en vez de publicarlo: el número exacto es precisamente lo
+ * que no se le enseña a quien está siendo evaluado, porque conocerlo permite ajustar el siguiente
+ * intento hasta quedar justo por encima del umbral.
+ */
+function decisionOutcomeFields(decision: string, fraudScore: number, reasons: readonly string[]) {
+  return {
+    fraudRiskLevel: fraudScore >= 70 ? 'high' : fraudScore >= 40 ? 'medium' : 'low',
+    nextStep: decision === 'manual_review_required' ? 'manual_review' : 'continue_onboarding',
+    reasons: reasons.map((code) => ({ code, message: code.replaceAll('_', ' ') })),
+  };
+}
+
+/**
+ * Las siete columnas de puntaje de la fila de resultado.
+ *
+ * Se construyen juntas porque se escriben juntas: una fila con el total actualizado y una dimensión
+ * del cálculo anterior no falla al insertarse, simplemente deja de sumar — y el desglose que un
+ * analista abre para entender la decisión deja de corresponder con el puntaje que la produjo.
+ */
+function dimensionScoreColumns(scores: ReturnType<typeof computeHeuristicScores>) {
+  return {
+    scoreTotal: toScore(scores.totalScore),
+    fraudScore: toScore(scores.fraudScore),
+    identityScore: toScore(scores.identityScore),
+    deviceRiskScore: toScore(scores.deviceScore),
+    behaviorScore: toScore(scores.behaviorScore),
+    contactabilityScore: toScore(scores.contactScore),
+    consistencyScore: toScore(scores.consistencyScore),
+  };
 }
 
 @Injectable()
@@ -51,16 +115,15 @@ export class RiskService {
     return result ? toRiskAssessmentResultResponse(result) : null;
   }
 
-  async createRiskAssessment(input: {
-    tenantId: string;
-    customerId: string;
-    body: CreateRiskAssessmentDto;
-    currentUser: AuthenticatedUser;
-    idempotencyKey: string;
-  }) {
-    if (!input.idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
-    assertOwnCustomerResource(input.currentUser, input.customerId);
-
+  /**
+   * Comprueba que el cliente pueda evaluarse y reúne las señales con las que se le va a evaluar.
+   *
+   * Las dos puertas van aquí y no en el cálculo porque son de ADMISIÓN: un cliente bloqueado o sin
+   * consentimiento vigente no produce un puntaje bajo, no produce puntaje ninguno. Evaluarlo igual y
+   * descartar el resultado después dejaría escritas features de alguien que no autorizó su
+   * tratamiento, que es precisamente lo que el consentimiento existe para impedir.
+   */
+  private async gatherRiskSignals(input: { tenantId: string; customerId: string; body: CreateRiskAssessmentDto }) {
     const customer = await this.customersRepository.findById(input.tenantId, input.customerId);
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
     if (customer.lifecycleStatus === 'blocked') {
@@ -82,14 +145,30 @@ export class RiskService {
     const verifiedContactCount = contacts.filter((contact) => contact.status === 'verified').length;
     const hasIdentity = identities.length > 0;
     const scores = computeHeuristicScores({ hasIdentity, verifiedContactCount, hasDevice: Boolean(input.body.deviceId) });
-    const { identityScore, contactScore, deviceScore, behaviorScore, consistencyScore, fraudScore, totalScore, riskLevel, missing } =
-      scores;
+
+    return { hasGrantedConsent, hasIdentity, verifiedContactCount, scores };
+  }
+
+  async createRiskAssessment(input: {
+    tenantId: string;
+    customerId: string;
+    body: CreateRiskAssessmentDto;
+    currentUser: AuthenticatedUser;
+    idempotencyKey: string;
+  }) {
+    if (!input.idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
+    assertOwnCustomerResource(input.currentUser, input.customerId);
 
     const now = new Date();
+    const { hasGrantedConsent, hasIdentity, verifiedContactCount, scores } = await this.gatherRiskSignals(input);
+    const { identityScore, contactScore, fraudScore, totalScore, riskLevel, missing } = scores;
 
     const policy = await this.policyDecisionService.resolve({
+      tenantId: input.tenantId,
+      customerId: input.customerId,
       assessmentType: input.body.assessmentType,
       now,
+      idempotencyKey: input.idempotencyKey,
       // Se difunden los puntajes en vez de enumerarlos: `toPolicyFeatures` ya declara qué campos
       // consume, y repetir la lista aquí garantizaba que al añadir una dimensión al modelo se
       // olvidara en este punto — el sitio donde su ausencia es más difícil de notar.
@@ -98,162 +177,66 @@ export class RiskService {
     });
     const decision = policy.decision;
     const reasons = policy.reasons;
+    const modelIdentity = resolveModelIdentity(policy);
 
     return this.sequelize.transaction(async (transaction) => {
-      const featureRun = await this.riskRepository.createFeatureComputationRun(
-        {
-          tenantId: input.tenantId,
-          customerId: input.customerId,
-          sessionId: input.body.sessionId ?? null,
-          deviceId: input.body.deviceId ?? null,
-          runReason: input.body.assessmentType,
-          triggerSource: input.body.channel,
-          idempotencyKey: input.idempotencyKey,
-          now,
-        },
-        { transaction },
-      );
-
       const featureMap = toPersistedFeatureMap(scores, { hasGrantedConsent, verifiedContactCount, hasIdentity });
-      for (const [featureCode, value] of Object.entries(featureMap)) {
-        await this.riskRepository.createFeatureValue(
-          {
-            tenantId: input.tenantId,
-            computationRunId: String(featureRun.id),
-            customerId: input.customerId,
-            sessionId: input.body.sessionId ?? null,
-            deviceId: input.body.deviceId ?? null,
-            featureCode,
-            valueNumber: typeof value === 'number' ? value.toFixed(4) : null,
-            valueBoolean: typeof value === 'boolean' ? value : null,
-            valueText: null,
-            valueJson: null,
-            now,
-          },
-          { transaction },
-        );
-      }
+      const subject = toAssessmentSubject(input);
+      const { run, snapshot } = await openAssessmentRun({
+        repository: this.riskRepository,
+        subject,
+        featureMap,
+        missing,
+        requestedLimitContext: input.body.requestedLimitContext,
+        now,
+        transaction,
+      });
 
-      const snapshot = await this.riskRepository.createFeatureSnapshot(
-        {
-          tenantId: input.tenantId,
-          customerId: input.customerId,
-          deviceId: input.body.deviceId ?? null,
-          sessionId: input.body.sessionId ?? null,
-          featuresJson: featureMap,
-          missingFeaturesJson: { missing },
-          integrityHash: sha256Hex(JSON.stringify(featureMap)),
-          now,
-        },
-        { transaction },
-      );
-
-      const run = await this.riskRepository.createRiskAssessmentRun(
-        {
-          tenantId: input.tenantId,
-          customerId: input.customerId,
-          sessionId: input.body.sessionId ?? null,
-          deviceId: input.body.deviceId ?? null,
-          featureSnapshotId: String(snapshot.id),
-          assessmentType: input.body.assessmentType,
-          triggerSource: input.body.channel,
-          idempotencyKey: input.idempotencyKey,
-          now,
-        },
-        { transaction },
-      );
-      await this.riskRepository.attachSnapshotToRun(snapshot, String(run.id), { transaction });
-      await this.riskRepository.createRiskAssessmentContext(
-        {
-          tenantId: input.tenantId,
-          riskAssessmentRunId: String(run.id),
-          contextPayloadHash: sha256Hex(JSON.stringify(input.body.requestedLimitContext ?? {})),
-          now,
-        },
-        { transaction },
-      );
-
-      for (const reason of reasons) {
-        await this.riskRepository.createRuleFired(
-          {
-            tenantId: input.tenantId,
-            riskAssessmentRunId: String(run.id),
-            ruleCode: reason,
-            riskDimension: reason.includes('identity') ? 'identity' : 'onboarding',
-            outputAction: decision,
-            reasonCode: reason,
-            severity: decision === 'manual_review_required' ? 'medium' : 'low',
-            isHardStop: false,
-            inputValues: featureMap,
-            rulesetVersionCode: policy.rulesetVersionCode,
-            now,
-          },
-          { transaction },
-        );
-      }
-
-      await this.riskRepository.createContribution(
-        {
-          tenantId: input.tenantId,
-          riskAssessmentRunId: String(run.id),
-          featureCode: 'identity_and_contact_readiness',
-          rawValue: { hasIdentity, verifiedContactCount },
-          scorePoints: toScore((identityScore + contactScore) / 2),
-          reasonCode: hasIdentity && verifiedContactCount > 0 ? 'positive_readiness' : 'missing_onboarding_data',
-          now,
-        },
-        { transaction },
-      );
+      await recordDecisionEvidence({
+        repository: this.riskRepository,
+        tenantId: input.tenantId,
+        runId: String(run.id),
+        reasons,
+        decision,
+        featureMap,
+        rulesetVersionCode: policy.rulesetVersionCode,
+        readiness: { hasIdentity, verifiedContactCount, scorePoints: toScore((identityScore + contactScore) / 2) },
+        now,
+        transaction,
+      });
 
       const result = await this.riskRepository.createRiskResult(
         {
-          tenantId: input.tenantId,
+          ...subject,
           runId: String(run.id),
-          customerId: input.customerId,
-          sessionId: input.body.sessionId ?? null,
-          deviceId: input.body.deviceId ?? null,
-          assessmentType: input.body.assessmentType,
           recommendedAction: decision,
           riskLevel,
-          scoreTotal: toScore(totalScore),
-          fraudScore: toScore(fraudScore),
-          identityScore: toScore(identityScore),
-          deviceRiskScore: toScore(deviceScore),
-          behaviorScore: toScore(behaviorScore),
-          contactabilityScore: toScore(contactScore),
-          consistencyScore: toScore(consistencyScore),
+          ...dimensionScoreColumns(scores),
           reasonCodes: { reasons },
           featureSnapshotId: String(snapshot.id),
           integrityHash: sha256Hex(`${run.id}:${decision}:${totalScore}`),
-          modelVersionCode: RISK_MODEL_VERSION,
+          // La fila persistida guarda la versión del modelo que decidió, no una constante: es la
+          // copia que se consultará dentro de meses, cuando ya nadie recuerde qué escalón resolvió.
+          modelVersionCode: modelIdentity.modelVersion,
           rulesetVersionCode: policy.rulesetVersionCode,
           now,
         },
         { transaction },
       );
 
-      let manualReviewCaseId: string | null = null;
-      if (decision !== 'approved_for_next_step') {
-        const manualCase = await this.riskRepository.createManualReviewCase(
-          {
-            tenantId: input.tenantId,
-            customerId: input.customerId,
-            riskAssessmentRunId: String(run.id),
-            priority: riskLevel === 'high' ? 'high' : 'medium',
-            caseType: 'risk_assessment_review',
-            notes: `Revisión requerida: ${reasons.join(', ')}`,
-            now,
-          },
-          { transaction },
-        );
-        manualReviewCaseId = String(manualCase.id);
-        for (const missingCode of missing) {
-          await this.riskRepository.createDataQualityIssue(
-            { tenantId: input.tenantId, targetRecordId: input.customerId, issueCode: `missing_${missingCode}`, now },
-            { transaction },
-          );
-        }
-      }
+      const manualReviewCaseId = await openManualReviewCase({
+        repository: this.riskRepository,
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        runId: String(run.id),
+        decision,
+        riskLevel,
+        reasons,
+        missing,
+        now,
+        transaction,
+      });
+
       await this.riskRepository.createAudit(
         {
           tenantId: input.tenantId,
@@ -272,12 +255,12 @@ export class RiskService {
         riskAssessmentResultId: String(result.id),
         decision,
         riskLevel,
-        fraudRiskLevel: fraudScore >= 70 ? 'high' : fraudScore >= 40 ? 'medium' : 'low',
         manualReviewCaseId,
-        nextStep: decision === 'manual_review_required' ? 'manual_review' : 'continue_onboarding',
-        reasons: reasons.map((code) => ({ code, message: code.replaceAll('_', ' ') })),
-        modelCode: RISK_MODEL_CODE,
-        modelVersion: RISK_MODEL_VERSION,
+        ...decisionOutcomeFields(decision, fraudScore, reasons),
+        // El modelo que se publica es el que DE VERDAD decidió (`risk-model-identity.ts`).
+        ...modelIdentity,
+        decisionSource: policy.decisionSource,
+        decisionExecutionId: policy.decisionExecutionId,
         rulesetVersion: policy.rulesetVersionCode,
       };
     });

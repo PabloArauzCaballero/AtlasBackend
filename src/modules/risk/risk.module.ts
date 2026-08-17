@@ -28,6 +28,7 @@ import {
   WatchlistMatchModel,
 } from '../../database/models/index.js';
 import { CustomersModule } from '../customers/customers.module.js';
+import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { RiskController } from './risk.controller.js';
 import { RiskPolicyDecisionService } from './application/risk-policy-decision.service.js';
 import { RiskPolicyRepository } from './repositories/risk-policy.repository.js';
@@ -59,6 +60,9 @@ import { RiskService } from './risk.service.js';
       CustomerIdentityDocumentModel,
     ]),
     CustomersModule,
+    // La evaluación de riesgo consulta primero al motor de políticas versionadas; `risk_heuristic_v0`
+    // pasa a ser el último recurso, que es el lugar que su propio autor le asignó.
+    DecisionEngineModule,
   ],
   controllers: [RiskController],
   providers: [RiskRepository, RiskPolicyRepository, RiskPolicyDecisionService, RiskService],

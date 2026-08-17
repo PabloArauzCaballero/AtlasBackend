@@ -111,7 +111,10 @@ export class SqlConsoleController {
   @ApiResponse({ status: 200, description: 'Últimas consultas de quien pregunta.' })
   @Get('history')
   async historial(@Query(new ZodValidationPipe(historyQuerySchema)) query: HistoryQueryDto, @CurrentUser() user: AuthenticatedUser) {
-    const filas = await this.history.listOwn(user, query.limit);
+    // `listOwn` devuelve ahora la página y su total, porque el cuaderno pagina su historial. Aquí
+    // sólo interesan las filas: esta consola filtra por lenguaje DESPUÉS de leerlas, así que su
+    // total tampoco coincidiría con lo que acaba enseñando.
+    const { rows: filas } = await this.history.listOwn(user, query.limit);
     return {
       entries: filas
         .filter((fila) => fila.language === 'sql')

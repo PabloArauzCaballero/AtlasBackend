@@ -11,7 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
-| [`commands-baseline.log`](./commands-baseline.log) | Artefacto de soporte específico de esta carpeta. |
+| [`live-exploit-2026-08-06.md`](./live-exploit-2026-08-06.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 
 ## Reglas de mantenimiento
 

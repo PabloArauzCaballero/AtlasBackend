@@ -57,6 +57,7 @@
 | [`data-quality-issues.model.ts`](./data-quality-issues.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`data-quality-rules.model.ts`](./data-quality-rules.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`data-subject-requests.model.ts`](./data-subject-requests.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`decision-subject-links.model.ts`](./decision-subject-links.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`device-risk-events.model.ts`](./device-risk-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`device-snapshots.model.ts`](./device-snapshots.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`device-tokens.model.ts`](./device-tokens.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
@@ -85,6 +86,12 @@
 | [`internal-user-roles.model.ts`](./internal-user-roles.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`internal-users.model.ts`](./internal-users.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`ip-reputation-observations.model.ts`](./ip-reputation-observations.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`loan-events.model.ts`](./loan-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`loan-installments.model.ts`](./loan-installments.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`loan-outcome-reports.model.ts`](./loan-outcome-reports.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`loan-payment-allocations.model.ts`](./loan-payment-allocations.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`loan-payments.model.ts`](./loan-payments.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`loans.model.ts`](./loans.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`manual-review-cases.model.ts`](./manual-review-cases.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`manual-review-events.model.ts`](./manual-review-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`notification-deliveries.model.ts`](./notification-deliveries.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |

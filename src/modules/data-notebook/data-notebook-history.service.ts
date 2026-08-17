@@ -72,24 +72,46 @@ export class DataNotebookHistoryService {
    * tener acceso al cuaderno. Si algún día hace falta —una investigación, una auditoría— se añade
    * con su propio permiso y su propio registro, no ensanchando éste.
    */
-  async listOwn(user: AuthenticatedUser, limit: number): Promise<NotebookHistoryRow[]> {
-    const filas = await this.model.findAll({
-      where: { tenantId: user.tenantId ?? null, actorUserId: user.sub },
-      order: [['created_at', 'DESC']],
+  /**
+   * Una página del historial, con el TOTAL de lo que hay detrás.
+   *
+   * El total no es un adorno de la interfaz: sin él, una lista que devuelve veinte filas no puede
+   * distinguir «esto es todo lo que hay» de «hay ciento ochenta más», y la pantalla tendría que
+   * elegir entre ofrecer un «siguiente» que a veces no lleva a ninguna parte o esconderlo cuando sí
+   * había más. Se cuenta con el MISMO `where` que se lista, en una sola ida a la base
+   * (`findAndCountAll`), porque contar con otro criterio produciría una paginación que se pasa de
+   * largo o se queda corta.
+   */
+  async listOwn(user: AuthenticatedUser, limit: number, offset = 0): Promise<{ rows: NotebookHistoryRow[]; total: number }> {
+    const where = { tenantId: user.tenantId ?? null, actorUserId: user.sub };
+    const { rows: filas, count } = await this.model.findAndCountAll({
+      where,
+      // El desempate por `id` es lo que hace estable la paginación. Ordenando sólo por fecha, dos
+      // ejecuciones registradas en el mismo milisegundo —dos celdas corridas de seguido— pueden
+      // salir en distinto orden en cada consulta, y entonces una fila aparece en dos páginas o no
+      // aparece en ninguna.
+      order: [
+        ['created_at', 'DESC'],
+        ['id', 'DESC'],
+      ],
       limit,
+      offset,
     });
 
-    return filas.map((fila) => ({
-      id: String(fila.id),
-      language: fila.language,
-      source: fila.source,
-      datasetCode: fila.datasetCode,
-      datasetPage: fila.datasetPage,
-      rowCount: fila.rowCount,
-      durationMs: fila.durationMs,
-      status: fila.status,
-      errorMessage: fila.errorMessage,
-      createdAt: fila.createdAt.toISOString(),
-    }));
+    return {
+      total: count,
+      rows: filas.map((fila) => ({
+        id: String(fila.id),
+        language: fila.language,
+        source: fila.source,
+        datasetCode: fila.datasetCode,
+        datasetPage: fila.datasetPage,
+        rowCount: fila.rowCount,
+        durationMs: fila.durationMs,
+        status: fila.status,
+        errorMessage: fila.errorMessage,
+        createdAt: fila.createdAt.toISOString(),
+      })),
+    };
   }
 }

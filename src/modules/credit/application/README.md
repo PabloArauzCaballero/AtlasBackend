@@ -15,6 +15,7 @@
 | [`credit-decision.service.ts`](./credit-decision.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`credit-product-eligibility.ts`](./credit-product-eligibility.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`credit-product.service.ts`](./credit-product.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`credit-underwriting.service.ts`](./credit-underwriting.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento
 

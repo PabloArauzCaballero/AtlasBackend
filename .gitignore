@@ -30,3 +30,7 @@ artifacts/
 scripts/smoke/smoke-results.json
 scripts/smoke/*.results.json
 scripts/smoke/results/
+
+# Archivos subidos por el adaptador de almacenamiento local (FILE_STORAGE_LOCAL_ROOT). Son datos de
+# clientes generados en runtime: nunca deben entrar al repositorio.
+var/

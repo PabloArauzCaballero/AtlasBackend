@@ -9,6 +9,8 @@ import { hashPassword, isPasswordStrongEnough } from '../../common/utils/crypto/
 import { parsePositiveId } from '../../common/utils/ids/id.util.js';
 import { buildPaginationMeta, PaginationInput, PaginationMeta } from '../../common/utils/pagination/pagination.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
+import { AuthSecondFactorService } from '../auth/auth-second-factor.service.js';
+import { withEffectiveSecondFactor } from './internal-profile-second-factor.js';
 import { INTERNAL_ROLE_CODES, legacyRoleForInternalRoles } from './internal-rbac.seed-data.js';
 import { InternalRbacRepository } from './internal-rbac.repository.js';
 import { CreateInternalUserDto, ReplaceInternalUserRolesDto, UpdateInternalUserDto } from './internal-users.schemas.js';
@@ -73,7 +75,13 @@ export class InternalUsersService {
   constructor(
     private readonly rbacRepository: InternalRbacRepository,
     private readonly tokenRevocationService: TokenRevocationService,
+    private readonly secondFactor: AuthSecondFactorService,
   ) {}
+
+  /** Ver `internal-profile-second-factor.ts`: se informa el estado efectivo, no la columna. */
+  private withSecondFactor<T extends InternalAccessProfile>(profile: T): T {
+    return withEffectiveSecondFactor(profile, this.secondFactor.isRequired('internal_user', {}));
+  }
 
   async getMyProfile(currentUser: AuthenticatedUser): Promise<InternalAccessProfile> {
     const actor = assertInternalActor(currentUser);
@@ -82,7 +90,7 @@ export class InternalUsersService {
       throw new UnauthorizedException('El usuario interno ya no está activo.');
     }
 
-    return this.rbacRepository.buildAccessProfile(user);
+    return this.withSecondFactor(await this.rbacRepository.buildAccessProfile(user));
   }
 
   async listUsers(
@@ -94,14 +102,15 @@ export class InternalUsersService {
     // Batch: una sola query de roles/permisos para toda la página en vez de una por usuario
     // (antes, `Promise.all(users.map(buildAccessProfile))` disparaba hasta `limit` round trips).
     const profiles = await this.rbacRepository.buildAccessProfiles(rows);
-    return { items: profiles.map((profile) => profile.user), meta: buildPaginationMeta(pagination, total) };
+    const items = profiles.map((profile) => this.withSecondFactor(profile).user);
+    return { items, meta: buildPaginationMeta(pagination, total) };
   }
 
   async getUser(currentUser: AuthenticatedUser, internalUserId: string): Promise<InternalAccessProfile> {
     const actor = assertInternalActor(currentUser);
     const user = await this.rbacRepository.findUserById(actor.tenantId, parsePositiveId(internalUserId, 'internalUserId'));
     if (!user) throw new NotFoundException('Usuario interno no encontrado.');
-    return this.rbacRepository.buildAccessProfile(user);
+    return this.withSecondFactor(await this.rbacRepository.buildAccessProfile(user));
   }
 
   async createUser(

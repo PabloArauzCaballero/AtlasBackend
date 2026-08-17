@@ -72,6 +72,8 @@
 | [`20260728090000-add-customer-lifecycle-state-machine-and-eligibility.ts`](./20260728090000-add-customer-lifecycle-state-machine-and-eligibility.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260728120000-create-credit-products-and-applications.ts`](./20260728120000-create-credit-products-and-applications.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260728140000-create-workflow-catalog.ts`](./20260728140000-create-workflow-catalog.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260811090000-create-loan-book.ts`](./20260811090000-create-loan-book.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260811100000-link-credit-applications-to-decision-engine.ts`](./20260811100000-link-credit-applications-to-decision-engine.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 
 ## Reglas de mantenimiento
 

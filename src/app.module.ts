@@ -32,6 +32,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { CatalogManagementModule } from './modules/catalog-management/catalog-management.module.js';
 import { ConsentsModule } from './modules/consents/consents.module.js';
 import { CreditModule } from './modules/credit/credit.module.js';
+import { CreditRatingModule } from './modules/credit-rating/credit-rating.module.js';
 import { DecisionEngineModule } from './modules/decision-engine/decision-engine.module.js';
 import { LoansModule } from './modules/loans/loans.module.js';
 import { CustomerOnboardingModule } from './modules/customer-onboarding/customer-onboarding.module.js';
@@ -90,6 +91,7 @@ import { env } from './config/env.js';
     CreditModule,
     DecisionEngineModule,
     LoansModule,
+    CreditRatingModule,
     CustomerPrivacyModule,
     CustomerTelemetryModule,
     ConsentsModule,

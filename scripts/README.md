@@ -25,6 +25,7 @@
 | [`check-openapi-contract.ts`](./check-openapi-contract.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-overfetching.ts`](./check-overfetching.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-read-api-views.ts`](./check-read-api-views.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`check-retention-coverage.ts`](./check-retention-coverage.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-seed-profile.ts`](./check-seed-profile.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
 | [`check-tenant-header-usage.ts`](./check-tenant-header-usage.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`cleanup-legacy-configs.cjs`](./cleanup-legacy-configs.cjs) | Artefacto de soporte específico de esta carpeta. |
@@ -34,6 +35,7 @@
 | [`dev-build-and-start.mjs`](./dev-build-and-start.mjs) | Artefacto de soporte específico de esta carpeta. |
 | [`env-doctor.ts`](./env-doctor.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`extract-read-workload.ts`](./extract-read-workload.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`gate-skip-policy.ts`](./gate-skip-policy.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`generate-openapi.ts`](./generate-openapi.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`generate-project-documentation.ts`](./generate-project-documentation.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`hash-password.ts`](./hash-password.ts) | Artefacto de soporte específico de esta carpeta. |

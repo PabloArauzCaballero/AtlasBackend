@@ -11,6 +11,7 @@ import { TokenRevocationService } from '../../../../src/common/services/token-re
 import type { AtlasUserRole, AuthenticatedUser } from '../../../../src/common/types/auth.types.js';
 import { accessTokenSignOptions } from '../../../../src/common/utils/auth/jwt-claims.util.js';
 import { env } from '../../../../src/config/env.js';
+import { DATA_NOTEBOOK_ROLES } from '../../../../src/modules/data-notebook/data-notebook.constants.js';
 import { InternalPermissions } from '../../../../src/modules/internal-users/internal-permissions.decorator.js';
 import { InternalPermissionsGuard } from '../../../../src/modules/internal-users/guards/internal-permissions.guard.js';
 import { InternalRbacRepository } from '../../../../src/modules/internal-users/internal-rbac.repository.js';
@@ -67,6 +68,19 @@ class RoleProbeController {
   @Get('customer-only')
   @Roles('customer')
   customerOnly(@CurrentUser() user: AuthenticatedUser): AuthenticatedUser {
+    return user;
+  }
+
+  /**
+   * La lista REAL del cuaderno de datos, sobre el guard REAL.
+   *
+   * No duplica los roles: importa `DATA_NOTEBOOK_ROLES`, así que la sonda dice lo que dirá el
+   * controlador de verdad. Existe porque afirmar «el administrador ya puede entrar» mirando la
+   * constante no es lo mismo que verlo pasar por `RolesGuard` con un token emitido como el suyo.
+   */
+  @Get('data-notebook')
+  @Roles(...DATA_NOTEBOOK_ROLES)
+  dataNotebook(@CurrentUser() user: AuthenticatedUser): AuthenticatedUser {
     return user;
   }
 }

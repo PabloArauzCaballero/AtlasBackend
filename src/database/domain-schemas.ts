@@ -112,6 +112,10 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'loan_events',
     'loan_outcome_reports',
     'decision_subject_links',
+    // La calificación de la deuda vive con la deuda, no con el motor de riesgo: se deriva del saldo
+    // y del atraso del préstamo, y quien la consulta —cobranza, contabilidad, cierre— ya está aquí.
+    'loan_risk_ratings',
+    'customer_risk_ratings',
   ],
   [ATLAS_SCHEMAS.RISK]: [
     'feature_definitions',
@@ -128,6 +132,11 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'risk_feature_contributions',
     'risk_assessment_results',
     'risk_signal_seeds',
+    // La MATRIZ de calificación (umbrales y previsión por categoría) es política de riesgo, y por eso
+    // vive aquí aunque lo que califica esté en `credit`: se aprueba, versiona y retira como el resto
+    // de la política, no como un dato del préstamo.
+    'rating_policy_versions',
+    'rating_policy_bands',
   ],
   [ATLAS_SCHEMAS.CASE_MANAGEMENT]: [
     'manual_review_cases',
@@ -176,6 +185,11 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'system_action_logs',
     // Historial del cuaderno de datos: guarda el CÓDIGO de cada celda y nunca su resultado.
     'data_notebook_query_history',
+    // Los cuadernos guardados. Va en el mismo dominio que su historial —son la
+    // misma función— y faltaba aquí: su modelo resolvía el schema pasando el
+    // nombre de la tabla HERMANA, un apaño que funcionaba de casualidad porque
+    // las dos caen en el mismo dominio, y que dejaba a esta tabla sin declarar.
+    'data_notebook_documents',
     'system_stress_profiles',
     'system_domain_catalog',
     'system_endpoint_payload_contracts',

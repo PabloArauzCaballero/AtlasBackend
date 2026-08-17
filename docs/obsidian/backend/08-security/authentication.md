@@ -108,6 +108,16 @@ Los intentos quedan registrados en `telemetry.auth_events`, y los códigos en `i
 
 `POST /auth/mfa` (autenticado) y `customer_mfa` en `auth_credentials`, añadido por la migración `20260717000000`. El PIN de super admin solo se exige bajo la condición documentada en `AUTH_LOGIN_PIN_ENABLED`.
 
+### El canal decide si el segundo factor existe
+
+`AuthSecondFactorService.isRequired` devuelve `false` cuando no hay por dónde entregar el PIN, así que **la configuración de correo decide si los actores internos tienen 2FA**. Ese canal ya no es sólo MailSender: `MailSenderService` elige transporte —MailSender si está configurado, si no la Gmail API, si no un webhook— y `isEnabled()` responde por los tres (`gmail-mail.transport.ts`, `webhook-mail.transport.ts`). Antes, un despliegue con un proveedor de correo sano pero sin `MAILSENDER_BASE_URL` se quedaba sin segundo factor sin decir una palabra.
+
+El webhook existe para **probar** el segundo factor, no para renunciar a él: un recolector local recibe el correo y la batería E2E lee de ahí el PIN. `env-cross-checks.ts` sigue sin admitirlo como canal de producción.
+
+### `mfaEnabled` de un usuario interno se informa, no se lee
+
+`iam.internal_users.mfa_enabled` no la escribe ningún camino de código —el único endpoint que activa MFA es el opt-in de `customer`, y toca otra tabla—, así que vale `false` para toda cuenta interna. El perfil (`GET /internal/auth/me` y el login) publica en su lugar el estado EFECTIVO, vía `internal-profile-second-factor.ts`. Con la columna cruda, el portal avisaba «esta cuenta no tiene segundo factor» a personas cuyo acceso sí exigía el PIN.
+
 ## Relaciones
 
 - [[08-security/authorization]] · [[04-api/authentication]] · [[02-architecture/critical-sequences]] · [[03-domains/auth/index]]

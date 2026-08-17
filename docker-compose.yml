@@ -65,6 +65,35 @@ x-atlas-env: &atlas-env
   # `docker compose down`.
   SHUTDOWN_DRAIN_MS: '5000'
 
+  # Canal de correo, tomado del `.env` de la máquina.
+  #
+  # Sin esto el contenedor arrancaba SIEMPRE sin canal, dijera lo que dijera el `.env`: este archivo
+  # no tiene `env_file`, así que sólo llega lo que está escrito aquí. Y quedarse sin canal no es un
+  # detalle de comodidad — `AuthSecondFactorService.isRequired` devuelve `false` cuando no hay por
+  # dónde entregar el PIN, así que un `.env` con proveedor configurado seguía dando logins internos
+  # de UN SOLO FACTOR, sin un solo mensaje que lo dijera.
+  #
+  # Se enumeran una por una en vez de montar el `.env` entero: así el contenedor no hereda por
+  # accidente el `DB_HOST` ni los puertos de un desarrollo fuera de Docker. Los valores por omisión
+  # reproducen el comportamiento anterior (sin canal), y ninguno es una cadena vacía donde el esquema
+  # espere un enum o un prefijo.
+  NOTIFICATION_EMAIL_PROVIDER: ${NOTIFICATION_EMAIL_PROVIDER:-disabled}
+  GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID:-}
+  GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET:-}
+  GMAIL_REFRESH_TOKEN: ${GMAIL_REFRESH_TOKEN:-}
+  GMAIL_FROM_EMAIL: ${GMAIL_FROM_EMAIL:-}
+  MAILSENDER_BASE_URL: ${MAILSENDER_BASE_URL:-}
+  MAILSENDER_API_PREFIX: ${MAILSENDER_API_PREFIX:-/api/v1}
+  MAILSENDER_EXTERNAL_API_KEY: ${MAILSENDER_EXTERNAL_API_KEY:-}
+  MAILSENDER_ADMIN_USERNAME: ${MAILSENDER_ADMIN_USERNAME:-}
+  MAILSENDER_ADMIN_PASSWORD: ${MAILSENDER_ADMIN_PASSWORD:-}
+  AUTH_LOGIN_PIN_ENABLED: ${AUTH_LOGIN_PIN_ENABLED:-true}
+  # Canal por webhook: es como una batería automatizada lee el PIN del segundo factor sin apagarlo
+  # (ver `webhook-mail.transport.ts`). El recolector corre fuera de Docker, así que la URL apunta a
+  # `host.docker.internal`.
+  NOTIFICATION_EMAIL_WEBHOOK_URL: ${NOTIFICATION_EMAIL_WEBHOOK_URL:-}
+  NOTIFICATION_WEBHOOK_URL: ${NOTIFICATION_WEBHOOK_URL:-}
+
 # Sin `container_name`: Compose nombra los contenedores `<proyecto>-<servicio>-<n>`. Un nombre fijo
 # impide levantar dos stacks a la vez, choca con cualquier contenedor homónimo que ya exista en la
 # máquina y —lo decisivo— hace imposible `--scale api=4`, que es justo la razón de separar los roles.

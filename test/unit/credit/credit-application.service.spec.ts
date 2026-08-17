@@ -27,7 +27,14 @@ describe('CreditApplicationService', () => {
     minMonthlyIncome: null,
   };
 
-  function build(options: { eligible?: boolean; blockers?: Array<{ code: string }>; product?: Record<string, unknown> } = {}) {
+  function build(
+    options: {
+      eligible?: boolean;
+      blockers?: Array<{ code: string }>;
+      product?: Record<string, unknown>;
+      underwritingStatus?: string;
+    } = {},
+  ) {
     const eligible = options.eligible ?? true;
     const creditRepository = {
       findProductById: jest.fn(async (..._args: unknown[]) => ({ ...PRODUCT, ...(options.product ?? {}) })),
@@ -59,13 +66,28 @@ describe('CreditApplicationService', () => {
       loadFacts: jest.fn(async (..._args: unknown[]) => ({ financialAttributeValues: { monthly_income_declared: 8000 } })),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
+    /*
+     * El motor se consulta DESPUÉS de confirmar la transacción, así que aquí basta con el doble: lo
+     * que fijan estas pruebas es la creación de la solicitud, no la decisión. El desenlace por
+     * defecto deja el expediente en `under_review`, que es justo lo que produce el servicio real
+     * cuando el motor no responde.
+     */
+    const underwriting = {
+      underwrite: jest.fn(async (..._args: unknown[]) => ({
+        status: options.underwritingStatus ?? 'under_review',
+        decisionMode: 'engine_unavailable_manual',
+        executionId: null,
+        reasonCodes: [],
+      })),
+    };
     const service = new CreditApplicationService(
       creditRepository as never,
       eligibilityService as never,
       eligibilityRepository as never,
+      underwriting as never,
       sequelize as never,
     );
-    return { service, creditRepository, eligibilityService, eligibilityRepository };
+    return { service, creditRepository, eligibilityService, eligibilityRepository, underwriting };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null } as never;

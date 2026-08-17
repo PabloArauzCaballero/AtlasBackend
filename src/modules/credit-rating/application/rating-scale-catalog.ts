@@ -61,12 +61,7 @@ function toneFor(severityRank: number, total: number): RatingGradeCatalogItem['t
   return 'critical';
 }
 
-function helpFor(band: {
-  gradeLabel: string;
-  minDaysPastDue: number;
-  maxDaysPastDue: number | null;
-  provisionRate: number;
-}): string {
+function helpFor(band: { gradeLabel: string; minDaysPastDue: number; maxDaysPastDue: number | null; provisionRate: number }): string {
   const mora =
     band.maxDaysPastDue === null
       ? `desde ${band.minDaysPastDue} días de mora`

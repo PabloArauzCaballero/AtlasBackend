@@ -55,6 +55,34 @@ export class CreditApplicationModel extends Model {
   @Column({ field: 'risk_assessment_run_id', type: DataType.BIGINT })
   declare riskAssessmentRunId: string | null;
 
+  /**
+   * Qué ejecución del motor resolvió la solicitud, y con qué versión del artefacto.
+   *
+   * Es el eslabón que ata la decisión al dinero y, más tarde, al resultado. Sin él, el desenlace
+   * real del préstamo no se puede atribuir a la política que lo autorizó.
+   */
+  @Column({ field: 'decision_execution_id', type: DataType.STRING(40) })
+  declare decisionExecutionId: string | null;
+
+  @Column({ field: 'decision_artifact_version_id', type: DataType.STRING(40) })
+  declare decisionArtifactVersionId: string | null;
+
+  @Column({ field: 'decision_subject_reference', type: DataType.STRING(128) })
+  declare decisionSubjectReference: string | null;
+
+  /** Cómo se resolvió: el motor, una persona, o una persona porque el motor no estaba. */
+  @Column({ field: 'decision_mode', type: DataType.STRING(30) })
+  declare decisionMode: string | null;
+
+  @Column({ field: 'decision_score', type: DataType.DECIMAL(12, 4) })
+  declare decisionScore: string | null;
+
+  @Column({ field: 'decision_risk_band', type: DataType.STRING(40) })
+  declare decisionRiskBand: string | null;
+
+  @Column({ field: 'decision_reasons_json', type: DataType.JSONB })
+  declare decisionReasonsJson: unknown;
+
   @Column({ field: 'decision_reason_code', type: DataType.STRING(120) })
   declare decisionReasonCode: string | null;
 

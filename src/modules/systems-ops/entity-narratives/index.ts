@@ -8,11 +8,14 @@ import { AUDIT_QUALITY_NARRATIVES } from './audit-quality.fixtures.js';
 import { COMMUNICATION_NARRATIVES } from './communications.fixtures.js';
 import { CONTEXT_CATALOG_NARRATIVES } from './context-catalogs.fixtures.js';
 import { CREDIT_LIFECYCLE_NARRATIVES } from './credit-lifecycle.fixtures.js';
+import { CREDIT_RATING_NARRATIVES } from './credit-rating.fixtures.js';
+import { DATA_NOTEBOOK_NARRATIVES } from './data-notebook.fixtures.js';
 import { CUSTOMER_IDENTITY_NARRATIVES } from './customer-identity.fixtures.js';
 import { DEVICE_INTELLIGENCE_NARRATIVES } from './device-intelligence.fixtures.js';
 import { EVIDENCE_NARRATIVES } from './evidence.fixtures.js';
 import { EXTERNAL_PROVIDER_NARRATIVES } from './external-providers.fixtures.js';
 import { FRAUD_REVIEW_NARRATIVES } from './fraud-review.fixtures.js';
+import { LOAN_BOOK_NARRATIVES } from './loan-book.fixtures.js';
 import { ONBOARDING_BEHAVIOR_NARRATIVES } from './onboarding-behavior.fixtures.js';
 import { PLATFORM_ACCESS_NARRATIVES } from './platform-access.fixtures.js';
 import { PRIVACY_CONSENT_NARRATIVES } from './privacy-consent.fixtures.js';
@@ -38,6 +41,9 @@ export const ENTITY_BUSINESS_NARRATIVES: readonly EntityBusinessNarrative[] = [
   ...AUDIT_QUALITY_NARRATIVES,
   ...SYSTEMS_GOVERNANCE_NARRATIVES,
   ...CREDIT_LIFECYCLE_NARRATIVES,
+  ...LOAN_BOOK_NARRATIVES,
+  ...CREDIT_RATING_NARRATIVES,
+  ...DATA_NOTEBOOK_NARRATIVES,
   ...WORKFLOW_CATALOG_NARRATIVES,
 ];
 

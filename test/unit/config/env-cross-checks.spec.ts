@@ -225,6 +225,46 @@ describe('applyEnvCrossChecks', () => {
   });
 
   /**
+   * Firma de los permisos de subida del almacén local de archivos.
+   *
+   * La presencia del secreto NO se exige: sin él, el adaptador se niega a emitir tickets (503), que
+   * ya es la postura cerrada, y exigirlo dejaría sin arrancar a un despliegue que solo usa la subida
+   * multipart. Lo que se valida es su calidad cuando existe, porque un secreto corto o reutilizado
+   * da una falsa sensación de firma que no se detectaría en runtime.
+   */
+  describe('secreto de firma del almacén local de archivos', () => {
+    it('no es obligatorio: producción arranca sin él', () => {
+      expect(failedPaths({ ...validProduction, FILE_STORAGE_LOCAL_URL_SECRET: '' })).toEqual([]);
+      expect(failedPaths(validProduction)).toEqual([]);
+    });
+
+    it('si se define, exige al menos 32 caracteres', () => {
+      expect(failedPaths({ ...validProduction, FILE_STORAGE_LOCAL_URL_SECRET: 'demasiado-corto' })).toContain(
+        'FILE_STORAGE_LOCAL_URL_SECRET',
+      );
+      expect(failedPaths({ ...validProduction, FILE_STORAGE_LOCAL_URL_SECRET: 'x'.repeat(32) })).toEqual([]);
+    });
+
+    it('no puede reutilizar el secreto de los tokens de acceso', () => {
+      expect(failedPaths({ ...validProduction, FILE_STORAGE_LOCAL_URL_SECRET: validProduction.JWT_ACCESS_TOKEN_SECRET })).toContain(
+        'FILE_STORAGE_LOCAL_URL_SECRET',
+      );
+    });
+
+    it('la misma exigencia de calidad aplica fuera de producción', () => {
+      // Un secreto trivial en desarrollo se termina copiando al despliegue real; se corta en origen.
+      expect(
+        failedPaths({
+          NODE_ENV: 'development',
+          JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-desarrollo-suficientemente-largo',
+          NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
+          FILE_STORAGE_LOCAL_URL_SECRET: 'corto',
+        }),
+      ).toContain('FILE_STORAGE_LOCAL_URL_SECRET');
+    });
+  });
+
+  /**
    * ATLAS-SEC-008. `AuthService.isSecondFactorRequired` degrada a "sin 2FA" cuando no hay canal de
    * correo — degradación correcta en local, rebaja silenciosa de autenticación en producción. Estas
    * pruebas fijan que un despliegue así no arranque, que es la única forma de que la degradación no

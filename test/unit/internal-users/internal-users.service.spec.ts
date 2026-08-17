@@ -78,10 +78,19 @@ function makeTokenRevocationService(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * El segundo factor de un usuario interno no sale de su ficha: lo decide la configuración del
+ * despliegue, y `InternalUsersService` se lo pregunta a `AuthSecondFactorService` al componer el
+ * perfil.
+ */
+function makeAuthService(inEffect = true) {
+  return { isRequired: jest.fn((..._args: unknown[]) => inEffect) };
+}
+
 describe('InternalUsersService security boundaries', () => {
   it('rejects privileged role assignment when actor is not SUPER_ADMIN', async () => {
     const repository = makeRepository();
-    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never);
+    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never, makeAuthService() as never);
 
     await expect(
       service.createUser(
@@ -102,7 +111,7 @@ describe('InternalUsersService security boundaries', () => {
 
   it('requires explicit disable permission for disabled-like statuses', async () => {
     const repository = makeRepository({ hasPermissions: jest.fn(async (..._args: unknown[]) => false) });
-    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never);
+    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never, makeAuthService() as never);
 
     await expect(
       service.updateUser(
@@ -116,7 +125,7 @@ describe('InternalUsersService security boundaries', () => {
 
   it('does not allow replacing your own internal roles', async () => {
     const repository = makeRepository();
-    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never);
+    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never, makeAuthService() as never);
 
     await expect(
       service.replaceRoles(
@@ -151,7 +160,7 @@ describe('InternalUsersService security boundaries', () => {
         },
       })),
     });
-    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never);
+    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never, makeAuthService() as never);
 
     await expect(
       service.replaceRoles(
@@ -169,7 +178,7 @@ describe('InternalUsersService security boundaries', () => {
       updateUser: jest.fn(async (user: { id: string }) => user),
     });
     const tokenRevocationService = makeTokenRevocationService();
-    const service = new InternalUsersService(repository as never, tokenRevocationService as never);
+    const service = new InternalUsersService(repository as never, tokenRevocationService as never, makeAuthService() as never);
 
     await service.updateUser(
       currentUser,
@@ -204,7 +213,7 @@ describe('InternalUsersService security boundaries', () => {
     }));
     const repository = makeRepository({ buildAccessProfile: nonPrivilegedProfile });
     const tokenRevocationService = makeTokenRevocationService();
-    const service = new InternalUsersService(repository as never, tokenRevocationService as never);
+    const service = new InternalUsersService(repository as never, tokenRevocationService as never, makeAuthService() as never);
 
     await service.replaceRoles(
       currentUser,
@@ -239,7 +248,7 @@ describe('InternalUsersService security boundaries', () => {
     }));
     const repository = makeRepository({ buildAccessProfile: nonPrivilegedProfile });
     const tokenRevocationService = makeTokenRevocationService({ bumpTokenVersionIfPresent: jest.fn(async (..._args: unknown[]) => null) });
-    const service = new InternalUsersService(repository as never, tokenRevocationService as never);
+    const service = new InternalUsersService(repository as never, tokenRevocationService as never, makeAuthService() as never);
 
     await expect(
       service.replaceRoles(
@@ -260,7 +269,7 @@ describe('InternalUsersService security boundaries', () => {
       { id: '22', tenantId: '1' },
     ];
     const repository = makeRepository({ listUsers: jest.fn(async (..._args: unknown[]) => ({ rows, total: 3 })) });
-    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never);
+    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never, makeAuthService() as never);
 
     const result = await service.listUsers(currentUser, { page: 1, limit: 50 });
 

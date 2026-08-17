@@ -128,6 +128,7 @@ import {
   SystemTestRunModel,
   SystemTestStepRunModel,
   DataNotebookQueryHistoryModel,
+  DataNotebookDocumentModel,
   SystemActionLogModel,
   SystemStressProfileModel,
   SystemDomainCatalogModel,
@@ -143,9 +144,11 @@ import {
   WorkflowTransitionModel,
 } from './models/index.js';
 import { LOAN_BOOK_MODELS } from './loan-book-models.js';
+import { CREDIT_RATING_MODELS } from './credit-rating-models.js';
 
 export const databaseModels = [
   ...LOAN_BOOK_MODELS,
+  ...CREDIT_RATING_MODELS,
   TenantModel,
   PlatformUserModel,
   InternalUserModel,
@@ -265,6 +268,7 @@ export const databaseModels = [
   SystemTestRunModel,
   SystemTestStepRunModel,
   DataNotebookQueryHistoryModel,
+  DataNotebookDocumentModel,
   SystemActionLogModel,
   SystemStressProfileModel,
   SystemDomainCatalogModel,

@@ -13,6 +13,7 @@
 |---|---|
 | [`job-run-recorder.service.ts`](./job-run-recorder.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`job-tick-guard.ts`](./job-tick-guard.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`retention-targets.ts`](./retention-targets.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`runtime-jobs-scheduler.service.ts`](./runtime-jobs-scheduler.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`runtime-jobs.controller.ts`](./runtime-jobs.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`runtime-jobs.module.ts`](./runtime-jobs.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |

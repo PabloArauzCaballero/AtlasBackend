@@ -5,9 +5,10 @@
  */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { DataNotebookQueryHistoryModel } from '../../database/models/index.js';
+import { DataNotebookDocumentModel, DataNotebookQueryHistoryModel } from '../../database/models/index.js';
 import { DataNotebookCatalogService } from './data-notebook-catalog.service.js';
 import { DataNotebookDatasetService } from './data-notebook-dataset.service.js';
+import { DataNotebookDocumentService } from './data-notebook-document.service.js';
 import { DataNotebookHistoryService } from './data-notebook-history.service.js';
 import { DataNotebookController } from './data-notebook.controller.js';
 
@@ -23,9 +24,9 @@ import { DataNotebookController } from './data-notebook.controller.js';
  * ninguna de las preguntas que se les hicieron.
  */
 @Module({
-  imports: [SequelizeModule.forFeature([DataNotebookQueryHistoryModel])],
+  imports: [SequelizeModule.forFeature([DataNotebookQueryHistoryModel, DataNotebookDocumentModel])],
   controllers: [DataNotebookController],
-  providers: [DataNotebookCatalogService, DataNotebookDatasetService, DataNotebookHistoryService],
+  providers: [DataNotebookCatalogService, DataNotebookDatasetService, DataNotebookHistoryService, DataNotebookDocumentService],
   exports: [DataNotebookCatalogService, DataNotebookHistoryService],
 })
 export class DataNotebookModule {}

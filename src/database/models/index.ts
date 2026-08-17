@@ -39,6 +39,10 @@ export { LoanPaymentAllocationModel } from './loan-payment-allocations.model.js'
 export { LoanEventModel } from './loan-events.model.js';
 export { LoanOutcomeReportModel } from './loan-outcome-reports.model.js';
 export { DecisionSubjectLinkModel } from './decision-subject-links.model.js';
+export { RatingPolicyVersionModel } from './rating-policy-versions.model.js';
+export { RatingPolicyBandModel } from './rating-policy-bands.model.js';
+export { LoanRiskRatingModel } from './loan-risk-ratings.model.js';
+export { CustomerRiskRatingModel } from './customer-risk-ratings.model.js';
 export { PrivacyProcessingPurposeModel } from './privacy-processing-purposes.model.js';
 export { ConsentDocumentModel } from './consent-documents.model.js';
 export { CustomerConsentModel } from './customer-consents.model.js';
@@ -129,6 +133,7 @@ export { SystemTestStepModel } from './system-test-steps.model.js';
 export { SystemTestRunModel } from './system-test-runs.model.js';
 export { SystemTestStepRunModel } from './system-test-step-runs.model.js';
 export { DataNotebookQueryHistoryModel } from './data-notebook-query-history.model.js';
+export { DataNotebookDocumentModel, type StoredNotebookCell } from './data-notebook-document.model.js';
 export { SystemActionLogModel } from './system-action-logs.model.js';
 export { SystemStressProfileModel } from './system-stress-profiles.model.js';
 export { SystemDomainCatalogModel } from './system-domain-catalog.model.js';

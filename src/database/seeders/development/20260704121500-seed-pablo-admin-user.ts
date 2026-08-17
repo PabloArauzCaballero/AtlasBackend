@@ -5,6 +5,7 @@
  */
 import { QueryInterface, Transaction } from 'sequelize';
 import { env } from '../../../config/env.js';
+import { hashPassword } from '../../../common/utils/crypto/password.util.js';
 
 /**
  * Cuenta administrador de DESARROLLO: `pablo@atlas.internal` (SUPER_ADMIN) con una contraseña
@@ -30,6 +31,30 @@ const PABLO_TENANT_ID = 1;
 const PABLO_PASSWORD_HASH = '$argon2id$v=19$m=19456,t=2,p=1$SZRsHwGS2nSxkmeTcmaC6A$4h+SqECFqRPMDwffaUfnlgsfQFqCewlq2j3EnjUVAeo';
 const PABLO_ROLE_CODES = ['SUPER_ADMIN', 'SYSTEMS_ADMIN', 'DATA_GOVERNANCE_MANAGER'] as const;
 
+const DEFAULT_PABLO_EMAIL = 'pablo@atlas.internal';
+
+/**
+ * `DEV_ADMIN_EMAIL`/`DEV_ADMIN_PASSWORD` (ambas en `.env`, que no se versiona) permiten apuntar esta
+ * cuenta al correo REAL del desarrollador. No es cosmético: el PIN del segundo factor y el correo de
+ * reset se mandan a la dirección del usuario, así que con `@atlas.internal` —un dominio que no
+ * existe— esos flujos no se pueden probar de punta a punta contra un buzón de verdad.
+ *
+ * Sin las variables, el seeder se comporta exactamente como antes (email fijo + hash versionado), que
+ * es lo que esperan CI y los smokes.
+ */
+function pabloEmail(): string {
+  return env.DEV_ADMIN_EMAIL ?? DEFAULT_PABLO_EMAIL;
+}
+
+/**
+ * El hash versionado es el default. Si hay `DEV_ADMIN_PASSWORD`, se hashea AL SEMBRAR: así la
+ * contraseña vive solo en `.env` y nunca entra al repo — la lección de ATLAS-P0-002, que se aplica
+ * igual al hash que a la contraseña.
+ */
+async function pabloPasswordHash(): Promise<string> {
+  return env.DEV_ADMIN_PASSWORD ? hashPassword(env.DEV_ADMIN_PASSWORD) : PABLO_PASSWORD_HASH;
+}
+
 type QueryParams = {
   sql: string;
   replacements?: Record<string, unknown>;
@@ -50,7 +75,7 @@ async function upsertPabloInternalUser(queryInterface: QueryInterface, transacti
         created_by_internal_user_id, updated_by_internal_user_id, _created_at, _updated_at, _deleted
       )
       VALUES (
-        :id, :tenantId, 'pablo.admin', 'Pablo Arauz Caballero', 'pablo@atlas.internal', 'admin', 'active', 'SYSTEMS',
+        :id, :tenantId, 'pablo.admin', 'Pablo Arauz Caballero', :email, 'admin', 'active', 'SYSTEMS',
         'Founder / Systems Administrator', NULL, :createdAt, false, false, NULL, NULL, :createdAt, :createdAt, false
       )
       ON CONFLICT (_id)
@@ -69,7 +94,7 @@ async function upsertPabloInternalUser(queryInterface: QueryInterface, transacti
         _updated_at = EXCLUDED._updated_at,
         _deleted = false;
     `,
-    replacements: { id: PABLO_INTERNAL_USER_ID, tenantId: PABLO_TENANT_ID, createdAt: CREATED_AT },
+    replacements: { id: PABLO_INTERNAL_USER_ID, tenantId: PABLO_TENANT_ID, createdAt: CREATED_AT, email: pabloEmail() },
   });
 
   await runQuery(queryInterface, {
@@ -86,6 +111,7 @@ async function upsertPabloInternalUser(queryInterface: QueryInterface, transacti
 }
 
 async function upsertPabloCredentials(queryInterface: QueryInterface, transaction: Transaction): Promise<void> {
+  const passwordHash = await pabloPasswordHash();
   await runQuery(queryInterface, {
     transaction,
     sql: `
@@ -98,7 +124,7 @@ async function upsertPabloCredentials(queryInterface: QueryInterface, transactio
           _deleted = false
       WHERE actor_type = 'internal_user' AND actor_id = :actorId;
     `,
-    replacements: { passwordHash: PABLO_PASSWORD_HASH, actorId: PABLO_INTERNAL_USER_ID, createdAt: CREATED_AT },
+    replacements: { passwordHash, actorId: PABLO_INTERNAL_USER_ID, createdAt: CREATED_AT },
   });
 
   await runQuery(queryInterface, {
@@ -116,7 +142,7 @@ async function upsertPabloCredentials(queryInterface: QueryInterface, transactio
     replacements: {
       tenantId: PABLO_TENANT_ID,
       actorId: PABLO_INTERNAL_USER_ID,
-      passwordHash: PABLO_PASSWORD_HASH,
+      passwordHash,
       createdAt: CREATED_AT,
     },
   });
@@ -165,7 +191,7 @@ async function createSeedAudit(queryInterface: QueryInterface, transaction: Tran
     replacements: {
       tenantId: PABLO_TENANT_ID,
       payload: JSON.stringify({
-        pabloEmail: 'pablo@atlas.internal',
+        pabloEmail: pabloEmail(),
         roles: PABLO_ROLE_CODES,
         note: 'Credenciales de desarrollo para login interno del frontend administrativo.',
       }),

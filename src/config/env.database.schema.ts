@@ -94,4 +94,17 @@ export const databaseEnvShape = {
   // Si el seeding al arrancar falla y esto es true, el arranque ABORTA (exit). Por defecto false:
   // se loguea el error y el backend arranca igual (un fallo de seed no debería tumbar la API).
   DATABASE_SEED_ON_STARTUP_FAIL_FAST: booleanEnvSchema,
+
+  // Identidad del SUPER_ADMIN que siembra el perfil `development`
+  // (`development/20260704121500-seed-pablo-admin-user`). Ambas son opcionales y solo se leen fuera
+  // de producción: sin ellas el seeder mantiene `pablo@atlas.internal` y el hash versionado, que es
+  // lo que espera CI.
+  //
+  // Existen porque la alternativa era peor: para que un desarrollador use su correo real —necesario
+  // si quiere RECIBIR el PIN del segundo factor en una bandeja de verdad— había que reescribir el
+  // email y el hash de su contraseña dentro de un archivo versionado. ATLAS-P0-002 documenta por qué
+  // no: un hash que entra al historial de git se considera comprometido para siempre. Aquí la
+  // contraseña vive en `.env`, que está en `.gitignore`, y el seeder la hashea al sembrar.
+  DEV_ADMIN_EMAIL: z.string().email().optional(),
+  DEV_ADMIN_PASSWORD: z.string().optional(),
 } as const;

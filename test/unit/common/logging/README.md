@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`app-file-logger-rotation.spec.ts`](./app-file-logger-rotation.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`app-file-logger.service.spec.ts`](./app-file-logger.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`request-context.spec.ts`](./request-context.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 

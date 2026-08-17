@@ -15,6 +15,7 @@
 | [`internal-portal-business-term.spec.ts`](./internal-portal-business-term.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`internal-portal-roles.spec.ts`](./internal-portal-roles.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`internal-portal-service-contract.spec.ts`](./internal-portal-service-contract.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`portal-tenant-scope.spec.ts`](./portal-tenant-scope.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento
 

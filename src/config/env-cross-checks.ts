@@ -6,6 +6,8 @@
 import { z } from 'zod';
 import { DEFAULT_JWT_SECRET, DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY, type RawAppEnv } from './env.schema.js';
 import { checkNotificationProviders, type RequireWebhook, type RequireWhen } from './env.notification-providers.checks.js';
+import { checkFileStorage } from './env.files.checks.js';
+import { checkDecisionEngine } from './env.decision-engine.checks.js';
 
 /**
  * Validaciones CRUZADAS del entorno: las que dependen de más de una variable a la vez y por eso no
@@ -114,28 +116,42 @@ function checkProcessRole(data: RawAppEnv, ctx: z.RefinementCtx): void {
 /**
  * ATLAS-SEC-008 — el segundo factor de los actores internos no puede desaparecer en silencio.
  *
- * `AuthService.isSecondFactorRequired` degrada a "sin 2FA" cuando MailSender no está configurado:
- * sin canal no hay forma de entregar el PIN, y bloquear el login dejaría el backend inaccesible en
- * un entorno local. Esa degradación es correcta en desarrollo y **inaceptable en producción**: un
- * despliegue con `MAILSENDER_BASE_URL` vacío dejaba a `admin` y `platform_admin` entrando con solo
- * la contraseña, sin error ni advertencia (verificado en vivo:
- * docs/audit/evidence/live-exploit-2026-08-06.md).
+ * `AuthSecondFactorService.isRequired` degrada a "sin 2FA" cuando no hay canal de correo: sin canal
+ * no hay forma de entregar el PIN, y bloquear el login dejaría el backend inaccesible en un entorno
+ * local. Esa degradación es correcta en desarrollo y **inaceptable en producción**: un despliegue
+ * sin canal dejaba a `admin` y `platform_admin` entrando con solo la contraseña, sin error ni
+ * advertencia (verificado en vivo: docs/audit/evidence/live-exploit-2026-08-06.md).
  *
  * Se falla al arrancar en vez de advertir: una advertencia sobre un control de seguridad ausente es
  * un control ausente. Si un despliegue quiere de verdad renunciar al 2FA interno, tiene que
  * escribirlo (`AUTH_LOGIN_PIN_ENABLED=false`) y aun así se le exige un canal de correo, porque el
  * mismo canal entrega el reset de contraseña.
+ *
+ * Lo que se exige es UN CANAL, no un proveedor concreto. Antes se pedía `MAILSENDER_BASE_URL` en
+ * particular, y eso confundía el control con su implementación: un despliegue con la Gmail API
+ * elegida y credenciales válidas —capaz de entregar el PIN, y con `MailSenderService` sabiendo
+ * usarla— no arrancaba, empujando a apagar la comprobación por una razón que no era de seguridad.
  */
 function checkInternalSecondFactor(data: RawAppEnv, ctx: z.RefinementCtx): void {
   if (data.NODE_ENV !== 'production') return;
 
-  if (!data.MAILSENDER_BASE_URL) {
+  const gmailReady = Boolean(
+    data.NOTIFICATION_EMAIL_PROVIDER === 'gmail_api' &&
+    data.GMAIL_CLIENT_ID &&
+    data.GMAIL_CLIENT_SECRET &&
+    data.GMAIL_REFRESH_TOKEN &&
+    data.GMAIL_FROM_EMAIL,
+  );
+
+  if (!data.MAILSENDER_BASE_URL && !gmailReady) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['MAILSENDER_BASE_URL'],
       message:
-        'MAILSENDER_BASE_URL es requerido en producción: es el canal que entrega el PIN de segundo factor de los actores ' +
-        'internos y los códigos de recuperación de contraseña. Sin él, el login de admin/platform_admin degrada a un solo factor.',
+        'Producción necesita un canal de correo: es el que entrega el PIN de segundo factor de los actores internos y los ' +
+        'códigos de recuperación de contraseña. Configura MAILSENDER_BASE_URL (con su clave y usuario administrativos) o ' +
+        'NOTIFICATION_EMAIL_PROVIDER=gmail_api con sus cuatro credenciales. Sin ninguno, el login de admin/platform_admin ' +
+        'degrada a un solo factor.',
     });
   }
 
@@ -254,6 +270,8 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
   checkInternalSecondFactor(data, ctx);
   checkPiiEncryptionProvider(data, ctx);
   checkSqlLogging(data, ctx);
+  checkFileStorage(data, ctx);
   checkMailSender(data, requireWhen);
+  checkDecisionEngine(data, ctx);
   checkNotificationProviders(data, requireWhen, requireWebhook);
 }

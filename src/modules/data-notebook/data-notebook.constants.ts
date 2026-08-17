@@ -5,10 +5,31 @@
  */
 import { AtlasUserRole } from '../../common/types/auth.types.js';
 
-/** Quién puede abrir el cuaderno. */
+/**
+ * Quién puede abrir el cuaderno.
+ *
+ * `admin` está aquí por la misma lección que ya costó una vez en systems-ops (ver
+ * `SYSTEMS_OPS_GOVERNANCE_ROLES`): `legacyRoleForInternalRoles` NUNCA emite `system_admin`
+ * —SUPER_ADMIN, SYSTEMS_ADMIN e INTERNAL_IDENTITY_ADMIN colapsan los tres en `admin`— y
+ * `platform_admin` sólo lo lleva un `platform_user`. Sin `admin`, de esta lista no había ni una
+ * llave que un administrador del tenant pudiera tener: el superadministrador abría el cuaderno y
+ * recibía 403 en el catálogo de datasets, que la pantalla sólo puede contar como «el servicio no
+ * responde o tu sesión caducó» —ninguna de las dos cosas—. `system_admin` se queda porque el
+ * vocabulario del token lo admite y un emisor futuro podría producirlo, pero hoy no abre nada.
+ *
+ * `fraud_analyst` NO está, y es una decisión, no un olvido: el cuaderno entrega filas de clientes
+ * y de bitácora en bloque, y el análisis de fraude trabaja sobre SU caso. El portal lo espejaba
+ * mal —lo tenía en `accessPolicies.dataNotebook`— y por eso ese perfil veía la pestaña para
+ * chocar con un 403; ya está retirado allí. Si se decide lo contrario, se añade EN LOS DOS.
+ *
+ * Lo fija `el administrador interno %s puede abrir el cuaderno de datos`
+ * (test/e2e/user-types/user-types.spec.ts), que nombra los tres roles RBAC de administración en
+ * vez de conformarse con que la lista tenga alguna llave alcanzable.
+ */
 export const DATA_NOTEBOOK_ROLES: readonly AtlasUserRole[] = [
   'system_admin',
   'platform_admin',
+  'admin',
   'readonly_auditor',
   'risk_analyst',
   'compliance_analyst',
@@ -120,6 +141,42 @@ export const NOTEBOOK_DATASETS: readonly NotebookDataset[] = [
 /** Esquema único desde el que se sirve el cuaderno. */
 export const NOTEBOOK_SCHEMA = 'read_api';
 
+/**
+ * Los lenguajes que una celda puede llevar. Ninguno se ejecuta AQUÍ.
+ *
+ * El servidor los guarda y los devuelve; el código corre en la pestaña de quien lo escribió
+ * —CPython y R sobre WebAssembly, JavaScript en un worker—. La lista existe para que el historial
+ * y los cuadernos guardados no admitan un valor inventado, no porque el backend sepa interpretar
+ * ninguno: **no hay ni un endpoint que ejecute código.**
+ *
+ * `sql` sólo aparece en el HISTORIAL: la consola SQL escribe en la misma tabla, y partirlo en dos
+ * obligaría a quien audite a acordarse de mirar en dos sitios.
+ */
+export const NOTEBOOK_CELL_LANGUAGES = ['python', 'javascript', 'r'] as const;
+export const NOTEBOOK_HISTORY_LANGUAGES = [...NOTEBOOK_CELL_LANGUAGES, 'sql'] as const;
+
+/**
+ * Qué forma tiene un código de dataset, y por qué son DOS formas y no una libre.
+ *
+ * El cuaderno lee de dos catálogos. Los de AtlasBackend son códigos planos (`customer-overview`);
+ * los del motor llegan prefijados (`motor:decisiones.ejecuciones`) porque su relación vive en otro
+ * servicio y en otro esquema. Cualquier otra cosa se rechaza en el borde.
+ *
+ * No es una validación cosmética. Ese código viaja hasta el portal, que lo usa para reabrir el
+ * cuaderno donde se dejó y, en el caso del motor, para componer la relación de la consulta que
+ * manda a `/v1/sql-console/query`. Admitiendo `[a-z0-9.:_-]+` a secas —como se admitía— cabía
+ * `motor:pg_catalog.pg_authid`: lo paraban la guardia léxica y el plan del motor, pero la primera
+ * puerta lo dejaba pasar, y una defensa que descansa entera en la última no es una defensa.
+ *
+ * El tope de 64 caracteres es el de la columna `dataset_code`. Se escribe también aquí para que un
+ * nombre más largo se rechace con un mensaje en vez de reventar contra el driver.
+ */
+export const NOTEBOOK_DATASET_CODE_PATTERN =
+  /^(?:[a-z0-9-]{1,64}|motor:[a-z_][a-z0-9_]{0,62}\.[a-z_][a-z0-9_]{0,62})$/;
+
+export const NOTEBOOK_DATASET_CODE_MESSAGE =
+  'El código de dataset debe ser el de una vista de read_api (minúsculas, dígitos y guiones) o uno del motor con la forma motor:esquema.tabla.';
+
 /** Nombres admitidos para la columna de inquilino. Una vista sin ninguna de ellas NO se sirve. */
 export const NOTEBOOK_TENANT_COLUMNS = ['tenant_id', '_tenant_id'] as const;
 
@@ -151,4 +208,26 @@ export const DATA_NOTEBOOK_LIMITS = {
   maxHistorySourceLength: 20_000,
   /** Entradas de historial que se devuelven de una vez. */
   historyPageSize: 50,
+  /**
+   * Techo de celdas por cuaderno guardado.
+   *
+   * No es una opinión sobre cómo trabaja nadie: es que el documento entero viaja en una fila JSONB
+   * y se valida en memoria en cada guardado. Sin tope, un cliente puede mandar un cuaderno de
+   * cientos de miles de celdas y convertir un `PUT` en una forma barata de tumbar el proceso.
+   */
+  maxNotebookCells: 200,
+  /** Cuadernos guardados por persona. Un tope que se ve es mejor que una tabla que crece sola. */
+  maxNotebooksPerUser: 100,
+  /**
+   * Techo en BYTES del documento guardado, resultados incluidos.
+   *
+   * Es el tope que hace sostenible guardar el avance. Un cuaderno conserva las tablas que cada
+   * celda devolvió y los PNG de sus gráficos, y ninguna de las dos cosas la acota el número de
+   * celdas: una sola con veinte mil filas, o cuatro gráficos a 110 ppp, pesan más que doscientas
+   * celdas de código. Sin este techo, cien cuadernos por persona multiplican eso.
+   *
+   * Se comprueba sobre el JSON ya serializado —lo que de verdad va a la fila— y no sobre una
+   * estimación por celda, que es donde suelen colarse los descuadres.
+   */
+  maxNotebookBytes: 4 * 1024 * 1024,
 } as const;

@@ -17,6 +17,7 @@
 
 - [`database/`](./database/README.md)
 - [`decorators/`](./decorators/README.md)
+- [`files/`](./files/README.md)
 - [`filters/`](./filters/README.md)
 - [`guards/`](./guards/README.md)
 - [`interceptors/`](./interceptors/README.md)

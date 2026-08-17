@@ -39,6 +39,8 @@ import { AuthService } from './auth.service.js';
   ],
   controllers: [AuthController],
   providers: [AuthService, AuthActorResolverService, AuthPasswordResetService, AuthSecondFactorService, AuthRepository],
-  exports: [AuthService, AuthRepository],
+  // `AuthSecondFactorService` se exporta para que el perfil de un usuario interno pueda informar si
+  // su acceso lleva de verdad un segundo factor, sin duplicar esa política fuera de aquí.
+  exports: [AuthService, AuthRepository, AuthSecondFactorService],
 })
 export class AuthModule {}

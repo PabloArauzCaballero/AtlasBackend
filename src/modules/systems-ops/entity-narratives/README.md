@@ -22,6 +22,7 @@
 | [`external-providers.fixtures.ts`](./external-providers.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`fraud-review.fixtures.ts`](./fraud-review.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`index.ts`](./index.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`loan-book.fixtures.ts`](./loan-book.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`onboarding-behavior.fixtures.ts`](./onboarding-behavior.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`platform-access.fixtures.ts`](./platform-access.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`privacy-consent.fixtures.ts`](./privacy-consent.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |

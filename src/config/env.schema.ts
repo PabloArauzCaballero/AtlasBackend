@@ -12,6 +12,8 @@ import {
   optionalUrlEnvSchema,
 } from './env.primitives.js';
 import { databaseEnvShape } from './env.database.schema.js';
+import { decisionEngineEnvShape } from './env.decision-engine.schema.js';
+import { filesEnvShape } from './env.files.schema.js';
 import { runtimeJobsEnvShape } from './env.runtime-jobs.schema.js';
 
 export const DEFAULT_JWT_SECRET = 'dev-only-atlas-access-token-secret-change-me';
@@ -174,6 +176,12 @@ export const envBaseSchema = z.object({
   // MinIO y compatibles requieren el bucket en la ruta; AWS acepta ambos estilos.
   STORAGE_S3_FORCE_PATH_STYLE: booleanEnvSchema.default(true),
   STORAGE_UPLOAD_URL_TTL_SECONDS: z.coerce.number().int().positive().max(3600).default(300),
+
+  // Servicio de archivos por adaptadores. Bloque propio en `env.files.schema.ts`.
+  ...filesEnvShape,
+
+  // Integración con el motor de decisión. Bloque propio en `env.decision-engine.schema.ts`.
+  ...decisionEngineEnvShape,
 
   NOTIFICATION_EMAIL_PROVIDER: z.enum(['disabled', 'resend', 'sendgrid', 'gmail_api', 'webhook']).default('disabled'),
   NOTIFICATION_PUSH_PROVIDER: z.enum(['disabled', 'fcm', 'webhook']).default('disabled'),

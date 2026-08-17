@@ -17,6 +17,30 @@ export type DatasetShape = {
 
 type ColumnRow = { column_name: string; data_type: string };
 
+type DiscoveredRow = { table_name: string; has_tenant: boolean | null };
+
+/** Vista de `read_api` que existe pero el cuaderno no sirve, con el motivo. */
+export type OmittedDataset = { view: string; reason: string };
+
+/**
+ * Ficha por omisión de una vista que nadie describió.
+ *
+ * `v_customer_overview_v1` → código `customer-overview`, rótulo «Customer overview». El sufijo de
+ * versión se cae del código A PROPÓSITO: es el contrato de la vista, no parte de su nombre, y
+ * arrastrarlo obligaría a reescribir todos los cuadernos guardados el día que salga `_v2`.
+ */
+function describeDiscovered(view: string): NotebookDataset {
+  const base = view.replace(/^v_/, '').replace(/_v\d+$/, '');
+  const words = base.replace(/_/g, ' ');
+  return {
+    code: base.replace(/_/g, '-'),
+    view,
+    label: words.charAt(0).toUpperCase() + words.slice(1),
+    description: `Vista ${NOTEBOOK_SCHEMA}.${view}, descubierta en la base. Acotada por inquilino.`,
+    scope: 'TENANT',
+  };
+}
+
 /**
  * La forma de un dataset se descubre contra `information_schema`, no se declara a mano.
  *
@@ -33,12 +57,64 @@ export class DataNotebookCatalogService {
 
   constructor(private readonly readQuery: ReadQueryService) {}
 
-  listDatasets(): readonly NotebookDataset[] {
-    return NOTEBOOK_DATASETS;
+  /**
+   * El catálogo se DESCUBRE de `read_api`, y la lista escrita a mano pasa a ser sólo la ficha.
+   *
+   * Antes eran siete vistas enumeradas en el código: publicar una vista nueva significaba tocar
+   * una constante en este repositorio y volver a desplegar, así que el cuaderno enseñaba menos
+   * datos de los que la base ya servía y nadie se enteraba —el catálogo se veía completo—.
+   * Preguntando a `information_schema`, lo que hay en la base es lo que se ofrece.
+   *
+   * Lo que NO se deduce es el alcance, y ésa es la línea que sostiene todo lo demás. Una vista
+   * descubierta se sirve si publica columna de inquilino, y entonces va acotada por ella. Si no la
+   * publica, no se sirve por descubrimiento: hace falta que alguien la haya declarado
+   * `PLATFORM` en `NOTEBOOK_DATASETS`, que es una firma. Deducir «sin columna de inquilino =
+   * de plataforma» convertiría cualquier migración que quitase `tenant_id` en una fuga entre
+   * organizaciones, en silencio y con el catálogo en verde.
+   *
+   * Se devuelven también las descartadas: un catálogo que encoge sin decirlo se lee como que la
+   * base tiene menos datos, y manda a buscar el problema donde no está.
+   */
+  async listDatasets(): Promise<{ datasets: NotebookDataset[]; omitted: OmittedDataset[] }> {
+    const rows = await this.readQuery.select<DiscoveredRow>(
+      `SELECT v.table_name,
+              bool_or(c.column_name IN (:tenantColumns)) AS has_tenant
+         FROM information_schema.views v
+         LEFT JOIN information_schema.columns c
+                ON c.table_schema = v.table_schema AND c.table_name = v.table_name
+        WHERE v.table_schema = :schema
+        GROUP BY v.table_name
+        ORDER BY v.table_name`,
+      { schema: NOTEBOOK_SCHEMA, tenantColumns: [...NOTEBOOK_TENANT_COLUMNS] },
+    );
+
+    const datasets: NotebookDataset[] = [];
+    const omitted: OmittedDataset[] = [];
+
+    for (const row of rows) {
+      const declared = NOTEBOOK_DATASETS.find((candidate) => candidate.view === row.table_name);
+      if (declared) {
+        datasets.push(declared);
+        continue;
+      }
+      if (row.has_tenant) {
+        datasets.push(describeDiscovered(row.table_name));
+        continue;
+      }
+      omitted.push({
+        view: row.table_name,
+        reason:
+          `No publica ${NOTEBOOK_TENANT_COLUMNS.join(' ni ')}, así que no hay por dónde acotar el ` +
+          'inquilino. Para servirla hay que declararla de plataforma en el catálogo del cuaderno.',
+      });
+    }
+
+    return { datasets, omitted };
   }
 
-  findDataset(code: string): NotebookDataset {
-    const dataset = NOTEBOOK_DATASETS.find((candidate) => candidate.code === code);
+  async findDataset(code: string): Promise<NotebookDataset> {
+    const { datasets } = await this.listDatasets();
+    const dataset = datasets.find((candidate) => candidate.code === code);
     if (!dataset) {
       throw new NotFoundException(`El dataset «${code}» no existe en el catálogo del cuaderno.`);
     }
@@ -49,7 +125,7 @@ export class DataNotebookCatalogService {
     const cached = this.shapes.get(code);
     if (cached) return cached;
 
-    const dataset = this.findDataset(code);
+    const dataset = await this.findDataset(code);
     const rows = await this.readQuery.select<ColumnRow>(
       `SELECT column_name, data_type
          FROM information_schema.columns
