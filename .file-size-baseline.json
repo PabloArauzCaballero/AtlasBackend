@@ -1,5 +1,4 @@
 {
-  "src/database/context-seed/multidomain-context-loader.ts": 714,
   "src/modules/audit/audit.repository.ts": 314,
   "src/modules/auth/auth.repository.ts": 319,
   "src/modules/auth/auth.service.ts": 384,
