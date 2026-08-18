@@ -6,6 +6,7 @@
 export { TenantModel } from './tenants.model.js';
 export { PlatformUserModel } from './platform-users.model.js';
 export { InternalUserModel } from './internal-users.model.js';
+export { MerchantUserModel } from './merchant-users.model.js';
 export { InternalRoleModel } from './internal-roles.model.js';
 export { InternalPermissionModel } from './internal-permissions.model.js';
 export { InternalRolePermissionModel } from './internal-role-permissions.model.js';

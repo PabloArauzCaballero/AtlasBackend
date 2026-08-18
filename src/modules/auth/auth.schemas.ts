@@ -5,12 +5,13 @@
  */
 import { z } from 'zod';
 
-export const actorTypeSchema = z.enum(['customer', 'internal_user', 'platform_user']);
+export const actorTypeSchema = z.enum(['customer', 'internal_user', 'platform_user', 'merchant_user']);
 
 export const loginSchema = z.object({
   actorType: actorTypeSchema,
   // Para `customer`: teléfono o email (el mismo dato usado en onboarding).
   // Para `internal_user`/`platform_user`: email corporativo.
+  // Para `merchant_user`: email con el que se dio de alta al usuario del comercio.
   identifier: z.string().trim().min(3).max(180),
   password: z.string().min(1).max(128),
 });

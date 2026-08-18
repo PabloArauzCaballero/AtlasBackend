@@ -6,7 +6,7 @@
 import { Injectable, UnauthorizedException, ForbiddenException, ConflictException, Optional } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { MetricsService } from '../../common/observability/metrics.service.js';
-import { accessTokenSignOptions } from '../../common/utils/auth/jwt-claims.util.js';
+import { accessTokenSignOptions, actorIdClaim } from '../../common/utils/auth/jwt-claims.util.js';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
@@ -70,9 +70,7 @@ export class AuthService {
       role: actor.role,
       tokenVersion,
       ...(actor.tenantId ? { tenantId: actor.tenantId } : {}),
-      ...(actorType === 'customer' ? { customerId: actor.id } : {}),
-      ...(actorType === 'internal_user' ? { internalUserId: actor.id } : {}),
-      ...(actorType === 'platform_user' ? { platformUserId: actor.id } : {}),
+      ...actorIdClaim(actorType, actor.id),
     };
 
     const options: SignOptions = accessTokenSignOptions({

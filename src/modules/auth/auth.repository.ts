@@ -17,7 +17,7 @@ import {
   PlatformUserModel,
 } from '../../database/models/index.js';
 
-export type ActorType = 'customer' | 'internal_user' | 'platform_user';
+export type ActorType = 'customer' | 'internal_user' | 'platform_user' | 'merchant_user';
 
 export type OneTimeCodePurpose = 'password_reset' | 'login_pin' | 'contact_verification_phone' | 'contact_verification_email';
 

@@ -28,8 +28,17 @@ describe('AuthActorResolverService', () => {
       findById: jest.fn(async (..._args: unknown[]) => null),
       findContactMethods: jest.fn(async (..._args: unknown[]) => []),
     };
-    const service = new AuthActorResolverService(authRepository as never, customersRepository as never);
-    return { service, authRepository, customersRepository };
+    const merchantActorRepository = {
+      findMerchantUserByEmail: jest.fn(async (..._args: unknown[]) => null),
+      findMerchantUserById: jest.fn(async (..._args: unknown[]) => null),
+      touchMerchantUserLogin: jest.fn(async (..._args: unknown[]) => undefined),
+    };
+    const service = new AuthActorResolverService(
+      authRepository as never,
+      customersRepository as never,
+      merchantActorRepository as never,
+    );
+    return { service, authRepository, customersRepository, merchantActorRepository };
   }
 
   it('isKnownRole reconoce roles válidos y rechaza desconocidos', () => {

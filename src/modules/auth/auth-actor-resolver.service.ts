@@ -9,6 +9,7 @@ import { decryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryp
 import { hashSensitiveText } from '../../common/utils/crypto/hash.util.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
+import { MerchantActorRepository } from './merchant-actor.repository.js';
 
 /** Actor autenticable ya resuelto (cliente, usuario interno o de plataforma), con su rol vigente. */
 export type ResolvedActor = {
@@ -39,6 +40,7 @@ export class AuthActorResolverService {
   constructor(
     private readonly authRepository: AuthRepository,
     private readonly customersRepository: CustomersRepository,
+    private readonly merchantActorRepository: MerchantActorRepository,
   ) {}
 
   /** Resuelve el actor durante el login, a partir del identificador que el usuario escribió. */
@@ -74,6 +76,10 @@ export class AuthActorResolverService {
       };
     }
 
+    if (actorType === 'merchant_user') {
+      return this.resolveMerchantActor(await this.merchantActorRepository.findMerchantUserByEmail(identifier, tenantId));
+    }
+
     // platform_user
     const platformUser = await this.authRepository.findPlatformUserByEmail(identifier);
     if (!platformUser || platformUser.status !== 'active' || !platformUser.roleCode || !isKnownRole(platformUser.roleCode)) {
@@ -85,6 +91,32 @@ export class AuthActorResolverService {
       role: platformUser.roleCode,
       email: platformUser.email,
       displayName: platformUser.fullName,
+    };
+  }
+
+  /**
+   * Identidad del comercio afiliado, con la misma comprobación en el login y en el refresh.
+   *
+   * Fail-closed en tres puntos: identidad inexistente, estado distinto de `active`, o rol fuera del
+   * vocabulario que acepta el guard. Una identidad `invited` todavía no ha aceptado su alta; una
+   * `suspended` es exactamente el caso que el portal del comercio tiene que impedir sin depender de
+   * que el ERP se acuerde de comprobarlo.
+   */
+  private resolveMerchantActor(merchantUser: {
+    id: string;
+    tenantId: string;
+    roleCode: string;
+    email: string;
+    fullName: string | null;
+    status: string;
+  } | null): ResolvedActor | null {
+    if (!merchantUser || merchantUser.status !== 'active' || !isKnownRole(merchantUser.roleCode)) return null;
+    return {
+      id: merchantUser.id,
+      tenantId: merchantUser.tenantId,
+      role: merchantUser.roleCode,
+      email: merchantUser.email,
+      displayName: merchantUser.fullName,
     };
   }
 
@@ -126,6 +158,12 @@ export class AuthActorResolverService {
         displayName: internalUser.fullName,
       };
     }
+    if (actorType === 'merchant_user') {
+      // El refresh vuelve a leer el estado: suspender a un usuario del comercio corta su sesión en
+      // la siguiente rotación, sin esperar a que caduque el access token.
+      return this.resolveMerchantActor(await this.merchantActorRepository.findMerchantUserById(actorId));
+    }
+
     const platformUser = await this.authRepository.findPlatformUserById(actorId);
     if (!platformUser || platformUser.status !== 'active' || !platformUser.roleCode || !isKnownRole(platformUser.roleCode)) return null;
     return { id: actorId, tenantId: null, role: platformUser.roleCode, email: platformUser.email, displayName: platformUser.fullName };

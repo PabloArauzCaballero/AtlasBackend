@@ -78,6 +78,15 @@ export const INTERNAL_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
   permission('systems.stress.read', 'systems', 'stress_profile', 'read', 'Consultar perfiles y corridas stress.'),
   permission('systems.stress.execute', 'systems', 'stress_run', 'execute', 'Ejecutar stress controlado.', 'CRITICAL', true),
   permission('internal.users.read', 'internal', 'internal_user', 'read', 'Consultar usuarios internos.'),
+  permission('merchant.users.read', 'merchant', 'merchant_user', 'read', 'Consultar identidades de usuarios de comercios afiliados.'),
+  permission(
+    'merchant.users.manage',
+    'merchant',
+    'merchant_user',
+    'manage',
+    'Dar de alta, activar, suspender y dar de baja el acceso de usuarios de comercios afiliados.',
+    'HIGH',
+  ),
   permission(
     'internal.users.manage',
     'internal',
@@ -199,7 +208,16 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   COLLECTIONS_MANAGER: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read', 'reporting.read'],
   COLLECTIONS_AGENT: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read'],
   FINANCE_MANAGER: ['auth.internal.me.read', 'reporting.read', 'reporting.execute', 'audit.events.read'],
-  MERCHANT_OPERATIONS: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read'],
+  MERCHANT_OPERATIONS: [
+    'auth.internal.me.read',
+    'operations.catalogs.read',
+    'operations.definitions.read',
+    // Alta y ciclo de vida de las identidades del comercio: es la contraparte de identidad del
+    // onboarding que este rol ya hace. Antes no existía la población, y el ERP terminaba
+    // fabricando el rol de comercio a partir de ESTE rol interno.
+    'merchant.users.read',
+    'merchant.users.manage',
+  ],
   DATA_GOVERNANCE_MANAGER: [
     'auth.internal.me.read',
     ...codeStartsWith('catalog.'),

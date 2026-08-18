@@ -15,5 +15,5 @@ import { AuthenticatedUser } from '../../types/auth.types.js';
  * - `external-data.controller.ts` retorna `undefined` y usa `customerId` como último fallback.
  */
 export function actorId(user: AuthenticatedUser | undefined): string | null {
-  return user?.internalUserId ?? user?.platformUserId ?? user?.sub ?? null;
+  return user?.internalUserId ?? user?.platformUserId ?? user?.merchantUserId ?? user?.sub ?? null;
 }

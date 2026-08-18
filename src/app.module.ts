@@ -47,6 +47,7 @@ import { EventsModule } from './modules/events/events.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { ExternalDataModule } from './modules/external-data/external-data.module.js';
 import { InternalUsersModule } from './modules/internal-users/internal-users.module.js';
+import { MerchantIdentityModule } from './modules/merchant-identity/merchant-identity.module.js';
 import { RiskModule } from './modules/risk/risk.module.js';
 import { FraudModule } from './modules/fraud/fraud.module.js';
 import { SessionsModule } from './modules/sessions/sessions.module.js';
@@ -86,6 +87,7 @@ import { env } from './config/env.js';
     CatalogManagementModule,
     AuthModule,
     InternalUsersModule,
+    MerchantIdentityModule,
     CustomersModule,
     CustomerOnboardingModule,
     CreditModule,

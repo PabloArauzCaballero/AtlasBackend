@@ -67,6 +67,7 @@ function parseAuthenticatedUser(payload: string | jwt.JwtPayload): Authenticated
     customerId: typeof payload.customerId === 'string' ? payload.customerId : undefined,
     internalUserId: typeof payload.internalUserId === 'string' ? payload.internalUserId : undefined,
     platformUserId: typeof payload.platformUserId === 'string' ? payload.platformUserId : undefined,
+    merchantUserId: typeof payload.merchantUserId === 'string' ? payload.merchantUserId : undefined,
     tokenVersion: typeof payload.tokenVersion === 'number' ? payload.tokenVersion : undefined,
   };
 }
@@ -81,6 +82,7 @@ function actorLookup(user: AuthenticatedUser): { actorType: string; actorId: str
   if (user.customerId) return { actorType: 'customer', actorId: user.customerId };
   if (user.internalUserId) return { actorType: 'internal_user', actorId: user.internalUserId };
   if (user.platformUserId) return { actorType: 'platform_user', actorId: user.platformUserId };
+  if (user.merchantUserId) return { actorType: 'merchant_user', actorId: user.merchantUserId };
   return null;
 }
 

@@ -11,6 +11,7 @@ import {
   AuthOneTimeCodeModel,
   AuthRefreshTokenModel,
   InternalUserModel,
+  MerchantUserModel,
   OperationalAuditLogModel,
   PlatformUserModel,
 } from '../../database/models/index.js';
@@ -21,6 +22,7 @@ import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthPasswordResetService } from './auth-password-reset.service.js';
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { AuthRepository } from './auth.repository.js';
+import { MerchantActorRepository } from './merchant-actor.repository.js';
 import { AuthService } from './auth.service.js';
 
 @Module({
@@ -31,6 +33,7 @@ import { AuthService } from './auth.service.js';
       AuthOneTimeCodeModel,
       InternalUserModel,
       PlatformUserModel,
+      MerchantUserModel,
       AuthEventModel,
       OperationalAuditLogModel,
     ]),
@@ -38,9 +41,16 @@ import { AuthService } from './auth.service.js';
     MailSenderModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthActorResolverService, AuthPasswordResetService, AuthSecondFactorService, AuthRepository],
+  providers: [
+    AuthService,
+    AuthActorResolverService,
+    AuthPasswordResetService,
+    AuthSecondFactorService,
+    AuthRepository,
+    MerchantActorRepository,
+  ],
   // `AuthSecondFactorService` se exporta para que el perfil de un usuario interno pueda informar si
   // su acceso lleva de verdad un segundo factor, sin duplicar esa política fuera de aquí.
-  exports: [AuthService, AuthRepository, AuthSecondFactorService],
+  exports: [AuthService, AuthRepository, AuthSecondFactorService, MerchantActorRepository],
 })
 export class AuthModule {}
