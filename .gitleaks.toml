@@ -33,6 +33,20 @@ regexes = [
   # con puntos suspensivos literales, sin material de clave. Se ancla al placeholder exacto (`\n...\n`)
   # a propósito: si alguien pegara una clave FCM real en la doc, NO haría match y el gate la atraparía.
   '''BEGIN PRIVATE KEY-----\\n\.\.\.\\n-----END PRIVATE KEY''',
+
+  # Fixtures de pruebas unitarias: valores INVENTADOS cuya única razón de existir es ejercitar el
+  # código que los consume. Se ancla cada uno a su literal exacto, no al identificador ni al fichero:
+  # si alguien pegara una credencial real en el mismo sitio, no haría match y el gate la atraparía.
+  # Revisados uno por uno el 18-ago-2026.
+  '''idem-key-secreta-1234''',
+  '''Contrasena-Muy-Segura-1''',
+  '''otra-clave-de-al-menos-32-caracteres-distinta''',
+  '''otra-clave-distinta-de-32-caracteres-o-mas''',
+  '''desde-body-0123456789''',
+
+  # Mismo caso que `observationKey:` de arriba, en la forma de comparación (`===`): es un nombre de
+  # feature del dominio de riesgo, no una credencial.
+  '''observationKey\s*===''',
 ]
 
 paths = [
