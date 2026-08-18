@@ -126,10 +126,20 @@ export class DataNotebookController {
 
   @ApiOperation({ summary: 'Leer una página de un dataset, acotada por inquilino y enmascarada' })
   @ApiParam({ name: 'code', description: 'Código del dataset en el catálogo del cuaderno.' })
-  @ApiQuery({ name: 'page', required: false, schema: rowsQueryProperties.page })
-  @ApiQuery({ name: 'pageSize', required: false, schema: rowsQueryProperties.pageSize })
-  @ApiQuery({ name: 'orderBy', required: false, schema: rowsQueryProperties.orderBy })
-  @ApiQuery({ name: 'orderDirection', required: false, schema: rowsQueryProperties.orderDirection })
+  @ApiQuery({ name: 'page', required: false, description: 'Página a devolver, empezando en 1.', schema: rowsQueryProperties.page })
+  @ApiQuery({ name: 'pageSize', required: false, description: 'Filas por página.', schema: rowsQueryProperties.pageSize })
+  @ApiQuery({
+    name: 'orderBy',
+    required: false,
+    description: 'Columna por la que ordenar. Sólo se admiten columnas del dataset gobernado.',
+    schema: rowsQueryProperties.orderBy,
+  })
+  @ApiQuery({
+    name: 'orderDirection',
+    required: false,
+    description: 'Sentido del orden: ascendente o descendente.',
+    schema: rowsQueryProperties.orderDirection,
+  })
   @ApiResponse({ status: 200, description: 'Página de filas con sus columnas y el total acotado.' })
   @Get('datasets/:code/rows')
   readRows(

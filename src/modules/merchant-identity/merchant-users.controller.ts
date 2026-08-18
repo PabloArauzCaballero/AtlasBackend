@@ -75,7 +75,12 @@ export class MerchantUsersController {
   }
 
   @ApiOperation({ summary: 'Consultar una identidad de comercio' })
-  @ApiParam({ name: 'merchantUserId', schema: zodToApiSchema(merchantUserParamsSchema.shape.merchantUserId) })
+  @ApiParam({
+    name: 'merchantUserId',
+    description: 'Identificador de la identidad de comercio dentro del tenant.',
+    schema: zodToApiSchema(merchantUserParamsSchema.shape.merchantUserId),
+  })
+  @ApiResponse({ status: 200, description: 'Perfil de la identidad de comercio.' })
   @ApiResponse({ status: 404, description: 'MERCHANT_USER_NOT_FOUND.' })
   @Get(':merchantUserId')
   @InternalPermissions('merchant.users.read')
