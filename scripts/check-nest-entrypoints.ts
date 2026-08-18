@@ -60,9 +60,7 @@ function main(): void {
     process.exit(1);
   }
 
-  console.log(
-    `✅ ${entrypoints.length} punto(s) de entrada de Nest: ninguno se arranca con un transpilador que borre la metadata.`,
-  );
+  console.log(`✅ ${entrypoints.length} punto(s) de entrada de Nest: ninguno se arranca con un transpilador que borre la metadata.`);
 }
 
 main();

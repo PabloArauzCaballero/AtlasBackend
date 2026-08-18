@@ -52,7 +52,10 @@ export class MerchantUsersService {
    * Separarlas dejaría identidades sin contraseña —invisibles para el login y difíciles de
    * diagnosticar— cada vez que fallara el segundo paso.
    */
-  async createMerchantUser(dto: CreateMerchantUserDto, actor: { tenantId: string; internalUserId: string | null }): Promise<MerchantUserProfile> {
+  async createMerchantUser(
+    dto: CreateMerchantUserDto,
+    actor: { tenantId: string; internalUserId: string | null },
+  ): Promise<MerchantUserProfile> {
     if (!isPasswordStrongEnough(dto.password)) {
       throw new ConflictException('WEAK_PASSWORD');
     }

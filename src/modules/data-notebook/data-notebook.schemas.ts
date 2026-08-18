@@ -22,11 +22,7 @@ import {
  * lee decisiones de crédito. El cuaderno guardado, al revés, admitía cualquier mezcla de letras,
  * puntos y dos puntos.
  */
-const datasetCodeSchema = z
-  .string()
-  .trim()
-  .max(64)
-  .regex(NOTEBOOK_DATASET_CODE_PATTERN, NOTEBOOK_DATASET_CODE_MESSAGE);
+const datasetCodeSchema = z.string().trim().max(64).regex(NOTEBOOK_DATASET_CODE_PATTERN, NOTEBOOK_DATASET_CODE_MESSAGE);
 
 export const notebookDatasetParamsSchema = z.object({
   code: z

@@ -171,8 +171,7 @@ export const NOTEBOOK_HISTORY_LANGUAGES = [...NOTEBOOK_CELL_LANGUAGES, 'sql'] as
  * El tope de 64 caracteres es el de la columna `dataset_code`. Se escribe también aquí para que un
  * nombre más largo se rechace con un mensaje en vez de reventar contra el driver.
  */
-export const NOTEBOOK_DATASET_CODE_PATTERN =
-  /^(?:[a-z0-9-]{1,64}|motor:[a-z_][a-z0-9_]{0,62}\.[a-z_][a-z0-9_]{0,62})$/;
+export const NOTEBOOK_DATASET_CODE_PATTERN = /^(?:[a-z0-9-]{1,64}|motor:[a-z_][a-z0-9_]{0,62}\.[a-z_][a-z0-9_]{0,62})$/;
 
 export const NOTEBOOK_DATASET_CODE_MESSAGE =
   'El código de dataset debe ser el de una vista de read_api (minúsculas, dígitos y guiones) o uno del motor con la forma motor:esquema.tabla.';
