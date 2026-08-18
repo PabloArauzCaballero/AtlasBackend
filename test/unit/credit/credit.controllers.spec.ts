@@ -24,9 +24,11 @@ describe('CreditController', () => {
     };
   }
 
-  it('usa el tenant del token para listar productos cuando no llega header', async () => {
+  // Que el tenant salga del token cuando no llega header es cosa de `@CurrentTenant()` (ver su
+  // spec); aquí llega ya resuelto y lo que se comprueba es que el controller lo propaga.
+  it('propaga el tenant resuelto al listar productos', async () => {
     const { controller, productService } = build();
-    await controller.listProducts(undefined, { customerId: '10' }, customerUser);
+    await controller.listProducts('7', { customerId: '10' }, customerUser);
     expect(productService.listForCustomer).toHaveBeenCalledWith({ tenantId: '7', customerId: '10', currentUser: customerUser });
   });
 

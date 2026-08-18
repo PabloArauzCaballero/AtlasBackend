@@ -3,8 +3,9 @@
  * @business Esta pieza materializa la oferta y solicitud de crédito solo para clientes habilitados y con decisiones explicables.
  * @system coordina productos, solicitudes, transiciones y eventos inmutables del ciclo de crédito.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,6 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { CreditDecisionService } from './application/credit-decision.service.js';
 import { CreditProductService } from './application/credit-product.service.js';
 import {
@@ -49,8 +49,8 @@ export class CreditOperationsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Productos del tenant.' })
   @Get('products')
-  listProducts(@Headers('x-tenant-id') tenantIdHeader: string | undefined) {
-    return this.productService.listForOperations(tenantIdFromHeader(tenantIdHeader));
+  listProducts(@CurrentTenant() tenantId: string) {
+    return this.productService.listForOperations(tenantId);
   }
 
   @ApiOperation({
@@ -64,11 +64,11 @@ export class CreditOperationsController {
   @Post('products')
   @HttpCode(HttpStatus.CREATED)
   createProduct(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(createCreditProductSchema)) body: CreateCreditProductDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.productService.createProduct({ tenantId: tenantIdFromHeader(tenantIdHeader), body, currentUser });
+    return this.productService.createProduct({ tenantId: tenantId, body, currentUser });
   }
 
   @ApiOperation({ summary: 'Cambiar el estado de un producto (activar, suspender, retirar)' })
@@ -80,13 +80,13 @@ export class CreditOperationsController {
   @Patch('products/:productId/status')
   @HttpCode(HttpStatus.OK)
   changeProductStatus(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(creditProductIdParamsSchema)) params: CreditProductIdParamsDto,
     @Body(new ZodValidationPipe(creditProductStatusSchema)) body: CreditProductStatusDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.productService.changeStatus({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       productId: params.productId,
       status: body.status,
       currentUser,
@@ -107,13 +107,13 @@ export class CreditOperationsController {
   @Post('applications/:applicationId/decision')
   @HttpCode(HttpStatus.OK)
   decideApplication(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('applicationId') applicationId: string,
     @Body(new ZodValidationPipe(creditApplicationDecisionSchema)) body: CreditApplicationDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.decisionService.decide({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       applicationId,
       body,
       currentUser,
@@ -124,7 +124,7 @@ export class CreditOperationsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Solicitud + eventos, más recientes primero.' })
   @Get('applications/:applicationId')
-  getApplicationDetail(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @Param('applicationId') applicationId: string) {
-    return this.decisionService.getApplicationDetail(tenantIdFromHeader(tenantIdHeader), applicationId);
+  getApplicationDetail(@CurrentTenant() tenantId: string, @Param('applicationId') applicationId: string) {
+    return this.decisionService.getApplicationDetail(tenantId, applicationId);
   }
 }

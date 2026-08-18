@@ -6,6 +6,7 @@
 import { BadRequestException, Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,6 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { RiskService } from './risk.service.js';
 import {
   createRiskAssessmentSchema,
@@ -51,7 +51,7 @@ export class RiskController {
   @Post('customers/:customerId/risk-assessments')
   @HttpCode(HttpStatus.CREATED)
   createRiskAssessment(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(customerRiskParamsSchema)) params: CustomerRiskParamsDto,
     @Body(new ZodValidationPipe(createRiskAssessmentSchema)) body: CreateRiskAssessmentDto,
@@ -59,7 +59,7 @@ export class RiskController {
   ) {
     if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     return this.riskService.createRiskAssessment({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       body,
       currentUser,
@@ -80,10 +80,10 @@ export class RiskController {
   @ApiResponse({ status: 404, description: 'Evaluación no encontrada.' })
   @Get('operations/risk-assessments/:riskAssessmentRunId')
   getRiskAssessmentDetail(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(riskAssessmentParamsSchema)) params: RiskAssessmentParamsDto,
   ) {
-    return this.riskService.getRiskAssessmentDetail(tenantIdFromHeader(tenantIdHeader), params.riskAssessmentRunId);
+    return this.riskService.getRiskAssessmentDetail(tenantId, params.riskAssessmentRunId);
   }
 
   @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin')
@@ -97,9 +97,9 @@ export class RiskController {
   @ApiResponse({ status: 404, description: 'Evaluación no encontrada.' })
   @Get('operations/risk-assessments/:riskAssessmentRunId/explanation')
   getRiskAssessmentExplanation(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(riskAssessmentParamsSchema)) params: RiskAssessmentParamsDto,
   ) {
-    return this.riskService.getRiskAssessmentExplanation(tenantIdFromHeader(tenantIdHeader), params.riskAssessmentRunId);
+    return this.riskService.getRiskAssessmentExplanation(tenantId, params.riskAssessmentRunId);
   }
 }

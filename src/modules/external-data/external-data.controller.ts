@@ -6,6 +6,7 @@
 import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,6 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { actorId, assertCustomerAccess, customerScopeForConsentMutation } from './external-data-controller.util.js';
 import { ExternalDataService } from './external-data.service.js';
 import {
@@ -81,7 +81,7 @@ export class ExternalDataController {
   @Post('consents')
   @HttpCode(HttpStatus.CREATED)
   createConsent(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-forwarded-for') ipAddress: string | undefined,
     @Headers('user-agent') userAgent: string | undefined,
     @Body(new ZodValidationPipe(externalConsentSchema)) body: ExternalConsentDto,
@@ -89,7 +89,7 @@ export class ExternalDataController {
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.createConsent({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       body,
       ipAddress,
       userAgent,
@@ -102,13 +102,13 @@ export class ExternalDataController {
   @ApiResponse({ status: 200, description: 'Lista de consentimientos.' })
   @Get('consents/user/:customerId')
   listConsents(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
     return this.externalDataService.listCustomerConsents({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: params.customerId,
     });
   }
@@ -121,12 +121,12 @@ export class ExternalDataController {
   @Post('consents/:consentId/revoke')
   @HttpCode(HttpStatus.OK)
   revokeConsent(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(consentIdParamsSchema)) params: ConsentIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.externalDataService.revokeConsent({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       consentId: params.consentId,
       customerId: customerScopeForConsentMutation(currentUser),
     });
@@ -143,13 +143,13 @@ export class ExternalDataController {
   @Post('requests/preview')
   @HttpCode(HttpStatus.OK)
   previewRequest(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(externalDataRequestSchema)) body: ExternalDataRequestDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.previewExternalDataRequest({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       body,
       requestedByUserId: actorId(currentUser),
     });
@@ -172,14 +172,14 @@ export class ExternalDataController {
   @Post('requests')
   @HttpCode(HttpStatus.OK)
   executeRequest(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(externalDataRequestSchema)) body: ExternalDataRequestDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.executeExternalDataRequest({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       body,
       idempotencyKey,
       requestedByUserId: actorId(currentUser),
@@ -192,13 +192,9 @@ export class ExternalDataController {
   @ApiResponse({ status: 200, description: 'Detalle de la solicitud.' })
   @ApiResponse({ status: 404, description: 'Solicitud no encontrada.' })
   @Get('requests/:requestId')
-  getRequest(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(requestIdParamsSchema)) params: RequestIdParamsDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
+  getRequest(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(requestIdParamsSchema)) params: RequestIdParamsDto) {
     return this.externalDataService.getProviderRequest({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       requestId: params.requestId,
     });
   }
@@ -221,13 +217,13 @@ export class ExternalDataController {
   @ApiResponse({ status: 200, description: 'Features del cliente.' })
   @Get('users/:customerId/features')
   getUserFeatures(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
     return this.externalDataService.getCustomerFeatures({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: params.customerId,
     });
   }
@@ -238,13 +234,13 @@ export class ExternalDataController {
   @ApiResponse({ status: 200, description: 'Input de scoring del cliente.' })
   @Get('users/:customerId/scoring-input')
   getUserScoringInput(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
     return this.externalDataService.getCustomerScoringInput({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: params.customerId,
     });
   }
@@ -269,14 +265,14 @@ export class ExternalDataController {
   @ApiResponse({ status: 200, description: 'Paquete de decisión.' })
   @Get('users/:customerId/decision-package')
   getDecisionPackage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
     @Query(new ZodValidationPipe(decisionPackageQuerySchema)) query: DecisionPackageQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
     return this.externalDataService.getCustomerDecisionPackage({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: params.customerId,
       includeRawResponses: query.includeRawResponses,
       featureMaxAgeHours: query.featureMaxAgeHours,
@@ -292,13 +288,13 @@ export class ExternalDataController {
   @ApiResponse({ status: 200, description: 'Observaciones del cliente.' })
   @Get('users/:customerId/observations')
   getUserObservations(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
     return this.externalDataService.getCustomerObservations({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: params.customerId,
     });
   }
@@ -361,13 +357,9 @@ export class AdminExternalProvidersController {
   @ApiQuery({ name: 'days', required: false, schema: zodObjectPropertySchemas(providerSlaQuerySchema).days })
   @ApiResponse({ status: 200, description: 'Reporte de SLA.' })
   @Get('sla')
-  sla(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Query(new ZodValidationPipe(providerSlaQuerySchema)) query: ProviderSlaQueryDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
+  sla(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(providerSlaQuerySchema)) query: ProviderSlaQueryDto) {
     return this.externalDataService.getProviderSlaReport({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       providerCode: query.providerCode,
       days: query.days,
     });
@@ -379,13 +371,9 @@ export class AdminExternalProvidersController {
   @ApiQuery({ name: 'days', required: false, schema: zodObjectPropertySchemas(providerUsageQuerySchema).days })
   @ApiResponse({ status: 200, description: 'Reporte de uso/costo.' })
   @Get('usage')
-  usage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Query(new ZodValidationPipe(providerUsageQuerySchema)) query: ProviderUsageQueryDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
+  usage(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(providerUsageQuerySchema)) query: ProviderUsageQueryDto) {
     return this.externalDataService.getProviderUsage({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       providerCode: query.providerCode,
       days: query.days,
     });
@@ -398,12 +386,11 @@ export class AdminExternalProvidersController {
   @ApiResponse({ status: 200, description: 'Auditoría de idempotencia.' })
   @Get('idempotency-audit')
   idempotencyAudit(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Query(new ZodValidationPipe(idempotencyAuditQuerySchema)) query: IdempotencyAuditQueryDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.externalDataService.auditIdempotencyKeys({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       days: query.days,
       limit: query.limit,
     });
@@ -440,13 +427,13 @@ export class AdminExternalProvidersController {
   @Post('policy/preview')
   @HttpCode(HttpStatus.OK)
   previewPolicy(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(externalDataRequestSchema)) body: ExternalDataRequestDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.previewExternalDataRequest({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       body,
       requestedByUserId: actorId(currentUser),
     });
@@ -533,13 +520,13 @@ export class AdminExternalProvidersController {
   @Post(':providerCode/test')
   @HttpCode(HttpStatus.OK)
   testProvider(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(providerCodeParamsSchema)) params: ProviderCodeParamsDto,
     @Body() body: Record<string, unknown> = {},
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.externalDataService.executeExternalDataRequest({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       body: {
         providerCode: params.providerCode,
         customerId: typeof body.customerId === 'string' ? body.customerId : '1',
@@ -573,13 +560,13 @@ export class AdminExternalProvidersController {
   @Post('requests/:requestId/approve')
   @HttpCode(HttpStatus.OK)
   approveRequest(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(requestIdParamsSchema)) params: RequestIdParamsDto,
     @Body(new ZodValidationPipe(approveProviderRequestSchema)) body: ApproveProviderRequestDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.externalDataService.approveRequest({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       requestId: params.requestId,
       approvedByAdminId: body.approvedByAdminId ?? actorId(currentUser),
       approvalReason: body.approvalReason,
@@ -595,13 +582,13 @@ export class AdminExternalProvidersController {
   @Post('requests/:requestId/retry')
   @HttpCode(HttpStatus.OK)
   retryRequest(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(requestIdParamsSchema)) params: RequestIdParamsDto,
     @Body(new ZodValidationPipe(retryRequestSchema)) body: RetryRequestDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.externalDataService.retryProviderRequest({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       requestId: params.requestId,
       body,
       requestedByUserId: actorId(currentUser),
@@ -619,13 +606,9 @@ export class AdminExternalProvidersController {
   @ApiResponse({ status: 404, description: 'Solicitud no encontrada.' })
   @Post('requests/:requestId/rebuild-features')
   @HttpCode(HttpStatus.OK)
-  rebuildFeatures(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(requestIdParamsSchema)) params: RequestIdParamsDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
+  rebuildFeatures(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(requestIdParamsSchema)) params: RequestIdParamsDto) {
     return this.externalDataService.rebuildFeatureSnapshotFromRequest({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       requestId: params.requestId,
     });
   }

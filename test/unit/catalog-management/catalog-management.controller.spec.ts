@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { CatalogGovernanceController } from '../../../src/modules/catalog-management/catalog-governance.controller.js';
 import { CatalogManagementController } from '../../../src/modules/catalog-management/catalog-management.controller.js';
 import { tenantIdFromHeader, userAgentFrom } from '../../../src/common/utils/http/headers.util.js';
 
@@ -18,7 +19,12 @@ describe('CatalogManagementController', () => {
       createCatalogVersion: jest.fn(async (..._args: unknown[]) => ({ versionId: 'v1' })),
       decideCatalogVersion: jest.fn(async (..._args: unknown[]) => ({ decided: true })),
     };
-    return { controller: new CatalogManagementController(service as never), service };
+    // El gobierno de reglas y políticas salió a su propio controller; comparten servicio.
+    return {
+      controller: new CatalogManagementController(service as never),
+      governance: new CatalogGovernanceController(service as never),
+      service,
+    };
   }
   const user = { role: 'risk_analyst', tenantId: '1', internalUserId: 'u1' } as never;
   const request = { ip: '3.3.3.3', headers: { 'user-agent': 'jest-ua' } } as never;
@@ -30,12 +36,12 @@ describe('CatalogManagementController', () => {
   };
 
   it('las lecturas delegan con { query/params, currentUser }', async () => {
-    const { controller, service } = build();
+    const { controller, governance, service } = build();
     await controller.listCatalogs({ domain: 'risk' } as never, user);
     await controller.getCatalogVersion({ catalogCode: 'C', versionId: 'v1' } as never, user);
     await controller.listDefinitions({ type: 'event' } as never, user);
-    await controller.getCurrentRiskPolicy(user);
-    await controller.getDataGovernancePolicies(user);
+    await governance.getCurrentRiskPolicy(user);
+    await governance.getDataGovernancePolicies(user);
     expect(service.listCatalogs).toHaveBeenCalledWith({ query: { domain: 'risk' }, currentUser: user });
     expect(service.getCatalogVersion).toHaveBeenCalledWith({ catalogCode: 'C', versionId: 'v1', currentUser: user });
     expect(service.listDefinitions).toHaveBeenCalledWith({ query: { type: 'event' }, currentUser: user });

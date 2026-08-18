@@ -6,6 +6,7 @@
 import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas, zodToApiSchema } from '../../../common/openapi/zod-to-schema.util.js';
+import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,6 @@ import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../../common/utils/http/headers.util.js';
 import { actorId, assertCustomerAccess } from '../external-data-controller.util.js';
 import { ExternalDataService } from '../external-data.service.js';
 import {
@@ -52,13 +52,13 @@ export class FacebookExternalDataController {
   @ApiResponse({ status: 200, description: 'URL de conexión OAuth.' })
   @Get('connect-url')
   getConnectUrl(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Query(new ZodValidationPipe(facebookConnectUrlQuerySchema)) query: FacebookConnectUrlQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, query.customerId);
     return this.externalDataService.createFacebookConnectUrl({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: query.customerId,
     });
   }
@@ -74,14 +74,14 @@ export class FacebookExternalDataController {
   @Post('callback')
   @HttpCode(HttpStatus.OK)
   callback(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(facebookCallbackSchema)) body: FacebookCallbackDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.executeFacebookCallback({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: body.customerId,
       body,
       idempotencyKey,
@@ -95,13 +95,13 @@ export class FacebookExternalDataController {
   @ApiResponse({ status: 200, description: 'Features derivados de la conexión Facebook.' })
   @Get('status/:customerId')
   status(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
     return this.externalDataService.getCustomerFeatures({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: params.customerId,
     });
   }
@@ -126,14 +126,14 @@ export class WhatsappExternalDataController {
   @Post('verification/start')
   @HttpCode(HttpStatus.OK)
   start(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(whatsappVerificationStartSchema)) body: WhatsappVerificationStartDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.executeWhatsapp({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: body.customerId,
       body,
       idempotencyKey,
@@ -152,14 +152,14 @@ export class WhatsappExternalDataController {
   @Post('verification/confirm')
   @HttpCode(HttpStatus.OK)
   confirm(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(whatsappVerificationConfirmSchema)) body: WhatsappVerificationConfirmDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.executeWhatsapp({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: body.customerId,
       body,
       idempotencyKey,
@@ -173,13 +173,13 @@ export class WhatsappExternalDataController {
   @ApiResponse({ status: 200, description: 'Features derivados de la verificación de WhatsApp.' })
   @Get('status/:customerId')
   status(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
     return this.externalDataService.getCustomerFeatures({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: params.customerId,
     });
   }
@@ -204,14 +204,14 @@ export class DigitalTrustExternalDataController {
   @Post('check')
   @HttpCode(HttpStatus.OK)
   check(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(digitalTrustCheckSchema)) body: DigitalTrustCheckDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.executeDigitalTrust({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: body.customerId,
       body,
       idempotencyKey,
@@ -225,13 +225,13 @@ export class DigitalTrustExternalDataController {
   @ApiResponse({ status: 200, description: 'Features de confianza digital.' })
   @Get('profile/:customerId')
   profile(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
     return this.externalDataService.getCustomerFeatures({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: params.customerId,
     });
   }

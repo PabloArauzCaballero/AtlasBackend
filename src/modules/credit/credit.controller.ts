@@ -5,6 +5,7 @@
  */
 import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,8 +14,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
-import { requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
 import { CreditApplicationService } from './application/credit-application.service.js';
 import { CreditProductService } from './application/credit-product.service.js';
 import {
@@ -52,11 +52,10 @@ export class CreditController {
   @ApiResponse({ status: 200, description: 'Catálogo de productos + elegibilidad del cliente.' })
   @Get('credit-products')
   listProducts(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(creditCustomerIdParamsSchema)) params: CreditCustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? currentUser.tenantId ?? ''), 'x-tenant-id');
     return this.productService.listForCustomer({ tenantId, customerId: params.customerId, currentUser });
   }
 
@@ -82,14 +81,14 @@ export class CreditController {
   @Post('credit-applications')
   @HttpCode(HttpStatus.CREATED)
   createApplication(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(creditCustomerIdParamsSchema)) params: CreditCustomerIdParamsDto,
     @Body(new ZodValidationPipe(createCreditApplicationSchema)) body: CreateCreditApplicationDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.applicationService.createApplication({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       body,
       currentUser,
@@ -104,11 +103,10 @@ export class CreditController {
   @ApiResponse({ status: 200, description: 'Solicitudes del cliente, más recientes primero.' })
   @Get('credit-applications')
   listApplications(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(creditCustomerIdParamsSchema)) params: CreditCustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? currentUser.tenantId ?? ''), 'x-tenant-id');
     return this.applicationService.listApplications({ tenantId, customerId: params.customerId, currentUser });
   }
 }

@@ -10359,7 +10359,7 @@ paths:
         - catalog-management
   /operations/risk-policy/current:
     get:
-      operationId: CatalogManagementController_getCurrentRiskPolicy
+      operationId: CatalogGovernanceController_getCurrentRiskPolicy
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -10386,7 +10386,7 @@ paths:
         - catalog-management
   /operations/risk-policy/ruleset-versions:
     post:
-      operationId: CatalogManagementController_createRiskRulesetVersion
+      operationId: CatalogGovernanceController_createRiskRulesetVersion
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
@@ -10614,7 +10614,7 @@ paths:
         - catalog-management
   /operations/risk-policy/ruleset-versions/{rulesetVersionId}/activate:
     post:
-      operationId: CatalogManagementController_activateRiskRulesetVersion
+      operationId: CatalogGovernanceController_activateRiskRulesetVersion
       parameters:
         - name: rulesetVersionId
           required: true
@@ -10673,7 +10673,7 @@ paths:
         - catalog-management
   /operations/data-governance/policies:
     get:
-      operationId: CatalogManagementController_getDataGovernancePolicies
+      operationId: CatalogGovernanceController_getDataGovernancePolicies
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -10700,7 +10700,7 @@ paths:
         - catalog-management
   /operations/data-governance/policy-package:
     post:
-      operationId: CatalogManagementController_upsertDataGovernancePackage
+      operationId: CatalogGovernanceController_upsertDataGovernancePackage
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'

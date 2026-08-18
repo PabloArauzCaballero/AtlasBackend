@@ -6,12 +6,13 @@
 import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
 import { EventsService } from './events.service.js';
 import {
   eventIdParamsSchema,
@@ -52,11 +53,8 @@ export class EventsController {
   @ApiQuery({ name: 'cursor', required: false, schema: zodObjectPropertySchemas(listEventsQuerySchema).cursor })
   @ApiResponse({ status: 200, description: 'Lista paginada de eventos.' })
   @Get()
-  listEvents(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Query(new ZodValidationPipe(listEventsQuerySchema)) query: ListEventsQueryDto,
-  ) {
-    return this.eventsService.listEvents(tenantIdFromHeader(tenantIdHeader), query);
+  listEvents(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listEventsQuerySchema)) query: ListEventsQueryDto) {
+    return this.eventsService.listEvents(tenantId, query);
   }
 
   @ApiOperation({ summary: 'Obtener un evento de dominio' })
@@ -65,11 +63,8 @@ export class EventsController {
   @ApiResponse({ status: 200, description: 'Detalle del evento.' })
   @ApiResponse({ status: 404, description: 'EVENT_NOT_FOUND.' })
   @Get(':eventId')
-  getEvent(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(eventIdParamsSchema)) params: EventIdParamsDto,
-  ) {
-    return this.eventsService.getEvent(tenantIdFromHeader(tenantIdHeader), params.eventId);
+  getEvent(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(eventIdParamsSchema)) params: EventIdParamsDto) {
+    return this.eventsService.getEvent(tenantId, params.eventId);
   }
 
   @ApiOperation({ summary: 'Publicar un evento de dominio' })
@@ -80,12 +75,12 @@ export class EventsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   createEvent(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKeyHeader: string | undefined,
     @Body(new ZodValidationPipe(publishEventSchema)) body: PublishEventDto,
   ) {
     return this.eventsService.publishFromDto({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       body,
       idempotencyKey: requireIdempotencyKey(idempotencyKeyHeader),
     });
@@ -101,12 +96,12 @@ export class EventsController {
   @Post(':eventId/retry')
   @HttpCode(HttpStatus.OK)
   retryEvent(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKeyHeader: string | undefined,
     @Param(new ZodValidationPipe(eventIdParamsSchema)) params: EventIdParamsDto,
   ) {
     requireIdempotencyKey(idempotencyKeyHeader);
-    return this.eventsService.retryEvent(tenantIdFromHeader(tenantIdHeader), params.eventId);
+    return this.eventsService.retryEvent(tenantId, params.eventId);
   }
 
   @ApiOperation({ summary: 'Cancelar un evento pendiente' })
@@ -119,11 +114,11 @@ export class EventsController {
   @Post(':eventId/cancel')
   @HttpCode(HttpStatus.OK)
   cancelEvent(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKeyHeader: string | undefined,
     @Param(new ZodValidationPipe(eventIdParamsSchema)) params: EventIdParamsDto,
   ) {
     requireIdempotencyKey(idempotencyKeyHeader);
-    return this.eventsService.cancelEvent(tenantIdFromHeader(tenantIdHeader), params.eventId);
+    return this.eventsService.cancelEvent(tenantId, params.eventId);
   }
 }

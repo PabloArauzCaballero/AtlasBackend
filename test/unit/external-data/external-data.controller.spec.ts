@@ -64,7 +64,7 @@ describe('ExternalDataController (ejecución)', () => {
   it('lecturas por cliente y por request (features, scoring-input, decision-package, observations, getRequest, health)', async () => {
     const svc = service();
     const c = new ExternalDataController(svc as never);
-    await c.getRequest('1', { requestId: '7' } as never, user);
+    await c.getRequest('1', { requestId: '7' } as never);
     expect(svc.getProviderRequest).toHaveBeenCalledWith({ tenantId, requestId: '7' });
     await c.getProviderHealth('SEGIP');
     expect(svc.getProviderHealth).toHaveBeenCalledWith('SEGIP');
@@ -138,11 +138,11 @@ describe('AdminExternalProvidersController (administración)', () => {
     const c = new AdminExternalProvidersController(svc as never);
     await c.productionGate({ providerCode: 'SEGIP', strict: true } as never);
     expect(svc.getProductionGate).toHaveBeenCalledWith({ providerCode: 'SEGIP', strict: true });
-    await c.sla('1', { providerCode: 'SEGIP', days: 7 } as never, user);
+    await c.sla('1', { providerCode: 'SEGIP', days: 7 } as never);
     expect(svc.getProviderSlaReport).toHaveBeenCalledWith({ tenantId, providerCode: 'SEGIP', days: 7 });
-    await c.usage('1', { providerCode: 'SEGIP', days: 30 } as never, user);
+    await c.usage('1', { providerCode: 'SEGIP', days: 30 } as never);
     expect(svc.getProviderUsage).toHaveBeenCalledWith({ tenantId, providerCode: 'SEGIP', days: 30 });
-    await c.idempotencyAudit('1', { days: 3, limit: 10 } as never, user);
+    await c.idempotencyAudit('1', { days: 3, limit: 10 } as never);
     expect(svc.auditIdempotencyKeys).toHaveBeenCalledWith({ tenantId, days: 3, limit: 10 });
     await c.retentionPreview({ days: 90, limit: 5 } as never);
     expect(svc.getRetentionPreview).toHaveBeenCalledWith({ days: 90, limit: 5 });
@@ -229,7 +229,7 @@ describe('AdminExternalProvidersController (administración)', () => {
     const retryBody = { reason: 'transient' } as never;
     await c.retryRequest('1', { requestId: '9' } as never, retryBody, user);
     expect(svc.retryProviderRequest).toHaveBeenCalledWith({ tenantId, requestId: '9', body: retryBody, requestedByUserId: actorId(user) });
-    await c.rebuildFeatures('1', { requestId: '10' } as never, user);
+    await c.rebuildFeatures('1', { requestId: '10' } as never);
     expect(svc.rebuildFeatureSnapshotFromRequest).toHaveBeenCalledWith({ tenantId, requestId: '10' });
   });
 });
