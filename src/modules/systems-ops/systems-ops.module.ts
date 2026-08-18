@@ -30,6 +30,8 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
 import { EndpointDiscoveryService } from './endpoint-discovery.service.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { SystemsCatalogSeedService } from './systems-catalog-seed.service.js';
+import { SystemsEndpointDocsService } from './systems-endpoint-docs.service.js';
+import { SystemsSchemaIntrospectionService } from './systems-schema-introspection.service.js';
 import { SystemsHealthMonitorService } from './systems-health-monitor.service.js';
 import { SystemsHealthService } from './systems-health.service.js';
 import { SystemsStressRunService } from './systems-stress-run.service.js';
@@ -93,6 +95,8 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
     SystemsActionLogController,
   ],
   providers: [
+    SystemsSchemaIntrospectionService,
+    SystemsEndpointDocsService,
     SystemsCatalogQueryService,
     SystemsReviewService,
     SystemsTestQueryService,
