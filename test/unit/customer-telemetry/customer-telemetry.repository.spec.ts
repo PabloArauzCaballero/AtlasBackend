@@ -1,16 +1,25 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { CustomerTelemetryRepository } from '../../../src/modules/customer-telemetry/customer-telemetry.repository.js';
+import { TelemetryActivityRepository } from '../../../src/modules/customer-telemetry/telemetry-activity.repository.js';
+import { TelemetryBehaviorRepository } from '../../../src/modules/customer-telemetry/telemetry-behavior.repository.js';
+import { TelemetryDeviceSignalsRepository } from '../../../src/modules/customer-telemetry/telemetry-device-signals.repository.js';
+import { TelemetryOnDeviceRepository } from '../../../src/modules/customer-telemetry/telemetry-on-device.repository.js';
+import { TelemetrySessionContextRepository } from '../../../src/modules/customer-telemetry/telemetry-session-context.repository.js';
 
 /**
  * Cobertura directa de `CustomerTelemetryRepository` (Fase 1.2 del plan 10/10): finders del contexto
  * de telemetría y las escrituras de eventos (form field, permiso, auth, auditoría). El servicio lo
  * mockea, así que su capa de persistencia no se ejercitaba. Los 17 modelos Sequelize se mockean.
+ *
+ * La fachada se arma con los sub-repositorios REALES: lo que estas pruebas fijan es la consulta que
+ * llega al modelo, y doblar los sub-repositorios probaría el reenvío —que ya tiene su propia prueba—
+ * en vez de la consulta.
  */
 describe('CustomerTelemetryRepository', () => {
   function buildRepo() {
     const make = () => ({ findOne: asyncMock(), findAll: asyncMock(), create: asyncMock(), bulkCreate: asyncMock() });
-    // Orden EXACTO del constructor (17 modelos).
+    // Los 17 modelos, agrupados abajo como los agrupa cada sub-repositorio.
     const order = [
       'customerDeviceLink',
       'customerSession',
@@ -32,23 +41,30 @@ describe('CustomerTelemetryRepository', () => {
     ] as const;
     const models = Object.fromEntries(order.map((k) => [k, make()])) as Record<(typeof order)[number], ReturnType<typeof make>>;
     const repo = new CustomerTelemetryRepository(
-      models.customerDeviceLink as never,
-      models.customerSession as never,
-      models.deviceRiskEvent as never,
-      models.simObservation as never,
-      models.authEvent as never,
-      models.ipReputationObservation as never,
-      models.customerActionLog as never,
-      models.onboardingFlow as never,
-      models.onboardingStepEvent as never,
-      models.formFieldInteractionEvent as never,
-      models.permissionEvent as never,
-      models.onboardingBehaviorSummary as never,
-      models.onDeviceComputationRun as never,
-      models.onDeviceMetricValue as never,
-      models.customerActivitySummary as never,
-      models.customerObservation as never,
-      models.operationalAuditLog as never,
+      new TelemetrySessionContextRepository(
+        models.customerDeviceLink as never,
+        models.customerSession as never,
+        models.onboardingFlow as never,
+      ),
+      new TelemetryBehaviorRepository(
+        models.formFieldInteractionEvent as never,
+        models.permissionEvent as never,
+        models.onboardingStepEvent as never,
+        models.onboardingBehaviorSummary as never,
+      ),
+      new TelemetryDeviceSignalsRepository(
+        models.authEvent as never,
+        models.deviceRiskEvent as never,
+        models.simObservation as never,
+        models.ipReputationObservation as never,
+      ),
+      new TelemetryOnDeviceRepository(models.onDeviceComputationRun as never, models.onDeviceMetricValue as never),
+      new TelemetryActivityRepository(
+        models.customerActionLog as never,
+        models.customerObservation as never,
+        models.customerActivitySummary as never,
+        models.operationalAuditLog as never,
+      ),
     );
     return { repo, models };
   }

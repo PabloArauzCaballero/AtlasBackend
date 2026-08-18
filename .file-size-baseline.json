@@ -8,7 +8,6 @@
   "src/modules/catalog-management/catalog-management.schemas.ts": 375,
   "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts": 511,
   "src/modules/customer-onboarding/customer-onboarding.repository.ts": 388,
-  "src/modules/customer-telemetry/customer-telemetry.repository.ts": 559,
   "src/modules/external-data/application/external-data-execution.service.ts": 477,
   "src/modules/external-data/application/external-data-governance.service.ts": 525,
   "src/modules/external-data/external-data.controller.ts": 611,
