@@ -14,6 +14,7 @@ import {
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
 import { AuthActorResolverService, ResolvedActor } from './auth-actor-resolver.service.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
+import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
 import { LoginPinChallengeResponseDto } from './auth.dtos.js';
 
 type Network = { ip: string | null; userAgent: string | null };
@@ -41,6 +42,7 @@ export type VerifiedSecondFactor = {
 export class AuthSecondFactorService {
   constructor(
     private readonly authRepository: AuthRepository,
+    private readonly oneTimeCodeRepository: AuthOneTimeCodeRepository,
     private readonly actorResolver: AuthActorResolverService,
     private readonly mailSenderService: MailSenderService,
   ) {}
@@ -109,7 +111,7 @@ export class AuthSecondFactorService {
     const pin = generateNumericCode();
     const challengeToken = generateChallengeToken();
     const ttlMinutes = env.AUTH_ONE_TIME_CODE_TTL_MINUTES;
-    await this.authRepository.createOneTimeCode({
+    await this.oneTimeCodeRepository.createOneTimeCode({
       tenantId: actor.tenantId,
       actorType,
       actorId: actor.id,
@@ -151,14 +153,14 @@ export class AuthSecondFactorService {
   async consumeChallenge(input: { challengeToken: string; pin: string } & Network): Promise<VerifiedSecondFactor> {
     const invalidPinError = new UnauthorizedException('PIN inválido o expirado.');
 
-    const challenge = await this.authRepository.findActiveOneTimeCodeByChallenge(hashOneTimeCode(input.challengeToken));
+    const challenge = await this.oneTimeCodeRepository.findActiveOneTimeCodeByChallenge(hashOneTimeCode(input.challengeToken));
     if (!challenge || challenge.purpose !== 'login_pin' || challenge.expiresAt.getTime() < Date.now()) {
       throw invalidPinError;
     }
 
     const actorType = challenge.actorType as ActorType;
     if (!verifyOneTimeCode(input.pin, challenge.codeHash)) {
-      await this.authRepository.registerOneTimeCodeFailedAttempt(challenge, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
+      await this.oneTimeCodeRepository.registerOneTimeCodeFailedAttempt(challenge, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
       await this.authRepository.recordLoginAttemptEvent({
         tenantId: challenge.tenantId,
         actorType,
@@ -172,7 +174,7 @@ export class AuthSecondFactorService {
       throw invalidPinError;
     }
 
-    await this.authRepository.consumeOneTimeCode(challenge);
+    await this.oneTimeCodeRepository.consumeOneTimeCode(challenge);
 
     const actor = await this.actorResolver.reResolveActorRole(actorType, challenge.actorId, challenge.tenantId);
     const credential = actor ? await this.authRepository.findCredentialsByActor(actorType, actor.id) : null;

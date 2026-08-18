@@ -11,6 +11,7 @@ import { TokenRevocationService } from '../../common/services/token-revocation.s
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
+import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
 
 /**
  * Cooldown por destino: máximo un correo de reset cada 60s por actor. Constante local (no env)
@@ -29,6 +30,7 @@ const PASSWORD_RESET_RESEND_COOLDOWN_MS = 60_000;
 export class AuthPasswordResetService {
   constructor(
     private readonly authRepository: AuthRepository,
+    private readonly oneTimeCodeRepository: AuthOneTimeCodeRepository,
     private readonly tokenRevocationService: TokenRevocationService,
     private readonly mailSenderService: MailSenderService,
     private readonly actorResolver: AuthActorResolverService,
@@ -62,14 +64,14 @@ export class AuthPasswordResetService {
     // el último código emitido en DB). Si el último código activo se creó hace menos del cooldown,
     // NO se reenvía el correo, pero la respuesta sigue siendo la genérica: revelar que el cooldown
     // aplicó confirmaría que la cuenta existe (enumeración).
-    const activeCode = await this.authRepository.findActiveOneTimeCodeByActor(input.actorType, actor.id, 'password_reset');
+    const activeCode = await this.oneTimeCodeRepository.findActiveOneTimeCodeByActor(input.actorType, actor.id, 'password_reset');
     if (activeCode?.createdAtValue && Date.now() - activeCode.createdAtValue.getTime() < PASSWORD_RESET_RESEND_COOLDOWN_MS) {
       return genericResponse;
     }
 
     const code = generateNumericCode();
     const ttlMinutes = env.AUTH_ONE_TIME_CODE_TTL_MINUTES;
-    await this.authRepository.createOneTimeCode({
+    await this.oneTimeCodeRepository.createOneTimeCode({
       tenantId: actor.tenantId,
       actorType: input.actorType,
       actorId: actor.id,
@@ -122,18 +124,18 @@ export class AuthPasswordResetService {
     const actor = await this.actorResolver.resolveActorForLogin(input.tenantId, input.actorType, input.identifier);
     if (!actor) throw invalidCodeError;
 
-    const oneTimeCode = await this.authRepository.findActiveOneTimeCodeByActor(input.actorType, actor.id, 'password_reset');
+    const oneTimeCode = await this.oneTimeCodeRepository.findActiveOneTimeCodeByActor(input.actorType, actor.id, 'password_reset');
     if (!oneTimeCode || oneTimeCode.expiresAt.getTime() < Date.now()) throw invalidCodeError;
 
     if (!verifyOneTimeCode(input.code, oneTimeCode.codeHash)) {
-      await this.authRepository.registerOneTimeCodeFailedAttempt(oneTimeCode, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
+      await this.oneTimeCodeRepository.registerOneTimeCodeFailedAttempt(oneTimeCode, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
       throw invalidCodeError;
     }
 
     const credential = await this.authRepository.findCredentialsByActor(input.actorType, actor.id);
     if (!credential) throw invalidCodeError;
 
-    await this.authRepository.consumeOneTimeCode(oneTimeCode);
+    await this.oneTimeCodeRepository.consumeOneTimeCode(oneTimeCode);
     await this.authRepository.updatePasswordHash(credential, await hashPassword(input.newPassword));
 
     // Cambio de contraseña = cerrar toda sesión previa: refresh tokens revocados y tokenVersion

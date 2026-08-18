@@ -27,10 +27,7 @@ export class MerchantActorRepository {
    * aparecen los "existe pero no puede entrar".
    */
   async findMerchantUserByEmail(email: string, tenantId?: string): Promise<MerchantUserModel | null> {
-    const filters: unknown[] = [
-      where(fn('lower', fn('btrim', col('email'))), email.trim().toLowerCase()),
-      { deleted: { [Op.ne]: true } },
-    ];
+    const filters: unknown[] = [where(fn('lower', fn('btrim', col('email'))), email.trim().toLowerCase()), { deleted: { [Op.ne]: true } }];
     if (tenantId) filters.push({ tenantId });
 
     return this.merchantUserModel.findOne({ where: { [Op.and]: filters } as never });
@@ -41,9 +38,6 @@ export class MerchantActorRepository {
   }
 
   async touchMerchantUserLogin(id: string): Promise<void> {
-    await this.merchantUserModel.update(
-      { lastLoginAt: new Date(), updatedAtValue: new Date() } as never,
-      { where: { id } as never },
-    );
+    await this.merchantUserModel.update({ lastLoginAt: new Date(), updatedAtValue: new Date() } as never, { where: { id } as never });
   }
 }

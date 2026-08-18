@@ -6,19 +6,18 @@
 import { Injectable, UnauthorizedException, ForbiddenException, ConflictException, Optional } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { MetricsService } from '../../common/observability/metrics.service.js';
-import { accessTokenSignOptions, actorIdClaim } from '../../common/utils/auth/jwt-claims.util.js';
-import jwt, { SignOptions } from 'jsonwebtoken';
 import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { env } from '../../config/env.js';
 import { AtlasUserRole } from '../../common/types/auth.types.js';
 import { hashPassword, isPasswordStrongEnough, verifyPassword } from '../../common/utils/crypto/password.util.js';
-import { generateRefreshToken, hashRefreshToken } from '../../common/utils/crypto/refresh-token.util.js';
+import { hashRefreshToken } from '../../common/utils/crypto/refresh-token.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
-import { AuthActorResolverService, ResolvedActor } from './auth-actor-resolver.service.js';
+import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthPasswordResetService } from './auth-password-reset.service.js';
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
+import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
 import {
   LoginPinChallengeResponseDto,
@@ -57,56 +56,13 @@ export class AuthService {
     private readonly actorResolver: AuthActorResolverService,
     private readonly passwordReset: AuthPasswordResetService,
     private readonly secondFactor: AuthSecondFactorService,
+    private readonly tokenIssuer: AuthTokenIssuerService,
     private readonly tokenRevocationService: TokenRevocationService,
     private readonly mailSenderService: MailSenderService,
     @InjectConnection() private readonly sequelize: Sequelize,
     // `@Optional()` y ÚLTIMO a propósito: los specs lo construyen posicionalmente.
     @Optional() private readonly metrics?: MetricsService,
   ) {}
-
-  private issueAccessToken(actor: ResolvedActor, actorType: ActorType, tokenVersion: number): string {
-    const payload: Record<string, unknown> = {
-      sub: actor.id,
-      role: actor.role,
-      tokenVersion,
-      ...(actor.tenantId ? { tenantId: actor.tenantId } : {}),
-      ...actorIdClaim(actorType, actor.id),
-    };
-
-    const options: SignOptions = accessTokenSignOptions({
-      algorithm: 'HS256',
-      expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN as SignOptions['expiresIn'],
-    });
-
-    return jwt.sign(payload, env.JWT_ACCESS_TOKEN_SECRET, options);
-  }
-
-  private async issueRefreshToken(
-    input: {
-      tenantId: string | null;
-      actorType: ActorType;
-      actorId: string;
-      userAgent: string | null;
-      ipAddress: string | null;
-    },
-    options: { transaction?: Transaction } = {},
-  ): Promise<{ token: string; id: string }> {
-    const refreshToken = generateRefreshToken();
-    const expiresAt = new Date(Date.now() + env.AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS * 24 * 60 * 60 * 1000);
-    const created = await this.authRepository.createRefreshToken(
-      {
-        tenantId: input.tenantId,
-        actorType: input.actorType,
-        actorId: input.actorId,
-        tokenHash: hashRefreshToken(refreshToken),
-        expiresAt,
-        userAgent: input.userAgent,
-        ipAddress: input.ipAddress,
-      },
-      options,
-    );
-    return { token: refreshToken, id: created.id };
-  }
 
   async login(input: { tenantId: string; dto: LoginDto; ip: string | null; userAgent: string | null }): Promise<LoginOutcome> {
     const actor = await this.actorResolver.resolveActorForLogin(input.tenantId, input.dto.actorType, input.dto.identifier);
@@ -170,25 +126,10 @@ export class AuthService {
     await this.authRepository.recordSuccessfulLogin(credential, input.ip);
     await logAttempt(null);
 
-    return this.issueTokenPair(actor, input.dto.actorType, credential.tokenVersion, { ip: input.ip, userAgent: input.userAgent });
-  }
-
-  private async issueTokenPair(
-    actor: ResolvedActor,
-    actorType: ActorType,
-    tokenVersion: number,
-    network: { ip: string | null; userAgent: string | null },
-  ): Promise<LoginResult> {
-    const accessToken = this.issueAccessToken(actor, actorType, tokenVersion);
-    const issuedRefreshToken = await this.issueRefreshToken({
-      tenantId: actor.tenantId,
-      actorType,
-      actorId: actor.id,
-      userAgent: network.userAgent,
-      ipAddress: network.ip,
+    return this.tokenIssuer.issueTokenPair(actor, input.dto.actorType, credential.tokenVersion, {
+      ip: input.ip,
+      userAgent: input.userAgent,
     });
-
-    return { accessToken, refreshToken: issuedRefreshToken.token, tokenType: 'Bearer', expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN };
   }
 
   /**
@@ -207,7 +148,7 @@ export class AuthService {
    */
   async verifyLoginPin(input: { challengeToken: string; pin: string; ip: string | null; userAgent: string | null }): Promise<LoginResult> {
     const verified = await this.secondFactor.consumeChallenge(input);
-    return this.issueTokenPair(verified.actor, verified.actorType, verified.credential.tokenVersion, {
+    return this.tokenIssuer.issueTokenPair(verified.actor, verified.actorType, verified.credential.tokenVersion, {
       ip: input.ip,
       userAgent: input.userAgent,
     });
@@ -324,7 +265,7 @@ export class AuthService {
     // Rotación: el refresh token usado queda revocado y se emite uno nuevo, en la misma
     // transacción y con la fila todavía bloqueada. `replacedByTokenId` queda registrado para
     // poder reconstruir la cadena de rotación completa en una investigación de robo de tokens.
-    const newRefreshToken = await this.issueRefreshToken(
+    const newRefreshToken = await this.tokenIssuer.issueRefreshToken(
       {
         tenantId: refreshedActor.tenantId,
         actorType,
@@ -336,7 +277,7 @@ export class AuthService {
     );
     await this.authRepository.revokeRefreshToken(stored, 'rotated', newRefreshToken.id, { transaction });
 
-    const accessToken = this.issueAccessToken(refreshedActor, actorType, credential.tokenVersion);
+    const accessToken = this.tokenIssuer.issueAccessToken(refreshedActor, actorType, credential.tokenVersion);
     return { kind: 'success', accessToken, refreshToken: newRefreshToken.token };
   }
 

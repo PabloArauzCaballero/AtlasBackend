@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { RuntimeJobsSchedulerService } from '../../../src/modules/runtime-jobs/runtime-jobs-scheduler.service.js';
+import { buildScheduledJobs } from '../../../src/modules/runtime-jobs/scheduled-jobs.catalog.js';
 import { env } from '../../../src/config/env.js';
 
 /**
@@ -45,14 +46,17 @@ describe('RuntimeJobsSchedulerService', () => {
     const tenantModel = { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 1 }, { id: 2 }]) };
     const metrics = { recordScheduledJob: jest.fn() };
     const redis = options.redis === undefined ? { set: jest.fn(async (..._args: unknown[]) => 'OK') } : options.redis;
-    const service = new RuntimeJobsSchedulerService(
-      runtimeJobs as never,
-      maintenance as never,
-      tenantModel as never,
-      redis as never,
-      metrics as never,
-    );
-    return { service, runtimeJobs, maintenance, tenantModel, metrics, redis };
+    // El cierre de onboardings abandonados es un job de fondo más; su regla vive en el módulo de
+    // onboarding y el planificador solo la agenda.
+    const onboardingAbandonment = { markAbandonedFlows: jest.fn(async (..._args: unknown[]) => ({ evaluated: 0, abandoned: 0 })) };
+    // El planificador recibe el catálogo ya construido; quién produce cada job es cosa del módulo.
+    const scheduledJobs = buildScheduledJobs({
+      runtimeJobs: runtimeJobs as never,
+      maintenance: maintenance as never,
+      onboardingAbandonment: onboardingAbandonment as never,
+    });
+    const service = new RuntimeJobsSchedulerService(scheduledJobs, tenantModel as never, redis as never, metrics as never);
+    return { service, runtimeJobs, maintenance, onboardingAbandonment, tenantModel, metrics, redis };
   }
 
   /** Acceso al método privado que ejecuta una tanda, sin esperar al temporizador. */
@@ -80,13 +84,13 @@ describe('RuntimeJobsSchedulerService', () => {
 
     // El arranque de cada job pasa por un `setTimeout` de desfase antes de armar su `setInterval`:
     // sin ese desfase, N réplicas que arrancan juntas disparan la misma tanda en el mismo instante.
-    it('programa los nueve jobs cuando está habilitado', () => {
+    it('programa los diez jobs cuando está habilitado', () => {
       setEnv('RUNTIME_JOBS_SCHEDULER_ENABLED', true);
       const { service } = build();
 
       service.onApplicationBootstrap();
 
-      expect(setTimeout).toHaveBeenCalledTimes(9);
+      expect(setTimeout).toHaveBeenCalledTimes(10);
       service.onModuleDestroy();
     });
 
@@ -98,7 +102,7 @@ describe('RuntimeJobsSchedulerService', () => {
       service.onApplicationBootstrap();
 
       const delays = (setTimeout as unknown as jest.Mock).mock.calls.map((call) => call[1] as number);
-      expect(delays).toHaveLength(9);
+      expect(delays).toHaveLength(10);
       for (const delay of delays) {
         expect(delay).toBeGreaterThanOrEqual(0);
         expect(delay).toBeLessThan(15_000);
@@ -137,7 +141,7 @@ describe('RuntimeJobsSchedulerService', () => {
 
       service.onApplicationBootstrap();
 
-      expect(setTimeout).toHaveBeenCalledTimes(9);
+      expect(setTimeout).toHaveBeenCalledTimes(10);
       service.onModuleDestroy();
     });
   });

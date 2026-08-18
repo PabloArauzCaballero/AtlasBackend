@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { RuntimeJobsSchedulerService } from '../../../src/modules/runtime-jobs/runtime-jobs-scheduler.service.js';
+import { buildScheduledJobs } from '../../../src/modules/runtime-jobs/scheduled-jobs.catalog.js';
 import { env } from '../../../src/config/env.js';
 
 /**
@@ -45,9 +46,16 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
       deliverPendingNotifications: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
       reclaimStuckEvents: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
     };
+    // El cierre de onboardings abandonados es un job de fondo más; su regla vive en el módulo de
+    // onboarding y el planificador solo recibe el catálogo ya construido.
+    const onboardingAbandonment = { markAbandonedFlows: jest.fn(async (..._args: unknown[]) => ({ evaluated: 0, abandoned: 0 })) };
+    const scheduledJobs = buildScheduledJobs({
+      runtimeJobs: runtimeJobs as never,
+      maintenance: maintenance as never,
+      onboardingAbandonment: onboardingAbandonment as never,
+    });
     const service = new RuntimeJobsSchedulerService(
-      runtimeJobs as never,
-      maintenance as never,
+      scheduledJobs,
       { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 1 }]) } as never,
       { set: jest.fn(async (..._args: unknown[]) => 'OK') } as never,
       { recordScheduledJob: jest.fn() } as never,
@@ -74,7 +82,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
 
     service.onApplicationBootstrap();
 
-    expect(setTimeout).toHaveBeenCalledTimes(9);
+    expect(setTimeout).toHaveBeenCalledTimes(10);
     service.onModuleDestroy();
   });
 

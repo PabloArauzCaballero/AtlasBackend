@@ -85,24 +85,69 @@ export const onboardingCustomerIdParamsSchema = z.object({
   customerId: z.string().regex(/^[1-9][0-9]*$/),
 });
 
-export const contactVerificationRequestSchema = z.object({
-  contactType: z.enum(['phone', 'email']),
-  verificationChannel: z.enum(['sms', 'email', 'whatsapp']),
-  sessionId: z
-    .string()
-    .regex(/^[1-9][0-9]*$/)
-    .optional(),
-});
+/**
+ * Canales por los que se puede entregar el código de CADA tipo de contacto.
+ *
+ * No estaban cruzados: `contactType: 'email'` con `verificationChannel: 'sms'` pasaba la validación
+ * y el servicio intentaba mandar una dirección de correo por SMS (y al revés, un teléfono por
+ * correo). El proveedor rechazaba el destino o —peor— lo aceptaba y el código no llegaba nunca, con
+ * el intento igualmente registrado como enviado.
+ */
+export const CHANNELS_BY_CONTACT_TYPE = {
+  phone: ['sms', 'whatsapp'],
+  email: ['email'],
+} as const satisfies Record<'phone' | 'email', readonly ('sms' | 'email' | 'whatsapp')[]>;
 
-export const contactVerificationSubmitSchema = z.object({
-  contactType: z.enum(['phone', 'email']),
-  verificationChannel: z.enum(['sms', 'email', 'whatsapp']),
-  verificationCode: z.string().trim().min(4).max(12),
-  sessionId: z
-    .string()
-    .regex(/^[1-9][0-9]*$/)
-    .optional(),
-});
+function assertCoherentChannel(
+  value: { contactType: 'phone' | 'email'; verificationChannel: 'sms' | 'email' | 'whatsapp' },
+  ctx: z.RefinementCtx,
+): void {
+  const allowed: readonly string[] = CHANNELS_BY_CONTACT_TYPE[value.contactType];
+  if (!allowed.includes(value.verificationChannel)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['verificationChannel'],
+      message: `Un contacto de tipo '${value.contactType}' solo se verifica por: ${allowed.join(', ')}.`,
+    });
+  }
+}
+
+/**
+ * `contactMethodId` resuelve la corrección de un contacto mal escrito.
+ *
+ * Sin él, el servicio siempre elegía el contacto del registro y el código se seguía enviando al
+ * teléfono equivocado por más veces que el cliente lo corrigiera. Cuando no se envía, el servidor
+ * elige el contacto de ese tipo que todavía falta verificar.
+ */
+const contactMethodIdSchema = z
+  .string()
+  .regex(/^[1-9][0-9]*$/)
+  .optional();
+
+export const contactVerificationRequestSchema = z
+  .object({
+    contactType: z.enum(['phone', 'email']),
+    verificationChannel: z.enum(['sms', 'email', 'whatsapp']),
+    contactMethodId: contactMethodIdSchema,
+    sessionId: z
+      .string()
+      .regex(/^[1-9][0-9]*$/)
+      .optional(),
+  })
+  .superRefine(assertCoherentChannel);
+
+export const contactVerificationSubmitSchema = z
+  .object({
+    contactType: z.enum(['phone', 'email']),
+    verificationChannel: z.enum(['sms', 'email', 'whatsapp']),
+    verificationCode: z.string().trim().min(4).max(12),
+    contactMethodId: contactMethodIdSchema,
+    sessionId: z
+      .string()
+      .regex(/^[1-9][0-9]*$/)
+      .optional(),
+  })
+  .superRefine(assertCoherentChannel);
 
 const identityEvidenceSchema = z.object({
   evidenceType: z.enum(['identity_front', 'identity_back', 'selfie', 'proof_of_address', 'other']),

@@ -4,11 +4,13 @@
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Transaction } from 'sequelize';
 import { env } from '../../../config/env.js';
 import { decryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
 import { generateNumericCode, hashOneTimeCode, verifyOneTimeCode } from '../../../common/utils/crypto/one-time-code.util.js';
 import { CustomerContactMethodModel } from '../../../database/models/index.js';
 import { AuthRepository, OneTimeCodePurpose } from '../../auth/auth.repository.js';
+import { AuthOneTimeCodeRepository } from '../../auth/auth-one-time-code.repository.js';
 import { MailSenderService } from '../../mail-sender/mail-sender.service.js';
 import { NotificationChannelAdapter } from '../../notifications/adapters/notification-channel-adapter.js';
 import { SmsNotificationAdapter } from '../../notifications/adapters/sms.adapter.js';
@@ -21,6 +23,13 @@ export type CodeDeliveryOutcome = {
   delivered: boolean;
   provider: string;
   errorCode: string | null;
+};
+
+/** Código ya persistido (solo su hash) más lo que hace falta para entregarlo tras el commit. */
+export type IssuedCode = {
+  code: string;
+  ttlMinutes: number;
+  destination: string | null;
 };
 
 /** Un propósito por tipo de contacto: pedir el código del correo no debe invalidar el del teléfono. */
@@ -50,6 +59,7 @@ export class ContactVerificationCodeService {
 
   constructor(
     private readonly authRepository: AuthRepository,
+    private readonly oneTimeCodeRepository: AuthOneTimeCodeRepository,
     private readonly mailSenderService: MailSenderService,
     private readonly smsAdapter: SmsNotificationAdapter,
     private readonly whatsappAdapter: WhatsAppNotificationAdapter,
@@ -73,40 +83,61 @@ export class ContactVerificationCodeService {
   }
 
   /**
-   * Emite y entrega un código nuevo. Devuelve el resultado de la entrega para que el llamador
-   * decida si registra el intento; NO lanza si el proveedor falla, porque el intento igual debe
-   * quedar registrado para el rate limiting y la auditoría.
+   * Emite el código DENTRO de la transacción del llamador y devuelve lo necesario para entregarlo
+   * después del commit.
+   *
+   * La emisión y la entrega están separadas a propósito. Antes iban juntas y el código se creaba
+   * fuera de la transacción del flujo: si el resto hacía rollback quedaba un código vigente sin
+   * intento asociado, y el `submit` posterior respondía `VERIFICATION_ATTEMPT_NOT_FOUND` sobre un
+   * código que el cliente sí tenía en la mano. Al revés tampoco vale: entregar dentro de la
+   * transacción mantiene locks abiertos durante toda la latencia del proveedor, y un mensaje ya
+   * enviado no se puede deshacer si la transacción falla después.
    */
-  async issueAndDeliver(input: {
+  async issue(input: {
     tenantId: string;
     customerId: string;
     contactMethod: CustomerContactMethodModel;
     contactType: ContactType;
-    channel: VerificationChannel;
-  }): Promise<CodeDeliveryOutcome> {
+    transaction?: Transaction;
+  }): Promise<IssuedCode> {
     const code = generateNumericCode();
     const ttlMinutes = env.AUTH_ONE_TIME_CODE_TTL_MINUTES;
 
-    await this.authRepository.createOneTimeCode({
-      tenantId: input.tenantId,
-      actorType: 'customer',
-      actorId: input.customerId,
-      purpose: purposeFor(input.contactType),
-      codeHash: hashOneTimeCode(code),
-      challengeHash: null,
-      expiresAt: new Date(Date.now() + ttlMinutes * 60_000),
-    });
+    await this.oneTimeCodeRepository.createOneTimeCode(
+      {
+        tenantId: input.tenantId,
+        actorType: 'customer',
+        actorId: input.customerId,
+        purpose: purposeFor(input.contactType),
+        codeHash: hashOneTimeCode(code),
+        challengeHash: null,
+        expiresAt: new Date(Date.now() + ttlMinutes * 60_000),
+      },
+      { transaction: input.transaction },
+    );
 
-    const destination = await this.resolveDestination(input.contactMethod);
-    if (!destination) {
+    return { code, ttlMinutes, destination: await this.resolveDestination(input.contactMethod) };
+  }
+
+  /**
+   * Entrega un código ya emitido. Se llama DESPUÉS del commit. NO lanza si el proveedor falla: el
+   * intento ya quedó registrado y el resultado se refleja en su estado.
+   */
+  async deliverIssuedCode(input: {
+    tenantId: string;
+    customerId: string;
+    channel: VerificationChannel;
+    issued: IssuedCode;
+  }): Promise<CodeDeliveryOutcome> {
+    if (!input.issued.destination) {
       return { delivered: false, provider: 'none', errorCode: 'CONTACT_VALUE_UNREADABLE' };
     }
 
     return this.deliver({
       channel: input.channel,
-      destination,
-      code,
-      ttlMinutes,
+      destination: input.issued.destination,
+      code: input.issued.code,
+      ttlMinutes: input.issued.ttlMinutes,
       tenantId: input.tenantId,
       customerId: input.customerId,
     });
@@ -123,20 +154,24 @@ export class ContactVerificationCodeService {
     contactType: ContactType;
     candidate: string;
   }): Promise<{ ok: true } | { ok: false; reason: 'not_found' | 'expired' | 'invalid' }> {
-    const record = await this.authRepository.findActiveOneTimeCodeByActor('customer', input.customerId, purposeFor(input.contactType));
+    const record = await this.oneTimeCodeRepository.findActiveOneTimeCodeByActor(
+      'customer',
+      input.customerId,
+      purposeFor(input.contactType),
+    );
     if (!record) return { ok: false, reason: 'not_found' };
 
     if (record.expiresAt.getTime() < Date.now()) {
-      await this.authRepository.consumeOneTimeCode(record);
+      await this.oneTimeCodeRepository.consumeOneTimeCode(record);
       return { ok: false, reason: 'expired' };
     }
 
     if (!verifyOneTimeCode(input.candidate, record.codeHash)) {
-      await this.authRepository.registerOneTimeCodeFailedAttempt(record, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
+      await this.oneTimeCodeRepository.registerOneTimeCodeFailedAttempt(record, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
       return { ok: false, reason: 'invalid' };
     }
 
-    await this.authRepository.consumeOneTimeCode(record);
+    await this.oneTimeCodeRepository.consumeOneTimeCode(record);
     return { ok: true };
   }
 

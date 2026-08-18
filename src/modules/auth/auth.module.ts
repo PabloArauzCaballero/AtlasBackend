@@ -21,6 +21,8 @@ import { AuthController } from './auth.controller.js';
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthPasswordResetService } from './auth-password-reset.service.js';
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
+import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
+import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
 import { AuthRepository } from './auth.repository.js';
 import { MerchantActorRepository } from './merchant-actor.repository.js';
 import { AuthService } from './auth.service.js';
@@ -46,11 +48,22 @@ import { AuthService } from './auth.service.js';
     AuthActorResolverService,
     AuthPasswordResetService,
     AuthSecondFactorService,
+    AuthTokenIssuerService,
     AuthRepository,
+    AuthOneTimeCodeRepository,
     MerchantActorRepository,
   ],
   // `AuthSecondFactorService` se exporta para que el perfil de un usuario interno pueda informar si
   // su acceso lleva de verdad un segundo factor, sin duplicar esa política fuera de aquí.
-  exports: [AuthService, AuthRepository, AuthSecondFactorService, MerchantActorRepository],
+  // `AuthTokenIssuerService` se exporta porque el registro de un cliente abre su sesión dentro de la
+  // transacción del alta, sin volver a pasar por el login.
+  exports: [
+    AuthService,
+    AuthRepository,
+    AuthOneTimeCodeRepository,
+    AuthSecondFactorService,
+    AuthTokenIssuerService,
+    MerchantActorRepository,
+  ],
 })
 export class AuthModule {}

@@ -41,6 +41,7 @@ describe('Identidad del comercio afiliado', () => {
     const service = new AuthActorResolverService(
       authRepository as never,
       customersRepository as never,
+      customersRepository as never,
       merchantActorRepository as never,
     );
     return { service, authRepository: merchantActorRepository };

@@ -14,9 +14,7 @@ import { TenantModel } from '../../database/models/index.js';
 import { env } from '../../config/env.js';
 import { appRole, runsBackgroundWork } from '../../config/app-role.js';
 import { JobTickGuard } from './job-tick-guard.js';
-import { buildScheduledJobs, type ScheduledJob } from './scheduled-jobs.catalog.js';
-import { RuntimeJobsService } from './runtime-jobs.service.js';
-import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
+import { SCHEDULED_JOBS, type ScheduledJob } from './scheduled-jobs.catalog.js';
 
 /**
  * Ejecuta los trabajos de fondo por su cuenta.
@@ -75,15 +73,16 @@ export class RuntimeJobsSchedulerService implements OnApplicationBootstrap, OnMo
   });
 
   constructor(
-    private readonly runtimeJobs: RuntimeJobsService,
-    private readonly maintenance: RuntimeMaintenanceJobsService,
+    // El catálogo llega ya construido (`SCHEDULED_JOBS`): este servicio ejecuta trabajos, no decide
+    // cuáles existen ni de qué servicio salen.
+    @Inject(SCHEDULED_JOBS) private readonly scheduledJobs: ScheduledJob[],
     @InjectModel(TenantModel) private readonly tenantModel: typeof TenantModel,
     @Inject(REDIS_CLIENT) private readonly redis: Redis | null,
     @Optional() private readonly metrics?: MetricsService,
   ) {}
 
   private jobs(): ScheduledJob[] {
-    return buildScheduledJobs({ runtimeJobs: this.runtimeJobs, maintenance: this.maintenance });
+    return this.scheduledJobs;
   }
 
   onApplicationBootstrap(): void {

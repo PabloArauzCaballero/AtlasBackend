@@ -34,7 +34,13 @@ describe('CustomersService.getCustomerMe', () => {
         nextStep: 'personal_data',
       })),
     };
-    const service = new CustomersService(repository as never, eligibilityRepository as never, eligibilityService as never);
+    const service = new CustomersService(
+      repository as never,
+      // Los contactos del cliente viven en `CustomerContactsRepository`; el doble ya los expone.
+      repository as never,
+      eligibilityRepository as never,
+      eligibilityService as never,
+    );
     return { service, repository, eligibilityRepository, eligibilityService };
   }
 

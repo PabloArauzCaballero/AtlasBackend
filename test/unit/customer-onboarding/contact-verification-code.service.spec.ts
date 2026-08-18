@@ -36,6 +36,8 @@ describe('ContactVerificationCodeService', () => {
     };
     const service = new ContactVerificationCodeService(
       authRepository as never,
+      // Los códigos de un solo uso viven en `AuthOneTimeCodeRepository`; el doble ya los expone.
+      authRepository as never,
       mailSenderService as never,
       smsAdapter as never,
       whatsappAdapter as never,
@@ -58,16 +60,24 @@ describe('ContactVerificationCodeService', () => {
     expect(() => service.assertChannelAvailable('email')).not.toThrow();
   });
 
+  /** Emitir + entregar, ahora en dos pasos: el primero transaccional, el segundo tras el commit. */
+  async function issueAndDeliver(
+    service: { issue: (i: never) => Promise<unknown>; deliverIssuedCode: (i: never) => Promise<unknown> },
+    input: { contactMethod: unknown; channel: string },
+  ) {
+    const issued = await service.issue({
+      tenantId: 't1',
+      customerId: 'c1',
+      contactMethod: input.contactMethod,
+      contactType: 'phone',
+    } as never);
+    return service.deliverIssuedCode({ tenantId: 't1', customerId: 'c1', channel: input.channel, issued } as never);
+  }
+
   it('persiste SOLO el hash del código, nunca su valor en claro', async () => {
     const { service, authRepository, smsAdapter } = await build();
 
-    await service.issueAndDeliver({
-      tenantId: 't1',
-      customerId: 'c1',
-      contactMethod,
-      contactType: 'phone',
-      channel: 'sms',
-    });
+    await issueAndDeliver(service, { contactMethod, channel: 'sms' });
 
     const stored = (authRepository.createOneTimeCode as jest.Mock).mock.calls[0][0] as { codeHash: string; purpose: string };
     expect(stored.codeHash).toHaveLength(64);
@@ -80,9 +90,22 @@ describe('ContactVerificationCodeService', () => {
     expect(stored.codeHash).not.toContain(codeInBody as string);
   });
 
+  /**
+   * La emisión se persiste con la transacción del llamador: si el alta del intento hace rollback, el
+   * código se va con ella en vez de quedar vigente sin intento asociado.
+   */
+  it('crea el código dentro de la transacción que le pasan', async () => {
+    const { service, authRepository } = await build();
+    const transaction = {} as never;
+
+    await service.issue({ tenantId: 't1', customerId: 'c1', contactMethod, contactType: 'phone', transaction } as never);
+
+    expect((authRepository.createOneTimeCode as jest.Mock).mock.calls[0][1]).toEqual({ transaction });
+  });
+
   it('no persiste el mensaje con el código en la tabla de notificaciones consultable por el portal', async () => {
     const { service, smsAdapter } = await build();
-    await service.issueAndDeliver({ tenantId: 't1', customerId: 'c1', contactMethod, contactType: 'phone', channel: 'sms' });
+    await issueAndDeliver(service, { contactMethod, channel: 'sms' });
     // Se despacha por el adaptador directamente, no vía el orquestador que escribe en la tabla.
     expect(smsAdapter.send).toHaveBeenCalledTimes(1);
   });
@@ -95,23 +118,14 @@ describe('ContactVerificationCodeService', () => {
       errorCode: 'TWILIO_SMS_SEND_FAILED',
     } as never);
 
-    const result = await service.issueAndDeliver({
-      tenantId: 't1',
-      customerId: 'c1',
-      contactMethod,
-      contactType: 'phone',
-      channel: 'sms',
-    });
+    const result = await issueAndDeliver(service, { contactMethod, channel: 'sms' });
     expect(result).toEqual({ delivered: false, provider: 'twilio_sms', errorCode: 'TWILIO_SMS_SEND_FAILED' });
   });
 
   it('degrada sin lanzar cuando el contacto cifrado no se puede leer', async () => {
     const { service } = await build();
-    const result = await service.issueAndDeliver({
-      tenantId: 't1',
-      customerId: 'c1',
+    const result = await issueAndDeliver(service, {
       contactMethod: { id: 'c', contactValueEncrypted: null } as never,
-      contactType: 'phone',
       channel: 'sms',
     });
     expect(result).toEqual({ delivered: false, provider: 'none', errorCode: 'CONTACT_VALUE_UNREADABLE' });

@@ -16,6 +16,7 @@ jest.mock('../../../src/common/utils/crypto/refresh-token.util.js', () => ({
 }));
 
 import { AuthService, isLoginPinChallenge, LoginOutcome } from '../../../src/modules/auth/auth.service.js';
+import { AuthTokenIssuerService } from '../../../src/modules/auth/auth-token-issuer.service.js';
 import { AuthActorResolverService } from '../../../src/modules/auth/auth-actor-resolver.service.js';
 import { AuthPasswordResetService } from '../../../src/modules/auth/auth-password-reset.service.js';
 import { AuthSecondFactorService } from '../../../src/modules/auth/auth-second-factor.service.js';
@@ -104,19 +105,42 @@ function buildService(
   // Los colaboradores extraídos (Fase 2.2) se construyen con los MISMOS mocks, de modo que los
   // tests públicos de `AuthService` ejercitan la resolución de actor y el reset reales, sin
   // duplicar mocks ni cambiar ninguna aserción.
-  const actorResolver = new AuthActorResolverService(authRepository as never, customersRepository as never);
+  // Cuarta población de actores (comercios): el resolutor la consulta por su propio repositorio.
+  // Estos tests no ejercitan ese camino, así que basta con que no encuentre a nadie.
+  const merchantActorRepository = {
+    findMerchantUserByEmail: asyncMock(),
+    findMerchantUserById: asyncMock(),
+  };
+  const actorResolver = new AuthActorResolverService(
+    authRepository as never,
+    customersRepository as never,
+    // Los contactos del cliente salieron a `CustomerContactsRepository`; el doble los sigue
+    // exponiendo, así que las aserciones no cambian.
+    customersRepository as never,
+    merchantActorRepository as never,
+  );
   const passwordReset = new AuthPasswordResetService(
+    authRepository as never,
     authRepository as never,
     tokenRevocationService as never,
     mailSenderService as never,
     actorResolver,
   );
-  const secondFactor = new AuthSecondFactorService(authRepository as never, actorResolver, mailSenderService as never);
+  const secondFactor = new AuthSecondFactorService(
+    authRepository as never,
+    authRepository as never,
+    actorResolver,
+    mailSenderService as never,
+  );
+  // Emisor real: la emisión de tokens salió de `AuthService`, pero sigue apoyándose en el mismo
+  // doble de repositorio, así que las aserciones sobre `createRefreshToken` no cambian.
+  const tokenIssuer = new AuthTokenIssuerService(authRepository as never);
   return new AuthService(
     authRepository as never,
     actorResolver,
     passwordReset,
     secondFactor,
+    tokenIssuer,
     tokenRevocationService as never,
     mailSenderService as never,
     sequelize as never,

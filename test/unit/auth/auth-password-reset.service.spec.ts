@@ -30,6 +30,9 @@ describe('AuthPasswordResetService', () => {
     const actorResolver = { resolveActorForLogin: jest.fn(async (..._args: unknown[]) => null) };
     const service = new AuthPasswordResetService(
       authRepository as never,
+      // Mismo doble: los códigos de un solo uso viven ahora en su propio repositorio, pero el mock
+      // ya expone esos métodos y las aserciones siguen mirando el mismo objeto.
+      authRepository as never,
       tokenRevocationService as never,
       mailSenderService as never,
       actorResolver as never,

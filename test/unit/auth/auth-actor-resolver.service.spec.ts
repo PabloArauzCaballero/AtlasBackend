@@ -36,6 +36,9 @@ describe('AuthActorResolverService', () => {
     const service = new AuthActorResolverService(
       authRepository as never,
       customersRepository as never,
+      // Los métodos de contacto del cliente viven en `CustomerContactsRepository`; el doble ya los
+      // expone, así que las aserciones siguen apuntando al mismo objeto.
+      customersRepository as never,
       merchantActorRepository as never,
     );
     return { service, authRepository, customersRepository, merchantActorRepository };

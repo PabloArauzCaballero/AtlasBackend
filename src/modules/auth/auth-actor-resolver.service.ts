@@ -8,6 +8,7 @@ import { ATLAS_USER_ROLES, AtlasUserRole } from '../../common/types/auth.types.j
 import { decryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { hashSensitiveText } from '../../common/utils/crypto/hash.util.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
+import { CustomerContactsRepository } from '../customers/repositories/customer-contacts.repository.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
 import { MerchantActorRepository } from './merchant-actor.repository.js';
 
@@ -40,6 +41,7 @@ export class AuthActorResolverService {
   constructor(
     private readonly authRepository: AuthRepository,
     private readonly customersRepository: CustomersRepository,
+    private readonly customerContactsRepository: CustomerContactsRepository,
     private readonly merchantActorRepository: MerchantActorRepository,
   ) {}
 
@@ -102,14 +104,16 @@ export class AuthActorResolverService {
    * `suspended` es exactamente el caso que el portal del comercio tiene que impedir sin depender de
    * que el ERP se acuerde de comprobarlo.
    */
-  private resolveMerchantActor(merchantUser: {
-    id: string;
-    tenantId: string;
-    roleCode: string;
-    email: string;
-    fullName: string | null;
-    status: string;
-  } | null): ResolvedActor | null {
+  private resolveMerchantActor(
+    merchantUser: {
+      id: string;
+      tenantId: string;
+      roleCode: string;
+      email: string;
+      fullName: string | null;
+      status: string;
+    } | null,
+  ): ResolvedActor | null {
     if (!merchantUser || merchantUser.status !== 'active' || !isKnownRole(merchantUser.roleCode)) return null;
     return {
       id: merchantUser.id,
@@ -128,7 +132,7 @@ export class AuthActorResolverService {
    * `null`, que el llamador trata como "no hay canal disponible".
    */
   private async resolveCustomerEmail(tenantId: string, customerId: string): Promise<string | null> {
-    const contacts = await this.customersRepository.findContactMethods(tenantId, customerId);
+    const contacts = await this.customerContactsRepository.findContactMethods(tenantId, customerId);
     const emails = contacts.filter((contact) => contact.contactType === 'email' && contact.contactValueEncrypted !== null);
     const preferred = emails.find((contact) => contact.status === 'verified') ?? emails[0];
     if (!preferred) return null;

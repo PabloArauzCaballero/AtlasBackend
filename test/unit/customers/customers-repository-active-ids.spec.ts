@@ -13,7 +13,7 @@ import { CustomersRepository } from '../../../src/modules/customers/customers.re
 describe('CustomersRepository.listActiveCustomerIds', () => {
   it('queries with tenantId, excludes deleted, and includes an explicit OR for NULL lifecycleStatus', async () => {
     const customerModel = { findAll: jest.fn(async (..._args: unknown[]) => [{ id: '1' }, { id: '2' }]) };
-    const repository = new CustomersRepository(customerModel as never, {} as never, {} as never, {} as never, {} as never, {} as never);
+    const repository = new CustomersRepository(customerModel as never, {} as never, {} as never, {} as never, {} as never);
 
     const ids = await repository.listActiveCustomerIds('t1');
 
@@ -25,7 +25,7 @@ describe('CustomersRepository.listActiveCustomerIds', () => {
 
   it('returns string ids even when the model returns numeric-like values', async () => {
     const customerModel = { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 42 }]) };
-    const repository = new CustomersRepository(customerModel as never, {} as never, {} as never, {} as never, {} as never, {} as never);
+    const repository = new CustomersRepository(customerModel as never, {} as never, {} as never, {} as never, {} as never);
 
     const ids = await repository.listActiveCustomerIds('t1');
 

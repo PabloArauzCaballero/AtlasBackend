@@ -37,11 +37,32 @@ describe('CustomerOnboardingGuardsService', () => {
   describe('assertConsentDocumentsAreValid', () => {
     const granted = (id: string) => ({ consentDocumentId: id, purposeCode: 'terms', granted: true });
 
-    it('rechaza cuando alguno de los consentimientos enviados no fue otorgado', async () => {
-      const { service } = build();
-      await expect(
-        service.assertConsentDocumentsAreValid('t1', [{ consentDocumentId: '1', purposeCode: 'terms', granted: false }] as never),
-      ).rejects.toThrow(/REQUIRED_CONSENT_MISSING/);
+    const declined = (id: string) => ({ consentDocumentId: id, purposeCode: 'marketing', granted: false });
+
+    it('rechaza cuando se declina un consentimiento OBLIGATORIO del tenant', async () => {
+      const { service, consentsRepository } = build();
+      (consentsRepository.findRequiredActiveDocuments as jest.Mock).mockResolvedValueOnce([{ id: '1' }] as never);
+      await expect(service.assertConsentDocumentsAreValid('t1', [declined('1')] as never)).rejects.toThrow(/REQUIRED_CONSENT_MISSING/);
+    });
+
+    /**
+     * Un consentimiento que no se puede negar no es un consentimiento: declinar un documento
+     * OPCIONAL (marketing) no puede impedir abrir la cuenta. Antes cualquier `granted: false`
+     * rechazaba el registro entero y la rama `'declined'` de `recordConsents` era inalcanzable.
+     */
+    it('acepta declinar un consentimiento OPCIONAL sin bloquear el registro', async () => {
+      const { service, consentsRepository } = build();
+      (consentsRepository.findRequiredActiveDocuments as jest.Mock).mockResolvedValueOnce([{ id: '1' }] as never);
+      await expect(service.assertConsentDocumentsAreValid('t1', [granted('1'), declined('9')] as never)).resolves.toBeUndefined();
+    });
+
+    /** Mencionar un obligatorio con `granted: false` no puede satisfacerlo por el solo hecho de nombrarlo. */
+    it('no da por cubierto un obligatorio enviado sin otorgar', async () => {
+      const { service, consentsRepository } = build();
+      (consentsRepository.findRequiredActiveDocuments as jest.Mock).mockResolvedValueOnce([{ id: '1' }, { id: '2' }] as never);
+      await expect(service.assertConsentDocumentsAreValid('t1', [granted('1'), declined('2')] as never)).rejects.toThrow(
+        /REQUIRED_CONSENT_MISSING/,
+      );
     });
 
     it('rechaza cuando un documento referenciado no está publicado ni vigente', async () => {

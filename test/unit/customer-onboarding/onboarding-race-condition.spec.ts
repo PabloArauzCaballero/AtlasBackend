@@ -19,7 +19,6 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
       findByContactHash: asyncMock().mockResolvedValue(null), // "no encontrado" — como en una carrera real
       createCustomer: jest.fn(overrides.createCustomerImpl),
     };
-    const sessionsRepository = {};
     const consentsRepository = {
       findActiveDocumentById: asyncMock().mockResolvedValue({ id: '1' }),
     };
@@ -27,6 +26,7 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
     const authRepository = {
       createCredentials: asyncMock(),
     };
+    const authService = { issueRegistrationTokens: asyncMock() };
     const sequelize = {
       transaction: jest.fn((callback: (t: unknown) => Promise<unknown>) => callback({})),
     };
@@ -35,11 +35,13 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
 
     const startService = new CustomerOnboardingStartService(
       customersRepository as never,
-      sessionsRepository as never,
+      customersRepository as never,
       consentsRepository as never,
       onboardingRepository as never,
       authRepository as never,
+      authService as never,
       guardsService as never,
+      { resolveDeviceAndLink: asyncMock(), createOnboardingSession: asyncMock(), captureDeviceSnapshotIfProvided: asyncMock() } as never,
       sequelize as never,
     );
 

@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { AuthOneTimeCodeRepository } from '../../../src/modules/auth/auth-one-time-code.repository.js';
 import { AuthRepository } from '../../../src/modules/auth/auth.repository.js';
 
 /**
@@ -23,7 +24,6 @@ describe('AuthRepository', () => {
     const repo = new AuthRepository(
       models.credential as never,
       models.refreshToken as never,
-      models.oneTimeCode as never,
       models.internalUser as never,
       models.platformUser as never,
       models.authEvent as never,
@@ -31,6 +31,15 @@ describe('AuthRepository', () => {
       sequelize as never,
     );
     return { repo, models, sequelize };
+  }
+
+  /**
+   * Los códigos de un solo uso viven en su propio repositorio: son una tabla con ciclo de vida
+   * propio y sus reglas no tienen nada que ver con credenciales ni refresh tokens.
+   */
+  function buildOneTimeCodeRepo() {
+    const oneTimeCode = { findOne: jest.fn(), findAll: jest.fn(), create: jest.fn(), update: jest.fn() };
+    return { repo: new AuthOneTimeCodeRepository(oneTimeCode as never), models: { oneTimeCode } };
   }
 
   describe('credenciales', () => {
@@ -112,7 +121,7 @@ describe('AuthRepository', () => {
 
   describe('códigos de un solo uso', () => {
     it('createOneTimeCode consume cualquier código activo previo del mismo actor+propósito antes de crear', async () => {
-      const { repo, models } = buildRepo();
+      const { repo, models } = buildOneTimeCodeRepo();
       (models.oneTimeCode.create as jest.Mock).mockResolvedValue({ id: 'otc1' } as never);
       await repo.createOneTimeCode({
         tenantId: '1',
@@ -128,7 +137,7 @@ describe('AuthRepository', () => {
     });
 
     it('registerOneTimeCodeFailedAttempt consume el código al agotar los intentos', async () => {
-      const { repo } = buildRepo();
+      const { repo } = buildOneTimeCodeRepo();
       const save = jest.fn(async (..._args: unknown[]) => undefined);
       const code = { attempts: 4, consumedAt: null, save } as never;
       await repo.registerOneTimeCodeFailedAttempt(code, 5);
@@ -137,7 +146,7 @@ describe('AuthRepository', () => {
     });
 
     it('registerOneTimeCodeFailedAttempt solo incrementa si aún quedan intentos', async () => {
-      const { repo } = buildRepo();
+      const { repo } = buildOneTimeCodeRepo();
       const save = jest.fn(async (..._args: unknown[]) => undefined);
       const code = { attempts: 1, consumedAt: null, save } as never;
       await repo.registerOneTimeCodeFailedAttempt(code, 5);
@@ -253,14 +262,14 @@ describe('AuthRepository', () => {
     });
 
     it('findActiveOneTimeCodeByChallenge exige challengeHash + no-consumido', async () => {
-      const { repo, models } = buildRepo();
+      const { repo, models } = buildOneTimeCodeRepo();
       (models.oneTimeCode.findOne as jest.Mock).mockResolvedValue(null as never);
       await repo.findActiveOneTimeCodeByChallenge('h');
       expect((models.oneTimeCode.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { challengeHash: 'h', consumedAt: null } });
     });
 
     it('consumeOneTimeCode marca consumedAt y guarda', async () => {
-      const { repo } = buildRepo();
+      const { repo } = buildOneTimeCodeRepo();
       const save = jest.fn(async (..._args: unknown[]) => undefined);
       const code = { consumedAt: null, save } as never;
       await repo.consumeOneTimeCode(code);

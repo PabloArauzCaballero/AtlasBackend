@@ -146,11 +146,16 @@ describe('CustomerIdentityProviderVerificationService', () => {
       });
     });
 
-    it('propaga el escenario pedido para que el simulador pueda sortear el veredicto', async () => {
+    /**
+     * Regresión del agujero más grande del flujo automático: con `scenario` el propio cliente elegía
+     * el veredicto de su verificación de identidad, y el simulador se lo concedía. El campo ya no
+     * existe en el DTO y, aunque llegue en el cuerpo, no viaja al proveedor.
+     */
+    it('no propaga ningún escenario al proveedor: el veredicto no lo elige el cliente', async () => {
       const { service, externalDataService } = build();
-      await service.verifyWithProvider({ ...baseInput, body: { documentNumber: DOCUMENT_NUMBER, scenario: 'random' } as never });
+      await service.verifyWithProvider({ ...baseInput, body: { documentNumber: DOCUMENT_NUMBER, scenario: 'happy_path' } as never });
       const call = (externalDataService.executeSegip as jest.Mock).mock.calls[0][0] as { body: { scenario?: string } };
-      expect(call.body.scenario).toBe('random');
+      expect(call.body.scenario).toBeUndefined();
     });
   });
 

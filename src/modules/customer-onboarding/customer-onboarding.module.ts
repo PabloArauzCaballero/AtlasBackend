@@ -50,7 +50,12 @@ import { MalwareScannerService } from '../../common/storage/malware-scanner.serv
 import { CustomerDocumentUploadService } from './application/customer-document-upload.service.js';
 import { CustomerIdentityProviderVerificationService } from './application/customer-identity-provider-verification.service.js';
 import { ExternalDataModule } from '../external-data/external-data.module.js';
+// El envío a revisión dispara la evaluación de riesgo del onboarding: sin ella la regla de
+// habilitación se queda para siempre en `RISK_NOT_APPROVED` y nadie se activa solo.
+import { RiskModule } from '../risk/risk.module.js';
+import { ContactMethodResolutionService } from './application/contact-method-resolution.service.js';
 import { ContactVerificationCodeService } from './application/contact-verification-code.service.js';
+import { IdentityEvidenceVerificationService } from './application/identity-evidence-verification.service.js';
 import { ContactVerificationJournalService } from './application/contact-verification-journal.service.js';
 import { CustomerContactVerificationService } from './application/customer-contact-verification.service.js';
 import { CustomerIdentityPackageService } from './application/customer-identity-package.service.js';
@@ -64,6 +69,7 @@ import { CustomerContactMethodsService } from './application/customer-contact-me
 import { CustomerProfileDataRepository } from './repositories/customer-profile-data.repository.js';
 import { CustomerVerificationRepository } from './repositories/customer-verification.repository.js';
 import { OnboardingAbandonmentService } from './application/onboarding-abandonment.service.js';
+import { OnboardingDeviceSessionService } from './application/onboarding-device-session.service.js';
 import { CustomerVerificationService } from './application/customer-verification.service.js';
 import { CustomerComplianceScreeningService } from './application/customer-compliance-screening.service.js';
 import { CustomerAddressStatusRepository } from './repositories/customer-address-status.repository.js';
@@ -113,6 +119,7 @@ import { CustomerOnboardingService } from './customer-onboarding.service.js';
     MailSenderModule,
     NotificationsModule,
     ExternalDataModule,
+    RiskModule,
   ],
   controllers: [
     CustomerOnboardingController,
@@ -126,6 +133,8 @@ import { CustomerOnboardingService } from './customer-onboarding.service.js';
     CustomerOnboardingGuardsService,
     CustomerContactVerificationService,
     ContactVerificationCodeService,
+    ContactMethodResolutionService,
+    IdentityEvidenceVerificationService,
     CustomerDocumentUploadService,
     CustomerIdentityProviderVerificationService,
     DocumentStorageService,
@@ -141,6 +150,7 @@ import { CustomerOnboardingService } from './customer-onboarding.service.js';
     CustomerProfileDataRepository,
     CustomerVerificationRepository,
     OnboardingAbandonmentService,
+    OnboardingDeviceSessionService,
     CustomerVerificationService,
     CustomerComplianceScreeningService,
     CustomerOnboardingFlowRepository,
@@ -149,5 +159,8 @@ import { CustomerOnboardingService } from './customer-onboarding.service.js';
     CustomerAddressStatusRepository,
     CustomerOnboardingRepository,
   ],
+  // El planificador de trabajos de fondo necesita el cierre de onboardings abandonados: era el único
+  // job del catálogo que solo existía como POST manual por tenant.
+  exports: [OnboardingAbandonmentService],
 })
 export class CustomerOnboardingModule {}
