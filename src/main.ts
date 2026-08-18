@@ -19,10 +19,15 @@ import { setupApiDocumentation } from './config/openapi/api-reference.setup.js';
 import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encryption.util.js';
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
+import { assertDecoratorMetadataIsAvailable } from './common/bootstrap/decorator-metadata.guard.js';
 import { shutdownTracing } from './observability/tracing.js';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('AtlasBootstrap');
+
+  // Antes que nada: sin metadata de decoradores el contenedor falla con un error que culpa a un
+  // módulo sano. Ver `decorator-metadata.guard.ts`.
+  assertDecoratorMetadataIsAvailable();
 
   // Simétrico al guard de `worker.ts`. Arrancar la API completa con `APP_ROLE=worker` expondría los
   // controllers de negocio en un contenedor que el manifiesto trata como interno, así que se falla

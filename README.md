@@ -105,6 +105,37 @@ yarn start:dev
 # Swagger UI (si API_DOCS_ENABLED=true, por defecto fuera de producción): /api/v1/docs
 ```
 
+### Error común: `Nest can't resolve dependencies of … (…, ?, +, +)` al arrancar
+
+Si el arranque muere con un mensaje así:
+
+```txt
+Nest can't resolve dependencies of the RuntimeMaintenanceJobsService (IdempotencyKeyModelRepository, ?, +, +, +, OutboxEventModelRepository).
+Please make sure that the argument at index [1] is available in the current module.
+```
+
+**no busques el ciclo de imports: no existe.** El módulo señalado exporta lo que debe. Lo que falta
+es la metadata de decoradores (`design:paramtypes`), que NestJS necesita para resolver dependencias
+por tipo y que sólo emite TypeScript con `emitDecoratorMetadata`.
+
+La causa es el runtime: `tsx`, `esbuild-register` y `swc` sin `decoratorMetadata: true` borran los
+tipos y arrancan igual. Este repositorio llegó a publicar un `start:dev:tsx` que por eso no podía
+funcionar nunca; ya no existe, y `yarn check:nest-entrypoints` impide reintroducirlo. Desde el
+arranque, el guard de `src/common/bootstrap/decorator-metadata.guard.ts` corta antes con un mensaje
+que dice esto mismo.
+
+Arranca siempre con el código compilado: `yarn start:dev` en local, `yarn start` / `yarn start:prod`
+en despliegue. `tsx` sigue siendo correcto para scripts que no construyen un contexto Nest
+(migraciones, seeds, gates).
+
+> **Pendiente de un push con permiso `workflow`:** el gate no pudo añadirse a `.github/workflows/ci.yml`
+> desde esta sesión (el token no tiene ese alcance). El paso, para pegar junto a los demás `check:`:
+>
+> ```yaml
+>       - name: Check Nest entrypoints keep decorator metadata
+>         run: yarn check:nest-entrypoints
+> ```
+
 ### Error común: Zod pide REDIS_URL o secretos de producción al usar `yarn start:dev`
 
 Si ves un error como:
@@ -149,6 +180,7 @@ NOTIFICATION_TOKEN_ENCRYPTION_KEY=<otro-secreto-largo-distinto>
 | `yarn test`                                | Suite de Jest.                                                                                                                      |
 | `yarn test:coverage`                       | Jest con reporte de cobertura.                                                                                                      |
 | `yarn build`                               | Compila a `dist/`.                                                                                                                  |
+| `yarn check:nest-entrypoints`              | Verifica que ningún script arranque un punto de entrada de Nest con un transpilador que borre la metadata de decoradores.           |
 | `yarn start`                               | Levanta `dist/src/main.js` como está el entorno actual (producción si `NODE_ENV=production`).                                       |
 | `yarn start:dev`                           | Compila y levanta local forzando `NODE_ENV=development` incluso si Windows tiene `NODE_ENV=production` global.                      |
 | `yarn start:prod`                          | Compila y levanta respetando configuración de producción; exige `REDIS_URL` y secretos reales.                                      |

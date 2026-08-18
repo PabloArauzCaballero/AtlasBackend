@@ -18,6 +18,7 @@ import { appRole } from './config/app-role.js';
 import { buildInfo } from './config/build-info.js';
 import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encryption.util.js';
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
+import { assertDecoratorMetadataIsAvailable } from './common/bootstrap/decorator-metadata.guard.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
 import { REDIS_CLIENT } from './common/redis/redis.module.js';
 import { MetricsService } from './common/observability/metrics.service.js';
@@ -42,6 +43,10 @@ import { createWorkerProbeServer } from './worker/worker-probe-server.js';
  * Ver `docs/architecture/background-processing.md`.
  */
 async function bootstrapWorker(): Promise<void> {
+  // Mismo guard que la API: sin metadata de decoradores, el contenedor falla culpando a un
+  // módulo sano en vez de al runtime. Ver `decorator-metadata.guard.ts`.
+  assertDecoratorMetadataIsAvailable();
+
   const logger = new Logger('AtlasWorker');
 
   if (appRole() === 'api') {
