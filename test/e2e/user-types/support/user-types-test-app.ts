@@ -213,7 +213,8 @@ export async function buildNotificationsSelfServiceApp(): Promise<{ app: INestAp
 /**
  * Firma un token con la forma REAL de cada tipo de actor (ver `AuthService.issueTokens`):
  * el cliente lleva `customerId` y `tenantId`; el usuario interno, `internalUserId` y `tenantId`;
- * el usuario de plataforma, `platformUserId` y NINGÚN `tenantId` (opera sobre cualquier tenant).
+ * el usuario de plataforma, `platformUserId` y NINGÚN `tenantId` (opera sobre cualquier tenant);
+ * el usuario de comercio, `merchantUserId` y `tenantId`.
  */
 export function signToken(role: AtlasUserRole, overrides: Record<string, unknown> = {}): string {
   return jwt.sign(
@@ -233,6 +234,11 @@ export function internalToken(role: AtlasUserRole, overrides: Record<string, unk
 
 export function platformToken(overrides: Record<string, unknown> = {}): string {
   return signToken('platform_admin', { platformUserId: 'pu-1', ...overrides });
+}
+
+/** Cuarta población: el usuario del comercio afiliado (`/merchant/auth/*`). */
+export function merchantToken(overrides: Record<string, unknown> = {}): string {
+  return signToken('merchant', { tenantId: '1', merchantUserId: 'mu-1', ...overrides });
 }
 
 export function bearer(token: string): [string, string] {

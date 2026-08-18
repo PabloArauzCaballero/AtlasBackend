@@ -22,6 +22,7 @@ import {
   customerToken,
   internalToken,
   internalUserIdFor,
+  merchantToken,
   platformToken,
   signToken,
   type NotificationsServiceStub,
@@ -110,7 +111,7 @@ describe('tipos de usuario — cadena de guards real (e2e/supertest)', () => {
     });
   });
 
-  describe('tipo de actor: customer, internal_user y platform_user', () => {
+  describe('tipo de actor: customer, internal_user, platform_user y merchant_user', () => {
     it('el token de cliente llega al handler con customerId y tenantId', async () => {
       const res = await request(app.getHttpServer())
         .get('/probe/roles/any')
@@ -130,6 +131,23 @@ describe('tipos de usuario — cadena de guards real (e2e/supertest)', () => {
 
       expect(res.body).toMatchObject({ role: 'internal_operator', internalUserId: 'iu-1', tenantId: '1' });
       expect(res.body.customerId).toBeUndefined();
+    });
+
+    /**
+     * Cuarta población. Existe desde que la identidad del comercio afiliado vive en AtlasBackend:
+     * antes no había ninguna, y el ERP fabricaba el rol del comercio a partir de un rol de
+     * EMPLEADO (`MERCHANT_OPERATIONS`).
+     */
+    it('el token de comercio llega al handler con merchantUserId y tenantId', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/probe/roles/any')
+        .set(...bearer(merchantToken()))
+        .expect(200);
+
+      expect(res.body).toMatchObject({ role: 'merchant', merchantUserId: 'mu-1', tenantId: '1' });
+      expect(res.body.internalUserId).toBeUndefined();
+      expect(res.body.customerId).toBeUndefined();
+      expect(res.body.platformUserId).toBeUndefined();
     });
 
     it('el token de plataforma llega sin tenantId (opera sobre cualquier tenant)', async () => {
