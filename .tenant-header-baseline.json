@@ -20,6 +20,7 @@
   "src/modules/external-data/controllers/social-trust.controller.ts": 8,
   "src/modules/external-data/external-data.controller.ts": 18,
   "src/modules/internal-users/internal-auth.controller.ts": 1,
+  "src/modules/merchant-identity/merchant-auth.controller.ts": 1,
   "src/modules/notifications/notifications.controller.ts": 20,
   "src/modules/operations/operations.controller.ts": 6,
   "src/modules/risk/risk.controller.ts": 3,
