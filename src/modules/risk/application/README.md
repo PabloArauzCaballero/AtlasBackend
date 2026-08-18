@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`risk-assessment-persistence.ts`](./risk-assessment-persistence.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`risk-feature-evidence.ts`](./risk-feature-evidence.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`risk-heuristic-scoring.ts`](./risk-heuristic-scoring.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`risk-model-identity.ts`](./risk-model-identity.ts) | Artefacto de soporte específico de esta carpeta. |

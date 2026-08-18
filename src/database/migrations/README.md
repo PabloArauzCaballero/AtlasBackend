@@ -74,6 +74,12 @@
 | [`20260728140000-create-workflow-catalog.ts`](./20260728140000-create-workflow-catalog.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260811090000-create-loan-book.ts`](./20260811090000-create-loan-book.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260811100000-link-credit-applications-to-decision-engine.ts`](./20260811100000-link-credit-applications-to-decision-engine.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260814210000-create-data-notebook-query-history.ts`](./20260814210000-create-data-notebook-query-history.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260815020000-create-data-notebook-documents.ts`](./20260815020000-create-data-notebook-documents.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260815030000-create-read-api-risk-views-v1.ts`](./20260815030000-create-read-api-risk-views-v1.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260815140000-create-read-api-business-views-v1.ts`](./20260815140000-create-read-api-business-views-v1.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260816090000-create-credit-rating-engine.ts`](./20260816090000-create-credit-rating-engine.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260818020000-add-merchant-user-identity.ts`](./20260818020000-add-merchant-user-identity.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 
 ## Reglas de mantenimiento
 

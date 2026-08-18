@@ -15,7 +15,9 @@
 | [`communications.fixtures.ts`](./communications.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`context-catalogs.fixtures.ts`](./context-catalogs.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`credit-lifecycle.fixtures.ts`](./credit-lifecycle.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`credit-rating.fixtures.ts`](./credit-rating.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`customer-identity.fixtures.ts`](./customer-identity.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`data-notebook.fixtures.ts`](./data-notebook.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`device-intelligence.fixtures.ts`](./device-intelligence.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`entity-narrative.types.ts`](./entity-narrative.types.ts) | Tipos de dominio: hacen explícitos estados y contratos internos. |
 | [`evidence.fixtures.ts`](./evidence.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |

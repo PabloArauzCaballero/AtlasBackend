@@ -9,8 +9,9 @@ nueva sobre `TEST-001` y retira un hallazgo propio al re-verificarlo contra el c
 Anterior: [auditoría integral — 2026-08-06](./auditoria-integral-2026-08-06.md). Es la
 primera que **ejecuta** los gates en vez de solo leer el código, así que es la que responde
 «¿esto se puede desplegar?» con evidencia y no con inferencia. Incluye el
-[manifiesto de huérfanos](./orphans/orphan-manifest.md) y los logs de la corrida
-([baseline](./evidence/commands-baseline.log) · [final](./evidence/commands-final.log)).
+[manifiesto de huérfanos](./orphans/orphan-manifest.md). Los logs de la corrida
+(`evidence/commands-baseline.log` y `evidence/commands-final.log`) quedan en la máquina que
+ejecutó los gates: `*.log` está en `.gitignore`, así que no se versionan ni se publican.
 
 Transversal anterior: [auditoría integral y plan de mejora — 2026-07-30](./auditoria-integral-2026-07-30.md),
 con el plan por fases y su ejecución.

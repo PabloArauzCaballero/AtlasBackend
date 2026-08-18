@@ -14,9 +14,11 @@
 | [`auth-actor-resolver.service.spec.ts`](./auth-actor-resolver.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`auth-password-reset.service.spec.ts`](./auth-password-reset.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`auth-repository-email-lookup.spec.ts`](./auth-repository-email-lookup.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`auth-token-issuer.service.spec.ts`](./auth-token-issuer.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`auth.controller.spec.ts`](./auth.controller.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`auth.repository.spec.ts`](./auth.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`auth.service.spec.ts`](./auth.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`merchant-actor.repository.spec.ts`](./merchant-actor.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`ownership.util.spec.ts`](./ownership.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`password.util.spec.ts`](./password.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`refresh-token.util.spec.ts`](./refresh-token.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |

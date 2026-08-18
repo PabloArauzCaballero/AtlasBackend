@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`action-log-filter-catalog.ts`](./action-log-filter-catalog.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`column-classification.util.ts`](./column-classification.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`endpoint-code.util.ts`](./endpoint-code.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`endpoint-discovery.service.ts`](./endpoint-discovery.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |

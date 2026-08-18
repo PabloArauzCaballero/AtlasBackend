@@ -1,26 +1,17 @@
 <!-- Generado por scripts/generate-project-documentation.ts. No editar a mano. -->
 
-# test/e2e
+# test/unit/bootstrap
 
 ## Por qué existe
 
 - **Negocio:** esta carpeta previene regresiones que afectarían los contratos críticos del backend.
-- **Sistema:** esta carpeta contiene pruebas HTTP integradas y soporte reproducible; valida componentes aislados.
+- **Sistema:** esta carpeta contiene pruebas unitarias y soporte reproducible; valida componentes aislados.
 
 ## Contenido
 
 | Documento o código | Responsabilidad |
 |---|---|
-| — | Esta carpeta funciona como agrupador; su contenido está en subcarpetas. |
-
-## Subcarpetas
-
-- [`catalog-management/`](./catalog-management/README.md)
-- [`loans/`](./loans/README.md)
-- [`notifications/`](./notifications/README.md)
-- [`systems-ops/`](./systems-ops/README.md)
-- [`user-types/`](./user-types/README.md)
-- [`workflow-catalog/`](./workflow-catalog/README.md)
+| [`decorator-metadata.guard.spec.ts`](./decorator-metadata.guard.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento
 

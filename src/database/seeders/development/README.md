@@ -13,6 +13,7 @@
 |---|---|
 | [`20260626160720-seed-minimal-dev-credentials.ts`](./20260626160720-seed-minimal-dev-credentials.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260704121500-seed-pablo-admin-user.ts`](./20260704121500-seed-pablo-admin-user.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260814120000-seed-equipo-riesgo-interno.ts`](./20260814120000-seed-equipo-riesgo-interno.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 
 ## Reglas de mantenimiento
 

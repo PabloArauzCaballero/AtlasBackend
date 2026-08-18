@@ -20,10 +20,12 @@
 | [`check-env-example.ts`](./check-env-example.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-file-size.ts`](./check-file-size.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-migrations.ts`](./check-migrations.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`check-nest-entrypoints.ts`](./check-nest-entrypoints.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-no-env-file.ts`](./check-no-env-file.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-no-tracked-smoke-results.ts`](./check-no-tracked-smoke-results.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-openapi-contract.ts`](./check-openapi-contract.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-overfetching.ts`](./check-overfetching.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`check-read-api-honesty.ts`](./check-read-api-honesty.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-read-api-views.ts`](./check-read-api-views.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-retention-coverage.ts`](./check-retention-coverage.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`check-seed-profile.ts`](./check-seed-profile.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
@@ -45,6 +47,7 @@
 | [`rerun-rbac-seed.ts`](./rerun-rbac-seed.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
 | [`rerun-rich-metadata-seed.ts`](./rerun-rich-metadata-seed.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
 | [`run-dev.mjs`](./run-dev.mjs) | Artefacto de soporte específico de esta carpeta. |
+| [`seed-demo-portfolio.sql`](./seed-demo-portfolio.sql) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
 | [`verify-prod-seed-idempotency.ts`](./verify-prod-seed-idempotency.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
 | [`verify-seed-graph-integrity.ts`](./verify-seed-graph-integrity.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
 

@@ -11,7 +11,10 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`customer-contacts.repository.ts`](./customer-contacts.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`customer-eligibility-risk.repository.ts`](./customer-eligibility-risk.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`customer-eligibility.facts.ts`](./customer-eligibility.facts.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`customer-eligibility.read-options.ts`](./customer-eligibility.read-options.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`customer-eligibility.repository.ts`](./customer-eligibility.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`customer-lifecycle.repository.ts`](./customer-lifecycle.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 

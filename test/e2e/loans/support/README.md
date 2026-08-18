@@ -1,6 +1,6 @@
 <!-- Generado por scripts/generate-project-documentation.ts. No editar a mano. -->
 
-# test/e2e
+# test/e2e/loans/support
 
 ## Por qué existe
 
@@ -11,16 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
-| — | Esta carpeta funciona como agrupador; su contenido está en subcarpetas. |
-
-## Subcarpetas
-
-- [`catalog-management/`](./catalog-management/README.md)
-- [`loans/`](./loans/README.md)
-- [`notifications/`](./notifications/README.md)
-- [`systems-ops/`](./systems-ops/README.md)
-- [`user-types/`](./user-types/README.md)
-- [`workflow-catalog/`](./workflow-catalog/README.md)
+| [`loans-test-app.ts`](./loans-test-app.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento
 

@@ -15,13 +15,13 @@
 
 ## Subcarpetas
 
-- [`00-home/`](./00-home/README.md)
+- [`00-home/`](./00-home/index.md)
 - [`01-overview/`](./01-overview/README.md)
 - [`02-architecture/`](./02-architecture/README.md)
-- [`03-domains/`](./03-domains/README.md)
-- [`04-api/`](./04-api/README.md)
+- [`03-domains/`](./03-domains/index.md)
+- [`04-api/`](./04-api/index.md)
 - [`05-data/`](./05-data/README.md)
-- [`06-integrations/`](./06-integrations/README.md)
+- [`06-integrations/`](./06-integrations/index.md)
 - [`07-async-processing/`](./07-async-processing/README.md)
 - [`08-security/`](./08-security/README.md)
 - [`09-observability/`](./09-observability/README.md)
@@ -30,9 +30,9 @@
 - [`12-development/`](./12-development/README.md)
 - [`13-change-impact/`](./13-change-impact/README.md)
 - [`14-audits/`](./14-audits/README.md)
-- [`15-reference/`](./15-reference/README.md)
+- [`15-reference/`](./15-reference/index.md)
 - [`_meta/`](./_meta/README.md)
-- [`templates/`](./templates/README.md)
+- [`templates/`](./templates/index.md)
 
 ## Reglas de mantenimiento
 

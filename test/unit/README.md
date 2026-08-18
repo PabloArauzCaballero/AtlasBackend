@@ -11,9 +11,11 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`credit-rating-scale-catalog.spec.ts`](./credit-rating-scale-catalog.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`idempotency-hash.test.ts`](./idempotency-hash.test.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`multidomain-context-loader.spec.ts`](./multidomain-context-loader.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`redaction.test.ts`](./redaction.test.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`systems-ops-action-log-filter-catalog.spec.ts`](./systems-ops-action-log-filter-catalog.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-ops-catalog-repository-deprecation.spec.ts`](./systems-ops-catalog-repository-deprecation.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-ops-endpoint-discovery-persist.spec.ts`](./systems-ops-endpoint-discovery-persist.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-ops-endpoint-discovery-security.spec.ts`](./systems-ops-endpoint-discovery-security.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
@@ -29,16 +31,19 @@
 
 - [`audit/`](./audit/README.md)
 - [`auth/`](./auth/README.md)
+- [`bootstrap/`](./bootstrap/README.md)
 - [`catalog-management/`](./catalog-management/README.md)
 - [`common/`](./common/README.md)
 - [`config/`](./config/README.md)
 - [`consents/`](./consents/README.md)
 - [`credit/`](./credit/README.md)
+- [`credit-rating/`](./credit-rating/README.md)
 - [`crypto/`](./crypto/README.md)
 - [`customer-onboarding/`](./customer-onboarding/README.md)
 - [`customer-privacy/`](./customer-privacy/README.md)
 - [`customer-telemetry/`](./customer-telemetry/README.md)
 - [`customers/`](./customers/README.md)
+- [`data-notebook/`](./data-notebook/README.md)
 - [`data-quality/`](./data-quality/README.md)
 - [`database/`](./database/README.md)
 - [`decision-engine/`](./decision-engine/README.md)
@@ -52,6 +57,7 @@
 - [`loans/`](./loans/README.md)
 - [`log-sync/`](./log-sync/README.md)
 - [`mail-sender/`](./mail-sender/README.md)
+- [`merchant-identity/`](./merchant-identity/README.md)
 - [`notifications/`](./notifications/README.md)
 - [`observability/`](./observability/README.md)
 - [`openapi/`](./openapi/README.md)

@@ -21,7 +21,7 @@
 
 ## Subcarpetas
 
-- [`runbooks/`](./runbooks/README.md)
+- [`runbooks/`](./runbooks/index.md)
 
 ## Reglas de mantenimiento
 

@@ -46,11 +46,14 @@
 | [`customer-observations.model.ts`](./customer-observations.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`customer-profile-versions.model.ts`](./customer-profile-versions.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`customer-reference-contacts.model.ts`](./customer-reference-contacts.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`customer-risk-ratings.model.ts`](./customer-risk-ratings.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`customer-sessions.model.ts`](./customer-sessions.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`customer-status-events.model.ts`](./customer-status-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`customers.model.ts`](./customers.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`data-change-logs.model.ts`](./data-change-logs.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`data-classification-policies.model.ts`](./data-classification-policies.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`data-notebook-document.model.ts`](./data-notebook-document.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`data-notebook-query-history.model.ts`](./data-notebook-query-history.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`data-provider-requests.model.ts`](./data-provider-requests.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`data-provider-responses.model.ts`](./data-provider-responses.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`data-providers.model.ts`](./data-providers.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
@@ -91,9 +94,11 @@
 | [`loan-outcome-reports.model.ts`](./loan-outcome-reports.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`loan-payment-allocations.model.ts`](./loan-payment-allocations.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`loan-payments.model.ts`](./loan-payments.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`loan-risk-ratings.model.ts`](./loan-risk-ratings.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`loans.model.ts`](./loans.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`manual-review-cases.model.ts`](./manual-review-cases.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`manual-review-events.model.ts`](./manual-review-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`merchant-users.model.ts`](./merchant-users.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`notification-deliveries.model.ts`](./notification-deliveries.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`notification-messages.model.ts`](./notification-messages.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`notification-templates.model.ts`](./notification-templates.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
@@ -109,6 +114,8 @@
 | [`platform-users.model.ts`](./platform-users.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`privacy-processing-purposes.model.ts`](./privacy-processing-purposes.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`provider-health-logs.model.ts`](./provider-health-logs.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`rating-policy-bands.model.ts`](./rating-policy-bands.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`rating-policy-versions.model.ts`](./rating-policy-versions.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`retention-policies.model.ts`](./retention-policies.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`risk-assessment-contexts.model.ts`](./risk-assessment-contexts.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`risk-assessment-results.model.ts`](./risk-assessment-results.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |

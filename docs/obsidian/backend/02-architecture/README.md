@@ -26,7 +26,7 @@
 
 ## Subcarpetas
 
-- [`adr/`](./adr/README.md)
+- [`adr/`](./adr/index.md)
 - [`views/`](./views/README.md)
 
 ## Reglas de mantenimiento

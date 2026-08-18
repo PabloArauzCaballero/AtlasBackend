@@ -2,7 +2,7 @@
 
 **Modo:** `audit-and-fix` · **Profundidad:** `exhaustive`
 **Revisión base:** `68dbd0b` · **Rama:** `audit/backend-integral-20260806-1204`
-**Evidencia:** [`evidence/commands-baseline.log`](./evidence/commands-baseline.log) · [`evidence/commands-final.log`](./evidence/commands-final.log)
+**Evidencia:** `evidence/commands-baseline.log` · `evidence/commands-final.log` — no versionados (`*.log` está en `.gitignore`); se conservan en la máquina que corrió los gates.
 
 ## 1. Estado general
 
