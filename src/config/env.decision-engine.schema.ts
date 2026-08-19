@@ -42,6 +42,22 @@ export const decisionEngineEnvShape = {
     .trim()
     .regex(/^[A-Z0-9_-]{2,40}$/)
     .optional(),
+  /**
+   * Ruta del healthcheck del motor. Parametrizada por la misma razón que la del ERP: el prefijo de
+   * rutas es del otro repo y un cambio suyo no debe leerse aquí como «motor caído».
+   */
+  /**
+   * Dirección del motor SÓLO para reportar su salud en el panel de sistemas.
+   *
+   * Existe aparte de `DECISION_ENGINE_BASE_URL` porque son dos permisos distintos: integrarse con
+   * el motor para decidir crédito exige credenciales reales y sal de sujeto —y el arranque lo
+   * verifica—, mientras que preguntarle «¿estás en pie?» no exige nada. Sin esta separación, un
+   * despliegue que sólo quiere ver el motor en el panel tendría que encender la automatización del
+   * crédito para conseguirlo, que es exactamente al revés de lo prudente. Si `BASE_URL` está
+   * configurada manda ella: la integración real sabe mejor dónde vive el motor.
+   */
+  DECISION_ENGINE_HEALTH_BASE_URL: optionalUrlEnvSchema,
+  DECISION_ENGINE_HEALTH_PATH: z.string().trim().min(1).max(200).default('/health'),
   DECISION_ENGINE_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(10_000),
   DECISION_ENGINE_RETRIES: z.coerce.number().int().min(0).max(5).default(1),
   DECISION_ENGINE_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().max(10_000).default(250),

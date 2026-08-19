@@ -18,6 +18,7 @@
 | [`env.database.schema.ts`](./env.database.schema.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`env.decision-engine.checks.ts`](./env.decision-engine.checks.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`env.decision-engine.schema.ts`](./env.decision-engine.schema.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`env.erp.schema.ts`](./env.erp.schema.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`env.files.checks.ts`](./env.files.checks.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`env.files.schema.ts`](./env.files.schema.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`env.notification-providers.checks.ts`](./env.notification-providers.checks.ts) | Artefacto de soporte específico de esta carpeta. |

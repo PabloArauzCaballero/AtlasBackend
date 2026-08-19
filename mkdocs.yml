@@ -218,6 +218,7 @@ nav:
       - operations/index.md
       - Despliegue a producción: runbooks/despliegue-produccion.md
       - Observabilidad: observability/overview.md
+      - Salud de los servicios hermanos: observability/servicios-hermanos.md
       - Rendimiento:
           - performance/index.md
           # Inventario generado por `yarn docs:folders`. La carpeta `backend/` no tiene página
