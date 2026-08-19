@@ -75,6 +75,12 @@ export class SubjectReferenceService {
         firstSeenAt: now,
         lastSeenAt: now,
         decisionCount: 1,
+        // `_created_at` tiene DEFAULT now() en la base, pero el modelo lo declara `allowNull: false`
+        // y Sequelize valida ANTES de enviar la sentencia: sin este valor el insert se rechazaba en
+        // el cliente y no llegaba a Postgres, de modo que la primera decisión de cualquier cliente
+        // moría con una violación de restricción que la base nunca había emitido.
+        createdAtValue: now,
+        updatedAtValue: now,
       } as never,
       { transaction: options.transaction },
     );
