@@ -16,20 +16,13 @@ import {
   PlatformUserModel,
 } from '../../database/models/index.js';
 
-export type ActorType = 'customer' | 'internal_user' | 'platform_user' | 'merchant_user';
+import type { ActorType, LoginAttemptEvent } from './auth-vocabulary.js';
 
-export type OneTimeCodePurpose = 'password_reset' | 'login_pin' | 'contact_verification_phone' | 'contact_verification_email';
-
-export type LoginAttemptEvent = {
-  tenantId: string | null;
-  actorType: ActorType;
-  actorId: string | null;
-  eventType: 'login' | 'logout' | 'login_pin_challenge' | 'password_reset_request' | 'password_reset';
-  successful: boolean;
-  failureReasonCode: string | null;
-  ipAddress: string | null;
-  userAgent: string | null;
-};
+// El vocabulario (actores, propósitos de OTP, tipos de evento) vive en `auth-vocabulary.ts` y se
+// reexporta desde aquí: es el import que ya usaban veintitantos archivos y romperlo no compraba
+// nada. Se movió porque este archivo tiene el tamaño congelado y cada término nuevo pasaba de 140
+// columnas, así que prettier partía la unión en varias líneas y el trinquete rechazaba el commit.
+export type { ActorType, AuthEventType, LoginAttemptEvent, OneTimeCodePurpose } from './auth-vocabulary.js';
 
 @Injectable()
 export class AuthRepository {

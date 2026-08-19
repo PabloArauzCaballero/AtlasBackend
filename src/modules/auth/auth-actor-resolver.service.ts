@@ -144,6 +144,23 @@ export class AuthActorResolverService {
     }
   }
 
+  /**
+   * Igual que `reResolveActorRole`, pero con el correo resuelto también para `customer`.
+   *
+   * `reResolveActorRole` devuelve `email: null` para un cliente porque sus consumidores —refresh y
+   * verificación de PIN— no envían nada: el correo del cliente está cifrado en `customer_contacts`
+   * y descifrarlo en cada rotación de token sería trabajo puro y duro sin destinatario. Quien SÍ
+   * necesita el canal —el cambio de contraseña— lo pide por aquí y paga ese descifrado una vez.
+   *
+   * Sin esto, un cliente autenticado veía "no hay canal para entregar el código" con un correo
+   * verificado en su ficha.
+   */
+  async reResolveActorWithEmail(actorType: ActorType, actorId: string, tenantId: string | null): Promise<ResolvedActor | null> {
+    const actor = await this.reResolveActorRole(actorType, actorId, tenantId);
+    if (!actor || actor.email || actorType !== 'customer' || !tenantId) return actor;
+    return { ...actor, email: await this.resolveCustomerEmail(tenantId, actorId) };
+  }
+
   /** Re-resuelve el rol/tenant vigentes de un actor ya conocido por su id (refresh y verificación de PIN). */
   async reResolveActorRole(actorType: ActorType, actorId: string, tenantId: string | null): Promise<ResolvedActor | null> {
     if (actorType === 'customer') {

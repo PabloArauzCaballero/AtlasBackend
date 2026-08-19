@@ -18,7 +18,10 @@ import {
 import { CustomersModule } from '../customers/customers.module.js';
 import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { AuthController } from './auth.controller.js';
+import { AuthPasswordChangeController } from './auth-password-change.controller.js';
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
+import { AuthPasswordChangeRepository } from './auth-password-change.repository.js';
+import { AuthPasswordChangeService } from './auth-password-change.service.js';
 import { AuthPasswordResetService } from './auth-password-reset.service.js';
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
@@ -42,10 +45,12 @@ import { AuthService } from './auth.service.js';
     CustomersModule,
     MailSenderModule,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, AuthPasswordChangeController],
   providers: [
     AuthService,
     AuthActorResolverService,
+    AuthPasswordChangeService,
+    AuthPasswordChangeRepository,
     AuthPasswordResetService,
     AuthSecondFactorService,
     AuthTokenIssuerService,

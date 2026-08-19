@@ -6,7 +6,8 @@
  * inicial.
  */
 
-export type MailTemplateName = 'atlas-password-reset' | 'atlas-login-pin' | 'atlas-credenciales-iniciales' | 'atlas-verificacion-contacto';
+export type MailTemplateName =
+  'atlas-password-reset' | 'atlas-password-change' | 'atlas-login-pin' | 'atlas-credenciales-iniciales' | 'atlas-verificacion-contacto';
 
 export type MailTemplateDefinition = {
   nombre: MailTemplateName;
@@ -33,6 +34,30 @@ export const MAIL_TEMPLATE_DEFINITIONS: Record<MailTemplateName, MailTemplateDef
       'Recibimos una solicitud para restablecer tu contraseña en ATLAS. Usa este código para continuar: {{codigo}}\n\n' +
       'El código vence en {{minutos}} minutos y solo puede usarse una vez.\n' +
       'Si no solicitaste este cambio, ignora este correo: tu contraseña actual sigue vigente.',
+    variablesRequeridas: ['nombre', 'codigo', 'minutos'],
+  },
+  // Plantilla propia y no la de reset: quien pide este código YA está dentro de su sesión, así que
+  // el aviso que importa es el contrario. En el reset, "si no fuiste tú, ignora este correo" basta
+  // porque sin el código no pasa nada; aquí, que llegue sin haberlo pedido significa que alguien
+  // tiene la sesión Y la contraseña actual, y el consejo correcto es cerrar sesión en todos los
+  // dispositivos y avisar. Reusar la plantilla de reset habría dado el consejo equivocado.
+  'atlas-password-change': {
+    nombre: 'atlas-password-change',
+    descripcion: 'Código de un solo uso para confirmar el cambio de contraseña de un usuario ATLAS ya autenticado.',
+    emailAsunto: 'ATLAS — Código para confirmar tu nueva contraseña',
+    emailHtmlBody:
+      '<p>Hola {{nombre}},</p>' +
+      '<p>Pediste cambiar tu contraseña de ATLAS desde una sesión activa. Ingresa este código para confirmarlo:</p>' +
+      '<p style="font-size:24px;font-weight:bold;letter-spacing:4px">{{codigo}}</p>' +
+      '<p>El código vence en {{minutos}} minutos y solo puede usarse una vez.</p>' +
+      '<p>Si no fuiste tú, alguien tiene acceso a tu sesión y a tu contraseña actual: ' +
+      'cierra sesión en todos los dispositivos y avisa al equipo de seguridad de inmediato.</p>',
+    emailTextBody:
+      'Hola {{nombre}},\n\n' +
+      'Pediste cambiar tu contraseña de ATLAS desde una sesión activa. Ingresa este código para confirmarlo: {{codigo}}\n\n' +
+      'El código vence en {{minutos}} minutos y solo puede usarse una vez.\n' +
+      'Si no fuiste tú, alguien tiene acceso a tu sesión y a tu contraseña actual: cierra sesión en todos los ' +
+      'dispositivos y avisa al equipo de seguridad de inmediato.',
     variablesRequeridas: ['nombre', 'codigo', 'minutos'],
   },
   'atlas-login-pin': {
