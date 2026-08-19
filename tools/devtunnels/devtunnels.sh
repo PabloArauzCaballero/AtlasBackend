@@ -205,9 +205,11 @@ urls() {
   for entry in "${FRONTS[@]}"; do
     IFS=: read -r slug puerto _dir <<<"$entry"
     local id="atlas-$slug" url
-    # La URL aparece en la salida de `host`; si no, se pide al servicio.
-    url="$(grep -ohE 'https://[a-z0-9-]+\.[a-z0-9]+\.devtunnels\.ms[^ ]*' "$ESTADO/$slug.host.log" 2>/dev/null | head -1)"
-    [ -n "$url" ] || url="$("$DEVTUNNEL" show "$id" 2>/dev/null | grep -oE 'https://[^ ]*devtunnels\.ms[^ ]*' | head -1)"
+    # Se pregunta al servicio en vez de raspar el log de `host`: ahí la URL aparece a veces en la
+    # forma `host:puerto` y seguida de coma, que no es la que se pega en un navegador. La buena es
+    # la de `<id>-<puerto>.<cluster>`, y `show` la da siempre igual.
+    url="$("$DEVTUNNEL" show "$id" 2>/dev/null | grep -oE 'https://[a-z0-9-]+-[0-9]+\.[a-z0-9]+\.devtunnels\.ms' | head -1)"
+    [ -n "$url" ] || url="$(grep -ohE 'https://[a-z0-9-]+-[0-9]+\.[a-z0-9]+\.devtunnels\.ms' "$ESTADO/$slug.host.log" 2>/dev/null | head -1)"
     printf '%-10s puerto %-6s %s\n' "$slug" "$puerto" "${url:-(sin URL todavía)}" | tee -a "$URL_FILE"
   done
 }
