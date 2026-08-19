@@ -30,6 +30,8 @@
 #   tools/devtunnels/devtunnels.sh estado    # qué está vivo y qué no
 #   tools/devtunnels/devtunnels.sh parar     # baja los túneles (no toca los fronts)
 #
+#   DEVTUNNELS_OMITIR=alovida tools/devtunnels/devtunnels.sh todo   # todo menos ese front
+#
 # Requiere un login previo, una sola vez:  devtunnel user login -d -g
 set -uo pipefail
 
@@ -56,6 +58,23 @@ FRONTS=(
   "alovida:4200:-"
 )
 
+# Fronts que esta sesión NO quiere levantar ni hostear, separados por comas:
+#
+#   DEVTUNNELS_OMITIR=alovida tools/devtunnels/devtunnels.sh todo
+#
+# Existe porque el front de ALOVIDA corre en Docker en otro workspace y hay jornadas en que
+# se deja caído a propósito, para devolverle los ~7 GB de RAM de sus contenedores a los tres
+# backends de ATLAS. Sin esto, cada `todo` volvía a hostear su túnel contra un puerto 4200
+# que ya no escucha: el enlace existe, responde 502 y parece un fallo del despliegue.
+#
+# Sólo afecta a lo que ARRANCA (`fronts`, `crear`, `host`). `estado` y `parar` siguen viendo
+# la lista entera a propósito: hay que poder ver y bajar un túnel que quedó vivo de antes.
+OMITIR="${DEVTUNNELS_OMITIR:-}"
+
+omitido() {
+  case ",$OMITIR," in *",$1,"*) return 0 ;; *) return 1 ;; esac
+}
+
 log() { printf '%s | %s\n' "$(date -Is)" "$*" | tee -a "$LOG"; }
 
 comprobar_cli() {
@@ -78,6 +97,10 @@ YARN="${YARN_BIN:-$HOME/.nvm/versions/node/v24.19.0/bin/yarn}"
 fronts() {
   for entry in "${FRONTS[@]}"; do
     IFS=: read -r slug puerto dir <<<"$entry"
+    if omitido "$slug"; then
+      log "[$slug] omitido por DEVTUNNELS_OMITIR"
+      continue
+    fi
     if [ "$dir" = "-" ]; then
       log "[$slug] corre fuera de este workspace (Docker); sólo se tuneliza"
       continue
@@ -123,6 +146,7 @@ crear() {
   comprobar_cli
   for entry in "${FRONTS[@]}"; do
     IFS=: read -r slug puerto _dir <<<"$entry"
+    omitido "$slug" && continue
     local id="atlas-$slug"
     if "$DEVTUNNEL" show "$id" >/dev/null 2>&1; then
       log "[$slug] el túnel $id ya existe — intacto (su URL no cambia)"
@@ -186,6 +210,10 @@ host() {
   comprobar_cli
   for entry in "${FRONTS[@]}"; do
     IFS=: read -r slug puerto _dir <<<"$entry"
+    if omitido "$slug"; then
+      log "[$slug] omitido por DEVTUNNELS_OMITIR — su túnel sigue existiendo, sin hostear"
+      continue
+    fi
     local id="atlas-$slug" pid_file="$ESTADO/$slug.pid"
     if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file" 2>/dev/null)" 2>/dev/null; then
       log "[$slug] ya está hosteado (pid $(cat "$pid_file"))"
@@ -204,6 +232,10 @@ urls() {
   : >"$URL_FILE"
   for entry in "${FRONTS[@]}"; do
     IFS=: read -r slug puerto _dir <<<"$entry"
+    if omitido "$slug"; then
+      printf '%-10s puerto %-6s (omitido — no se está hosteando)\n' "$slug" "$puerto" | tee -a "$URL_FILE"
+      continue
+    fi
     local id="atlas-$slug" url
     # Se pregunta al servicio en vez de raspar el log de `host`: ahí la URL aparece a veces en la
     # forma `host:puerto` y seguida de coma, que no es la que se pega en un navegador. La buena es
