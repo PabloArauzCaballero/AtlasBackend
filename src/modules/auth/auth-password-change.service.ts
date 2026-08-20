@@ -3,7 +3,14 @@
  * @business Esta pieza impide que una contraseña se cambie con solo tener la sesión abierta.
  * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
  */
-import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { env } from '../../config/env.js';
 import { hashPassword, isPasswordStrongEnough, verifyPassword } from '../../common/utils/crypto/password.util.js';
 import {
@@ -96,7 +103,10 @@ export class AuthPasswordChangeService {
       // servicio. La fuerza bruta la contiene el `@Throttle` del controlador, y el intento queda
       // registrado en la bitácora de autenticación.
       await this.recordEvent(actor.tenantId, input, 'password_change_request', false, 'invalid_current_password');
-      throw new UnauthorizedException('La contraseña actual no es correcta.');
+      // 400 y NO 401. Quien llama está autenticado: lo que está mal es el dato que escribió, no su
+      // sesión. Con 401, el cliente del portal lo leía como «sesión caducada» y EXPULSABA al
+      // usuario al login por una contraseña mal tecleada — medido en navegador.
+      throw new BadRequestException('La contraseña actual no es correcta.');
     }
 
     if (!actor.email) {
@@ -106,7 +116,13 @@ export class AuthPasswordChangeService {
     const ttlMinutes = env.AUTH_ONE_TIME_CODE_TTL_MINUTES;
     const active = await this.oneTimeCodeRepository.findActiveOneTimeCodeByActor(input.actorType, input.actorId, 'password_change');
     if (active?.createdAtValue && Date.now() - active.createdAtValue.getTime() < PASSWORD_CHANGE_RESEND_COOLDOWN_MS) {
-      throw new UnauthorizedException('Ya te enviamos un código hace menos de un minuto. Revisa tu correo antes de pedir otro.');
+      // 429: es exactamente lo que ocurre —demasiadas peticiones en poco tiempo— y evita que el
+      // cliente lo confunda con un problema de sesión.
+      // Nest no expone una excepción con nombre para 429, así que se construye a mano.
+      throw new HttpException(
+        'Ya te enviamos un código hace menos de un minuto. Revisa tu correo antes de pedir otro.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     const code = generateNumericCode();
@@ -145,10 +161,13 @@ export class AuthPasswordChangeService {
   async confirmPasswordChange(
     input: Requester & { challengeToken: string; code: string; newPassword: string },
   ): Promise<{ passwordChanged: true }> {
-    const invalidCodeError = new UnauthorizedException('Código inválido o expirado.');
+    // Mismo criterio que arriba: la sesión es válida y lo que falla es la entrada, así que 400.
+    // El mensaje sigue siendo el mismo para desafío inexistente, expirado y código incorrecto —
+    // tres estados que quien ataca no debe poder distinguir.
+    const invalidCodeError = new BadRequestException('Código inválido o expirado.');
 
     if (!isPasswordStrongEnough(input.newPassword)) {
-      throw new UnauthorizedException('La contraseña no cumple el mínimo de seguridad requerido.');
+      throw new BadRequestException('La contraseña no cumple el mínimo de seguridad requerido.');
     }
 
     const challenge = await this.oneTimeCodeRepository.findActiveOneTimeCodeByChallenge(hashOneTimeCode(input.challengeToken));
@@ -172,7 +191,7 @@ export class AuthPasswordChangeService {
     // el cambio venía forzado por `mustChangePassword`, bajaría la bandera sin cambiar nada: la
     // contraseña temporal que viajó por correo seguiría siendo la válida, ahora sin aviso.
     if (await verifyPassword(credential.passwordHash, input.newPassword)) {
-      throw new UnauthorizedException('La contraseña nueva debe ser distinta de la actual.');
+      throw new BadRequestException('La contraseña nueva debe ser distinta de la actual.');
     }
 
     await this.oneTimeCodeRepository.consumeOneTimeCode(challenge);

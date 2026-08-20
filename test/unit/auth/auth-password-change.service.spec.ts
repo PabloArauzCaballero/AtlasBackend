@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, jest } from '@jest/globals';
-import { ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { hashOneTimeCode } from '../../../src/common/utils/crypto/one-time-code.util.js';
 import { hashPassword } from '../../../src/common/utils/crypto/password.util.js';
 import { AuthPasswordChangeService } from '../../../src/modules/auth/auth-password-change.service.js';
@@ -83,8 +83,10 @@ describe('AuthPasswordChangeService', () => {
   it('rechaza la contraseña actual incorrecta sin gastar un correo, y deja el intento en la bitácora', async () => {
     const { service, mailSenderService, oneTimeCodeRepository, passwordChangeRepository } = build();
 
+    // 400 y no 401: la sesión es válida y lo que falla es el dato. Con 401 el portal lo leía como
+    // sesión caducada y expulsaba al usuario al login por una contraseña mal tecleada.
     await expect(service.requestPasswordChange({ ...requester, currentPassword: 'la-que-no-es' })).rejects.toBeInstanceOf(
-      UnauthorizedException,
+      BadRequestException,
     );
     expect(mailSenderService.sendPasswordChangeCode).not.toHaveBeenCalled();
     expect(oneTimeCodeRepository.createOneTimeCode).not.toHaveBeenCalled();
@@ -97,7 +99,10 @@ describe('AuthPasswordChangeService', () => {
     const { service, oneTimeCodeRepository, mailSenderService } = build();
     oneTimeCodeRepository.findActiveOneTimeCodeByActor.mockResolvedValueOnce({ createdAtValue: new Date(Date.now() - 5_000) });
 
-    await expect(service.requestPasswordChange({ ...requester, currentPassword: ACTUAL })).rejects.toBeInstanceOf(UnauthorizedException);
+    // 429: demasiadas peticiones, que es literalmente lo que pasó.
+    const error = await service.requestPasswordChange({ ...requester, currentPassword: ACTUAL }).catch((caught) => caught);
+    expect(error).toBeInstanceOf(HttpException);
+    expect((error as HttpException).getStatus()).toBe(429);
     expect(mailSenderService.sendPasswordChangeCode).not.toHaveBeenCalled();
   });
 
@@ -121,7 +126,7 @@ describe('AuthPasswordChangeService', () => {
   it('rechaza una contraseña nueva que no cumple el mínimo de seguridad', async () => {
     const { service, passwordChangeRepository } = build();
 
-    await expect(service.confirmPasswordChange({ ...confirmInput, newPassword: 'corta' })).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.confirmPasswordChange({ ...confirmInput, newPassword: 'corta' })).rejects.toBeInstanceOf(BadRequestException);
     expect(passwordChangeRepository.applyNewPassword).not.toHaveBeenCalled();
   });
 
@@ -129,7 +134,7 @@ describe('AuthPasswordChangeService', () => {
     const { service, oneTimeCodeRepository, passwordChangeRepository } = build();
     oneTimeCodeRepository.findActiveOneTimeCodeByChallenge.mockResolvedValueOnce(challenge({ actorId: 'otro' }));
 
-    await expect(service.confirmPasswordChange(confirmInput)).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.confirmPasswordChange(confirmInput)).rejects.toBeInstanceOf(BadRequestException);
     expect(passwordChangeRepository.applyNewPassword).not.toHaveBeenCalled();
   });
 
@@ -137,7 +142,7 @@ describe('AuthPasswordChangeService', () => {
     const { service, oneTimeCodeRepository, passwordChangeRepository } = build();
     oneTimeCodeRepository.findActiveOneTimeCodeByChallenge.mockResolvedValueOnce(challenge({ purpose: 'login_pin' }));
 
-    await expect(service.confirmPasswordChange(confirmInput)).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.confirmPasswordChange(confirmInput)).rejects.toBeInstanceOf(BadRequestException);
     expect(passwordChangeRepository.applyNewPassword).not.toHaveBeenCalled();
   });
 
@@ -145,14 +150,14 @@ describe('AuthPasswordChangeService', () => {
     const { service, oneTimeCodeRepository } = build();
     oneTimeCodeRepository.findActiveOneTimeCodeByChallenge.mockResolvedValueOnce(challenge({ expiresAt: new Date(Date.now() - 1_000) }));
 
-    await expect(service.confirmPasswordChange(confirmInput)).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.confirmPasswordChange(confirmInput)).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('cuenta el intento fallido cuando el código no coincide', async () => {
     const { service, oneTimeCodeRepository, passwordChangeRepository } = build();
     oneTimeCodeRepository.findActiveOneTimeCodeByChallenge.mockResolvedValueOnce(challenge());
 
-    await expect(service.confirmPasswordChange({ ...confirmInput, code: '999999' })).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.confirmPasswordChange({ ...confirmInput, code: '999999' })).rejects.toBeInstanceOf(BadRequestException);
     expect(oneTimeCodeRepository.registerOneTimeCodeFailedAttempt).toHaveBeenCalled();
     expect(passwordChangeRepository.applyNewPassword).not.toHaveBeenCalled();
   });
@@ -161,7 +166,7 @@ describe('AuthPasswordChangeService', () => {
     const { service, oneTimeCodeRepository, passwordChangeRepository } = build();
     oneTimeCodeRepository.findActiveOneTimeCodeByChallenge.mockResolvedValueOnce(challenge());
 
-    await expect(service.confirmPasswordChange({ ...confirmInput, newPassword: ACTUAL })).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.confirmPasswordChange({ ...confirmInput, newPassword: ACTUAL })).rejects.toBeInstanceOf(BadRequestException);
     expect(passwordChangeRepository.applyNewPassword).not.toHaveBeenCalled();
     expect(oneTimeCodeRepository.consumeOneTimeCode).not.toHaveBeenCalled();
   });
@@ -187,6 +192,8 @@ describe('AuthPasswordChangeService', () => {
     oneTimeCodeRepository.findActiveOneTimeCodeByChallenge.mockResolvedValueOnce(challenge());
     actorResolver.reResolveActorWithEmail.mockResolvedValueOnce(null);
 
+    // Éste SÍ es 401 y no 400: si la cuenta ya no está, lo que dejó de valer es la sesión, no el
+    // dato. Es la única excepción del flujo que debe expulsar al usuario.
     await expect(service.confirmPasswordChange(confirmInput)).rejects.toBeInstanceOf(UnauthorizedException);
     expect(passwordChangeRepository.applyNewPassword).not.toHaveBeenCalled();
   });
