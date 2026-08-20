@@ -114,6 +114,31 @@ x-atlas-env: &atlas-env
   ERP_BACKEND_BASE_URL: ${ERP_BACKEND_BASE_URL:-http://host.docker.internal:3007}
   ERP_BACKEND_CATALOG_API_KEY: ${ERP_BACKEND_CATALOG_API_KEY:-}
 
+  # Visor de logs (`GET /systems/logs/mongo`) y sincronización de `Archivo.log` hacia MongoDB.
+  #
+  # El servicio `mongo` del perfil `logs` existía desde hace tiempo, pero esta variable NO se pasaba
+  # a la API ni al worker: la receta documentada arriba —`--profile app --profile logs`— levantaba
+  # Mongo y aun así el visor contestaba 503 `MONGO_LOGS_NOT_CONFIGURED`, siempre, sin forma de
+  # notarlo salvo abriendo la pantalla. Es decir: la única receta para encender la terminal de logs
+  # no la encendía.
+  #
+  # Apuntar por omisión al servicio del propio stack es seguro incluso sin el perfil `logs`:
+  # `MongoLogsQueryService` conecta de forma perezosa, en la primera consulta, y traduce el fallo de
+  # conexión al mismo 503 que se obtenía antes. Nada arranca peor por tener la variable puesta.
+  MONGO_DB_URL_CONNECTION: ${MONGO_DB_URL_CONNECTION:-mongodb://mongo:27017/atlas_logs}
+
+  # Techo de peticiones por minuto y por IP.
+  #
+  # El default del backend (100/min) está pensado para producción, donde detrás de una IP hay una
+  # persona. En LOCAL, detrás de la IP hay una suite: el portal pide `/internal/auth/me` en cada
+  # navegación y un barrido E2E de cincuenta vistas agota el cupo a mitad de camino. El síntoma no
+  # se parece en nada a la causa —pantallas en blanco, pruebas que fallan en un orden distinto cada
+  # vez— así que este valor es lo que separa un fallo real de un límite de desarrollo.
+  #
+  # Sólo aplica a este compose, que describe el despliegue LOCAL. `docker-compose.prod.yml` no lo
+  # define y conserva el default.
+  API_RATE_LIMIT_MAX: ${API_RATE_LIMIT_MAX:-2000}
+
 # Sin `container_name`: Compose nombra los contenedores `<proyecto>-<servicio>-<n>`. Un nombre fijo
 # impide levantar dos stacks a la vez, choca con cualquier contenedor homónimo que ya exista en la
 # máquina y —lo decisivo— hace imposible `--scale api=4`, que es justo la razón de separar los roles.

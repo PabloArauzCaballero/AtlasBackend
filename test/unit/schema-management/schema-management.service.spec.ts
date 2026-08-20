@@ -33,6 +33,8 @@ function makeRepoMock(): RepoMock {
     countColumnsInVersion: jest.fn(async (..._args: unknown[]) => 0),
     countRelationshipsInVersion: jest.fn(async (..._args: unknown[]) => 0),
     countTablesColumnsRelationshipsForVersions: jest.fn(async (..._args: unknown[]) => new Map()),
+    countColumnsAndRelationshipsForTables: jest.fn(async (..._args: unknown[]) => new Map()),
+    listSchemaNamesForVersion: jest.fn(async (..._args: unknown[]) => []),
     getSchemaTable: asyncMock(),
     listSchemaTables: asyncMock(),
     getSchemaColumns: jest.fn(async (..._args: unknown[]) => []),
@@ -192,6 +194,77 @@ describe('SchemaManagementService', () => {
       repo.getSchemaVersion.mockResolvedValue(null);
       await expect(service.listSchemaTables('999', undefined, 50, 0)).rejects.toThrow(NotFoundException);
       expect(repo.listSchemaTables).not.toHaveBeenCalled();
+    });
+
+    /**
+     * `mapTableRow` deja los contadores en cero y sólo el detalle de UNA tabla los calculaba, así
+     * que el inventario de una versión afirmaba que sus 152 tablas no tenían ni una columna.
+     */
+    it('rellena columnas y relaciones de cada fila, no las deja en cero', async () => {
+      repo.getSchemaVersion.mockResolvedValue({ _id: '1', version_code: 'v1.0' });
+      repo.listSchemaTables.mockResolvedValue({
+        rows: [
+          {
+            _id: '7',
+            schema_version_id: '1',
+            table_name: 'iam.internal_users',
+            table_type: 'transactional',
+            is_append_only: false,
+            is_tenant_scoped: true,
+            description: null,
+            created_at: new Date(),
+            is_deleted: false,
+          },
+        ],
+        total: 1,
+      });
+      repo.countColumnsAndRelationshipsForTables.mockResolvedValue(new Map([['7', { columnsCount: 14, relationshipsCount: 3 }]]));
+
+      const result = await service.listSchemaTables('1', undefined, 50, 0);
+
+      expect(result.tables[0].columnsCount).toBe(14);
+      expect(result.tables[0].relationshipsCount).toBe(3);
+    });
+
+    it('propaga el filtro por esquema de datos al repositorio', async () => {
+      repo.getSchemaVersion.mockResolvedValue({ _id: '1', version_code: 'v1.0' });
+      repo.listSchemaTables.mockResolvedValue({ rows: [], total: 0 });
+
+      const result = await service.listSchemaTables('1', undefined, 50, 0, 'iam');
+
+      expect(repo.listSchemaTables).toHaveBeenCalledWith('1', undefined, 50, 0, 'iam');
+      expect(result.schemaName).toBe('iam');
+    });
+
+    it('sin filtro no se publica `schemaName`: no se afirma un acotado que no existe', async () => {
+      repo.getSchemaVersion.mockResolvedValue({ _id: '1', version_code: 'v1.0' });
+      repo.listSchemaTables.mockResolvedValue({ rows: [], total: 0 });
+
+      const result = await service.listSchemaTables('1', undefined, 50, 0);
+
+      expect(result.schemaName).toBeUndefined();
+    });
+  });
+
+  describe('listSchemaNames', () => {
+    it('lanza NotFound si la versión no existe', async () => {
+      repo.getSchemaVersion.mockResolvedValue(null);
+      await expect(service.listSchemaNames('999')).rejects.toThrow(NotFoundException);
+    });
+
+    it('devuelve los esquemas con sus conteos como números', async () => {
+      repo.getSchemaVersion.mockResolvedValue({ _id: '1', version_code: 'v1.0' });
+      repo.listSchemaNamesForVersion.mockResolvedValue([
+        { schema_name: 'iam', tables_count: '11', columns_count: '131' },
+        { schema_name: 'risk', tables_count: '16', columns_count: '260' },
+      ]);
+
+      const result = await service.listSchemaNames('1');
+
+      expect(result.schemas).toEqual([
+        { schemaName: 'iam', tablesCount: 11, columnsCount: 131 },
+        { schemaName: 'risk', tablesCount: 16, columnsCount: 260 },
+      ]);
     });
   });
 

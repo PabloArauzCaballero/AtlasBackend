@@ -70,7 +70,21 @@ export class SchemaManagementController {
     return this.schemaService.getSchemaVersion(versionId);
   }
 
+  @ApiOperation({
+    summary: 'Listar los esquemas de datos de una versión',
+    description: 'Índice del catálogo: un esquema por fila (`iam`, `risk`, `credit`…) con cuántas tablas y columnas contiene.',
+  })
+  @ApiParam({ name: 'versionId' })
+  @ApiResponse({ status: 200, description: 'Esquemas de datos de la versión.' })
+  @ApiResponse({ status: 404, description: 'SCHEMA_VERSION_NOT_FOUND.' })
+  @Get('versions/:versionId/schemas')
+  @Roles('internal_operator', 'admin', 'platform_admin', 'risk_analyst', 'readonly_auditor')
+  listVersionSchemas(@Param('versionId') versionId: string) {
+    return this.schemaService.listSchemaNames(versionId);
+  }
+
   @ApiOperation({ summary: 'Listar tablas del catálogo de esquema' })
+  @ApiQuery({ name: 'schemaName', required: false, schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).schemaName })
   @ApiQuery({ name: 'versionId', required: false, schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).versionId })
   @ApiQuery({ name: 'tableType', required: false, schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).tableType })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).limit })
@@ -82,7 +96,7 @@ export class SchemaManagementController {
     @Query(new ZodValidationPipe(schemaTablesListQuerySchema))
     query: SchemaTablesListQuery,
   ) {
-    return this.schemaService.listSchemaTables(query.versionId, query.tableType, query.limit, query.offset);
+    return this.schemaService.listSchemaTables(query.versionId, query.tableType, query.limit, query.offset, query.schemaName);
   }
 
   @ApiOperation({ summary: 'Obtener una tabla del catálogo de esquema (con columnas y FKs)' })

@@ -19,6 +19,7 @@ import {
   SchemaChangeLogDto,
   SchemaChangeLogListResponseDto,
   SchemaColumnDto,
+  SchemaNamesListResponseDto,
   SchemaRelationshipDto,
   SchemaTableDto,
   SchemaTablesListResponseDto,
@@ -83,16 +84,54 @@ export class SchemaManagementService {
   // TABLES
   // =========================================================================
 
-  async listSchemaTables(versionId: string, tableType: string | undefined, limit = 50, offset = 0): Promise<SchemaTablesListResponseDto> {
+  /**
+   * Los esquemas de datos de una versión. Es el primer nivel de la navegación del catálogo: se
+   * elige un esquema y solo entonces se listan sus tablas.
+   */
+  async listSchemaNames(versionId: string): Promise<SchemaNamesListResponseDto> {
     const version = await this.repo.getSchemaVersion(versionId);
     if (!version) {
       throw new NotFoundException(`Schema version ${versionId} not found`);
     }
 
-    const { rows, total } = await this.repo.listSchemaTables(versionId, tableType, limit, offset);
-    const tables = rows.map((row) => this.mapTableRow(row));
+    const rows = await this.repo.listSchemaNamesForVersion(versionId);
+    return {
+      versionId,
+      schemas: rows.map((row) => ({
+        schemaName: row.schema_name,
+        tablesCount: Number(row.tables_count),
+        columnsCount: Number(row.columns_count),
+      })),
+    };
+  }
 
-    return { tables, total, limit, offset, versionId };
+  async listSchemaTables(
+    versionId: string,
+    tableType: string | undefined,
+    limit = 50,
+    offset = 0,
+    schemaName?: string,
+  ): Promise<SchemaTablesListResponseDto> {
+    const version = await this.repo.getSchemaVersion(versionId);
+    if (!version) {
+      throw new NotFoundException(`Schema version ${versionId} not found`);
+    }
+
+    const { rows, total } = await this.repo.listSchemaTables(versionId, tableType, limit, offset, schemaName);
+    // Los contadores se rellenan por lotes para la página: `mapTableRow` los deja en 0 y sin este
+    // paso el inventario declaraba que ninguna tabla del esquema tenía columnas ni relaciones.
+    const countsByTable = await this.repo.countColumnsAndRelationshipsForTables(rows.map((row) => row._id));
+    const tables = rows.map((row) => {
+      const dto = this.mapTableRow(row);
+      const counts = countsByTable.get(row._id);
+      if (counts) {
+        dto.columnsCount = counts.columnsCount;
+        dto.relationshipsCount = counts.relationshipsCount;
+      }
+      return dto;
+    });
+
+    return { tables, total, limit, offset, versionId, ...(schemaName ? { schemaName } : {}) };
   }
 
   async getSchemaTable(tableId: string): Promise<SchemaTableDto> {
