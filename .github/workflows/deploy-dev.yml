@@ -1,0 +1,82 @@
+name: Deploy dev → Render
+
+# Redespliegue automático en Render ante cada commit en `dev`, con la imagen Docker reconstruida.
+#
+# ## Por qué existe si Render ya sabe auto-desplegar
+#
+# El auto-deploy nativo de Render sirve, pero deja dos huecos que aquí importan:
+#
+#   1. Reutiliza la caché de capas de Docker. Cuando lo que cambió está fuera del `COPY` que
+#      invalida la capa —una dependencia del sistema, un artefacto que se baja al construir— el
+#      servicio arranca con una imagen vieja que parece nueva. Este flujo pide `clearCache`.
+#   2. No devuelve el resultado a GitHub. Un despliegue fallido deja el commit en verde y nadie se
+#      entera hasta que alguien abre Render. Aquí el trabajo ESPERA el desenlace y se pone rojo.
+#
+# **Desactiva el auto-deploy del servicio en Render** al activar esto (Settings → Build & Deploy →
+# Auto-Deploy: No). Con los dos encendidos, cada push lanza DOS despliegues que compiten: el
+# segundo cancela al primero y el resultado que ve GitHub puede ser el del que se canceló.
+#
+# ## Qué hay que configurar
+#
+# Dos secretos del repositorio (Settings → Secrets and variables → Actions):
+#
+#   RENDER_API_KEY      Clave de la cuenta (Render → Account Settings → API Keys).
+#   RENDER_SERVICE_ID   Id del servicio, el `srv_...` que sale en su URL en Render.
+#
+# Sin ellos el trabajo no falla a ciegas: comprueba y explica cuál falta.
+
+on:
+  push:
+    branches: [dev]
+  # Permite relanzar un despliegue desde la pestaña Actions sin tener que empujar un commit vacío,
+  # que es lo que se acaba haciendo cuando la única forma de desplegar es un push.
+  workflow_dispatch:
+
+# Un despliegue a la vez por rama. Sin esto, dos commits seguidos lanzan dos despliegues que se
+# pisan; `cancel-in-progress: false` deja terminar al que ya está corriendo en vez de dejar el
+# servicio a medias.
+concurrency:
+  group: render-deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  redeploy:
+    name: Redesplegar en Render con imagen reconstruida
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+
+      # Se comprueba ANTES de llamar a Render para que la ausencia de un secreto se lea como lo que
+      # es —falta configuración— y no como un 401 de la API, que se investiga como si la clave
+      # estuviera mal.
+      - name: Comprobar que los secretos están configurados
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          faltan=""
+          [ -z "$RENDER_API_KEY" ] && faltan="$faltan RENDER_API_KEY"
+          [ -z "$RENDER_SERVICE_ID" ] && faltan="$faltan RENDER_SERVICE_ID"
+          if [ -n "$faltan" ]; then
+            echo "::error::Faltan secretos del repositorio:$faltan (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+
+      - name: Redesplegar y esperar el desenlace
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          # Imagen reconstruida de verdad: es el motivo por el que este flujo existe.
+          RENDER_CLEAR_CACHE: 'true'
+          # El commit de ESTE trabajo, no la punta de la rama al llegar la llamada: con dos pushes
+          # seguidos, si no se fija, el primer trabajo informaría del despliegue del segundo.
+          RENDER_COMMIT_ID: ${{ github.sha }}
+        run: node scripts/deploy/render-redeploy.mjs
