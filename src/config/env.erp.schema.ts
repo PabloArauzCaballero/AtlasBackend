@@ -37,4 +37,13 @@ export const erpEnvShape = {
    */
   ERP_BACKEND_CATALOG_PATH: z.string().trim().min(1).max(200).default('/api/v1/platform/catalog-manifest'),
   ERP_BACKEND_CATALOG_API_KEY: z.string().optional(),
+  /**
+   * Plazo propio para el manifiesto, separado del healthcheck.
+   *
+   * `ERP_BACKEND_TIMEOUT_MS` mide un «¿estás vivo?»: 5 s es generoso para eso y ridículo para una
+   * introspección de cientos de tablas. Reutilizarlo hacía que el bloque se reportara como «el ERP
+   * no responde» cuando el ERP estaba contestando perfectamente, sólo que tardaba más que un ping
+   * — el peor tipo de falso negativo, porque manda a investigar al servicio equivocado.
+   */
+  ERP_BACKEND_CATALOG_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(30_000),
 };

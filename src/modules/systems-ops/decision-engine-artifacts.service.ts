@@ -42,17 +42,22 @@ import {
 export class DecisionEngineArtifactsService {
   private readonly logger = new Logger(DecisionEngineArtifactsService.name);
 
-  async listActiveArtifacts(): Promise<ActiveArtifactReport> {
+  /**
+   * @param callerToken Sesión de quien abre la pantalla. Se reenvía porque el motor identifica a
+   * quien pregunta verificando ese token contra este mismo backend: así la lectura queda auditada a
+   * nombre de la persona y sujeta a SUS roles, no a los de una llave compartida por todo el panel.
+   */
+  async listActiveArtifacts(callerToken: string | null): Promise<ActiveArtifactReport> {
     const baseUrl = env.DECISION_ENGINE_BASE_URL ?? env.DECISION_ENGINE_HEALTH_BASE_URL;
-    const apiKey = env.DECISION_ENGINE_CATALOG_API_KEY ?? env.DECISION_ENGINE_OUTCOME_API_KEY;
 
-    if (!baseUrl || !apiKey) {
+    if (!baseUrl || !callerToken) {
       return {
         generatedAt: new Date().toISOString(),
         status: 'NOT_CONFIGURED',
-        message:
-          'El motor de decisión no tiene dirección o credencial de gobierno en este despliegue, así que no hay a ' +
-          'quién preguntarle por sus artefactos. No es lo mismo que no tener ninguno.',
+        message: baseUrl
+          ? 'La petición llegó sin sesión que reenviar al motor, y el motor identifica a quien pregunta por su ' + 'token de ATLAS.'
+          : 'El motor de decisión no tiene dirección configurada en este despliegue, así que no hay a quién ' +
+            'preguntarle por sus artefactos. No es lo mismo que no tener ninguno.',
         environmentFilter: env.DECISION_ENGINE_ENVIRONMENT_CODE ?? null,
         items: [],
       };
@@ -60,8 +65,8 @@ export class DecisionEngineArtifactsService {
 
     try {
       const [artifacts, deployments] = await Promise.all([
-        this.fetchJson(baseUrl, env.DECISION_ENGINE_ARTIFACTS_PATH, apiKey, artifactPageSchema),
-        this.fetchJson(baseUrl, `${env.DECISION_ENGINE_DEPLOYMENTS_PATH}?status=ACTIVE`, apiKey, deploymentPageSchema),
+        this.fetchJson(baseUrl, env.DECISION_ENGINE_ARTIFACTS_PATH, callerToken, artifactPageSchema),
+        this.fetchJson(baseUrl, `${env.DECISION_ENGINE_DEPLOYMENTS_PATH}?status=ACTIVE`, callerToken, deploymentPageSchema),
       ]);
       return {
         generatedAt: new Date().toISOString(),
@@ -83,20 +88,16 @@ export class DecisionEngineArtifactsService {
     }
   }
 
-  private async fetchJson<T>(baseUrl: string, path: string, apiKey: string, schema: { parse(value: unknown): T }): Promise<T> {
+  private async fetchJson<T>(baseUrl: string, path: string, callerToken: string, schema: { parse(value: unknown): T }): Promise<T> {
     const url = `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), env.DECISION_ENGINE_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), env.DECISION_ENGINE_CATALOG_TIMEOUT_MS);
     try {
       const response = await fetch(url, {
         method: 'GET',
-        headers: {
-          accept: 'application/json',
-          'x-api-key': apiKey,
-          // El motor aísla por inquilino en toda ruta autenticada por llave: sin esta cabecera la
-          // petición no es «sin filtro», es rechazada.
-          'x-tenant-id': env.DECISION_ENGINE_TENANT_ID,
-        },
+        // Sin `x-tenant-id`: verificando el token, el motor toma el inquilino del perfil y no de una
+        // cabecera — y ahí está la garantía de que quien llama no puede atribuirse uno ajeno.
+        headers: { accept: 'application/json', authorization: `Bearer ${callerToken}` },
         signal: controller.signal,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status} en ${url}`);

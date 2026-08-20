@@ -39,15 +39,21 @@ export class PlatformCatalogFederationService {
     private readonly repository: PlatformCatalogFederationRepository,
   ) {}
 
-  /** Federa todos los bloques que no son este backend. Nunca lanza: cada bloque reporta su desenlace. */
-  async federateAll(): Promise<FederationOutcome[]> {
+  /**
+   * Federa todos los bloques que no son este backend. Nunca lanza: cada bloque reporta su desenlace.
+   *
+   * `callerToken` es la sesión de quien pulsó el botón, y se reenvía a los bloques que tratan a este
+   * backend como su proveedor de identidad. Así el motor audita a la PERSONA que pidió el catálogo y
+   * aplica sus roles, en vez de ver una llave de servicio compartida por todo el que entre al panel.
+   */
+  async federateAll(callerToken: string | null): Promise<FederationOutcome[]> {
     const targets = PLATFORM_BLOCKS.filter((block) => block.kind === 'FEDERATED');
     const outcomes: FederationOutcome[] = [];
-    for (const block of targets) outcomes.push(await this.federateBlock(block.code));
+    for (const block of targets) outcomes.push(await this.federateBlock(block.code, callerToken));
     return outcomes;
   }
 
-  async federateBlock(systemCode: string): Promise<FederationOutcome> {
+  async federateBlock(systemCode: string, callerToken: string | null): Promise<FederationOutcome> {
     const definition = platformBlockByCode(systemCode);
     if (!definition || definition.kind !== 'FEDERATED') {
       const outcome = failure(systemCode, 'ERROR', `${systemCode} no es un bloque federable de este ecosistema.`);
@@ -55,7 +61,7 @@ export class PlatformCatalogFederationService {
       return outcome;
     }
 
-    const result = await this.client.fetchManifest(systemCode);
+    const result = await this.client.fetchManifest(systemCode, callerToken);
     if (!result.ok) {
       const outcome = failure(systemCode, result.status, result.message);
       await this.repository.recordOutcome(outcome);

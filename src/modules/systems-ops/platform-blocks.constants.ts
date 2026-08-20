@@ -89,11 +89,15 @@ export interface BlockManifestEndpointConfig {
   /** Cabecera y valor de la credencial. Sin valor, el bloque se reporta como NO CONFIGURADO. */
   readonly authHeader: string;
   readonly authValue: string | undefined;
-  /** Cabeceras adicionales exigidas por el bloque remoto (el motor exige tenant). */
-  readonly extraHeaders: Readonly<Record<string, string>>;
+  /** Qué falta cuando no hay credencial, dicho en los términos de ESTE bloque. */
+  readonly missingCredentialReason: string;
 }
 
-export function manifestConfigFor(code: string): BlockManifestEndpointConfig | null {
+/**
+ * @param callerToken Token de sesión de quien pidió la federación, para los bloques que tratan a
+ * este backend como su proveedor de identidad.
+ */
+export function manifestConfigFor(code: string, callerToken: string | null): BlockManifestEndpointConfig | null {
   if (code === 'DECISION_ENGINE') {
     return {
       // La integración real manda; si no la hay, la dirección de sólo-observabilidad. Es el mismo
@@ -101,22 +105,41 @@ export function manifestConfigFor(code: string): BlockManifestEndpointConfig | n
       // el motor: dos respuestas distintas a esa pregunta es peor que ninguna.
       baseUrl: env.DECISION_ENGINE_BASE_URL ?? env.DECISION_ENGINE_HEALTH_BASE_URL,
       manifestPath: env.DECISION_ENGINE_CATALOG_PATH,
-      timeoutMs: env.DECISION_ENGINE_TIMEOUT_MS,
-      authHeader: 'x-api-key',
-      // El plano de GESTIÓN, no el de ejecución. Leer el mapa del motor es una operación de
-      // gobierno; la llave que ejecuta decisiones no debe servir también para inventariarlo.
-      authValue: env.DECISION_ENGINE_CATALOG_API_KEY ?? env.DECISION_ENGINE_OUTCOME_API_KEY,
-      extraHeaders: { 'x-tenant-id': env.DECISION_ENGINE_TENANT_ID },
+      timeoutMs: env.DECISION_ENGINE_CATALOG_TIMEOUT_MS,
+      /**
+       * La IDENTIDAD DE QUIEN PIDE, no una llave de servicio.
+       *
+       * El motor trata a este backend como su proveedor de identidad: verifica cada token llamando
+       * a `/internal/auth/me` y deriva de ahí el sujeto, el tenant y los roles. Reenviar el token
+       * del operador es, por tanto, la forma NATIVA de pedirle algo — y la única que conserva quién
+       * lo pidió. Con una llave compartida, el motor registraría «Atlas» en su auditoría en vez de
+       * la persona, y su propio control de roles dejaría de aplicarse a esa persona: quien tuviera
+       * acceso al panel heredaría los permisos de la llave, fueran cuales fueran los suyos.
+       *
+       * Tampoco hace falta `x-tenant-id`: en este modo el motor toma el tenant del perfil
+       * verificado y no de una cabecera, que es justo lo que impide que quien llama se atribuya uno
+       * al que no ha autenticado.
+       */
+      authHeader: 'authorization',
+      authValue: callerToken ? `Bearer ${callerToken}` : undefined,
+      missingCredentialReason: 'la petición llegó sin sesión que reenviar, y el motor identifica a quien pregunta por su token de ATLAS',
     };
   }
   if (code === 'ERP_BACKEND') {
     return {
       baseUrl: env.ERP_BACKEND_BASE_URL,
       manifestPath: env.ERP_BACKEND_CATALOG_PATH,
-      timeoutMs: env.ERP_BACKEND_TIMEOUT_MS,
+      timeoutMs: env.ERP_BACKEND_CATALOG_TIMEOUT_MS,
+      /**
+       * Aquí sí una llave, y no por descuido: el ERP no verifica tokens de ATLAS. Su pasarela
+       * INTERCAMBIA la identidad de Atlas por un token propio firmado con su llave, así que un
+       * token de aquí reenviado tal cual sería rechazado. Esta credencial no es un mecanismo de
+       * identidad —no lleva usuario ni roles y abre una sola lectura—, así que no compite con
+       * AtlasBackend como fuente de verdad de las identidades.
+       */
       authHeader: 'x-platform-catalog-key',
       authValue: env.ERP_BACKEND_CATALOG_API_KEY,
-      extraHeaders: {},
+      missingCredentialReason: 'falta ERP_BACKEND_CATALOG_API_KEY, la credencial de sólo lectura de su manifiesto',
     };
   }
   return null;

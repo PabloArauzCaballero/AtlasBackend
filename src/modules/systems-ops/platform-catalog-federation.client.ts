@@ -28,8 +28,8 @@ export type ManifestFetchResult =
 export class PlatformCatalogFederationClient {
   private readonly logger = new Logger(PlatformCatalogFederationClient.name);
 
-  async fetchManifest(systemCode: string): Promise<ManifestFetchResult> {
-    const config = manifestConfigFor(systemCode);
+  async fetchManifest(systemCode: string, callerToken: string | null): Promise<ManifestFetchResult> {
+    const config = manifestConfigFor(systemCode, callerToken);
     if (!config) {
       return { ok: false, status: 'ERROR', message: `El bloque ${systemCode} no declara cómo alcanzar su manifiesto.` };
     }
@@ -47,8 +47,9 @@ export class PlatformCatalogFederationClient {
         ok: false,
         status: 'NOT_CONFIGURED',
         message:
-          `El bloque ${systemCode} tiene dirección pero no credencial de catálogo. El manifiesto enumera rutas y ` +
-          'tablas del servicio, así que se pide con identidad o no se pide.',
+          `El bloque ${systemCode} tiene dirección pero no se le puede pedir el manifiesto: ` +
+          `${config.missingCredentialReason}. El manifiesto enumera rutas y tablas del servicio, así que se pide ` +
+          'con identidad o no se pide.',
       };
     }
 
@@ -59,7 +60,7 @@ export class PlatformCatalogFederationClient {
     try {
       const response = await fetch(url, {
         method: 'GET',
-        headers: { accept: 'application/json', [config.authHeader]: config.authValue, ...config.extraHeaders },
+        headers: { accept: 'application/json', [config.authHeader]: config.authValue },
         signal: controller.signal,
       });
       const elapsed = Date.now() - startedAt;
@@ -68,7 +69,9 @@ export class PlatformCatalogFederationClient {
         return {
           ok: false,
           status: 'UNAUTHORIZED',
-          message: `${systemCode} rechazó la credencial de catálogo con HTTP ${response.status} en ${url}. La llave existe pero no vale.`,
+          message:
+            `${systemCode} rechazó la credencial con HTTP ${response.status} en ${url}. Existe, pero no le vale: ` +
+            'o la identidad no tiene el rol que ese bloque exige, o la llave es de otro despliegue.',
         };
       }
       if (!response.ok) {

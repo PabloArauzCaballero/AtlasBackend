@@ -7,6 +7,7 @@ import { Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { AccessToken } from '../../common/decorators/access-token.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { SystemsOpsControllerSecurity } from './systems-controller.decorators.js';
 import { SYSTEMS_OPS_GOVERNANCE_ROLES } from './systems-ops.constants.js';
@@ -50,8 +51,8 @@ export class SystemsNetworkController {
   @ApiResponse({ status: 201, description: 'Desenlace de la federación por bloque.' })
   @Post('blocks/federate')
   @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
-  federateAll() {
-    return this.federation.federateAll();
+  federateAll(@AccessToken() callerToken: string | null) {
+    return this.federation.federateAll(callerToken);
   }
 
   @ApiOperation({ summary: 'Refederar el catálogo de un bloque concreto' })
@@ -59,14 +60,17 @@ export class SystemsNetworkController {
   @ApiResponse({ status: 201, description: 'Desenlace de la federación del bloque.' })
   @Post('blocks/:systemCode/federate')
   @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
-  federateBlock(@Param(new ZodValidationPipe(systemsBlockParamsSchema)) params: SystemsBlockParamsDto) {
-    return this.federation.federateBlock(params.systemCode);
+  federateBlock(
+    @Param(new ZodValidationPipe(systemsBlockParamsSchema)) params: SystemsBlockParamsDto,
+    @AccessToken() callerToken: string | null,
+  ) {
+    return this.federation.federateBlock(params.systemCode, callerToken);
   }
 
   @ApiOperation({ summary: 'Artefactos ACTIVOS del motor de decisión, con su despliegue vigente' })
   @ApiResponse({ status: 200, description: 'Artefactos con despliegue activo, ambiente y reparto de tráfico.' })
   @Get('decision-engine/artifacts')
-  listActiveArtifacts() {
-    return this.artifacts.listActiveArtifacts();
+  listActiveArtifacts(@AccessToken() callerToken: string | null) {
+    return this.artifacts.listActiveArtifacts(callerToken);
   }
 }

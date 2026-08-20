@@ -58,24 +58,21 @@ export const decisionEngineEnvShape = {
    */
   DECISION_ENGINE_HEALTH_BASE_URL: optionalUrlEnvSchema,
   /**
-   * Ruta del manifiesto de catálogo del motor, y credencial con la que se lee.
+   * Ruta del manifiesto de catálogo del motor.
    *
    * El manifiesto enumera las rutas que el motor sirve y las tablas que su base contiene; es lo que
    * permite que el catálogo del portal deje de ser «las tablas de Atlas Backend» y pase a ser el del
-   * ecosistema. Se lee con una llave del plano de GESTIÓN, no con la de ejecución: inventariar el
-   * motor es gobierno, y la credencial que ejecuta decisiones no debe servir también para eso.
-   * Vacía = el bloque se reporta como NO FEDERADO, con ese nombre, en vez de aparecer vacío.
+   * ecosistema.
+   *
+   * NO hay credencial que configurar, y es a propósito: el motor trata a ESTE backend como su
+   * proveedor de identidad, así que la lectura viaja con el token de la persona que la pidió. Una
+   * llave de servicio aquí sustituiría a esa persona por «Atlas» en la auditoría del motor y
+   * saltaría su control de roles, que es justo lo que no debe pasar cuando la fuente de verdad de
+   * las identidades es este backend.
    */
   DECISION_ENGINE_CATALOG_PATH: z.string().trim().min(1).max(200).default('/v1/platform/catalog-manifest'),
-  DECISION_ENGINE_CATALOG_API_KEY: z.string().optional(),
-  /**
-   * Tenant con el que se piden las lecturas de gobierno al motor (manifiesto y artefactos).
-   *
-   * El motor exige `x-tenant-id` en toda ruta autenticada por llave: es lo que le impide a una
-   * credencial ver el trabajo de otro inquilino. Por omisión `1`, que es el tenant que siembra su
-   * arranque de desarrollo.
-   */
-  DECISION_ENGINE_TENANT_ID: z.string().trim().min(1).max(40).default('1'),
+  /** Plazo propio del manifiesto: una introspección completa no cabe en el tiempo de un healthcheck. */
+  DECISION_ENGINE_CATALOG_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(30_000),
   /**
    * Ruta de listado de artefactos del motor, para la vista de artefactos activos del portal.
    *

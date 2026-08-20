@@ -105,9 +105,12 @@ x-atlas-env: &atlas-env
   # Se usa HEALTH_BASE_URL y no BASE_URL a propósito: BASE_URL enciende la INTEGRACIÓN de crédito y
   # el arranque exige entonces credenciales de ejecución y sal de sujeto. Observar el motor no
   # debería obligar a automatizar el crédito para conseguirlo.
+  #
+  # El motor no lleva credencial aqui: identifica a quien pregunta verificando su token contra ESTE
+  # backend, asi que la federacion reenvia la sesion del operador. El ERP si la lleva, porque no
+  # verifica tokens de Atlas —su pasarela los INTERCAMBIA por uno propio— y esa llave abre una sola
+  # lectura sin usuario ni roles, de modo que no compite con Atlas como fuente de identidades.
   DECISION_ENGINE_HEALTH_BASE_URL: ${DECISION_ENGINE_HEALTH_BASE_URL:-http://host.docker.internal:3020}
-  DECISION_ENGINE_CATALOG_API_KEY: ${DECISION_ENGINE_CATALOG_API_KEY:-}
-  DECISION_ENGINE_TENANT_ID: ${DECISION_ENGINE_TENANT_ID:-1}
   ERP_BACKEND_BASE_URL: ${ERP_BACKEND_BASE_URL:-http://host.docker.internal:3007}
   ERP_BACKEND_CATALOG_API_KEY: ${ERP_BACKEND_CATALOG_API_KEY:-}
 
