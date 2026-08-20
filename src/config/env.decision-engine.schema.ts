@@ -37,6 +37,19 @@ export const decisionEngineEnvShape = {
    * instalación puede querer automatizar una y todavía no la otra.
    */
   DECISION_ENGINE_RISK_ARTIFACT: z.string().trim().max(120).optional(),
+  /**
+   * Artefacto que verifica la identidad de una persona con su carnet y su selfie.
+   *
+   * Vacío = el flujo móvil de verificación no está disponible y sus endpoints
+   * contestan 503 en vez de fallar a mitad. Se apaga por separado de los otros
+   * dos por lo mismo: son tres decisiones distintas con tres artefactos
+   * distintos, y una instalación puede querer automatizar una y no las demás.
+   *
+   * El valor por defecto es el código que el motor siembra
+   * (`identity-mobile.seed.ts`), de modo que un entorno de desarrollo funcione
+   * sin configurar nada.
+   */
+  DECISION_ENGINE_IDENTITY_ARTIFACT: z.string().trim().max(120).default('IDENTIDAD_CARNET_MOVIL'),
   DECISION_ENGINE_ENVIRONMENT_CODE: z
     .string()
     .trim()
