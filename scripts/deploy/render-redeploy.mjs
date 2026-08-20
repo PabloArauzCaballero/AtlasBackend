@@ -25,6 +25,8 @@
  *   RENDER_CLEAR_CACHE=false   reutiliza la caché de capas (más rápido, menos garantía).
  *   RENDER_WAIT=false          dispara y no espera. Ver arriba por qué NO es lo recomendable.
  *   RENDER_TIMEOUT_MS          techo de espera; por omisión 20 minutos.
+ *   RENDER_POLL_MS             intervalo de sondeo; por omisión 10 segundos.
+ *   RENDER_API_BASE            host de la API; sólo para probar contra un doble local.
  */
 
 /** Se puede apuntar a otro host para probar el script contra un doble local (ver su spec). */
@@ -45,8 +47,13 @@ const clearCache = process.env.RENDER_CLEAR_CACHE !== 'false';
 const wait = process.env.RENDER_WAIT !== 'false';
 const timeoutMs = Number(process.env.RENDER_TIMEOUT_MS ?? 20 * 60 * 1000);
 
-/** Cada cuánto se pregunta por el estado. Render no notifica: hay que sondear. */
-const POLL_INTERVAL_MS = 10_000;
+/**
+ * Cada cuánto se pregunta por el estado. Render no notifica: hay que sondear.
+ *
+ * Configurable para que la espera se pueda ejercitar en segundos contra un doble local; en el
+ * despliegue real no hay motivo para bajarlo, sondear más rápido no acelera una construcción.
+ */
+const POLL_INTERVAL_MS = Number(process.env.RENDER_POLL_MS ?? 10_000);
 
 /**
  * Desenlaces de un despliegue de Render.
@@ -84,6 +91,12 @@ async function renderFetch(path, options = {}) {
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Minutos si los hay, y si no segundos: redondear a minutos convertía un plazo corto en «0 minutos». */
+function formatDuration(ms) {
+  if (ms >= 60_000) return `${Math.round(ms / 60_000)} minutos`;
+  return ms >= 1000 ? `${Math.round(ms / 1000)} segundos` : `${ms} ms`;
+}
 
 async function main() {
   if (!apiKey) fail('Falta RENDER_API_KEY.');
@@ -133,7 +146,7 @@ async function main() {
    * bien, pero darlo por exitoso aquí haría que el trabajo se pusiera verde sin saberlo — y esa
    * mentira es justo la que este script existe para evitar.
    */
-  fail(`El despliegue ${deploy.id} no terminó en ${Math.round(timeoutMs / 60000)} minutos (último estado: ${last}).`);
+  fail(`El despliegue ${deploy.id} no terminó en ${formatDuration(timeoutMs)} (último estado: ${last}).`);
 }
 
 await main();

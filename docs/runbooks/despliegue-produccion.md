@@ -152,6 +152,56 @@ despliega con dos comandos y dos valores de `APP_ROLE`; lo que cambia es qué ar
 - [ ] `terminationGracePeriodSeconds` del orquestador mayor que `SHUTDOWN_DRAIN_MS` + el tiempo de
       cierre, o el drenado se corta a la mitad.
 
+## 6-ter. Redespliegue automático en Render desde `dev`
+
+Cada commit en `dev` redespliega el servicio de Render con la **imagen reconstruida**, y el trabajo
+de GitHub espera el desenlace. Lo mueve `.github/workflows/deploy-dev.yml` llamando a
+`scripts/deploy/render-redeploy.mjs` (también a mano: `yarn deploy:render`).
+
+### Por qué no se usa el auto-deploy nativo de Render
+
+Render sabe redesplegar solo al detectar un push, y para muchos servicios eso alcanza. Aquí deja dos
+huecos, y los dos son silenciosos:
+
+1. **Reutiliza la caché de capas de Docker.** Cuando lo que cambió está fuera del `COPY` que invalida
+   la capa —una dependencia del sistema, un artefacto que se descarga al construir— el servicio
+   arranca con una imagen vieja que parece nueva. El script pide `clearCache`.
+2. **No devuelve el resultado a GitHub.** Un despliegue fallido deja el commit en verde; el servicio
+   sigue con la versión anterior y nadie se entera hasta que alguien abre Render. El script sondea
+   hasta `live` o hasta un estado de fallo, y sale distinto de cero si no llegó a estar en línea.
+
+Además fija `commitId` al SHA que disparó el trabajo. Sin eso, Render construye la punta de la rama
+al recibir la llamada: con dos commits seguidos, el trabajo del primero informaría del despliegue del
+segundo, y el historial de Actions dejaría de decir qué versión llegó a estar en línea.
+
+### Configuración (una vez por servicio)
+
+- [ ] **Desactivar el auto-deploy en Render** (Settings → Build & Deploy → Auto-Deploy: *No*). Con
+      los dos encendidos, cada push lanza **dos** despliegues que compiten: el segundo cancela al
+      primero y GitHub puede acabar informando el resultado del cancelado.
+- [ ] Secretos del repositorio (Settings → Secrets and variables → Actions):
+      `RENDER_API_KEY` (Render → Account Settings → API Keys) y `RENDER_SERVICE_ID` (el `srv_...`
+      de la URL del servicio). El flujo comprueba que existen **antes** de llamar a la API, para que
+      la falta de configuración no se lea como un 401 de credenciales.
+- [ ] Confirmar que la rama del servicio en Render es `dev`. El primer paso del script imprime la
+      rama que Render tiene configurada.
+
+| Variable | Por omisión | Para qué |
+|---|---|---|
+| `RENDER_CLEAR_CACHE` | `true` | En `false`, reutiliza capas: más rápido, sin la garantía de imagen nueva. |
+| `RENDER_COMMIT_ID` | punta de la rama | SHA exacto a desplegar. El flujo pasa `github.sha`. |
+| `RENDER_WAIT` | `true` | En `false`, dispara y no espera — pierde justo lo que hace útil al script. |
+| `RENDER_TIMEOUT_MS` | 20 min | Techo de espera. Agotarlo **falla**: un despliegue colgado no se da por bueno. |
+
+### Alcance
+
+Cubre el redespliegue del servicio, no las migraciones: el esquema sigue avanzando con el paso
+one-shot `migrate` descrito en 6-bis. Un despliegue que necesite migración va antes por ahí.
+
+Comportamiento verificado en `test/unit/deploy/render-redeploy.spec.ts` (6 casos, contra un doble de
+la API de Render): caché limpia y commit fijado, verde en `live`, rojo en `build_failed`, rojo al
+agotar el plazo, y falta de secretos reportada como configuración.
+
 ## 7. Gates que deben estar verdes antes de desplegar
 
 `lint`, `format:check`, `type-check`, `type-check:tests`, `test:unit`, `test:coverage` (gate por
