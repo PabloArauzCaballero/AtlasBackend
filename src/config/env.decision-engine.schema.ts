@@ -57,6 +57,33 @@ export const decisionEngineEnvShape = {
    * configurada manda ella: la integración real sabe mejor dónde vive el motor.
    */
   DECISION_ENGINE_HEALTH_BASE_URL: optionalUrlEnvSchema,
+  /**
+   * Ruta del manifiesto de catálogo del motor, y credencial con la que se lee.
+   *
+   * El manifiesto enumera las rutas que el motor sirve y las tablas que su base contiene; es lo que
+   * permite que el catálogo del portal deje de ser «las tablas de Atlas Backend» y pase a ser el del
+   * ecosistema. Se lee con una llave del plano de GESTIÓN, no con la de ejecución: inventariar el
+   * motor es gobierno, y la credencial que ejecuta decisiones no debe servir también para eso.
+   * Vacía = el bloque se reporta como NO FEDERADO, con ese nombre, en vez de aparecer vacío.
+   */
+  DECISION_ENGINE_CATALOG_PATH: z.string().trim().min(1).max(200).default('/v1/platform/catalog-manifest'),
+  DECISION_ENGINE_CATALOG_API_KEY: z.string().optional(),
+  /**
+   * Tenant con el que se piden las lecturas de gobierno al motor (manifiesto y artefactos).
+   *
+   * El motor exige `x-tenant-id` en toda ruta autenticada por llave: es lo que le impide a una
+   * credencial ver el trabajo de otro inquilino. Por omisión `1`, que es el tenant que siembra su
+   * arranque de desarrollo.
+   */
+  DECISION_ENGINE_TENANT_ID: z.string().trim().min(1).max(40).default('1'),
+  /**
+   * Ruta de listado de artefactos del motor, para la vista de artefactos activos del portal.
+   *
+   * Parametrizada por la misma razón que el healthcheck: el prefijo de rutas es del otro repo y un
+   * cambio suyo no debe leerse aquí como «el motor no tiene artefactos».
+   */
+  DECISION_ENGINE_ARTIFACTS_PATH: z.string().trim().min(1).max(200).default('/v1/artifacts'),
+  DECISION_ENGINE_DEPLOYMENTS_PATH: z.string().trim().min(1).max(200).default('/v1/deployments'),
   DECISION_ENGINE_HEALTH_PATH: z.string().trim().min(1).max(200).default('/health'),
   DECISION_ENGINE_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(10_000),
   DECISION_ENGINE_RETRIES: z.coerce.number().int().min(0).max(5).default(1),

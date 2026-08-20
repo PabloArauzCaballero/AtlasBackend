@@ -198,6 +198,7 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'system_data_relationship_catalog',
     'system_operational_rule_catalog',
     'system_catalog_review_events',
+    'system_block_federation_state',
     'workflow_definitions',
     'workflow_stages',
     'workflow_steps',

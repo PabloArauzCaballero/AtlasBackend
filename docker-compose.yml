@@ -94,6 +94,23 @@ x-atlas-env: &atlas-env
   NOTIFICATION_EMAIL_WEBHOOK_URL: ${NOTIFICATION_EMAIL_WEBHOOK_URL:-}
   NOTIFICATION_WEBHOOK_URL: ${NOTIFICATION_WEBHOOK_URL:-}
 
+  # Los otros dos BLOQUES del ecosistema.
+  #
+  # Sin estas variables el panel de sistemas reportaba el motor de decisión y el ERP como «no
+  # configurados» —correcto pero inútil— y el catálogo de datos y el de endpoints sólo contenían lo
+  # de este backend, sin nada que lo dijera. Se apunta a `host.docker.internal` porque cada bloque
+  # tiene su propio `docker compose` y su propia red: son productos separados, no servicios de este
+  # stack, y meterlos en la misma red los haría parecer una sola cosa.
+  #
+  # Se usa HEALTH_BASE_URL y no BASE_URL a propósito: BASE_URL enciende la INTEGRACIÓN de crédito y
+  # el arranque exige entonces credenciales de ejecución y sal de sujeto. Observar el motor no
+  # debería obligar a automatizar el crédito para conseguirlo.
+  DECISION_ENGINE_HEALTH_BASE_URL: ${DECISION_ENGINE_HEALTH_BASE_URL:-http://host.docker.internal:3020}
+  DECISION_ENGINE_CATALOG_API_KEY: ${DECISION_ENGINE_CATALOG_API_KEY:-}
+  DECISION_ENGINE_TENANT_ID: ${DECISION_ENGINE_TENANT_ID:-1}
+  ERP_BACKEND_BASE_URL: ${ERP_BACKEND_BASE_URL:-http://host.docker.internal:3007}
+  ERP_BACKEND_CATALOG_API_KEY: ${ERP_BACKEND_CATALOG_API_KEY:-}
+
 # Sin `container_name`: Compose nombra los contenedores `<proyecto>-<servicio>-<n>`. Un nombre fijo
 # impide levantar dos stacks a la vez, choca con cualquier contenedor homónimo que ya exista en la
 # máquina y —lo decisivo— hace imposible `--scale api=4`, que es justo la razón de separar los roles.
@@ -184,6 +201,11 @@ services:
   api:
     <<: *atlas-build
     profiles: ['app']
+    # `host.docker.internal` no existe fuera de Docker Desktop. Declararlo contra `host-gateway`
+    # hace que el mismo compose alcance el motor y el ERP también en Linux, donde si no la
+    # federación fallaría con un DNS que no resuelve y parecería un bloque caído.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     environment:
       <<: *atlas-env
       APP_ROLE: api
@@ -193,7 +215,11 @@ services:
       # en silencio.
       RUNTIME_JOBS_SCHEDULER_ENABLED: 'false'
       NOTIFICATIONS_DELIVERY_MODE: deferred
-      CORS_ORIGINS: http://localhost:3000,http://localhost:5273
+      # `127.0.0.1` además de `localhost`: son orígenes DISTINTOS para el navegador, y las pruebas
+      # E2E de Playwright sirven el portal en `127.0.0.1:5273`. Sin esta entrada el login fallaba
+      # con «no se pudo conectar con el servicio interno», que parece una caída del backend y es
+      # sólo un preflight CORS rechazado.
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5273,http://127.0.0.1:3000,http://127.0.0.1:5273
     ports:
       - '${API_PUBLISH_PORT:-3005}:3005'
     depends_on:
