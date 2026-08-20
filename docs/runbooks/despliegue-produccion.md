@@ -152,55 +152,61 @@ despliega con dos comandos y dos valores de `APP_ROLE`; lo que cambia es qué ar
 - [ ] `terminationGracePeriodSeconds` del orquestador mayor que `SHUTDOWN_DRAIN_MS` + el tiempo de
       cierre, o el drenado se corta a la mitad.
 
-## 6-ter. Redespliegue automático en Render desde `dev`
+## 6-ter. Auto-despliegue en el servidor de pruebas (`tools/autodeploy/`)
 
-Cada commit en `dev` redespliega el servicio de Render con la **imagen reconstruida**, y el trabajo
-de GitHub espera el desenlace. Lo mueve `.github/workflows/deploy-dev.yml` llamando a
-`scripts/deploy/render-redeploy.mjs` (también a mano: `yarn deploy:render`).
+Esta máquina hace de servidor para los testers, que entran por los dev tunnels. `autodeploy.sh`
+imita lo que hace Render, pero aquí: vigila `dev`, y ante un commit nuevo construye la imagen del
+commit, la comprueba y la pone a servir — o deja servir a la anterior si la nueva no responde.
 
-### Por qué no se usa el auto-deploy nativo de Render
+```bash
+tools/autodeploy/autodeploy.sh estado      # qué está desplegado y qué commit espera
+tools/autodeploy/autodeploy.sh una-vez     # una pasada (es lo que corre el temporizador)
+tools/autodeploy/autodeploy.sh canario erp # construye y comprueba SIN tocar el puerto bueno
+tools/autodeploy/autodeploy.sh historial   # los despliegues, como el panel de Render
+```
 
-Render sabe redesplegar solo al detectar un push, y para muchos servicios eso alcanza. Aquí deja dos
-huecos, y los dos son silenciosos:
+### La regla que manda: el enlace del tester no cambia
 
-1. **Reutiliza la caché de capas de Docker.** Cuando lo que cambió está fuera del `COPY` que invalida
-   la capa —una dependencia del sistema, un artefacto que se descarga al construir— el servicio
-   arranca con una imagen vieja que parece nueva. El script pide `clearCache`.
-2. **No devuelve el resultado a GitHub.** Un despliegue fallido deja el commit en verde; el servicio
-   sigue con la versión anterior y nadie se entera hasta que alguien abre Render. El script sondea
-   hasta `live` o hasta un estado de fallo, y sale distinto de cero si no llegó a estar en línea.
+El hostname de un dev tunnel lo fija el **nombre** del túnel, y el túnel apunta a un **puerto**, no a
+un contenedor (ver [devtunnels](../../tools/devtunnels/)). De ahí las tres reglas que el script
+respeta y que hay que conservar en cualquier cambio:
 
-Además fija `commitId` al SHA que disparó el trabajo. Sin eso, Render construye la punta de la rama
-al recibir la llamada: con dos commits seguidos, el trabajo del primero informaría del despliegue del
-segundo, y el historial de Actions dejaría de decir qué versión llegó a estar en línea.
+1. **No toca ningún proceso `devtunnel`.** Durante el despliegue los túneles siguen arriba; lo único
+   que ven es que su puerto deja de responder unos segundos.
+2. **Cada servicio vuelve a su mismo puerto** (3005 / 3020 / 3100). Cambiar uno rompe el enlace que
+   ya tienen los testers, y además los fronts hacen de proxy contra esos puertos exactos.
+3. **El canario se comprueba en un puerto aparte.** Una imagen que no arranca se descarta sin haber
+   tocado el puerto que sirve. Es lo que separa «el despliegue falló» de «el servicio se cayó».
 
-### Configuración (una vez por servicio)
+### Cómo despliega, paso a paso
 
-- [ ] **Desactivar el auto-deploy en Render** (Settings → Build & Deploy → Auto-Deploy: *No*). Con
-      los dos encendidos, cada push lanza **dos** despliegues que compiten: el segundo cancela al
-      primero y GitHub puede acabar informando el resultado del cancelado.
-- [ ] Secretos del repositorio (Settings → Secrets and variables → Actions):
-      `RENDER_API_KEY` (Render → Account Settings → API Keys) y `RENDER_SERVICE_ID` (el `srv_...`
-      de la URL del servicio). El flujo comprueba que existen **antes** de llamar a la API, para que
-      la falta de configuración no se lea como un 401 de credenciales.
-- [ ] Confirmar que la rama del servicio en Render es `dev`. El primer paso del script imprime la
-      rama que Render tiene configurada.
-
-| Variable | Por omisión | Para qué |
+| Paso | Qué hace | Por qué |
 |---|---|---|
-| `RENDER_CLEAR_CACHE` | `true` | En `false`, reutiliza capas: más rápido, sin la garantía de imagen nueva. |
-| `RENDER_COMMIT_ID` | punta de la rama | SHA exacto a desplegar. El flujo pasa `github.sha`. |
-| `RENDER_WAIT` | `true` | En `false`, dispara y no espera — pierde justo lo que hace útil al script. |
-| `RENDER_TIMEOUT_MS` | 20 min | Techo de espera. Agotarlo **falla**: un despliegue colgado no se da por bueno. |
+| 1 | `git fetch` y compara con el SHA desplegado | Sin cambios no hace nada; el commit desplegado se guarda en `estado/<slug>.sha`. |
+| 2 | `git worktree` desprendido en el commit, en `/tmp` | **No toca tu copia de trabajo.** Un desplegador que te mueve la rama bajo los pies es peor que no tener desplegador. Y construye lo que está en `dev`, no lo que tengas sin guardar. |
+| 3 | `docker build` (con `--target` si el Dockerfile es multi-etapa) | La última etapa no siempre es el servicio: la del motor de decisiones es el `pdf-worker`. |
+| 4 | Canario en `AUTODEPLOY_PUERTO_CANARIO` (39100) | Comprueba que la imagen **responde**, no sólo que el proceso vive. |
+| 5 | Cambio de contenedor en el puerto real y nueva comprobación | Aquí está la única interrupción, de unos segundos. |
+| 6 | Si no responde, vuelve a la imagen anterior | Es la otra mitad del valor: un despliegue malo no deja el servicio caído. |
 
-### Alcance
+### Detalles del anfitrión que no son opcionales
 
-Cubre el redespliegue del servicio, no las migraciones: el esquema sigue avanzando con el paso
-one-shot `migrate` descrito en 6-bis. Un despliegue que necesite migración va antes por ahí.
+- **`--network host`.** Esta máquina *es* el servidor y los `.env` ya apuntan a `localhost`
+  (postgres 5432, redis 6381, …). Con red puente habría que reescribir cada `.env` a
+  `host.docker.internal` para no ganar nada.
+- **Sin `no-new-privileges`.** En este anfitrión esa opción mata cualquier contenedor con
+  `operation not permitted`; es un fallo del anfitrión, no de los repositorios.
+- **No se apropia de un puerto ajeno.** Si en el puerto hay un `yarn start:dev` tuyo, se niega y te
+  dice el pid; `AUTODEPLOY_TOMAR_PUERTO=1` releva al proceso, a sabiendas.
 
-Comportamiento verificado en `test/unit/deploy/render-redeploy.spec.ts` (6 casos, contra un doble de
-la API de Render): caché limpia y commit fijado, verde en `live`, rojo en `build_failed`, rojo al
-agotar el plazo, y falta de secretos reportada como configuración.
+### Dejarlo corriendo
+
+```bash
+systemctl --user enable --now atlas-autodeploy.timer   # unidades en tools/autodeploy/systemd/
+```
+
+El temporizador corre `una-vez` cada minuto. `flock` impide que dos pasadas se solapen, así que una
+construcción larga simplemente se salta el siguiente disparo.
 
 ## 7. Gates que deben estar verdes antes de desplegar
 

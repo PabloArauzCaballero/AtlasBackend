@@ -93,7 +93,7 @@
     "stress:notifications": "tsx scripts/stress/notifications.stress.ts",
     "start:prod": "tsc -p tsconfig.json && node dist/src/main.js",
     "env:doctor": "tsx scripts/env-doctor.ts",
-    "deploy:render": "node scripts/deploy/render-redeploy.mjs",
+    "deploy:local": "tools/autodeploy/autodeploy.sh",
     "crypto:reencrypt-pii": "tsx scripts/reencrypt-pii-to-envelope.ts",
     "crypto:reencrypt-pii:dry-run": "tsx scripts/reencrypt-pii-to-envelope.ts --dry-run",
     "clean:legacy-configs": "node scripts/cleanup-legacy-configs.cjs",
