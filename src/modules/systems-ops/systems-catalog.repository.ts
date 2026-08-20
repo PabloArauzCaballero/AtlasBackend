@@ -310,9 +310,6 @@ export class SystemsCatalogRepository {
       dataNature: seed.dataNature ?? 'OPERACIONAL',
       domainCode: seed.domainCode ?? null,
       dataGrain: seed.dataGrain ?? `Una fila representa un registro operacional de ${seed.tableName}.`,
-      // Con guion, igual que `atlas-erp` y que el nombre del servicio en trazas y métricas. Convivían
-      // las dos grafías —el seeder de narrativas escribía `atlas-backend` y esto `atlas_backend`—, y
-      // dos nombres para el mismo sistema hacen que un filtro por origen pierda filas sin avisar.
       sourceSystem: seed.sourceSystem ?? 'atlas-backend',
       operationalRulesJson: seed.operationalRulesJson ?? [],
       qualityRulesJson: seed.qualityRulesJson ?? [],

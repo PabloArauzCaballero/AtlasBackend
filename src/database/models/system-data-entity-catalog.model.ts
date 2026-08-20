@@ -106,6 +106,11 @@ export class SystemDataEntityCatalogModel extends Model {
   /**
    * De qué sistema viene la entidad. Sin esto, las 95 tablas del ERP y las propias se mostraban
    * como si fueran una sola base, y no había forma de saber cuál se gobierna desde aquí.
+   *
+   * Se escribe con GUION —`atlas-backend`, `atlas-erp`—, igual que el nombre del servicio en
+   * trazas y métricas. Convivieron las dos grafías: el seeder de narrativas ponía `atlas-backend`
+   * y el repositorio `atlas_backend`, y dos nombres para el mismo sistema hacen que un filtro por
+   * origen pierda filas sin avisar.
    */
   @Column({ field: 'source_system', type: DataType.STRING(80) })
   declare sourceSystem: string | null;
