@@ -81,7 +81,14 @@ export class DocumentStorageService {
    */
   createUploadTicket(input: {
     tenantId: string;
-    customerId: string;
+    /**
+     * A quién pertenece la evidencia. Se llamaba `customerId` y se generalizó al aparecer el
+     * expediente del partner: la ruta del objeto es lo único que este servicio hace con él, así
+     * que atarlo al vocabulario del cliente obligaba a duplicar el servicio entero para guardar
+     * un QR. Quien llama antepone su prefijo (`partner-…`) para que dos sujetos con el mismo
+     * número no compartan carpeta.
+     */
+    subjectId: string;
     documentType: string;
     contentType: AllowedEvidenceMimeType;
     sizeBytes: number;
@@ -90,7 +97,7 @@ export class DocumentStorageService {
     const credentials = this.credentials();
     const now = input.now ?? new Date();
     const extension = input.contentType === 'application/pdf' ? 'pdf' : input.contentType === 'image/png' ? 'png' : 'jpg';
-    const storageKey = `${input.tenantId}/${input.customerId}/${input.documentType}/${randomUUID()}.${extension}`;
+    const storageKey = `${input.tenantId}/${input.subjectId}/${input.documentType}/${randomUUID()}.${extension}`;
 
     const requiredHeaders = { 'content-type': input.contentType, 'content-length': String(input.sizeBytes) };
     const uploadUrl = presignS3Url({

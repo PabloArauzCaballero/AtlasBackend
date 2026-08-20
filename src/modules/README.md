@@ -40,6 +40,7 @@
 - [`merchant-identity/`](./merchant-identity/README.md)
 - [`notifications/`](./notifications/README.md)
 - [`operations/`](./operations/README.md)
+- [`partner-onboarding/`](./partner-onboarding/README.md)
 - [`risk/`](./risk/README.md)
 - [`runtime-hardening/`](./runtime-hardening/README.md)
 - [`runtime-jobs/`](./runtime-jobs/README.md)

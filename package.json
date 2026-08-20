@@ -116,6 +116,7 @@
     "audit:external-providers:quality-10": "yarn audit:external-providers:v7 && yarn smoke:external-providers:governance",
     "smoke:internal-rbac": "tsx scripts/smoke/internal-rbac.smoke.ts",
     "smoke:user-types": "tsx scripts/smoke/user-types.smoke.ts",
+    "smoke:partner-onboarding": "tsx scripts/smoke/partner-onboarding.smoke.ts",
     "smoke:frontend-contract": "tsx scripts/smoke/frontend-contract.smoke.ts",
     "check:openapi": "tsx scripts/check-openapi-contract.ts",
     "docs:openapi:lint": "redocly lint docs/endpoints/openapi.yaml",

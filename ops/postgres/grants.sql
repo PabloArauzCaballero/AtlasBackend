@@ -19,7 +19,10 @@ DECLARE
   -- `credit` faltaba: `atlas_app_rw` no podía leer ni escribir solicitudes, líneas ni préstamos.
   write_schemas constant text[] := ARRAY[
     'iam', 'credit', 'customer', 'privacy', 'telemetry', 'catalog', 'risk', 'case_management',
-    'audit', 'integrations', 'messaging', 'platform_ops'
+    'audit', 'integrations', 'messaging', 'platform_ops',
+    -- Expediente verificable del comercio (ADR-0009). Sin este privilegio la API arranca, la
+    -- migración pasa y la primera petición responde 500 «permission denied for schema partner».
+    'partner'
   ];
 BEGIN
   FOREACH schema_name IN ARRAY write_schemas LOOP

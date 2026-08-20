@@ -63,6 +63,7 @@
 - [`observability/`](./observability/README.md)
 - [`openapi/`](./openapi/README.md)
 - [`operations/`](./operations/README.md)
+- [`partner-onboarding/`](./partner-onboarding/README.md)
 - [`resilience/`](./resilience/README.md)
 - [`risk/`](./risk/README.md)
 - [`runtime-hardening/`](./runtime-hardening/README.md)

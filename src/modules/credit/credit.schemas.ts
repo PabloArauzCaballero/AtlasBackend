@@ -91,3 +91,24 @@ export const creditApplicationDecisionSchema = z
   });
 
 export type CreditApplicationDecisionDto = z.infer<typeof creditApplicationDecisionSchema>;
+
+/**
+ * La aceptación del NEGOCIO sobre una solicitud que el motor ya aprobó.
+ *
+ * Declinar exige motivo; aceptar no. No es asimetría gratuita: el motivo de aceptar ya lo dio el
+ * motor —está en su análisis—, mientras que una operación declinada sin explicación es la que se
+ * reclama seis meses después y nadie sabe justificar.
+ */
+export const creditBusinessAcceptanceSchema = z
+  .object({
+    accepted: z.boolean(),
+    reasonCode: z.string().trim().min(1).max(120).optional(),
+    notes: z.string().trim().max(2000).optional(),
+  })
+  .strict()
+  .refine((value) => value.accepted || value.reasonCode !== undefined, {
+    message: 'Declinar una operación aprobada por el motor exige un motivo.',
+    path: ['reasonCode'],
+  });
+
+export type CreditBusinessAcceptanceDto = z.infer<typeof creditBusinessAcceptanceSchema>;

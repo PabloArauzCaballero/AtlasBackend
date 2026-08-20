@@ -137,7 +137,7 @@ describe('DocumentStorageService', () => {
     const service = await buildService(CONFIGURED);
     const ticket = service.createUploadTicket({
       tenantId: '7',
-      customerId: '42',
+      subjectId: '42',
       documentType: 'identity_front',
       contentType: 'image/jpeg',
       sizeBytes: 2048,
@@ -153,7 +153,7 @@ describe('DocumentStorageService', () => {
     const service = await buildService(CONFIGURED);
     const pdf = service.createUploadTicket({
       tenantId: '7',
-      customerId: '42',
+      subjectId: '42',
       documentType: 'proof_of_address',
       contentType: 'application/pdf',
       sizeBytes: 10,
@@ -167,7 +167,7 @@ describe('DocumentStorageService', () => {
     expect(() =>
       service.createUploadTicket({
         tenantId: '7',
-        customerId: '42',
+        subjectId: '42',
         documentType: 'selfie',
         contentType: 'image/png',
         sizeBytes: 10,

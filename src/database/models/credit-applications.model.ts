@@ -86,6 +86,30 @@ export class CreditApplicationModel extends Model {
   @Column({ field: 'decision_reason_code', type: DataType.STRING(120) })
   declare decisionReasonCode: string | null;
 
+  /**
+   * Qué dijo el NEGOCIO sobre una solicitud que el motor ya aprobó: `pending`, `accepted` o
+   * `declined`. Nulo cuando no aplica —la aprobó una persona, o no llegó a aprobarse—.
+   *
+   * Son dos preguntas distintas: el motor responde si el solicitante cumple los criterios de
+   * riesgo; el negocio, si quiere esa operación ahora —cupo, concentración, liquidez, una campaña
+   * que se cerró—. Un motor que decide las dos deja al negocio sin volante.
+   */
+  @Column({ field: 'business_acceptance', type: DataType.STRING(20) })
+  declare businessAcceptance: string | null;
+
+  @Column({ field: 'business_acceptance_at', type: DataType.DATE })
+  declare businessAcceptanceAt: Date | null;
+
+  @Column({ field: 'business_acceptance_by', type: DataType.STRING(160) })
+  declare businessAcceptanceBy: string | null;
+
+  /** Obligatorio al declinar: una operación rechazada que nadie sabe explicar es la que se reclama. */
+  @Column({ field: 'business_acceptance_reason_code', type: DataType.STRING(120) })
+  declare businessAcceptanceReasonCode: string | null;
+
+  @Column({ field: 'business_acceptance_notes', type: DataType.TEXT })
+  declare businessAcceptanceNotes: string | null;
+
   @Column({ field: 'decided_at', type: DataType.DATE })
   declare decidedAt: Date | null;
 

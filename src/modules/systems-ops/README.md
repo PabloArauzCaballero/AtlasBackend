@@ -42,6 +42,7 @@
 | [`systems-ops.mapper.ts`](./systems-ops.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
 | [`systems-ops.module.ts`](./systems-ops.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
 | [`systems-ops.schemas.ts`](./systems-ops.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
+| [`systems-ops.tool.mapper.ts`](./systems-ops.tool.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
 | [`systems-ops.types.ts`](./systems-ops.types.ts) | Tipos de dominio: hacen explícitos estados y contratos internos. |
 | [`systems-repository-where.util.ts`](./systems-repository-where.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`systems-review.controller.ts`](./systems-review.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
