@@ -34,3 +34,6 @@ scripts/smoke/results/
 # Archivos subidos por el adaptador de almacenamiento local (FILE_STORAGE_LOCAL_ROOT). Son datos de
 # clientes generados en runtime: nunca deben entrar al repositorio.
 var/
+
+# Respaldos locales del .env: llevan credenciales reales y nunca deben versionarse.
+.env.bak-*

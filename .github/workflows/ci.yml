@@ -43,7 +43,7 @@ jobs:
       - name: Verify smoke result JSON files are never tracked
         run: yarn check:smoke-results-untracked
 
-      # `yarn lint` lleva `--max-warnings=153`: el trinquete de complejidad (complexity, max-params,
+      # `yarn lint` lleva `--max-warnings=150`: el trinquete de complejidad (complexity, max-params,
       # max-lines-per-function) estaba declarado como `warn` en eslint.config.mjs y CI no lo miraba,
       # así que el "gate de complejidad" no bloqueaba nada. Ahora la deuda conocida está congelada y
       # un warning NUEVO rompe el build. Al reducirla, bajar el número (nunca subirlo para pasar).
@@ -96,6 +96,13 @@ jobs:
       # entra sin excepción documentada. Los umbrales de complejidad los aplica ESLint arriba.
       - name: Check runtime file size (complexity gate)
         run: yarn check:file-size
+
+      # Impide volver a publicar un script que arranque un punto de entrada de Nest con un
+      # transpilador que borra la metadata de decoradores: la aplicación muere señalando a un
+      # módulo sano y el diagnóstico cuesta horas. Quedó pendiente de este archivo por falta de
+      # alcance `workflow` en el token; el README lo documentaba mientras tanto.
+      - name: Check Nest entrypoints keep decorator metadata
+        run: yarn check:nest-entrypoints
 
       - name: Type-check
         run: yarn type-check
@@ -365,6 +372,12 @@ jobs:
           DB_PASSWORD: ci_app_rw_pw
           DB_READ_USER: atlas_app_ro
           DB_READ_PASSWORD: ci_app_ro_pw
+          # El gate comprueba que las migraciones NO corran con la identidad del runtime.
+          # El rol ya se crea unas líneas más arriba (`atlas_migrator`); sin declararlo aquí,
+          # el gate no puede distinguir «no configurado» de «configurado igual que el runtime»
+          # y falla con razón.
+          DB_MIGRATION_USER: atlas_migrator
+          DB_MIGRATION_PASSWORD: ci_migrator_pw
         run: yarn check:db-privileges --strict
 
       - name: Boot API in background

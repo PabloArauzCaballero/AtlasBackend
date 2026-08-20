@@ -12,8 +12,11 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`loan-allocation.spec.ts`](./loan-allocation.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`loan-delinquency.service.spec.ts`](./loan-delinquency.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`loan-outcome.spec.ts`](./loan-outcome.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`loan-payment.service.spec.ts`](./loan-payment.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`loan-schedule.spec.ts`](./loan-schedule.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`loans.repository.spec.ts`](./loans.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento
 

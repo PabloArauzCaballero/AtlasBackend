@@ -15,6 +15,9 @@
 | [`column-classification.util.ts`](./column-classification.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`endpoint-code.util.ts`](./endpoint-code.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`endpoint-discovery.service.ts`](./endpoint-discovery.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`path-exists.util.ts`](./path-exists.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
+| [`platform-service-health.probe.ts`](./platform-service-health.probe.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`platform-services.constants.ts`](./platform-services.constants.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`systems-action-log-query.service.ts`](./systems-action-log-query.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-action-log.controller.ts`](./systems-action-log.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`systems-action-log.repository.ts`](./systems-action-log.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
@@ -22,12 +25,14 @@
 | [`systems-catalog-classifier.service.ts`](./systems-catalog-classifier.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-catalog-query.service.ts`](./systems-catalog-query.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-catalog-seed.service.ts`](./systems-catalog-seed.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`systems-catalog-sql.constants.ts`](./systems-catalog-sql.constants.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`systems-catalog.controller.ts`](./systems-catalog.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`systems-catalog.repository.ts`](./systems-catalog.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`systems-controller.decorators.ts`](./systems-controller.decorators.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`systems-dashboard.repository.ts`](./systems-dashboard.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`systems-data-impact-inference.repository.ts`](./systems-data-impact-inference.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`systems-data-impact-inference.service.ts`](./systems-data-impact-inference.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`systems-endpoint-docs.service.ts`](./systems-endpoint-docs.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-entity-narrative.mapper.ts`](./systems-entity-narrative.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
 | [`systems-health-monitor.service.ts`](./systems-health-monitor.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-health.service.ts`](./systems-health.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
@@ -43,6 +48,7 @@
 | [`systems-review.repository.ts`](./systems-review.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`systems-review.service.ts`](./systems-review.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-sanitizer.ts`](./systems-sanitizer.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`systems-schema-introspection.service.ts`](./systems-schema-introspection.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-seed-fixtures.ts`](./systems-seed-fixtures.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
 | [`systems-source-scan.util.ts`](./systems-source-scan.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`systems-stress-profile.repository.ts`](./systems-stress-profile.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |

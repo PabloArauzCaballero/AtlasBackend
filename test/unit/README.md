@@ -20,6 +20,7 @@
 | [`systems-ops-endpoint-discovery-persist.spec.ts`](./systems-ops-endpoint-discovery-persist.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-ops-endpoint-discovery-security.spec.ts`](./systems-ops-endpoint-discovery-security.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-ops-endpoint.util.spec.ts`](./systems-ops-endpoint.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`systems-ops-platform-service-health-probe.spec.ts`](./systems-ops-platform-service-health-probe.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-ops-suite-admin.spec.ts`](./systems-ops-suite-admin.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-ops-tenant-scope.spec.ts`](./systems-ops-tenant-scope.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-ops-test-runner-ssrf.spec.ts`](./systems-ops-test-runner-ssrf.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
@@ -69,6 +70,7 @@
 - [`schema-management/`](./schema-management/README.md)
 - [`sessions/`](./sessions/README.md)
 - [`smoke/`](./smoke/README.md)
+- [`sql-console/`](./sql-console/README.md)
 - [`storage/`](./storage/README.md)
 - [`systems-ops/`](./systems-ops/README.md)
 - [`worker/`](./worker/README.md)

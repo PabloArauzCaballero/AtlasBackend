@@ -13,6 +13,7 @@ import {
 } from './env.primitives.js';
 import { databaseEnvShape } from './env.database.schema.js';
 import { decisionEngineEnvShape } from './env.decision-engine.schema.js';
+import { erpEnvShape } from './env.erp.schema.js';
 import { filesEnvShape } from './env.files.schema.js';
 import { runtimeJobsEnvShape } from './env.runtime-jobs.schema.js';
 
@@ -182,6 +183,8 @@ export const envBaseSchema = z.object({
 
   // Integración con el motor de decisión. Bloque propio en `env.decision-engine.schema.ts`.
   ...decisionEngineEnvShape,
+  // Dirección del ERP, sólo para reportar su salud. Bloque propio en `env.erp.schema.ts`.
+  ...erpEnvShape,
 
   NOTIFICATION_EMAIL_PROVIDER: z.enum(['disabled', 'resend', 'sendgrid', 'gmail_api', 'webhook']).default('disabled'),
   NOTIFICATION_PUSH_PROVIDER: z.enum(['disabled', 'fcm', 'webhook']).default('disabled'),

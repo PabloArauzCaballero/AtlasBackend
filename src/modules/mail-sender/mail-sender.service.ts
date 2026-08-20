@@ -63,6 +63,28 @@ export class MailSenderService {
     });
   }
 
+  /** Código de un solo uso del cambio de contraseña (actor ya autenticado). */
+  async sendPasswordChangeCode(input: {
+    to: string;
+    recipientName: string | null;
+    code: string;
+    ttlMinutes: number;
+    reference: string;
+  }): Promise<{ trackingId: string }> {
+    return this.deliver({
+      template: 'atlas-password-change',
+      to: input.to,
+      recipientName: input.recipientName,
+      sourceModule: 'auth',
+      reference: input.reference,
+      variables: {
+        nombre: input.recipientName ?? FALLBACK_RECIPIENT_NAME,
+        codigo: input.code,
+        minutos: String(input.ttlMinutes),
+      },
+    });
+  }
+
   /** Código de verificación del correo declarado por un cliente durante el onboarding. */
   async sendContactVerificationCode(input: {
     to: string;

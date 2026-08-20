@@ -1,6 +1,6 @@
 <!-- Generado por scripts/generate-project-documentation.ts. No editar a mano. -->
 
-# test/unit/credit-rating
+# test/unit/common/decorators
 
 ## Por qué existe
 
@@ -11,9 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
-| [`credit-rating.repository.spec.ts`](./credit-rating.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`customer-rating.spec.ts`](./customer-rating.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`rating-scale.spec.ts`](./rating-scale.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`current-tenant.decorator.spec.ts`](./current-tenant.decorator.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento
 

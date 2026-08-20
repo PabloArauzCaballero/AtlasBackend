@@ -1,6 +1,6 @@
 <!-- Generado por scripts/generate-project-documentation.ts. No editar a mano. -->
 
-# test/unit/credit-rating
+# test/unit/sql-console
 
 ## Por qué existe
 
@@ -11,9 +11,8 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
-| [`credit-rating.repository.spec.ts`](./credit-rating.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`customer-rating.spec.ts`](./customer-rating.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`rating-scale.spec.ts`](./rating-scale.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`sql-statement-guard.spec.ts`](./sql-statement-guard.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`sql-tokenizer.spec.ts`](./sql-tokenizer.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento
 

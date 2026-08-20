@@ -128,13 +128,7 @@ Arranca siempre con el código compilado: `yarn start:dev` en local, `yarn start
 en despliegue. `tsx` sigue siendo correcto para scripts que no construyen un contexto Nest
 (migraciones, seeds, gates).
 
-> **Pendiente de un push con permiso `workflow`:** el gate no pudo añadirse a `.github/workflows/ci.yml`
-> desde esta sesión (el token no tiene ese alcance). El paso, para pegar junto a los demás `check:`:
->
-> ```yaml
->       - name: Check Nest entrypoints keep decorator metadata
->         run: yarn check:nest-entrypoints
-> ```
+El gate corre en CI (`Check Nest entrypoints keep decorator metadata`).
 
 ### Error común: Zod pide REDIS_URL o secretos de producción al usar `yarn start:dev`
 
