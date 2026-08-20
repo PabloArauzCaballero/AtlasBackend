@@ -9,6 +9,7 @@ import { CreditApplicationEventModel, CreditApplicationModel, CreditProductModel
 import { CustomersModule } from '../customers/customers.module.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { CreditApplicationService } from './application/credit-application.service.js';
+import { CreditBusinessAcceptanceService } from './application/credit-business-acceptance.service.js';
 import { CreditDecisionService } from './application/credit-decision.service.js';
 import { CreditProductService } from './application/credit-product.service.js';
 import { CreditUnderwritingService } from './application/credit-underwriting.service.js';
@@ -34,7 +35,14 @@ import { CreditRepository } from './credit.repository.js';
     DecisionEngineModule,
   ],
   controllers: [CreditController, CreditOperationsController],
-  providers: [CreditRepository, CreditProductService, CreditApplicationService, CreditDecisionService, CreditUnderwritingService],
+  providers: [
+    CreditRepository,
+    CreditProductService,
+    CreditApplicationService,
+    CreditDecisionService,
+    CreditBusinessAcceptanceService,
+    CreditUnderwritingService,
+  ],
   exports: [CreditRepository, CreditUnderwritingService],
 })
 export class CreditModule {}

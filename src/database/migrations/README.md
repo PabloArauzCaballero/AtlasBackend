@@ -80,6 +80,9 @@
 | [`20260815140000-create-read-api-business-views-v1.ts`](./20260815140000-create-read-api-business-views-v1.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260816090000-create-credit-rating-engine.ts`](./20260816090000-create-credit-rating-engine.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260818020000-add-merchant-user-identity.ts`](./20260818020000-add-merchant-user-identity.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260819140000-create-partner-onboarding.ts`](./20260819140000-create-partner-onboarding.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260819160000-add-partner-contact-verification.ts`](./20260819160000-add-partner-contact-verification.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260819180000-add-business-acceptance-to-credit-applications.ts`](./20260819180000-add-business-acceptance-to-credit-applications.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 
 ## Reglas de mantenimiento
 

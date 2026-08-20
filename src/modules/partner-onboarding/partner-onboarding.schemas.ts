@@ -1,0 +1,164 @@
+/**
+ * @file Esquemas Zod: validan entradas y parámetros en el borde del sistema.
+ * @business Esta pieza convierte un comercio declarado en un partner verificable, con locales, cobro y terminales trazables.
+ * @system valida en el borde el expediente del partner, sus QR de cobro y sus terminales de punto de venta.
+ */
+import { z } from 'zod';
+
+/**
+ * NIT boliviano: sólo dígitos, entre 7 y 15.
+ *
+ * Se valida la FORMA y no se pretende validar la existencia: comprobar que un NIT está activo es
+ * una consulta al SIN, no una expresión regular, y fingir aquí esa comprobación daría una falsa
+ * sensación de verificación. Lo que esto impide es lo que sí se puede impedir en el borde: un
+ * campo con letras, con puntos o vacío entrando al expediente como si fuera un identificador
+ * tributario.
+ */
+const nitSchema = z
+  .string()
+  .trim()
+  .regex(/^[0-9]{7,15}$/, 'El NIT debe tener entre 7 y 15 dígitos, sin puntos ni guiones.');
+
+export const startPartnerOnboardingSchema = z.object({
+  legalName: z.string().trim().min(3).max(200),
+  tradeName: z.string().trim().min(1).max(200).optional(),
+  taxId: nitSchema,
+  /** Matrícula de comercio. Opcional al iniciar: se completa antes de enviar el expediente. */
+  commercialRegistry: z.string().trim().min(3).max(60).optional(),
+  businessCategory: z.string().trim().min(2).max(80).optional(),
+  contactEmail: z.string().trim().email().max(180),
+  contactPhone: z.string().trim().min(6).max(40).optional(),
+});
+export type StartPartnerOnboardingDto = z.infer<typeof startPartnerOnboardingSchema>;
+
+export const partnerIdParamsSchema = z.object({
+  partnerId: z.string().regex(/^[1-9][0-9]*$/, 'Identificador de partner inválido.'),
+});
+export type PartnerIdParamsDto = z.infer<typeof partnerIdParamsSchema>;
+
+export const branchIdParamsSchema = partnerIdParamsSchema.extend({
+  branchId: z.string().regex(/^[1-9][0-9]*$/, 'Identificador de sucursal inválido.'),
+});
+export type BranchIdParamsDto = z.infer<typeof branchIdParamsSchema>;
+
+/** Un terminal concreto: cuelga del partner, no de la sucursal, porque puede cambiar de local. */
+export const terminalIdParamsSchema = partnerIdParamsSchema.extend({
+  terminalId: z.string().regex(/^[1-9][0-9]*$/, 'Identificador de terminal inválido.'),
+});
+export type TerminalIdParamsDto = z.infer<typeof terminalIdParamsSchema>;
+
+export const legalRepresentativeSchema = z.object({
+  fullName: z.string().trim().min(3).max(200),
+  documentType: z.enum(['ci', 'passport', 'foreign_id']),
+  documentNumber: z.string().trim().min(3).max(60),
+  /**
+   * Objeto del poder notarial ya subido. Opcional aquí y EXIGIDO al enviar el expediente: se
+   * permite guardar al representante antes de tener el papel escaneado, que es como ocurre de
+   * verdad, pero no se puede enviar a revisión una representación sin respaldo.
+   */
+  powerOfAttorneyKey: z.string().trim().min(8).max(400).optional(),
+});
+export type LegalRepresentativeDto = z.infer<typeof legalRepresentativeSchema>;
+
+export const commercialRegistrySchema = z.object({
+  commercialRegistry: z.string().trim().min(3).max(60),
+});
+export type CommercialRegistryDto = z.infer<typeof commercialRegistrySchema>;
+
+/** El código que llega por correo. Seis dígitos, como el que se emite. */
+export const contactVerificationSubmitSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{6}$/, 'El código son seis dígitos.'),
+});
+export type ContactVerificationSubmitDto = z.infer<typeof contactVerificationSubmitSchema>;
+
+export const registerBranchSchema = z.object({
+  branchCode: z
+    .string()
+    .trim()
+    .min(1)
+    .max(40)
+    .regex(/^[A-Za-z0-9_-]+$/, 'El código de sucursal admite letras, dígitos, guion y guion bajo.'),
+  name: z.string().trim().min(2).max(200),
+  addressLine: z.string().trim().min(4).max(300).optional(),
+  city: z.string().trim().min(2).max(120).optional(),
+  /**
+   * Coordenadas del local. Se aceptan sólo dentro del rango válido del planeta: un `0,0` o un
+   * `999` entran silenciosamente en cualquier campo numérico y ponen la sucursal en el Golfo de
+   * Guinea, que es el fallo clásico de este dato y no lo detecta nadie hasta que se dibuja un mapa.
+   */
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  erpBranchId: z.string().trim().min(1).max(64).optional(),
+});
+export type RegisterBranchDto = z.infer<typeof registerBranchSchema>;
+
+/** Los tipos de imagen que un QR puede tener. Un PDF no se acepta: un QR es una imagen. */
+export const QR_CONTENT_TYPES = ['image/jpeg', 'image/png'] as const;
+
+export const qrUploadUrlSchema = z.object({
+  qrKind: z.enum(['business', 'bank']),
+  contentType: z.enum(QR_CONTENT_TYPES),
+  sizeBytes: z
+    .number()
+    .int()
+    .positive()
+    .max(5 * 1024 * 1024),
+});
+export type QrUploadUrlDto = z.infer<typeof qrUploadUrlSchema>;
+
+export const registerQrSchema = z
+  .object({
+    qrKind: z.enum(['business', 'bank']),
+    /** Ausente = QR de toda la empresa. Presente = el QR de ese local. */
+    branchId: z
+      .string()
+      .regex(/^[1-9][0-9]*$/)
+      .optional(),
+    /** La ruta que devolvió `upload-url`. El servidor la impone; el cliente sólo la devuelve. */
+    storageKey: z.string().trim().min(8).max(400),
+    /**
+     * Sigla ASFI de la entidad del QR bancario. Es lo que permite cruzarlo con el padrón del
+     * regulador y frenar un cobro contra una entidad sin licencia vigente.
+     */
+    bankInstitutionCode: z
+      .string()
+      .trim()
+      .regex(/^[A-Z0-9]{2,16}$/)
+      .optional(),
+    /** Cuenta ENMASCARADA. El expediente prueba de quién es la cuenta, no necesita operarla. */
+    accountNumberMasked: z.string().trim().min(4).max(40).optional(),
+  })
+  .refine((value) => value.qrKind !== 'bank' || value.bankInstitutionCode !== undefined, {
+    message: 'El QR bancario debe declarar la entidad financiera (sigla ASFI).',
+    path: ['bankInstitutionCode'],
+  })
+  /*
+   * La entidad sólo tiene sentido en el bancario. Aceptarla en el del negocio dejaría filas que
+   * afirman una relación con un banco que nadie declaró ni verificó.
+   */
+  .refine((value) => value.qrKind !== 'business' || value.bankInstitutionCode === undefined, {
+    message: 'El QR del negocio no lleva entidad financiera.',
+    path: ['bankInstitutionCode'],
+  });
+export type RegisterQrDto = z.infer<typeof registerQrSchema>;
+
+export const registerPosTerminalSchema = z.object({
+  terminalSerial: z
+    .string()
+    .trim()
+    .min(3)
+    .max(80)
+    .regex(/^[A-Za-z0-9-]+$/, 'El serial admite letras, dígitos y guion.'),
+  terminalAlias: z.string().trim().min(2).max(120).optional(),
+  provider: z.string().trim().min(2).max(80).optional(),
+  model: z.string().trim().min(1).max(80).optional(),
+});
+export type RegisterPosTerminalDto = z.infer<typeof registerPosTerminalSchema>;
+
+export const posTerminalStatusSchema = z.object({
+  status: z.enum(['active', 'suspended', 'retired']),
+});
+export type PosTerminalStatusDto = z.infer<typeof posTerminalStatusSchema>;

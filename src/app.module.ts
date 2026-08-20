@@ -36,6 +36,7 @@ import { CreditRatingModule } from './modules/credit-rating/credit-rating.module
 import { DecisionEngineModule } from './modules/decision-engine/decision-engine.module.js';
 import { LoansModule } from './modules/loans/loans.module.js';
 import { CustomerOnboardingModule } from './modules/customer-onboarding/customer-onboarding.module.js';
+import { PartnerOnboardingModule } from './modules/partner-onboarding/partner-onboarding.module.js';
 import { CustomerPrivacyModule } from './modules/customer-privacy/customer-privacy.module.js';
 import { CustomerTelemetryModule } from './modules/customer-telemetry/customer-telemetry.module.js';
 import { CustomersModule } from './modules/customers/customers.module.js';
@@ -90,6 +91,7 @@ import { env } from './config/env.js';
     MerchantIdentityModule,
     CustomersModule,
     CustomerOnboardingModule,
+    PartnerOnboardingModule,
     CreditModule,
     DecisionEngineModule,
     LoansModule,

@@ -12,6 +12,7 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`auth-actor-resolver.service.spec.ts`](./auth-actor-resolver.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`auth-password-change.service.spec.ts`](./auth-password-change.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`auth-password-reset.service.spec.ts`](./auth-password-reset.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`auth-repository-email-lookup.spec.ts`](./auth-repository-email-lookup.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`auth-token-issuer.service.spec.ts`](./auth-token-issuer.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |

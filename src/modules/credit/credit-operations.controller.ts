@@ -14,15 +14,18 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { CreditBusinessAcceptanceService } from './application/credit-business-acceptance.service.js';
 import { CreditDecisionService } from './application/credit-decision.service.js';
 import { CreditProductService } from './application/credit-product.service.js';
 import {
   CreateCreditProductDto,
   CreditApplicationDecisionDto,
+  CreditBusinessAcceptanceDto,
   CreditProductIdParamsDto,
   CreditProductStatusDto,
   createCreditProductSchema,
   creditApplicationDecisionSchema,
+  creditBusinessAcceptanceSchema,
   creditProductIdParamsSchema,
   creditProductStatusSchema,
 } from './credit.schemas.js';
@@ -43,6 +46,7 @@ export class CreditOperationsController {
   constructor(
     private readonly productService: CreditProductService,
     private readonly decisionService: CreditDecisionService,
+    private readonly businessAcceptance: CreditBusinessAcceptanceService,
   ) {}
 
   @ApiOperation({ summary: 'Listar los productos vigentes (operaciones)' })
@@ -118,6 +122,32 @@ export class CreditOperationsController {
       body,
       currentUser,
     });
+  }
+
+  /**
+   * La segunda pregunta: el motor dijo que el riesgo encaja, el negocio dice si quiere la operación.
+   */
+  @ApiOperation({
+    summary: 'Aceptar o declinar una solicitud que el motor aprobó',
+    description:
+      'Sólo aplica a solicitudes aprobadas por el MOTOR y todavía pendientes. Declinar exige motivo ' +
+      'y deja la solicitud en `rejected`; lo que la distingue de un rechazo del motor queda en la ' +
+      'columna de aceptación, para no contaminar la medición del modelo.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiBody({ schema: zodToApiSchema(creditBusinessAcceptanceSchema) })
+  @ApiResponse({ status: 200, description: 'Aceptación registrada.' })
+  @ApiResponse({ status: 404, description: 'CREDIT_APPLICATION_NOT_FOUND.' })
+  @ApiResponse({ status: 409, description: 'CREDIT_BUSINESS_ACCEPTANCE_NOT_PENDING.' })
+  @Post('applications/:applicationId/business-acceptance')
+  @HttpCode(HttpStatus.OK)
+  decideBusinessAcceptance(
+    @CurrentTenant() tenantId: string,
+    @Param('applicationId') applicationId: string,
+    @Body(new ZodValidationPipe(creditBusinessAcceptanceSchema)) body: CreditBusinessAcceptanceDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.businessAcceptance.decide({ tenantId, applicationId, body, currentUser });
   }
 
   @ApiOperation({ summary: 'Detalle de una solicitud, con su historial completo' })

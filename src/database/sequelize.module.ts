@@ -147,6 +147,7 @@ import {
 } from './models/index.js';
 import { LOAN_BOOK_MODELS } from './loan-book-models.js';
 import { CREDIT_RATING_MODELS } from './credit-rating-models.js';
+import { PARTNER_MODELS } from './partner-models.js';
 
 export const databaseModels = [
   ...LOAN_BOOK_MODELS,
@@ -155,6 +156,7 @@ export const databaseModels = [
   PlatformUserModel,
   InternalUserModel,
   MerchantUserModel,
+  ...PARTNER_MODELS,
   InternalRoleModel,
   InternalPermissionModel,
   InternalRolePermissionModel,

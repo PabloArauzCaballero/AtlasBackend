@@ -54,7 +54,7 @@ export class CustomerDocumentUploadService {
 
     const ticket = this.storageService.createUploadTicket({
       tenantId: input.tenantId,
-      customerId: input.customerId,
+      subjectId: input.customerId,
       documentType: input.body.documentType,
       contentType: input.body.contentType,
       sizeBytes: input.body.sizeBytes,

@@ -29,6 +29,7 @@ export class MetricsService {
   private readonly httpRequestDuration: Histogram<'method' | 'route' | 'status_code'>;
   private readonly providerCallsTotal: Counter<'provider' | 'outcome'>;
   private readonly circuitBreakerState: Gauge<'provider'>;
+  private readonly partnerOnboardingSteps: Counter<'step' | 'outcome'>;
   private readonly outboxPendingEvents: Gauge<'tenant_id'>;
   private readonly scheduledJobRuns: Counter<'job' | 'outcome'>;
   private readonly authAttemptsTotal: Counter<'actor_type' | 'outcome'>;
@@ -70,6 +71,20 @@ export class MetricsService {
       name: 'atlas_circuit_breaker_state',
       help: 'Estado del circuit breaker por proveedor: 0=closed, 1=half_open, 2=open.',
       labelNames: ['provider'],
+      registers: [this.registry],
+    });
+
+    /*
+     * Onboarding del partner, paso a paso. Es un CONTADOR por paso y resultado y no un simple
+     * total de altas porque la pregunta que hay que poder responder no es «¿cuántos comercios
+     * entraron?» sino «¿dónde se caen?»: un embudo que pierde el 60 % en la subida del QR
+     * bancario y otro que lo pierde en el alta son el mismo número de altas y dos problemas
+     * completamente distintos.
+     */
+    this.partnerOnboardingSteps = new Counter({
+      name: 'atlas_partner_onboarding_steps_total',
+      help: 'Pasos del onboarding del partner por paso y resultado. Mide el embudo, no sólo el total de altas.',
+      labelNames: ['step', 'outcome'],
       registers: [this.registry],
     });
 
@@ -136,6 +151,15 @@ export class MetricsService {
   }
 
   /** Registra una llamada saliente a un proveedor externo. `outcome`: success | failure | circuit_open. */
+  /**
+   * Un paso del onboarding del partner terminó. `outcome` distingue el paso completado del que una
+   * regla rechazó: los dos son información, y colapsarlos deja el embudo sin poder explicar por
+   * qué se estrecha.
+   */
+  recordPartnerOnboardingStep(input: { step: string; outcome: 'ok' | 'rejected' }): void {
+    this.partnerOnboardingSteps.inc({ step: input.step, outcome: input.outcome });
+  }
+
   recordProviderCall(input: { provider: string; outcome: 'success' | 'failure' | 'circuit_open' }): void {
     this.providerCallsTotal.inc({ provider: input.provider, outcome: input.outcome });
   }

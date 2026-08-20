@@ -4,7 +4,12 @@
  * configurada, se crea con esta definición usando el JWT administrativo. Editar una plantilla ya
  * creada se hace en MailSender (fuente de verdad en runtime); esta definición es solo el estado
  * inicial.
+ *
+ * El HTML lo compone `mail-layout.ts`, que pone el membrete, la tipografía y el color de ATLAS.
+ * Aquí queda sólo lo que cambia entre un correo y otro: qué se dice y en qué orden. Ese reparto es
+ * lo que evita cinco copias del mismo membrete separándose a la primera vez que alguien retoca una.
  */
+import { atlasMailShell, mailCode, mailField, mailNotice, mailParagraph } from './mail-layout.js';
 
 export type MailTemplateName =
   'atlas-password-reset' | 'atlas-password-change' | 'atlas-login-pin' | 'atlas-credenciales-iniciales' | 'atlas-verificacion-contacto';
@@ -18,17 +23,26 @@ export type MailTemplateDefinition = {
   variablesRequeridas: readonly string[];
 };
 
+/** Vigencia del código, escrita igual en los cinco correos. */
+const VIGENCIA = 'El código vence en {{minutos}} minutos y solo puede usarse una vez.';
+
 export const MAIL_TEMPLATE_DEFINITIONS: Record<MailTemplateName, MailTemplateDefinition> = {
   'atlas-password-reset': {
     nombre: 'atlas-password-reset',
     descripcion: 'Código de un solo uso para restablecer la contraseña de un usuario ATLAS.',
     emailAsunto: 'ATLAS — Código para restablecer tu contraseña',
-    emailHtmlBody:
-      '<p>Hola {{nombre}},</p>' +
-      '<p>Recibimos una solicitud para restablecer tu contraseña en ATLAS. Usa este código para continuar:</p>' +
-      '<p style="font-size:24px;font-weight:bold;letter-spacing:4px">{{codigo}}</p>' +
-      '<p>El código vence en {{minutos}} minutos y solo puede usarse una vez.</p>' +
-      '<p>Si no solicitaste este cambio, ignora este correo: tu contraseña actual sigue vigente.</p>',
+    emailHtmlBody: atlasMailShell({
+      preheader: 'Tu código de un solo uso para restablecer la contraseña.',
+      eyebrow: 'Seguridad de la cuenta',
+      title: 'Restablece tu contraseña',
+      blocks: [
+        mailParagraph('Hola {{nombre}},'),
+        mailParagraph('Recibimos una solicitud para restablecer tu contraseña en ATLAS. Usa este código para continuar:'),
+        mailCode('{{codigo}}'),
+        mailParagraph(VIGENCIA),
+        mailNotice('Si no solicitaste este cambio, ignora este correo: tu contraseña actual sigue vigente.'),
+      ],
+    }),
     emailTextBody:
       'Hola {{nombre}},\n\n' +
       'Recibimos una solicitud para restablecer tu contraseña en ATLAS. Usa este código para continuar: {{codigo}}\n\n' +
@@ -45,13 +59,21 @@ export const MAIL_TEMPLATE_DEFINITIONS: Record<MailTemplateName, MailTemplateDef
     nombre: 'atlas-password-change',
     descripcion: 'Código de un solo uso para confirmar el cambio de contraseña de un usuario ATLAS ya autenticado.',
     emailAsunto: 'ATLAS — Código para confirmar tu nueva contraseña',
-    emailHtmlBody:
-      '<p>Hola {{nombre}},</p>' +
-      '<p>Pediste cambiar tu contraseña de ATLAS desde una sesión activa. Ingresa este código para confirmarlo:</p>' +
-      '<p style="font-size:24px;font-weight:bold;letter-spacing:4px">{{codigo}}</p>' +
-      '<p>El código vence en {{minutos}} minutos y solo puede usarse una vez.</p>' +
-      '<p>Si no fuiste tú, alguien tiene acceso a tu sesión y a tu contraseña actual: ' +
-      'cierra sesión en todos los dispositivos y avisa al equipo de seguridad de inmediato.</p>',
+    emailHtmlBody: atlasMailShell({
+      preheader: 'Confirma el cambio de contraseña que pediste desde tu sesión.',
+      eyebrow: 'Seguridad de la cuenta',
+      title: 'Confirma tu nueva contraseña',
+      blocks: [
+        mailParagraph('Hola {{nombre}},'),
+        mailParagraph('Pediste cambiar tu contraseña de ATLAS desde una sesión activa. Ingresa este código para confirmarlo:'),
+        mailCode('{{codigo}}'),
+        mailParagraph(VIGENCIA),
+        mailNotice(
+          'Si no fuiste tú, alguien tiene acceso a tu sesión y a tu contraseña actual: cierra sesión en ' +
+            'todos los dispositivos y avisa al equipo de seguridad de inmediato.',
+        ),
+      ],
+    }),
     emailTextBody:
       'Hola {{nombre}},\n\n' +
       'Pediste cambiar tu contraseña de ATLAS desde una sesión activa. Ingresa este código para confirmarlo: {{codigo}}\n\n' +
@@ -64,12 +86,18 @@ export const MAIL_TEMPLATE_DEFINITIONS: Record<MailTemplateName, MailTemplateDef
     nombre: 'atlas-login-pin',
     descripcion: 'PIN de verificación adicional para el login de administradores ATLAS.',
     emailAsunto: 'ATLAS — Tu PIN de acceso',
-    emailHtmlBody:
-      '<p>Hola {{nombre}},</p>' +
-      '<p>Detectamos un inicio de sesión de administrador en ATLAS. Ingresa este PIN para completar el acceso:</p>' +
-      '<p style="font-size:24px;font-weight:bold;letter-spacing:4px">{{pin}}</p>' +
-      '<p>El PIN vence en {{minutos}} minutos y solo puede usarse una vez.</p>' +
-      '<p>Si no fuiste tú, cambia tu contraseña de inmediato.</p>',
+    emailHtmlBody: atlasMailShell({
+      preheader: 'Tu PIN de un solo uso para completar el inicio de sesión.',
+      eyebrow: 'Verificación en dos pasos',
+      title: 'Completa tu inicio de sesión',
+      blocks: [
+        mailParagraph('Hola {{nombre}},'),
+        mailParagraph('Detectamos un inicio de sesión de administrador en ATLAS. Ingresa este PIN para completar el acceso:'),
+        mailCode('{{pin}}'),
+        mailParagraph('El PIN vence en {{minutos}} minutos y solo puede usarse una vez.'),
+        mailNotice('Si no fuiste tú, cambia tu contraseña de inmediato.'),
+      ],
+    }),
     emailTextBody:
       'Hola {{nombre}},\n\n' +
       'Detectamos un inicio de sesión de administrador en ATLAS. Ingresa este PIN para completar el acceso: {{pin}}\n\n' +
@@ -81,12 +109,18 @@ export const MAIL_TEMPLATE_DEFINITIONS: Record<MailTemplateName, MailTemplateDef
     nombre: 'atlas-verificacion-contacto',
     descripcion: 'Código de un solo uso para verificar el correo declarado por un cliente en onboarding.',
     emailAsunto: 'ATLAS — Verifica tu correo',
-    emailHtmlBody:
-      '<p>Hola,</p>' +
-      '<p>Para continuar con tu registro en ATLAS necesitamos confirmar que este correo es tuyo. Ingresa este código:</p>' +
-      '<p style="font-size:24px;font-weight:bold;letter-spacing:4px">{{codigo}}</p>' +
-      '<p>El código vence en {{minutos}} minutos y solo puede usarse una vez.</p>' +
-      '<p>Si no estás registrándote en ATLAS, ignora este correo.</p>',
+    emailHtmlBody: atlasMailShell({
+      preheader: 'Confirma que este correo es tuyo para continuar con tu registro.',
+      eyebrow: 'Registro',
+      title: 'Verifica tu correo',
+      blocks: [
+        mailParagraph('Hola,'),
+        mailParagraph('Para continuar con tu registro en ATLAS necesitamos confirmar que este correo es tuyo. Ingresa este código:'),
+        mailCode('{{codigo}}'),
+        mailParagraph(VIGENCIA),
+        mailNotice('Si no estás registrándote en ATLAS, ignora este correo.'),
+      ],
+    }),
     emailTextBody:
       'Hola,\n\n' +
       'Para continuar con tu registro en ATLAS necesitamos confirmar que este correo es tuyo. Ingresa este código: {{codigo}}\n\n' +
@@ -98,11 +132,20 @@ export const MAIL_TEMPLATE_DEFINITIONS: Record<MailTemplateName, MailTemplateDef
     nombre: 'atlas-credenciales-iniciales',
     descripcion: 'Contraseña por defecto entregada al crear un usuario interno de ATLAS.',
     emailAsunto: 'ATLAS — Tu cuenta fue creada',
-    emailHtmlBody:
-      '<p>Hola {{nombre}},</p>' +
-      '<p>Se creó una cuenta para ti en el panel interno de ATLAS.</p>' +
-      '<p>Usuario: <strong>{{email}}</strong><br/>Contraseña temporal: <strong>{{password}}</strong></p>' +
-      '<p>Por seguridad, deberás cambiar esta contraseña en tu primer inicio de sesión.</p>',
+    emailHtmlBody: atlasMailShell({
+      preheader: 'Tu acceso al panel interno de ATLAS y su contraseña temporal.',
+      eyebrow: 'Bienvenida',
+      title: 'Tu cuenta de ATLAS está lista',
+      blocks: [
+        mailParagraph('Hola {{nombre}},'),
+        mailParagraph('Se creó una cuenta para ti en el panel interno de ATLAS.'),
+        // Rotulados por separado y no en una línea corrida: es lo que hay que
+        // copiar, y una contraseña temporal pegada al correo se copia mal.
+        mailField('Usuario', '{{email}}'),
+        mailField('Contraseña temporal', '{{password}}'),
+        mailParagraph('Por seguridad, deberás cambiar esta contraseña en tu primer inicio de sesión.'),
+      ],
+    }),
     emailTextBody:
       'Hola {{nombre}},\n\n' +
       'Se creó una cuenta para ti en el panel interno de ATLAS.\n\n' +

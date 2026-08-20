@@ -110,6 +110,11 @@
 | [`onboarding-step-events.model.ts`](./onboarding-step-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`operational-audit-logs.model.ts`](./operational-audit-logs.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`outbox-events.model.ts`](./outbox-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`partner-branches.model.ts`](./partner-branches.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`partner-legal-representatives.model.ts`](./partner-legal-representatives.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`partner-pos-terminals.model.ts`](./partner-pos-terminals.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`partner-profiles.model.ts`](./partner-profiles.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`partner-qr-codes.model.ts`](./partner-qr-codes.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`permission-events.model.ts`](./permission-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`platform-users.model.ts`](./platform-users.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`privacy-processing-purposes.model.ts`](./privacy-processing-purposes.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |

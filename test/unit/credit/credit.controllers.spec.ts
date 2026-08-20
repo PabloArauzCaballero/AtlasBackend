@@ -63,10 +63,14 @@ describe('CreditOperationsController', () => {
       decide: jest.fn(async (input: unknown) => input),
       getApplicationDetail: jest.fn(async (tenantId: string, applicationId: string) => ({ tenantId, applicationId })),
     };
+    // La aceptación de negocio se dobla aparte: es la SEGUNDA pregunta —el motor dice si el
+    // riesgo encaja, el negocio si quiere la operación— y tiene su propio servicio.
+    const businessAcceptance = { decide: jest.fn(async (input: unknown) => input) };
     return {
       productService,
       decisionService,
-      controller: new CreditOperationsController(productService as never, decisionService as never),
+      businessAcceptance,
+      controller: new CreditOperationsController(productService as never, decisionService as never, businessAcceptance as never),
     };
   }
 

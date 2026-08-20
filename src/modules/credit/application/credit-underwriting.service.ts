@@ -168,6 +168,29 @@ function decisionColumns(
     decisionRiskBand: response?.riskBand ?? null,
     decisionReasonsJson: response?.reasonCodes ?? null,
     decidedAt: applied.status === 'submitted' ? null : now,
+    businessAcceptance: pendingBusinessAcceptance(applied),
     updatedAtValue: now,
   };
+}
+
+/**
+ * Si esta decisión queda pendiente de que el negocio la acepte.
+ *
+ * El motor responde «¿este solicitante cumple los criterios de riesgo?»; el negocio responde
+ * «¿queremos esta operación ahora?», que depende de cosas que el motor no mira —cupo del mes,
+ * concentración en un comercio, liquidez, una campaña cerrada—. Hasta aquí la segunda pregunta no
+ * se hacía: el motor aprobaba, la solicitud quedaba `approved` —estado CERRADO— y el endpoint de
+ * decisión manual respondía `CREDIT_APPLICATION_ALREADY_DECIDED`. El motor no proponía: disponía.
+ *
+ * Sólo se marca en las del MOTOR. Una aprobación firmada por una persona ya lleva dentro la
+ * voluntad del negocio, y pedir una segunda aceptación sería pedir dos veces lo mismo — el segundo
+ * clic se acaba dando sin mirar.
+ *
+ * Vive en su propia función y no dentro de `decisionColumns` porque allí subía la complejidad del
+ * mapeo por encima del tope del proyecto, y porque es una regla de negocio con nombre propio: no
+ * es una columna más que se calcula, es la pregunta que faltaba.
+ */
+function pendingBusinessAcceptance(applied: { status: string; decisionMode: string }): string | null {
+  if (applied.status !== 'approved') return null;
+  return applied.decisionMode === 'decision_engine' ? 'pending' : null;
 }

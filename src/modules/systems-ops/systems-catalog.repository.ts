@@ -310,7 +310,7 @@ export class SystemsCatalogRepository {
       dataNature: seed.dataNature ?? 'OPERACIONAL',
       domainCode: seed.domainCode ?? null,
       dataGrain: seed.dataGrain ?? `Una fila representa un registro operacional de ${seed.tableName}.`,
-      sourceSystem: seed.sourceSystem ?? 'atlas_backend',
+      sourceSystem: seed.sourceSystem ?? 'atlas-backend',
       operationalRulesJson: seed.operationalRulesJson ?? [],
       qualityRulesJson: seed.qualityRulesJson ?? [],
       keyRelationshipsSummary: seed.keyRelationshipsSummary ?? null,

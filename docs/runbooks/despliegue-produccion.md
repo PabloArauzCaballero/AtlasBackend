@@ -152,6 +152,62 @@ despliega con dos comandos y dos valores de `APP_ROLE`; lo que cambia es qué ar
 - [ ] `terminationGracePeriodSeconds` del orquestador mayor que `SHUTDOWN_DRAIN_MS` + el tiempo de
       cierre, o el drenado se corta a la mitad.
 
+## 6-ter. Auto-despliegue en el servidor de pruebas (`tools/autodeploy/`)
+
+Esta máquina hace de servidor para los testers, que entran por los dev tunnels. `autodeploy.sh`
+imita lo que hace Render, pero aquí: vigila `dev`, y ante un commit nuevo construye la imagen del
+commit, la comprueba y la pone a servir — o deja servir a la anterior si la nueva no responde.
+
+```bash
+tools/autodeploy/autodeploy.sh estado      # qué está desplegado y qué commit espera
+tools/autodeploy/autodeploy.sh una-vez     # una pasada (es lo que corre el temporizador)
+tools/autodeploy/autodeploy.sh canario erp # construye y comprueba SIN tocar el puerto bueno
+tools/autodeploy/autodeploy.sh historial   # los despliegues, como el panel de Render
+```
+
+### La regla que manda: el enlace del tester no cambia
+
+El hostname de un dev tunnel lo fija el **nombre** del túnel, y el túnel apunta a un **puerto**, no a
+un contenedor (ver [devtunnels](../../tools/devtunnels/)). De ahí las tres reglas que el script
+respeta y que hay que conservar en cualquier cambio:
+
+1. **No toca ningún proceso `devtunnel`.** Durante el despliegue los túneles siguen arriba; lo único
+   que ven es que su puerto deja de responder unos segundos.
+2. **Cada servicio vuelve a su mismo puerto** (3005 / 3020 / 3100). Cambiar uno rompe el enlace que
+   ya tienen los testers, y además los fronts hacen de proxy contra esos puertos exactos.
+3. **El canario se comprueba en un puerto aparte.** Una imagen que no arranca se descarta sin haber
+   tocado el puerto que sirve. Es lo que separa «el despliegue falló» de «el servicio se cayó».
+
+### Cómo despliega, paso a paso
+
+| Paso | Qué hace | Por qué |
+|---|---|---|
+| 1 | `git fetch` y compara con el SHA desplegado | Sin cambios no hace nada; el commit desplegado se guarda en `estado/<slug>.sha`. |
+| 2 | `git worktree` desprendido en el commit, en `/tmp` | **No toca tu copia de trabajo.** Un desplegador que te mueve la rama bajo los pies es peor que no tener desplegador. Y construye lo que está en `dev`, no lo que tengas sin guardar. |
+| 3 | `docker build` (con `--target` si el Dockerfile es multi-etapa) | La última etapa no siempre es el servicio: la del motor de decisiones es el `pdf-worker`. |
+| 4 | Canario en `AUTODEPLOY_PUERTO_CANARIO` (39100) | Comprueba que la imagen **responde**, no sólo que el proceso vive. |
+| 5 | Cambio de contenedor en el puerto real y nueva comprobación | Aquí está la única interrupción, de unos segundos. |
+| 6 | Si no responde, vuelve a la imagen anterior | Es la otra mitad del valor: un despliegue malo no deja el servicio caído. |
+
+### Detalles del anfitrión que no son opcionales
+
+- **`--network host`.** Esta máquina *es* el servidor y los `.env` ya apuntan a `localhost`
+  (postgres 5432, redis 6381, …). Con red puente habría que reescribir cada `.env` a
+  `host.docker.internal` para no ganar nada.
+- **Sin `no-new-privileges`.** En este anfitrión esa opción mata cualquier contenedor con
+  `operation not permitted`; es un fallo del anfitrión, no de los repositorios.
+- **No se apropia de un puerto ajeno.** Si en el puerto hay un `yarn start:dev` tuyo, se niega y te
+  dice el pid; `AUTODEPLOY_TOMAR_PUERTO=1` releva al proceso, a sabiendas.
+
+### Dejarlo corriendo
+
+```bash
+systemctl --user enable --now atlas-autodeploy.timer   # unidades en tools/autodeploy/systemd/
+```
+
+El temporizador corre `una-vez` cada minuto. `flock` impide que dos pasadas se solapen, así que una
+construcción larga simplemente se salta el siguiente disparo.
+
 ## 7. Gates que deben estar verdes antes de desplegar
 
 `lint`, `format:check`, `type-check`, `type-check:tests`, `test:unit`, `test:coverage` (gate por

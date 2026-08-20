@@ -30,6 +30,7 @@ import {
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { EndpointDiscoveryService } from './endpoint-discovery.service.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
+import { SystemsErpInventoryService } from './systems-erp-inventory.service.js';
 import { SystemsCatalogSeedService } from './systems-catalog-seed.service.js';
 import { SystemsEndpointDocsService } from './systems-endpoint-docs.service.js';
 import { SystemsSchemaIntrospectionService } from './systems-schema-introspection.service.js';
@@ -120,6 +121,7 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
     EndpointDiscoveryService,
     SystemsCatalogClassifierService,
     SystemsCatalogSeedService,
+    SystemsErpInventoryService,
     SystemsHealthService,
     SystemsHealthMonitorService,
     SystemsTestRunnerService,
