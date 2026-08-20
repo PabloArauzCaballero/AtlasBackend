@@ -75,6 +75,8 @@ export class PartnerQrService {
 
     const branchId = await this.resolveBranchId(tenantId, partnerId, dto.branchId);
 
+    this.assertOwnedStorageKey(tenantId, partnerId, dto.storageKey);
+
     const metadata = await this.storage.readObjectMetadata(dto.storageKey);
     if (!metadata) {
       this.metrics.recordPartnerOnboardingStep({ step: `qr_${dto.qrKind}`, outcome: 'rejected' });
@@ -113,6 +115,29 @@ export class PartnerQrService {
         `sucursal=${branchId ?? 'empresa'} reemplaza=${previous?.id ?? 'ninguno'}`,
     );
     return created;
+  }
+
+  /**
+   * La clave del objeto tiene que caer bajo el prefijo de ESTE tenant y ESTE partner.
+   *
+   * `createUploadTicket` impone esa ruta al emitir el permiso —y su comentario explica por qué:
+   * si el cliente eligiera la ruta podría escribir sobre la evidencia de otro expediente—. Pero el
+   * registro aceptaba cualquier `storageKey` que le mandaran, así que la garantía se perdía en el
+   * segundo paso: bastaba con pedir un permiso legítimo, ignorarlo, y registrar la clave del QR de
+   * OTRO partner —o de otro tenant— como propia. El expediente acabaría afirmando, con su hash y
+   * todo, que esa cuenta de cobro es de este comercio.
+   *
+   * Se comprueba contra la composición real de la clave (`tenant/sujeto/tipo/uuid`), no con un
+   * `includes`: una clave `9/partner-7/qr/…` contiene el texto «partner-7» y también lo contendría
+   * «partner-77».
+   */
+  private assertOwnedStorageKey(tenantId: string, partnerId: string, storageKey: string): void {
+    const expectedPrefix = `${tenantId}/partner-${partnerId}/`;
+    if (!storageKey.startsWith(expectedPrefix)) {
+      this.metrics.recordPartnerOnboardingStep({ step: 'qr_storage_key', outcome: 'rejected' });
+      this.logger.warn(`Clave de objeto fuera del expediente: tenant=${tenantId} partner=${partnerId} clave=${storageKey}`);
+      throw new UnprocessableEntityException('QR_OBJECT_OUTSIDE_PARTNER_SCOPE');
+    }
   }
 
   list(tenantId: string, partnerId: string): Promise<PartnerQrCodeModel[]> {

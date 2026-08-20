@@ -3,7 +3,16 @@
  * @business Esta pieza convierte un comercio declarado en un partner verificable, con locales, cobro y terminales trazables.
  * @system emite y comprueba el código de un solo uso que prueba el contacto declarado por el comercio.
  */
-import { ConflictException, Injectable, Logger, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { InjectConnection } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize-typescript';
 import { env } from '../../../config/env.js';
 import { MetricsService } from '../../../common/observability/metrics.service.js';
 import { generateNumericCode, hashOneTimeCode, verifyOneTimeCode } from '../../../common/utils/crypto/one-time-code.util.js';
@@ -35,6 +44,7 @@ export class PartnerContactVerificationService {
   private readonly logger = new Logger(PartnerContactVerificationService.name);
 
   constructor(
+    @InjectConnection() private readonly sequelize: Sequelize,
     private readonly repository: PartnerOnboardingRepository,
     private readonly profiles: PartnerProfileService,
     private readonly mail: MailSenderService,
@@ -95,46 +105,65 @@ export class PartnerContactVerificationService {
    * reutilizarlo, y «un solo uso» dejaría de ser cierto.
    */
   async submit(tenantId: string, partnerId: string, candidate: string): Promise<{ verified: true }> {
-    const profile = await this.profiles.requireProfile(tenantId, partnerId);
-    this.profiles.assertEditable(profile);
+    /*
+     * Todo el canje ocurre dentro de UNA transacción con la fila del expediente bloqueada.
+     *
+     * Leer el contador de intentos, decidir con él y escribirlo son tres operaciones, y sin el
+     * bloqueo no forman una sola: dos peticiones simultáneas leían el mismo valor, las dos pasaban
+     * el control de intentos agotados y las dos escribían el mismo resultado. El límite se
+     * esquivaba entero probando códigos en paralelo — que es exactamente contra lo que existe—, y
+     * un código de un solo uso podía consumirse dos veces.
+     *
+     * `FOR UPDATE` serializa por expediente, no globalmente: dos comercios distintos no se esperan.
+     */
+    return this.sequelize.transaction(async (transaction) => {
+      const profile = await this.repository.lockProfileById(tenantId, partnerId, transaction);
+      if (!profile) throw new NotFoundException('El expediente del partner no existe.');
+      this.profiles.assertEditable(profile);
 
-    if (profile.emailVerifiedAt) return { verified: true };
-    if (!profile.contactCodeHash || !profile.contactCodeExpiresAt) {
-      throw new UnprocessableEntityException('PARTNER_VERIFICATION_NOT_REQUESTED');
-    }
-    if (profile.contactCodeExpiresAt.getTime() < Date.now()) {
-      throw new UnauthorizedException('PARTNER_VERIFICATION_CODE_EXPIRED');
-    }
-    if (profile.contactCodeAttempts >= MAX_ATTEMPTS) {
-      throw new UnauthorizedException('PARTNER_VERIFICATION_ATTEMPTS_EXHAUSTED');
-    }
+      if (profile.emailVerifiedAt) return { verified: true };
+      if (!profile.contactCodeHash || !profile.contactCodeExpiresAt) {
+        throw new UnprocessableEntityException('PARTNER_VERIFICATION_NOT_REQUESTED');
+      }
+      if (profile.contactCodeExpiresAt.getTime() < Date.now()) {
+        throw new UnauthorizedException('PARTNER_VERIFICATION_CODE_EXPIRED');
+      }
+      if (profile.contactCodeAttempts >= MAX_ATTEMPTS) {
+        throw new UnauthorizedException('PARTNER_VERIFICATION_ATTEMPTS_EXHAUSTED');
+      }
 
-    if (!verifyOneTimeCode(candidate, profile.contactCodeHash)) {
-      /*
-       * El intento se cuenta ANTES de responder y en la misma escritura: contarlo después, o sólo
-       * al agotarse, deja una ventana en la que probar en paralelo no gasta nada.
-       */
-      await this.repository.updateProfile(profile, { contactCodeAttempts: profile.contactCodeAttempts + 1 });
-      this.metrics.recordPartnerOnboardingStep({ step: 'contact_verification', outcome: 'rejected' });
-      throw new UnauthorizedException('PARTNER_VERIFICATION_CODE_INVALID');
-    }
+      if (!verifyOneTimeCode(candidate, profile.contactCodeHash)) {
+        /*
+         * El intento se cuenta ANTES de responder y dentro de la transacción que sostiene el
+         * bloqueo: así el incremento que ve la siguiente petición es el de ésta, y no el valor
+         * que leyó antes de empezar.
+         */
+        await this.repository.updateProfile(profile, { contactCodeAttempts: profile.contactCodeAttempts + 1 }, { transaction });
+        this.metrics.recordPartnerOnboardingStep({ step: 'contact_verification', outcome: 'rejected' });
+        throw new UnauthorizedException('PARTNER_VERIFICATION_CODE_INVALID');
+      }
 
-    await this.repository.updateProfile(profile, {
-      emailVerifiedAt: new Date(),
-      // El código se consume: un solo uso significa exactamente esto.
-      contactCodeHash: null,
-      contactCodeExpiresAt: null,
-      contactCodeAttempts: 0,
-      /*
-       * El estado avanza sólo desde `draft`. Si el expediente ya estaba más adelante —porque el
-       * comercio verificó su correo después de cargar documentos— retrocederlo borraría avance
-       * real por haber completado un paso lateral.
-       */
-      ...(profile.onboardingStatus === 'draft' ? { onboardingStatus: 'contact_verified' } : {}),
+      await this.repository.updateProfile(
+        profile,
+        {
+          emailVerifiedAt: new Date(),
+          // El código se consume: un solo uso significa exactamente esto.
+          contactCodeHash: null,
+          contactCodeExpiresAt: null,
+          contactCodeAttempts: 0,
+          /*
+           * El estado avanza sólo desde `draft`. Si el expediente ya estaba más adelante —porque
+           * el comercio verificó su correo después de cargar documentos— retrocederlo borraría
+           * avance real por haber completado un paso lateral.
+           */
+          ...(profile.onboardingStatus === 'draft' ? { onboardingStatus: 'contact_verified' } : {}),
+        },
+        { transaction },
+      );
+
+      this.metrics.recordPartnerOnboardingStep({ step: 'contact_verification', outcome: 'ok' });
+      this.logger.log(`Contacto de partner verificado: partnerId=${partnerId}`);
+      return { verified: true };
     });
-
-    this.metrics.recordPartnerOnboardingStep({ step: 'contact_verification', outcome: 'ok' });
-    this.logger.log(`Contacto de partner verificado: partnerId=${partnerId}`);
-    return { verified: true };
   }
 }

@@ -22,6 +22,7 @@ import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { PartnerCommerceController } from './partner-commerce.controller.js';
 import { PartnerOnboardingController } from './partner-onboarding.controller.js';
 import { PartnerOnboardingRepository } from './partner-onboarding.repository.js';
+import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
 
 /**
  * El expediente verificable del comercio (ADR-0009).
@@ -46,6 +47,9 @@ import { PartnerOnboardingRepository } from './partner-onboarding.repository.js'
   controllers: [PartnerOnboardingController, PartnerCommerceController],
   providers: [
     PartnerOnboardingRepository,
+    // Guard de propiedad de los controladores: Nest lo instancia por el contenedor porque
+    // necesita el repositorio para resolver quién es el dueño del expediente.
+    PartnerOwnershipGuard,
     PartnerProfileService,
     PartnerCommerceService,
     PartnerQrService,

@@ -33,7 +33,11 @@ export class PartnerProfileService {
    * del que ya existe para que el portal lleve al comercio a continuar el suyo en vez de dejarlo
    * en un callejón sin salida.
    */
-  async start(tenantId: string, dto: StartPartnerOnboardingDto): Promise<PartnerProfileModel> {
+  async start(
+    tenantId: string,
+    dto: StartPartnerOnboardingDto,
+    owner: { role: string; merchantUserId?: string } | undefined = undefined,
+  ): Promise<PartnerProfileModel> {
     const existing = await this.repository.findProfileByTaxId(tenantId, dto.taxId);
     if (existing) {
       this.metrics.recordPartnerOnboardingStep({ step: 'start', outcome: 'rejected' });
@@ -58,6 +62,13 @@ export class PartnerProfileService {
       businessCategory: dto.businessCategory ?? null,
       contactEmail: dto.contactEmail,
       contactPhone: dto.contactPhone ?? null,
+      /*
+       * Quien abre el expediente queda como su dueño, y es contra esto que `PartnerOwnershipGuard`
+       * comprueba después. Sólo si es un comercio: un expediente abierto por personal interno no
+       * pertenece a ningún comercio en concreto, y ponerle un dueño inventado le daría a alguien
+       * autoservicio sobre un expediente que no abrió.
+       */
+      ownerMerchantUserId: owner?.role === 'merchant' ? (owner.merchantUserId ?? null) : null,
     });
 
     this.metrics.recordPartnerOnboardingStep({ step: 'start', outcome: 'ok' });

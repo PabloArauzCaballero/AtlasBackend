@@ -13,6 +13,9 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerCommerceService } from './application/partner-commerce.service.js';
 import { PartnerContactVerificationService } from './application/partner-contact-verification.service.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
@@ -47,7 +50,7 @@ import {
  */
 @ApiTags('partner-onboarding')
 @Controller('partner-onboarding')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, PartnerOwnershipGuard)
 export class PartnerOnboardingController {
   constructor(
     private readonly profiles: PartnerProfileService,
@@ -76,9 +79,12 @@ export class PartnerOnboardingController {
   async start(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Body(new ZodValidationPipe(startPartnerOnboardingSchema)) body: StartPartnerOnboardingDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     const tenantId = tenantIdFromHeader(tenantIdHeader);
-    return toPartnerProfileDto(await this.profiles.start(tenantId, body));
+    // Quien abre el expediente queda como dueño: es contra eso que se comprueba la propiedad en
+    // todas las operaciones posteriores. Ver `PartnerOwnershipGuard`.
+    return toPartnerProfileDto(await this.profiles.start(tenantId, body, currentUser));
   }
 
   /**

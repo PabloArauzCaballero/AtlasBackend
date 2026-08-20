@@ -282,31 +282,45 @@ describe('PartnerCommerceService', () => {
 describe('PartnerContactVerificationService', () => {
   function build(profileOverrides: AnyRecord = {}, mailEnabled = true) {
     const updates: AnyRecord[] = [];
+    const perfil = () =>
+      profileDouble({
+        contactEmail: 'comercio@atlas.test',
+        emailVerifiedAt: null,
+        contactCodeHash: null,
+        contactCodeExpiresAt: null,
+        contactCodeAttempts: 0,
+        contactCodeSentAt: null,
+        ...profileOverrides,
+      });
     const repository = {
       updateProfile: jest.fn(async (...args: unknown[]) => {
         updates.push(args[1] as AnyRecord);
         return {} as AnyRecord;
       }),
+      /*
+       * El canje del código carga el expediente con la fila BLOQUEADA: leer el contador de
+       * intentos, decidir con él y escribirlo tienen que ser una sola operación, o el límite se
+       * esquiva probando en paralelo. El doble devuelve el mismo perfil que `requireProfile`.
+       */
+      lockProfileById: jest.fn(async () => perfil()),
     };
     const profiles = {
-      requireProfile: jest.fn(async () =>
-        profileDouble({
-          contactEmail: 'comercio@atlas.test',
-          emailVerifiedAt: null,
-          contactCodeHash: null,
-          contactCodeExpiresAt: null,
-          contactCodeAttempts: 0,
-          contactCodeSentAt: null,
-          ...profileOverrides,
-        }),
-      ),
+      requireProfile: jest.fn(async () => perfil()),
       assertEditable: jest.fn(),
     };
+    /** La transacción del doble sólo ejecuta el cuerpo: no hay base contra la que abrirla. */
+    const sequelize = { transaction: jest.fn(async (fn: (t: unknown) => unknown) => fn({})) };
     const mail = {
       isEnabled: jest.fn(() => mailEnabled),
       sendContactVerificationCode: jest.fn(async (..._a: unknown[]) => ({ trackingId: 't' })),
     };
-    const service = new PartnerContactVerificationService(repository as never, profiles as never, mail as never, metricsDouble());
+    const service = new PartnerContactVerificationService(
+      sequelize as never,
+      repository as never,
+      profiles as never,
+      mail as never,
+      metricsDouble(),
+    );
     return { service, repository, mail, updates };
   }
 
@@ -407,5 +421,71 @@ describe('PartnerContactVerificationService', () => {
     await service.submit('1', '10', '123456');
 
     expect(updates[0]?.onboardingStatus).toBeUndefined();
+  });
+});
+
+/**
+ * La clave del objeto tiene que caer dentro del expediente.
+ *
+ * Hallazgo `authorization` de la revisión del 20-ago-2026: `createUploadTicket` impone la ruta bajo
+ * el prefijo del tenant y del partner —para que nadie escriba sobre la evidencia de otro—, pero el
+ * REGISTRO aceptaba cualquier `storageKey`. Bastaba pedir un permiso legítimo, ignorarlo y
+ * registrar la clave del QR de otro partner como propia: el expediente acabaría afirmando, con su
+ * hash y todo, que esa cuenta de cobro es de este comercio.
+ */
+describe('PartnerQrService · clave de objeto', () => {
+  function build() {
+    const repository = {
+      findLiveQr: jest.fn(async () => null),
+      createQrCode: jest.fn(async (values: AnyRecord) => ({ id: '1', ...values })),
+      markQrReplaced: jest.fn(async () => undefined),
+      findBranchById: jest.fn(async () => ({ id: '5' })),
+    };
+    const profiles = {
+      requireProfile: jest.fn(async () => profileDouble({ onboardingStatus: 'draft' })),
+      assertEditable: jest.fn(),
+    };
+    const storage = {
+      isConfigured: jest.fn(() => true),
+      readObjectMetadata: jest.fn(async () => ({ contentType: 'image/png', sizeBytes: 100, sha256Hex: 'abc' })),
+    };
+    const service = new PartnerQrService(repository as never, profiles as never, storage as never, metricsDouble());
+    return { service, repository, storage };
+  }
+
+  const dto = (storageKey: string) => ({ qrKind: 'business' as const, storageKey });
+
+  it('rechaza la clave del expediente de OTRO partner y no llega a mirar el objeto', async () => {
+    const { service, storage } = build();
+
+    await expect(service.register('1', '10', dto('1/partner-99/qr-business/abc.png') as never)).rejects.toThrow(
+      /QR_OBJECT_OUTSIDE_PARTNER_SCOPE/,
+    );
+    expect(storage.readObjectMetadata).not.toHaveBeenCalled();
+  });
+
+  it('rechaza la clave de otro TENANT', async () => {
+    const { service } = build();
+
+    await expect(service.register('1', '10', dto('2/partner-10/qr-business/abc.png') as never)).rejects.toThrow(
+      /QR_OBJECT_OUTSIDE_PARTNER_SCOPE/,
+    );
+  });
+
+  it('no se deja engañar por un prefijo que sólo COMIENZA igual', async () => {
+    // `partner-1` es prefijo textual de `partner-10`: por eso se compara con la barra incluida.
+    const { service } = build();
+
+    await expect(service.register('1', '1', dto('1/partner-10/qr-business/abc.png') as never)).rejects.toThrow(
+      /QR_OBJECT_OUTSIDE_PARTNER_SCOPE/,
+    );
+  });
+
+  it('acepta la clave que el propio permiso de subida habría impuesto', async () => {
+    const { service, repository } = build();
+
+    await service.register('1', '10', dto('1/partner-10/qr-business/abc.png') as never);
+
+    expect(repository.createQrCode).toHaveBeenCalled();
   });
 });

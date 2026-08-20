@@ -12,6 +12,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
 import { PartnerCommerceService } from './application/partner-commerce.service.js';
 import { PartnerQrService } from './application/partner-qr.service.js';
 import { toPartnerBranchDto, toPartnerPosTerminalDto, toPartnerQrDto } from './partner-onboarding.mapper.js';
@@ -43,7 +44,7 @@ import {
  */
 @ApiTags('partner-onboarding')
 @Controller('partner-onboarding')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, PartnerOwnershipGuard)
 export class PartnerCommerceController {
   constructor(
     private readonly commerce: PartnerCommerceService,

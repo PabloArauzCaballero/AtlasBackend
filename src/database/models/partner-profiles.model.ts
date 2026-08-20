@@ -89,6 +89,20 @@ export class PartnerProfileModel extends Model {
   @Column({ field: 'decided_by_internal_user_id', type: DataType.BIGINT })
   declare decidedByInternalUserId: string | null;
 
+  /**
+   * El usuario de comercio dueño del expediente, cuando lo abrió un comercio.
+   *
+   * Es contra esto que se comprueba la propiedad: sin dueño, cualquier usuario con rol `merchant`
+   * del mismo tenant podía operar sobre el expediente de otro —incluidos sus QR de cobro—, porque
+   * el `partnerId` viaja en la URL y no había nada que lo atara a quien llama.
+   *
+   * Nulo en los expedientes abiertos por personal interno, y en los que existían antes de que la
+   * columna se añadiera. `assertOwnPartnerResource` trata ese caso como accesible sólo para roles
+   * internos: un expediente sin dueño deja de ser autoservicio hasta que alguien lo reasigne.
+   */
+  @Column({ field: 'owner_merchant_user_id', type: DataType.BIGINT })
+  declare ownerMerchantUserId: string | null;
+
   @Column({ field: 'rejection_reason', type: DataType.STRING(200) })
   declare rejectionReason: string | null;
 

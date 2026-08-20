@@ -37,6 +37,23 @@ export class PartnerOnboardingRepository {
     });
   }
 
+  /**
+   * El expediente con la fila BLOQUEADA hasta el fin de la transacción (`SELECT … FOR UPDATE`).
+   *
+   * Existe para los flujos que leen un contador, deciden con él y lo escriben. Sin el bloqueo esas
+   * tres operaciones no son una: dos peticiones simultáneas leen el mismo valor, las dos pasan el
+   * control y las dos escriben el mismo resultado, así que el contador queda como si sólo hubiera
+   * habido un intento. Es la verificación de contacto, y con ella el límite de intentos se
+   * esquivaba probando en paralelo.
+   */
+  lockProfileById(tenantId: string, partnerId: string, transaction: Transaction): Promise<PartnerProfileModel | null> {
+    return this.profileModel.findOne({
+      where: { tenantId, id: partnerId, deleted: false },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+  }
+
   findProfileByTaxId(tenantId: string, taxId: string, options: RepositoryOptions = {}): Promise<PartnerProfileModel | null> {
     return this.profileModel.findOne({
       where: { tenantId, taxId, deleted: false },
@@ -54,6 +71,7 @@ export class PartnerOnboardingRepository {
       businessCategory: string | null;
       contactEmail: string;
       contactPhone: string | null;
+      ownerMerchantUserId?: string | null;
     },
     options: RepositoryOptions = {},
   ): Promise<PartnerProfileModel> {
