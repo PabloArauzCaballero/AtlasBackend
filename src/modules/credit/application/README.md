@@ -12,6 +12,7 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`credit-application.service.ts`](./credit-application.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`credit-business-acceptance.service.ts`](./credit-business-acceptance.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`credit-decision.service.ts`](./credit-decision.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`credit-product-eligibility.ts`](./credit-product-eligibility.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`credit-product.service.ts`](./credit-product.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |

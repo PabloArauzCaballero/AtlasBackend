@@ -7,6 +7,12 @@ export { TenantModel } from './tenants.model.js';
 export { PlatformUserModel } from './platform-users.model.js';
 export { InternalUserModel } from './internal-users.model.js';
 export { MerchantUserModel } from './merchant-users.model.js';
+// El expediente verificable del comercio (ADR-0009), paralelo al del consumidor.
+export { PartnerProfileModel } from './partner-profiles.model.js';
+export { PartnerLegalRepresentativeModel } from './partner-legal-representatives.model.js';
+export { PartnerBranchModel } from './partner-branches.model.js';
+export { PartnerQrCodeModel } from './partner-qr-codes.model.js';
+export { PartnerPosTerminalModel } from './partner-pos-terminals.model.js';
 export { InternalRoleModel } from './internal-roles.model.js';
 export { InternalPermissionModel } from './internal-permissions.model.js';
 export { InternalRolePermissionModel } from './internal-role-permissions.model.js';

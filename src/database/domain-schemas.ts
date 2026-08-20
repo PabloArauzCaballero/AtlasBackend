@@ -18,6 +18,16 @@ export const ATLAS_SCHEMAS = {
   INTEGRATIONS: 'integrations',
   MESSAGING: 'messaging',
   PLATFORM_OPS: 'platform_ops',
+  /**
+   * El comercio como SUJETO VERIFICABLE, no como cuenta comercial.
+   *
+   * Schema propio y no `customer` ni `iam`: lo que vive aquí es el expediente que
+   * prueba que un negocio existe, opera y está representado por quien dice —NIT,
+   * matrícula, poder del representante, QR de cobro, terminales—, y no se parece
+   * ni a una persona natural ni a un usuario. Su ficha comercial (cuenta B2B,
+   * contratos, facturación) sigue viviendo en el ERP; aquí sólo la evidencia.
+   */
+  PARTNER: 'partner',
 } as const;
 
 export type AtlasSchema = (typeof ATLAS_SCHEMAS)[keyof typeof ATLAS_SCHEMAS];
@@ -208,6 +218,14 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'schema_columns',
     'schema_relationships',
     'schema_change_log',
+  ],
+  [ATLAS_SCHEMAS.PARTNER]: [
+    'partner_profiles',
+    'partner_legal_representatives',
+    'partner_branches',
+    // Los dos QR del negocio: el suyo y el de su cuenta bancaria. Ver la migración.
+    'partner_qr_codes',
+    'partner_pos_terminals',
   ],
 };
 

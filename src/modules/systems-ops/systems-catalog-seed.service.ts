@@ -12,6 +12,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { SYSTEM_TOOL_SEEDS } from './systems-ops.constants.js';
 import { EndpointDiscoveryService } from './endpoint-discovery.service.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
+import { SystemsErpInventoryService } from './systems-erp-inventory.service.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
 import { SystemsStressProfileRepository } from './systems-stress-profile.repository.js';
 import { SystemsTestExecutionRepository } from './systems-test-execution.repository.js';
@@ -37,6 +38,7 @@ export class SystemsCatalogSeedService {
     // Las dos mitades pesadas del reseeding: reflejar el esquema real y leer la documentación.
     private readonly introspection: SystemsSchemaIntrospectionService,
     private readonly endpointDocs: SystemsEndpointDocsService,
+    private readonly erpInventory: SystemsErpInventoryService,
   ) {}
 
   /** Refleja el esquema real de la base en el catálogo. Delegado en su propio servicio. */
@@ -90,6 +92,9 @@ export class SystemsCatalogSeedService {
       if (input.includeTools) result.tools = await this.seedTools();
       if (input.includeDataEntities) {
         result.dataEntities = await this.seedDataEntitiesFromModels();
+        // Las del ERP entran por su inventario versionado: viven en otro repositorio y otra base,
+        // así que el escaneo de modelos de arriba no las ve. Ver `SystemsErpInventoryService`.
+        result.dataEntities += await this.erpInventory.seedErpEntities();
         const columnSeed = await this.seedColumnsFromInformationSchema();
         result.columns = columnSeed.columns;
         result.relationships = columnSeed.relationships;
