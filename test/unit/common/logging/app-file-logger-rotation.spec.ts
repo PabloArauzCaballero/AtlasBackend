@@ -37,8 +37,30 @@ describe('AppFileLogger — rotación por tamaño', () => {
     return new AppFileLogger();
   }
 
-  /** El logger encola las escrituras; se drena la cola cediendo el turno del event loop. */
-  const drain = () => new Promise((resolve) => setTimeout(resolve, 50));
+  /**
+   * Espera a que la escritura encolada por el logger haya llegado al disco.
+   *
+   * Antes esto era un `setTimeout` de 50 ms fijo, y con eso la prueba era una apuesta: aislada
+   * sobraba tiempo, pero con la suite completa repartida entre workers la escritura a veces no
+   * había aterrizado y fallaba sin que nada del logger hubiera cambiado. Un fallo intermitente es
+   * peor que ninguno, porque enseña a relanzar en vez de a mirar.
+   *
+   * Sondear la condición REAL lo vuelve determinista por los dos lados: termina en cuanto se
+   * cumple —así que la suite no paga los 50 ms— y sólo falla si de verdad no ocurre.
+   */
+  async function esperarA(condicion: () => Promise<boolean>, timeoutMs = 5_000): Promise<void> {
+    const limite = Date.now() + timeoutMs;
+    for (;;) {
+      if (await condicion()) return;
+      if (Date.now() > limite) {
+        throw new Error('La escritura del logger no llegó al disco dentro del plazo.');
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+
+  /** Contenido del log activo, o cadena vacía si todavía no existe. */
+  const activo = (): Promise<string> => readFile(logPath, 'utf8').catch(() => '');
 
   it('rota a <archivo>.1 al superar el techo y sigue escribiendo en el archivo activo', async () => {
     // 1 MiB es el mínimo que admite el esquema; se pre-llena para quedar justo por debajo.
@@ -47,7 +69,7 @@ describe('AppFileLogger — rotación por tamaño', () => {
 
     const logger = await buildLogger(maxBytes);
     logger.log('linea que cruza el techo');
-    await drain();
+    await esperarA(async () => (await activo()).includes('linea que cruza el techo'));
 
     const rotated = await stat(`${logPath}.1`);
     expect(rotated.size).toBe(maxBytes - 10);
@@ -62,7 +84,12 @@ describe('AppFileLogger — rotación por tamaño', () => {
     const logger = await buildLogger(1_048_576);
     logger.log('primera');
     logger.log('segunda');
-    await drain();
+    // Se espera a que las DOS estén escritas: sin eso, comprobar que no hay rotación podría pasar
+    // simplemente porque todavía no se había escrito nada.
+    await esperarA(async () => {
+      const contenido = await activo();
+      return contenido.includes('primera') && contenido.includes('segunda');
+    });
 
     await expect(stat(`${logPath}.1`)).rejects.toThrow();
     const active = await readFile(logPath, 'utf8');

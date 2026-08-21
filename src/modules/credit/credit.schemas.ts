@@ -79,7 +79,10 @@ export const createCreditApplicationSchema = z
      * el expediente existe y está aprobado: el identificador lo elige el cliente, así que aquí sólo
      * se valida la FORMA, nunca la existencia.
      */
-    partnerProfileId: z.string().regex(/^[1-9][0-9]*$/).optional(),
+    partnerProfileId: z
+      .string()
+      .regex(/^[1-9][0-9]*$/)
+      .optional(),
   })
   .strict();
 

@@ -113,8 +113,8 @@ export async function down({ context: queryInterface }: { context: QueryInterfac
     return;
   }
 
-  await queryInterface.sequelize.query(
-    `DELETE FROM credit.credit_products WHERE _tenant_id = :tenantId AND product_code = :productCode;`,
-    { type: QueryTypes.DELETE, replacements: { tenantId: TENANT_ID, productCode: PRODUCT_CODE } },
-  );
+  await queryInterface.sequelize.query(`DELETE FROM credit.credit_products WHERE _tenant_id = :tenantId AND product_code = :productCode;`, {
+    type: QueryTypes.DELETE,
+    replacements: { tenantId: TENANT_ID, productCode: PRODUCT_CODE },
+  });
 }
