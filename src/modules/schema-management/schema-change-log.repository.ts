@@ -7,12 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import type {
-  CreateChangeLogEntryInput,
-  ResolveChangeLogEntryInput,
-  SchemaChangeApprovalStatus,
-  SchemaChangeLogRow,
-} from './schema-management.repository.js';
+import type { CreateChangeLogEntryInput, ResolveChangeLogEntryInput, SchemaChangeLogRow } from './schema-management.repository.js';
 
 interface CountRow {
   count: string;

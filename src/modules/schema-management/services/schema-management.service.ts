@@ -5,13 +5,7 @@
  */
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../../common/types/auth.types.js';
-import {
-  SchemaManagementRepository,
-  SchemaChangeLogRow,
-  SchemaTableRow,
-  SchemaVersionCounts,
-  SchemaVersionRow,
-} from '../schema-management.repository.js';
+import { SchemaManagementRepository, SchemaVersionCounts, SchemaVersionRow } from '../schema-management.repository.js';
 import { SchemaChangeLogRepository } from '../schema-change-log.repository.js';
 import { SchemaManagementValidationService } from './schema-management-validation.service.js';
 import { mapChangeLogRow, mapTableRow, mapVersionRowWithCounts } from './schema-management.mapper.js';

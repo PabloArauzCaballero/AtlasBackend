@@ -34,19 +34,21 @@ describe('SystemsCatalogQueryService', () => {
     const dashboardRepository = {
       getDashboardCounts: jest.fn(async (..._args: unknown[]) => ({ endpoints: 0, dataEntities: 0, pendingReviews: 0, stressProfiles: 0 })),
     };
-    const discovery = { discoverAndMaybePersist: jest.fn(async (..._args: unknown[]) => ({ discovered: 1 })) };
-    const openApiCatalog = { catalogFromContract: jest.fn(async (..._args: unknown[]) => ({ discovered: 333, withContract: 141 })) };
+    const discover = jest.fn(async (..._args: unknown[]) => ({ discovered: 333, persisted: 0 }));
+    const discovery = {
+      discoverAndMaybePersist: jest.fn(async (..._args: unknown[]) => ({ discovered: 1 })),
+      discover,
+    };
     const seedService = { refreshCatalog: jest.fn(async (..._args: unknown[]) => ({ refreshed: true })) };
     const healthService = { getToolsHealth: jest.fn(async (..._args: unknown[]) => [{ code: 'POSTGRES' }]) };
     const service = new SystemsCatalogQueryService(
       catalogRepository as never,
       dashboardRepository as never,
       discovery as never,
-      openApiCatalog as never,
       seedService as never,
       healthService as never,
     );
-    return { service, catalogRepository, dashboardRepository, discovery, openApiCatalog, seedService, healthService };
+    return { service, catalogRepository, dashboardRepository, discovery, seedService, healthService };
   }
 
   const user = { role: 'internal_operator', tenantId: 't1' } as never;
@@ -127,21 +129,16 @@ describe('SystemsCatalogQueryService', () => {
   });
 
   /**
-   * El modo por defecto es el contrato OpenAPI, no el escaneo de código: la imagen desplegada no
-   * copia `src/modules`, así que el escáner devolvía cero endpoints dentro de un contenedor.
+   * Elegir entre las dos estrategias de descubrimiento es asunto del propio servicio de
+   * descubrimiento: éste sólo le pasa el modo pedido y no decide por él.
    */
-  it('descubrir usa el contrato OpenAPI por defecto', async () => {
-    const { service, discovery, openApiCatalog } = build();
+  it('delega el descubrimiento con el modo y la persistencia pedidos', async () => {
+    const { service, discovery } = build();
     await service.discoverEndpoints({ mode: 'OPENAPI_CONTRACT', persist: true } as never);
-    expect(openApiCatalog.catalogFromContract).toHaveBeenCalledWith(true);
-    expect(discovery.discoverAndMaybePersist).not.toHaveBeenCalled();
-  });
+    expect(discovery.discover).toHaveBeenCalledWith('OPENAPI_CONTRACT', true);
 
-  it('el escaneo de código sigue disponible cuando se pide explícitamente', async () => {
-    const { service, discovery, openApiCatalog } = build();
     await service.discoverEndpoints({ mode: 'SOURCE_SCAN', persist: false } as never);
-    expect(discovery.discoverAndMaybePersist).toHaveBeenCalledWith(false);
-    expect(openApiCatalog.catalogFromContract).not.toHaveBeenCalled();
+    expect(discovery.discover).toHaveBeenCalledWith('SOURCE_SCAN', false);
   });
 
   it('listDomains / listTools / listDataEntities mapean filas y propagan meta', async () => {

@@ -13,7 +13,9 @@ function buildItem(index: number): DiscoveredEndpoint {
 
 function buildService(repository: { upsertEndpoint: jest.Mock; markDeprecatedCandidates: jest.Mock }) {
   const classifier = { riskLevelForEndpoint: () => 'LOW', containsPiiForEndpoint: () => false };
-  return new EndpointDiscoveryService(repository as never, classifier as never);
+  // El tercer colaborador (catálogo por contrato) no participa en el escaneo de código: sólo
+  // interviene al elegir estrategia en `discover`.
+  return new EndpointDiscoveryService(repository as never, classifier as never, {} as never);
 }
 
 describe('EndpointDiscoveryService.discoverAndMaybePersist', () => {

@@ -10,6 +10,7 @@ import { mapWithConcurrency } from '../../common/utils/concurrency.util.js';
 import { env } from '../../config/env.js';
 import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from './endpoint-code.util.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
+import { OpenApiCatalogService } from './openapi-catalog.service.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
 import { SYSTEMS_OPS_ROLE_CONSTANTS } from './systems-ops.constants.js';
 import { EndpointSeed } from './systems-ops.types.js';
@@ -65,7 +66,18 @@ export class EndpointDiscoveryService {
   constructor(
     private readonly repository: SystemsCatalogRepository,
     private readonly classifier: SystemsCatalogClassifierService,
+    private readonly openApiCatalog: OpenApiCatalogService,
   ) {}
+
+  /**
+   * Descubrir endpoints tiene DOS estrategias y elegir entre ellas es asunto de este servicio, no
+   * de quien lo llama: el catálogo desde el contrato OpenAPI —lo que funciona en cualquier
+   * despliegue— y el escaneo del código fuente, que sólo alcanza en una máquina de desarrollo.
+   */
+  async discover(mode: 'OPENAPI_CONTRACT' | 'SOURCE_SCAN', persist: boolean): Promise<{ discovered: number; persisted: number }> {
+    if (mode === 'SOURCE_SCAN') return this.discoverAndMaybePersist(persist);
+    return this.openApiCatalog.catalogFromContract(persist);
+  }
 
   async discoverAndMaybePersist(
     persist: boolean,
