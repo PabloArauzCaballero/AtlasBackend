@@ -8,7 +8,7 @@ import { env } from '../../../config/env.js';
 import { hashPassword } from '../../../common/utils/crypto/password.util.js';
 
 /**
- * Cuenta administrador de DESARROLLO: `pablo@atlas.internal` (SUPER_ADMIN) con una contraseña
+ * Cuenta administrador de DESARROLLO (SUPER_ADMIN, id 1) con una contraseña
  * cuyo hash está versionado en git. Es la mitad "de desarrollo" del antiguo
  * `20260704121000-seed-internal-rbac-and-pablo.ts`; el catálogo productivo de roles/permisos vive
  * ahora en `production/20260704121000-seed-internal-rbac.ts`, que corre primero en el perfil
@@ -31,16 +31,14 @@ const PABLO_TENANT_ID = 1;
 const PABLO_PASSWORD_HASH = '$argon2id$v=19$m=19456,t=2,p=1$SZRsHwGS2nSxkmeTcmaC6A$4h+SqECFqRPMDwffaUfnlgsfQFqCewlq2j3EnjUVAeo';
 const PABLO_ROLE_CODES = ['SUPER_ADMIN', 'SYSTEMS_ADMIN', 'DATA_GOVERNANCE_MANAGER'] as const;
 
-const DEFAULT_PABLO_EMAIL = 'pablo@atlas.internal';
+const DEFAULT_PABLO_EMAIL = 'a2020115468@estudiantes.upsa.edu.bo';
 
 /**
  * `DEV_ADMIN_EMAIL`/`DEV_ADMIN_PASSWORD` (ambas en `.env`, que no se versiona) permiten apuntar esta
- * cuenta al correo REAL del desarrollador. No es cosmético: el PIN del segundo factor y el correo de
- * reset se mandan a la dirección del usuario, así que con `@atlas.internal` —un dominio que no
- * existe— esos flujos no se pueden probar de punta a punta contra un buzón de verdad.
- *
- * Sin las variables, el seeder se comporta exactamente como antes (email fijo + hash versionado), que
- * es lo que esperan CI y los smokes.
+ * cuenta a otro correo. El default es una dirección REAL y no `pablo@atlas.internal`: el PIN del
+ * segundo factor y el correo de reset se mandan a la dirección del usuario, así que un dominio que
+ * no existe deja esos dos flujos sin poder probarse contra un buzón de verdad, y además genera
+ * rebotes que vuelven al buzón que firma los envíos.
  */
 function pabloEmail(): string {
   return env.DEV_ADMIN_EMAIL ?? DEFAULT_PABLO_EMAIL;

@@ -409,7 +409,8 @@ jobs:
           yarn smoke:external-providers:governance
 
       # Los smokes de CONTRATO con el Admin Portal autentican de verdad como el admin interno
-      # (`pablo@atlas.internal`), cuya contraseña en claro no está versionada (solo el hash Argon2id).
+      # (la que siembra `seed-pablo-admin-user`), cuya contraseña en claro no está versionada
+      # (solo el hash Argon2id).
       # Se fija una contraseña CI conocida hasheándola con la misma capa de la app y actualizando
       # auth_credentials, luego se corren los smokes con esa credencial. `frontend-contract` garantiza
       # que el Admin Portal no reciba tablas vacías; `internal-rbac` verifica los permisos internos
@@ -417,7 +418,6 @@ jobs:
       - name: Contract smokes (frontend-contract + internal-rbac) with seeded admin
         env:
           PGPASSWORD: atlas
-          INTERNAL_SMOKE_EMAIL: pablo@atlas.internal
         run: |
           CI_ADMIN_PW='AtlasCiSmoke1!'
           CI_ADMIN_HASH="$(yarn --silent hash-password "$CI_ADMIN_PW")"

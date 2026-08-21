@@ -26,16 +26,16 @@ describe('GmailMailTransport', () => {
     const { transport, gmail } = build();
     const result = await transport.sendTemplateEmail({
       template: 'atlas-login-pin',
-      to: 'ana@atlas.internal',
+      to: 'ana@comercioalfa.bo',
       recipientName: 'Ana',
       sourceModule: 'auth',
       reference: 'login-pin-internal_user-10',
-      variables: { nombre: 'Ana', pin: '482913', minutos: '10' },
+      variables: { nombre: 'Ana', pin: '482913', minutos: '10', producto: 'ERP corporativo' },
     });
 
     expect(result).toEqual({ trackingId: 'gmail-msg-1' });
     const [sent] = gmail.sendEmail.mock.calls[0] as [{ to: string[]; subject: string; text: string; html: string }];
-    expect(sent.to).toEqual(['ana@atlas.internal']);
+    expect(sent.to).toEqual(['ana@comercioalfa.bo']);
     expect(sent.subject).toBe('ATLAS — Tu PIN de acceso');
     expect(sent.text).toContain('482913');
     expect(sent.html).toContain('482913');
@@ -50,11 +50,11 @@ describe('GmailMailTransport', () => {
     await expect(
       transport.sendTemplateEmail({
         template: 'atlas-login-pin',
-        to: 'ana@atlas.internal',
+        to: 'ana@comercioalfa.bo',
         recipientName: 'Ana',
         sourceModule: 'auth',
         reference: 'r',
-        variables: { nombre: 'Ana', minutos: '10' },
+        variables: { nombre: 'Ana', minutos: '10', producto: 'ERP corporativo' },
       }),
     ).rejects.toBeInstanceOf(MailTemplateRenderError);
     expect(gmail.sendEmail).not.toHaveBeenCalled();
@@ -66,11 +66,11 @@ describe('GmailMailTransport', () => {
     gmail.sendEmail.mockResolvedValueOnce({ id: null, threadId: null, response: {} } as never);
     const result = await transport.sendTemplateEmail({
       template: 'atlas-password-reset',
-      to: 'ana@atlas.internal',
+      to: 'ana@comercioalfa.bo',
       recipientName: null,
       sourceModule: 'auth',
       reference: 'reset-42',
-      variables: { nombre: 'Usuario ATLAS', codigo: '123456', minutos: '10' },
+      variables: { nombre: 'Usuario ATLAS', codigo: '123456', minutos: '10', producto: 'ERP corporativo' },
     });
     expect(result).toEqual({ trackingId: 'reset-42' });
   });
