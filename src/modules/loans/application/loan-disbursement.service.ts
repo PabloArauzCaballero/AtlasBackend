@@ -71,6 +71,13 @@ export class LoanDisbursementService {
           customerId: application.customerId,
           creditApplicationId: application.id,
           creditProductId: application.creditProductId,
+          /*
+           * El comercio se copia desde la solicitud en el desembolso, no se consulta después. En
+           * este punto el crédito ya no puede cambiar de origen, y el libro de préstamos se lee
+           * entero por sí mismo —igual que hace con el producto y con la traza al motor—, así que
+           * el gasto por categoría no necesita volver a la solicitud para saber dónde se compró.
+           */
+          partnerProfileId: application.partnerProfileId ?? null,
           currencyCode: application.currencyCode,
           ...loanAmountColumns(terms),
           status: 'active',

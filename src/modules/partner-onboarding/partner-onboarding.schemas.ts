@@ -162,3 +162,18 @@ export const posTerminalStatusSchema = z.object({
   status: z.enum(['active', 'suspended', 'retired']),
 });
 export type PosTerminalStatusDto = z.infer<typeof posTerminalStatusSchema>;
+
+/**
+ * El token que el cliente lee del QR de Atlas pegado en la caja.
+ *
+ * Es el serial del terminal, y viaja opaco a propósito: el QR no lleva ni el nombre del comercio ni
+ * la cuenta donde cobra, así que fotografiarlo no revela nada y cambiarlo por el de otro comercio
+ * sólo consigue que el servidor resuelva ese otro comercio —que es lo que el cliente vería en
+ * pantalla antes de confirmar—. El mínimo de 8 coincide con el que la app exige al dictarlo a mano.
+ */
+export const resolveMerchantQrSchema = z
+  .object({
+    token: z.string().trim().min(8).max(120),
+  })
+  .strict();
+export type ResolveMerchantQrDto = z.infer<typeof resolveMerchantQrSchema>;

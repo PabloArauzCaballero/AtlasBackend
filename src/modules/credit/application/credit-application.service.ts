@@ -12,6 +12,7 @@ import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/
 import { createStableCode, sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { CustomerEligibilityRepository } from '../../customers/repositories/customer-eligibility.repository.js';
+import { PartnerProfileService } from '../../partner-onboarding/application/partner-profile.service.js';
 import { evaluateProductEligibility } from './credit-product-eligibility.js';
 import { CreditUnderwritingService } from './credit-underwriting.service.js';
 import { CreateCreditApplicationDto } from '../credit.schemas.js';
@@ -37,6 +38,7 @@ export class CreditApplicationService {
     private readonly eligibilityService: CustomerEligibilityService,
     private readonly eligibilityRepository: CustomerEligibilityRepository,
     private readonly underwriting: CreditUnderwritingService,
+    private readonly partnerProfiles: PartnerProfileService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -83,7 +85,7 @@ export class CreditApplicationService {
     try {
       return await this.sequelize.transaction(async (transaction) => {
         const admission = await this.admitApplication(input, now, transaction);
-        const { product, evaluation, latestEvaluation } = admission;
+        const { product, evaluation, latestEvaluation, partnerProfileId } = admission;
 
         const application = await this.creditRepository.createApplication(
           {
@@ -91,6 +93,7 @@ export class CreditApplicationService {
             applicationCode: createStableCode('CRA'),
             customerId: input.customerId,
             creditProductId: String(product.id),
+            partnerProfileId,
             requestedAmount: input.body.requestedAmount.toFixed(2),
             requestedTermMonths: input.body.requestedTermMonths,
             currencyCode: product.currencyCode,
@@ -189,6 +192,15 @@ export class CreditApplicationService {
     const existing = await this.creditRepository.findOpenApplication(input.tenantId, input.customerId, { transaction });
     if (existing) throw new ConflictException('CREDIT_APPLICATION_ALREADY_OPEN');
 
+    /*
+     * El comercio donde nace la compra, comprobado aquí y no dado por bueno. El identificador lo
+     * manda el cliente —lo resolvió antes escaneando el QR—, así que aceptarlo sin mirar dejaría
+     * atribuir un crédito a cualquier comercio del tenant, y con él su categoría de gasto y su
+     * aceptación pendiente. Que el QR se resolviera en el servidor no basta: entre aquella
+     * respuesta y esta petición no hay nada que ate las dos.
+     */
+    const partnerProfileId = await this.resolvePartner(input.tenantId, input.body.partnerProfileId);
+
     // Reevaluación server-side. Persiste la evidencia y devuelve los bloqueadores vigentes.
     const evaluation = await this.eligibilityService.evaluateAndRecord({
       tenantId: input.tenantId,
@@ -207,7 +219,26 @@ export class CreditApplicationService {
     }
 
     const latestEvaluation = await this.eligibilityService.getLatestEvaluation(input.tenantId, input.customerId);
-    return { product, evaluation, latestEvaluation };
+    return { product, evaluation, latestEvaluation, partnerProfileId };
+  }
+
+  /**
+   * Comprueba el comercio declarado, si lo hay.
+   *
+   * Devuelve `null` cuando no viene: una solicitud puede nacer fuera de un comercio —una renovación,
+   * un alta desde el portal interno— y forzar un valor ahí inventaría el origen del gasto, que es
+   * justo el dato que el tablero por categoría necesita que sea cierto.
+   *
+   * Un expediente no aprobado se rechaza como comercio no disponible y no como «no encontrado»: la
+   * diferencia importa para quien depura, y para el cliente ninguna de las dos cambia lo que puede
+   * hacer.
+   */
+  private async resolvePartner(tenantId: string, partnerProfileId: string | undefined): Promise<string | null> {
+    if (!partnerProfileId) return null;
+
+    const profile = await this.partnerProfiles.requireProfile(tenantId, partnerProfileId);
+    if (profile.onboardingStatus !== 'approved') throw new UnprocessableEntityException('PARTNER_NOT_AVAILABLE');
+    return String(profile.id);
   }
 
   async listApplications(input: { tenantId: string; customerId: string; currentUser: AuthenticatedUser }) {

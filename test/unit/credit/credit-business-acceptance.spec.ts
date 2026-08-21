@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CreditBusinessAcceptanceService } from '../../../src/modules/credit/application/credit-business-acceptance.service.js';
 import { creditBusinessAcceptanceSchema } from '../../../src/modules/credit/credit.schemas.js';
 
@@ -15,8 +15,11 @@ import { creditBusinessAcceptanceSchema } from '../../../src/modules/credit/cred
 type AnyRecord = Record<string, unknown>;
 
 const ACTOR = { sub: 'usr-1', role: 'admin', internalUserId: '9' } as never;
+/** El dueño del expediente 77, y otro comercio cualquiera del mismo tenant. */
+const MERCHANT_OWNER = { sub: 'mu-1', role: 'merchant', merchantUserId: 'm1' } as never;
+const MERCHANT_OTHER = { sub: 'mu-2', role: 'merchant', merchantUserId: 'm2' } as never;
 
-function build(applicationOverrides: AnyRecord | null) {
+function build(applicationOverrides: AnyRecord | null, ownerMerchantUserId?: string) {
   const events: AnyRecord[] = [];
   const application =
     applicationOverrides === null
@@ -39,8 +42,15 @@ function build(applicationOverrides: AnyRecord | null) {
   };
   // La transacción se ejecuta en línea: lo que importa es la regla, no el aislamiento.
   const sequelize = { transaction: jest.fn(async (fn: never) => (fn as (t: unknown) => unknown)(undefined)) };
-  const service = new CreditBusinessAcceptanceService(credit as never, sequelize as never);
-  return { service, application, credit, events };
+  /*
+   * El expediente del comercio, para la comprobación de propiedad. Sólo se consulta cuando el actor
+   * es `merchant`: personal interno decide sin pasar por aquí.
+   */
+  const partnerProfiles = {
+    requireProfile: jest.fn(async (..._a: unknown[]) => ({ id: '77', ownerMerchantUserId: ownerMerchantUserId ?? 'm1' })),
+  };
+  const service = new CreditBusinessAcceptanceService(credit as never, partnerProfiles as never, sequelize as never);
+  return { service, application, credit, events, partnerProfiles };
 }
 
 describe('creditBusinessAcceptanceSchema', () => {
@@ -137,5 +147,51 @@ describe('CreditBusinessAcceptanceService', () => {
     await expect(
       service.decide({ tenantId: '1', applicationId: '404', body: { accepted: true }, currentUser: ACTOR }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  /*
+   * Lo que abre la aceptación al portal del comercio, y el filo que la hace segura. El rol
+   * `merchant` ya no basta: hay que ser el dueño del expediente donde nació la solicitud. Sin esta
+   * comprobación, cualquier comercio autenticado podría aceptar —o rechazar— las compras de otro.
+   */
+  it('el comercio dueño puede decidir sobre lo suyo', async () => {
+    const { service, application } = build({ partnerProfileId: '77' }, 'm1');
+
+    const result = await service.decide({
+      tenantId: '1',
+      applicationId: '5',
+      body: { accepted: true },
+      currentUser: MERCHANT_OWNER,
+    });
+
+    expect(result.businessAcceptance).toBe('accepted');
+    expect(application?.status).toBe('approved');
+  });
+
+  it('un comercio ajeno no puede decidir sobre una solicitud que no nació en su local', async () => {
+    const { service } = build({ partnerProfileId: '77' }, 'm1');
+
+    await expect(
+      service.decide({ tenantId: '1', applicationId: '5', body: { accepted: true }, currentUser: MERCHANT_OTHER }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  /*
+   * Las solicitudes anteriores al vínculo no tienen comercio, y no se pueden repartir por defecto:
+   * dejar que cualquiera las tomara permitiría a un comercio quedarse con operaciones que no
+   * originó. Quedan para personal interno, que sí puede averiguar de dónde vinieron.
+   */
+  it('una solicitud sin comercio no la decide ningún comercio', async () => {
+    const { service } = build({ partnerProfileId: null }, 'm1');
+
+    await expect(
+      service.decide({ tenantId: '1', applicationId: '5', body: { accepted: true }, currentUser: MERCHANT_OWNER }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    // Y el personal interno sigue pudiendo, que es el camino de soporte cuando el comercio no responde.
+    const interno = build({ partnerProfileId: null }, 'm1');
+    await expect(
+      interno.service.decide({ tenantId: '1', applicationId: '5', body: { accepted: true }, currentUser: ACTOR }),
+    ).resolves.toMatchObject({ businessAcceptance: 'accepted' });
   });
 });

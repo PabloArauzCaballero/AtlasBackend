@@ -31,6 +31,10 @@ export class CreditApplicationModel extends Model {
   @Column({ field: 'credit_product_id', type: DataType.BIGINT, allowNull: false })
   declare creditProductId: string;
 
+  /** El comercio donde nació la solicitud. Nulo en las anteriores al vínculo: no se puede inventar. */
+  @Column({ field: 'partner_profile_id', type: DataType.BIGINT })
+  declare partnerProfileId: string | null;
+
   @Column({ field: 'requested_amount', type: DataType.DECIMAL(18, 2), allowNull: false })
   declare requestedAmount: string;
 

@@ -33,6 +33,8 @@ describe('CreditApplicationService', () => {
       blockers?: Array<{ code: string }>;
       product?: Record<string, unknown>;
       underwritingStatus?: string;
+      partnerProfileId?: string;
+      partnerOnboardingStatus?: string;
     } = {},
   ) {
     const eligible = options.eligible ?? true;
@@ -80,14 +82,26 @@ describe('CreditApplicationService', () => {
         reasonCodes: [],
       })),
     };
+    /*
+     * El expediente del comercio. Por defecto devuelve uno APROBADO: lo que estas pruebas fijan es
+     * la creación de la solicitud, y un comercio que no pasa el filtro es el asunto de su propia
+     * prueba. `requireProfile` sólo se llama si la solicitud declara comercio.
+     */
+    const partnerProfiles = {
+      requireProfile: jest.fn(async (..._args: unknown[]) => ({
+        id: options.partnerProfileId ?? '77',
+        onboardingStatus: options.partnerOnboardingStatus ?? 'approved',
+      })),
+    };
     const service = new CreditApplicationService(
       creditRepository as never,
       eligibilityService as never,
       eligibilityRepository as never,
       underwriting as never,
+      partnerProfiles as never,
       sequelize as never,
     );
-    return { service, creditRepository, eligibilityService, eligibilityRepository, underwriting };
+    return { service, creditRepository, eligibilityService, eligibilityRepository, underwriting, partnerProfiles };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null } as never;

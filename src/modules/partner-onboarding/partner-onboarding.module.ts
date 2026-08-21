@@ -19,6 +19,7 @@ import { PartnerContactVerificationService } from './application/partner-contact
 import { PartnerProfileService } from './application/partner-profile.service.js';
 import { PartnerQrService } from './application/partner-qr.service.js';
 import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
+import { MerchantQrController } from './merchant-qr.controller.js';
 import { PartnerCommerceController } from './partner-commerce.controller.js';
 import { PartnerOnboardingController } from './partner-onboarding.controller.js';
 import { PartnerOnboardingRepository } from './partner-onboarding.repository.js';
@@ -44,7 +45,7 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     // El canal de correo, que es lo que hace posible probar el contacto declarado.
     MailSenderModule,
   ],
-  controllers: [PartnerOnboardingController, PartnerCommerceController],
+  controllers: [PartnerOnboardingController, PartnerCommerceController, MerchantQrController],
   providers: [
     PartnerOnboardingRepository,
     // Guard de propiedad de los controladores: Nest lo instancia por el contenedor porque

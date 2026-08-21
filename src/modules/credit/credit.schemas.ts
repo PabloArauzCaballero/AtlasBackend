@@ -72,6 +72,14 @@ export const createCreditApplicationSchema = z
     requestedAmount: amount,
     requestedTermMonths: z.number().int().positive().max(360),
     purposeCode: z.string().trim().min(1).max(80).optional(),
+    /*
+     * El comercio donde se hace la compra, resuelto antes por el lector de QR. Opcional porque no
+     * toda solicitud nace en un comercio —una renovación o una alta desde el portal interno no lo
+     * tienen— y exigirlo rompería a quien ya llama sin él. Cuando viene, el servidor comprueba que
+     * el expediente existe y está aprobado: el identificador lo elige el cliente, así que aquí sólo
+     * se valida la FORMA, nunca la existencia.
+     */
+    partnerProfileId: z.string().regex(/^[1-9][0-9]*$/).optional(),
   })
   .strict();
 
@@ -112,3 +120,27 @@ export const creditBusinessAcceptanceSchema = z
   });
 
 export type CreditBusinessAcceptanceDto = z.infer<typeof creditBusinessAcceptanceSchema>;
+
+/** El comercio en la ruta del portal, y qué subconjunto de sus solicitudes se pide. */
+export const merchantPartnerParamsSchema = z.object({
+  partnerId: z.string().regex(/^[1-9][0-9]*$/),
+});
+export type MerchantPartnerParamsDto = z.infer<typeof merchantPartnerParamsSchema>;
+
+export const merchantPartnerApplicationParamsSchema = merchantPartnerParamsSchema.extend({
+  applicationId: z.string().regex(/^[1-9][0-9]*$/),
+});
+export type MerchantPartnerApplicationParamsDto = z.infer<typeof merchantPartnerApplicationParamsSchema>;
+
+/*
+ * `onlyPending` llega como texto porque viene de la query, y por defecto es TRUE: la pantalla que
+ * importa es la de lo que espera respuesta, y abrir el portal sobre el histórico completo entierra
+ * justo lo accionable. Quien quiera todo lo pide explícitamente.
+ */
+export const merchantApplicationsQuerySchema = z.object({
+  onlyPending: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => value !== 'false'),
+});
+export type MerchantApplicationsQueryDto = z.infer<typeof merchantApplicationsQuerySchema>;

@@ -3,7 +3,7 @@
  * @business Esta pieza convierte un comercio declarado en un partner verificable, con locales, cobro y terminales trazables.
  * @system registra los locales del partner y los terminales de cobro que operan en cada uno.
  */
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { MetricsService } from '../../../common/observability/metrics.service.js';
 import { PartnerBranchModel, PartnerPosTerminalModel } from '../../../database/models/index.js';
 import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
@@ -134,5 +134,69 @@ export class PartnerCommerceService {
       `Terminal de partner cambió de estado: partnerId=${partnerId} terminal=${terminalId} ` + `de=${previousStatus} a=${dto.status}`,
     );
     return updated;
+  }
+
+  /**
+   * Resuelve el QR de Atlas que el cliente escanea en la caja.
+   *
+   * Es la contraparte servidor de una pantalla que hasta ahora resolvía sola: la app leía el token y
+   * decidía en el teléfono de qué comercio era. Un identificador de comercio que decide el
+   * dispositivo no identifica a nadie —basta editar la respuesta local para comprar «en» cualquier
+   * comercio—, y además es el dato del que después cuelga la categoría del gasto.
+   *
+   * ## Los códigos de rechazo son los que la app ya sabe explicar
+   *
+   * `QR_NOT_RECOGNIZED`, `QR_REVOKED` y `QR_EXPIRED` son los tres que la pantalla de escaneo ya
+   * traduce a un mensaje con salida —«pide al comercio el código vigente»—. Inventar aquí un código
+   * nuevo dejaría al cliente ante un error sin texto, así que el servidor se ajusta al vocabulario
+   * que la app ya tiene, no al revés.
+   *
+   * Un terminal RETIRADO se da de baja para siempre —«revocado»—. Los demás estados que no cobran
+   * caen en «vencido»: el SUSPENDIDO, que puede volver, y el REGISTRADO, que es el estado inicial y
+   * todavía no se activó. Para el cliente parado en la caja los tres se resuelven igual —pedir el
+   * código vigente— y detallar cuál es contaría el estado interno del comercio a un desconocido.
+   *
+   * Que un terminal recién dado de alta NO sirva es deliberado: `registered` es el estado por
+   * defecto y activarlo es un acto explícito del comercio. Cobrar con un equipo que nadie activó es
+   * exactamente lo que pasa con un terminal robado antes de que se note.
+   *
+   * ## Por qué el expediente tiene que estar aprobado
+   *
+   * Un comercio con expediente a medias puede tener terminales registrados —se dan de alta en el
+   * borrador—, y dejar comprar ahí sería financiar una operación cuyo destinatario nadie verificó.
+   * Se rechaza como «no reconocido»: para el cliente en la caja no hay diferencia entre un QR falso
+   * y uno de un comercio que aún no está habilitado, y detallar cuál es revelaría el estado del
+   * expediente de un tercero a quien sólo pasaba por ahí.
+   */
+  async resolveMerchantQr(
+    tenantId: string,
+    token: string,
+  ): Promise<{
+    partnerProfileId: string;
+    branchId: string;
+    posTerminalId: string;
+    displayName: string;
+    businessCategory: string | null;
+    verified: true;
+  }> {
+    const terminal = await this.repository.findPosBySerial(tenantId, token);
+    if (!terminal) throw new NotFoundException('QR_NOT_RECOGNIZED');
+    if (terminal.status === 'retired') throw new UnprocessableEntityException('QR_REVOKED');
+    if (terminal.status !== 'active') throw new UnprocessableEntityException('QR_EXPIRED');
+
+    const profile = await this.repository.findProfileById(tenantId, terminal.partnerProfileId);
+    if (!profile || profile.onboardingStatus !== 'approved') throw new NotFoundException('QR_NOT_RECOGNIZED');
+
+    this.logger.log(`QR de comercio resuelto: partnerId=${profile.id} terminal=${terminal.id}`);
+
+    return {
+      partnerProfileId: profile.id,
+      branchId: terminal.branchId,
+      posTerminalId: terminal.id,
+      // El nombre comercial es el que está en la fachada; el legal sólo aparece si no hay otro.
+      displayName: profile.tradeName ?? profile.legalName,
+      businessCategory: profile.businessCategory ?? null,
+      verified: true,
+    };
   }
 }

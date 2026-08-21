@@ -6,12 +6,14 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { CreditApplicationEventModel, CreditApplicationModel, CreditProductModel } from '../../database/models/index.js';
+import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
 import { CustomersModule } from '../customers/customers.module.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { CreditApplicationService } from './application/credit-application.service.js';
 import { CreditBusinessAcceptanceService } from './application/credit-business-acceptance.service.js';
 import { CreditDecisionService } from './application/credit-decision.service.js';
 import { CreditProductService } from './application/credit-product.service.js';
+import { MerchantCreditController } from './merchant-credit.controller.js';
 import { CreditUnderwritingService } from './application/credit-underwriting.service.js';
 import { CreditOperationsController } from './credit-operations.controller.js';
 import { CreditController } from './credit.controller.js';
@@ -33,8 +35,10 @@ import { CreditRepository } from './credit.repository.js';
     SequelizeModule.forFeature([CreditProductModel, CreditApplicationModel, CreditApplicationEventModel]),
     CustomersModule,
     DecisionEngineModule,
+    // El expediente del comercio: de él sale la categoría del gasto y quién debe aceptar la operación.
+    PartnerOnboardingModule,
   ],
-  controllers: [CreditController, CreditOperationsController],
+  controllers: [CreditController, CreditOperationsController, MerchantCreditController],
   providers: [
     CreditRepository,
     CreditProductService,

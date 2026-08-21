@@ -30,6 +30,10 @@ export class LoanModel extends Model {
   @Column({ field: 'credit_application_id', type: DataType.BIGINT, allowNull: false })
   declare creditApplicationId: string;
 
+  /** Copia del comercio de la solicitud, fijada en el desembolso. El libro se lee entero por sí mismo. */
+  @Column({ field: 'partner_profile_id', type: DataType.BIGINT })
+  declare partnerProfileId: string | null;
+
   @Column({ field: 'credit_product_id', type: DataType.BIGINT, allowNull: false })
   declare creditProductId: string;
 
