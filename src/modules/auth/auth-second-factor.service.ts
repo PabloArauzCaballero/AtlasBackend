@@ -50,15 +50,28 @@ export class AuthSecondFactorService {
   /**
    * Decide si el login exige un segundo factor.
    *  - Actores INTERNOS (`internal_user`, `platform_user`): 2FA OBLIGATORIO, no solo super admins.
-   *  - CLIENTES (`customer`): 2FA solo si activaron MFA opt-in (`credential.mfaEnabled`).
+   *  - CLIENTES (`customer`) y COMERCIOS (`merchant_user`): 2FA solo si activaron MFA opt-in.
    *
    * Fuera de producción la falta de canal de correo degrada a un solo paso, para no dejar el backend
    * inaccesible en local; `AUTH_LOGIN_PIN_ENABLED=false` lo desactiva por completo (entornos de
    * test). En PRODUCCIÓN esa degradación no existe — ver `assertDeliverable`.
+   *
+   * ## El comercio quedaba fuera, y no era una hipótesis
+   *
+   * La condición era `actorType !== 'customer'`, así que `merchant_user` caía del lado interno y se
+   * le emitía un desafío de PIN. Pero `MerchantAuthService.login` **rechaza ese desafío** —«el canal
+   * del comercio no admite el desafío de PIN»— porque no hay dónde canjearlo: `/auth/login/pin` vive
+   * en el canal interno. Con el correo configurado, el resultado era que NINGÚN comercio podía
+   * entrar a su portal, con un 401 que además culpaba al canal.
+   *
+   * El comentario de aquel `throw` ya decía «un comercio nunca debería llegar aquí»: la intención
+   * estaba escrita, sólo que la condición decía lo contrario. Se corrige donde estaba el error, y no
+   * abriendo un segundo canal de PIN, porque el 2FA obligatorio se pensó para quien opera la
+   * plataforma por dentro. Un comercio que quiera segundo factor lo activa como el cliente.
    */
   isRequired(actorType: ActorType, credential: { mfaEnabled?: boolean }): boolean {
     if (!env.AUTH_LOGIN_PIN_ENABLED || !this.mailSenderService.isEnabled()) return false;
-    if (actorType !== 'customer') return true;
+    if (actorType === 'internal_user' || actorType === 'platform_user') return true;
     return credential.mfaEnabled === true;
   }
 

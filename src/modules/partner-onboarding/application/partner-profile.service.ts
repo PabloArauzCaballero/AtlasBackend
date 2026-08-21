@@ -206,4 +206,53 @@ export class PartnerProfileService {
     this.logger.log(`Expediente de partner enviado a revisión: partnerId=${partnerId} tenant=${tenantId}`);
     return { profile: updated, gaps: [] };
   }
+
+  /**
+   * La firma de una persona sobre el expediente: aprobado o rechazado.
+   *
+   * Faltaba, y sin ella el onboarding no llegaba a ninguna parte. `submit` deja el caso en
+   * `under_review` a propósito —«un onboarding que se auto-aprueba al completar sus campos es un
+   * formulario, no una verificación»—, pero **nada podía moverlo de ahí**: el esquema guardaba
+   * `decided_at`, `decided_by_internal_user_id` y `rejection_reason` desde el primer día y no había
+   * un solo camino que los escribiera. El resultado era un expediente que nunca quedaba verificado,
+   * y por tanto un comercio que nunca podía cobrar.
+   *
+   * ## Sólo desde `under_review`
+   *
+   * Aprobar un borrador saltaría la comprobación de completitud que `submit` hace —representante
+   * legal, registro comercial, QR de cobro—, y volver a decidir sobre un expediente ya resuelto
+   * borraría la primera firma sin dejar constancia de que hubo dos. Quien quiera revertir una
+   * decisión abre un caso nuevo, que es lo que deja rastro.
+   *
+   * ## Rechazar exige motivo
+   *
+   * Por lo mismo que declinar un crédito: un comercio rechazado sin explicación es el que vuelve a
+   * preguntar, y seis meses después nadie sabe qué se miró. Aprobar no lo exige — el motivo es el
+   * expediente completo que se acaba de revisar.
+   */
+  async decide(
+    tenantId: string,
+    partnerId: string,
+    input: { approved: boolean; rejectionReason?: string; internalUserId: string | null },
+  ): Promise<PartnerProfileModel> {
+    const profile = await this.requireProfile(tenantId, partnerId);
+
+    if (profile.onboardingStatus !== 'under_review') {
+      throw new ConflictException(`PARTNER_NOT_UNDER_REVIEW: el expediente está en ${profile.onboardingStatus}.`);
+    }
+
+    const updated = await this.repository.updateProfile(profile, {
+      onboardingStatus: input.approved ? 'approved' : 'rejected',
+      decidedAt: new Date(),
+      decidedByInternalUserId: input.internalUserId,
+      rejectionReason: input.approved ? null : (input.rejectionReason ?? null),
+    });
+
+    this.metrics.recordPartnerOnboardingStep({ step: 'decision', outcome: input.approved ? 'ok' : 'rejected' });
+    this.logger.log(
+      `Expediente de partner decidido: partnerId=${partnerId} resultado=${input.approved ? 'approved' : 'rejected'} ` +
+        `actor=${input.internalUserId ?? 'sin-usuario-interno'}`,
+    );
+    return updated;
+  }
 }

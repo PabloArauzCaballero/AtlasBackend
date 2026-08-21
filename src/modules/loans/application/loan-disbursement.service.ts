@@ -89,6 +89,27 @@ export class LoanDisbursementService {
           decisionSubjectReference: application.decisionSubjectReference ?? null,
           disbursedByInternalUserId: input.currentUser.internalUserId ?? null,
           idempotencyKeyHash,
+          /*
+           * El estado inicial del libro, escrito y no dejado al azar.
+           *
+           * Estas columnas tienen DEFAULT en PostgreSQL, pero el modelo las declara `allowNull:
+           * false` sin `defaultValue`, así que Sequelize valida ANTES de llegar a la base y la
+           * creación fallaba con una `ValidationError` que el filtro traducía a un 409 genérico —«la
+           * operación viola una restricción de datos»— sin decir qué columna. El desembolso no había
+           * funcionado nunca: `credit.loans` estaba vacía.
+           *
+           * Se escriben aquí en vez de añadir `defaultValue` al modelo porque son el estado de un
+           * préstamo RECIÉN NACIDO —nada pagado, sin días de atraso, al corriente— y decirlo en el
+           * sitio donde nace deja el hecho a la vista de quien lea el desembolso.
+           */
+          paidPrincipal: '0.00',
+          paidInterest: '0.00',
+          paidLateFee: '0.00',
+          daysPastDue: 0,
+          worstDaysPastDue: 0,
+          delinquencyBucket: 'current',
+          createdAtValue: terms.disbursedAt,
+          deleted: false,
         },
         { transaction },
       );
@@ -111,6 +132,9 @@ export class LoanDisbursementService {
             decisionExecutionId: application.decisionExecutionId ?? null,
           },
           happenedAt: terms.disbursedAt,
+          // `_created_at` es obligatorio en el modelo y no lo pone la base porque Sequelize valida
+          // antes: mismo motivo que en el préstamo y en las cuotas.
+          createdAtValue: terms.disbursedAt,
         },
         { transaction },
       );
@@ -198,5 +222,14 @@ function installmentRows(tenantId: string, loanId: string, schedule: Disbursemen
     principalAmount: fromCents(entry.principalCents),
     interestAmount: fromCents(entry.interestCents),
     status: 'pending',
+    // Mismo motivo que en el préstamo: el modelo exige estas columnas y la base sólo las
+    // rellenaría si Sequelize llegara a preguntarle.
+    lateFeeAmount: '0.00',
+    paidPrincipal: '0.00',
+    paidInterest: '0.00',
+    paidLateFee: '0.00',
+    daysPastDue: 0,
+    createdAtValue: new Date(),
+    deleted: false,
   }));
 }

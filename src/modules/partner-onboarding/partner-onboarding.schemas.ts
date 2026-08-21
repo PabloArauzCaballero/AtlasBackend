@@ -177,3 +177,22 @@ export const resolveMerchantQrSchema = z
   })
   .strict();
 export type ResolveMerchantQrDto = z.infer<typeof resolveMerchantQrSchema>;
+
+/**
+ * La decisión de operaciones sobre el expediente del comercio.
+ *
+ * Rechazar exige motivo y aprobar no, por lo mismo que en la aceptación de un crédito: el motivo de
+ * aprobar es el expediente que se acaba de revisar; un rechazo sin explicación es el que se vuelve
+ * a preguntar y el que nadie sabe justificar medio año después.
+ */
+export const partnerDecisionSchema = z
+  .object({
+    approved: z.boolean(),
+    rejectionReason: z.string().trim().min(3).max(200).optional(),
+  })
+  .strict()
+  .refine((value) => value.approved || Boolean(value.rejectionReason), {
+    message: 'Rechazar un expediente exige motivo.',
+    path: ['rejectionReason'],
+  });
+export type PartnerDecisionDto = z.infer<typeof partnerDecisionSchema>;
