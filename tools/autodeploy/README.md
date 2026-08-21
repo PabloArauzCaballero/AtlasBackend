@@ -16,6 +16,9 @@ Como servicio del sistema:
     ln -sf "$PWD/systemd"/atlas-autodeploy.{service,timer} ~/.config/systemd/user/
     systemctl --user daemon-reload && systemctl --user enable --now atlas-autodeploy.timer
 
+Servicios: `front-admin` (5273), `front-decision` (5173), `front-erp` (3010), `atlas` (3005),
+`erp` (3020), `decision` (3100).
+
 ## Lo que hay que saber antes de tocarlo
 
 - **El puerto es el contrato.** El túnel apunta a un puerto, no a un contenedor; por eso cada
@@ -23,6 +26,9 @@ Como servicio del sistema:
   `devtunnel`. Ver [`../devtunnels/`](../devtunnels/).
 - **No toca tu copia de trabajo.** Construye desde un `git worktree` desprendido en `/tmp`. Lo que se
   despliega es lo que está en `dev`, no lo que tengas a medias.
+- **La primera vez hay que relevar al servidor de desarrollo** que tenga el puerto:
+  `AUTODEPLOY_TOMAR_PUERTO=1 ... desplegar <slug>`. Se pierde la recarga en caliente a cambio de que
+  el túnel sirva un commit y no la copia de trabajo de alguien.
 - **Un fallo no tumba el servicio.** La imagen se comprueba en un puerto aparte antes del cambio, y
   si tras el cambio no responde, vuelve la imagen anterior.
 

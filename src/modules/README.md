@@ -38,6 +38,7 @@
 - [`log-sync/`](./log-sync/README.md)
 - [`mail-sender/`](./mail-sender/README.md)
 - [`merchant-identity/`](./merchant-identity/README.md)
+- [`mobile-identity/`](./mobile-identity/README.md)
 - [`notifications/`](./notifications/README.md)
 - [`operations/`](./operations/README.md)
 - [`partner-onboarding/`](./partner-onboarding/README.md)
