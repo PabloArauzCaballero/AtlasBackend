@@ -125,6 +125,17 @@ export class PlatformCatalogFederationService {
           // Nunca probable desde el portal: el ejecutor de pruebas de este backend sólo habla con su
           // propio host permitido. Marcarlo `true` ofrecería un botón que siempre falla.
           isTestableFromPortal: false,
+          /*
+           * El contrato va en la parte ESTRUCTURAL, no en la de sólo-alta: lo publica el bloque, que
+           * es su dueño, y debe refrescarse en cada federación igual que la ruta o el método. Si un
+           * endpoint remoto cambia su payload, el catálogo tiene que enterarse — dejarlo congelado
+           * en el valor de la primera federación es peor que no tenerlo, porque describe un contrato
+           * que ya no existe.
+           */
+          ...(endpoint.minPayloadSchema ? { minPayloadSchema: endpoint.minPayloadSchema } : {}),
+          ...(endpoint.queryParamsSchema ? { queryParamsSchema: endpoint.queryParamsSchema } : {}),
+          ...(endpoint.pathParamsSchema ? { pathParamsSchema: endpoint.pathParamsSchema } : {}),
+          ...(endpoint.expectedStatusCodes ? { expectedStatusCodes: endpoint.expectedStatusCodes } : {}),
           detectedFrom: 'block_manifest',
           updatedAtValue: now,
         },
@@ -138,7 +149,8 @@ export class PlatformCatalogFederationService {
           // Lo que el manifiesto NO dice. Van vacíos y no con un valor plausible: escribir `[200]`
           // en los códigos esperados sería afirmar un contrato que nadie declaró, y el catálogo
           // dejaría de distinguir «el bloque dijo que devuelve 200» de «nadie lo ha mirado». Al ser
-          // `insertOnly`, lo que un revisor complete aquí sobrevive a las federaciones siguientes.
+          // `insertOnly`, lo que un revisor complete aquí sobrevive a las federaciones siguientes —
+          // y si el bloque SÍ publica su contrato, la parte estructural de arriba lo pisa.
           expectedStatusCodes: [],
           minPayloadSchema: {},
           queryParamsSchema: {},

@@ -16,6 +16,8 @@ import { AppModule } from './app.module.js';
 import { env, getAllowedCorsOrigins } from './config/env.js';
 import { appRole, runsHttpApi } from './config/app-role.js';
 import { setupApiDocumentation } from './config/openapi/api-reference.setup.js';
+import { buildOpenApiDocument } from './config/swagger.js';
+import { OpenApiDocumentRegistry } from './modules/systems-ops/openapi-document.registry.js';
 import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encryption.util.js';
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
@@ -84,6 +86,16 @@ async function bootstrap(): Promise<void> {
     origin: getAllowedCorsOrigins(),
     credentials: true,
   });
+
+  /*
+   * El contrato OpenAPI se GENERA siempre y se guarda en memoria, aunque no se publique.
+   *
+   * `setupApiDocumentation` respeta `API_DOCS_ENABLED` —publicar el mapa de rutas y roles es una
+   * decisión, no un descuido— pero el catálogo de endpoints necesita ese mismo contrato para
+   * describirse a sí mismo, y no puede quedarse ciego porque en producción la documentación esté
+   * apagada. Tenerlo en memoria no expone nada: lo que expone es la ruta HTTP.
+   */
+  app.get(OpenApiDocumentRegistry).set(buildOpenApiDocument(app));
 
   // Referencia interactiva (Scalar) + Swagger UI + contrato crudo. Ver src/config/openapi/.
   setupApiDocumentation(app);

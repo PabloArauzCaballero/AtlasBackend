@@ -8,6 +8,7 @@ import type {
   SchemaManagementRepository,
   SchemaVersionRow,
 } from '../../../src/modules/schema-management/schema-management.repository.js';
+import type { SchemaChangeLogRepository } from '../../../src/modules/schema-management/schema-change-log.repository.js';
 import type { AuthenticatedUser } from '../../../src/common/types/auth.types.js';
 
 /**
@@ -21,8 +22,15 @@ import type { AuthenticatedUser } from '../../../src/common/types/auth.types.js'
  * - Requiere platformUserId en el token
  */
 
+/**
+ * Un solo doble cubre los DOS repositorios: `SchemaManagementRepository` lee el inventario y
+ * `SchemaChangeLogRepository` registra las propuestas. El reparto entre ambos es organización
+ * interna, y estas pruebas describen el comportamiento del servicio, no dónde vive cada consulta.
+ */
 type RepoMock = {
   [K in keyof SchemaManagementRepository]: AsyncMock;
+} & {
+  [K in keyof SchemaChangeLogRepository]: AsyncMock;
 };
 
 function makeRepoMock(): RepoMock {
@@ -132,7 +140,16 @@ describe('SchemaManagementService', () => {
 
   beforeEach(() => {
     repo = makeRepoMock();
-    service = new SchemaManagementService(repo as unknown as SchemaManagementRepository, new SchemaManagementValidationService());
+    /*
+     * La auditoría de propuestas vive ahora en `SchemaChangeLogRepository`. Se le pasa el MISMO
+     * doble: el reparto de métodos entre los dos repositorios es un detalle de organización, y estas
+     * pruebas describen el comportamiento del servicio, no dónde está cada consulta.
+     */
+    service = new SchemaManagementService(
+      repo as unknown as SchemaManagementRepository,
+      repo as unknown as SchemaChangeLogRepository,
+      new SchemaManagementValidationService(),
+    );
   });
 
   // =========================================================================

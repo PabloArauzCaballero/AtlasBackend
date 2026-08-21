@@ -35,16 +35,18 @@ describe('SystemsCatalogQueryService', () => {
       getDashboardCounts: jest.fn(async (..._args: unknown[]) => ({ endpoints: 0, dataEntities: 0, pendingReviews: 0, stressProfiles: 0 })),
     };
     const discovery = { discoverAndMaybePersist: jest.fn(async (..._args: unknown[]) => ({ discovered: 1 })) };
+    const openApiCatalog = { catalogFromContract: jest.fn(async (..._args: unknown[]) => ({ discovered: 333, withContract: 141 })) };
     const seedService = { refreshCatalog: jest.fn(async (..._args: unknown[]) => ({ refreshed: true })) };
     const healthService = { getToolsHealth: jest.fn(async (..._args: unknown[]) => [{ code: 'POSTGRES' }]) };
     const service = new SystemsCatalogQueryService(
       catalogRepository as never,
       dashboardRepository as never,
       discovery as never,
+      openApiCatalog as never,
       seedService as never,
       healthService as never,
     );
-    return { service, catalogRepository, dashboardRepository, discovery, seedService, healthService };
+    return { service, catalogRepository, dashboardRepository, discovery, openApiCatalog, seedService, healthService };
   }
 
   const user = { role: 'internal_operator', tenantId: 't1' } as never;
@@ -116,14 +118,30 @@ describe('SystemsCatalogQueryService', () => {
     expect(res.endpointImpacts).toHaveLength(1);
   });
 
-  it('delega discover, refreshCatalogSeed y getToolsHealth en sus colaboradores', async () => {
-    const { service, discovery, seedService, healthService } = build();
-    await service.discoverEndpoints({ persist: true } as never);
+  it('delega refreshCatalogSeed y getToolsHealth en sus colaboradores', async () => {
+    const { service, seedService, healthService } = build();
     await service.refreshCatalogSeed({} as never, user);
     await service.getToolsHealth();
-    expect(discovery.discoverAndMaybePersist).toHaveBeenCalledWith(true);
     expect(seedService.refreshCatalog).toHaveBeenCalledWith({}, user);
     expect(healthService.getToolsHealth).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * El modo por defecto es el contrato OpenAPI, no el escaneo de código: la imagen desplegada no
+   * copia `src/modules`, así que el escáner devolvía cero endpoints dentro de un contenedor.
+   */
+  it('descubrir usa el contrato OpenAPI por defecto', async () => {
+    const { service, discovery, openApiCatalog } = build();
+    await service.discoverEndpoints({ mode: 'OPENAPI_CONTRACT', persist: true } as never);
+    expect(openApiCatalog.catalogFromContract).toHaveBeenCalledWith(true);
+    expect(discovery.discoverAndMaybePersist).not.toHaveBeenCalled();
+  });
+
+  it('el escaneo de código sigue disponible cuando se pide explícitamente', async () => {
+    const { service, discovery, openApiCatalog } = build();
+    await service.discoverEndpoints({ mode: 'SOURCE_SCAN', persist: false } as never);
+    expect(discovery.discoverAndMaybePersist).toHaveBeenCalledWith(false);
+    expect(openApiCatalog.catalogFromContract).not.toHaveBeenCalled();
   });
 
   it('listDomains / listTools / listDataEntities mapean filas y propagan meta', async () => {

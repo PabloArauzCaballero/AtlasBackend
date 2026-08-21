@@ -29,6 +29,8 @@ import {
 } from '../../database/models/index.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { EndpointDiscoveryService } from './endpoint-discovery.service.js';
+import { OpenApiCatalogService } from './openapi-catalog.service.js';
+import { OpenApiDocumentRegistry } from './openapi-document.registry.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { SystemsErpInventoryService } from './systems-erp-inventory.service.js';
 import { SystemsCatalogSeedService } from './systems-catalog-seed.service.js';
@@ -119,6 +121,8 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
     SystemsReviewRepository,
     SystemsStressProfileRepository,
     EndpointDiscoveryService,
+    OpenApiCatalogService,
+    OpenApiDocumentRegistry,
     SystemsCatalogClassifierService,
     SystemsCatalogSeedService,
     SystemsErpInventoryService,

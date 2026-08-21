@@ -251,8 +251,16 @@ export const runTestSuiteSchema = z.object({
   timeoutMs: z.coerce.number().int().min(100).max(60000).default(10000),
 });
 
+/**
+ * `OPENAPI_CONTRACT` es el modo por defecto y el único que funciona en un despliegue real.
+ *
+ * `SOURCE_SCAN` lee `src/modules` con expresiones regulares, y la imagen de producción sólo copia
+ * `dist/` y `src/database`: dentro de un contenedor devolvía `discovered: 0` y lo reportaba como un
+ * éxito. Se conserva porque en una máquina de desarrollo sigue aportando lo que el contrato no dice
+ * —el controlador y el handler de cada ruta—, pero ya no es lo que se ejecuta al pulsar el botón.
+ */
 export const discoverEndpointsSchema = z.object({
-  mode: z.enum(['SOURCE_SCAN']).default('SOURCE_SCAN'),
+  mode: z.enum(['OPENAPI_CONTRACT', 'SOURCE_SCAN']).default('OPENAPI_CONTRACT'),
   persist: z.coerce.boolean().default(true),
 });
 

@@ -43,6 +43,23 @@ export const catalogManifestSchema = z.object({
       isReadonly: z.boolean(),
       isDestructive: z.boolean(),
       riskLevel: z.string().trim().max(20),
+      /**
+       * El CONTRATO de entrada, en el formato abreviado del catálogo (`{ campo: 'tipo|required' }`).
+       *
+       * Es opcional porque un bloque puede no publicarlo todavía, y exigirlo convertiría una
+       * diferencia de madurez entre productos en un fallo de federación. Pero sin él el catálogo
+       * guarda el endpoint sin un solo campo, y entonces el generador de datos de prueba del portal
+       * no tiene de dónde derivar valores: hay que escribir el payload a mano, que es exactamente lo
+       * que hace que nadie pruebe el caso inválido.
+       *
+       * Se admite un mapa de cadenas y nada más: si el bloque manda JSON Schema entero, el catálogo
+       * tendría que implementar medio validador para pintar un formulario.
+       */
+      minPayloadSchema: z.record(z.string().max(180), z.string().max(120)).optional(),
+      queryParamsSchema: z.record(z.string().max(180), z.string().max(120)).optional(),
+      pathParamsSchema: z.record(z.string().max(180), z.string().max(120)).optional(),
+      /** Códigos de éxito DECLARADOS. Vacío significa «el bloque no lo dice», no «devuelve 200». */
+      expectedStatusCodes: z.array(z.number().int().min(100).max(599)).max(20).optional(),
     }),
   ),
   dataEntities: z.array(

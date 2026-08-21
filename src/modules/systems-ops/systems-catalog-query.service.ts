@@ -18,6 +18,7 @@ import {
 import { mapDataEntityNarrative } from './systems-entity-narrative.mapper.js';
 import { CatalogSeedRefreshDto, DiscoverEndpointsDto, SystemsListQueryDto } from './systems-ops.schemas.js';
 import { EndpointDiscoveryService } from './endpoint-discovery.service.js';
+import { OpenApiCatalogService } from './openapi-catalog.service.js';
 import { SystemsCatalogSeedService } from './systems-catalog-seed.service.js';
 import { SystemsHealthService } from './systems-health.service.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
@@ -30,6 +31,7 @@ export class SystemsCatalogQueryService {
     private readonly catalogRepository: SystemsCatalogRepository,
     private readonly dashboardRepository: SystemsDashboardRepository,
     private readonly discovery: EndpointDiscoveryService,
+    private readonly openApiCatalog: OpenApiCatalogService,
     private readonly seedService: SystemsCatalogSeedService,
     private readonly healthService: SystemsHealthService,
   ) {}
@@ -61,7 +63,8 @@ export class SystemsCatalogQueryService {
   }
 
   discoverEndpoints(body: DiscoverEndpointsDto) {
-    return this.discovery.discoverAndMaybePersist(body.persist);
+    if (body.mode === 'SOURCE_SCAN') return this.discovery.discoverAndMaybePersist(body.persist);
+    return this.openApiCatalog.catalogFromContract(body.persist);
   }
 
   refreshCatalogSeed(body: CatalogSeedRefreshDto, user: AuthenticatedUser) {
