@@ -56,7 +56,17 @@ import { LoansRepository } from './loans.repository.js';
     DecisionEngineModule,
   ],
   controllers: [LoansController, LoansOperationsController],
-  providers: [LoansRepository, LoanDisbursementService, LoanPaymentService, LoanWriteOffService, LoanDelinquencyService, LoanQueryService, LoanSpendingService, DelinquencyPolicyService, SpendingReportService],
+  providers: [
+    LoansRepository,
+    LoanDisbursementService,
+    LoanPaymentService,
+    LoanWriteOffService,
+    LoanDelinquencyService,
+    LoanQueryService,
+    LoanSpendingService,
+    DelinquencyPolicyService,
+    SpendingReportService,
+  ],
   exports: [LoansRepository],
 })
 export class LoansModule {}

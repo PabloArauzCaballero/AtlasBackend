@@ -138,7 +138,11 @@ export class SpendingReportService {
       .stroke(BRAND.teal);
     document.restore();
 
-    document.fillColor(BRAND.paper).font('Helvetica-Bold').fontSize(22).text('Atlas', originX + 38, originY + 2);
+    document
+      .fillColor(BRAND.paper)
+      .font('Helvetica-Bold')
+      .fontSize(22)
+      .text('Atlas', originX + 38, originY + 2);
     document
       .fillColor(BRAND.mint)
       .font('Helvetica')
@@ -151,9 +155,13 @@ export class SpendingReportService {
      */
     let cursor = 96;
     if (customerName) {
-      document.fillColor('#9FB4CC').font('Helvetica').fontSize(9).text(`Emitido para ${customerName}`, MARGIN, cursor, {
-        width: PAGE_WIDTH - MARGIN * 2,
-      });
+      document
+        .fillColor('#9FB4CC')
+        .font('Helvetica')
+        .fontSize(9)
+        .text(`Emitido para ${customerName}`, MARGIN, cursor, {
+          width: PAGE_WIDTH - MARGIN * 2,
+        });
       cursor += 12;
     }
     document
@@ -186,8 +194,16 @@ export class SpendingReportService {
     cards.forEach((card, index) => {
       const x = MARGIN + index * (width + gap);
       document.roundedRect(x, top, width, 62, 8).fillAndStroke('#F5F8FC', BRAND.line);
-      document.fillColor(BRAND.muted).font('Helvetica').fontSize(8).text(card.label.toUpperCase(), x + 10, top + 12, { width: width - 20 });
-      document.fillColor(card.tone).font('Helvetica-Bold').fontSize(12).text(card.value, x + 10, top + 28, { width: width - 20 });
+      document
+        .fillColor(BRAND.muted)
+        .font('Helvetica')
+        .fontSize(8)
+        .text(card.label.toUpperCase(), x + 10, top + 12, { width: width - 20 });
+      document
+        .fillColor(card.tone)
+        .font('Helvetica-Bold')
+        .fontSize(12)
+        .text(card.value, x + 10, top + 28, { width: width - 20 });
     });
 
     document.y = top + 86;
