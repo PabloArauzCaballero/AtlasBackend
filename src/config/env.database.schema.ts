@@ -107,4 +107,11 @@ export const databaseEnvShape = {
   // contraseña vive en `.env`, que está en `.gitignore`, y el seeder la hashea al sembrar.
   DEV_ADMIN_EMAIL: z.string().email().optional(),
   DEV_ADMIN_PASSWORD: z.string().optional(),
+
+  // Contraseña de las identidades de COMERCIO de desarrollo
+  // (`development/20260821140000-seed-partners-desarrollo`). Opcional y sólo se lee fuera de
+  // producción. Sin ella el seeder usa la contraseña por defecto escrita en su propio archivo, que
+  // por estar versionada se considera conocida: esta variable existe para que una máquina donde eso
+  // importe pueda sustituirla desde `.env`, que está en `.gitignore`.
+  DEV_PARTNER_PASSWORD: z.string().optional(),
 } as const;
