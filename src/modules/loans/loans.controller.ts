@@ -150,7 +150,7 @@ export class LoansController {
     @Res() response: Response,
   ) {
     assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
-    const pdf = await this.report.pdf(tenantId, params.customerId, null);
+    const pdf = await this.report.pdf(tenantId, params.customerId);
 
     /*
      * `inline` y no `attachment`: la app lo abre en su visor y desde ahí el sistema ofrece guardar

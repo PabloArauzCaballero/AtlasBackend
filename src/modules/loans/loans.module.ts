@@ -15,6 +15,7 @@ import {
   LoanPaymentModel,
 } from '../../database/models/index.js';
 import { CreditModule } from '../credit/credit.module.js';
+import { CustomersModule } from '../customers/customers.module.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
 import { LoanDelinquencyService } from './application/loan-delinquency.service.js';
@@ -48,6 +49,8 @@ import { LoansRepository } from './loans.repository.js';
       DelinquencyPolicyModel,
     ]),
     CreditModule,
+    // El nombre del cliente para el informe: un documento que se ensena lleva a quien pertenece.
+    CustomersModule,
     // El comercio donde nació cada crédito: de él salen el nombre y el rubro del gasto.
     PartnerOnboardingModule,
     DecisionEngineModule,

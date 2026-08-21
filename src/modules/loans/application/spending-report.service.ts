@@ -5,6 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
+import { CustomersRepository } from '../../customers/customers.repository.js';
 import { LoanSpendingService } from './loan-spending.service.js';
 
 /** La marca, tomada de los mismos tokens que pinta la app. */
@@ -49,8 +50,16 @@ function labelFor(category: string): string {
   return CATEGORY_LABELS[category] ?? category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, ' ');
 }
 
+/**
+ * El boliviano se escribe «Bs», no «BOB».
+ *
+ * `BOB` es el codigo ISO: sirve para que dos sistemas se entiendan, no para que lo lea una persona.
+ * Un informe que el cliente puede ensenar tiene que usar el simbolo que usa la app y el que usa
+ * cualquier factura del pais; si no, el mismo importe parece de dos monedas distintas.
+ */
 function money(amount: number, currency: string): string {
-  return `${currency} ${amount.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const text = amount.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return currency === 'BOB' ? `Bs ${text}` : `${currency} ${text}`;
 }
 
 /**
@@ -72,10 +81,22 @@ function money(amount: number, currency: string): string {
  */
 @Injectable()
 export class SpendingReportService {
-  constructor(private readonly spending: LoanSpendingService) {}
+  constructor(
+    private readonly spending: LoanSpendingService,
+    private readonly customers: CustomersRepository,
+  ) {}
 
-  async pdf(tenantId: string, customerId: string, customerName: string | null): Promise<Buffer> {
-    const data = await this.spending.byCategory(tenantId, customerId);
+  async pdf(tenantId: string, customerId: string): Promise<Buffer> {
+    const [data, profile] = await Promise.all([
+      this.spending.byCategory(tenantId, customerId),
+      /*
+       * El nombre va en el informe porque es un documento que la persona ensena: sin el, cualquiera
+       * podria decir que es suyo. Si el expediente aun no lo tiene, la linea simplemente no sale —
+       * mejor un informe sin nombre que uno con un hueco donde deberia haber un dato.
+       */
+      this.customers.findCurrentProfile(tenantId, customerId).catch(() => null),
+    ]);
+    const customerName = profile ? [profile.firstName, profile.lastName].filter(Boolean).join(' ') || null : null;
     const document = new PDFDocument({ size: 'A4', margin: MARGIN, bufferPages: true });
 
     const chunks: Buffer[] = [];
@@ -124,12 +145,22 @@ export class SpendingReportService {
       .fontSize(9)
       .text('INFORME DE GASTOS POR CATEGORÍA', originX + 38, originY + 28, { characterSpacing: 1.2 });
 
+    /*
+     * Sin nombre no se escribe la linea. Antes salia «Cliente» a secas, que no identifica a nadie y
+     * deja el documento con un hueco donde deberia haber un dato.
+     */
+    let cursor = 96;
+    if (customerName) {
+      document.fillColor('#9FB4CC').font('Helvetica').fontSize(9).text(`Emitido para ${customerName}`, MARGIN, cursor, {
+        width: PAGE_WIDTH - MARGIN * 2,
+      });
+      cursor += 12;
+    }
     document
       .fillColor('#9FB4CC')
       .font('Helvetica')
       .fontSize(9)
-      .text(customerName ? `Emitido para ${customerName}` : `Cliente ${''}`, MARGIN, 96, { width: PAGE_WIDTH - MARGIN * 2 })
-      .text(`Generado el ${new Date(generatedAt).toLocaleString('es-BO')}`, MARGIN, 108);
+      .text(`Generado el ${new Date(generatedAt).toLocaleString('es-BO')}`, MARGIN, cursor);
 
     document.y = 160;
   }
@@ -259,7 +290,7 @@ export class SpendingReportService {
         .fontSize(7.5)
         .text(
           'Elaborado por Atlas a partir del libro de préstamos. Importes en ' +
-            `${data.currencyCode}. Corte: ${new Date(data.generatedAt).toLocaleString('es-BO')}.`,
+            `${data.currencyCode === 'BOB' ? 'bolivianos' : data.currencyCode}. Corte: ${new Date(data.generatedAt).toLocaleString('es-BO')}.`,
           MARGIN,
           800,
           { width: PAGE_WIDTH - MARGIN * 2 },

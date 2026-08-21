@@ -107,6 +107,17 @@ export class LoanDelinquencyService {
           actorType: 'system',
           payloadJson: { daysPastDue },
           happenedAt: now,
+          /*
+           * `_created_at` tiene DEFAULT en la base pero el modelo lo declara `allowNull: false` sin
+           * `defaultValue`, así que Sequelize valida ANTES de preguntar y la escritura moría.
+           *
+           * El efecto era peor de lo que parece. Este evento se escribe SÓLO cuando cambia el tramo
+           * de mora —es decir, exactamente cuando un préstamo entra en mora—, y el fallo se lo
+           * tragaba el `catch` que protege el barrido de un préstamo roto. Resultado: el barrido
+           * informaba de su corrida, el préstamo recién vencido se quedaba con `days_past_due = 0` y
+           * el único rastro era una línea de log. La cartera que entraba en mora era invisible.
+           */
+          createdAtValue: now,
         },
         { transaction },
       );
@@ -162,6 +173,8 @@ export class LoanDelinquencyService {
           source: OUTCOME_SOURCE,
           status: 'pending',
           observedAt: asOf,
+          // Mismo motivo que el evento de tramo: el modelo lo exige y la base no llega a ponerlo.
+          createdAtValue: asOf,
         },
         { transaction },
       );
