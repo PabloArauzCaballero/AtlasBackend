@@ -42,6 +42,17 @@ export class SystemDataEntityCatalogModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;
 
+  /**
+   * Bloque del ecosistema al que pertenece la tabla: `ATLAS_BACKEND`, `DECISION_ENGINE`, `ERP_BACKEND`.
+   *
+   * Sin esta columna el catálogo sólo podía contener tablas de este backend, porque no había forma
+   * de decir de quién era cada fila. Forma parte de la clave única junto con esquema y tabla: el
+   * motor guarda todo en `public` y el ERP tiene su propio `atlas_accounting`, así que dos bloques
+   * pueden llamar igual a dos tablas que no tienen nada que ver.
+   */
+  @Column({ field: 'system_code', type: DataType.STRING(60), allowNull: false, defaultValue: 'ATLAS_BACKEND' })
+  declare systemCode: string;
+
   @Column({ field: 'schema_name', type: DataType.STRING(120), allowNull: false })
   declare schemaName: string;
 

@@ -25,9 +25,12 @@ import {
   SystemDataRelationshipCatalogModel,
   SystemOperationalRuleCatalogModel,
   SystemCatalogReviewEventModel,
+  SystemBlockFederationStateModel,
 } from '../../database/models/index.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { EndpointDiscoveryService } from './endpoint-discovery.service.js';
+import { OpenApiCatalogService } from './openapi-catalog.service.js';
+import { OpenApiDocumentRegistry } from './openapi-document.registry.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { SystemsErpInventoryService } from './systems-erp-inventory.service.js';
 import { SystemsCatalogSeedService } from './systems-catalog-seed.service.js';
@@ -38,6 +41,12 @@ import { SystemsHealthService } from './systems-health.service.js';
 import { SystemsStressRunService } from './systems-stress-run.service.js';
 import { SystemsActionLogController } from './systems-action-log.controller.js';
 import { SystemsCatalogController } from './systems-catalog.controller.js';
+import { SystemsNetworkController } from './systems-network.controller.js';
+import { SystemsNetworkHealthService } from './systems-network-health.service.js';
+import { PlatformCatalogFederationClient } from './platform-catalog-federation.client.js';
+import { PlatformCatalogFederationRepository } from './platform-catalog-federation.repository.js';
+import { PlatformCatalogFederationService } from './platform-catalog-federation.service.js';
+import { DecisionEngineArtifactsService } from './decision-engine-artifacts.service.js';
 import { SystemsReviewController } from './systems-review.controller.js';
 import { SystemsStressController } from './systems-stress.controller.js';
 import { SystemsTestController } from './systems-test.controller.js';
@@ -67,6 +76,7 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
   imports: [
     SequelizeModule.forFeature([
       SystemEndpointCatalogModel,
+      SystemBlockFederationStateModel,
       SystemToolCatalogModel,
       SystemEndpointToolRequirementModel,
       SystemDataEntityCatalogModel,
@@ -94,6 +104,7 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
     SystemsTestController,
     SystemsStressController,
     SystemsActionLogController,
+    SystemsNetworkController,
   ],
   providers: [
     SystemsSchemaIntrospectionService,
@@ -110,6 +121,8 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
     SystemsReviewRepository,
     SystemsStressProfileRepository,
     EndpointDiscoveryService,
+    OpenApiCatalogService,
+    OpenApiDocumentRegistry,
     SystemsCatalogClassifierService,
     SystemsCatalogSeedService,
     SystemsErpInventoryService,
@@ -126,6 +139,11 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
     SystemsDataImpactInferenceRepository,
     SystemsDataImpactInferenceService,
     SystemsStressRunService,
+    SystemsNetworkHealthService,
+    PlatformCatalogFederationClient,
+    PlatformCatalogFederationRepository,
+    PlatformCatalogFederationService,
+    DecisionEngineArtifactsService,
   ],
 })
 export class SystemsOpsModule {}

@@ -94,6 +94,51 @@ x-atlas-env: &atlas-env
   NOTIFICATION_EMAIL_WEBHOOK_URL: ${NOTIFICATION_EMAIL_WEBHOOK_URL:-}
   NOTIFICATION_WEBHOOK_URL: ${NOTIFICATION_WEBHOOK_URL:-}
 
+  # Los otros dos BLOQUES del ecosistema.
+  #
+  # Sin estas variables el panel de sistemas reportaba el motor de decisión y el ERP como «no
+  # configurados» —correcto pero inútil— y el catálogo de datos y el de endpoints sólo contenían lo
+  # de este backend, sin nada que lo dijera. Se apunta a `host.docker.internal` porque cada bloque
+  # tiene su propio `docker compose` y su propia red: son productos separados, no servicios de este
+  # stack, y meterlos en la misma red los haría parecer una sola cosa.
+  #
+  # Se usa HEALTH_BASE_URL y no BASE_URL a propósito: BASE_URL enciende la INTEGRACIÓN de crédito y
+  # el arranque exige entonces credenciales de ejecución y sal de sujeto. Observar el motor no
+  # debería obligar a automatizar el crédito para conseguirlo.
+  #
+  # El motor no lleva credencial aqui: identifica a quien pregunta verificando su token contra ESTE
+  # backend, asi que la federacion reenvia la sesion del operador. El ERP si la lleva, porque no
+  # verifica tokens de Atlas —su pasarela los INTERCAMBIA por uno propio— y esa llave abre una sola
+  # lectura sin usuario ni roles, de modo que no compite con Atlas como fuente de identidades.
+  DECISION_ENGINE_HEALTH_BASE_URL: ${DECISION_ENGINE_HEALTH_BASE_URL:-http://host.docker.internal:3020}
+  ERP_BACKEND_BASE_URL: ${ERP_BACKEND_BASE_URL:-http://host.docker.internal:3007}
+  ERP_BACKEND_CATALOG_API_KEY: ${ERP_BACKEND_CATALOG_API_KEY:-}
+
+  # Visor de logs (`GET /systems/logs/mongo`) y sincronización de `Archivo.log` hacia MongoDB.
+  #
+  # El servicio `mongo` del perfil `logs` existía desde hace tiempo, pero esta variable NO se pasaba
+  # a la API ni al worker: la receta documentada arriba —`--profile app --profile logs`— levantaba
+  # Mongo y aun así el visor contestaba 503 `MONGO_LOGS_NOT_CONFIGURED`, siempre, sin forma de
+  # notarlo salvo abriendo la pantalla. Es decir: la única receta para encender la terminal de logs
+  # no la encendía.
+  #
+  # Apuntar por omisión al servicio del propio stack es seguro incluso sin el perfil `logs`:
+  # `MongoLogsQueryService` conecta de forma perezosa, en la primera consulta, y traduce el fallo de
+  # conexión al mismo 503 que se obtenía antes. Nada arranca peor por tener la variable puesta.
+  MONGO_DB_URL_CONNECTION: ${MONGO_DB_URL_CONNECTION:-mongodb://mongo:27017/atlas_logs}
+
+  # Techo de peticiones por minuto y por IP.
+  #
+  # El default del backend (100/min) está pensado para producción, donde detrás de una IP hay una
+  # persona. En LOCAL, detrás de la IP hay una suite: el portal pide `/internal/auth/me` en cada
+  # navegación y un barrido E2E de cincuenta vistas agota el cupo a mitad de camino. El síntoma no
+  # se parece en nada a la causa —pantallas en blanco, pruebas que fallan en un orden distinto cada
+  # vez— así que este valor es lo que separa un fallo real de un límite de desarrollo.
+  #
+  # Sólo aplica a este compose, que describe el despliegue LOCAL. `docker-compose.prod.yml` no lo
+  # define y conserva el default.
+  API_RATE_LIMIT_MAX: ${API_RATE_LIMIT_MAX:-2000}
+
 # Sin `container_name`: Compose nombra los contenedores `<proyecto>-<servicio>-<n>`. Un nombre fijo
 # impide levantar dos stacks a la vez, choca con cualquier contenedor homónimo que ya exista en la
 # máquina y —lo decisivo— hace imposible `--scale api=4`, que es justo la razón de separar los roles.
@@ -226,6 +271,11 @@ services:
   api:
     <<: *atlas-build
     profiles: ['app']
+    # `host.docker.internal` no existe fuera de Docker Desktop. Declararlo contra `host-gateway`
+    # hace que el mismo compose alcance el motor y el ERP también en Linux, donde si no la
+    # federación fallaría con un DNS que no resuelve y parecería un bloque caído.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     environment:
       <<: *atlas-env
       APP_ROLE: api
@@ -235,7 +285,11 @@ services:
       # en silencio.
       RUNTIME_JOBS_SCHEDULER_ENABLED: 'false'
       NOTIFICATIONS_DELIVERY_MODE: deferred
-      CORS_ORIGINS: http://localhost:3000,http://localhost:5273
+      # `127.0.0.1` además de `localhost`: son orígenes DISTINTOS para el navegador, y las pruebas
+      # E2E de Playwright sirven el portal en `127.0.0.1:5273`. Sin esta entrada el login fallaba
+      # con «no se pudo conectar con el servicio interno», que parece una caída del backend y es
+      # sólo un preflight CORS rechazado.
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5273,http://127.0.0.1:3000,http://127.0.0.1:5273
     ports:
       - '${API_PUBLISH_PORT:-3005}:3005'
     depends_on:

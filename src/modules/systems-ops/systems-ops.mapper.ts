@@ -29,6 +29,7 @@ export function mapEndpoint(row: SystemEndpointCatalogModel) {
     endpointId: String(row.id),
     code: row.code,
     module: row.module,
+    systemCode: row.systemCode ?? 'ATLAS_BACKEND',
     backendService: row.backendService ?? 'atlas-backend',
     backendBaseUrl: row.backendBaseUrl ?? null,
     controllerName: row.controllerName,
@@ -72,6 +73,7 @@ export function mapEndpoint(row: SystemEndpointCatalogModel) {
 export function mapDataEntity(row: SystemDataEntityCatalogModel) {
   return {
     entityId: String(row.id),
+    systemCode: row.systemCode ?? 'ATLAS_BACKEND',
     schemaName: row.schemaName,
     tableName: row.tableName,
     modelName: row.modelName,

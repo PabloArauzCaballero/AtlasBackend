@@ -63,6 +63,23 @@ export const INTERNAL_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
   permission('systems.reviewQueue.read', 'systems', 'review_queue', 'read', 'Consultar cola de revisión.'),
   permission('systems.reviewQueue.resolve', 'systems', 'review_queue', 'resolve', 'Resolver elementos de revisión.', 'HIGH', true),
   permission('systems.tools.read', 'systems', 'tool_catalog', 'read', 'Consultar herramientas internas.'),
+  permission('systems.network.read', 'systems', 'network_health', 'read', 'Consultar la salud de la RED de bloques del ecosistema.'),
+  permission(
+    'systems.network.federate',
+    'systems',
+    'block_catalog',
+    'federate',
+    'Refederar el catálogo de un bloque del ecosistema.',
+    'HIGH',
+    true,
+  ),
+  permission(
+    'systems.decisionEngine.artifacts.read',
+    'systems',
+    'decision_artifact',
+    'read',
+    'Consultar los artefactos ACTIVOS del motor de decisión.',
+  ),
   permission('systems.tools.health.read', 'systems', 'tool_health', 'read', 'Consultar salud de herramientas internas.'),
   permission(
     'systems.tools.inferRequirements',

@@ -34,7 +34,11 @@ describe('SystemsCatalogQueryService', () => {
     const dashboardRepository = {
       getDashboardCounts: jest.fn(async (..._args: unknown[]) => ({ endpoints: 0, dataEntities: 0, pendingReviews: 0, stressProfiles: 0 })),
     };
-    const discovery = { discoverAndMaybePersist: jest.fn(async (..._args: unknown[]) => ({ discovered: 1 })) };
+    const discover = jest.fn(async (..._args: unknown[]) => ({ discovered: 333, persisted: 0 }));
+    const discovery = {
+      discoverAndMaybePersist: jest.fn(async (..._args: unknown[]) => ({ discovered: 1 })),
+      discover,
+    };
     const seedService = { refreshCatalog: jest.fn(async (..._args: unknown[]) => ({ refreshed: true })) };
     const healthService = { getToolsHealth: jest.fn(async (..._args: unknown[]) => [{ code: 'POSTGRES' }]) };
     const service = new SystemsCatalogQueryService(
@@ -116,14 +120,25 @@ describe('SystemsCatalogQueryService', () => {
     expect(res.endpointImpacts).toHaveLength(1);
   });
 
-  it('delega discover, refreshCatalogSeed y getToolsHealth en sus colaboradores', async () => {
-    const { service, discovery, seedService, healthService } = build();
-    await service.discoverEndpoints({ persist: true } as never);
+  it('delega refreshCatalogSeed y getToolsHealth en sus colaboradores', async () => {
+    const { service, seedService, healthService } = build();
     await service.refreshCatalogSeed({} as never, user);
     await service.getToolsHealth();
-    expect(discovery.discoverAndMaybePersist).toHaveBeenCalledWith(true);
     expect(seedService.refreshCatalog).toHaveBeenCalledWith({}, user);
     expect(healthService.getToolsHealth).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Elegir entre las dos estrategias de descubrimiento es asunto del propio servicio de
+   * descubrimiento: éste sólo le pasa el modo pedido y no decide por él.
+   */
+  it('delega el descubrimiento con el modo y la persistencia pedidos', async () => {
+    const { service, discovery } = build();
+    await service.discoverEndpoints({ mode: 'OPENAPI_CONTRACT', persist: true } as never);
+    expect(discovery.discover).toHaveBeenCalledWith('OPENAPI_CONTRACT', true);
+
+    await service.discoverEndpoints({ mode: 'SOURCE_SCAN', persist: false } as never);
+    expect(discovery.discover).toHaveBeenCalledWith('SOURCE_SCAN', false);
   });
 
   it('listDomains / listTools / listDataEntities mapean filas y propagan meta', async () => {

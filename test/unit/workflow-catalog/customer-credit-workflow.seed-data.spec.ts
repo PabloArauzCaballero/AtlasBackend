@@ -185,7 +185,7 @@ describe('CUSTOMER_CREDIT_WORKFLOW — coherencia con los endpoints reales', () 
     // Mismo escáner de controladores que usa `systems-ops`: la fuente de verdad de qué rutas
     // declara el repositorio. Se le pasa un clasificador mínimo porque solo interesan método y ruta.
     const classifier = { riskLevelForEndpoint: () => 'LOW', containsPiiForEndpoint: () => false };
-    const discovered = await new EndpointDiscoveryService({} as never, classifier as never).scanControllers();
+    const discovered = await new EndpointDiscoveryService({} as never, classifier as never, {} as never).scanControllers();
     exposed = new Map(discovered.map((item) => [`${item.method} /${normalizeEndpointPath(item.fullPath)}`, item]));
   }, 60_000);
 

@@ -133,6 +133,7 @@ export { SystemEndpointCatalogModel } from './system-endpoint-catalog.model.js';
 export { SystemToolCatalogModel } from './system-tool-catalog.model.js';
 export { SystemEndpointToolRequirementModel } from './system-endpoint-tool-requirements.model.js';
 export { SystemDataEntityCatalogModel } from './system-data-entity-catalog.model.js';
+export { SystemBlockFederationStateModel } from './system-block-federation-state.model.js';
 export { SystemEndpointDataEntityImpactModel } from './system-endpoint-data-entity-impacts.model.js';
 export { SystemEndpointFieldImpactModel } from './system-endpoint-field-impacts.model.js';
 export { SystemTestSuiteModel } from './system-test-suites.model.js';

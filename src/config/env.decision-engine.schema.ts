@@ -70,6 +70,30 @@ export const decisionEngineEnvShape = {
    * configurada manda ella: la integración real sabe mejor dónde vive el motor.
    */
   DECISION_ENGINE_HEALTH_BASE_URL: optionalUrlEnvSchema,
+  /**
+   * Ruta del manifiesto de catálogo del motor.
+   *
+   * El manifiesto enumera las rutas que el motor sirve y las tablas que su base contiene; es lo que
+   * permite que el catálogo del portal deje de ser «las tablas de Atlas Backend» y pase a ser el del
+   * ecosistema.
+   *
+   * NO hay credencial que configurar, y es a propósito: el motor trata a ESTE backend como su
+   * proveedor de identidad, así que la lectura viaja con el token de la persona que la pidió. Una
+   * llave de servicio aquí sustituiría a esa persona por «Atlas» en la auditoría del motor y
+   * saltaría su control de roles, que es justo lo que no debe pasar cuando la fuente de verdad de
+   * las identidades es este backend.
+   */
+  DECISION_ENGINE_CATALOG_PATH: z.string().trim().min(1).max(200).default('/v1/platform/catalog-manifest'),
+  /** Plazo propio del manifiesto: una introspección completa no cabe en el tiempo de un healthcheck. */
+  DECISION_ENGINE_CATALOG_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(30_000),
+  /**
+   * Ruta de listado de artefactos del motor, para la vista de artefactos activos del portal.
+   *
+   * Parametrizada por la misma razón que el healthcheck: el prefijo de rutas es del otro repo y un
+   * cambio suyo no debe leerse aquí como «el motor no tiene artefactos».
+   */
+  DECISION_ENGINE_ARTIFACTS_PATH: z.string().trim().min(1).max(200).default('/v1/artifacts'),
+  DECISION_ENGINE_DEPLOYMENTS_PATH: z.string().trim().min(1).max(200).default('/v1/deployments'),
   DECISION_ENGINE_HEALTH_PATH: z.string().trim().min(1).max(200).default('/health'),
   DECISION_ENGINE_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(10_000),
   DECISION_ENGINE_RETRIES: z.coerce.number().int().min(0).max(5).default(1),
