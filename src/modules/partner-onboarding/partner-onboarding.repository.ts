@@ -38,6 +38,22 @@ export class PartnerOnboardingRepository {
   }
 
   /**
+   * Varios expedientes de una vez.
+   *
+   * Existe para no preguntar uno por uno: la pantalla de pagos agrupa los créditos por comercio y
+   * el tablero los reparte por rubro, así que en ambos casos hacen falta TODOS los comercios de la
+   * lista a la vez. Resolverlos en bucle convertiría una pantalla en tantas consultas como compras
+   * tenga el cliente, y esa cuenta crece justo con los clientes que más usan el producto.
+   */
+  findProfilesByIds(tenantId: string, partnerIds: readonly string[], options: RepositoryOptions = {}): Promise<PartnerProfileModel[]> {
+    if (partnerIds.length === 0) return Promise.resolve([]);
+    return this.profileModel.findAll({
+      where: { tenantId, id: { [Op.in]: [...new Set(partnerIds)] }, deleted: false },
+      transaction: options.transaction,
+    });
+  }
+
+  /**
    * El expediente con la fila BLOQUEADA hasta el fin de la transacción (`SELECT … FOR UPDATE`).
    *
    * Existe para los flujos que leen un contador, deciden con él y lo escriben. Sin el bloqueo esas

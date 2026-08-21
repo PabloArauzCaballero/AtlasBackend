@@ -5,6 +5,7 @@
  */
 import {
   DecisionSubjectLinkModel,
+  DelinquencyPolicyModel,
   LoanEventModel,
   LoanInstallmentModel,
   LoanModel,
@@ -14,7 +15,7 @@ import {
 } from './models/index.js';
 
 /**
- * Los siete modelos del libro de préstamos, como un bloque.
+ * Los ocho modelos del libro de préstamos, como un bloque.
  *
  * Se agrupan aquí y no se listan uno a uno en `sequelize.module.ts` porque ese archivo enumera cada
  * modelo DOS veces —import y registro— y siete tablas nuevas lo empujaban por encima del gate de
@@ -29,4 +30,6 @@ export const LOAN_BOOK_MODELS = [
   LoanEventModel,
   LoanOutcomeReportModel,
   DecisionSubjectLinkModel,
+  // La política de mora vigente: lo que se le prometió al cliente que pasaría si se atrasa.
+  DelinquencyPolicyModel,
 ] as const;

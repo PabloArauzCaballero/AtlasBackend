@@ -44,6 +44,7 @@ export { LoanInstallmentModel } from './loan-installments.model.js';
 export { LoanPaymentModel } from './loan-payments.model.js';
 export { LoanPaymentAllocationModel } from './loan-payment-allocations.model.js';
 export { LoanEventModel } from './loan-events.model.js';
+export { DelinquencyPolicyModel } from './delinquency-policies.model.js';
 export { LoanOutcomeReportModel } from './loan-outcome-reports.model.js';
 export { DecisionSubjectLinkModel } from './decision-subject-links.model.js';
 export { RatingPolicyVersionModel } from './rating-policy-versions.model.js';

@@ -117,6 +117,30 @@ export class PartnerProfileService {
     return this.repository.updateProfile(profile, { commercialRegistry });
   }
 
+  /**
+   * Cómo se llaman y de qué rubro son varios comercios, en una sola consulta.
+   *
+   * Lo que se devuelve es lo MÍNIMO que una pantalla del cliente necesita para reconocer dónde
+   * compró: el nombre de la fachada y el rubro. Ni el NIT, ni el correo, ni el estado del
+   * expediente — el cliente no es parte de la relación entre Atlas y ese comercio, y una pantalla
+   * de gastos no es sitio para publicar la ficha de un tercero.
+   *
+   * Un identificador que no resuelve simplemente no aparece en el mapa: quien lo consulte decide
+   * qué hacer con la ausencia, que en la práctica es agrupar esos créditos como «sin comercio».
+   */
+  async describeMany(
+    tenantId: string,
+    partnerIds: readonly string[],
+  ): Promise<Map<string, { displayName: string; businessCategory: string | null }>> {
+    const profiles = await this.repository.findProfilesByIds(tenantId, partnerIds);
+    return new Map(
+      profiles.map((profile) => [
+        String(profile.id),
+        { displayName: profile.tradeName ?? profile.legalName, businessCategory: profile.businessCategory ?? null },
+      ]),
+    );
+  }
+
   async requireProfile(tenantId: string, partnerId: string): Promise<PartnerProfileModel> {
     const profile = await this.repository.findProfileById(tenantId, partnerId);
     if (!profile) throw new NotFoundException('Expediente de partner no encontrado.');

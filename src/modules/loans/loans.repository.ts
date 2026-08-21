@@ -83,6 +83,24 @@ export class LoansRepository {
     } as FindOptions);
   }
 
+  /**
+   * Las cuotas de VARIOS préstamos de una vez.
+   *
+   * El tablero de gasto y la pantalla de pagos necesitan el calendario completo del cliente para
+   * decir qué vence y qué está vencido. Pedirlo préstamo a préstamo multiplica las consultas por el
+   * número de compras, y es justo el cliente con más compras el que más tarda en ver su pantalla.
+   */
+  findInstallmentsForLoans(tenantId: string, loanIds: readonly string[]): Promise<LoanInstallmentModel[]> {
+    if (loanIds.length === 0) return Promise.resolve([]);
+    return this.installmentModel.findAll({
+      where: { tenantId, loanId: { [Op.in]: [...new Set(loanIds)] }, deleted: false },
+      order: [
+        ['loanId', 'ASC'],
+        ['installmentNumber', 'ASC'],
+      ],
+    } as FindOptions);
+  }
+
   findCollectableInstallments(tenantId: string, loanId: string, transaction: Transaction): Promise<LoanInstallmentModel[]> {
     return this.installmentModel.findAll({
       where: { tenantId, loanId, deleted: false, status: { [Op.in]: COLLECTABLE_STATUSES } },

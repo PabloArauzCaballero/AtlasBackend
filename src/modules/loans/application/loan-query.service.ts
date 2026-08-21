@@ -5,15 +5,47 @@
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LoanModel } from '../../../database/models/index.js';
+import { PartnerProfileService } from '../../partner-onboarding/application/partner-profile.service.js';
 import { LoansRepository } from '../loans.repository.js';
+
+type MerchantView = { partnerProfileId: string; displayName: string; businessCategory: string | null } | null;
 
 @Injectable()
 export class LoanQueryService {
-  constructor(private readonly loans: LoansRepository) {}
+  constructor(
+    private readonly loans: LoansRepository,
+    private readonly partnerProfiles: PartnerProfileService,
+  ) {}
 
+  /**
+   * Los créditos del cliente, cada uno con el comercio donde nació.
+   *
+   * Los comercios se resuelven de una vez y no por préstamo: la pantalla de pagos los agrupa por
+   * comercio, así que preguntarlos uno a uno haría tantas consultas como compras tenga el cliente.
+   */
   async listByCustomer(tenantId: string, customerId: string) {
     const loans = await this.loans.findLoansByCustomer(tenantId, customerId);
-    return { items: loans.map((loan) => this.summary(loan)) };
+    const merchants = await this.merchantsFor(tenantId, loans);
+    return { items: loans.map((loan) => ({ ...this.summary(loan), merchant: this.merchantOf(loan, merchants) })) };
+  }
+
+  private merchantsFor(tenantId: string, loans: readonly LoanModel[]) {
+    const ids = loans.map((loan) => loan.partnerProfileId).filter((id): id is string => Boolean(id));
+    return this.partnerProfiles.describeMany(tenantId, ids.map(String));
+  }
+
+  /**
+   * Un crédito sin comercio conocido devuelve `null` y no un comercio inventado.
+   *
+   * Los créditos anteriores al vínculo no saben dónde se compraron, y rellenarlos con «Otros» los
+   * mezclaría con los que de verdad no tienen rubro. La pantalla decide cómo mostrar la ausencia;
+   * el servidor no la disfraza.
+   */
+  private merchantOf(loan: LoanModel, merchants: Map<string, { displayName: string; businessCategory: string | null }>): MerchantView {
+    if (!loan.partnerProfileId) return null;
+    const found = merchants.get(String(loan.partnerProfileId));
+    if (!found) return null;
+    return { partnerProfileId: String(loan.partnerProfileId), ...found };
   }
 
   /**
@@ -34,8 +66,11 @@ export class LoanQueryService {
       this.loans.findEventsByLoan(tenantId, loanId),
     ]);
 
+    const merchants = await this.merchantsFor(tenantId, [loan]);
+
     return {
       ...this.summary(loan),
+      merchant: this.merchantOf(loan, merchants),
       schedule: installments.map((installment) => ({
         installmentNumber: installment.installmentNumber,
         dueDate: installment.dueDate,

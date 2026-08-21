@@ -100,6 +100,11 @@ export class DebtRatingService {
     transaction: Transaction,
   ): Promise<PortfolioOutcome> {
     const loans = await this.repository.findRateableLoansByCustomer(tenantId, customerId, { transaction });
+    /*
+     * Un único instante para toda la corrida. Con `new Date()` por fila, las calificaciones de la
+     * misma cartera quedan con marcas distintas y ordenarlas por `rated_at` deja de agruparlas.
+     */
+    const now = new Date();
     const loanRatings: LoanRiskRatingModel[] = [];
     const debts: RatedDebt[] = [];
 
@@ -133,7 +138,14 @@ export class DebtRatingService {
             previousGrade: previous?.grade ?? null,
             ratingReason: rating.reason,
             isCurrent: true,
-            ratedAt: new Date(),
+            ratedAt: now,
+            /*
+             * `_created_at` tiene DEFAULT en la base, pero el modelo lo declara `allowNull: false`
+             * sin `defaultValue`: Sequelize valida antes de preguntar, así que la calificación
+             * moría con una `ValidationError` que el filtro traducía a un 409 sin decir la columna.
+             * Mismo fallo que tenía el desembolso, en otra tabla.
+             */
+            createdAtValue: now,
           },
           transaction,
         ),
@@ -153,6 +165,7 @@ export class DebtRatingService {
     transaction: Transaction,
   ): Promise<CustomerRiskRatingModel> {
     const previous = await this.repository.findCurrentCustomerRating(tenantId, customerId, { transaction });
+    const now = new Date();
     const rating = rateCustomer({
       debts,
       bestBand: resolved.bestBand,
@@ -177,7 +190,8 @@ export class DebtRatingService {
         previousGrade: previous?.grade ?? null,
         ratingReason: rating.reason,
         isCurrent: true,
-        ratedAt: new Date(),
+        ratedAt: now,
+        createdAtValue: now,
       },
       transaction,
     );

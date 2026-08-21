@@ -6,6 +6,9 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { assertOwnCustomerResourceOrInternalOperational } from '../../common/utils/auth/ownership.util.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
@@ -84,6 +87,27 @@ export class CreditRatingController {
     @Query(new ZodValidationPipe(ratingHistoryQuerySchema)) query: RatingHistoryQueryDto,
   ) {
     return this.queries.getLoanRatingHistory(tenantId, params.loanId, query.limit);
+  }
+
+  @Roles('customer', 'internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')
+  @ApiOperation({
+    summary: 'Mi calificación crediticia',
+    description:
+      'Versión para el CLIENTE: categoría, posición en la escala y por qué está ahí. No incluye exposición ' +
+      'ni previsión — son la medida del riesgo que asume Atlas, no un dato del cliente.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiParam({ name: 'customerId', schema: zodToApiSchema(ratingCustomerParamsSchema.shape.customerId) })
+  @ApiResponse({ status: 200, description: 'Calificación vigente, en la forma que ve el cliente.' })
+  @ApiResponse({ status: 404, description: 'CUSTOMER_RATING_NOT_FOUND.' })
+  @Get('customers/:customerId/credit-rating')
+  getMyRating(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(ratingCustomerParamsSchema)) params: RatingCustomerParamsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
+    return this.queries.getCustomerFacingRating(tenantId, params.customerId);
   }
 
   @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')

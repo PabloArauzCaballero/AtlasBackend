@@ -122,6 +122,7 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'loan_payment_allocations',
     'loan_events',
     'loan_outcome_reports',
+    'delinquency_policies',
     'decision_subject_links',
     // La calificación de la deuda vive con la deuda, no con el motor de riesgo: se deriva del saldo
     // y del atraso del préstamo, y quien la consulta —cobranza, contabilidad, cierre— ya está aquí.

@@ -3,8 +3,9 @@
  * @business Esta pieza sostiene el ciclo del préstamo desembolsado con saldos reconstruibles.
  * @system expone el ciclo del préstamo a operaciones y cobranza con autorización explícita.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -14,10 +15,14 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { assertOwnCustomerResourceOrInternalOperational } from '../../common/utils/auth/ownership.util.js';
 import { requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
 import { LoanDisbursementService } from './application/loan-disbursement.service.js';
 import { LoanPaymentService } from './application/loan-payment.service.js';
 import { LoanQueryService } from './application/loan-query.service.js';
+import { LoanSpendingService } from './application/loan-spending.service.js';
+import { DelinquencyPolicyService } from './application/delinquency-policy.service.js';
+import { SpendingReportService } from './application/spending-report.service.js';
 import { LoanWriteOffService } from './application/loan-writeoff.service.js';
 import {
   DisburseLoanDto,
@@ -55,6 +60,9 @@ export class LoansController {
     private readonly payments: LoanPaymentService,
     private readonly writeOff: LoanWriteOffService,
     private readonly queries: LoanQueryService,
+    private readonly spending: LoanSpendingService,
+    private readonly policies: DelinquencyPolicyService,
+    private readonly report: SpendingReportService,
   ) {}
 
   @Roles('internal_operator', 'admin', 'platform_admin')
@@ -89,12 +97,85 @@ export class LoansController {
   }
 
   @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
-  @ApiOperation({ summary: 'Préstamos del cliente' })
+  @ApiOperation({ summary: 'Préstamos del cliente, con el comercio donde nació cada uno' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Préstamos del cliente, más recientes primero.' })
   @Get('customers/:customerId/loans')
-  listByCustomer(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(loanCustomerParamsSchema)) params: LoanCustomerParamsDto) {
+  listByCustomer(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(loanCustomerParamsSchema)) params: LoanCustomerParamsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    /*
+     * La propiedad se comprobaba en el desembolso y en los cobros, pero NO aquí: el rol `customer`
+     * bastaba para leer los préstamos de cualquier cliente del tenant cambiando el número de la
+     * URL —su deuda, su mora y ahora también dónde compra—. El resto del dominio ya usa esta misma
+     * comprobación; a este endpoint se le había pasado.
+     */
+    assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
     return this.queries.listByCustomer(tenantId, params.customerId);
+  }
+
+  @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @ApiOperation({
+    summary: 'Gasto del cliente por rubro de comercio',
+    description:
+      'Sale del libro de préstamos y del expediente del comercio. Lo vencido y lo próximo se miden ' +
+      'contra el CALENDARIO, no contra el contador de mora del préstamo, que lo actualiza un barrido.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Reparto por rubro, con el detalle por comercio.' })
+  @Get('customers/:customerId/spending-by-category')
+  spendingByCategory(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(loanCustomerParamsSchema)) params: LoanCustomerParamsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
+    return this.spending.byCategory(tenantId, params.customerId);
+  }
+
+  @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @ApiOperation({
+    summary: 'Informe de gastos por categoría en PDF',
+    description: 'Lo compone el SERVIDOR con los mismos números de la pantalla, para que salga idéntico en cualquier dispositivo.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'PDF del informe.' })
+  @Get('customers/:customerId/spending-report.pdf')
+  async spendingReport(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(loanCustomerParamsSchema)) params: LoanCustomerParamsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Res() response: Response,
+  ) {
+    assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
+    const pdf = await this.report.pdf(tenantId, params.customerId, null);
+
+    /*
+     * `inline` y no `attachment`: la app lo abre en su visor y desde ahí el sistema ofrece guardar
+     * o compartir. Forzar la descarga en un móvil deja el archivo en una carpeta que mucha gente no
+     * sabe encontrar.
+     */
+    response.setHeader('content-type', 'application/pdf');
+    response.setHeader('content-disposition', `inline; filename="atlas-gastos-${params.customerId}.pdf"`);
+    response.setHeader('content-length', String(pdf.length));
+    response.end(pdf);
+  }
+
+  @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @ApiOperation({
+    summary: 'Política de mora e intereses vigente',
+    description:
+      'La versión vigente HOY, no la última publicada: una versión con entrada futura no se enseña antes ' +
+      'de tiempo. Incluye el origen de cada regla —normativa o política de Atlas—.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Política vigente con sus tramos por días de atraso.' })
+  @ApiResponse({ status: 404, description: 'DELINQUENCY_POLICY_NOT_PUBLISHED.' })
+  @Get('policies/delinquency')
+  delinquencyPolicy(@CurrentTenant() tenantId: string) {
+    return this.policies.current(tenantId);
   }
 
   @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')

@@ -59,6 +59,49 @@ export class RatingQueryService {
     return toCustomerRatingResponse(rating);
   }
 
+  /**
+   * Lo que el CLIENTE puede ver de su propia calificación.
+   *
+   * Es un subconjunto deliberado del interno. Fuera quedan la exposición total y la previsión: son
+   * la medida del riesgo que Atlas asume por él, no un dato suyo, y publicarlos le enseñaría cuánto
+   * provisiona la casa por cada categoría —información con la que se puede negociar en contra de
+   * quien la publica—.
+   *
+   * Se añade la posición en la escala. Una letra sola no dice nada a quien no conoce la matriz: «B
+   * de seis» sí, porque convierte una etiqueta en un lugar.
+   */
+  async getCustomerFacingRating(tenantId: string, customerId: string) {
+    const rating = await this.repository.findCurrentCustomerRating(tenantId, customerId);
+    if (!rating) throw new NotFoundException('CUSTOMER_RATING_NOT_FOUND');
+
+    const resolved = await this.policies.resolveActivePolicy(tenantId);
+    /*
+     * Las bandas vienen ordenadas de mejor a peor por `severityRank`, y esa es la escala que el
+     * cliente ve. Se ordena aquí y no se confía en el orden de la consulta: una escala pintada al
+     * reves le diria a alguien que esta al final cuando esta al principio.
+     */
+    const bands = [...resolved.bands].sort((left, right) => left.severityRank - right.severityRank);
+    const scaleSize = bands.length;
+    const position = bands.findIndex((band) => band.grade === rating.grade) + 1;
+
+    return {
+      customerId: String(rating.customerId),
+      grade: rating.grade,
+      gradeLabel: rating.gradeLabel,
+      /*
+       * La posicion en la escala, contada desde la MEJOR categoria. Una letra sola no dice nada a
+       * quien no conoce la matriz; «1 de 6» convierte una etiqueta en un lugar.
+       */
+      position: position > 0 ? position : null,
+      scaleSize: scaleSize > 0 ? scaleSize : null,
+      worstDaysPastDue: rating.worstDaysPastDue,
+      ratedLoanCount: rating.ratedLoanCount,
+      reason: rating.ratingReason,
+      previousGrade: rating.previousGrade,
+      ratedAt: rating.ratedAt.toISOString(),
+    };
+  }
+
   async getCustomerRatingHistory(tenantId: string, customerId: string, limit: number) {
     const rows = await this.repository.findCustomerRatingHistory(tenantId, customerId, limit);
     return { customerId, items: rows.map(toCustomerRatingResponse) };

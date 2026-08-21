@@ -6,6 +6,7 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
+  DelinquencyPolicyModel,
   LoanEventModel,
   LoanInstallmentModel,
   LoanModel,
@@ -15,10 +16,14 @@ import {
 } from '../../database/models/index.js';
 import { CreditModule } from '../credit/credit.module.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
+import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
 import { LoanDelinquencyService } from './application/loan-delinquency.service.js';
 import { LoanDisbursementService } from './application/loan-disbursement.service.js';
 import { LoanPaymentService } from './application/loan-payment.service.js';
 import { LoanQueryService } from './application/loan-query.service.js';
+import { LoanSpendingService } from './application/loan-spending.service.js';
+import { DelinquencyPolicyService } from './application/delinquency-policy.service.js';
+import { SpendingReportService } from './application/spending-report.service.js';
 import { LoanWriteOffService } from './application/loan-writeoff.service.js';
 import { LoansOperationsController } from './loans-operations.controller.js';
 import { LoansController } from './loans.controller.js';
@@ -40,12 +45,15 @@ import { LoansRepository } from './loans.repository.js';
       LoanPaymentAllocationModel,
       LoanEventModel,
       LoanOutcomeReportModel,
+      DelinquencyPolicyModel,
     ]),
     CreditModule,
+    // El comercio donde nació cada crédito: de él salen el nombre y el rubro del gasto.
+    PartnerOnboardingModule,
     DecisionEngineModule,
   ],
   controllers: [LoansController, LoansOperationsController],
-  providers: [LoansRepository, LoanDisbursementService, LoanPaymentService, LoanWriteOffService, LoanDelinquencyService, LoanQueryService],
+  providers: [LoansRepository, LoanDisbursementService, LoanPaymentService, LoanWriteOffService, LoanDelinquencyService, LoanQueryService, LoanSpendingService, DelinquencyPolicyService, SpendingReportService],
   exports: [LoansRepository],
 })
 export class LoansModule {}
