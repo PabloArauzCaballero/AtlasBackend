@@ -30,7 +30,7 @@ function commonMocks() {
 }
 
 describe('CustomerProfileUpdateService', () => {
-  function build() {
+  function build(identityResult: string | null = null) {
     const common = commonMocks();
     const profileDataRepository = {
       findCurrentProfile: jest.fn(async (..._args: unknown[]) => null),
@@ -43,14 +43,23 @@ describe('CustomerProfileUpdateService', () => {
         supersedesVersionId: null,
       })),
     };
+    /*
+     * Identidad SIN verificar por defecto: es el estado en el que un cliente todavia esta editando
+     * su perfil, que es lo que estas pruebas fijan. El bloqueo de los campos de identidad tiene su
+     * propia prueba, que lo pone en `verified` a proposito.
+     */
+    const eligibilityRepository = {
+      loadFacts: jest.fn(async (..._args: unknown[]) => ({ identityVerificationResult: identityResult })),
+    };
     const service = new CustomerProfileUpdateService(
       common.customersRepository as never,
       profileDataRepository as never,
       common.onboardingRepository as never,
       common.lifecycleService as never,
+      eligibilityRepository as never,
       common.sequelize as never,
     );
-    return { service, profileDataRepository, ...common };
+    return { service, profileDataRepository, eligibilityRepository, ...common };
   }
 
   const baseInput = { tenantId: 't1', customerId: 'c1', currentUser: customerUser, ipAddress: '10.0.0.1' };
@@ -59,6 +68,36 @@ describe('CustomerProfileUpdateService', () => {
     const { service, customersRepository } = build();
     (customersRepository.findById as jest.Mock).mockResolvedValueOnce(null as never);
     await expect(service.updateProfile({ ...baseInput, body: { firstName: 'Ana' } as never })).rejects.toThrow(NotFoundException);
+  });
+
+  /*
+   * Terminar el alta no es dejar de ser una persona con datos que cambian: un cliente ACTIVO puede
+   * corregir sus preferencias. Antes el endpoint se cerraba al quedar `active` y no habia otro
+   * camino que soporte.
+   */
+  it('deja editar a un cliente ya activo', async () => {
+    const { service, customersRepository } = build();
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'active' } as never);
+    await expect(service.updateProfile({ ...baseInput, body: { preferredLanguage: 'es' } as never })).resolves.toBeDefined();
+  });
+
+  /*
+   * Y el filo: los tres campos que se contrastaron contra el carnet NO se reescriben por
+   * autoservicio. Permitirlo convertiria una verificacion en una declaracion — el expediente diria
+   * «verificado» sobre datos que nadie miro.
+   */
+  it('bloquea los campos de identidad cuando el carnet ya fue verificado', async () => {
+    const { service, customersRepository } = build('verified');
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'active' } as never);
+    await expect(service.updateProfile({ ...baseInput, body: { firstName: 'Otra' } as never })).rejects.toThrow(
+      /IDENTITY_FIELDS_LOCKED: firstName/,
+    );
+  });
+
+  it('con la identidad verificada sigue dejando cambiar lo que no se verifico', async () => {
+    const { service, customersRepository } = build('verified');
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'active' } as never);
+    await expect(service.updateProfile({ ...baseInput, body: { marketingOptIn: true } as never })).resolves.toBeDefined();
   });
 
   it('bloquea la edición cuando el estado del cliente ya no la admite', async () => {
@@ -113,7 +152,7 @@ describe('CustomerFinancialProfileService', () => {
     { id: 'def-2', attributeCode: 'monthly_income_declared' },
   ];
 
-  function build() {
+  function build(identityResult: string | null = null) {
     const common = commonMocks();
     const profileDataRepository = {
       findAttributeDefinitionsByCode: jest.fn(async (..._args: unknown[]) => DEFINITIONS),
