@@ -158,6 +158,19 @@ Esta máquina hace de servidor para los testers, que entran por los dev tunnels.
 imita lo que hace Render, pero aquí: vigila `dev`, y ante un commit nuevo construye la imagen del
 commit, la comprueba y la pone a servir — o deja servir a la anterior si la nueva no responde.
 
+Cubre **seis servicios**: los tres fronts (que son los que ve el tester a través del túnel) y los
+tres backends (que no se tunelizan nunca, pero sin los cuales el tester ve la interfaz y cada llamada
+falla).
+
+| Servicio | Puerto | Repositorio |
+|---|---|---|
+| `front-admin` | 5273 | AtlasAdminPortal |
+| `front-decision` | 5173 | AtlasDecisionEngineFrontend |
+| `front-erp` | 3010 | AtlasERPFrontend |
+| `atlas` | 3005 | AtlasBackend |
+| `erp` | 3020 | AtlasERPBackend |
+| `decision` | 3100 | AtlasDecisionEngineBackend |
+
 ```bash
 tools/autodeploy/autodeploy.sh estado      # qué está desplegado y qué commit espera
 tools/autodeploy/autodeploy.sh una-vez     # una pasada (es lo que corre el temporizador)
@@ -184,6 +197,7 @@ respeta y que hay que conservar en cualquier cambio:
 |---|---|---|
 | 1 | `git fetch` y compara con el SHA desplegado | Sin cambios no hace nada; el commit desplegado se guarda en `estado/<slug>.sha`. |
 | 2 | `git worktree` desprendido en el commit, en `/tmp` | **No toca tu copia de trabajo.** Un desplegador que te mueve la rama bajo los pies es peor que no tener desplegador. Y construye lo que está en `dev`, no lo que tengas sin guardar. |
+| 2-bis | Copia al contexto lo que no está versionado: `.env`, `.env.local` y `public/` | Un front de Next incrusta sus `NEXT_PUBLIC_*` **al construir**: sin el `.env.local` de la máquina, el portal saldría apuntando a los valores por defecto. Y en `public/` viven los intérpretes del cuaderno de datos, que pesan cientos de megas y no caben en git. |
 | 3 | `docker build` (con `--target` si el Dockerfile es multi-etapa) | La última etapa no siempre es el servicio: la del motor de decisiones es el `pdf-worker`. |
 | 4 | Canario en `AUTODEPLOY_PUERTO_CANARIO` (39100) | Comprueba que la imagen **responde**, no sólo que el proceso vive. |
 | 5 | Cambio de contenedor en el puerto real y nueva comprobación | Aquí está la única interrupción, de unos segundos. |
@@ -202,11 +216,28 @@ respeta y que hay que conservar en cualquier cambio:
 ### Dejarlo corriendo
 
 ```bash
-systemctl --user enable --now atlas-autodeploy.timer   # unidades en tools/autodeploy/systemd/
+ln -sf "$PWD/tools/autodeploy/systemd"/atlas-autodeploy.{service,timer} ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now atlas-autodeploy.timer
+loginctl enable-linger pablo   # o el temporizador muere al cerrar sesión
 ```
 
 El temporizador corre `una-vez` cada minuto. `flock` impide que dos pasadas se solapen, así que una
-construcción larga simplemente se salta el siguiente disparo.
+construcción larga simplemente se salta el siguiente disparo. Los contenedores llevan
+`--restart unless-stopped`, así que un reinicio de la máquina los devuelve solos.
+
+### La primera vez: relevar a los servidores de desarrollo
+
+Los seis puertos los tenía un `yarn dev` / `yarn start:dev` a mano. El desplegador **no** se apropia
+de un puerto ajeno por su cuenta; para que pase a mandar él hay que relevarlos una vez:
+
+```bash
+AUTODEPLOY_TOMAR_PUERTO=1 tools/autodeploy/autodeploy.sh desplegar <slug>
+```
+
+A partir de ahí el puerto es suyo y las pasadas siguientes ya no necesitan la variable. El efecto
+secundario es deliberado: **se pierde la recarga en caliente**. Lo que sirve el túnel pasa a ser un
+commit de `dev`, no la copia de trabajo de quien arrancó el servidor — que es justo el objetivo.
+Para volver a desarrollar sobre un servicio: `autodeploy.sh parar <slug>` y arrancarlo a mano.
 
 ## 7. Gates que deben estar verdes antes de desplegar
 

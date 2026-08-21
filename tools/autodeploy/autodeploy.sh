@@ -64,10 +64,17 @@ PREFIJO="atlas-auto"
 # La etapa hace falta cuando el Dockerfile es multi-etapa y la última NO es el servicio: la del motor
 # de decisiones termina en `pdf-worker`, así que un `docker build` sin `--target` produce una imagen
 # que no es la API y arranca otra cosa. Vacío = la etapa final.
+#
+# Los fronts son los que ve el tester: el túnel apunta a SU puerto. Los backends no se tunelizan
+# nunca —cada front hace de proxy de su API desde el servidor de Next—, pero si un backend no
+# escucha, el tester ve la interfaz y cada llamada falla. Por eso están todos aquí.
 SERVICIOS=(
   "atlas:AtlasBackend:3005:APP_PORT:/api/v1/health/liveness:"
   "erp:AtlasERPBackend:3020:PORT:/api/v1/health:"
   "decision:AtlasDecisionEngineBackend:3100:PORT:/health:runtime"
+  "front-admin:AtlasAdminPortal:5273:PORT:/:"
+  "front-decision:AtlasDecisionEngineFrontend:5173:PORT:/login:"
+  "front-erp:AtlasERPFrontend:3010:PORT:/:"
 )
 
 # A stderr, no a stdout. `construir` y `canario` DEVUELVEN la etiqueta de la imagen por stdout, así
@@ -121,6 +128,21 @@ construir() { # slug repo sha etapa -> imprime la etiqueta de la imagen
   git -C "$RAIZ/$repo" worktree add -q --detach "$trabajo" "$sha" 2>>"$LOG" || {
     log "[$slug] no pude crear el worktree en $sha"; return 1; }
 
+  # `.env` y `.env.local` NO están versionados —son de esta máquina— así que el worktree sale sin
+  # ellos. Para un backend da igual (lee el entorno al arrancar), pero un front de Next incrusta sus
+  # `NEXT_PUBLIC_*` en el paquete del navegador AL CONSTRUIR: sin copiarlos, el portal se construiría
+  # contra los valores por defecto y el tester acabaría llamando a un origen que no es el suyo.
+  local archivo
+  for archivo in .env .env.local .env.production.local; do
+    [ -f "$RAIZ/$repo/$archivo" ] && cp "$RAIZ/$repo/$archivo" "$trabajo/$archivo"
+  done
+  # Y los recursos pesados que tampoco se versionan: los intérpretes del cuaderno de datos
+  # (public/pyodide, public/webr) se bajan con `yarn setup:interpretes` y no caben en git. Si están en
+  # la máquina, viajan a la imagen; si no, el front se construye sin ellos.
+  if [ -d "$RAIZ/$repo/public" ]; then
+    mkdir -p "$trabajo/public" && cp -r "$RAIZ/$repo/public/." "$trabajo/public/" 2>/dev/null
+  fi
+
   local nodo="22.16.0"
   [ -f "$trabajo/.nvmrc" ] && nodo="$(tr -d ' \n' <"$trabajo/.nvmrc")"
 
@@ -146,10 +168,21 @@ arrancar() { # slug repo imagen puerto varPuerto nombre
   # `--network host`: esta máquina ES el servidor y los .env ya apuntan a localhost (postgres 5432,
   # redis 6381, ...). Con red puente habría que reescribir cada .env a host.docker.internal para no
   # ganar nada. Sin `no-new-privileges`: en este anfitrión esa opción mata el contenedor al arrancar.
+  # `HEALTHCHECK_PORT` se pasa aunque la imagen no lo mire, porque cuando sí lo mira evita un fallo
+  # sutil: el `.env` del motor de decisiones lleva `WORKER_HEALTH_PORT=3001`, que en su sonda tiene
+  # prioridad sobre `PORT`. El contenedor de la API acababa sondeando un puerto vacío y Docker lo
+  # marcaba `unhealthy` mientras servía de maravilla — un aviso falso, de los que enseñan a ignorar
+  # los avisos.
+  #
+  # `--env-file` sólo si lo hay: los fronts no tienen `.env` (su configuración ya viajó incrustada
+  # al construir), y pasar un archivo inexistente aborta el arranque.
+  local entorno=()
+  [ -f "$RAIZ/$repo/.env" ] && entorno=(--env-file "$RAIZ/$repo/.env")
   docker run -d --name "$nombre" \
     --network host \
-    --env-file "$RAIZ/$repo/.env" \
+    "${entorno[@]}" \
     -e "$var=$puerto" \
+    -e "HEALTHCHECK_PORT=$puerto" \
     --restart unless-stopped \
     --log-driver json-file --log-opt max-size=20m --log-opt max-file=5 \
     "$imagen" >>"$LOG" 2>&1
@@ -250,7 +283,7 @@ vigilar() {
 }
 
 estado() {
-  printf '%-10s %-12s %-12s %-9s %-7s %s\n' SERVICIO DESPLEGADO EN-$RAMA PUERTO SALUD CONTENEDOR
+  printf '%-15s %-13s %-13s %-7s %-6s %s\n' SERVICIO DESPLEGADO EN-$RAMA PUERTO SALUD CONTENEDOR
   local entrada slug repo puerto var salud etapa remoto local_sha codigo cont
   for entrada in "${SERVICIOS[@]}"; do
     IFS=: read -r slug repo puerto var salud etapa <<<"$entrada"
@@ -261,7 +294,7 @@ estado() {
     # recortarla la tabla se parte en dos renglones.
     cont="$(docker inspect -f '{{.State.Status}}' "$PREFIJO-$slug" 2>/dev/null | head -1)"
     [ -n "$cont" ] || cont='—'
-    printf '%-10s %-12s %-12s %-9s %-7s %s\n' \
+    printf '%-15s %-13s %-13s %-7s %-6s %s\n' \
       "$slug" "${local_sha:0:12}" "${remoto:0:12}" "$puerto" "${codigo:-—}" "$cont"
   done
   echo
@@ -280,10 +313,17 @@ parar() {
   log "los túneles siguen arriba: esto no los toca"
 }
 
-# Un solo despliegue a la vez. Dos pasadas solapadas construirían el mismo commit dos veces y
-# podrían cruzarse en el cambio de contenedor.
-exec 9>"$ESTADO/.lock"
-if ! flock -n 9; then echo "ya hay una pasada en marcha"; exit 0; fi
+# Un solo despliegue a la vez. Dos pasadas solapadas construirían el mismo commit dos veces y podrían
+# cruzarse en el cambio de contenedor.
+#
+# Sólo lo toman los comandos que DESPLIEGAN. `estado` e `historial` no tocan nada, y bloquearlos
+# convertía la pregunta más frecuente —«¿cómo va aquello?»— en un «ya hay una pasada en marcha»
+# justo cuando había algo interesante que mirar.
+case "${1:-estado}" in
+  una-vez|vigilar|desplegar|canario|parar)
+    exec 9>"$ESTADO/.lock"
+    if ! flock -n 9; then echo "ya hay una pasada en marcha"; exit 0; fi ;;
+esac
 
 case "${1:-estado}" in
   estado)     estado ;;

@@ -59,6 +59,7 @@
 - [`log-sync/`](./log-sync/README.md)
 - [`mail-sender/`](./mail-sender/README.md)
 - [`merchant-identity/`](./merchant-identity/README.md)
+- [`mobile-identity/`](./mobile-identity/README.md)
 - [`notifications/`](./notifications/README.md)
 - [`observability/`](./observability/README.md)
 - [`openapi/`](./openapi/README.md)
