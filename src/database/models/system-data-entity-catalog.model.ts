@@ -36,7 +36,18 @@ const NARRATIVE_ATTRIBUTES = [
   schema: atlasSchemaFor('system_data_entity_catalog'),
   timestamps: false,
   defaultScope: { attributes: { exclude: NARRATIVE_ATTRIBUTES } },
-  indexes: [{ name: 'ux_system_data_entity_catalog_schema_table', unique: true, fields: ['schema_name', 'table_name'] }],
+  /*
+   * El unico declarado tiene que ser el que EXISTE en la base.
+   *
+   * Estaba como `(schema_name, table_name)` y la base lo tiene como
+   * `(system_code, schema_name, table_name)` desde que el catalogo pasó a federar varios sistemas.
+   * Sequelize deduce de aqui el `ON CONFLICT` de su `upsert`, asi que la discrepancia hacia estallar
+   * el refresco entero con «there is no unique or exclusion constraint matching the ON CONFLICT
+   * specification» — y con el, el descubrimiento de endpoints, que corre despues.
+   */
+  indexes: [
+    { name: 'ux_system_data_entity_catalog_block_schema_table', unique: true, fields: ['system_code', 'schema_name', 'table_name'] },
+  ],
 })
 export class SystemDataEntityCatalogModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
