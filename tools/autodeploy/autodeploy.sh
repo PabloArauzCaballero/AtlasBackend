@@ -168,6 +168,12 @@ arrancar() { # slug repo imagen puerto varPuerto nombre
   # `--network host`: esta máquina ES el servidor y los .env ya apuntan a localhost (postgres 5432,
   # redis 6381, ...). Con red puente habría que reescribir cada .env a host.docker.internal para no
   # ganar nada. Sin `no-new-privileges`: en este anfitrión esa opción mata el contenedor al arrancar.
+  # `HEALTHCHECK_PORT` se pasa aunque la imagen no lo mire, porque cuando sí lo mira evita un fallo
+  # sutil: el `.env` del motor de decisiones lleva `WORKER_HEALTH_PORT=3001`, que en su sonda tiene
+  # prioridad sobre `PORT`. El contenedor de la API acababa sondeando un puerto vacío y Docker lo
+  # marcaba `unhealthy` mientras servía de maravilla — un aviso falso, de los que enseñan a ignorar
+  # los avisos.
+  #
   # `--env-file` sólo si lo hay: los fronts no tienen `.env` (su configuración ya viajó incrustada
   # al construir), y pasar un archivo inexistente aborta el arranque.
   local entorno=()
@@ -176,6 +182,7 @@ arrancar() { # slug repo imagen puerto varPuerto nombre
     --network host \
     "${entorno[@]}" \
     -e "$var=$puerto" \
+    -e "HEALTHCHECK_PORT=$puerto" \
     --restart unless-stopped \
     --log-driver json-file --log-opt max-size=20m --log-opt max-file=5 \
     "$imagen" >>"$LOG" 2>&1
@@ -306,10 +313,17 @@ parar() {
   log "los túneles siguen arriba: esto no los toca"
 }
 
-# Un solo despliegue a la vez. Dos pasadas solapadas construirían el mismo commit dos veces y
-# podrían cruzarse en el cambio de contenedor.
-exec 9>"$ESTADO/.lock"
-if ! flock -n 9; then echo "ya hay una pasada en marcha"; exit 0; fi
+# Un solo despliegue a la vez. Dos pasadas solapadas construirían el mismo commit dos veces y podrían
+# cruzarse en el cambio de contenedor.
+#
+# Sólo lo toman los comandos que DESPLIEGAN. `estado` e `historial` no tocan nada, y bloquearlos
+# convertía la pregunta más frecuente —«¿cómo va aquello?»— en un «ya hay una pasada en marcha»
+# justo cuando había algo interesante que mirar.
+case "${1:-estado}" in
+  una-vez|vigilar|desplegar|canario|parar)
+    exec 9>"$ESTADO/.lock"
+    if ! flock -n 9; then echo "ya hay una pasada en marcha"; exit 0; fi ;;
+esac
 
 case "${1:-estado}" in
   estado)     estado ;;
