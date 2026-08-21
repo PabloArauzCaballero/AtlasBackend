@@ -73,6 +73,40 @@ export class CreditApplicationService {
     return { ...created, status: decided.status, decisionMode: decided.decisionMode, executionId: decided.executionId };
   }
 
+  /**
+   * La forma con la que sale una solicitud recién creada.
+   *
+   * Sale de la transacción a propósito: es una proyección pura y no tiene nada que hacer dentro del
+   * bloque que decide y escribe. Leerlo aparte también deja ver de un vistazo qué expone el
+   * endpoint, que dentro de ochenta líneas de escritura se perdía.
+   */
+  private toSubmissionResponse(
+    application: {
+      id: unknown;
+      applicationCode: string;
+      status: string;
+      requestedAmount: string;
+      requestedTermMonths: number;
+      currencyCode: string;
+      submittedAt: Date;
+    },
+    productCode: string,
+    input: { customerId: string; body: CreateCreditApplicationDto },
+  ) {
+    return {
+      applicationId: String(application.id),
+      applicationCode: application.applicationCode,
+      customerId: input.customerId,
+      productCode,
+      status: application.status,
+      requestedAmount: application.requestedAmount,
+      requestedTermMonths: application.requestedTermMonths,
+      currencyCode: application.currencyCode,
+      submittedAt: application.submittedAt.toISOString(),
+      purposeCode: input.body.purposeCode ?? null,
+    };
+  }
+
   private async persistApplication(input: {
     tenantId: string;
     customerId: string;
@@ -140,18 +174,7 @@ export class CreditApplicationService {
           { transaction },
         );
 
-        return {
-          applicationId: String(application.id),
-          applicationCode: application.applicationCode,
-          customerId: input.customerId,
-          productCode: product.productCode,
-          status: application.status,
-          requestedAmount: application.requestedAmount,
-          requestedTermMonths: application.requestedTermMonths,
-          currencyCode: application.currencyCode,
-          submittedAt: application.submittedAt.toISOString(),
-          purposeCode: input.body.purposeCode ?? null,
-        };
+        return this.toSubmissionResponse(application, product.productCode, input);
       });
     } catch (error) {
       // El índice único parcial es la garantía real contra dos solicitudes vivas simultáneas: el

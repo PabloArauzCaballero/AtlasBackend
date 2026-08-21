@@ -143,13 +143,28 @@ function checkInternalSecondFactor(data: RawAppEnv, ctx: z.RefinementCtx): void 
     data.GMAIL_FROM_EMAIL,
   );
 
-  if (!data.MAILSENDER_BASE_URL && !gmailReady) {
+  /*
+   * El MISMO criterio que `MailSenderClient.isConfigured()` aplica en caliente.
+   *
+   * Antes aquí bastaba `MAILSENDER_BASE_URL` y en runtime se exigían además la API key y las dos
+   * credenciales admin. Un despliegue en esa franja —la URL puesta, el resto no— arrancaba sin una
+   * queja y luego se comportaba como si no hubiera canal: los actores internos recibían 503 en cada
+   * login y quien tuviera MFA opt-in entraba con un solo factor. Dos definiciones de «hay canal»
+   * que no coincidían, y la que decidía era la que nadie miraba al desplegar.
+   */
+  const mailSenderReady = Boolean(
+    data.MAILSENDER_BASE_URL && data.MAILSENDER_EXTERNAL_API_KEY && data.MAILSENDER_ADMIN_USERNAME && data.MAILSENDER_ADMIN_PASSWORD,
+  );
+
+  if (!mailSenderReady && !gmailReady) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['MAILSENDER_BASE_URL'],
       message:
-        'Producción necesita un canal de correo: es el que entrega el PIN de segundo factor de los actores internos y los ' +
-        'códigos de recuperación de contraseña. Configura MAILSENDER_BASE_URL (con su clave y usuario administrativos) o ' +
+        'Producción necesita un canal de correo COMPLETO: es el que entrega el PIN de segundo factor de los actores ' +
+        'internos y los códigos de recuperación de contraseña. Configura MAILSENDER_BASE_URL junto con ' +
+        'MAILSENDER_EXTERNAL_API_KEY, MAILSENDER_ADMIN_USERNAME y MAILSENDER_ADMIN_PASSWORD (las cuatro: con menos, el ' +
+        'cliente de correo se considera no configurado en caliente y el canal no existe), o ' +
         'NOTIFICATION_EMAIL_PROVIDER=gmail_api con sus cuatro credenciales. Sin ninguno, el login de admin/platform_admin ' +
         'degrada a un solo factor.',
     });

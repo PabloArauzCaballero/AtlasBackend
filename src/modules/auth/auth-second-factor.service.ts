@@ -71,30 +71,55 @@ export class AuthSecondFactorService {
    */
   isRequired(actorType: ActorType, credential: { mfaEnabled?: boolean }): boolean {
     if (!env.AUTH_LOGIN_PIN_ENABLED || !this.mailSenderService.isEnabled()) return false;
+    return this.requiredByPolicy(actorType, credential);
+  }
+
+  /**
+   * Si la POLÍTICA exige segundo factor a este actor, con independencia de si hay canal.
+   *
+   * Es la mitad que faltaba. `isRequired` mezcla dos preguntas —«¿lo exige la política?» y «¿se
+   * puede entregar?»— y devuelve `false` cuando falla cualquiera de las dos, así que no sirve para
+   * decidir si una ausencia de canal es una degradación aceptable o una rebaja de autenticación.
+   * Separarlas es lo que permite que `assertDeliverable` distinga los dos casos.
+   */
+  private requiredByPolicy(actorType: ActorType, credential: { mfaEnabled?: boolean }): boolean {
     if (actorType === 'internal_user' || actorType === 'platform_user') return true;
     return credential.mfaEnabled === true;
   }
 
   /**
-   * ATLAS-SEC-008 — fail-closed del segundo factor interno en producción.
+   * ATLAS-SEC-008 — el segundo factor de quien lo exige no puede evaporarse.
    *
    * `isRequired` devuelve `false` si MailSender no está disponible. Esa degradación, pensada para
    * desarrollo, convertía una caída del proveedor de correo en una **rebaja silenciosa de
    * autenticación**: `admin` y `platform_admin` entrando con solo la contraseña, con 200 y sin
    * rastro (verificado en vivo: docs/audit/evidence/live-exploit-2026-08-06.md).
    *
-   * `env-cross-checks.ts` ya impide arrancar en producción sin canal de correo; esto cubre la
-   * ventana que la configuración no puede cubrir: el proveedor configurado pero caído en el momento
-   * del login. Se rechaza el acceso (503) en vez de emitir tokens de un solo factor. Denegar el
-   * login de un operador es un incidente de disponibilidad; emitir esos tokens es uno de seguridad.
+   * ## La partición estaba escrita en dos sitios y sólo se actualizó uno
+   *
+   * Antes se decidía por `actorType !== 'customer'`, y eso fallaba por los dos lados desde que
+   * `merchant_user` pasó al lado opt-in de `isRequired`:
+   *
+   *  - **Un comercio sin MFA quedaba bloqueado.** No necesita segundo factor, pero esta guarda le
+   *    negaba el login (503) en cuanto el canal no estuviera disponible. Es el reflejo exacto del
+   *    fallo que movió a `merchant_user` de lado: se corrigió `isRequired` y esta condición se
+   *    quedó como estaba.
+   *  - **Un cliente que SÍ activó MFA entraba con un solo factor.** Al eximir a `customer` sin
+   *    mirar su credencial, la degradación de `isRequired` se le aplicaba entera y en silencio: el
+   *    mismo agujero que este método existe para cerrar, sobre el actor que lo pidió expresamente.
+   *
+   * Ahora la pregunta es una sola y la responde la política: **si este actor exige segundo factor
+   * y no hay por dónde entregarlo, no se emiten tokens.** Quien no lo exige nunca ve un 503 por un
+   * canal que no le hace falta. Denegar el login de un operador es un incidente de disponibilidad;
+   * emitir esos tokens es uno de seguridad.
    */
-  assertDeliverable(actorType: ActorType): void {
-    if (env.NODE_ENV !== 'production' || actorType === 'customer') return;
+  assertDeliverable(actorType: ActorType, credential: { mfaEnabled?: boolean }): void {
+    if (env.NODE_ENV !== 'production') return;
+    if (!this.requiredByPolicy(actorType, credential)) return;
     if (env.AUTH_LOGIN_PIN_ENABLED && this.mailSenderService.isEnabled()) return;
 
     throw new ServiceUnavailableException(
-      'El segundo factor es obligatorio para actores internos y su canal de entrega no está disponible. ' +
-        'No se emiten tokens de un solo factor.',
+      'Este acceso exige un segundo factor y su canal de entrega no está disponible. ' + 'No se emiten tokens de un solo factor.',
     );
   }
 

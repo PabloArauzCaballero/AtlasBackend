@@ -1073,6 +1073,57 @@ describe('AuthService — fail-closed del segundo factor interno en producción'
 
   afterEach(restoreNodeEnv);
 
+  /**
+   * Las dos mitades que la partición por `actorType !== 'customer'` dejaba mal.
+   *
+   * La condición vivía en dos sitios —`isRequired` y `assertDeliverable`— y sólo se actualizó una
+   * cuando `merchant_user` pasó al lado opt-in. El resultado era simétrico y opuesto: al comercio
+   * se le negaba un factor que no necesitaba, y al cliente con MFA se le quitaba el que sí pidió.
+   */
+  it('un comercio SIN MFA no queda bloqueado por un canal que no le hace falta', async () => {
+    asProduction();
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const mailSenderService = buildMailSenderServiceMock();
+    mailSenderService.isEnabled.mockReturnValue(false);
+    const service = buildService(authRepository, customersRepository, tokenRevocationService, mailSenderService);
+    const secondFactor = (service as unknown as { secondFactor: AuthSecondFactorService }).secondFactor;
+
+    // La política no le exige segundo factor, así que la falta de canal no le afecta.
+    expect(secondFactor.isRequired('merchant_user', { mfaEnabled: false })).toBe(false);
+    expect(() => secondFactor.assertDeliverable('merchant_user', { mfaEnabled: false })).not.toThrow();
+  });
+
+  it('un cliente que SÍ activó MFA no entra con un solo factor si el canal se cae', async () => {
+    asProduction();
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const mailSenderService = buildMailSenderServiceMock();
+    mailSenderService.isEnabled.mockReturnValue(false);
+    const service = buildService(authRepository, customersRepository, tokenRevocationService, mailSenderService);
+    const secondFactor = (service as unknown as { secondFactor: AuthSecondFactorService }).secondFactor;
+
+    // `isRequired` sigue degradando —no hay canal por el que mandar el PIN—, pero eso ya NO se
+    // traduce en tokens: la guarda mira la política, no el tipo de actor.
+    expect(secondFactor.isRequired('customer', { mfaEnabled: true })).toBe(false);
+    expect(() => secondFactor.assertDeliverable('customer', { mfaEnabled: true })).toThrow(ServiceUnavailableException);
+  });
+
+  it('un cliente sin MFA sigue entrando en un paso, como siempre', async () => {
+    asProduction();
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const mailSenderService = buildMailSenderServiceMock();
+    mailSenderService.isEnabled.mockReturnValue(false);
+    const service = buildService(authRepository, customersRepository, tokenRevocationService, mailSenderService);
+    const secondFactor = (service as unknown as { secondFactor: AuthSecondFactorService }).secondFactor;
+
+    expect(() => secondFactor.assertDeliverable('customer', { mfaEnabled: false })).not.toThrow();
+  });
+
   it('sin canal de correo, un actor interno NO recibe tokens: 503 en vez de un solo factor', async () => {
     asProduction();
     const { service, authRepository } = buildInternalLoginService(false);

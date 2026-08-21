@@ -118,10 +118,10 @@ export class AuthService {
       return this.secondFactor.issueChallenge(actor, input.dto.actorType, { ip: input.ip, userAgent: input.userAgent });
     }
 
-    // Llega aquí sin segundo factor. En producción eso solo es legítimo para un `customer` sin MFA
-    // opt-in: para un actor interno significa que el canal del PIN se cayó, y entonces no se emiten
-    // tokens (ATLAS-SEC-008).
-    this.secondFactor.assertDeliverable(input.dto.actorType);
+    // Sin segundo factor sólo es legítimo para quien la política no se lo exige (cliente o comercio
+    // sin MFA). Para un interno, o para quien SÍ activó MFA, significa que el canal del PIN se cayó
+    // y no se emiten tokens (ATLAS-SEC-008). La credencial distingue los dos casos.
+    this.secondFactor.assertDeliverable(input.dto.actorType, credential);
 
     await this.authRepository.recordSuccessfulLogin(credential, input.ip);
     await logAttempt(null);
