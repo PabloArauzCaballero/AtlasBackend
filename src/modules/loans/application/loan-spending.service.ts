@@ -65,6 +65,70 @@ export class LoanSpendingService {
     private readonly partnerProfiles: PartnerProfileService,
   ) {}
 
+  /**
+   * En qué rubro y bajo qué comercio cae un préstamo.
+   *
+   * Son cuatro decisiones encadenadas —¿tiene comercio?, ¿ese comercio declara rubro?, ¿con qué
+   * nombre se enseña?— y juntas eran la mitad de la complejidad del método que las contenía.
+   * Aparte se leen como lo que son: la regla de imputación, que es la que hay que mirar cuando un
+   * gasto aparece en el rubro equivocado.
+   *
+   * Un préstamo sin comercio NO se mezcla con los que sí lo tienen ni se le inventa un rubro: cae
+   * en su propio cajón, que es visible y se puede contar.
+   */
+  private keysFor(
+    loan: { partnerProfileId?: string | null },
+    merchants: Map<string, { businessCategory?: string | null; displayName?: string | null }>,
+  ): { categoryKey: string; merchantKey: string; merchantName: string } {
+    const profileId = loan.partnerProfileId ? String(loan.partnerProfileId) : null;
+    const merchant = profileId ? merchants.get(profileId) : undefined;
+    return {
+      categoryKey: merchant ? (merchant.businessCategory ?? SIN_RUBRO) : SIN_COMERCIO,
+      merchantKey: profileId ?? SIN_COMERCIO,
+      merchantName: merchant?.displayName ?? 'Compra sin comercio registrado',
+    };
+  }
+
+  /**
+   * Los rubros ya agregados, listos para la pantalla y ordenados por lo financiado.
+   *
+   * Sale de `byCategory` porque es una PROYECCIÓN: no consulta nada ni decide nada, sólo redondea
+   * y ordena lo que el agregado ya calculó. Dentro dejaba el método por encima de sus límites de
+   * tamaño y complejidad, y mezclaba «cómo se suma» con «cómo se enseña».
+   *
+   * Se ordena de mayor a menor y no por nombre: un tablero cuyo orden cambia con cada pago es un
+   * tablero que no se puede leer de un vistazo. El rubro principal sigue arriba aunque hoy se haya
+   * pagado una cuota.
+   */
+  private toSortedItems(
+    categories: Map<string, { label: string; totals: SpendTotals; merchants: Map<string, { name: string; totals: SpendTotals }> }>,
+    overallFinanced: number,
+  ) {
+    return [...categories.entries()]
+      .map(([key, value]) => ({
+        category: key,
+        financed: round(value.totals.financed),
+        paid: round(value.totals.paid),
+        outstanding: round(value.totals.outstanding),
+        overdue: round(value.totals.overdue),
+        upcoming: round(value.totals.upcoming),
+        loanCount: value.totals.loanCount,
+        overdueLoanCount: value.totals.overdueLoanCount,
+        share: overallFinanced > 0 ? round((value.totals.financed / overallFinanced) * 100) : 0,
+        merchants: [...value.merchants.entries()]
+          .map(([partnerProfileId, merchant]) => ({
+            partnerProfileId: partnerProfileId === SIN_COMERCIO ? null : partnerProfileId,
+            displayName: merchant.name,
+            financed: round(merchant.totals.financed),
+            outstanding: round(merchant.totals.outstanding),
+            overdue: round(merchant.totals.overdue),
+            loanCount: merchant.totals.loanCount,
+          }))
+          .sort((left, right) => right.financed - left.financed),
+      }))
+      .sort((left, right) => right.financed - left.financed);
+  }
+
   async byCategory(tenantId: string, customerId: string, now = new Date()) {
     const loans = await this.loans.findLoansByCustomer(tenantId, customerId);
     const active = loans.filter((loan) => loan.status !== 'cancelled');
@@ -75,7 +139,10 @@ export class LoanSpendingService {
     );
     const merchants = await this.partnerProfiles.describeMany(
       tenantId,
-      active.map((loan) => loan.partnerProfileId).filter((id): id is string => Boolean(id)).map(String),
+      active
+        .map((loan) => loan.partnerProfileId)
+        .filter((id): id is string => Boolean(id))
+        .map(String),
     );
 
     const scheduleByLoan = new Map<string, LoanInstallmentModel[]>();
@@ -86,15 +153,15 @@ export class LoanSpendingService {
       else scheduleByLoan.set(key, [installment]);
     }
 
-    const categories = new Map<string, { label: string; totals: SpendTotals; merchants: Map<string, { name: string; totals: SpendTotals }> }>();
+    const categories = new Map<
+      string,
+      { label: string; totals: SpendTotals; merchants: Map<string, { name: string; totals: SpendTotals }> }
+    >();
     let overall = { ...EMPTY };
     let nextDueDate: string | null = null;
 
     for (const loan of active) {
-      const merchant = loan.partnerProfileId ? merchants.get(String(loan.partnerProfileId)) : undefined;
-      const categoryKey = merchant ? (merchant.businessCategory ?? SIN_RUBRO) : SIN_COMERCIO;
-      const merchantKey = loan.partnerProfileId ? String(loan.partnerProfileId) : SIN_COMERCIO;
-      const merchantName = merchant?.displayName ?? 'Compra sin comercio registrado';
+      const { categoryKey, merchantKey, merchantName } = this.keysFor(loan, merchants);
 
       const totals = this.totalsForLoan(loan, scheduleByLoan.get(String(loan.id)) ?? [], now);
 
@@ -111,34 +178,7 @@ export class LoanSpendingService {
       if (soonest && (nextDueDate === null || soonest < nextDueDate)) nextDueDate = soonest;
     }
 
-    /*
-     * Ordenado por lo financiado, de mayor a menor. Un tablero cuyo orden cambia con cada pago es
-     * un tablero que no se puede leer de un vistazo: el rubro principal debe seguir arriba aunque
-     * hoy se haya pagado una cuota.
-     */
-    const items = [...categories.entries()]
-      .map(([key, value]) => ({
-        category: key,
-        financed: round(value.totals.financed),
-        paid: round(value.totals.paid),
-        outstanding: round(value.totals.outstanding),
-        overdue: round(value.totals.overdue),
-        upcoming: round(value.totals.upcoming),
-        loanCount: value.totals.loanCount,
-        overdueLoanCount: value.totals.overdueLoanCount,
-        share: overall.financed > 0 ? round((value.totals.financed / overall.financed) * 100) : 0,
-        merchants: [...value.merchants.entries()]
-          .map(([partnerProfileId, merchant]) => ({
-            partnerProfileId: partnerProfileId === SIN_COMERCIO ? null : partnerProfileId,
-            displayName: merchant.name,
-            financed: round(merchant.totals.financed),
-            outstanding: round(merchant.totals.outstanding),
-            overdue: round(merchant.totals.overdue),
-            loanCount: merchant.totals.loanCount,
-          }))
-          .sort((left, right) => right.financed - left.financed),
-      }))
-      .sort((left, right) => right.financed - left.financed);
+    const items = this.toSortedItems(categories, overall.financed);
 
     return {
       customerId,

@@ -68,7 +68,7 @@ describe('MailSenderService', () => {
       expect.objectContaining({
         template: 'atlas-login-pin',
         to: 'a@x.com',
-        variables: { nombre: 'Ana', pin: '123456', minutos: '5' },
+        variables: { producto: 'Plataforma corporativa', nombre: 'Ana', pin: '123456', minutos: '5' },
       }),
     );
   });
@@ -83,7 +83,7 @@ describe('MailSenderService', () => {
         to: 'a@x.com',
         sourceModule: 'auth',
         reference: 'ref',
-        variables: { nombre: 'Ana', codigo: '123', minutos: '10' },
+        variables: { producto: 'Plataforma corporativa', nombre: 'Ana', codigo: '123', minutos: '10' },
       }),
     );
   });
@@ -92,7 +92,7 @@ describe('MailSenderService', () => {
     const { service, client } = build();
     await service.sendLoginPin({ to: 'a@x.com', recipientName: null, pin: '999', ttlMinutes: 5, reference: 'r' });
     expect(client.sendTemplateEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ template: 'atlas-login-pin', variables: { nombre: 'Usuario ATLAS', pin: '999', minutos: '5' } }),
+      expect.objectContaining({ template: 'atlas-login-pin', variables: { producto: 'Plataforma corporativa', nombre: 'Usuario ATLAS', pin: '999', minutos: '5' } }),
     );
   });
 
@@ -103,7 +103,7 @@ describe('MailSenderService', () => {
       expect.objectContaining({
         template: 'atlas-credenciales-iniciales',
         sourceModule: 'internal-users',
-        variables: { nombre: 'Neo', email: 'new@x.com', password: 'Temp123!' },
+        variables: { producto: 'Plataforma corporativa', nombre: 'Neo', email: 'new@x.com', password: 'Temp123!' },
       }),
     );
   });

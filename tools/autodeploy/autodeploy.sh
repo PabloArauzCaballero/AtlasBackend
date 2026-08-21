@@ -38,6 +38,7 @@
 #   tools/autodeploy/autodeploy.sh vigilar         # bucle, para dejarlo corriendo como servidor
 #   tools/autodeploy/autodeploy.sh desplegar atlas # fuerza el despliegue de un servicio
 #   tools/autodeploy/autodeploy.sh canario atlas   # construye y comprueba SIN tocar el puerto bueno
+#   tools/autodeploy/autodeploy.sh salud           # comprueba los seis puertos y levanta lo caído
 #   tools/autodeploy/autodeploy.sh historial       # los despliegues, como el panel de Render
 #   tools/autodeploy/autodeploy.sh parar [slug]    # baja contenedores (no toca los túneles)
 set -uo pipefail
@@ -264,6 +265,98 @@ desplegar() { # slug [sha]
   return 1
 }
 
+# ── Vigilancia de salud ───────────────────────────────────────────────────────────────────────────
+#
+# Desplegar por commits no basta. `una_vez` compara SHAs y, si el desplegado coincide con la punta
+# de la rama, no hace nada más — pero un servicio puede estar en el commit correcto y aun así no
+# servir: se le cayó la base, se quedó sin memoria, el anfitrión volvió de un apagón a medias. El
+# 21-ago-2026 el backend del ERP pasó la mañana en bucle de reinicio, con el puerto 3020 muerto,
+# porque para el desplegador ya estaba al día y no había nada que desplegar.
+#
+# Lo que se vigila es el PUERTO, que es lo que el túnel tiene delante. Y se vigilan los seis, no
+# sólo los tres que el tester abre: los fronts hacen de proxy de su API desde el servidor de Next,
+# así que un backend caído deja la interfaz en pie con todas las llamadas fallando. Para el tester
+# ese enlace está igual de roto, sólo que de una forma que parece un bug del producto.
+FALLOS_PARA_ACTUAR="${AUTODEPLOY_FALLOS_PARA_ACTUAR:-3}"
+
+sondear() { # puerto ruta -> 0 si responde 200
+  [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 4 "http://127.0.0.1:$1$2" 2>/dev/null)" = "200" ]
+}
+
+# Recuperar NO es desplegar: se levanta la última imagen que ya pasó por el canario, no la punta de
+# la rama. Si dev trae un fallo, redesplegarlo aquí convertiría una caída en dos.
+resucitar() { # slug repo puerto var salud nombre
+  local slug="$1" repo="$2" puerto="$3" var="$4" salud="$5" nombre="$6" imagen
+
+  if docker inspect "$nombre" >/dev/null 2>&1; then
+    log "[$slug] no responde en $puerto — reiniciando el contenedor"
+    docker restart "$nombre" >/dev/null 2>&1
+    if esperar_salud "$puerto" "$salud" "$ESPERA_SALUD"; then
+      log "[$slug] ✔ recuperado con un reinicio — el túnel sigue apuntando a $puerto"
+      anotar "$slug" "$(sha_desplegado "$slug")" "recuperado" "reinicio del contenedor"
+      return 0
+    fi
+  fi
+
+  imagen="$(cat "$ESTADO/$slug.imagen" 2>/dev/null)"
+  if [ -n "$imagen" ] && docker image inspect "$imagen" >/dev/null 2>&1; then
+    log "[$slug] el reinicio no bastó — recreando desde $imagen"
+    arrancar "$slug" "$repo" "$imagen" "$puerto" "$var" "$nombre"
+    if esperar_salud "$puerto" "$salud" "$ESPERA_SALUD"; then
+      log "[$slug] ✔ recuperado recreando el contenedor"
+      anotar "$slug" "$(sha_desplegado "$slug")" "recuperado" "$imagen"
+      return 0
+    fi
+  fi
+
+  # Llegados aquí no es cosa del desplegador: casi siempre falta una dependencia de fuera (la base
+  # del ERP en 5434, el disco, la red). Las últimas líneas van al log para no tener que ir a
+  # buscarlas con `docker logs` cuando alguien avisa de que el enlace no va.
+  log "[$slug] ✖ ATENCIÓN: sigue sin responder en $puerto. Últimas líneas del contenedor:"
+  docker logs --tail 15 "$nombre" 2>&1 | sed 's/^/    /' | tee -a "$LOG" >&2
+  anotar "$slug" "$(sha_desplegado "$slug")" "caido" "no responde en $puerto tras reiniciar"
+  return 1
+}
+
+vigilar_salud() {
+  local entrada slug repo puerto var salud etapa nombre fallos pid
+  for entrada in "${SERVICIOS[@]}"; do
+    IFS=: read -r slug repo puerto var salud etapa <<<"$entrada"
+    nombre="$PREFIJO-$slug"
+
+    # Nunca desplegado: no hay nada que vigilar ni imagen validada a la que volver.
+    [ -n "$(sha_desplegado "$slug")" ] || continue
+
+    if sondear "$puerto" "$salud"; then
+      rm -f "$ESTADO/$slug.fallos"
+      continue
+    fi
+
+    # Un puerto que no es nuestro no se toca, la misma regla que en `desplegar`: si ahí tienes un
+    # `yarn start:dev`, el "fallo" es que estás desarrollando.
+    if ! docker inspect "$nombre" >/dev/null 2>&1; then
+      pid="$(duenio_del_puerto "$puerto")"
+      if [ -n "$pid" ]; then
+        log "[$slug] $puerto no responde pero lo tiene el pid $pid, que no es mío — no toco nada"
+        continue
+      fi
+    fi
+
+    fallos=$(( $(cat "$ESTADO/$slug.fallos" 2>/dev/null || echo 0) + 1 ))
+    printf '%s' "$fallos" >"$ESTADO/$slug.fallos"
+
+    # Margen deliberado: un arranque lento, un reinicio propio o una pasada que cae justo en el
+    # cambio de contenedor no son una caída. Actuar al primer sondeo fallido produce reinicios en
+    # cascada, que es peor que la avería que intentan arreglar.
+    if [ "$fallos" -lt "$FALLOS_PARA_ACTUAR" ]; then
+      log "[$slug] sin respuesta en $puerto ($fallos/$FALLOS_PARA_ACTUAR)"
+      continue
+    fi
+
+    resucitar "$slug" "$repo" "$puerto" "$var" "$salud" "$nombre" && rm -f "$ESTADO/$slug.fallos"
+  done
+}
+
 una_vez() {
   local entrada slug repo puerto var salud etapa remoto local_sha
   for entrada in "${SERVICIOS[@]}"; do
@@ -275,6 +368,10 @@ una_vez() {
     log "[$slug] commit nuevo en $RAMA: ${local_sha:0:12}..${remoto:0:12}"
     desplegar "$slug" "$remoto"
   done
+
+  # Después de desplegar, no antes: así un servicio que acaba de cambiar de contenedor ya ha tenido
+  # su `esperar_salud` y no se cuenta como caído.
+  vigilar_salud
 }
 
 vigilar() {
@@ -320,7 +417,7 @@ parar() {
 # convertía la pregunta más frecuente —«¿cómo va aquello?»— en un «ya hay una pasada en marcha»
 # justo cuando había algo interesante que mirar.
 case "${1:-estado}" in
-  una-vez|vigilar|desplegar|canario|parar)
+  una-vez|vigilar|desplegar|canario|parar|salud)
     exec 9>"$ESTADO/.lock"
     if ! flock -n 9; then echo "ya hay una pasada en marcha"; exit 0; fi ;;
 esac
@@ -328,6 +425,7 @@ esac
 case "${1:-estado}" in
   estado)     estado ;;
   una-vez)    una_vez ;;
+  salud)      vigilar_salud ;;
   vigilar)    vigilar ;;
   desplegar)  shift; desplegar "${1:?uso: $0 desplegar <slug>}" "${2:-}" ;;
   canario)    shift; entrada="$(buscar_servicio "${1:?uso: $0 canario <slug>}")" || exit 1

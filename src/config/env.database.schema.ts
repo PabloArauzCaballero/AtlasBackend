@@ -97,7 +97,7 @@ export const databaseEnvShape = {
 
   // Identidad del SUPER_ADMIN que siembra el perfil `development`
   // (`development/20260704121500-seed-pablo-admin-user`). Ambas son opcionales y solo se leen fuera
-  // de producción: sin ellas el seeder mantiene `pablo@atlas.internal` y el hash versionado, que es
+  // de producción: sin ellas el seeder mantiene el correo por defecto y el hash versionado, que es
   // lo que espera CI.
   //
   // Existen porque la alternativa era peor: para que un desarrollador use su correo real —necesario

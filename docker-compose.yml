@@ -65,6 +65,36 @@ x-atlas-env: &atlas-env
   # `docker compose down`.
   SHUTDOWN_DRAIN_MS: '5000'
 
+  # Plano de sesión, tomado del `.env` de la máquina.
+
+  #
+
+  # Sin esto el contenedor usaba el secreto POR DEFECTO del esquema mientras la máquina firmaba
+
+  # con el suyo, así que los dos lados no podían coincidir: los smokes —que se acuñan un JWT
+
+  # con `JWT_ACCESS_TOKEN_SECRET` del `.env`— recibían 401 «Token inválido o expirado» contra un
+
+  # stack perfectamente sano, y la verificación de extremo a extremo quedaba inservible.
+
+  #
+
+  # Van en forma DESNUDA, no como `${VAR:-}`: así, cuando la máquina no las declara, el
+
+  # contenedor no recibe una cadena vacía —que rompería el `min(32)`— sino nada, y manda el
+
+  # valor por defecto de desarrollo. Producción no puede arrancar con ese defecto: lo bloquea
+
+  # `env-cross-checks.ts`.
+
+  JWT_ACCESS_TOKEN_SECRET:
+
+  JWT_ACCESS_TOKEN_EXPIRES_IN:
+
+  JWT_ISSUER:
+
+  JWT_AUDIENCE:
+
   # Canal de correo, tomado del `.env` de la máquina.
   #
   # Sin esto el contenedor arrancaba SIEMPRE sin canal, dijera lo que dijera el `.env`: este archivo

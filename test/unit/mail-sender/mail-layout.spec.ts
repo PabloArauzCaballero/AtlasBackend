@@ -65,7 +65,7 @@ describe('armazón de marca de los correos', () => {
    * correo entregado que el sistema cuenta como éxito y la persona no puede usar.
    */
   it('rinde el PIN dentro del bloque de código, sin marcadores sueltos', () => {
-    const { html, text, subject } = renderMailTemplate('atlas-login-pin', {
+    const { html, text, subject } = renderMailTemplate('atlas-login-pin', { producto: 'ERP corporativo',
       nombre: 'Pablo',
       pin: '800067',
       minutos: '10',

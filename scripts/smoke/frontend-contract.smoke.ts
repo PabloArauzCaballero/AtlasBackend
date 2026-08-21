@@ -6,7 +6,7 @@ type JsonRecord = Record<string, unknown>;
 
 type AuthContext = { headers: Record<string, string> };
 
-const PABLO_EMAIL = process.env.INTERNAL_SMOKE_EMAIL ?? 'pablo@atlas.internal';
+const PABLO_EMAIL = process.env.INTERNAL_SMOKE_EMAIL ?? 'a2020115468@estudiantes.upsa.edu.bo';
 const PABLO_PASSWORD = requireSmokeEnv('INTERNAL_SMOKE_PASSWORD');
 
 function assert(condition: boolean, message: string): void {

@@ -133,6 +133,14 @@ export interface MailShellInput {
   readonly eyebrow: string;
   readonly title: string;
   readonly blocks: readonly MailBlock[];
+  /**
+   * El producto de ATLAS que originó el correo, junto al logotipo.
+   *
+   * La cabecera decía SIEMPRE «Plataforma de decisiones», así que un PIN pedido desde el ERP o
+   * desde el portal interno llegaba con el nombre del motor. No es un detalle de marca: quien
+   * recibe un código necesita saber a qué está entrando para reconocer un acceso que no pidió.
+   */
+  readonly product?: string | undefined;
 }
 
 /**
@@ -186,7 +194,7 @@ function card(input: MailShellInput): string {
     `<table role="presentation" class="atlas-card" cellpadding="0" cellspacing="0" border="0" ` +
     `width="600" style="width:600px;max-width:600px;background:${COLOR.surface};` +
     `border:1px solid ${COLOR.line};border-radius:16px;overflow:hidden">` +
-    wordmark() +
+    wordmark(input.product) +
     `<tr><td class="atlas-pad" style="padding:28px 40px 32px">` +
     `<div style="font-family:${FONT};font-size:11px;line-height:16px;font-weight:600;` +
     `color:${COLOR.accent};margin-bottom:6px">${input.eyebrow}</div>` +
@@ -205,14 +213,21 @@ function card(input: MailShellInput): string {
  * campo. Una imagen aparecería rota hasta que la persona pulse «mostrar
  * imágenes», que es lo que no hace en el correo que todavía no reconoce.
  */
-function wordmark(): string {
+/**
+ * `ATLAS` y, al lado, el producto desde el que se pidió esto.
+ *
+ * Sin producto conocido se cae a «Plataforma corporativa», que es cierto para los tres y no afirma
+ * de más. Antes el respaldo era «Plataforma de decisiones» y se enviaba SIEMPRE: el correo mentía
+ * sobre su origen en dos de cada tres portales.
+ */
+function wordmark(product?: string): string {
   return (
     `<tr><td style="background:${COLOR.ink};padding:20px 40px">` +
     `<span style="font-family:${FONT};font-size:17px;line-height:24px;font-weight:700;` +
     `letter-spacing:.22em;color:${COLOR.surface}">ATLAS</span>` +
     `<span style="font-family:${FONT};font-size:11px;line-height:24px;font-weight:500;` +
     `letter-spacing:.08em;color:${COLOR.accentSoft};padding-left:12px">` +
-    'Plataforma de decisiones</span></td></tr>'
+    `${product ?? 'Plataforma corporativa'}</span></td></tr>`
   );
 }
 

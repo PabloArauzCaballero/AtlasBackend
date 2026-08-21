@@ -31,7 +31,7 @@ import { requireSmokeEnv } from './required-smoke-env.js';
 
 type JsonRecord = Record<string, unknown>;
 
-const ADMIN_EMAIL = process.env.INTERNAL_SMOKE_EMAIL ?? 'pablo@atlas.internal';
+const ADMIN_EMAIL = process.env.INTERNAL_SMOKE_EMAIL ?? 'a2020115468@estudiantes.upsa.edu.bo';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
