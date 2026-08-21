@@ -26,6 +26,7 @@
 #   tools/devtunnels/devtunnels.sh crear     # una vez: crea los túneles (cerrados, exigen login)
 #   tools/devtunnels/devtunnels.sh acceso org <org>  # da entrada a los testers de tu organización
 #   tools/devtunnels/devtunnels.sh host      # levanta los túneles (en segundo plano)
+#   tools/devtunnels/devtunnels.sh systemd   # los deja en systemd: vuelven solos tras un apagón
 #   tools/devtunnels/devtunnels.sh urls      # los enlaces para los testers
 #   tools/devtunnels/devtunnels.sh estado    # qué está vivo y qué no
 #   tools/devtunnels/devtunnels.sh parar     # baja los túneles (no toca los fronts)
@@ -227,6 +228,46 @@ host() {
   urls
 }
 
+# --- systemd -------------------------------------------------------------
+# Deja los túneles en manos de systemd y retira los procesos sueltos que hubiera.
+#
+# `host` servía para levantarlos a mano, pero lo que se levanta a mano se muere en el primer
+# apagón y nadie se entera: el enlace deja de abrir y parece un despliegue roto. Una unidad por
+# túnel, con `Restart=always` y linger, es lo único que hace verdad la promesa de que el enlace
+# no cambia nunca.
+#
+# El túnel de ALOVIDA se queda fuera a propósito: lo hospeda su propio redespliegue
+# (`mantra-core-health/tools/redeploy/redeploy.sh`), que lo comprueba en cada pasada. Ponerlo
+# también aquí serían dos gestores hospedando el mismo túnel.
+systemd() {
+  comprobar_cli
+  local unidades="$HOME/.config/systemd/user"
+  mkdir -p "$unidades" "$ESTADO"
+  ln -sf "$REPO/tools/devtunnels/systemd/atlas-devtunnel@.service" "$unidades/"
+  systemctl --user daemon-reload
+  for entry in "${FRONTS[@]}"; do
+    IFS=: read -r slug _puerto dir <<<"$entry"
+    [ "$dir" = "-" ] && continue          # el de ALOVIDA lo gobierna su redespliegue
+    omitido "$slug" && continue
+    local id="atlas-$slug" pid_file="$ESTADO/$slug.pid"
+    # Primero el proceso suelto, si lo hay: dos hosts del mismo túnel es ruido innecesario.
+    if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file" 2>/dev/null)" 2>/dev/null; then
+      kill "$(cat "$pid_file")" 2>/dev/null
+      log "[$slug] proceso suelto retirado; a partir de ahora manda systemd"
+    fi
+    rm -f "$pid_file"
+    systemctl --user enable --now "atlas-devtunnel@$id.service" >/dev/null 2>&1 \
+      && log "[$slug] hospedado por systemd ($(systemctl --user is-active "atlas-devtunnel@$id.service"))" \
+      || log "[$slug] ERROR al instalar la unidad"
+  done
+  # Sin linger, las unidades de usuario sólo viven mientras haya sesión iniciada.
+  loginctl enable-linger "$USER" >/dev/null 2>&1 \
+    && log "linger activo — los túneles suben con la máquina, sin que nadie entre" \
+    || log "⚠ no se pudo activar linger; sólo subirán con sesión iniciada"
+  sleep 6
+  urls
+}
+
 # --- urls ----------------------------------------------------------------
 urls() {
   : >"$URL_FILE"
@@ -259,7 +300,15 @@ estado() {
     local front="caído" tunel="caído" pid_file="$ESTADO/$slug.pid"
     [ "$dir" = "-" ] && dir="(Docker, otro workspace)"
     ss -ltn "sport = :$puerto" 2>/dev/null | grep -q LISTEN && front="arriba"
-    [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file" 2>/dev/null)" 2>/dev/null && tunel="arriba"
+    # Un túnel puede estar hospedado de dos maneras y ninguna ve a la otra: por un proceso suelto
+    # de `host`, que deja su pid aquí, o por su unidad de systemd, que no lo deja. Mirar sólo el
+    # pid hacía que tras un reinicio —cuando systemd los levanta y nadie escribe pid— los tres
+    # salieran «caído» con los enlaces funcionando: el peor informe posible, el que miente.
+    if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file" 2>/dev/null)" 2>/dev/null; then
+      tunel="arriba (proceso suelto)"
+    elif systemctl --user is-active --quiet "atlas-devtunnel@atlas-$slug.service" 2>/dev/null; then
+      tunel="arriba (systemd)"
+    fi
     printf '%-10s %-30s front:%-7s túnel:%s\n' "$slug" "$dir" "$front" "$tunel"
   done
 }
@@ -270,10 +319,16 @@ estado() {
 parar() {
   for entry in "${FRONTS[@]}"; do
     IFS=: read -r slug _puerto _dir <<<"$entry"
-    local pid_file="$ESTADO/$slug.pid"
+    local pid_file="$ESTADO/$slug.pid" unidad="atlas-devtunnel@atlas-$slug.service"
     if [ -f "$pid_file" ]; then
       kill "$(cat "$pid_file" 2>/dev/null)" 2>/dev/null && log "[$slug] túnel detenido"
       rm -f "$pid_file"
+    fi
+    # Contra una unidad de systemd, matar el proceso no para nada: `Restart=always` lo devuelve a
+    # los diez segundos. Hay que pararla a ella, y dejarla habilitada para que vuelva en el
+    # siguiente arranque —parar no es desinstalar—.
+    if systemctl --user is-active --quiet "$unidad" 2>/dev/null; then
+      systemctl --user stop "$unidad" && log "[$slug] unidad detenida (sigue habilitada para el próximo arranque)"
     fi
   done
 }
@@ -294,8 +349,9 @@ case "${1:-estado}" in
   crear)  crear ;;
   acceso) acceso "$@" ;;
   host)   host ;;
+  systemd) systemd ;;
   urls)   urls ;;
   estado) estado ;;
   parar)  parar ;;
-  *) echo "uso: $0 {todo|fronts|backends|crear|acceso|host|urls|estado|parar}"; exit 1 ;;
+  *) echo "uso: $0 {todo|fronts|backends|crear|acceso|host|systemd|urls|estado|parar}"; exit 1 ;;
 esac
