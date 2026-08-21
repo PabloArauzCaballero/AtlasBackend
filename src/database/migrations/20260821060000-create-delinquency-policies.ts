@@ -145,7 +145,7 @@ async function seedFirstVersion(queryInterface: QueryInterface): Promise<void> {
   ]);
 
   const body = [
-    '## Qué ocurre si te atrasas',
+    '## ¿Qué ocurre si te atrasas?',
     '',
     'El interés penal corre **únicamente sobre el capital de la cuota vencida**, nunca sobre el saldo total',
     'del crédito ni sobre los intereses ya devengados.',
@@ -158,7 +158,7 @@ async function seedFirstVersion(queryInterface: QueryInterface): Promise<void> {
     'público las tasas de interés efectivas, la tasa moratoria, las comisiones y cualquier otro cargo. Si un',
     'cargo no está en esta política, no se cobra.',
     '',
-    '## Cómo regularizar',
+    '## ¿Cómo regularizo mi situación?',
     '',
     'Pagando la cuota vencida más el interés penal acumulado. Al quedar al día se levantan de inmediato las',
     'restricciones de compra.',

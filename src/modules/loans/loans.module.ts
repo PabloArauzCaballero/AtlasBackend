@@ -23,6 +23,7 @@ import { LoanDisbursementService } from './application/loan-disbursement.service
 import { LoanPaymentService } from './application/loan-payment.service.js';
 import { LoanQueryService } from './application/loan-query.service.js';
 import { LoanSpendingService } from './application/loan-spending.service.js';
+import { LoanCalendarService } from './application/loan-calendar.service.js';
 import { DelinquencyPolicyService } from './application/delinquency-policy.service.js';
 import { SpendingReportService } from './application/spending-report.service.js';
 import { LoanWriteOffService } from './application/loan-writeoff.service.js';
@@ -64,6 +65,7 @@ import { LoansRepository } from './loans.repository.js';
     LoanDelinquencyService,
     LoanQueryService,
     LoanSpendingService,
+    LoanCalendarService,
     DelinquencyPolicyService,
     SpendingReportService,
   ],

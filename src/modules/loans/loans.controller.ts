@@ -21,6 +21,7 @@ import { LoanDisbursementService } from './application/loan-disbursement.service
 import { LoanPaymentService } from './application/loan-payment.service.js';
 import { LoanQueryService } from './application/loan-query.service.js';
 import { LoanSpendingService } from './application/loan-spending.service.js';
+import { LoanCalendarService } from './application/loan-calendar.service.js';
 import { DelinquencyPolicyService } from './application/delinquency-policy.service.js';
 import { SpendingReportService } from './application/spending-report.service.js';
 import { LoanWriteOffService } from './application/loan-writeoff.service.js';
@@ -61,6 +62,7 @@ export class LoansController {
     private readonly writeOff: LoanWriteOffService,
     private readonly queries: LoanQueryService,
     private readonly spending: LoanSpendingService,
+    private readonly calendar: LoanCalendarService,
     private readonly policies: DelinquencyPolicyService,
     private readonly report: SpendingReportService,
   ) {}
@@ -137,6 +139,26 @@ export class LoansController {
 
   @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
   @ApiOperation({
+    summary: 'Calendario de pagos del cliente',
+    description:
+      'Todas las cuotas de todos sus préstamos en una sola línea de tiempo, con el estado ya resuelto ' +
+      '—vencida, por vencer, pagada o castigada— contra el reloj del SERVIDOR. La app no compara fechas: ' +
+      'un dispositivo con la fecha corrida enseñaría una mora que no existe.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Cuotas ordenadas por fecha, con el comercio de cada una.' })
+  @Get('customers/:customerId/payment-calendar')
+  paymentCalendar(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(loanCustomerParamsSchema)) params: LoanCustomerParamsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
+    return this.calendar.forCustomer(tenantId, params.customerId);
+  }
+
+  @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @ApiOperation({
     summary: 'Informe de gastos por categoría en PDF',
     description: 'Lo compone el SERVIDOR con los mismos números de la pantalla, para que salga idéntico en cualquier dispositivo.',
   })
@@ -184,8 +206,26 @@ export class LoansController {
   @ApiResponse({ status: 200, description: 'Préstamo con cronograma, cobros e historial.' })
   @ApiResponse({ status: 404, description: 'LOAN_NOT_FOUND.' })
   @Get('loans/:loanId')
-  detail(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(loanIdParamsSchema)) params: LoanIdParamsDto) {
-    return this.queries.detail(tenantId, params.loanId);
+  async detail(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(loanIdParamsSchema)) params: LoanIdParamsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    /*
+     * La propiedad se comprobaba en la LISTA de préstamos del cliente pero no en la ficha.
+     *
+     * Con el rol `customer` bastaba cambiar el número de la URL para leer el crédito de cualquier
+     * otro cliente del tenant: su importe, su comercio, su cronograma y su mora. Es el mismo
+     * hallazgo que ya se corrigió en `customers/:customerId/loans`; a esta ruta se le había pasado,
+     * y es la que la app abre al tocar un crédito.
+     *
+     * Se comprueba DESPUÉS de leer porque la ficha es quien sabe de quién es el préstamo. Un
+     * préstamo ajeno responde 403 y no 404: el recurso existe, y fingir lo contrario complicaría la
+     * lectura de los registros de auditoría sin esconder nada que el atacante no sepa ya.
+     */
+    const loan = await this.queries.detail(tenantId, params.loanId);
+    assertOwnCustomerResourceOrInternalOperational(currentUser, String(loan.customerId));
+    return loan;
   }
 
   @Roles('internal_operator', 'admin', 'platform_admin')

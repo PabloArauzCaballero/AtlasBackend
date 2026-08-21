@@ -101,7 +101,26 @@ export class AuthService {
 
     if (credential.lockedUntil && credential.lockedUntil.getTime() > Date.now()) {
       await logAttempt({ actorId: actor.id, reasonCode: 'account_locked' });
-      throw new UnauthorizedException('Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intenta nuevamente más tarde.');
+
+      /*
+       * El bloqueo dice HASTA CUÁNDO, no «más tarde».
+       *
+       * Antes se respondía con una frase suelta y sin código, así que la app no podía distinguir
+       * «te equivocaste de contraseña» de «estás bloqueado» —caía en el mensaje genérico— y quien
+       * lo leía no tenía forma de saber si esperar un minuto o una hora. La respuesta previsible
+       * es no volver a intentarlo nunca, o intentarlo cada diez segundos: las dos peores.
+       *
+       * Decir cuándo se puede volver no debilita el control: el bloqueo sigue siendo el mismo
+       * tiempo y quien lo provocó ya sabe que existe. Lo que cambia es que el titular legítimo
+       * —que es quien casi siempre se equivoca de contraseña— sabe qué hacer con su tarde.
+       */
+      const retryAfterSeconds = Math.max(1, Math.ceil((credential.lockedUntil.getTime() - Date.now()) / 1000));
+      throw new UnauthorizedException({
+        code: 'ACCOUNT_LOCKED',
+        message: 'Cuenta bloqueada temporalmente por múltiples intentos fallidos.',
+        lockedUntil: credential.lockedUntil.toISOString(),
+        retryAfterSeconds,
+      });
     }
 
     const passwordMatches = await verifyPassword(credential.passwordHash, input.dto.password);
