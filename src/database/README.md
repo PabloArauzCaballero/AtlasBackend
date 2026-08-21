@@ -28,6 +28,7 @@
 ## Subcarpetas
 
 - [`context-seed/`](./context-seed/README.md)
+- [`metadata/`](./metadata/README.md)
 - [`migration-support/`](./migration-support/README.md)
 - [`migrations/`](./migrations/README.md)
 - [`models/`](./models/README.md)

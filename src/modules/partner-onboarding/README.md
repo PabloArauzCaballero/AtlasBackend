@@ -17,6 +17,7 @@
 | [`partner-onboarding.module.ts`](./partner-onboarding.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
 | [`partner-onboarding.repository.ts`](./partner-onboarding.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`partner-onboarding.schemas.ts`](./partner-onboarding.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
+| [`partner-ownership.guard.ts`](./partner-ownership.guard.ts) | Guard: aplica autenticación o autorización antes del caso de uso. |
 
 ## Subcarpetas
 

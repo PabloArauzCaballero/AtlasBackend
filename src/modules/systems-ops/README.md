@@ -15,6 +15,7 @@
 | [`column-classification.util.ts`](./column-classification.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`endpoint-code.util.ts`](./endpoint-code.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`endpoint-discovery.service.ts`](./endpoint-discovery.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`erp-entity-inventory.json`](./erp-entity-inventory.json) | Configuración o contrato serializado consumido por herramientas. |
 | [`path-exists.util.ts`](./path-exists.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`platform-service-health.probe.ts`](./platform-service-health.probe.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`platform-services.constants.ts`](./platform-services.constants.ts) | Artefacto de soporte específico de esta carpeta. |
@@ -34,6 +35,7 @@
 | [`systems-data-impact-inference.service.ts`](./systems-data-impact-inference.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-endpoint-docs.service.ts`](./systems-endpoint-docs.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-entity-narrative.mapper.ts`](./systems-entity-narrative.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
+| [`systems-erp-inventory.service.ts`](./systems-erp-inventory.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-health-monitor.service.ts`](./systems-health-monitor.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-health.service.ts`](./systems-health.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-json-path.util.ts`](./systems-json-path.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |

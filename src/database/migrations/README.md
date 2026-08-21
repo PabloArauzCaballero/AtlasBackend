@@ -83,6 +83,7 @@
 | [`20260819140000-create-partner-onboarding.ts`](./20260819140000-create-partner-onboarding.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260819160000-add-partner-contact-verification.ts`](./20260819160000-add-partner-contact-verification.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260819180000-add-business-acceptance-to-credit-applications.ts`](./20260819180000-add-business-acceptance-to-credit-applications.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260820120000-add-partner-profile-owner.ts`](./20260820120000-add-partner-profile-owner.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 
 ## Reglas de mantenimiento
 

@@ -13,6 +13,7 @@
 |---|---|
 | [`partner-audience.spec.ts`](./partner-audience.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`partner-onboarding.spec.ts`](./partner-onboarding.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`partner-ownership.spec.ts`](./partner-ownership.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento
 
