@@ -69,10 +69,18 @@ function nextSteps(line: CreditLineModel): Array<{ code: string; label: string; 
     });
   }
   if (line.provenanceJson?.bureau_score === 'ausente') {
+    /*
+     * Este paso NO pide subir nada, y por eso lo dice.
+     *
+     * Puesto junto a «sube tu extracto» se leía como un segundo documento que hay que ir a buscar
+     * —y sacar un reporte del buró es un trámite que casi nadie hace—. Lo único que se le pide al
+     * cliente en toda esta pantalla es el extracto, que ya tiene en el teléfono. El historial lo
+     * genera Atlas solo, con cada cuota que él paga.
+     */
     steps.push({
       code: 'historial',
-      label: 'Construye tu historial con Atlas',
-      detail: 'Cada cuota pagada a tiempo es historial que hoy no existe en ningún buró. Es la vía más directa a subir de tramo.',
+      label: 'Paga a tiempo y tu historial se construye solo',
+      detail: 'No tienes que subir nada más: cada cuota que pagas a tiempo va creando el historial que hoy no existe en ningún buró. Es la vía más directa a subir de tramo.',
     });
   }
   return steps;
