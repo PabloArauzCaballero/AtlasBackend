@@ -22,6 +22,34 @@ import { checkDecisionEngine } from './env.decision-engine.checks.js';
  * Secretos que no pueden ser los de ejemplo en producción, ni compartirse entre sí: comprometer uno
  * comprometería ambos usos.
  */
+/**
+ * Buzones de correo gratuitos. Sirven para desarrollar y no para escribirle a un cliente.
+ *
+ * No es una cuestion de imagen: un correo que pide teclear un codigo y llega desde una cuenta
+ * personal es indistinguible de un intento de suplantacion, y le estamos ENSEÑANDO al cliente a
+ * fiarse de ese remitente. Ademas, un dominio propio es lo unico que permite firmar con SPF, DKIM y
+ * DMARC; sin eso el correo acaba en spam justo cuando mas urge —el codigo que caduca en diez
+ * minutos—.
+ */
+const DOMINIOS_DE_CORREO_PERSONAL = [
+  'gmail.com',
+  'googlemail.com',
+  'hotmail.com',
+  'outlook.com',
+  'live.com',
+  'yahoo.com',
+  'icloud.com',
+  'proton.me',
+  'protonmail.com',
+];
+
+/** Los buzones de estudiante y similares tampoco: son cuentas personales con otro nombre. */
+function esBuzonPersonal(email: string): boolean {
+  const dominio = email.trim().toLowerCase().split('@')[1] ?? '';
+  if (!dominio) return false;
+  return DOMINIOS_DE_CORREO_PERSONAL.includes(dominio) || dominio.includes('estudiantes.') || dominio.includes('alumnos.');
+}
+
 function checkSecrets(data: RawAppEnv, ctx: z.RefinementCtx): void {
   if (data.NODE_ENV === 'production' && data.JWT_ACCESS_TOKEN_SECRET === DEFAULT_JWT_SECRET) {
     ctx.addIssue({
@@ -44,6 +72,15 @@ function checkSecrets(data: RawAppEnv, ctx: z.RefinementCtx): void {
         code: z.ZodIssueCode.custom,
         path: ['NOTIFICATION_TOKEN_ENCRYPTION_KEY'],
         message: 'NOTIFICATION_TOKEN_ENCRYPTION_KEY debe ser distinto de JWT_ACCESS_TOKEN_SECRET en producción.',
+      });
+    }
+    if (data.GMAIL_FROM_EMAIL && esBuzonPersonal(data.GMAIL_FROM_EMAIL)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['GMAIL_FROM_EMAIL'],
+        message:
+          'GMAIL_FROM_EMAIL no puede ser una cuenta personal en producción: el correo que pide un código de ' +
+          'verificación tiene que salir de un buzón de la plataforma, con dominio propio.',
       });
     }
   }

@@ -227,6 +227,20 @@ export const addressPackageSchema = z.object({
     department: z.string().trim().min(1).max(80),
     city: z.string().trim().min(1).max(120),
     zone: z.string().trim().max(120).optional(),
+    /**
+     * Calle y numero, EN CLARO. El servidor la cifra antes de guardarla.
+     *
+     * Antes solo existia `addressLineEncrypted`, que esperaba recibirla ya cifrada por el cliente
+     * —una pieza que nunca existio en la app, asi que el campo llegaba siempre vacio y el
+     * expediente se quedaba sin direccion exacta mientras la pantalla prometia que se guardaba
+     * cifrada—. Cifrar en el movil ademas exigiria repartirle una llave, que es peor: una llave que
+     * viaja a cada telefono deja de ser una llave.
+     *
+     * El resto de datos personales ya funciona asi —el telefono llega en claro por TLS y se cifra
+     * con `encryptSecretEnvelope` al guardarlo—, y esta ahora hace lo mismo.
+     */
+    addressLine: z.string().trim().max(500).optional(),
+    /** @deprecated Se acepta por compatibilidad. Usar `addressLine`: el cifrado lo hace el servidor. */
     addressLineEncrypted: z.string().trim().max(500).optional(),
     referenceEncrypted: z.string().trim().max(500).optional(),
   }),

@@ -4,6 +4,10 @@ import request from 'supertest';
 import { LoanDisbursementService } from '../../../src/modules/loans/application/loan-disbursement.service.js';
 import { LoanPaymentService } from '../../../src/modules/loans/application/loan-payment.service.js';
 import { LoanQueryService } from '../../../src/modules/loans/application/loan-query.service.js';
+import { LoanSpendingService } from '../../../src/modules/loans/application/loan-spending.service.js';
+import { LoanCalendarService } from '../../../src/modules/loans/application/loan-calendar.service.js';
+import { DelinquencyPolicyService } from '../../../src/modules/loans/application/delinquency-policy.service.js';
+import { SpendingReportService } from '../../../src/modules/loans/application/spending-report.service.js';
 import { LoanWriteOffService } from '../../../src/modules/loans/application/loan-writeoff.service.js';
 import { LoansController } from '../../../src/modules/loans/loans.controller.js';
 import { authHeader, buildLoansTestApp } from './support/loans-test-app.js';
@@ -32,10 +36,34 @@ describe('LoansController (e2e/supertest)', () => {
     reversePayment: jest.fn(async (..._args: unknown[]) => ({ paymentId: '5', status: 'reversed' })),
   };
   const writeOff = { writeOff: jest.fn(async (..._args: unknown[]) => ({ loanId: '10', status: 'written_off' })) };
+  /*
+    El préstamo del doble tiene DUEÑO, y es quien firma el token de cliente.
+
+    La ficha comprueba la propiedad contra `loan.customerId` —se le añadió cuando se descubrió que
+    con el rol `customer` bastaba cambiar el número de la URL para leer el crédito de cualquier
+    otro—. Un doble que devuelve un préstamo sin dueño hace que esa comprobación compare contra
+    `undefined` y responda 403: no es que el permiso esté mal, es que el préstamo de mentira no era
+    de nadie.
+  */
+  const CLIENTE = '77';
   const queries = {
     listByCustomer: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
-    detail: jest.fn(async (..._args: unknown[]) => ({ loanId: '10' })),
+    detail: jest.fn(async (..._args: unknown[]) => ({ loanId: '10', customerId: CLIENTE })),
   };
+
+  /*
+    Los cuatro servicios de solo lectura que el controlador incorporo despues.
+
+    Esta suite fija el contrato HTTP —quien puede mover dinero y que se valida antes— y no toca sus
+    rutas, pero Nest resuelve el controlador ENTERO al construir el modulo: sin ellos no arranca, y
+    entonces no falla una prueba sino las diecisiete, antes de ejecutar un solo caso. Se declaran
+    con los metodos que el controlador llama de verdad, no como objetos vacios: un doble sin metodo
+    convierte un fallo de contrato en un `undefined is not a function` que no dice nada.
+  */
+  const spending = { byCategory: jest.fn(async (..._args: unknown[]) => ({ categories: [] })) };
+  const calendar = { forCustomer: jest.fn(async (..._args: unknown[]) => ({ months: [], entries: [] })) };
+  const policies = { current: jest.fn(async (..._args: unknown[]) => ({ policies: [] })) };
+  const report = { pdf: jest.fn(async (..._args: unknown[]) => Buffer.from('%PDF-1.4')) };
 
   const TENANT: [string, string] = ['x-tenant-id', '1'];
   const IDEMPOTENCY: [string, string] = ['x-idempotency-key', 'idem-e2e-1'];
@@ -48,6 +76,10 @@ describe('LoansController (e2e/supertest)', () => {
         { provide: LoanPaymentService, useValue: payments },
         { provide: LoanWriteOffService, useValue: writeOff },
         { provide: LoanQueryService, useValue: queries },
+        { provide: LoanSpendingService, useValue: spending },
+        { provide: LoanCalendarService, useValue: calendar },
+        { provide: DelinquencyPolicyService, useValue: policies },
+        { provide: SpendingReportService, useValue: report },
       ],
     );
   });
@@ -111,10 +143,25 @@ describe('LoansController (e2e/supertest)', () => {
     it('el cliente SÍ puede leer la ficha de su préstamo', async () => {
       await request(app.getHttpServer())
         .get('/loans/10')
-        .set(...authHeader('customer'))
+        .set(...authHeader('customer', { customerId: CLIENTE }))
         .set(...TENANT)
         .expect(200);
       expect(queries.detail).toHaveBeenCalled();
+    });
+
+    /*
+      La otra mitad de la regla, que no estaba cubierta: el 403 del préstamo AJENO.
+
+      Sin esta prueba, la comprobación de propiedad se puede borrar por accidente y la suite sigue
+      en verde —el caso feliz pasa igual—. Y lo que se perdería es justo el hallazgo que motivó el
+      cambio: leer la deuda, el comercio y la mora de cualquier cliente cambiando un número.
+    */
+    it('un cliente NO puede leer la ficha de un préstamo ajeno', async () => {
+      await request(app.getHttpServer())
+        .get('/loans/10')
+        .set(...authHeader('customer', { customerId: '99' }))
+        .set(...TENANT)
+        .expect(403);
     });
   });
 

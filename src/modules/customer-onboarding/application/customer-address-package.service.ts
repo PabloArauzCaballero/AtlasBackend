@@ -9,6 +9,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
+import { encryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
@@ -60,10 +61,26 @@ export class CustomerAddressPackageService {
         await this.onboardingRepository.touchAddress(address, now, { transaction });
       }
 
-      const declaredAddressText = input.body.address.addressLineEncrypted ?? null;
-      // `addressLineEncrypted` llega cifrado/opaco; esta capa guarda una huella para detectar
-      // cambios entre versiones sin tocar el texto humano.
-      const normalizedAddressText = declaredAddressText ? sha256Hex(declaredAddressText) : null;
+      /*
+        La direccion se guarda CIFRADA y su huella se calcula sobre el texto EN CLARO.
+
+        El orden importa. La huella existe para detectar si alguien cambio de domicilio entre dos
+        versiones del expediente, y el cifrado de sobre usa una clave e IV nuevos cada vez: dos
+        cifrados de la misma calle no se parecen en nada, asi que hashear el criptograma daria
+        «cambio de direccion» en cada guardado aunque nadie se haya mudado.
+
+        `addressLineEncrypted` se sigue aceptando por compatibilidad y se guarda tal cual, porque
+        ya venia opaco de origen: cifrar lo cifrado no aporta y su huella no seria comparable.
+      */
+      const direccionEnClaro = input.body.address.addressLine ?? null;
+      const declaredAddressText = direccionEnClaro
+        ? await encryptSecretEnvelope(direccionEnClaro)
+        : (input.body.address.addressLineEncrypted ?? null);
+      const normalizedAddressText = direccionEnClaro
+        ? sha256Hex(direccionEnClaro)
+        : declaredAddressText
+          ? sha256Hex(declaredAddressText)
+          : null;
       const version = await this.onboardingRepository.createAddressVersion(
         {
           tenantId: input.tenantId,
