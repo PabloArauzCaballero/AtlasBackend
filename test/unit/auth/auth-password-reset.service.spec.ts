@@ -90,11 +90,29 @@ describe('AuthPasswordResetService', () => {
 
   // --- confirmPasswordReset --------------------------------------------------------------------
 
-  const confirmInput = { ...baseInput, code: '123456', newPassword: 'NewPassw0rd!' };
+  /*
+   * El CLIENTE restablece con un PIN de cuatro digitos, no con una contrasena larga: es la misma
+   * regla con la que se dio de alta. Si el restablecimiento exigiera contrasena, la cuenta quedaria
+   * con un secreto que su propio login no sabe pedir.
+   */
+  const confirmInput = { ...baseInput, code: '123456', newPassword: '5183' };
 
-  it('confirmPasswordReset rechaza una contraseña débil', async () => {
+  it('confirmPasswordReset rechaza un PIN que no tiene cuatro digitos', async () => {
     const { service, actorResolver } = build();
     await expect(service.confirmPasswordReset({ ...confirmInput, newPassword: 'abc' })).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(actorResolver.resolveActorForLogin).not.toHaveBeenCalled();
+  });
+
+  it('confirmPasswordReset rechaza un PIN adivinable aunque tenga cuatro digitos', async () => {
+    const { service, actorResolver } = build();
+    await expect(service.confirmPasswordReset({ ...confirmInput, newPassword: '1234' })).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(actorResolver.resolveActorForLogin).not.toHaveBeenCalled();
+  });
+
+  it('confirmPasswordReset exige contrasena larga a un usuario interno, no un PIN', async () => {
+    const { service, actorResolver } = build();
+    const internal = { ...confirmInput, actorType: 'internal_user' as const };
+    await expect(service.confirmPasswordReset({ ...internal, newPassword: '5183' })).rejects.toBeInstanceOf(UnauthorizedException);
     expect(actorResolver.resolveActorForLogin).not.toHaveBeenCalled();
   });
 

@@ -128,6 +128,13 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     // y del atraso del préstamo, y quien la consulta —cobranza, contabilidad, cierre— ya está aquí.
     'loan_risk_ratings',
     'customer_risk_ratings',
+    // La linea de credito vive con el credito y no con el cliente: la decide la politica de
+    // suscripcion, cambia con el comportamiento de pago y se audita junto a los prestamos que la
+    // consumen. En `customer` seria un atributo del expediente, que es justo lo que no es.
+    'credit_lines',
+    // El extracto que el cliente sube para que le recalculen la linea: vive con el credito porque es
+    // entrada de la politica de suscripcion, no un documento mas de su expediente.
+    'bank_statement_reviews',
   ],
   [ATLAS_SCHEMAS.RISK]: [
     'feature_definitions',

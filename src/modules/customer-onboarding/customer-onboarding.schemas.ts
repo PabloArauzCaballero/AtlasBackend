@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import { birthDateSchema } from './customer-onboarding-profile.schemas.js';
+import { isCustomerPinValid } from '../../common/utils/crypto/password.util.js';
 
 const ALLOWED_PERMISSION_CODES = ['location', 'camera', 'contacts', 'notifications', 'storage'] as const;
 
@@ -27,7 +28,19 @@ export const startOnboardingSchema = z.object({
   // ninguna forma de entrar jamás: no existe endpoint para fijarla después y
   // `POST /auth/password-reset/request` retorna sin hacer nada si el actor no tiene credenciales
   // (`auth-password-reset.service.ts`). Es decir, la cuenta nacía muerta y en silencio.
-  password: z.string().trim().min(10, 'La contraseña debe tener al menos 10 caracteres.').max(128),
+  /*
+   * Un PIN de CUATRO digitos, no una contrasena.
+   *
+   * La de diez caracteres la olvidaba la mitad de la gente, y recuperarla pasa por el correo —que
+   * en este segmento no siempre se revisa—. Un PIN que se recuerda es un PIN que no se apunta en
+   * un papel, y esa era la alternativa real. Lo sostienen el bloqueo por intentos y la lista de
+   * PIN prohibidos de `isCustomerPinValid`.
+   */
+  password: z
+    .string()
+    .trim()
+    .regex(/^\d{4}$/, 'Tu PIN debe ser de 4 digitos.')
+    .refine(isCustomerPinValid, 'Ese PIN es demasiado facil de adivinar. Elige otro.'),
 
   consents: z
     .array(

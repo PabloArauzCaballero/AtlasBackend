@@ -16,6 +16,7 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
 import { NotificationsService } from './notifications.service.js';
+import { assertOwnCustomerResourceOrInternalOperational } from '../../common/utils/auth/ownership.util.js';
 import {
   createBroadcastNotificationSchema,
   createTemplateSchema,
@@ -261,6 +262,48 @@ export class NotificationsController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.service.listCustomerNotifications(tenantId, params.customerId, query, currentUser);
+  }
+
+  @ApiOperation({
+    summary: 'Preferencias de notificación del PROPIO cliente',
+    description:
+      'Las mismas preferencias que operaciones administra, leídas por su dueño. Existían solo bajo `operations/`, ' +
+      'así que el cliente no podía ver —ni menos elegir— por qué canal se le avisa de su propia deuda.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Preferencias del cliente, con las obligatorias marcadas.' })
+  @Get('customers/:customerId/notification-preferences')
+  @Roles('customer', 'internal_operator', 'admin', 'platform_admin', 'system')
+  getOwnPreferences(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(preferencesParamsSchema)) params: PreferencesParamsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
+    return this.service.getPreferences(tenantId, params.customerId);
+  }
+
+  @ApiOperation({
+    summary: 'Cambiar sus propias preferencias de notificación',
+    description:
+      'El cliente elige por dónde se le avisa. NO puede apagar las obligatorias —vencimientos, mora, cambios en su ' +
+      'línea—: son las que le protegen de enterarse tarde de una deuda suya, y apagarlas sería dejar de avisarle de ' +
+      'lo único que no puede permitirse ignorar. Responde `REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED`.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiBody({ schema: zodToApiSchema(updatePreferencesSchema) })
+  @ApiResponse({ status: 200, description: 'Preferencias actualizadas.' })
+  @ApiResponse({ status: 400, description: 'REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED.' })
+  @Patch('customers/:customerId/notification-preferences')
+  @Roles('customer', 'internal_operator', 'admin', 'platform_admin', 'system')
+  updateOwnPreferences(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(preferencesParamsSchema)) params: PreferencesParamsDto,
+    @Body(new ZodValidationPipe(updatePreferencesSchema)) body: UpdatePreferencesDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
+    return this.service.updatePreferences(tenantId, params.customerId, body);
   }
 
   @ApiOperation({ summary: 'Contador de notificaciones no leídas del cliente' })

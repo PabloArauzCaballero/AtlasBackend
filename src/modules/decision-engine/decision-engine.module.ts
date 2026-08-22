@@ -6,9 +6,17 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
+  AttributeDefinitionModel,
+  CustomerAddressModel,
+  CustomerAttributeValueModel,
+  CustomerContactMethodModel,
+  CustomerProfileVersionModel,
   DecisionSubjectLinkModel,
   FeatureDefinitionModel,
   FeatureValueModel,
+  IdentityVerificationAttemptModel,
+  LoanInstallmentModel,
+  LoanModel,
   LoanOutcomeReportModel,
 } from '../../database/models/index.js';
 import { CreditDecisionEngineService } from './credit-decision-engine.service.js';
@@ -17,6 +25,7 @@ import { FeatureProjectionService } from './feature-projection.service.js';
 import { OutcomeDispatchService } from './outcome-dispatch.service.js';
 import { RiskDecisionEngineService } from './risk-decision-engine.service.js';
 import { SubjectReferenceService } from './subject-reference.service.js';
+import { UnderwritingFeaturesService } from './underwriting-features.service.js';
 
 /**
  * Integración con el ATLAS Decision Engine.
@@ -29,15 +38,37 @@ import { SubjectReferenceService } from './subject-reference.service.js';
  * `ResilientAdapterExecutorService` no se importa: `ResilienceModule` es `@Global()`.
  */
 @Module({
-  imports: [SequelizeModule.forFeature([DecisionSubjectLinkModel, FeatureDefinitionModel, FeatureValueModel, LoanOutcomeReportModel])],
+  imports: [
+    /*
+     * Los modelos se inyectan DIRECTAMENTE en vez de importar los módulos de cliente y préstamos.
+     * Esos módulos ya importan éste —son ellos los que deciden—, así que traerlos de vuelta cerraría
+     * un ciclo. Aquí solo se LEE del expediente para componer las variables; ninguna regla de esos
+     * dominios se reimplementa.
+     */
+    SequelizeModule.forFeature([
+      DecisionSubjectLinkModel,
+      FeatureDefinitionModel,
+      FeatureValueModel,
+      LoanOutcomeReportModel,
+      AttributeDefinitionModel,
+      CustomerAttributeValueModel,
+      CustomerProfileVersionModel,
+      CustomerContactMethodModel,
+      CustomerAddressModel,
+      IdentityVerificationAttemptModel,
+      LoanModel,
+      LoanInstallmentModel,
+    ]),
+  ],
   providers: [
     DecisionEngineClient,
     FeatureProjectionService,
+    UnderwritingFeaturesService,
     SubjectReferenceService,
     CreditDecisionEngineService,
     RiskDecisionEngineService,
     OutcomeDispatchService,
   ],
-  exports: [CreditDecisionEngineService, RiskDecisionEngineService, OutcomeDispatchService, SubjectReferenceService, DecisionEngineClient],
+  exports: [CreditDecisionEngineService, UnderwritingFeaturesService, RiskDecisionEngineService, OutcomeDispatchService, SubjectReferenceService, DecisionEngineClient],
 })
 export class DecisionEngineModule {}

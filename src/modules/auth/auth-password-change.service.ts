@@ -12,7 +12,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { env } from '../../config/env.js';
-import { hashPassword, isPasswordStrongEnough, verifyPassword } from '../../common/utils/crypto/password.util.js';
+import { hashPassword, isSecretValidFor, secretRequirementMessage, verifyPassword } from '../../common/utils/crypto/password.util.js';
 import {
   generateChallengeToken,
   generateNumericCode,
@@ -166,8 +166,9 @@ export class AuthPasswordChangeService {
     // tres estados que quien ataca no debe poder distinguir.
     const invalidCodeError = new BadRequestException('Código inválido o expirado.');
 
-    if (!isPasswordStrongEnough(input.newPassword)) {
-      throw new BadRequestException('La contraseña no cumple el mínimo de seguridad requerido.');
+    // La regla depende de QUIEN cambia: PIN para el cliente, contrasena larga para el resto.
+    if (!isSecretValidFor(input.actorType, input.newPassword)) {
+      throw new BadRequestException(secretRequirementMessage(input.actorType));
     }
 
     const challenge = await this.oneTimeCodeRepository.findActiveOneTimeCodeByChallenge(hashOneTimeCode(input.challengeToken));

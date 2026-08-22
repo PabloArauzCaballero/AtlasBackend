@@ -147,3 +147,18 @@ export const merchantApplicationsQuerySchema = z.object({
     .transform((value) => value !== 'false'),
 });
 export type MerchantApplicationsQueryDto = z.infer<typeof merchantApplicationsQuerySchema>;
+
+/**
+ * El extracto que el cliente acaba de subir.
+ *
+ * Solo la clave del objeto: el archivo ya viajo por el permiso de subida firmado, y el contenido
+ * nunca pasa por este endpoint. Pedir aqui el importe o los movimientos dejaria que el cliente
+ * declarara su propio extracto, que es justo lo que el extracto viene a evitar.
+ */
+export const submitBankStatementSchema = z
+  .object({
+    storageKey: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export type SubmitBankStatementDto = z.infer<typeof submitBankStatementSchema>;

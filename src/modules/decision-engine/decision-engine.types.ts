@@ -16,7 +16,7 @@ import { z } from 'zod';
  * `passthrough` a propósito: el motor añade campos con el tiempo y esto no debe romperse por eso.
  * Lo que se declara es lo que el core LEE, ni más ni menos.
  */
-export const decisionReasonSchema = z
+const decisionReasonObjectSchema = z
   .object({
     code: z.string(),
     category: z.string().nullish(),
@@ -25,6 +25,22 @@ export const decisionReasonSchema = z
     priority: z.number().nullish(),
   })
   .passthrough();
+
+/**
+ * Un motivo llega como objeto o como código suelto, y las dos formas son válidas.
+ *
+ * El motor manda `[{code, message, adverseAction}]` cuando la política publicó el motivo con su
+ * texto, y `["BUREAU_SCORE_TOO_LOW"]` cuando solo hay el código. Aceptar únicamente la primera
+ * convertía una respuesta perfectamente buena en «motor no disponible» —que es lo que pasó al
+ * recalcular una línea aprobada, donde los motivos vienen sin texto— y una aprobación se perdía por
+ * la forma de un campo secundario.
+ *
+ * Se normaliza a objeto en el borde para que nadie aguas abajo tenga que preguntarse cuál llegó.
+ */
+export const decisionReasonSchema = z.union([
+  decisionReasonObjectSchema,
+  z.string().transform((code) => ({ code }) as z.infer<typeof decisionReasonObjectSchema>),
+]);
 
 export const decisionResponseSchema = z
   .object({

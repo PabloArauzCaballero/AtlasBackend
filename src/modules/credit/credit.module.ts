@@ -5,13 +5,21 @@
  */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { CreditApplicationEventModel, CreditApplicationModel, CreditProductModel } from '../../database/models/index.js';
+import {
+  BankStatementReviewModel,
+  CreditApplicationEventModel,
+  CreditApplicationModel,
+  CreditLineModel,
+  CreditProductModel,
+} from '../../database/models/index.js';
 import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
 import { CustomersModule } from '../customers/customers.module.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { CreditApplicationService } from './application/credit-application.service.js';
 import { CreditBusinessAcceptanceService } from './application/credit-business-acceptance.service.js';
 import { CreditDecisionService } from './application/credit-decision.service.js';
+import { BankStatementService } from './application/bank-statement.service.js';
+import { CreditLineService } from './application/credit-line.service.js';
 import { CreditProductService } from './application/credit-product.service.js';
 import { MerchantCreditController } from './merchant-credit.controller.js';
 import { CreditUnderwritingService } from './application/credit-underwriting.service.js';
@@ -32,7 +40,13 @@ import { CreditRepository } from './credit.repository.js';
  */
 @Module({
   imports: [
-    SequelizeModule.forFeature([CreditProductModel, CreditApplicationModel, CreditApplicationEventModel]),
+    SequelizeModule.forFeature([
+      CreditProductModel,
+      CreditApplicationModel,
+      CreditApplicationEventModel,
+      CreditLineModel,
+      BankStatementReviewModel,
+    ]),
     CustomersModule,
     DecisionEngineModule,
     // El expediente del comercio: de él sale la categoría del gasto y quién debe aceptar la operación.
@@ -44,9 +58,11 @@ import { CreditRepository } from './credit.repository.js';
     CreditProductService,
     CreditApplicationService,
     CreditDecisionService,
+    CreditLineService,
+    BankStatementService,
     CreditBusinessAcceptanceService,
     CreditUnderwritingService,
   ],
-  exports: [CreditRepository, CreditUnderwritingService],
+  exports: [CreditRepository, CreditUnderwritingService, CreditLineService, BankStatementService],
 })
 export class CreditModule {}

@@ -3,7 +3,7 @@
  * @business Esta pieza materializa la oferta y solicitud de crédito solo para clientes habilitados y con decisiones explicables.
  * @system coordina productos, solicitudes, transiciones y eventos inmutables del ciclo de crédito.
  */
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, ServiceUnavailableException, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -16,6 +16,8 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { CreditBusinessAcceptanceService } from './application/credit-business-acceptance.service.js';
 import { CreditDecisionService } from './application/credit-decision.service.js';
+import { CreditLineService } from './application/credit-line.service.js';
+import { toCreditLineResponse } from './credit-line.mapper.js';
 import { CreditProductService } from './application/credit-product.service.js';
 import {
   CreateCreditProductDto,
@@ -47,7 +49,28 @@ export class CreditOperationsController {
     private readonly productService: CreditProductService,
     private readonly decisionService: CreditDecisionService,
     private readonly businessAcceptance: CreditBusinessAcceptanceService,
+    private readonly creditLines: CreditLineService,
   ) {}
+
+  @ApiOperation({
+    summary: 'Recalcular la línea de crédito de un cliente',
+    description:
+      'Vuelve a preguntarle al motor cuánto puede gastar, con el expediente que hay HOY. Abre una versión ' +
+      'nueva de la línea y cierra la anterior, dejando escrito qué la movió. Si el motor no responde, la ' +
+      'línea vigente NO se toca: un motor caído no es una política que rebaja.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Línea recalculada.' })
+  @ApiResponse({ status: 503, description: 'DECISION_ENGINE_UNAVAILABLE — no se cambió nada.' })
+  @Post('customers/:customerId/credit-line/recalculate')
+  @HttpCode(HttpStatus.OK)
+  async recalculateCreditLine(@CurrentTenant() tenantId: string, @Param('customerId') customerId: string) {
+    const line = await this.creditLines.recalculate({ tenantId, customerId, trigger: 'manual' });
+    if (!line) {
+      throw new ServiceUnavailableException('DECISION_ENGINE_UNAVAILABLE');
+    }
+    return toCreditLineResponse(line);
+  }
 
   @ApiOperation({ summary: 'Listar los productos vigentes (operaciones)' })
   @ApiHeader({ name: 'x-tenant-id', required: true })

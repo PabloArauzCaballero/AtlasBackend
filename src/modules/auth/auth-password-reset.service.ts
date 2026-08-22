@@ -5,7 +5,7 @@
  */
 import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { env } from '../../config/env.js';
-import { hashPassword, isPasswordStrongEnough } from '../../common/utils/crypto/password.util.js';
+import { hashPassword, isSecretValidFor, secretRequirementMessage } from '../../common/utils/crypto/password.util.js';
 import { generateNumericCode, hashOneTimeCode, verifyOneTimeCode } from '../../common/utils/crypto/one-time-code.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
@@ -117,7 +117,7 @@ export class AuthPasswordResetService {
     // código incorrecto/expirado) por la misma razón anti-enumeración que en `login`.
     const invalidCodeError = new UnauthorizedException('Código inválido o expirado.');
 
-    if (!isPasswordStrongEnough(input.newPassword)) {
+    if (!isSecretValidFor(input.actorType, input.newPassword)) {
       throw new UnauthorizedException('La contraseña no cumple el mínimo de seguridad requerido.');
     }
 

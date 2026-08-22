@@ -10,6 +10,7 @@ import { DecisionEngineClient } from './decision-engine.client.js';
 import { DecisionOutcome, DecisionResponse } from './decision-engine.types.js';
 import { FeatureProjectionService } from './feature-projection.service.js';
 import { SubjectReferenceService } from './subject-reference.service.js';
+import { UnderwritingFeaturesService } from './underwriting-features.service.js';
 
 /** Desenlaces del motor que el core interpreta como «no se concede». */
 const DECLINE_OUTCOMES = new Set(['DECLINE', 'DECLINED', 'REJECT', 'REJECTED', 'DENY', 'DENIED']);
@@ -46,6 +47,7 @@ export class CreditDecisionEngineService {
   constructor(
     private readonly client: DecisionEngineClient,
     private readonly features: FeatureProjectionService,
+    private readonly underwriting: UnderwritingFeaturesService,
     private readonly subjects: SubjectReferenceService,
   ) {}
 
@@ -75,6 +77,26 @@ export class CreditDecisionEngineService {
     const subjectReference = await this.subjects.register({ tenantId: request.tenantId, customerId: request.customerId });
     const projected = await this.features.projectForCustomer(request.tenantId, request.customerId, now);
 
+    /*
+     * El expediente del cliente, además del feature store.
+     *
+     * Hasta ahora esta llamada mandaba cinco variables —importe, plazo, moneda, producto y
+     * propósito— y ni una sola del cliente, porque el feature store todavía no tiene valores
+     * cargados para nadie. El artefacto declara cincuenta y siete entradas, así que la política
+     * decidía sobre el vacío: el mismo veredicto para todo el mundo.
+     *
+     * Se compone del expediente REAL —ingreso, gastos, empleo, identidad, historial de pago— y el
+     * feature store se superpone encima cuando tenga valores, porque ese sí pasa por el gobierno del
+     * catálogo y debe poder corregir lo que aquí se deriva.
+     */
+    const underwriting = await this.underwriting.build({
+      tenantId: request.tenantId,
+      customerId: request.customerId,
+      requestedAmount: Number(request.requestedAmount),
+      requestedTermMonths: request.requestedTermMonths,
+      now,
+    });
+
     try {
       const response = await this.client.execute(env.DECISION_ENGINE_CREDIT_ARTIFACT, {
         // El identificador de la solicitud ES la clave de idempotencia: reintentar la misma decisión
@@ -84,6 +106,7 @@ export class CreditDecisionEngineService {
         correlationId: request.correlationId ?? randomUUID(),
         subjectReference,
         variables: {
+          ...underwriting.variables,
           ...projected.variables,
           requested_amount: Number(request.requestedAmount),
           requested_term_months: request.requestedTermMonths,
@@ -95,6 +118,9 @@ export class CreditDecisionEngineService {
           source: 'atlas-backend',
           applicationId: request.applicationId,
           featureLineage: projected.lineage,
+          // Qué variable era dato real, cuál derivada y cuál ausente: sin esto, una decisión rara
+          // no se puede depurar sin reconstruir a mano el expediente de aquel día.
+          provenance: underwriting.provenance,
         },
       });
 

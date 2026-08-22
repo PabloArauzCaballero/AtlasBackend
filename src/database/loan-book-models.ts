@@ -4,6 +4,8 @@
  * @system agrupa los modelos del libro de préstamos para registrarlos como un bloque.
  */
 import {
+  BankStatementReviewModel,
+  CreditLineModel,
   DecisionSubjectLinkModel,
   DelinquencyPolicyModel,
   LoanEventModel,
@@ -23,6 +25,10 @@ import {
  * registra ninguna, porque un préstamo sin cuotas o sin cola de desenlaces no es un estado válido.
  */
 export const LOAN_BOOK_MODELS = [
+  // La linea de credito se registra con el libro: es lo que autoriza a que existan prestamos, y
+  // ambos se consultan juntos cada vez que alguien pregunta «cuanto me queda».
+  CreditLineModel,
+  BankStatementReviewModel,
   LoanModel,
   LoanInstallmentModel,
   LoanPaymentModel,

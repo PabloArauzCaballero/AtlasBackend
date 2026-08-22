@@ -50,6 +50,8 @@ export { DecisionSubjectLinkModel } from './decision-subject-links.model.js';
 export { RatingPolicyVersionModel } from './rating-policy-versions.model.js';
 export { RatingPolicyBandModel } from './rating-policy-bands.model.js';
 export { LoanRiskRatingModel } from './loan-risk-ratings.model.js';
+export { CreditLineModel } from './credit-lines.model.js';
+export { BankStatementReviewModel } from './bank-statement-reviews.model.js';
 export { CustomerRiskRatingModel } from './customer-risk-ratings.model.js';
 export { PrivacyProcessingPurposeModel } from './privacy-processing-purposes.model.js';
 export { ConsentDocumentModel } from './consent-documents.model.js';
