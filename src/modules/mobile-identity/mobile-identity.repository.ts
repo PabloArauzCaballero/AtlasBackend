@@ -45,12 +45,23 @@ export class MobileIdentityRepository {
   ) {}
 
   async createPending(tenantId: string, customerId: string | null): Promise<IdentityVerificationAttemptModel> {
+    const ahora = new Date();
     return this.attemptModel.create({
       tenantId,
       customerId,
       verificationChannel: MOBILE_CHANNEL,
       finalResult: PENDING_RESULT,
-      requestedAt: new Date(),
+      requestedAt: ahora,
+      /*
+        `_created_at` a mano, como en `customer-identity-evidence.repository.ts`.
+
+        El modelo lleva `timestamps: false` y declara la columna `allowNull: false`, asi que
+        Sequelize VALIDA antes de mandar la sentencia: sin este campo el insert no llega siquiera a
+        Postgres. Y el sintoma no delata la causa —sale como `409 CONFLICT`, que se lee como choque
+        de indice unico— asi que el trámite entero moria antes de preguntarle nada al motor. Es el
+        mismo defecto que ya se corrigio en `subject-reference.service.ts`.
+      */
+      createdAtValue: ahora,
     });
   }
 

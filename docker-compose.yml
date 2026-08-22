@@ -112,6 +112,8 @@ x-atlas-env: &atlas-env
   GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET:-}
   GMAIL_REFRESH_TOKEN: ${GMAIL_REFRESH_TOKEN:-}
   GMAIL_FROM_EMAIL: ${GMAIL_FROM_EMAIL:-}
+  # El nombre que ve el cliente como remitente. Por defecto `ATLAS`, nunca la direccion a pelo.
+  GMAIL_FROM_NAME: ${GMAIL_FROM_NAME:-ATLAS}
   MAILSENDER_BASE_URL: ${MAILSENDER_BASE_URL:-}
   MAILSENDER_API_PREFIX: ${MAILSENDER_API_PREFIX:-/api/v1}
   MAILSENDER_EXTERNAL_API_KEY: ${MAILSENDER_EXTERNAL_API_KEY:-}
@@ -141,6 +143,29 @@ x-atlas-env: &atlas-env
   # verifica tokens de Atlas —su pasarela los INTERCAMBIA por uno propio— y esa llave abre una sola
   # lectura sin usuario ni roles, de modo que no compite con Atlas como fuente de identidades.
   DECISION_ENGINE_HEALTH_BASE_URL: ${DECISION_ENGINE_HEALTH_BASE_URL:-http://host.docker.internal:3020}
+
+  # Almacenamiento de documentos. Vacias por defecto —el backend arranca sin el— y se rellenan en
+  # `.env` junto con el perfil `storage`. Sin pasarlas aqui, ponerlas en `.env` no hacia nada: la
+  # API seguia respondiendo `DOCUMENT_STORAGE_NOT_CONFIGURED` con la configuracion delante.
+  STORAGE_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT:-}
+  STORAGE_S3_PUBLIC_ENDPOINT: ${STORAGE_S3_PUBLIC_ENDPOINT:-}
+  STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-}
+  STORAGE_S3_REGION: ${STORAGE_S3_REGION:-us-east-1}
+  STORAGE_S3_ACCESS_KEY_ID: ${STORAGE_S3_ACCESS_KEY_ID:-}
+  STORAGE_S3_SECRET_ACCESS_KEY: ${STORAGE_S3_SECRET_ACCESS_KEY:-}
+  STORAGE_S3_FORCE_PATH_STYLE: ${STORAGE_S3_FORCE_PATH_STYLE:-true}
+
+  # Integracion de EJECUCION con el motor. Vacias por defecto: sin `BASE_URL` el cliente se declara
+  # «no configurado» y el arranque no exige nada mas, que es lo que documenta el comentario de
+  # arriba. Rellenarlas en `.env` enciende lo que depende del motor —capacidad de pago, riesgo y la
+  # verificacion de carnet del movil (`POST /mobile/identity-verifications`)—, y entonces el
+  # arranque exige tambien la llave y la sal de sujeto. Se pasan aqui para que encenderlo sea editar
+  # el `.env` y no este archivo.
+  DECISION_ENGINE_BASE_URL: ${DECISION_ENGINE_BASE_URL:-}
+  DECISION_ENGINE_API_KEY: ${DECISION_ENGINE_API_KEY:-}
+  DECISION_ENGINE_SUBJECT_SALT: ${DECISION_ENGINE_SUBJECT_SALT:-}
+  DECISION_ENGINE_IDENTITY_ARTIFACT: ${DECISION_ENGINE_IDENTITY_ARTIFACT:-IDENTIDAD_CARNET_MOVIL}
+  DECISION_ENGINE_ENVIRONMENT_CODE: ${DECISION_ENGINE_ENVIRONMENT_CODE:-DEV}
   ERP_BACKEND_BASE_URL: ${ERP_BACKEND_BASE_URL:-http://host.docker.internal:3007}
   ERP_BACKEND_CATALOG_API_KEY: ${ERP_BACKEND_CATALOG_API_KEY:-}
 

@@ -170,6 +170,18 @@ export const envBaseSchema = z.object({
   // Almacenamiento de evidencia (compatible con S3). Vacío = apagado: los endpoints responden 503
   // en vez de aceptar un `storageKey` que nadie puede verificar.
   STORAGE_S3_ENDPOINT: optionalUrlEnvSchema,
+  /**
+   * El extremo con el que se FIRMAN las URLs que se entregan al cliente, cuando no coincide con
+   * aquel por el que el backend alcanza el almacenamiento.
+   *
+   * Son dos caminos distintos a la misma cosa y en local no tienen por que ser el mismo nombre: el
+   * telefono llega a MinIO por la IP de la maquina y el contenedor por el nombre de servicio de su
+   * red. Es la misma situacion que en produccion cuando el bucket vive detras de un CDN o de un
+   * dominio propio: quien sube usa el publico, quien verifica usa el interno.
+   *
+   * Vacio = se usa `STORAGE_S3_ENDPOINT` para las dos cosas, que es el caso normal.
+   */
+  STORAGE_S3_PUBLIC_ENDPOINT: optionalUrlEnvSchema,
   STORAGE_S3_BUCKET: z.string().optional(),
   STORAGE_S3_REGION: z.string().default('us-east-1'),
   STORAGE_S3_ACCESS_KEY_ID: z.string().optional(),
@@ -210,6 +222,17 @@ export const envBaseSchema = z.object({
   GMAIL_CLIENT_SECRET: z.string().optional(),
   GMAIL_REFRESH_TOKEN: z.string().optional(),
   GMAIL_FROM_EMAIL: z.string().optional(),
+  /**
+   * El nombre que ve el cliente como remitente.
+   *
+   * Sin el, el correo del codigo de verificacion llega firmado por la direccion a pelo —en local,
+   * una cuenta personal— y eso es exactamente lo que un cliente aprende a reconocer como intento de
+   * suplantacion. La identidad de quien escribe no es un detalle cosmetico en un correo que pide
+   * que se teclee un codigo: es la mitad de la comprobacion que hace la persona antes de fiarse.
+   *
+   * La direccion sigue siendo la del buzon configurado; esto solo pone el nombre delante.
+   */
+  GMAIL_FROM_NAME: z.string().trim().max(80).default('ATLAS'),
   FCM_PROJECT_ID: z.string().optional(),
   FCM_CLIENT_EMAIL: z.string().optional(),
   FCM_PRIVATE_KEY: z.string().optional(),

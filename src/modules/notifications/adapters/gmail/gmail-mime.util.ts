@@ -26,6 +26,8 @@ const ADDRESS_PATTERN = /^[^\s@,<>"();:\\[\]]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-
 
 export type GmailMimeInput = {
   from: string;
+  /** Nombre visible del remitente. Sin el, el cliente ve una direccion suelta y desconfia. */
+  fromName?: string | null;
   to: string[];
   cc?: string[];
   bcc?: string[];
@@ -131,7 +133,14 @@ function bodyLines(input: GmailMimeInput): string[] {
  */
 export function buildGmailRawMessage(input: GmailMimeInput): string {
   const headers = [
-    `From: ${encodeHeaderValue(input.from)}`,
+    /*
+      `Nombre <correo>` cuando hay nombre.
+
+      El nombre se codifica igual que cualquier otra cabecera —puede llevar acentos— y la direccion
+      va entre angulos SIN codificar: un `<...>` codificado deja de ser una direccion para el
+      servidor de correo y el envio falla con un error que no menciona la cabecera.
+    */
+    `From: ${input.fromName ? `${encodeHeaderValue(input.fromName)} <${input.from}>` : encodeHeaderValue(input.from)}`,
     ...addressHeader('To', input.to),
     ...addressHeader('Cc', input.cc),
     ...addressHeader('Bcc', input.bcc),

@@ -4,6 +4,7 @@
  * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
  */
 import { Injectable } from '@nestjs/common';
+import { env } from '../../../../config/env.js';
 import { ResilientAdapterExecutorService } from '../../../../common/resilience/resilient-adapter-executor.service.js';
 import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from '../../notification-types.js';
 import { failedDelivery, getAllDeliveryTargets, postJson, sentDelivery } from '../http-adapter.util.js';
@@ -139,6 +140,7 @@ export class GmailApiAdapter implements NotificationChannelAdapter {
     const credentials = this.readCredentials();
     const raw = buildGmailRawMessage({
       from: credentials.fromEmail,
+      fromName: env.GMAIL_FROM_NAME,
       to: this.validateAddresses(input.to, 'destinatario'),
       cc: this.validateAddresses(input.cc ?? [], 'copia'),
       bcc: this.validateAddresses(input.bcc ?? [], 'copia oculta'),

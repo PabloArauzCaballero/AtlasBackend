@@ -58,6 +58,18 @@ export class DocumentStorageService {
     return env.STORAGE_S3_BUCKET ?? null;
   }
 
+  /**
+   * Las credenciales con el extremo PUBLICO, para las URLs que se entregan al telefono.
+   *
+   * Solo cambia el extremo: la firma se calcula sobre el mismo bucket, la misma clave y el mismo
+   * secreto, asi que el objeto es el mismo por los dos caminos. Si no hay extremo publico
+   * declarado, esto es exactamente `credentials()`.
+   */
+  private publicCredentials(): S3Credentials {
+    const base = this.credentials();
+    return env.STORAGE_S3_PUBLIC_ENDPOINT ? { ...base, endpoint: env.STORAGE_S3_PUBLIC_ENDPOINT } : base;
+  }
+
   private credentials(): S3Credentials {
     if (!this.isConfigured()) {
       throw new ServiceUnavailableException('DOCUMENT_STORAGE_NOT_CONFIGURED');
@@ -94,7 +106,8 @@ export class DocumentStorageService {
     sizeBytes: number;
     now?: Date;
   }): UploadTicket {
-    const credentials = this.credentials();
+    // Publico: esta URL la usa el telefono, no este proceso.
+    const credentials = this.publicCredentials();
     const now = input.now ?? new Date();
     const extension = input.contentType === 'application/pdf' ? 'pdf' : input.contentType === 'image/png' ? 'png' : 'jpg';
     const storageKey = `${input.tenantId}/${input.subjectId}/${input.documentType}/${randomUUID()}.${extension}`;
