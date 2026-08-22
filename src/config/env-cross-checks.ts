@@ -5,6 +5,9 @@
  */
 import { z } from 'zod';
 import { DEFAULT_JWT_SECRET, DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY, type RawAppEnv } from './env.schema.js';
+import { checkNotificationProviders, type RequireWebhook, type RequireWhen } from './env.notification-providers.checks.js';
+import { checkFileStorage } from './env.files.checks.js';
+import { checkDecisionEngine } from './env.decision-engine.checks.js';
 
 /**
  * Validaciones CRUZADAS del entorno: las que dependen de más de una variable a la vez y por eso no
@@ -14,7 +17,6 @@ import { DEFAULT_JWT_SECRET, DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY, type Raw
  * Vive fuera de `env.schema.ts` porque son dos responsabilidades distintas: aquella declara QUÉ
  * variables existen y su forma; esta declara qué combinaciones son inválidas.
  */
-type RequireWhen = (enabled: boolean, path: keyof RawAppEnv, message: string) => void;
 
 /**
  * Secretos que no pueden ser los de ejemplo en producción, ni compartirse entre sí: comprometer uno
@@ -111,6 +113,124 @@ function checkProcessRole(data: RawAppEnv, ctx: z.RefinementCtx): void {
   }
 }
 
+/**
+ * ATLAS-SEC-008 — el segundo factor de los actores internos no puede desaparecer en silencio.
+ *
+ * `AuthSecondFactorService.isRequired` degrada a "sin 2FA" cuando no hay canal de correo: sin canal
+ * no hay forma de entregar el PIN, y bloquear el login dejaría el backend inaccesible en un entorno
+ * local. Esa degradación es correcta en desarrollo y **inaceptable en producción**: un despliegue
+ * sin canal dejaba a `admin` y `platform_admin` entrando con solo la contraseña, sin error ni
+ * advertencia (verificado en vivo: docs/audit/evidence/live-exploit-2026-08-06.md).
+ *
+ * Se falla al arrancar en vez de advertir: una advertencia sobre un control de seguridad ausente es
+ * un control ausente. Si un despliegue quiere de verdad renunciar al 2FA interno, tiene que
+ * escribirlo (`AUTH_LOGIN_PIN_ENABLED=false`) y aun así se le exige un canal de correo, porque el
+ * mismo canal entrega el reset de contraseña.
+ *
+ * Lo que se exige es UN CANAL, no un proveedor concreto. Antes se pedía `MAILSENDER_BASE_URL` en
+ * particular, y eso confundía el control con su implementación: un despliegue con la Gmail API
+ * elegida y credenciales válidas —capaz de entregar el PIN, y con `MailSenderService` sabiendo
+ * usarla— no arrancaba, empujando a apagar la comprobación por una razón que no era de seguridad.
+ */
+function checkInternalSecondFactor(data: RawAppEnv, ctx: z.RefinementCtx): void {
+  if (data.NODE_ENV !== 'production') return;
+
+  const gmailReady = Boolean(
+    data.NOTIFICATION_EMAIL_PROVIDER === 'gmail_api' &&
+    data.GMAIL_CLIENT_ID &&
+    data.GMAIL_CLIENT_SECRET &&
+    data.GMAIL_REFRESH_TOKEN &&
+    data.GMAIL_FROM_EMAIL,
+  );
+
+  /*
+   * El MISMO criterio que `MailSenderClient.isConfigured()` aplica en caliente.
+   *
+   * Antes aquí bastaba `MAILSENDER_BASE_URL` y en runtime se exigían además la API key y las dos
+   * credenciales admin. Un despliegue en esa franja —la URL puesta, el resto no— arrancaba sin una
+   * queja y luego se comportaba como si no hubiera canal: los actores internos recibían 503 en cada
+   * login y quien tuviera MFA opt-in entraba con un solo factor. Dos definiciones de «hay canal»
+   * que no coincidían, y la que decidía era la que nadie miraba al desplegar.
+   */
+  const mailSenderReady = Boolean(
+    data.MAILSENDER_BASE_URL && data.MAILSENDER_EXTERNAL_API_KEY && data.MAILSENDER_ADMIN_USERNAME && data.MAILSENDER_ADMIN_PASSWORD,
+  );
+
+  if (!mailSenderReady && !gmailReady) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['MAILSENDER_BASE_URL'],
+      message:
+        'Producción necesita un canal de correo COMPLETO: es el que entrega el PIN de segundo factor de los actores ' +
+        'internos y los códigos de recuperación de contraseña. Configura MAILSENDER_BASE_URL junto con ' +
+        'MAILSENDER_EXTERNAL_API_KEY, MAILSENDER_ADMIN_USERNAME y MAILSENDER_ADMIN_PASSWORD (las cuatro: con menos, el ' +
+        'cliente de correo se considera no configurado en caliente y el canal no existe), o ' +
+        'NOTIFICATION_EMAIL_PROVIDER=gmail_api con sus cuatro credenciales. Sin ninguno, el login de admin/platform_admin ' +
+        'degrada a un solo factor.',
+    });
+  }
+
+  if (!data.AUTH_LOGIN_PIN_ENABLED) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['AUTH_LOGIN_PIN_ENABLED'],
+      message:
+        'AUTH_LOGIN_PIN_ENABLED=false deja a los usuarios internos (admin, platform_admin) con un solo factor. ' +
+        'No es una configuración admisible en producción.',
+    });
+  }
+}
+
+/**
+ * ATLAS-SEC-011 — cifrado de PII en producción sin KMS.
+ *
+ * Antes esto era un `console.warn` en `env.ts`: producción arrancaba con la master key de toda la
+ * PII derivada de una variable de entorno y el aviso se perdía entre las líneas de arranque. Un
+ * control de seguridad cuya ausencia se comunica por consola es un control ausente.
+ *
+ * No se prohíbe el despliegue sin KMS —es legítimo en la etapa actual del producto— pero sí se exige
+ * declararlo: `PII_ENCRYPTION_ALLOW_ENV_MASTER_KEY=true`. Así el riesgo queda firmado en el
+ * manifiesto de despliegue, revisable en un PR, en vez de asumido por omisión.
+ */
+function checkPiiEncryptionProvider(data: RawAppEnv, ctx: z.RefinementCtx): void {
+  if (data.NODE_ENV !== 'production') return;
+  if (data.KMS_KEY_ID && data.AWS_REGION) return;
+  if (data.PII_ENCRYPTION_ALLOW_ENV_MASTER_KEY) return;
+
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ['KMS_KEY_ID'],
+    message:
+      'Producción sin KMS_KEY_ID + AWS_REGION: la master key de TODA la PII se derivaría de una variable de entorno, ' +
+      'y comprometerla descifra el histórico completo. Configura KMS (y migra con `yarn crypto:reencrypt-pii`), o ' +
+      'declara el riesgo explícitamente con PII_ENCRYPTION_ALLOW_ENV_MASTER_KEY=true.',
+  });
+}
+
+/**
+ * ATLAS-SEC-012 — el volcado de SQL no se activa en producción.
+ *
+ * Sequelize inlinea los valores en la sentencia que registra, así que `DB_LOG_SQL=true` publica en
+ * claro todo lo que pasa por la base: en un backend KYC, nombre, correo, teléfono y número de
+ * documento. `redactSensitiveText` enmascara lo que puede reconocer por clave, pero un valor
+ * posicional sin nombre no es reconocible — la redacción reduce el daño, no lo elimina.
+ *
+ * Depurar una consulta es una operación legítima en local; en producción es una fuga. Sin válvula de
+ * escape a propósito: si hiciera falta ver SQL en producción, el camino correcto es `pg_stat_statements`
+ * (que normaliza los literales) o el log del propio servidor, no el pipeline de logs de la aplicación.
+ */
+function checkSqlLogging(data: RawAppEnv, ctx: z.RefinementCtx): void {
+  if (data.NODE_ENV === 'production' && data.DB_LOG_SQL) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['DB_LOG_SQL'],
+      message:
+        'DB_LOG_SQL=true vuelca cada sentencia con sus valores inlineados al pipeline de logs: en producción eso es PII ' +
+        'en claro (nombre, correo, teléfono, documento). Usa pg_stat_statements, que normaliza los literales.',
+    });
+  }
+}
+
 /** MailSender: configurar la URL obliga a configurar sus credenciales. */
 function checkMailSender(data: RawAppEnv, requireWhen: RequireWhen): void {
   requireWhen(
@@ -129,130 +249,6 @@ function checkMailSender(data: RawAppEnv, requireWhen: RequireWhen): void {
     'MAILSENDER_ADMIN_PASSWORD es requerido cuando MAILSENDER_BASE_URL está configurado.',
   );
 }
-
-/** Email: cada proveedor trae su propio juego de credenciales. */
-function checkEmailProvider(data: RawAppEnv, requireWhen: RequireWhen): void {
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'resend',
-    'RESEND_API_KEY',
-    'RESEND_API_KEY es requerido cuando NOTIFICATION_EMAIL_PROVIDER=resend.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'resend',
-    'RESEND_FROM_EMAIL',
-    'RESEND_FROM_EMAIL es requerido cuando NOTIFICATION_EMAIL_PROVIDER=resend.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'sendgrid',
-    'SENDGRID_API_KEY',
-    'SENDGRID_API_KEY es requerido cuando NOTIFICATION_EMAIL_PROVIDER=sendgrid.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'sendgrid',
-    'SENDGRID_FROM_EMAIL',
-    'SENDGRID_FROM_EMAIL es requerido cuando NOTIFICATION_EMAIL_PROVIDER=sendgrid.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'gmail_api',
-    'GMAIL_CLIENT_ID',
-    'GMAIL_CLIENT_ID es requerido cuando NOTIFICATION_EMAIL_PROVIDER=gmail_api.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'gmail_api',
-    'GMAIL_CLIENT_SECRET',
-    'GMAIL_CLIENT_SECRET es requerido cuando NOTIFICATION_EMAIL_PROVIDER=gmail_api.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'gmail_api',
-    'GMAIL_REFRESH_TOKEN',
-    'GMAIL_REFRESH_TOKEN es requerido cuando NOTIFICATION_EMAIL_PROVIDER=gmail_api.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'gmail_api',
-    'GMAIL_FROM_EMAIL',
-    'GMAIL_FROM_EMAIL es requerido cuando NOTIFICATION_EMAIL_PROVIDER=gmail_api.',
-  );
-}
-
-/** Push (FCM): las tres piezas de la cuenta de servicio de Firebase. */
-function checkPushProvider(data: RawAppEnv, requireWhen: RequireWhen): void {
-  requireWhen(
-    data.NOTIFICATION_PUSH_PROVIDER === 'fcm',
-    'FCM_PROJECT_ID',
-    'FCM_PROJECT_ID es requerido cuando NOTIFICATION_PUSH_PROVIDER=fcm.',
-  );
-  requireWhen(
-    data.NOTIFICATION_PUSH_PROVIDER === 'fcm',
-    'FCM_CLIENT_EMAIL',
-    'FCM_CLIENT_EMAIL es requerido cuando NOTIFICATION_PUSH_PROVIDER=fcm.',
-  );
-  requireWhen(
-    data.NOTIFICATION_PUSH_PROVIDER === 'fcm',
-    'FCM_PRIVATE_KEY',
-    'FCM_PRIVATE_KEY es requerido cuando NOTIFICATION_PUSH_PROVIDER=fcm.',
-  );
-}
-
-/** Twilio: SMS y WhatsApp comparten credenciales de cuenta, pero cada uno exige su remitente. */
-function checkTwilioProviders(data: RawAppEnv, requireWhen: RequireWhen): void {
-  requireWhen(
-    data.NOTIFICATION_SMS_PROVIDER === 'twilio' || data.NOTIFICATION_WHATSAPP_PROVIDER === 'twilio',
-    'TWILIO_ACCOUNT_SID',
-    'TWILIO_ACCOUNT_SID es requerido cuando SMS o WhatsApp usan Twilio.',
-  );
-  requireWhen(
-    data.NOTIFICATION_SMS_PROVIDER === 'twilio' || data.NOTIFICATION_WHATSAPP_PROVIDER === 'twilio',
-    'TWILIO_AUTH_TOKEN',
-    'TWILIO_AUTH_TOKEN es requerido cuando SMS o WhatsApp usan Twilio.',
-  );
-  requireWhen(
-    data.NOTIFICATION_SMS_PROVIDER === 'twilio',
-    'TWILIO_SMS_FROM',
-    'TWILIO_SMS_FROM es requerido cuando NOTIFICATION_SMS_PROVIDER=twilio.',
-  );
-  requireWhen(
-    data.NOTIFICATION_WHATSAPP_PROVIDER === 'twilio',
-    'TWILIO_WHATSAPP_FROM',
-    'TWILIO_WHATSAPP_FROM es requerido cuando NOTIFICATION_WHATSAPP_PROVIDER=twilio.',
-  );
-}
-
-/** WhatsApp por Meta Cloud API. */
-function checkMetaWhatsAppProvider(data: RawAppEnv, requireWhen: RequireWhen): void {
-  requireWhen(
-    data.NOTIFICATION_WHATSAPP_PROVIDER === 'meta_cloud',
-    'META_WHATSAPP_TOKEN',
-    'META_WHATSAPP_TOKEN es requerido cuando NOTIFICATION_WHATSAPP_PROVIDER=meta_cloud.',
-  );
-  requireWhen(
-    data.NOTIFICATION_WHATSAPP_PROVIDER === 'meta_cloud',
-    'META_WHATSAPP_PHONE_NUMBER_ID',
-    'META_WHATSAPP_PHONE_NUMBER_ID es requerido cuando NOTIFICATION_WHATSAPP_PROVIDER=meta_cloud.',
-  );
-}
-
-/** Cualquier canal en `webhook` necesita URL: la suya o la compartida. */
-function checkWebhookUrls(data: RawAppEnv, requireWebhook: RequireWebhook): void {
-  requireWebhook(data.NOTIFICATION_EMAIL_PROVIDER, 'NOTIFICATION_EMAIL_WEBHOOK_URL', 'Email');
-  requireWebhook(data.NOTIFICATION_PUSH_PROVIDER, 'NOTIFICATION_PUSH_WEBHOOK_URL', 'Push');
-  requireWebhook(data.NOTIFICATION_SMS_PROVIDER, 'NOTIFICATION_SMS_WEBHOOK_URL', 'SMS');
-  requireWebhook(data.NOTIFICATION_WHATSAPP_PROVIDER, 'NOTIFICATION_WHATSAPP_WEBHOOK_URL', 'WhatsApp');
-  requireWebhook(data.NOTIFICATION_PHONE_PROVIDER, 'NOTIFICATION_PHONE_WEBHOOK_URL', 'Phone');
-}
-
-/**
- * Cada canal de notificación con proveedor elegido exige sus credenciales. Un canal que dice estar
- * activo y falla en cada envío es peor que uno declarado `disabled`.
- */
-function checkNotificationProviders(data: RawAppEnv, requireWhen: RequireWhen, requireWebhook: RequireWebhook): void {
-  checkEmailProvider(data, requireWhen);
-  checkPushProvider(data, requireWhen);
-  checkTwilioProviders(data, requireWhen);
-  checkMetaWhatsAppProvider(data, requireWhen);
-  checkWebhookUrls(data, requireWebhook);
-}
-
-type RequireWebhook = (channelProvider: string, channelUrl: keyof RawAppEnv, channelName: string) => void;
 
 /**
  * Validaciones CRUZADAS del entorno: las que dependen de más de una variable a la vez y por eso no
@@ -286,6 +282,11 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
   checkInfrastructure(data, ctx);
   checkSimulatedDataEscapeHatch(data, ctx);
   checkProcessRole(data, ctx);
+  checkInternalSecondFactor(data, ctx);
+  checkPiiEncryptionProvider(data, ctx);
+  checkSqlLogging(data, ctx);
+  checkFileStorage(data, ctx);
   checkMailSender(data, requireWhen);
+  checkDecisionEngine(data, ctx);
   checkNotificationProviders(data, requireWhen, requireWebhook);
 }

@@ -6,9 +6,10 @@
 import { NotFoundException } from '@nestjs/common';
 import { Sequelize } from 'sequelize-typescript';
 import { clean, containsQuery, paginate, Query, Row } from './portal-format.util.js';
-import { NOW_SEED, reportDefinitions } from './portal-report-definitions.js';
+import { reportDefinitions } from './portal-report-definitions.js';
 import { PortalOperationsService } from './portal-operations.service.js';
 import { PortalQueryBase } from './portal-query.base.js';
+import { PortalScope } from './portal-scope.util.js';
 
 /**
  * Reportes, exports y release readiness del portal interno.
@@ -25,13 +26,20 @@ export class PortalReportsService extends PortalQueryBase {
     super(sequelize);
   }
 
+  /**
+   * Catálogos EXPORTABLES disponibles, no exports ya ejecutados.
+   *
+   * Antes cada entrada venía con `status: 'READY'`, `requestedBy: 'seed_admin'` y un `requestedAt`
+   * igual a la constante `NOW_SEED`: describía una ejecución que nunca ocurrió y un solicitante que
+   * no existe. No hay tabla de exports en el modelo, así que lo honesto es publicar lo que esto es
+   * de verdad — un descriptor de dónde descargar cada catálogo y cuántas filas tiene ahora mismo.
+   */
   async listExports(query: Query) {
     const [endpoints, tables, rules] = await Promise.all([
       this.count('system_endpoint_catalog'),
       this.count('system_data_entity_catalog'),
       this.count('data_quality_rules'),
     ]);
-    const requestedAt = NOW_SEED;
     const items = [
       {
         exportId: 'export-endpoint-catalog',
@@ -39,11 +47,6 @@ export class PortalReportsService extends PortalQueryBase {
         resourceType: 'system_endpoint_catalog',
         resourceId: null,
         format: 'JSON',
-        status: 'READY',
-        requestedBy: 'seed_admin',
-        requestedAt,
-        finishedAt: requestedAt,
-        expiresAt: null,
         downloadUrl: '/api/v1/systems/endpoints',
         metadata: { rows: endpoints, reason: 'QA y revisión técnica' },
       },
@@ -53,11 +56,6 @@ export class PortalReportsService extends PortalQueryBase {
         resourceType: 'system_data_entity_catalog',
         resourceId: null,
         format: 'JSON',
-        status: 'READY',
-        requestedBy: 'seed_admin',
-        requestedAt,
-        finishedAt: requestedAt,
-        expiresAt: null,
         downloadUrl: '/api/v1/systems/data-entities',
         metadata: { rows: tables, reason: 'Gobierno de datos' },
       },
@@ -67,11 +65,6 @@ export class PortalReportsService extends PortalQueryBase {
         resourceType: 'data_quality_rules',
         resourceId: null,
         format: 'JSON',
-        status: 'READY',
-        requestedBy: 'seed_admin',
-        requestedAt,
-        finishedAt: requestedAt,
-        expiresAt: null,
         downloadUrl: '/api/v1/internal/data-quality/rules',
         metadata: { rows: rules, reason: 'Auditoría de calidad' },
       },
@@ -89,22 +82,23 @@ export class PortalReportsService extends PortalQueryBase {
     return {
       ...item,
       reason: clean(item.metadata?.reason, 'Export operativo controlado'),
-      filters: {},
       policySnapshot: { masking: 'no_raw_pii', audit: true },
-      auditRequestId: `audit:${item.exportId}`,
-      errorCode: null,
-      errorMessage: null,
     };
   }
 
-  async getReleaseReadiness() {
+  /**
+   * `data_quality_issues` y `system_job_runs` llevan `_tenant_id`: sin acotarlas, el semáforo de
+   * release de un tenant se ponía en ámbar por los incidentes de otro (ATLAS-SEC-009). El resto son
+   * catálogos de plataforma y se cuentan enteros a propósito.
+   */
+  async getReleaseReadiness(scope: PortalScope) {
     const [endpoints, entities, suites, rules, issues, jobs] = await Promise.all([
       this.count('system_endpoint_catalog'),
       this.count('system_data_entity_catalog'),
       this.count('system_test_suites'),
       this.count('data_quality_rules'),
-      this.count('data_quality_issues', `COALESCE(issue_status, 'open') NOT IN ('resolved','closed','acknowledged')`),
-      this.count('system_job_runs'),
+      this.countInScope(scope, 'data_quality_issues', 'i', `COALESCE(i.issue_status, 'open') NOT IN ('resolved','closed','acknowledged')`),
+      this.countInScope(scope, 'system_job_runs', 'j'),
     ]);
     const checks = [
       {
@@ -179,18 +173,26 @@ export class PortalReportsService extends PortalQueryBase {
     return report;
   }
 
-  async runReport(reportId: string, body: Row) {
+  /**
+   * Computa el reporte EN VIVO sobre los datos del alcance del actor. No persiste nada, y por eso
+   * ya no devuelve un `executionId`: ese identificador sugería una ejecución almacenada y
+   * recuperable que no existía en ninguna tabla. `computedAt` dice exactamente lo que es.
+   *
+   * El endpoint de snapshots históricos se retiró junto con este cambio: devolvía dos filas
+   * inventadas en código (`snapshot:<id>:seed` con la constante `NOW_SEED`). Cuando exista una
+   * tabla de snapshots, el endpoint puede volver leyendo de ella.
+   */
+  async runReport(scope: PortalScope, reportId: string, body: Row) {
     const report = this.getReport(reportId);
     const [readiness, alerts, jobs] = await Promise.all([
-      this.getReleaseReadiness(),
-      this.operations.listAlerts({ page: 1, limit: 10 }),
-      this.operations.listJobs({ page: 1, limit: 10 }),
+      this.getReleaseReadiness(scope),
+      this.operations.listAlerts(scope, { page: 1, limit: 10 }),
+      this.operations.listJobs(scope, { page: 1, limit: 10 }),
     ]);
     return {
       reportId: report.reportId,
-      executionId: `report-run-${report.reportId}-${Date.now()}`,
-      status: 'completed',
-      generatedAt: new Date().toISOString(),
+      computedAt: new Date().toISOString(),
+      persisted: false,
       data: { filters: body.filters ?? body, readiness, alerts: alerts.items, jobs: jobs.items },
       widgets: report.widgets.map((widget) => ({
         widgetId: clean(widget.widgetId),
@@ -198,28 +200,5 @@ export class PortalReportsService extends PortalQueryBase {
         data: { readinessStatus: readiness.status, alertCount: alerts.meta.total, jobCount: jobs.meta.total },
       })),
     };
-  }
-
-  listReportSnapshots(reportId: string, query: Query) {
-    const report = this.getReport(reportId);
-    const snapshots = [
-      {
-        snapshotId: `snapshot:${report.reportId}:seed`,
-        reportId: report.reportId,
-        status: 'READY',
-        generatedAt: NOW_SEED,
-        generatedBy: 'atlas_seed',
-        summary: { source: report.sourceReference, criticality: report.criticality },
-      },
-      {
-        snapshotId: `snapshot:${report.reportId}:current`,
-        reportId: report.reportId,
-        status: 'READY',
-        generatedAt: new Date().toISOString(),
-        generatedBy: 'internal_portal',
-        summary: { source: 'live_backend', status: report.status },
-      },
-    ];
-    return paginate(snapshots, query);
   }
 }

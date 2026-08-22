@@ -18,6 +18,16 @@ export const ATLAS_SCHEMAS = {
   INTEGRATIONS: 'integrations',
   MESSAGING: 'messaging',
   PLATFORM_OPS: 'platform_ops',
+  /**
+   * El comercio como SUJETO VERIFICABLE, no como cuenta comercial.
+   *
+   * Schema propio y no `customer` ni `iam`: lo que vive aquí es el expediente que
+   * prueba que un negocio existe, opera y está representado por quien dice —NIT,
+   * matrícula, poder del representante, QR de cobro, terminales—, y no se parece
+   * ni a una persona natural ni a un usuario. Su ficha comercial (cuenta B2B,
+   * contratos, facturación) sigue viviendo en el ERP; aquí sólo la evidencia.
+   */
+  PARTNER: 'partner',
 } as const;
 
 export type AtlasSchema = (typeof ATLAS_SCHEMAS)[keyof typeof ATLAS_SCHEMAS];
@@ -27,6 +37,7 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'tenants',
     'platform_users',
     'internal_users',
+    'merchant_users',
     'internal_roles',
     'internal_permissions',
     'internal_role_permissions',
@@ -101,7 +112,23 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'catalog_entries',
     'context_seed_import_checkpoints',
   ],
-  [ATLAS_SCHEMAS.CREDIT]: ['credit_products', 'credit_applications', 'credit_application_events'],
+  [ATLAS_SCHEMAS.CREDIT]: [
+    'credit_products',
+    'credit_applications',
+    'credit_application_events',
+    'loans',
+    'loan_installments',
+    'loan_payments',
+    'loan_payment_allocations',
+    'loan_events',
+    'loan_outcome_reports',
+    'delinquency_policies',
+    'decision_subject_links',
+    // La calificación de la deuda vive con la deuda, no con el motor de riesgo: se deriva del saldo
+    // y del atraso del préstamo, y quien la consulta —cobranza, contabilidad, cierre— ya está aquí.
+    'loan_risk_ratings',
+    'customer_risk_ratings',
+  ],
   [ATLAS_SCHEMAS.RISK]: [
     'feature_definitions',
     'feature_computation_runs',
@@ -117,6 +144,11 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'risk_feature_contributions',
     'risk_assessment_results',
     'risk_signal_seeds',
+    // La MATRIZ de calificación (umbrales y previsión por categoría) es política de riesgo, y por eso
+    // vive aquí aunque lo que califica esté en `credit`: se aprueba, versiona y retira como el resto
+    // de la política, no como un dato del préstamo.
+    'rating_policy_versions',
+    'rating_policy_bands',
   ],
   [ATLAS_SCHEMAS.CASE_MANAGEMENT]: [
     'manual_review_cases',
@@ -163,6 +195,13 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'system_test_runs',
     'system_test_step_runs',
     'system_action_logs',
+    // Historial del cuaderno de datos: guarda el CÓDIGO de cada celda y nunca su resultado.
+    'data_notebook_query_history',
+    // Los cuadernos guardados. Va en el mismo dominio que su historial —son la
+    // misma función— y faltaba aquí: su modelo resolvía el schema pasando el
+    // nombre de la tabla HERMANA, un apaño que funcionaba de casualidad porque
+    // las dos caen en el mismo dominio, y que dejaba a esta tabla sin declarar.
+    'data_notebook_documents',
     'system_stress_profiles',
     'system_domain_catalog',
     'system_endpoint_payload_contracts',
@@ -170,6 +209,7 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'system_data_relationship_catalog',
     'system_operational_rule_catalog',
     'system_catalog_review_events',
+    'system_block_federation_state',
     'workflow_definitions',
     'workflow_stages',
     'workflow_steps',
@@ -180,6 +220,14 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'schema_columns',
     'schema_relationships',
     'schema_change_log',
+  ],
+  [ATLAS_SCHEMAS.PARTNER]: [
+    'partner_profiles',
+    'partner_legal_representatives',
+    'partner_branches',
+    // Los dos QR del negocio: el suyo y el de su cuenta bancaria. Ver la migración.
+    'partner_qr_codes',
+    'partner_pos_terminals',
   ],
 };
 

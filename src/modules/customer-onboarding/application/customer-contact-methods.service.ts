@@ -10,6 +10,7 @@ import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { encryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
 import { hashSensitiveText, lastCharacters, normalizeSensitiveText } from '../../../common/utils/crypto/hash.util.js';
+import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { AddContactMethodDto } from '../customer-onboarding-profile.schemas.js';
@@ -37,6 +38,7 @@ export class CustomerContactMethodsService {
     private readonly customersRepository: CustomersRepository,
     private readonly profileDataRepository: CustomerProfileDataRepository,
     private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly eligibilityService: CustomerEligibilityService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -99,6 +101,9 @@ export class CustomerContactMethodsService {
         { transaction },
       );
 
+      // `nextStep` del evaluador, igual que el resto de los pasos: un solo cálculo server-side.
+      const assessment = await this.eligibilityService.evaluate(input.tenantId, input.customerId, transaction);
+
       return {
         customerId: input.customerId,
         contactMethodId: String(contact.id),
@@ -106,7 +111,9 @@ export class CustomerContactMethodsService {
         status: contact.status,
         valueLast4: contact.valueLast4,
         emailDomain: contact.emailDomain,
-        nextStep: 'contact_verification',
+        // El id devuelto es el que hay que mandar en `contactMethodId` al pedir el código: así el
+        // OTP viaja al contacto recién agregado y no al que el cliente está corrigiendo.
+        nextStep: assessment.nextStep,
       };
     });
   }

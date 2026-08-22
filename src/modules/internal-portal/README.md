@@ -16,6 +16,7 @@
 | [`business-metadata.openapi.ts`](./business-metadata.openapi.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`internal-portal.controller.ts`](./internal-portal.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`internal-portal.module.ts`](./internal-portal.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
+| [`internal-portal.schemas.ts`](./internal-portal.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
 | [`internal-portal.service.ts`](./internal-portal.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Subcarpetas

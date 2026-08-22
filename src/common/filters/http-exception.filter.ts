@@ -136,6 +136,48 @@ function buildStatusCode(exception: unknown, postgres: NormalizedPostgresError |
   return HttpStatus.INTERNAL_SERVER_ERROR;
 }
 
+/**
+ * El código de negocio que la excepción declaró, si declaró alguno.
+ *
+ * Hasta ahora `error.code` se derivaba SOLO del estado HTTP, así que todo 401 salía como
+ * `UNAUTHORIZED` y todo 409 como `CONFLICT`. El dominio sí distingue —«contraseña incorrecta» no es
+ * «cuenta bloqueada»— y la app tiene una tabla de mensajes por código de negocio que en esos casos
+ * nunca acertaba: caía siempre en el texto genérico por estado.
+ *
+ * El truco que sostenía esto era escribir el código DENTRO del mensaje (`ONBOARDING_INCOMPLETE: …`)
+ * y que el cliente lo recortara. Funciona, pero obliga a que el mensaje no sea una frase, y no deja
+ * sitio para el dato que acompaña al código —hasta cuándo dura un bloqueo, por ejemplo—.
+ *
+ * Se sigue admitiendo la forma antigua: quien lance `new ConflictException('CODIGO')` no cambia.
+ */
+function businessCodeOf(exception: unknown): string | null {
+  if (!(exception instanceof HttpException)) return null;
+  const response = exception.getResponse();
+  if (typeof response !== 'object' || response === null || !('code' in response)) return null;
+  const code = (response as { code: unknown }).code;
+  return typeof code === 'string' && /^[A-Z][A-Z0-9_]*$/.test(code) ? code : null;
+}
+
+/**
+ * Lo que el código de negocio necesita para ser accionable.
+ *
+ * Un `ACCOUNT_LOCKED` sin `lockedUntil` obliga a la app a decir «intenta más tarde», que es la
+ * respuesta que garantiza que la persona lo intente o nunca o cada diez segundos.
+ *
+ * Se excluyen las claves que pone Nest en sus propias excepciones (`statusCode`, `message`, `error`)
+ * y las `issues` de validación, que ya viajan en su propio campo.
+ */
+const RESERVED_ERROR_KEYS = new Set(['code', 'message', 'statusCode', 'error', 'issues']);
+
+function buildErrorDetails(exception: unknown): Record<string, unknown> | undefined {
+  if (!(exception instanceof HttpException)) return undefined;
+  const response = exception.getResponse();
+  if (typeof response !== 'object' || response === null) return undefined;
+
+  const details = Object.fromEntries(Object.entries(response).filter(([key]) => !RESERVED_ERROR_KEYS.has(key)));
+  return Object.keys(details).length > 0 ? details : undefined;
+}
+
 function buildErrorCode(statusCode: number): string {
   const codes: Record<number, string> = {
     400: 'VALIDATION_ERROR',
@@ -190,12 +232,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     const issues = statusCode === HttpStatus.BAD_REQUEST ? extractValidationIssues(exception) : undefined;
 
+    // Los detalles solo acompañan a un código de negocio: sin él no hay nada que interpretarlos, y
+    // volcar el cuerpo de cualquier excepción sería una vía silenciosa de fuga.
+    const businessCode = businessCodeOf(exception);
+    const details = businessCode ? buildErrorDetails(exception) : undefined;
+
     response.status(statusCode).json({
       requestId: correlationId,
       error: {
-        code: buildErrorCode(statusCode),
+        code: businessCode ?? buildErrorCode(statusCode),
         message,
         ...(issues && issues.length > 0 ? { issues } : {}),
+        ...(details ? { details } : {}),
       },
       timestamp: new Date().toISOString(),
     });

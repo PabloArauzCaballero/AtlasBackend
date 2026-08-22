@@ -16,7 +16,7 @@ import {
  * Este seeder es de PERFIL PRODUCTION y NO crea ninguna persona, credencial ni usuario
  * administrador con contraseña versionada. Es la mitad "de arranque" del antiguo
  * `20260704121000-seed-internal-rbac-and-pablo.ts`, que mezclaba catálogo productivo (roles/
- * permisos) con una cuenta SUPER_ADMIN de desarrollo (`pablo@atlas.internal`). Esa cuenta ahora
+ * permisos) con una cuenta SUPER_ADMIN de desarrollo (id 1). Esa cuenta ahora
  * vive en `development/20260704121500-seed-pablo-admin-user.ts`.
  *
  * Idempotente: usa `ON CONFLICT` por clave natural (`role_code`, `permission_code`, y el par

@@ -22,6 +22,7 @@
 | [`20260728091000-seed-customer-financial-attribute-definitions.ts`](./20260728091000-seed-customer-financial-attribute-definitions.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260728140000-seed-standard-customer-credit-workflow.ts`](./20260728140000-seed-standard-customer-credit-workflow.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260729010000-seed-access-journey-workflows.ts`](./20260729010000-seed-access-journey-workflows.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260816090000-seed-asfi-rating-policy.ts`](./20260816090000-seed-asfi-rating-policy.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 
 ## Reglas de mantenimiento
 

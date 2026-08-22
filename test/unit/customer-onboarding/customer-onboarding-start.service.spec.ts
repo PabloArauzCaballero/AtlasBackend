@@ -22,6 +22,8 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
   async function buildService() {
     const { CustomerOnboardingStartService } =
       await import('../../../src/modules/customer-onboarding/application/customer-onboarding-start.service.js');
+    const { OnboardingDeviceSessionService } =
+      await import('../../../src/modules/customer-onboarding/application/onboarding-device-session.service.js');
 
     const customersRepository = {
       findByContactHash: jest.fn(),
@@ -57,6 +59,16 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
       createOperationalAuditLog: jest.fn(),
     };
     const authRepository = { createCredentials: jest.fn() };
+    // `/start` ahora devuelve la sesión ya abierta: los tokens se emiten DENTRO de la transacción
+    // del alta, así que el servicio depende de `AuthService` además del repositorio.
+    const tokenIssuer = {
+      issueRegistrationTokens: jest.fn(async () => ({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        tokenType: 'Bearer',
+        expiresIn: '15m',
+      })),
+    };
     // Las validaciones previas a la transacción viven ahora en `CustomerOnboardingGuardsService`
     // (duplicados + consentimientos obligatorios), donde se pueden probar en aislamiento.
     const guardsService = { assertNoDuplicateCustomer: jest.fn(), assertConsentDocumentsAreValid: jest.fn() };
@@ -64,15 +76,30 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
 
     const service = new CustomerOnboardingStartService(
       customersRepository as never,
-      sessionsRepository as never,
+      // Los contactos del cliente viven en `CustomerContactsRepository`; el doble ya los expone.
+      customersRepository as never,
       consentsRepository as never,
       onboardingRepository as never,
       authRepository as never,
+      tokenIssuer as never,
       guardsService as never,
+      // Real: el dispositivo, la sesión y su instantánea salieron a su propio colaborador, pero
+      // siguen hablando con el mismo doble de `SessionsRepository`, así que las aserciones de estas
+      // pruebas no cambian.
+      new OnboardingDeviceSessionService(sessionsRepository as never),
       sequelize as never,
     );
 
-    return { service, customersRepository, sessionsRepository, consentsRepository, onboardingRepository, authRepository, guardsService };
+    return {
+      service,
+      customersRepository,
+      sessionsRepository,
+      consentsRepository,
+      onboardingRepository,
+      authRepository,
+      tokenIssuer,
+      guardsService,
+    };
   }
 
   function validInput(overrides: Record<string, unknown> = {}) {
@@ -106,6 +133,7 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
     (mocks.sessionsRepository.createSession as jest.Mock).mockResolvedValueOnce({ id: 'session-1' } as never);
     (mocks.onboardingRepository.createOnboardingFlow as jest.Mock).mockResolvedValueOnce({ id: 'flow-1' } as never);
     (mocks.consentsRepository.createCustomerConsent as jest.Mock).mockResolvedValue({ id: 'consent-1' } as never);
+    (mocks.authRepository.createCredentials as jest.Mock).mockResolvedValue({ id: 'credential-1', tokenVersion: 1 } as never);
   }
 
   describe('guards antes de abrir la transacción', () => {

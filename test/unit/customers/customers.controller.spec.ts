@@ -8,7 +8,7 @@ import { parsePositiveId } from '../../../src/common/utils/ids/id.util.js';
  */
 describe('CustomersController', () => {
   function build() {
-    const service = { getCustomerMe: jest.fn(async () => ({ id: '9' })) };
+    const service = { getCustomerMe: jest.fn(async (..._args: unknown[]) => ({ id: '9' })) };
     return { controller: new CustomersController(service as never), service };
   }
   const currentUser = { tenantId: '5', customerId: '9' } as never;

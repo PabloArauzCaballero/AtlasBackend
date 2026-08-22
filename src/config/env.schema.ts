@@ -12,6 +12,9 @@ import {
   optionalUrlEnvSchema,
 } from './env.primitives.js';
 import { databaseEnvShape } from './env.database.schema.js';
+import { decisionEngineEnvShape } from './env.decision-engine.schema.js';
+import { erpEnvShape } from './env.erp.schema.js';
+import { filesEnvShape } from './env.files.schema.js';
 import { runtimeJobsEnvShape } from './env.runtime-jobs.schema.js';
 
 export const DEFAULT_JWT_SECRET = 'dev-only-atlas-access-token-secret-change-me';
@@ -175,6 +178,14 @@ export const envBaseSchema = z.object({
   STORAGE_S3_FORCE_PATH_STYLE: booleanEnvSchema.default(true),
   STORAGE_UPLOAD_URL_TTL_SECONDS: z.coerce.number().int().positive().max(3600).default(300),
 
+  // Servicio de archivos por adaptadores. Bloque propio en `env.files.schema.ts`.
+  ...filesEnvShape,
+
+  // Integración con el motor de decisión. Bloque propio en `env.decision-engine.schema.ts`.
+  ...decisionEngineEnvShape,
+  // Dirección del ERP, sólo para reportar su salud. Bloque propio en `env.erp.schema.ts`.
+  ...erpEnvShape,
+
   NOTIFICATION_EMAIL_PROVIDER: z.enum(['disabled', 'resend', 'sendgrid', 'gmail_api', 'webhook']).default('disabled'),
   NOTIFICATION_PUSH_PROVIDER: z.enum(['disabled', 'fcm', 'webhook']).default('disabled'),
   NOTIFICATION_SMS_PROVIDER: z.enum(['disabled', 'twilio', 'webhook']).default('disabled'),
@@ -253,6 +264,21 @@ export const envBaseSchema = z.object({
   // docs/audit/auditoria-integral-2026-07-30.md.
   LOG_FORMAT: z.enum(['json', 'pretty']).optional(),
   LOG_SYNC_FILE_PATH: z.string().min(1).default('Archivo.log'),
+  // Techo del archivo de log antes de rotar (ATLAS-OPS-012). El sincronizador a Mongo trunca el
+  // archivo tras cada volcado, pero solo si Mongo está configurado; sin él, nada lo acotaba y el
+  // archivo crecía hasta llenar el disco del contenedor. 64 MB deja holgura para diagnosticar un
+  // incidente reciente sin comprometer un volumen pequeño.
+  // ATLAS-SEC-011. Sin KMS, la master key de TODA la PII se deriva de una variable de entorno: quien
+  // la obtenga descifra el histórico completo. Es un despliegue legítimo en la etapa actual, pero
+  // tiene que ser una decisión ESCRITA, no un `console.warn` que nadie lee en el arranque.
+  PII_ENCRYPTION_ALLOW_ENV_MASTER_KEY: optionalBooleanEnvSchema,
+
+  LOG_FILE_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1_048_576)
+    .max(1_073_741_824)
+    .default(64 * 1024 * 1024),
   LOG_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(5_000),
   LOG_SYNC_MAX_CHUNK_BYTES: z.coerce.number().int().positive().max(10_000_000).default(1_000_000),
   LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT: booleanEnvSchema,

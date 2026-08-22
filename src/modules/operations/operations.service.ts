@@ -12,6 +12,7 @@ import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { CustomerLifecycleService } from '../customers/application/customer-lifecycle.service.js';
 import { CustomerLifecycleStatus } from '../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
+import { CustomerContactsRepository } from '../customers/repositories/customer-contacts.repository.js';
 import { RiskRepository } from '../risk/risk.repository.js';
 import { InvestigationSummaryResponseDto, PaginatedWorkQueueResponseDto } from './operations.dtos.js';
 import { toFraudWorkItem, toInvestigationSummaryResponse, toManualReviewWorkItem } from './operations.mapper.js';
@@ -31,6 +32,7 @@ export class OperationsService {
   constructor(
     private readonly operationsRepository: OperationsRepository,
     private readonly customersRepository: CustomersRepository,
+    private readonly customerContactsRepository: CustomerContactsRepository,
     private readonly riskRepository: RiskRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     @InjectConnection() private readonly sequelize: Sequelize,
@@ -105,7 +107,7 @@ export class OperationsService {
 
     const [profile, contacts, consents, latestRiskResult, manualReviewCases, fraudCases] = await Promise.all([
       this.customersRepository.findCurrentProfile(tenantId, params.customerId),
-      this.customersRepository.findContactMethods(tenantId, params.customerId),
+      this.customerContactsRepository.findContactMethods(tenantId, params.customerId),
       this.customersRepository.findCustomerConsents(tenantId, params.customerId),
       this.riskRepository.findLatestCustomerRiskResult(tenantId, params.customerId),
       this.operationsRepository.findOpenManualReviewCasesForCustomer(tenantId, params.customerId),

@@ -12,6 +12,8 @@ import { calculateAgeInYears } from '../../customers/application/customer-eligib
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
+import { CustomerEligibilityRepository } from '../../customers/repositories/customer-eligibility.repository.js';
+import { IDENTITY_VERIFIED_RESULT } from '../../customers/customer-eligibility.constants.js';
 import { UpdateProfileDto } from '../customer-onboarding-profile.schemas.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerProfileDataRepository } from '../repositories/customer-profile-data.repository.js';
@@ -40,6 +42,7 @@ export class CustomerProfileUpdateService {
     private readonly profileDataRepository: CustomerProfileDataRepository,
     private readonly onboardingRepository: CustomerOnboardingRepository,
     private readonly lifecycleService: CustomerLifecycleService,
+    private readonly eligibilityRepository: CustomerEligibilityRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -56,9 +59,23 @@ export class CustomerProfileUpdateService {
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
 
     const status = normalizeLifecycleStatus(customer.lifecycleStatus);
-    if (!EDITABLE_ONBOARDING_STATUSES.includes(status)) {
+
+    /*
+     * Un cliente ACTIVO también puede corregir sus datos.
+     *
+     * Antes la edición sólo existía durante el onboarding: al quedar `active` el endpoint respondía
+     * `PROFILE_NOT_EDITABLE_IN_STATUS` y no había ningún otro camino. El resultado práctico es que
+     * un dato mal escrito —un apellido, el idioma— se quedaba mal para siempre, y la única salida
+     * era soporte. Terminar el alta no es dejar de ser una persona con datos que cambian.
+     *
+     * Lo que sigue bloqueado son los estados que bloquean TODO (`blocked`, `rejected`, `closed`),
+     * porque ahí el problema no es el dato.
+     */
+    if (!EDITABLE_ONBOARDING_STATUSES.includes(status) && status !== 'active') {
       throw new UnprocessableEntityException(`PROFILE_NOT_EDITABLE_IN_STATUS: ${status}`);
     }
+
+    await this.assertIdentityFieldsEditable(input.tenantId, input.customerId, input.body);
 
     const now = new Date();
 
@@ -148,5 +165,34 @@ export class CustomerProfileUpdateService {
         supersedesVersionId: profile.supersedesVersionId,
       };
     });
+  }
+
+  /**
+   * Nombre, apellido y fecha de nacimiento se congelan cuando el carnet ya se verificó.
+   *
+   * No es rigidez administrativa: esos tres campos son los que se contrastaron contra el documento
+   * de identidad. Dejar que el titular los reescriba después convierte una verificación en una
+   * declaración —el expediente diría «verificado» sobre unos datos que nadie miró—, y es exactamente
+   * el hueco por el que se cuela una suplantación: verificar con un documento propio y luego cambiar
+   * el nombre.
+   *
+   * Corregir un dato verificado sigue siendo posible, pero no por autoservicio: lo hace operaciones
+   * con el documento delante. El mensaje lo dice, para que quien lo lea sepa a dónde ir en vez de
+   * quedarse mirando un error.
+   *
+   * El resto del perfil —idioma, género declarado, si quiere publicidad— no se verificó contra nada
+   * y se edita siempre.
+   */
+  private async assertIdentityFieldsEditable(tenantId: string, customerId: string, body: UpdateProfileDto): Promise<void> {
+    const touched = (['firstName', 'lastName', 'birthDate'] as const).filter((field) => body[field] !== undefined);
+    if (touched.length === 0) return;
+
+    const facts = await this.eligibilityRepository.loadFacts(tenantId, customerId);
+    if (facts.identityVerificationResult !== IDENTITY_VERIFIED_RESULT) return;
+
+    throw new UnprocessableEntityException(
+      `IDENTITY_FIELDS_LOCKED: ${touched.join(', ')}. Tu identidad ya fue verificada con tu documento; ` +
+        'para corregir estos datos escribe a soporte y los revisa una persona.',
+    );
   }
 }

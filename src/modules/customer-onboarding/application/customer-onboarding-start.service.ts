@@ -18,13 +18,16 @@ import {
 import { encryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
 import { hashPassword } from '../../../common/utils/crypto/password.util.js';
 import { AuthRepository } from '../../auth/auth.repository.js';
+import { AuthTokenIssuerService } from '../../auth/auth-token-issuer.service.js';
 import { ConsentsRepository } from '../../consents/consents.repository.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
+import { CustomerContactsRepository } from '../../customers/repositories/customer-contacts.repository.js';
 import { SessionsRepository } from '../../sessions/sessions.repository.js';
 import { StartOnboardingResponseDto } from '../customer-onboarding.dtos.js';
 import { toStartOnboardingResponse } from '../customer-onboarding.mapper.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerOnboardingGuardsService } from './customer-onboarding-guards.service.js';
+import { OnboardingDeviceSessionService } from './onboarding-device-session.service.js';
 import { StartOnboardingDto } from '../customer-onboarding.schemas.js';
 import { INITIAL_CUSTOMER_LIFECYCLE_STATUS } from '../../customers/customer-lifecycle.constants.js';
 
@@ -43,11 +46,15 @@ function normalizeFullName(firstName?: string, lastName?: string): string | null
 export class CustomerOnboardingStartService {
   constructor(
     private readonly customersRepository: CustomersRepository,
-    private readonly sessionsRepository: SessionsRepository,
+    private readonly customerContactsRepository: CustomerContactsRepository,
     private readonly consentsRepository: ConsentsRepository,
     private readonly onboardingRepository: CustomerOnboardingRepository,
     private readonly authRepository: AuthRepository,
+    private readonly tokenIssuer: AuthTokenIssuerService,
     private readonly guardsService: CustomerOnboardingGuardsService,
+    // Dispositivo, sesión y su instantánea: tres pasos que solo hablan con `SessionsRepository` y
+    // que no comparten nada con el resto del alta salvo el cliente recién creado.
+    private readonly deviceSession: OnboardingDeviceSessionService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -56,6 +63,16 @@ export class CustomerOnboardingStartService {
    *
    * Cada paso privado encapsula una escritura o validación del flujo, manteniendo una única
    * transacción para cliente, credenciales, perfil, dispositivo, sesión, permisos y consentimientos.
+   *
+   * La garantía de integridad real la dan los índices únicos parciales de la base de datos. El
+   * `try/catch` de abajo traduce las colisiones concurrentes al mismo error de negocio que el
+   * chequeo previo, para que la app siempre reciba el mismo código (`CUSTOMER_ALREADY_EXISTS`) sin
+   * importar si perdió la carrera o si simplemente llegó segunda en el tiempo.
+   *
+   * La deduplicación por `X-Idempotency-Key` (reintentos del MISMO request) la cubre el
+   * `IdempotencyInterceptor` global (`src/modules/runtime-hardening/idempotency.interceptor.ts`)
+   * sobre la tabla `idempotency_keys`; este bloque cubre el caso distinto de dos requests
+   * *diferentes* (claves de idempotencia distintas) que describen al mismo cliente.
    */
   async startOnboarding(
     tenantId: string,
@@ -73,17 +90,6 @@ export class CustomerOnboardingStartService {
     await this.guardsService.assertNoDuplicateCustomer(tenantId, phoneHash, emailHash);
     await this.guardsService.assertConsentDocumentsAreValid(tenantId, input.consents);
 
-    // La garantía de integridad real la dan los índices únicos parciales de la base de datos.
-    // Este try/catch traduce colisiones concurrentes al mismo error de
-    // negocio que el chequeo previo, para que el cliente de la app siempre reciba el mismo
-    // código (`CUSTOMER_ALREADY_EXISTS`) sin importar si perdió la carrera o si simplemente
-    // llegó segundo en el tiempo.
-    //
-    // La deduplicación por `X-Idempotency-Key` (reintentos del MISMO request) la cubre el
-    // `IdempotencyInterceptor` global (`src/modules/runtime-hardening/idempotency.interceptor.ts`)
-    // sobre la tabla `idempotency_keys`; este bloque cubre el caso distinto de dos requests
-    // *diferentes* (idempotency keys distintas) que describen al mismo cliente.
-
     const now = new Date();
     const sourceType = input.onboarding?.sourceType ?? 'mobile_app';
     // Se hashea ANTES de abrir la transacción a propósito: Argon2id es una operación
@@ -93,7 +99,7 @@ export class CustomerOnboardingStartService {
 
     try {
       return await this.sequelize.transaction(async (transaction) => {
-        const customer = await this.createCustomerAndCredentials({
+        const { customer, credential } = await this.createCustomerAndCredentials({
           tenantId,
           input,
           phoneHash,
@@ -107,11 +113,16 @@ export class CustomerOnboardingStartService {
         await this.createContactMethods({ tenantId, customer, input, phoneHash, emailHash, sourceType, now, transaction });
         await this.createInitialStatusEvent({ tenantId, customer, now, transaction });
 
-        const { device, link } = await this.resolveDeviceAndLink({ tenantId, customer, input, now, transaction });
-
-        const session = await this.createOnboardingSession({ tenantId, customer, device, link, input, ipAddress, now, transaction });
-
-        await this.captureDeviceSnapshotIfProvided({ tenantId, customer, device, session, input, now, transaction });
+        // Dispositivo, sesión e instantánea van siempre juntos: no existe un alta que resuelva el
+        // dispositivo y no abra su sesión.
+        const { device, session } = await this.deviceSession.openSessionForNewCustomer({
+          tenantId,
+          customer,
+          input,
+          ipAddress,
+          now,
+          transaction,
+        });
 
         const onboardingFlow = await this.createOnboardingFlowAndFirstEvent({
           tenantId,
@@ -125,9 +136,9 @@ export class CustomerOnboardingStartService {
           transaction,
         });
 
-        await this.recordPermissionDecisions({ tenantId, customer, session, onboardingFlow, input, now, transaction });
-
-        await this.recordActionAndAuditLogs({
+        // Permisos, bitácora/auditoría y consentimientos: el rastro de lo que el cliente aceptó y
+        // de lo que el sistema hizo con ello, escrito en la misma transacción que lo produjo.
+        await this.recordDecisionsAndAudit({
           tenantId,
           customer,
           session,
@@ -141,9 +152,19 @@ export class CustomerOnboardingStartService {
           transaction,
         });
 
-        await this.recordConsents({ tenantId, customer, session, input, ipAddress, now, transaction });
+        // Los tokens se emiten DENTRO de la transacción: si el alta se deshace, el refresh token
+        // emitido se deshace con ella. Emitirlos después del commit dejaría una ventana en la que
+        // existe una credencial válida para un cliente que la base todavía no confirmó.
+        const tokens = await this.tokenIssuer.issueRegistrationTokens({
+          tenantId,
+          customerId: String(customer.id),
+          tokenVersion: credential.tokenVersion,
+          ipAddress,
+          userAgent: input.device.userAgent ?? null,
+          transaction,
+        });
 
-        return toStartOnboardingResponse({ customer, session, device, onboardingFlow });
+        return toStartOnboardingResponse({ customer, session, device, onboardingFlow, tokens });
       });
     } catch (error) {
       if (error instanceof UniqueConstraintError) {
@@ -179,12 +200,12 @@ export class CustomerOnboardingStartService {
     );
 
     // Credenciales siempre presentes: sin ellas el cliente no puede iniciar sesión nunca más.
-    await this.authRepository.createCredentials(
+    const credential = await this.authRepository.createCredentials(
       { tenantId: input.tenantId, actorType: 'customer', actorId: String(customer.id), passwordHash: input.passwordHash },
       { transaction: input.transaction },
     );
 
-    return customer;
+    return { customer, credential };
   }
 
   // 2. Create initial profile version
@@ -234,7 +255,7 @@ export class CustomerOnboardingStartService {
       // ATLAS-P10-010: envelope encryption (data key propia por valor, en vez de la clave
       // maestra única de secret-box.util.ts) — ver ATLAS-PEND-106/112.
       const phoneEncrypted = input.input.customer.phone ? await encryptSecretEnvelope(input.input.customer.phone) : null;
-      await this.customersRepository.createContactMethod(
+      await this.customerContactsRepository.createContactMethod(
         {
           tenantId: input.tenantId,
           customerId: String(input.customer.id),
@@ -253,7 +274,7 @@ export class CustomerOnboardingStartService {
 
     if (input.emailHash) {
       const emailEncrypted = input.input.customer.email ? await encryptSecretEnvelope(input.input.customer.email) : null;
-      await this.customersRepository.createContactMethod(
+      await this.customerContactsRepository.createContactMethod(
         {
           tenantId: input.tenantId,
           customerId: String(input.customer.id),
@@ -294,137 +315,6 @@ export class CustomerOnboardingStartService {
   }
 
   // 5 + 6 + 7. Resolve global device fingerprint, tenant-scoped device, y customer-device link.
-  private async resolveDeviceAndLink(input: {
-    tenantId: string;
-    customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    input: StartOnboardingDto;
-    now: Date;
-    transaction: Transaction;
-  }) {
-    // 5. Resolve global device fingerprint
-    let globalDevice = await this.sessionsRepository.findGlobalDevice(
-      input.input.device.deviceFingerprintHash,
-      input.input.device.fingerprintVersion,
-      { transaction: input.transaction },
-    );
-
-    if (!globalDevice) {
-      globalDevice = await this.sessionsRepository.createGlobalDevice(
-        {
-          deviceFingerprint: input.input.device.deviceFingerprintHash,
-          fingerprintVersion: input.input.device.fingerprintVersion,
-          now: input.now,
-        },
-        { transaction: input.transaction },
-      );
-    } else {
-      await this.sessionsRepository.touchGlobalDevice(globalDevice, input.now, { transaction: input.transaction });
-    }
-
-    // 6. Resolve tenant-scoped device
-    let device = await this.sessionsRepository.findDevice(
-      input.tenantId,
-      input.input.device.deviceFingerprintHash,
-      input.input.device.fingerprintVersion,
-      { transaction: input.transaction },
-    );
-
-    if (!device) {
-      device = await this.sessionsRepository.createDevice(
-        {
-          tenantId: input.tenantId,
-          globalDeviceFingerprintId: String(globalDevice.id),
-          deviceFingerprint: input.input.device.deviceFingerprintHash,
-          fingerprintVersion: input.input.device.fingerprintVersion,
-          now: input.now,
-        },
-        { transaction: input.transaction },
-      );
-    } else {
-      await this.sessionsRepository.touchDevice(device, input.now, { transaction: input.transaction });
-    }
-
-    // 7. Create customer-device link
-    let link = await this.sessionsRepository.findCustomerDeviceLink(input.tenantId, String(input.customer.id), String(device.id), {
-      transaction: input.transaction,
-    });
-
-    if (!link) {
-      link = await this.sessionsRepository.createCustomerDeviceLink(
-        { tenantId: input.tenantId, customerId: String(input.customer.id), deviceId: String(device.id), now: input.now },
-        { transaction: input.transaction },
-      );
-    }
-
-    return { device, link };
-  }
-
-  // 8. Create initial onboarding session
-  private async createOnboardingSession(input: {
-    tenantId: string;
-    customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    device: Awaited<ReturnType<SessionsRepository['findDevice']>>;
-    link: Awaited<ReturnType<SessionsRepository['findCustomerDeviceLink']>>;
-    input: StartOnboardingDto;
-    ipAddress: string | null;
-    now: Date;
-    transaction: Transaction;
-  }) {
-    const session = await this.sessionsRepository.createSession(
-      {
-        tenantId: input.tenantId,
-        customerId: String(input.customer.id),
-        deviceId: String(input.device!.id),
-        sessionTokenHash: sha256Hex(randomUUID()),
-        channel: input.input.device.channel,
-        authMethod: 'onboarding',
-        ipAddress: input.ipAddress,
-        userAgent: input.input.device.userAgent ?? null,
-        gpsLat: null,
-        gpsLng: null,
-        gpsAccuracyMeters: null,
-        now: input.now,
-      },
-      { transaction: input.transaction },
-    );
-
-    await this.sessionsRepository.touchCustomerDeviceLink(input.link!, String(session.id), input.now, { transaction: input.transaction });
-
-    return session;
-  }
-
-  // 9. Capture device snapshot if provided
-  private async captureDeviceSnapshotIfProvided(input: {
-    tenantId: string;
-    customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    device: Awaited<ReturnType<SessionsRepository['findDevice']>>;
-    session: Awaited<ReturnType<SessionsRepository['createSession']>>;
-    input: StartOnboardingDto;
-    now: Date;
-    transaction: Transaction;
-  }): Promise<void> {
-    if (input.input.device.snapshot) {
-      await this.sessionsRepository.createDeviceSnapshot(
-        {
-          tenantId: input.tenantId,
-          customerId: String(input.customer.id),
-          deviceId: String(input.device!.id),
-          sessionId: String(input.session.id),
-          brand: input.input.device.snapshot.brand ?? null,
-          model: input.input.device.snapshot.model ?? null,
-          osFamily: input.input.device.snapshot.osFamily ?? null,
-          osVersion: input.input.device.snapshot.osVersion ?? null,
-          appVersion: input.input.device.snapshot.appVersion ?? null,
-          isRooted: input.input.device.snapshot.isRooted ?? null,
-          isEmulator: input.input.device.snapshot.isEmulator ?? null,
-          vpnDetected: input.input.device.snapshot.vpnDetected ?? null,
-          now: input.now,
-        },
-        { transaction: input.transaction },
-      );
-    }
-  }
-
   // 10. Create onboarding flow and first step event.
   private async createOnboardingFlowAndFirstEvent(input: {
     tenantId: string;
@@ -471,6 +361,29 @@ export class CustomerOnboardingStartService {
   }
 
   // 11. Capture permission decisions as append-only events.
+  /**
+   * Agrupa el rastro del alta: permisos concedidos, bitácora de acción + auditoría operativa y
+   * consentimientos. Van juntos porque los tres describen lo mismo desde ángulos distintos y
+   * ninguno tiene sentido sin los otros dos en el expediente.
+   */
+  private async recordDecisionsAndAudit(input: {
+    tenantId: string;
+    customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
+    session: Awaited<ReturnType<SessionsRepository['createSession']>>;
+    device: Awaited<ReturnType<SessionsRepository['findDevice']>>;
+    onboardingFlow: Awaited<ReturnType<CustomerOnboardingRepository['createOnboardingFlow']>>;
+    input: StartOnboardingDto;
+    ipAddress: string | null;
+    idempotencyKey: string;
+    sourceType: string;
+    now: Date;
+    transaction: Transaction;
+  }): Promise<void> {
+    await this.recordPermissionDecisions(input);
+    await this.recordActionAndAuditLogs(input);
+    await this.recordConsents(input);
+  }
+
   private async recordPermissionDecisions(input: {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;

@@ -24,9 +24,11 @@ describe('CreditController', () => {
     };
   }
 
-  it('usa el tenant del token para listar productos cuando no llega header', async () => {
+  // Que el tenant salga del token cuando no llega header es cosa de `@CurrentTenant()` (ver su
+  // spec); aquí llega ya resuelto y lo que se comprueba es que el controller lo propaga.
+  it('propaga el tenant resuelto al listar productos', async () => {
     const { controller, productService } = build();
-    await controller.listProducts(undefined, { customerId: '10' }, customerUser);
+    await controller.listProducts('7', { customerId: '10' }, customerUser);
     expect(productService.listForCustomer).toHaveBeenCalledWith({ tenantId: '7', customerId: '10', currentUser: customerUser });
   });
 
@@ -61,10 +63,14 @@ describe('CreditOperationsController', () => {
       decide: jest.fn(async (input: unknown) => input),
       getApplicationDetail: jest.fn(async (tenantId: string, applicationId: string) => ({ tenantId, applicationId })),
     };
+    // La aceptación de negocio se dobla aparte: es la SEGUNDA pregunta —el motor dice si el
+    // riesgo encaja, el negocio si quiere la operación— y tiene su propio servicio.
+    const businessAcceptance = { decide: jest.fn(async (input: unknown) => input) };
     return {
       productService,
       decisionService,
-      controller: new CreditOperationsController(productService as never, decisionService as never),
+      businessAcceptance,
+      controller: new CreditOperationsController(productService as never, decisionService as never, businessAcceptance as never),
     };
   }
 

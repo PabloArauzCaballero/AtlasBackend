@@ -21,7 +21,7 @@ describe('SystemsActionLogController (e2e/supertest)', () => {
   const service = {
     listActionLogs: asyncMock(),
     getActionLogsByRequest: asyncMock(),
-    getTrafficLatencyReport: jest.fn(async () => ({ windowHours: 24, summary: {}, routes: [] })),
+    getTrafficLatencyReport: jest.fn(async (..._args: unknown[]) => ({ windowHours: 24, summary: {}, routes: [] })),
     getTrafficLatencyTimeseries: asyncMock(),
   };
 

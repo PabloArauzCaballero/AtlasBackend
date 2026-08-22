@@ -29,14 +29,17 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
     // La transición de estado del cliente la aplica ahora `CustomerLifecycleService`, que
     // valida contra la máquina de estados y escribe estado + evento en la misma transacción.
     const lifecycleService = { transition: jest.fn(), advance: jest.fn() };
+    // El paso siguiente lo dicta el evaluador de elegibilidad, no un literal de este servicio.
+    const eligibilityService = { evaluate: jest.fn(async (..._args: unknown[]) => ({ nextStep: 'identity_documents' })) };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
     const service = new CustomerAddressPackageService(
       customersRepository as never,
       onboardingRepository as never,
       lifecycleService as never,
+      eligibilityService as never,
       sequelize as never,
     );
-    return { service, customersRepository, onboardingRepository, lifecycleService };
+    return { service, customersRepository, onboardingRepository, lifecycleService, eligibilityService };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null, platformUserId: null } as never;
@@ -71,7 +74,7 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
 
   it('creates a new "home" address on the very first submission', async () => {
     const { service, customersRepository, onboardingRepository } = buildService();
-    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'onboarding_in_progress' } as never);
     (onboardingRepository.findCurrentAddress as jest.Mock).mockResolvedValueOnce(null as never);
     (onboardingRepository.createAddress as jest.Mock).mockResolvedValueOnce({ id: 'address-1' } as never);
     (onboardingRepository.createAddressVersion as jest.Mock).mockResolvedValueOnce({ id: 'version-1' } as never);
@@ -86,7 +89,7 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
 
   it('reuses (touches) the existing address record on a subsequent submission, instead of creating a second one', async () => {
     const { service, customersRepository, onboardingRepository } = buildService();
-    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'onboarding_in_progress' } as never);
     (onboardingRepository.findCurrentAddress as jest.Mock).mockResolvedValueOnce({ id: 'existing-address' } as never);
     (onboardingRepository.createAddressVersion as jest.Mock).mockResolvedValueOnce({ id: 'version-2' } as never);
     (onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
@@ -99,7 +102,7 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
 
   it('always creates a NEW address version, even when the address record itself is reused — preserves history, never overwrites', async () => {
     const { service, customersRepository, onboardingRepository } = buildService();
-    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'onboarding_in_progress' } as never);
     (onboardingRepository.findCurrentAddress as jest.Mock).mockResolvedValueOnce({ id: 'existing-address' } as never);
     (onboardingRepository.createAddressVersion as jest.Mock).mockResolvedValueOnce({ id: 'version-2' } as never);
     (onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
@@ -117,7 +120,7 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
 
   it('does not create any GPS observation when the caller does not provide one', async () => {
     const { service, customersRepository, onboardingRepository } = buildService();
-    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'onboarding_in_progress' } as never);
     (onboardingRepository.findCurrentAddress as jest.Mock).mockResolvedValueOnce({ id: 'address-1' } as never);
     (onboardingRepository.createAddressVersion as jest.Mock).mockResolvedValueOnce({ id: 'version-1' } as never);
     (onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
@@ -129,7 +132,7 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
 
   it('creates a GPS observation AND a customer observation when a gpsObservation is provided, rounding lat/lng correctly', async () => {
     const { service, customersRepository, onboardingRepository } = buildService();
-    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'onboarding_in_progress' } as never);
     (onboardingRepository.findCurrentAddress as jest.Mock).mockResolvedValueOnce({ id: 'address-1' } as never);
     (onboardingRepository.createAddressVersion as jest.Mock).mockResolvedValueOnce({ id: 'version-1' } as never);
     (onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
@@ -152,7 +155,7 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
 
   it('normalizedAddressText is derived (hashed) from the encrypted address line only when one is provided', async () => {
     const { service, customersRepository, onboardingRepository } = buildService();
-    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'onboarding_in_progress' } as never);
     (onboardingRepository.findCurrentAddress as jest.Mock).mockResolvedValueOnce({ id: 'address-1' } as never);
     (onboardingRepository.createAddressVersion as jest.Mock).mockResolvedValueOnce({ id: 'version-1' } as never);
     (onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
@@ -167,9 +170,9 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
     expect(versionArgs.normalizedAddressText).toBeNull();
   });
 
-  it('returns nextStep "identity_documents" — the same next step as the identity package, both feed the same downstream decision', async () => {
-    const { service, customersRepository, onboardingRepository } = buildService();
-    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
+  it('devuelve el nextStep que calcula el evaluador, no un literal de este servicio', async () => {
+    const { service, customersRepository, onboardingRepository, eligibilityService } = buildService();
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'onboarding_in_progress' } as never);
     (onboardingRepository.findCurrentAddress as jest.Mock).mockResolvedValueOnce({ id: 'address-1' } as never);
     (onboardingRepository.createAddressVersion as jest.Mock).mockResolvedValueOnce({ id: 'version-1' } as never);
     (onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
@@ -182,5 +185,18 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
       status: 'recorded',
       nextStep: 'identity_documents',
     });
+    expect(eligibilityService.evaluate).toHaveBeenCalledWith('t1', 'c1', {});
+  });
+
+  /**
+   * Era el único de los cinco endpoints de guardado sin puerta de estado: un cliente ya enviado a
+   * revisión podía reescribir su dirección y el expediente cambiaba después de haberse presentado.
+   */
+  it('rechaza el guardado cuando el cliente ya no está en un estado editable', async () => {
+    const { service, customersRepository, onboardingRepository } = buildService();
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'under_review' } as never);
+
+    await expect(service.submitAddressPackage(baseInput())).rejects.toThrow(/PROFILE_NOT_EDITABLE_IN_STATUS/);
+    expect(onboardingRepository.createAddressVersion).not.toHaveBeenCalled();
   });
 });

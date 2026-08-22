@@ -3,9 +3,33 @@
  * @business Esta pieza evita operar con parámetros inseguros o ambiguos.
  * @system valida y compone configuración tipada al arrancar.
  */
+import { Logger } from '@nestjs/common';
 import { SequelizeModuleOptions } from '@nestjs/sequelize';
 import { env } from './env.js';
+import { redactSensitiveText } from '../common/utils/privacy/redact-text.util.js';
 import { ATLAS_MIGRATION_SEARCH_PATH, ATLAS_RUNTIME_SEARCH_PATH } from '../database/domain-schemas.js';
+
+const sqlLogger = new Logger('Sequelize');
+
+/**
+ * ATLAS-PERF-004 / ATLAS-SEC-012 — el volcado de SQL deja de colgar de `NODE_ENV`.
+ *
+ * `logging: env.NODE_ENV === 'development' ? console.log : false` convertía "estoy en desarrollo" en
+ * "publica cada sentencia con sus valores inlineados". En un backend KYC eso son nombre, correo,
+ * teléfono y número de documento en claro en stdout, en `Archivo.log` y en el espejo de MongoDB que
+ * expone `/systems/logs/mongo` — contra la regla explícita del proyecto («Nunca loguear SQL»).
+ *
+ * Tres cambios: (1) es una decisión propia (`DB_LOG_SQL`), no un efecto colateral del entorno;
+ * (2) está apagada por defecto, así que el desarrollador que la quiera la enciende a conciencia;
+ * (3) cuando está encendida el SQL pasa por `redactSensitiveText` y por el logger de Nest en vez de
+ * `console.log`, de modo que al menos las claves reconocibles (`password=`, `token:`, correos) salen
+ * enmascaradas. La redacción REDUCE la exposición pero no la elimina —Sequelize inlinea valores
+ * posicionales sin nombre— y por eso `env-cross-checks.ts` prohíbe activarla en producción.
+ */
+function sqlLogging(): ((sql: string) => void) | false {
+  if (!env.DB_LOG_SQL) return false;
+  return (sql: string) => sqlLogger.debug(redactSensitiveText(sql));
+}
 
 /**
  * Opciones de arranque de la SESIÓN de Postgres, en el formato `-c clave=valor` que `pg` pasa al
@@ -72,7 +96,7 @@ export function buildSequelizeOptions(): SequelizeModuleOptions {
     schema: env.DB_SCHEMA,
     autoLoadModels: false,
     synchronize: false,
-    logging: env.NODE_ENV === 'development' ? console.log : false,
+    logging: sqlLogging(),
     pool: {
       max: env.DB_POOL_MAX,
       min: env.DB_POOL_MIN,

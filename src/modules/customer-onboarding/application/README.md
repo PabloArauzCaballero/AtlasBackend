@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`contact-method-resolution.service.ts`](./contact-method-resolution.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`contact-verification-code.service.ts`](./contact-verification-code.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`contact-verification-journal.service.ts`](./contact-verification-journal.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`customer-address-package.service.ts`](./customer-address-package.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
@@ -27,8 +28,10 @@
 | [`customer-profile-update.service.ts`](./customer-profile-update.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`customer-reference-contacts.service.ts`](./customer-reference-contacts.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`customer-verification.service.ts`](./customer-verification.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`identity-evidence-verification.service.ts`](./identity-evidence-verification.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`identity-verification-outcome.ts`](./identity-verification-outcome.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`onboarding-abandonment.service.ts`](./onboarding-abandonment.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`onboarding-device-session.service.ts`](./onboarding-device-session.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento
 

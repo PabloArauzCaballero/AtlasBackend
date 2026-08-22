@@ -13,9 +13,16 @@ GRANT CONNECT ON DATABASE :"DBNAME" TO atlas_app_rw, atlas_app_ro, atlas_migrato
 DO $$
 DECLARE
   schema_name text;
+  -- La lista tiene que ser la MISMA que `ATLAS_SCHEMAS` (src/database/domain-schemas.ts): el gate
+  -- `check:db-privileges --strict` la deriva de ahí, así que un schema de dominio ausente aquí no
+  -- es un detalle de provisión — es el rol de la aplicación sin acceso a un dominio entero.
+  -- `credit` faltaba: `atlas_app_rw` no podía leer ni escribir solicitudes, líneas ni préstamos.
   write_schemas constant text[] := ARRAY[
-    'iam', 'customer', 'privacy', 'telemetry', 'catalog', 'risk', 'case_management',
-    'audit', 'integrations', 'messaging', 'platform_ops'
+    'iam', 'credit', 'customer', 'privacy', 'telemetry', 'catalog', 'risk', 'case_management',
+    'audit', 'integrations', 'messaging', 'platform_ops',
+    -- Expediente verificable del comercio (ADR-0009). Sin este privilegio la API arranca, la
+    -- migración pasa y la primera petición responde 500 «permission denied for schema partner».
+    'partner'
   ];
 BEGIN
   FOREACH schema_name IN ARRAY write_schemas LOOP
@@ -40,4 +47,4 @@ ALTER DEFAULT PRIVILEGES FOR ROLE atlas_owner IN SCHEMA :"read_schema"
   GRANT SELECT ON TABLES TO atlas_app_ro, atlas_app_rw;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA :"read_schema" FROM atlas_app_ro;
 
-\echo 'Grants aplicados: atlas_app_rw en 11 schemas de dominio; atlas_app_ro solo en read_api.'
+\echo 'Grants aplicados: atlas_app_rw en 12 schemas de dominio; atlas_app_ro solo en read_api.'

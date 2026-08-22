@@ -11,8 +11,11 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`credit-rating-models.ts`](./credit-rating-models.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`domain-schemas.ts`](./domain-schemas.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`loan-book-models.ts`](./loan-book-models.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`migrate.ts`](./migrate.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`partner-models.ts`](./partner-models.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`provisioning-guard.ts`](./provisioning-guard.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`read-database.module.ts`](./read-database.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
 | [`seed-profiles.ts`](./seed-profiles.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
@@ -25,6 +28,7 @@
 ## Subcarpetas
 
 - [`context-seed/`](./context-seed/README.md)
+- [`metadata/`](./metadata/README.md)
 - [`migration-support/`](./migration-support/README.md)
 - [`migrations/`](./migrations/README.md)
 - [`models/`](./models/README.md)

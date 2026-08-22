@@ -13,19 +13,25 @@ describe('AuthPasswordResetService', () => {
 
   function build() {
     const authRepository = {
-      findCredentialsByActor: jest.fn(async () => ({ id: 'cred1' })),
-      createOneTimeCode: jest.fn(async () => ({})),
-      recordLoginAttemptEvent: jest.fn(async () => ({})),
-      findActiveOneTimeCodeByActor: jest.fn(async () => null),
-      registerOneTimeCodeFailedAttempt: jest.fn(async () => ({})),
-      consumeOneTimeCode: jest.fn(async () => ({})),
-      updatePasswordHash: jest.fn(async () => ({})),
-      revokeAllRefreshTokensForActor: jest.fn(async () => 0),
+      findCredentialsByActor: jest.fn(async (..._args: unknown[]) => ({ id: 'cred1' })),
+      createOneTimeCode: jest.fn(async (..._args: unknown[]) => ({})),
+      recordLoginAttemptEvent: jest.fn(async (..._args: unknown[]) => ({})),
+      findActiveOneTimeCodeByActor: jest.fn(async (..._args: unknown[]) => null),
+      registerOneTimeCodeFailedAttempt: jest.fn(async (..._args: unknown[]) => ({})),
+      consumeOneTimeCode: jest.fn(async (..._args: unknown[]) => ({})),
+      updatePasswordHash: jest.fn(async (..._args: unknown[]) => ({})),
+      revokeAllRefreshTokensForActor: jest.fn(async (..._args: unknown[]) => 0),
     };
-    const tokenRevocationService = { bumpTokenVersion: jest.fn(async () => undefined) };
-    const mailSenderService = { isEnabled: jest.fn(() => true), sendPasswordResetCode: jest.fn(async () => undefined) };
-    const actorResolver = { resolveActorForLogin: jest.fn(async () => null) };
+    const tokenRevocationService = { bumpTokenVersion: jest.fn(async (..._args: unknown[]) => undefined) };
+    const mailSenderService = {
+      isEnabled: jest.fn((..._args: unknown[]) => true),
+      sendPasswordResetCode: jest.fn(async (..._args: unknown[]) => undefined),
+    };
+    const actorResolver = { resolveActorForLogin: jest.fn(async (..._args: unknown[]) => null) };
     const service = new AuthPasswordResetService(
+      authRepository as never,
+      // Mismo doble: los códigos de un solo uso viven ahora en su propio repositorio, pero el mock
+      // ya expone esos métodos y las aserciones siguen mirando el mismo objeto.
       authRepository as never,
       tokenRevocationService as never,
       mailSenderService as never,

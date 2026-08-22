@@ -38,6 +38,8 @@ import { CustomersController } from './customers.controller.js';
 import { CustomersRepository } from './customers.repository.js';
 import { CustomersService } from './customers.service.js';
 import { CustomerEligibilityRepository } from './repositories/customer-eligibility.repository.js';
+import { CustomerEligibilityRiskRepository } from './repositories/customer-eligibility-risk.repository.js';
+import { CustomerContactsRepository } from './repositories/customer-contacts.repository.js';
 import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.repository.js';
 
 @Module({
@@ -77,8 +79,18 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
     CustomerLifecycleRepository,
     CustomerEligibilityService,
     CustomerEligibilityRepository,
+    CustomerEligibilityRiskRepository,
+    CustomerContactsRepository,
     CustomerEligibilityDecisionService,
   ],
-  exports: [CustomersService, CustomersRepository, CustomerLifecycleService, CustomerEligibilityService, CustomerEligibilityRepository],
+  exports: [
+    CustomersService,
+    CustomersRepository,
+    CustomerLifecycleService,
+    CustomerEligibilityService,
+    CustomerEligibilityRepository,
+    CustomerEligibilityRiskRepository,
+    CustomerContactsRepository,
+  ],
 })
 export class CustomersModule {}

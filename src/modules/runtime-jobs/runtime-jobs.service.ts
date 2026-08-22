@@ -19,6 +19,7 @@ import {
   RetentionPolicyModel,
 } from '../../database/models/index.js';
 import { JobRunRecorderService } from './job-run-recorder.service.js';
+import { RETENTION_POLICIES_PENDING_DECISION, RETENTION_TARGETS } from './retention-targets.js';
 import { listEventDefinitions } from '../events/event-registry.js';
 import { EventsService } from '../events/events.service.js';
 import {
@@ -37,39 +38,6 @@ function registeredEventCodesOrSentinel(): string[] {
 }
 
 type RetentionOutcome = { table: string; action: 'delete' | 'anonymize'; affected: number };
-
-/**
- * Este registro mapea `policy_code` (columna de `retention_policies`) a una acción ejecutable
- * real. A propósito, solo se registran tablas de telemetría cruda claramente no-financieras y
- * no-auditables (GPS, snapshots de dispositivo, interacción de formularios) — nunca tablas de
- * decisión/auditoría (`risk_assessment_results`, `operational_audit_logs`, etc.), que deben
- * seguir siendo append-only según `BACKEND_DEVELOPMENT_CONTEXT.md` §8 y §11.
- *
- * La única política ya sembrada en `db/seeders` (`risk-data-365d`, `applies_to:
- * risk_and_fraud_testing`) NO tiene una tabla mapeada aquí a propósito: su alcance real
- * ("datos de riesgo y fraude") es ambiguo y podría incluir tablas de decisión que no deben
- * purgarse; cerrar esa ambigüedad es una decisión de producto/legal. Para esa política, el
- * job sigue reportando `destructiveActionsExecuted: 0`, tal como antes, pero ahora por una
- * razón explícita y visible en la respuesta (`unmappedPolicies`), no por ser un stub general.
- *
- * Para activar la purga real de las 3 tablas mapeadas aquí, un operador debe crear/activar una
- * fila en `retention_policies` con uno de estos `policy_code`. Mientras no exista esa fila
- * activa, no se ejecuta ninguna acción destructiva.
- */
-const RETENTION_TARGETS: Record<string, { table: string; description: string }> = {
-  gps_observations_90d: {
-    table: 'address_gps_observations',
-    description: 'Purga GPS crudo de onboarding/direcciones tras el período de retención.',
-  },
-  device_snapshots_90d: {
-    table: 'device_snapshots',
-    description: 'Anonimiza snapshots de dispositivo (marca/modelo/versión) conservando señales de riesgo agregadas (root/emulador/VPN).',
-  },
-  form_interaction_events_60d: {
-    table: 'form_field_interaction_events',
-    description: 'Purga eventos crudos de interacción de formularios de onboarding.',
-  },
-};
 
 @Injectable()
 export class RuntimeJobsService {
@@ -279,16 +247,36 @@ export class RuntimeJobsService {
 
         const destructiveActionsExecuted = input.body.dryRun ? 0 : outcomes.reduce((sum, o) => sum + o.affected, 0);
 
+        // ATLAS-DATA-004. Una política ACTIVA sin destino ejecutable es un control declarado que no
+        // se ejerce; en KYC eso es un hallazgo de cumplimiento. Antes solo aparecía dentro del JSON
+        // de resultado (`unmappedPolicies`), donde nadie lo miraba. Ahora se separan dos casos:
+        //  - decisión pendiente YA DECLARADA (con su motivo en `retention-targets.ts`): se informa;
+        //  - política sin destino y sin decisión: se registra como ERROR, porque significa que
+        //    alguien sembró una política y `check:retention-coverage` no llegó a bloquearla.
+        const undeclared = unmappedPolicies.filter((code) => !(code in RETENTION_POLICIES_PENDING_DECISION));
+        if (undeclared.length > 0) {
+          this.logger.error(
+            `Políticas de retención ACTIVAS sin destino ejecutable ni decisión declarada: ${undeclared.join(', ')}. ` +
+              'La política existe en base y no se está aplicando. Resolver en src/modules/runtime-jobs/retention-targets.ts.',
+          );
+        }
+        const pendingDecision = unmappedPolicies.filter((code) => code in RETENTION_POLICIES_PENDING_DECISION);
+        if (pendingDecision.length > 0) {
+          this.logger.warn(`Políticas de retención activas con decisión pendiente declarada: ${pendingDecision.join(', ')}.`);
+        }
+
         return {
           policiesScanned: policies.length,
           destructiveActionsExecuted,
           dryRun: input.body.dryRun,
           outcomes,
           unmappedPolicies,
+          pendingDecision: pendingDecision.map((code) => ({ policyCode: code, reason: RETENTION_POLICIES_PENDING_DECISION[code] })),
+          undeclaredPolicies: undeclared,
           note:
-            unmappedPolicies.length > 0
-              ? `Políticas activas sin tabla registrada en RETENTION_TARGETS (no se ejecutó ninguna acción para ellas): ${unmappedPolicies.join(', ')}.`
-              : 'Todas las políticas activas evaluadas tienen una tabla registrada en RETENTION_TARGETS.',
+            unmappedPolicies.length === 0
+              ? 'Todas las políticas activas evaluadas tienen una tabla registrada en RETENTION_TARGETS.'
+              : `${pendingDecision.length} política(s) con decisión pendiente declarada y ${undeclared.length} sin declarar.`,
         };
       },
     );

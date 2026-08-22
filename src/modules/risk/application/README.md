@@ -11,7 +11,10 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`risk-assessment-persistence.ts`](./risk-assessment-persistence.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`risk-feature-evidence.ts`](./risk-feature-evidence.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`risk-heuristic-scoring.ts`](./risk-heuristic-scoring.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`risk-model-identity.ts`](./risk-model-identity.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`risk-policy-decision.service.ts`](./risk-policy-decision.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`risk-policy-features.ts`](./risk-policy-features.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`risk-rule-expression.ts`](./risk-rule-expression.ts) | Artefacto de soporte específico de esta carpeta. |

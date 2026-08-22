@@ -31,6 +31,10 @@ export class CreditApplicationModel extends Model {
   @Column({ field: 'credit_product_id', type: DataType.BIGINT, allowNull: false })
   declare creditProductId: string;
 
+  /** El comercio donde nació la solicitud. Nulo en las anteriores al vínculo: no se puede inventar. */
+  @Column({ field: 'partner_profile_id', type: DataType.BIGINT })
+  declare partnerProfileId: string | null;
+
   @Column({ field: 'requested_amount', type: DataType.DECIMAL(18, 2), allowNull: false })
   declare requestedAmount: string;
 
@@ -55,8 +59,60 @@ export class CreditApplicationModel extends Model {
   @Column({ field: 'risk_assessment_run_id', type: DataType.BIGINT })
   declare riskAssessmentRunId: string | null;
 
+  /**
+   * Qué ejecución del motor resolvió la solicitud, y con qué versión del artefacto.
+   *
+   * Es el eslabón que ata la decisión al dinero y, más tarde, al resultado. Sin él, el desenlace
+   * real del préstamo no se puede atribuir a la política que lo autorizó.
+   */
+  @Column({ field: 'decision_execution_id', type: DataType.STRING(40) })
+  declare decisionExecutionId: string | null;
+
+  @Column({ field: 'decision_artifact_version_id', type: DataType.STRING(40) })
+  declare decisionArtifactVersionId: string | null;
+
+  @Column({ field: 'decision_subject_reference', type: DataType.STRING(128) })
+  declare decisionSubjectReference: string | null;
+
+  /** Cómo se resolvió: el motor, una persona, o una persona porque el motor no estaba. */
+  @Column({ field: 'decision_mode', type: DataType.STRING(30) })
+  declare decisionMode: string | null;
+
+  @Column({ field: 'decision_score', type: DataType.DECIMAL(12, 4) })
+  declare decisionScore: string | null;
+
+  @Column({ field: 'decision_risk_band', type: DataType.STRING(40) })
+  declare decisionRiskBand: string | null;
+
+  @Column({ field: 'decision_reasons_json', type: DataType.JSONB })
+  declare decisionReasonsJson: unknown;
+
   @Column({ field: 'decision_reason_code', type: DataType.STRING(120) })
   declare decisionReasonCode: string | null;
+
+  /**
+   * Qué dijo el NEGOCIO sobre una solicitud que el motor ya aprobó: `pending`, `accepted` o
+   * `declined`. Nulo cuando no aplica —la aprobó una persona, o no llegó a aprobarse—.
+   *
+   * Son dos preguntas distintas: el motor responde si el solicitante cumple los criterios de
+   * riesgo; el negocio, si quiere esa operación ahora —cupo, concentración, liquidez, una campaña
+   * que se cerró—. Un motor que decide las dos deja al negocio sin volante.
+   */
+  @Column({ field: 'business_acceptance', type: DataType.STRING(20) })
+  declare businessAcceptance: string | null;
+
+  @Column({ field: 'business_acceptance_at', type: DataType.DATE })
+  declare businessAcceptanceAt: Date | null;
+
+  @Column({ field: 'business_acceptance_by', type: DataType.STRING(160) })
+  declare businessAcceptanceBy: string | null;
+
+  /** Obligatorio al declinar: una operación rechazada que nadie sabe explicar es la que se reclama. */
+  @Column({ field: 'business_acceptance_reason_code', type: DataType.STRING(120) })
+  declare businessAcceptanceReasonCode: string | null;
+
+  @Column({ field: 'business_acceptance_notes', type: DataType.TEXT })
+  declare businessAcceptanceNotes: string | null;
 
   @Column({ field: 'decided_at', type: DataType.DATE })
   declare decidedAt: Date | null;

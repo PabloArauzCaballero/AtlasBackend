@@ -6,6 +6,7 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { env } from '../../config/env.js';
+import { matchesFileMagicBytes } from '../files/file-content-type.util.js';
 import { MalwareScannerService } from './malware-scanner.service.js';
 import { S3Credentials, presignS3Url } from './s3-signature.util.js';
 
@@ -27,17 +28,6 @@ export type StoredObjectMetadata = {
 /** Tipos aceptados para evidencia documental, alineados con `identityEvidenceSchema`. */
 export const ALLOWED_EVIDENCE_MIME_TYPES = ['image/jpeg', 'image/png', 'application/pdf'] as const;
 export type AllowedEvidenceMimeType = (typeof ALLOWED_EVIDENCE_MIME_TYPES)[number];
-
-/**
- * Firmas mágicas por tipo. El `Content-Type` lo declara quien sube; los primeros bytes del archivo
- * no mienten. Sin esta comprobación, renombrar un ejecutable a `.jpg` bastaba para almacenarlo como
- * evidencia de identidad.
- */
-const MAGIC_BYTES: Record<AllowedEvidenceMimeType, readonly number[][]> = {
-  'image/jpeg': [[0xff, 0xd8, 0xff]],
-  'image/png': [[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
-  'application/pdf': [[0x25, 0x50, 0x44, 0x46]],
-};
 
 export const MAX_EVIDENCE_BYTES = 15 * 1024 * 1024;
 
@@ -91,7 +81,14 @@ export class DocumentStorageService {
    */
   createUploadTicket(input: {
     tenantId: string;
-    customerId: string;
+    /**
+     * A quién pertenece la evidencia. Se llamaba `customerId` y se generalizó al aparecer el
+     * expediente del partner: la ruta del objeto es lo único que este servicio hace con él, así
+     * que atarlo al vocabulario del cliente obligaba a duplicar el servicio entero para guardar
+     * un QR. Quien llama antepone su prefijo (`partner-…`) para que dos sujetos con el mismo
+     * número no compartan carpeta.
+     */
+    subjectId: string;
     documentType: string;
     contentType: AllowedEvidenceMimeType;
     sizeBytes: number;
@@ -100,7 +97,7 @@ export class DocumentStorageService {
     const credentials = this.credentials();
     const now = input.now ?? new Date();
     const extension = input.contentType === 'application/pdf' ? 'pdf' : input.contentType === 'image/png' ? 'png' : 'jpg';
-    const storageKey = `${input.tenantId}/${input.customerId}/${input.documentType}/${randomUUID()}.${extension}`;
+    const storageKey = `${input.tenantId}/${input.subjectId}/${input.documentType}/${randomUUID()}.${extension}`;
 
     const requiredHeaders = { 'content-type': input.contentType, 'content-length': String(input.sizeBytes) };
     const uploadUrl = presignS3Url({
@@ -200,6 +197,12 @@ export class DocumentStorageService {
   }
 }
 
+/**
+ * Se conserva esta función —firma y semántica intactas— pero la TABLA de firmas pasó a
+ * `common/files/file-content-type.util.ts`, compartida con el servicio de archivos por adaptadores.
+ * Tener dos tablas habría permitido que un tipo quedara verificado en un camino y sin verificar en
+ * el otro, que es exactamente la clase de hueco que esta comprobación existe para cerrar.
+ */
 export function matchesMagicBytes(buffer: Buffer, mimeType: AllowedEvidenceMimeType): boolean {
-  return MAGIC_BYTES[mimeType].some((signature) => signature.every((byte, index) => buffer[index] === byte));
+  return matchesFileMagicBytes(buffer, mimeType);
 }

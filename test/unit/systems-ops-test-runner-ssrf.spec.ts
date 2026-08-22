@@ -11,12 +11,12 @@ describe('SystemsTestRunnerService — SSRF guard on real (non-dry-run) executio
   function buildService(overrides: { httpExecute?: jest.Mock } = {}) {
     const suite = { id: 's1', isEnabled: true, environmentScope: ['LOCAL', 'STAGING', 'PRODUCTION_READONLY'], isSafeForProduction: true };
     const repository = {
-      findTestSuiteById: jest.fn(async () => suite),
-      findTestStepsBySuite: jest.fn(async () => []),
+      findTestSuiteById: jest.fn(async (..._args: unknown[]) => suite),
+      findTestStepsBySuite: jest.fn(async (..._args: unknown[]) => []),
       createTestRun: jest.fn(async (values: Record<string, unknown>) => ({ id: 'run-1', ...values })),
       finishTestRun: jest.fn(async (_run: unknown, values: Record<string, unknown>) => ({ id: 'run-1', ...values })),
-      createTestStepRun: jest.fn(async () => ({})),
-      findStepRunsByRun: jest.fn(async () => []),
+      createTestStepRun: jest.fn(async (..._args: unknown[]) => ({})),
+      findStepRunsByRun: jest.fn(async (..._args: unknown[]) => []),
     };
     const assertions = new SystemsTestAssertionService();
     const httpClient = { execute: overrides.httpExecute ?? jest.fn() };
@@ -47,7 +47,7 @@ describe('SystemsTestRunnerService — SSRF guard on real (non-dry-run) executio
   );
 
   it('still allows a real run against a legitimate external staging host', async () => {
-    const httpExecute = jest.fn(async () => ({ statusCode: 200, responseBody: { ok: true }, errorMessage: null }));
+    const httpExecute = jest.fn(async (..._args: unknown[]) => ({ statusCode: 200, responseBody: { ok: true }, errorMessage: null }));
     const { service, repository } = buildService({ httpExecute });
     (repository.findTestStepsBySuite as jest.Mock).mockResolvedValueOnce([
       {

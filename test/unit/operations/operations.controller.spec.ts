@@ -10,13 +10,13 @@ import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.
 describe('OperationsController', () => {
   function build() {
     const operationsService = {
-      getWorkQueue: jest.fn(async () => ({ items: [] })),
-      getManualReviewCasesCursorPage: jest.fn(async () => ({ items: [] })),
-      getFraudCasesCursorPage: jest.fn(async () => ({ items: [] })),
-      getInvestigationSummary: jest.fn(async () => ({ customer: {} })),
-      decideManualReviewCase: jest.fn(async () => ({ resolved: true })),
+      getWorkQueue: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getManualReviewCasesCursorPage: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getFraudCasesCursorPage: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getInvestigationSummary: jest.fn(async (..._args: unknown[]) => ({ customer: {} })),
+      decideManualReviewCase: jest.fn(async (..._args: unknown[]) => ({ resolved: true })),
     };
-    const fraudService = { decideFraudCase: jest.fn(async () => ({ resolved: true })) };
+    const fraudService = { decideFraudCase: jest.fn(async (..._args: unknown[]) => ({ resolved: true })) };
     return { controller: new OperationsController(operationsService as never, fraudService as never), operationsService, fraudService };
   }
   const user = { role: 'internal_operator', tenantId: '1', internalUserId: 'u1' } as never;

@@ -20,6 +20,24 @@ import { booleanEnvSchema, optionalBooleanEnvSchema } from './env.primitives.js'
  * base a propósito: son la conexión que TODO proceso necesita, incluido el que no siembra ni migra.
  */
 export const databaseEnvShape = {
+  /**
+   * ATLAS-PERF-004 / ATLAS-SEC-012 — volcado de SQL al log.
+   *
+   * Antes esto no era una variable: `database.config.ts` activaba `logging: console.log` con solo
+   * ver `NODE_ENV=development`. Sequelize **inlinea los valores** en la sentencia que registra, así
+   * que cada `INSERT`/`SELECT` arrastraba nombre, correo, teléfono y número de documento en claro a
+   * stdout — y de ahí a `Archivo.log` y al espejo en MongoDB. En un backend KYC eso es una fuga de
+   * PII, y contradice la regla explícita del propio proyecto («Nunca loguear SQL», ver
+   * `.claude/rules/30-security.md`). De paso invalidaba cualquier medición: 8 MB de log en una
+   * corrida de 150 s.
+   *
+   * Ahora es una decisión explícita, apagada por defecto y PROHIBIDA en producción
+   * (`env-cross-checks.ts`). Cuando se activa, el SQL pasa por el mismo redactor que el resto de los
+   * logs — que reduce la exposición, no la elimina: la depuración de una query sigue siendo una
+   * operación deliberada sobre datos sensibles. Ver `docs/adr/0008-logging-de-sql.md`.
+   */
+  DB_LOG_SQL: booleanEnvSchema,
+
   // Pool de LECTURA opcional (Fase 2/5 del plan de mejora del modelo de datos). La conexión
   // write/default sigue siendo DB_HOST/DB_USER/... (apúntala a atlas_app_rw). Cuando
   // DB_READ_ENABLED=true, `ReadDatabaseModule` registra una segunda conexión "read" usando estas
@@ -76,4 +94,24 @@ export const databaseEnvShape = {
   // Si el seeding al arrancar falla y esto es true, el arranque ABORTA (exit). Por defecto false:
   // se loguea el error y el backend arranca igual (un fallo de seed no debería tumbar la API).
   DATABASE_SEED_ON_STARTUP_FAIL_FAST: booleanEnvSchema,
+
+  // Identidad del SUPER_ADMIN que siembra el perfil `development`
+  // (`development/20260704121500-seed-pablo-admin-user`). Ambas son opcionales y solo se leen fuera
+  // de producción: sin ellas el seeder mantiene el correo por defecto y el hash versionado, que es
+  // lo que espera CI.
+  //
+  // Existen porque la alternativa era peor: para que un desarrollador use su correo real —necesario
+  // si quiere RECIBIR el PIN del segundo factor en una bandeja de verdad— había que reescribir el
+  // email y el hash de su contraseña dentro de un archivo versionado. ATLAS-P0-002 documenta por qué
+  // no: un hash que entra al historial de git se considera comprometido para siempre. Aquí la
+  // contraseña vive en `.env`, que está en `.gitignore`, y el seeder la hashea al sembrar.
+  DEV_ADMIN_EMAIL: z.string().email().optional(),
+  DEV_ADMIN_PASSWORD: z.string().optional(),
+
+  // Contraseña de las identidades de COMERCIO de desarrollo
+  // (`development/20260821140000-seed-partners-desarrollo`). Opcional y sólo se lee fuera de
+  // producción. Sin ella el seeder usa la contraseña por defecto escrita en su propio archivo, que
+  // por estar versionada se considera conocida: esta variable existe para que una máquina donde eso
+  // importe pueda sustituirla desde `.env`, que está en `.gitignore`.
+  DEV_PARTNER_PASSWORD: z.string().optional(),
 } as const;

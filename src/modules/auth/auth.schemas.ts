@@ -5,12 +5,13 @@
  */
 import { z } from 'zod';
 
-export const actorTypeSchema = z.enum(['customer', 'internal_user', 'platform_user']);
+export const actorTypeSchema = z.enum(['customer', 'internal_user', 'platform_user', 'merchant_user']);
 
 export const loginSchema = z.object({
   actorType: actorTypeSchema,
   // Para `customer`: teléfono o email (el mismo dato usado en onboarding).
   // Para `internal_user`/`platform_user`: email corporativo.
+  // Para `merchant_user`: email con el que se dio de alta al usuario del comercio.
   identifier: z.string().trim().min(3).max(180),
   password: z.string().min(1).max(128),
 });
@@ -68,6 +69,32 @@ export const passwordResetConfirmSchema = z.object({
 });
 
 export type PasswordResetConfirmDto = z.infer<typeof passwordResetConfirmSchema>;
+
+/**
+ * Cambio de contraseña de un actor YA autenticado, en dos pasos y con el mismo segundo factor por
+ * correo que el login. No lleva `actorType` ni `identifier`: quién cambia la contraseña lo dice el
+ * access token, no el cuerpo. Aceptarlo del cuerpo convertiría el endpoint en un cambio de
+ * contraseña ajena para cualquiera con un token válido.
+ */
+export const passwordChangeRequestSchema = z.object({
+  // La contraseña actual se exige aquí, en el primer paso, para no gastar un correo ni abrir un
+  // desafío a quien no puede probar que ya es el dueño de la sesión.
+  currentPassword: z.string().min(1).max(128),
+});
+
+export type PasswordChangeRequestDto = z.infer<typeof passwordChangeRequestSchema>;
+
+export const passwordChangeConfirmSchema = z.object({
+  challengeToken: z.string().trim().min(20),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'El código debe tener exactamente 6 dígitos.'),
+  // Sin `.trim()`: misma regla que el resto de contraseñas de este archivo.
+  newPassword: z.string().min(10, 'La contraseña debe tener al menos 10 caracteres.').max(128),
+});
+
+export type PasswordChangeConfirmDto = z.infer<typeof passwordChangeConfirmSchema>;
 
 export const provisionCredentialsSchema = z.object({
   actorType: z.enum(['internal_user', 'platform_user']),

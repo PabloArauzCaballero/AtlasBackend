@@ -6,7 +6,7 @@
 import { env } from '../../../config/env.js';
 import { toAdapterError } from '../../../common/resilience/adapter-error.js';
 import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';
-import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from '../notification-types.js';
+import { DeliveryResult, NotificationMessagePayload } from '../notification-types.js';
 
 async function parseResponseJson(response: Response): Promise<Record<string, unknown>> {
   const text = await response.text().catch(() => '');
@@ -143,8 +143,4 @@ export async function postForm(
     headers: { 'content-type': 'application/x-www-form-urlencoded', ...headers },
     body: new URLSearchParams(body).toString(),
   });
-}
-
-export function supportsOnly(expected: NotificationChannel, actual: NotificationChannel): boolean {
-  return expected === actual;
 }

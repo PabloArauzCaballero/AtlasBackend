@@ -22,6 +22,7 @@
 | [`sessions-location.repository.spec.ts`](./sessions-location.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`sessions-onboarding-link.repository.spec.ts`](./sessions-onboarding-link.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`sessions-repository-facade.spec.ts`](./sessions-repository-facade.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`sessions-repository-forwarding.spec.ts`](./sessions-repository-forwarding.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`sessions-telemetry.repository.spec.ts`](./sessions-telemetry.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`sessions.controller.spec.ts`](./sessions.controller.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`sessions.mapper.spec.ts`](./sessions.mapper.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |

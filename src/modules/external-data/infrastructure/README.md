@@ -16,6 +16,7 @@
 ## Subcarpetas
 
 - [`adapters/`](./adapters/README.md)
+- [`auth-broker/`](./auth-broker/README.md)
 
 ## Reglas de mantenimiento
 

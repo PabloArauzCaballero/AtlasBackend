@@ -16,7 +16,13 @@ __pycache__/
 *.pyc
 
 # Grafo de conocimiento generado por graphify (artefacto local, se regenera con `graphify update .`).
+# `.graphify/` es el layout actual (>=0.17); `graphify-out/` es el legado previo a la migración.
+.graphify/
 graphify-out/
+
+# Evidencia de rendimiento e higiene de recursos (`scripts/perf/`). Son datos de una máquina y un
+# instante concretos: se regeneran en cada corrida y en CI se publican como artefacto del job.
+artifacts/
 
 # Resultados locales generados por smoke tests (ATLAS-P0-SMOKE-001). Se siguen generando siempre;
 # solo deben permanecer fuera del índice de Git. No usar una regla genérica como *.json aquí —
@@ -24,3 +30,10 @@ graphify-out/
 scripts/smoke/smoke-results.json
 scripts/smoke/*.results.json
 scripts/smoke/results/
+
+# Archivos subidos por el adaptador de almacenamiento local (FILE_STORAGE_LOCAL_ROOT). Son datos de
+# clientes generados en runtime: nunca deben entrar al repositorio.
+var/
+
+# Respaldos locales del .env: llevan credenciales reales y nunca deben versionarse.
+.env.bak-*

@@ -6,6 +6,7 @@
 import { Body, Controller, Headers, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../../common/openapi/zod-to-schema.util.js';
+import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,6 @@ import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../../common/utils/http/headers.util.js';
 import { actorId, assertCustomerAccess } from '../external-data-controller.util.js';
 import { ExternalDataService } from '../external-data.service.js';
 import { infocenterCheckSchema, InfocenterCheckDto, segipVerifySchema, SegipVerifyDto } from '../external-data.schemas.js';
@@ -45,14 +45,14 @@ export class KycExternalDataController {
   @Post('segip/verify')
   @HttpCode(HttpStatus.OK)
   verifySegip(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(segipVerifySchema)) body: SegipVerifyDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.executeSegip({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: body.customerId,
       body,
       idempotencyKey,
@@ -82,14 +82,14 @@ export class BureauExternalDataController {
   @Post('infocenter/check')
   @HttpCode(HttpStatus.OK)
   checkInfocenter(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(infocenterCheckSchema)) body: InfocenterCheckDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.executeInfocenter({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: body.customerId,
       body,
       idempotencyKey,

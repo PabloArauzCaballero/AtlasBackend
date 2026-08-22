@@ -59,7 +59,7 @@ export class CustomerEligibilityService {
   async evaluate(tenantId: string, customerId: string, transaction?: Transaction): Promise<EligibilityAssessment> {
     const customer = await this.customersRepository.findById(tenantId, customerId, { transaction });
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
-    const facts = await this.eligibilityRepository.loadFacts(tenantId, customerId);
+    const facts = await this.eligibilityRepository.loadFacts(tenantId, customerId, { transaction });
     return assess(facts, normalizeLifecycleStatus(customer.lifecycleStatus), new Date());
   }
 
@@ -85,7 +85,9 @@ export class CustomerEligibilityService {
       const customer = await this.customersRepository.findById(input.tenantId, input.customerId, { transaction });
       if (!customer) throw new NotFoundException('Cliente no encontrado.');
 
-      const facts = await this.eligibilityRepository.loadFacts(input.tenantId, input.customerId);
+      // CON la transacción: este método se encadena tras la verificación de identidad y tras el
+      // envío a revisión, y leerlo por fuera evaluaba el estado ANTERIOR a esas escrituras.
+      const facts = await this.eligibilityRepository.loadFacts(input.tenantId, input.customerId, { transaction });
       const now = new Date();
       let status = normalizeLifecycleStatus(customer.lifecycleStatus);
       let assessment = assess(facts, status, now);

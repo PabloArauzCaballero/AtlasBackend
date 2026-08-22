@@ -54,7 +54,7 @@ const TEMPORARY_PASSWORD_LENGTH = 12;
  * primer login (`mustChangePassword`).
  */
 export function generateTemporaryPassword(): string {
-  let candidate = '';
+  let candidate: string;
   do {
     candidate = Array.from(
       { length: TEMPORARY_PASSWORD_LENGTH },

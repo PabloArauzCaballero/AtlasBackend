@@ -12,7 +12,7 @@ const mockEnv: { DATABASE_SEED_ON_STARTUP: boolean; DATABASE_SEED_ON_STARTUP_FAI
 };
 jest.mock('../../../src/config/env.js', () => ({ env: mockEnv }));
 
-const mockSeedOnStartup = jest.fn(async () => ({ profile: 'development', appliedByStage: {}, totalApplied: 0 }));
+const mockSeedOnStartup = jest.fn(async (..._args: unknown[]) => ({ profile: 'development', appliedByStage: {}, totalApplied: 0 }));
 jest.mock('../../../src/database/seed-runner.js', () => ({ seedOnStartup: () => mockSeedOnStartup() }));
 
 import { StartupSeedService } from '../../../src/database/startup-seed.service.js';

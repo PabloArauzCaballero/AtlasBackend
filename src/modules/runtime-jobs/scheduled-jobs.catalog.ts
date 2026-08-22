@@ -5,6 +5,7 @@
  */
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { env } from '../../config/env.js';
+import { OnboardingAbandonmentService } from '../customer-onboarding/application/onboarding-abandonment.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
 
@@ -14,6 +15,15 @@ import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.servic
  * `sub` deja rastro de que el disparo vino del planificador y no de un operador.
  */
 export const SCHEDULER_ACTOR: AuthenticatedUser = { sub: 'runtime-jobs-scheduler', role: 'system' };
+
+/**
+ * Token de inyección del catálogo ya construido.
+ *
+ * El planificador recibe la LISTA, no los servicios que la producen: así deja de crecer un
+ * parámetro por cada trabajo de fondo nuevo y no vuelve a tocarse el archivo donde viven las
+ * garantías de concurrencia.
+ */
+export const SCHEDULED_JOBS = Symbol('SCHEDULED_JOBS');
 
 export type ScheduledJob = {
   jobCode: string;
@@ -32,9 +42,13 @@ export type ScheduledJob = {
  * Ningún job usa `dryRun`: los DTO lo traen en `true` por defecto para proteger el disparo manual
  * desde HTTP, y aquí se pasa `false` explícito porque la razón de ser del planificador es ejecutar.
  */
-export function buildScheduledJobs(deps: { runtimeJobs: RuntimeJobsService; maintenance: RuntimeMaintenanceJobsService }): ScheduledJob[] {
+export function buildScheduledJobs(deps: {
+  runtimeJobs: RuntimeJobsService;
+  maintenance: RuntimeMaintenanceJobsService;
+  onboardingAbandonment: OnboardingAbandonmentService;
+}): ScheduledJob[] {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
-  const { runtimeJobs, maintenance } = deps;
+  const { runtimeJobs, maintenance, onboardingAbandonment } = deps;
 
   return [
     {
@@ -96,6 +110,33 @@ export function buildScheduledJobs(deps: { runtimeJobs: RuntimeJobsService; main
           tenantId,
           body: { retentionDays: env.RUNTIME_JOBS_IDEMPOTENCY_RETENTION_DAYS, limit: 1_000, dryRun: false },
           currentUser: SCHEDULER_ACTOR,
+        }),
+    },
+    // ATLAS-DATA-003: el outbox drenado seguía acumulando filas `processed` para siempre. Corre con
+    // la misma cadencia que la purga de idempotencia porque responde al mismo problema —evidencia
+    // operativa que deja de serlo pasado su período de retención— y comparte su ventana.
+    {
+      jobCode: 'purge_processed_outbox',
+      intervalMs: env.RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS,
+      run: (tenantId) =>
+        maintenance.purgeProcessedOutbox({
+          tenantId,
+          body: { retentionDays: env.RUNTIME_JOBS_OUTBOX_RETENTION_DAYS, limit: 1_000, dryRun: false },
+          currentUser: SCHEDULER_ACTOR,
+        }),
+    },
+    // Cierre del otro extremo del embudo. El envío del paquete ya cierra los flujos completados;
+    // sin este job `completion_status` se quedaba en `in_progress` para siempre y `abandoned_at` en
+    // `null`, así que la tasa de abandono —la métrica que dice si el registro funciona— no existía.
+    // Solo estaba expuesto como endpoint HTTP: nadie lo llamaba.
+    {
+      jobCode: 'mark_abandoned_onboardings',
+      intervalMs: env.RUNTIME_JOBS_ONBOARDING_ABANDONMENT_INTERVAL_MS,
+      run: (tenantId) =>
+        onboardingAbandonment.markAbandonedFlows({
+          tenantId,
+          olderThanDays: env.RUNTIME_JOBS_ONBOARDING_ABANDONMENT_DAYS,
+          limit,
         }),
     },
     {

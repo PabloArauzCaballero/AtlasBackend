@@ -11,10 +11,14 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`gmail-mail.transport.ts`](./gmail-mail.transport.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`mail-layout.ts`](./mail-layout.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`mail-sender.client.ts`](./mail-sender.client.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`mail-sender.module.ts`](./mail-sender.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
 | [`mail-sender.service.ts`](./mail-sender.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`mail-sender.templates.ts`](./mail-sender.templates.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`mail-template-render.ts`](./mail-template-render.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`webhook-mail.transport.ts`](./webhook-mail.transport.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento
 

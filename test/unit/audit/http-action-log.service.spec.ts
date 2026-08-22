@@ -9,9 +9,12 @@ import { HttpActionLogService } from '../../../src/modules/audit/http-action-log
  */
 describe('HttpActionLogService', () => {
   function build() {
-    const auditModel = { create: jest.fn(async () => ({ id: 'a1' })) };
-    const systemActionLogModel = { create: jest.fn(async () => ({ id: 's1' })) };
-    const endpointCatalogModel = { findOne: jest.fn(async () => null), findAll: jest.fn(async () => [] as unknown[]) };
+    const auditModel = { create: jest.fn(async (..._args: unknown[]) => ({ id: 'a1' })) };
+    const systemActionLogModel = { create: jest.fn(async (..._args: unknown[]) => ({ id: 's1' })) };
+    const endpointCatalogModel = {
+      findOne: jest.fn(async (..._args: unknown[]) => null),
+      findAll: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+    };
     const service = new HttpActionLogService(auditModel as never, systemActionLogModel as never, endpointCatalogModel as never);
     return { service, auditModel, systemActionLogModel, endpointCatalogModel };
   }

@@ -16,9 +16,19 @@ import { firstHeaderValue } from '../utils/http/headers.util.js';
  * si vino, si no `request.user.tenantId` (para actores sin header explícito), y 400 si ninguno
  * de los dos existe.
  */
-export const CurrentTenant = createParamDecorator((_: unknown, context: ExecutionContext): string => {
-  const request = context.switchToHttp().getRequest<RequestWithAuth>();
+/**
+ * La resolución, separada del decorador para poder probarla.
+ *
+ * Un decorador de parámetro de Nest no es invocable a mano: su factoría se guarda en la metadata de
+ * la ruta y solo la ejecuta el framework. Con la regla en una función pura, el 400 —la garantía de
+ * que ninguna consulta corre sin frontera de tenant— se prueba directamente.
+ */
+export function resolveCurrentTenant(request: RequestWithAuth): string {
   const headerValue = firstHeaderValue(request.headers['x-tenant-id']);
   const raw = headerValue ?? request.user?.tenantId;
   return parsePositiveId(String(raw ?? ''), 'x-tenant-id');
-});
+}
+
+export const CurrentTenant = createParamDecorator((_: unknown, context: ExecutionContext): string =>
+  resolveCurrentTenant(context.switchToHttp().getRequest<RequestWithAuth>()),
+);

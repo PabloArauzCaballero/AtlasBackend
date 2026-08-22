@@ -12,8 +12,10 @@
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { buildSequelizeOptions } from '../src/config/database.config.js';
+import { handleUnreachableDatabase } from './gate-skip-policy.js';
 
 const EXPECTED_VIEWS = [
+  // Primera ola.
   'v_customer_overview_v1',
   'v_risk_assessment_summary_v1',
   'v_operations_work_queue_v1',
@@ -21,6 +23,27 @@ const EXPECTED_VIEWS = [
   'v_notification_delivery_summary_v1',
   'v_system_endpoint_coverage_v1',
   'v_audit_event_feed_v1',
+  /*
+   * Reporteria por cargo. Entran en la MISMA lista y no en una aparte a proposito.
+   *
+   * Estuvieron diez vistas sin vigilar porque esta lista se escribio con siete y nadie la toco al
+   * anadir mas: una migracion podia romper cualquiera de ellas y el gate seguia verde, que es peor
+   * que no tener gate — el verde afirma algo que no comprobo.
+   *
+   * Que sea una lista a mano es deliberado: si se derivara de lo que hay en la base, una vista
+   * BORRADA por accidente desapareceria tambien del gate y su ausencia dejaria de ser un fallo.
+   * Escribirla obliga a que quitar una vista sea una decision, no un descuido.
+   */
+  'v_risk_vintage_performance_v1',
+  'v_risk_delinquency_aging_v1',
+  'v_risk_score_calibration_v1',
+  'v_risk_decision_funnel_v1',
+  'v_commercial_origination_v1',
+  'v_commercial_conversion_v1',
+  'v_accounting_portfolio_v1',
+  'v_accounting_collections_v1',
+  'v_operations_collections_queue_v1',
+  'v_executive_summary_v1',
 ];
 
 async function main(): Promise<void> {
@@ -29,8 +52,8 @@ async function main(): Promise<void> {
   try {
     await sequelize.authenticate();
   } catch (error) {
-    console.warn(`[skip] no se pudo conectar a Postgres: ${(error as Error).message}`);
     await sequelize.close().catch(() => undefined);
+    handleUnreachableDatabase(error, 'check:read-api-views');
     return;
   }
 

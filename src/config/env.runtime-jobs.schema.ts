@@ -60,8 +60,20 @@ export const runtimeJobsEnvShape = {
   // claves de idempotencia ya resueltas (ambas colas crecían sin que nada las recogiera).
   RUNTIME_JOBS_NOTIFICATION_RETRY_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
   RUNTIME_JOBS_NOTIFICATION_STUCK_MINUTES: z.coerce.number().int().positive().max(1_440).default(15),
+  // Cierre de los onboardings abandonados. Diario porque el umbral se mide en DÍAS de inactividad:
+  // una cadencia más corta no cambiaría el resultado y solo repetiría el barrido. El default de días
+  // acompaña a `ONBOARDING_ABANDONMENT_DAYS`; se separa en env para poder acortarlo en los
+  // ambientes donde el embudo se mide en una ventana más corta.
+  RUNTIME_JOBS_ONBOARDING_ABANDONMENT_INTERVAL_MS: z.coerce.number().int().positive().default(86_400_000),
+  RUNTIME_JOBS_ONBOARDING_ABANDONMENT_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+
   RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS: z.coerce.number().int().positive().default(86_400_000),
   RUNTIME_JOBS_IDEMPOTENCY_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+
+  // Retención de los eventos de outbox ya procesados (ATLAS-DATA-003). El default coincide con el de
+  // idempotencia porque responden al mismo criterio: cuánta evidencia operativa reciente se conserva
+  // para diagnosticar un incidente. Piso de 1 día — los eventos de hoy son justo los que se miran.
+  RUNTIME_JOBS_OUTBOX_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
 
   // Entrega de los mensajes recién creados por un broadcast, cuando la entrega NO corre dentro del
   // proceso que atendió el request (NOTIFICATIONS_DELIVERY_MODE=deferred). Intervalo corto a

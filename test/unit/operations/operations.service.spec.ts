@@ -63,6 +63,8 @@ describe('OperationsService', () => {
     const service = new OperationsService(
       operationsRepository as never,
       customersRepository as never,
+      // Los contactos del cliente viven en `CustomerContactsRepository`; el doble ya los expone.
+      customersRepository as never,
       riskRepository as never,
       lifecycleService as never,
       sequelize as never,

@@ -16,7 +16,7 @@ import { CatalogManagementService } from '../../../src/modules/catalog-managemen
 describe('CatalogManagementController ingestion (e2e/supertest)', () => {
   let app: INestApplication;
   const service = {
-    ingestCatalog: jest.fn(async () => ({ ingestionJobId: '91', status: 'completed', stagingItemsCreated: 1 })),
+    ingestCatalog: jest.fn(async (..._args: unknown[]) => ({ ingestionJobId: '91', status: 'completed', stagingItemsCreated: 1 })),
   };
 
   beforeAll(async () => {

@@ -6,6 +6,7 @@
 import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
 import { NotificationsService } from './notifications.service.js';
 import {
   createBroadcastNotificationSchema,
@@ -81,11 +82,8 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Lista paginada de mensajes.' })
   @Get('operations/notifications/messages')
   @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
-  listMessages(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Query(new ZodValidationPipe(listMessagesQuerySchema)) query: ListMessagesQueryDto,
-  ) {
-    return this.service.listMessages(tenantIdFromHeader(tenantIdHeader), query);
+  listMessages(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listMessagesQuerySchema)) query: ListMessagesQueryDto) {
+    return this.service.listMessages(tenantId, query);
   }
 
   @ApiOperation({
@@ -98,11 +96,8 @@ export class NotificationsController {
   @ApiResponse({ status: 404, description: 'NOTIFICATION_MESSAGE_NOT_FOUND.' })
   @Get('operations/notifications/messages/:messageId')
   @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
-  getMessage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(messageIdParamsSchema)) params: MessageIdParamsDto,
-  ) {
-    return this.service.getMessage(tenantIdFromHeader(tenantIdHeader), params.messageId);
+  getMessage(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(messageIdParamsSchema)) params: MessageIdParamsDto) {
+    return this.service.getMessage(tenantId, params.messageId);
   }
 
   @ApiOperation({ summary: 'Reintentar entrega de un mensaje fallido' })
@@ -116,12 +111,12 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @Roles('admin', 'platform_admin', 'system', 'internal_operator')
   retryMessage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(messageIdParamsSchema)) params: MessageIdParamsDto,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.retryMessage(tenantIdFromHeader(tenantIdHeader), params.messageId);
+    return this.service.retryMessage(tenantId, params.messageId);
   }
 
   @ApiOperation({ summary: 'Cancelar un mensaje de notificación pendiente' })
@@ -135,12 +130,12 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @Roles('admin', 'platform_admin', 'system', 'internal_operator')
   cancelMessage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(messageIdParamsSchema)) params: MessageIdParamsDto,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.cancelMessage(tenantIdFromHeader(tenantIdHeader), params.messageId);
+    return this.service.cancelMessage(tenantId, params.messageId);
   }
 
   @ApiOperation({ summary: 'Listar plantillas de notificación' })
@@ -151,11 +146,8 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Lista paginada de plantillas.' })
   @Get('operations/notifications/templates')
   @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
-  listTemplates(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Query(new ZodValidationPipe(listTemplatesQuerySchema)) query: ListTemplatesQueryDto,
-  ) {
-    return this.service.listTemplates(tenantIdFromHeader(tenantIdHeader), query);
+  listTemplates(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listTemplatesQuerySchema)) query: ListTemplatesQueryDto) {
+    return this.service.listTemplates(tenantId, query);
   }
 
   @ApiOperation({ summary: 'Crear plantilla de notificación' })
@@ -168,12 +160,12 @@ export class NotificationsController {
   @HttpCode(HttpStatus.CREATED)
   @Roles('admin', 'platform_admin', 'system')
   createTemplate(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(createTemplateSchema)) body: CreateTemplateDto,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.createTemplate(tenantIdFromHeader(tenantIdHeader), body);
+    return this.service.createTemplate(tenantId, body);
   }
 
   @ApiOperation({ summary: 'Editar plantilla de notificación' })
@@ -186,13 +178,13 @@ export class NotificationsController {
   @Patch('operations/notifications/templates/:templateId')
   @Roles('admin', 'platform_admin', 'system')
   updateTemplate(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(templateIdParamsSchema)) params: { templateId: string },
     @Body(new ZodValidationPipe(updateTemplateSchema)) body: UpdateTemplateDto,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.updateTemplate(tenantIdFromHeader(tenantIdHeader), params.templateId, body);
+    return this.service.updateTemplate(tenantId, params.templateId, body);
   }
 
   @ApiOperation({ summary: 'Preferencias de notificación de un cliente (operaciones)' })
@@ -201,11 +193,8 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Preferencias del cliente por evento/canal.' })
   @Get('operations/notifications/preferences/:customerId')
   @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
-  getPreferences(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(preferencesParamsSchema)) params: PreferencesParamsDto,
-  ) {
-    return this.service.getPreferences(tenantIdFromHeader(tenantIdHeader), params.customerId);
+  getPreferences(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(preferencesParamsSchema)) params: PreferencesParamsDto) {
+    return this.service.getPreferences(tenantId, params.customerId);
   }
 
   @ApiOperation({
@@ -221,13 +210,13 @@ export class NotificationsController {
   @Patch('operations/notifications/preferences/:customerId')
   @Roles('admin', 'platform_admin', 'system', 'internal_operator')
   updatePreferences(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(preferencesParamsSchema)) params: PreferencesParamsDto,
     @Body(new ZodValidationPipe(updatePreferencesSchema)) body: UpdatePreferencesDto,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.updatePreferences(tenantIdFromHeader(tenantIdHeader), params.customerId, body);
+    return this.service.updatePreferences(tenantId, params.customerId, body);
   }
 
   @ApiOperation({
@@ -248,12 +237,12 @@ export class NotificationsController {
   @HttpCode(HttpStatus.ACCEPTED)
   @Roles('admin', 'platform_admin', 'system')
   broadcastNotification(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(createBroadcastNotificationSchema)) body: CreateBroadcastNotificationDto,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.broadcast(tenantIdFromHeader(tenantIdHeader), body);
+    return this.service.broadcast(tenantId, body);
   }
 
   @ApiOperation({ summary: 'Listar notificaciones del cliente (autoservicio)' })
@@ -266,12 +255,12 @@ export class NotificationsController {
   @Get('customers/:customerId/notifications')
   @Roles('customer', 'internal_operator', 'admin', 'platform_admin', 'system')
   listCustomerNotifications(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerNotificationsParamsSchema)) params: CustomerNotificationsParamsDto,
     @Query(new ZodValidationPipe(customerNotificationsQuerySchema)) query: CustomerNotificationsQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.listCustomerNotifications(tenantIdFromHeader(tenantIdHeader, currentUser), params.customerId, query, currentUser);
+    return this.service.listCustomerNotifications(tenantId, params.customerId, query, currentUser);
   }
 
   @ApiOperation({ summary: 'Contador de notificaciones no leídas del cliente' })
@@ -282,11 +271,11 @@ export class NotificationsController {
   @Get('customers/:customerId/notifications/unread-count')
   @Roles('customer', 'internal_operator', 'admin', 'platform_admin', 'system')
   unreadCount(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerNotificationsParamsSchema)) params: CustomerNotificationsParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.unreadCount(tenantIdFromHeader(tenantIdHeader, currentUser), params.customerId, currentUser);
+    return this.service.unreadCount(tenantId, params.customerId, currentUser);
   }
 
   @ApiOperation({ summary: 'Marcar una notificación como leída' })
@@ -300,16 +289,11 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @Roles('customer', 'internal_operator', 'admin', 'platform_admin', 'system')
   markRead(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerNotificationIdParamsSchema)) params: CustomerNotificationIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.markCustomerNotificationRead(
-      tenantIdFromHeader(tenantIdHeader, currentUser),
-      params.customerId,
-      params.notificationId,
-      currentUser,
-    );
+    return this.service.markCustomerNotificationRead(tenantId, params.customerId, params.notificationId, currentUser);
   }
 
   @ApiOperation({ summary: 'Marcar todas las notificaciones del cliente como leídas' })
@@ -321,11 +305,11 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @Roles('customer', 'internal_operator', 'admin', 'platform_admin', 'system')
   markAllRead(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerNotificationsParamsSchema)) params: CustomerNotificationsParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.markAllCustomerNotificationsRead(tenantIdFromHeader(tenantIdHeader, currentUser), params.customerId, currentUser);
+    return this.service.markAllCustomerNotificationsRead(tenantId, params.customerId, currentUser);
   }
 
   @ApiOperation({
@@ -341,12 +325,12 @@ export class NotificationsController {
   @HttpCode(HttpStatus.CREATED)
   @Roles('customer', 'internal_operator', 'admin', 'platform_admin', 'system')
   upsertDeviceToken(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerNotificationsParamsSchema)) params: CustomerNotificationsParamsDto,
     @Body(new ZodValidationPipe(upsertDeviceTokenSchema)) body: UpsertDeviceTokenDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.upsertDeviceToken(tenantIdFromHeader(tenantIdHeader, currentUser), params.customerId, body, currentUser);
+    return this.service.upsertDeviceToken(tenantId, params.customerId, body, currentUser);
   }
 
   @ApiOperation({ summary: 'Desactivar token de dispositivo (push)' })
@@ -359,16 +343,11 @@ export class NotificationsController {
   @Delete('customers/:customerId/device-tokens/:deviceTokenId')
   @Roles('customer', 'internal_operator', 'admin', 'platform_admin', 'system')
   deactivateDeviceToken(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(deviceTokenIdParamsSchema)) params: DeviceTokenIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.deactivateDeviceToken(
-      tenantIdFromHeader(tenantIdHeader, currentUser),
-      params.customerId,
-      params.deviceTokenId,
-      currentUser,
-    );
+    return this.service.deactivateDeviceToken(tenantId, params.customerId, params.deviceTokenId, currentUser);
   }
 
   // ---------------------------------------------------------------------------------------
@@ -386,11 +365,11 @@ export class NotificationsController {
   @Get('internal-users/me/notifications')
   @Roles(...INTERNAL_SELF_SERVICE_ROLES)
   listMyNotifications(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Query(new ZodValidationPipe(customerNotificationsQuerySchema)) query: CustomerNotificationsQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.listMyNotifications(tenantIdFromHeader(tenantIdHeader, currentUser), query, currentUser);
+    return this.service.listMyNotifications(tenantId, query, currentUser);
   }
 
   @ApiOperation({ summary: 'Contador de mis notificaciones no leídas (usuario interno)' })
@@ -399,8 +378,8 @@ export class NotificationsController {
   @ApiResponse({ status: 403, description: 'INTERNAL_USER_TOKEN_REQUIRED.' })
   @Get('internal-users/me/notifications/unread-count')
   @Roles(...INTERNAL_SELF_SERVICE_ROLES)
-  myUnreadNotificationsCount(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
-    return this.service.myUnreadCount(tenantIdFromHeader(tenantIdHeader, currentUser), currentUser);
+  myUnreadNotificationsCount(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
+    return this.service.myUnreadCount(tenantId, currentUser);
   }
 
   @ApiOperation({ summary: 'Marcar una de mis notificaciones como leída (usuario interno)' })
@@ -413,11 +392,11 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @Roles(...INTERNAL_SELF_SERVICE_ROLES)
   markMyNotificationRead(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(internalUserNotificationIdParamsSchema)) params: InternalUserNotificationIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.markMyNotificationRead(tenantIdFromHeader(tenantIdHeader, currentUser), params.notificationId, currentUser);
+    return this.service.markMyNotificationRead(tenantId, params.notificationId, currentUser);
   }
 
   @ApiOperation({ summary: 'Marcar todas mis notificaciones como leídas (usuario interno)' })
@@ -427,7 +406,7 @@ export class NotificationsController {
   @Post('internal-users/me/notifications/read-all')
   @HttpCode(HttpStatus.OK)
   @Roles(...INTERNAL_SELF_SERVICE_ROLES)
-  markAllMyNotificationsRead(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
-    return this.service.markAllMyNotificationsRead(tenantIdFromHeader(tenantIdHeader, currentUser), currentUser);
+  markAllMyNotificationsRead(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
+    return this.service.markAllMyNotificationsRead(tenantId, currentUser);
   }
 }

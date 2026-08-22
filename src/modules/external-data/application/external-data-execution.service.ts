@@ -64,7 +64,7 @@ export class ExternalDataExecutionService {
         return this.decision.replayIdempotentResult(existing, providerCode);
       }
     }
-    let consent: { id: string } | null = null;
+    let consent: { id: string } | null;
     try {
       consent = await this.validateConsent({
         tenantId: input.tenantId,

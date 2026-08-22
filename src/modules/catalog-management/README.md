@@ -13,6 +13,7 @@
 |---|---|
 | [`catalog-data-governance.repository.ts`](./catalog-data-governance.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`catalog-definitions.repository.ts`](./catalog-definitions.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`catalog-governance.controller.ts`](./catalog-governance.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`catalog-management.controller.ts`](./catalog-management.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`catalog-management.mapper.ts`](./catalog-management.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
 | [`catalog-management.module.ts`](./catalog-management.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
@@ -21,6 +22,7 @@
 | [`catalog-management.schemas.ts`](./catalog-management.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
 | [`catalog-management.service.ts`](./catalog-management.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`catalog-repository.helpers.ts`](./catalog-repository.helpers.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`catalog-request-context.util.ts`](./catalog-request-context.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`catalog-risk-policy.repository.ts`](./catalog-risk-policy.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 
 ## Subcarpetas

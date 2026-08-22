@@ -268,6 +268,12 @@ export class AuthController {
    * No es `@Public()`: requiere un access token vigente de un actor con rol `admin` o
    * `platform_admin` (verificado también dentro de `AuthService.provisionCredentials`, en
    * defensa en profundidad — el chequeo de rol no debe vivir solo en el decorador).
+   *
+   * ATLAS-SEC-007: se propaga el `tenantId` del token, no solo el rol. `TenantGuard` no puede
+   * proteger este endpoint —el actor destino viaja en el CUERPO (`actorId`), no en `x-tenant-id`—,
+   * así que la contención por tenant tiene que decidirla el servicio con la identidad real del
+   * solicitante. Pasar solo el rol dejaba a un `admin` del tenant A fijar la contraseña inicial de
+   * un usuario interno del tenant B y luego entrar como él.
    */
   @ApiBearerAuth('access-token')
   @ApiOperation({
@@ -275,12 +281,16 @@ export class AuthController {
     description:
       'Crea la contraseña inicial de un `internal_user` o `platform_user` ya existente (creado por seed/migración, sin credenciales ' +
       'todavía). Requiere un access token vigente con rol `admin` o `platform_admin` — verificado tanto por el guard de roles como, ' +
-      'en defensa en profundidad, dentro del propio `AuthService`.',
+      'en defensa en profundidad, dentro del propio `AuthService`. Un `admin` solo puede provisionar actores de SU MISMO tenant; ' +
+      'provisionar en otro tenant, o provisionar un `platform_user` (que opera sobre toda la plataforma), exige `platform_admin`.',
   })
   @ApiBody({ schema: zodToApiSchema(provisionCredentialsSchema) })
   @ApiResponse({ status: 201, description: 'Credenciales provisionadas correctamente.' })
   @ApiResponse({ status: 401, description: 'La contraseña no cumple el mínimo de seguridad requerido, o el actor indicado no existe.' })
-  @ApiResponse({ status: 403, description: 'El actor autenticado no tiene rol admin/platform_admin.' })
+  @ApiResponse({
+    status: 403,
+    description: 'El actor autenticado no tiene rol admin/platform_admin, o intenta provisionar fuera de su tenant.',
+  })
   @ApiResponse({ status: 409, description: 'CREDENTIALS_ALREADY_PROVISIONED — el actor ya tiene contraseña configurada.' })
   @Post('provision-credentials')
   @Roles('admin', 'platform_admin')
@@ -289,6 +299,6 @@ export class AuthController {
     @Body(new ZodValidationPipe(provisionCredentialsSchema)) body: ProvisionCredentialsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.authService.provisionCredentials(body, { role: currentUser.role });
+    return this.authService.provisionCredentials(body, { role: currentUser.role, tenantId: currentUser.tenantId ?? null });
   }
 }

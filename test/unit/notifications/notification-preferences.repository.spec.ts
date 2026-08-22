@@ -37,7 +37,7 @@ describe('NotificationPreferencesRepository', () => {
 
   it('upsertPreferences actualiza la preferencia existente y hace merge de isRequired (OR)', async () => {
     const { repo, preferenceModel } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const existing = { isRequired: true, isEnabled: true, save } as never;
     (preferenceModel.findOne as jest.Mock).mockResolvedValue(existing as never);
     (preferenceModel.findAll as jest.Mock).mockResolvedValue([] as never);

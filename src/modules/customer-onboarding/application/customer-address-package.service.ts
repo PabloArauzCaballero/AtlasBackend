@@ -3,13 +3,15 @@
  * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
+import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
+import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { AddressPackageDto } from '../customer-onboarding.schemas.js';
@@ -20,6 +22,7 @@ export class CustomerAddressPackageService {
     private readonly customersRepository: CustomersRepository,
     private readonly onboardingRepository: CustomerOnboardingRepository,
     private readonly lifecycleService: CustomerLifecycleService,
+    private readonly eligibilityService: CustomerEligibilityService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -35,6 +38,15 @@ export class CustomerAddressPackageService {
     assertOwnCustomerResourceOrInternalOperational(input.currentUser, input.customerId);
     const customer = await this.customersRepository.findById(input.tenantId, input.customerId);
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
+
+    // Era el ÚNICO de los cinco endpoints de guardado sin esta puerta: un cliente en `under_review`,
+    // `active`, `rejected` o `closed` podía reescribir su dirección. La transición ilegal la
+    // descartaba `advance()` sin ruido, pero el dato quedaba persistido igual — el expediente
+    // cambiaba después de haberse enviado a revisión, sin que el estado lo reflejara.
+    const status = normalizeLifecycleStatus(customer.lifecycleStatus);
+    if (!EDITABLE_ONBOARDING_STATUSES.includes(status)) {
+      throw new UnprocessableEntityException(`PROFILE_NOT_EDITABLE_IN_STATUS: ${status}`);
+    }
 
     const now = new Date();
     return this.sequelize.transaction(async (transaction) => {
@@ -157,12 +169,16 @@ export class CustomerAddressPackageService {
         { transaction },
       );
 
+      // `nextStep` lo calcula el evaluador, no un literal de este servicio: el valor fijo
+      // `identity_documents` mandaba al cliente a una pantalla que quizá ya había completado.
+      const assessment = await this.eligibilityService.evaluate(input.tenantId, input.customerId, transaction);
+
       return {
         customerId: input.customerId,
         addressId: String(address.id),
         addressVersionId: String(version.id),
         status: 'recorded',
-        nextStep: 'identity_documents',
+        nextStep: assessment.nextStep,
       };
     });
   }

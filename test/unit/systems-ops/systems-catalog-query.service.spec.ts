@@ -11,32 +11,36 @@ import { SystemsCatalogQueryService } from '../../../src/modules/systems-ops/sys
 describe('SystemsCatalogQueryService', () => {
   function build() {
     const catalogRepository = {
-      listEndpoints: jest.fn(async () => ({ rows: [] as unknown[], meta: {} })),
-      findEndpointById: jest.fn(async () => null),
-      findToolRequirementsByEndpoint: jest.fn(async () => [] as unknown[]),
-      findDataImpactsByEndpoint: jest.fn(async () => [] as unknown[]),
-      findFieldImpactsByEndpoint: jest.fn(async () => [] as unknown[]),
-      findToolsByIds: jest.fn(async () => [] as unknown[]),
-      findDataEntitiesByIds: jest.fn(async () => [] as unknown[]),
-      listDomains: jest.fn(async () => ({ rows: [] as unknown[], meta: {} })),
-      findDomainByCode: jest.fn(async () => null),
-      listTools: jest.fn(async () => ({ rows: [] as unknown[], meta: {} })),
-      findToolById: jest.fn(async () => null),
-      listDataEntities: jest.fn(async () => ({ rows: [] as unknown[], meta: {} })),
-      findDataEntityById: jest.fn(async () => null),
-      findFieldsByEntity: jest.fn(async () => [] as unknown[]),
-      findRelationshipsByTable: jest.fn(async () => [] as unknown[]),
-      findDataEntityByTable: jest.fn(async () => null),
-      findDataImpactsByEntity: jest.fn(async () => [] as unknown[]),
-      findFieldsByTable: jest.fn(async () => [] as unknown[]),
-      findFieldImpactsByDataEntity: jest.fn(async () => [] as unknown[]),
+      listEndpoints: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], meta: {} })),
+      findEndpointById: jest.fn(async (..._args: unknown[]) => null),
+      findToolRequirementsByEndpoint: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      findDataImpactsByEndpoint: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      findFieldImpactsByEndpoint: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      findToolsByIds: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      findDataEntitiesByIds: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      listDomains: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], meta: {} })),
+      findDomainByCode: jest.fn(async (..._args: unknown[]) => null),
+      listTools: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], meta: {} })),
+      findToolById: jest.fn(async (..._args: unknown[]) => null),
+      listDataEntities: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], meta: {} })),
+      findDataEntityById: jest.fn(async (..._args: unknown[]) => null),
+      findFieldsByEntity: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      findRelationshipsByTable: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      findDataEntityByTable: jest.fn(async (..._args: unknown[]) => null),
+      findDataImpactsByEntity: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      findFieldsByTable: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      findFieldImpactsByDataEntity: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
     };
     const dashboardRepository = {
-      getDashboardCounts: jest.fn(async () => ({ endpoints: 0, dataEntities: 0, pendingReviews: 0, stressProfiles: 0 })),
+      getDashboardCounts: jest.fn(async (..._args: unknown[]) => ({ endpoints: 0, dataEntities: 0, pendingReviews: 0, stressProfiles: 0 })),
     };
-    const discovery = { discoverAndMaybePersist: jest.fn(async () => ({ discovered: 1 })) };
-    const seedService = { refreshCatalog: jest.fn(async () => ({ refreshed: true })) };
-    const healthService = { getToolsHealth: jest.fn(async () => [{ code: 'POSTGRES' }]) };
+    const discover = jest.fn(async (..._args: unknown[]) => ({ discovered: 333, persisted: 0 }));
+    const discovery = {
+      discoverAndMaybePersist: jest.fn(async (..._args: unknown[]) => ({ discovered: 1 })),
+      discover,
+    };
+    const seedService = { refreshCatalog: jest.fn(async (..._args: unknown[]) => ({ refreshed: true })) };
+    const healthService = { getToolsHealth: jest.fn(async (..._args: unknown[]) => [{ code: 'POSTGRES' }]) };
     const service = new SystemsCatalogQueryService(
       catalogRepository as never,
       dashboardRepository as never,
@@ -116,14 +120,25 @@ describe('SystemsCatalogQueryService', () => {
     expect(res.endpointImpacts).toHaveLength(1);
   });
 
-  it('delega discover, refreshCatalogSeed y getToolsHealth en sus colaboradores', async () => {
-    const { service, discovery, seedService, healthService } = build();
-    await service.discoverEndpoints({ persist: true } as never);
+  it('delega refreshCatalogSeed y getToolsHealth en sus colaboradores', async () => {
+    const { service, seedService, healthService } = build();
     await service.refreshCatalogSeed({} as never, user);
     await service.getToolsHealth();
-    expect(discovery.discoverAndMaybePersist).toHaveBeenCalledWith(true);
     expect(seedService.refreshCatalog).toHaveBeenCalledWith({}, user);
     expect(healthService.getToolsHealth).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Elegir entre las dos estrategias de descubrimiento es asunto del propio servicio de
+   * descubrimiento: éste sólo le pasa el modo pedido y no decide por él.
+   */
+  it('delega el descubrimiento con el modo y la persistencia pedidos', async () => {
+    const { service, discovery } = build();
+    await service.discoverEndpoints({ mode: 'OPENAPI_CONTRACT', persist: true } as never);
+    expect(discovery.discover).toHaveBeenCalledWith('OPENAPI_CONTRACT', true);
+
+    await service.discoverEndpoints({ mode: 'SOURCE_SCAN', persist: false } as never);
+    expect(discovery.discover).toHaveBeenCalledWith('SOURCE_SCAN', false);
   });
 
   it('listDomains / listTools / listDataEntities mapean filas y propagan meta', async () => {
@@ -155,7 +170,9 @@ describe('SystemsCatalogQueryService', () => {
 
   it('updateDataEntityMetadata lanza NotFound o devuelve la entidad mapeada', async () => {
     const { service, catalogRepository } = build();
-    (catalogRepository as unknown as { updateDataEntityMetadata: jest.Mock }).updateDataEntityMetadata = jest.fn(async () => null);
+    (catalogRepository as unknown as { updateDataEntityMetadata: jest.Mock }).updateDataEntityMetadata = jest.fn(
+      async (..._args: unknown[]) => null,
+    );
     await expect(service.updateDataEntityMetadata('7', { description: 'x' })).rejects.toBeInstanceOf(NotFoundException);
     (catalogRepository as unknown as { updateDataEntityMetadata: jest.Mock }).updateDataEntityMetadata.mockResolvedValueOnce({
       id: 7,

@@ -187,15 +187,19 @@ export type MarkAbandonedFlowsDto = z.infer<typeof markAbandonedFlowsSchema>;
  * NO se persiste: se usa para consultar y para comprobar por hash que corresponde al documento ya
  * declarado en el paquete de identidad.
  *
- * `scenario` es exclusivo de ambientes con el simulador de proveedores: permite forzar un resultado
- * determinista o pedir `random`, que sortea el veredicto EN EL SIMULADOR (no en el backend, que debe
- * comportarse igual contra el proveedor real).
+ * NO existe aquí un campo `scenario`. Lo hubo, y era el agujero más grande del flujo automático: un
+ * token de rol `customer` podía enviar `scenario: 'happy_path'` y, con el simulador de proveedores
+ * activo (el modo por defecto), el registro externo respondía `FOUND / verified`. Es decir, el
+ * sujeto evaluado elegía el veredicto de su propia verificación de identidad — el mismo patrón del
+ * literal `'123456'` que una auditoría previa ya había retirado del OTP.
+ *
+ * Forzar un escenario sigue siendo posible donde corresponde: `POST /admin/external-providers/
+ * :providerCode/test`, restringido a roles internos.
  */
 export const verifyIdentitySchema = z
   .object({
     documentNumber: z.string().trim().min(3).max(30),
     documentComplement: z.string().trim().max(10).optional(),
-    scenario: z.enum(['happy_path', 'random', 'partial_match', 'not_found', 'provider_down', 'data_not_available']).optional(),
   })
   .strict();
 
