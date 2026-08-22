@@ -163,6 +163,30 @@ export class DocumentStorageService {
   }
 
   /** Contrasta lo declarado por el cliente contra el objeto realmente almacenado. */
+  /**
+   * Descarga el objeto para procesarlo dentro del backend.
+   *
+   * Existe aparte de `verifyDeclaredObject` porque responde a otra pregunta. Aquella comprueba que
+   * lo subido es lo declarado y devuelve un veredicto; ésta necesita el CONTENIDO, y la usa el
+   * trabajo que lee el extracto bancario para calcular la capacidad de pago.
+   *
+   * La URL firmada dura 60 segundos y se emite en el momento: el archivo nunca sale del almacén
+   * cifrado por una URL que alguien pudiera guardar, que es justo lo que se le promete al cliente
+   * en la pantalla de subida.
+   */
+  async readObject(storageKey: string): Promise<Buffer | null> {
+    if (!this.isConfigured()) return null;
+    const credentials = this.credentials();
+    const url = presignS3Url({ credentials, method: 'GET', objectKey: storageKey, expiresInSeconds: 60, now: new Date() });
+
+    const response = await fetch(url);
+    if (!response.ok) return null;
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.byteLength === 0 || buffer.byteLength > MAX_EVIDENCE_BYTES) return null;
+    return buffer;
+  }
+
   async verifyDeclaredObject(input: {
     storageKey: string;
     declaredSha256: string;

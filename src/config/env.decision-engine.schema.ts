@@ -28,6 +28,14 @@ export const decisionEngineEnvShape = {
   DECISION_ENGINE_BASE_URL: optionalUrlEnvSchema,
   DECISION_ENGINE_API_KEY: z.string().optional(),
   DECISION_ENGINE_OUTCOME_API_KEY: z.string().optional(),
+  /*
+   * Credencial del plano de GOBIERNO del motor: registrar el consentimiento del titular.
+   *
+   * Separada de la de ejecución por la misma razón que la de desenlaces: quien decide no debe poder
+   * escribir el permiso que le autoriza a decidir. Si no está configurada se usa la de desenlaces,
+   * que ya es del plano de gestión — no se cae a la de ejecución en ningún caso.
+   */
+  DECISION_ENGINE_GOVERNANCE_API_KEY: z.string().optional(),
   DECISION_ENGINE_CREDIT_ARTIFACT: z.string().trim().min(1).max(120).default('credit_underwriting'),
   /**
    * Artefacto que evalúa el riesgo de onboarding, el trabajo que hoy hace `risk_heuristic_v0`.

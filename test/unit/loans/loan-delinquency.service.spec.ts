@@ -60,8 +60,16 @@ describe('LoanDelinquencyService.sweep', () => {
       createOutcomeReport: jest.fn(async (..._args: unknown[]) => undefined),
     };
     const sequelize = { transaction: jest.fn(async (callback: (t: unknown) => Promise<unknown>) => callback({})) };
-    const service = new LoanDelinquencyService(loans as never, sequelize as never);
-    return { service, loans, loan, installments };
+    /*
+     * La linea de credito.
+     *
+     * El barrido dejo de limitarse a escribir el tramo de mora: cuando el tramo CAMBIA, traslada el
+     * cambio a la capacidad de pago. Es lo que convierte «entrar en mora te cuesta» de una frase de
+     * la pantalla en algo que ocurre solo. Se simula porque el recalculo real llama al motor.
+     */
+    const creditLines = { recalculate: jest.fn(async (..._args: unknown[]) => ({ id: '1' })) };
+    const service = new LoanDelinquencyService(loans as never, creditLines as never, sequelize as never);
+    return { service, loans, loan, installments, creditLines };
   }
 
   it('recalcula el atraso, su tramo y el peor histórico', async () => {

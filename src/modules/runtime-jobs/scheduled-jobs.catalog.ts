@@ -5,7 +5,10 @@
  */
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { env } from '../../config/env.js';
+import { BankStatementReviewWorker } from '../credit/application/bank-statement-review.worker.js';
+import { CreditLineRefreshService } from '../credit/application/credit-line-refresh.service.js';
 import { OnboardingAbandonmentService } from '../customer-onboarding/application/onboarding-abandonment.service.js';
+import { LoanDelinquencyService } from '../loans/application/loan-delinquency.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
 
@@ -46,9 +49,12 @@ export function buildScheduledJobs(deps: {
   runtimeJobs: RuntimeJobsService;
   maintenance: RuntimeMaintenanceJobsService;
   onboardingAbandonment: OnboardingAbandonmentService;
+  delinquency: LoanDelinquencyService;
+  creditLineRefresh: CreditLineRefreshService;
+  bankStatements: BankStatementReviewWorker;
 }): ScheduledJob[] {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
-  const { runtimeJobs, maintenance, onboardingAbandonment } = deps;
+  const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements } = deps;
 
   return [
     {
@@ -143,6 +149,49 @@ export function buildScheduledJobs(deps: {
       jobCode: 'recalculate_data_quality',
       intervalMs: env.RUNTIME_JOBS_DATA_QUALITY_INTERVAL_MS,
       run: (tenantId) => runtimeJobs.recalculateDataQuality({ tenantId, body: { dryRun: false }, currentUser: SCHEDULER_ACTOR }),
+    },
+    /*
+     * La mora, y lo que la mora le cuesta al cliente.
+     *
+     * El barrido existía completo —recalcula días de atraso, mueve el tramo, marca las cuotas
+     * vencidas y encola las cosechas para el motor— y colgaba EXCLUSIVAMENTE de un endpoint HTTP
+     * que no llamaba nadie. En la práctica `days_past_due` se quedaba con el valor del día del
+     * desembolso: un préstamo vencido seguía figurando al corriente, la cartera en mora era
+     * invisible y la línea de crédito nunca se enteraba de nada.
+     *
+     * Es el job que convierte «entrar en mora te cuesta capacidad de pago» de una frase de la
+     * pantalla en algo que ocurre solo.
+     */
+    {
+      jobCode: 'sweep_loan_delinquency',
+      intervalMs: env.RUNTIME_JOBS_DELINQUENCY_SWEEP_INTERVAL_MS,
+      run: (tenantId) => delinquency.sweep({ tenantId, limit }),
+    },
+    // La otra mitad: quien nunca tuvo línea porque nadie se acordó de pedirla, y quien la tiene tan
+    // vieja que responde a un expediente que ya no es el suyo.
+    {
+      jobCode: 'refresh_credit_lines',
+      intervalMs: env.RUNTIME_JOBS_CREDIT_LINE_REFRESH_INTERVAL_MS,
+      run: (tenantId) =>
+        creditLineRefresh.refreshStaleLines({
+          tenantId,
+          maxAgeDays: env.RUNTIME_JOBS_CREDIT_LINE_MAX_AGE_DAYS,
+          limit: env.RUNTIME_JOBS_CREDIT_LINE_REFRESH_LIMIT,
+        }),
+    },
+    /*
+     * El compromiso de 24 horas del extracto bancario.
+     *
+     * La app se lo promete al cliente por escrito y ese plazo no tenía nada detrás: la revisión se
+     * creaba en `received` y ahí se quedaba, porque el método que aplica el resultado no lo llamaba
+     * ni un job ni un endpoint. Cada 15 minutos y no cada hora porque el plazo se mide en horas: con
+     * una cadencia horaria, avisar de un incumplimiento inminente llegaría cuando ya no da tiempo a
+     * evitarlo.
+     */
+    {
+      jobCode: 'process_bank_statement_reviews',
+      intervalMs: env.RUNTIME_JOBS_BANK_STATEMENT_INTERVAL_MS,
+      run: (tenantId) => bankStatements.processPending({ tenantId, limit }),
     },
     // Rescate de los eventos que `process_events` reclamó y no llegó a resolver porque el proceso
     // murió a la mitad. Sin este job esos eventos quedan en `processing` para siempre: ninguna

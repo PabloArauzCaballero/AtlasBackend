@@ -11,6 +11,7 @@ import {
   NotificationDeliveryModel,
   NotificationMessageModel,
   NotificationTemplateModel,
+  NotificationPolicyModel,
   TenantModel,
   UserNotificationPreferenceModel,
 } from '../../database/models/index.js';
@@ -26,8 +27,10 @@ import { NotificationBroadcastService } from './notification-broadcast.service.j
 import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
 import { NotificationRulesService } from './notification-rules.service.js';
 import { NotificationTemplateRendererService } from './notification-template-renderer.service.js';
+import { NotificationPoliciesRepository } from './notification-policies.repository.js';
 import { NotificationPreferencesRepository } from './notification-preferences.repository.js';
 import { NotificationTemplatesRepository } from './notification-templates.repository.js';
+import { NotificationPoliciesOperationsController } from './notification-policies-operations.controller.js';
 import { NotificationsController } from './notifications.controller.js';
 import { NotificationsRepository } from './notifications.repository.js';
 import { NotificationsService } from './notifications.service.js';
@@ -36,6 +39,7 @@ import { NotificationsService } from './notifications.service.js';
   imports: [
     SequelizeModule.forFeature([
       NotificationTemplateModel,
+      NotificationPolicyModel,
       NotificationMessageModel,
       NotificationDeliveryModel,
       UserNotificationPreferenceModel,
@@ -47,10 +51,11 @@ import { NotificationsService } from './notifications.service.js';
     InternalUsersModule,
     GmailMailModule,
   ],
-  controllers: [NotificationsController],
+  controllers: [NotificationsController, NotificationPoliciesOperationsController],
   providers: [
     NotificationsRepository,
     NotificationTemplatesRepository,
+    NotificationPoliciesRepository,
     NotificationPreferencesRepository,
     NotificationsService,
     NotificationRulesService,
@@ -72,6 +77,7 @@ import { NotificationsService } from './notifications.service.js';
   // siete tablas y los cinco canales que arrastra éste.
   exports: [
     NotificationOrchestratorService,
+    NotificationPoliciesRepository,
     NotificationsService,
     NotificationsRepository,
     NotificationBroadcastService,

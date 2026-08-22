@@ -67,6 +67,31 @@ export const runtimeJobsEnvShape = {
   RUNTIME_JOBS_ONBOARDING_ABANDONMENT_INTERVAL_MS: z.coerce.number().int().positive().default(86_400_000),
   RUNTIME_JOBS_ONBOARDING_ABANDONMENT_DAYS: z.coerce.number().int().min(1).max(365).default(30),
 
+  // Barrido de mora de la cartera. Estaba escrito y sólo colgaba de un endpoint HTTP que nadie
+  // llamaba: `days_past_due` se quedaba congelado en el valor del día del desembolso, así que un
+  // préstamo vencido seguía figurando al corriente y la línea de crédito nunca se enteraba. Cada
+  // hora porque la unidad del atraso es el día: una cadencia mayor retrasaría hasta un día entero el
+  // momento en que la mora se ve, y una menor recorrería la misma cartera sin que nada haya cambiado.
+  RUNTIME_JOBS_DELINQUENCY_SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
+
+  // Recálculo de la capacidad de pago para quien todavía no tiene línea (recién dado de alta) y para
+  // quien la tiene vieja. Sin esto la línea sólo se movía a mano desde operaciones.
+  RUNTIME_JOBS_CREDIT_LINE_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
+  // A partir de cuántos días una línea vigente se considera vieja y se vuelve a preguntar. El
+  // expediente cambia por fuera del crédito —ingresos, contactos, verificaciones— y una línea que
+  // nadie recalcula acaba respondiendo a datos que ya no son los de la persona.
+  RUNTIME_JOBS_CREDIT_LINE_MAX_AGE_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  // Cuántos clientes recalcula como mucho cada pasada. Cada uno es una llamada al motor, así que el
+  // tope es lo que impide que un alta masiva convierta el job en una tormenta de peticiones.
+  RUNTIME_JOBS_CREDIT_LINE_REFRESH_LIMIT: z.coerce.number().int().min(1).max(1_000).default(50),
+
+  // Vigilancia del compromiso de 24 horas del extracto bancario. Cada 15 minutos: el compromiso se
+  // mide en horas, y la ventana define con cuánta antelación se puede avisar de que uno va a
+  // incumplirse todavía a tiempo de evitarlo.
+  RUNTIME_JOBS_BANK_STATEMENT_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
+  // Cuánto antes del vencimiento del compromiso se escala la revisión pendiente.
+  RUNTIME_JOBS_BANK_STATEMENT_ESCALATE_BEFORE_MINUTES: z.coerce.number().int().min(5).max(1_440).default(240),
+
   RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS: z.coerce.number().int().positive().default(86_400_000),
   RUNTIME_JOBS_IDEMPOTENCY_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
 

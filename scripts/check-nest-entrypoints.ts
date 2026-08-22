@@ -9,7 +9,7 @@
  * que no podía funcionar nunca.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { resolve, join, sep } from 'node:path';
 
 const ROOT = process.cwd();
 /** Transpiladores que borran la metadata de decoradores. */
@@ -27,7 +27,15 @@ function collectNestEntrypoints(dir: string, found: string[] = []): string[] {
     // Se busca la LLAMADA, no la palabra: este mismo gate nombra la clase en su documentación, y
     // un chequeo por substring se marcaría a sí mismo.
     if (/NestFactory\s*\.\s*create/.test(readFileSync(full, 'utf8'))) {
-      found.push(full.slice(ROOT.length + 1));
+      /*
+       * Con barras normales SIEMPRE, tambien en Windows.
+       *
+       * `join` devuelve `src\main.ts` alli, mientras que los scripts del package.json se escriben
+       * con `/` porque es lo que entiende la shell en todas las plataformas. La comparacion por
+       * substring no coincidia nunca, asi que el gate aprobaba cualquier cosa: en Windows no
+       * protegia de nada y lo hacia en silencio, que es la peor forma de no proteger.
+       */
+      found.push(full.slice(ROOT.length + 1).split(sep).join('/'));
     }
   }
   return found;
@@ -45,7 +53,9 @@ function main(): void {
     const runner = METADATA_ERASING_RUNNERS.find((candidate) => new RegExp(`(^|[\\s&|])${candidate}(\\s|$)`).test(command));
     if (!runner) continue;
 
-    const entrypoint = entrypoints.find((file) => command.includes(file));
+    // El comando tambien se normaliza: nada impide que alguien escriba `src\main.ts` en un script.
+    const normalizedCommand = command.replaceAll('\\', '/');
+    const entrypoint = entrypoints.find((file) => normalizedCommand.includes(file));
     if (entrypoint) {
       errors.push(
         `"${name}": arranca ${entrypoint} (crea un contexto Nest) con \`${runner}\`, que borra la metadata de ` +
