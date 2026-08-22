@@ -86,6 +86,29 @@ function nextSteps(line: CreditLineModel): Array<{ code: string; label: string; 
   return steps;
 }
 
+/**
+ * El texto del motivo, con una excepción medida.
+ *
+ * La regla general es que MANDA el texto de la política: es el que se publicó, el que se audita y el
+ * que no debe reescribir el core a su gusto.
+ *
+ * La excepción es `BUREAU_SCORE_TOO_LOW` cuando el buró consta como AUSENTE. Ahí la frase de la
+ * política —«tu puntaje crediticio no alcanza el mínimo requerido»— afirma algo que no es cierto de
+ * esta persona: no es que su puntaje sea bajo, es que no tiene ninguno porque en Bolivia no hay buró
+ * conectado. Decirle a alguien que su historial es malo cuando lo que pasa es que no existe le
+ * atribuye una culpa que no tiene, y encima le esconde lo único que sí puede hacer.
+ *
+ * Se sustituye SOLO en ese cruce concreto —código y ausencia comprobada— y no como criterio general.
+ * Lo correcto de verdad es que la política publique un motivo propio para el expediente delgado; a
+ * eso lleva un cambio de artefacto, y mientras tanto esto es lo que evita mentirle al cliente.
+ */
+function messageFor(code: string, policyMessage: string | undefined, provenance: Record<string, string>): string {
+  if (code === 'BUREAU_SCORE_TOO_LOW' && provenance.bureau_score === 'ausente') {
+    return REASON_COPY.BUREAU_SCORE_TOO_LOW!;
+  }
+  return policyMessage ?? REASON_COPY[code] ?? code;
+}
+
 export function bandOf(scoring: number | null): { code: string; label: string; tone: string } {
   const band = BANDS.find((candidate) => (scoring ?? 0) >= candidate.from) ?? BANDS[BANDS.length - 1]!;
   return { code: band.code, label: band.label, tone: band.tone };
@@ -141,8 +164,7 @@ export function toCreditLineResponse(line: CreditLineModel, spent = 0) {
       const code = reason.code ?? 'DESCONOCIDO';
       return {
         code,
-        // El texto de la política manda; el nuestro solo entra cuando no lo trae.
-        message: reason.message ?? REASON_COPY[code] ?? code,
+        message: messageFor(code, reason.message, line.provenanceJson ?? {}),
         category: reason.category ?? null,
         adverseAction: reason.adverseAction === true,
       };
