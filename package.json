@@ -138,7 +138,7 @@
     "express": "^5.2.1",
     "helmet": "^8.3.0",
     "ioredis": "^5.4.1",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^5.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.5.0",
     "pg": "^8.16.3",
