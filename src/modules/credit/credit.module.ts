@@ -11,6 +11,7 @@ import {
   CreditApplicationModel,
   CreditLineModel,
   CreditProductModel,
+  CustomerModel,
 } from '../../database/models/index.js';
 import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
 import { CustomersModule } from '../customers/customers.module.js';
@@ -18,7 +19,11 @@ import { DecisionEngineModule } from '../decision-engine/decision-engine.module.
 import { CreditApplicationService } from './application/credit-application.service.js';
 import { CreditBusinessAcceptanceService } from './application/credit-business-acceptance.service.js';
 import { CreditDecisionService } from './application/credit-decision.service.js';
+import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
+import { MalwareScannerService } from '../../common/storage/malware-scanner.service.js';
+import { BankStatementReviewWorker } from './application/bank-statement-review.worker.js';
 import { BankStatementService } from './application/bank-statement.service.js';
+import { CreditLineRefreshService } from './application/credit-line-refresh.service.js';
 import { CreditLineService } from './application/credit-line.service.js';
 import { CreditProductService } from './application/credit-product.service.js';
 import { MerchantCreditController } from './merchant-credit.controller.js';
@@ -46,6 +51,9 @@ import { CreditRepository } from './credit.repository.js';
       CreditApplicationEventModel,
       CreditLineModel,
       BankStatementReviewModel,
+      // Sólo para saber a QUIÉN le falta línea. El expediente del cliente lo sigue gobernando
+      // `CustomersModule`; aquí se lee su identidad y su estado de ciclo de vida, nada más.
+      CustomerModel,
     ]),
     CustomersModule,
     DecisionEngineModule,
@@ -59,10 +67,23 @@ import { CreditRepository } from './credit.repository.js';
     CreditApplicationService,
     CreditDecisionService,
     CreditLineService,
+    CreditLineRefreshService,
     BankStatementService,
+    BankStatementReviewWorker,
+    // El trabajo que lee el extracto necesita bajarlo del almacén cifrado. `MalwareScannerService`
+    // va con él porque su constructor lo exige: la evidencia se analiza antes de darse por buena.
+    DocumentStorageService,
+    MalwareScannerService,
     CreditBusinessAcceptanceService,
     CreditUnderwritingService,
   ],
-  exports: [CreditRepository, CreditUnderwritingService, CreditLineService, BankStatementService],
+  exports: [
+    CreditRepository,
+    CreditUnderwritingService,
+    CreditLineService,
+    CreditLineRefreshService,
+    BankStatementService,
+    BankStatementReviewWorker,
+  ],
 })
 export class CreditModule {}

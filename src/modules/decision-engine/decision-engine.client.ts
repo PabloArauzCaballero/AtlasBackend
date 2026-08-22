@@ -72,6 +72,64 @@ export class DecisionEngineClient {
     await this.call(url, env.DECISION_ENGINE_OUTCOME_API_KEY ?? '', { observations });
   }
 
+  /**
+   * Registra en el motor el permiso del titular para tratar sus datos.
+   *
+   * ## Por qué hacía falta
+   *
+   * El motor comprueba, antes de cada decisión, que ningún permiso registrado del sujeto esté
+   * vencido o revocado. Pero el backend —que es quien RECOGE el consentimiento en el alta— nunca se
+   * lo contaba. Resultado: el motor no tenía permisos que comprobar, así que la comprobación
+   * siempre pasaba. El control existía sobre un conjunto vacío.
+   *
+   * ## Por qué no revienta la operación que lo llama
+   *
+   * Porque el permiso ya está registrado —y es válido— en el sistema donde vive el dato personal.
+   * Esta llamada es una RÉPLICA para que el motor pueda ejercerlo; que falle deja al motor sin
+   * enterarse, no al cliente sin derechos. Tumbar por eso un recálculo de línea cambiaría un
+   * problema de sincronización por uno de servicio.
+   */
+  async recordConsent(input: {
+    subjectReference: string;
+    purpose: string;
+    basis: 'CONSENT' | 'CONTRACT' | 'LEGAL_OBLIGATION' | 'CREDIT_PROTECTION' | 'LEGITIMATE_INTEREST';
+    grantedAt: Date;
+    expiresAt?: Date | null;
+    evidenceRef?: string | null;
+  }): Promise<boolean> {
+    if (!this.isConfigured) return false;
+    const url = `${this.baseUrl()}/v1/risk-governance/consents`;
+    const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_OUTCOME_API_KEY ?? '';
+    try {
+      await this.call(url, apiKey, {
+        subjectReference: input.subjectReference,
+        purpose: input.purpose,
+        basis: input.basis,
+        grantedAt: input.grantedAt.toISOString(),
+        ...(input.expiresAt ? { expiresAt: input.expiresAt.toISOString() } : {}),
+        ...(input.evidenceRef ? { evidenceRef: input.evidenceRef } : {}),
+      });
+      return true;
+    } catch (error) {
+      this.logger.warn(`No se pudo replicar el consentimiento en el motor: ${(error as Error).message}`);
+      return false;
+    }
+  }
+
+  /** Revoca el permiso en el motor. Misma tolerancia a fallo, y por el mismo motivo. */
+  async revokeConsent(input: { subjectReference: string; purpose: string }): Promise<boolean> {
+    if (!this.isConfigured) return false;
+    const url = `${this.baseUrl()}/v1/risk-governance/consents/revoke`;
+    const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_OUTCOME_API_KEY ?? '';
+    try {
+      await this.call(url, apiKey, { subjectReference: input.subjectReference, purpose: input.purpose });
+      return true;
+    } catch (error) {
+      this.logger.warn(`No se pudo revocar el consentimiento en el motor: ${(error as Error).message}`);
+      return false;
+    }
+  }
+
   private baseUrl(): string {
     const base = env.DECISION_ENGINE_BASE_URL;
     if (!base) throw toAdapterError({ provider: PROVIDER, message: 'DECISION_ENGINE_BASE_URL no está configurada.' });

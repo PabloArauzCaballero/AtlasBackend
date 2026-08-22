@@ -158,3 +158,5 @@ export { WorkflowStageModel } from './workflow-stages.model.js';
 export { WorkflowStepModel } from './workflow-steps.model.js';
 export { WorkflowStepDependencyModel } from './workflow-step-dependencies.model.js';
 export { WorkflowTransitionModel } from './workflow-transitions.model.js';
+export { NotificationPolicyModel } from './notification-policies.model.js';
+export { AppContentEntryModel, type ContentBullet } from './app-content-entries.model.js';

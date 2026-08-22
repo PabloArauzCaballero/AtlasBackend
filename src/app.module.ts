@@ -46,6 +46,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { OperationsModule } from './modules/operations/operations.module.js';
 import { RuntimeJobsModule } from './modules/runtime-jobs/runtime-jobs.module.js';
 import { EventsModule } from './modules/events/events.module.js';
+import { AppContentModule } from './modules/app-content/app-content.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { ExternalDataModule } from './modules/external-data/external-data.module.js';
 import { InternalUsersModule } from './modules/internal-users/internal-users.module.js';
@@ -84,6 +85,9 @@ import { env } from './config/env.js';
     RuntimeHardeningModule,
     RuntimeJobsModule,
     NotificationsModule,
+    // Lo que la app enseña y no es un dato del cliente: bienvenida, ayuda, preguntas frecuentes y
+    // enlaces legales. Estaba en el código de la app; ahora lo edita negocio desde el portal.
+    AppContentModule,
     EventsModule,
     HealthModule,
     CatalogManagementModule,

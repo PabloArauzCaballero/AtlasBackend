@@ -11,7 +11,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { env } from '../../../config/env.js';
 import { CreditLineModel } from '../../../database/models/index.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
-import { SubjectReferenceService } from '../../decision-engine/subject-reference.service.js';
+import { CREDIT_DECISION_PURPOSE, SubjectReferenceService } from '../../decision-engine/subject-reference.service.js';
 import { UnderwritingFeaturesService } from '../../decision-engine/underwriting-features.service.js';
 
 /** Qué movió la línea. Se escribe siempre: una bajada sin causa visible parece un error. */
@@ -148,6 +148,42 @@ export class CreditLineService {
       this.logger.error(`El motor no pudo recalcular la línea del cliente ${input.customerId}: ${(error as Error).message}`);
       return null;
     }
+
+    /*
+     * El permiso del titular, replicado en el motor DESPUÉS de la decisión.
+     *
+     * ## Por qué hacía falta
+     *
+     * El motor comprueba, antes de cada decisión, que ningún permiso registrado del sujeto esté
+     * vencido o revocado. Pero el backend —que es quien RECOGE el consentimiento en el alta— nunca
+     * se lo contaba. Resultado: el motor no tenía permisos que comprobar, así que la comprobación
+     * siempre pasaba. El control se ejercía sobre un conjunto vacío.
+     *
+     * ## Por qué DESPUÉS y no antes
+     *
+     * Porque el motor sólo conoce a un titular por sus decisiones: registrar el permiso antes de la
+     * primera devuelve `SUBJECT_NOT_FOUND`. No es un orden caprichoso, es la consecuencia de que el
+     * motor no guarde identidades — sólo referencias opacas que aparecen al decidir. La primera
+     * decisión de cada cliente corre, por tanto, sin permiso registrado; y está bien, porque la
+     * ausencia de permiso nunca bloquea: lo que bloquea es un permiso que EXISTE y ya no vale.
+     *
+     * ## La base legal, y por qué no es `CONSENT`
+     *
+     * Evaluar la capacidad de pago de quien pide un crédito no depende de que consienta cada
+     * evaluación —depende de que haya pedido el crédito—. Tratarlo como consentimiento revocable
+     * dejaría al motor sin poder decidir sobre un préstamo ya vivo, que es justo cuando más falta
+     * hace. El consentimiento propiamente dicho cubre lo que SÍ es opcional (extracto bancario,
+     * consultas al buró) y se registra con su propio propósito.
+     *
+     * No bloquea: si el motor no acepta la réplica, la línea se guarda igual. El permiso ya es
+     * válido en el sistema donde vive el dato personal; lo que falta es que el motor se entere.
+     */
+    await this.client.recordConsent({
+      subjectReference,
+      purpose: CREDIT_DECISION_PURPOSE,
+      basis: 'CREDIT_PROTECTION',
+      grantedAt: now,
+    });
 
     const output = (response.output ?? {}) as Record<string, unknown>;
 

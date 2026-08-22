@@ -1,4 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { SystemsErpInventoryService } from '../../../src/modules/systems-ops/systems-erp-inventory.service.js';
 
 /**
@@ -78,11 +81,21 @@ describe('SystemsErpInventoryService', () => {
   it('sin inventario no tumba el refresco', async () => {
     const { service } = build();
     const original = process.cwd();
-    process.chdir('/tmp');
+    /*
+     * Un directorio temporal recién creado, y no `/tmp`.
+     *
+     * `/tmp` no existe en Windows, así que este `chdir` fallaba con ENOENT y la prueba se caía
+     * ANTES de ejercitar nada: no comprobaba que el refresco aguanta sin inventario, comprobaba
+     * que la máquina era Linux. Y como fallaba por una ruta y no por el comportamiento, se leía
+     * como un fallo del entorno y se ignoraba.
+     */
+    const empty = mkdtempSync(join(tmpdir(), 'atlas-erp-inventory-'));
+    process.chdir(empty);
     try {
       await expect(service.seedErpEntities()).resolves.toBe(0);
     } finally {
       process.chdir(original);
+      rmSync(empty, { recursive: true, force: true });
     }
   });
 });

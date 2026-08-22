@@ -110,6 +110,9 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'customer_attribute_values',
     'customer_context_enrichments',
     'catalog_entries',
+    // Lo que la app enseña y no es un dato del cliente: bienvenida, ayuda, preguntas frecuentes y
+    // enlaces legales. Es catálogo editable, no código.
+    'app_content_entries',
     'context_seed_import_checkpoints',
   ],
   [ATLAS_SCHEMAS.CREDIT]: [
@@ -182,6 +185,9 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
   ],
   [ATLAS_SCHEMAS.MESSAGING]: [
     'notification_templates',
+    // Qué avisos existen, cómo se llaman de cara al cliente y cuáles son irrenunciables. Vive con
+    // los mensajes y no con el cliente: es política del canal, no un atributo de la persona.
+    'notification_policies',
     'notification_messages',
     'notification_deliveries',
     'user_notification_preferences',

@@ -69,6 +69,8 @@ import { LoansRepository } from './loans.repository.js';
     DelinquencyPolicyService,
     SpendingReportService,
   ],
-  exports: [LoansRepository],
+  // `LoanDelinquencyService` se exporta para que el planificador pueda correr el barrido de mora.
+  // Su regla sigue viviendo aquí: el planificador sólo decide cada cuánto, no qué.
+  exports: [LoansRepository, LoanDelinquencyService],
 })
 export class LoansModule {}
