@@ -50,10 +50,27 @@ describe('RuntimeJobsSchedulerService', () => {
     // onboarding y el planificador solo la agenda.
     const onboardingAbandonment = { markAbandonedFlows: jest.fn(async (..._args: unknown[]) => ({ evaluated: 0, abandoned: 0 })) };
     // El planificador recibe el catálogo ya construido; quién produce cada job es cosa del módulo.
+    /*
+     * Los tres trabajos nuevos: mora, capacidad de pago y extractos.
+     *
+     * No estaban porque no existian; sus reglas viven en sus dominios y el planificador solo las
+     * agenda. Se simulan aqui porque lo que se prueba es la MECANICA de agendado —liderazgo,
+     * reentrada, desfase—, no lo que cada job hace.
+     */
+    const delinquency = { sweep: jest.fn(async (..._args: unknown[]) => ({ evaluated: 0, enqueued: 0, total: 0, recalculated: 0 })) };
+    const creditLineRefresh = {
+      refreshStaleLines: jest.fn(async (..._args: unknown[]) => ({ missing: 0, stale: 0, recalculated: 0, failed: 0 })),
+    };
+    const bankStatements = {
+      processPending: jest.fn(async (..._args: unknown[]) => ({ picked: 0, applied: 0, unreadable: 0, failed: 0, breachingSoon: 0 })),
+    };
     const scheduledJobs = buildScheduledJobs({
       runtimeJobs: runtimeJobs as never,
       maintenance: maintenance as never,
       onboardingAbandonment: onboardingAbandonment as never,
+      delinquency: delinquency as never,
+      creditLineRefresh: creditLineRefresh as never,
+      bankStatements: bankStatements as never,
     });
     const service = new RuntimeJobsSchedulerService(scheduledJobs, tenantModel as never, redis as never, metrics as never);
     return { service, runtimeJobs, maintenance, onboardingAbandonment, tenantModel, metrics, redis };
@@ -84,13 +101,13 @@ describe('RuntimeJobsSchedulerService', () => {
 
     // El arranque de cada job pasa por un `setTimeout` de desfase antes de armar su `setInterval`:
     // sin ese desfase, N réplicas que arrancan juntas disparan la misma tanda en el mismo instante.
-    it('programa los diez jobs cuando está habilitado', () => {
+    it('programa los trece jobs cuando está habilitado', () => {
       setEnv('RUNTIME_JOBS_SCHEDULER_ENABLED', true);
       const { service } = build();
 
       service.onApplicationBootstrap();
 
-      expect(setTimeout).toHaveBeenCalledTimes(10);
+      expect(setTimeout).toHaveBeenCalledTimes(13);
       service.onModuleDestroy();
     });
 
@@ -102,7 +119,7 @@ describe('RuntimeJobsSchedulerService', () => {
       service.onApplicationBootstrap();
 
       const delays = (setTimeout as unknown as jest.Mock).mock.calls.map((call) => call[1] as number);
-      expect(delays).toHaveLength(10);
+      expect(delays).toHaveLength(13);
       for (const delay of delays) {
         expect(delay).toBeGreaterThanOrEqual(0);
         expect(delay).toBeLessThan(15_000);
@@ -141,7 +158,7 @@ describe('RuntimeJobsSchedulerService', () => {
 
       service.onApplicationBootstrap();
 
-      expect(setTimeout).toHaveBeenCalledTimes(10);
+      expect(setTimeout).toHaveBeenCalledTimes(13);
       service.onModuleDestroy();
     });
   });

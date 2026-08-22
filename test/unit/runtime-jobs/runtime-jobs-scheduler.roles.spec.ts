@@ -49,10 +49,27 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
     // El cierre de onboardings abandonados es un job de fondo más; su regla vive en el módulo de
     // onboarding y el planificador solo recibe el catálogo ya construido.
     const onboardingAbandonment = { markAbandonedFlows: jest.fn(async (..._args: unknown[]) => ({ evaluated: 0, abandoned: 0 })) };
+    /*
+     * Los tres trabajos nuevos: mora, capacidad de pago y extractos.
+     *
+     * No estaban porque no existian; sus reglas viven en sus dominios y el planificador solo las
+     * agenda. Se simulan aqui porque lo que se prueba es la MECANICA de agendado —liderazgo,
+     * reentrada, desfase—, no lo que cada job hace.
+     */
+    const delinquency = { sweep: jest.fn(async (..._args: unknown[]) => ({ evaluated: 0, enqueued: 0, total: 0, recalculated: 0 })) };
+    const creditLineRefresh = {
+      refreshStaleLines: jest.fn(async (..._args: unknown[]) => ({ missing: 0, stale: 0, recalculated: 0, failed: 0 })),
+    };
+    const bankStatements = {
+      processPending: jest.fn(async (..._args: unknown[]) => ({ picked: 0, applied: 0, unreadable: 0, failed: 0, breachingSoon: 0 })),
+    };
     const scheduledJobs = buildScheduledJobs({
       runtimeJobs: runtimeJobs as never,
       maintenance: maintenance as never,
       onboardingAbandonment: onboardingAbandonment as never,
+      delinquency: delinquency as never,
+      creditLineRefresh: creditLineRefresh as never,
+      bankStatements: bankStatements as never,
     });
     const service = new RuntimeJobsSchedulerService(
       scheduledJobs,
@@ -82,7 +99,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
 
     service.onApplicationBootstrap();
 
-    expect(setTimeout).toHaveBeenCalledTimes(10);
+    expect(setTimeout).toHaveBeenCalledTimes(13);
     service.onModuleDestroy();
   });
 
