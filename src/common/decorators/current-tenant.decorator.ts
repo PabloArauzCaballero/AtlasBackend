@@ -25,7 +25,15 @@ import { firstHeaderValue } from '../utils/http/headers.util.js';
  */
 export function resolveCurrentTenant(request: RequestWithAuth): string {
   const headerValue = firstHeaderValue(request.headers['x-tenant-id']);
-  const raw = headerValue ?? request.user?.tenantId;
+  /*
+   * `tenantId` por query es la ultima opcion, y existe por una razon concreta: una etiqueta `<img>`
+   * no puede enviar cabeceras —solo tiene una URL—, asi que las rutas que sirven una imagen no
+   * tienen otra via. No debilita la frontera: `TenantGuard` sigue exigiendo que coincida con el del
+   * token, y el rol sigue siendo obligatorio; solo cambia de donde se lee el mismo valor.
+   */
+  const query = (request as { query?: Record<string, unknown> }).query;
+  const queryValue = typeof query?.tenantId === 'string' ? query.tenantId : undefined;
+  const raw = headerValue ?? request.user?.tenantId ?? queryValue;
   return parsePositiveId(String(raw ?? ''), 'x-tenant-id');
 }
 

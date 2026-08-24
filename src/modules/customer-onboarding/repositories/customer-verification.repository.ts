@@ -89,6 +89,30 @@ export class CustomerVerificationRepository {
     await document.save({ transaction: options.transaction });
   }
 
+  /** De que cliente es un intento de verificacion. Lo usa la pantalla del analista del motor. */
+  async findCustomerIdByAttempt(tenantId: string, attemptId: string): Promise<string | null> {
+    const attempt = await this.attemptModel.findOne({
+      where: { tenantId, id: attemptId },
+      attributes: ['customerId'],
+    } as FindOptions);
+    return attempt?.customerId ? String(attempt.customerId) : null;
+  }
+
+  /**
+   * Los documentos de identidad que subio el cliente.
+   *
+   * Los usa el analista para VER el carnet y la selfie con las que tiene que decidir: la revision
+   * manual ocurre en el motor, que solo recibe el hash de las imagenes, asi que sin esto la decision
+   * humana se toma sin mirar nada.
+   */
+  async findEvidenceDocuments(tenantId: string, customerId: string, options: RepositoryOptions = {}): Promise<EvidenceDocumentModel[]> {
+    return this.evidenceModel.findAll({
+      where: { tenantId, customerId, deleted: { [Op.ne]: true } },
+      order: [['id', 'ASC']],
+      transaction: options.transaction,
+    } as FindOptions);
+  }
+
   /** Revisiones de evidencia sin resolver del cliente. Se resuelven en bloque con la identidad. */
   async findPendingReviews(tenantId: string, customerId: string, options: RepositoryOptions = {}): Promise<EvidenceReviewModel[]> {
     const documents = await this.evidenceModel.findAll({

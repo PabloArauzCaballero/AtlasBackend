@@ -138,7 +138,9 @@ export class DecisionEngineClient {
    * El catálogo sirve para poblar el desplegable de «qué artefacto decide cada cosa»; sin él se
    * escribía el código a mano, que es como se llegó a apuntar a uno inexistente.
    */
-  async listArtifacts(): Promise<{ artifactCode?: string; code?: string; name?: string; artifactType?: string }[]> {
+  async listArtifacts(): Promise<
+    { artifactCode?: string; code?: string; name?: string; artifactType?: string; latestVersion?: string; latestStatus?: string }[]
+  > {
     if (!this.isConfigured) return [];
     const url = `${this.baseUrl()}/v1/artifacts`;
     const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_API_KEY ?? '';
@@ -150,7 +152,14 @@ export class DecisionEngineClient {
     const body = (await response.json()) as { data?: unknown; items?: unknown };
     const items = (body.data ?? body.items ?? body) as unknown;
     if (!Array.isArray(items)) return [];
-    return items as { artifactCode?: string; code?: string; name?: string; artifactType?: string }[];
+    return items as {
+      artifactCode?: string;
+      code?: string;
+      name?: string;
+      artifactType?: string;
+      latestVersion?: string;
+      latestStatus?: string;
+    }[];
   }
 
   private baseUrl(): string {

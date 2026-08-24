@@ -63,6 +63,7 @@ import { CustomerOnboardingGuardsService } from './application/customer-onboardi
 import { CustomerOnboardingStartService } from './application/customer-onboarding-start.service.js';
 import { CustomerOnboardingStatusService } from './application/customer-onboarding-status.service.js';
 import { IdentityManualReviewOutcomeService } from './application/identity-manual-review-outcome.service.js';
+import { CustomerEvidenceViewController } from './customer-evidence-view.controller.js';
 import { CustomerProfileUpdateService } from './application/customer-profile-update.service.js';
 import { CustomerFinancialProfileService } from './application/customer-financial-profile.service.js';
 import { CustomerReferenceContactsService } from './application/customer-reference-contacts.service.js';
@@ -123,6 +124,7 @@ import { CustomerOnboardingService } from './customer-onboarding.service.js';
     RiskModule,
   ],
   controllers: [
+    CustomerEvidenceViewController,
     CustomerOnboardingController,
     CustomerOnboardingProfileController,
     CustomerOnboardingStatusController,

@@ -17,6 +17,12 @@ const assignSchema = z
   .object({
     decisionType: z.enum(DECISION_TYPES),
     artifactCode: z.string().trim().min(1).max(120),
+    /*
+     * Version a fijar. Sin ella se sigue la vigente del despliegue —que es el comportamiento de
+     * siempre—; con ella, publicar una version nueva en el motor deja de cambiar lo que decide en
+     * produccion sin que nadie lo apruebe.
+     */
+    pinnedVersion: z.string().trim().max(40).nullable().optional(),
     notes: z.string().trim().max(500).optional(),
   })
   .strict();
@@ -68,6 +74,7 @@ export class DecisionArtifactBindingController {
         tenantId: tenantIdFromHeader(tenantIdHeader),
         decisionType: body.decisionType,
         artifactCode: body.artifactCode,
+        pinnedVersion: body.pinnedVersion ?? null,
         internalUserId: currentUser.internalUserId ? String(currentUser.internalUserId) : null,
         notes: body.notes,
       });
