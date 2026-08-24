@@ -34,7 +34,9 @@ import {
   CommercialRegistryDto,
   LegalRepresentativeDto,
   legalRepresentativeSchema,
+  DecidePartnerDto,
   PartnerIdParamsDto,
+  decidePartnerSchema,
   partnerIdParamsSchema,
   StartPartnerOnboardingDto,
   startPartnerOnboardingSchema,
@@ -231,6 +233,45 @@ export class PartnerOnboardingController {
   ) {
     const tenantId = tenantIdFromHeader(tenantIdHeader);
     const { profile } = await this.profiles.submit(tenantId, params.partnerId);
+    return toPartnerProfileDto(profile);
+  }
+
+  /*
+   * La decisión sobre el expediente, que hasta ahora no se podía tomar.
+   *
+   * `PartnerProfileService.decide()` existía —con su regla de que rechazar exige motivo— y no lo
+   * llamaba nadie: no había endpoint. Un comercio que enviaba su expediente se quedaba en
+   * `under_review` para siempre, y con él la afiliación entera, porque el QR sólo resuelve contra
+   * un partner `approved`.
+   *
+   * NO lo puede llamar el propio comercio: quien decide sobre una afiliación no es el afiliado. Por
+   * eso los roles excluyen `merchant`, al revés que el resto de este controlador.
+   */
+  @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Decidir el expediente del comercio',
+    description: 'Aprueba o rechaza un expediente en `under_review`. Rechazar exige motivo.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
+  @ApiBody({ schema: zodToApiSchema(decidePartnerSchema) })
+  @ApiResponse({ status: 200, description: 'Expediente decidido.' })
+  @ApiResponse({ status: 409, description: 'PARTNER_NOT_UNDER_REVIEW.' })
+  @Post(':partnerId/decision')
+  @HttpCode(HttpStatus.OK)
+  async decide(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
+    @Body(new ZodValidationPipe(decidePartnerSchema)) body: DecidePartnerDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const profile = await this.profiles.decide(tenantId, params.partnerId, {
+      approved: body.approved,
+      rejectionReason: body.rejectionReason,
+      internalUserId: currentUser.internalUserId ? String(currentUser.internalUserId) : null,
+    });
     return toPartnerProfileDto(profile);
   }
 }

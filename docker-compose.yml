@@ -163,8 +163,16 @@ x-atlas-env: &atlas-env
   # el `.env` y no este archivo.
   DECISION_ENGINE_BASE_URL: ${DECISION_ENGINE_BASE_URL:-}
   DECISION_ENGINE_API_KEY: ${DECISION_ENGINE_API_KEY:-}
+  # Clave de GESTION del motor: la usa la pantalla de «que artefacto decide cada cosa» para leer el
+  # catalogo de artefactos publicados. Es de lectura de configuracion, distinta de la de ejecucion.
+  DECISION_ENGINE_GOVERNANCE_API_KEY: ${DECISION_ENGINE_GOVERNANCE_API_KEY:-}
   DECISION_ENGINE_SUBJECT_SALT: ${DECISION_ENGINE_SUBJECT_SALT:-}
   DECISION_ENGINE_IDENTITY_ARTIFACT: ${DECISION_ENGINE_IDENTITY_ARTIFACT:-IDENTIDAD_CARNET_MOVIL}
+  # El codigo REAL del artefacto de originacion en el motor. El defecto del esquema
+  # (`credit_underwriting`) no existe alli, asi que toda solicitud caia en 404 y se resolvia como
+  # `engine_unavailable_manual`: el credito quedaba esperando a una persona sin que nada dijera que
+  # el motor ni siquiera habia sido consultado.
+  DECISION_ENGINE_CREDIT_ARTIFACT: ${DECISION_ENGINE_CREDIT_ARTIFACT:-ATLAS_BNPL_UNDERWRITING}
   DECISION_ENGINE_ENVIRONMENT_CODE: ${DECISION_ENGINE_ENVIRONMENT_CODE:-DEV}
   ERP_BACKEND_BASE_URL: ${ERP_BACKEND_BASE_URL:-http://host.docker.internal:3007}
   ERP_BACKEND_CATALOG_API_KEY: ${ERP_BACKEND_CATALOG_API_KEY:-}
@@ -344,7 +352,10 @@ services:
       # E2E de Playwright sirven el portal en `127.0.0.1:5273`. Sin esta entrada el login fallaba
       # con «no se pudo conectar con el servicio interno», que parece una caída del backend y es
       # sólo un preflight CORS rechazado.
-      CORS_ORIGINS: http://localhost:3000,http://localhost:5273,http://127.0.0.1:3000,http://127.0.0.1:5273
+      # 3100 es el puerto en el que se levanta AtlasAdminPortal cuando el 3000 esta
+      # ocupado por otro contenedor. Sin el, el navegador ve un fallo de CORS en vez
+      # del 401 y el portal no puede distinguir «sesion caducada» de «backend caido».
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3010,http://localhost:3100,http://localhost:5173,http://localhost:5273,http://127.0.0.1:3000,http://127.0.0.1:3010,http://127.0.0.1:3100,http://127.0.0.1:5173,http://127.0.0.1:5273
     ports:
       - '${API_PUBLISH_PORT:-3005}:3005'
     depends_on:

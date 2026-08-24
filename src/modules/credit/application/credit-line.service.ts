@@ -3,6 +3,7 @@
  * @business Esta pieza fija cuánto puede gastar el cliente, y deja escrito por qué es esa cifra.
  * @system pide la línea al motor con el expediente real y la persiste versionada con su traza.
  */
+import { DecisionArtifactBindingService } from '../../decision-engine/decision-artifact-binding.service.js';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { randomUUID } from 'node:crypto';
@@ -64,6 +65,7 @@ export class CreditLineService {
 
   constructor(
     @InjectModel(CreditLineModel) private readonly creditLines: typeof CreditLineModel,
+    private readonly artifactBindings: DecisionArtifactBindingService,
     private readonly features: UnderwritingFeaturesService,
     private readonly client: DecisionEngineClient,
     private readonly subjects: SubjectReferenceService,
@@ -131,7 +133,10 @@ export class CreditLineService {
 
     let response;
     try {
-      response = await this.client.execute(env.DECISION_ENGINE_CREDIT_ARTIFACT, {
+      // El artefacto sale de la asignacion del portal; el entorno queda como respaldo.
+      const binding = await this.artifactBindings.resolve(String(input.tenantId), 'credit');
+      const creditArtifact = binding.artifactCode ?? env.DECISION_ENGINE_CREDIT_ARTIFACT;
+      response = await this.client.execute(creditArtifact, {
         /*
          * La clave de idempotencia lleva el instante: a diferencia de una solicitud de compra —donde
          * reintentar DEBE devolver la misma decisión—, un recálculo de línea es un hecho nuevo cada

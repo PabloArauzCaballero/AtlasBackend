@@ -20,6 +20,8 @@ import {
   LoanOutcomeReportModel,
 } from '../../database/models/index.js';
 import { CreditDecisionEngineService } from './credit-decision-engine.service.js';
+import { DecisionArtifactBindingController } from './decision-artifact-binding.controller.js';
+import { DecisionArtifactBindingService } from './decision-artifact-binding.service.js';
 import { DecisionEngineClient } from './decision-engine.client.js';
 import { FeatureProjectionService } from './feature-projection.service.js';
 import { OutcomeDispatchService } from './outcome-dispatch.service.js';
@@ -60,8 +62,10 @@ import { UnderwritingFeaturesService } from './underwriting-features.service.js'
       LoanInstallmentModel,
     ]),
   ],
+  controllers: [DecisionArtifactBindingController],
   providers: [
     DecisionEngineClient,
+    DecisionArtifactBindingService,
     FeatureProjectionService,
     UnderwritingFeaturesService,
     SubjectReferenceService,
@@ -69,6 +73,6 @@ import { UnderwritingFeaturesService } from './underwriting-features.service.js'
     RiskDecisionEngineService,
     OutcomeDispatchService,
   ],
-  exports: [CreditDecisionEngineService, UnderwritingFeaturesService, RiskDecisionEngineService, OutcomeDispatchService, SubjectReferenceService, DecisionEngineClient],
+  exports: [CreditDecisionEngineService, UnderwritingFeaturesService, RiskDecisionEngineService, OutcomeDispatchService, SubjectReferenceService, DecisionEngineClient, DecisionArtifactBindingService],
 })
 export class DecisionEngineModule {}

@@ -3,6 +3,7 @@
  * @business Esta pieza traslada la decisión de crédito a una política versionada, aprobada y auditable.
  * @system compone las variables, ejecuta la política del motor y traduce su respuesta al dominio de crédito.
  */
+import { DecisionArtifactBindingService } from './decision-artifact-binding.service.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { env } from '../../config/env.js';
@@ -49,6 +50,7 @@ export class CreditDecisionEngineService {
     private readonly features: FeatureProjectionService,
     private readonly underwriting: UnderwritingFeaturesService,
     private readonly subjects: SubjectReferenceService,
+    private readonly artifactBindings: DecisionArtifactBindingService,
   ) {}
 
   get isEnabled(): boolean {
@@ -98,7 +100,9 @@ export class CreditDecisionEngineService {
     });
 
     try {
-      const response = await this.client.execute(env.DECISION_ENGINE_CREDIT_ARTIFACT, {
+      // Ver `decision-artifact-binding.service.ts`: quien decide un credito se elige en el portal.
+      const binding = await this.artifactBindings.resolve(String(request.tenantId), 'credit');
+      const response = await this.client.execute(binding.artifactCode ?? env.DECISION_ENGINE_CREDIT_ARTIFACT, {
         // El identificador de la solicitud ES la clave de idempotencia: reintentar la misma decisión
         // debe devolver la misma ejecución y no crear una nueva en el historial del motor.
         requestId: `credit-app-${request.applicationCode}`,

@@ -87,6 +87,18 @@ export class LoanPaymentService {
           status: 'applied',
           registeredByInternalUserId: input.currentUser.internalUserId ?? null,
           idempotencyKeyHash,
+          /*
+           * `_created_at` y `_deleted` son NOT NULL sin defecto en la tabla, y aquí no se asignaban:
+           * registrar un pago fallaba con «cannot be null» ANTES de tocar la base. El desembolso ya
+           * los ponía —`loan-disbursement.service.ts`—, así que el pago era el único camino roto:
+           * se podía prestar el dinero y no se podía cobrar.
+           *
+           * `createdAtValue` toma `receivedAt` y no `new Date()`: la fila debe fecharse cuando el
+           * dinero entró, no cuando el sistema lo anotó. En un pago retroactivo las dos fechas no
+           * coinciden, y la que importa para la mora es la primera.
+           */
+          createdAtValue: receivedAt,
+          deleted: false,
         },
         { transaction },
       );
@@ -130,6 +142,9 @@ export class LoanPaymentService {
           actorInternalUserId: input.currentUser.internalUserId ?? null,
           payloadJson: { paymentCode: payment.paymentCode, amount: fromCents(amountCents) },
           happenedAt: receivedAt,
+          // NOT NULL sin defecto, igual que en el pago: sin esto el evento revienta y con el se
+          // cae la transaccion entera, asi que el pago valido no llegaba a registrarse.
+          createdAtValue: receivedAt,
         },
         { transaction },
       );
@@ -201,6 +216,8 @@ export class LoanPaymentService {
           payloadJson: { paymentCode: payment.paymentCode, amount: payment.amount },
           notes: input.body.notes ?? null,
           happenedAt: now,
+          // NOT NULL sin defecto. La reversion tenia el mismo hueco que el pago.
+          createdAtValue: now,
         },
         { transaction },
       );

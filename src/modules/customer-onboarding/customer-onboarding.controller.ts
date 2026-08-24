@@ -16,6 +16,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { IdentityManualReviewOutcomeService } from './application/identity-manual-review-outcome.service.js';
 import { CustomerOnboardingService } from './customer-onboarding.service.js';
 import {
   addressPackageSchema,
@@ -24,7 +25,9 @@ import {
   ContactVerificationRequestDto,
   contactVerificationSubmitSchema,
   ContactVerificationSubmitDto,
+  identityManualReviewSchema,
   identityPackageSchema,
+  IdentityManualReviewDto,
   IdentityPackageDto,
   onboardingCustomerIdParamsSchema,
   OnboardingCustomerIdParamsDto,
@@ -40,7 +43,9 @@ type RequestWithIp = {
 @Controller('customer-onboarding')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class CustomerOnboardingController {
-  constructor(private readonly customerOnboardingService: CustomerOnboardingService) {}
+  constructor(private readonly customerOnboardingService: CustomerOnboardingService,
+    private readonly identityManualReviewOutcomeService: IdentityManualReviewOutcomeService,
+  ) {}
 
   // 10 onboarding attempts per minute per IP — prevents enumeration and abuse
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
@@ -153,6 +158,40 @@ export class CustomerOnboardingController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(onboardingCustomerIdParamsSchema.shape.customerId) })
+  /*
+   * Aplica al expediente la decisión que tomó una PERSONA en la cola de revisión.
+   *
+   * Sin este endpoint, aprobar en el Decision Engine no cambiaba nada aquí: son dos sistemas con
+   * dos bases distintas, y el expediente se quedaba con las evidencias en `pending_review` y el
+   * bloqueador `IDENTITY_NOT_VERIFIED` puesto para siempre. Ver
+   * `identity-manual-review-outcome.service.ts`.
+   *
+   * NO lo puede llamar un cliente: quien decide sobre su propia identidad no es el titular. Por eso
+   * la lista de roles excluye `customer`, al revés que el resto de este controlador.
+   */
+  @ApiOperation({ summary: 'Aplica la resolución de una revisión manual de identidad' })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Resolución aplicada al expediente.' })
+  @ApiResponse({ status: 403, description: 'El token no tiene rol de analista.' })
+  @ApiResponse({ status: 404, description: 'Cliente o intento de identidad no encontrado.' })
+  @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @Post(':customerId/identity-manual-review')
+  @HttpCode(HttpStatus.OK)
+  applyIdentityManualReview(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
+    @Body(new ZodValidationPipe(identityManualReviewSchema)) body: IdentityManualReviewDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.identityManualReviewOutcomeService.apply({
+      tenantId: tenantIdFromHeader(tenantIdHeader),
+      customerId: params.customerId,
+      decision: body.decision,
+      reviewedByInternalUserId: body.reviewedByInternalUserId ?? String(currentUser.internalUserId ?? ''),
+      notes: body.notes,
+    });
+  }
+
   @ApiBody({ schema: zodToApiSchema(identityPackageSchema) })
   @ApiResponse({ status: 202, description: 'Paquete de identidad recibido y encolado para procesamiento.' })
   @ApiResponse({ status: 403, description: 'El token no permite operar sobre este cliente.' })

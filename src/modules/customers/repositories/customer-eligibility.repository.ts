@@ -98,6 +98,7 @@ export class CustomerEligibilityRepository {
       profile,
       presentFinancialAttributeCodes: financialAttributes.codes,
       financialAttributeValues: financialAttributes.values,
+      financialAttributeTexts: financialAttributes.texts,
       hasCurrentAddress,
       referenceContactCount,
       identityDocument,
@@ -153,14 +154,14 @@ export class CustomerEligibilityRepository {
     tenantId: string,
     customerId: string,
     options: EligibilityReadOptions,
-  ): Promise<{ codes: string[]; values: Record<string, number> }> {
+  ): Promise<{ codes: string[]; values: Record<string, number>; texts: Record<string, string> }> {
     const rows = await this.attributeValueModel.findAll({
       where: { tenantId, customerId, validUntil: null },
-      attributes: ['attributeDefinitionId', 'valueNumber'],
+      attributes: ['attributeDefinitionId', 'valueNumber', 'valueText'],
       transaction: options.transaction,
     } as FindOptions);
     const definitionIds = rows.map((row) => String(row.attributeDefinitionId)).filter((id) => id !== 'null');
-    if (definitionIds.length === 0) return { codes: [], values: {} };
+    if (definitionIds.length === 0) return { codes: [], values: {}, texts: {} };
 
     const definitions = await this.attributeDefinitionModel.findAll({
       where: { id: { [Op.in]: definitionIds } },
@@ -171,14 +172,23 @@ export class CustomerEligibilityRepository {
 
     const codes: string[] = [];
     const values: Record<string, number> = {};
+    /*
+     * El TEXTO hacía falta y no se leía.
+     *
+     * La habilitación sólo miraba los atributos numéricos, así que una regla que dependiera de un
+     * valor de catálogo —`employment_status`, por ejemplo— no tenía de dónde sacarlo. Se lee aquí,
+     * en la misma pasada, en vez de añadir otra consulta.
+     */
+    const texts: Record<string, string> = {};
     for (const row of rows) {
       const code = codeByDefinitionId.get(String(row.attributeDefinitionId));
       if (!code) continue;
       codes.push(code);
       const numeric = row.valueNumber === null ? Number.NaN : Number(row.valueNumber);
       if (Number.isFinite(numeric)) values[code] = numeric;
+      if (typeof row.valueText === 'string' && row.valueText.length > 0) texts[code] = row.valueText;
     }
-    return { codes, values };
+    return { codes, values, texts };
   }
 
   private async hasCurrentAddress(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<boolean> {

@@ -130,6 +130,29 @@ export class DecisionEngineClient {
     }
   }
 
+  /**
+   * Los artefactos que el motor tiene publicados.
+   *
+   * Es una LECTURA, así que no pasa por `call()` —que empuja un cuerpo y reintenta como si fuera
+   * una decisión—: aquí un fallo no se reintenta, se traduce a lista vacía y la pantalla lo dice.
+   * El catálogo sirve para poblar el desplegable de «qué artefacto decide cada cosa»; sin él se
+   * escribía el código a mano, que es como se llegó a apuntar a uno inexistente.
+   */
+  async listArtifacts(): Promise<{ artifactCode?: string; code?: string; name?: string; artifactType?: string }[]> {
+    if (!this.isConfigured) return [];
+    const url = `${this.baseUrl()}/v1/artifacts`;
+    const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_API_KEY ?? '';
+    const response = await fetch(url, { headers: { 'x-api-key': apiKey, 'x-tenant-id': '1' } });
+    if (!response.ok) {
+      this.logger.warn(`El motor respondió ${response.status} al listar artefactos.`);
+      return [];
+    }
+    const body = (await response.json()) as { data?: unknown; items?: unknown };
+    const items = (body.data ?? body.items ?? body) as unknown;
+    if (!Array.isArray(items)) return [];
+    return items as { artifactCode?: string; code?: string; name?: string; artifactType?: string }[];
+  }
+
   private baseUrl(): string {
     const base = env.DECISION_ENGINE_BASE_URL;
     if (!base) throw toAdapterError({ provider: PROVIDER, message: 'DECISION_ENGINE_BASE_URL no está configurada.' });

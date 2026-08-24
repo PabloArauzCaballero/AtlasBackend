@@ -114,6 +114,9 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     // enlaces legales. Es catálogo editable, no código.
     'app_content_entries',
     'context_seed_import_checkpoints',
+    // Que artefacto del motor decide cada cosa —identidad, credito, riesgo—. Es catalogo de
+    // configuracion, no un dato del cliente: por eso vive aqui y no en `credit`.
+    'decision_artifact_bindings',
   ],
   [ATLAS_SCHEMAS.CREDIT]: [
     'credit_products',

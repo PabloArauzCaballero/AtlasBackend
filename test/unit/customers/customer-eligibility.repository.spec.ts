@@ -105,6 +105,9 @@ describe('CustomerEligibilityRepository', () => {
       // Los valores numéricos salen de la MISMA consulta que los códigos: la completitud (C5) mira
       // los códigos y la elegibilidad por producto mira los valores.
       financialAttributeValues: { monthly_income: 4500 },
+      // Los atributos de catalogo viajan aparte de los numericos: la habilitacion necesita leer
+      // `employment_status` para saber si la antiguedad aplica. Aqui el banco no tiene ninguno.
+      financialAttributeTexts: {},
       hasCurrentAddress: true,
       referenceContactCount: 3,
       identityDocument,

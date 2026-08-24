@@ -51,15 +51,28 @@ describe('CustomerProfileUpdateService', () => {
     const eligibilityRepository = {
       loadFacts: jest.fn(async (..._args: unknown[]) => ({ identityVerificationResult: identityResult })),
     };
+    /*
+     * El permiso de marketing se anota en el registro de consentimientos, asi que el servicio
+     * depende de su repositorio. Por defecto NO hay documento sembrado —`findActiveDocuments`
+     * devuelve vacio—, que es el camino que estas pruebas recorren: el perfil se guarda igual y no
+     * se escribe ningun consentimiento. Que falte el catalogo legal no puede romper «guardar mis
+     * datos».
+     */
+    const consentsRepository = {
+      findActiveDocuments: jest.fn(async (..._args: unknown[]) => []),
+      createCustomerConsent: jest.fn(async (..._args: unknown[]) => ({ id: 'consent-1' })),
+      createConsentEvent: jest.fn(),
+    };
     const service = new CustomerProfileUpdateService(
       common.customersRepository as never,
       profileDataRepository as never,
       common.onboardingRepository as never,
       common.lifecycleService as never,
       eligibilityRepository as never,
+      consentsRepository as never,
       common.sequelize as never,
     );
-    return { service, profileDataRepository, eligibilityRepository, ...common };
+    return { service, profileDataRepository, eligibilityRepository, consentsRepository, ...common };
   }
 
   const baseInput = { tenantId: 't1', customerId: 'c1', currentUser: customerUser, ipAddress: '10.0.0.1' };

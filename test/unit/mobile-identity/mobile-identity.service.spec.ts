@@ -44,8 +44,20 @@ describe('MobileIdentityService', () => {
         return { executionId: '9001', status: 'COMPLETED', reasonCodes: [], ...engineResult };
       }),
     };
-    const service = new MobileIdentityService(repository as never, engine as never);
-    return { service, repository, engine };
+    /*
+     * La asignacion de artefacto: por defecto NO hay fila, asi que `resolve` devuelve el valor del
+     * entorno. Es el camino que estas pruebas recorren y el que garantiza que un despliegue sin
+     * configurar siga funcionando igual que antes.
+     */
+    const bindings = {
+      resolve: jest.fn(async (..._args: unknown[]) => ({
+        decisionType: 'identity',
+        artifactCode: 'IDENTIDAD_CARNET_MOVIL',
+        source: 'environment',
+      })),
+    };
+    const service = new MobileIdentityService(repository as never, engine as never, bindings as never);
+    return { service, repository, engine, bindings };
   }
 
   /** Deja correr la promesa que el servicio lanzó sin esperar. */

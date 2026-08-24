@@ -7,6 +7,7 @@ import { Injectable, Logger, NotFoundException, ServiceUnavailableException } fr
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { env } from '../../config/env.js';
+import { DecisionArtifactBindingService } from '../decision-engine/decision-artifact-binding.service.js';
 import { DecisionEngineClient } from '../decision-engine/decision-engine.client.js';
 import { MobileIdentityRepository, PENDING_RESULT } from './mobile-identity.repository.js';
 import { StartIdentityVerificationDto, type IdentityVerificationState, type IdentityVerificationView } from './mobile-identity.schemas.js';
@@ -51,6 +52,7 @@ export class MobileIdentityService {
   constructor(
     private readonly repository: MobileIdentityRepository,
     private readonly engine: DecisionEngineClient,
+    private readonly bindings: DecisionArtifactBindingService,
   ) {}
 
   /**
@@ -126,7 +128,16 @@ export class MobileIdentityService {
     idempotencyKey: string,
   ): Promise<void> {
     try {
-      const respuesta = await this.engine.execute(env.DECISION_ENGINE_IDENTITY_ARTIFACT, {
+      /*
+       * El artefacto sale de la ASIGNACIÓN, no del entorno.
+       *
+       * Qué política decide una identidad es una decisión de negocio que toma Riesgo desde el
+       * portal; leerla de una variable de entorno obligaba a un despliegue para cambiarla y hacía
+       * imposible ver desde la interfaz cuál estaba decidiendo. Si nadie ha elegido, `resolve()`
+       * cae al entorno y todo sigue como antes.
+       */
+      const { artifactCode } = await this.bindings.resolve(tenantId, 'identity');
+      const respuesta = await this.engine.execute(artifactCode ?? env.DECISION_ENGINE_IDENTITY_ARTIFACT, {
         requestId: randomUUID(),
         correlationId: verificationId,
         // Derivada del intento y de la clave del cliente: reintentar la misma

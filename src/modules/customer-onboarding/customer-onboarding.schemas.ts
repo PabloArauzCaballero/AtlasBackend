@@ -262,4 +262,22 @@ export type OnboardingCustomerIdParamsDto = z.infer<typeof onboardingCustomerIdP
 export type ContactVerificationRequestDto = z.infer<typeof contactVerificationRequestSchema>;
 export type ContactVerificationSubmitDto = z.infer<typeof contactVerificationSubmitSchema>;
 export type IdentityPackageDto = z.infer<typeof identityPackageSchema>;
+
+/**
+ * Resolución de una revisión manual de identidad.
+ *
+ * `notes` es obligatorio y no vacío: una aprobación sin motivo escrito no se puede auditar después
+ * —y es justo la que hay que poder explicar, porque la tomó una persona y no una regla—.
+ */
+export const identityManualReviewSchema = z.object({
+  decision: z.enum(['approved', 'rejected']),
+  notes: z.string().trim().min(1).max(2_000),
+  /**
+   * ID del usuario interno que decidió. Si no viene, se toma del token: nunca queda anónimo.
+   * Es el ID y no el correo porque la columna es una clave foránea a `iam.internal_users`.
+   */
+  reviewedByInternalUserId: z.string().trim().regex(/^[1-9][0-9]*$/).optional(),
+});
+
+export type IdentityManualReviewDto = z.infer<typeof identityManualReviewSchema>;
 export type AddressPackageDto = z.infer<typeof addressPackageSchema>;

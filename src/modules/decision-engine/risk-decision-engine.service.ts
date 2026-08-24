@@ -3,6 +3,7 @@
  * @business Esta pieza traslada la evaluación de riesgo de onboarding a una política versionada y auditable.
  * @system ejecuta el artefacto de riesgo en el motor y traduce su desenlace al vocabulario del onboarding.
  */
+import { DecisionArtifactBindingService } from './decision-artifact-binding.service.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { env } from '../../config/env.js';
@@ -24,7 +25,9 @@ export type RiskEngineDecision = {
 export class RiskDecisionEngineService {
   private readonly logger = new Logger(RiskDecisionEngineService.name);
 
-  constructor(private readonly client: DecisionEngineClient) {}
+  constructor(private readonly client: DecisionEngineClient,
+    private readonly artifactBindings: DecisionArtifactBindingService,
+  ) {}
 
   get isEnabled(): boolean {
     return this.client.isConfigured;
@@ -51,7 +54,8 @@ export class RiskDecisionEngineService {
     if (!this.client.isConfigured || !env.DECISION_ENGINE_RISK_ARTIFACT) return null;
 
     try {
-      const response = await this.client.execute(env.DECISION_ENGINE_RISK_ARTIFACT, {
+      const binding = await this.artifactBindings.resolve(String(input.tenantId), 'risk');
+      const response = await this.client.execute(binding.artifactCode ?? env.DECISION_ENGINE_RISK_ARTIFACT, {
         requestId: `risk-${input.assessmentType}-${input.idempotencyKey}`.slice(0, 120),
         idempotencyKey: input.idempotencyKey,
         correlationId: randomUUID(),

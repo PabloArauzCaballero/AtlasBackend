@@ -196,3 +196,22 @@ export const partnerDecisionSchema = z
     path: ['rejectionReason'],
   });
 export type PartnerDecisionDto = z.infer<typeof partnerDecisionSchema>;
+
+/**
+ * Decisión sobre el expediente de un comercio.
+ *
+ * Rechazar exige motivo y aprobar no: el motivo de un sí es el expediente completo que se acaba de
+ * revisar, mientras que un comercio rechazado sin explicación es el que vuelve a preguntar —y seis
+ * meses después nadie sabe qué se miró—. Lo dice el propio `decide()` del servicio; aquí se hace
+ * cumplir en el borde, antes de tocar la base.
+ */
+export const decidePartnerSchema = z
+  .object({
+    approved: z.boolean(),
+    rejectionReason: z.string().trim().min(3).max(500).optional(),
+  })
+  .refine((value) => value.approved || value.rejectionReason !== undefined, {
+    message: 'Rechazar un expediente exige declarar el motivo.',
+    path: ['rejectionReason'],
+  });
+export type DecidePartnerDto = z.infer<typeof decidePartnerSchema>;

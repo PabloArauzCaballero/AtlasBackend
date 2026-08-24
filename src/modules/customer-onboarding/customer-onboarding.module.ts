@@ -62,6 +62,7 @@ import { CustomerIdentityPackageService } from './application/customer-identity-
 import { CustomerOnboardingGuardsService } from './application/customer-onboarding-guards.service.js';
 import { CustomerOnboardingStartService } from './application/customer-onboarding-start.service.js';
 import { CustomerOnboardingStatusService } from './application/customer-onboarding-status.service.js';
+import { IdentityManualReviewOutcomeService } from './application/identity-manual-review-outcome.service.js';
 import { CustomerProfileUpdateService } from './application/customer-profile-update.service.js';
 import { CustomerFinancialProfileService } from './application/customer-financial-profile.service.js';
 import { CustomerReferenceContactsService } from './application/customer-reference-contacts.service.js';
@@ -128,6 +129,7 @@ import { CustomerOnboardingService } from './customer-onboarding.service.js';
     CustomerVerificationController,
   ],
   providers: [
+    IdentityManualReviewOutcomeService,
     CustomerOnboardingService,
     CustomerOnboardingStartService,
     CustomerOnboardingGuardsService,
