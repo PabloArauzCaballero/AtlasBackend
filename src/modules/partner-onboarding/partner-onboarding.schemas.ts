@@ -4,6 +4,7 @@
  * @system valida en el borde el expediente del partner, sus QR de cobro y sus terminales de punto de venta.
  */
 import { z } from 'zod';
+import { PARTNER_BUSINESS_CATEGORIES, normalizeBusinessCategory } from './partner-business-categories.js';
 
 /**
  * NIT boliviano: sólo dígitos, entre 7 y 15.
@@ -19,17 +20,55 @@ const nitSchema = z
   .trim()
   .regex(/^[0-9]{7,15}$/, 'El NIT debe tener entre 7 y 15 dígitos, sin puntos ni guiones.');
 
+/**
+ * El rubro, aceptado en cualquier caja y guardado siempre en su forma canónica.
+ *
+ * La normalización va ANTES de validar: asi `retail`, `Retail` y `RETAIL` son el mismo rubro —que
+ * es lo que un usuario espera— sin que por eso entre a la base cualquier cadena. Lo que no está en
+ * el catálogo se rechaza aqui, con la lista completa en el mensaje: quien se equivoca necesita
+ * saber cuáles son las opciones, no solo que la suya no vale.
+ */
+const businessCategorySchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(80)
+  .transform((value) => normalizeBusinessCategory(value))
+  .refine((value): value is (typeof PARTNER_BUSINESS_CATEGORIES)[number] => value !== null, {
+    message: `El rubro debe ser uno de: ${PARTNER_BUSINESS_CATEGORIES.join(', ')}.`,
+  });
+
 export const startPartnerOnboardingSchema = z.object({
   legalName: z.string().trim().min(3).max(200),
   tradeName: z.string().trim().min(1).max(200).optional(),
   taxId: nitSchema,
   /** Matrícula de comercio. Opcional al iniciar: se completa antes de enviar el expediente. */
   commercialRegistry: z.string().trim().min(3).max(60).optional(),
-  businessCategory: z.string().trim().min(2).max(80).optional(),
+  businessCategory: businessCategorySchema.optional(),
   contactEmail: z.string().trim().email().max(180),
   contactPhone: z.string().trim().min(6).max(40).optional(),
 });
 export type StartPartnerOnboardingDto = z.infer<typeof startPartnerOnboardingSchema>;
+
+/**
+ * Lo que el comercio puede corregir de su ficha DESPUES de estar aprobado.
+ *
+ * Deliberadamente no incluye razon social, NIT ni matricula: son los datos contra los que el
+ * analista verifico el expediente, y dejar que cambien despues de la firma convierte la aprobacion
+ * en una aprobacion de otra empresa. Lo que si cambia con el negocio vivo es como se presenta
+ * —nombre de fachada, rubro, telefono de contacto—, y hoy eso solo se podia declarar al abrir el
+ * expediente: un comercio que se equivocaba de rubro se quedaba mal catalogado para siempre.
+ */
+export const updateCommercialProfileSchema = z
+  .object({
+    tradeName: z.string().trim().min(1).max(200).optional(),
+    businessCategory: businessCategorySchema.optional(),
+    contactPhone: z.string().trim().min(6).max(40).optional(),
+  })
+  .refine((value) => Object.values(value).some((field) => field !== undefined), {
+    message: 'No hay ningún cambio que aplicar.',
+  });
+export type UpdateCommercialProfileDto = z.infer<typeof updateCommercialProfileSchema>;
 
 export const partnerIdParamsSchema = z.object({
   partnerId: z.string().regex(/^[1-9][0-9]*$/, 'Identificador de partner inválido.'),

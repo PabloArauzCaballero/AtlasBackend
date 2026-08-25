@@ -19,6 +19,20 @@ type RepositoryOptions = { transaction?: Transaction };
 /** Estados en los que el expediente todavía admite cambios del comercio. */
 export const EDITABLE_PARTNER_STATUSES = ['draft', 'contact_verified', 'documents_submitted'] as const;
 
+/**
+ * Estados en los que el comercio puede cambiar su RED COMERCIAL (sucursales y terminales).
+ *
+ * Es una lista distinta de `EDITABLE_PARTNER_STATUSES` a propósito. Lo que la aprobación congela es
+ * la identidad del expediente —matrícula, representante legal, cuenta bancaria—, porque el analista
+ * firmó sobre esos datos. Abrir una sucursal o dar de alta un POS es operación del día a día y le
+ * ocurre a todo comercio vivo: si lo cerráramos con la aprobación, un comercio aprobado se quedaría
+ * para siempre sin poder abrir un local nuevo, que es justo lo contrario de lo que la aprobación
+ * significa.
+ *
+ * `under_review` sigue fuera: mientras un analista mira el expediente, la foto no se mueve.
+ */
+export const COMMERCIAL_NETWORK_EDITABLE_STATUSES = [...EDITABLE_PARTNER_STATUSES, 'approved'] as const;
+
 @Injectable()
 export class PartnerOnboardingRepository {
   constructor(

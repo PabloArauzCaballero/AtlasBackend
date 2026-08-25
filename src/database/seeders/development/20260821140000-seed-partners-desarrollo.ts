@@ -77,7 +77,7 @@ const PARTNERS: readonly PartnerSeed[] = [
     legalName: 'Centro de Preparacion Academica CPA SRL',
     tradeName: 'CPA Centro Preparacion Academica',
     taxId: 'DEV-PARTNER-CPA-001',
-    businessCategory: 'EDUCATION',
+    businessCategory: 'EDUCACION',
     city: 'Santa Cruz de la Sierra',
   },
   {

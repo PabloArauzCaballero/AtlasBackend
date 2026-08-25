@@ -3,7 +3,7 @@
  * @business Esta pieza convierte un comercio declarado en un partner verificable, con locales, cobro y terminales trazables.
  * @system expone el alta del expediente, su estado y su envío a revisión.
  */
-import { Body, Controller, Get, HttpCode, HttpStatus, Headers, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Headers, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -36,8 +36,10 @@ import {
   legalRepresentativeSchema,
   DecidePartnerDto,
   PartnerIdParamsDto,
+  UpdateCommercialProfileDto,
   decidePartnerSchema,
   partnerIdParamsSchema,
+  updateCommercialProfileSchema,
   StartPartnerOnboardingDto,
   startPartnerOnboardingSchema,
 } from './partner-onboarding.schemas.js';
@@ -231,6 +233,31 @@ export class PartnerOnboardingController {
   ) {
     const tenantId = tenantIdFromHeader(tenantIdHeader);
     const profile = await this.profiles.setCommercialRegistry(tenantId, params.partnerId, body.commercialRegistry);
+    return toPartnerProfileDto(profile);
+  }
+
+  @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Corregir la ficha comercial (nombre de fachada, rubro, teléfono)',
+    description:
+      'Admite el expediente ya aprobado: son datos que cambian mientras el negocio opera. Razón ' +
+      'social, NIT y matrícula no se tocan aquí — son lo que el analista verificó.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
+  @ApiBody({ schema: zodToApiSchema(updateCommercialProfileSchema) })
+  @ApiResponse({ status: 200, description: 'Ficha actualizada.' })
+  @ApiResponse({ status: 422, description: 'PARTNER_NETWORK_NOT_EDITABLE_IN_STATUS.' })
+  @Patch(':partnerId/commercial-profile')
+  @HttpCode(HttpStatus.OK)
+  async updateCommercialProfile(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
+    @Body(new ZodValidationPipe(updateCommercialProfileSchema)) body: UpdateCommercialProfileDto,
+  ) {
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const profile = await this.profiles.updateCommercialProfile(tenantId, params.partnerId, body);
     return toPartnerProfileDto(profile);
   }
 

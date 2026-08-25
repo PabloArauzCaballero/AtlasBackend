@@ -30,7 +30,7 @@ export class PartnerCommerceService {
 
   async registerBranch(tenantId: string, partnerId: string, dto: RegisterBranchDto): Promise<PartnerBranchModel> {
     const profile = await this.profiles.requireProfile(tenantId, partnerId);
-    this.profiles.assertEditable(profile);
+    this.profiles.assertCommercialNetworkEditable(profile);
 
     const existing = await this.repository.listBranches(tenantId, partnerId);
     if (existing.some((branch) => branch.branchCode === dto.branchCode)) {
@@ -75,7 +75,7 @@ export class PartnerCommerceService {
     dto: RegisterPosTerminalDto,
   ): Promise<PartnerPosTerminalModel> {
     const profile = await this.profiles.requireProfile(tenantId, partnerId);
-    this.profiles.assertEditable(profile);
+    this.profiles.assertCommercialNetworkEditable(profile);
 
     const branch = await this.repository.findBranchById(tenantId, partnerId, branchId);
     if (!branch) throw new NotFoundException('La sucursal no pertenece a este partner.');

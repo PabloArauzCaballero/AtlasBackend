@@ -5,8 +5,16 @@
  */
 import { ConflictException, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { MetricsService } from '../../../common/observability/metrics.service.js';
-import { EDITABLE_PARTNER_STATUSES, PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
-import { LegalRepresentativeDto, StartPartnerOnboardingDto } from '../partner-onboarding.schemas.js';
+import {
+  COMMERCIAL_NETWORK_EDITABLE_STATUSES,
+  EDITABLE_PARTNER_STATUSES,
+  PartnerOnboardingRepository,
+} from '../partner-onboarding.repository.js';
+import {
+  LegalRepresentativeDto,
+  StartPartnerOnboardingDto,
+  UpdateCommercialProfileDto,
+} from '../partner-onboarding.schemas.js';
 import { PartnerProfileModel } from '../../../database/models/index.js';
 
 /** Lo que el expediente tiene que reunir antes de poder enviarse a revisión. */
@@ -118,6 +126,35 @@ export class PartnerProfileService {
   }
 
   /**
+   * Corrige la ficha comercial: nombre de fachada, rubro y teléfono.
+   *
+   * Es el complemento de `setCommercialRegistry` para el otro lado del expediente. Aquel completa
+   * un dato de identidad que puede llegar tarde; éste corrige datos que CAMBIAN mientras el negocio
+   * opera —un local se rebautiza, un rubro se declaró mal el primer día, un teléfono se da de baja—
+   * y por eso admite el expediente ya aprobado: negárselo obligaría a reabrir una verificación de
+   * identidad para arreglar un nombre de fachada.
+   *
+   * Lo que no toca, y por eso no está en el esquema, es lo que el analista verificó: razón social,
+   * NIT y matrícula. Cambiar eso no es corregir la ficha, es aprobar otra empresa con la firma de
+   * la primera.
+   */
+  async updateCommercialProfile(tenantId: string, partnerId: string, dto: UpdateCommercialProfileDto) {
+    const profile = await this.requireProfile(tenantId, partnerId);
+    this.assertCommercialNetworkEditable(profile);
+
+    const changes: Record<string, string> = {};
+    if (dto.tradeName !== undefined) changes.tradeName = dto.tradeName;
+    if (dto.businessCategory !== undefined) changes.businessCategory = dto.businessCategory;
+    if (dto.contactPhone !== undefined) changes.contactPhone = dto.contactPhone;
+
+    const updated = await this.repository.updateProfile(profile, changes);
+    // Se registran los CAMPOS que cambiaron, no sus valores: el teléfono de contacto identifica a
+    // una persona y el log no es el sitio donde debe quedar.
+    this.logger.log(`Ficha comercial actualizada: partnerId=${partnerId} campos=${Object.keys(changes).join(',')}`);
+    return updated;
+  }
+
+  /**
    * Cómo se llaman y de qué rubro son varios comercios, en una sola consulta.
    *
    * Lo que se devuelve es lo MÍNIMO que una pantalla del cliente necesita para reconocer dónde
@@ -176,6 +213,22 @@ export class PartnerProfileService {
   assertEditable(profile: PartnerProfileModel): void {
     if (!EDITABLE_PARTNER_STATUSES.includes(profile.onboardingStatus as (typeof EDITABLE_PARTNER_STATUSES)[number])) {
       throw new UnprocessableEntityException(`PARTNER_NOT_EDITABLE_IN_STATUS: ${profile.onboardingStatus}`);
+    }
+  }
+
+  /**
+   * Igual que `assertEditable`, pero para la red comercial: sucursales y terminales.
+   *
+   * Un comercio aprobado sigue abriendo locales y rotando POS; ese movimiento no toca nada de lo que
+   * el analista firmó, así que no tiene por qué morir con la aprobación.
+   */
+  assertCommercialNetworkEditable(profile: PartnerProfileModel): void {
+    if (
+      !COMMERCIAL_NETWORK_EDITABLE_STATUSES.includes(
+        profile.onboardingStatus as (typeof COMMERCIAL_NETWORK_EDITABLE_STATUSES)[number],
+      )
+    ) {
+      throw new UnprocessableEntityException(`PARTNER_NETWORK_NOT_EDITABLE_IN_STATUS: ${profile.onboardingStatus}`);
     }
   }
 
