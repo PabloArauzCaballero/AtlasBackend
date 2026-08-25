@@ -280,6 +280,19 @@ export class CreditApplicationService {
         decidedAt: application.decidedAt?.toISOString() ?? null,
         // `decision_reason_code` sí se expone: el cliente tiene derecho a saber por qué.
         decisionReasonCode: application.decisionReasonCode,
+        /*
+         * Si el comercio ya respondió a la operación que el motor aprobó.
+         *
+         * El cliente NO puede pagar el inicial hasta que el negocio acepta la venta: el motor dice
+         * «este solicitante cumple», pero es el comercio el que confirma «sí, quiero esta venta
+         * ahora». Sin este dato, la app no tenía forma de distinguir «aprobado, esperando al
+         * comercio» de «aprobado y listo para pagar», y habilitaba el pago antes de tiempo.
+         *
+         * `null` cuando no aplica —una renovación sin comercio, o una aprobación firmada por una
+         * persona, que ya lleva dentro la decisión del negocio—.
+         */
+        businessAcceptance: application.businessAcceptance,
+        businessAcceptanceAt: application.businessAcceptanceAt?.toISOString() ?? null,
       })),
     };
   }
