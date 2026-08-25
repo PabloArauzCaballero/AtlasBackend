@@ -41,6 +41,7 @@ export { CreditApplicationModel } from './credit-applications.model.js';
 export { CreditApplicationEventModel } from './credit-application-events.model.js';
 export { LoanModel } from './loans.model.js';
 export { LoanInstallmentModel } from './loan-installments.model.js';
+export { LoanPaymentClaimModel } from './loan-payment-claims.model.js';
 export { LoanPaymentModel } from './loan-payments.model.js';
 export { LoanPaymentAllocationModel } from './loan-payment-allocations.model.js';
 export { LoanEventModel } from './loan-events.model.js';

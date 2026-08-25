@@ -126,6 +126,7 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'loan_installments',
     'loan_payments',
     'loan_payment_allocations',
+    'loan_payment_claims',
     'loan_events',
     'loan_outcome_reports',
     'delinquency_policies',

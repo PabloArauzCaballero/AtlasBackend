@@ -80,6 +80,7 @@ import { CustomerIdentityEvidenceRepository } from './repositories/customer-iden
 import { CustomerOnboardingFlowRepository } from './repositories/customer-onboarding-flow.repository.js';
 import { CustomerOnboardingRepository } from './customer-onboarding.repository.js';
 import { CustomerOnboardingService } from './customer-onboarding.service.js';
+import { IdentityReviewCallbackController } from './identity-review-callback.controller.js';
 
 @Module({
   imports: [
@@ -125,6 +126,7 @@ import { CustomerOnboardingService } from './customer-onboarding.service.js';
   ],
   controllers: [
     CustomerEvidenceViewController,
+    IdentityReviewCallbackController,
     CustomerOnboardingController,
     CustomerOnboardingProfileController,
     CustomerOnboardingStatusController,

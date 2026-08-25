@@ -71,6 +71,12 @@ import { LoansRepository } from './loans.repository.js';
   ],
   // `LoanDelinquencyService` se exporta para que el planificador pueda correr el barrido de mora.
   // Su regla sigue viviendo aquí: el planificador sólo decide cada cuánto, no qué.
-  exports: [LoansRepository, LoanDelinquencyService],
+  /*
+   * `LoanPaymentService` se exporta para que la verificacion del comprobante registre el pago
+   * REUTILIZANDO este caso de uso. Es quien sabe repartir el cobro entre capital, interes y mora y
+   * quien controla la idempotencia: duplicar ese reparto fuera crearia una segunda forma de cobrar
+   * que se desincroniza de esta en cuanto una de las dos cambie.
+   */
+  exports: [LoansRepository, LoanDelinquencyService, LoanPaymentService],
 })
 export class LoansModule {}

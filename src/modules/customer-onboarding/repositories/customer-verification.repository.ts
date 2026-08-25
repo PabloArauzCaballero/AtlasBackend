@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op, Transaction } from 'sequelize';
+import { FindOptions, literal, Op, Transaction } from 'sequelize';
 import {
   CustomerIdentityDocumentModel,
   EvidenceDocumentModel,
@@ -35,6 +35,29 @@ export class CustomerVerificationRepository {
     @InjectModel(WatchlistEntryModel) private readonly watchlistEntryModel: typeof WatchlistEntryModel,
     @InjectModel(WatchlistMatchModel) private readonly watchlistMatchModel: typeof WatchlistMatchModel,
   ) {}
+
+  /**
+   * El intento que origino una ejecucion del motor.
+   *
+   * Es lo unico que ata las dos bases: el motor conoce su `executionId` pero no sabe de que cliente
+   * es —a proposito, no tiene por que—, y aqui el intento guarda ese identificador entre sus
+   * codigos de motivo. Sin esta busqueda, cuando el analista resuelve la revision no hay forma de
+   * saber a quien aplicarsela.
+   */
+  findAttemptByExecutionId(
+    tenantId: string,
+    executionId: string,
+    options: RepositoryOptions = {},
+  ): Promise<IdentityVerificationAttemptModel | null> {
+    return this.attemptModel.findOne({
+      where: {
+        tenantId,
+        [Op.and]: [literal(`reason_codes_json->>'executionId' = ${this.attemptModel.sequelize!.escape(executionId)}`)],
+      },
+      order: [['id', 'DESC']],
+      transaction: options.transaction,
+    });
+  }
 
   findLatestAttempt(
     tenantId: string,

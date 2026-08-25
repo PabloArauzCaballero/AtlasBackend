@@ -37,6 +37,16 @@ export const erpEnvShape = {
    */
   ERP_BACKEND_CATALOG_PATH: z.string().trim().min(1).max(200).default('/api/v1/platform/catalog-manifest'),
   ERP_BACKEND_CATALOG_API_KEY: z.string().optional(),
+
+  /**
+   * Con que se identifica el MOTOR DE DECISION cuando devuelve la resolucion de una revision manual.
+   *
+   * Es una credencial de servicio a servicio, no de persona: quien llama es el motor. Opcional a
+   * proposito para no romper despliegues que aun no la tienen, pero sin ella el endpoint responde
+   * 401 en vez de quedar abierto: un circuito de identidad que se cierra sin credencial es peor que
+   * uno que no se cierra.
+   */
+  ENGINE_CALLBACK_API_KEY: z.string().optional(),
   /**
    * Plazo propio para el manifiesto, separado del healthcheck.
    *

@@ -34,6 +34,7 @@ import { ConsentsModule } from './modules/consents/consents.module.js';
 import { CreditModule } from './modules/credit/credit.module.js';
 import { CreditRatingModule } from './modules/credit-rating/credit-rating.module.js';
 import { DecisionEngineModule } from './modules/decision-engine/decision-engine.module.js';
+import { LoanPaymentClaimsModule } from './modules/loan-payment-claims/loan-payment-claims.module.js';
 import { LoansModule } from './modules/loans/loans.module.js';
 import { CustomerOnboardingModule } from './modules/customer-onboarding/customer-onboarding.module.js';
 import { MobileIdentityModule } from './modules/mobile-identity/mobile-identity.module.js';
@@ -103,6 +104,7 @@ import { env } from './config/env.js';
     CreditModule,
     DecisionEngineModule,
     LoansModule,
+    LoanPaymentClaimsModule,
     CreditRatingModule,
     CustomerPrivacyModule,
     CustomerTelemetryModule,
