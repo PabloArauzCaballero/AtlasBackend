@@ -68,11 +68,30 @@ backend levantada aparte en el 3055 —para no tocar el contenedor que estaba si
     GET  …/..%2Fetc                             → 400 VALIDATION_ERROR
     POST sin Authorization                      → 401 UNAUTHORIZED
 
-Los 554 bytes son del proveedor **`fake`**, que es el que trae `docker-compose.yml` por defecto
-(`AUDIO_TTS_PROVIDER: ${AUDIO_TTS_PROVIDER:-fake}`): un mp3 con cabecera ID3 y nada dentro. Sirve
-para comprobar la cadena entera —plantilla, caché por contenido, permiso, transporte— pero **no
-suena**. Para que suene hacen falta `AUDIO_TTS_PROVIDER=elevenlabs`, `ELEVENLABS_API_KEY` y
-`ELEVENLABS_VOICE_ID` en el motor.
+Los 554 bytes de esa primera corrida eran del proveedor **`fake`**, que es el que trae
+`docker-compose.yml` por defecto (`AUDIO_TTS_PROVIDER: ${AUDIO_TTS_PROVIDER:-fake}`): un mp3 con
+cabecera ID3 y nada dentro. Sirvió para comprobar la cadena —plantilla, caché por contenido,
+permiso, transporte— pero no suena.
+
+## Con voz real (25-08-2026)
+
+Con `AUDIO_TTS_PROVIDER=elevenlabs`, `ELEVENLABS_API_KEY` y `ELEVENLABS_VOICE_ID` puestos en el
+`.env` del motor y sus contenedores recreados:
+
+    POST /api/v1/mobile/welcome-audio   → 202 PENDING   (≈15 s la primera vez; instantáneo en caché)
+    GET  …/{id}                         → READY
+    GET  …/{id}/audio                   → 200 · audio/mpeg · 48.527 bytes · 2,96 s
+
+Y el mismo archivo aparece en la caché del simulador después de ingresar desde la app —
+`Library/Caches/atlas-bienvenida-{id}.mp3`—, que es la prueba de que la cadena llega hasta el
+teléfono. La evidencia está en
+`AtlasFrontend/apps/consumer-app/docs/evidence/2026-08-24-arranque-cinematografico/`.
+
+**La voz se eligió por descarte, no por gusto.** La cuenta es de plan gratuito y el proveedor
+rechaza las voces de biblioteca con `402 paid_plan_required`; `EXAVITQu4vr4xnSDxMaL` es de las pocas
+que acepta. Elegir la voz definitiva es una decisión de marca **y además invalida toda la caché de
+locuciones**, porque la identidad de la voz entra en la clave del asset: el día que se cambie, todos
+los saludos ya locutados se vuelven a generar y a pagar.
 
 ### Dos cosas que sólo se vieron probando de verdad
 
@@ -86,3 +105,21 @@ suena**. Para que suene hacen falta `AUDIO_TTS_PROVIDER=elevenlabs`, `ELEVENLABS
    reenvió tal cual: una app recién abierta recibiendo un error del servidor por un saludo, y la
    monitorización llenándose de 500 por algo cosmético. Ahora `start()` degrada a `UNAVAILABLE`,
    igual que ya hacían `get()` y `audio()`.
+
+## Qué limita el gasto, en realidad
+
+Comprobado leyendo el motor, porque el nombre de las variables engaña:
+
+- **`AUDIO_TTS_RUNTIME_GENERATIONS_PER_ACTOR_DAY` NO se aplica aquí.** Ese tope sólo entra cuando la
+  solicitud trae `actorId`, y ni este módulo ni el controlador del worker lo mandan. Conviene saberlo
+  antes de confiar en él: no es que esté puesto en un número alto, es que no se evalúa.
+- **Lo que de verdad acota es `AUDIO_TTS_MONTHLY_BUDGET_UNITS`** menos `AUDIO_TTS_SAFETY_RESERVE_UNITS`
+  — por omisión 10.000 − 1.000 = 9.000 caracteres al mes. Un saludo son unos 50, y los nombres
+  repetidos salen de caché sin costar nada, así que dan para unos 180 nombres distintos al mes. Al
+  agotarse, las locuciones nuevas se deniegan y el móvil recibe `UNAVAILABLE`: nadie se queda fuera
+  de la app, simplemente deja de haber saludo.
+- **Y el tope de este controlador**, 3 peticiones por minuto y cliente, que es lo que corta un bucle
+  antes de que llegue al presupuesto.
+
+Encima de todo eso está el plan de la cuenta de ElevenLabs, que tiene su propio límite mensual de
+caracteres y es el primero que se agota si el presupuesto del motor se sube sin mirar.
