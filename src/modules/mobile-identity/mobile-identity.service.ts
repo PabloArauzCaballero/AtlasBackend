@@ -11,6 +11,7 @@ import { DecisionArtifactBindingService } from '../decision-engine/decision-arti
 import { DecisionEngineClient } from '../decision-engine/decision-engine.client.js';
 import { MobileIdentityRepository, PENDING_RESULT } from './mobile-identity.repository.js';
 import { StartIdentityVerificationDto, type IdentityVerificationState, type IdentityVerificationView } from './mobile-identity.schemas.js';
+import type { AuthenticatedUser } from '../../common/types/auth.types.js';
 
 /** Cómo se traduce la decisión del artefacto al estado que el móvil entiende. */
 const ESTADO_POR_DECISION: Readonly<Record<string, IdentityVerificationState>> = {
@@ -64,7 +65,12 @@ export class MobileIdentityService {
    * llamada no puede perderse, así que se registra en la propia fila —el móvil
    * lo ve como `UNAVAILABLE`— y en el log.
    */
-  async start(tenantId: string, body: StartIdentityVerificationDto, idempotencyKey: string): Promise<IdentityVerificationView> {
+  async start(
+    tenantId: string,
+    body: StartIdentityVerificationDto,
+    idempotencyKey: string,
+    currentUser?: AuthenticatedUser,
+  ): Promise<IdentityVerificationView> {
     if (!this.engine.isConfigured) {
       // 503 y no 500: no es que algo se haya roto, es que esta instalación no
       // tiene el motor conectado y el flujo entero depende de él.
@@ -74,7 +80,23 @@ export class MobileIdentityService {
       });
     }
 
-    const attempt = await this.repository.createPending(tenantId, body.customerId ?? null);
+    /*
+     * De QUIEN es esta verificacion sale del TOKEN, no del cuerpo.
+     *
+     * `customerId` llegaba del body y era opcional, con dos consecuencias que se pagaron: una
+     * llamada que lo omitia creaba un intento sin dueño —imposible de atribuir, y el circuito de
+     * vuelta desde el motor moria sin poder aplicar la decision a nadie—, y una que mandara el de
+     * otra persona habria colgado su carnet del expediente ajeno.
+     *
+     * El operador interno si puede indicarlo: opera en nombre de alguien y no tiene `customerId`
+     * propio. Para un cliente, lo que diga el cuerpo se ignora.
+     */
+    const customerId =
+      currentUser?.role === 'customer'
+        ? (currentUser.customerId ?? null)
+        : (body.customerId ?? currentUser?.customerId ?? null);
+
+    const attempt = await this.repository.createPending(tenantId, customerId);
     const verificationId = String(attempt.id);
 
     void this.resolver(tenantId, verificationId, body, idempotencyKey).catch((error: unknown) => {

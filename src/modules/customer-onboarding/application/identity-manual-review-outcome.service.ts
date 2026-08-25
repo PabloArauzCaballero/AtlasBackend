@@ -55,7 +55,12 @@ export class IdentityManualReviewOutcomeService {
      * claves foráneas a `iam.internal_users`. Guardar ahí un correo rompe la fila y, peor, rompe la
      * trazabilidad: el día que esa persona cambie de correo, la auditoría deja de apuntar a nadie.
      */
-    reviewedByInternalUserId: string;
+    /**
+     * Nulo cuando quien resolvio no es una persona de esta base —una resolucion que llega del motor
+     * por clave de servicio, por ejemplo—. Es una FK a `internal_users`: inventar un id ahi rompe
+     * la fila, y ponerle uno cualquiera rompe la trazabilidad, que es peor.
+     */
+    reviewedByInternalUserId: string | null;
     notes: string;
   }): Promise<{ customerId: string; identityResult: string; approvedEvidenceCount: number }> {
     const attempt = await this.verificationRepository.findLatestAttempt(input.tenantId, input.customerId);

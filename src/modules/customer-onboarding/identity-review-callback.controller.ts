@@ -80,11 +80,27 @@ export class IdentityReviewCallbackController {
       throw new NotFoundException(`Ningun intento de identidad nacio de la ejecucion ${executionId}.`);
     }
 
+    /*
+     * Quien resolvio, SOLO si es una persona de esta base.
+     *
+     * El motor manda su principal, y ese principal no siempre es un usuario: cuando la resolucion
+     * llega por clave de gestion vale `bootstrap-management`, que es texto. `reviewed_by` es un
+     * bigint con FK a `internal_users`, asi que meterlo tal cual reventaba el callback entero con
+     * «invalid input syntax for type bigint» y la identidad se quedaba sin aplicar —el mismo tipo
+     * de fallo que este circuito existe para evitar—.
+     *
+     * Sin id numerico se guarda `null`: es preferible no saber quien fue a inventar una referencia
+     * que no apunta a nadie.
+     */
+    const revisadoPor = /^[1-9][0-9]*$/u.test(body.resolvedByInternalUserId ?? '')
+      ? (body.resolvedByInternalUserId as string)
+      : null;
+
     return this.outcome.apply({
       tenantId,
       customerId: String(attempt.customerId),
       decision: body.decision === 'APPROVE' ? 'approved' : 'rejected',
-      reviewedByInternalUserId: body.resolvedByInternalUserId ?? '1',
+      reviewedByInternalUserId: revisadoPor,
       notes: body.reason ?? 'Resuelto en el motor de decision.',
     });
   }

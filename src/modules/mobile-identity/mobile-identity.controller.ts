@@ -12,6 +12,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import type { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
 import { MobileIdentityService } from './mobile-identity.service.js';
@@ -64,8 +66,9 @@ export class MobileIdentityController {
     @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(startIdentityVerificationSchema)) body: StartIdentityVerificationDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.start(tenantId, body, requireIdempotencyKey(idempotencyKey));
+    return this.service.start(tenantId, body, requireIdempotencyKey(idempotencyKey), currentUser);
   }
 
   @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
