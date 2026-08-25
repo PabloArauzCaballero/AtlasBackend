@@ -36,6 +36,46 @@ export const decisionEngineEnvShape = {
    * que ya es del plano de gestión — no se cae a la de ejecución en ningún caso.
    */
   DECISION_ENGINE_GOVERNANCE_API_KEY: z.string().optional(),
+  /**
+   * Credencial con la que se encarga la LOCUCIÓN de bienvenida al worker de audio del motor.
+   *
+   * Es una tercera llave y no la de gobierno reaprovechada porque lo que autoriza cuesta dinero:
+   * cada locución que no está en caché es una llamada facturada a ElevenLabs. Una credencial propia
+   * es lo que permite revocarla —o recortarle el rol— sin tocar el consentimiento ni los desenlaces,
+   * que es exactamente lo que hay que poder hacer el día en que alguien encuentre la forma de pedir
+   * locuciones en bucle. Si no está configurada se cae a la de gobierno, que ya es del plano de
+   * gestión; nunca a la de ejecución.
+   */
+  DECISION_ENGINE_AUDIO_API_KEY: z.string().optional(),
+  /**
+   * Cuánto se espera al worker de locución. Aparte del timeout de las decisiones, y más largo.
+   *
+   * Medido contra el motor local: encolar una locución tarda entre uno y catorce segundos —el
+   * worker consulta su caché por contenido, su presupuesto y su cuota antes de contestar—, mientras
+   * que una decisión de crédito contesta por debajo del segundo. Con los 10 s de
+   * `DECISION_ENGINE_TIMEOUT_MS` la mitad de los saludos se abortaban por timeout y llegaban al
+   * móvil como fallo. Aquí esperar de más no cuesta nada: quien espera es una petición de fondo que
+   * nadie está mirando.
+   */
+  DECISION_ENGINE_AUDIO_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(25_000),
+  /**
+   * Plantilla del catálogo de locución con la que se saluda a quien acaba de entrar.
+   *
+   * Es un CÓDIGO de plantilla, no un texto: el motor no locuta texto libre. Ahí está el control —lo
+   * que se puede poner en boca de la marca lo decide el catálogo del tenant, que se cambia sin
+   * desplegar esta app—, y de paso lo que impide que un cliente manipulado consiga que la voz de
+   * Atlas diga cualquier cosa.
+   */
+  DECISION_ENGINE_WELCOME_TEMPLATE: z.string().trim().max(160).default('onboarding.welcome.named'),
+  /**
+   * A qué plantilla caer cuando no se sabe el nombre de quien entra.
+   *
+   * `onboarding.welcome.named` lleva la variable `{{name}}` y sin ella el motor rechaza la
+   * solicitud. Eso pasa más de lo que parece: un cliente recién creado todavía no tiene versión de
+   * perfil publicada. Saludar sin nombre es peor que saludar con nombre y mucho mejor que no
+   * saludar.
+   */
+  DECISION_ENGINE_WELCOME_FALLBACK_TEMPLATE: z.string().trim().max(160).default('onboarding.welcome.generic'),
   DECISION_ENGINE_CREDIT_ARTIFACT: z.string().trim().min(1).max(120).default('credit_underwriting'),
   /**
    * Artefacto que evalúa el riesgo de onboarding, el trabajo que hoy hace `risk_heuristic_v0`.

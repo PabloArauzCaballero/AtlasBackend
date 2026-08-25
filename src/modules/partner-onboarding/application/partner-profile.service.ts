@@ -141,6 +141,26 @@ export class PartnerProfileService {
     );
   }
 
+  /**
+   * Los expedientes de este comercio, para que el portal sepa a cual entrar.
+   *
+   * Devuelve lo minimo con lo que la pantalla puede trabajar —identificador, nombre y estado—: el
+   * detalle ya lo sirve `:partnerId/status`, y duplicarlo aqui solo daria dos formas distintas de
+   * responder a la misma pregunta.
+   */
+  async listOwnedBy(
+    tenantId: string,
+    ownerMerchantUserId: string,
+  ): Promise<{ partnerId: string; legalName: string | null; tradeName: string | null; status: string }[]> {
+    const profiles = await this.repository.findProfilesByOwner(tenantId, ownerMerchantUserId);
+    return profiles.map((profile) => ({
+      partnerId: String(profile.id),
+      legalName: profile.legalName ?? null,
+      tradeName: profile.tradeName ?? null,
+      status: profile.onboardingStatus,
+    }));
+  }
+
   async requireProfile(tenantId: string, partnerId: string): Promise<PartnerProfileModel> {
     const profile = await this.repository.findProfileById(tenantId, partnerId);
     if (!profile) throw new NotFoundException('Expediente de partner no encontrado.');

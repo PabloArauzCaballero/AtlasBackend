@@ -103,6 +103,25 @@ export class PartnerOnboardingController {
   @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
   @ApiResponse({ status: 200, description: 'Estado, requisitos pendientes, sucursales, QR y terminales.' })
   @ApiResponse({ status: 404, description: 'Expediente no encontrado.' })
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Los expedientes de los que soy dueño' })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Expedientes del comercio que hace la llamada.' })
+  @Get('mine')
+  async mine(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    /*
+     * Va ANTES de `:partnerId/status` a proposito: Nest resuelve por orden de declaracion y
+     * `mine` encajaria en el parametro, devolviendo un 404 raro en vez de la lista.
+     */
+    const merchantUserId = currentUser.role === 'merchant' ? (currentUser.merchantUserId ?? null) : null;
+    if (!merchantUserId) return { profiles: [] };
+    return { profiles: await this.profiles.listOwnedBy(tenantId, merchantUserId) };
+  }
+
   @Get(':partnerId/status')
   async status(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,

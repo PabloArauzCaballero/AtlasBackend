@@ -77,6 +77,25 @@ export class PartnerOnboardingRepository {
     });
   }
 
+  /**
+   * Los expedientes de los que este usuario de comercio es dueño.
+   *
+   * Hacía falta porque el portal no tenía forma de saber CUÁL es su expediente: sólo conocía el
+   * identificador justo después de crearlo, y al recargar la pantalla lo perdía. Sin esto, un
+   * comercio no puede volver a entrar a lo suyo salvo que alguien le pase el número a mano.
+   */
+  findProfilesByOwner(
+    tenantId: string,
+    ownerMerchantUserId: string,
+    options: RepositoryOptions = {},
+  ): Promise<PartnerProfileModel[]> {
+    return this.profileModel.findAll({
+      where: { tenantId, ownerMerchantUserId, deleted: false },
+      order: [['id', 'DESC']],
+      transaction: options.transaction,
+    });
+  }
+
   createProfile(
     values: {
       tenantId: string;

@@ -37,6 +37,7 @@ import { DecisionEngineModule } from './modules/decision-engine/decision-engine.
 import { LoansModule } from './modules/loans/loans.module.js';
 import { CustomerOnboardingModule } from './modules/customer-onboarding/customer-onboarding.module.js';
 import { MobileIdentityModule } from './modules/mobile-identity/mobile-identity.module.js';
+import { MobileWelcomeAudioModule } from './modules/mobile-welcome-audio/mobile-welcome-audio.module.js';
 import { PartnerOnboardingModule } from './modules/partner-onboarding/partner-onboarding.module.js';
 import { CustomerPrivacyModule } from './modules/customer-privacy/customer-privacy.module.js';
 import { CustomerTelemetryModule } from './modules/customer-telemetry/customer-telemetry.module.js';
@@ -97,6 +98,7 @@ import { env } from './config/env.js';
     CustomersModule,
     CustomerOnboardingModule,
     MobileIdentityModule,
+    MobileWelcomeAudioModule,
     PartnerOnboardingModule,
     CreditModule,
     DecisionEngineModule,
