@@ -26,6 +26,7 @@ import { LoansRepository } from '../loans/loans.repository.js';
 import { CreditRepository } from '../credit/credit.repository.js';
 import { LoanPaymentService } from '../loans/application/loan-payment.service.js';
 import { PartnerProfileService } from '../partner-onboarding/application/partner-profile.service.js';
+import { EventsService } from '../events/events.service.js';
 import { assertOwnPartnerResource } from '../../common/utils/auth/ownership.util.js';
 import type {
   DecidePaymentClaimDto,
@@ -46,6 +47,7 @@ export class LoanPaymentClaimsService {
     private readonly credit: CreditRepository,
     private readonly payments: LoanPaymentService,
     private readonly partners: PartnerProfileService,
+    private readonly events: EventsService,
   ) {}
 
   /**
@@ -155,6 +157,31 @@ export class LoanPaymentClaimsService {
         { transaction },
       );
 
+      /*
+       * El aviso al comercio. Va por el outbox y no por una llamada directa: si la entrega falla
+       * —correo caido, comercio sin canal— el evento se reintenta, mientras que una llamada dentro
+       * de la transaccion la habria hecho fallar entera y el cliente habria perdido su aviso por un
+       * problema que no es suyo.
+       */
+      await this.events.publish({
+        tenantId: input.tenantId,
+        eventCode: 'payment.reported',
+        aggregateType: 'installment',
+        aggregateId: String(installment.id),
+        payload: {
+          claimId: String(claim.id),
+          claimCode: claim.claimCode,
+          partnerProfileId,
+          customerId: String(input.customerId),
+          amount: input.body.amount,
+          currencyCode: loan.currencyCode,
+          payerReference: input.body.payerReference ?? null,
+        },
+        idempotencyKey: claim.claimCode,
+        sourceModule: 'loan-payment-claims',
+        sourceAction: 'submit',
+      });
+
       return {
         claimId: String(claim.id),
         claimCode: claim.claimCode,
@@ -233,6 +260,7 @@ export class LoanPaymentClaimsService {
         decidedByMerchantUserId: input.currentUser.merchantUserId ?? null,
         rejectionReason: input.body.reason ?? null,
       });
+      await this.publicarDecision(input.tenantId, claim, 'payment.rejected', { reason: input.body.reason ?? null });
       return { claimId: String(claim.id), status: claim.status, loanPaymentId: null };
     }
 
@@ -257,7 +285,139 @@ export class LoanPaymentClaimsService {
       loanPaymentId: String(registrado.paymentId),
     });
 
+    await this.publicarDecision(input.tenantId, claim, 'payment.confirmed', {
+      loanPaymentId: String(registrado.paymentId),
+    });
     return { claimId: String(claim.id), status: claim.status, loanPaymentId: String(registrado.paymentId) };
+  }
+
+  /**
+   * La cartera del comercio: qué le deben, quién y cuándo.
+   *
+   * Una sola lectura para las tres preguntas que el comercio se hace —cuánto tengo por cobrar, qué
+   * cuota vence qué día, y cómo va el mes— porque las tres se responden con los mismos datos. Tres
+   * endpoints separados habrían recorrido los mismos préstamos tres veces y se habrían
+   * desincronizado en cuanto uno cambiara su forma de contar.
+   *
+   * NO lleva la identidad del cliente. El comercio necesita saber que la cuota 3 de una operación
+   * suya vence el martes, no quién es la persona: darle el nombre convertiría la cartera en un
+   * padrón de deudores que nadie autorizó.
+   */
+  async portfolioForPartner(input: { tenantId: string; partnerProfileId: string; currentUser: AuthenticatedUser }) {
+    const profile = await this.partners.requireProfile(input.tenantId, input.partnerProfileId);
+    assertOwnPartnerResource(input.currentUser, profile.ownerMerchantUserId);
+
+    const applications = await this.credit.findApplicationsByPartner(input.tenantId, input.partnerProfileId, {
+      onlyPendingAcceptance: false,
+    });
+    /* Una solicitud produce como mucho un prestamo: los que aun no desembolsaron no tienen cartera. */
+    const loans = (
+      await Promise.all(
+        applications.map((application) => this.loans.findLoanByApplication(input.tenantId, String(application.id))),
+      )
+    ).filter((loan): loan is NonNullable<typeof loan> => loan !== null);
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    const creditos = [];
+    const porDia = new Map<string, { fecha: string; cuotas: number; monto: number }>();
+    let saldoPorCobrar = 0;
+    let montoVencido = 0;
+    let cuotasVencidas = 0;
+    let cobradoTotal = 0;
+
+    for (const loan of loans) {
+      const cuotas = await this.loans.findInstallments(input.tenantId, String(loan.id));
+      const detalle = cuotas.map((cuota) => {
+        const debido = Number(cuota.principalAmount) + Number(cuota.interestAmount) + Number(cuota.lateFeeAmount);
+        const pagado = Number(cuota.paidPrincipal) + Number(cuota.paidInterest) + Number(cuota.paidLateFee);
+        const pendiente = Math.max(debido - pagado, 0);
+        const vence = String(cuota.dueDate).slice(0, 10);
+        const vencida = pendiente > 0 && vence < hoy;
+
+        saldoPorCobrar += pendiente;
+        cobradoTotal += pagado;
+        if (vencida) {
+          montoVencido += pendiente;
+          cuotasVencidas += 1;
+        }
+        if (pendiente > 0) {
+          const dia = porDia.get(vence) ?? { fecha: vence, cuotas: 0, monto: 0 };
+          dia.cuotas += 1;
+          dia.monto += pendiente;
+          porDia.set(vence, dia);
+        }
+
+        return {
+          installmentId: String(cuota.id),
+          installmentNumber: cuota.installmentNumber,
+          dueDate: vence,
+          amountDue: debido.toFixed(2),
+          amountPaid: pagado.toFixed(2),
+          amountOutstanding: pendiente.toFixed(2),
+          status: cuota.status,
+          daysPastDue: cuota.daysPastDue,
+          overdue: vencida,
+        };
+      });
+
+      creditos.push({
+        loanId: String(loan.id),
+        loanCode: loan.loanCode,
+        currencyCode: loan.currencyCode,
+        principalAmount: loan.principalAmount,
+        status: loan.status,
+        outstanding: detalle.reduce((suma, cuota) => suma + Number(cuota.amountOutstanding), 0).toFixed(2),
+        installments: detalle,
+      });
+    }
+
+    const pendientesDeVerificar = await this.claims.count({
+      where: { tenantId: input.tenantId, partnerProfileId: input.partnerProfileId, status: PENDIENTE, deleted: false },
+    });
+
+    return {
+      partnerProfileId: input.partnerProfileId,
+      summary: {
+        activeCredits: creditos.filter((credito) => credito.status === 'active').length,
+        totalCredits: creditos.length,
+        outstanding: saldoPorCobrar.toFixed(2),
+        overdueAmount: montoVencido.toFixed(2),
+        overdueInstallments: cuotasVencidas,
+        collected: cobradoTotal.toFixed(2),
+        proofsAwaitingVerification: pendientesDeVerificar,
+      },
+      credits: creditos,
+      /* El calendario: qué entra cada día, ordenado. Es la vista que pide quien maneja caja. */
+      calendar: [...porDia.values()]
+        .sort((a, b) => a.fecha.localeCompare(b.fecha))
+        .map((dia) => ({ date: dia.fecha, installments: dia.cuotas, amount: dia.monto.toFixed(2), overdue: dia.fecha < hoy })),
+    };
+  }
+
+  /** La decisión del comercio, avisada al cliente por el mismo camino que su aviso llegó aquí. */
+  private async publicarDecision(
+    tenantId: string,
+    claim: LoanPaymentClaimModel,
+    eventCode: 'payment.confirmed' | 'payment.rejected',
+    extra: Record<string, unknown>,
+  ): Promise<void> {
+    await this.events.publish({
+      tenantId,
+      eventCode,
+      aggregateType: 'installment',
+      aggregateId: String(claim.installmentId),
+      payload: {
+        claimId: String(claim.id),
+        claimCode: claim.claimCode,
+        customerId: String(claim.customerId),
+        amount: claim.claimedAmount,
+        currencyCode: claim.currencyCode,
+        ...extra,
+      },
+      idempotencyKey: `${claim.claimCode}-${eventCode}`,
+      sourceModule: 'loan-payment-claims',
+      sourceAction: 'decide',
+    });
   }
 
   /** El comercio al que hay que avisar: el que originó la operación. */

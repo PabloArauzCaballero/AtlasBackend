@@ -13,6 +13,7 @@ import {
   LoanModel,
   LoanOutcomeReportModel,
   LoanPaymentAllocationModel,
+  LoanPaymentClaimModel,
   LoanPaymentModel,
 } from './models/index.js';
 
@@ -33,6 +34,9 @@ export const LOAN_BOOK_MODELS = [
   LoanInstallmentModel,
   LoanPaymentModel,
   LoanPaymentAllocationModel,
+  // El aviso de pago del cliente esperando que el comercio lo confirme. Va con el libro porque
+  // verificarlo produce un `LoanPaymentModel`: separarlos dejaria la mitad de ese flujo sin modelo.
+  LoanPaymentClaimModel,
   LoanEventModel,
   LoanOutcomeReportModel,
   DecisionSubjectLinkModel,

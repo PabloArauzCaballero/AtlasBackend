@@ -57,6 +57,22 @@ export class MerchantPaymentClaimsController {
     });
   }
 
+  @ApiOperation({ summary: 'Mi cartera: qué me deben, quién y cuándo' })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Resumen, créditos con su detalle y calendario de cobros.' })
+  @Get('portfolio')
+  portfolio(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Param('partnerId') partnerId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.service.portfolioForPartner({
+      tenantId: tenantIdFromHeader(tenantIdHeader),
+      partnerProfileId: partnerId,
+      currentUser,
+    });
+  }
+
   @ApiOperation({ summary: 'Confirmar o rechazar un comprobante' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Al confirmar queda registrado el pago del préstamo.' })

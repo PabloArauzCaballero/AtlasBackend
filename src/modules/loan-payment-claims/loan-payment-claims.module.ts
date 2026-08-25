@@ -9,6 +9,7 @@ import { EvidenceDocumentModel, LoanPaymentClaimModel } from '../../database/mod
 import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
 import { MalwareScannerService } from '../../common/storage/malware-scanner.service.js';
 import { CreditModule } from '../credit/credit.module.js';
+import { EventsModule } from '../events/events.module.js';
 import { LoansModule } from '../loans/loans.module.js';
 import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
 import { LoanPaymentClaimsService } from './loan-payment-claims.service.js';
@@ -19,6 +20,7 @@ import { MobilePaymentClaimsController } from './mobile-payment-claims.controlle
   imports: [
     SequelizeModule.forFeature([LoanPaymentClaimModel, EvidenceDocumentModel]),
     CreditModule,
+    EventsModule,
     LoansModule,
     PartnerOnboardingModule,
   ],
