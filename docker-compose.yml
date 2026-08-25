@@ -107,6 +107,11 @@ x-atlas-env: &atlas-env
   # accidente el `DB_HOST` ni los puertos de un desarrollo fuera de Docker. Los valores por omisión
   # reproducen el comportamiento anterior (sin canal), y ninguno es una cadena vacía donde el esquema
   # espere un enum o un prefijo.
+  # Credencial con la que el MOTOR devuelve la resolucion de una revision de identidad. Se enumera
+  # aqui por lo mismo que el canal de correo: este archivo no tiene `env_file`, asi que sin esta
+  # linea el `.env` de la maquina no llega y el circuito de identidad se queda sin cerrar en
+  # silencio, que es exactamente el fallo que este aviso existe para corregir.
+  ENGINE_CALLBACK_API_KEY: ${ENGINE_CALLBACK_API_KEY:-}
   NOTIFICATION_EMAIL_PROVIDER: ${NOTIFICATION_EMAIL_PROVIDER:-disabled}
   GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID:-}
   GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET:-}
