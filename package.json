@@ -145,7 +145,7 @@
     "@opentelemetry/resources": "^2.9.0",
     "@opentelemetry/sdk-node": "^0.221.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
-    "@scalar/nestjs-api-reference": "^1.2.12",
+    "@scalar/nestjs-api-reference": "^1.2.16",
     "argon2": "^0.45.0",
     "compression": "^1.7.5",
     "dotenv": "^17.4.2",

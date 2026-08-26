@@ -2292,49 +2292,49 @@
     argparse "~1.0.9"
     string-argv "~0.3.1"
 
-"@scalar/client-side-rendering@0.3.5":
-  version "0.3.5"
-  resolved "https://registry.yarnpkg.com/@scalar/client-side-rendering/-/client-side-rendering-0.3.5.tgz#820d98d9c2c78f1be96cd0e1445c2fd2fcca3326"
-  integrity sha512-0MX6HN4hNhMlBTqm+PJ1Rgi5yQy7NkMEPMa6QXdyKAO59pQVzWlBGT+MlAnyXCeVrqFULzZh90v81t5UQ/uYEw==
+"@scalar/client-side-rendering@0.3.9":
+  version "0.3.9"
+  resolved "https://registry.yarnpkg.com/@scalar/client-side-rendering/-/client-side-rendering-0.3.9.tgz#6afb301abae473997aff76553d859e5a603e63ed"
+  integrity sha512-Gg+VLhreiWHmHN0i9uatEoIxzsr0FaJoq0x+PkypmFgZFniD477DVCAnmWqx+KXlpFg0VtDanDHARIJXZ1fIeQ==
   dependencies:
-    "@scalar/schemas" "0.8.0"
-    "@scalar/types" "0.17.0"
-    "@scalar/validation" "0.6.2"
+    "@scalar/schemas" "0.8.3"
+    "@scalar/types" "0.18.2"
+    "@scalar/validation" "0.6.3"
 
-"@scalar/helpers@0.9.2":
-  version "0.9.2"
-  resolved "https://registry.yarnpkg.com/@scalar/helpers/-/helpers-0.9.2.tgz#e030a20d47c108e3ebd085b0cd1a343e8f2f646a"
-  integrity sha512-hjyMpMZjTBZQhyByZmz5oUgRKUQJO5V5AOiJxsVEGbUmgA7sJRQeTrXLB+BEwzaKS5nm2opJeNyMBYLFNK4hiQ==
+"@scalar/helpers@0.11.1":
+  version "0.11.1"
+  resolved "https://registry.yarnpkg.com/@scalar/helpers/-/helpers-0.11.1.tgz#35aa508c57653d812891fbb05df500e580586e66"
+  integrity sha512-Knwbe0IYqFk0PPDoOKLasqglBHfyf9/zwWWqFsSNi/AtdjM29wSZXN6p8DFid6iB5B9epYH9YiSgJ6tpD00TEw==
 
-"@scalar/nestjs-api-reference@^1.2.12":
-  version "1.2.12"
-  resolved "https://registry.yarnpkg.com/@scalar/nestjs-api-reference/-/nestjs-api-reference-1.2.12.tgz#b00989413259ce834abd0d5a7d5e8d1b79823f51"
-  integrity sha512-6EfD1M2uL+c6NXFsR5cKWnfTxMO8ReO7v9lR+1ClC4pQLhNO8eQDqC/i8WIn+U3lwWtRMTQKo+0c0GZGvZwmdQ==
+"@scalar/nestjs-api-reference@^1.2.16":
+  version "1.2.16"
+  resolved "https://registry.yarnpkg.com/@scalar/nestjs-api-reference/-/nestjs-api-reference-1.2.16.tgz#3fc9da01dbd198d77b6a0b710c9e68d7da8d4645"
+  integrity sha512-mxd/o6IGDNk2QZhaXNzmN+hu9+mG3ACsbF0w4Wzboqdahydzg1cPxHg33VUGu3gGJocvxeNrSXTy9rjLgzNgWg==
   dependencies:
-    "@scalar/client-side-rendering" "0.3.5"
+    "@scalar/client-side-rendering" "0.3.9"
 
-"@scalar/schemas@0.8.0":
-  version "0.8.0"
-  resolved "https://registry.yarnpkg.com/@scalar/schemas/-/schemas-0.8.0.tgz#cbd926a75034492e02756ad353c0b4b5bf2cb387"
-  integrity sha512-bwu/NCOghZI/cL6Ayti/Oeb5XEMRTncBsyQeHhkFwk4PZsR910me+kZPd5TAp6TqifMfDbAe3xyLSdlzU/KFLA==
+"@scalar/schemas@0.8.3":
+  version "0.8.3"
+  resolved "https://registry.yarnpkg.com/@scalar/schemas/-/schemas-0.8.3.tgz#7708cb0ca821e9bad5306a3d64739cc37dce7286"
+  integrity sha512-cTjgiJxXFXMqXlFZafXOyTOKm1lUfbDTbe9La+dPcQPe6q0zXAiVtys0IKILQWNrjXPidY0eaB9Va/rd16bfxw==
   dependencies:
-    "@scalar/helpers" "0.9.2"
-    "@scalar/validation" "0.6.2"
+    "@scalar/helpers" "0.11.1"
+    "@scalar/validation" "0.6.3"
 
-"@scalar/types@0.17.0":
-  version "0.17.0"
-  resolved "https://registry.yarnpkg.com/@scalar/types/-/types-0.17.0.tgz#5d4bf4b6bc8b76b5b04aff3db016daa0ad992974"
-  integrity sha512-mj033MX0EFOEwfpO3ch7FGGnMbye1aLlnP6LmTC9Il2AlBCDL41rYPk67jF5ICAMsAES1RQ+8N2bcC0MJnupLQ==
+"@scalar/types@0.18.2":
+  version "0.18.2"
+  resolved "https://registry.yarnpkg.com/@scalar/types/-/types-0.18.2.tgz#7673b064cd21219b91f0ee669ee3024944ad3849"
+  integrity sha512-q7fGMn0IygdLbYk9W4quM0w1caHDfL9FIxsYXNsgIep6uuO0T/t4BOStyf0qyzQ3pjt0B7rWFxO//EM9I7F/Tw==
   dependencies:
-    "@scalar/helpers" "0.9.2"
+    "@scalar/helpers" "0.11.1"
     nanoid "^5.1.6"
-    type-fest "^5.3.1"
+    type-fest "^5.8.0"
     zod "^4.3.5"
 
-"@scalar/validation@0.6.2":
-  version "0.6.2"
-  resolved "https://registry.yarnpkg.com/@scalar/validation/-/validation-0.6.2.tgz#79264de2375b5e21bcabb75e116ab3580fe3666c"
-  integrity sha512-Sc1TkcwGV6aVCO51AyKeaGiP8gpwAHxEtO5d3tZzPV+KsnlC/YokQxFxwBrbIXw73k9hmcExnJyGu3k5i6n6VA==
+"@scalar/validation@0.6.3":
+  version "0.6.3"
+  resolved "https://registry.yarnpkg.com/@scalar/validation/-/validation-0.6.3.tgz#810bc7da3b29499718da0ec5ae6d8f66bf5a1c06"
+  integrity sha512-j3s9XPv8Wo1EG5/naBi4XGF0uXYQ2A3QZNI0NKWgCMxRHVrDJGlZEYymcHDHY7fquRm73P8U3c8xqJqB5yad6w==
 
 "@scarf/scarf@=1.4.0":
   version "1.4.0"
@@ -6584,7 +6584,7 @@ type-fest@^4.0.0, type-fest@^4.41.0:
   resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-4.41.0.tgz"
   integrity sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA==
 
-type-fest@^5.3.1:
+type-fest@^5.8.0:
   version "5.8.0"
   resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-5.8.0.tgz#6d517998257c33159db4d4da6f18efa33bd47df3"
   integrity sha512-YGYEVz3Fm5iy/AybuA0oyNFq7H4CgQNfRp/qfe8nurE1kuCeNm3/vfm9X4Mtl+qLyaKJUh5xrFZwogr41SMjYA==
