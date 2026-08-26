@@ -17,7 +17,17 @@ describe('CustomerOnboardingController', () => {
       submitIdentityPackage: jest.fn(async (..._args: unknown[]) => ({ queued: true })),
       submitAddressPackage: jest.fn(async (..._args: unknown[]) => ({ ok: true })),
     };
-    return { controller: new CustomerOnboardingController(service as never), service };
+    /*
+      El controlador recibe TRES colaboradores desde que la identidad cerró su circuito: el
+      servicio de alta, el desenlace de la revisión manual y la instantánea de la agenda. Esta
+      prueba sólo ejercita el primero —delegación con argumentos posicionales—, así que los otros
+      dos entran como dobles vacíos: declararlos es lo que hace que el compilador siga vigilando
+      la firma en vez de que la prueba deje de compilar y nadie la mire.
+    */
+    return {
+      controller: new CustomerOnboardingController(service as never, {} as never, {} as never),
+      service,
+    };
   }
   const user = { role: 'customer', tenantId: '1', customerId: '9' } as never;
   const req = { ip: '7.7.7.7' } as never;
