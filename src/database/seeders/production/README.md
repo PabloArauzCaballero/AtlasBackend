@@ -23,6 +23,9 @@
 | [`20260728140000-seed-standard-customer-credit-workflow.ts`](./20260728140000-seed-standard-customer-credit-workflow.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260729010000-seed-access-journey-workflows.ts`](./20260729010000-seed-access-journey-workflows.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260816090000-seed-asfi-rating-policy.ts`](./20260816090000-seed-asfi-rating-policy.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260820130000-seed-network-and-artifacts-permissions.ts`](./20260820130000-seed-network-and-artifacts-permissions.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260820200000-seed-schema-catalog-from-introspection.ts`](./20260820200000-seed-schema-catalog-from-introspection.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260822100000-seed-notification-policies-and-app-content.ts`](./20260822100000-seed-notification-policies-and-app-content.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 
 ## Reglas de mantenimiento
 

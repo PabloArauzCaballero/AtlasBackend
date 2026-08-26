@@ -13,6 +13,7 @@
 |---|---|
 | [`gmail-mail.transport.spec.ts`](./gmail-mail.transport.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`mail-layout.spec.ts`](./mail-layout.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`mail-recipient.spec.ts`](./mail-recipient.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`mail-sender.client.spec.ts`](./mail-sender.client.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`mail-sender.service.spec.ts`](./mail-sender.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 

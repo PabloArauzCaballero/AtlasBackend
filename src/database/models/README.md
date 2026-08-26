@@ -12,11 +12,13 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`address-gps-observations.model.ts`](./address-gps-observations.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`app-content-entries.model.ts`](./app-content-entries.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`attribute-definitions.model.ts`](./attribute-definitions.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`auth-credentials.model.ts`](./auth-credentials.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`auth-events.model.ts`](./auth-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`auth-one-time-codes.model.ts`](./auth-one-time-codes.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`auth-refresh-tokens.model.ts`](./auth-refresh-tokens.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`bank-statement-reviews.model.ts`](./bank-statement-reviews.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`consent-documents.model.ts`](./consent-documents.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`consent-events.model.ts`](./consent-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`contact-verification-attempts.model.ts`](./contact-verification-attempts.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
@@ -31,6 +33,7 @@
 | [`context-staging-items.model.ts`](./context-staging-items.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`credit-application-events.model.ts`](./credit-application-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`credit-applications.model.ts`](./credit-applications.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`credit-lines.model.ts`](./credit-lines.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`credit-products.model.ts`](./credit-products.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`customer-action-logs.model.ts`](./customer-action-logs.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`customer-activity-summaries.model.ts`](./customer-activity-summaries.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
@@ -61,6 +64,7 @@
 | [`data-quality-rules.model.ts`](./data-quality-rules.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`data-subject-requests.model.ts`](./data-subject-requests.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`decision-subject-links.model.ts`](./decision-subject-links.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`delinquency-policies.model.ts`](./delinquency-policies.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`device-risk-events.model.ts`](./device-risk-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`device-snapshots.model.ts`](./device-snapshots.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`device-tokens.model.ts`](./device-tokens.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
@@ -93,6 +97,7 @@
 | [`loan-installments.model.ts`](./loan-installments.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`loan-outcome-reports.model.ts`](./loan-outcome-reports.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`loan-payment-allocations.model.ts`](./loan-payment-allocations.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`loan-payment-claims.model.ts`](./loan-payment-claims.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`loan-payments.model.ts`](./loan-payments.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`loan-risk-ratings.model.ts`](./loan-risk-ratings.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`loans.model.ts`](./loans.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
@@ -101,6 +106,7 @@
 | [`merchant-users.model.ts`](./merchant-users.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`notification-deliveries.model.ts`](./notification-deliveries.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`notification-messages.model.ts`](./notification-messages.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`notification-policies.model.ts`](./notification-policies.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`notification-templates.model.ts`](./notification-templates.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`observation-definitions.model.ts`](./observation-definitions.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`on-device-computation-runs.model.ts`](./on-device-computation-runs.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
@@ -135,6 +141,7 @@
 | [`sensitive-field-rules.model.ts`](./sensitive-field-rules.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`sim-observations.model.ts`](./sim-observations.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`system-action-logs.model.ts`](./system-action-logs.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`system-block-federation-state.model.ts`](./system-block-federation-state.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`system-catalog-review-events.model.ts`](./system-catalog-review-events.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`system-data-entity-catalog.model.ts`](./system-data-entity-catalog.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`system-data-field-catalog.model.ts`](./system-data-field-catalog.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
@@ -153,6 +160,7 @@
 | [`system-test-steps.model.ts`](./system-test-steps.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`system-test-suites.model.ts`](./system-test-suites.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`system-tool-catalog.model.ts`](./system-tool-catalog.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
+| [`tenant.model.ts`](./tenant.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`tenants.model.ts`](./tenants.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`user-notification-preferences.model.ts`](./user-notification-preferences.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |
 | [`watchlist-entries.model.ts`](./watchlist-entries.model.ts) | Modelo ORM: mapea una tabla y su contrato tipado. |

@@ -1,3 +1,8 @@
+/**
+ * @file Modelo ORM: mapea una tabla y su contrato tipado.
+ * @business Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
+ * @system define models para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
+ */
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
 
 @Table({ tableName: 'tenants', timestamps: false })

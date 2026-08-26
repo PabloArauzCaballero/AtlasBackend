@@ -166,6 +166,15 @@ export class UnderwritingFeaturesService {
       requested_term_months: put('requested_term_months', input.requestedTermMonths, FILE),
 
       // ---------------------------------------------------------------- capacidad de pago
+      /*
+       * El ingreso DECLARADO viaja explícito, y no sólo dentro de `disposable_income`.
+       *
+       * Es lo que permite que el resto del sistema distinga «gana esto según sus movimientos» de
+       * «gana esto según dijo en el formulario». Sin él, el modelo de capacidad no tendría con qué
+       * proponer un límite conservador al cliente que todavía no subió su extracto, y ese cliente
+       * se quedaría en cero — convirtiendo el extracto en un requisito de facto.
+       */
+      declared_monthly_income: put('declared_monthly_income', Math.round(totalIncome * 100) / 100, income > 0 ? FILE : MISSING),
       disposable_income: put('disposable_income', Math.round(disposable * 100) / 100, DERIVED),
       affordability_ratio: put('affordability_ratio', Math.round(affordabilityRatio * 1000) / 1000, DERIVED),
       debt_to_income_ratio: put('debt_to_income_ratio', Math.round(debtToIncome * 1000) / 1000, DERIVED),
@@ -360,7 +369,13 @@ export class UnderwritingFeaturesService {
      * considera aprobado (70) y no con uno alto: Atlas no puede afirmar que la coincidencia fue
      * excelente, solo que fue suficiente para quien la midió.
      */
-    return { verified, liveness: verified, matchScore: verified ? ATTESTED_PASS : 0, confidence: verified ? ATTESTED_PASS : 0, inferred: verified };
+    return {
+      verified,
+      liveness: verified,
+      matchScore: verified ? ATTESTED_PASS : 0,
+      confidence: verified ? ATTESTED_PASS : 0,
+      inferred: verified,
+    };
   }
 
   /**

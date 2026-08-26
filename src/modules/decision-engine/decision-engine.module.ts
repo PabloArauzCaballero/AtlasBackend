@@ -22,6 +22,7 @@ import {
 import { CreditDecisionEngineService } from './credit-decision-engine.service.js';
 import { DecisionArtifactBindingController } from './decision-artifact-binding.controller.js';
 import { DecisionArtifactBindingService } from './decision-artifact-binding.service.js';
+import { BankStatementEngineClient } from './bank-statement-engine.client.js';
 import { DecisionEngineClient } from './decision-engine.client.js';
 import { FeatureProjectionService } from './feature-projection.service.js';
 import { OutcomeDispatchService } from './outcome-dispatch.service.js';
@@ -65,6 +66,7 @@ import { UnderwritingFeaturesService } from './underwriting-features.service.js'
   controllers: [DecisionArtifactBindingController],
   providers: [
     DecisionEngineClient,
+    BankStatementEngineClient,
     DecisionArtifactBindingService,
     FeatureProjectionService,
     UnderwritingFeaturesService,
@@ -73,6 +75,17 @@ import { UnderwritingFeaturesService } from './underwriting-features.service.js'
     RiskDecisionEngineService,
     OutcomeDispatchService,
   ],
-  exports: [CreditDecisionEngineService, UnderwritingFeaturesService, RiskDecisionEngineService, OutcomeDispatchService, SubjectReferenceService, DecisionEngineClient, DecisionArtifactBindingService],
+  exports: [
+    CreditDecisionEngineService,
+    UnderwritingFeaturesService,
+    RiskDecisionEngineService,
+    OutcomeDispatchService,
+    SubjectReferenceService,
+    DecisionEngineClient,
+    // El worker de extractos del motor. Se exporta porque quien lo usa es el trabajo de fondo de
+    // crédito: este backend ya no lee extractos, los manda a quien sabe leerlos.
+    BankStatementEngineClient,
+    DecisionArtifactBindingService,
+  ],
 })
 export class DecisionEngineModule {}

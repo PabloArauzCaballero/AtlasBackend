@@ -75,7 +75,9 @@ export class CreditController {
     summary: 'Registrar el extracto bancario subido y pedir el recálculo',
     description:
       'El archivo ya viajó cifrado por `documents/upload-url` con `documentType: bank_statement`; aquí solo se ' +
-      'registra el hecho y se arranca el compromiso de ' + REVIEW_SLA_HOURS + ' horas. No se promete un número en el acto: leer un ' +
+      'registra el hecho y se arranca el compromiso de ' +
+      REVIEW_SLA_HOURS +
+      ' horas. No se promete un número en el acto: leer un ' +
       'extracto exige extraer movimientos y contar los rechazos por fondos insuficientes, y prometer el resultado ' +
       'inmediato obligaría a inventarlo. Una sola revisión abierta por cliente.',
   })

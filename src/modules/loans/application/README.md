@@ -11,11 +11,15 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`delinquency-policy.service.ts`](./delinquency-policy.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`loan-calendar.service.ts`](./loan-calendar.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`loan-delinquency.service.ts`](./loan-delinquency.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`loan-disbursement.service.ts`](./loan-disbursement.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`loan-payment.service.ts`](./loan-payment.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`loan-query.service.ts`](./loan-query.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`loan-spending.service.ts`](./loan-spending.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`loan-writeoff.service.ts`](./loan-writeoff.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`spending-report.service.ts`](./spending-report.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento
 

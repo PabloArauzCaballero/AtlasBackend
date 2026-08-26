@@ -171,6 +171,10 @@ x-atlas-env: &atlas-env
   # Clave de GESTION del motor: la usa la pantalla de «que artefacto decide cada cosa» para leer el
   # catalogo de artefactos publicados. Es de lectura de configuracion, distinta de la de ejecucion.
   DECISION_ENGINE_GOVERNANCE_API_KEY: ${DECISION_ENGINE_GOVERNANCE_API_KEY:-}
+  # El worker de extractos del motor. Sin esta llave, este backend no puede mandar los extractos a
+  # quien sabe leerlos y las revisiones se quedan en cola en vez de rechazarse: es lo correcto —un
+  # motor inalcanzable no es un extracto inválido— pero conviene saber por qué no avanzan.
+  DECISION_ENGINE_STATEMENT_API_KEY: ${DECISION_ENGINE_STATEMENT_API_KEY:-}
   DECISION_ENGINE_SUBJECT_SALT: ${DECISION_ENGINE_SUBJECT_SALT:-}
   DECISION_ENGINE_IDENTITY_ARTIFACT: ${DECISION_ENGINE_IDENTITY_ARTIFACT:-IDENTIDAD_CARNET_MOVIL}
   # El codigo REAL del artefacto de originacion en el motor. El defecto del esquema

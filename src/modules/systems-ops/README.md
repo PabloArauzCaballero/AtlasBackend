@@ -13,15 +13,27 @@
 |---|---|
 | [`action-log-filter-catalog.ts`](./action-log-filter-catalog.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`column-classification.util.ts`](./column-classification.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
+| [`decision-engine-artifacts.service.ts`](./decision-engine-artifacts.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`decision-engine-artifacts.types.ts`](./decision-engine-artifacts.types.ts) | Tipos de dominio: hacen explícitos estados y contratos internos. |
 | [`endpoint-code.util.ts`](./endpoint-code.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`endpoint-discovery.service.ts`](./endpoint-discovery.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`endpoint-narrative.util.ts`](./endpoint-narrative.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`erp-entity-inventory.json`](./erp-entity-inventory.json) | Configuración o contrato serializado consumido por herramientas. |
+| [`openapi-catalog.service.ts`](./openapi-catalog.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`openapi-contract.util.ts`](./openapi-contract.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
+| [`openapi-document.registry.ts`](./openapi-document.registry.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`path-exists.util.ts`](./path-exists.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
+| [`platform-blocks.constants.ts`](./platform-blocks.constants.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`platform-catalog-federation.client.ts`](./platform-catalog-federation.client.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`platform-catalog-federation.repository.ts`](./platform-catalog-federation.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`platform-catalog-federation.service.ts`](./platform-catalog-federation.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`platform-catalog-manifest.types.ts`](./platform-catalog-manifest.types.ts) | Tipos de dominio: hacen explícitos estados y contratos internos. |
 | [`platform-service-health.probe.ts`](./platform-service-health.probe.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`platform-services.constants.ts`](./platform-services.constants.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`systems-action-log-query.service.ts`](./systems-action-log-query.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-action-log.controller.ts`](./systems-action-log.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`systems-action-log.repository.ts`](./systems-action-log.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`systems-actor.util.ts`](./systems-actor.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`systems-business-metadata.fixtures.ts`](./systems-business-metadata.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`systems-catalog-classifier.service.ts`](./systems-catalog-classifier.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-catalog-query.service.ts`](./systems-catalog-query.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
@@ -39,10 +51,13 @@
 | [`systems-health-monitor.service.ts`](./systems-health-monitor.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-health.service.ts`](./systems-health.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`systems-json-path.util.ts`](./systems-json-path.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
+| [`systems-network-health.service.ts`](./systems-network-health.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`systems-network.controller.ts`](./systems-network.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`systems-ops.constants.ts`](./systems-ops.constants.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`systems-ops.dtos.ts`](./systems-ops.dtos.ts) | DTOs: contrato estable de salida sin filtrar modelos de persistencia. |
 | [`systems-ops.mapper.ts`](./systems-ops.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
 | [`systems-ops.module.ts`](./systems-ops.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
+| [`systems-ops.params.schemas.ts`](./systems-ops.params.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
 | [`systems-ops.schemas.ts`](./systems-ops.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
 | [`systems-ops.tool.mapper.ts`](./systems-ops.tool.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
 | [`systems-ops.types.ts`](./systems-ops.types.ts) | Tipos de dominio: hacen explícitos estados y contratos internos. |

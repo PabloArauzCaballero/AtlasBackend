@@ -7,6 +7,7 @@ import { ConflictException, Injectable, Logger, NotFoundException } from '@nestj
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions } from 'sequelize';
 import { BankStatementReviewModel } from '../../../database/models/index.js';
+import type { StatementRun } from '../../decision-engine/bank-statement-engine.client.js';
 import { CreditLineService } from './credit-line.service.js';
 
 /** Lo que se le promete a quien sube su extracto. Está aquí y no en la pantalla: es un compromiso. */
@@ -85,8 +86,20 @@ export class BankStatementService {
   /**
    * Aplica el resultado de la revisión: recalcula la línea con lo que dijo el extracto.
    *
-   * El `nsfCount` NO se guarda para adorno: entra como variable del artefacto —el motor la usa para
-   * bajar el puntaje de capacidad de pago— y por eso el recálculo se pide DESPUÉS de escribirlo.
+   * ## Qué se escribe ANTES del recálculo, y por qué
+   *
+   * Todo lo que el artefacto va a leer. El motor de decisión lee la capacidad de pago de la última
+   * revisión del cliente, así que pedir el recálculo antes de escribirla haría que decidiera con la
+   * evaluación ANTERIOR — y el cliente vería su línea moverse un ciclo tarde, sin poder relacionarla
+   * con el extracto que acababa de subir.
+   *
+   * ## Qué cambió respecto de la versión anterior
+   *
+   * Antes entraban tres cifras: rechazos por fondos, ingreso y gasto, todas calculadas por un lector
+   * propio que sumaba lo que decía «abono» y restaba lo que decía «cargo». Ahora entra la evaluación
+   * COMPLETA del motor, y las tres cifras que sobreviven significan otra cosa: `observedMonthlyIncome`
+   * es el ingreso RECONOCIDO —mediana de tres meses, sin traspasos entre cuentas propias ni
+   * desembolsos de crédito— y no la suma de todo lo que entró.
    *
    * Si el motor no responde, la revisión queda en `processing` y no en `applied`: decir «aplicado»
    * sin línea nueva le diría al cliente que su extracto ya cuenta cuando no cuenta.
@@ -95,9 +108,8 @@ export class BankStatementService {
     tenantId: string;
     customerId: string;
     reviewId: string;
-    nsfCount: number;
-    observedMonthlyIncome?: number | null;
-    observedMonthlyExpense?: number | null;
+    /** La ejecución del worker de extractos del motor, con su evaluación dentro. */
+    run: StatementRun;
     reviewedByInternalUserId?: string | null;
     now?: Date;
   }): Promise<BankStatementReviewModel> {
@@ -107,9 +119,31 @@ export class BankStatementService {
     } as FindOptions);
     if (!review) throw new NotFoundException('BANK_STATEMENT_REVIEW_NOT_FOUND');
 
-    review.nsfCount = input.nsfCount;
-    review.observedMonthlyIncome = input.observedMonthlyIncome?.toFixed(2) ?? null;
-    review.observedMonthlyExpense = input.observedMonthlyExpense?.toFixed(2) ?? null;
+    const result = input.run.result;
+    const affordability = result?.affordability ?? null;
+    const nsfCount = affordability?.signals?.nsfEvents ?? 0;
+
+    review.engineRequestId = input.run.requestId;
+    review.engineStatus = input.run.status;
+    review.institutionCode = result?.institution?.id ?? null;
+    review.institutionName = result?.institution?.name ?? null;
+    review.authenticityVerdict = result?.authenticity?.verdict ?? null;
+    review.authenticityScore = result?.authenticity?.suspicionScore ?? null;
+    review.periodFrom = affordability?.coverage?.from ?? result?.period?.from ?? null;
+    review.periodTo = affordability?.coverage?.to ?? result?.period?.to ?? null;
+
+    review.nsfCount = nsfCount;
+    review.observedMonthlyIncome = toDecimal(affordability?.income?.monthlyRecognized);
+    review.observedMonthlyExpense = toDecimal(affordability?.expenses?.effectiveMonthly);
+    review.monthlyObligations = toDecimal(affordability?.obligations?.monthly);
+    review.maxAffordableInstallment = toDecimal(affordability?.capacity?.maxAffordableInstallment);
+    review.incomeStabilityScore = affordability?.income?.stabilityScore ?? null;
+    review.affordabilityJson = (affordability ?? null) as Record<string, unknown> | null;
+    review.affordabilityEligible = affordability?.eligible ?? false;
+    review.affordabilityScore = affordability?.score ?? null;
+    review.affordabilityBand = affordability?.band ?? null;
+    review.monthsComplete = affordability?.coverage?.monthsComplete ?? null;
+
     review.reviewedByInternalUserId = input.reviewedByInternalUserId ?? null;
     review.reviewedAt = now;
     review.status = 'processing';
@@ -120,7 +154,7 @@ export class BankStatementService {
       tenantId: input.tenantId,
       customerId: input.customerId,
       trigger: 'bank_statement',
-      bankStatementNsfCount: input.nsfCount,
+      bankStatementNsfCount: nsfCount,
     });
 
     if (!line) {
@@ -134,4 +168,9 @@ export class BankStatementService {
     await review.save();
     return review;
   }
+}
+
+/** Dos decimales, o `null`. Un cero escrito donde no hubo dato afirma algo falso. */
+function toDecimal(value: number | null | undefined): string | null {
+  return value === null || value === undefined || !Number.isFinite(value) ? null : value.toFixed(2);
 }

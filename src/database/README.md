@@ -12,6 +12,7 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`credit-rating-models.ts`](./credit-rating-models.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`database-models.ts`](./database-models.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`domain-schemas.ts`](./domain-schemas.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`loan-book-models.ts`](./loan-book-models.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`migrate.ts`](./migrate.ts) | Artefacto de soporte específico de esta carpeta. |

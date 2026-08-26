@@ -17,6 +17,7 @@
 | [`customer-address-status.repository.spec.ts`](./customer-address-status.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`customer-contact-verification.repository.spec.ts`](./customer-contact-verification.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`customer-contact-verification.service.spec.ts`](./customer-contact-verification.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`customer-contacts-snapshot.service.spec.ts`](./customer-contacts-snapshot.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`customer-identity-evidence.repository.spec.ts`](./customer-identity-evidence.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`customer-identity-package.service.spec.ts`](./customer-identity-package.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`customer-identity-provider-verification.service.spec.ts`](./customer-identity-provider-verification.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |

@@ -1,3 +1,8 @@
+/**
+ * @file Migración reversible: evoluciona el esquema PostgreSQL en orden.
+ * @business Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
+ * @system define seeders para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
+ */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { QueryInterface } from 'sequelize';

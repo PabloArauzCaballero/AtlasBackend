@@ -154,4 +154,48 @@ export const decisionEngineEnvShape = {
    * a unir. Rotarla es una migración, no un ajuste de configuración.
    */
   DECISION_ENGINE_SUBJECT_SALT: z.string().optional(),
+  /**
+   * Credencial con la que se manda el extracto bancario al worker del motor.
+   *
+   * ## Por qué el extracto lo lee el motor y no este backend
+   *
+   * Porque el motor ya sabe leerlo, y este backend no. El worker de extractos del motor tiene siete
+   * analizadores verificados de bancos bolivianos, reconocimiento óptico, el padrón de ASFI con el
+   * que atribuye el documento a su emisor, y las tres compuertas de admisión —contenedor, contenido
+   * y emisor—. Lo que había aquí era un lector de expresiones regulares que sumaba todo lo que
+   * decía «abono» y restaba todo lo que decía «cargo».
+   *
+   * Mantener dos implementaciones de la misma regla es peor que tener una mala: acaban discrepando,
+   * y el día que discrepan nadie sabe cuál de las dos es la que decidió. Así que aquí no queda
+   * ninguna: este backend recibe el archivo, lo manda, y aplica lo que el motor concluya.
+   *
+   * ## Por qué es una llave PROPIA
+   *
+   * Es la cuarta y por el mismo criterio que las otras tres: lo que autoriza es distinto. Ésta
+   * permite subir documentos de clientes al worker del motor, que es la operación con más dato
+   * personal de toda la integración; poder revocarla sin tocar las decisiones, los desenlaces ni la
+   * locución es exactamente lo que hay que poder hacer el día que se sospeche de ella. Si no está
+   * configurada se cae a la de gobierno, que ya es del plano de gestión, nunca a la de ejecución.
+   */
+  DECISION_ENGINE_STATEMENT_API_KEY: z.string().optional(),
+  /**
+   * Cuánto se espera a CADA llamada del worker de extractos.
+   *
+   * Más largo que el de las decisiones porque la subida lleva el PDF entero —hasta 10 MiB— y la
+   * carga de un archivo por la red no se parece a una petición JSON de dos kilobytes.
+   */
+  DECISION_ENGINE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(30_000),
+  /**
+   * Cada cuánto se pregunta por el resultado, y hasta cuándo.
+   *
+   * El worker del motor es asíncrono: responde 202 y procesa aparte. Quien espera aquí es un trabajo
+   * de fondo con el compromiso de 24 horas por delante, así que sondear con calma no le cuesta nada
+   * a nadie; lo que sí costaría es un sondeo apretado multiplicado por cada extracto de la cola.
+   *
+   * El techo existe para que un worker del motor caído no deje este trabajo colgado: al agotarse, la
+   * revisión se queda como estaba y el siguiente barrido la vuelve a intentar. Es la diferencia
+   * entre una espera larga y una espera infinita.
+   */
+  DECISION_ENGINE_STATEMENT_POLL_MS: z.coerce.number().int().positive().max(30_000).default(2_000),
+  DECISION_ENGINE_STATEMENT_MAX_WAIT_MS: z.coerce.number().int().positive().max(600_000).default(180_000),
 };

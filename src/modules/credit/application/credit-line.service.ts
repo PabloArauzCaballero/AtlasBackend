@@ -14,6 +14,8 @@ import { CreditLineModel } from '../../../database/models/index.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
 import { CREDIT_DECISION_PURPOSE, SubjectReferenceService } from '../../decision-engine/subject-reference.service.js';
 import { UnderwritingFeaturesService } from '../../decision-engine/underwriting-features.service.js';
+import type { PaymentCapacityAssessment } from '../domain/payment-capacity.js';
+import { PaymentCapacityService } from './payment-capacity.service.js';
 
 /** Qué movió la línea. Se escribe siempre: una bajada sin causa visible parece un error. */
 export type CalculationTrigger = 'onboarding' | 'bank_statement' | 'delinquency' | 'repayment' | 'manual' | 'application';
@@ -69,6 +71,7 @@ export class CreditLineService {
     private readonly features: UnderwritingFeaturesService,
     private readonly client: DecisionEngineClient,
     private readonly subjects: SubjectReferenceService,
+    private readonly capacity: PaymentCapacityService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -120,6 +123,7 @@ export class CreditLineService {
     const requestedAmount = input.requestedAmount ?? PROBE_AMOUNT;
     const requestedTermMonths = input.requestedTermMonths ?? PROBE_TERM_MONTHS;
 
+    const current = await this.current(input.tenantId, input.customerId);
     const { variables, provenance } = await this.features.build({
       tenantId: input.tenantId,
       customerId: input.customerId,
@@ -128,6 +132,28 @@ export class CreditLineService {
       bankStatementNsfCount: input.bankStatementNsfCount ?? null,
       now,
     });
+
+    /*
+     * La PROPUESTA de límite, calculada antes de preguntar y enviada como una variable más.
+     *
+     * Es la respuesta a la pregunta que el motor no contestaba: no «¿sí o no?» sino «¿cuánto?». Sale
+     * de cruzar lo que el extracto demuestra que puede pagar al mes con lo que la relación —
+     * antigüedad, historial de pago dentro de Atlas y fidelización— permite conceder todavía.
+     *
+     * NO sustituye a la política: viaja al artefacto, el artefacto emite el límite, y se guardan las
+     * dos cifras. Que las dos estén escritas es lo que permite responder «¿la política se apartó de
+     * la capacidad medida, y cuánto?», que es la pregunta con la que se calibra un modelo de crédito.
+     */
+    const capacity = await this.capacity.assess({
+      tenantId: input.tenantId,
+      customerId: input.customerId,
+      declaredMonthlyIncome: num(variables.declared_monthly_income) ?? null,
+      currentLimit: current ? Number(current.approvedLimit) : null,
+      termMonths: requestedTermMonths,
+      now,
+    });
+    Object.assign(variables, capacityVariables(capacity));
+    Object.assign(provenance, capacityProvenance(capacity));
 
     const subjectReference = await this.subjects.register({ tenantId: input.tenantId, customerId: input.customerId });
 
@@ -217,6 +243,7 @@ export class CreditLineService {
         affordabilityScore: num(output.affordability_score),
         affordabilityDecision: str(output.affordability_decision),
         probabilityOfDefault: num(output.probability_of_default),
+        capacity,
         decisionOutcome: str(output.decision_outcome ?? response.outcome) ?? response.status,
         decisionExecutionId: response.executionId,
         artifactCode: response.artifact?.code ?? env.DECISION_ENGINE_CREDIT_ARTIFACT,
@@ -251,6 +278,7 @@ export class CreditLineService {
       affordabilityScore: number | null;
       affordabilityDecision: string | null;
       probabilityOfDefault: number | null;
+      capacity: PaymentCapacityAssessment;
       decisionOutcome: string;
       decisionExecutionId: string | null;
       artifactCode: string | null;
@@ -284,6 +312,12 @@ export class CreditLineService {
           affordabilityScore: values.affordabilityScore === null ? null : Math.round(values.affordabilityScore),
           affordabilityDecision: values.affordabilityDecision,
           probabilityOfDefault: values.probabilityOfDefault?.toFixed(4) ?? null,
+          recommendedLimit: values.capacity.recommendedLimit.toFixed(2),
+          capacityJson: values.capacity as unknown as Record<string, unknown>,
+          relationshipScore: values.capacity.relationshipScore,
+          relationshipTier: values.capacity.relationshipTier,
+          capacityBinding: values.capacity.bindingConstraint,
+          capacityEvidence: values.capacity.evidence,
           decisionOutcome: values.decisionOutcome,
           decisionExecutionId: values.decisionExecutionId,
           artifactCode: values.artifactCode,
@@ -302,4 +336,47 @@ export class CreditLineService {
       );
     });
   }
+}
+
+/**
+ * La propuesta de capacidad, traducida al vocabulario del artefacto.
+ *
+ * Se manda el DESGLOSE y no sólo la cifra: una política que sólo recibe «propongo 4.500» no puede
+ * hacer nada distinto de aceptarla o ignorarla, mientras que con la cuota sostenible, el tramo de
+ * relación y el techo que mordió puede decidir con criterio propio —por ejemplo, no conceder a un
+ * tramo NUEVO por encima de cierto importe aunque el extracto lo soporte—.
+ */
+function capacityVariables(capacity: PaymentCapacityAssessment): Record<string, unknown> {
+  return {
+    capacity_recommended_limit: capacity.recommendedLimit,
+    capacity_monthly_installment: capacity.monthlyInstallment,
+    capacity_binding_constraint: capacity.bindingConstraint,
+    capacity_evidence_source: capacity.evidence,
+    relationship_score: capacity.relationshipScore,
+    relationship_tier: capacity.relationshipTier,
+    tenure_score: capacity.components.tenure,
+    loyalty_score: capacity.components.loyalty,
+  };
+}
+
+/**
+ * De dónde salió cada una.
+ *
+ * Con extracto son datos OBSERVADOS del cliente; sin él son derivados de lo declarado, y la
+ * diferencia tiene que llegar al expediente: es lo que después distingue «tu capacidad se midió con
+ * tus movimientos» de «se estimó con lo que declaraste», que son dos afirmaciones muy distintas
+ * sobre la misma cifra.
+ */
+function capacityProvenance(capacity: PaymentCapacityAssessment): Record<string, 'expediente' | 'derivado' | 'ausente'> {
+  const origen = capacity.evidence === 'EXTRACTO' ? 'expediente' : 'derivado';
+  return {
+    capacity_recommended_limit: origen,
+    capacity_monthly_installment: origen,
+    capacity_binding_constraint: 'derivado',
+    capacity_evidence_source: 'derivado',
+    relationship_score: 'derivado',
+    relationship_tier: 'derivado',
+    tenure_score: 'expediente',
+    loyalty_score: 'expediente',
+  };
 }

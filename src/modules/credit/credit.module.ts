@@ -11,7 +11,11 @@ import {
   CreditApplicationModel,
   CreditLineModel,
   CreditProductModel,
+  CustomerActivitySummaryModel,
   CustomerModel,
+  IdentityVerificationAttemptModel,
+  LoanInstallmentModel,
+  LoanModel,
 } from '../../database/models/index.js';
 import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
 import { CustomersModule } from '../customers/customers.module.js';
@@ -26,6 +30,7 @@ import { BankStatementService } from './application/bank-statement.service.js';
 import { CreditLineRefreshService } from './application/credit-line-refresh.service.js';
 import { CreditLineService } from './application/credit-line.service.js';
 import { CreditProductService } from './application/credit-product.service.js';
+import { PaymentCapacityService } from './application/payment-capacity.service.js';
 import { MerchantCreditController } from './merchant-credit.controller.js';
 import { CreditUnderwritingService } from './application/credit-underwriting.service.js';
 import { CreditOperationsController } from './credit-operations.controller.js';
@@ -51,6 +56,13 @@ import { CreditRepository } from './credit.repository.js';
       CreditApplicationEventModel,
       CreditLineModel,
       BankStatementReviewModel,
+      // El modelo de capacidad lee el historial de pago DENTRO de Atlas —es lo único que se sabe
+      // con certeza de cómo paga esta persona, y sustituye a un buró que en Bolivia no existe— y
+      // las señales de actividad que delatan una alerta de fraude abierta.
+      LoanModel,
+      LoanInstallmentModel,
+      CustomerActivitySummaryModel,
+      IdentityVerificationAttemptModel,
       // Sólo para saber a QUIÉN le falta línea. El expediente del cliente lo sigue gobernando
       // `CustomersModule`; aquí se lee su identidad y su estado de ciclo de vida, nada más.
       CustomerModel,
@@ -68,6 +80,7 @@ import { CreditRepository } from './credit.repository.js';
     CreditDecisionService,
     CreditLineService,
     CreditLineRefreshService,
+    PaymentCapacityService,
     BankStatementService,
     BankStatementReviewWorker,
     // El trabajo que lee el extracto necesita bajarlo del almacén cifrado. `MalwareScannerService`
@@ -81,7 +94,9 @@ import { CreditRepository } from './credit.repository.js';
     CreditRepository,
     CreditUnderwritingService,
     CreditLineService,
+    PaymentCapacityService,
     CreditLineRefreshService,
+    PaymentCapacityService,
     BankStatementService,
     BankStatementReviewWorker,
   ],

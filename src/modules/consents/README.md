@@ -11,6 +11,8 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`consent-document-admin.service.ts`](./consent-document-admin.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`consent-operations.controller.ts`](./consent-operations.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`consents.controller.ts`](./consents.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`consents.dtos.ts`](./consents.dtos.ts) | DTOs: contrato estable de salida sin filtrar modelos de persistencia. |
 | [`consents.mapper.ts`](./consents.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |

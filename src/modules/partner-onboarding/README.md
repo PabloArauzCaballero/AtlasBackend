@@ -11,12 +11,15 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`merchant-qr.controller.ts`](./merchant-qr.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`partner-business-categories.ts`](./partner-business-categories.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`partner-commerce.controller.ts`](./partner-commerce.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`partner-onboarding.controller.ts`](./partner-onboarding.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`partner-onboarding.mapper.ts`](./partner-onboarding.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
 | [`partner-onboarding.module.ts`](./partner-onboarding.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
 | [`partner-onboarding.repository.ts`](./partner-onboarding.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`partner-onboarding.schemas.ts`](./partner-onboarding.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
+| [`partner-operations.controller.ts`](./partner-operations.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`partner-ownership.guard.ts`](./partner-ownership.guard.ts) | Guard: aplica autenticación o autorización antes del caso de uso. |
 
 ## Subcarpetas

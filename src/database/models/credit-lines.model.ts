@@ -76,6 +76,35 @@ export class CreditLineModel extends Model {
   @Column({ field: 'provenance_json', type: DataType.JSONB, allowNull: true })
   declare provenanceJson: Record<string, string> | null;
 
+  /*
+   * Lo que el modelo de capacidad PROPUSO, junto a lo que la política aprobó.
+   *
+   * Las dos cifras conviven porque la pregunta con la que se calibra un modelo de crédito es
+   * exactamente su diferencia: «¿la política se apartó de la capacidad medida, y cuánto?». Con sólo
+   * el límite aprobado esa pregunta no se puede hacer, y sin la propuesta tampoco se le puede
+   * explicar al cliente qué subiría su límite.
+   */
+  @Column({ field: 'recommended_limit', type: DataType.DECIMAL(18, 2), allowNull: true })
+  declare recommendedLimit: string | null;
+
+  /** El desglose completo de la propuesta: los cuatro techos y sus componentes. */
+  @Column({ field: 'capacity_json', type: DataType.JSONB, allowNull: true })
+  declare capacityJson: Record<string, unknown> | null;
+
+  @Column({ field: 'relationship_score', type: DataType.SMALLINT, allowNull: true })
+  declare relationshipScore: number | null;
+
+  @Column({ field: 'relationship_tier', type: DataType.STRING(24), allowNull: true })
+  declare relationshipTier: string | null;
+
+  /** Qué techo mordió primero. Es la respuesta a «¿por qué no más?». */
+  @Column({ field: 'capacity_binding', type: DataType.STRING(24), allowNull: true })
+  declare capacityBinding: string | null;
+
+  /** Si la propuesta se apoya en un extracto o en el ingreso declarado. */
+  @Column({ field: 'capacity_evidence', type: DataType.STRING(16), allowNull: true })
+  declare capacityEvidence: string | null;
+
   @Column({ field: 'calculation_trigger', type: DataType.STRING(32), allowNull: false })
   declare calculationTrigger: string;
 

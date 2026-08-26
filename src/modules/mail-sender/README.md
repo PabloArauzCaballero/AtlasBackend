@@ -13,6 +13,8 @@
 |---|---|
 | [`gmail-mail.transport.ts`](./gmail-mail.transport.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`mail-layout.ts`](./mail-layout.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`mail-product.ts`](./mail-product.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`mail-recipient.ts`](./mail-recipient.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`mail-sender.client.ts`](./mail-sender.client.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`mail-sender.module.ts`](./mail-sender.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
 | [`mail-sender.service.ts`](./mail-sender.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
