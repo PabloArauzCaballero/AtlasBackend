@@ -36,6 +36,9 @@ describe('MobileIdentityService', () => {
       createPending: jest.fn(async (..._args: unknown[]) => fila),
       complete: jest.fn(async (..._args: unknown[]) => undefined),
       findById: jest.fn(async (..._args: unknown[]) => null),
+      // Lo que contestó el registro estatal en el flujo de alta. `null` = nunca se consultó, que es
+      // el camino que estas pruebas recorren y el que no puede aprobar a nadie.
+      findLatestOnboardingAttempt: jest.fn(async (..._args: unknown[]) => null),
     };
     const engine = {
       isConfigured: true,
@@ -56,8 +59,23 @@ describe('MobileIdentityService', () => {
         source: 'environment',
       })),
     };
-    const service = new MobileIdentityService(repository as never, engine as never, bindings as never);
-    return { service, repository, engine, bindings };
+    const contacts = {
+      featuresFor: jest.fn(async (..._args: unknown[]) => ({
+        available: false,
+        totalContacts: 0,
+        uniqueRatio: 0,
+        bolivianRatio: 0,
+        referencesFoundInAddressBook: 0,
+        riskMatches: 0,
+      })),
+    };
+    const service = new MobileIdentityService(
+      repository as never,
+      engine as never,
+      bindings as never,
+      contacts as never,
+    );
+    return { service, repository, engine, bindings, contacts };
   }
 
   /** Deja correr la promesa que el servicio lanzó sin esperar. */
@@ -70,9 +88,16 @@ describe('MobileIdentityService', () => {
 
     expect(vista.status).toBe('PENDING');
     expect(vista.verificationId).toBe('5501');
-    // La llamada al motor todavía no ha terminado cuando se contesta.
-    expect(engine.execute).toHaveBeenCalledTimes(1);
+    /*
+     * La respuesta sale ANTES de que el motor conteste, y ahora también antes de que se reúnan las
+     * dos señales que no salen de las fotos —el registro estatal y la agenda—. La aserción es que
+     * al contestar la llamada al motor todavía no ha OCURRIDO, y que ocurre después: si se esperara
+     * a ella, la petición duraría lo que dure la biometría y habríamos construido el endpoint
+     * síncrono que este flujo existe para evitar.
+     */
+    expect(engine.execute).not.toHaveBeenCalled();
     await dejarResolver();
+    expect(engine.execute).toHaveBeenCalledTimes(1);
   });
 
   it('escribe VERIFIED cuando el artefacto verifica', async () => {

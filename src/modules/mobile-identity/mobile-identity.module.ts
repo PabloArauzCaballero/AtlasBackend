@@ -7,6 +7,7 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { IdentityVerificationAttemptModel } from '../../database/models/index.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
+import { CustomerOnboardingModule } from '../customer-onboarding/customer-onboarding.module.js';
 import { MobileIdentityController } from './mobile-identity.controller.js';
 import { MobileIdentityRepository } from './mobile-identity.repository.js';
 import { MobileIdentityService } from './mobile-identity.service.js';
@@ -22,7 +23,18 @@ import { MobileIdentityService } from './mobile-identity.service.js';
  * y, de paso, engordado un módulo que ya está en el techo del gate de tamaño.
  */
 @Module({
-  imports: [SequelizeModule.forFeature([IdentityVerificationAttemptModel]), DecisionEngineModule],
+  /*
+   * `CustomerOnboardingModule` entra por UNA cosa: los agregados de la agenda,
+   * que son una de las tres entradas del artefacto de identidad. No se copia la
+   * lectura aquí porque entonces habría dos definiciones de qué significa «la
+   * agenda de este cliente», y basta con que se separen una vez para que la
+   * política decida sobre números que nadie escribió.
+   */
+  imports: [
+    SequelizeModule.forFeature([IdentityVerificationAttemptModel]),
+    DecisionEngineModule,
+    CustomerOnboardingModule,
+  ],
   controllers: [MobileIdentityController],
   providers: [MobileIdentityRepository, MobileIdentityService],
   exports: [MobileIdentityService],

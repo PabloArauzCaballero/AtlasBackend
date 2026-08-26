@@ -60,6 +60,16 @@ describe('OperationsService', () => {
     const lifecycleService = { transition: asyncMock() };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
 
+    const contactsSnapshotService = {
+      featuresFor: jest.fn(async (..._args: unknown[]) => ({
+        available: false,
+        totalContacts: 0,
+        uniqueRatio: 0,
+        bolivianRatio: 0,
+        referencesFoundInAddressBook: 0,
+        riskMatches: 0,
+      })),
+    };
     const service = new OperationsService(
       operationsRepository as never,
       customersRepository as never,
@@ -67,6 +77,9 @@ describe('OperationsService', () => {
       customersRepository as never,
       riskRepository as never,
       lifecycleService as never,
+      // La agenda del cliente la calcula y la guarda el módulo de alta; aquí sólo se lee. El doble
+      // devuelve «no disponible», que es el mismo camino que toma un cliente sin captura.
+      contactsSnapshotService as never,
       sequelize as never,
     );
     return { service, operationsRepository, customersRepository, riskRepository, lifecycleService };

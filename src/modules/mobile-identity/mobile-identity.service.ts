@@ -10,6 +10,8 @@ import { env } from '../../config/env.js';
 import { DecisionArtifactBindingService } from '../decision-engine/decision-artifact-binding.service.js';
 import { DecisionEngineClient } from '../decision-engine/decision-engine.client.js';
 import { MobileIdentityRepository, PENDING_RESULT } from './mobile-identity.repository.js';
+import { CustomerContactsSnapshotService } from '../customer-onboarding/application/customer-contacts-snapshot.service.js';
+import type { ContactsSnapshotFeatures } from '../customer-onboarding/customer-contacts-snapshot.schemas.js';
 import { StartIdentityVerificationDto, type IdentityVerificationState, type IdentityVerificationView } from './mobile-identity.schemas.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
 
@@ -54,6 +56,7 @@ export class MobileIdentityService {
     private readonly repository: MobileIdentityRepository,
     private readonly engine: DecisionEngineClient,
     private readonly bindings: DecisionArtifactBindingService,
+    private readonly contacts: CustomerContactsSnapshotService,
   ) {}
 
   /**
@@ -99,7 +102,7 @@ export class MobileIdentityService {
     const attempt = await this.repository.createPending(tenantId, customerId);
     const verificationId = String(attempt.id);
 
-    void this.resolver(tenantId, verificationId, body, idempotencyKey).catch((error: unknown) => {
+    void this.resolver(tenantId, verificationId, body, idempotencyKey, customerId).catch((error: unknown) => {
       this.logger.error(`La verificación ${verificationId} no pudo resolverse: ${describir(error)}`);
     });
 
@@ -148,8 +151,29 @@ export class MobileIdentityService {
     verificationId: string,
     body: StartIdentityVerificationDto,
     idempotencyKey: string,
+    customerId: string | null,
   ): Promise<void> {
     try {
+      /*
+       * Las dos señales que NO salen de las fotos.
+       *
+       * El artefacto decide con tres fuentes —el documento, el registro estatal y
+       * la agenda— porque una sola fuente es exactamente lo que un suplantador
+       * puede conseguir: una foto. Estas dos se reúnen aquí, antes de llamar, y
+       * se pasan como variables de entrada.
+       *
+       * Las dos son BEST-EFFORT y las dos degradan hacia el lado seguro: si no
+       * hay expediente, o si la lectura falla, viajan como «no consultado» y
+       * «agenda no disponible», que el artefacto pondera como MENOS EVIDENCIA y
+       * nunca como evidencia a favor. La condición de aprobación exige
+       * confirmación explícita del registro, así que una lectura fallida no
+       * puede aprobar a nadie: manda el caso a una persona.
+       */
+      const [segip, agenda] = await Promise.all([
+        this.estadoDelRegistroEstatal(tenantId, customerId),
+        this.agendaDe(tenantId, customerId),
+      ]);
+
       /*
        * El artefacto sale de la ASIGNACIÓN, no del entorno.
        *
@@ -170,6 +194,14 @@ export class MobileIdentityService {
           identidad_carnet_reverso_base64: body.documentBack ?? null,
           identidad_selfie_base64: body.selfie,
           identidad_pais_documento: body.documentCountry,
+          identidad_segip_estado: segip.estado,
+          identidad_segip_coincidencia: segip.coincidencia,
+          identidad_agenda_disponible: agenda.available,
+          identidad_agenda_total: agenda.totalContacts,
+          identidad_agenda_unicos_ratio: agenda.uniqueRatio,
+          identidad_agenda_bolivia_ratio: agenda.bolivianRatio,
+          identidad_agenda_referencias_presentes: agenda.referencesFoundInAddressBook,
+          identidad_agenda_coincidencias_riesgo: agenda.riskMatches,
         },
         context: { channel: 'MOBILE_APP', verificationId },
       });
@@ -189,7 +221,16 @@ export class MobileIdentityService {
           artifactVersionId: respuesta.artifact?.versionId ?? null,
         },
         selfieMatchScore: decimal(salida.identidad_parecido),
-        documentForensicsScore: decimal(salida.identidad_evidencia_documento),
+        /*
+         * La columna se llama «forensics» y ahora por fin guarda eso.
+         *
+         * Guardaba `identidad_evidencia_documento`, que mide si la imagen ES un
+         * carnet — otra pregunta, y la que el nombre de la columna no hacía. El
+         * riesgo de fraude es lo que un analista necesita ver junto al parecido
+         * para decidir, y es lo que ordena la bandeja por gravedad.
+         */
+        documentForensicsScore:
+          decimal(salida.identidad_riesgo_fraude) ?? decimal(salida.identidad_evidencia_documento),
         completedAt: new Date(),
       });
     } catch (error: unknown) {
@@ -201,6 +242,63 @@ export class MobileIdentityService {
         completedAt: new Date(),
       });
       throw error;
+    }
+  }
+
+  /**
+   * Qué contestó el registro estatal sobre este cliente, si contestó.
+   *
+   * Traduce el desenlace guardado por el flujo de alta al vocabulario del
+   * proveedor, que es el que el artefacto enruta. La traducción es de tres a
+   * cuatro y no es simétrica a propósito:
+   *
+   * - `verified` → `FOUND`. Es el ÚNICO que confirma.
+   * - `rejected` → `NOT_FOUND`. El registro no encontró el documento declarado.
+   * - `pending_review` → `PENDING`. Se preguntó y no se resolvió.
+   * - sin cliente, sin intento o error de lectura → `NO_CONSULTADO`.
+   *
+   * Los tres últimos hacen exactamente lo mismo en el artefacto —impiden la
+   * aprobación automática y mandan el caso a una persona— y aun así se
+   * distinguen, porque quien abra el caso necesita saber si preguntar otra vez
+   * sirve de algo.
+   */
+  private async estadoDelRegistroEstatal(
+    tenantId: string,
+    customerId: string | null,
+  ): Promise<{ estado: string; coincidencia: number }> {
+    if (!customerId) return { estado: 'NO_CONSULTADO', coincidencia: 0 };
+    try {
+      const intento = await this.repository.findLatestOnboardingAttempt(tenantId, customerId);
+      if (!intento) return { estado: 'NO_CONSULTADO', coincidencia: 0 };
+      const resultado = String(intento.finalResult ?? '').toLowerCase();
+      if (resultado === 'verified') return { estado: 'FOUND', coincidencia: 1 };
+      if (resultado === 'rejected') return { estado: 'NOT_FOUND', coincidencia: 0 };
+      return { estado: 'PENDING', coincidencia: 0 };
+    } catch (error: unknown) {
+      // Se degrada, no se propaga: perder la verificación entera porque no se
+      // pudo leer una fila auxiliar castigaría al solicitante por un problema
+      // nuestro. `NO_CONSULTADO` no aprueba a nadie.
+      this.logger.warn(`No se pudo leer el registro estatal del cliente ${customerId}: ${describir(error)}`);
+      return { estado: 'NO_CONSULTADO', coincidencia: 0 };
+    }
+  }
+
+  /** Los agregados de la agenda, o el vacío explícito cuando no los hay. */
+  private async agendaDe(tenantId: string, customerId: string | null): Promise<ContactsSnapshotFeatures> {
+    const vacio: ContactsSnapshotFeatures = {
+      available: false,
+      totalContacts: 0,
+      uniqueRatio: 0,
+      bolivianRatio: 0,
+      referencesFoundInAddressBook: 0,
+      riskMatches: 0,
+    };
+    if (!customerId) return vacio;
+    try {
+      return await this.contacts.featuresFor(tenantId, customerId);
+    } catch (error: unknown) {
+      this.logger.warn(`No se pudo leer la agenda del cliente ${customerId}: ${describir(error)}`);
+      return vacio;
     }
   }
 }

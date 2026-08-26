@@ -16,14 +16,39 @@ describe('SegipAdapter', () => {
     await expect(adapter.execute({ mode: 'sandbox', input: {} } as never)).rejects.toThrow('SEGIP_REAL_INTEGRATION_NOT_CONFIGURED');
   });
 
-  it('execute (local) devuelve el payload del escenario, con happy_path por defecto', async () => {
-    const notFound = await adapter.execute(local('not_found'));
-    expect(notFound).toMatchObject({ providerCode: 'SEGIP', status: 'NOT_FOUND', isMocked: true });
-    expect((notFound.payload as { documentExists: boolean }).documentExists).toBe(false);
+  /**
+   * Por omisión el adaptador FUERZA el desenlace favorable, y hay que ser explícito sobre lo que eso
+   * significa: **no hay integración real con el SEGIP**. Lo que existe es un adaptador de prueba, y
+   * mientras lo sea, devolver `NOT_FOUND` según un escenario produciría rechazos que no responden a
+   * ningún hecho del mundo — le cerraríamos el producto a personas reales por un simulacro.
+   *
+   * `SEGIP_ALWAYS_VERIFIED=false` devuelve el comportamiento por escenario, que es lo que hace falta
+   * para probar las ramas de rechazo del artefacto.
+   */
+  it('con el desenlace forzado (por omisión) SIEMPRE devuelve FOUND, y lo declara', async () => {
+    const forzado = await adapter.execute(local('not_found'));
+    expect(forzado).toMatchObject({ providerCode: 'SEGIP', status: 'FOUND', isMocked: true });
+    // La marca viaja en la carga: la evidencia del expediente nunca puede afirmar que un registro
+    // estatal confirmó algo cuando lo que hubo fue un adaptador de prueba.
+    expect(forzado.payload).toMatchObject({ forcedOutcome: true, integrationKind: 'MOCK_LOCAL' });
+  });
 
-    const happy = await adapter.execute(local());
-    expect(happy.status).toBe('FOUND');
-    expect((happy.payload as { matchScore: number }).matchScore).toBe(0.98);
+  it('execute (local) devuelve el payload del escenario cuando NO se fuerza', async () => {
+    const previo = process.env.SEGIP_ALWAYS_VERIFIED;
+    process.env.SEGIP_ALWAYS_VERIFIED = 'false';
+    try {
+      const notFound = await adapter.execute(local('not_found'));
+      expect(notFound).toMatchObject({ providerCode: 'SEGIP', status: 'NOT_FOUND', isMocked: true });
+      expect((notFound.payload as { documentExists: boolean }).documentExists).toBe(false);
+      expect(notFound.payload).toMatchObject({ forcedOutcome: false });
+
+      const happy = await adapter.execute(local());
+      expect(happy.status).toBe('FOUND');
+      expect((happy.payload as { matchScore: number }).matchScore).toBe(0.98);
+    } finally {
+      if (previo === undefined) delete process.env.SEGIP_ALWAYS_VERIFIED;
+      else process.env.SEGIP_ALWAYS_VERIFIED = previo;
+    }
   });
 
   it('normalize deriva 5 observaciones; verified/manualReview según status y score', async () => {

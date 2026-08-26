@@ -9,13 +9,16 @@ import {
   CustomerModel,
   CustomerProfileVersionModel,
   FraudCaseModel,
+  IdentityVerificationAttemptModel,
   ManualReviewCaseModel,
   RiskAssessmentResultModel,
 } from '../../database/models/index.js';
 import {
+  AddressBookSummaryDto,
   ConsentSummaryDto,
   ContactSummaryDto,
   FraudCaseSummaryDto,
+  IdentitySummaryDto,
   InvestigationSummaryResponseDto,
   ManualReviewSummaryDto,
   RiskSummaryDto,
@@ -60,6 +63,8 @@ export function toInvestigationSummaryResponse(input: {
   latestRiskResult: RiskAssessmentResultModel | null;
   manualReviewCases: ManualReviewCaseModel[];
   fraudCases: FraudCaseModel[];
+  latestIdentityAttempt: IdentityVerificationAttemptModel | null;
+  addressBook: AddressBookSummaryDto;
 }): InvestigationSummaryResponseDto {
   const contacts: ContactSummaryDto[] = input.contacts.map((c) => ({
     contactType: c.contactType,
@@ -103,6 +108,29 @@ export function toInvestigationSummaryResponse(input: {
     openedAt: toIsoOrNull(c.openedAt),
   }));
 
+  /*
+   * El puntaje del worker viaja en `DECIMAL(5,2)` y se publica en `[0,1]`.
+   *
+   * La columna admite hasta 999,99 porque la comparte con otros puntajes, así que
+   * un valor fuera de rango no es imposible: es lo que dejaría una versión
+   * anterior del artefacto que escribiera otra escala. Se acota al publicar en vez
+   * de al leer para que la pantalla no tenga que saber nada de la columna.
+   */
+  const enCero_uno = (valor: number | null): number | null =>
+    valor === null ? null : Math.max(0, Math.min(1, valor));
+
+  const latestIdentityVerification: IdentitySummaryDto | null = input.latestIdentityAttempt
+    ? {
+        attemptId: String(input.latestIdentityAttempt.id),
+        channel: input.latestIdentityAttempt.verificationChannel,
+        result: input.latestIdentityAttempt.finalResult,
+        similarity: enCero_uno(toNumberOrNull(input.latestIdentityAttempt.selfieMatchScore)),
+        fraudRisk: enCero_uno(toNumberOrNull(input.latestIdentityAttempt.documentForensicsScore)),
+        requestedAt: toIsoOrNull(input.latestIdentityAttempt.requestedAt),
+        completedAt: toIsoOrNull(input.latestIdentityAttempt.completedAt),
+      }
+    : null;
+
   return {
     customer: {
       customerId: String(input.customer.id),
@@ -123,6 +151,8 @@ export function toInvestigationSummaryResponse(input: {
     contacts,
     consents,
     latestRiskAssessment,
+    latestIdentityVerification,
+    addressBook: input.addressBook,
     manualReviewCases,
     fraudCases,
   };

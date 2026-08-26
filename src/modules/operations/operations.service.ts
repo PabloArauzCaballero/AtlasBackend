@@ -10,6 +10,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { CustomerLifecycleService } from '../customers/application/customer-lifecycle.service.js';
+import { CustomerContactsSnapshotService } from '../customer-onboarding/application/customer-contacts-snapshot.service.js';
 import { CustomerLifecycleStatus } from '../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { CustomerContactsRepository } from '../customers/repositories/customer-contacts.repository.js';
@@ -35,6 +36,14 @@ export class OperationsService {
     private readonly customerContactsRepository: CustomerContactsRepository,
     private readonly riskRepository: RiskRepository,
     private readonly lifecycleService: CustomerLifecycleService,
+    /*
+     * La agenda del cliente la calcula y la guarda el módulo de ALTA, y de ahí se
+     * lee. No se duplica la consulta aquí porque entonces habría dos definiciones
+     * de qué significa «la agenda de este cliente» —una para decidir y otra para
+     * investigar— y basta con que se separen una vez para que el analista vea unos
+     * números y el motor decida con otros.
+     */
+    private readonly contactsSnapshot: CustomerContactsSnapshotService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -105,14 +114,29 @@ export class OperationsService {
       throw new NotFoundException('Cliente no encontrado.');
     }
 
-    const [profile, contacts, consents, latestRiskResult, manualReviewCases, fraudCases] = await Promise.all([
-      this.customersRepository.findCurrentProfile(tenantId, params.customerId),
-      this.customerContactsRepository.findContactMethods(tenantId, params.customerId),
-      this.customersRepository.findCustomerConsents(tenantId, params.customerId),
-      this.riskRepository.findLatestCustomerRiskResult(tenantId, params.customerId),
-      this.operationsRepository.findOpenManualReviewCasesForCustomer(tenantId, params.customerId),
-      this.operationsRepository.findFraudCasesForCustomer(tenantId, params.customerId),
-    ]);
+    const [profile, contacts, consents, latestRiskResult, manualReviewCases, fraudCases, latestIdentityAttempt, addressBook] =
+      await Promise.all([
+        this.customersRepository.findCurrentProfile(tenantId, params.customerId),
+        this.customerContactsRepository.findContactMethods(tenantId, params.customerId),
+        this.customersRepository.findCustomerConsents(tenantId, params.customerId),
+        this.riskRepository.findLatestCustomerRiskResult(tenantId, params.customerId),
+        this.operationsRepository.findOpenManualReviewCasesForCustomer(tenantId, params.customerId),
+        this.operationsRepository.findFraudCasesForCustomer(tenantId, params.customerId),
+        this.operationsRepository.findLatestIdentityAttempt(tenantId, params.customerId),
+        // La agenda es una lectura auxiliar: si falla, el expediente entero no puede
+        // dejar de verse por ella. Degradar a «no disponible» es lo mismo que la
+        // pantalla enseña cuando la persona no dio el permiso.
+        this.contactsSnapshot
+          .featuresFor(tenantId, params.customerId)
+          .catch(() => ({
+            available: false,
+            totalContacts: 0,
+            uniqueRatio: 0,
+            bolivianRatio: 0,
+            referencesFoundInAddressBook: 0,
+            riskMatches: 0,
+          })),
+      ]);
 
     return toInvestigationSummaryResponse({
       customer,
@@ -122,6 +146,8 @@ export class OperationsService {
       latestRiskResult,
       manualReviewCases,
       fraudCases,
+      latestIdentityAttempt,
+      addressBook,
     });
   }
 

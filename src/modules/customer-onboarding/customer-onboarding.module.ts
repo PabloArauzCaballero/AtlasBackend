@@ -29,6 +29,8 @@ import {
   EvidenceExtractionModel,
   EvidenceReviewModel,
   IdentityVerificationAttemptModel,
+  OnDeviceComputationRunModel,
+  OnDeviceMetricValueModel,
   OnboardingFlowModel,
   OnboardingStepEventModel,
   OperationalAuditLogModel,
@@ -68,6 +70,8 @@ import { CustomerProfileUpdateService } from './application/customer-profile-upd
 import { CustomerFinancialProfileService } from './application/customer-financial-profile.service.js';
 import { CustomerReferenceContactsService } from './application/customer-reference-contacts.service.js';
 import { CustomerContactMethodsService } from './application/customer-contact-methods.service.js';
+import { CustomerContactsSnapshotService } from './application/customer-contacts-snapshot.service.js';
+import { CustomerContactsSnapshotRepository } from './repositories/customer-contacts-snapshot.repository.js';
 import { CustomerProfileDataRepository } from './repositories/customer-profile-data.repository.js';
 import { CustomerVerificationRepository } from './repositories/customer-verification.repository.js';
 import { OnboardingAbandonmentService } from './application/onboarding-abandonment.service.js';
@@ -112,8 +116,11 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
       CustomerReferenceContactModel,
       WatchlistEntryModel,
       WatchlistMatchModel,
-      WatchlistEntryModel,
-      WatchlistMatchModel,
+      // La agenda calculada en el dispositivo: la ejecución y sus métricas
+      // agregadas. Las tablas ya existían —`raw_contacts_stored` lleva ahí desde
+      // el esquema inicial—; lo que faltaba era el código que las llenara.
+      OnDeviceComputationRunModel,
+      OnDeviceMetricValueModel,
     ]),
     CustomersModule,
     SessionsModule,
@@ -134,6 +141,8 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
   ],
   providers: [
     IdentityManualReviewOutcomeService,
+    CustomerContactsSnapshotService,
+    CustomerContactsSnapshotRepository,
     CustomerOnboardingService,
     CustomerOnboardingStartService,
     CustomerOnboardingGuardsService,
@@ -167,6 +176,14 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
   ],
   // El planificador de trabajos de fondo necesita el cierre de onboardings abandonados: era el único
   // job del catálogo que solo existía como POST manual por tenant.
-  exports: [OnboardingAbandonmentService],
+  /*
+   * `CustomerContactsSnapshotService` se exporta porque lo lee el flujo MÓVIL de
+   * identidad: los agregados de la agenda son una de las entradas del artefacto
+   * que decide el alta, y quien llama al motor es `MobileIdentityService`. La
+   * alternativa —duplicar la lectura allí— crearía dos definiciones de qué
+   * significa «la agenda de este cliente», y sólo hace falta que se separen una
+   * vez para que la política decida sobre números que nadie escribió.
+   */
+  exports: [OnboardingAbandonmentService, CustomerContactsSnapshotService],
 })
 export class CustomerOnboardingModule {}

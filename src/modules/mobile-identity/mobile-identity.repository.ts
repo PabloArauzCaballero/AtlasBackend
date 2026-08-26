@@ -5,6 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
 import { IdentityVerificationAttemptModel } from '../../database/models/index.js';
 
 /**
@@ -62,6 +63,37 @@ export class MobileIdentityRepository {
         mismo defecto que ya se corrigio en `subject-reference.service.ts`.
       */
       createdAtValue: ahora,
+    });
+  }
+
+  /**
+   * El último intento del canal de ALTA de este cliente, que es donde quedó
+   * anotado lo que contestó el registro estatal.
+   *
+   * ## Por qué se lee de aquí y no se vuelve a consultar al proveedor
+   *
+   * Porque ya se consultó. `CustomerIdentityProviderVerificationService` llama al
+   * SEGIP al recibir el paquete de identidad —con el número de documento, que es
+   * lo único que el registro necesita y que este módulo deliberadamente NO
+   * conserva— y escribe el veredicto en el intento. Volver a preguntar desde
+   * aquí exigiría el número otra vez, duplicaría el coste por alta y podría
+   * devolver algo distinto de lo que quedó en el expediente: dos verdades sobre
+   * el mismo hecho.
+   *
+   * Se excluye el canal móvil a propósito: los intentos móviles son los que crea
+   * ESTE servicio, y leer uno de ellos sería leerse a sí mismo.
+   */
+  findLatestOnboardingAttempt(
+    tenantId: string,
+    customerId: string,
+  ): Promise<IdentityVerificationAttemptModel | null> {
+    return this.attemptModel.findOne({
+      where: {
+        tenantId,
+        customerId,
+        verificationChannel: { [Op.ne]: MOBILE_CHANNEL },
+      },
+      order: [['_id', 'DESC']],
     });
   }
 
