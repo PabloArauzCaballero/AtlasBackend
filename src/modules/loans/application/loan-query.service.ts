@@ -72,6 +72,15 @@ export class LoanQueryService {
       ...this.summary(loan),
       merchant: this.merchantOf(loan, merchants),
       schedule: installments.map((installment) => ({
+        /*
+         * El identificador de la cuota, que ANTES no salía.
+         *
+         * Sin él la app podía enseñar el calendario pero no pagar ninguna cuota: avisar de un pago
+         * exige decir de QUÉ cuota se habla, y el número de orden no sirve —se repite entre
+         * créditos—. La pantalla de pago quedaba sin forma de nombrar lo que el cliente acababa de
+         * transferir.
+         */
+        installmentId: String(installment.id),
         installmentNumber: installment.installmentNumber,
         dueDate: installment.dueDate,
         principalAmount: installment.principalAmount,

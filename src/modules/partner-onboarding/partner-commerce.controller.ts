@@ -3,7 +3,8 @@
  * @business Esta pieza convierte un comercio declarado en un partner verificable, con locales, cobro y terminales trazables.
  * @system expone los locales del partner, la subida de sus QR de cobro y el alta de sus terminales.
  */
-import { Body, Controller, Get, HttpCode, HttpStatus, Headers, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Headers, Param, Patch, Post, Res, StreamableFile, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -153,6 +154,39 @@ export class PartnerCommerceController {
     const tenantId = tenantIdFromHeader(tenantIdHeader);
     const codes = await this.qr.list(tenantId, params.partnerId);
     return codes.map(toPartnerQrDto);
+  }
+
+  /**
+   * Los bytes del QR, para poder MIRARLO.
+   *
+   * La lista de arriba enseña el prefijo del hash, que prueba que el archivo existe pero no deja
+   * comprobar que sea el QR correcto: un comercio que sube la imagen equivocada no se entera hasta
+   * que un cliente transfiere a la cuenta de otro. Sin esta ruta no había ninguna forma de ver lo
+   * que se subió.
+   *
+   * Se sirven los bytes en vez de una URL prefirmada del almacenamiento: un enlace firmado funciona
+   * sin sesión mientras no venza, y aquí cada lectura pasa por el token, el rol y el guard de
+   * propiedad del expediente igual que el resto del módulo.
+   */
+  @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'La imagen de un QR registrado' })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
+  @ApiResponse({ status: 200, description: 'La imagen del QR.' })
+  @ApiResponse({ status: 404, description: 'QR_NOT_FOUND o QR_OBJECT_NOT_FOUND.' })
+  @Get(':partnerId/qr-codes/:qrId/content')
+  @Header('Cache-Control', 'private, max-age=60')
+  async qrContent(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
+    @Param('qrId') qrId: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const imagen = await this.qr.readQrImage(tenantId, params.partnerId, qrId);
+    response.setHeader('Content-Type', imagen.contentType);
+    return new StreamableFile(imagen.bytes);
   }
 
   @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')

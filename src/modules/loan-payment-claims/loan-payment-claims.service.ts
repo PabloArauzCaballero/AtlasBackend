@@ -26,6 +26,7 @@ import { LoansRepository } from '../loans/loans.repository.js';
 import { CreditRepository } from '../credit/credit.repository.js';
 import { LoanPaymentService } from '../loans/application/loan-payment.service.js';
 import { PartnerProfileService } from '../partner-onboarding/application/partner-profile.service.js';
+import { PartnerQrService } from '../partner-onboarding/application/partner-qr.service.js';
 import { EventsService } from '../events/events.service.js';
 import { assertOwnPartnerResource } from '../../common/utils/auth/ownership.util.js';
 import type {
@@ -47,6 +48,7 @@ export class LoanPaymentClaimsService {
     private readonly credit: CreditRepository,
     private readonly payments: LoanPaymentService,
     private readonly partners: PartnerProfileService,
+    private readonly partnerQr: PartnerQrService,
     private readonly events: EventsService,
   ) {}
 
@@ -57,6 +59,129 @@ export class LoanPaymentClaimsService {
    * alta, y quien paga una cuota lleva meses activo. Reutilizarlo habría rechazado exactamente a
    * quien lo necesita.
    */
+  /**
+   * Dónde pagar ESTA cuota: el QR bancario del comercio, con su beneficiario y el importe exacto.
+   *
+   * Es lo que faltaba para que «pagar» significara algo. La app decía «se paga al QR bancario del
+   * comercio» y no lo enseñaba: no existía ninguna ruta que lo devolviera, así que el cliente leía
+   * una instrucción que no podía seguir. Aquí sale el QR que el comercio subió en su portal.
+   *
+   * ## Por qué la imagen viaja EMBEBIDA y no como enlace
+   *
+   * Un `<Image src>` —igual que un `<img>`— no manda cabeceras: sólo tiene una URL. Servir el QR
+   * por una ruta autenticada obligaría a la app a descargarlo aparte y convertirlo en blob, y
+   * servirlo por una URL prefirmada crearía un enlace que funciona sin sesión. Un QR ronda las
+   * decenas de kilobytes: viaja dentro de la respuesta, en la misma llamada que ya se hace.
+   *
+   * ## Qué se devuelve cuando NO hay QR
+   *
+   * `paymentQr: null` con un motivo, no un 404. Que el comercio no haya subido su QR es un estado
+   * legítimo del sistema y el cliente tiene que poder ver el resto de la instrucción —importe,
+   * vencimiento, a quién le paga— para poder reclamarle al comercio. Un 404 dejaría la pantalla en
+   * blanco y con la culpa aparentemente puesta en el cliente.
+   */
+  async paymentInstruction(input: {
+    tenantId: string;
+    customerId: string;
+    installmentId: string;
+    currentUser: AuthenticatedUser;
+  }) {
+    this.assertOwnCustomer(input.currentUser, input.customerId);
+
+    const { loan, installment } = await this.requireOwnInstallment(input.tenantId, input.customerId, input.installmentId);
+
+    const debido = Number(installment.principalAmount) + Number(installment.interestAmount) + Number(installment.lateFeeAmount);
+    const pagado = Number(installment.paidPrincipal) + Number(installment.paidInterest) + Number(installment.paidLateFee);
+    const pendiente = Math.max(debido - pagado, 0);
+
+    const partnerProfileId = await this.resolvePartner(input.tenantId, loan);
+    const profile = partnerProfileId ? await this.partners.requireProfile(input.tenantId, partnerProfileId).catch(() => null) : null;
+
+    /* Lo que ya se avisó de esta cuota: sin esto la pantalla ofrecería avisar dos veces del mismo pago. */
+    const claimAbierto = await this.claims.findOne({
+      where: { tenantId: input.tenantId, installmentId: String(installment.id), deleted: false },
+      order: [['submitted_at', 'DESC']],
+    });
+
+    const qr = partnerProfileId ? await this.partnerQr.findLivePaymentQr(input.tenantId, partnerProfileId) : null;
+    const imagen = qr ? await this.readQrImageSafe(qr.storageKey) : null;
+
+    return {
+      installmentId: String(installment.id),
+      loanId: String(loan.id),
+      loanCode: loan.loanCode,
+      installmentNumber: installment.installmentNumber,
+      dueDate: String(installment.dueDate).slice(0, 10),
+      currencyCode: loan.currencyCode,
+      amountDue: debido.toFixed(2),
+      amountOutstanding: pendiente.toFixed(2),
+      status: installment.status,
+      merchant: profile
+        ? { partnerProfileId: String(profile.id), displayName: profile.tradeName ?? profile.legalName }
+        : null,
+      paymentQr:
+        qr && imagen
+          ? {
+              qrId: String(qr.id),
+              bankInstitutionCode: qr.bankInstitutionCode,
+              accountNumberMasked: qr.accountNumberMasked,
+              /* El prefijo del hash: identifica la evidencia sin publicarla entera. */
+              fingerprint: qr.sha256.slice(0, 12),
+              status: qr.status,
+              contentType: qr.contentType,
+              imageDataUrl: `data:${qr.contentType};base64,${imagen.toString('base64')}`,
+            }
+          : null,
+      /*
+       * Por qué no hay QR, dicho con precisión. «No disponible» a secas haría que el cliente
+       * llamara a Atlas por algo que sólo su comercio puede resolver.
+       */
+      paymentQrUnavailableReason: qr && imagen ? null : !partnerProfileId ? 'LOAN_WITHOUT_PARTNER' : !qr ? 'PARTNER_HAS_NO_PAYMENT_QR' : 'PAYMENT_QR_OBJECT_MISSING',
+      openClaim: claimAbierto
+        ? {
+            claimId: String(claimAbierto.id),
+            claimCode: claimAbierto.claimCode,
+            status: claimAbierto.status,
+            submittedAt: claimAbierto.submittedAt,
+            rejectionReason: claimAbierto.rejectionReason,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * La imagen del QR, o nada.
+   *
+   * Un objeto que ya no está en el almacenamiento no puede tumbar la instrucción entera: el cliente
+   * seguiría necesitando ver cuánto debe y a quién, y un 500 aquí le esconde las dos cosas.
+   */
+  private async readQrImageSafe(storageKey: string): Promise<Buffer | null> {
+    try {
+      return await this.storage.readObject(storageKey);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * La cuota, buscada DENTRO de los préstamos del cliente.
+   *
+   * Buscarla suelta y comprobar el dueño después filtra igual, pero deja que alguien averigüe si un
+   * id existe probándolos: así un id ajeno es indistinguible de uno inexistente.
+   */
+  private async requireOwnInstallment(tenantId: string, customerId: string, installmentId: string) {
+    const loansDelCliente = await this.loans.findLoansByCustomer(tenantId, String(customerId));
+    const installments = (
+      await Promise.all(loansDelCliente.map((prestamo) => this.loans.findInstallments(tenantId, String(prestamo.id))))
+    ).flat();
+    const installment = installments.find((cuota) => String(cuota.id) === String(installmentId));
+    if (!installment) throw new NotFoundException('INSTALLMENT_NOT_FOUND');
+
+    const loan = loansDelCliente.find((prestamo) => String(prestamo.id) === String(installment.loanId));
+    if (!loan) throw new NotFoundException('LOAN_NOT_FOUND');
+    return { loan, installment };
+  }
+
   createProofTicket(input: { tenantId: string; customerId: string; body: PaymentProofTicketDto; currentUser: AuthenticatedUser }) {
     this.assertOwnCustomer(input.currentUser, input.customerId);
     if (!this.storage.isConfigured()) throw new ServiceUnavailableException('DOCUMENT_STORAGE_NOT_CONFIGURED');
@@ -80,20 +205,7 @@ export class LoanPaymentClaimsService {
   async submit(input: { tenantId: string; customerId: string; body: SubmitPaymentClaimDto; currentUser: AuthenticatedUser }) {
     this.assertOwnCustomer(input.currentUser, input.customerId);
 
-    /*
-     * La cuota se busca DENTRO de los prestamos del cliente, no por su id a secas. Buscarla suelta
-     * y comprobar el dueño despues filtra igual, pero deja que alguien averigue si un id existe
-     * probandolos: aqui un id ajeno es indistinguible de uno inexistente.
-     */
-    const loansDelCliente = await this.loans.findLoansByCustomer(input.tenantId, String(input.customerId));
-    const installments = (
-      await Promise.all(loansDelCliente.map((prestamo) => this.loans.findInstallments(input.tenantId, String(prestamo.id))))
-    ).flat();
-    const installment = installments.find((cuota) => String(cuota.id) === String(input.body.installmentId));
-    if (!installment) throw new NotFoundException('INSTALLMENT_NOT_FOUND');
-
-    const loan = loansDelCliente.find((prestamo) => String(prestamo.id) === String(installment.loanId));
-    if (!loan) throw new NotFoundException('LOAN_NOT_FOUND');
+    const { loan, installment } = await this.requireOwnInstallment(input.tenantId, input.customerId, input.body.installmentId);
     if (installment.status === 'paid') throw new ConflictException('INSTALLMENT_ALREADY_PAID');
 
     const metadata = await this.storage.readObjectMetadata(input.body.storageKey);
@@ -153,6 +265,16 @@ export class LoanPaymentClaimsService {
           proofEvidenceId: String(evidence.id),
           status: PENDIENTE,
           submittedAt: new Date(),
+          /*
+           * `_deleted` es NOT NULL en la tabla y `allowNull: false` en el modelo, pero no tiene
+           * defecto en el modelo: sin asignarlo, Sequelize valida el atributo ANTES de insertar y
+           * rechaza el reclamo con un ValidationError —que el filtro global convierte en un 409
+           * «viola una restricción de datos.»— sin llegar nunca a la base. Este camino jamás se
+           * había ejecutado de punta a punta (el aviso se quedaba en el teléfono), así que el fallo
+           * salió recién al enviarlo de verdad. Es el mismo arreglo que ya llevan el desembolso y el
+           * registro de pago.
+           */
+          deleted: false,
         } as never,
         { transaction },
       );
@@ -223,6 +345,47 @@ export class LoanPaymentClaimsService {
         decidedAt: claim.decidedAt,
       })),
     };
+  }
+
+  /**
+   * El comprobante que el cliente subió, para que el comercio lo MIRE antes de decidir.
+   *
+   * La cola de verificación enseñaba el importe declarado y la referencia del banco, pero no la
+   * imagen: el comercio tenía que confirmar o rechazar una transferencia sin ver el papel que la
+   * respalda. Eso no es verificar, es apostar — y el botón «verificar y dar por pagado» registra un
+   * pago real sobre el préstamo.
+   *
+   * Se sirven los bytes y no una URL prefirmada porque un enlace firmado funciona sin sesión
+   * mientras no venza: el comprobante bancario de una persona no debe quedar accesible a quien
+   * tenga el enlace. Cada lectura pasa por el token del comercio y por la comprobación de que ese
+   * comprobante llegó A ÉL.
+   */
+  async readProof(input: {
+    tenantId: string;
+    partnerProfileId: string;
+    claimId: string;
+    currentUser: AuthenticatedUser;
+  }): Promise<{ bytes: Buffer; contentType: string }> {
+    const profile = await this.partners.requireProfile(input.tenantId, input.partnerProfileId);
+    assertOwnPartnerResource(input.currentUser, profile.ownerMerchantUserId);
+
+    const claim = await this.claims.findOne({
+      where: { tenantId: input.tenantId, id: input.claimId, deleted: false },
+    });
+    if (!claim) throw new NotFoundException('PAYMENT_CLAIM_NOT_FOUND');
+    if (String(claim.partnerProfileId) !== String(input.partnerProfileId)) {
+      throw new ForbiddenException('El comprobante no llegó a este comercio.');
+    }
+    if (!claim.proofEvidenceId) throw new NotFoundException('PAYMENT_CLAIM_WITHOUT_PROOF');
+
+    const evidence = await this.evidences.findOne({
+      where: { tenantId: input.tenantId, id: claim.proofEvidenceId, deleted: false },
+    });
+    if (!evidence?.s3Key) throw new NotFoundException('EVIDENCE_OBJECT_NOT_FOUND');
+
+    const bytes = await this.storage.readObject(evidence.s3Key);
+    if (!bytes) throw new NotFoundException('EVIDENCE_OBJECT_NOT_FOUND');
+    return { bytes, contentType: evidence.mimeType ?? 'application/octet-stream' };
   }
 
   /**

@@ -3,7 +3,22 @@
  * @business Sólo el comercio ve el dinero entrar en su cuenta, así que sólo él puede dar por pagada la cuota.
  * @system lista lo pendiente de SU expediente y registra el pago al verificar.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  Res,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -71,6 +86,36 @@ export class MerchantPaymentClaimsController {
       partnerProfileId: partnerId,
       currentUser,
     });
+  }
+
+  /**
+   * La imagen del comprobante, para poder MIRARLA antes de decidir.
+   *
+   * La cola enseñaba el importe declarado y la referencia del banco, pero no el papel: el comercio
+   * confirmaba o rechazaba sin ver nada. Y confirmar no es un gesto de trámite — registra un pago
+   * real contra el préstamo.
+   */
+  @ApiOperation({ summary: 'La imagen del comprobante que subió el cliente' })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'La imagen del comprobante.' })
+  @ApiResponse({ status: 404, description: 'PAYMENT_CLAIM_NOT_FOUND | PAYMENT_CLAIM_WITHOUT_PROOF.' })
+  @Get(':claimId/proof')
+  @Header('Cache-Control', 'private, max-age=60')
+  async proof(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Param('partnerId') partnerId: string,
+    @Param('claimId') claimId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const imagen = await this.service.readProof({
+      tenantId: tenantIdFromHeader(tenantIdHeader),
+      partnerProfileId: partnerId,
+      claimId,
+      currentUser,
+    });
+    response.setHeader('Content-Type', imagen.contentType);
+    return new StreamableFile(imagen.bytes);
   }
 
   @ApiOperation({ summary: 'Confirmar o rechazar un comprobante' })

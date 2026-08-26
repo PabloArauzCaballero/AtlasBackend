@@ -46,7 +46,7 @@ export class PartnerQrService {
    */
   async createUploadTicket(tenantId: string, partnerId: string, dto: QrUploadUrlDto) {
     const profile = await this.profiles.requireProfile(tenantId, partnerId);
-    this.profiles.assertEditable(profile);
+    this.profiles.assertPaymentQrEditable(profile);
 
     if (!this.storage.isConfigured()) {
       throw new ServiceUnavailableException('DOCUMENT_STORAGE_NOT_CONFIGURED');
@@ -71,7 +71,7 @@ export class PartnerQrService {
    */
   async register(tenantId: string, partnerId: string, dto: RegisterQrDto): Promise<PartnerQrCodeModel> {
     const profile = await this.profiles.requireProfile(tenantId, partnerId);
-    this.profiles.assertEditable(profile);
+    this.profiles.assertPaymentQrEditable(profile);
 
     const branchId = await this.resolveBranchId(tenantId, partnerId, dto.branchId);
 
@@ -142,6 +142,41 @@ export class PartnerQrService {
 
   list(tenantId: string, partnerId: string): Promise<PartnerQrCodeModel[]> {
     return this.repository.listQrCodes(tenantId, partnerId);
+  }
+
+  /**
+   * El QR de cobro VIGENTE del comercio: el que hay que enseñarle al cliente para que transfiera.
+   *
+   * Es el bancario, no el «del negocio»: aquél es el cartel de la tienda y éste es la cuenta a la
+   * que va el dinero. Confundirlos enseñaría al cliente un código que su banco no sabe leer.
+   *
+   * Devuelve el vigente de la EMPRESA (`branchId` nulo). El QR de una sucursal concreta existe para
+   * el cobro en mostrador; una cuota se transfiere al comercio, no a la caja donde se compró.
+   */
+  findLivePaymentQr(tenantId: string, partnerId: string): Promise<PartnerQrCodeModel | null> {
+    return this.repository.findLiveQr(tenantId, partnerId, 'bank', null);
+  }
+
+  /**
+   * Los bytes de un QR ya registrado, para poder MIRARLO.
+   *
+   * Se subía la imagen y no había forma de volver a verla: el expediente enseñaba una tabla con el
+   * prefijo del hash, que prueba que el archivo existe pero no deja comprobar si el comercio subió
+   * el QR correcto. Un comercio que se equivoca de imagen no se entera hasta que un cliente
+   * transfiere a la cuenta de otro.
+   *
+   * Se sirven los bytes en vez de una URL prefirmada por lo mismo que en la evidencia de identidad:
+   * un enlace firmado funciona sin sesión mientras no venza, y aquí cada lectura tiene que pasar
+   * por el token y el rol de quien pregunta.
+   */
+  async readQrImage(tenantId: string, partnerId: string, qrId: string): Promise<{ bytes: Buffer; contentType: string }> {
+    const codes = await this.repository.listQrCodes(tenantId, partnerId);
+    const qr = codes.find((code) => String(code.id) === String(qrId));
+    if (!qr) throw new NotFoundException('QR_NOT_FOUND');
+
+    const bytes = await this.storage.readObject(qr.storageKey);
+    if (!bytes) throw new NotFoundException('QR_OBJECT_NOT_FOUND');
+    return { bytes, contentType: qr.contentType };
   }
 
   /** La sucursal tiene que ser de ESTE partner: si no, un QR podría colgarse del local de otro. */

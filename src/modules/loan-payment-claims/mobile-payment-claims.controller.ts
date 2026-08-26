@@ -3,7 +3,7 @@
  * @business Sube su comprobante y queda esperando que el comercio lo confirme.
  * @system dos pasos: ticket de subida y aviso con la referencia del banco.
  */
-import { Body, Controller, Headers, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -35,6 +35,32 @@ import { LoanPaymentClaimsService } from './loan-payment-claims.service.js';
 @Roles('customer', 'internal_operator', 'admin', 'platform_admin')
 export class MobilePaymentClaimsController {
   constructor(private readonly service: LoanPaymentClaimsService) {}
+
+  /**
+   * Dónde pagar esta cuota: el QR bancario REAL del comercio, con su beneficiario y el importe.
+   *
+   * Va antes que el ticket de subida porque es lo primero que ocurre: primero se paga, y sólo
+   * después se avisa. La pantalla decía «se paga al QR bancario del comercio» y no enseñaba
+   * ninguno —no existía ruta que lo devolviera—, así que la instrucción no se podía seguir.
+   */
+  @ApiOperation({ summary: 'Cómo pagar esta cuota: el QR bancario del comercio' })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Importe, beneficiario y el QR del comercio embebido.' })
+  @ApiResponse({ status: 404, description: 'INSTALLMENT_NOT_FOUND.' })
+  @Get('instructions/:installmentId')
+  instruction(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Param('customerId') customerId: string,
+    @Param('installmentId') installmentId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.service.paymentInstruction({
+      tenantId: tenantIdFromHeader(tenantIdHeader),
+      customerId,
+      installmentId,
+      currentUser,
+    });
+  }
 
   @ApiOperation({ summary: 'Permiso para subir el comprobante' })
   @ApiHeader({ name: 'x-tenant-id', required: true })

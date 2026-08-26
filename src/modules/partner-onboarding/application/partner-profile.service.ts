@@ -8,6 +8,7 @@ import { MetricsService } from '../../../common/observability/metrics.service.js
 import {
   COMMERCIAL_NETWORK_EDITABLE_STATUSES,
   EDITABLE_PARTNER_STATUSES,
+  PAYMENT_QR_EDITABLE_STATUSES,
   PartnerOnboardingRepository,
 } from '../partner-onboarding.repository.js';
 import {
@@ -278,6 +279,22 @@ export class PartnerProfileService {
       )
     ) {
       throw new UnprocessableEntityException(`PARTNER_NETWORK_NOT_EDITABLE_IN_STATUS: ${profile.onboardingStatus}`);
+    }
+  }
+
+  /**
+   * Igual que `assertEditable`, pero para el QR DE COBRO.
+   *
+   * El comercio aprobado —el único que de verdad cobra— no podía subir el suyo, así que la app no
+   * tenía qué enseñar cuando el cliente pulsaba «pagar». Un QR no se edita: se reemplaza, y el
+   * anterior queda archivado apuntando al nuevo, de modo que abrir esta puerta no borra nada de lo
+   * que hubo antes.
+   */
+  assertPaymentQrEditable(profile: PartnerProfileModel): void {
+    if (
+      !PAYMENT_QR_EDITABLE_STATUSES.includes(profile.onboardingStatus as (typeof PAYMENT_QR_EDITABLE_STATUSES)[number])
+    ) {
+      throw new UnprocessableEntityException(`PARTNER_QR_NOT_EDITABLE_IN_STATUS: ${profile.onboardingStatus}`);
     }
   }
 

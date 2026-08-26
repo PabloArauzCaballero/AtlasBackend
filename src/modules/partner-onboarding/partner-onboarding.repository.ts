@@ -33,6 +33,26 @@ export const EDITABLE_PARTNER_STATUSES = ['draft', 'contact_verified', 'document
  */
 export const COMMERCIAL_NETWORK_EDITABLE_STATUSES = [...EDITABLE_PARTNER_STATUSES, 'approved'] as const;
 
+/**
+ * Estados en los que el comercio puede reemplazar su QR DE COBRO.
+ *
+ * Un comercio aprobado NO podía tocar sus QR: `assertEditable` sólo admite el expediente en trámite,
+ * así que cualquier intento respondía `422 PARTNER_NOT_EDITABLE_IN_STATUS: approved`. El resultado
+ * práctico era que el único comercio que de verdad cobra —el que ya está aprobado y operando— era
+ * exactamente el que no podía subir el QR al que sus clientes deben transferir. Y sin ese QR la app
+ * no tiene qué enseñar cuando el cliente pulsa «pagar».
+ *
+ * Una cuenta de cobro CAMBIA mientras el negocio opera: se cierra una cuenta, se cambia de banco, se
+ * rota el QR por fraude. Congelarla con la aprobación obligaría a reabrir una verificación de
+ * identidad para arreglar un dato que ninguna verificación de identidad comprueba.
+ *
+ * No debilita la trazabilidad, y es la razón de que se pueda abrir: un QR **no se edita, se
+ * reemplaza**. El anterior queda en `replaced` apuntando al nuevo, con su hash y su fecha, así que
+ * siempre se puede reconstruir contra qué QR se cobró un día concreto. Lo que sí sigue fuera es
+ * `under_review`: mientras un analista mira el expediente, la foto no se mueve.
+ */
+export const PAYMENT_QR_EDITABLE_STATUSES = [...EDITABLE_PARTNER_STATUSES, 'approved'] as const;
+
 @Injectable()
 export class PartnerOnboardingRepository {
   constructor(

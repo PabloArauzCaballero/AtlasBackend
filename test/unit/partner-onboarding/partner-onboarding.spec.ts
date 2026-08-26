@@ -131,6 +131,20 @@ describe('PartnerProfileService', () => {
       UnprocessableEntityException,
     );
   });
+
+  /*
+   * El QR DE COBRO sí se puede cambiar con el expediente aprobado —es la corrección: el comercio que
+   * de verdad cobra es el aprobado, y antes era el único que no podía subir su QR—. Lo que sigue
+   * congelado mientras un analista mira es `under_review`.
+   */
+  it('el QR de cobro se puede reemplazar con el expediente aprobado, pero no en revisión', () => {
+    const service = new PartnerProfileService({} as never, metricsDouble());
+
+    expect(() => service.assertPaymentQrEditable(profileDouble({ onboardingStatus: 'approved' }) as never)).not.toThrow();
+    expect(() => service.assertPaymentQrEditable(profileDouble({ onboardingStatus: 'under_review' }) as never)).toThrow(
+      UnprocessableEntityException,
+    );
+  });
 });
 
 describe('PartnerQrService', () => {
@@ -145,6 +159,7 @@ describe('PartnerQrService', () => {
     const profiles = {
       requireProfile: jest.fn(async () => profileDouble()),
       assertEditable: jest.fn(),
+      assertPaymentQrEditable: jest.fn(),
     };
     const storage = {
       isConfigured: jest.fn(() => true),
@@ -236,6 +251,10 @@ describe('PartnerCommerceService', () => {
     const profiles = {
       requireProfile: jest.fn(async () => profileDouble(profileOverrides)),
       assertEditable: jest.fn(),
+      assertPaymentQrEditable: jest.fn(),
+      /* Sucursales y POS pasan por esta puerta, no por `assertEditable`: un comercio aprobado sigue
+         abriendo locales. El doble no la mockeaba y estos casos morían con un TypeError. */
+      assertCommercialNetworkEditable: jest.fn(),
     };
     const service = new PartnerCommerceService(repository as never, profiles as never, metricsDouble());
     return { service, repository, profiles };
@@ -307,6 +326,7 @@ describe('PartnerContactVerificationService', () => {
     const profiles = {
       requireProfile: jest.fn(async () => perfil()),
       assertEditable: jest.fn(),
+      assertPaymentQrEditable: jest.fn(),
     };
     /** La transacción del doble sólo ejecuta el cuerpo: no hay base contra la que abrirla. */
     const sequelize = { transaction: jest.fn(async (fn: (t: unknown) => unknown) => fn({})) };
@@ -444,6 +464,7 @@ describe('PartnerQrService · clave de objeto', () => {
     const profiles = {
       requireProfile: jest.fn(async () => profileDouble({ onboardingStatus: 'draft' })),
       assertEditable: jest.fn(),
+      assertPaymentQrEditable: jest.fn(),
     };
     const storage = {
       isConfigured: jest.fn(() => true),
