@@ -237,6 +237,19 @@ export const partnerDecisionSchema = z
 export type PartnerDecisionDto = z.infer<typeof partnerDecisionSchema>;
 
 /**
+ * La tasa de comisión (MDR) del comercio, fijada desde el ERP interno de Atlas.
+ *
+ * Entre 0 y 100 %, con dos decimales. Es el término comercial que se negocia en el onboarding: por
+ * cada venta financiada, el porcentaje que Atlas cobra sobre lo que el cliente paga.
+ */
+export const setMdrRateSchema = z
+  .object({
+    mdrRatePercent: z.number().min(0).max(100),
+  })
+  .strict();
+export type SetMdrRateDto = z.infer<typeof setMdrRateSchema>;
+
+/**
  * Decisión sobre el expediente de un comercio.
  *
  * Rechazar exige motivo y aprobar no: el motivo de un sí es el expediente completo que se acaba de

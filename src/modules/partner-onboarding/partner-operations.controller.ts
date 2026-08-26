@@ -3,7 +3,7 @@
  * @business Esta pieza deja constancia de quién verificó a un comercio y cuándo, que es lo que lo hace confiable.
  * @system expone a operaciones la decisión sobre el expediente del partner.
  */
-import { Body, Controller, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -15,7 +15,13 @@ import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
-import { PartnerDecisionDto, partnerDecisionSchema, partnerIdParamsSchema } from './partner-onboarding.schemas.js';
+import {
+  PartnerDecisionDto,
+  partnerDecisionSchema,
+  partnerIdParamsSchema,
+  SetMdrRateDto,
+  setMdrRateSchema,
+} from './partner-onboarding.schemas.js';
 import { toPartnerProfileDto } from './partner-onboarding.mapper.js';
 
 /**
@@ -61,6 +67,25 @@ export class PartnerOperationsController {
       ...(body.rejectionReason ? { rejectionReason: body.rejectionReason } : {}),
       internalUserId: currentUser.internalUserId ?? null,
     });
+    return toPartnerProfileDto(profile);
+  }
+
+  @ApiOperation({
+    summary: 'Fijar la comisión (MDR) del comercio',
+    description: 'Término comercial negociado en el onboarding. Se puede ajustar en cualquier estado; sólo staff interno.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
+  @ApiBody({ schema: zodToApiSchema(setMdrRateSchema) })
+  @ApiResponse({ status: 200, description: 'Comisión actualizada.' })
+  @Patch(':partnerId/mdr-rate')
+  @HttpCode(HttpStatus.OK)
+  async setMdrRate(
+    @CurrentTenant() tenantId: string,
+    @Param('partnerId') partnerId: string,
+    @Body(new ZodValidationPipe(setMdrRateSchema)) body: SetMdrRateDto,
+  ) {
+    const profile = await this.profiles.setMdrRate(tenantId, partnerId, body.mdrRatePercent);
     return toPartnerProfileDto(profile);
   }
 }

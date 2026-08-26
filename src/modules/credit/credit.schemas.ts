@@ -83,6 +83,15 @@ export const createCreditApplicationSchema = z
       .string()
       .regex(/^[1-9][0-9]*$/)
       .optional(),
+    /*
+     * La caja donde se escaneó el QR, resuelta por el lector junto al comercio. Igual que aquél:
+     * opcional, y el servidor comprueba que el terminal pertenezca a ESTE comercio antes de guardarlo
+     * —el identificador lo trae el cliente, así que la pertenencia no se da por buena—.
+     */
+    posTerminalId: z
+      .string()
+      .regex(/^[1-9][0-9]*$/)
+      .optional(),
   })
   .strict();
 

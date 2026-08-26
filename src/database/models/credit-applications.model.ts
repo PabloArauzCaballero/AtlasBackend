@@ -35,6 +35,10 @@ export class CreditApplicationModel extends Model {
   @Column({ field: 'partner_profile_id', type: DataType.BIGINT })
   declare partnerProfileId: string | null;
 
+  /** La caja del comercio donde se escaneó el QR. De ella cuelga la sucursal. Nulo si no nació en una. */
+  @Column({ field: 'pos_terminal_id', type: DataType.BIGINT })
+  declare posTerminalId: string | null;
+
   @Column({ field: 'requested_amount', type: DataType.DECIMAL(18, 2), allowNull: false })
   declare requestedAmount: string;
 

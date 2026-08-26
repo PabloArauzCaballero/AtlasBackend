@@ -32,6 +32,7 @@ export function toPartnerProfileDto(model: PartnerProfileModel) {
     emailVerified: model.emailVerifiedAt !== null,
     phoneVerified: model.phoneVerifiedAt !== null,
     onboardingStatus: model.onboardingStatus,
+    mdrRatePercent: model.mdrRatePercent,
     submittedAt: model.submittedAt?.toISOString() ?? null,
     decidedAt: model.decidedAt?.toISOString() ?? null,
     rejectionReason: model.rejectionReason,

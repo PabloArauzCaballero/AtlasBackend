@@ -119,7 +119,7 @@ export class CreditApplicationService {
     try {
       return await this.sequelize.transaction(async (transaction) => {
         const admission = await this.admitApplication(input, now, transaction);
-        const { product, evaluation, latestEvaluation, partnerProfileId } = admission;
+        const { product, evaluation, latestEvaluation, partnerProfileId, posTerminalId } = admission;
 
         const application = await this.creditRepository.createApplication(
           {
@@ -128,6 +128,7 @@ export class CreditApplicationService {
             customerId: input.customerId,
             creditProductId: String(product.id),
             partnerProfileId,
+            posTerminalId,
             requestedAmount: input.body.requestedAmount.toFixed(2),
             requestedTermMonths: input.body.requestedTermMonths,
             currencyCode: product.currencyCode,
@@ -222,7 +223,11 @@ export class CreditApplicationService {
      * aceptación pendiente. Que el QR se resolviera en el servidor no basta: entre aquella
      * respuesta y esta petición no hay nada que ate las dos.
      */
-    const partnerProfileId = await this.resolvePartner(input.tenantId, input.body.partnerProfileId);
+    const { partnerProfileId, posTerminalId } = await this.resolvePartner(
+      input.tenantId,
+      input.body.partnerProfileId,
+      input.body.posTerminalId,
+    );
 
     // Reevaluación server-side. Persiste la evidencia y devuelve los bloqueadores vigentes.
     const evaluation = await this.eligibilityService.evaluateAndRecord({
@@ -242,7 +247,7 @@ export class CreditApplicationService {
     }
 
     const latestEvaluation = await this.eligibilityService.getLatestEvaluation(input.tenantId, input.customerId);
-    return { product, evaluation, latestEvaluation, partnerProfileId };
+    return { product, evaluation, latestEvaluation, partnerProfileId, posTerminalId };
   }
 
   /**
@@ -256,12 +261,24 @@ export class CreditApplicationService {
    * diferencia importa para quien depura, y para el cliente ninguna de las dos cambia lo que puede
    * hacer.
    */
-  private async resolvePartner(tenantId: string, partnerProfileId: string | undefined): Promise<string | null> {
-    if (!partnerProfileId) return null;
+  private async resolvePartner(
+    tenantId: string,
+    partnerProfileId: string | undefined,
+    posTerminalId: string | undefined,
+  ): Promise<{ partnerProfileId: string | null; posTerminalId: string | null }> {
+    if (!partnerProfileId) return { partnerProfileId: null, posTerminalId: null };
 
     const profile = await this.partnerProfiles.requireProfile(tenantId, partnerProfileId);
     if (profile.onboardingStatus !== 'approved') throw new UnprocessableEntityException('PARTNER_NOT_AVAILABLE');
-    return String(profile.id);
+
+    // El terminal se ata sólo si es de ESTE comercio. Un id de otro se ignora en silencio: la compra
+    // se queda sin caja registrada, que es preferible a atribuirla a una sucursal equivocada.
+    let terminalId: string | null = null;
+    if (posTerminalId) {
+      const terminal = await this.partnerProfiles.findOwnedTerminal(tenantId, String(profile.id), posTerminalId);
+      terminalId = terminal ? String(terminal.id) : null;
+    }
+    return { partnerProfileId: String(profile.id), posTerminalId: terminalId };
   }
 
   async listApplications(input: { tenantId: string; customerId: string; currentUser: AuthenticatedUser }) {

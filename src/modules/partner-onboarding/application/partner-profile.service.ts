@@ -198,6 +198,55 @@ export class PartnerProfileService {
     }));
   }
 
+  /**
+   * Resuelve un terminal del comercio por su id, comprobando que sea DE ESTE comercio.
+   *
+   * Lo usa el alta de solicitud: el cliente trae el id del terminal que resolvió al escanear, y hay
+   * que atarlo a la compra sin dar por bueno que pertenezca a quien dice. Devuelve `null` si no
+   * existe o es de otro comercio —ahí la compra simplemente no recuerda la caja, que es mejor que
+   * atribuirla a una equivocada—.
+   */
+  /**
+   * Fija la comisión del comercio. Es un término comercial, no un dato de identidad, así que se puede
+   * ajustar en cualquier momento —también con el expediente ya aprobado—: lo negocia Atlas, no lo
+   * declara el comercio, y por eso vive detrás de una ruta interna y no del portal del negocio.
+   */
+  async setMdrRate(tenantId: string, partnerId: string, mdrRatePercent: number) {
+    const profile = await this.requireProfile(tenantId, partnerId);
+    return this.repository.updateProfile(profile, { mdrRatePercent: mdrRatePercent.toFixed(2) });
+  }
+
+  async findOwnedTerminal(tenantId: string, partnerId: string, terminalId: string) {
+    return this.repository.findPosById(tenantId, partnerId, terminalId);
+  }
+
+  /**
+   * Un índice terminalId -> {sucursal, caja} para todos los terminales del comercio.
+   *
+   * Se hace en dos consultas (terminales y sucursales del comercio) y se cruza en memoria, para no
+   * pegarle a la base una vez por cada solicitud del listado. Con él, la pantalla del comercio puede
+   * decir en qué local nació cada compra sin exponer nada del cliente.
+   */
+  async terminalDirectory(tenantId: string, partnerId: string) {
+    const [terminales, sucursales] = await Promise.all([
+      this.repository.listPosTerminals(tenantId, partnerId),
+      this.repository.listBranches(tenantId, partnerId),
+    ]);
+    const branchById = new Map(sucursales.map((b) => [String(b.id), b]));
+    const map = new Map<string, { branchId: string; branchName: string; branchCode: string; terminalAlias: string | null; terminalSerial: string }>();
+    for (const t of terminales) {
+      const branch = branchById.get(String(t.branchId));
+      map.set(String(t.id), {
+        branchId: String(t.branchId),
+        branchName: branch?.name ?? '',
+        branchCode: branch?.branchCode ?? '',
+        terminalAlias: t.terminalAlias,
+        terminalSerial: t.terminalSerial,
+      });
+    }
+    return map;
+  }
+
   async requireProfile(tenantId: string, partnerId: string): Promise<PartnerProfileModel> {
     const profile = await this.repository.findProfileById(tenantId, partnerId);
     if (!profile) throw new NotFoundException('Expediente de partner no encontrado.');

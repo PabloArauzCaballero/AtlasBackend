@@ -147,9 +147,14 @@ export class CreditBusinessAcceptanceService {
       onlyPendingAcceptance: input.onlyPending,
     });
 
+    // El local de cada solicitud: se resuelve una vez para todo el listado.
+    const terminales = await this.partnerProfiles.terminalDirectory(input.tenantId, input.partnerProfileId);
+
     return {
       partnerProfileId: input.partnerProfileId,
-      applications: applications.map((application) => ({
+      applications: applications.map((application) => {
+        const local = application.posTerminalId ? terminales.get(String(application.posTerminalId)) : undefined;
+        return {
         applicationId: String(application.id),
         applicationCode: application.applicationCode,
         status: application.status,
@@ -158,13 +163,19 @@ export class CreditBusinessAcceptanceService {
         currencyCode: application.currencyCode,
         businessAcceptance: application.businessAcceptance,
         submittedAt: application.submittedAt.toISOString(),
+        /* En qué local y caja nació. Vacío si la compra no vino de un QR físico. */
+        branchName: local?.branchName ?? null,
+        branchCode: local?.branchCode ?? null,
+        terminalAlias: local?.terminalAlias ?? null,
+        terminalSerial: local?.terminalSerial ?? null,
         /*
          * NO se expone el identificador del cliente ni su puntaje. El comercio decide si quiere la
          * operación —importe, plazo, que el motor la aprobó—, no quién es el solicitante: darle el
          * expediente del cliente convertiría cada compra en una consulta de historial crediticio
          * que nadie autorizó.
          */
-      })),
+        };
+      }),
     };
   }
 }

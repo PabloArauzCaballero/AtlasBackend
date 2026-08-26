@@ -151,6 +151,10 @@ export class PartnerOnboardingRepository {
       emailVerifiedAt: Date | null;
       phoneVerifiedAt: Date | null;
       commercialRegistry: string | null;
+      tradeName: string | null;
+      businessCategory: string | null;
+      contactPhone: string | null;
+      mdrRatePercent: string;
       contactCodeHash: string | null;
       contactCodeExpiresAt: Date | null;
       contactCodeAttempts: number;

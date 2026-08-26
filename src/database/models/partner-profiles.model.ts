@@ -77,6 +77,10 @@ export class PartnerProfileModel extends Model {
   declare contactCodeSentAt: Date | null;
 
   /** `draft` → `contact_verified` → `documents_submitted` → `under_review` → `approved` | `rejected`. */
+  /** La comisión del comercio, en %. Se cobra sólo sobre lo que el cliente paga. Default 3.00. */
+  @Column({ field: 'mdr_rate_percent', type: DataType.DECIMAL(5, 2), allowNull: false, defaultValue: '3.00' })
+  declare mdrRatePercent: string;
+
   @Column({ field: 'onboarding_status', type: DataType.STRING(30), allowNull: false })
   declare onboardingStatus: string;
 

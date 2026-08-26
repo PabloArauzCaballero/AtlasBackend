@@ -324,6 +324,9 @@ export class LoanPaymentClaimsService {
     let montoVencido = 0;
     let cuotasVencidas = 0;
     let cobradoTotal = 0;
+    /* La tasa de comisión del comercio y lo que se le ha devengado a Atlas por cobrar. */
+    const tasaMdr = Number(profile.mdrRatePercent ?? '0');
+    let comisionDevengada = 0;
 
     for (const loan of loans) {
       const cuotas = await this.loans.findInstallments(input.tenantId, String(loan.id));
@@ -360,6 +363,13 @@ export class LoanPaymentClaimsService {
         };
       });
 
+      const cobradoCredito = detalle.reduce((suma, cuota) => suma + Number(cuota.amountPaid), 0);
+      // La comisión de Atlas se DEVENGA sobre lo cobrado, no sobre lo aprobado: un crédito que aún
+      // no paga nada no debe comisión. Cuando el crédito quede saldado, la comisión acumulada será
+      // la tasa por el total cobrado —que es la venta financiada—.
+      const comisionCredito = (cobradoCredito * tasaMdr) / 100;
+      comisionDevengada += comisionCredito;
+
       creditos.push({
         loanId: String(loan.id),
         loanCode: loan.loanCode,
@@ -367,6 +377,8 @@ export class LoanPaymentClaimsService {
         principalAmount: loan.principalAmount,
         status: loan.status,
         outstanding: detalle.reduce((suma, cuota) => suma + Number(cuota.amountOutstanding), 0).toFixed(2),
+        collected: cobradoCredito.toFixed(2),
+        commissionAccrued: comisionCredito.toFixed(2),
         installments: detalle,
       });
     }
@@ -385,6 +397,9 @@ export class LoanPaymentClaimsService {
         overdueInstallments: cuotasVencidas,
         collected: cobradoTotal.toFixed(2),
         proofsAwaitingVerification: pendientesDeVerificar,
+        /* La comisión: su tasa, lo devengado (lo que Atlas ya ganó sobre lo cobrado). */
+        mdrRatePercent: tasaMdr.toFixed(2),
+        commissionAccrued: comisionDevengada.toFixed(2),
       },
       credits: creditos,
       /* El calendario: qué entra cada día, ordenado. Es la vista que pide quien maneja caja. */
