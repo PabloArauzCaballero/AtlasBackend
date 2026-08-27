@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { ConflictException, NotFoundException, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { hashOneTimeCode } from '../../../src/common/utils/crypto/one-time-code.util.js';
+import { imagenSinQr, qrJpeg, qrPng } from '../../support/qr-imagen.js';
 import { PartnerCommerceService } from '../../../src/modules/partner-onboarding/application/partner-commerce.service.js';
 import { PartnerContactVerificationService } from '../../../src/modules/partner-onboarding/application/partner-contact-verification.service.js';
 import { PartnerProfileService } from '../../../src/modules/partner-onboarding/application/partner-profile.service.js';
@@ -161,10 +162,20 @@ describe('PartnerQrService', () => {
       assertEditable: jest.fn(),
       assertPaymentQrEditable: jest.fn(),
     };
+    /*
+     * `readObject` devuelve por omisión un QR de VERDAD.
+     *
+     * Desde que el registro exige que la imagen lleve un código, un doble que devolviera cualquier
+     * cosa haría fallar a todas las pruebas de esta batería por un motivo que no es el suyo. Cada
+     * prueba que quiera ejercitar el rechazo lo sustituye.
+     */
     const storage = {
       isConfigured: jest.fn(() => true),
       createUploadTicket: jest.fn(() => ({ storageKey: 'k', uploadUrl: 'u' })),
       readObjectMetadata: jest.fn(async (..._a: unknown[]) => metadata),
+      readObject: jest.fn(async (..._a: unknown[]) =>
+        metadata?.contentType === 'image/jpeg' ? qrJpeg() : qrPng(),
+      ),
     };
     const service = new PartnerQrService(repository as never, profiles as never, storage as never, metricsDouble());
     return { service, repository, storage };
@@ -222,6 +233,33 @@ describe('PartnerQrService', () => {
     expect(repository.createQrCode).toHaveBeenCalledWith(
       expect.objectContaining({ contentType: 'image/jpeg', sizeBytes: 4096, sha256: 'c'.repeat(64) }),
     );
+  });
+
+  /*
+   * El agujero que esto cierra: «es una imagen» no era suficiente.
+   *
+   * El expediente comprobaba tipo, tamaño y hash —todo cierto— y aceptaba la foto del local o una
+   * captura de pantalla. El comercio quedaba figurando con QR de cobro y el fallo aparecía recién
+   * en la caja, con el cliente intentando escanear una fotografía.
+   */
+  it('rechaza una imagen que no contiene ningún código QR', async () => {
+    const { service, repository, storage } = build({}, { contentType: 'image/png', sizeBytes: 4096, sha256Hex: 'e'.repeat(64) });
+    storage.readObject = jest.fn(async () => imagenSinQr()) as never;
+
+    await expect(service.register('1', '10', { qrKind: 'business', storageKey: '1/partner-10/qr-business/foto.png' })).rejects.toThrow(
+      /QR_IMAGE_HAS_NO_CODE/,
+    );
+    expect(repository.createQrCode).not.toHaveBeenCalled();
+  });
+
+  it('rechaza cuando el objeto no se puede descargar para mirarlo', async () => {
+    const { service, repository, storage } = build({}, { contentType: 'image/png', sizeBytes: 4096, sha256Hex: 'f'.repeat(64) });
+    storage.readObject = jest.fn(async () => null) as never;
+
+    await expect(service.register('1', '10', { qrKind: 'business', storageKey: '1/partner-10/qr-business/a.png' })).rejects.toThrow(
+      /QR_OBJECT_NOT_READABLE/,
+    );
+    expect(repository.createQrCode).not.toHaveBeenCalled();
   });
 
   it('no deja colgar un QR de la sucursal de otro comercio', async () => {
@@ -469,6 +507,7 @@ describe('PartnerQrService · clave de objeto', () => {
     const storage = {
       isConfigured: jest.fn(() => true),
       readObjectMetadata: jest.fn(async () => ({ contentType: 'image/png', sizeBytes: 100, sha256Hex: 'abc' })),
+      readObject: jest.fn(async () => qrPng()),
     };
     const service = new PartnerQrService(repository as never, profiles as never, storage as never, metricsDouble());
     return { service, repository, storage };
