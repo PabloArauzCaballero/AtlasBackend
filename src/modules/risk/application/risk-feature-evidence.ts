@@ -29,14 +29,29 @@ export type EvidenceSubject = {
  * partieron del mismo estado de información: sin él, «se evaluó con estos datos» es una afirmación
  * que nadie puede comprobar.
  */
-export async function writeFeatureEvidence(
-  repository: RiskRepository,
-  subject: EvidenceSubject,
-  featureMap: Record<string, number | boolean>,
-  missing: string[],
-  now: Date,
-  transaction: Transaction,
-): Promise<FeatureSnapshotModel> {
+export interface WriteFeatureEvidenceInput {
+  repository: RiskRepository;
+  subject: EvidenceSubject;
+  featureMap: Record<string, number | boolean>;
+  missing: string[];
+  now: Date;
+  transaction: Transaction;
+}
+
+/*
+ * Los argumentos van con nombre: en la llamada, `missing` y `featureMap` son dos colecciones del
+ * mismo aire y `now` y `transaction` dos valores opacos. Con seis posiciones, invertir dos era un
+ * error que el compilador no siempre veía y que aquí escribe evidencia — lo que se guarda mal se
+ * descubre meses después, cuando alguien pregunta con qué datos se evaluó.
+ */
+export async function writeFeatureEvidence({
+  repository,
+  subject,
+  featureMap,
+  missing,
+  now,
+  transaction,
+}: WriteFeatureEvidenceInput): Promise<FeatureSnapshotModel> {
   const featureRun = await repository.createFeatureComputationRun(
     {
       tenantId: subject.tenantId,

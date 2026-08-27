@@ -43,7 +43,14 @@ export async function openAssessmentRun(input: {
   transaction: Transaction;
 }) {
   const { repository, subject, now, transaction } = input;
-  const snapshot = await writeFeatureEvidence(repository, subject, input.featureMap, input.missing, now, transaction);
+  const snapshot = await writeFeatureEvidence({
+    repository,
+    subject,
+    featureMap: input.featureMap,
+    missing: input.missing,
+    now,
+    transaction,
+  });
 
   const run = await repository.createRiskAssessmentRun(
     {

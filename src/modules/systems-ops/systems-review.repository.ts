@@ -103,7 +103,16 @@ export class SystemsReviewRepository {
     row.updatedBy = actorId;
     row.updatedAtValue = new Date();
     const saved = await row.save();
-    await this.recordReview('endpoint', endpointId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId);
+    await this.recordReview({
+      targetType: 'endpoint',
+      targetId: endpointId,
+      previousStatus,
+      previousConfidence,
+      decision,
+      actorId,
+      actorRole,
+      tenantId,
+    });
     return saved;
   }
 
@@ -122,7 +131,16 @@ export class SystemsReviewRepository {
     if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
     row.updatedAtValue = new Date();
     const saved = await row.save();
-    await this.recordReview('data_entity', entityId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId);
+    await this.recordReview({
+      targetType: 'data_entity',
+      targetId: entityId,
+      previousStatus,
+      previousConfidence,
+      decision,
+      actorId,
+      actorRole,
+      tenantId,
+    });
     return saved;
   }
 
@@ -142,7 +160,16 @@ export class SystemsReviewRepository {
     if (decision.notes) row.notes = decision.notes;
     row.updatedAtValue = new Date();
     const saved = await row.save();
-    await this.recordReview('data_impact', impactId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId);
+    await this.recordReview({
+      targetType: 'data_impact',
+      targetId: impactId,
+      previousStatus,
+      previousConfidence,
+      decision,
+      actorId,
+      actorRole,
+      tenantId,
+    });
     return saved;
   }
 
@@ -161,7 +188,16 @@ export class SystemsReviewRepository {
     if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
     if (decision.notes) row.notes = decision.notes;
     const saved = await row.save();
-    await this.recordReview('field_impact', impactId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId);
+    await this.recordReview({
+      targetType: 'field_impact',
+      targetId: impactId,
+      previousStatus,
+      previousConfidence,
+      decision,
+      actorId,
+      actorRole,
+      tenantId,
+    });
     return saved;
   }
 
@@ -183,7 +219,16 @@ export class SystemsReviewRepository {
     row.manuallyEditedAt = new Date();
     row.updatedAtValue = new Date();
     const saved = await row.save();
-    await this.recordReview('data_column', columnId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId);
+    await this.recordReview({
+      targetType: 'data_column',
+      targetId: columnId,
+      previousStatus,
+      previousConfidence,
+      decision,
+      actorId,
+      actorRole,
+      tenantId,
+    });
     return saved;
   }
 
@@ -203,20 +248,37 @@ export class SystemsReviewRepository {
     if (decision.notes) row.notes = decision.notes;
     row.updatedAtValue = new Date();
     const saved = await row.save();
-    await this.recordReview('tool_requirement', requirementId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId);
+    await this.recordReview({
+      targetType: 'tool_requirement',
+      targetId: requirementId,
+      previousStatus,
+      previousConfidence,
+      decision,
+      actorId,
+      actorRole,
+      tenantId,
+    });
     return saved;
   }
 
-  private async recordReview(
-    targetType: string,
-    targetId: string,
-    previousStatus: string | null,
-    previousConfidence: string | null,
-    decision: ReviewDecisionDto,
-    actorId: string | null,
-    actorRole: string,
-    tenantId: string | null,
-  ): Promise<void> {
+  /*
+   * Argumentos con nombre: la llamada tenía ocho posiciones y cuatro eran `string | null`
+   * seguidas —`previousStatus`, `previousConfidence`, `actorId`, `tenantId`—. Intercambiar dos
+   * compilaba sin una queja y dejaba el evento de revisión atribuido a otro actor o a otro
+   * tenant, que es exactamente lo que este registro existe para poder demostrar.
+   */
+  private async recordReview(entrada: {
+    targetType: string;
+    targetId: string;
+    previousStatus: string | null;
+    previousConfidence: string | null;
+    decision: ReviewDecisionDto;
+    actorId: string | null;
+    actorRole: string;
+    tenantId: string | null;
+  }): Promise<void> {
+    const { targetType, targetId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId } =
+      entrada;
     await this.reviewEventModel.create({
       tenantId,
       targetType,
