@@ -5,7 +5,7 @@
  */
 import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { env } from '../../config/env.js';
-import { hashPassword, isSecretValidFor, secretRequirementMessage } from '../../common/utils/crypto/password.util.js';
+import { hashPassword, isSecretValidFor } from '../../common/utils/crypto/password.util.js';
 import { generateNumericCode, hashOneTimeCode, verifyOneTimeCode } from '../../common/utils/crypto/one-time-code.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';

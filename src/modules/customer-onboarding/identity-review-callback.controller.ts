@@ -20,7 +20,15 @@ import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { IdentityManualReviewOutcomeService } from './application/identity-manual-review-outcome.service.js';
 import { CustomerVerificationRepository } from './repositories/customer-verification.repository.js';
 
-/** La cabecera con la que el motor se identifica. */
+/*
+ * La cabecera con la que el motor se identifica.
+ *
+ * `no-useless-assignment` no ve el uso porque el único consumidor es un decorador de parámetro
+ * (`@Headers(CLAVE_HEADER)`), y la regla no sigue los metadatos de decorador. La constante SÍ se
+ * usa: quitarla rompe el controlador. Se silencia aquí, nombrando el motivo, en vez de dejar el
+ * literal suelto en la firma —que es donde nadie lo encontraría al cambiar el contrato—.
+ */
+// eslint-disable-next-line no-useless-assignment
 const CLAVE_HEADER = 'x-engine-callback-key';
 
 /**

@@ -165,7 +165,7 @@ describe('CustomerFinancialProfileService', () => {
     { id: 'def-2', attributeCode: 'monthly_income_declared' },
   ];
 
-  function build(identityResult: string | null = null) {
+  function build() {
     const common = commonMocks();
     const profileDataRepository = {
       findAttributeDefinitionsByCode: jest.fn(async (..._args: unknown[]) => DEFINITIONS),
