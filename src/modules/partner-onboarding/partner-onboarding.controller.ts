@@ -29,9 +29,11 @@ import {
 } from './partner-onboarding.mapper.js';
 import {
   commercialRegistrySchema,
+  partnerDocumentUploadUrlSchema,
   ContactVerificationSubmitDto,
   contactVerificationSubmitSchema,
   CommercialRegistryDto,
+  PartnerDocumentUploadUrlDto,
   LegalRepresentativeDto,
   legalRepresentativeSchema,
   DecidePartnerDto,
@@ -212,6 +214,29 @@ export class PartnerOnboardingController {
     const tenantId = tenantIdFromHeader(tenantIdHeader);
     const representative = await this.profiles.addLegalRepresentative(tenantId, params.partnerId, body);
     return toPartnerRepresentativeDto(representative);
+  }
+
+  @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Permiso de subida para un documento del expediente (poder notarial)',
+    description:
+      'La ruta del objeto la impone el servidor bajo el prefijo del tenant y del partner, y se ' +
+      'firman tipo y tamaño: el almacenamiento rechaza cualquier subida que no coincida.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
+  @ApiBody({ schema: zodToApiSchema(partnerDocumentUploadUrlSchema) })
+  @ApiResponse({ status: 201, description: 'Permiso emitido.' })
+  @Post(':partnerId/documents/upload-url')
+  @HttpCode(HttpStatus.CREATED)
+  async documentUploadUrl(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
+    @Body(new ZodValidationPipe(partnerDocumentUploadUrlSchema)) body: PartnerDocumentUploadUrlDto,
+  ) {
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    return this.profiles.createDocumentUploadTicket(tenantId, params.partnerId, body);
   }
 
   @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')

@@ -18,6 +18,23 @@ import { PartnerQrService } from '../../../src/modules/partner-onboarding/applic
 
 type AnyRecord = Record<string, unknown>;
 
+/**
+ * Doble del almacenamiento para el servicio de perfil.
+ *
+ * Se añadió cuando declarar al representante empezó a comprobar que el poder notarial existe y
+ * pertenece a este expediente: sin él, las pruebas que pasan `powerOfAttorneyKey` fallarían por
+ * una dependencia ausente y no por la regla que quieren fijar.
+ */
+function storageDouble(objetoExiste = true) {
+  return {
+    isConfigured: jest.fn(() => true),
+    createUploadTicket: jest.fn(() => ({ storageKey: '1/partner-10/power-of-attorney/x.pdf', uploadUrl: 'u' })),
+    readObjectMetadata: jest.fn(async () =>
+      objetoExiste ? { contentType: 'application/pdf', sizeBytes: 1024, sha256Hex: 'a'.repeat(64) } : null,
+    ),
+  };
+}
+
 function metricsDouble() {
   return { recordPartnerOnboardingStep: jest.fn() } as never;
 }
@@ -42,7 +59,7 @@ describe('PartnerProfileService', () => {
       findProfileByTaxId: jest.fn(async () => profileDouble({ id: '77', onboardingStatus: 'under_review' })),
       createProfile: jest.fn(),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble());
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never);
 
     await expect(
       service.start('1', {
@@ -65,7 +82,7 @@ describe('PartnerProfileService', () => {
       listBranches: jest.fn(async (..._a: unknown[]) => [] as AnyRecord[]),
       listQrCodes: jest.fn(async () => []),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble());
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never);
 
     const gaps = await service.findSubmissionGaps('1', profileDouble({ commercialRegistry: null }) as never);
 
@@ -83,7 +100,7 @@ describe('PartnerProfileService', () => {
         { qrKind: 'bank', status: 'active' },
       ]),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble());
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never);
 
     const gaps = await service.findSubmissionGaps('1', profileDouble() as never);
 
@@ -98,7 +115,7 @@ describe('PartnerProfileService', () => {
       listQrCodes: jest.fn(async () => []),
       updateProfile: jest.fn(),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble());
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never);
 
     await expect(service.submit('1', '10')).rejects.toBeInstanceOf(UnprocessableEntityException);
     expect(repository.updateProfile).not.toHaveBeenCalled();
@@ -118,7 +135,7 @@ describe('PartnerProfileService', () => {
       ]),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble());
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never);
 
     const { profile: updated } = await service.submit('1', '10');
 
@@ -126,7 +143,7 @@ describe('PartnerProfileService', () => {
   });
 
   it('un expediente ya en revisión no admite más cambios', () => {
-    const service = new PartnerProfileService({} as never, metricsDouble());
+    const service = new PartnerProfileService({} as never, metricsDouble(), storageDouble() as never);
 
     expect(() => service.assertEditable(profileDouble({ onboardingStatus: 'under_review' }) as never)).toThrow(
       UnprocessableEntityException,
@@ -139,11 +156,71 @@ describe('PartnerProfileService', () => {
    * congelado mientras un analista mira es `under_review`.
    */
   it('el QR de cobro se puede reemplazar con el expediente aprobado, pero no en revisión', () => {
-    const service = new PartnerProfileService({} as never, metricsDouble());
+    const service = new PartnerProfileService({} as never, metricsDouble(), storageDouble() as never);
 
     expect(() => service.assertPaymentQrEditable(profileDouble({ onboardingStatus: 'approved' }) as never)).not.toThrow();
     expect(() => service.assertPaymentQrEditable(profileDouble({ onboardingStatus: 'under_review' }) as never)).toThrow(
       UnprocessableEntityException,
+    );
+  });
+});
+
+describe('PartnerProfileService · poder del representante', () => {
+  function build(storage = storageDouble()) {
+    const repository = {
+      findProfileById: jest.fn(async () => profileDouble()),
+      createRepresentative: jest.fn(async (input: AnyRecord) => ({ id: '7', ...input })),
+    };
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storage as never);
+    return { service, repository, storage };
+  }
+
+  const representante = (powerOfAttorneyKey?: string) => ({
+    fullName: 'Ana Quiroga',
+    documentType: 'ci' as const,
+    documentNumber: '1234567',
+    ...(powerOfAttorneyKey ? { powerOfAttorneyKey } : {}),
+  });
+
+  it('acepta al representante sin poder: el papel puede llegar después', async () => {
+    const { service, repository } = build();
+
+    await service.addLegalRepresentative('1', '10', representante());
+
+    expect(repository.createRepresentative).toHaveBeenCalledWith(
+      expect.objectContaining({ powerOfAttorneyKey: null }),
+    );
+  });
+
+  /*
+   * La misma lección que dejó el QR: aceptar la clave que mande el cliente permitiría registrar
+   * como propio el documento de otro expediente.
+   */
+  it('rechaza un poder que apunta al expediente de otro partner', async () => {
+    const { service, repository } = build();
+
+    await expect(
+      service.addLegalRepresentative('1', '10', representante('1/partner-99/power-of-attorney/x.pdf')),
+    ).rejects.toThrow(/POWER_OF_ATTORNEY_OUTSIDE_PARTNER_SCOPE/);
+    expect(repository.createRepresentative).not.toHaveBeenCalled();
+  });
+
+  it('rechaza un poder que se declara pero no está subido', async () => {
+    const { service, repository } = build(storageDouble(false));
+
+    await expect(
+      service.addLegalRepresentative('1', '10', representante('1/partner-10/power-of-attorney/x.pdf')),
+    ).rejects.toThrow(/POWER_OF_ATTORNEY_OBJECT_NOT_FOUND/);
+    expect(repository.createRepresentative).not.toHaveBeenCalled();
+  });
+
+  it('guarda la clave del poder cuando el objeto existe y es de este expediente', async () => {
+    const { service, repository } = build();
+
+    await service.addLegalRepresentative('1', '10', representante('1/partner-10/power-of-attorney/x.pdf'));
+
+    expect(repository.createRepresentative).toHaveBeenCalledWith(
+      expect.objectContaining({ powerOfAttorneyKey: '1/partner-10/power-of-attorney/x.pdf' }),
     );
   });
 });

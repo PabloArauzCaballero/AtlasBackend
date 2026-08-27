@@ -3,8 +3,16 @@
  * @business Esta pieza convierte un comercio declarado en un partner verificable, con locales, cobro y terminales trazables.
  * @system abre el expediente del partner, comprueba lo que exige el envío y publica su estado.
  */
-import { ConflictException, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { MetricsService } from '../../../common/observability/metrics.service.js';
+import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
 import {
   COMMERCIAL_NETWORK_EDITABLE_STATUSES,
   EDITABLE_PARTNER_STATUSES,
@@ -13,6 +21,7 @@ import {
 } from '../partner-onboarding.repository.js';
 import {
   LegalRepresentativeDto,
+  PartnerDocumentUploadUrlDto,
   StartPartnerOnboardingDto,
   UpdateCommercialProfileDto,
 } from '../partner-onboarding.schemas.js';
@@ -31,7 +40,28 @@ export class PartnerProfileService {
   constructor(
     private readonly repository: PartnerOnboardingRepository,
     private readonly metrics: MetricsService,
+    private readonly storage: DocumentStorageService,
   ) {}
+
+  /**
+   * Permiso de subida para un documento del expediente (hoy, el poder notarial).
+   *
+   * Mismo patrón que el del QR y por el mismo motivo: la ruta la impone el servidor bajo el
+   * prefijo del tenant y del partner, y se firman tipo y tamaño. Si el cliente eligiera la ruta,
+   * podría escribir sobre la evidencia de otro expediente.
+   */
+  createDocumentUploadTicket(tenantId: string, partnerId: string, dto: PartnerDocumentUploadUrlDto) {
+    if (!this.storage.isConfigured()) {
+      throw new ServiceUnavailableException('DOCUMENT_STORAGE_NOT_CONFIGURED');
+    }
+    return this.storage.createUploadTicket({
+      tenantId,
+      subjectId: `partner-${partnerId}`,
+      documentType: dto.documentKind,
+      contentType: dto.contentType,
+      sizeBytes: dto.sizeBytes,
+    });
+  }
 
   /**
    * Abre el expediente.
@@ -97,6 +127,24 @@ export class PartnerProfileService {
   async addLegalRepresentative(tenantId: string, partnerId: string, dto: LegalRepresentativeDto) {
     const profile = await this.requireProfile(tenantId, partnerId);
     this.assertEditable(profile);
+
+    /*
+     * Si viene el poder, tiene que ser un objeto de ESTE expediente y tiene que existir.
+     *
+     * Es la misma lección que dejó el QR: aceptar la clave que mande el cliente permite registrar
+     * como propio el documento de otro partner —o afirmar un poder que nadie subió—, y el
+     * expediente vale exactamente por lo que afirma.
+     */
+    if (dto.powerOfAttorneyKey) {
+      const prefijoEsperado = `${tenantId}/partner-${partnerId}/`;
+      if (!dto.powerOfAttorneyKey.startsWith(prefijoEsperado)) {
+        throw new UnprocessableEntityException('POWER_OF_ATTORNEY_OUTSIDE_PARTNER_SCOPE');
+      }
+      const objeto = await this.storage.readObjectMetadata(dto.powerOfAttorneyKey);
+      if (!objeto) {
+        throw new UnprocessableEntityException('POWER_OF_ATTORNEY_OBJECT_NOT_FOUND');
+      }
+    }
 
     const representative = await this.repository.createRepresentative({
       tenantId,

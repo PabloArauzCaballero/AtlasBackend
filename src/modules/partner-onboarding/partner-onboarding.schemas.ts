@@ -99,6 +99,25 @@ export const legalRepresentativeSchema = z.object({
 });
 export type LegalRepresentativeDto = z.infer<typeof legalRepresentativeSchema>;
 
+/**
+ * Permiso de subida para un documento del expediente.
+ *
+ * Hoy sólo el poder notarial, y por eso `documentKind` es una lista cerrada de uno: el tipo viaja
+ * a la RUTA del objeto en el almacenamiento, así que aceptar texto libre dejaría que el cliente
+ * eligiera dónde escribe. Se acepta PDF además de imagen porque un poder es un documento
+ * escaneado, no una foto de un cartel.
+ */
+export const partnerDocumentUploadUrlSchema = z.object({
+  documentKind: z.enum(['power-of-attorney']),
+  contentType: z.enum(['application/pdf', 'image/jpeg', 'image/png']),
+  sizeBytes: z
+    .number()
+    .int()
+    .positive()
+    .max(10 * 1024 * 1024),
+});
+export type PartnerDocumentUploadUrlDto = z.infer<typeof partnerDocumentUploadUrlSchema>;
+
 export const commercialRegistrySchema = z.object({
   commercialRegistry: z.string().trim().min(3).max(60),
 });
