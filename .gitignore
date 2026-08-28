@@ -37,3 +37,10 @@ var/
 
 # Respaldos locales del .env: llevan credenciales reales y nunca deben versionarse.
 .env.bak-*
+
+# ATL-013 — Secretos: cualquier fichero .env queda fuera del repositorio, salvo las plantillas.
+# Las reglas anteriores enumeraban variantes concretas (.env, .env.local, .env.bak-*), así que un
+# nombre no previsto —`.env.bak`, el más probable al hacer una copia rápida— no coincidía con
+# ninguna y quedaba listo para commitear. Se invierte: se ignora todo y se readmiten los ejemplos.
+.env*
+!.env*.example

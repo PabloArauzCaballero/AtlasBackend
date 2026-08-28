@@ -15,6 +15,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
+import { Public } from '../../common/decorators/public.decorator.js';
 import { env } from '../../config/env.js';
 import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { IdentityManualReviewOutcomeService } from './application/identity-manual-review-outcome.service.js';
@@ -46,6 +47,16 @@ const CLAVE_HEADER = 'x-engine-callback-key';
  * persona. Sin clave configurada el endpoint responde 401 en vez de quedar abierto: un circuito de
  * identidad que se puede cerrar sin credencial es peor que uno que no se cierra.
  */
+/*
+ * `@Public()` respecto al guard de SESIÓN, que no es lo mismo que abierto.
+ *
+ * Quien llama es el motor de decisión, un servicio: no tiene sesión de persona que ofrecer, y se
+ * identifica con la clave compartida `x-engine-callback-key` que el propio handler exige debajo
+ * —sin clave configurada responde 401 en vez de quedar abierto—. Con `JwtAuthGuard` global, sin
+ * esta marca el guard rechazaría la llamada antes de que el handler pudiera comprobar la clave, y
+ * el circuito de la revisión manual volvería a quedarse sin cerrar.
+ */
+@Public()
 @ApiExcludeController()
 @Controller('internal/identity')
 export class IdentityReviewCallbackController {

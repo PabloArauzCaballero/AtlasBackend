@@ -2,7 +2,7 @@
   "name": "atlas-orm-migrations",
   "version": "0.3.0",
   "private": true,
-  "description": "Backend fintech Atlas: identidad, onboarding KYC, elegibilidad, crédito, riesgo y operaciones sobre NestJS y PostgreSQL.",
+  "description": "Backend fintech Atlas: identidad, onboarding KYC, elegibilidad, cr\u00e9dito, riesgo y operaciones sobre NestJS y PostgreSQL.",
   "license": "UNLICENSED",
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -127,7 +127,8 @@
     "docs:serve": "python -m mkdocs serve",
     "docs:build": "python -m mkdocs build --strict",
     "docs:validate": "yarn docs:openapi && yarn check:openapi && yarn docs:openapi:lint && yarn docs:build",
-    "check:read-api-honesty": "tsx scripts/check-read-api-honesty.ts"
+    "check:read-api-honesty": "tsx scripts/check-read-api-honesty.ts",
+    "check:auth-coverage": "tsx scripts/check-auth-coverage.ts"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1101.0",

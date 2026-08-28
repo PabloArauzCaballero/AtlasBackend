@@ -9,6 +9,8 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import Redis from 'ioredis';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
+import { RolesGuard } from './common/guards/roles.guard.js';
 import { CommonAuthModule } from './common/common-auth.module.js';
 import { FilesModule } from './common/files/files.module.js';
 import { ResilienceModule } from './common/resilience/resilience.module.js';
@@ -34,6 +36,7 @@ import { ConsentsModule } from './modules/consents/consents.module.js';
 import { CreditModule } from './modules/credit/credit.module.js';
 import { CreditRatingModule } from './modules/credit-rating/credit-rating.module.js';
 import { DecisionEngineModule } from './modules/decision-engine/decision-engine.module.js';
+import { SupportModule } from './modules/support/support.module.js';
 import { LoanPaymentClaimsModule } from './modules/loan-payment-claims/loan-payment-claims.module.js';
 import { LoansModule } from './modules/loans/loans.module.js';
 import { CustomerOnboardingModule } from './modules/customer-onboarding/customer-onboarding.module.js';
@@ -105,6 +108,7 @@ import { env } from './config/env.js';
     DecisionEngineModule,
     LoansModule,
     LoanPaymentClaimsModule,
+    SupportModule,
     CreditRatingModule,
     CustomerPrivacyModule,
     CustomerTelemetryModule,
@@ -139,6 +143,31 @@ import { env } from './config/env.js';
     { provide: APP_INTERCEPTOR, useClass: ApiCommandOutboxInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    /*
+     * Deny by default: la sesión se exige aquí, no en cada controlador.
+     *
+     * Hasta ahora el único guard global era el de rate limiting, así que una ruta quedaba
+     * autenticada SÓLO si su controlador se acordaba de escribir `@UseGuards(JwtAuthGuard, ...)`.
+     * Con 70 controladores y tres mecanismos de autorización conviviendo, dos se olvidaron —y no
+     * de rutas menores: una servía el carnet y la selfie de cualquier cliente, y la otra reasignaba
+     * qué artefacto decide crédito, identidad y riesgo—. Ambas declaraban `@Roles(...)`, que sin
+     * guard no es más que un comentario ejecutable: nadie lee esa metadata.
+     *
+     * El defecto no era el descuido, era que el descuido no costaba nada. Invertido el defecto, un
+     * controlador nuevo nace cerrado y abrirlo exige escribir `@Public()`, que se ve en la revisión,
+     * sale en el contrato OpenAPI como `security: []` y aparece en la lista del gate
+     * `check:auth-coverage`.
+     *
+     * El orden importa: primero el límite de peticiones (rechaza sin trabajo), después la sesión, y
+     * al final los roles, que necesitan el `request.user` que el guard anterior puebla.
+     *
+     * Esto NO cambia el comportamiento de ninguna ruta que ya estuviera protegida ni de ninguna que
+     * ya fuese `@Public()`. Las únicas que cambian son las dos citadas arriba, que pasan a exigir
+     * sesión —que es lo que su propio decorador de roles decía— y las dos excepciones deliberadas
+     * (`/metrics` y el callback del motor) que ahora lo declaran en su fichero.
+     */
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule implements NestModule {

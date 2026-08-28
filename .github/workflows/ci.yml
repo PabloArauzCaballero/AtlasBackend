@@ -92,6 +92,15 @@ jobs:
       - name: Check x-tenant-id duplication does not grow
         run: yarn check:tenant-header
 
+      # ATL-003: este backend autenticaba por opt-in y dos controladores se olvidaron el
+      # `@UseGuards` —uno servía documentos de identidad, otro reasignaba la política que decide
+      # créditos—, ambos con un `@Roles(...)` que sin guard no lee nadie. Los guards ya son
+      # globales (`app.module.ts`), así que abrir una ruta es ahora escribir `@Public()`: este
+      # trinquete impide que esa superficie, y la de controladores sin regla de rol, crezcan sin
+      # que alguien lo firme bajando el baseline.
+      - name: Check auth coverage does not regress
+        run: yarn check:auth-coverage
+
       # Fase 2.1 del plan 10/10: congela la deuda de tamaño — ningún archivo runtime NUEVO grande
       # entra sin excepción documentada. Los umbrales de complejidad los aplica ESLint arriba.
       - name: Check runtime file size (complexity gate)

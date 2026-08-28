@@ -3,11 +3,14 @@
  * @business Sin ver el carnet y la selfie, una revisión manual de identidad es una firma a ciegas.
  * @system lista los documentos de un cliente y devuelve sus bytes desde el almacenamiento.
  */
-import { Controller, Get, Header, NotFoundException, Param, Res, StreamableFile } from '@nestjs/common';
+import { Controller, Get, Header, NotFoundException, Param, Res, StreamableFile, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../../common/guards/roles.guard.js';
+import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
 import { onboardingCustomerIdParamsSchema, type OnboardingCustomerIdParamsDto } from './customer-onboarding.schemas.js';
@@ -38,6 +41,20 @@ import { CustomerVerificationRepository } from './repositories/customer-verifica
  */
 @ApiTags('customer-onboarding')
 @ApiBearerAuth('access-token')
+/*
+ * Los guards, que faltaban.
+ *
+ * `@Roles(...)` de abajo sólo ESCRIBE metadata; quien la lee y decide es `RolesGuard`, y quien
+ * puebla el `request.user` que ese guard compara es `JwtAuthGuard`. Sin la línea de guards este
+ * backend no autentica por defecto —el único `APP_GUARD` global es el de rate limiting—, así que
+ * los tres endpoints de abajo servían el carnet y la selfie de cualquier cliente A CUALQUIERA:
+ * el decorador de roles quedaba como un comentario ejecutable.
+ *
+ * `TenantGuard` va en medio a propósito: `resolveCurrentTenant` acepta el tenant también por query
+ * (una etiqueta `<img>` no puede mandar cabeceras), y sin este guard ese parámetro sería una
+ * frontera que decide quien llama. Con él, si el token trae tenant, el valor recibido debe coincidir.
+ */
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
 @Controller('customer-onboarding')
 export class CustomerEvidenceViewController {

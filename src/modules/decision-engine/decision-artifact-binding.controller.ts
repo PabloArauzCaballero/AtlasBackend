@@ -3,11 +3,14 @@
  * @business Permite a Riesgo elegir la política vigente sin pedir un despliegue.
  * @system lee y escribe `catalog.decision_artifact_bindings` con el catálogo del motor como origen.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Post, UnprocessableEntityException } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Post, UnprocessableEntityException, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../../common/guards/roles.guard.js';
+import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
@@ -40,6 +43,17 @@ type AssignDto = z.infer<typeof assignSchema>;
  */
 @ApiTags('decision-engine')
 @ApiBearerAuth('access-token')
+/*
+ * Los guards, que faltaban.
+ *
+ * El `@Roles(...)` de abajo no protegía nada: escribe metadata que sólo `RolesGuard` lee, y este
+ * backend no registra guards globales de sesión. El `POST` de este controlador elige QUÉ ARTEFACTO
+ * evalúa el crédito, la identidad y el riesgo —y con qué versión fijada—, así que sin esta línea
+ * cualquiera podía apuntar la decisión a una política permisiva y toda originación posterior se
+ * evaluaba con ella. Además `@CurrentUser()` llegaba `undefined`, de modo que el cambio tampoco
+ * quedaba atribuido a nadie.
+ */
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
 @Controller('internal/decision-artifacts')
 export class DecisionArtifactBindingController {
