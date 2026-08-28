@@ -22,7 +22,10 @@ DECLARE
     'audit', 'integrations', 'messaging', 'platform_ops',
     -- Expediente verificable del comercio (ADR-0009). Sin este privilegio la API arranca, la
     -- migración pasa y la primera petición responde 500 «permission denied for schema partner».
-    'partner'
+    'partner',
+    -- Motor de soporte: expediente, canal, transcripción y conocimiento. Sin este privilegio, la
+    -- primera persona que pida ayuda recibe un 500 en el canal que existe justamente para eso.
+    'support'
   ];
 BEGIN
   FOREACH schema_name IN ARRAY write_schemas LOOP

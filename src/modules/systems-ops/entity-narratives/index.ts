@@ -22,6 +22,7 @@ import { PRIVACY_CONSENT_NARRATIVES } from './privacy-consent.fixtures.js';
 import { RISK_SCORING_NARRATIVES } from './risk-scoring.fixtures.js';
 import { SYSTEMS_GOVERNANCE_NARRATIVES } from './systems-governance.fixtures.js';
 import { PARTNER_ONBOARDING_NARRATIVES } from './partner-onboarding.fixtures.js';
+import { SUPPORT_SERVICE_MANAGEMENT_NARRATIVES } from './support-service-management.fixtures.js';
 import { WORKFLOW_CATALOG_NARRATIVES } from './workflow-catalog.fixtures.js';
 
 export type { EntityBusinessNarrative } from './entity-narrative.types.js';
@@ -47,6 +48,7 @@ export const ENTITY_BUSINESS_NARRATIVES: readonly EntityBusinessNarrative[] = [
   ...DATA_NOTEBOOK_NARRATIVES,
   ...WORKFLOW_CATALOG_NARRATIVES,
   ...PARTNER_ONBOARDING_NARRATIVES,
+  ...SUPPORT_SERVICE_MANAGEMENT_NARRATIVES,
 ];
 
 /**

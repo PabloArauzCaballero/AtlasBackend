@@ -411,6 +411,43 @@ describe('PartnerCommerceService', () => {
 
     await expect(service.registerBranch('1', '10', { branchCode: 'SC-01', name: 'Centro' })).rejects.toBeInstanceOf(ConflictException);
   });
+
+  /*
+   * El puente con el ERP se puede poner DESPUÉS.
+   *
+   * Sólo se escribía al declarar la sucursal, así que las declaradas antes de que ese campo se
+   * rellenara se quedaban sin él y su QR no se podía enseñar sin arriesgarse a mostrar el de otra
+   * tienda. La única salida era declarar el local otra vez: dos filas para el mismo mostrador, con
+   * las cajas colgando de una y el ERP mirando la otra.
+   */
+  it('enlaza con el ERP una sucursal ya declarada', async () => {
+    const update = jest.fn(async () => undefined);
+    const { service } = build({
+      findBranchById: jest.fn(async (..._a: unknown[]) => ({ id: '5', branchCode: 'SC-01', erpBranchId: null, update }) as AnyRecord | null),
+    });
+
+    await service.linkBranchToErp('1', '10', '5', { erpBranchId: 'erp-9' });
+    expect(update).toHaveBeenCalledWith({ erpBranchId: 'erp-9' });
+  });
+
+  /* Dos sucursales del expediente sobre el mismo local del ERP serían dos QR para un mostrador. */
+  it('no enlaza con un local del ERP que ya está enlazado', async () => {
+    const { service } = build({
+      findBranchById: jest.fn(async (..._a: unknown[]) => ({ id: '5', erpBranchId: null, update: jest.fn() }) as AnyRecord | null),
+      listBranches: jest.fn(async () => [{ branchId: '4', erpBranchId: 'erp-9' }]),
+    });
+
+    await expect(service.linkBranchToErp('1', '10', '5', { erpBranchId: 'erp-9' })).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  /* Mover el puente cambiaría en silencio a qué local pertenecen las cajas y sus cobros. */
+  it('no cambia de sitio un puente ya establecido', async () => {
+    const { service } = build({
+      findBranchById: jest.fn(async (..._a: unknown[]) => ({ id: '5', erpBranchId: 'erp-1', update: jest.fn() }) as AnyRecord | null),
+    });
+
+    await expect(service.linkBranchToErp('1', '10', '5', { erpBranchId: 'erp-9' })).rejects.toBeInstanceOf(ConflictException);
+  });
 });
 
 describe('PartnerContactVerificationService', () => {

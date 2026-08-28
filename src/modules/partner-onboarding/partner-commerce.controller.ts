@@ -20,6 +20,8 @@ import { toPartnerBranchDto, toPartnerPosTerminalDto, toPartnerQrDto } from './p
 import {
   BranchIdParamsDto,
   branchIdParamsSchema,
+  LinkBranchDto,
+  linkBranchSchema,
   PartnerIdParamsDto,
   partnerIdParamsSchema,
   PosTerminalStatusDto,
@@ -69,6 +71,34 @@ export class PartnerCommerceController {
   ) {
     const tenantId = tenantIdFromHeader(tenantIdHeader);
     return toPartnerBranchDto(await this.commerce.registerBranch(tenantId, params.partnerId, body));
+  }
+
+  /**
+   * Enlaza una sucursal ya declarada con la del ERP que le corresponde.
+   *
+   * Sin esto, una sucursal declarada antes de que el puente `erpBranchId` se rellenara sólo podía
+   * enlazarse declarándola otra vez: dos filas para el mismo mostrador, con las cajas colgando de
+   * una y el ERP mirando la otra.
+   */
+  @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Enlazar una sucursal del expediente con la del ERP' })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
+  @ApiParam({ name: 'branchId', schema: zodToApiSchema(branchIdParamsSchema.shape.branchId) })
+  @ApiBody({ schema: zodToApiSchema(linkBranchSchema) })
+  @ApiResponse({ status: 200, description: 'Sucursal enlazada.' })
+  @ApiResponse({ status: 409, description: 'PARTNER_BRANCH_ALREADY_LINKED / ERP_BRANCH_ALREADY_LINKED.' })
+  @Patch(':partnerId/branches/:branchId')
+  async linkBranch(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Param(new ZodValidationPipe(branchIdParamsSchema)) params: BranchIdParamsDto,
+    @Body(new ZodValidationPipe(linkBranchSchema)) body: LinkBranchDto,
+  ) {
+    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    return toPartnerBranchDto(
+      await this.commerce.linkBranchToErp(tenantId, params.partnerId, params.branchId, body),
+    );
   }
 
   @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')

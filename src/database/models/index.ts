@@ -161,3 +161,26 @@ export { WorkflowStepDependencyModel } from './workflow-step-dependencies.model.
 export { WorkflowTransitionModel } from './workflow-transitions.model.js';
 export { NotificationPolicyModel } from './notification-policies.model.js';
 export { AppContentEntryModel, type ContentBullet } from './app-content-entries.model.js';
+
+// El motor de soporte (ISO/IEC 20000-1 + ITIL 4): expediente, canal, transcripción y conocimiento.
+export { SupportQueueModel } from './support-queues.model.js';
+export { SupportSlaPolicyModel } from './support-sla-policies.model.js';
+export { SupportCaseCategoryModel } from './support-case-categories.model.js';
+export { SupportCannedResponseModel } from './support-canned-responses.model.js';
+export { SupportAgentProfileModel } from './support-agent-profiles.model.js';
+export { SupportAgentSkillModel } from './support-agent-skills.model.js';
+export { SupportCaseModel } from './support-cases.model.js';
+export { SupportCaseEventModel } from './support-case-events.model.js';
+export { SupportAssignmentModel } from './support-assignments.model.js';
+export { SupportSlaClockModel } from './support-sla-clocks.model.js';
+export { SupportResolutionModel } from './support-resolutions.model.js';
+export { SupportCaseLinkModel } from './support-case-links.model.js';
+export { SupportCaseReferenceModel } from './support-case-references.model.js';
+export { SupportCaseFeedbackModel } from './support-case-feedback.model.js';
+export { SupportChannelModel } from './support-channels.model.js';
+export { SupportChannelParticipantModel } from './support-channel-participants.model.js';
+export { SupportMessageModel } from './support-messages.model.js';
+export { SupportMessageRelationModel } from './support-message-relations.model.js';
+export { SupportAttachmentModel } from './support-attachments.model.js';
+export { KnowledgeArticleModel } from './knowledge-articles.model.js';
+export { KnowledgeArticleVersionModel } from './knowledge-article-versions.model.js';

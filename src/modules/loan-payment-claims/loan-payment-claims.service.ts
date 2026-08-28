@@ -37,6 +37,25 @@ import type {
 
 const PENDIENTE = 'pending_verification';
 
+/** Un cobro ya recibido en un crédito del comercio, con la comisión que devengó. */
+interface PagoDeCartera {
+  paymentId: string;
+  paymentCode: string;
+  loanId: string;
+  loanCode: string;
+  receivedAt: string;
+  amount: string;
+  appliedAmount: string;
+  currencyCode: string;
+  paymentMethod: string;
+  externalReference: string | null;
+  status: string;
+  reversed: boolean;
+  mdrRatePercent: string;
+  commissionAccrued: string;
+  installmentNumbers: number[];
+}
+
 @Injectable()
 export class LoanPaymentClaimsService {
   constructor(
@@ -482,10 +501,15 @@ export class LoanPaymentClaimsService {
 
     const hoy = new Date().toISOString().slice(0, 10);
     const creditos = [];
+    /* Los cobros ya recibidos, con la comisión que devengó cada uno. Se ordenan al final. */
+    const pagosRecibidos: PagoDeCartera[] = [];
     const porDia = new Map<string, { fecha: string; cuotas: number; monto: number }>();
     let saldoPorCobrar = 0;
     let montoVencido = 0;
     let cuotasVencidas = 0;
+    /* Las tres cestas que el comercio distingue de un vistazo: mora, pendiente y pagado. */
+    let cuotasPendientes = 0;
+    let cuotasPagadas = 0;
     let cobradoTotal = 0;
     /* La tasa de comisión del comercio y lo que se le ha devengado a Atlas por cobrar. */
     const tasaMdr = Number(profile.mdrRatePercent ?? '0');
@@ -502,10 +526,11 @@ export class LoanPaymentClaimsService {
 
         saldoPorCobrar += pendiente;
         cobradoTotal += pagado;
-        if (vencida) {
+        if (pendiente === 0) cuotasPagadas += 1;
+        else if (vencida) {
           montoVencido += pendiente;
           cuotasVencidas += 1;
-        }
+        } else cuotasPendientes += 1;
         if (pendiente > 0) {
           const dia = porDia.get(vence) ?? { fecha: vence, cuotas: 0, monto: 0 };
           dia.cuotas += 1;
@@ -533,6 +558,16 @@ export class LoanPaymentClaimsService {
       const comisionCredito = (cobradoCredito * tasaMdr) / 100;
       comisionDevengada += comisionCredito;
 
+      pagosRecibidos.push(
+        ...(await this.pagosDelCredito({
+          tenantId: input.tenantId,
+          loanId: String(loan.id),
+          loanCode: loan.loanCode,
+          cuotas,
+          tasaMdr,
+        })),
+      );
+
       creditos.push({
         loanId: String(loan.id),
         loanCode: loan.loanCode,
@@ -559,17 +594,89 @@ export class LoanPaymentClaimsService {
         overdueAmount: montoVencido.toFixed(2),
         overdueInstallments: cuotasVencidas,
         collected: cobradoTotal.toFixed(2),
+        /* Lo que aún no vence: `outstanding` menos lo que ya está en mora. */
+        pendingAmount: Math.max(saldoPorCobrar - montoVencido, 0).toFixed(2),
+        pendingInstallments: cuotasPendientes,
+        paidInstallments: cuotasPagadas,
+        paymentsCount: pagosRecibidos.filter((pago) => !pago.reversed).length,
         proofsAwaitingVerification: pendientesDeVerificar,
         /* La comisión: su tasa, lo devengado (lo que Atlas ya ganó sobre lo cobrado). */
         mdrRatePercent: tasaMdr.toFixed(2),
         commissionAccrued: comisionDevengada.toFixed(2),
       },
       credits: creditos,
+      /* Los cobros ya recibidos, del más reciente al más antiguo. */
+      payments: pagosRecibidos.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)),
       /* El calendario: qué entra cada día, ordenado. Es la vista que pide quien maneja caja. */
       calendar: [...porDia.values()]
         .sort((a, b) => a.fecha.localeCompare(b.fecha))
         .map((dia) => ({ date: dia.fecha, installments: dia.cuotas, amount: dia.monto.toFixed(2), overdue: dia.fecha < hoy })),
     };
+  }
+
+  /**
+   * Los cobros de UN crédito, uno a uno, con la comisión que cada uno devengó.
+   *
+   * La comisión de un pago sale de lo que ese pago IMPUTÓ a cuotas, no de su importe declarado. Un
+   * pago revertido tiene sus imputaciones anuladas —y por tanto no devenga—, y uno imputado en
+   * parte sólo devenga sobre lo que entró. Usar `payment.amount` habría hecho que una reversión
+   * devengara comisión sobre dinero que volvió al cliente.
+   *
+   * Lo que esta lista NO puede prometer es sumar `commissionAccrued`. Ese total se calcula sobre lo
+   * pagado EN LAS CUOTAS, y una cuota puede aparecer saldada sin un pago detrás —así entran las
+   * carteras migradas y los datos sembrados—. La diferencia es información real y se enseña en la
+   * pantalla como tal; taparla igualando una cifra a la otra habría escondido cobros sin respaldo.
+   */
+  private async pagosDelCredito(input: {
+    tenantId: string;
+    loanId: string;
+    loanCode: string;
+    cuotas: { id: string; installmentNumber: number }[];
+    tasaMdr: number;
+  }): Promise<PagoDeCartera[]> {
+    const pagos = await this.loans.findPaymentsByLoan(input.tenantId, input.loanId);
+    const imputaciones = await this.loans.findAllocationsByPayments(
+      input.tenantId,
+      pagos.map((pago) => String(pago.id)),
+    );
+    const numeroDeCuota = new Map(
+      input.cuotas.map((cuota) => [String(cuota.id), cuota.installmentNumber] as const),
+    );
+
+    return pagos.map((pago) => {
+      const suyas = imputaciones.filter((fila) => String(fila.loanPaymentId) === String(pago.id));
+      const aplicado = suyas.reduce(
+        (suma, fila) =>
+          suma +
+          Number(fila.principalApplied) +
+          Number(fila.interestApplied) +
+          Number(fila.lateFeeApplied),
+        0,
+      );
+
+      return {
+        paymentId: String(pago.id),
+        paymentCode: pago.paymentCode,
+        loanId: input.loanId,
+        loanCode: input.loanCode,
+        receivedAt: new Date(pago.receivedAt).toISOString(),
+        amount: Number(pago.amount).toFixed(2),
+        appliedAmount: aplicado.toFixed(2),
+        currencyCode: pago.currencyCode,
+        paymentMethod: pago.paymentMethod,
+        externalReference: pago.externalReference,
+        status: pago.status,
+        reversed: pago.status === 'reversed',
+        mdrRatePercent: input.tasaMdr.toFixed(2),
+        commissionAccrued: ((aplicado * input.tasaMdr) / 100).toFixed(2),
+        /* Qué cuotas cubrió: un pago puede saldar varias, y una cuota recibir varios pagos. */
+        installmentNumbers: [
+          ...new Set(suyas.map((fila) => numeroDeCuota.get(String(fila.loanInstallmentId)))),
+        ]
+          .filter((numero): numero is number => numero !== undefined)
+          .sort((a, b) => a - b),
+      };
+    });
   }
 
   /** La decisión del comercio, avisada al cliente por el mismo camino que su aviso llegó aquí. */

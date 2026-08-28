@@ -70,6 +70,25 @@ export const RETENTION_POLICIES_PENDING_DECISION: Record<string, string> = {
   'external-provider-365d':
     'Evidencia de proveedores externos usada en decisiones KYC. Antes de purgar hay que separar la evidencia que ' +
     'sustenta una decisión vigente de la consulta meramente operativa; hoy conviven en las mismas tablas.',
+  support_general:
+    'El expediente de soporte no se purga por antigüedad: la fecha de apertura no dice nada sobre si sigue ' +
+    'siendo necesario. El disparador correcto es el cierre firme del caso sin reclamo ni bloqueo legal, y el ' +
+    'plazo lo aprueban Legal y Cumplimiento. Mapearla como purga por antigüedad borraría casos vivos.',
+  support_complaint:
+    'Un reclamo formal sostiene la posición de Atlas ante el consumidor y, eventualmente, ante un mecanismo ' +
+    'externo de resolución. Su plazo mínimo probatorio lo fija Legal según la normativa boliviana aplicable, no ' +
+    'este backend; hasta entonces se conserva.',
+  support_security_incident:
+    'La evidencia de un incidente de seguridad o de un fraude puede ser requerida mucho después por autoridad ' +
+    'competente. Antes de ejecutar cualquier disposición hay que definir con Seguridad y Legal qué se archiva ' +
+    'fuera de la base transaccional y qué se conserva íntegro.',
+  support_privacy_request:
+    'La prueba de haber atendido un derecho del titular es lo que protege a Atlas si después se cuestiona la ' +
+    'atención. Borrarla por antigüedad destruiría exactamente la evidencia de cumplimiento; el plazo lo decide ' +
+    'Cumplimiento junto con la política de privacidad.',
+  support_financial_evidence:
+    'Los comprobantes y la conciliación asociados a un caso son documentación financiera con plazo propio. Su ' +
+    'retención se coordina con la del libro de préstamos y la facturación, no se decide dentro del soporte.',
   'external-provider-evidence-1825d':
     'Sembrada con base legal kyc_aml_record_keeping y acción anonymize. Anonimizar evidencia de proveedor requiere ' +
     'definir qué campos son identificadores y cuáles sustentan la trazabilidad de la decisión: decisión de ' +

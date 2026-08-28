@@ -153,6 +153,23 @@ export const registerBranchSchema = z.object({
 });
 export type RegisterBranchDto = z.infer<typeof registerBranchSchema>;
 
+/**
+ * Enlaza una sucursal YA declarada con la del ERP que le corresponde.
+ *
+ * Existe porque el puente `erpBranchId` sólo se podía escribir al crear la sucursal, y las que se
+ * declararon antes de que ese campo se rellenara se quedaron sin él para siempre: el ERP y el
+ * expediente hablaban del mismo mostrador sin poder demostrarlo, así que su QR no se podía enseñar
+ * sin arriesgarse a mostrar el de otra tienda. Sin esto, la única salida era declarar el local otra
+ * vez — es decir, duplicarlo, que es exactamente el problema.
+ *
+ * Sólo se puede ESTABLECER el enlace, no cambiarlo ni quitarlo: mover el puente de sitio movería en
+ * silencio a qué local pertenecen las cajas y sus cobros.
+ */
+export const linkBranchSchema = z.object({
+  erpBranchId: z.string().trim().min(1).max(64),
+});
+export type LinkBranchDto = z.infer<typeof linkBranchSchema>;
+
 /** Los tipos de imagen que un QR puede tener. Un PDF no se acepta: un QR es una imagen. */
 export const QR_CONTENT_TYPES = ['image/jpeg', 'image/png'] as const;
 

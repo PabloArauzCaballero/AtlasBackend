@@ -19,6 +19,16 @@ export const ATLAS_SCHEMAS = {
   MESSAGING: 'messaging',
   PLATFORM_OPS: 'platform_ops',
   /**
+   * El SOPORTE como servicio gobernado, no como una caja de texto.
+   *
+   * Schema propio y no `case_management`: allí viven los expedientes que Atlas
+   * abre SOBRE una persona —revisión manual, fraude, listas—, y aquí los que la
+   * persona (o el comercio) abre CONTRA Atlas. Mezclarlos habría dado a un
+   * agente de soporte la misma vista que a un analista de fraude, que es
+   * exactamente la separación de funciones que ISO/IEC 27001 pide sostener.
+   */
+  SUPPORT: 'support',
+  /**
    * El comercio como SUJETO VERIFICABLE, no como cuenta comercial.
    *
    * Schema propio y no `customer` ni `iam`: lo que vive aquí es el expediente que
@@ -237,6 +247,34 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'schema_columns',
     'schema_relationships',
     'schema_change_log',
+  ],
+  [ATLAS_SCHEMAS.SUPPORT]: [
+    // Configuración versionada: qué colas existen, cómo se clasifica y qué se promete.
+    'support_queues',
+    'support_case_categories',
+    'support_sla_policies',
+    'support_canned_responses',
+    // Quién atiende y con qué competencia. No duplica credenciales: cuelga de `internal_users`.
+    'support_agent_profiles',
+    'support_agent_skills',
+    // El EXPEDIENTE y su historia. `support_case_events` es append-only con cadena de hash.
+    'support_cases',
+    'support_case_events',
+    'support_assignments',
+    'support_sla_clocks',
+    'support_resolutions',
+    'support_case_links',
+    'support_case_references',
+    'support_case_feedback',
+    // El CANAL y su transcripción. `support_messages` es append-only con cadena de hash.
+    'support_channels',
+    'support_channel_participants',
+    'support_messages',
+    'support_message_relations',
+    'support_attachments',
+    // La base de conocimiento: el artículo es la identidad, la versión es el contenido.
+    'knowledge_articles',
+    'knowledge_article_versions',
   ],
   [ATLAS_SCHEMAS.PARTNER]: [
     'partner_profiles',

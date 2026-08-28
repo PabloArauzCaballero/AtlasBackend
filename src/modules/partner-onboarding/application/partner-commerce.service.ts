@@ -7,7 +7,7 @@ import { ConflictException, Injectable, Logger, NotFoundException, Unprocessable
 import { MetricsService } from '../../../common/observability/metrics.service.js';
 import { PartnerBranchModel, PartnerPosTerminalModel } from '../../../database/models/index.js';
 import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
-import { PosTerminalStatusDto, RegisterBranchDto, RegisterPosTerminalDto } from '../partner-onboarding.schemas.js';
+import { LinkBranchDto, PosTerminalStatusDto, RegisterBranchDto, RegisterPosTerminalDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileService } from './partner-profile.service.js';
 
 /**
@@ -52,6 +52,46 @@ export class PartnerCommerceService {
 
     this.metrics.recordPartnerOnboardingStep({ step: 'branch', outcome: 'ok' });
     this.logger.log(`Sucursal de partner registrada: partnerId=${partnerId} sucursal=${branch.branchCode}`);
+    return branch;
+  }
+
+  /**
+   * Enlaza una sucursal ya declarada con la del ERP que le corresponde.
+   *
+   * El puente sólo se podía escribir al crearla, así que las sucursales anteriores a que ese campo
+   * se rellenara se quedaban sin él: el ERP y el expediente hablaban del mismo mostrador sin poder
+   * demostrarlo, y su QR no se podía enseñar sin arriesgarse a mostrar el de otra tienda. La única
+   * salida era declarar el local otra vez, o sea duplicarlo.
+   *
+   * Sólo se ESTABLECE: una sucursal ya enlazada no se re-enlaza aquí. Mover el puente cambiaría en
+   * silencio a qué local pertenecen las cajas y sus cobros, y eso no es una corrección de datos.
+   */
+  async linkBranchToErp(
+    tenantId: string,
+    partnerId: string,
+    branchId: string,
+    dto: LinkBranchDto,
+  ): Promise<PartnerBranchModel> {
+    const profile = await this.profiles.requireProfile(tenantId, partnerId);
+    this.profiles.assertCommercialNetworkEditable(profile);
+
+    const branch = await this.repository.findBranchById(tenantId, partnerId, branchId);
+    if (!branch) throw new NotFoundException('PARTNER_BRANCH_NOT_FOUND');
+
+    if (branch.erpBranchId) {
+      if (branch.erpBranchId === dto.erpBranchId) return branch;
+      throw new ConflictException('PARTNER_BRANCH_ALREADY_LINKED');
+    }
+
+    // Dos sucursales del expediente apuntando al mismo local del ERP serían dos QR para el mismo
+    // mostrador, que es la avería que el puente existe para impedir.
+    const branches = await this.repository.listBranches(tenantId, partnerId);
+    if (branches.some((other) => other.erpBranchId === dto.erpBranchId)) {
+      throw new ConflictException('ERP_BRANCH_ALREADY_LINKED');
+    }
+
+    await branch.update({ erpBranchId: dto.erpBranchId });
+    this.logger.log(`Sucursal de partner enlazada con el ERP: partnerId=${partnerId} sucursal=${branch.branchCode}`);
     return branch;
   }
 

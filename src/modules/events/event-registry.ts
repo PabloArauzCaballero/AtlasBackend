@@ -138,6 +138,34 @@ const eventGroups: Array<{ family: string; events: string[]; aggregateTypes: str
     priority: 20,
   },
   {
+    /*
+     * Soporte y gestión de servicio (ISO/IEC 20000-1). Los consumidores de estos eventos son el
+     * motor de notificaciones —que avisa al cliente sin que soporte tenga que acordarse—, analítica
+     * y el tablero del supervisor. Van por outbox y no por llamada directa para que un fallo del
+     * canal de avisos no impida cerrar un caso.
+     */
+    family: 'support_service_management',
+    aggregateTypes: ['support_case', 'support_channel', 'support_message', 'knowledge_article', 'customer', 'partner'],
+    events: [
+      'support.case.created',
+      'support.case.triaged',
+      'support.case.assigned',
+      'support.case.escalated',
+      'support.case.resolved',
+      'support.case.closed',
+      'support.case.reopened',
+      'support.channel.opened',
+      'support.channel.closed',
+      'support.message.created',
+      'support.complaint.created',
+      'support.security.escalated',
+      'support.sla.warning',
+      'support.sla.breached',
+      'support.knowledge.published',
+    ],
+    priority: 20,
+  },
+  {
     family: 'notifications',
     aggregateTypes: ['notification', 'template', 'customer', 'internal_user'],
     events: [

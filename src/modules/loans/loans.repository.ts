@@ -155,6 +155,26 @@ export class LoansRepository {
     } as FindOptions);
   }
 
+  /**
+   * Las imputaciones de VARIOS pagos de una vez.
+   *
+   * La cartera del comercio necesita saber cuánto aplicó cada pago para repartirle su comisión, y
+   * pedirlas pago a pago recorría la base una vez por cobro: un comercio con cien pagos hacía cien
+   * consultas para pintar una tabla. Se excluyen las revertidas, igual que en la consulta unitaria:
+   * un pago anulado no imputó nada y no debe devengar comisión.
+   */
+  findAllocationsByPayments(
+    tenantId: string,
+    loanPaymentIds: string[],
+    options: RepositoryOptions = {},
+  ): Promise<LoanPaymentAllocationModel[]> {
+    if (loanPaymentIds.length === 0) return Promise.resolve([]);
+    return this.allocationModel.findAll({
+      where: { tenantId, loanPaymentId: { [Op.in]: loanPaymentIds }, reversed: false },
+      transaction: options.transaction,
+    } as FindOptions);
+  }
+
   createEvent(values: Record<string, unknown>, options: RepositoryOptions = {}): Promise<LoanEventModel> {
     return this.eventModel.create(values as never, { transaction: options.transaction });
   }
