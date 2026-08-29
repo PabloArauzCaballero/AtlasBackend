@@ -55,17 +55,17 @@ export class MobileSupportController {
   ) {}
 
   @ApiOperation({ summary: 'Preguntas frecuentes destacadas' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 200, description: 'FAQ publicadas para la audiencia del solicitante.' })
   @Get('faq')
   async faq(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.featuredFaq({ tenantId, actor });
   }
 
   @ApiOperation({ summary: 'Buscar en la ayuda' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 200, description: 'Artículos publicados ordenados por relevancia.' })
   @Get('knowledge/search')
   async search(
@@ -73,26 +73,26 @@ export class MobileSupportController {
     @Query(new ZodValidationPipe(knowledgeSearchSchema)) query: KnowledgeSearchDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.search({ tenantId, actor, dto: query });
   }
 
   @ApiOperation({ summary: 'Leer un artículo de ayuda' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('knowledge/articles/:articleKey')
   async article(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Param('articleKey') articleKey: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.getByKey({ tenantId, actor, articleKey });
   }
 
   @ApiOperation({ summary: '¿Te sirvió este artículo?' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('knowledge/articles/:articleId/feedback')
   async articleFeedback(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -100,13 +100,13 @@ export class MobileSupportController {
     @Body(new ZodValidationPipe(knowledgeFeedbackSchema)) body: KnowledgeFeedbackDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.submitFeedback({ tenantId, actor, articleId, dto: body });
   }
 
   @ApiOperation({ summary: 'Abrir un caso de soporte' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 201, description: 'Caso creado, con su canal de conversación.' })
   @ApiResponse({ status: 409, description: 'SUPPORT_CASE_POSSIBLE_DUPLICATE: ya hay un caso abierto igual.' })
   @Post('cases')
@@ -116,26 +116,26 @@ export class MobileSupportController {
     @Body(new ZodValidationPipe(openCaseSchema)) body: OpenCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.cases.openCase({ tenantId, actor, dto: body, correlationId: correlationId ?? null });
   }
 
   @ApiOperation({ summary: 'Mis casos' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('cases')
   async listCases(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Query(new ZodValidationPipe(listCasesQuerySchema)) query: ListCasesQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.read.listOwnCases({ tenantId, actor, query });
   }
 
   @ApiOperation({ summary: 'Detalle de mi caso' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'SUPPORT_CASE_FORBIDDEN: el caso no es de este cliente.' })
   @Get('cases/:caseId')
   async getCase(
@@ -143,13 +143,13 @@ export class MobileSupportController {
     @Param('caseId') caseId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.read.getCase({ tenantId, actor, caseId });
   }
 
   @ApiOperation({ summary: 'Pedir el cierre de mi caso' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('cases/:caseId/close-request')
   async closeRequest(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -157,13 +157,13 @@ export class MobileSupportController {
     @Body(new ZodValidationPipe(closeCaseSchema)) body: CloseCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.customerActions.registerCustomerRequest({ tenantId, actor, caseId, kind: 'CLOSE', reason: body.reason });
   }
 
   @ApiOperation({ summary: 'Pedir la reapertura de mi caso' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 409, description: 'SUPPORT_REOPEN_WINDOW_EXPIRED: abre un caso nuevo enlazado.' })
   @Post('cases/:caseId/reopen')
   async reopen(
@@ -172,13 +172,13 @@ export class MobileSupportController {
     @Body(new ZodValidationPipe(reopenCaseSchema)) body: ReopenCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.closure.reopen({ tenantId, actor, caseId, dto: body });
   }
 
   @ApiOperation({ summary: 'Valorar la atención recibida' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('cases/:caseId/feedback')
   async feedback(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -186,7 +186,7 @@ export class MobileSupportController {
     @Body(new ZodValidationPipe(caseFeedbackSchema)) body: CaseFeedbackDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.customerActions.submitFeedback({ tenantId, actor, caseId, dto: body });
   }

@@ -59,20 +59,20 @@ export class InternalSupportController {
   ) {}
 
   @ApiOperation({ summary: 'Cola de trabajo: casos abiertos por cola, prioridad y antigüedad' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get()
   async workQueue(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Query(new ZodValidationPipe(listCasesQuerySchema)) query: ListCasesQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.read.listWorkQueue({ tenantId, actor, query });
   }
 
   @ApiOperation({ summary: 'Detalle operativo del caso' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'SUPPORT_CASE_RESTRICTED: expediente sensible no asignado.' })
   @Get(':caseId')
   async detail(
@@ -80,26 +80,26 @@ export class InternalSupportController {
     @Param('caseId') caseId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.read.getCase({ tenantId, actor, caseId });
   }
 
   @ApiOperation({ summary: 'Historia completa del expediente, con hashes verificables' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get(':caseId/timeline')
   async timeline(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Param('caseId') caseId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.read.getTimeline({ tenantId, actor, caseId });
   }
 
   @ApiOperation({ summary: 'Clasificar o reclasificar el caso' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post(':caseId/triage')
   @HttpCode(HttpStatus.OK)
   async triage(
@@ -108,13 +108,13 @@ export class InternalSupportController {
     @Body(new ZodValidationPipe(triageCaseSchema)) body: TriageCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.workflow.triage({ tenantId, actor, caseId, dto: body });
   }
 
   @ApiOperation({ summary: 'Tomar el caso (o asignarlo, si eres supervisor)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'SUPPORT_ASSIGN_REQUIRES_SUPERVISOR al asignar a otra persona.' })
   @Post(':caseId/claim')
   @HttpCode(HttpStatus.OK)
@@ -124,13 +124,13 @@ export class InternalSupportController {
     @Body(new ZodValidationPipe(assignCaseSchema)) body: AssignCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.workflow.assign({ tenantId, actor, caseId, dto: body });
   }
 
   @ApiOperation({ summary: 'Transferir el caso, dejando el contexto para quien sigue' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post(':caseId/transfer')
   @HttpCode(HttpStatus.OK)
   async transfer(
@@ -139,13 +139,13 @@ export class InternalSupportController {
     @Body(new ZodValidationPipe(assignCaseSchema)) body: AssignCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.workflow.transfer({ tenantId, actor, caseId, dto: body });
   }
 
   @ApiOperation({ summary: 'Escalar (funcional, jerárquico, seguridad, fraude o privacidad)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post(':caseId/escalate')
   @HttpCode(HttpStatus.OK)
   async escalate(
@@ -154,13 +154,13 @@ export class InternalSupportController {
     @Body(new ZodValidationPipe(escalateCaseSchema)) body: EscalateCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.escalation.escalate({ tenantId, actor, caseId, dto: body });
   }
 
   @ApiOperation({ summary: 'Nota interna (nunca visible para el cliente)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post(':caseId/notes')
   async note(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -168,13 +168,13 @@ export class InternalSupportController {
     @Body(new ZodValidationPipe(internalNoteSchema)) body: InternalNoteDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.escalation.addInternalNote({ tenantId, actor, caseId, dto: body });
   }
 
   @ApiOperation({ summary: 'Enlazar con otro caso (duplicado, causa, incidente mayor)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post(':caseId/links')
   async link(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -182,13 +182,13 @@ export class InternalSupportController {
     @Body(new ZodValidationPipe(linkCaseSchema)) body: LinkCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.escalation.link({ tenantId, actor, caseId, dto: body });
   }
 
   @ApiOperation({ summary: 'Resolver: documenta y comunica la solución' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post(':caseId/resolve')
   @HttpCode(HttpStatus.OK)
   async resolve(
@@ -197,13 +197,13 @@ export class InternalSupportController {
     @Body(new ZodValidationPipe(resolveCaseSchema)) body: ResolveCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.closure.resolve({ tenantId, actor, caseId, dto: body });
   }
 
   @ApiOperation({ summary: 'Cerrar el expediente' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 409, description: 'SUPPORT_CASE_WITHOUT_RESOLUTION: documenta antes de cerrar.' })
   @Post(':caseId/close')
   @HttpCode(HttpStatus.OK)
@@ -213,7 +213,7 @@ export class InternalSupportController {
     @Body(new ZodValidationPipe(closeCaseSchema)) body: CloseCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.closure.close({ tenantId, actor, caseId, dto: body });
   }

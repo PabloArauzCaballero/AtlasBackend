@@ -35,14 +35,14 @@ export class InternalSupportDeskController {
   ) {}
 
   @ApiOperation({ summary: 'Conversaciones en espera de agente' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('queue')
   async queue(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Query('queueId') queueId: string | undefined,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.desk.listQueuedChannels({ tenantId, actor, queueId: queueId ?? null });
   }
@@ -55,7 +55,7 @@ export class InternalSupportDeskController {
    * dos agentes no se queden con el mismo canal.
    */
   @ApiOperation({ summary: 'Cambiar mi estado de presencia' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('presence')
   @HttpCode(HttpStatus.OK)
   async presence(
@@ -63,13 +63,13 @@ export class InternalSupportDeskController {
     @Body(new ZodValidationPipe(presenceSchema)) body: PresenceDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.desk.setPresence({ tenantId, actor, presenceState: body.presenceState });
   }
 
   @ApiOperation({ summary: 'Tomar una conversación en espera' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 409, description: 'SUPPORT_CHANNEL_ALREADY_CLAIMED o SUPPORT_AGENT_AT_CAPACITY.' })
   @Post('channels/:channelId/claim')
   @HttpCode(HttpStatus.OK)
@@ -78,7 +78,7 @@ export class InternalSupportDeskController {
     @Param('channelId') channelId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.channels.claimChannel({ tenantId, actor, channelId });
   }
@@ -91,14 +91,14 @@ export class InternalSupportDeskController {
    * los triggers, y eso se trata como incidente de seguridad.
    */
   @ApiOperation({ summary: 'Verificar la cadena de integridad de una conversación' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('channels/:channelId/integrity')
   async integrity(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Param('channelId') channelId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     this.actors.assertIsAgent(actor);
     return this.messages.verifyIntegrity(channelId);
@@ -111,7 +111,7 @@ export class InternalSupportDeskController {
    * antes de un comité, sin esperar al siguiente ciclo del job.
    */
   @ApiOperation({ summary: 'Marcar los SLA vencidos y publicar sus eventos' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('sla/sweep')
   @HttpCode(HttpStatus.OK)
   @Roles('admin', 'platform_admin')

@@ -149,16 +149,24 @@ export class SupportMessageRepository {
   listMessages(input: {
     channelId: string;
     beforeSequence?: string | null;
+    afterSequence?: string | null;
     limit: number;
     includeInternal: boolean;
   }): Promise<SupportMessageModel[]> {
+    /*
+     * Hacia atrás se ordena DESC (historial); hacia adelante, ASC y limitado, para que pedir «lo
+     * nuevo» no devuelva los últimos N sino los N SIGUIENTES: con DESC, un cliente que estuvo
+     * desconectado se saltaría lo del medio sin enterarse.
+     */
+    const forward = Boolean(input.afterSequence);
     return this.messages.findAll({
       where: {
         channelId: input.channelId,
         ...(input.beforeSequence ? { serverSequence: { [Op.lt]: input.beforeSequence } } : {}),
+        ...(input.afterSequence ? { serverSequence: { [Op.gt]: input.afterSequence } } : {}),
         ...(input.includeInternal ? {} : { visibility: { [Op.in]: ['PUBLIC', 'SYSTEM'] } }),
       },
-      order: [['server_sequence', 'DESC']],
+      order: [['server_sequence', forward ? 'ASC' : 'DESC']],
       limit: input.limit,
     });
   }

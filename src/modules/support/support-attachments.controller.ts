@@ -37,7 +37,7 @@ export class SupportAttachmentsController {
    * comprueba hash, tipo real y antivirus antes de aceptarlo.
    */
   @ApiOperation({ summary: 'Pedir permiso para subir un archivo al chat' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 201, description: 'URL firmada, clave del objeto y cabeceras obligatorias.' })
   @Post('channels/:channelId/attachments/ticket')
   async ticket(
@@ -46,7 +46,7 @@ export class SupportAttachmentsController {
     @Body(new ZodValidationPipe(attachmentTicketSchema)) body: AttachmentTicketDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.attachments.createTicket({
       tenantId,
@@ -65,7 +65,7 @@ export class SupportAttachmentsController {
    * y que queda en el historial y en los logs de cualquier proxy por el que pase.
    */
   @ApiOperation({ summary: 'Descargar un adjunto del chat (bytes autenticados)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'SUPPORT_CHANNEL_NOT_PARTICIPANT o adjunto aún sin escanear.' })
   @Get('attachments/:attachmentId/content')
   async content(
@@ -74,7 +74,7 @@ export class SupportAttachmentsController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Res() response: Response,
   ): Promise<void> {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     const file = await this.attachments.readContent({ tenantId, actor, attachmentId });
 

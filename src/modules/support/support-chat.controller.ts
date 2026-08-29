@@ -41,6 +41,11 @@ import {
  * resuelto desde el token y la participación viva en el canal, no la ruta por la que se entró.
  * Rutas separadas por audiencia habrían obligado a repetir la comprobación tres veces, y basta
  * olvidarla en una para abrir la conversación de un cliente a cualquiera.
+ *
+ * `x-tenant-id` es OPCIONAL en todo el módulo: cuando no viene se usa el del token. El portal del
+ * comercio no lo envía —su cliente HTTP nunca lo puso— y exigirlo habría dejado el chat fuera del
+ * ERP por una cabecera. Cuando sí viene, `TenantGuard` comprueba que coincida con el token, así que
+ * aceptarlo opcional no relaja nada.
  */
 @ApiTags('Soporte · Conversación')
 @ApiBearerAuth('access-token')
@@ -57,7 +62,7 @@ export class SupportChatController {
   ) {}
 
   @ApiOperation({ summary: 'Pedir atención: abre el canal y asigna un agente elegible' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 201, description: 'Canal abierto con agente, o encolado si no hay ninguno libre.' })
   @Post()
   async open(
@@ -65,13 +70,13 @@ export class SupportChatController {
     @Body(new ZodValidationPipe(openChannelSchema)) body: OpenChannelDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.channels.requestChannel({ tenantId, actor, dto: body });
   }
 
   @ApiOperation({ summary: 'Enviar un mensaje' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 200, description: 'Mensaje añadido; reintentar con el mismo clientMessageId no duplica.' })
   @ApiResponse({ status: 403, description: 'SUPPORT_CHANNEL_NOT_PARTICIPANT o SUPPORT_CHANNEL_CLOSED.' })
   @Post(':channelId/messages')
@@ -83,7 +88,7 @@ export class SupportChatController {
     @Body(new ZodValidationPipe(sendMessageSchema)) body: SendMessageDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.messages.send({ tenantId, actor, channelId, dto: body, correlationId: correlationId ?? null });
   }
@@ -95,7 +100,7 @@ export class SupportChatController {
    * revisar. Las notas internas se incluyen o no según el actor, nunca según un parámetro.
    */
   @ApiOperation({ summary: 'Leer la conversación' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get(':channelId/messages')
   async transcript(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -103,7 +108,7 @@ export class SupportChatController {
     @Query(new ZodValidationPipe(transcriptQuerySchema)) query: TranscriptQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.conversation.transcript({ tenantId, actor, channelId, query });
   }
@@ -115,7 +120,7 @@ export class SupportChatController {
    * original se queda donde está porque la otra parte ya lo leyó.
    */
   @ApiOperation({ summary: 'Corregir un mensaje ya enviado (crea uno nuevo enlazado)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'SUPPORT_MESSAGE_NOT_OWN: sólo su autor puede corregirlo.' })
   @Post(':channelId/messages/:messageId/corrections')
   async correct(
@@ -125,13 +130,13 @@ export class SupportChatController {
     @Body(new ZodValidationPipe(correctMessageSchema)) body: CorrectMessageDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.conversation.correct({ tenantId, actor, channelId, messageId, dto: body });
   }
 
   @ApiOperation({ summary: 'Cerrar la conversación (el caso sigue su curso)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 200, description: 'Canal cerrado; el expediente conserva su estado.' })
   @Post(':channelId/close')
   @HttpCode(HttpStatus.OK)
@@ -141,7 +146,7 @@ export class SupportChatController {
     @Body(new ZodValidationPipe(closeChannelSchema)) body: CloseChannelDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.channels.closeChannel({ tenantId, actor, channelId, dto: body });
   }
@@ -162,17 +167,24 @@ export class SupportChatController {
    *
    * Las notas internas se filtran ANTES de salir: quien no es del equipo no recibe siquiera el
    * aviso de que existen.
+   *
+   * ## Formato de cada evento
+   *
+   * Cada línea `data:` trae un JSON con `{ type, data }` — el tipo viaja DENTRO del payload y no
+   * como nombre de evento SSE. El cliente hace `JSON.parse(e.data).type` y decide. Es lo que emite
+   * este runtime y está verificado contra el stream real; documentarlo de otra forma haría que el
+   * frontend escuchara nombres de evento que nunca llegan.
    */
   @ApiOperation({ summary: 'Hilo en vivo de la conversación (Server-Sent Events)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiResponse({ status: 200, description: 'Stream `text/event-stream` con message.created, message.read y agent.typing.' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Stream `text/event-stream`; cada `data:` es {type, data} con message.created, message.read o agent.typing.' })
   @Sse(':channelId/stream')
   async stream(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Param('channelId') channelId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<Observable<MessageEvent>> {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     await this.messages.assertParticipates(tenantId, channelId, actor);
 
@@ -183,7 +195,7 @@ export class SupportChatController {
   }
 
   @ApiOperation({ summary: 'Marcar hasta dónde leí (doble tic para la otra parte)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post(':channelId/read')
   @HttpCode(HttpStatus.OK)
   async read(
@@ -192,13 +204,13 @@ export class SupportChatController {
     @Body(new ZodValidationPipe(markReadSchema)) body: MarkReadDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.conversation.markRead({ tenantId, actor, channelId, upToSequence: body.upToSequence });
   }
 
   @ApiOperation({ summary: 'Avisar que estoy escribiendo (efímero, no se guarda)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post(':channelId/typing')
   @HttpCode(HttpStatus.NO_CONTENT)
   async typing(
@@ -206,16 +218,16 @@ export class SupportChatController {
     @Param('channelId') channelId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     await this.conversation.announceTyping({ tenantId, actor, channelId });
   }
 
   @ApiOperation({ summary: 'Mis conversaciones con mensajes sin leer' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('unread')
   async unread(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.conversation.unread({ tenantId, actor });
   }

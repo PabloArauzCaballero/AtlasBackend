@@ -211,8 +211,16 @@ export const correctMessageSchema = z.object({
 });
 export type CorrectMessageDto = z.infer<typeof correctMessageSchema>;
 
+/**
+ * Leer la conversación.
+ *
+ * `beforeSequence` es para subir por el historial; `afterSequence` es para el móvil, que pregunta
+ * «¿hay algo nuevo desde el 12?» sin volver a bajarse los doce anteriores. Sin él, cada consulta de
+ * novedades en una conexión mala descarga la conversación entera otra vez.
+ */
 export const transcriptQuerySchema = z.object({
   beforeSequence: z.string().regex(/^[0-9]+$/u).optional(),
+  afterSequence: z.string().regex(/^[0-9]+$/u).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 export type TranscriptQueryDto = z.infer<typeof transcriptQuerySchema>;

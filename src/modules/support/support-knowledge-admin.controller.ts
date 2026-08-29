@@ -45,7 +45,7 @@ export class SupportKnowledgeAdminController {
   ) {}
 
   @ApiOperation({ summary: 'Crear un artículo (identidad y gobierno; el texto va en su versión)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 409, description: 'KNOWLEDGE_ARTICLE_KEY_TAKEN.' })
   @Post('articles')
   async createArticle(
@@ -53,13 +53,13 @@ export class SupportKnowledgeAdminController {
     @Body(new ZodValidationPipe(createArticleSchema)) body: CreateArticleDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.createArticle({ tenantId, actor, dto: body });
   }
 
   @ApiOperation({ summary: 'Crear una versión nueva del artículo' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('articles/:articleId/versions')
   async createVersion(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -67,13 +67,13 @@ export class SupportKnowledgeAdminController {
     @Body(new ZodValidationPipe(createArticleVersionSchema)) body: CreateArticleVersionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.createVersion({ tenantId, actor, articleId, dto: body });
   }
 
   @ApiOperation({ summary: 'Enviar la versión a revisión' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('versions/:versionId/submit-review')
   @HttpCode(HttpStatus.OK)
   async submitReview(
@@ -82,13 +82,13 @@ export class SupportKnowledgeAdminController {
     @Body(new ZodValidationPipe(reviewDecisionSchema)) body: ReviewDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.submitForReview({ tenantId, actor, versionId, dto: body });
   }
 
   @ApiOperation({ summary: 'Aprobar la versión (quien la redactó no puede aprobarla)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'KNOWLEDGE_SELF_APPROVAL_FORBIDDEN o KNOWLEDGE_DOMAIN_APPROVER_REQUIRED.' })
   @Post('versions/:versionId/approve')
   @HttpCode(HttpStatus.OK)
@@ -98,13 +98,13 @@ export class SupportKnowledgeAdminController {
     @Body(new ZodValidationPipe(reviewDecisionSchema)) body: ReviewDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.approve({ tenantId, actor, versionId, dto: body });
   }
 
   @ApiOperation({ summary: 'Publicar la versión aprobada' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 409, description: 'KNOWLEDGE_VERSION_NOT_APPROVED.' })
   @Post('versions/:versionId/publish')
   @HttpCode(HttpStatus.OK)
@@ -114,7 +114,7 @@ export class SupportKnowledgeAdminController {
     @Body(new ZodValidationPipe(publishVersionSchema)) body: PublishVersionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.publish({ tenantId, actor, versionId, dto: body });
   }

@@ -84,6 +84,7 @@ export class SupportConversationService {
     const rows = await this.messageRepo.listMessages({
       channelId: input.channelId,
       beforeSequence: input.query.beforeSequence ?? null,
+      afterSequence: input.query.afterSequence ?? null,
       limit: input.query.limit,
       includeInternal,
     });
@@ -95,7 +96,8 @@ export class SupportConversationService {
       byMessage.set(key, [...(byMessage.get(key) ?? []), attachment]);
     }
 
-    const ordered = [...rows].reverse();
+    // Al pedir «lo nuevo» ya vienen en orden; sólo el historial hacia atrás hay que darlo vuelta.
+    const ordered = input.query.afterSequence ? rows : [...rows].reverse();
     // El «visto» de la otra parte viaja con la transcripción: es lo que pinta el doble tic sin
     // obligar al cliente a una segunda llamada por cada refresco.
     const readState = await this.channels.readStateOf(input.channelId, input.actor.actorType, input.actor.actorId);

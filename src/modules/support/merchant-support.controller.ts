@@ -53,29 +53,29 @@ export class MerchantSupportController {
   ) {}
 
   @ApiOperation({ summary: 'Preguntas frecuentes para comercios' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('faq')
   async faq(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.featuredFaq({ tenantId, actor });
   }
 
   @ApiOperation({ summary: 'Buscar en la ayuda para comercios' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('knowledge/search')
   async search(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
     @Query(new ZodValidationPipe(knowledgeSearchSchema)) query: KnowledgeSearchDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.search({ tenantId, actor, dto: query });
   }
 
   @ApiOperation({ summary: 'Abrir un caso del comercio' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 201, description: 'Caso creado con su canal asíncrono.' })
   @Post('cases')
   async openCase(
@@ -84,13 +84,13 @@ export class MerchantSupportController {
     @Body(new ZodValidationPipe(openCaseSchema)) body: OpenCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.cases.openCase({ tenantId, actor, dto: body, correlationId: correlationId ?? null });
   }
 
   @ApiOperation({ summary: 'Casos de mi usuario en este comercio' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('partners/:partnerProfileId/cases')
   async listCases(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -98,13 +98,13 @@ export class MerchantSupportController {
     @Query(new ZodValidationPipe(listCasesQuerySchema)) query: ListCasesQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.read.listOwnCases({ tenantId, actor, query, partnerProfileId });
   }
 
   @ApiOperation({ summary: 'Detalle de un caso del comercio' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'SUPPORT_CASE_FORBIDDEN: el caso es de otro comercio.' })
   @Get('cases/:caseId')
   async getCase(
@@ -112,13 +112,13 @@ export class MerchantSupportController {
     @Param('caseId') caseId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.read.getCase({ tenantId, actor, caseId });
   }
 
   @ApiOperation({ summary: 'Pedir el cierre de un caso del comercio' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('cases/:caseId/close-request')
   async closeRequest(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -126,13 +126,13 @@ export class MerchantSupportController {
     @Body(new ZodValidationPipe(closeCaseSchema)) body: CloseCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.customerActions.registerCustomerRequest({ tenantId, actor, caseId, kind: 'CLOSE', reason: body.reason });
   }
 
   @ApiOperation({ summary: 'Valorar la atención recibida' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('cases/:caseId/feedback')
   async feedback(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -140,7 +140,7 @@ export class MerchantSupportController {
     @Body(new ZodValidationPipe(caseFeedbackSchema)) body: CaseFeedbackDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.customerActions.submitFeedback({ tenantId, actor, caseId, dto: body });
   }
