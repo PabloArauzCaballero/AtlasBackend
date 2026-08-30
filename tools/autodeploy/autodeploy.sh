@@ -119,6 +119,21 @@ duenio_del_puerto() { # puerto
   ss -ltnp "sport = :$1" 2>/dev/null | tail -n +2 | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2
 }
 
+# Argumentos de construcción que son de esta máquina, hermanos de `entorno_extra`.
+#
+# Hay valores que NO se pueden dar al arrancar porque Next los hornea al construir: el front del ERP
+# resuelve el destino de su `rewrite` de `/api/v1/*` cuando compila, y su Dockerfile lo deja
+# preparado como `ARG ERP_API_ORIGIN` con `host.docker.internal:3007` de omisión —el valor del
+# compose de ese repositorio—. Sin pasarlo, el contenedor arranca sano y sirve la interfaz entera,
+# pero CADA llamada del navegador acaba en 500 con `getaddrinfo ENOTFOUND host.docker.internal` en
+# su log: el tester ve un ERP que parece roto por dentro y ningún indicador del desplegador falla,
+# porque la sonda de salud mira `/`, que es estático.
+argumentos_extra() { # slug -> imprime ARG=valor por línea
+  case "$1" in
+    front-erp) printf '%s\n' "ERP_API_ORIGIN=http://127.0.0.1:3020" ;;
+  esac
+}
+
 construir() { # slug repo sha etapa -> imprime la etiqueta de la imagen
   local slug="$1" repo="$2" sha="$3" etapa="${4:-}"
   local imagen="$PREFIJO/$slug:${sha:0:12}"
@@ -160,8 +175,14 @@ construir() { # slug repo sha etapa -> imprime la etiqueta de la imagen
   # seis servicios llevaban catorce horas de reintentos en bucle sin desplegar nada.
   # Sin `-q`, además, la salida del error entra en el log; con `-q` sólo quedaba la línea resumen y
   # no había forma de saber por qué fallaba.
+  local extra=() arg
+  while IFS= read -r arg; do
+    [ -n "$arg" ] && extra+=(--build-arg "$arg")
+  done < <(argumentos_extra "$slug")
+
   docker build --network=host \
     ${etapa:+--target "$etapa"} \
+    "${extra[@]}" \
     --build-arg "NODE_VERSION=$nodo" \
     --build-arg "APP_COMMIT_SHA=$sha" \
     --build-arg "APP_BUILT_AT=$(date -Is)" \
