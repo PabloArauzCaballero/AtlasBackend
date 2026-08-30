@@ -175,6 +175,28 @@ construir() { # slug repo sha etapa -> imprime la etiqueta de la imagen
   printf '%s\n' "$imagen"
 }
 
+# Variables que la imagen trae mal PARA ESTA MÁQUINA, y que por tanto hay que dar al arrancar.
+#
+# Un front se construye para el `docker compose` de su propio repositorio, donde el vecino se
+# alcanza por el nombre del servicio: el del motor de decisiones lleva grabado
+# `DECISION_ENGINE_URL=http://atlas-decision-backend:3000`. Aquí los contenedores corren con
+# `--network host`, donde ese nombre no resuelve. El resultado no se parece a un fallo de red: el
+# proxy del servidor de Next contesta 502 `DECISION_ENGINE_UNAVAILABLE` y la pantalla de acceso lo
+# traduce a «el servicio de identidad no está disponible», que manda a buscar la avería a un
+# proveedor de identidad que no tiene nada que ver.
+#
+# No se arregla en el Dockerfile a propósito: allí el valor es el correcto para el compose y para
+# producción. Lo que es de esta máquina se dice en esta máquina.
+entorno_extra() { # slug -> imprime VAR=valor por línea
+  case "$1" in
+    front-decision)
+      printf '%s\n' \
+        "DECISION_ENGINE_URL=http://127.0.0.1:3100" \
+        "ATLAS_BACKEND_URL=http://127.0.0.1:3005"
+      ;;
+  esac
+}
+
 arrancar() { # slug repo imagen puerto varPuerto nombre
   local slug="$1" repo="$2" imagen="$3" puerto="$4" var="$5" nombre="$6"
   docker rm -f "$nombre" >/dev/null 2>&1
@@ -191,6 +213,10 @@ arrancar() { # slug repo imagen puerto varPuerto nombre
   # al construir), y pasar un archivo inexistente aborta el arranque.
   local entorno=()
   [ -f "$RAIZ/$repo/.env" ] && entorno=(--env-file "$RAIZ/$repo/.env")
+  local par
+  while IFS= read -r par; do
+    [ -n "$par" ] && entorno+=(-e "$par")
+  done < <(entorno_extra "$slug")
   docker run -d --name "$nombre" \
     --network host \
     "${entorno[@]}" \
