@@ -40,6 +40,7 @@
 #   tools/autodeploy/autodeploy.sh canario atlas   # construye y comprueba SIN tocar el puerto bueno
 #   tools/autodeploy/autodeploy.sh salud           # comprueba los seis puertos y levanta lo caído
 #   tools/autodeploy/autodeploy.sh historial       # los despliegues, como el panel de Render
+#   tools/autodeploy/autodeploy.sh recrear atlas   # rehace el contenedor para que tome el .env
 #   tools/autodeploy/autodeploy.sh parar [slug]    # baja contenedores (no toca los túneles)
 set -uo pipefail
 
@@ -459,6 +460,36 @@ estado() {
 
 historial() { [ -f "$HISTORIAL" ] && column -t -s$'\t' "$HISTORIAL" | tail -30 || echo "sin despliegues todavía"; }
 
+# Rehacer el contenedor con la MISMA imagen ya validada, para que tome un `.env` que cambió.
+#
+# El `.env` es de esta máquina y no viaja en la imagen: se pasa con `--env-file` AL ARRANCAR, así
+# que corregir una variable no tiene ningún efecto hasta que el contenedor se rehace. `desplegar`
+# no sirve para esto —construye la punta de la rama, que puede estar rota por otra razón— y
+# `docker restart` tampoco: conserva el entorno con el que se creó. Sin este comando la única
+# salida era borrar el contenedor y esperar a que la vigilancia de salud lo resucitara, con tres
+# minutos de puerto muerto por delante.
+recrear() { # slug
+  local entrada slug repo puerto var salud etapa imagen
+  entrada="$(buscar_servicio "${1:?uso: $0 recrear <slug>}")" || return 1
+  IFS=: read -r slug repo puerto var salud etapa <<<"$entrada"
+
+  imagen="$(cat "$ESTADO/$slug.imagen" 2>/dev/null)"
+  [ -n "$imagen" ] && docker image inspect "$imagen" >/dev/null 2>&1 || {
+    log "[$slug] no hay imagen validada que rehacer — despliega primero"; return 1; }
+
+  log "[$slug] rehaciendo el contenedor con $imagen y el .env de ahora"
+  arrancar "$slug" "$repo" "$imagen" "$puerto" "$var" "$PREFIJO-$slug"
+  if esperar_salud "$puerto" "$salud" "$ESPERA_SALUD"; then
+    log "[$slug] ✔ en pie con $imagen — el túnel sigue apuntando a $puerto"
+    anotar "$slug" "$(sha_desplegado "$slug")" "rehecho" "$imagen"
+    return 0
+  fi
+  log "[$slug] ✖ no respondió $salud tras rehacerlo. Últimas líneas:"
+  docker logs --tail 15 "$PREFIJO-$slug" 2>&1 | sed 's/^/    /' | tee -a "$LOG" >&2
+  anotar "$slug" "$(sha_desplegado "$slug")" "caido" "no responde en $puerto tras rehacerlo"
+  return 1
+}
+
 parar() {
   local entrada slug
   if [ -n "${1:-}" ]; then docker rm -f "$PREFIJO-$1" >/dev/null 2>&1 && log "[$1] contenedor parado"; return; fi
@@ -476,7 +507,7 @@ parar() {
 # convertía la pregunta más frecuente —«¿cómo va aquello?»— en un «ya hay una pasada en marcha»
 # justo cuando había algo interesante que mirar.
 case "${1:-estado}" in
-  una-vez|vigilar|desplegar|canario|parar|salud)
+  una-vez|vigilar|desplegar|canario|parar|salud|recrear)
     exec 9>"$ESTADO/.lock"
     if ! flock -n 9; then echo "ya hay una pasada en marcha"; exit 0; fi ;;
 esac
@@ -490,6 +521,7 @@ case "${1:-estado}" in
   canario)    shift; entrada="$(buscar_servicio "${1:?uso: $0 canario <slug>}")" || exit 1
               IFS=: read -r s r p v h e <<<"$entrada"
               canario "$s" "$r" "$(sha_remoto "$r")" "$p" "$v" "$h" "$e" ;;
+  recrear)    shift; recrear "${1:?uso: $0 recrear <slug>}" ;;
   historial)  historial ;;
   parar)      shift; parar "${1:-}" ;;
   *)          sed -n '2,50p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
