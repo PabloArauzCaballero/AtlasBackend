@@ -125,7 +125,13 @@ construir() { # slug repo sha etapa -> imprime la etiqueta de la imagen
   local trabajo="/tmp/$PREFIJO-$slug-${sha:0:12}"
 
   # Copia desprendida en el commit exacto: ni tu rama ni tus cambios entran en la imagen.
+  #
+  # El `prune` va DESPUÉS del `rm -rf` y no es decorativo: borrar el directorio deja la copia
+  # todavía apuntada en `.git/worktrees`, y entonces `worktree add` se niega con «missing but
+  # already registered» para siempre. Pasó el 30/08/2026 con el ERP, que quedó atascado en ese
+  # error a cada pasada mientras los demás ya desplegaban.
   rm -rf "$trabajo"
+  git -C "$RAIZ/$repo" worktree prune -q 2>>"$LOG"
   git -C "$RAIZ/$repo" worktree add -q --detach "$trabajo" "$sha" 2>>"$LOG" || {
     log "[$slug] no pude crear el worktree en $sha"; return 1; }
 
@@ -148,7 +154,13 @@ construir() { # slug repo sha etapa -> imprime la etiqueta de la imagen
   [ -f "$trabajo/.nvmrc" ] && nodo="$(tr -d ' \n' <"$trabajo/.nvmrc")"
 
   log "[$slug] construyendo $imagen${etapa:+ (etapa $etapa)}"
-  docker build -q \
+  # `--network=host` no es un lujo: el puente por defecto de Docker no resuelve DNS en esta máquina
+  # (el cortafuegos corta lo que sale de los puentes), así que `corepack`/`yarn` mueren con
+  # `EAI_AGAIN registry.yarnpkg.com` y el build cae a los cinco segundos. Pasó el 30/08/2026: los
+  # seis servicios llevaban catorce horas de reintentos en bucle sin desplegar nada.
+  # Sin `-q`, además, la salida del error entra en el log; con `-q` sólo quedaba la línea resumen y
+  # no había forma de saber por qué fallaba.
+  docker build --network=host \
     ${etapa:+--target "$etapa"} \
     --build-arg "NODE_VERSION=$nodo" \
     --build-arg "APP_COMMIT_SHA=$sha" \
