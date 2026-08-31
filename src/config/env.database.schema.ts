@@ -73,45 +73,31 @@ export const databaseEnvShape = {
   DB_APP_RO_PASSWORD: z.string().optional(),
   DB_MIGRATOR_PASSWORD: z.string().optional(),
 
-  // Limpieza previa a seeds. Por defecto está apagada. En producción exige doble confirmación
-  // para evitar borrar datos reales por accidente. Preserva SequelizeMeta y limpia los datos
-  // de aplicación para que los seeders vuelvan a poblar un entorno consistente.
-  DATABASE_CLEAN_BEFORE_SEED: booleanEnvSchema,
-  DATABASE_CLEAN_ALLOW_PRODUCTION: booleanEnvSchema,
-  DATABASE_CLEAN_CONFIRM: z.string().optional(),
-
-  // Perfil de seeds a ejecutar (production | development | demo | test). Si no se define, el runner
-  // lo deriva de NODE_ENV (production→production, test→test, resto→development). Ver
-  // `src/database/seed-profiles.ts`. Se puede sobrescribir por comando con `--profile=...`.
-  SEED_PROFILE: z.enum(['production', 'development', 'demo', 'test']).optional(),
-
-  // Seeding idempotente AL ARRANCAR (opt-in). Si es true, el backend aplica los seeders pendientes
-  // del perfil (derivado de SEED_PROFILE/NODE_ENV) al iniciar, de forma idempotente (Umzug solo
-  // corre los no ejecutados). NUNCA corre seeders de dev/demo en producción: el perfil production
-  // solo incluye el stage `production`. Usa la identidad de migración (DB_MIGRATION_USER, cae a
-  // DB_USER en local), así que en un despliegue con roles separados requiere esa credencial.
+  // Siembra AL ARRANCAR (opt-in). Si es true y la base está VACÍA, el backend trae el conjunto
+  // sembrado publicado por la rama que indican las variables SEED_SOURCE_* (ver
+  // `src/database/seed-source.ts`). Si la base ya tiene datos NO se toca nada: la carga es
+  // destructiva y no debe dispararse por reiniciar un proceso. Usa la identidad de migración
+  // (DB_MIGRATION_USER, cae a DB_USER), porque retirar y recrear claves foráneas es DDL.
   DATABASE_SEED_ON_STARTUP: booleanEnvSchema,
   // Si el seeding al arrancar falla y esto es true, el arranque ABORTA (exit). Por defecto false:
   // se loguea el error y el backend arranca igual (un fallo de seed no debería tumbar la API).
   DATABASE_SEED_ON_STARTUP_FAIL_FAST: booleanEnvSchema,
 
-  // Identidad del SUPER_ADMIN que siembra el perfil `development`
-  // (`development/20260704121500-seed-pablo-admin-user`). Ambas son opcionales y solo se leen fuera
-  // de producción: sin ellas el seeder mantiene el correo por defecto y el hash versionado, que es
-  // lo que espera CI.
+  // Identidad del SUPER_ADMIN de desarrollo. Ambas son opcionales y solo se leen fuera de
+  // producción: sin ellas queda el correo y el hash que publica la rama de semillas, que es lo que
+  // espera CI. Se aplican DESPUÉS de traer las semillas (`src/database/seed-local-identities.ts`).
   //
   // Existen porque la alternativa era peor: para que un desarrollador use su correo real —necesario
   // si quiere RECIBIR el PIN del segundo factor en una bandeja de verdad— había que reescribir el
   // email y el hash de su contraseña dentro de un archivo versionado. ATLAS-P0-002 documenta por qué
   // no: un hash que entra al historial de git se considera comprometido para siempre. Aquí la
-  // contraseña vive en `.env`, que está en `.gitignore`, y el seeder la hashea al sembrar.
+  // contraseña vive en `.env`, que está en `.gitignore`, y se hashea en esta máquina al aplicarla.
   DEV_ADMIN_EMAIL: z.string().email().optional(),
   DEV_ADMIN_PASSWORD: z.string().optional(),
 
-  // Contraseña de las identidades de COMERCIO de desarrollo
-  // (`development/20260821140000-seed-partners-desarrollo`). Opcional y sólo se lee fuera de
-  // producción. Sin ella el seeder usa la contraseña por defecto escrita en su propio archivo, que
-  // por estar versionada se considera conocida: esta variable existe para que una máquina donde eso
-  // importe pueda sustituirla desde `.env`, que está en `.gitignore`.
+  // Contraseña de las identidades de COMERCIO de desarrollo. Opcional y sólo se lee fuera de
+  // producción. Sin ella queda la que publica la rama de semillas, que por ser común a todos se
+  // considera conocida: esta variable existe para que una máquina donde eso importe pueda
+  // sustituirla desde `.env`, que está en `.gitignore`.
   DEV_PARTNER_PASSWORD: z.string().optional(),
 } as const;

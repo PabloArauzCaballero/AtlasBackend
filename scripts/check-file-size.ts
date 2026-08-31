@@ -25,7 +25,7 @@ const SRC_ROOT = resolve(process.cwd(), 'src');
 const BASELINE_PATH = resolve(process.cwd(), '.file-size-baseline.json');
 const LIMIT = 300;
 
-const EXEMPT_DIRS = ['src/database/migrations/', 'src/database/seeders/'];
+const EXEMPT_DIRS = ['src/database/migrations/'];
 const EXEMPT_SUFFIXES = ['.fixtures.ts', '.seed-data.ts', '.constants.ts'];
 
 function toPosix(p: string): string {

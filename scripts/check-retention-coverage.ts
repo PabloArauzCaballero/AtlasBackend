@@ -1,63 +1,33 @@
 /**
- * Gate estático: ninguna política de retención sembrada puede quedar sin destino ejecutable.
+ * Comprueba que cada objetivo de retención declarado en el código tenga su política PUBLICADA.
  *
- * `apply_retention_policies` solo actúa sobre los `policy_code` presentes en `RETENTION_TARGETS`
- * (`src/modules/runtime-jobs/runtime-jobs.service.ts`). El resto se reportan como `unmappedPolicies`
- * dentro del JSON de resultado del job — un campo que nadie mira. La auditoría integral del
- * 2026-08-06 encontró SEIS políticas sembradas (varias en el perfil de PRODUCCIÓN, con base legal
- * declarada: `kyc_aml_record_keeping`, 1825 días, acción `anonymize`) y solo TRES tablas mapeadas.
+ * Antes leía `src/database/seeders/` con expresiones regulares; esos seeders ya no existen y las
+ * políticas viven en la RAMA de semillas, así que ahora la comprobación las CONSULTA. Se pierde la
+ * propiedad de «correr en CI sin base de datos», pero era una propiedad prestada: verificaba que un
+ * literal estuviera escrito en un archivo, no que la política existiera de verdad en ningún sitio.
  *
- * En un backend KYC eso no es deuda técnica: es una política de retención escrita, aprobada y
- * sembrada en la base que ningún proceso aplica. El sistema documenta un control que no ejerce.
- *
- * Este gate obliga a una decisión EXPLÍCITA por cada política sembrada:
- *   - mapearla en `RETENTION_TARGETS` (se ejecuta), o
- *   - declararla en `RETENTION_POLICIES_PENDING_DECISION` con el motivo por el que todavía no puede
- *     ejecutarse (típicamente: su alcance necesita una decisión de producto/legal).
- *
- * Lo que ya no se admite es el tercer estado — sembrada, activa y silenciosamente inerte.
- *
- * Es estático (parsea fuentes, no consulta Postgres) para correr en CI sin base de datos, igual que
- * `check:entity-narratives` y `check:domain-schemas`.
- *
- * Ejecutar con `yarn check:retention-coverage`.
+ * Ejecutar con `yarn check:retention-coverage` (requiere SEED_SOURCE_* configurado).
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { Client } from 'pg';
 import { RETENTION_POLICIES_PENDING_DECISION, RETENTION_TARGETS } from '../src/modules/runtime-jobs/retention-targets.js';
-
-const SEEDERS_DIR = resolve(process.cwd(), 'src/database/seeders');
-const POLICY_CODE_LITERAL = /policy_code:\s*'([a-z0-9_-]+)'/g;
-const POLICY_CODE_CONSTANT = /const\s+[A-Z_]*RETENTION_POLICY_CODE[A-Z_]*\s*=\s*'([a-z0-9_-]+)'/g;
+import { requireSeedSource } from '../src/database/seed-source.js';
 
 type SeededPolicy = { code: string; file: string };
 
-function seederFiles(dir: string, found: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) seederFiles(full, found);
-    else if (entry.endsWith('.ts')) found.push(full);
+async function seededPolicies(): Promise<SeededPolicy[]> {
+  const source = requireSeedSource();
+  const client = new Client({ connectionString: source.connectionString, ssl: source.ssl });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ policy_code: string }>('SELECT policy_code FROM privacy.retention_policies ORDER BY policy_code');
+    return rows.map((row) => ({ code: row.policy_code, file: source.describe }));
+  } finally {
+    await client.end();
   }
-  return found;
 }
 
-function seededPolicies(): SeededPolicy[] {
-  const seen = new Map<string, string>();
-  for (const file of seederFiles(SEEDERS_DIR)) {
-    const source = readFileSync(file, 'utf8');
-    for (const pattern of [POLICY_CODE_LITERAL, POLICY_CODE_CONSTANT]) {
-      pattern.lastIndex = 0;
-      for (const match of source.matchAll(pattern)) {
-        const code = match[1];
-        if (!seen.has(code)) seen.set(code, relative(process.cwd(), file).replace(/\\/g, '/'));
-      }
-    }
-  }
-  return [...seen.entries()].map(([code, file]) => ({ code, file }));
-}
-
-function main(): void {
-  const seeded = seededPolicies();
+async function main(): Promise<void> {
+  const seeded = await seededPolicies();
   const executable = new Set(Object.keys(RETENTION_TARGETS));
   const declaredPending = new Set(Object.keys(RETENTION_POLICIES_PENDING_DECISION));
 
@@ -70,10 +40,10 @@ function main(): void {
   const staleTargets = Object.keys(RETENTION_TARGETS).filter((code) => !seededCodes.has(code));
 
   if (stalePending.length > 0) {
-    console.warn(`ℹ️  Declaradas como pendientes pero ya no sembradas (se pueden borrar): ${stalePending.join(', ')}`);
+    console.warn(`ℹ️  Declaradas como pendientes pero ya no publicadas (se pueden borrar): ${stalePending.join(', ')}`);
   }
   if (staleTargets.length > 0) {
-    console.warn(`ℹ️  Mapeadas en RETENTION_TARGETS pero no sembradas por ningún seeder: ${staleTargets.join(', ')}`);
+    console.warn(`ℹ️  Mapeadas en RETENTION_TARGETS pero no publicadas en la rama de semillas: ${staleTargets.join(', ')}`);
   }
 
   if (undecided.length > 0) {
@@ -96,4 +66,7 @@ function main(): void {
   );
 }
 
-main();
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

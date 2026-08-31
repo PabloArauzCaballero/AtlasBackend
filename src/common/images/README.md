@@ -1,17 +1,17 @@
 <!-- Generado por scripts/generate-project-documentation.ts. No editar a mano. -->
 
-# src/database/seeders/test
+# src/common/images
 
 ## Por qué existe
 
-- **Negocio:** esta carpeta preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
-- **Sistema:** esta carpeta define test para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
+- **Negocio:** esta carpeta aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
+- **Sistema:** esta carpeta provee infraestructura transversal de images sin introducir reglas de un dominio específico.
 
 ## Contenido
 
 | Documento o código | Responsabilidad |
 |---|---|
-| [`20260715000000-seed-test-baseline-fixtures.ts`](./20260715000000-seed-test-baseline-fixtures.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`qr-image-reader.ts`](./qr-image-reader.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento
 

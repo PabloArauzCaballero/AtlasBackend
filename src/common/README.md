@@ -21,6 +21,7 @@
 - [`files/`](./files/README.md)
 - [`filters/`](./filters/README.md)
 - [`guards/`](./guards/README.md)
+- [`images/`](./images/README.md)
 - [`interceptors/`](./interceptors/README.md)
 - [`lifecycle/`](./lifecycle/README.md)
 - [`logging/`](./logging/README.md)

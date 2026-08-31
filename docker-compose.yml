@@ -60,6 +60,17 @@ x-atlas-env: &atlas-env
   DB_SCHEMA: public
   REDIS_URL: redis://redis:6379
   LOG_FORMAT: json
+
+  # Origen de las SEMILLAS. Ya no viven en el repositorio: se traen de una rama de PostgreSQL
+  # gestionado. Se toman del `.env` de la máquina para que el compose no lleve credenciales, y
+  # apuntar el stack a otra rama sea cambiar una línea de ese archivo.
+  SEED_SOURCE_DATABASE_URL: ${SEED_SOURCE_DATABASE_URL:-}
+  SEED_SOURCE_HOST: ${SEED_SOURCE_HOST:-}
+  SEED_SOURCE_PORT: ${SEED_SOURCE_PORT:-5432}
+  SEED_SOURCE_DB: ${SEED_SOURCE_DB:-atlas}
+  SEED_SOURCE_USER: ${SEED_SOURCE_USER:-}
+  SEED_SOURCE_PASSWORD: ${SEED_SOURCE_PASSWORD:-}
+  SEED_SOURCE_SSL: ${SEED_SOURCE_SSL:-true}
   # Drenado ordenado ante SIGTERM. En local basta con 5 s: es mayor que el intervalo del healthcheck
   # (15 s no, pero aquí no hay balanceador) y suficiente para ver el comportamiento sin alargar cada
   # `docker compose down`.
@@ -333,11 +344,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    # Las migraciones y los seeders corren desde el build compilado (`dist/`), no con tsx: la imagen
-    # de producción no lleva devDependencies. Ver src/database/migrate.ts.
+    # Las migraciones y la siembra corren desde el build compilado (`dist/`), no con tsx: la imagen
+    # de producción no lleva devDependencies. `seed.js pull` trae el conjunto sembrado desde la
+    # rama que indiquen las SEED_SOURCE_*; sin ellas falla y el job se ve en rojo, que es lo que
+    # queremos: arrancar contra una base sin catálogos es peor que no arrancar.
     command: >
       sh -c "node dist/src/database/migrate.js up &&
-             node dist/src/database/seed.js up --profile=development"
+             node dist/src/database/seed.js pull"
     restart: 'no'
 
   api:

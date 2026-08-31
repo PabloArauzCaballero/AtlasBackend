@@ -30,6 +30,7 @@
 | [`platform-access.fixtures.ts`](./platform-access.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`privacy-consent.fixtures.ts`](./privacy-consent.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`risk-scoring.fixtures.ts`](./risk-scoring.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`support-service-management.fixtures.ts`](./support-service-management.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`systems-governance.fixtures.ts`](./systems-governance.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`workflow-catalog.fixtures.ts`](./workflow-catalog.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 

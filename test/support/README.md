@@ -12,6 +12,7 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`jest-mocks.ts`](./jest-mocks.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`qr-imagen.ts`](./qr-imagen.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento
 

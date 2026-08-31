@@ -19,12 +19,14 @@
 | [`partner-models.ts`](./partner-models.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`provisioning-guard.ts`](./provisioning-guard.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`read-database.module.ts`](./read-database.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
-| [`seed-profiles.ts`](./seed-profiles.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
-| [`seed-runner.ts`](./seed-runner.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
+| [`seed-local-identities.ts`](./seed-local-identities.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
+| [`seed-source.ts`](./seed-source.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
+| [`seed-sync.ts`](./seed-sync.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
 | [`seed.ts`](./seed.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
 | [`sequelize.module.ts`](./sequelize.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
 | [`sequelize.ts`](./sequelize.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`startup-seed.service.ts`](./startup-seed.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-models.ts`](./support-models.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Subcarpetas
 
@@ -33,8 +35,6 @@
 - [`migration-support/`](./migration-support/README.md)
 - [`migrations/`](./migrations/README.md)
 - [`models/`](./models/README.md)
-- [`seed-data/`](./seed-data/README.md)
-- [`seeders/`](./seeders/README.md)
 
 ## Reglas de mantenimiento
 

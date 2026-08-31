@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`controller-auth-coverage.spec.ts`](./controller-auth-coverage.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`jwt-auth.guard.spec.ts`](./jwt-auth.guard.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`roles.guard.spec.ts`](./roles.guard.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 

@@ -102,6 +102,12 @@
 | [`20260825200000-add-pos-terminal-to-credit-applications.ts`](./20260825200000-add-pos-terminal-to-credit-applications.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260825210000-add-mdr-rate-to-partner-profiles.ts`](./20260825210000-add-mdr-rate-to-partner-profiles.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260826120000-statement-capacity-and-rejection.ts`](./20260826120000-statement-capacity-and-rejection.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260827100000-create-support-catalogs.ts`](./20260827100000-create-support-catalogs.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260827100100-create-support-cases.ts`](./20260827100100-create-support-cases.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260827100200-create-support-channels.ts`](./20260827100200-create-support-channels.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260827100300-create-support-knowledge.ts`](./20260827100300-create-support-knowledge.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260827100400-create-support-append-only-guards.ts`](./20260827100400-create-support-append-only-guards.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260828100000-add-support-read-receipts.ts`](./20260828100000-add-support-read-receipts.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 
 ## Reglas de mantenimiento
 

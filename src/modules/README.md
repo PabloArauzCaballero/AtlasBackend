@@ -51,6 +51,7 @@
 - [`schema-management/`](./schema-management/README.md)
 - [`sessions/`](./sessions/README.md)
 - [`sql-console/`](./sql-console/README.md)
+- [`support/`](./support/README.md)
 - [`systems-ops/`](./systems-ops/README.md)
 - [`workflow-catalog/`](./workflow-catalog/README.md)
 
