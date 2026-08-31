@@ -17,8 +17,13 @@ import { listSeededTables, syncSeedData } from './seed-sync.js';
  * maestro. Un comando menos que equivocarse, y —a diferencia de un `--profile`— no hay forma de
  * pedirle a la rama de producción que entregue fixtures que no tiene.
  *
- *   yarn db:seed:pull     copia el conjunto publicado a esta base (DESTRUCTIVO sobre esas tablas)
- *   yarn db:seed:status    compara lo publicado con lo que hay aquí, sin escribir nada
+ *   yarn db:seed:pull       copia el conjunto publicado a esta base (DESTRUCTIVO sobre esas tablas)
+ *   yarn db:seed:pull --if-empty   igual, pero NO hace nada si la base ya tiene datos
+ *   yarn db:seed:status     compara lo publicado con lo que hay aquí, sin escribir nada
+ *
+ * `--if-empty` existe para el arranque automatizado (el job `migrate` del compose). Traer semillas
+ * VACÍA las tablas del manifiesto, así que un `pull` incondicional en cada `docker compose up`
+ * reemplazaría lo que hubiera. La persona que quiere justamente eso lo pide sin la bandera.
  */
 
 function targetClient(): Client {
@@ -39,7 +44,7 @@ function sourceClient(): { client: Client; describe: string } {
   return { client: new Client({ connectionString: source.connectionString, ssl: source.ssl }), describe: source.describe };
 }
 
-async function commandPull(): Promise<void> {
+async function commandPull(onlyIfEmpty: boolean): Promise<void> {
   const { client: source, describe } = sourceClient();
   const target = targetClient();
   await source.connect();
@@ -48,6 +53,17 @@ async function commandPull(): Promise<void> {
   try {
     console.log(`Rama de semillas: ${describe}`);
     console.log(`Destino:          ${env.DB_HOST}:${env.DB_PORT}/${env.DB_NAME}\n`);
+
+    if (onlyIfEmpty) {
+      const existing = await listSeededTables(target);
+      if (existing.length > 0) {
+        console.log(
+          JSON.stringify({ command: 'pull', skipped: true, reason: 'la base ya tiene datos', populatedTables: existing.length }, null, 2),
+        );
+        return;
+      }
+    }
+
     const result = await syncSeedData({ source, target });
 
     // Las credenciales propias de la máquina se reaplican DESPUÉS de la copia y sólo fuera de
@@ -114,9 +130,10 @@ async function commandStatus(): Promise<void> {
 
 async function run(): Promise<void> {
   const command = process.argv[2] ?? 'pull';
-  if (command === 'pull') return commandPull();
+  const onlyIfEmpty = process.argv.includes('--if-empty');
+  if (command === 'pull') return commandPull(onlyIfEmpty);
   if (command === 'status') return commandStatus();
-  throw new Error(`Comando de seed no soportado: ${command}. Usa pull | status.`);
+  throw new Error(`Comando de seed no soportado: ${command}. Usa pull [--if-empty] | status.`);
 }
 
 run().catch((error: unknown) => {

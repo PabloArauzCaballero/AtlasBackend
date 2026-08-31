@@ -348,9 +348,14 @@ services:
     # de producción no lleva devDependencies. `seed.js pull` trae el conjunto sembrado desde la
     # rama que indiquen las SEED_SOURCE_*; sin ellas falla y el job se ve en rojo, que es lo que
     # queremos: arrancar contra una base sin catálogos es peor que no arrancar.
+    #
+    # `--if-empty` NO es una precaución de más: traer semillas VACÍA las tablas del manifiesto, y
+    # este job corre en cada `docker compose up`. Sin la bandera, levantar el stack por la mañana
+    # reemplazaría el catálogo con el que se estuvo trabajando. Para rehacerlo a propósito está
+    # `yarn db:seed:pull` desde el anfitrión, que es un acto de una persona.
     command: >
       sh -c "node dist/src/database/migrate.js up &&
-             node dist/src/database/seed.js pull"
+             node dist/src/database/seed.js pull --if-empty"
     restart: 'no'
 
   api:
