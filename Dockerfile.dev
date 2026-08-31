@@ -1,0 +1,81 @@
+# syntax=docker/dockerfile:1.7
+# Imagen de PRUEBAS de Atlas Backend, pensada para el VPS de testing (Ubuntu, Contabo).
+#
+# No sustituye a `Dockerfile`, que es la imagen de producción: sustituirla sería perder la única
+# forma que hay de comprobar lo que de verdad se despliega. Ésta existe porque un VPS de pruebas
+# tiene necesidades OPUESTAS a las de producción:
+#
+#   - En producción la imagen lleva SOLO dependencias de producción, y migrar es un job aparte con
+#     su propio artefacto. En el VPS no hay una máquina de operador con Node 22, yarn y `psql` a
+#     mano: todo lo que haya que ejecutar contra la base —migrar, traer semillas, dar de alta los
+#     roles, correr un smoke— tiene que poder ejecutarse DENTRO del contenedor. Por eso aquí viaja
+#     el árbol completo de dependencias.
+#   - Una sola imagen para los tres roles (api, worker, job de migración) y para las herramientas.
+#     En un VPS con el disco contado, dos imágenes de ~400 MB son 400 MB de más sin ninguna
+#     ventaja: el binario es el mismo y lo único que cambia es `APP_ROLE` y el `command`.
+#   - `NODE_ENV=development` a propósito: `env.ts` exige secretos reales y prohíbe los valores por
+#     defecto en producción, y `env-cross-checks.ts` bloquea el arranque con el JWT de desarrollo.
+#     Un entorno de pruebas quiere Swagger abierto, logs legibles y las identidades sembradas.
+#
+# Construcción:
+#   docker build -f Dockerfile.dev -t atlas-backend:dev .
+#
+# La versión de Node se fija con un ARG igual a la de `Dockerfile` y a `.nvmrc`: si local, CI,
+# producción y pruebas divergen en la versión de Node, el VPS deja de ser una prueba de nada.
+ARG NODE_VERSION=22.16.0
+
+# ---------------------------------------------------------------------------------------------
+FROM node:${NODE_VERSION}-bookworm-slim AS deps
+WORKDIR /app
+# Sólo el manifiesto y el lockfile: la capa se reaprovecha mientras las dependencias no cambien,
+# que en un VPS —donde se reconstruye a cada rato para probar una rama— es lo que separa un build
+# de treinta segundos de uno de seis minutos.
+COPY package.json yarn.lock .yarnrc ./
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
+    yarn install --frozen-lockfile
+
+# ---------------------------------------------------------------------------------------------
+FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+WORKDIR /app
+
+# `tini` como PID 1, por lo mismo que en la imagen de producción: sin un init que reparta las
+# señales, `SIGTERM` no llega a Node y el drenado ordenado (`SHUTDOWN_DRAIN_MS`) no corre nunca.
+#
+# `postgresql-client` es el añadido propio de esta imagen. En un VPS sin herramientas, cuando la
+# base se comporta de forma rara la diferencia entre diagnosticarlo y adivinar es tener un `psql`.
+# Son ~5 MB y evitan tener que instalar nada en el anfitrión, que es justo lo que ensucia un VPS.
+RUN apt-get update \
+  && apt-get install --no-install-recommends -y tini postgresql-client ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Se compila DENTRO de la imagen y se conserva el fuente. Los dos hacen falta:
+#   - `dist/` es lo que ejecutan la API y el worker.
+#   - `src/` y `scripts/` son lo que ejecuta `tsx` para migrar, sembrar, dar de alta roles y correr
+#     los smokes. En producción eso viaja en la imagen `migrator`; aquí no hay dos imágenes.
+RUN yarn build
+
+# `node` es el usuario sin privilegios de la imagen oficial. Sólo necesita escribir en `logs/`.
+RUN mkdir -p /app/logs && chown -R node:node /app/logs /app/dist
+USER node
+
+# `all` por defecto: sin configurar nada, la imagen es el proceso único de siempre. El compose del
+# VPS fija `api` y `worker` en cada servicio.
+ENV NODE_ENV=development \
+    APP_ROLE=all \
+    APP_PORT=3005 \
+    WORKER_PROBE_PORT=3006 \
+    LOG_FORMAT=json \
+    LOG_SYNC_FILE_PATH=/app/logs/Archivo.log
+EXPOSE 3005 3006
+
+# La sonda elige puerto y ruta según `APP_ROLE`, así que la MISMA imagen se comprueba bien tanto
+# siendo API como siendo worker. Interroga READINESS y no liveness: durante el drenado responde
+# 503, que es la señal de que la instancia debe salir del balanceador.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=3 \
+  CMD ["node", "/app/ops/docker/healthcheck.mjs"]
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["node", "dist/src/main.js"]
