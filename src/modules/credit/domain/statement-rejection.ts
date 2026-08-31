@@ -35,6 +35,8 @@ export type RejectionCategory =
   | 'DOCUMENTO_MANIPULADO'
   /** Cubre menos meses de los que se exigen: hay que pedir el periodo completo. */
   | 'PERIODO_INSUFICIENTE'
+  /** Es correcto y describe un momento que ya pasó: hay que volver a descargarlo. */
+  | 'EXTRACTO_VENCIDO'
   /** El archivo no se puede abrir o leer. */
   | 'ARCHIVO_ILEGIBLE'
   /** Se leyó y no se pudo confiar en lo leído. */
@@ -88,6 +90,19 @@ const BY_CODE: Readonly<Record<string, RejectionCopy>> = {
     title: 'Necesitamos 3 meses completos',
     message:
       'Tu extracto es válido, pero cubre menos de 3 meses completos. Con menos tiempo, un ingreso extraordinario o un gasto puntual bastan para desviar el cálculo. En tu banca por internet elige el periodo de los últimos 3 meses y vuelve a subirlo.',
+  },
+  /*
+   * El vencido tiene copia propia y no comparte la del corto, aunque los dos
+   * hablen del periodo: al corto le faltan meses hacia atrás y al vencido le
+   * falta el presente. Decirle «consigue tres meses» a quien subió doce cerrados
+   * en marzo es pedirle justo lo que no le falta, y es la clase de mensaje que
+   * hace que alguien vuelva a subir el mismo archivo hasta rendirse.
+   */
+  STALE_STATEMENT: {
+    category: 'EXTRACTO_VENCIDO',
+    title: 'Ese extracto ya no está vigente',
+    message:
+      'Tu extracto es válido, pero su último movimiento es de hace demasiado tiempo y ya no describe tu situación actual. En tu banca por internet descarga el extracto hasta la fecha de hoy y vuelve a subirlo.',
   },
   ENCRYPTED_PDF: {
     category: 'ARCHIVO_ILEGIBLE',
@@ -155,6 +170,13 @@ export function reviewCopyFor(reason: string | null): { title: string; message: 
       title: 'Tu extracto está en revisión',
       message:
         'El archivo tiene indicios de haberse modificado después de emitirse y lo está mirando una persona. Si puedes, vuelve a descargarlo de tu banca por internet y súbelo sin abrirlo: eso lo resuelve más rápido.',
+    };
+  }
+  if (reason === 'AMBIGUOUS_DATA') {
+    return {
+      title: 'Tu extracto está en revisión',
+      message:
+        'Leímos tu extracto pero no pudimos interpretar sus fechas con seguridad, así que una persona lo está comprobando. No necesitas hacer nada.',
     };
   }
   if (reason === 'UNKNOWN_BANK') {

@@ -9,7 +9,7 @@ import { env } from '../config/env.js';
 import { appRole, runsBackgroundWork } from '../config/app-role.js';
 import { applyLocalIdentityOverrides } from './seed-local-identities.js';
 import { resolveSeedSource } from './seed-source.js';
-import { listSeededTables, syncSeedData } from './seed-sync.js';
+import { hasSeedLoad, syncSeedData } from './seed-sync.js';
 
 /**
  * Trae las semillas al arrancar cuando la base está VACÍA (opt-in vía `DATABASE_SEED_ON_STARTUP`).
@@ -70,17 +70,16 @@ export class StartupSeedService implements OnApplicationBootstrap {
     await source.connect();
     await target.connect();
     try {
-      const alreadySeeded = await listSeededTables(target);
-      if (alreadySeeded.length > 0) {
+      if (await hasSeedLoad(target)) {
         this.logger.log(
-          `Siembra al arrancar omitida: la base ya tiene datos (${alreadySeeded.length} tablas pobladas). ` +
-            'Usa `yarn db:seed:pull` para reemplazarlos por lo publicado en la rama.',
+          'Siembra al arrancar omitida: esta base ya trajo el conjunto sembrado (atlas_seed.load_log). ' +
+            'Usa `yarn db:seed:pull` para reemplazarlo por lo publicado en la rama.',
         );
         return;
       }
 
       this.logger.log(`Base vacía: trayendo el conjunto sembrado desde ${describe}...`);
-      const result = await syncSeedData({ source, target, log: (message) => this.logger.debug(message) });
+      const result = await syncSeedData({ source, target, sourceLabel: describe, log: (message) => this.logger.debug(message) });
 
       if (env.NODE_ENV !== 'production') {
         const overrides = await applyLocalIdentityOverrides(target, {

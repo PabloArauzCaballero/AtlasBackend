@@ -7,7 +7,7 @@ import { Client } from 'pg';
 import { env } from '../config/env.js';
 import { applyLocalIdentityOverrides } from './seed-local-identities.js';
 import { requireSeedSource } from './seed-source.js';
-import { listSeededTables, syncSeedData } from './seed-sync.js';
+import { hasSeedLoad, listSeededTables, syncSeedData } from './seed-sync.js';
 
 /**
  * Sustituye al antiguo runner de seeders versionados (`db:seed:up|down|reseed --profile=...`).
@@ -54,17 +54,21 @@ async function commandPull(onlyIfEmpty: boolean): Promise<void> {
     console.log(`Rama de semillas: ${describe}`);
     console.log(`Destino:          ${env.DB_HOST}:${env.DB_PORT}/${env.DB_NAME}\n`);
 
-    if (onlyIfEmpty) {
-      const existing = await listSeededTables(target);
-      if (existing.length > 0) {
-        console.log(
-          JSON.stringify({ command: 'pull', skipped: true, reason: 'la base ya tiene datos', populatedTables: existing.length }, null, 2),
-        );
-        return;
-      }
+    // La guarda mira la MARCA de carga, no el número de filas: una base recién migrada ya tiene
+    // datos —permisos internos, plantillas de notificación— y contarlos hacía que el arranque
+    // automatizado se saltara la siembra en una base virgen. Ver `hasSeedLoad`.
+    if (onlyIfEmpty && (await hasSeedLoad(target))) {
+      console.log(
+        JSON.stringify(
+          { command: 'pull', skipped: true, reason: 'esta base ya trajo el conjunto sembrado (atlas_seed.load_log)' },
+          null,
+          2,
+        ),
+      );
+      return;
     }
 
-    const result = await syncSeedData({ source, target });
+    const result = await syncSeedData({ source, target, sourceLabel: describe });
 
     // Las credenciales propias de la máquina se reaplican DESPUÉS de la copia y sólo fuera de
     // producción; ver seed-local-identities.ts.
