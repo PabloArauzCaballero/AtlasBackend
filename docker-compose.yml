@@ -71,6 +71,15 @@ x-atlas-env: &atlas-env
   SEED_SOURCE_USER: ${SEED_SOURCE_USER:-}
   SEED_SOURCE_PASSWORD: ${SEED_SOURCE_PASSWORD:-}
   SEED_SOURCE_SSL: ${SEED_SOURCE_SSL:-true}
+
+  # Credenciales de desarrollo propias de ESTA máquina. No viajan en la rama —el conjunto publicado
+  # es el mismo para todos— y se reaplican sobre las filas ya traídas. Se reenvían aquí para que el
+  # stack en Docker quede con la misma identidad que el `.env` del anfitrión: sin esto, el
+  # administrador sembrado en el contenedor conserva el correo por defecto y el PIN del segundo
+  # factor se manda a un buzón que no existe.
+  DEV_ADMIN_EMAIL: ${DEV_ADMIN_EMAIL:-}
+  DEV_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:-}
+  DEV_PARTNER_PASSWORD: ${DEV_PARTNER_PASSWORD:-}
   # Drenado ordenado ante SIGTERM. En local basta con 5 s: es mayor que el intervalo del healthcheck
   # (15 s no, pero aquí no hay balanceador) y suficiente para ver el comportamiento sin alargar cada
   # `docker compose down`.
