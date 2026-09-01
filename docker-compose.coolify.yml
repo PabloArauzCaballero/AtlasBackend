@@ -24,8 +24,12 @@
 #
 # De ahí las tres formas que se usan aquí, y ninguna es intercambiable:
 #
-#   ${VAR:?}          obligatoria. El despliegue falla ANTES de arrancar si falta, que es
-#                     donde se quiere que falle.
+#   ${VAR:?}          obligatoria. `docker compose` falla ANTES de arrancar si falta.
+#                     **OJO CON COOLIFY: no lo respeta.** Sustituye la cadena vacía en vez de
+#                     negarse, así que una clave obligatoria sin valor no para el despliegue —
+#                     lo para el esquema al arrancar, con un mensaje sobre el campo. Medido:
+#                     `NOTIFICATION_TOKEN_ENCRYPTION_KEY` e `INTERNAL_FRONTEND_ORIGIN` llegaron
+#                     vacías y el contenedor salió con EXITED.
 #   ${VAR:-valor}     opcional con un valor real. Nunca con el valor vacío si la clave está en
 #                     la lista de las 25.
 #   ${VAR:-}          SÓLO para las claves que toleran la cadena vacía. Comprobado una a una.
@@ -165,10 +169,14 @@ x-atlas-env: &atlas-env
   # Ésta la resuelve el NAVEGADOR: tiene que ser el dominio público, no el nombre de servicio.
   # Si apunta dentro de la red, el alta se para en la subida del carnet con un 503.
   STORAGE_S3_PUBLIC_ENDPOINT: '${STORAGE_S3_PUBLIC_ENDPOINT:?}'
-  STORAGE_S3_BUCKET: '${MINIO_BUCKET:-atlas}'
+  # Cada clave referencia SU PROPIO nombre. Coolify sustituye `${X}` en la clave `X`, pero deja
+  # LITERAL una referencia cruzada —`STORAGE_S3_ACCESS_KEY_ID: '${MINIO_ROOT_USER:?}'` llegaba al
+  # contenedor como la cadena `${MINIO_ROOT_USER:?}` tal cual—, así que el nombre tiene que
+  # coincidir aunque duplique el valor en la interfaz.
+  STORAGE_S3_BUCKET: '${STORAGE_S3_BUCKET:-atlas}'
   STORAGE_S3_REGION: '${STORAGE_S3_REGION:-us-east-1}'
-  STORAGE_S3_ACCESS_KEY_ID: '${MINIO_ROOT_USER:?}'
-  STORAGE_S3_SECRET_ACCESS_KEY: '${MINIO_ROOT_PASSWORD:?}'
+  STORAGE_S3_ACCESS_KEY_ID: '${STORAGE_S3_ACCESS_KEY_ID:-atlasminio}'
+  STORAGE_S3_SECRET_ACCESS_KEY: '${STORAGE_S3_SECRET_ACCESS_KEY:?}'
   STORAGE_S3_FORCE_PATH_STYLE: '${STORAGE_S3_FORCE_PATH_STYLE:-true}'
   STORAGE_UPLOAD_URL_TTL_SECONDS: '${STORAGE_UPLOAD_URL_TTL_SECONDS:-300}'
 
