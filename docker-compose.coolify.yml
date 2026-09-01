@@ -64,6 +64,27 @@ x-common: &common
       max-size: '10m'
       max-file: '3'
 
+# La imagen se construye UNA VEZ, y sólo `migrate` la declara.
+#
+# Los tres servicios —migrate, api y worker— son EL MISMO artefacto con distinto `APP_ROLE`, así
+# que los tres apuntaban al mismo tag y los tres llevaban `build:`. Compose entonces lanza tres
+# construcciones CONCURRENTES de la misma imagen: en el log de Coolify se ve literalmente
+# «Image atlas-backend:coolify Building» tres veces.
+#
+# En un VPS eso no es sólo desperdicio: tres `yarn install` a la vez —cada uno resolviendo el
+# árbol entero, y con `--no-cache`, que es como despliega Coolify— agotan la memoria y el OOM
+# killer se lleva a uno. El síntoma es `yarn install --frozen-lockfile did not complete
+# successfully: exit code: 1`, sin una línea sobre memoria, y **el objetivo que muere CAMBIA
+# entre intentos** (worker, worker, api en tres despliegues seguidos). Ese baile es la firma de
+# una carrera por recursos y no de un fallo del código: un lockfile roto o un registro
+# inalcanzable habrían tumbado siempre al mismo.
+#
+# `api` y `worker` sólo referencian el tag. Compose construye el de `migrate` y ellos reutilizan
+# la imagen ya construida — que además es lo correcto: dos builds del mismo Dockerfile son dos
+# oportunidades de divergir.
+x-image: &image
+  image: atlas-backend:coolify
+
 x-build: &build
   image: atlas-backend:coolify
   build:
@@ -305,7 +326,7 @@ services:
     restart: 'no'
 
   api:
-    <<: [*common, *build]
+    <<: [*common, *image]
     environment:
       <<: *atlas-env
       APP_ROLE: api
@@ -328,7 +349,7 @@ services:
           memory: 1g
 
   worker:
-    <<: [*common, *build]
+    <<: [*common, *image]
     environment:
       <<: *atlas-env
       APP_ROLE: worker
