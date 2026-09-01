@@ -2,20 +2,26 @@
 # Imagen de PRUEBAS de Atlas Backend, pensada para el VPS de testing (Ubuntu, Contabo).
 #
 # No sustituye a `Dockerfile`, que es la imagen de producción: sustituirla sería perder la única
-# forma que hay de comprobar lo que de verdad se despliega. Ésta existe porque un VPS de pruebas
-# tiene necesidades OPUESTAS a las de producción:
+# forma que hay de comprobar lo que de verdad se despliega. Ésta existe por dos diferencias:
 #
-#   - En producción la imagen lleva SOLO dependencias de producción, y migrar es un job aparte con
-#     su propio artefacto. En el VPS no hay una máquina de operador con Node 22, yarn y `psql` a
-#     mano: todo lo que haya que ejecutar contra la base —migrar, traer semillas, dar de alta los
-#     roles, correr un smoke— tiene que poder ejecutarse DENTRO del contenedor. Por eso aquí viaja
-#     el árbol completo de dependencias.
-#   - Una sola imagen para los tres roles (api, worker, job de migración) y para las herramientas.
-#     En un VPS con el disco contado, dos imágenes de ~400 MB son 400 MB de más sin ninguna
-#     ventaja: el binario es el mismo y lo único que cambia es `APP_ROLE` y el `command`.
 #   - `NODE_ENV=development` a propósito: `env.ts` exige secretos reales y prohíbe los valores por
 #     defecto en producción, y `env-cross-checks.ts` bloquea el arranque con el JWT de desarrollo.
 #     Un entorno de pruebas quiere Swagger abierto, logs legibles y las identidades sembradas.
+#   - Trae `dist/scripts` y un cliente de PostgreSQL. En el VPS no hay una máquina de operador con
+#     Node 22, yarn y `psql` a mano, así que migrar, sembrar y diagnosticar la base tiene que poder
+#     hacerse DENTRO del contenedor.
+#
+# ## Lo que NO trae, y por qué importa en un VPS
+#
+# **Las dependencias de desarrollo.** Se intentó al revés primero —el árbol completo, «por si
+# acaso»— y costaba 604 MB de `node_modules` para una imagen de 1,21 GB. No hacían falta ni una:
+# `tsconfig.json` compila `src/**` Y `scripts/**`, así que las migraciones, la siembra y el
+# bootstrap de roles ya viven en `dist/scripts/` como JavaScript y corren con `node` a secas. La
+# regla para no volver a equivocarse: si un guion se puede invocar como `node dist/scripts/X.js`,
+# `tsx` no pinta nada en esta imagen.
+#
+# Una sola imagen para los tres roles (api, worker y el job de migración): comparten el 100 % del
+# árbol de dependencias, así que dos imágenes serían dos builds y dos oportunidades de divergir.
 #
 # Construcción:
 #   docker build -f Dockerfile.dev -t atlas-backend:dev .
@@ -35,6 +41,14 @@ RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
     yarn install --frozen-lockfile
 
 # ---------------------------------------------------------------------------------------------
+FROM node:${NODE_VERSION}-bookworm-slim AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# Compila `src/**` y `scripts/**`. Lo segundo es lo que permite que la imagen final no lleve `tsx`.
+RUN yarn build
+
+# ---------------------------------------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 WORKDIR /app
 
@@ -43,22 +57,25 @@ WORKDIR /app
 #
 # `postgresql-client` es el añadido propio de esta imagen. En un VPS sin herramientas, cuando la
 # base se comporta de forma rara la diferencia entre diagnosticarlo y adivinar es tener un `psql`.
-# Son ~5 MB y evitan tener que instalar nada en el anfitrión, que es justo lo que ensucia un VPS.
+# Son ~5 MB y evitan instalar nada en el anfitrión, que es justo lo que ensucia un VPS.
 RUN apt-get update \
   && apt-get install --no-install-recommends -y tini postgresql-client ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Dependencias de PRODUCCIÓN únicamente. Sin `yarn cache clean`: con la caché montada el directorio
+# no forma parte de ninguna capa —limpiarlo no ahorraría un byte— y además el propio montaje lo
+# mantiene ocupado, así que el `rmdir` falla con EBUSY y tumba el build.
+COPY package.json yarn.lock .yarnrc ./
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
+    yarn install --frozen-lockfile --production
 
-# Se compila DENTRO de la imagen y se conserva el fuente. Los dos hacen falta:
-#   - `dist/` es lo que ejecutan la API y el worker.
-#   - `src/` y `scripts/` son lo que ejecuta `tsx` para migrar, sembrar, dar de alta roles y correr
-#     los smokes. En producción eso viaja en la imagen `migrator`; aquí no hay dos imágenes.
-RUN yarn build
+# `dist/` ENTERO, no sólo `dist/src`: `dist/scripts` es lo que hace innecesarias las dependencias de
+# desarrollo. Ahí están `migrate.js`, `seed.js` y `bootstrap-db-roles.js` ya compilados.
+COPY --from=build /app/dist ./dist
+COPY ops/docker/healthcheck.mjs ./ops/docker/healthcheck.mjs
 
 # `node` es el usuario sin privilegios de la imagen oficial. Sólo necesita escribir en `logs/`.
-RUN mkdir -p /app/logs && chown -R node:node /app/logs /app/dist
+RUN mkdir -p /app/logs && chown -R node:node /app/logs
 USER node
 
 # `all` por defecto: sin configurar nada, la imagen es el proceso único de siempre. El compose del
