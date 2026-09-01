@@ -120,6 +120,26 @@ x-atlas-env: &atlas-env
   DB_ADMIN_USER: '${DB_ADMIN_USER:-neondb_owner}'
   DB_ADMIN_PASSWORD: '${DB_ADMIN_PASSWORD:-}'
 
+  # --- Origen de las semillas ----------------------------------------------------------------
+  #
+  # **Sin esto el despliegue no levanta, y el síntoma no lo dice.** El job `migrate` corre
+  # `seed.js pull --if-empty`, y `commandPull` pide el origen en su PRIMERA línea —antes de
+  # mirar `--if-empty`—, así que sin `SEED_SOURCE_*` lanza «No hay origen de semillas
+  # configurado», el contenedor sale con código distinto de cero y `api` y `worker` no arrancan
+  # NUNCA, porque esperan a `service_completed_successfully`. Lo que se ve es todo EXITED y
+  # ningún error que mencione las semillas.
+  #
+  # Apuntan a la rama de PostgreSQL que publica el conjunto sembrado. Si este despliegue no
+  # tiene que sembrar, déjalas vacías: el comando de `migrate` se salta el paso y lo dice.
+  SEED_SOURCE_DATABASE_URL: '${SEED_SOURCE_DATABASE_URL:-}'
+  SEED_SOURCE_HOST: '${SEED_SOURCE_HOST:-}'
+  SEED_SOURCE_PORT: '${SEED_SOURCE_PORT:-5432}'
+  SEED_SOURCE_DB: '${SEED_SOURCE_DB:-atlas}'
+  SEED_SOURCE_USER: '${SEED_SOURCE_USER:-}'
+  SEED_SOURCE_PASSWORD: '${SEED_SOURCE_PASSWORD:-}'
+  SEED_SOURCE_SSL: '${SEED_SOURCE_SSL:-true}'
+  SEED_SOURCE_SSL_REJECT_UNAUTHORIZED: '${SEED_SOURCE_SSL_REJECT_UNAUTHORIZED:-true}'
+
   # --- Siembra -------------------------------------------------------------------------------
   # `--if-empty` mira la MARCA de siembra, no el número de filas: una base con datos pero sin
   # marca se considera virgen y se vacían las tablas del manifiesto. Cualquier base nueva
@@ -271,8 +291,17 @@ services:
     environment:
       <<: *atlas-env
       APP_ROLE: all
+    # Migrar SIEMPRE; sembrar sólo si hay origen. El `if` es lo que separa «este despliegue no
+    # siembra» —legítimo y frecuente— de «la siembra falló», que sí tiene que parar el
+    # despliegue. Antes, sin origen configurado, las dos cosas se veían igual: EXITED.
     command:
-      ['sh', '-c', 'node dist/src/database/migrate.js up && node dist/src/database/seed.js pull --if-empty']
+      - sh
+      - -c
+      - >
+        node dist/src/database/migrate.js up &&
+        if [ -n "$${SEED_SOURCE_DATABASE_URL}$${SEED_SOURCE_HOST}" ]; then
+        node dist/src/database/seed.js pull --if-empty;
+        else echo 'sin SEED_SOURCE_*: se migra pero no se siembra'; fi
     restart: 'no'
 
   api:
