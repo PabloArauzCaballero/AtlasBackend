@@ -1,0 +1,240 @@
+# Despliegue de PRUEBAS de AtlasBackend en el VPS de Contabo (Ubuntu).
+#
+# Va aparte de `docker-compose.yml` —que describe el stack LOCAL— por la misma razón por la que cada
+# bloque del ecosistema tiene su propio compose: son productos separados con su propio ciclo de
+# vida, y meterlos en un archivo único los haría parecer una sola cosa. Aquí eso importa más que en
+# local: en el VPS se despliega un bloque a la vez, y poder reconstruir el ERP sin tocar el motor es
+# la diferencia entre una prueba de diez minutos y una tarde.
+#
+# ## Lo que este archivo NO trae, y por qué
+#
+# **PostgreSQL.** Las bases viven en Neon. Es una decisión de espacio del VPS, y tiene dos
+# consecuencias antes de diagnosticar nada: la latencia a la base ya no son microsegundos sino un
+# salto por Internet con TLS —de ahí los `start_period` más largos que en local—, y un endpoint de
+# Neon en autosuspend tarda varios segundos en despertar la primera vez.
+#
+# **MongoDB.** El visor de logs apunta al cluster gestionado de Atlas, igual que tu `.env`.
+#
+# ## Red compartida entre bloques
+#
+# Los tres backends y los tres portales viven en compose distintos y se hablan por una red EXTERNA
+# que se crea una vez:
+#
+#   docker network create atlas_vps
+#
+# Es lo que permite que el ERP alcance a este backend como `http://atlas-backend:3005` sin publicar
+# un puerto ni pasar por `host.docker.internal` —que no existe en Docker Engine sobre Linux, y cuyo
+# fallo (EAI_AGAIN) se lee como «el bloque está caído» en vez de «ese nombre no se resuelve aquí».
+#
+# ## Cómo se levanta
+#
+#   docker compose -f docker-compose.dev.yml up -d --build
+#   docker compose -f docker-compose.dev.yml --profile storage up -d   # MinIO, si se prueban documentos
+#
+# La configuración sale de `${ATLAS_ENV_DIR}/atlas-backend.env`, fuera del repositorio: un `.env`
+# por servicio, para poder apuntar este bloque a otra base o a otra rama de semillas sin tocar los
+# demás ni versionar un secreto.
+
+name: atlas-backend-vps
+
+x-common: &common
+  restart: unless-stopped
+  # Techo a los logs. Sin él, un contenedor charlatán llena el disco del VPS y lo que se cae es
+  # TODO — incluido el `docker` con el que se iba a diagnosticar.
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '3'
+
+x-build: &build
+  image: atlas-backend:dev
+  build:
+    context: .
+    dockerfile: Dockerfile.dev
+    cache_from: ['atlas-backend:dev']
+
+services:
+  # -------------------------------------------------------------------------------------------
+  # Redis. Vive en ESTE compose y lo comparte el motor por la red externa: es lo único de
+  # infraestructura que no se puede delegar a un gestionado sin coste, y ocupa ~10 MB.
+  # -------------------------------------------------------------------------------------------
+  redis:
+    <<: *common
+    image: redis:7-alpine
+    # Sin `ports:`. Lo usan este backend y el motor DESDE DENTRO de la red; publicarlo en una máquina
+    # con IP pública no habilita ningún caso de uso y sí una superficie más.
+    command:
+      ['redis-server', '--appendonly', 'yes', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru']
+    volumes:
+      - redis-data:/data
+    networks:
+      atlas_vps:
+        aliases: [redis]
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # -------------------------------------------------------------------------------------------
+  # Job ONE-SHOT: migra y siembra. Corre hasta terminar y sale.
+  #
+  # Servicio propio y no un paso del arranque de la API: migrar muta el esquema, y con más de una
+  # réplica sería una carrera. Un fallo de migración debe impedir que la API arranque, no dejarla
+  # servir contra un esquema a medias.
+  #
+  # **Las dos órdenes son IDEMPOTENTES y por eso este job corre en cada `up`:**
+  #
+  #   `migrate.js up`        aplica sólo las migraciones que faltan; las ya aplicadas constan en la
+  #                          tabla de migraciones y se saltan.
+  #   `seed.js pull --if-empty`  la guarda mira la MARCA `atlas_seed.load_log`, no el número de
+  #                          filas. La carga escribe esa marca; una base que ya la tiene no se toca,
+  #                          por muchas filas que el runtime haya escrito o borrado desde entonces.
+  #                          Contar filas NO servía: una base recién migrada ya trae permisos
+  #                          internos y plantillas de notificación, así que con «¿hay alguna tabla
+  #                          poblada?» el arranque se saltaba la siembra en una base virgen y dejaba
+  #                          la instalación sin catálogo.
+  #
+  # **La única vez que esto no es inocuo** es la PRIMERA, contra una base de Neon que ya tenga datos
+  # puestos por otra vía y por tanto ninguna marca: la guarda la considera virgen y el pull vacía las
+  # tablas del manifiesto antes de cargarlas. Si ese es tu caso, planta la marca antes de levantar
+  # nada (`README` del paquete de despliegue) o arranca contra una rama nueva de Neon.
+  # -------------------------------------------------------------------------------------------
+  migrate:
+    <<: *build
+    env_file: ['${ATLAS_ENV_DIR:-/opt/atlas/env}/atlas-backend.env']
+    environment:
+      APP_ROLE: all
+    command: >
+      sh -c "node dist/src/database/migrate.js up &&
+             node dist/src/database/seed.js pull --if-empty"
+    networks: [atlas_vps]
+    restart: 'no'
+
+  api:
+    <<: [*common, *build]
+    env_file: ['${ATLAS_ENV_DIR:-/opt/atlas/env}/atlas-backend.env']
+    environment:
+      APP_ROLE: api
+      APP_PORT: '3005'
+      # El planificador NO corre aquí: es el worker quien ejecuta el trabajo de fondo. El
+      # cross-check de `env.ts` rechaza la combinación contraria, así que esto no puede
+      # desalinearse en silencio.
+      RUNTIME_JOBS_SCHEDULER_ENABLED: 'false'
+      NOTIFICATIONS_DELIVERY_MODE: deferred
+    ports:
+      # 0.0.0.0, y es el único backend que lo está: el NAVEGADOR del tester llama a esta API
+      # directamente, porque el portal de administración lleva su URL horneada. Los otros dos
+      # backends sólo los llaman otros contenedores y se quedan en el bucle local.
+      - '3005:3005'
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - api-logs:/app/logs
+    networks:
+      atlas_vps:
+        aliases: [atlas-backend]
+    stop_grace_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  worker:
+    <<: [*common, *build]
+    env_file: ['${ATLAS_ENV_DIR:-/opt/atlas/env}/atlas-backend.env']
+    environment:
+      APP_ROLE: worker
+      WORKER_PROBE_PORT: '3006'
+      RUNTIME_JOBS_SCHEDULER_ENABLED: 'true'
+      NOTIFICATIONS_DELIVERY_MODE: deferred
+      # El monitor de salud avisa al staff interno cuando una herramienta crítica cae; vive donde
+      # vive el trabajo de fondo.
+      SYSTEM_HEALTH_MONITOR_ENABLED: 'true'
+    ports:
+      # Bucle local: la sonda y las métricas del worker sólo se miran desde el propio VPS.
+      - '127.0.0.1:3006:3006'
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      # Volumen propio, no compartido con la API: cada rol escribe SU `Archivo.log` y lo sincroniza
+      # a MongoDB por su cuenta. El tail es per-proceso, así que un volumen común mezclaría dos
+      # flujos y los dos competirían por el mismo offset.
+      - worker-logs:/app/logs
+    networks:
+      atlas_vps:
+        aliases: [atlas-backend-worker]
+    command: ['node', 'dist/src/worker.js']
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+  # -------------------------------------------------------------------------------------------
+  # Almacenamiento de la evidencia documental (perfil `storage`)
+  #
+  # Sin él el backend responde 503 DOCUMENT_STORAGE_NOT_CONFIGURED y el alta se queda parada en el
+  # carnet. Va en un perfil porque ocupa disco y no todas las sesiones de prueba tocan documentos.
+  # -------------------------------------------------------------------------------------------
+  minio:
+    <<: *common
+    profiles: ['storage']
+    image: minio/minio:RELEASE.2024-09-13T20-26-02Z
+    command: server /data --console-address ":9001"
+    env_file: ['${ATLAS_ENV_DIR:-/opt/atlas/env}/minio.env']
+    ports:
+      # 9000 sí sale a la IP pública: con él se firman las URLs que abre el navegador o el teléfono
+      # para ver un documento. Escuchando sólo en el bucle local, la URL firmada sería correcta y no
+      # la podría abrir nadie — y el error que se ve es «no podemos recibir documentos», que no
+      # menciona la red por ninguna parte.
+      - '9000:9000'
+      # La consola no: es una pantalla de administración con las llaves del bucket detrás.
+      - '127.0.0.1:9001:9001'
+    volumes:
+      - minio-data:/data
+    networks:
+      atlas_vps:
+        aliases: [minio]
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # Job ONE-SHOT: crea el bucket si no existe. Separado del servidor porque MinIO no crea buckets al
+  # arrancar, y un bucket que falta produce un 404 en la subida que se lee como «el archivo no se
+  # pudo guardar» en vez de «el almacenamiento no está preparado». `--ignore-existing` lo hace
+  # idempotente: correrlo en cada `up` no cambia nada.
+  minio-bucket:
+    profiles: ['storage']
+    image: minio/mc:RELEASE.2024-09-16T17-43-14Z
+    env_file: ['${ATLAS_ENV_DIR:-/opt/atlas/env}/minio.env']
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+      mc mb --ignore-existing local/$${MINIO_BUCKET} &&
+      echo 'bucket listo'
+      "
+    networks: [atlas_vps]
+    restart: 'no'
+
+networks:
+  atlas_vps:
+    external: true
+
+volumes:
+  redis-data:
+  minio-data:
+  api-logs:
+  worker-logs:
