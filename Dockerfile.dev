@@ -58,7 +58,17 @@ WORKDIR /app
 # `postgresql-client` es el añadido propio de esta imagen. En un VPS sin herramientas, cuando la
 # base se comporta de forma rara la diferencia entre diagnosticarlo y adivinar es tener un `psql`.
 # Son ~5 MB y evitan instalar nada en el anfitrión, que es justo lo que ensucia un VPS.
-RUN apt-get update \
+#
+# `ForceIPv4` y los reintentos NO son adorno. En un VPS con IPv6 anunciado pero sin ruta —el caso
+# corriente en Contabo y en la mayoría de proveedores baratos— `apt` intenta primero por IPv6, se
+# queda esperando y acaba fallando con **exit code 100** tras varios minutos. El mensaje no
+# menciona la red por ninguna parte: dice que el `RUN` no completó, y manda a buscar el problema
+# al Dockerfile, que está bien. Medido en un despliegue de Coolify: cuatro minutos de build para
+# terminar en ese 100.
+#
+# Los reintentos cubren el otro caso frecuente, que es un espejo de Debian que contesta a medias.
+RUN printf 'Acquire::ForceIPv4 "true";\nAcquire::Retries "5";\n' > /etc/apt/apt.conf.d/99-atlas \
+  && apt-get update \
   && apt-get install --no-install-recommends -y tini postgresql-client ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
