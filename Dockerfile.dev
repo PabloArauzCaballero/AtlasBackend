@@ -37,6 +37,16 @@ WORKDIR /app
 # que en un VPS —donde se reconstruye a cada rato para probar una rama— es lo que separa un build
 # de treinta segundos de uno de seis minutos.
 COPY package.json yarn.lock .yarnrc ./
+# `ipv4first` por lo MISMO que `Acquire::ForceIPv4` en la etapa de runtime: en un VPS que anuncia
+# IPv6 sin ruta, Node resuelve primero AAAA y cada descarga del registro se va contra una
+# dirección inalcanzable. El síntoma es `yarn install --frozen-lockfile did not complete
+# successfully: exit code: 1` sin una sola línea que hable de la red, y en un despliegue de
+# Coolify tardó 87 s en aparecer. `.yarnrc` ya sube el `network-timeout` a 10 minutos, que no
+# ayuda: esto no agota el tiempo, falla al conectar.
+#
+# Comprobado que la bandera es válida dentro de `NODE_OPTIONS` en el Node de esta imagen; sólo
+# afecta a esta etapa.
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
     yarn install --frozen-lockfile
 
@@ -76,6 +86,8 @@ RUN printf 'Acquire::ForceIPv4 "true";\nAcquire::Retries "5";\n' > /etc/apt/apt.
 # no forma parte de ninguna capa —limpiarlo no ahorraría un byte— y además el propio montaje lo
 # mantiene ocupado, así que el `rmdir` falla con EBUSY y tumba el build.
 COPY package.json yarn.lock .yarnrc ./
+# Misma razón que en `deps`: esta etapa también descarga del registro.
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
     yarn install --frozen-lockfile --production
 
@@ -90,7 +102,14 @@ USER node
 
 # `all` por defecto: sin configurar nada, la imagen es el proceso único de siempre. El compose del
 # VPS fija `api` y `worker` en cada servicio.
+#
+# `NODE_OPTIONS` se repite aquí a propósito, aunque la etapa ya lo herede de más arriba: en
+# EJECUCIÓN también hace falta. El proceso sale a Neon y a Mongo Atlas, y en un VPS con IPv6
+# anunciado sin ruta esas conexiones se van contra una dirección inalcanzable igual que las del
+# registro de yarn. Declararlo dos veces cuesta nada y sobrevive a que alguien reordene el
+# archivo; heredarlo por accidente, no.
 ENV NODE_ENV=development \
+    NODE_OPTIONS=--dns-result-order=ipv4first \
     APP_ROLE=all \
     APP_PORT=3005 \
     WORKER_PROBE_PORT=3006 \
