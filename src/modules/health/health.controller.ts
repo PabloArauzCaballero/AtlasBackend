@@ -156,8 +156,33 @@ export class HealthController {
       timestamp: new Date().toISOString(),
     };
     if (!ready) {
-      // 503 con el detalle en el cuerpo de la excepción, para que el probe lea el estado por rama.
-      throw new ServiceUnavailableException(body);
+      /*
+       * El 503 lleva `message`, y esa clave NO es decorativa.
+       *
+       * Antes se lanzaba `ServiceUnavailableException(body)` a secas, y `body` no tiene `message`:
+       * `buildErrorMessage` del filtro global sólo mira `response.message`, así que al no
+       * encontrarla caía al genérico y el cliente recibía «Error interno no controlado». Una sonda
+       * de readiness que no dice QUÉ dependencia cayó obliga a entrar al contenedor a probar
+       * Postgres y Redis a mano — que es exactamente el trabajo que esta respuesta existe para
+       * ahorrar.
+       *
+       * Se nombran sólo las dependencias que DECIDEN el readiness. `postgresRead` se reporta en
+       * `checks` pero no entra en el mensaje: no saca la instancia de rotación, y nombrarlo aquí
+       * haría buscar una avería que no bloquea nada.
+       *
+       * No se filtra nada sensible: son nombres de dependencia y un estado, sin host, usuario ni
+       * cadena de conexión — la misma regla que sigue `/health/data-sources`.
+       */
+      const caidas = [
+        postgres !== 'ok' ? `postgres=${postgres}` : null,
+        redis === 'unreachable' ? 'redis=unreachable' : null,
+      ].filter((x): x is string => x !== null);
+      throw new ServiceUnavailableException({
+        ...body,
+        message: shuttingDown
+          ? 'La instancia está drenando y no debe recibir tráfico.'
+          : `Dependencias no disponibles: ${caidas.join(', ')}.`,
+      });
     }
     return body;
   }
