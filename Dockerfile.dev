@@ -31,7 +31,19 @@
 ARG NODE_VERSION=22.16.0
 
 # ---------------------------------------------------------------------------------------------
-FROM node:${NODE_VERSION}-bookworm-slim AS deps
+# **Imagen COMPLETA, no `-slim`, y es lo que arreglaba el build.**
+#
+# `argon2` es un módulo NATIVO. Su instalación intenta bajarse un binario precompilado de las
+# descargas de GitHub y, cuando esa descarga no sale —red del VPS, cortafuegos, GitHub
+# inalcanzable—, NO se rinde: cae a compilar desde el fuente con node-gyp. `-slim` no trae
+# `python3`, `make` ni `g++`, así que ahí muere, y el error que se ve es
+# `yarn install --frozen-lockfile did not complete successfully: exit code: 1` sin una línea que
+# nombre a argon2.
+#
+# La imagen completa ya trae la cadena de compilación —comprobado: `/usr/bin/python3`,
+# `/usr/bin/make`, `/usr/bin/g++`— así que el camino de respaldo también termina. Cuesta disco de
+# BUILD y cero disco de imagen final: de aquí sólo viaja `node_modules`.
+FROM node:${NODE_VERSION}-bookworm AS deps
 WORKDIR /app
 # Sólo el manifiesto y el lockfile: la capa se reaprovecha mientras las dependencias no cambien,
 # que en un VPS —donde se reconstruye a cada rato para probar una rama— es lo que separa un build
@@ -48,15 +60,29 @@ COPY package.json yarn.lock .yarnrc ./
 # afecta a esta etapa.
 ENV NODE_OPTIONS=--dns-result-order=ipv4first
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
-    yarn install --frozen-lockfile
+    yarn install --frozen-lockfile --network-timeout 600000 --network-concurrency 4
 
 # ---------------------------------------------------------------------------------------------
-FROM node:${NODE_VERSION}-bookworm-slim AS build
+# También completa: hereda `node_modules` de `deps`, y si algún paso de compilación necesitara la
+# cadena la tiene. Tampoco llega a la imagen final.
+FROM node:${NODE_VERSION}-bookworm AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Compila `src/**` y `scripts/**`. Lo segundo es lo que permite que la imagen final no lleve `tsx`.
 RUN yarn build
+
+# ---------------------------------------------------------------------------------------------
+# Dependencias de PRODUCCIÓN, en imagen completa por la misma razón que `deps`: argon2 tiene que
+# poder compilarse si su precompilado no se puede bajar. Sin `yarn cache clean`: con la caché
+# montada el directorio no forma parte de ninguna capa —limpiarlo no ahorraría un byte— y además
+# el propio montaje lo mantiene ocupado, así que el `rmdir` falla con EBUSY y tumba el build.
+FROM node:${NODE_VERSION}-bookworm AS prod-deps
+WORKDIR /app
+COPY package.json yarn.lock .yarnrc ./
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
+    yarn install --frozen-lockfile --production --network-timeout 600000 --network-concurrency 4
 
 # ---------------------------------------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
@@ -82,14 +108,13 @@ RUN printf 'Acquire::ForceIPv4 "true";\nAcquire::Retries "5";\n' > /etc/apt/apt.
   && apt-get install --no-install-recommends -y tini postgresql-client ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-# Dependencias de PRODUCCIÓN únicamente. Sin `yarn cache clean`: con la caché montada el directorio
-# no forma parte de ninguna capa —limpiarlo no ahorraría un byte— y además el propio montaje lo
-# mantiene ocupado, así que el `rmdir` falla con EBUSY y tumba el build.
-COPY package.json yarn.lock .yarnrc ./
-# Misma razón que en `deps`: esta etapa también descarga del registro.
-ENV NODE_OPTIONS=--dns-result-order=ipv4first
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
-    yarn install --frozen-lockfile --production
+# Las dependencias de producción se resuelven en `prod-deps` —imagen completa— y se COPIAN.
+#
+# Instalarlas AQUÍ era el agujero: esta etapa es `-slim` a propósito, así que argon2 volvería a
+# quedarse sin compilador y el build moriría en el mismo sitio, sólo que más tarde. Copiar el
+# árbol ya resuelto evita elegir entre un build frágil y una imagen final con 200 MB de
+# compilador dentro.
+COPY --from=prod-deps /app/node_modules ./node_modules
 
 # `dist/` ENTERO, no sólo `dist/src`: `dist/scripts` es lo que hace innecesarias las dependencias de
 # desarrollo. Ahí están `migrate.js`, `seed.js` y `bootstrap-db-roles.js` ya compilados.
