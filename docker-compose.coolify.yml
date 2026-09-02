@@ -308,6 +308,10 @@ services:
   # Job de UN SOLO DISPARO: migra y siembra. `migrate up` es idempotente —aplica sólo lo que
   # falta— así que corre en cada despliegue sin coste.
   migrate:
+    # `init: true` sustituye al `tini` que antes iba como ENTRYPOINT en la imagen. Es el mismo
+    # programa —Docker trae tini incorporado— y no depende de que `apt` pueda descargarlo. Sin un
+    # init como PID 1, `SIGTERM` no llega a Node y el drenado ordenado no corre nunca.
+    init: true
     <<: *build
     environment:
       <<: *atlas-env
@@ -326,6 +330,10 @@ services:
     restart: 'no'
 
   api:
+    # `init: true` sustituye al `tini` que antes iba como ENTRYPOINT en la imagen. Es el mismo
+    # programa —Docker trae tini incorporado— y no depende de que `apt` pueda descargarlo. Sin un
+    # init como PID 1, `SIGTERM` no llega a Node y el drenado ordenado no corre nunca.
+    init: true
     <<: [*common, *image]
     environment:
       <<: *atlas-env
@@ -349,6 +357,10 @@ services:
           memory: 1g
 
   worker:
+    # `init: true` sustituye al `tini` que antes iba como ENTRYPOINT en la imagen. Es el mismo
+    # programa —Docker trae tini incorporado— y no depende de que `apt` pueda descargarlo. Sin un
+    # init como PID 1, `SIGTERM` no llega a Node y el drenado ordenado no corre nunca.
+    init: true
     <<: [*common, *image]
     environment:
       <<: *atlas-env

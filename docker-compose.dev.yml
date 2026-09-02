@@ -102,6 +102,10 @@ services:
   # nada (`README` del paquete de despliegue) o arranca contra una rama nueva de Neon.
   # -------------------------------------------------------------------------------------------
   migrate:
+    # `init: true` sustituye al `tini` que antes iba como ENTRYPOINT en la imagen. Es el mismo
+    # programa —Docker trae tini incorporado— y no depende de que `apt` pueda descargarlo. Sin un
+    # init como PID 1, `SIGTERM` no llega a Node y el drenado ordenado no corre nunca.
+    init: true
     <<: *build
     env_file: ['${ATLAS_ENV_DIR:-/opt/atlas/env}/atlas-backend.env']
     environment:
@@ -113,6 +117,10 @@ services:
     restart: 'no'
 
   api:
+    # `init: true` sustituye al `tini` que antes iba como ENTRYPOINT en la imagen. Es el mismo
+    # programa —Docker trae tini incorporado— y no depende de que `apt` pueda descargarlo. Sin un
+    # init como PID 1, `SIGTERM` no llega a Node y el drenado ordenado no corre nunca.
+    init: true
     <<: [*common, *build]
     env_file: ['${ATLAS_ENV_DIR:-/opt/atlas/env}/atlas-backend.env']
     environment:
@@ -145,6 +153,10 @@ services:
           memory: 1g
 
   worker:
+    # `init: true` sustituye al `tini` que antes iba como ENTRYPOINT en la imagen. Es el mismo
+    # programa —Docker trae tini incorporado— y no depende de que `apt` pueda descargarlo. Sin un
+    # init como PID 1, `SIGTERM` no llega a Node y el drenado ordenado no corre nunca.
+    init: true
     <<: [*common, *build]
     env_file: ['${ATLAS_ENV_DIR:-/opt/atlas/env}/atlas-backend.env']
     environment:

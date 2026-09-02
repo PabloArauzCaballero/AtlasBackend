@@ -88,25 +88,30 @@ RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 WORKDIR /app
 
-# `tini` como PID 1, por lo mismo que en la imagen de producción: sin un init que reparta las
-# señales, `SIGTERM` no llega a Node y el drenado ordenado (`SHUTDOWN_DRAIN_MS`) no corre nunca.
+# `apt` es AHORA OPCIONAL, y esa es la corrección.
 #
-# `postgresql-client` es el añadido propio de esta imagen. En un VPS sin herramientas, cuando la
-# base se comporta de forma rara la diferencia entre diagnosticarlo y adivinar es tener un `psql`.
-# Son ~5 MB y evitan instalar nada en el anfitrión, que es justo lo que ensucia un VPS.
+# Esta línea tumbó el build dos veces con `exit code: 100`, y forzar IPv4 no bastó. Lo que sí se
+# sabe, porque las etapas anteriores descargan del registro de npm sin problema, es que la red
+# del build FUNCIONA: lo que no se alcanza es el espejo de Debian en concreto. Pelearse con eso
+# desde el Dockerfile es perseguir la red de otra persona.
 #
-# `ForceIPv4` y los reintentos NO son adorno. En un VPS con IPv6 anunciado pero sin ruta —el caso
-# corriente en Contabo y en la mayoría de proveedores baratos— `apt` intenta primero por IPv6, se
-# queda esperando y acaba fallando con **exit code 100** tras varios minutos. El mensaje no
-# menciona la red por ninguna parte: dice que el `RUN` no completó, y manda a buscar el problema
-# al Dockerfile, que está bien. Medido en un despliegue de Coolify: cuatro minutos de build para
-# terminar en ese 100.
+# Así que se comprobó qué hacía falta de verdad de los tres paquetes, y la respuesta es NINGUNO:
 #
-# Los reintentos cubren el otro caso frecuente, que es un espejo de Debian que contesta a medias.
+#   ca-certificates  Node trae su propio almacén de CA compilado dentro. Verificado en esta
+#                    misma imagen: `fetch('https://registry.npmjs.org/...')` devuelve 200 sin el
+#                    paquete instalado.
+#   tini             lo aporta Docker con `init: true` en el compose, que es la forma estándar y
+#                    no depende de descargar nada. Antes iba como ENTRYPOINT.
+#   postgresql-client  útil para diagnosticar la base desde dentro del contenedor, y sólo eso.
+#
+# Por eso el `|| echo`: si el espejo responde, la imagen se lleva `psql` y se diagnostica mejor;
+# si no responde, el despliegue SIGUE. Una herramienta de diagnóstico no puede ser el motivo de
+# que no haya nada que diagnosticar.
 RUN printf 'Acquire::ForceIPv4 "true";\nAcquire::Retries "5";\n' > /etc/apt/apt.conf.d/99-atlas \
-  && apt-get update \
-  && apt-get install --no-install-recommends -y tini postgresql-client ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+  && (apt-get update \
+      && apt-get install --no-install-recommends -y postgresql-client \
+      && rm -rf /var/lib/apt/lists/* \
+      || echo 'AVISO: no se pudo instalar postgresql-client; la imagen funciona igual, sin psql')
 
 # Las dependencias de producción se resuelven en `prod-deps` —imagen completa— y se COPIAN.
 #
@@ -148,5 +153,8 @@ EXPOSE 3005 3006
 HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=3 \
   CMD ["node", "/app/ops/docker/healthcheck.mjs"]
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+# Sin `ENTRYPOINT` con tini: ya no se instala, y apuntar a un binario que puede no estar deja el
+# contenedor sin arrancar. El init lo pone el compose con `init: true` —es el propio tini que trae
+# Docker— y sigue haciendo el mismo trabajo: repartir SIGTERM para que el drenado ordenado
+# (`SHUTDOWN_DRAIN_MS`) llegue a correr.
 CMD ["node", "dist/src/main.js"]
