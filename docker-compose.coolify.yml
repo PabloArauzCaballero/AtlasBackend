@@ -343,8 +343,20 @@ services:
       # compitiendo por el mismo cerrojo es trabajo duplicado y contención en la base.
       RUNTIME_JOBS_SCHEDULER_ENABLED: 'false'
       NOTIFICATIONS_DELIVERY_MODE: deferred
-    # Sin `ports:` — Coolify publica este servicio por su proxy, con TLS y el dominio que le
-    # configures. Publicarlo además a pelo lo dejaría accesible por un segundo camino sin TLS.
+    # Publicado SÓLO en la interfaz de Tailscale, y hace falta por una razón concreta: el motor
+    # de decisión corre como OTRA aplicación de Coolify, o sea en OTRA red, así que no puede
+    # alcanzar a este servicio por su nombre. `atlas-backend` era un alias de la red compartida
+    # del VPS operado a mano y en Coolify no resuelve — el fallo es `EAI_AGAIN atlas-backend`,
+    # que se lee igual que «AtlasBackend está caído».
+    #
+    # `100.101.207.88` es una IP REAL del host (Tailscale), así que un contenedor de otra
+    # aplicación sí la alcanza; `127.0.0.1` no serviría, porque dentro de un contenedor es el
+    # propio contenedor. Y al atarlo a esa interfaz no queda expuesto en la IP pública: sólo
+    # llegan los equipos de tu tailnet.
+    #
+    # Coolify sigue publicando este servicio por su proxy con TLS para los navegadores; esto es
+    # el camino interno entre bloques, no el de los usuarios.
+    ports: ['100.101.207.88:3005:3005']
     expose: ['3005']
     depends_on:
       redis: { condition: service_healthy }
