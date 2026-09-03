@@ -191,7 +191,7 @@ x-atlas-env: &atlas-env
   AUTH_COOKIE_SECURE: '${AUTH_COOKIE_SECURE:-true}'
 
   # --- Redis ---------------------------------------------------------------------------------
-  REDIS_URL: '${REDIS_URL:-redis://redis:6379}'
+  REDIS_URL: '${REDIS_URL:-redis://atlas-redis:6379}'
   API_RATE_LIMIT_TTL_MS: '${API_RATE_LIMIT_TTL_MS:-60000}'
   API_RATE_LIMIT_MAX: '${API_RATE_LIMIT_MAX:-100}'
 
@@ -293,11 +293,26 @@ x-atlas-env: &atlas-env
   NOTIFICATION_PHONE_PROVIDER: '${NOTIFICATION_PHONE_PROVIDER:-disabled}'
 
 services:
+  # Se anuncia como `atlas-redis`, NO como `redis`, y el alias no es cosmetico.
+  #
+  # `api` y `worker` estan tambien en la red COMPARTIDA de Coolify, y ahi `coolify-redis` —el Redis
+  # interno de Coolify, que SI pide contrasena— ya registra el alias `redis`. Con un contenedor en
+  # varias redes Docker no garantiza cual gana la resolucion, y ganaba esa: `redis` resolvia a la
+  # infraestructura de Coolify en vez de a este servicio. El sintoma no dice nada de un alias
+  # duplicado —el TCP abre, asi que parece alcanzable— y el PING muere con
+  # `NOAUTH HELLO must be called with the client already authenticated`, de modo que readiness
+  # devuelve 503 `redis=unreachable` teniendo este Redis sano al lado y `requirepass` vacio.
+  #
+  # Se comprueba resolviendo el nombre DENTRO del api: si `redis` no da la IP de este contenedor,
+  # es la colision. Cualquier nombre generico compartido con Coolify tiene el mismo problema.
   redis:
     <<: *common
     image: redis:7-alpine
     command:
       ['redis-server', '--appendonly', 'yes', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru']
+    networks:
+      default:
+        aliases: ['atlas-redis']
     volumes: ['redis-data:/data']
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
