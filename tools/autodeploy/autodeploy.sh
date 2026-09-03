@@ -219,8 +219,8 @@ entorno_extra() { # slug -> imprime VAR=valor por línea
   esac
 }
 
-arrancar() { # slug repo imagen puerto varPuerto nombre
-  local slug="$1" repo="$2" imagen="$3" puerto="$4" var="$5" nombre="$6"
+arrancar() { # slug repo imagen puerto varPuerto nombre [reinicio]
+  local slug="$1" repo="$2" imagen="$3" puerto="$4" var="$5" nombre="$6" reinicio="${7:-unless-stopped}"
   docker rm -f "$nombre" >/dev/null 2>&1
   # `--network host`: esta máquina ES el servidor y los .env ya apuntan a localhost (postgres 5432,
   # redis 6381, ...). Con red puente habría que reescribir cada .env a host.docker.internal para no
@@ -244,7 +244,7 @@ arrancar() { # slug repo imagen puerto varPuerto nombre
     "${entorno[@]}" \
     -e "$var=$puerto" \
     -e "HEALTHCHECK_PORT=$puerto" \
-    --restart unless-stopped \
+    --restart "$reinicio" \
     --log-driver json-file --log-opt max-size=20m --log-opt max-file=5 \
     "$imagen" >>"$LOG" 2>&1
 }
@@ -258,7 +258,11 @@ canario() { # slug repo sha puerto varPuerto salud etapa -> imprime la imagen va
   imagen="$(construir "$slug" "$repo" "$sha" "$etapa")" || return 1
 
   log "[$slug] canario en $PUERTO_CANARIO"
-  arrancar "$slug" "$repo" "$imagen" "$PUERTO_CANARIO" "$var" "$nombre" || {
+  # `no`, no `unless-stopped`: el canario es de usar y tirar y esta funcion lo retira en todos los
+  # caminos, pero si el script muere entre este arranque y esa limpieza, una politica de reinicio
+  # deja el contenedor dando vueltas para siempre contra un puerto que no le corresponde. Ya pasó:
+  # un `atlas-auto-erp-canario` huérfano acumuló reinicios cargando la máquina sin servir a nadie.
+  arrancar "$slug" "$repo" "$imagen" "$PUERTO_CANARIO" "$var" "$nombre" no || {
     log "[$slug] el canario no arrancó"; docker rm -f "$nombre" >/dev/null 2>&1; return 1; }
 
   if ! esperar_salud "$PUERTO_CANARIO" "$salud" "$ESPERA_SALUD"; then
