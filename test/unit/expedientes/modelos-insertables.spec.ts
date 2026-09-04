@@ -105,7 +105,7 @@ describe('modelos del expediente: la fila sale del proceso', () => {
       tenantId: '1',
       expedienteId: '1',
       nodoId: null,
-      accion: 'abrir',
+      accion: 'crear',
       actorTipo: 'sistema',
       actorId: null,
       detalle: {},

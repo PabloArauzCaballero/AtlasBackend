@@ -5,6 +5,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { env } from '../../../config/env.js';
+import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
 import { ActorService } from './actor.service.js';
 import { ExpedienteService } from './expediente.service.js';
 import { MaterializadorService } from './materializador.service.js';
@@ -34,6 +35,7 @@ export class ExpedienteHooksService {
     private readonly nodos: NodoService,
     private readonly materializador: MaterializadorService,
     private readonly actores: ActorService,
+    private readonly storage: DocumentStorageService,
   ) {}
 
   private activo(): boolean {
@@ -104,7 +106,8 @@ export class ExpedienteHooksService {
       }
 
       const destino = CARPETA_POR_TIPO[input.documentType] ?? CARPETA_POR_TIPO.other;
-      const extension = (input.mimeType ?? '').includes('pdf') ? 'pdf' : (input.mimeType ?? '').includes('png') ? 'png' : 'jpg';
+      const medidas = await this.medir(input);
+      const extension = (medidas.mimeType ?? '').includes('pdf') ? 'pdf' : (medidas.mimeType ?? '').includes('png') ? 'png' : 'jpg';
 
       await this.nodos.registrarArchivo({
         tenantId: input.tenantId,
@@ -114,14 +117,45 @@ export class ExpedienteHooksService {
         origen: 'onboarding',
         clase: destino.clase as ClaseNodo,
         storageKey: input.storageKey,
-        storageBucket: input.storageBucket,
+        storageBucket: medidas.storageBucket,
         sha256: input.sha256,
-        mimeType: input.mimeType,
-        sizeBytes: input.sizeBytes,
+        mimeType: medidas.mimeType,
+        sizeBytes: medidas.sizeBytes,
         evidenceDocumentId: input.evidenceDocumentId,
         actor,
       });
     });
+  }
+
+  /**
+   * Lo que el llamador no sabe del objeto, preguntado al almacén.
+   *
+   * El camino de identidad conoce tamaño y tipo porque los guarda `evidence_documents`; el del
+   * extracto no —sólo tiene la clave—, y sin esto la fila del expediente quedaba sin tamaño. En la
+   * pantalla eso se lee como «no se sabe», que en la carpeta de la persona es justo la casilla que
+   * no debería estar vacía en su documento más sensible.
+   *
+   * Es un HEAD, no una descarga: cuesta un viaje y no mueve los bytes. Si el almacén no contesta se
+   * registra igual con lo que había: una fila sin tamaño sigue siendo mejor que ninguna fila.
+   */
+  private async medir(input: {
+    storageKey: string;
+    storageBucket: string | null;
+    mimeType: string | null;
+    sizeBytes: string | null;
+  }): Promise<{ storageBucket: string | null; mimeType: string | null; sizeBytes: string | null }> {
+    if (input.sizeBytes && input.storageBucket) return input;
+    try {
+      const cabecera = await this.storage.headObject(input.storageKey);
+      return {
+        storageBucket: input.storageBucket ?? this.storage.getBucket(),
+        mimeType: input.mimeType ?? cabecera?.contentType ?? null,
+        sizeBytes: input.sizeBytes ?? (cabecera ? String(cabecera.sizeBytes) : null),
+      };
+    } catch (error) {
+      this.logger.warn(`No se pudo medir ${input.storageKey}: ${(error as Error).message}`);
+      return input;
+    }
   }
 
   /** 4. Los objetos que el Motor conserva de una verificación de identidad o de un extracto. */
