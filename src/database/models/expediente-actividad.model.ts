@@ -3,10 +3,10 @@
  * @business Quién vio, subió, compartió o borró cada archivo, para poder responderlo cuando se pregunte.
  * @system define la bitácora sólo-añadir del expediente; la base rechaza UPDATE y DELETE.
  */
-import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { Column, CreatedAt, DataType, Model, Table } from 'sequelize-typescript';
 import { atlasSchemaFor } from '../domain-schemas.js';
 
-@Table({ tableName: 'expediente_actividad', schema: atlasSchemaFor('expediente_actividad'), timestamps: false })
+@Table({ tableName: 'expediente_actividad', schema: atlasSchemaFor('expediente_actividad'), timestamps: true, updatedAt: false })
 export class ExpedienteActividadModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;
@@ -38,6 +38,15 @@ export class ExpedienteActividadModel extends Model {
   @Column({ field: 'detalle', type: DataType.JSONB, allowNull: false })
   declare detalle: Record<string, unknown>;
 
+
+  /*
+   * Sólo `created_at`: esta tabla no se actualiza nunca.
+   *
+   * La marca la pone Sequelize —no el `DEFAULT NOW()` de la tabla— porque con `allowNull: false` la
+   * validación del ORM rechaza el INSERT antes de enviarlo y el defecto de la base no llega a
+   * usarse. `updatedAt: false` es lo que impide que el ORM invente una columna que no existe.
+   */
+  @CreatedAt
   @Column({ field: 'created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 }

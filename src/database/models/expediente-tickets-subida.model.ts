@@ -3,10 +3,10 @@
  * @business Un permiso de subida acotado, para que un archivo entre sin pasar por la API.
  * @system define el ticket firmado y su consumo; sin él, una subida abandonada deja un huérfano.
  */
-import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { Column, CreatedAt, DataType, Model, Table } from 'sequelize-typescript';
 import { atlasSchemaFor } from '../domain-schemas.js';
 
-@Table({ tableName: 'expediente_tickets_subida', schema: atlasSchemaFor('expediente_tickets_subida'), timestamps: false })
+@Table({ tableName: 'expediente_tickets_subida', schema: atlasSchemaFor('expediente_tickets_subida'), timestamps: true, updatedAt: false })
 export class ExpedienteTicketSubidaModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;
@@ -44,6 +44,15 @@ export class ExpedienteTicketSubidaModel extends Model {
   @Column({ field: 'consumido_en', type: DataType.DATE })
   declare consumidoEn: Date | null;
 
+
+  /*
+   * Sólo `created_at`: esta tabla no se actualiza nunca.
+   *
+   * La marca la pone Sequelize —no el `DEFAULT NOW()` de la tabla— porque con `allowNull: false` la
+   * validación del ORM rechaza el INSERT antes de enviarlo y el defecto de la base no llega a
+   * usarse. `updatedAt: false` es lo que impide que el ORM invente una columna que no existe.
+   */
+  @CreatedAt
   @Column({ field: 'created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 }

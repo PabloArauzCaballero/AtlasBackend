@@ -3,10 +3,10 @@
  * @business Cada carpeta y cada archivo del expediente, con su origen y si está congelado.
  * @system define el nodo del árbol; un archivo REFERENCIA un objeto del almacén, no lo posee.
  */
-import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { Column, CreatedAt, DataType, Model, Table, UpdatedAt } from 'sequelize-typescript';
 import { atlasSchemaFor } from '../domain-schemas.js';
 
-@Table({ tableName: 'expediente_nodos', schema: atlasSchemaFor('expediente_nodos'), timestamps: false })
+@Table({ tableName: 'expediente_nodos', schema: atlasSchemaFor('expediente_nodos'), timestamps: true })
 export class ExpedienteNodoModel extends Model {
   @Column({ field: '_id', type: DataType.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false })
   declare id: string;
@@ -72,9 +72,24 @@ export class ExpedienteNodoModel extends Model {
   @Column({ field: 'creado_por_id', type: DataType.BIGINT })
   declare creadoPorId: string | null;
 
+
+  /*
+   * Las marcas de tiempo las pone Sequelize, no el `DEFAULT NOW()` de la tabla.
+   *
+   * Con `timestamps: false` y las columnas declaradas `allowNull: false`, la validación del ORM
+   * rechazaba el INSERT antes de enviarlo —«createdAtValue cannot be null»— y el gancho del alta
+   * fallaba en silencio: el cliente se creaba y su carpeta no. El defecto de la base nunca llegaba
+   * a usarse porque la fila no salía del proceso.
+   *
+   * Dejarlo en manos del ORM arregla además un segundo defecto más callado: `updated_at` no lo
+   * tocaba nadie, así que la columna «Modificado» de la pantalla habría mostrado para siempre la
+   * fecha de creación.
+   */
+  @CreatedAt
   @Column({ field: 'created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 
+  @UpdatedAt
   @Column({ field: 'updated_at', type: DataType.DATE, allowNull: false })
   declare updatedAtValue: Date;
 
