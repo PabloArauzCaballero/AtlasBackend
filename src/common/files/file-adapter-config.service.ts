@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { env } from '../../config/env.js';
 import { isKnownFileMimeType, type KnownFileMimeType } from './file-content-type.util.js';
+import type { S3Credentials } from '../storage/s3-signature.util.js';
 import type { FileIngestAdapterName, FileStorageAdapterName } from './file-storage.types.js';
 import type { LocalSignatureCredentials } from './local-signature.util.js';
 
@@ -65,6 +66,48 @@ export class FileAdapterConfigService {
       known: declared.filter((value): value is KnownFileMimeType => isKnownFileMimeType(value)),
       unknown: declared.filter((value) => !isKnownFileMimeType(value)),
     };
+  }
+
+  /**
+   * Credenciales del almacén MinIO, con caída a las de la evidencia documental.
+   *
+   * La caída es la decisión importante y es deliberada: hay UN MinIO por entorno, y obligar a
+   * declarar dos juegos de variables para el mismo servidor sólo habría creado la oportunidad de
+   * que se desalinearan —un despliegue con la evidencia en un bucket y los archivos en otro que
+   * nadie creó—. Las `FILE_STORAGE_MINIO_*` existen para el caso raro de querer separarlos a
+   * propósito, y entonces mandan.
+   *
+   * Devuelve `null` —y no una excepción— si falta algo esencial: `FileAdapterRegistry` lo convierte
+   * en un fallo de ARRANQUE con mensaje accionable, que es donde debe descubrirse.
+   */
+  getMinioCredentials(): S3Credentials | null {
+    const endpoint = env.FILE_STORAGE_MINIO_ENDPOINT ?? env.STORAGE_S3_ENDPOINT;
+    const bucket = env.FILE_STORAGE_MINIO_BUCKET ?? env.STORAGE_S3_BUCKET;
+    const accessKeyId = env.FILE_STORAGE_MINIO_ACCESS_KEY_ID ?? env.STORAGE_S3_ACCESS_KEY_ID;
+    const secretAccessKey = env.FILE_STORAGE_MINIO_SECRET_ACCESS_KEY ?? env.STORAGE_S3_SECRET_ACCESS_KEY;
+    if (!endpoint || !bucket || !accessKeyId || !secretAccessKey) return null;
+
+    return {
+      endpoint,
+      bucket,
+      accessKeyId,
+      secretAccessKey,
+      region: env.FILE_STORAGE_MINIO_REGION ?? env.STORAGE_S3_REGION,
+      forcePathStyle: env.FILE_STORAGE_MINIO_FORCE_PATH_STYLE ?? env.STORAGE_S3_FORCE_PATH_STYLE,
+    };
+  }
+
+  /**
+   * El extremo por el que llega el NAVEGADOR o el teléfono, cuando no es el mismo por el que llega
+   * este proceso. Vacío significa «es el mismo», que es el caso de un despliegue de una sola red.
+   */
+  getMinioPublicEndpoint(): string | null {
+    return env.FILE_STORAGE_MINIO_PUBLIC_ENDPOINT ?? env.STORAGE_S3_PUBLIC_ENDPOINT ?? null;
+  }
+
+  /** Prefijo de las claves de este servicio dentro del bucket compartido. Vacío = sin prefijo. */
+  getMinioKeyPrefix(): string {
+    return env.FILE_STORAGE_MINIO_KEY_PREFIX.trim().replace(/^\/+|\/+$/g, '');
   }
 
   getLocalRoot(): string {

@@ -4,6 +4,7 @@
  * @system declara la configuración del servicio de archivos por adaptadores intercambiables.
  */
 import { z } from 'zod';
+import { optionalBooleanEnvSchema, optionalNonEmptyStringEnvSchema, optionalUrlEnvSchema } from './env.primitives.js';
 
 /**
  * Servicio de archivos con estructura de puertos y adaptadores (`src/common/files`).
@@ -17,7 +18,44 @@ import { z } from 'zod';
  */
 export const filesEnvShape = {
   FILE_INGEST_ADAPTER: z.enum(['multer']).default('multer'),
-  FILE_STORAGE_ADAPTER: z.enum(['local']).default('local'),
+
+  /**
+   * MinIO POR DEFECTO. Quien quiera disco tiene que escribir `local` a mano.
+   *
+   * Antes el defecto era `local`, y el defecto es lo que acaba corriendo: un despliegue que no
+   * declara nada escribía en el disco del contenedor, que en Coolify se destruye en cada
+   * publicación. `minio` de oficio invierte esa carga — si el almacén no está configurado, el
+   * proceso NO ARRANCA (`FileAdapterRegistry.onModuleInit`) en vez de aceptar archivos que nadie
+   * volverá a ver.
+   */
+  FILE_STORAGE_ADAPTER: z.enum(['minio', 'local']).default('minio'),
+
+  /**
+   * Configuración del almacén MinIO para ESTE servicio.
+   *
+   * Todas opcionales a propósito: cuando faltan se cae a las `STORAGE_S3_*`, que es el caso normal
+   * porque hay UN MinIO por entorno y la evidencia KYC ya vive ahí. Declararlas sólo tiene sentido
+   * para apuntar este servicio a otro bucket o a otro almacén; ver `FileAdapterConfigService`.
+   */
+  // Los primitivos que tratan `""` como ausente, y no como valor inválido: en Docker un `ARG` que
+  // nadie pasa llega como cadena vacía, y con `z.string().optional()` eso tumba el arranque por una
+  // variable que el operador dejó en blanco A PROPÓSITO para heredar la de arriba.
+  FILE_STORAGE_MINIO_ENDPOINT: optionalUrlEnvSchema,
+  FILE_STORAGE_MINIO_PUBLIC_ENDPOINT: optionalUrlEnvSchema,
+  FILE_STORAGE_MINIO_BUCKET: optionalNonEmptyStringEnvSchema,
+  FILE_STORAGE_MINIO_REGION: optionalNonEmptyStringEnvSchema,
+  FILE_STORAGE_MINIO_ACCESS_KEY_ID: optionalNonEmptyStringEnvSchema,
+  FILE_STORAGE_MINIO_SECRET_ACCESS_KEY: optionalNonEmptyStringEnvSchema,
+  FILE_STORAGE_MINIO_FORCE_PATH_STYLE: optionalBooleanEnvSchema,
+
+  /**
+   * Prefijo común de todas las claves de este servicio dentro del bucket.
+   *
+   * Comparte bucket con la evidencia KYC —un solo almacén que operar— y el prefijo es lo que
+   * mantiene los dos flujos distinguibles en un `mc ls`, y lo que permite una política de
+   * retención distinta para cada uno sin mover un objeto.
+   */
+  FILE_STORAGE_MINIO_KEY_PREFIX: z.string().default('files'),
 
   FILE_UPLOAD_MAX_BYTES: z.coerce
     .number()
@@ -32,6 +70,7 @@ export const filesEnvShape = {
   FILE_UPLOAD_ALLOWED_MIME_TYPES: z.string().min(1).default('image/jpeg,image/png,application/pdf'),
   FILE_UPLOAD_URL_TTL_SECONDS: z.coerce.number().int().positive().max(3600).default(300),
 
+  // Sólo se leen con `FILE_STORAGE_ADAPTER=local`.
   FILE_STORAGE_LOCAL_ROOT: z.string().min(1).default('var/files'),
   FILE_STORAGE_LOCAL_BASE_URL: z.string().url().default('http://localhost:3005/api/v1/files'),
 

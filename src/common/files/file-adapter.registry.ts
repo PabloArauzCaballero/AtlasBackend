@@ -7,6 +7,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { FileAdapterConfigService } from './file-adapter-config.service.js';
 import { MulterIngestAdapter } from './ingest/multer-ingest.adapter.js';
 import { LocalFileStorageAdapter } from './storage/local-file-storage.adapter.js';
+import { MinioFileStorageAdapter } from './storage/minio-file-storage.adapter.js';
 import type { FileIngestAdapter, FileStorageAdapter } from './file-storage.types.js';
 
 /**
@@ -27,20 +28,27 @@ export class FileAdapterRegistry implements OnModuleInit {
 
   constructor(
     private readonly config: FileAdapterConfigService,
+    minio: MinioFileStorageAdapter,
     local: LocalFileStorageAdapter,
     multer: MulterIngestAdapter,
   ) {
-    this.storageAdapters = [local];
+    this.storageAdapters = [minio, local];
     this.ingestAdapters = [multer];
   }
 
   onModuleInit(): void {
     const storage = this.resolveStorage();
     if (!storage.isConfigured()) {
-      throw new Error(
-        `El adaptador de almacenamiento de archivos "${storage.name}" está seleccionado pero le falta configuración. ` +
-          'Revisa las variables FILE_STORAGE_* en tu entorno.',
-      );
+      // El mensaje nombra las variables porque `minio` es el DEFECTO: quien no declaró nada llega
+      // aquí sin saber que eligió un almacén, y «falta configuración» a secas lo mandaría a buscar
+      // en el archivo equivocado.
+      const hint =
+        storage.name === 'minio'
+          ? 'Declara STORAGE_S3_ENDPOINT, STORAGE_S3_BUCKET, STORAGE_S3_ACCESS_KEY_ID y STORAGE_S3_SECRET_ACCESS_KEY ' +
+            '(o sus equivalentes FILE_STORAGE_MINIO_*). Si de verdad querías el disco del contenedor —que se pierde en ' +
+            'cada despliegue— escribe FILE_STORAGE_ADAPTER=local de forma explícita.'
+          : 'Revisa las variables FILE_STORAGE_LOCAL_* en tu entorno.';
+      throw new Error(`El adaptador de almacenamiento de archivos "${storage.name}" está seleccionado pero le falta configuración. ${hint}`);
     }
 
     const unverifiable = this.config.getUnverifiableMimeTypes();

@@ -15,7 +15,17 @@
  * destino, que es justo lo que esta división evita.
  */
 export type FileIngestAdapterName = 'multer';
-export type FileStorageAdapterName = 'local';
+
+/**
+ * `minio` es el almacén POR DEFECTO desde 2026-09-03, y `local` pasó a ser la excepción explícita.
+ *
+ * El motivo no es preferencia de tecnología sino durabilidad: el disco que veía el adaptador local
+ * es el del CONTENEDOR, y en un despliegue por Coolify cada publicación crea uno nuevo. «Guardado»
+ * significaba entonces «guardado hasta el próximo despliegue», y para la cara de una persona y su
+ * cédula eso no es guardar. `local` sigue existiendo para pruebas y para un operador que
+ * deliberadamente monte un volumen, pero hay que pedirlo por su nombre.
+ */
+export type FileStorageAdapterName = 'minio' | 'local';
 
 /**
  * Archivo tal como entra al proceso, ya normalizado por el adaptador de ingesta.
@@ -93,7 +103,7 @@ export type UploadTicketInput = {
 
 /**
  * Puerto de almacenamiento. Añadir Cloudinary es implementar esta interfaz y sumar su nombre a
- * `FileStorageAdapterName`; nada más del sistema cambia.
+ * `FileStorageAdapterName`; nada más del sistema cambia. Así se añadió `minio`.
  */
 export interface FileStorageAdapter {
   readonly name: FileStorageAdapterName;

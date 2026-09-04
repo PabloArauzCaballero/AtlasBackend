@@ -221,6 +221,17 @@ x-atlas-env: &atlas-env
   STORAGE_S3_FORCE_PATH_STYLE: '${STORAGE_S3_FORCE_PATH_STYLE:-true}'
   STORAGE_UPLOAD_URL_TTL_SECONDS: '${STORAGE_UPLOAD_URL_TTL_SECONDS:-300}'
 
+  # --- Servicio de archivos por adaptadores (src/common/files) --------------------------------
+  # `minio` es el defecto del esquema; se declara igualmente para que el compose diga en voz alta
+  # dónde acaban los archivos. Con `local` escribirían en el disco del contenedor, que Coolify
+  # destruye en cada publicación — «guardado» hasta el próximo despliegue.
+  #
+  # No lleva credenciales propias: el servicio cae a las STORAGE_S3_* de arriba, porque hay UN solo
+  # MinIO por entorno. Lo único suyo es el prefijo dentro del bucket compartido.
+  FILE_INGEST_ADAPTER: '${FILE_INGEST_ADAPTER:-multer}'
+  FILE_STORAGE_ADAPTER: '${FILE_STORAGE_ADAPTER:-minio}'
+  FILE_STORAGE_MINIO_KEY_PREFIX: '${FILE_STORAGE_MINIO_KEY_PREFIX:-files}'
+
   # --- Correo: es el canal que entrega el PIN del segundo factor -----------------------------
   # Sin canal de correo, `AuthSecondFactorService.isRequired` devuelve false y el login interno
   # pide un solo factor SIN decirlo en ninguna parte. Rechaza la cadena vacía.
@@ -407,14 +418,84 @@ services:
         limits:
           memory: 768m
 
+  # -------------------------------------------------------------------------------------------
+  # MinIO: el ÚNICO sitio donde los archivos de Atlas sobreviven a un despliegue.
+  #
+  # Aquí acaban la cara del cliente, las dos caras de su carnet, los extractos y todo lo que
+  # escriba el servicio de archivos por adaptadores. El volumen `minio-data` es lo que hace que
+  # eso sea cierto: el disco del contenedor de la API se destruye en cada publicación de Coolify.
+  #
+  # ## Las tres cosas que estaban mal y por qué ninguna se veía
+  #
+  # 1. `MINIO_ROOT_USER`/`PASSWORD` llegaban VACÍAS. MinIO no falla por eso: arranca con
+  #    `minioadmin:minioadmin` y lo dice en una línea de WARN entre veinte de banner. La llave que
+  #    usaba el backend no existía, así que cada subida moría con 403 `InvalidAccessKeyId` — un
+  #    error del ALMACÉN, que el alta traduce a «no podemos recibir documentos».
+  # 2. `MINIO_BUCKET` (`atlas`) y `STORAGE_S3_BUCKET` (`atlas-evidence`) eran distintos. El job de
+  #    creación creaba uno y el backend escribía en el otro: 404 `NoSuchBucket`.
+  # 3. `STORAGE_S3_PUBLIC_ENDPOINT` apuntaba a `http://<ip>:9000`, un puerto que este archivo
+  #    NUNCA publicó. Las URLs prefirmadas que recibía el teléfono eran correctas y no las podía
+  #    abrir nadie.
+  #
+  # Las tres son de configuración, no de código, y las tres producen el mismo síntoma en pantalla.
+  # Por eso el `minio-bucket` de abajo ahora VERIFICA con las credenciales del backend en vez de
+  # dar por bueno que existen.
+  # -------------------------------------------------------------------------------------------
   minio:
     <<: *common
     image: minio/minio:RELEASE.2024-09-13T20-26-02Z
     command: server /data --console-address ":9001"
     environment:
+      # `:?` para que un valor ausente pare el despliegue. No basta con declararlo: la variable
+      # llegaba PRESENTE Y VACÍA desde Coolify, y `:?` sólo dispara con la ausente. Por eso el job
+      # de abajo comprueba además que la llave del backend funcione de verdad.
       MINIO_ROOT_USER: '${MINIO_ROOT_USER:?}'
       MINIO_ROOT_PASSWORD: '${MINIO_ROOT_PASSWORD:?}'
+    # Alias ESTABLE en la red compartida: es como lo encuentran el motor y el ERP, que viven en
+    # otros compose. `minio` a secas no vale ahí —es un nombre que cualquier proyecto puede
+    # reclamar, y ya pasó con `redis`—; dentro de este compose el nombre del servicio sigue siendo
+    # `minio`, que es lo que resuelven la API y el worker.
+    networks:
+      default: {}
+      coolify:
+        aliases: ['atlas-minio']
+    # -----------------------------------------------------------------------------------------
+    # Publicación por el proxy de Coolify, para que el NAVEGADOR pueda abrir las URLs prefirmadas.
+    #
+    # NO se publica un puerto del host, y no es una preferencia: Coolify crea un contenedor NUEVO
+    # en cada despliegue, así que un puerto fijo lo sigue sujetando el viejo y el nuevo muere con
+    # `address already in use`. Es la misma razón por la que ningún otro servicio de este archivo
+    # publica puertos.
+    #
+    # ## Por qué comparte el dominio del portal en vez de tener el suyo
+    #
+    # Con `forcePathStyle`, TODA URL de objeto empieza por `/<bucket>/`, así que un `PathPrefix`
+    # con el nombre del bucket separa el tráfico de MinIO del portal sin ambigüedad — y Traefik da
+    # más prioridad a la regla más larga, así que gana sobre el `PathPrefix('/')` del portal sin
+    # tener que declararla.
+    #
+    # Y tiene una ventaja que un dominio propio no da: el navegador que sube el carnet ya está en
+    # ese origen, así que el PUT prefirmado es UNA PETICIÓN DEL MISMO ORIGEN. Con un dominio
+    # aparte haría falta configurar CORS en MinIO, y un preflight rechazado se ve en pantalla como
+    # «no se pudo subir el documento» sin mencionar el origen por ninguna parte.
+    #
+    # `MINIO_PUBLIC_HOST` es una variable para que mover esto a su propio dominio el día que haga
+    # falta sea cambiar un valor, no editar este archivo. Tiene que coincidir con el host de
+    # `STORAGE_S3_PUBLIC_ENDPOINT`, que es lo que se firma.
+    # -----------------------------------------------------------------------------------------
+    labels:
+      traefik.enable: 'true'
+      # La red por la que Traefik alcanza este contenedor. Sin esto elige una cualquiera de las que
+      # ocupa y el enrutado falla de forma intermitente.
+      traefik.docker.network: coolify
+      traefik.http.routers.atlas-minio.rule: 'Host(`${MINIO_PUBLIC_HOST:?}`) && PathPrefix(`/${STORAGE_S3_BUCKET:-atlas-evidence}`)'
+      traefik.http.routers.atlas-minio.entryPoints: http
+      traefik.http.services.atlas-minio.loadbalancer.server.port: '9000'
+      # Sin `gzip`: los objetos son JPEG y PNG, ya comprimidos. Comprimirlos otra vez gasta CPU
+      # para crecer unos bytes, y además alteraría un cuerpo cuya integridad se comprueba por hash.
     expose: ['9000']
+    # La consola SÓLO en el bucle local: es una pantalla de administración con las llaves del
+    # bucket detrás, y publicarla por el túnel la dejaría a un formulario de distancia de todo.
     ports: ['127.0.0.1:9001:9001']
     volumes: ['minio-data:/data']
     healthcheck:
@@ -423,20 +504,44 @@ services:
       timeout: 5s
       retries: 20
 
+  # Job de UN SOLO DISPARO: prepara el bucket y COMPRUEBA que el backend puede escribir en él.
+  #
+  # La comprobación es la parte nueva y es el motivo de que este job exista tal como está. Antes
+  # sólo creaba el bucket con las credenciales de root, y eso pasaba con las tres averías del VPS
+  # intactas: root funcionaba, el backend no, y nadie se enteraba hasta que un cliente intentaba
+  # subir su carnet. Ahora el despliegue no sale si la llave que usa el backend no puede escribir.
   minio-bucket:
     image: minio/mc:RELEASE.2024-09-16T17-43-14Z
     environment:
       MINIO_ROOT_USER: '${MINIO_ROOT_USER:?}'
       MINIO_ROOT_PASSWORD: '${MINIO_ROOT_PASSWORD:?}'
-      MINIO_BUCKET: '${MINIO_BUCKET:-atlas}'
+      # El MISMO bucket que escribe el backend. Eran dos nombres distintos y el resultado era un
+      # 404 en cada subida; el default cae a `STORAGE_S3_BUCKET` para que no puedan divergir otra
+      # vez por olvidar una variable.
+      # El MISMO valor que `STORAGE_S3_BUCKET`. Se declaran las dos porque Coolify no resuelve una
+      # referencia cruzada entre claves —la deja literal, como ya pasó con las credenciales de S3—
+      # y el job de abajo comprueba que el backend puede escribir, que es lo que detecta la
+      # divergencia si alguien cambia sólo una.
+      MINIO_BUCKET: '${MINIO_BUCKET:-atlas-evidence}'
+      STORAGE_S3_ACCESS_KEY_ID: '${STORAGE_S3_ACCESS_KEY_ID:-atlasminio}'
+      STORAGE_S3_SECRET_ACCESS_KEY: '${STORAGE_S3_SECRET_ACCESS_KEY:?}'
     depends_on:
       minio: { condition: service_healthy }
     entrypoint:
       - /bin/sh
       - -c
       - >
-        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" &&
-        mc mb --ignore-existing "local/$${MINIO_BUCKET}" && echo 'bucket listo'
+        set -e;
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}";
+        mc mb --ignore-existing "local/$${MINIO_BUCKET}";
+        echo "bucket $${MINIO_BUCKET} listo";
+        mc alias set app http://minio:9000 "$${STORAGE_S3_ACCESS_KEY_ID}" "$${STORAGE_S3_SECRET_ACCESS_KEY}"
+        || { echo "FALLO: la llave del backend ($${STORAGE_S3_ACCESS_KEY_ID}) no existe en MinIO.
+        Igualala a MINIO_ROOT_USER/MINIO_ROOT_PASSWORD o crea el usuario."; exit 1; };
+        echo prueba | mc pipe "app/$${MINIO_BUCKET}/.despliegue/verificacion" > /dev/null
+        || { echo "FALLO: la llave del backend no puede ESCRIBIR en $${MINIO_BUCKET}."; exit 1; };
+        mc rm "app/$${MINIO_BUCKET}/.despliegue/verificacion" > /dev/null;
+        echo "verificado: el backend puede escribir en $${MINIO_BUCKET}"
     restart: 'no'
 
 volumes:
