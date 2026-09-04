@@ -16,27 +16,38 @@ import path from 'node:path';
  */
 const MODELS_DIR = path.join(__dirname, '../../../src/database/models');
 
-function modelFiles(): string[] {
-  return readdirSync(MODELS_DIR).filter((name) => name.endsWith('.model.ts'));
-}
-
-/** La columna de marca temporal declarada obligatoria, si la hay. */
-function declaraTimestampObligatorio(source: string, field: 'created_at' | 'updated_at'): boolean {
-  return new RegExp(`field: '${field}'[^}]*allowNull: true`).test(source)
-    ? false
-    : new RegExp(`field: '${field}'`).test(source);
+/**
+ * El alcance es la familia `created_at` SIN prefijo, no todos los modelos.
+ *
+ * Las ~180 tablas históricas usan `_created_at` y sus repositorios escriben la marca a mano en
+ * cada insert; esa convención funciona y no se toca aquí. Lo que se vigila es la familia nueva,
+ * donde la marca la gestiona el ORM: mezclar las dos —columna obligatoria en el modelo y relleno
+ * en el `save()`— es exactamente lo que impide que la fila salga del proceso.
+ */
+function modelosConMarcaGestionada(): string[] {
+  return readdirSync(MODELS_DIR)
+    .filter((name) => name.endsWith('.model.ts'))
+    .filter((name) => /field: 'created_at'/.test(readFileSync(path.join(MODELS_DIR, name), 'utf8')));
 }
 
 describe('modelos: marcas de tiempo', () => {
-  it('ningún modelo declara created_at obligatoria sin dejar que el ORM la rellene', () => {
-    const rotos = modelFiles().filter((name) => {
+  it('nadie declara created_at obligatoria y a la vez deja que la ponga el ORM', () => {
+    // Las dos cosas juntas se anulan: la validación corre ANTES del `save()` que rellena la marca.
+    const rotos = modelosConMarcaGestionada().filter((name) => {
       const source = readFileSync(path.join(MODELS_DIR, name), 'utf8');
-      if (!declaraTimestampObligatorio(source, 'created_at')) return false;
-      // Vale cualquiera de las dos salidas: que el ORM ponga la marca (`@CreatedAt`) o que el
-      // repositorio la escriba a mano de forma explícita (`timestamps: false` + valor en el insert).
+      const obligatoria = /@Column\(\{ field: 'created_at'[^}]*allowNull: false/.test(source);
+      return obligatoria && /@CreatedAt/.test(source);
+    });
+    expect(rotos).toEqual([]);
+  });
+
+  it('o la pone el ORM, o la escribe el repositorio: nunca ninguna de las dos', () => {
+    const rotos = modelosConMarcaGestionada().filter((name) => {
+      const source = readFileSync(path.join(MODELS_DIR, name), 'utf8');
       const ormLaPone = /@CreatedAt/.test(source);
-      const timestampsApagados = /timestamps: false/.test(source);
-      return !ormLaPone && !timestampsApagados;
+      const obligatoria = /@Column\(\{ field: 'created_at'[^}]*allowNull: false/.test(source);
+      // Si no la pone el ORM, la columna debe ser obligatoria para que se note al olvidarla.
+      return !ormLaPone && !obligatoria;
     });
     expect(rotos).toEqual([]);
   });

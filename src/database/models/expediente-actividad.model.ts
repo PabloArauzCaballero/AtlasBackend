@@ -35,7 +35,7 @@ export class ExpedienteActividadModel extends Model {
   @Column({ field: 'ip', type: DataType.STRING(64) })
   declare ip: string | null;
 
-  @Column({ field: 'detalle', type: DataType.JSONB, allowNull: false })
+  @Column({ field: 'detalle', type: DataType.JSONB, allowNull: false, defaultValue: {} })
   declare detalle: Record<string, unknown>;
 
 
@@ -46,7 +46,14 @@ export class ExpedienteActividadModel extends Model {
    * validación del ORM rechaza el INSERT antes de enviarlo y el defecto de la base no llega a
    * usarse. `updatedAt: false` es lo que impide que el ORM invente una columna que no existe.
    */
+  /*
+   * Sin `allowNull: false`: la marca la pone el ORM en el `save()`, DESPUÉS de validar.
+   *
+   * Declararla obligatoria aquí no añade ninguna garantía —el NOT NULL está en la tabla, que es
+   * donde vale— y sí rompe la inserción: la validación corre antes de que Sequelize rellene la
+   * columna, así que la fila se rechaza en el proceso y el INSERT nunca sale.
+   */
   @CreatedAt
-  @Column({ field: 'created_at', type: DataType.DATE, allowNull: false })
+  @Column({ field: 'created_at', type: DataType.DATE })
   declare createdAtValue: Date;
 }

@@ -56,17 +56,17 @@ export class ExpedienteNodoModel extends Model {
   @Column({ field: 'engine_request_id', type: DataType.STRING(64) })
   declare engineRequestId: string | null;
 
-  @Column({ field: 'objeto_ausente', type: DataType.BOOLEAN, allowNull: false })
+  @Column({ field: 'objeto_ausente', type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
   declare objetoAusente: boolean;
 
   /** Se compone desde la base al pedirlo; no tiene objeto en el almacén. Ver la migración. */
-  @Column({ field: 'virtual', type: DataType.BOOLEAN, allowNull: false })
+  @Column({ field: 'virtual', type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
   declare virtual: boolean;
 
-  @Column({ field: 'inmutable', type: DataType.BOOLEAN, allowNull: false })
+  @Column({ field: 'inmutable', type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
   declare inmutable: boolean;
 
-  @Column({ field: 'creado_por_tipo', type: DataType.STRING(20), allowNull: false })
+  @Column({ field: 'creado_por_tipo', type: DataType.STRING(20), allowNull: false, defaultValue: 'system' })
   declare creadoPorTipo: string;
 
   @Column({ field: 'creado_por_id', type: DataType.BIGINT })
@@ -85,12 +85,19 @@ export class ExpedienteNodoModel extends Model {
    * tocaba nadie, así que la columna «Modificado» de la pantalla habría mostrado para siempre la
    * fecha de creación.
    */
+  /*
+   * Sin `allowNull: false`: la marca la pone el ORM en el `save()`, DESPUÉS de validar.
+   *
+   * Declararla obligatoria aquí no añade ninguna garantía —el NOT NULL está en la tabla, que es
+   * donde vale— y sí rompe la inserción: la validación corre antes de que Sequelize rellene la
+   * columna, así que la fila se rechaza en el proceso y el INSERT nunca sale.
+   */
   @CreatedAt
-  @Column({ field: 'created_at', type: DataType.DATE, allowNull: false })
+  @Column({ field: 'created_at', type: DataType.DATE })
   declare createdAtValue: Date;
 
   @UpdatedAt
-  @Column({ field: 'updated_at', type: DataType.DATE, allowNull: false })
+  @Column({ field: 'updated_at', type: DataType.DATE })
   declare updatedAtValue: Date;
 
   @Column({ field: 'borrado_en', type: DataType.DATE })
