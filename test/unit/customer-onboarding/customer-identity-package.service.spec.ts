@@ -67,6 +67,9 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
       providerVerificationService as never,
       eligibilityService as never,
       evidenceVerification,
+      // El expediente es un gancho tolerante a fallos: corre después del commit y no cambia el
+      // resultado del envío, así que aquí basta con que no haga nada.
+      { alRegistrarEvidencia: jest.fn() } as never,
       sequelize as never,
     );
     return {

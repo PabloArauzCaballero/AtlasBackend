@@ -40,9 +40,11 @@ import { SupportModule } from './modules/support/support.module.js';
 import { LoanPaymentClaimsModule } from './modules/loan-payment-claims/loan-payment-claims.module.js';
 import { LoansModule } from './modules/loans/loans.module.js';
 import { CustomerOnboardingModule } from './modules/customer-onboarding/customer-onboarding.module.js';
+import { ExpedientesModule } from './modules/expedientes/expedientes.module.js';
 import { MobileIdentityModule } from './modules/mobile-identity/mobile-identity.module.js';
 import { MobileWelcomeAudioModule } from './modules/mobile-welcome-audio/mobile-welcome-audio.module.js';
 import { PartnerOnboardingModule } from './modules/partner-onboarding/partner-onboarding.module.js';
+import { CustomerDeviceSignalsModule } from './modules/customer-device-signals/customer-device-signals.module.js';
 import { CustomerPrivacyModule } from './modules/customer-privacy/customer-privacy.module.js';
 import { CustomerTelemetryModule } from './modules/customer-telemetry/customer-telemetry.module.js';
 import { CustomersModule } from './modules/customers/customers.module.js';
@@ -101,6 +103,7 @@ import { env } from './config/env.js';
     MerchantIdentityModule,
     CustomersModule,
     CustomerOnboardingModule,
+    ExpedientesModule,
     MobileIdentityModule,
     MobileWelcomeAudioModule,
     PartnerOnboardingModule,
@@ -110,6 +113,7 @@ import { env } from './config/env.js';
     LoanPaymentClaimsModule,
     SupportModule,
     CreditRatingModule,
+    CustomerDeviceSignalsModule,
     CustomerPrivacyModule,
     CustomerTelemetryModule,
     ConsentsModule,

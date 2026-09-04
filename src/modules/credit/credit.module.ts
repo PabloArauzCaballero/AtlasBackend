@@ -5,6 +5,7 @@
  */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import {
   BankStatementReviewModel,
   CreditApplicationEventModel,
@@ -50,6 +51,7 @@ import { CreditRepository } from './credit.repository.js';
  */
 @Module({
   imports: [
+    ExpedientesModule,
     SequelizeModule.forFeature([
       CreditProductModel,
       CreditApplicationModel,

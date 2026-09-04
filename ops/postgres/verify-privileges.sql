@@ -16,7 +16,7 @@ ORDER BY rolname;
 WITH schemas(schema_name) AS (
   VALUES ('iam'), ('credit'), ('customer'), ('privacy'), ('telemetry'), ('catalog'), ('risk'),
          ('case_management'), ('audit'), ('integrations'), ('messaging'), ('platform_ops'),
-         ('partner'), ('support')
+         ('partner'), ('support'), ('expedientes')
 )
 SELECT schema_name,
        has_schema_privilege('atlas_app_rw', schema_name, 'USAGE') AS rw_usage,
@@ -32,7 +32,7 @@ SELECT schemaname,
        count(*) FILTER (WHERE has_table_privilege('atlas_app_rw', format('%I.%I', schemaname, tablename), 'TRUNCATE')) AS rw_truncate_should_be_0,
        count(*) FILTER (WHERE has_table_privilege('atlas_app_ro', format('%I.%I', schemaname, tablename), 'SELECT')) AS ro_select_should_be_0
 FROM pg_tables
-WHERE schemaname IN ('iam','credit','customer','privacy','telemetry','catalog','risk','case_management','audit','integrations','messaging','platform_ops','partner','support')
+WHERE schemaname IN ('iam','credit','customer','privacy','telemetry','catalog','risk','case_management','audit','integrations','messaging','platform_ops','partner','support','expedientes')
 GROUP BY schemaname
 ORDER BY schemaname;
 

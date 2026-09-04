@@ -26,10 +26,17 @@ ticket firmado ──▶ el cliente sube ──────┘        │
 ### Adaptadores disponibles
 
 - **Ingesta:** `multer` (multipart a través de la API, bytes en memoria).
-- **Almacén:** `local` (disco del nodo).
+- **Almacén:** `minio` **(por defecto)** — cualquier almacén compatible con S3; `local` (disco del
+  nodo), sólo para desarrollo.
 
-Cloudinary y S3 se suman implementando `FileStorageAdapter` y añadiendo su nombre al enum de
-[`env.files.schema.ts`](../../src/config/env.files.schema.ts). Ningún consumidor cambia.
+El valor de serie es `minio` a propósito. Antes lo era `local`, y un despliegue que olvidara
+declarar la variable guardaba el carnet y la selfie de una persona en el disco de un contenedor:
+se perdían en el siguiente despliegue, sin error y sin aviso. Que el defecto sea el almacén durable
+convierte ese olvido en una configuración incompleta que falla al arrancar, en vez de en una
+pérdida de datos que nadie nota hasta que hace falta el documento.
+
+Cloudinary u otro destino se suman implementando `FileStorageAdapter` y añadiendo su nombre al enum
+de [`env.files.schema.ts`](../../src/config/env.files.schema.ts). Ningún consumidor cambia.
 
 ## Toda la verificación vive en un solo sitio
 
@@ -89,7 +96,7 @@ Este módulo es una vía **alterna y aditiva**, no un reemplazo.
 
 ```dotenv
 FILE_INGEST_ADAPTER=multer
-FILE_STORAGE_ADAPTER=local
+FILE_STORAGE_ADAPTER=minio
 FILE_UPLOAD_MAX_BYTES=15728640
 FILE_UPLOAD_MAX_FILES=5
 FILE_UPLOAD_ALLOWED_MIME_TYPES=image/jpeg,image/png,application/pdf
@@ -119,7 +126,34 @@ async upload(@UploadedFile() file: unknown, @CurrentUser() user: AuthenticatedUs
 `storeOrThrow` traduce cada rechazo a su excepción HTTP (413, 415 o 400). `store` devuelve la unión
 discriminada si el llamador prefiere decidir por su cuenta.
 
+## Sobre este servicio: el expediente
+
+Un archivo guardado no es todavía un expediente. `FileService` responde «¿esto se puede guardar y
+dónde quedó?»; no responde «¿de quién es?», «¿quién puede verlo?» ni «¿quién lo abrió?». Esas tres
+las contesta [`src/modules/expedientes/`](../../src/modules/expedientes/), que se apoya en este
+servicio para los bytes y añade encima:
+
+- un **árbol por sujeto** con ruta materializada (`expediente_nodos`), donde el onboarding deja lo
+  que sube el cliente ya ordenado en `auth` y `extractos`;
+- **autorización por carpeta** (`expediente_concesiones`), heredada hacia abajo, que es lo que
+  `@Roles(...)` no sabe expresar: «este analista, esta carpeta, por este motivo»;
+- una **bitácora append-only** (`expediente_actividad`) que incluye las LECTURAS, no sólo los
+  cambios — en una carpeta con la cara y el carnet de alguien, «quién lo abrió» es la pregunta que
+  se hace después;
+- un **manifiesto firmado** al enviarse la solicitud: la foto de qué había en ese momento.
+
+El expediente **nunca guarda datos que ya vivan en la base**. Los contactos y las referencias de una
+persona se componen al pedirlos y se enmascaran salvo permiso explícito; escribirlos como un JSON en
+el almacén habría creado una segunda copia de datos personales que envejece sola, que no responde a
+una rectificación y que hay que acordarse de borrar aparte.
+
+Detalle operativo en [`docs/operations/expedientes.md`](../operations/expedientes.md) y la decisión
+en [ADR-0010](../adr/0010-expediente-de-archivos-por-sujeto.md).
+
 ## Pruebas
 
 `test/unit/files/` — 57 pruebas: firma y verificación de tickets, guardia anti-traversal, traducción
 de multer, y la cadena completa de verificación del servicio.
+
+`test/unit/expedientes/` — 27 pruebas: la escala de niveles, la resolución de acceso efectivo
+(herencia, revocación y los dos techos) y las reglas del árbol.

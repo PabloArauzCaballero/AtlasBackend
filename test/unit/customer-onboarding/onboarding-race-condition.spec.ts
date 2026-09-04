@@ -42,10 +42,20 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
       authService as never,
       guardsService as never,
       { resolveDeviceAndLink: asyncMock(), createOnboardingSession: asyncMock(), captureDeviceSnapshotIfProvided: asyncMock() } as never,
+      // El expediente es un gancho tolerante a fallos: no participa en la transacción ni cambia
+      // el resultado del alta, así que en estas pruebas basta con que no haga nada.
       sequelize as never,
     );
 
-    const service = new CustomerOnboardingService(startService, {} as never, {} as never, {} as never);
+        // El expediente lo abre la FACHADA después del alta, no el servicio transaccional: es un
+    // gancho tolerante a fallos y no puede tumbar un registro ya comprometido.
+    const service = new CustomerOnboardingService(
+      startService,
+      {} as never,
+      {} as never,
+      {} as never,
+      { alIniciarOnboarding: asyncMock() } as never,
+    );
 
     return { service, customersRepository, sequelize };
   }

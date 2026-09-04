@@ -455,6 +455,59 @@ export const INTERNAL_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
     riskLevel: 'HIGH',
     requiresReason: true,
   }),
+  /*
+   * El EXPEDIENTE de una persona: sus archivos, con quién puede verlos.
+   *
+   * Cinco permisos y no uno solo porque las cuatro cosas que se pueden hacer con la carpeta de
+   * evidencia de alguien tienen consecuencias muy distintas. Leer un carnet es parte del trabajo de
+   * quien revisa; AMPLIAR quién más puede verlo es una decisión sobre datos de un tercero, y por eso
+   * `compartir` y `administrar` exigen motivo escrito. `pii.revelar` va aparte de los cuatro niveles
+   * porque no es un grado más: es la diferencia entre ver el teléfono de una referencia enmascarado
+   * y verlo entero, y esa línea la cruza poca gente.
+   */
+  permission({
+    code: 'expedientes.leer',
+    module: 'expedientes',
+    resource: 'expediente',
+    action: 'read',
+    description: 'Ver el árbol de un expediente, abrir sus archivos y su actividad.',
+    riskLevel: 'MEDIUM',
+  }),
+  permission({
+    code: 'expedientes.escribir',
+    module: 'expedientes',
+    resource: 'expediente',
+    action: 'write',
+    description: 'Subir, crear carpetas, renombrar, mover y enviar a la papelera.',
+    riskLevel: 'HIGH',
+  }),
+  permission({
+    code: 'expedientes.compartir',
+    module: 'expedientes',
+    resource: 'expediente',
+    action: 'share',
+    description: 'Conceder y revocar acceso a carpetas y archivos de un expediente.',
+    riskLevel: 'HIGH',
+    requiresReason: true,
+  }),
+  permission({
+    code: 'expedientes.administrar',
+    module: 'expedientes',
+    resource: 'expediente',
+    action: 'admin',
+    description: 'Purgar la papelera, congelar y conceder administración de un expediente.',
+    riskLevel: 'CRITICAL',
+    requiresReason: true,
+  }),
+  permission({
+    code: 'expedientes.pii.revelar',
+    module: 'expedientes',
+    resource: 'expediente_pii',
+    action: 'reveal',
+    description: 'Ver sin enmascarar los contactos y referencias del expediente.',
+    riskLevel: 'CRITICAL',
+    requiresReason: true,
+  }),
 ];
 
 const codeStartsWith = (prefix: string): string[] =>
@@ -492,6 +545,9 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   OPERATIONS_MANAGER: [
     'auth.internal.me.read',
+    'expedientes.leer',
+    'expedientes.escribir',
+    'expedientes.compartir',
     'systems.dashboard.read',
     'operations.catalogs.read',
     'operations.definitions.read',
@@ -501,20 +557,23 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'notifications.messages.read',
     'notifications.templates.read',
   ],
-  OPERATIONS_ANALYST: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read', 'catalog.data.read'],
-  RISK_MANAGER: ['auth.internal.me.read', 'operations.riskPolicy.read', 'catalog.data.read', 'reporting.read', 'audit.events.read'],
-  RISK_ANALYST: ['auth.internal.me.read', 'operations.riskPolicy.read', 'catalog.data.read'],
-  FRAUD_ANALYST: ['auth.internal.me.read', 'operations.catalogs.read', 'catalog.data.read', 'audit.events.read'],
+  OPERATIONS_ANALYST: ['auth.internal.me.read', 'expedientes.leer', 'expedientes.escribir', 'operations.catalogs.read', 'operations.definitions.read', 'catalog.data.read'],
+  RISK_MANAGER: ['auth.internal.me.read', 'expedientes.leer', 'expedientes.escribir', 'expedientes.compartir', 'operations.riskPolicy.read', 'catalog.data.read', 'reporting.read', 'audit.events.read'],
+  RISK_ANALYST: ['auth.internal.me.read', 'expedientes.leer', 'expedientes.escribir', 'operations.riskPolicy.read', 'catalog.data.read'],
+  FRAUD_ANALYST: ['auth.internal.me.read', 'expedientes.leer', 'expedientes.escribir', 'expedientes.pii.revelar', 'operations.catalogs.read', 'catalog.data.read', 'audit.events.read'],
   COMPLIANCE_MANAGER: [
     'auth.internal.me.read',
+    'expedientes.leer',
+    'expedientes.compartir',
+    'expedientes.pii.revelar',
     'governance.data.read',
     'governance.policies.read',
     'audit.events.read',
     'audit.events.detail',
     'reporting.read',
   ],
-  COMPLIANCE_ANALYST: ['auth.internal.me.read', 'governance.data.read', 'governance.policies.read', 'audit.events.read'],
-  COLLECTIONS_MANAGER: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read', 'reporting.read'],
+  COMPLIANCE_ANALYST: ['auth.internal.me.read', 'expedientes.leer', 'governance.data.read', 'governance.policies.read', 'audit.events.read'],
+  COLLECTIONS_MANAGER: ['auth.internal.me.read', 'expedientes.leer', 'operations.catalogs.read', 'operations.definitions.read', 'reporting.read'],
   COLLECTIONS_AGENT: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read'],
   FINANCE_MANAGER: ['auth.internal.me.read', 'reporting.read', 'reporting.execute', 'audit.events.read'],
   MERCHANT_OPERATIONS: [

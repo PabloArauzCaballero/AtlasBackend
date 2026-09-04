@@ -7,6 +7,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException, Unprocessab
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
+import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
@@ -31,6 +32,7 @@ export class CustomerIdentityPackageService {
     private readonly providerVerificationService: CustomerIdentityProviderVerificationService,
     private readonly eligibilityService: CustomerEligibilityService,
     private readonly evidenceVerification: IdentityEvidenceVerificationService,
+    private readonly expedienteHooks: ExpedienteHooksService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -236,6 +238,28 @@ export class CustomerIdentityPackageService {
         nextStep: assessment.nextStep,
       };
     });
+
+    /*
+     * El expediente se actualiza FUERA de la transacción y sin poder tumbarla.
+     *
+     * Los documentos ya quedaron guardados en `evidence_documents` y en el almacén; lo que se hace
+     * aquí es colocarlos en la carpeta que un revisor va a abrir. Dentro de la transacción, un
+     * fallo del catálogo habría deshecho un paquete KYC completo por un problema de presentación.
+     */
+    for (const evidencia of input.body.evidence) {
+      const verificada = verifiedEvidence.get(evidencia.storageKey);
+      await this.expedienteHooks.alRegistrarEvidencia({
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        documentType: evidencia.evidenceType,
+        evidenceDocumentId: null,
+        storageKey: evidencia.storageKey,
+        storageBucket: this.storageService.getBucket(),
+        sha256: verificada?.sha256Hex ?? evidencia.sha256Hash,
+        mimeType: evidencia.mimeType,
+        sizeBytes: String(verificada?.sizeBytes ?? 0),
+      });
+    }
 
     // Encadenamiento OPCIONAL de la verificación externa, fuera de la transacción a propósito: una
     // llamada HTTP a un proveedor dentro de una transacción mantendría locks abiertos durante toda

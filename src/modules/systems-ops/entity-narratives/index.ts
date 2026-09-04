@@ -13,6 +13,7 @@ import { DATA_NOTEBOOK_NARRATIVES } from './data-notebook.fixtures.js';
 import { CUSTOMER_IDENTITY_NARRATIVES } from './customer-identity.fixtures.js';
 import { DEVICE_INTELLIGENCE_NARRATIVES } from './device-intelligence.fixtures.js';
 import { EVIDENCE_NARRATIVES } from './evidence.fixtures.js';
+import { EXPEDIENTE_NARRATIVES } from './expedientes.fixtures.js';
 import { EXTERNAL_PROVIDER_NARRATIVES } from './external-providers.fixtures.js';
 import { FRAUD_REVIEW_NARRATIVES } from './fraud-review.fixtures.js';
 import { LOAN_BOOK_NARRATIVES } from './loan-book.fixtures.js';
@@ -33,6 +34,7 @@ export const ENTITY_BUSINESS_NARRATIVES: readonly EntityBusinessNarrative[] = [
   ...CUSTOMER_IDENTITY_NARRATIVES,
   ...PRIVACY_CONSENT_NARRATIVES,
   ...EVIDENCE_NARRATIVES,
+  ...EXPEDIENTE_NARRATIVES,
   ...DEVICE_INTELLIGENCE_NARRATIVES,
   ...ONBOARDING_BEHAVIOR_NARRATIVES,
   ...RISK_SCORING_NARRATIVES,

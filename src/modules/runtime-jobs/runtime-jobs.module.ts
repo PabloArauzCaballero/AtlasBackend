@@ -24,6 +24,7 @@ import { LoansModule } from '../loans/loans.module.js';
 import { EventsModule } from '../events/events.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { RuntimeJobsController } from './runtime-jobs.controller.js';
+import { ExpedientesJobsController } from './expedientes-jobs.controller.js';
 import { RuntimeJobsSchedulerService } from './runtime-jobs-scheduler.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
@@ -33,9 +34,11 @@ import { CreditLineRefreshService } from '../credit/application/credit-line-refr
 import { LoanDelinquencyService } from '../loans/application/loan-delinquency.service.js';
 import { OnboardingAbandonmentService } from '../customer-onboarding/application/onboarding-abandonment.service.js';
 import { buildScheduledJobs, SCHEDULED_JOBS } from './scheduled-jobs.catalog.js';
+import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 
 @Module({
   imports: [
+    ExpedientesModule,
     EventsModule,
     // El barrido de notificaciones atascadas (hallazgo A-03) reutiliza el MISMO orquestador que la
     // entrega normal, para que un reintento no pueda divergir del camino feliz.
@@ -61,7 +64,7 @@ import { buildScheduledJobs, SCHEDULED_JOBS } from './scheduled-jobs.catalog.js'
       TenantModel,
     ]),
   ],
-  controllers: [RuntimeJobsController],
+  controllers: [RuntimeJobsController, ExpedientesJobsController],
   providers: [
     JobRunRecorderService,
     RuntimeJobsService,

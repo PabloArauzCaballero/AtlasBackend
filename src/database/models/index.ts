@@ -34,6 +34,8 @@ export { ContactVerificationAttemptModel } from './contact-verification-attempts
 export { CustomerAddressModel } from './customer-addresses.model.js';
 export { CustomerAddressVersionModel } from './customer-address-versions.model.js';
 export { AddressGpsObservationModel } from './address-gps-observations.model.js';
+export { CustomerDeviceContactModel } from './customer-device-contacts.model.js';
+export { CustomerLocationPingModel } from './customer-location-pings.model.js';
 export { CustomerReferenceContactModel } from './customer-reference-contacts.model.js';
 export { CustomerEligibilityEvaluationModel } from './customer-eligibility-evaluations.model.js';
 export { CreditProductModel } from './credit-products.model.js';
@@ -184,3 +186,8 @@ export { SupportMessageRelationModel } from './support-message-relations.model.j
 export { SupportAttachmentModel } from './support-attachments.model.js';
 export { KnowledgeArticleModel } from './knowledge-articles.model.js';
 export { KnowledgeArticleVersionModel } from './knowledge-article-versions.model.js';
+export { ExpedienteModel } from './expedientes.model.js';
+export { ExpedienteNodoModel } from './expediente-nodos.model.js';
+export { ExpedienteConcesionModel } from './expediente-concesiones.model.js';
+export { ExpedienteActividadModel } from './expediente-actividad.model.js';
+export { ExpedienteTicketSubidaModel } from './expediente-tickets-subida.model.js';

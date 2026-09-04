@@ -25,7 +25,11 @@ DECLARE
     'partner',
     -- Motor de soporte: expediente, canal, transcripción y conocimiento. Sin este privilegio, la
     -- primera persona que pida ayuda recibe un 500 en el canal que existe justamente para eso.
-    'support'
+    'support',
+    -- El explorador de archivos del cliente: carpetas, permisos y bitácora. Sin el privilegio, el
+    -- alta se completa —los archivos siguen yendo al almacén— y quien revisa el caso abre una
+    -- carpeta que responde 500 «permission denied for schema expedientes».
+    'expedientes'
   ];
 BEGIN
   FOREACH schema_name IN ARRAY write_schemas LOOP

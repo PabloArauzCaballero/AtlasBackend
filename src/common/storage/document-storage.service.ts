@@ -162,6 +162,58 @@ export class DocumentStorageService {
     };
   }
 
+  /**
+   * Metadatos del objeto SIN traerse los bytes.
+   *
+   * Existe porque hay dos preguntas que no necesitan el contenido y hoy se pagaban descargándolo
+   * entero: «¿este objeto sigue ahí?» —la que hace el catálogo de expedientes por cada fila que
+   * rellena— y «¿cuánto pesa?». Sobre un carnet de 4 MB por cliente, resolverlas con `readObject`
+   * es mover gigabytes para leer una cabecera.
+   *
+   * `null` cuando el objeto no está; se distingue de un fallo del almacén, que sí lanza.
+   */
+  async headObject(storageKey: string): Promise<{ sizeBytes: number; contentType: string | null; etag: string | null } | null> {
+    if (!this.isConfigured()) return null;
+    const credentials = this.credentials();
+    const url = presignS3Url({ credentials, method: 'HEAD', objectKey: storageKey, expiresInSeconds: 60, now: new Date() });
+
+    const response = await fetch(url, { method: 'HEAD' });
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      this.logger.warn(`No se pudo consultar ${storageKey} en el almacenamiento (HTTP ${response.status}).`);
+      throw new ServiceUnavailableException('DOCUMENT_STORAGE_HEAD_FAILED');
+    }
+
+    const length = Number(response.headers.get('content-length'));
+    return {
+      sizeBytes: Number.isFinite(length) ? length : 0,
+      contentType: response.headers.get('content-type'),
+      etag: response.headers.get('etag'),
+    };
+  }
+
+  /**
+   * Borra un objeto. `true` si la orden se aceptó.
+   *
+   * Faltaba, y su ausencia no era un hueco teórico: el flujo de supresión de datos personales
+   * (`customer-privacy`) borraba las filas y **dejaba el carnet y la selfie en el bucket**. Un
+   * derecho de supresión que no alcanza a la imagen del documento de identidad no es una supresión.
+   *
+   * S3 responde 204 tanto si el objeto existía como si no —el borrado es idempotente por diseño—,
+   * así que `true` significa «ya no está», no «yo lo quité».
+   */
+  async deleteObject(storageKey: string): Promise<boolean> {
+    if (!this.isConfigured()) return false;
+    const credentials = this.credentials();
+    const url = presignS3Url({ credentials, method: 'DELETE', objectKey: storageKey, expiresInSeconds: 60, now: new Date() });
+
+    const response = await fetch(url, { method: 'DELETE' });
+    if (response.ok || response.status === 404) return true;
+
+    this.logger.warn(`No se pudo borrar ${storageKey} del almacenamiento (HTTP ${response.status}).`);
+    throw new ServiceUnavailableException('DOCUMENT_STORAGE_DELETE_FAILED');
+  }
+
   /** Contrasta lo declarado por el cliente contra el objeto realmente almacenado. */
   /**
    * Descarga el objeto para procesarlo dentro del backend.

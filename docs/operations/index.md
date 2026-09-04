@@ -6,6 +6,7 @@
 | Qué corre solo y dónde | [Procesamiento en segundo plano](../architecture/background-processing.md) |
 | Métricas, logs y alertas | [Observabilidad](../observability/overview.md) |
 | Variables de entorno | [Configuración](../config/environment.md) |
+| Archivos de un cliente: permisos, relleno, purga | [Expediente de archivos](expedientes.md) |
 
 ## Topología
 

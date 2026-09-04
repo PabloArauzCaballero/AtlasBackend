@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions } from 'sequelize';
 import { BankStatementReviewModel } from '../../../database/models/index.js';
 import type { StatementRun } from '../../decision-engine/bank-statement-engine.client.js';
+import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { CreditLineService } from './credit-line.service.js';
 
 /** Lo que se le promete a quien sube su extracto. Está aquí y no en la pantalla: es un compromiso. */
@@ -40,6 +41,7 @@ export class BankStatementService {
   constructor(
     @InjectModel(BankStatementReviewModel) private readonly reviews: typeof BankStatementReviewModel,
     private readonly creditLines: CreditLineService,
+    private readonly expedienteHooks: ExpedienteHooksService,
   ) {}
 
   /** La última revisión del cliente, abierta o no. Es lo que la app enseña como estado. */
@@ -70,7 +72,7 @@ export class BankStatementService {
     } as FindOptions);
     if (open) throw new ConflictException('BANK_STATEMENT_REVIEW_ALREADY_OPEN');
 
-    return this.reviews.create({
+    const review = await this.reviews.create({
       tenantId: input.tenantId,
       customerId: input.customerId,
       evidenceDocumentId: input.evidenceDocumentId ?? null,
@@ -81,6 +83,22 @@ export class BankStatementService {
       updatedAtValue: now,
       deleted: false,
     });
+
+    // El extracto aparece en la carpeta del cliente. El gancho no puede fallar hacia arriba: el
+    // compromiso de revisión ya quedó escrito, y perderlo por un problema del explorador de
+    // archivos sería cambiar una promesa al cliente por un detalle de presentación.
+    await this.expedienteHooks.alRegistrarEvidencia({
+      tenantId: input.tenantId,
+      customerId: input.customerId,
+      documentType: 'bank_statement',
+      evidenceDocumentId: input.evidenceDocumentId ?? null,
+      storageKey: input.storageKey,
+      storageBucket: null,
+      sha256: null,
+      mimeType: 'application/pdf',
+      sizeBytes: null,
+    });
+    return review;
   }
 
   /**

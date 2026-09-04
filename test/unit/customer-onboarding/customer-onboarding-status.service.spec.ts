@@ -76,6 +76,8 @@ describe('CustomerOnboardingStatusService', () => {
       eligibilityRiskRepository as never,
       lifecycleService as never,
       riskService as never,
+      // Ídem: congelar el expediente ocurre después del commit y no puede tumbar el envío.
+      { alEnviarOnboarding: jest.fn() } as never,
       sequelize as never,
     );
     return {

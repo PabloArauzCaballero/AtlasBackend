@@ -14,6 +14,7 @@ import { normalizeLifecycleStatus } from '../../customers/customer-lifecycle.con
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerEligibilityRepository } from '../../customers/repositories/customer-eligibility.repository.js';
 import { CustomerEligibilityRiskRepository } from '../../customers/repositories/customer-eligibility-risk.repository.js';
+import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { RiskService } from '../../risk/risk.service.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
@@ -46,6 +47,7 @@ export class CustomerOnboardingStatusService {
     private readonly eligibilityRiskRepository: CustomerEligibilityRiskRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly riskService: RiskService,
+    private readonly expedienteHooks: ExpedienteHooksService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -130,7 +132,7 @@ export class CustomerOnboardingStatusService {
 
     const now = new Date();
 
-    return this.sequelize.transaction(async (transaction) => {
+    const resultado = await this.sequelize.transaction(async (transaction) => {
       // Relectura DENTRO de la transacción: dos envíos concurrentes pasaban los dos el control de
       // arriba —la completitud se evaluaba fuera— y el segundo terminaba respondiendo
       // `INVALID_STATUS_TRANSITION`. Aquí el perdedor de la carrera recibe el mismo error de negocio
@@ -204,6 +206,23 @@ export class CustomerOnboardingStatusService {
         nextStep: evaluated.nextStep,
       };
     });
+
+    await this.congelarExpediente(input.tenantId, input.customerId);
+    return resultado;
+  }
+
+  /**
+   * Escribe el manifiesto y CONGELA el expediente, tras el commit del envío.
+   *
+   * Es lo que convierte la carpeta en evidencia citable: a partir de aquí, «esto es lo que el
+   * cliente envió» es una afirmación comprobable —el manifiesto va firmado— y no una foto de una
+   * carpeta que cualquiera con permiso de escritura pudo cambiar después.
+   *
+   * Fuera de la transacción por lo mismo que el resto de los ganchos: escribir un JSON en el
+   * almacén no puede deshacer el envío de un alta completa.
+   */
+  private async congelarExpediente(tenantId: string, customerId: string): Promise<void> {
+    await this.expedienteHooks.alEnviarOnboarding({ tenantId, customerId });
   }
 
   /**

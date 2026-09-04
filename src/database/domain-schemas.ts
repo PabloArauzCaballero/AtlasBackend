@@ -38,6 +38,19 @@ export const ATLAS_SCHEMAS = {
    * contratos, facturación) sigue viviendo en el ERP; aquí sólo la evidencia.
    */
   PARTNER: 'partner',
+  /**
+   * El EXPEDIENTE: los archivos de un sujeto, con su carpeta, sus permisos y su historia.
+   *
+   * Schema propio y no `privacy` —donde vive `evidence_documents`— porque son dos preguntas
+   * distintas sobre los mismos bytes. Allí se responde «¿qué evidencia declaró el cliente y
+   * coincide con lo que subió?»; aquí, «¿quién puede ver esta carpeta, quién la vio y qué había
+   * dentro el día que se decidió?». Mezclarlas habría atado la política de acceso de un
+   * explorador de archivos a la de la evidencia KYC, que es más estrecha por necesidad.
+   *
+   * Las tablas de aquí **referencian** objetos del almacén; no los poseen. Un mismo objeto puede
+   * estar apuntado por un nodo, por `evidence_documents` y por una ejecución del Motor.
+   */
+  EXPEDIENTES: 'expedientes',
 } as const;
 
 export type AtlasSchema = (typeof ATLAS_SCHEMAS)[keyof typeof ATLAS_SCHEMAS];
@@ -68,6 +81,15 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'customer_address_versions',
     'address_gps_observations',
     'customer_reference_contacts',
+    /**
+     * La agenda del telefono, guardada como fichas y no como cuentas.
+     *
+     * Vive junto a `customer_reference_contacts` y no en `telemetry` porque lo que hay dentro es
+     * PII de terceros —nombre, telefonos, correos—, no una medida de comportamiento. Compartir
+     * schema con las referencias hace que las dos hereden la misma politica de acceso: quien no
+     * puede leer una referencia declarada tampoco puede leer la agenda de la que salio.
+     */
+    'customer_device_contacts',
     'customer_eligibility_evaluations',
   ],
   [ATLAS_SCHEMAS.PRIVACY]: [
@@ -102,6 +124,14 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'onboarding_behavior_summaries',
     'on_device_computation_runs',
     'on_device_metric_values',
+    /**
+     * La serie temporal de posiciones del dispositivo.
+     *
+     * En `telemetry` y no en `customer`: es una observacion del dispositivo a lo largo del tiempo,
+     * hermana de `customer_sessions` y `device_snapshots`, y no un atributo declarado de la persona
+     * como su domicilio. La observacion puntual del domicilio sigue en `address_gps_observations`.
+     */
+    'customer_location_pings',
   ],
   [ATLAS_SCHEMAS.CATALOG]: [
     'context_sources',
@@ -206,6 +236,13 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'notification_deliveries',
     'user_notification_preferences',
     'device_tokens',
+  ],
+  [ATLAS_SCHEMAS.EXPEDIENTES]: [
+    'expedientes',
+    'expediente_nodos',
+    'expediente_concesiones',
+    'expediente_actividad',
+    'expediente_tickets_subida',
   ],
   [ATLAS_SCHEMAS.PLATFORM_OPS]: [
     'idempotency_keys',

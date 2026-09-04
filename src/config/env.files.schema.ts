@@ -70,6 +70,25 @@ export const filesEnvShape = {
   FILE_UPLOAD_ALLOWED_MIME_TYPES: z.string().min(1).default('image/jpeg,image/png,application/pdf'),
   FILE_UPLOAD_URL_TTL_SECONDS: z.coerce.number().int().positive().max(3600).default(300),
 
+  /**
+   * EXPEDIENTES: la carpeta de archivos de un sujeto, con permisos y bitácora.
+   *
+   * `EXPEDIENTES_ENABLED=false` deja los endpoints en 503 y apaga los ganchos del onboarding. Es la
+   * salida de emergencia: si el catálogo diera problemas, el alta sigue funcionando —los archivos
+   * se guardan igual, en `evidence_documents` y en el almacén— y sólo deja de haber explorador.
+   */
+  EXPEDIENTES_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
+  EXPEDIENTES_KEY_PREFIX: z.string().default('expedientes'),
+  EXPEDIENTES_UPLOAD_TICKET_TTL_SECONDS: z.coerce.number().int().positive().max(3600).default(600),
+  EXPEDIENTES_TRASH_RETENTION_DAYS: z.coerce.number().int().positive().max(3650).default(90),
+  // Topes del árbol: una profundidad sin límite hace irresoluble la herencia de permisos, y una
+  // carpeta con cien mil hijos convierte listarla en una descarga.
+  EXPEDIENTES_MAX_DEPTH: z.coerce.number().int().positive().max(32).default(8),
+  EXPEDIENTES_MAX_CHILDREN: z.coerce.number().int().positive().max(20000).default(2000),
+
   // Sólo se leen con `FILE_STORAGE_ADAPTER=local`.
   FILE_STORAGE_LOCAL_ROOT: z.string().min(1).default('var/files'),
   FILE_STORAGE_LOCAL_BASE_URL: z.string().url().default('http://localhost:3005/api/v1/files'),

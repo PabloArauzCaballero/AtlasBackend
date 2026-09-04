@@ -5,6 +5,7 @@
  */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import {
   AddressGpsObservationModel,
   AttributeDefinitionModel,
@@ -88,6 +89,7 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
 
 @Module({
   imports: [
+    ExpedientesModule,
     SequelizeModule.forFeature([
       OnboardingFlowModel,
       OnboardingStepEventModel,

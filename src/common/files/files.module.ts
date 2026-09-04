@@ -47,6 +47,9 @@ import { MinioFileStorageAdapter } from './storage/minio-file-storage.adapter.js
     FileAdapterRegistry,
     FileService,
   ],
-  exports: [FileService, FileAdapterRegistry, FilesConfigModule, MulterModule],
+  // `MinioFileStorageAdapter` se exporta además del servicio porque el módulo de expedientes
+  // necesita EMITIR tickets de subida y escribir objetos desde el servidor, y eso es una capacidad
+  // del almacén, no de la verificación. `FileService` sigue siendo la puerta para verificar.
+  exports: [FileService, FileAdapterRegistry, MinioFileStorageAdapter, FilesConfigModule, MulterModule],
 })
 export class FilesModule {}
