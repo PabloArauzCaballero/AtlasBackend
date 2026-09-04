@@ -479,16 +479,28 @@ services:
     # aparte haría falta configurar CORS en MinIO, y un preflight rechazado se ve en pantalla como
     # «no se pudo subir el documento» sin mencionar el origen por ninguna parte.
     #
-    # `MINIO_PUBLIC_HOST` es una variable para que mover esto a su propio dominio el día que haga
-    # falta sea cambiar un valor, no editar este archivo. Tiene que coincidir con el host de
-    # `STORAGE_S3_PUBLIC_ENDPOINT`, que es lo que se firma.
+    # ## El host va LITERAL, y no es por comodidad
+    #
+    # **Coolify NO interpola variables dentro de `labels:`.** Se comprobó en caliente el
+    # 2026-09-04: con la regla escrita como `Host(`${MINIO_PUBLIC_HOST:?}`)` la etiqueta llegó al
+    # contenedor con esa cadena TAL CUAL, Traefik no registró el router, y el resultado no fue un
+    # error sino un 404 del portal — porque el `PathPrefix('/')` del portal sí enruta ese dominio y
+    # se quedó con la petición. Un fallo de configuración que se ve como «ese archivo no existe».
+    #
+    # Es la misma limitación que este archivo ya documenta para las referencias cruzadas entre
+    # claves de entorno, una capa más allá: ahí Coolify sustituye `${X}` en la clave `X` y deja
+    # literal lo demás; en las etiquetas no sustituye nada.
+    #
+    # `MINIO_PUBLIC_HOST` se conserva como variable de entorno porque de ella sale
+    # `STORAGE_S3_PUBLIC_ENDPOINT`, que es lo que se FIRMA. Los dos tienen que decir el mismo host:
+    # si se cambia uno hay que cambiar esta etiqueta AQUÍ, a mano.
     # -----------------------------------------------------------------------------------------
     labels:
       traefik.enable: 'true'
       # La red por la que Traefik alcanza este contenedor. Sin esto elige una cualquiera de las que
       # ocupa y el enrutado falla de forma intermitente.
       traefik.docker.network: coolify
-      traefik.http.routers.atlas-minio.rule: 'Host(`${MINIO_PUBLIC_HOST:?}`) && PathPrefix(`/${STORAGE_S3_BUCKET:-atlas-evidence}`)'
+      traefik.http.routers.atlas-minio.rule: 'Host(`n2vmpw58-80.brs.devtunnels.ms`) && PathPrefix(`/atlas-evidence`)'
       traefik.http.routers.atlas-minio.entryPoints: http
       traefik.http.services.atlas-minio.loadbalancer.server.port: '9000'
       # Sin `gzip`: los objetos son JPEG y PNG, ya comprimidos. Comprimirlos otra vez gasta CPU
