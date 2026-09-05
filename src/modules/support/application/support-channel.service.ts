@@ -17,6 +17,7 @@ import { toChannelDto } from '../support.mapper.js';
 import type { SupportActor } from './support-actor.service.js';
 import { SupportActorService } from './support-actor.service.js';
 import { SupportAuditService } from './support-audit.service.js';
+import { SupportCaseService } from './support-case.service.js';
 import { SupportMessageService } from './support-message.service.js';
 import { SUPPORT_NEVER_ASKS_WARNING } from '../domain/message-dlp.js';
 
@@ -31,6 +32,7 @@ export class SupportChannelService {
     private readonly messages: SupportMessageService,
     private readonly actors: SupportActorService,
     private readonly audit: SupportAuditService,
+    private readonly caseService: SupportCaseService,
   ) {}
 
   /**
@@ -110,11 +112,31 @@ export class SupportChannelService {
   }) {
     const { input, queue, reserved } = context;
     return this.sequelize.transaction(async (transaction) => {
+      /*
+       * Ninguna conversación sin expediente.
+       *
+       * Si quien abre no trae `caseId` —y hoy no lo trae NADIE: la app llama `openChannel({})` y el
+       * portal manda sólo el comercio— el servidor crea el caso mínimo antes de crear el canal. Va
+       * dentro de la misma transacción para que no exista jamás el estado intermedio de un canal
+       * apuntando a un caso que no llegó a escribirse.
+       *
+       * Devuelve null sólo si falta la categoría de red de seguridad; en ese caso la conversación se
+       * abre igual, sin caso, porque no dejar hablar con soporte sería peor que el dato que falta.
+       */
+      const unclassified = input.dto.caseId
+        ? null
+        : await this.caseService.createUnclassifiedCase({
+            tenantId: input.tenantId,
+            actor: input.actor,
+            partnerProfileId: input.dto.partnerProfileId ?? null,
+            transaction,
+          });
+
       const created = await this.channels.create(
         {
           tenantId: input.tenantId,
           channelCode: generateChannelCode(),
-          caseId: input.dto.caseId ?? null,
+          caseId: input.dto.caseId ?? unclassified?.caseId ?? null,
           channelType: 'CHAT',
           subjectContextType: input.actor.actorType === 'PARTNER_USER' ? 'PARTNER_USER' : 'CONSUMER',
           subjectCustomerId: input.actor.customerId,

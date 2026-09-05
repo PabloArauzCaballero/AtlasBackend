@@ -64,6 +64,16 @@ export class MobileSupportController {
     return this.knowledge.featuredFaq({ tenantId, actor });
   }
 
+  @ApiOperation({ summary: 'Motivos por los que se puede abrir un caso' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Árbol de motivo y submotivo para la audiencia del solicitante.' })
+  @Get('categories')
+  async categories(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+    const actor = await this.actors.resolve(currentUser, tenantId);
+    return this.cases.listCategories({ tenantId, actor });
+  }
+
   @ApiOperation({ summary: 'Buscar en la ayuda' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 200, description: 'Artículos publicados ordenados por relevancia.' })

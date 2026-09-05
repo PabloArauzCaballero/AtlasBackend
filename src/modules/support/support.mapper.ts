@@ -7,6 +7,7 @@ import type {
   KnowledgeArticleVersionModel,
   SupportAssignmentModel,
   SupportAttachmentModel,
+  SupportCaseCategoryModel,
   SupportCaseEventModel,
   SupportCaseModel,
   SupportChannelModel,
@@ -66,6 +67,53 @@ export function toInternalCaseDto(supportCase: SupportCaseModel) {
     retentionClassCode: supportCase.retentionClassCode,
     originContext: supportCase.originContextJson,
   };
+}
+
+/**
+ * El árbol de motivos tal y como lo ve quien va a pedir ayuda.
+ *
+ * Se exponen etiqueta y descripción, y NO la cola, la sensibilidad, el impacto ni la urgencia por
+ * defecto. No es celo innecesario: esos cuatro campos son la política interna de atención, y
+ * publicarlos enseña a quien quiera colarse qué motivo elegir para caer en la cola especializada o
+ * para nacer con prioridad alta. Quien abre un caso describe su problema; la consecuencia de esa
+ * descripción la decide el servidor.
+ */
+export function toCategoryDto(category: SupportCaseCategoryModel) {
+  return {
+    categoryCode: category.categoryCode,
+    label: category.label,
+    description: category.description,
+    requiresSpecialist: category.requiresSpecialist,
+  };
+}
+
+/**
+ * Motivo y submotivo, en dos niveles.
+ *
+ * El árbol se arma en memoria porque son decenas de filas ya cargadas y filtradas por audiencia:
+ * una consulta recursiva aquí gastaría una ida a la base para ordenar lo que ya está en la mano.
+ * Una categoría cuyo padre no esté en la lista —porque el padre es de otra audiencia o está
+ * inactivo— sube a la raíz en vez de desaparecer: perder el motivo sería peor que perder su sitio
+ * en la jerarquía.
+ */
+export function toCategoryTreeDto(categories: readonly SupportCaseCategoryModel[]) {
+  const byId = new Map(categories.map((category) => [String(category.id), category]));
+  const children = new Map<string, SupportCaseCategoryModel[]>();
+  const roots: SupportCaseCategoryModel[] = [];
+
+  for (const category of categories) {
+    const parentId = category.parentCategoryId ? String(category.parentCategoryId) : null;
+    if (parentId && byId.has(parentId)) {
+      children.set(parentId, [...(children.get(parentId) ?? []), category]);
+    } else {
+      roots.push(category);
+    }
+  }
+
+  return roots.map((root) => ({
+    ...toCategoryDto(root),
+    subcategories: (children.get(String(root.id)) ?? []).map(toCategoryDto),
+  }));
 }
 
 export function toChannelDto(channel: SupportChannelModel) {

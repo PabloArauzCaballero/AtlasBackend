@@ -61,6 +61,16 @@ export class MerchantSupportController {
     return this.knowledge.featuredFaq({ tenantId, actor });
   }
 
+  @ApiOperation({ summary: 'Motivos por los que el comercio puede abrir un caso' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Árbol de motivo y submotivo para la audiencia del comercio.' })
+  @Get('categories')
+  async categories(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
+    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+    const actor = await this.actors.resolve(currentUser, tenantId);
+    return this.cases.listCategories({ tenantId, actor });
+  }
+
   @ApiOperation({ summary: 'Buscar en la ayuda para comercios' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('knowledge/search')
