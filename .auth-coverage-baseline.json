@@ -1,0 +1,23 @@
+{
+  "publicRoutes": {
+    "src/common/observability/metrics.controller.ts": 2,
+    "src/modules/app-content/app-content.controller.ts": 1,
+    "src/modules/auth/auth-password-change.controller.ts": 1,
+    "src/modules/auth/auth.controller.ts": 7,
+    "src/modules/consents/consents.controller.ts": 1,
+    "src/modules/customer-onboarding/customer-onboarding.controller.ts": 1,
+    "src/modules/customer-onboarding/identity-review-callback.controller.ts": 2,
+    "src/modules/health/health.controller.ts": 3,
+    "src/modules/internal-users/internal-auth.controller.ts": 4,
+    "src/modules/merchant-identity/merchant-auth.controller.ts": 3
+  },
+  "controllersWithoutAuthorization": [
+    "src/common/observability/metrics.controller.ts",
+    "src/modules/app-content/app-content.controller.ts",
+    "src/modules/auth/auth-password-change.controller.ts",
+    "src/modules/consents/consents.controller.ts",
+    "src/modules/customer-onboarding/identity-review-callback.controller.ts",
+    "src/modules/health/health.controller.ts",
+    "src/modules/merchant-identity/merchant-auth.controller.ts"
+  ]
+}

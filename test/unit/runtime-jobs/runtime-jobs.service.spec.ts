@@ -13,18 +13,18 @@ import { RuntimeJobsService } from '../../../src/modules/runtime-jobs/runtime-jo
  */
 describe('RuntimeJobsService', () => {
   function buildRun() {
-    return { id: 'run-1', status: 'running', save: jest.fn(async () => undefined) };
+    return { id: 'run-1', status: 'running', save: jest.fn(async (..._args: unknown[]) => undefined) };
   }
 
   function buildService() {
-    const jobRunModel = { create: jest.fn(async () => buildRun()) };
+    const jobRunModel = { create: jest.fn(async (..._args: unknown[]) => buildRun()) };
     const outboxModel = { count: asyncMock() };
     const sessionModel = { count: asyncMock(), update: asyncMock() };
     const retentionPolicyModel = { findAll: asyncMock() };
     const dataQualityIssueModel = { count: asyncMock() };
     const auditModel = { create: asyncMock() };
     const gpsObservationModel = { count: asyncMock(), destroy: asyncMock() };
-    const deviceSnapshotModel = { count: asyncMock(), update: jest.fn(async () => [0]) };
+    const deviceSnapshotModel = { count: asyncMock(), update: jest.fn(async (..._args: unknown[]) => [0]) };
     const formInteractionModel = { count: asyncMock(), destroy: asyncMock() };
     const sequelize = {
       transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})),
@@ -315,14 +315,14 @@ describe('RuntimeJobsService', () => {
 
   describe('recalculateDataQuality', () => {
     function buildServiceWithDataQuality() {
-      const jobRunModel = { create: jest.fn(async () => buildRun()) };
+      const jobRunModel = { create: jest.fn(async (..._args: unknown[]) => buildRun()) };
       const outboxModel = { count: asyncMock() };
       const sessionModel = { count: asyncMock(), update: asyncMock() };
       const retentionPolicyModel = { findAll: asyncMock() };
       const dataQualityIssueModel = { count: asyncMock() };
       const auditModel = { create: asyncMock() };
       const gpsObservationModel = { count: asyncMock(), destroy: asyncMock() };
-      const deviceSnapshotModel = { count: asyncMock(), update: jest.fn(async () => [0]) };
+      const deviceSnapshotModel = { count: asyncMock(), update: jest.fn(async (..._args: unknown[]) => [0]) };
       const formInteractionModel = { count: asyncMock(), destroy: asyncMock() };
       const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})), query: asyncMock() };
       const eventsService = { processPendingEvents: asyncMock() };

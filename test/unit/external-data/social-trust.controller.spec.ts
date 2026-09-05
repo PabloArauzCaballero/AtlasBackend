@@ -25,11 +25,11 @@ describe('Social/Digital-trust external-data controllers', () => {
 
   function service() {
     return {
-      createFacebookConnectUrl: jest.fn(async () => ({ url: 'https://fb' })),
-      executeFacebookCallback: jest.fn(async () => ({})),
-      executeWhatsapp: jest.fn(async () => ({})),
-      executeDigitalTrust: jest.fn(async () => ({})),
-      getCustomerFeatures: jest.fn(async () => ({ features: {} })),
+      createFacebookConnectUrl: jest.fn(async (..._args: unknown[]) => ({ url: 'https://fb' })),
+      executeFacebookCallback: jest.fn(async (..._args: unknown[]) => ({})),
+      executeWhatsapp: jest.fn(async (..._args: unknown[]) => ({})),
+      executeDigitalTrust: jest.fn(async (..._args: unknown[]) => ({})),
+      getCustomerFeatures: jest.fn(async (..._args: unknown[]) => ({ features: {} })),
     };
   }
 

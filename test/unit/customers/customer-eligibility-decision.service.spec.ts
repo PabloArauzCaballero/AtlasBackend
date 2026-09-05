@@ -11,13 +11,13 @@ import { CustomerEligibilityDecisionService } from '../../../src/modules/custome
  */
 describe('CustomerEligibilityDecisionService', () => {
   function build(eligible: boolean, blockers: Array<{ code: string }> = []) {
-    const customersRepository = { findById: jest.fn(async () => ({ id: 'c1', lifecycleStatus: 'under_review' })) };
+    const customersRepository = { findById: jest.fn(async (..._args: unknown[]) => ({ id: 'c1', lifecycleStatus: 'under_review' })) };
     const lifecycleService = {
-      transition: jest.fn(async () => ({ previousStatus: 'under_review', newStatus: 'active', changed: true })),
+      transition: jest.fn(async (..._args: unknown[]) => ({ previousStatus: 'under_review', newStatus: 'active', changed: true })),
     };
     const eligibilityService = {
-      evaluate: jest.fn(async () => ({ eligible, blockers })),
-      evaluateAndRecord: jest.fn(async () => ({ eligible, blockers, evaluatedAt: 'now' })),
+      evaluate: jest.fn(async (..._args: unknown[]) => ({ eligible, blockers })),
+      evaluateAndRecord: jest.fn(async (..._args: unknown[]) => ({ eligible, blockers, evaluatedAt: 'now' })),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
     const service = new CustomerEligibilityDecisionService(

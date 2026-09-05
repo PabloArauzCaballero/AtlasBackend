@@ -76,7 +76,7 @@ describe('SessionsLifecycleRepository', () => {
 
   it('endSession marca ended, fija endedAt y guarda dentro de la transacción', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({ id: 's1' }));
+    const save = jest.fn(async (..._args: unknown[]) => ({ id: 's1' }));
     const session = { save } as never;
     const endedAt = new Date('2026-02-02');
     await repo.endSession(session, endedAt, opts);

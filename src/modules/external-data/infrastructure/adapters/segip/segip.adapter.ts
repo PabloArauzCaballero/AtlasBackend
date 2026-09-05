@@ -13,6 +13,35 @@ import {
 } from '../../../domain/external-provider.types.js';
 import { bool, callMockServer, checkMockHealth, num, scenarioFromInput, str } from '../shared/mock-http.util.js';
 
+/**
+ * ¿Se fuerza el desenlace favorable del registro estatal?
+ *
+ * Hoy SÍ, por omisión, y hay que ser explícito sobre lo que eso significa: **no
+ * hay integración real con el SEGIP**. Lo que existe es un adaptador de prueba, y
+ * mientras lo sea, dejar que devuelva `NOT_FOUND` o `PARTIAL_MATCH` según un
+ * escenario produciría rechazos y derivaciones a revisión que no responden a
+ * ningún hecho del mundo — le cerraríamos el producto a personas reales por el
+ * resultado de un simulacro.
+ *
+ * La bandera existe para que eso sea una DECISIÓN VISIBLE y no un efecto
+ * secundario del valor por defecto de `scenarioFromInput`. Y el desenlace
+ * forzado viaja marcado en la carga (`forcedOutcome`), así que:
+ *
+ * - la evidencia del expediente nunca afirma que un registro estatal confirmó
+ *   algo cuando lo que hubo fue un adaptador de prueba,
+ * - y quien audite el expediente puede separar los dos casos sin leer código.
+ *
+ * `SEGIP_ALWAYS_VERIFIED=false` devuelve el comportamiento por escenario, que es
+ * lo que hará falta para probar las ramas de rechazo del artefacto. El día que
+ * haya integración real, el modo pasa a `production` y esta bandera deja de
+ * tener efecto: sólo actúa sobre los modos de prueba.
+ */
+function fuerzaVerificado(): boolean {
+  const crudo = process.env.SEGIP_ALWAYS_VERIFIED;
+  if (crudo === undefined || crudo.trim() === '') return true;
+  return !['false', '0', 'no', 'off'].includes(crudo.trim().toLowerCase());
+}
+
 @Injectable()
 export class SegipAdapter implements ExternalProviderAdapter {
   providerCode = 'SEGIP';
@@ -26,7 +55,8 @@ export class SegipAdapter implements ExternalProviderAdapter {
     if (request.mode === 'disabled') throw new Error('SEGIP_PROVIDER_DISABLED');
     if (request.mode === 'production' || request.mode === 'sandbox') throw new Error('SEGIP_REAL_INTEGRATION_NOT_CONFIGURED');
 
-    const scenario = scenarioFromInput(request);
+    const forzado = fuerzaVerificado();
+    const scenario = forzado ? 'happy_path' : scenarioFromInput(request);
     const started = Date.now();
     const base = {
       provider: 'SEGIP',
@@ -67,7 +97,19 @@ export class SegipAdapter implements ExternalProviderAdapter {
       timeout: { ...base, status: 'PROVIDER_UNAVAILABLE', reasonCode: 'SEGIP_TIMEOUT' },
     };
 
-    const payload = payloadByScenario[scenario] ?? payloadByScenario.happy_path;
+    const payload: Record<string, unknown> = {
+      ...(payloadByScenario[scenario] ?? payloadByScenario.happy_path),
+      /*
+       * La marca viaja SIEMPRE, también cuando es falsa.
+       *
+       * Un campo que sólo aparece cuando el desenlace se forzó obliga a
+       * interpretar su ausencia, y la ausencia de un campo es indistinguible de
+       * una versión antigua del adaptador. Presente y explícito, la carga dice
+       * por sí sola si hubo consulta o simulacro.
+       */
+      forcedOutcome: forzado,
+      integrationKind: 'MOCK_LOCAL',
+    };
     return {
       providerCode: this.providerCode,
       status: str(payload.status) ?? 'FOUND',

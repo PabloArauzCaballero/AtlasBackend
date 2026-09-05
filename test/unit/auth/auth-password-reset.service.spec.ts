@@ -13,19 +13,25 @@ describe('AuthPasswordResetService', () => {
 
   function build() {
     const authRepository = {
-      findCredentialsByActor: jest.fn(async () => ({ id: 'cred1' })),
-      createOneTimeCode: jest.fn(async () => ({})),
-      recordLoginAttemptEvent: jest.fn(async () => ({})),
-      findActiveOneTimeCodeByActor: jest.fn(async () => null),
-      registerOneTimeCodeFailedAttempt: jest.fn(async () => ({})),
-      consumeOneTimeCode: jest.fn(async () => ({})),
-      updatePasswordHash: jest.fn(async () => ({})),
-      revokeAllRefreshTokensForActor: jest.fn(async () => 0),
+      findCredentialsByActor: jest.fn(async (..._args: unknown[]) => ({ id: 'cred1' })),
+      createOneTimeCode: jest.fn(async (..._args: unknown[]) => ({})),
+      recordLoginAttemptEvent: jest.fn(async (..._args: unknown[]) => ({})),
+      findActiveOneTimeCodeByActor: jest.fn(async (..._args: unknown[]) => null),
+      registerOneTimeCodeFailedAttempt: jest.fn(async (..._args: unknown[]) => ({})),
+      consumeOneTimeCode: jest.fn(async (..._args: unknown[]) => ({})),
+      updatePasswordHash: jest.fn(async (..._args: unknown[]) => ({})),
+      revokeAllRefreshTokensForActor: jest.fn(async (..._args: unknown[]) => 0),
     };
-    const tokenRevocationService = { bumpTokenVersion: jest.fn(async () => undefined) };
-    const mailSenderService = { isEnabled: jest.fn(() => true), sendPasswordResetCode: jest.fn(async () => undefined) };
-    const actorResolver = { resolveActorForLogin: jest.fn(async () => null) };
+    const tokenRevocationService = { bumpTokenVersion: jest.fn(async (..._args: unknown[]) => undefined) };
+    const mailSenderService = {
+      isEnabled: jest.fn((..._args: unknown[]) => true),
+      sendPasswordResetCode: jest.fn(async (..._args: unknown[]) => undefined),
+    };
+    const actorResolver = { resolveActorForLogin: jest.fn(async (..._args: unknown[]) => null) };
     const service = new AuthPasswordResetService(
+      authRepository as never,
+      // Mismo doble: los códigos de un solo uso viven ahora en su propio repositorio, pero el mock
+      // ya expone esos métodos y las aserciones siguen mirando el mismo objeto.
       authRepository as never,
       tokenRevocationService as never,
       mailSenderService as never,
@@ -84,11 +90,29 @@ describe('AuthPasswordResetService', () => {
 
   // --- confirmPasswordReset --------------------------------------------------------------------
 
-  const confirmInput = { ...baseInput, code: '123456', newPassword: 'NewPassw0rd!' };
+  /*
+   * El CLIENTE restablece con un PIN de cuatro digitos, no con una contrasena larga: es la misma
+   * regla con la que se dio de alta. Si el restablecimiento exigiera contrasena, la cuenta quedaria
+   * con un secreto que su propio login no sabe pedir.
+   */
+  const confirmInput = { ...baseInput, code: '123456', newPassword: '5183' };
 
-  it('confirmPasswordReset rechaza una contraseña débil', async () => {
+  it('confirmPasswordReset rechaza un PIN que no tiene cuatro digitos', async () => {
     const { service, actorResolver } = build();
     await expect(service.confirmPasswordReset({ ...confirmInput, newPassword: 'abc' })).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(actorResolver.resolveActorForLogin).not.toHaveBeenCalled();
+  });
+
+  it('confirmPasswordReset rechaza un PIN adivinable aunque tenga cuatro digitos', async () => {
+    const { service, actorResolver } = build();
+    await expect(service.confirmPasswordReset({ ...confirmInput, newPassword: '1234' })).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(actorResolver.resolveActorForLogin).not.toHaveBeenCalled();
+  });
+
+  it('confirmPasswordReset exige contrasena larga a un usuario interno, no un PIN', async () => {
+    const { service, actorResolver } = build();
+    const internal = { ...confirmInput, actorType: 'internal_user' as const };
+    await expect(service.confirmPasswordReset({ ...internal, newPassword: '5183' })).rejects.toBeInstanceOf(UnauthorizedException);
     expect(actorResolver.resolveActorForLogin).not.toHaveBeenCalled();
   });
 

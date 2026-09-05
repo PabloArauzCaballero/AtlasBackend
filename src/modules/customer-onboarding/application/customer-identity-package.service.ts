@@ -3,25 +3,21 @@
  * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-  ServiceUnavailableException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
+import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
+import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerIdentityProviderVerificationService } from './customer-identity-provider-verification.service.js';
+import { IdentityEvidenceVerificationService } from './identity-evidence-verification.service.js';
 import { IdentityPackageDto } from '../customer-onboarding.schemas.js';
 
 @Injectable()
@@ -34,6 +30,9 @@ export class CustomerIdentityPackageService {
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly storageService: DocumentStorageService,
     private readonly providerVerificationService: CustomerIdentityProviderVerificationService,
+    private readonly eligibilityService: CustomerEligibilityService,
+    private readonly evidenceVerification: IdentityEvidenceVerificationService,
+    private readonly expedienteHooks: ExpedienteHooksService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -62,7 +61,12 @@ export class CustomerIdentityPackageService {
     // archivo: guardaba la ruta y el hash que el propio cliente declaraba. Aquí se descarga cada
     // objeto, se recalcula el SHA-256, se contrasta el tamaño y se comprueban los bytes mágicos
     // contra el tipo declarado — renombrar un ejecutable a `.jpg` ya no alcanza.
-    const verifiedEvidence = await this.verifyEvidenceObjects(input.body.evidence);
+    // El prefijo es el mismo que impone el ticket de subida (`DocumentStorageService`): tenant y
+    // cliente. Sin esta comprobación el paquete aceptaba cualquier ruta, incluida la de la evidencia
+    // de otro cliente del mismo bucket — bastaba conocerla para adjuntarla al expediente propio.
+    this.evidenceVerification.assertBelongsToCustomer(input.tenantId, input.customerId, input.body.evidence);
+
+    const verifiedEvidence = await this.evidenceVerification.verifyObjects(input.body.evidence);
 
     const now = new Date();
 
@@ -223,13 +227,39 @@ export class CustomerIdentityPackageService {
         { transaction },
       );
 
+      // `nextStep` del evaluador, no del literal `reference_contacts` que este servicio devolvía:
+      // el catálogo de secciones y su orden viven en un solo sitio.
+      const assessment = await this.eligibilityService.evaluate(input.tenantId, input.customerId, transaction);
+
       return {
         customerId: input.customerId,
         identityVerificationAttemptId: String(attempt.id),
         status: 'pending_review',
-        nextStep: 'reference_contacts',
+        nextStep: assessment.nextStep,
       };
     });
+
+    /*
+     * El expediente se actualiza FUERA de la transacción y sin poder tumbarla.
+     *
+     * Los documentos ya quedaron guardados en `evidence_documents` y en el almacén; lo que se hace
+     * aquí es colocarlos en la carpeta que un revisor va a abrir. Dentro de la transacción, un
+     * fallo del catálogo habría deshecho un paquete KYC completo por un problema de presentación.
+     */
+    for (const evidencia of input.body.evidence) {
+      const verificada = verifiedEvidence.get(evidencia.storageKey);
+      await this.expedienteHooks.alRegistrarEvidencia({
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        documentType: evidencia.evidenceType,
+        evidenceDocumentId: null,
+        storageKey: evidencia.storageKey,
+        storageBucket: this.storageService.getBucket(),
+        sha256: verificada?.sha256Hex ?? evidencia.sha256Hash,
+        mimeType: evidencia.mimeType,
+        sizeBytes: String(verificada?.sizeBytes ?? 0),
+      });
+    }
 
     // Encadenamiento OPCIONAL de la verificación externa, fuera de la transacción a propósito: una
     // llamada HTTP a un proveedor dentro de una transacción mantendría locks abiertos durante toda
@@ -255,7 +285,9 @@ export class CustomerIdentityPackageService {
           requiresManualReview: verification.requiresManualReview,
           reasonCode: verification.reasonCode,
         },
-        nextStep: verification.identityVerificationResult === 'rejected' ? 'identity_documents' : packageResult.nextStep,
+        // También del evaluador: tras la verificación externa el estado cambió, así que el paso
+        // siguiente lo dice la evaluación que esa misma operación acaba de registrar.
+        nextStep: verification.nextStep,
       };
     } catch (error) {
       this.logger.warn(
@@ -265,30 +297,5 @@ export class CustomerIdentityPackageService {
       );
       return { ...packageResult, verification: { skipped: true, reason: 'VERIFICATION_DEFERRED' } };
     }
-  }
-
-  /**
-   * Descarga y valida cada objeto declarado. Falla el paquete completo ante el primer problema: una
-   * evidencia que no se pudo verificar no es evidencia, y aceptar el resto dejaría un documento de
-   * identidad a medio respaldar.
-   */
-  private async verifyEvidenceObjects(evidence: IdentityPackageDto['evidence']) {
-    if (!this.storageService.isConfigured()) {
-      throw new ServiceUnavailableException('DOCUMENT_STORAGE_NOT_CONFIGURED');
-    }
-    const verified = new Map<string, { sizeBytes: number; sha256Hex: string }>();
-    for (const item of evidence) {
-      const result = await this.storageService.verifyDeclaredObject({
-        storageKey: item.storageKey,
-        declaredSha256: item.sha256Hash,
-        declaredMimeType: item.mimeType,
-        declaredSizeBytes: item.fileSizeBytes ? Number(item.fileSizeBytes) : null,
-      });
-      if (!result.ok) {
-        throw new UnprocessableEntityException(`${result.reason}: ${item.evidenceType}`);
-      }
-      verified.set(item.storageKey, { sizeBytes: result.metadata.sizeBytes, sha256Hex: result.metadata.sha256Hex });
-    }
-    return verified;
   }
 }

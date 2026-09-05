@@ -6,6 +6,7 @@
 import { BadRequestException, Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,6 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { DataQualityService } from './data-quality.service.js';
 import {
   dataQualityIssueParamsSchema,
@@ -43,11 +43,8 @@ export class DataQualityController {
   @ApiQuery({ name: 'customerId', required: false, schema: zodObjectPropertySchemas(dataQualityQuerySchema).customerId })
   @ApiResponse({ status: 200, description: 'Lista paginada de issues.' })
   @Get()
-  listIssues(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Query(new ZodValidationPipe(dataQualityQuerySchema)) query: DataQualityQueryDto,
-  ) {
-    return this.service.listIssues(tenantIdFromHeader(tenantIdHeader), query);
+  listIssues(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(dataQualityQuerySchema)) query: DataQualityQueryDto) {
+    return this.service.listIssues(tenantId, query);
   }
 
   @ApiOperation({ summary: 'Resolver/ignorar un issue de calidad de datos' })
@@ -61,7 +58,7 @@ export class DataQualityController {
   @Post(':issueId/resolve')
   @HttpCode(HttpStatus.OK)
   resolveIssue(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(dataQualityIssueParamsSchema)) params: DataQualityIssueParamsDto,
     @Body(new ZodValidationPipe(resolveDataQualityIssueSchema)) body: ResolveDataQualityIssueDto,
@@ -69,7 +66,7 @@ export class DataQualityController {
   ) {
     if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     return this.service.resolveIssue({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       params,
       body,
       currentUser,

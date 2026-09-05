@@ -12,11 +12,10 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`domain-schemas.spec.ts`](./domain-schemas.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`ops-grants-cover-schemas.spec.ts`](./ops-grants-cover-schemas.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`postgres-error.spec.ts`](./postgres-error.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`provisioning-guard.spec.ts`](./provisioning-guard.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`read-query.service.spec.ts`](./read-query.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`seed-profile.spec.ts`](./seed-profile.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`startup-seed.service.spec.ts`](./startup-seed.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento
 

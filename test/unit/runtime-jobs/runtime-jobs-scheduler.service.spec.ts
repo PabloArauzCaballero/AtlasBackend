@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { RuntimeJobsSchedulerService } from '../../../src/modules/runtime-jobs/runtime-jobs-scheduler.service.js';
+import { buildScheduledJobs } from '../../../src/modules/runtime-jobs/scheduled-jobs.catalog.js';
 import { env } from '../../../src/config/env.js';
 
 /**
@@ -30,28 +31,54 @@ describe('RuntimeJobsSchedulerService', () => {
 
   function build(options: { redis?: unknown } = {}) {
     const runtimeJobs = {
-      processOutbox: jest.fn(async () => ({ status: 'completed' })),
-      processEvents: jest.fn(async () => ({ status: 'completed' })),
-      expireStaleSessions: jest.fn(async () => ({ status: 'completed' })),
-      applyRetentionPolicies: jest.fn(async () => ({ status: 'completed' })),
-      recalculateDataQuality: jest.fn(async () => ({ status: 'completed' })),
+      processOutbox: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      processEvents: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      expireStaleSessions: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      applyRetentionPolicies: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      recalculateDataQuality: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
     };
     const maintenance = {
-      retryStuckNotifications: jest.fn(async () => ({ status: 'completed' })),
-      purgeIdempotencyKeys: jest.fn(async () => ({ status: 'completed' })),
-      reclaimStuckEvents: jest.fn(async () => ({ status: 'completed' })),
+      retryStuckNotifications: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      purgeIdempotencyKeys: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      purgeProcessedOutbox: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      reclaimStuckEvents: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
     };
-    const tenantModel = { findAll: jest.fn(async () => [{ id: 1 }, { id: 2 }]) };
+    const tenantModel = { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 1 }, { id: 2 }]) };
     const metrics = { recordScheduledJob: jest.fn() };
-    const redis = options.redis === undefined ? { set: jest.fn(async () => 'OK') } : options.redis;
-    const service = new RuntimeJobsSchedulerService(
-      runtimeJobs as never,
-      maintenance as never,
-      tenantModel as never,
-      redis as never,
-      metrics as never,
-    );
-    return { service, runtimeJobs, maintenance, tenantModel, metrics, redis };
+    const redis = options.redis === undefined ? { set: jest.fn(async (..._args: unknown[]) => 'OK') } : options.redis;
+    // El cierre de onboardings abandonados es un job de fondo más; su regla vive en el módulo de
+    // onboarding y el planificador solo la agenda.
+    const onboardingAbandonment = { markAbandonedFlows: jest.fn(async (..._args: unknown[]) => ({ evaluated: 0, abandoned: 0 })) };
+    // El planificador recibe el catálogo ya construido; quién produce cada job es cosa del módulo.
+    /*
+     * Los tres trabajos nuevos: mora, capacidad de pago y extractos.
+     *
+     * No estaban porque no existian; sus reglas viven en sus dominios y el planificador solo las
+     * agenda. Se simulan aqui porque lo que se prueba es la MECANICA de agendado —liderazgo,
+     * reentrada, desfase—, no lo que cada job hace.
+     */
+    const delinquency = { sweep: jest.fn(async (..._args: unknown[]) => ({ evaluated: 0, enqueued: 0, total: 0, recalculated: 0 })) };
+    const creditLineRefresh = {
+      refreshStaleLines: jest.fn(async (..._args: unknown[]) => ({ missing: 0, stale: 0, recalculated: 0, failed: 0 })),
+    };
+    const bankStatements = {
+      processPending: jest.fn(async (..._args: unknown[]) => ({ picked: 0, applied: 0, unreadable: 0, failed: 0, breachingSoon: 0 })),
+    };
+    const supportSla = {
+      sweepWarnings: jest.fn(async (..._args: unknown[]) => ({ warned: 0 })),
+      sweepBreaches: jest.fn(async (..._args: unknown[]) => ({ breached: 0 })),
+    };
+    const scheduledJobs = buildScheduledJobs({
+      runtimeJobs: runtimeJobs as never,
+      maintenance: maintenance as never,
+      onboardingAbandonment: onboardingAbandonment as never,
+      delinquency: delinquency as never,
+      creditLineRefresh: creditLineRefresh as never,
+      bankStatements: bankStatements as never,
+      supportSla: supportSla as never,
+    });
+    const service = new RuntimeJobsSchedulerService(scheduledJobs, tenantModel as never, redis as never, metrics as never);
+    return { service, runtimeJobs, maintenance, onboardingAbandonment, tenantModel, metrics, redis };
   }
 
   /** Acceso al método privado que ejecuta una tanda, sin esperar al temporizador. */
@@ -79,13 +106,13 @@ describe('RuntimeJobsSchedulerService', () => {
 
     // El arranque de cada job pasa por un `setTimeout` de desfase antes de armar su `setInterval`:
     // sin ese desfase, N réplicas que arrancan juntas disparan la misma tanda en el mismo instante.
-    it('programa los ocho jobs cuando está habilitado', () => {
+    it('programa los trece jobs cuando está habilitado', () => {
       setEnv('RUNTIME_JOBS_SCHEDULER_ENABLED', true);
       const { service } = build();
 
       service.onApplicationBootstrap();
 
-      expect(setTimeout).toHaveBeenCalledTimes(8);
+      expect(setTimeout).toHaveBeenCalledTimes(14);
       service.onModuleDestroy();
     });
 
@@ -97,7 +124,7 @@ describe('RuntimeJobsSchedulerService', () => {
       service.onApplicationBootstrap();
 
       const delays = (setTimeout as unknown as jest.Mock).mock.calls.map((call) => call[1] as number);
-      expect(delays).toHaveLength(8);
+      expect(delays).toHaveLength(14);
       for (const delay of delays) {
         expect(delay).toBeGreaterThanOrEqual(0);
         expect(delay).toBeLessThan(15_000);
@@ -136,7 +163,7 @@ describe('RuntimeJobsSchedulerService', () => {
 
       service.onApplicationBootstrap();
 
-      expect(setTimeout).toHaveBeenCalledTimes(8);
+      expect(setTimeout).toHaveBeenCalledTimes(14);
       service.onModuleDestroy();
     });
   });
@@ -160,7 +187,7 @@ describe('RuntimeJobsSchedulerService', () => {
     });
 
     it('si otra instancia tiene el lock, se salta la tanda sin tocar la base', async () => {
-      const { service, runtimeJobs, tenantModel } = build({ redis: { set: jest.fn(async () => null) } });
+      const { service, runtimeJobs, tenantModel } = build({ redis: { set: jest.fn(async (..._args: unknown[]) => null) } });
       const outbox = jobsOf(service).find((job) => job.jobCode === 'process_outbox');
 
       await tick(service, outbox!);
@@ -172,7 +199,7 @@ describe('RuntimeJobsSchedulerService', () => {
     it('si Redis falla, se salta la tanda en vez de correr sin lock', async () => {
       const { service, runtimeJobs } = build({
         redis: {
-          set: jest.fn(async () => {
+          set: jest.fn(async (..._args: unknown[]) => {
             throw new Error('ECONNREFUSED');
           }),
         },
@@ -208,6 +235,7 @@ describe('RuntimeJobsSchedulerService', () => {
         (runtimeJobs.recalculateDataQuality as jest.Mock).mock.calls[0][0],
         (maintenance.retryStuckNotifications as jest.Mock).mock.calls[0][0],
         (maintenance.purgeIdempotencyKeys as jest.Mock).mock.calls[0][0],
+        (maintenance.purgeProcessedOutbox as jest.Mock).mock.calls[0][0],
         (maintenance.reclaimStuckEvents as jest.Mock).mock.calls[0][0],
       ] as Array<{ body: { dryRun: boolean }; currentUser: { role: string; sub: string } }>;
 

@@ -31,7 +31,7 @@ import { requireSmokeEnv } from './required-smoke-env.js';
 
 type JsonRecord = Record<string, unknown>;
 
-const ADMIN_EMAIL = process.env.INTERNAL_SMOKE_EMAIL ?? 'pablo@atlas.internal';
+const ADMIN_EMAIL = process.env.INTERNAL_SMOKE_EMAIL ?? 'a2020115468@estudiantes.upsa.edu.bo';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -247,10 +247,22 @@ async function checkInternalActorRoles(adminHeaders: Record<string, string>, uni
 async function checkPlatformActor(adminHeaders: Record<string, string>, unique: string): Promise<void> {
   const generatedPassword = `AtlasPlatformSmoke-${unique}`;
 
-  const provisioned = await request({
+  // ATLAS-SEC-007: un `admin` es un administrador DE TENANT. Provisionar un `platform_user` —que no
+  // pertenece a ningún tenant y opera sobre toda la plataforma— es un acto de alcance plataforma y
+  // debe rebotar con 403. Antes esto respondía 201: la escalada que la auditoría integral del
+  // 2026-08-06 verificó explotable en vivo. Se comprueba PRIMERO para que una regresión falle aquí.
+  await request({
     method: 'POST',
     path: '/auth/provision-credentials',
     extraHeaders: adminHeaders,
+    body: { actorType: 'platform_user', actorId: PLATFORM_USER_ID, password: generatedPassword },
+    expected: [403],
+  });
+
+  const provisioned = await request({
+    method: 'POST',
+    path: '/auth/provision-credentials',
+    role: 'platform_admin',
     body: { actorType: 'platform_user', actorId: PLATFORM_USER_ID, password: generatedPassword },
     expected: [201, 409],
   });

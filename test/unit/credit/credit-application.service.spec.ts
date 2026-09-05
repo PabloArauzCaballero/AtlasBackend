@@ -27,12 +27,21 @@ describe('CreditApplicationService', () => {
     minMonthlyIncome: null,
   };
 
-  function build(options: { eligible?: boolean; blockers?: Array<{ code: string }>; product?: Record<string, unknown> } = {}) {
+  function build(
+    options: {
+      eligible?: boolean;
+      blockers?: Array<{ code: string }>;
+      product?: Record<string, unknown>;
+      underwritingStatus?: string;
+      partnerProfileId?: string;
+      partnerOnboardingStatus?: string;
+    } = {},
+  ) {
     const eligible = options.eligible ?? true;
     const creditRepository = {
-      findProductById: jest.fn(async () => ({ ...PRODUCT, ...(options.product ?? {}) })),
-      findOpenApplication: jest.fn(async () => null),
-      createApplication: jest.fn(async () => ({
+      findProductById: jest.fn(async (..._args: unknown[]) => ({ ...PRODUCT, ...(options.product ?? {}) })),
+      findOpenApplication: jest.fn(async (..._args: unknown[]) => null),
+      createApplication: jest.fn(async (..._args: unknown[]) => ({
         id: 'app-1',
         applicationCode: 'CRA-1',
         status: 'submitted',
@@ -42,30 +51,57 @@ describe('CreditApplicationService', () => {
         submittedAt: new Date('2026-07-28T12:00:00.000Z'),
       })),
       createApplicationEvent: jest.fn(),
-      findApplicationsByCustomer: jest.fn(async () => []),
+      findApplicationsByCustomer: jest.fn(async (..._args: unknown[]) => []),
     };
     const eligibilityService = {
-      evaluateAndRecord: jest.fn(async () => ({
+      evaluateAndRecord: jest.fn(async (..._args: unknown[]) => ({
         eligible,
         blockers: options.blockers ?? [],
         ruleVersion: 'eligibility-v1',
         evaluatedAt: '2026-07-28T12:00:00.000Z',
         lifecycleStatus: eligible ? 'active' : 'under_review',
       })),
-      getLatestEvaluation: jest.fn(async () => ({ id: 'ev-9' })),
+      getLatestEvaluation: jest.fn(async (..._args: unknown[]) => ({ id: 'ev-9' })),
     };
     // Los atributos económicos alimentan la elegibilidad POR PRODUCTO (`min_monthly_income`).
     const eligibilityRepository = {
-      loadFacts: jest.fn(async () => ({ financialAttributeValues: { monthly_income_declared: 8000 } })),
+      loadFacts: jest.fn(async (..._args: unknown[]) => ({ financialAttributeValues: { monthly_income_declared: 8000 } })),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
+    /*
+     * El motor se consulta DESPUÉS de confirmar la transacción, así que aquí basta con el doble: lo
+     * que fijan estas pruebas es la creación de la solicitud, no la decisión. El desenlace por
+     * defecto deja el expediente en `under_review`, que es justo lo que produce el servicio real
+     * cuando el motor no responde.
+     */
+    const underwriting = {
+      underwrite: jest.fn(async (..._args: unknown[]) => ({
+        status: options.underwritingStatus ?? 'under_review',
+        decisionMode: 'engine_unavailable_manual',
+        executionId: null,
+        reasonCodes: [],
+      })),
+    };
+    /*
+     * El expediente del comercio. Por defecto devuelve uno APROBADO: lo que estas pruebas fijan es
+     * la creación de la solicitud, y un comercio que no pasa el filtro es el asunto de su propia
+     * prueba. `requireProfile` sólo se llama si la solicitud declara comercio.
+     */
+    const partnerProfiles = {
+      requireProfile: jest.fn(async (..._args: unknown[]) => ({
+        id: options.partnerProfileId ?? '77',
+        onboardingStatus: options.partnerOnboardingStatus ?? 'approved',
+      })),
+    };
     const service = new CreditApplicationService(
       creditRepository as never,
       eligibilityService as never,
       eligibilityRepository as never,
+      underwriting as never,
+      partnerProfiles as never,
       sequelize as never,
     );
-    return { service, creditRepository, eligibilityService, eligibilityRepository };
+    return { service, creditRepository, eligibilityService, eligibilityRepository, underwriting, partnerProfiles };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null } as never;

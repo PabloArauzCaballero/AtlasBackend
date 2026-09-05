@@ -11,10 +11,17 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`bank-statement-review.worker.ts`](./bank-statement-review.worker.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`bank-statement.service.ts`](./bank-statement.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`credit-application.service.ts`](./credit-application.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`credit-business-acceptance.service.ts`](./credit-business-acceptance.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`credit-decision.service.ts`](./credit-decision.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`credit-line-refresh.service.ts`](./credit-line-refresh.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`credit-line.service.ts`](./credit-line.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`credit-product-eligibility.ts`](./credit-product-eligibility.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`credit-product.service.ts`](./credit-product.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`credit-underwriting.service.ts`](./credit-underwriting.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`payment-capacity.service.ts`](./payment-capacity.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento
 

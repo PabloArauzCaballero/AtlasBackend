@@ -1,9 +1,20 @@
 # Auditoría de producción — Atlas Backend
 
-Más reciente: [**auditoría integral y plan de mejora — 2026-07-30**](./auditoria-integral-2026-07-30.md).
-A diferencia del resto de este directorio, esa no va módulo por módulo: es transversal (preparación
-para producción, seguridad, observabilidad, robustez, eficiencia y clean code) e incluye el plan por
-fases y su ejecución. Es la que hay que leer primero si la pregunta es «¿esto se puede desplegar?».
+Más reciente: [**auditoría integral — 2026-08-07**](./auditoria-integral-2026-08-07.md). Recorre las
+rutas de ejecución (autorización efectiva por endpoint, caminos destructivos, degradación de
+controles de seguridad, transaccionalidad y disparadores de CI) con los gates ejecutados y su código
+de salida citado. Dos hallazgos Altos, ninguno solapado con los anteriores; además aporta evidencia
+nueva sobre `TEST-001` y retira un hallazgo propio al re-verificarlo contra el commit final.
+
+Anterior: [auditoría integral — 2026-08-06](./auditoria-integral-2026-08-06.md). Es la
+primera que **ejecuta** los gates en vez de solo leer el código, así que es la que responde
+«¿esto se puede desplegar?» con evidencia y no con inferencia. Incluye el
+[manifiesto de huérfanos](./orphans/orphan-manifest.md). Los logs de la corrida
+(`evidence/commands-baseline.log` y `evidence/commands-final.log`) quedan en la máquina que
+ejecutó los gates: `*.log` está en `.gitignore`, así que no se versionan ni se publican.
+
+Transversal anterior: [auditoría integral y plan de mejora — 2026-07-30](./auditoria-integral-2026-07-30.md),
+con el plan por fases y su ejecución.
 
 Consolidado anterior: [documentación y correcciones — 2026-07-27](./documentacion-y-correcciones-2026-07-27.md).
 

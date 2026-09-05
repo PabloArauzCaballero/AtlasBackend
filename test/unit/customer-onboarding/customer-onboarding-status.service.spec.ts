@@ -26,10 +26,14 @@ describe('CustomerOnboardingStatusService', () => {
 
   function build(assessment: Record<string, unknown> = completeAssessment) {
     const customersRepository = {
-      findById: jest.fn(async () => ({ id: 'c1', lifecycleStatus: 'onboarding_in_progress', creditEligibilityStatus: null })),
+      findById: jest.fn(async (..._args: unknown[]) => ({
+        id: 'c1',
+        lifecycleStatus: 'onboarding_in_progress',
+        creditEligibilityStatus: null,
+      })),
     };
     const onboardingRepository = {
-      findLatestOnboardingFlow: jest.fn(async () => ({
+      findLatestOnboardingFlow: jest.fn(async (..._args: unknown[]) => ({
         id: 'flow-1',
         flowVersion: 'v1',
         completionStatus: 'in_progress',
@@ -42,11 +46,25 @@ describe('CustomerOnboardingStatusService', () => {
     };
     const flowRepository = { closeOnboardingFlow: jest.fn() };
     const eligibilityService = {
-      evaluate: jest.fn(async () => assessment),
-      evaluateAndRecord: jest.fn(async () => ({ ...assessment, eligible: true, lifecycleStatus: 'active', evaluatedAt: 'now' })),
+      evaluate: jest.fn(async (..._args: unknown[]) => assessment),
+      evaluateAndRecord: jest.fn(async (..._args: unknown[]) => ({
+        ...assessment,
+        eligible: true,
+        lifecycleStatus: 'active',
+        evaluatedAt: 'now',
+      })),
     };
-    const eligibilityRepository = { findOpenIssues: jest.fn(async () => []), findOpenReviewCases: jest.fn(async () => []) };
+    const eligibilityRepository = {};
+    // Las observaciones y los casos abiertos viven en el repositorio de cumplimiento y riesgo.
+    const eligibilityRiskRepository = {
+      findOpenIssues: jest.fn(async (..._args: unknown[]) => []),
+      findOpenReviewCases: jest.fn(async (..._args: unknown[]) => []),
+    };
     const lifecycleService = { transition: jest.fn(), advance: jest.fn() };
+    // El envío a revisión dispara la evaluación de riesgo: sin ella la habilitación automática no
+    // podía ocurrir nunca, porque la regla exige `RISK_NOT_APPROVED` resuelto y nada en el
+    // onboarding la pedía.
+    const riskService = { createRiskAssessment: jest.fn(async (..._args: unknown[]) => ({ id: 'risk-1' })) };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
 
     const service = new CustomerOnboardingStatusService(
@@ -55,7 +73,11 @@ describe('CustomerOnboardingStatusService', () => {
       flowRepository as never,
       eligibilityService as never,
       eligibilityRepository as never,
+      eligibilityRiskRepository as never,
       lifecycleService as never,
+      riskService as never,
+      // Ídem: congelar el expediente ocurre después del commit y no puede tumbar el envío.
+      { alEnviarOnboarding: jest.fn() } as never,
       sequelize as never,
     );
     return {
@@ -65,7 +87,9 @@ describe('CustomerOnboardingStatusService', () => {
       flowRepository,
       eligibilityService,
       eligibilityRepository,
+      eligibilityRiskRepository,
       lifecycleService,
+      riskService,
     };
   }
 
@@ -137,15 +161,70 @@ describe('CustomerOnboardingStatusService', () => {
       );
       expect(result).toMatchObject({ lifecycleStatus: 'active', eligible: true });
     });
+
+    /**
+     * Lo que faltaba para que la habilitación automática pudiera ocurrir alguna vez: la regla exige
+     * `RISK_NOT_APPROVED` resuelto y `createRiskAssessment` solo existía como endpoint HTTP, así que
+     * el cliente quedaba en `under_review` esperando un paso a mano que el flujo nunca pedía.
+     */
+    it('dispara la evaluación de riesgo del onboarding, con clave de idempotencia propia', async () => {
+      const { service, riskService } = build();
+
+      await service.submitForReview(submitInput);
+
+      expect(riskService.createRiskAssessment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: 't1',
+          customerId: 'c1',
+          body: { assessmentType: 'onboarding_initial', channel: 'system' },
+          idempotencyKey: expect.stringContaining(':onboarding-risk'),
+        }),
+      );
+    });
+
+    /** Perder el envío por una caída del motor obligaría al cliente a repetir todo el recorrido. */
+    it('si la evaluación de riesgo falla, el envío igual procede', async () => {
+      const { service, riskService, lifecycleService } = build();
+      (riskService.createRiskAssessment as jest.Mock).mockRejectedValueOnce(new Error('motor caído') as never);
+
+      await expect(service.submitForReview(submitInput)).resolves.toMatchObject({ lifecycleStatus: 'active' });
+      expect(lifecycleService.transition).toHaveBeenCalledWith(expect.objectContaining({ toStatus: 'under_review' }));
+    });
+
+    /**
+     * El perdedor de una carrera entre dos envíos recibe el mismo error de negocio que quien
+     * reintenta, no un `INVALID_STATUS_TRANSITION` de la máquina de estados.
+     */
+    it('rechaza el segundo envío cuando el estado ya cambió dentro de la transacción', async () => {
+      const { service, customersRepository, lifecycleService } = build();
+      (customersRepository.findById as jest.Mock)
+        .mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'onboarding_in_progress', creditEligibilityStatus: null } as never)
+        .mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'under_review', creditEligibilityStatus: null } as never);
+
+      await expect(service.submitForReview(submitInput)).rejects.toThrow(/ONBOARDING_ALREADY_SUBMITTED/);
+      expect(lifecycleService.transition).not.toHaveBeenCalled();
+    });
+
+    /** Desde `active`, `rejected` o `closed` el paquete ya no está en juego. */
+    it('rechaza el envío desde un estado que ya no admite revisión', async () => {
+      const { service, customersRepository } = build();
+      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({
+        id: 'c1',
+        lifecycleStatus: 'active',
+        creditEligibilityStatus: null,
+      } as never);
+
+      await expect(service.submitForReview(submitInput)).rejects.toThrow(/ONBOARDING_NOT_SUBMITTABLE_IN_STATUS/);
+    });
   });
 
   describe('listObservations', () => {
     it('devuelve observaciones y casos abiertos SIN exponer las notas internas del analista', async () => {
-      const { service, eligibilityRepository } = build();
-      (eligibilityRepository.findOpenIssues as jest.Mock).mockResolvedValueOnce([
+      const { service, eligibilityRiskRepository } = build();
+      (eligibilityRiskRepository.findOpenIssues as jest.Mock).mockResolvedValueOnce([
         { id: 'i1', issueStatus: 'open', detectedAt: new Date('2026-07-10T00:00:00.000Z') },
       ] as never);
-      (eligibilityRepository.findOpenReviewCases as jest.Mock).mockResolvedValueOnce([
+      (eligibilityRiskRepository.findOpenReviewCases as jest.Mock).mockResolvedValueOnce([
         { id: 'case-1', caseType: 'risk_assessment_review', priority: 'high', status: 'open', openedAt: null, notes: 'criterio interno' },
       ] as never);
 

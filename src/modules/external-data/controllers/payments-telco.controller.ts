@@ -6,6 +6,7 @@
 import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../../common/openapi/zod-to-schema.util.js';
+import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,6 @@ import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../../common/utils/http/headers.util.js';
 import { actorId, assertCustomerAccess } from '../external-data-controller.util.js';
 import { ExternalDataService } from '../external-data.service.js';
 import {
@@ -55,14 +55,14 @@ export class PaymentsExternalDataController {
   @Post('qr/verify')
   @HttpCode(HttpStatus.OK)
   verifyQr(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(qrPaymentVerifySchema)) body: QrPaymentVerifyDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.executeQrPayment({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: body.customerId,
       body,
       idempotencyKey,
@@ -81,14 +81,14 @@ export class PaymentsExternalDataController {
   @Post('bank-transfer/verify')
   @HttpCode(HttpStatus.OK)
   verifyBankTransfer(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(bankTransferVerifySchema)) body: BankTransferVerifyDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.executeBankTransfer({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: body.customerId,
       body,
       idempotencyKey,
@@ -109,13 +109,13 @@ export class PaymentsExternalDataController {
   @Post('bank-transfer/qr')
   @HttpCode(HttpStatus.OK)
   generateBankQr(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(bankQrGenerateSchema)) body: BankQrGenerateDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.generateBankQr({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: body.customerId,
       amount: body.amount,
       currency: body.currency,
@@ -146,14 +146,14 @@ export class TelcoExternalDataController {
   @Post('phone-trust/verify')
   @HttpCode(HttpStatus.OK)
   verifyPhoneTrust(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(telcoPhoneTrustSchema)) body: TelcoPhoneTrustDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
     return this.externalDataService.executeTelcoPhoneTrust({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: body.customerId,
       body,
       idempotencyKey,
@@ -167,13 +167,13 @@ export class TelcoExternalDataController {
   @ApiResponse({ status: 200, description: 'Features de confianza telefónica.' })
   @Get('phone-trust/:customerId')
   getPhoneTrust(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
     return this.externalDataService.getCustomerFeatures({
-      tenantId: tenantIdFromHeader(tenantIdHeader, currentUser),
+      tenantId: tenantId,
       customerId: params.customerId,
     });
   }

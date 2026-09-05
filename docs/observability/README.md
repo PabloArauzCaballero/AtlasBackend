@@ -12,6 +12,7 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`overview.md`](./overview.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`servicios-hermanos.md`](./servicios-hermanos.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
 
 ## Reglas de mantenimiento
 

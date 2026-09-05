@@ -15,17 +15,22 @@
 | [`communications.fixtures.ts`](./communications.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`context-catalogs.fixtures.ts`](./context-catalogs.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`credit-lifecycle.fixtures.ts`](./credit-lifecycle.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`credit-rating.fixtures.ts`](./credit-rating.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`customer-identity.fixtures.ts`](./customer-identity.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`data-notebook.fixtures.ts`](./data-notebook.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`device-intelligence.fixtures.ts`](./device-intelligence.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`entity-narrative.types.ts`](./entity-narrative.types.ts) | Tipos de dominio: hacen explícitos estados y contratos internos. |
 | [`evidence.fixtures.ts`](./evidence.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`external-providers.fixtures.ts`](./external-providers.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`fraud-review.fixtures.ts`](./fraud-review.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`index.ts`](./index.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`loan-book.fixtures.ts`](./loan-book.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`onboarding-behavior.fixtures.ts`](./onboarding-behavior.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`partner-onboarding.fixtures.ts`](./partner-onboarding.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`platform-access.fixtures.ts`](./platform-access.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`privacy-consent.fixtures.ts`](./privacy-consent.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`risk-scoring.fixtures.ts`](./risk-scoring.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`support-service-management.fixtures.ts`](./support-service-management.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`systems-governance.fixtures.ts`](./systems-governance.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`workflow-catalog.fixtures.ts`](./workflow-catalog.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
 

@@ -20,10 +20,10 @@ type FakeRuntime = {
 
 function buildRuntime(claim: Claim): FakeRuntime {
   return {
-    requestHash: jest.fn(() => 'hash-1'),
-    claimIdempotency: jest.fn(async () => claim),
-    completeIdempotency: jest.fn(async () => undefined),
-    failIdempotency: jest.fn(async () => undefined),
+    requestHash: jest.fn((..._args: unknown[]) => 'hash-1'),
+    claimIdempotency: jest.fn(async (..._args: unknown[]) => claim),
+    completeIdempotency: jest.fn(async (..._args: unknown[]) => undefined),
+    failIdempotency: jest.fn(async (..._args: unknown[]) => undefined),
   } as FakeRuntime;
 }
 
@@ -46,7 +46,7 @@ describe('IdempotencyInterceptor', () => {
   let next: jest.Mock;
 
   beforeEach(() => {
-    next = jest.fn(() => of({ ok: true }));
+    next = jest.fn((..._args: unknown[]) => of({ ok: true }));
   });
 
   describe('cuándo NO interviene', () => {
@@ -128,7 +128,7 @@ describe('IdempotencyInterceptor', () => {
 
     it('si el handler falla, marca la clave como fallida y propaga el error original', async () => {
       const runtime = buildRuntime({ mode: 'execute', record: RECORD });
-      const failing = jest.fn(() => throwError(() => new Error('boom')));
+      const failing = jest.fn((..._args: unknown[]) => throwError(() => new Error('boom')));
       const interceptor = new IdempotencyInterceptor(runtime as never);
       const context = buildContext({ method: 'POST', headers: { 'x-idempotency-key': 'k1' } });
 
@@ -140,7 +140,7 @@ describe('IdempotencyInterceptor', () => {
     it('si además falla el marcado de fallo, sigue propagando el error original del handler', async () => {
       const runtime = buildRuntime({ mode: 'execute', record: RECORD });
       runtime.failIdempotency.mockRejectedValue(new Error('fallo secundario') as never);
-      const failing = jest.fn(() => throwError(() => new Error('boom')));
+      const failing = jest.fn((..._args: unknown[]) => throwError(() => new Error('boom')));
       const interceptor = new IdempotencyInterceptor(runtime as never);
       const context = buildContext({ method: 'POST', headers: { 'x-idempotency-key': 'k1' } });
 

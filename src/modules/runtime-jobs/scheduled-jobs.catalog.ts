@@ -5,6 +5,11 @@
  */
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { env } from '../../config/env.js';
+import { BankStatementReviewWorker } from '../credit/application/bank-statement-review.worker.js';
+import { CreditLineRefreshService } from '../credit/application/credit-line-refresh.service.js';
+import { OnboardingAbandonmentService } from '../customer-onboarding/application/onboarding-abandonment.service.js';
+import { LoanDelinquencyService } from '../loans/application/loan-delinquency.service.js';
+import { SupportSlaService } from '../support/application/support-sla.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
 
@@ -14,6 +19,15 @@ import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.servic
  * `sub` deja rastro de que el disparo vino del planificador y no de un operador.
  */
 export const SCHEDULER_ACTOR: AuthenticatedUser = { sub: 'runtime-jobs-scheduler', role: 'system' };
+
+/**
+ * Token de inyección del catálogo ya construido.
+ *
+ * El planificador recibe la LISTA, no los servicios que la producen: así deja de crecer un
+ * parámetro por cada trabajo de fondo nuevo y no vuelve a tocarse el archivo donde viven las
+ * garantías de concurrencia.
+ */
+export const SCHEDULED_JOBS = Symbol('SCHEDULED_JOBS');
 
 export type ScheduledJob = {
   jobCode: string;
@@ -32,9 +46,17 @@ export type ScheduledJob = {
  * Ningún job usa `dryRun`: los DTO lo traen en `true` por defecto para proteger el disparo manual
  * desde HTTP, y aquí se pasa `false` explícito porque la razón de ser del planificador es ejecutar.
  */
-export function buildScheduledJobs(deps: { runtimeJobs: RuntimeJobsService; maintenance: RuntimeMaintenanceJobsService }): ScheduledJob[] {
+export function buildScheduledJobs(deps: {
+  runtimeJobs: RuntimeJobsService;
+  maintenance: RuntimeMaintenanceJobsService;
+  onboardingAbandonment: OnboardingAbandonmentService;
+  delinquency: LoanDelinquencyService;
+  creditLineRefresh: CreditLineRefreshService;
+  bankStatements: BankStatementReviewWorker;
+  supportSla: SupportSlaService;
+}): ScheduledJob[] {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
-  const { runtimeJobs, maintenance } = deps;
+  const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements, supportSla } = deps;
 
   return [
     {
@@ -98,10 +120,106 @@ export function buildScheduledJobs(deps: { runtimeJobs: RuntimeJobsService; main
           currentUser: SCHEDULER_ACTOR,
         }),
     },
+    // ATLAS-DATA-003: el outbox drenado seguía acumulando filas `processed` para siempre. Corre con
+    // la misma cadencia que la purga de idempotencia porque responde al mismo problema —evidencia
+    // operativa que deja de serlo pasado su período de retención— y comparte su ventana.
+    {
+      jobCode: 'purge_processed_outbox',
+      intervalMs: env.RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS,
+      run: (tenantId) =>
+        maintenance.purgeProcessedOutbox({
+          tenantId,
+          body: { retentionDays: env.RUNTIME_JOBS_OUTBOX_RETENTION_DAYS, limit: 1_000, dryRun: false },
+          currentUser: SCHEDULER_ACTOR,
+        }),
+    },
+    // Cierre del otro extremo del embudo. El envío del paquete ya cierra los flujos completados;
+    // sin este job `completion_status` se quedaba en `in_progress` para siempre y `abandoned_at` en
+    // `null`, así que la tasa de abandono —la métrica que dice si el registro funciona— no existía.
+    // Solo estaba expuesto como endpoint HTTP: nadie lo llamaba.
+    {
+      jobCode: 'mark_abandoned_onboardings',
+      intervalMs: env.RUNTIME_JOBS_ONBOARDING_ABANDONMENT_INTERVAL_MS,
+      run: (tenantId) =>
+        onboardingAbandonment.markAbandonedFlows({
+          tenantId,
+          olderThanDays: env.RUNTIME_JOBS_ONBOARDING_ABANDONMENT_DAYS,
+          limit,
+        }),
+    },
     {
       jobCode: 'recalculate_data_quality',
       intervalMs: env.RUNTIME_JOBS_DATA_QUALITY_INTERVAL_MS,
       run: (tenantId) => runtimeJobs.recalculateDataQuality({ tenantId, body: { dryRun: false }, currentUser: SCHEDULER_ACTOR }),
+    },
+    /*
+     * Lo que se le prometió a quien está esperando una respuesta.
+     *
+     * Mismo defecto exacto que tuvo la mora, y por eso va justo antes: `sweepBreaches` estaba
+     * escrito, probado y expuesto en `POST internal/support/desk/sla/sweep`, y no lo llamaba nadie.
+     * La auditoría del 2026-09-05 sobre el VPS encontró 13 relojes corriendo con los 13 plazos
+     * pasados, ninguno marcado, y cero eventos de SLA en toda la historia del soporte. El peor era
+     * un P1 de toma de cuenta con 190 horas de atraso sobre un objetivo de acuse de 5 minutos.
+     *
+     * Lo grave no era el atraso sino la forma del error: un informe de cumplimiento habría dicho
+     * «0 incumplimientos» con total sinceridad. Un indicador roto en verde no se investiga.
+     *
+     * Dos pasadas y no una porque son dos preguntas distintas: `sweepWarnings` avisa a tiempo de
+     * evitar el incumplimiento y `sweepBreaches` lo registra cuando ya no se pudo. El aviso va
+     * primero para que un reloj que cruza los dos umbrales en la misma pasada deje primero el aviso
+     * y luego la marca, y la historia se lea en el orden en que ocurrió.
+     */
+    {
+      jobCode: 'sweep_support_sla',
+      intervalMs: env.RUNTIME_JOBS_SUPPORT_SLA_INTERVAL_MS,
+      run: async (tenantId) => {
+        const warned = await supportSla.sweepWarnings(tenantId);
+        const breached = await supportSla.sweepBreaches(tenantId);
+        return { ...warned, ...breached };
+      },
+    },
+    /*
+     * La mora, y lo que la mora le cuesta al cliente.
+     *
+     * El barrido existía completo —recalcula días de atraso, mueve el tramo, marca las cuotas
+     * vencidas y encola las cosechas para el motor— y colgaba EXCLUSIVAMENTE de un endpoint HTTP
+     * que no llamaba nadie. En la práctica `days_past_due` se quedaba con el valor del día del
+     * desembolso: un préstamo vencido seguía figurando al corriente, la cartera en mora era
+     * invisible y la línea de crédito nunca se enteraba de nada.
+     *
+     * Es el job que convierte «entrar en mora te cuesta capacidad de pago» de una frase de la
+     * pantalla en algo que ocurre solo.
+     */
+    {
+      jobCode: 'sweep_loan_delinquency',
+      intervalMs: env.RUNTIME_JOBS_DELINQUENCY_SWEEP_INTERVAL_MS,
+      run: (tenantId) => delinquency.sweep({ tenantId, limit }),
+    },
+    // La otra mitad: quien nunca tuvo línea porque nadie se acordó de pedirla, y quien la tiene tan
+    // vieja que responde a un expediente que ya no es el suyo.
+    {
+      jobCode: 'refresh_credit_lines',
+      intervalMs: env.RUNTIME_JOBS_CREDIT_LINE_REFRESH_INTERVAL_MS,
+      run: (tenantId) =>
+        creditLineRefresh.refreshStaleLines({
+          tenantId,
+          maxAgeDays: env.RUNTIME_JOBS_CREDIT_LINE_MAX_AGE_DAYS,
+          limit: env.RUNTIME_JOBS_CREDIT_LINE_REFRESH_LIMIT,
+        }),
+    },
+    /*
+     * El compromiso de 24 horas del extracto bancario.
+     *
+     * La app se lo promete al cliente por escrito y ese plazo no tenía nada detrás: la revisión se
+     * creaba en `received` y ahí se quedaba, porque el método que aplica el resultado no lo llamaba
+     * ni un job ni un endpoint. Cada 15 minutos y no cada hora porque el plazo se mide en horas: con
+     * una cadencia horaria, avisar de un incumplimiento inminente llegaría cuando ya no da tiempo a
+     * evitarlo.
+     */
+    {
+      jobCode: 'process_bank_statement_reviews',
+      intervalMs: env.RUNTIME_JOBS_BANK_STATEMENT_INTERVAL_MS,
+      run: (tenantId) => bankStatements.processPending({ tenantId, limit }),
     },
     // Rescate de los eventos que `process_events` reclamó y no llegó a resolver porque el proceso
     // murió a la mitad. Sin este job esos eventos quedan en `processing` para siempre: ninguna

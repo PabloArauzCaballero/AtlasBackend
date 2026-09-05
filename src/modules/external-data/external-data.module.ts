@@ -26,6 +26,8 @@ import {
   FacebookExternalDataController,
   WhatsappExternalDataController,
 } from './controllers/social-trust.controller.js';
+import { ProviderAuthAdminController } from './controllers/provider-auth.controller.js';
+import { AuthBrokerClient } from './infrastructure/auth-broker/auth-broker.client.js';
 import { ExternalDataRepository } from './external-data.repository.js';
 import { ExternalDataService } from './external-data.service.js';
 import { ExternalDataDecisionService } from './application/external-data-decision.service.js';
@@ -60,6 +62,11 @@ import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-tr
   controllers: [
     ExternalDataController,
     AdminExternalProvidersController,
+    // Se registra después del controller de administración por la misma razón que el resto: Nest
+    // resuelve rutas en orden de registro. Sus rutas (`auth-state`, `credentials/*`) no colisionan
+    // con ninguna existente — el controller de administración no declara ningún `@Get(':providerCode')`
+    // de un solo segmento que pudiera capturarlas.
+    ProviderAuthAdminController,
     KycExternalDataController,
     BureauExternalDataController,
     PaymentsExternalDataController,
@@ -71,6 +78,7 @@ import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-tr
   providers: [
     ExternalDataRepository,
     ExternalDataService,
+    AuthBrokerClient,
     ExternalProviderRegistryService,
     ExternalDataEvidenceService,
     ExternalDataDecisionService,

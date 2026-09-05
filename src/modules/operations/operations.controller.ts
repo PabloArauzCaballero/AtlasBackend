@@ -6,6 +6,7 @@
 import { BadRequestException, Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,6 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { FraudService } from '../fraud/fraud.service.js';
 import { fraudDecisionParamsSchema, FraudDecisionParamsDto, fraudDecisionSchema, FraudDecisionDto } from '../fraud/fraud.schemas.js';
 import { OperationsService } from './operations.service.js';
@@ -52,11 +52,7 @@ export class OperationsController {
   @ApiQuery({ name: 'priority', required: false, schema: zodObjectPropertySchemas(workQueueQuerySchema).priority })
   @ApiResponse({ status: 200, description: 'Cola de trabajo paginada.' })
   @Get('work-queue')
-  getWorkQueue(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Query(new ZodValidationPipe(workQueueQuerySchema)) query: WorkQueueQueryDto,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+  getWorkQueue(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(workQueueQuerySchema)) query: WorkQueueQueryDto) {
     return this.operationsService.getWorkQueue(tenantId, query);
   }
 
@@ -71,10 +67,9 @@ export class OperationsController {
   @ApiResponse({ status: 200, description: 'Página de casos de revisión manual.' })
   @Get('manual-review-cases')
   getManualReviewCasesCursorPage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Query(new ZodValidationPipe(cursorWorkQueueQuerySchema)) query: CursorWorkQueueQueryDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.operationsService.getManualReviewCasesCursorPage(tenantId, query);
   }
 
@@ -86,10 +81,9 @@ export class OperationsController {
   @Get('fraud-cases')
   @Roles('fraud_analyst', 'internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')
   getFraudCasesCursorPage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Query(new ZodValidationPipe(cursorWorkQueueQuerySchema)) query: CursorWorkQueueQueryDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.operationsService.getFraudCasesCursorPage(tenantId, query);
   }
 
@@ -104,10 +98,9 @@ export class OperationsController {
   @ApiResponse({ status: 404, description: 'Cliente no encontrado.' })
   @Get('customers/:customerId/investigation-summary')
   getInvestigationSummary(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(operationsCustomerIdParamsSchema)) params: OperationsCustomerIdParamsDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.operationsService.getInvestigationSummary(tenantId, params);
   }
 
@@ -128,14 +121,13 @@ export class OperationsController {
   @HttpCode(HttpStatus.OK)
   @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
   decideManualReviewCase(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(manualReviewDecisionParamsSchema)) params: ManualReviewDecisionParamsDto,
     @Body(new ZodValidationPipe(manualReviewDecisionSchema)) body: ManualReviewDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.operationsService.decideManualReviewCase({ tenantId, params, body, currentUser, idempotencyKey });
   }
 
@@ -158,14 +150,13 @@ export class OperationsController {
   @HttpCode(HttpStatus.OK)
   @Roles('fraud_analyst', 'admin', 'platform_admin')
   decideFraudCase(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(fraudDecisionParamsSchema)) params: FraudDecisionParamsDto,
     @Body(new ZodValidationPipe(fraudDecisionSchema)) body: FraudDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.fraudService.decideFraudCase({ tenantId, params, body, currentUser, idempotencyKey });
   }
 }

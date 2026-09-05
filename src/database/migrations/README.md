@@ -72,6 +72,42 @@
 | [`20260728090000-add-customer-lifecycle-state-machine-and-eligibility.ts`](./20260728090000-add-customer-lifecycle-state-machine-and-eligibility.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260728120000-create-credit-products-and-applications.ts`](./20260728120000-create-credit-products-and-applications.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 | [`20260728140000-create-workflow-catalog.ts`](./20260728140000-create-workflow-catalog.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260811090000-create-loan-book.ts`](./20260811090000-create-loan-book.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260811100000-link-credit-applications-to-decision-engine.ts`](./20260811100000-link-credit-applications-to-decision-engine.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260814210000-create-data-notebook-query-history.ts`](./20260814210000-create-data-notebook-query-history.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260815020000-create-data-notebook-documents.ts`](./20260815020000-create-data-notebook-documents.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260815030000-create-read-api-risk-views-v1.ts`](./20260815030000-create-read-api-risk-views-v1.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260815140000-create-read-api-business-views-v1.ts`](./20260815140000-create-read-api-business-views-v1.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260816090000-create-credit-rating-engine.ts`](./20260816090000-create-credit-rating-engine.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260818020000-add-merchant-user-identity.ts`](./20260818020000-add-merchant-user-identity.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260819140000-create-partner-onboarding.ts`](./20260819140000-create-partner-onboarding.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260819160000-add-partner-contact-verification.ts`](./20260819160000-add-partner-contact-verification.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260819180000-add-business-acceptance-to-credit-applications.ts`](./20260819180000-add-business-acceptance-to-credit-applications.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260820120000-add-partner-profile-owner.ts`](./20260820120000-add-partner-profile-owner.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260820120000-add-platform-block-to-systems-catalog.ts`](./20260820120000-add-platform-block-to-systems-catalog.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260821020000-link-credit-to-partner.ts`](./20260821020000-link-credit-to-partner.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260821040000-sync-internal-rbac-catalog.ts`](./20260821040000-sync-internal-rbac-catalog.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260821050000-widen-entity-code-columns.ts`](./20260821050000-widen-entity-code-columns.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260821060000-create-delinquency-policies.ts`](./20260821060000-create-delinquency-policies.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260821070000-add-consent-document-content.ts`](./20260821070000-add-consent-document-content.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260822010000-create-credit-lines.ts`](./20260822010000-create-credit-lines.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260822020000-create-bank-statement-reviews.ts`](./20260822020000-create-bank-statement-reviews.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260822030000-create-notification-policies.ts`](./20260822030000-create-notification-policies.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260822040000-create-app-content-entries.ts`](./20260822040000-create-app-content-entries.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260823020000-add-marketing-consent-document.ts`](./20260823020000-add-marketing-consent-document.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260824030000-create-decision-artifact-bindings.ts`](./20260824030000-create-decision-artifact-bindings.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260824060000-extend-decision-artifact-bindings.ts`](./20260824060000-extend-decision-artifact-bindings.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260825040000-create-loan-payment-claims.ts`](./20260825040000-create-loan-payment-claims.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260825190000-normalize-partner-business-category.ts`](./20260825190000-normalize-partner-business-category.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260825200000-add-pos-terminal-to-credit-applications.ts`](./20260825200000-add-pos-terminal-to-credit-applications.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260825210000-add-mdr-rate-to-partner-profiles.ts`](./20260825210000-add-mdr-rate-to-partner-profiles.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260826120000-statement-capacity-and-rejection.ts`](./20260826120000-statement-capacity-and-rejection.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260827100000-create-support-catalogs.ts`](./20260827100000-create-support-catalogs.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260827100100-create-support-cases.ts`](./20260827100100-create-support-cases.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260827100200-create-support-channels.ts`](./20260827100200-create-support-channels.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260827100300-create-support-knowledge.ts`](./20260827100300-create-support-knowledge.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260827100400-create-support-append-only-guards.ts`](./20260827100400-create-support-append-only-guards.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
+| [`20260828100000-add-support-read-receipts.ts`](./20260828100000-add-support-read-receipts.ts) | Migración reversible: evoluciona el esquema PostgreSQL en orden. |
 
 ## Reglas de mantenimiento
 

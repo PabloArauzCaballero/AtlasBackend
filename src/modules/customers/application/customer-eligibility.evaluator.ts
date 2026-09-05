@@ -70,9 +70,33 @@ function missingProfileFields(facts: EligibilityFacts, now: Date): string[] {
   return missing.filter((field) => (REQUIRED_PROFILE_FIELDS as readonly string[]).includes(field));
 }
 
+/**
+ * Situaciones laborales en las que la ANTIGÜEDAD tiene respuesta posible.
+ *
+ * Fuera de estas dos, preguntar «cuánto tiempo llevas en tu trabajo» no tiene sentido: quien declara
+ * que no trabaja, que estudia o que está jubilado no tiene una antigüedad que contar, y quien trabaja
+ * por su cuenta no la tiene contra ningún empleador. La app dejó de pedirla en esos casos, y esta
+ * regla tenía que aprender lo mismo: si no, el expediente se queda en «en curso» para siempre
+ * esperando un dato que ya nadie va a introducir — y la única salida era inventárselo.
+ */
+const EMPLOYMENT_STATUSES_WITH_SENIORITY: readonly string[] = ['employee', 'business_owner'];
+
 function missingFinancialFields(facts: EligibilityFacts): string[] {
   const present = new Set(facts.presentFinancialAttributeCodes);
-  return REQUIRED_FINANCIAL_ATTRIBUTE_CODES.filter((code) => !present.has(code));
+  // Lectura defensiva: hay bancos de prueba que arman los hechos sin este mapa.
+  const employmentStatus = facts.financialAttributeTexts?.['employment_status'];
+  /*
+   * Mientras no se haya declarado la situación laboral, la antigüedad se sigue exigiendo: el hueco
+   * existe hasta que se sepa si aplica, y quitarlo antes daría por completa una sección a la que
+   * todavía le falta el dato que decide.
+   */
+  const senioritySkipped =
+    employmentStatus !== undefined && !EMPLOYMENT_STATUSES_WITH_SENIORITY.includes(employmentStatus);
+
+  return REQUIRED_FINANCIAL_ATTRIBUTE_CODES.filter((code) => {
+    if (code === 'employment_seniority_months' && senioritySkipped) return false;
+    return !present.has(code);
+  });
 }
 
 function missingConsentDocumentIds(facts: EligibilityFacts): string[] {

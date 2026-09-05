@@ -13,6 +13,7 @@
 |---|---|
 | [`customer-address-status.repository.ts`](./customer-address-status.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`customer-contact-verification.repository.ts`](./customer-contact-verification.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`customer-contacts-snapshot.repository.ts`](./customer-contacts-snapshot.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`customer-identity-evidence.repository.ts`](./customer-identity-evidence.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`customer-onboarding-flow.repository.ts`](./customer-onboarding-flow.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`customer-profile-data.repository.ts`](./customer-profile-data.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |

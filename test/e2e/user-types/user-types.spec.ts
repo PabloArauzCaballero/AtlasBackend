@@ -8,6 +8,7 @@ import {
   legacyRoleForInternalRoles,
   type InternalRoleCode,
 } from '../../../src/modules/internal-users/internal-rbac.seed-data.js';
+import { DATA_NOTEBOOK_ROLES } from '../../../src/modules/data-notebook/data-notebook.constants.js';
 import {
   SYSTEMS_OPS_GOVERNANCE_ROLES,
   SYSTEMS_OPS_QA_ROLES,
@@ -21,6 +22,7 @@ import {
   customerToken,
   internalToken,
   internalUserIdFor,
+  merchantToken,
   platformToken,
   signToken,
   type NotificationsServiceStub,
@@ -109,7 +111,7 @@ describe('tipos de usuario — cadena de guards real (e2e/supertest)', () => {
     });
   });
 
-  describe('tipo de actor: customer, internal_user y platform_user', () => {
+  describe('tipo de actor: customer, internal_user, platform_user y merchant_user', () => {
     it('el token de cliente llega al handler con customerId y tenantId', async () => {
       const res = await request(app.getHttpServer())
         .get('/probe/roles/any')
@@ -129,6 +131,23 @@ describe('tipos de usuario — cadena de guards real (e2e/supertest)', () => {
 
       expect(res.body).toMatchObject({ role: 'internal_operator', internalUserId: 'iu-1', tenantId: '1' });
       expect(res.body.customerId).toBeUndefined();
+    });
+
+    /**
+     * Cuarta población. Existe desde que la identidad del comercio afiliado vive en AtlasBackend:
+     * antes no había ninguna, y el ERP fabricaba el rol del comercio a partir de un rol de
+     * EMPLEADO (`MERCHANT_OPERATIONS`).
+     */
+    it('el token de comercio llega al handler con merchantUserId y tenantId', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/probe/roles/any')
+        .set(...bearer(merchantToken()))
+        .expect(200);
+
+      expect(res.body).toMatchObject({ role: 'merchant', merchantUserId: 'mu-1', tenantId: '1' });
+      expect(res.body.internalUserId).toBeUndefined();
+      expect(res.body.customerId).toBeUndefined();
+      expect(res.body.platformUserId).toBeUndefined();
     });
 
     it('el token de plataforma llega sin tenantId (opera sobre cualquier tenant)', async () => {
@@ -253,15 +272,65 @@ describe('tipos de usuario — cadena de guards real (e2e/supertest)', () => {
      * `system_admin` es exactamente ese caso — está en el vocabulario del token, pero
      * `legacyRoleForInternalRoles` nunca lo produce (SUPER_ADMIN y SYSTEMS_ADMIN se mapean a
      * `admin`), así que las listas de systems-ops deben incluir además un rol alcanzable.
+     *
+     * `DATA_NOTEBOOK_ROLES` está aquí por completitud, pero OJO: esta prueba no habría cazado el
+     * fallo que le tocó a esa lista. Admitía `risk_analyst`, `compliance_analyst` y
+     * `readonly_auditor` —tres llaves alcanzables de sobra—, y aun así el administrador del tenant
+     * recibía 403, porque `admin` no estaba. «Al menos uno» no dice nada de QUIÉN falta. Ese caso
+     * lo fija la prueba de abajo, que nombra al rol concreto.
      */
     const gatedRoleLists: [string, readonly string[]][] = [
       ['SYSTEMS_OPS_GOVERNANCE_ROLES', SYSTEMS_OPS_GOVERNANCE_ROLES],
       ['SYSTEMS_OPS_QA_ROLES', SYSTEMS_OPS_QA_ROLES],
       ['SYSTEMS_OPS_STRESS_ROLES', SYSTEMS_OPS_STRESS_ROLES],
+      ['DATA_NOTEBOOK_ROLES', DATA_NOTEBOOK_ROLES],
     ];
 
     it.each(gatedRoleLists)('%s es alcanzable por al menos un usuario interno real', (_name, roles) => {
       expect(REACHABLE_INTERNAL_LEGACY_ROLES.filter((role) => roles.includes(role))).not.toEqual([]);
+    });
+
+    /**
+     * El cuaderno de datos se le negaba al superadministrador del tenant.
+     *
+     * `DATA_NOTEBOOK_ROLES` nombraba `system_admin` y `platform_admin`, que suenan a «el que manda»
+     * y no los lleva ningún usuario interno: los tres roles RBAC de administración colapsan en
+     * `admin` (`legacyRoleForInternalRoles`). El resultado era un 403 en el catálogo de datasets
+     * que el portal sólo podía contar como «el servicio no responde o tu sesión caducó» —ninguna de
+     * las dos—, así que el aviso mandaba a revisar el servicio y la sesión, que estaban bien.
+     *
+     * Se comprueba por los tres códigos RBAC y no por el literal `'admin'`: si algún día el mapeo
+     * cambia y SYSTEMS_ADMIN pasa a emitir `system_admin`, esta prueba sigue diciendo la verdad.
+     */
+    it.each(['SUPER_ADMIN', 'SYSTEMS_ADMIN', 'INTERNAL_IDENTITY_ADMIN'])(
+      'el administrador interno %s puede abrir el cuaderno de datos',
+      (roleCode) => {
+        expect(DATA_NOTEBOOK_ROLES).toContain(legacyRoleForInternalRoles([roleCode]));
+      },
+    );
+
+    /**
+     * Lo mismo, pero pasando por el guard de verdad y por HTTP.
+     *
+     * La aserción de arriba mira una constante; ésta emite un token como el que lleva el
+     * administrador de un tenant y comprueba que `RolesGuard` lo deja entrar — y que a QA, que no
+     * está en la lista, lo sigue parando. Sin el segundo caso, la prueba pasaría también con una
+     * lista abierta de par en par.
+     */
+    it('un token de administrador interno atraviesa el guard del cuaderno, y el de QA no', async () => {
+      const app = await buildUserTypesTestApp();
+      try {
+        await request(app.getHttpServer())
+          .get('/probe/roles/data-notebook')
+          .set(...bearer(internalToken(legacyRoleForInternalRoles(['SUPER_ADMIN']))))
+          .expect(200);
+        await request(app.getHttpServer())
+          .get('/probe/roles/data-notebook')
+          .set(...bearer(internalToken(legacyRoleForInternalRoles(['QA_ENGINEER']))))
+          .expect(403);
+      } finally {
+        await app.close();
+      }
     });
   });
 });

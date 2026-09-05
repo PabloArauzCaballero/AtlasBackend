@@ -5,29 +5,49 @@
  */
 import { NotFoundException } from '@nestjs/common';
 import { clean, id, intValue, iso, jsonValue, nullableText, parsePage, Query, Row } from './portal-format.util.js';
-import { NOW_SEED } from './portal-report-definitions.js';
 import { PortalQueryBase } from './portal-query.base.js';
+import { PortalScope, scopeReplacements, tenantPredicate } from './portal-scope.util.js';
 
 /**
  * Operación del portal interno: alertas (issues de calidad) y ejecuciones de jobs.
  *
- * Extraído de `internal-portal.service.ts` (Fase 2.2 del plan 10/10) sin cambios de comportamiento.
+ * Las dos tablas que consulta —`data_quality_issues` y `system_job_runs`— llevan `_tenant_id`, así
+ * que **todas** sus consultas están acotadas por `PortalScope` (ATLAS-SEC-009). Antes no lo estaban:
+ * un operador de un tenant leía las corridas de job de otro y podía reconocer alertas ajenas.
+ *
+ * Este servicio es de LECTURA. Las acciones que ejecutan trabajo de verdad (reintentar un job,
+ * recalcular calidad de datos) viven en `runtime-jobs`, que es quien tiene el planificador, el lock
+ * de líder y el registro de corridas. Ver la nota de `retryJob`/`cancelJob` en el controller.
  */
 export class PortalOperationsService extends PortalQueryBase {
-  async listAlerts(query: Query) {
+  async listAlerts(scope: PortalScope, query: Query) {
     const page = parsePage(query);
     const q = clean(query.q, '');
+    const scoped = tenantPredicate(scope, 'i');
+    const filters = { q, like: `%${q}%`, ...scopeReplacements(scope) };
+    const textMatch = `(:q = '' OR i.target_table ILIKE :like OR COALESCE(r.rule_name,'') ILIKE :like OR COALESCE(r.rule_code,'') ILIKE :like)`;
+
     const rows = await this.queryRows(
       `SELECT i._id, i.target_table, i.target_record_id, i.issue_status, i.detected_at, i.resolved_at, i.resolution_notes,
               r.rule_code, r.rule_name, r.severity
          FROM data_quality_issues i
          LEFT JOIN data_quality_rules r ON r._id = i.quality_rule_id
-        WHERE (:q = '' OR i.target_table ILIKE :like OR COALESCE(r.rule_name,'') ILIKE :like OR COALESCE(r.rule_code,'') ILIKE :like)
+        WHERE ${scoped} AND ${textMatch}
         ORDER BY i.detected_at DESC NULLS LAST, i._id DESC
         LIMIT :limit OFFSET :offset`,
-      { q, like: `%${q}%`, limit: page.limit, offset: page.offset },
+      { ...filters, limit: page.limit, offset: page.offset },
     );
-    const total = await this.queryRows<{ count: string }>(`SELECT COUNT(*)::text AS count FROM data_quality_issues`);
+
+    // El total se calcula con EXACTAMENTE el mismo `WHERE` que la página. Antes contaba la tabla
+    // entera: al filtrar por texto, `totalPages` prometía páginas que no existían.
+    const total = await this.queryRows<{ count: string }>(
+      `SELECT COUNT(*)::text AS count
+         FROM data_quality_issues i
+         LEFT JOIN data_quality_rules r ON r._id = i.quality_rule_id
+        WHERE ${scoped} AND ${textMatch}`,
+      filters,
+    );
+
     const items = rows.map((row) => ({
       alertId: `dq:${id(row._id)}`,
       title: clean(row.rule_name, `Issue de calidad ${id(row._id)}`),
@@ -37,11 +57,14 @@ export class PortalOperationsService extends PortalQueryBase {
       source: clean(row.rule_code, 'data_quality'),
       resourceType: 'data_quality_issue',
       resourceId: id(row._id),
-      createdAt: iso(row.detected_at) ?? NOW_SEED,
-      acknowledgedAt: clean(row.issue_status, '').toLowerCase() === 'acknowledged' ? (iso(row.resolved_at) ?? NOW_SEED) : null,
+      // `null` cuando la fila no tiene fecha: una marca temporal inventada en un panel de operación
+      // es peor que un hueco visible (antes se rellenaba con la constante NOW_SEED).
+      createdAt: iso(row.detected_at),
+      acknowledgedAt: clean(row.issue_status, '').toLowerCase() === 'acknowledged' ? iso(row.resolved_at) : null,
       acknowledgedBy: clean(row.issue_status, '').toLowerCase() === 'acknowledged' ? 'internal_portal' : null,
       metadata: { targetTable: clean(row.target_table), targetRecordId: clean(row.target_record_id) },
     }));
+
     return {
       items,
       meta: {
@@ -53,27 +76,50 @@ export class PortalOperationsService extends PortalQueryBase {
     };
   }
 
-  async acknowledgeAlert(alertId: string) {
+  /**
+   * El `UPDATE` lleva el tenant en su propio `WHERE`, no en una comprobación previa: así no existe
+   * ventana entre "verifico que es mío" y "escribo". Si no afecta ninguna fila, se responde 404 —
+   * indistinguible de un id inexistente, para que el actor no pueda sondear ids de otros tenants.
+   */
+  async acknowledgeAlert(scope: PortalScope, alertId: string) {
     const rawId = decodeURIComponent(alertId).replace(/^dq:/, '');
-    await this.sequelize.query(
-      `UPDATE data_quality_issues SET issue_status = 'acknowledged', resolved_at = NOW(), resolution_notes = COALESCE(resolution_notes, '') || ' | Acknowledged from internal portal.' WHERE _id::text = :id`,
-      { replacements: { id: rawId } },
+    const updated = await this.queryRows<{ _id: string }>(
+      `UPDATE data_quality_issues i
+          SET issue_status = 'acknowledged',
+              resolved_at = NOW(),
+              resolution_notes = COALESCE(i.resolution_notes, '') || ' | Acknowledged from internal portal.'
+        WHERE i._id::text = :id AND ${tenantPredicate(scope, 'i')}
+        RETURNING i._id`,
+      { id: rawId, ...scopeReplacements(scope) },
     );
+
+    if (updated.length === 0) throw new NotFoundException('DATA_QUALITY_ISSUE_NOT_FOUND');
+
     return { alertId, status: 'ACKNOWLEDGED', message: 'Alerta reconocida correctamente.' };
   }
 
-  async listJobs(query: Query) {
+  async listJobs(scope: PortalScope, query: Query) {
     const page = parsePage(query);
     const q = clean(query.q, '');
+    const scoped = tenantPredicate(scope, 'j');
+    const filters = { q, like: `%${q}%`, ...scopeReplacements(scope) };
+    const textMatch = `(:q = '' OR j.job_code ILIKE :like OR j.status ILIKE :like)`;
+
     const rows = await this.queryRows(
-      `SELECT _id, job_code, status, started_at, completed_at, input_json, result_json, error_message, triggered_by_type, triggered_by_id, _created_at
-         FROM system_job_runs
-        WHERE (:q = '' OR job_code ILIKE :like OR status ILIKE :like)
-        ORDER BY COALESCE(started_at, _created_at) DESC, _id DESC
+      `SELECT j._id, j.job_code, j.status, j.started_at, j.completed_at, j.input_json, j.result_json,
+              j.error_message, j.triggered_by_type, j.triggered_by_id, j._created_at
+         FROM system_job_runs j
+        WHERE ${scoped} AND ${textMatch}
+        ORDER BY COALESCE(j.started_at, j._created_at) DESC, j._id DESC
         LIMIT :limit OFFSET :offset`,
-      { q, like: `%${q}%`, limit: page.limit, offset: page.offset },
+      { ...filters, limit: page.limit, offset: page.offset },
     );
-    const total = await this.queryRows<{ count: string }>(`SELECT COUNT(*)::text AS count FROM system_job_runs`);
+
+    const total = await this.queryRows<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM system_job_runs j WHERE ${scoped} AND ${textMatch}`,
+      filters,
+    );
+
     const items = rows.map((row) => this.mapJob(row));
     return {
       items,
@@ -86,10 +132,14 @@ export class PortalOperationsService extends PortalQueryBase {
     };
   }
 
-  async getJob(jobRunId: string) {
+  async getJob(scope: PortalScope, jobRunId: string) {
     const rows = await this.queryRows(
-      `SELECT _id, job_code, status, started_at, completed_at, input_json, result_json, error_message, triggered_by_type, triggered_by_id, _created_at FROM system_job_runs WHERE _id::text = :id OR job_code = :id LIMIT 1`,
-      { id: decodeURIComponent(jobRunId) },
+      `SELECT j._id, j.job_code, j.status, j.started_at, j.completed_at, j.input_json, j.result_json,
+              j.error_message, j.triggered_by_type, j.triggered_by_id, j._created_at
+         FROM system_job_runs j
+        WHERE (j._id::text = :id OR j.job_code = :id) AND ${tenantPredicate(scope, 'j')}
+        LIMIT 1`,
+      { id: decodeURIComponent(jobRunId), ...scopeReplacements(scope) },
     );
     if (!rows[0]) throw new NotFoundException('JOB_RUN_NOT_FOUND');
     const job = this.mapJob(rows[0]);
@@ -111,24 +161,6 @@ export class PortalOperationsService extends PortalQueryBase {
     };
   }
 
-  async retryJob(jobRunId: string) {
-    const job = await this.getJob(jobRunId);
-    return {
-      jobRunId: job.jobRunId,
-      status: 'QUEUED_FOR_RETRY',
-      message: 'Reintento solicitado. El job queda registrado para ejecución controlada.',
-    };
-  }
-
-  async cancelJob(jobRunId: string) {
-    const job = await this.getJob(jobRunId);
-    return {
-      jobRunId: job.jobRunId,
-      status: 'CANCEL_REQUESTED',
-      message: 'Cancelación solicitada. Si el job ya terminó, no se altera evidencia histórica.',
-    };
-  }
-
   private mapJob(row: Row) {
     const started = iso(row.started_at);
     const finished = iso(row.completed_at);
@@ -139,12 +171,10 @@ export class PortalOperationsService extends PortalQueryBase {
       name: clean(row.job_code).replace(/_/g, ' '),
       queue: clean(row.triggered_by_type, 'system'),
       status: clean(row.status, 'unknown').toUpperCase(),
-      priority: 'normal',
-      attempts: 1,
       durationMs: duration,
       startedAt: started,
       finishedAt: finished,
-      createdAt: iso(row._created_at) ?? NOW_SEED,
+      createdAt: iso(row._created_at),
       metadata: { triggeredBy: nullableText(row.triggered_by_id), hasError: Boolean(row.error_message) },
     };
   }

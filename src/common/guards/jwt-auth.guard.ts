@@ -10,35 +10,27 @@ import { env } from '../../config/env.js';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { TokenRevocationService } from '../services/token-revocation.service.js';
 import { ATLAS_USER_ROLES, AuthenticatedUser, RequestWithAuth } from '../types/auth.types.js';
-import { ACCESS_TOKEN_COOKIE, readCookie } from '../utils/http/auth-cookies.util.js';
+import { readAccessToken } from '../utils/http/auth-cookies.util.js';
 import { accessTokenVerifyOptions } from '../utils/auth/jwt-claims.util.js';
 
 const KNOWN_ROLES: ReadonlySet<AuthenticatedUser['role']> = new Set(ATLAS_USER_ROLES);
 
-function bearerTokenFromHeader(authorizationHeader: string | string[] | undefined): string | null {
-  const header = Array.isArray(authorizationHeader) ? authorizationHeader[0] : authorizationHeader;
-  if (!header) return null;
-
-  const [scheme, token] = header.split(' ');
-  if (scheme !== 'Bearer' || !token) {
-    throw new UnauthorizedException('Formato de Authorization inválido. Use: Bearer <token>.');
-  }
-
-  return token;
-}
-
 /**
- * La cookie `HttpOnly` tiene prioridad sobre `Authorization`: es la vía del panel interno y la que
- * un XSS no puede leer. El header se mantiene como fallback para clientes que no son navegador
- * (smoke tests, scripts, integraciones), que no tienen dónde guardar una cookie.
+ * Dónde está el token lo decide `readAccessToken` (cookie primero, `Authorization` después); aquí
+ * sólo se convierte su ausencia en el 401 del guard. La extracción se compartió con el decorador
+ * que reenvía la sesión al motor de decisión: dos copias de esa regla acabarían autenticando
+ * distinto la misma petición.
  */
 function extractAccessToken(request: RequestWithAuth): string {
-  const fromCookie = readCookie(request, ACCESS_TOKEN_COOKIE);
-  if (fromCookie) return fromCookie;
-
-  const fromHeader = bearerTokenFromHeader(request.headers.authorization);
-  if (fromHeader) return fromHeader;
-
+  const token = readAccessToken(request);
+  if (token) return token;
+  // Un `Authorization` presente pero con otro esquema es un error de FORMATO de quien llama, y hay
+  // que decirlo así: responder «falta sesión» manda a buscar una cookie a alguien que sí envió una
+  // credencial, sólo que mal escrita. `readAccessToken` no puede hacer esta distinción porque su
+  // otro consumidor —el decorador que reenvía la sesión— no debe lanzar nunca.
+  if (request.headers.authorization) {
+    throw new UnauthorizedException('Formato de Authorization inválido. Use: Bearer <token>.');
+  }
   throw new UnauthorizedException('Sesión requerida: falta la cookie de sesión o un token Bearer.');
 }
 
@@ -67,6 +59,7 @@ function parseAuthenticatedUser(payload: string | jwt.JwtPayload): Authenticated
     customerId: typeof payload.customerId === 'string' ? payload.customerId : undefined,
     internalUserId: typeof payload.internalUserId === 'string' ? payload.internalUserId : undefined,
     platformUserId: typeof payload.platformUserId === 'string' ? payload.platformUserId : undefined,
+    merchantUserId: typeof payload.merchantUserId === 'string' ? payload.merchantUserId : undefined,
     tokenVersion: typeof payload.tokenVersion === 'number' ? payload.tokenVersion : undefined,
   };
 }
@@ -81,6 +74,7 @@ function actorLookup(user: AuthenticatedUser): { actorType: string; actorId: str
   if (user.customerId) return { actorType: 'customer', actorId: user.customerId };
   if (user.internalUserId) return { actorType: 'internal_user', actorId: user.internalUserId };
   if (user.platformUserId) return { actorType: 'platform_user', actorId: user.platformUserId };
+  if (user.merchantUserId) return { actorType: 'merchant_user', actorId: user.merchantUserId };
   return null;
 }
 

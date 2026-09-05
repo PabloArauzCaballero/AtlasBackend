@@ -19,6 +19,9 @@ describe('OperationsRepository', () => {
       operationalAudit: make(),
       dataChangeLog: make(),
       customerObservation: make(),
+      // El octavo modelo, que el repositorio recibe desde que la identidad dejó de decidirse con
+      // una sola fuente. Sin él la construcción no compila, y la prueba se quedó atrás.
+      identityAttempt: make(),
     };
     const repo = new OperationsRepository(
       models.manualReviewCase as never,
@@ -28,6 +31,7 @@ describe('OperationsRepository', () => {
       models.operationalAudit as never,
       models.dataChangeLog as never,
       models.customerObservation as never,
+      models.identityAttempt as never,
     );
     return { repo, models };
   }
@@ -67,7 +71,7 @@ describe('OperationsRepository', () => {
 
   it('closeManualReviewCase pone el caso en closed y lo guarda en la transacción', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({ saved: true }));
+    const save = jest.fn(async (..._args: unknown[]) => ({ saved: true }));
     const caseModel = { save } as never;
     await repo.closeManualReviewCase(caseModel, { resolution: 'approved', notes: 'ok', closedAt: new Date('2026-01-01') }, tx);
     expect((caseModel as { status: string }).status).toBe('closed');

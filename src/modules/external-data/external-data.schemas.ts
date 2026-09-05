@@ -205,6 +205,23 @@ export const providerRuntimePatchSchema = z.object({
 });
 export type ProviderRuntimePatchDto = z.infer<typeof providerRuntimePatchSchema>;
 
+/**
+ * Rotación de una credencial de proveedor. El material NO se persiste aquí ni pasa por ningún
+ * servicio del backend: se reenvía al `atlas-auth-broker-worker`, que es quien lo sella. Este
+ * esquema solo garantiza que lo que llega tiene forma de credencial y no un valor truncado.
+ */
+export const providerCredentialRotationSchema = z.object({
+  field: z.enum(['CLIENT_ID', 'CLIENT_SECRET', 'API_KEY', 'PRIVATE_KEY']),
+  material: z.string().min(8).max(8192),
+  reason: z.string().trim().min(3).max(240),
+});
+export type ProviderCredentialRotationDto = z.infer<typeof providerCredentialRotationSchema>;
+
+export const providerCredentialRevocationSchema = z.object({
+  reason: z.string().trim().min(3).max(240),
+});
+export type ProviderCredentialRevocationDto = z.infer<typeof providerCredentialRevocationSchema>;
+
 export const providerUsageQuerySchema = z.object({
   providerCode: providerCodeSchema.optional(),
   days: z.coerce.number().int().positive().max(366).default(30),

@@ -61,7 +61,7 @@ export class SystemsCatalogQueryService {
   }
 
   discoverEndpoints(body: DiscoverEndpointsDto) {
-    return this.discovery.discoverAndMaybePersist(body.persist);
+    return this.discovery.discover(body.mode, body.persist);
   }
 
   refreshCatalogSeed(body: CatalogSeedRefreshDto, user: AuthenticatedUser) {

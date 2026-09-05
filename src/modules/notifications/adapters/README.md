@@ -20,6 +20,10 @@
 | [`sms.adapter.ts`](./sms.adapter.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`whatsapp.adapter.ts`](./whatsapp.adapter.ts) | Artefacto de soporte específico de esta carpeta. |
 
+## Subcarpetas
+
+- [`gmail/`](./gmail/README.md)
+
 ## Reglas de mantenimiento
 
 - Mantener las reglas de negocio fuera de controladores y adaptadores de infraestructura.

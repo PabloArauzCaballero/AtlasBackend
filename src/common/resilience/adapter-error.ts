@@ -58,6 +58,32 @@ function isNetworkError(error: unknown): boolean {
 }
 
 /**
+ * Qué significa un status HTTP de error para el llamador.
+ *
+ * La distinción que sostiene todo lo demás es `retryable`: reintentar un 401 no arregla una
+ * credencial mala —sólo gasta cuota y retrasa la alerta— mientras que no reintentar un 503 convierte
+ * un hipo del proveedor en un fallo para el cliente. Por eso vive en un solo sitio y no repartida
+ * por cada adaptador, donde cada uno acabaría decidiéndolo distinto.
+ */
+function classifyHttpStatus(httpStatus: number): {
+  code: AdapterErrorCode;
+  retryable: boolean;
+  fallbackMessage: (status: number) => string;
+} {
+  if (httpStatus === 401 || httpStatus === 403) {
+    return { code: 'AUTH_FAILED', retryable: false, fallbackMessage: (status) => `HTTP ${status}` };
+  }
+  if (httpStatus === 429) {
+    return { code: 'RATE_LIMITED', retryable: true, fallbackMessage: () => 'Rate limited' };
+  }
+  return {
+    code: 'PROVIDER_ERROR',
+    retryable: RETRYABLE_HTTP_STATUS.has(httpStatus),
+    fallbackMessage: (status) => `HTTP ${status}`,
+  };
+}
+
+/**
  * Traduce cualquier error/resultado crudo de un adaptador (excepción de red, respuesta HTTP con
  * status de error, o un error de dominio propio) al contrato normalizado. Centraliza la decisión
  * de "esto es reintentable" en un solo lugar en vez de repetirla en cada adaptador.
@@ -68,31 +94,12 @@ export function toAdapterError(input: { provider: string; error?: unknown; httpS
   if (error instanceof AdapterError) return error;
 
   if (typeof httpStatus === 'number' && httpStatus >= 400) {
-    if (httpStatus === 401 || httpStatus === 403) {
-      return new AdapterError({
-        code: 'AUTH_FAILED',
-        provider,
-        message: input.message ?? `HTTP ${httpStatus}`,
-        retryable: false,
-        httpStatus,
-        cause: error,
-      });
-    }
-    if (httpStatus === 429) {
-      return new AdapterError({
-        code: 'RATE_LIMITED',
-        provider,
-        message: input.message ?? 'Rate limited',
-        retryable: true,
-        httpStatus,
-        cause: error,
-      });
-    }
+    const { code, retryable, fallbackMessage } = classifyHttpStatus(httpStatus);
     return new AdapterError({
-      code: 'PROVIDER_ERROR',
+      code,
       provider,
-      message: input.message ?? `HTTP ${httpStatus}`,
-      retryable: RETRYABLE_HTTP_STATUS.has(httpStatus),
+      message: input.message ?? fallbackMessage(httpStatus),
+      retryable,
       httpStatus,
       cause: error,
     });

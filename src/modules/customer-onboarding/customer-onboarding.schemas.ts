@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import { birthDateSchema } from './customer-onboarding-profile.schemas.js';
+import { isCustomerPinValid } from '../../common/utils/crypto/password.util.js';
 
 const ALLOWED_PERMISSION_CODES = ['location', 'camera', 'contacts', 'notifications', 'storage'] as const;
 
@@ -27,7 +28,19 @@ export const startOnboardingSchema = z.object({
   // ninguna forma de entrar jamás: no existe endpoint para fijarla después y
   // `POST /auth/password-reset/request` retorna sin hacer nada si el actor no tiene credenciales
   // (`auth-password-reset.service.ts`). Es decir, la cuenta nacía muerta y en silencio.
-  password: z.string().trim().min(10, 'La contraseña debe tener al menos 10 caracteres.').max(128),
+  /*
+   * Un PIN de CUATRO digitos, no una contrasena.
+   *
+   * La de diez caracteres la olvidaba la mitad de la gente, y recuperarla pasa por el correo —que
+   * en este segmento no siempre se revisa—. Un PIN que se recuerda es un PIN que no se apunta en
+   * un papel, y esa era la alternativa real. Lo sostienen el bloqueo por intentos y la lista de
+   * PIN prohibidos de `isCustomerPinValid`.
+   */
+  password: z
+    .string()
+    .trim()
+    .regex(/^\d{4}$/, 'Tu PIN debe ser de 4 digitos.')
+    .refine(isCustomerPinValid, 'Ese PIN es demasiado facil de adivinar. Elige otro.'),
 
   consents: z
     .array(
@@ -85,24 +98,69 @@ export const onboardingCustomerIdParamsSchema = z.object({
   customerId: z.string().regex(/^[1-9][0-9]*$/),
 });
 
-export const contactVerificationRequestSchema = z.object({
-  contactType: z.enum(['phone', 'email']),
-  verificationChannel: z.enum(['sms', 'email', 'whatsapp']),
-  sessionId: z
-    .string()
-    .regex(/^[1-9][0-9]*$/)
-    .optional(),
-});
+/**
+ * Canales por los que se puede entregar el código de CADA tipo de contacto.
+ *
+ * No estaban cruzados: `contactType: 'email'` con `verificationChannel: 'sms'` pasaba la validación
+ * y el servicio intentaba mandar una dirección de correo por SMS (y al revés, un teléfono por
+ * correo). El proveedor rechazaba el destino o —peor— lo aceptaba y el código no llegaba nunca, con
+ * el intento igualmente registrado como enviado.
+ */
+export const CHANNELS_BY_CONTACT_TYPE = {
+  phone: ['sms', 'whatsapp'],
+  email: ['email'],
+} as const satisfies Record<'phone' | 'email', readonly ('sms' | 'email' | 'whatsapp')[]>;
 
-export const contactVerificationSubmitSchema = z.object({
-  contactType: z.enum(['phone', 'email']),
-  verificationChannel: z.enum(['sms', 'email', 'whatsapp']),
-  verificationCode: z.string().trim().min(4).max(12),
-  sessionId: z
-    .string()
-    .regex(/^[1-9][0-9]*$/)
-    .optional(),
-});
+function assertCoherentChannel(
+  value: { contactType: 'phone' | 'email'; verificationChannel: 'sms' | 'email' | 'whatsapp' },
+  ctx: z.RefinementCtx,
+): void {
+  const allowed: readonly string[] = CHANNELS_BY_CONTACT_TYPE[value.contactType];
+  if (!allowed.includes(value.verificationChannel)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['verificationChannel'],
+      message: `Un contacto de tipo '${value.contactType}' solo se verifica por: ${allowed.join(', ')}.`,
+    });
+  }
+}
+
+/**
+ * `contactMethodId` resuelve la corrección de un contacto mal escrito.
+ *
+ * Sin él, el servicio siempre elegía el contacto del registro y el código se seguía enviando al
+ * teléfono equivocado por más veces que el cliente lo corrigiera. Cuando no se envía, el servidor
+ * elige el contacto de ese tipo que todavía falta verificar.
+ */
+const contactMethodIdSchema = z
+  .string()
+  .regex(/^[1-9][0-9]*$/)
+  .optional();
+
+export const contactVerificationRequestSchema = z
+  .object({
+    contactType: z.enum(['phone', 'email']),
+    verificationChannel: z.enum(['sms', 'email', 'whatsapp']),
+    contactMethodId: contactMethodIdSchema,
+    sessionId: z
+      .string()
+      .regex(/^[1-9][0-9]*$/)
+      .optional(),
+  })
+  .superRefine(assertCoherentChannel);
+
+export const contactVerificationSubmitSchema = z
+  .object({
+    contactType: z.enum(['phone', 'email']),
+    verificationChannel: z.enum(['sms', 'email', 'whatsapp']),
+    verificationCode: z.string().trim().min(4).max(12),
+    contactMethodId: contactMethodIdSchema,
+    sessionId: z
+      .string()
+      .regex(/^[1-9][0-9]*$/)
+      .optional(),
+  })
+  .superRefine(assertCoherentChannel);
 
 const identityEvidenceSchema = z.object({
   evidenceType: z.enum(['identity_front', 'identity_back', 'selfie', 'proof_of_address', 'other']),
@@ -169,6 +227,20 @@ export const addressPackageSchema = z.object({
     department: z.string().trim().min(1).max(80),
     city: z.string().trim().min(1).max(120),
     zone: z.string().trim().max(120).optional(),
+    /**
+     * Calle y numero, EN CLARO. El servidor la cifra antes de guardarla.
+     *
+     * Antes solo existia `addressLineEncrypted`, que esperaba recibirla ya cifrada por el cliente
+     * —una pieza que nunca existio en la app, asi que el campo llegaba siempre vacio y el
+     * expediente se quedaba sin direccion exacta mientras la pantalla prometia que se guardaba
+     * cifrada—. Cifrar en el movil ademas exigiria repartirle una llave, que es peor: una llave que
+     * viaja a cada telefono deja de ser una llave.
+     *
+     * El resto de datos personales ya funciona asi —el telefono llega en claro por TLS y se cifra
+     * con `encryptSecretEnvelope` al guardarlo—, y esta ahora hace lo mismo.
+     */
+    addressLine: z.string().trim().max(500).optional(),
+    /** @deprecated Se acepta por compatibilidad. Usar `addressLine`: el cifrado lo hace el servidor. */
     addressLineEncrypted: z.string().trim().max(500).optional(),
     referenceEncrypted: z.string().trim().max(500).optional(),
   }),
@@ -190,4 +262,22 @@ export type OnboardingCustomerIdParamsDto = z.infer<typeof onboardingCustomerIdP
 export type ContactVerificationRequestDto = z.infer<typeof contactVerificationRequestSchema>;
 export type ContactVerificationSubmitDto = z.infer<typeof contactVerificationSubmitSchema>;
 export type IdentityPackageDto = z.infer<typeof identityPackageSchema>;
+
+/**
+ * Resolución de una revisión manual de identidad.
+ *
+ * `notes` es obligatorio y no vacío: una aprobación sin motivo escrito no se puede auditar después
+ * —y es justo la que hay que poder explicar, porque la tomó una persona y no una regla—.
+ */
+export const identityManualReviewSchema = z.object({
+  decision: z.enum(['approved', 'rejected']),
+  notes: z.string().trim().min(1).max(2_000),
+  /**
+   * ID del usuario interno que decidió. Si no viene, se toma del token: nunca queda anónimo.
+   * Es el ID y no el correo porque la columna es una clave foránea a `iam.internal_users`.
+   */
+  reviewedByInternalUserId: z.string().trim().regex(/^[1-9][0-9]*$/).optional(),
+});
+
+export type IdentityManualReviewDto = z.infer<typeof identityManualReviewSchema>;
 export type AddressPackageDto = z.infer<typeof addressPackageSchema>;

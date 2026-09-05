@@ -10,14 +10,14 @@ import { authHeader, buildWorkflowTestApp } from './support/workflow-test-app.js
 describe('WorkflowCatalogController (e2e/supertest)', () => {
   let app: INestApplication;
   const catalogService = {
-    listWorkflows: jest.fn(async () => []),
-    listVersions: jest.fn(async () => []),
-    getTree: jest.fn(async () => ({ workflowCode: 'customer_credit_journey', stages: [] })),
-    listStages: jest.fn(async () => []),
-    listTransitions: jest.fn(async () => []),
-    getGraph: jest.fn(async () => ({ nodes: [], edges: [] })),
+    listWorkflows: jest.fn(async (..._args: unknown[]) => []),
+    listVersions: jest.fn(async (..._args: unknown[]) => []),
+    getTree: jest.fn(async (..._args: unknown[]) => ({ workflowCode: 'customer_credit_journey', stages: [] })),
+    listStages: jest.fn(async (..._args: unknown[]) => []),
+    listTransitions: jest.fn(async (..._args: unknown[]) => []),
+    getGraph: jest.fn(async (..._args: unknown[]) => ({ nodes: [], edges: [] })),
   };
-  const transitionService = { validate: jest.fn(async () => ({ allowed: true })) };
+  const transitionService = { validate: jest.fn(async (..._args: unknown[]) => ({ allowed: true })) };
 
   beforeAll(async () => {
     app = await buildWorkflowTestApp(

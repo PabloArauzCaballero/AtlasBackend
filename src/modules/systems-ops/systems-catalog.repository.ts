@@ -288,6 +288,12 @@ export class SystemsCatalogRepository {
   async upsertDataEntity(seed: DataEntitySeed): Promise<void> {
     const now = new Date();
     await this.dataEntityModel.upsert({
+      /*
+       * El `system_code` viaja EXPLICITO aunque tenga valor por defecto: forma parte de la clave
+       * unica, y una clave de conflicto que depende de un default se rompe en silencio el dia que
+       * alguien cambia ese default.
+       */
+      systemCode: 'ATLAS_BACKEND',
       schemaName: seed.schemaName,
       tableName: seed.tableName,
       modelName: seed.modelName ?? null,
@@ -310,7 +316,7 @@ export class SystemsCatalogRepository {
       dataNature: seed.dataNature ?? 'OPERACIONAL',
       domainCode: seed.domainCode ?? null,
       dataGrain: seed.dataGrain ?? `Una fila representa un registro operacional de ${seed.tableName}.`,
-      sourceSystem: seed.sourceSystem ?? 'atlas_backend',
+      sourceSystem: seed.sourceSystem ?? 'atlas-backend',
       operationalRulesJson: seed.operationalRulesJson ?? [],
       qualityRulesJson: seed.qualityRulesJson ?? [],
       keyRelationshipsSummary: seed.keyRelationshipsSummary ?? null,

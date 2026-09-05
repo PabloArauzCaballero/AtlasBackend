@@ -1,0 +1,160 @@
+# syntax=docker/dockerfile:1.7
+# Imagen de PRUEBAS de Atlas Backend, pensada para el VPS de testing (Ubuntu, Contabo).
+#
+# No sustituye a `Dockerfile`, que es la imagen de producción: sustituirla sería perder la única
+# forma que hay de comprobar lo que de verdad se despliega. Ésta existe por dos diferencias:
+#
+#   - `NODE_ENV=development` a propósito: `env.ts` exige secretos reales y prohíbe los valores por
+#     defecto en producción, y `env-cross-checks.ts` bloquea el arranque con el JWT de desarrollo.
+#     Un entorno de pruebas quiere Swagger abierto, logs legibles y las identidades sembradas.
+#   - Trae `dist/scripts` y un cliente de PostgreSQL. En el VPS no hay una máquina de operador con
+#     Node 22, yarn y `psql` a mano, así que migrar, sembrar y diagnosticar la base tiene que poder
+#     hacerse DENTRO del contenedor.
+#
+# ## Lo que NO trae, y por qué importa en un VPS
+#
+# **Las dependencias de desarrollo.** Se intentó al revés primero —el árbol completo, «por si
+# acaso»— y costaba 604 MB de `node_modules` para una imagen de 1,21 GB. No hacían falta ni una:
+# `tsconfig.json` compila `src/**` Y `scripts/**`, así que las migraciones, la siembra y el
+# bootstrap de roles ya viven en `dist/scripts/` como JavaScript y corren con `node` a secas. La
+# regla para no volver a equivocarse: si un guion se puede invocar como `node dist/scripts/X.js`,
+# `tsx` no pinta nada en esta imagen.
+#
+# Una sola imagen para los tres roles (api, worker y el job de migración): comparten el 100 % del
+# árbol de dependencias, así que dos imágenes serían dos builds y dos oportunidades de divergir.
+#
+# Construcción:
+#   docker build -f Dockerfile.dev -t atlas-backend:dev .
+#
+# La versión de Node se fija con un ARG igual a la de `Dockerfile` y a `.nvmrc`: si local, CI,
+# producción y pruebas divergen en la versión de Node, el VPS deja de ser una prueba de nada.
+ARG NODE_VERSION=22.16.0
+
+# ---------------------------------------------------------------------------------------------
+# **Imagen COMPLETA, no `-slim`, y es lo que arreglaba el build.**
+#
+# `argon2` es un módulo NATIVO. Su instalación intenta bajarse un binario precompilado de las
+# descargas de GitHub y, cuando esa descarga no sale —red del VPS, cortafuegos, GitHub
+# inalcanzable—, NO se rinde: cae a compilar desde el fuente con node-gyp. `-slim` no trae
+# `python3`, `make` ni `g++`, así que ahí muere, y el error que se ve es
+# `yarn install --frozen-lockfile did not complete successfully: exit code: 1` sin una línea que
+# nombre a argon2.
+#
+# La imagen completa ya trae la cadena de compilación —comprobado: `/usr/bin/python3`,
+# `/usr/bin/make`, `/usr/bin/g++`— así que el camino de respaldo también termina. Cuesta disco de
+# BUILD y cero disco de imagen final: de aquí sólo viaja `node_modules`.
+FROM node:${NODE_VERSION}-bookworm AS deps
+WORKDIR /app
+# Sólo el manifiesto y el lockfile: la capa se reaprovecha mientras las dependencias no cambien,
+# que en un VPS —donde se reconstruye a cada rato para probar una rama— es lo que separa un build
+# de treinta segundos de uno de seis minutos.
+COPY package.json yarn.lock .yarnrc ./
+# `ipv4first` por lo MISMO que `Acquire::ForceIPv4` en la etapa de runtime: en un VPS que anuncia
+# IPv6 sin ruta, Node resuelve primero AAAA y cada descarga del registro se va contra una
+# dirección inalcanzable. El síntoma es `yarn install --frozen-lockfile did not complete
+# successfully: exit code: 1` sin una sola línea que hable de la red, y en un despliegue de
+# Coolify tardó 87 s en aparecer. `.yarnrc` ya sube el `network-timeout` a 10 minutos, que no
+# ayuda: esto no agota el tiempo, falla al conectar.
+#
+# Comprobado que la bandera es válida dentro de `NODE_OPTIONS` en el Node de esta imagen; sólo
+# afecta a esta etapa.
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
+    yarn install --frozen-lockfile --network-timeout 600000 --network-concurrency 4
+
+# ---------------------------------------------------------------------------------------------
+# También completa: hereda `node_modules` de `deps`, y si algún paso de compilación necesitara la
+# cadena la tiene. Tampoco llega a la imagen final.
+FROM node:${NODE_VERSION}-bookworm AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# Compila `src/**` y `scripts/**`. Lo segundo es lo que permite que la imagen final no lleve `tsx`.
+RUN yarn build
+
+# ---------------------------------------------------------------------------------------------
+# Dependencias de PRODUCCIÓN, en imagen completa por la misma razón que `deps`: argon2 tiene que
+# poder compilarse si su precompilado no se puede bajar. Sin `yarn cache clean`: con la caché
+# montada el directorio no forma parte de ninguna capa —limpiarlo no ahorraría un byte— y además
+# el propio montaje lo mantiene ocupado, así que el `rmdir` falla con EBUSY y tumba el build.
+FROM node:${NODE_VERSION}-bookworm AS prod-deps
+WORKDIR /app
+COPY package.json yarn.lock .yarnrc ./
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
+    yarn install --frozen-lockfile --production --network-timeout 600000 --network-concurrency 4
+
+# ---------------------------------------------------------------------------------------------
+FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+WORKDIR /app
+
+# `apt` es AHORA OPCIONAL, y esa es la corrección.
+#
+# Esta línea tumbó el build dos veces con `exit code: 100`, y forzar IPv4 no bastó. Lo que sí se
+# sabe, porque las etapas anteriores descargan del registro de npm sin problema, es que la red
+# del build FUNCIONA: lo que no se alcanza es el espejo de Debian en concreto. Pelearse con eso
+# desde el Dockerfile es perseguir la red de otra persona.
+#
+# Así que se comprobó qué hacía falta de verdad de los tres paquetes, y la respuesta es NINGUNO:
+#
+#   ca-certificates  Node trae su propio almacén de CA compilado dentro. Verificado en esta
+#                    misma imagen: `fetch('https://registry.npmjs.org/...')` devuelve 200 sin el
+#                    paquete instalado.
+#   tini             lo aporta Docker con `init: true` en el compose, que es la forma estándar y
+#                    no depende de descargar nada. Antes iba como ENTRYPOINT.
+#   postgresql-client  útil para diagnosticar la base desde dentro del contenedor, y sólo eso.
+#
+# Por eso el `|| echo`: si el espejo responde, la imagen se lleva `psql` y se diagnostica mejor;
+# si no responde, el despliegue SIGUE. Una herramienta de diagnóstico no puede ser el motivo de
+# que no haya nada que diagnosticar.
+RUN printf 'Acquire::ForceIPv4 "true";\nAcquire::Retries "5";\n' > /etc/apt/apt.conf.d/99-atlas \
+  && (apt-get update \
+      && apt-get install --no-install-recommends -y postgresql-client \
+      && rm -rf /var/lib/apt/lists/* \
+      || echo 'AVISO: no se pudo instalar postgresql-client; la imagen funciona igual, sin psql')
+
+# Las dependencias de producción se resuelven en `prod-deps` —imagen completa— y se COPIAN.
+#
+# Instalarlas AQUÍ era el agujero: esta etapa es `-slim` a propósito, así que argon2 volvería a
+# quedarse sin compilador y el build moriría en el mismo sitio, sólo que más tarde. Copiar el
+# árbol ya resuelto evita elegir entre un build frágil y una imagen final con 200 MB de
+# compilador dentro.
+COPY --from=prod-deps /app/node_modules ./node_modules
+
+# `dist/` ENTERO, no sólo `dist/src`: `dist/scripts` es lo que hace innecesarias las dependencias de
+# desarrollo. Ahí están `migrate.js`, `seed.js` y `bootstrap-db-roles.js` ya compilados.
+COPY --from=build /app/dist ./dist
+COPY ops/docker/healthcheck.mjs ./ops/docker/healthcheck.mjs
+
+# `node` es el usuario sin privilegios de la imagen oficial. Sólo necesita escribir en `logs/`.
+RUN mkdir -p /app/logs && chown -R node:node /app/logs
+USER node
+
+# `all` por defecto: sin configurar nada, la imagen es el proceso único de siempre. El compose del
+# VPS fija `api` y `worker` en cada servicio.
+#
+# `NODE_OPTIONS` se repite aquí a propósito, aunque la etapa ya lo herede de más arriba: en
+# EJECUCIÓN también hace falta. El proceso sale a Neon y a Mongo Atlas, y en un VPS con IPv6
+# anunciado sin ruta esas conexiones se van contra una dirección inalcanzable igual que las del
+# registro de yarn. Declararlo dos veces cuesta nada y sobrevive a que alguien reordene el
+# archivo; heredarlo por accidente, no.
+ENV NODE_ENV=development \
+    NODE_OPTIONS=--dns-result-order=ipv4first \
+    APP_ROLE=all \
+    APP_PORT=3005 \
+    WORKER_PROBE_PORT=3006 \
+    LOG_FORMAT=json \
+    LOG_SYNC_FILE_PATH=/app/logs/Archivo.log
+EXPOSE 3005 3006
+
+# La sonda elige puerto y ruta según `APP_ROLE`, así que la MISMA imagen se comprueba bien tanto
+# siendo API como siendo worker. Interroga READINESS y no liveness: durante el drenado responde
+# 503, que es la señal de que la instancia debe salir del balanceador.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=3 \
+  CMD ["node", "/app/ops/docker/healthcheck.mjs"]
+
+# Sin `ENTRYPOINT` con tini: ya no se instala, y apuntar a un binario que puede no estar deja el
+# contenedor sin arrancar. El init lo pone el compose con `init: true` —es el propio tini que trae
+# Docker— y sigue haciendo el mismo trabajo: repartir SIGTERM para que el drenado ordenado
+# (`SHUTDOWN_DRAIN_MS`) llegue a correr.
+CMD ["node", "dist/src/main.js"]

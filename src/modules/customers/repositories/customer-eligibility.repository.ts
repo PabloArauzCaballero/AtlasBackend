@@ -17,19 +17,16 @@ import {
   CustomerIdentityDocumentModel,
   CustomerProfileVersionModel,
   CustomerReferenceContactModel,
-  DataQualityIssueModel,
   EvidenceDocumentModel,
   EvidenceReviewModel,
-  FraudCaseModel,
   IdentityVerificationAttemptModel,
-  ManualReviewCaseModel,
   OnboardingFlowModel,
-  RiskAssessmentResultModel,
-  WatchlistMatchModel,
 } from '../../../database/models/index.js';
+import { CustomerEligibilityRiskRepository } from './customer-eligibility-risk.repository.js';
 import type { EligibilityFacts } from './customer-eligibility.facts.js';
+import type { EligibilityReadOptions } from './customer-eligibility.read-options.js';
 
-const OPEN_CASE_STATUSES = ['open', 'in_review', 'pending', 'escalated'];
+export type { EligibilityReadOptions } from './customer-eligibility.read-options.js';
 
 /**
  * Lecturas de la regla de habilitación.
@@ -55,15 +52,12 @@ export class CustomerEligibilityRepository {
     @InjectModel(EvidenceReviewModel) private readonly evidenceReviewModel: typeof EvidenceReviewModel,
     @InjectModel(CustomerConsentModel) private readonly consentModel: typeof CustomerConsentModel,
     @InjectModel(ConsentDocumentModel) private readonly consentDocumentModel: typeof ConsentDocumentModel,
-    @InjectModel(DataQualityIssueModel) private readonly issueModel: typeof DataQualityIssueModel,
-    @InjectModel(ManualReviewCaseModel) private readonly reviewCaseModel: typeof ManualReviewCaseModel,
-    @InjectModel(WatchlistMatchModel) private readonly watchlistMatchModel: typeof WatchlistMatchModel,
-    @InjectModel(RiskAssessmentResultModel) private readonly riskResultModel: typeof RiskAssessmentResultModel,
-    @InjectModel(FraudCaseModel) private readonly fraudCaseModel: typeof FraudCaseModel,
     @InjectModel(OnboardingFlowModel) private readonly onboardingFlowModel: typeof OnboardingFlowModel,
+    // Cumplimiento y riesgo: qué encontró el banco sobre el cliente, frente a qué completó él.
+    private readonly riskRepository: CustomerEligibilityRiskRepository,
   ) {}
 
-  async loadFacts(tenantId: string, customerId: string): Promise<EligibilityFacts> {
+  async loadFacts(tenantId: string, customerId: string, options: EligibilityReadOptions = {}): Promise<EligibilityFacts> {
     const [
       hasCredentials,
       verifiedContactCount,
@@ -81,21 +75,21 @@ export class CustomerEligibilityRepository {
       latestRisk,
       openFraudCaseCount,
     ] = await Promise.all([
-      this.hasCredentials(customerId),
-      this.countVerifiedContacts(tenantId, customerId),
-      this.findCurrentProfile(tenantId, customerId),
-      this.findFinancialAttributes(tenantId, customerId),
-      this.hasCurrentAddress(tenantId, customerId),
-      this.countReferenceContacts(tenantId, customerId),
-      this.findLatestIdentityDocument(tenantId, customerId),
-      this.findLatestIdentityVerificationResult(tenantId, customerId),
-      this.countPendingEvidenceReviews(tenantId, customerId),
-      this.findGrantedConsentDocumentIds(tenantId, customerId),
-      this.findRequiredConsentDocumentIds(tenantId),
-      this.countOpenObservations(tenantId, customerId),
-      this.countUnclearedWatchlistMatches(tenantId, customerId),
-      this.findLatestRiskResult(tenantId, customerId),
-      this.countOpenFraudCases(tenantId, customerId),
+      this.hasCredentials(customerId, options),
+      this.countVerifiedContacts(tenantId, customerId, options),
+      this.findCurrentProfile(tenantId, customerId, options),
+      this.findFinancialAttributes(tenantId, customerId, options),
+      this.hasCurrentAddress(tenantId, customerId, options),
+      this.countReferenceContacts(tenantId, customerId, options),
+      this.findLatestIdentityDocument(tenantId, customerId, options),
+      this.findLatestIdentityVerificationResult(tenantId, customerId, options),
+      this.countPendingEvidenceReviews(tenantId, customerId, options),
+      this.findGrantedConsentDocumentIds(tenantId, customerId, options),
+      this.findRequiredConsentDocumentIds(tenantId, options),
+      this.riskRepository.countOpenObservations(tenantId, customerId, options),
+      this.riskRepository.countUnclearedWatchlistMatches(tenantId, customerId, options),
+      this.riskRepository.findLatestRiskResult(tenantId, customerId, options),
+      this.riskRepository.countOpenFraudCases(tenantId, customerId, options),
     ]);
 
     return {
@@ -104,6 +98,7 @@ export class CustomerEligibilityRepository {
       profile,
       presentFinancialAttributeCodes: financialAttributes.codes,
       financialAttributeValues: financialAttributes.values,
+      financialAttributeTexts: financialAttributes.texts,
       hasCurrentAddress,
       referenceContactCount,
       identityDocument,
@@ -118,22 +113,33 @@ export class CustomerEligibilityRepository {
     };
   }
 
-  private async hasCredentials(customerId: string): Promise<boolean> {
-    const count = await this.credentialModel.count({ where: { actorType: 'customer', actorId: customerId, deleted: false } });
+  private async hasCredentials(customerId: string, options: EligibilityReadOptions): Promise<boolean> {
+    const count = await this.credentialModel.count({
+      where: { actorType: 'customer', actorId: customerId, deleted: false },
+      transaction: options.transaction,
+    });
     return count > 0;
   }
 
-  private countVerifiedContacts(tenantId: string, customerId: string): Promise<number> {
-    return this.contactModel.count({ where: { tenantId, customerId, status: 'verified', deleted: { [Op.ne]: true } } });
+  private countVerifiedContacts(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<number> {
+    return this.contactModel.count({
+      where: { tenantId, customerId, status: 'verified', deleted: { [Op.ne]: true } },
+      transaction: options.transaction,
+    });
   }
 
-  private findCurrentProfile(tenantId: string, customerId: string): Promise<CustomerProfileVersionModel | null> {
+  private findCurrentProfile(
+    tenantId: string,
+    customerId: string,
+    options: EligibilityReadOptions,
+  ): Promise<CustomerProfileVersionModel | null> {
     return this.profileModel.findOne({
       where: { tenantId, customerId, validUntil: null },
       order: [
         ['validFrom', 'DESC'],
         ['id', 'DESC'],
       ],
+      transaction: options.transaction,
     } as FindOptions);
   }
 
@@ -147,54 +153,80 @@ export class CustomerEligibilityRepository {
   private async findFinancialAttributes(
     tenantId: string,
     customerId: string,
-  ): Promise<{ codes: string[]; values: Record<string, number> }> {
+    options: EligibilityReadOptions,
+  ): Promise<{ codes: string[]; values: Record<string, number>; texts: Record<string, string> }> {
     const rows = await this.attributeValueModel.findAll({
       where: { tenantId, customerId, validUntil: null },
-      attributes: ['attributeDefinitionId', 'valueNumber'],
+      attributes: ['attributeDefinitionId', 'valueNumber', 'valueText'],
+      transaction: options.transaction,
     } as FindOptions);
     const definitionIds = rows.map((row) => String(row.attributeDefinitionId)).filter((id) => id !== 'null');
-    if (definitionIds.length === 0) return { codes: [], values: {} };
+    if (definitionIds.length === 0) return { codes: [], values: {}, texts: {} };
 
     const definitions = await this.attributeDefinitionModel.findAll({
       where: { id: { [Op.in]: definitionIds } },
       attributes: ['id', 'attributeCode'],
+      transaction: options.transaction,
     } as FindOptions);
     const codeByDefinitionId = new Map(definitions.map((row) => [String(row.id), row.attributeCode]));
 
     const codes: string[] = [];
     const values: Record<string, number> = {};
+    /*
+     * El TEXTO hacía falta y no se leía.
+     *
+     * La habilitación sólo miraba los atributos numéricos, así que una regla que dependiera de un
+     * valor de catálogo —`employment_status`, por ejemplo— no tenía de dónde sacarlo. Se lee aquí,
+     * en la misma pasada, en vez de añadir otra consulta.
+     */
+    const texts: Record<string, string> = {};
     for (const row of rows) {
       const code = codeByDefinitionId.get(String(row.attributeDefinitionId));
       if (!code) continue;
       codes.push(code);
       const numeric = row.valueNumber === null ? Number.NaN : Number(row.valueNumber);
       if (Number.isFinite(numeric)) values[code] = numeric;
+      if (typeof row.valueText === 'string' && row.valueText.length > 0) texts[code] = row.valueText;
     }
-    return { codes, values };
+    return { codes, values, texts };
   }
 
-  private async hasCurrentAddress(tenantId: string, customerId: string): Promise<boolean> {
+  private async hasCurrentAddress(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<boolean> {
     const count = await this.addressModel.count({
       where: { tenantId, customerId, currentVersionId: { [Op.ne]: null }, deleted: { [Op.ne]: true } },
+      transaction: options.transaction,
     });
     return count > 0;
   }
 
-  private countReferenceContacts(tenantId: string, customerId: string): Promise<number> {
-    return this.referenceModel.count({ where: { tenantId, customerId, deleted: { [Op.ne]: true } } });
+  private countReferenceContacts(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<number> {
+    return this.referenceModel.count({
+      where: { tenantId, customerId, deleted: { [Op.ne]: true } },
+      transaction: options.transaction,
+    });
   }
 
-  private findLatestIdentityDocument(tenantId: string, customerId: string): Promise<CustomerIdentityDocumentModel | null> {
+  private findLatestIdentityDocument(
+    tenantId: string,
+    customerId: string,
+    options: EligibilityReadOptions,
+  ): Promise<CustomerIdentityDocumentModel | null> {
     return this.identityDocumentModel.findOne({
       where: { tenantId, customerId },
       order: [['id', 'DESC']],
+      transaction: options.transaction,
     } as FindOptions);
   }
 
-  private async findLatestIdentityVerificationResult(tenantId: string, customerId: string): Promise<string | null> {
+  private async findLatestIdentityVerificationResult(
+    tenantId: string,
+    customerId: string,
+    options: EligibilityReadOptions,
+  ): Promise<string | null> {
     const attempt = await this.identityAttemptModel.findOne({
       where: { tenantId, customerId },
       order: [['id', 'DESC']],
+      transaction: options.transaction,
     } as FindOptions);
     return attempt?.finalResult ?? null;
   }
@@ -203,19 +235,25 @@ export class CustomerEligibilityRepository {
    * Revisiones de evidencia sin resolver. `evidence_reviews` no referencia al cliente: cuelga del
    * documento. Se resuelve con dos consultas explícitas en vez de un JOIN implícito.
    */
-  private async countPendingEvidenceReviews(tenantId: string, customerId: string): Promise<number> {
-    const documents = await this.evidenceModel.findAll({ where: { tenantId, customerId }, attributes: ['id'] } as FindOptions);
+  private async countPendingEvidenceReviews(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<number> {
+    const documents = await this.evidenceModel.findAll({
+      where: { tenantId, customerId },
+      attributes: ['id'],
+      transaction: options.transaction,
+    } as FindOptions);
     const documentIds = documents.map((row) => String(row.id));
     if (documentIds.length === 0) return 0;
     return this.evidenceReviewModel.count({
       where: { tenantId, evidenceDocumentId: { [Op.in]: documentIds }, reviewStatus: { [Op.notIn]: ['approved', 'accepted'] } },
+      transaction: options.transaction,
     });
   }
 
-  private async findGrantedConsentDocumentIds(tenantId: string, customerId: string): Promise<string[]> {
+  private async findGrantedConsentDocumentIds(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<string[]> {
     const rows = await this.consentModel.findAll({
       where: { tenantId, customerId, granted: true, revokedAt: null },
       attributes: ['consentDocumentId'],
+      transaction: options.transaction,
     } as FindOptions);
     return rows.map((row) => String(row.consentDocumentId)).filter((id) => id !== 'null');
   }
@@ -227,53 +265,13 @@ export class CustomerEligibilityRepository {
    * obligatoriedad, en vez de inventar una tabla de configuración paralela: es exactamente la
    * semántica que la columna declara y evita dos fuentes de verdad sobre qué hay que aceptar.
    */
-  async findRequiredConsentDocumentIds(tenantId: string): Promise<string[]> {
+  async findRequiredConsentDocumentIds(tenantId: string, options: EligibilityReadOptions = {}): Promise<string[]> {
     const rows = await this.consentDocumentModel.findAll({
       where: { tenantId, status: 'published', requiresExplicitAction: true },
       attributes: ['id'],
+      transaction: options.transaction,
     } as FindOptions);
     return rows.map((row) => String(row.id));
-  }
-
-  private countOpenObservations(tenantId: string, customerId: string): Promise<number> {
-    return this.issueModel.count({
-      where: { tenantId, targetRecordId: customerId, resolvedAt: null, issueStatus: { [Op.notIn]: ['resolved', 'dismissed'] } },
-    });
-  }
-
-  private countUnclearedWatchlistMatches(tenantId: string, customerId: string): Promise<number> {
-    return this.watchlistMatchModel.count({ where: { tenantId, customerId } });
-  }
-
-  private findLatestRiskResult(tenantId: string, customerId: string): Promise<RiskAssessmentResultModel | null> {
-    return this.riskResultModel.findOne({
-      where: { tenantId, customerId },
-      order: [['id', 'DESC']],
-    } as FindOptions);
-  }
-
-  private countOpenFraudCases(tenantId: string, customerId: string): Promise<number> {
-    return this.fraudCaseModel.count({
-      where: { tenantId, customerId, closedAt: null, caseStatus: { [Op.in]: OPEN_CASE_STATUSES }, deleted: { [Op.ne]: true } },
-    });
-  }
-
-  /** Casos de revisión manual sin cerrar, usados por el endpoint de observaciones del cliente. */
-  findOpenReviewCases(tenantId: string, customerId: string): Promise<ManualReviewCaseModel[]> {
-    return this.reviewCaseModel.findAll({
-      where: { tenantId, customerId, closedAt: null, deleted: { [Op.ne]: true } },
-      order: [['id', 'DESC']],
-      limit: 50,
-    } as FindOptions);
-  }
-
-  /** Incidencias de calidad de datos abiertas del cliente, para la pantalla de observaciones. */
-  findOpenIssues(tenantId: string, customerId: string): Promise<DataQualityIssueModel[]> {
-    return this.issueModel.findAll({
-      where: { tenantId, targetRecordId: customerId, resolvedAt: null, issueStatus: { [Op.notIn]: ['resolved', 'dismissed'] } },
-      order: [['id', 'DESC']],
-      limit: 50,
-    } as FindOptions);
   }
 
   /**

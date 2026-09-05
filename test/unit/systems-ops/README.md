@@ -11,6 +11,9 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`column-classification.util.spec.ts`](./column-classification.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`openapi-catalog.service.spec.ts`](./openapi-catalog.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`openapi-contract.util.spec.ts`](./openapi-contract.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-action-log-query.service.spec.ts`](./systems-action-log-query.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-action-log.controller.spec.ts`](./systems-action-log.controller.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-action-log.repository.spec.ts`](./systems-action-log.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
@@ -20,6 +23,7 @@
 | [`systems-dashboard.repository.spec.ts`](./systems-dashboard.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-data-impact-inference.repository.spec.ts`](./systems-data-impact-inference.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-data-impact-inference.service.spec.ts`](./systems-data-impact-inference.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`systems-erp-inventory.spec.ts`](./systems-erp-inventory.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-health-monitor.service.spec.ts`](./systems-health-monitor.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-health.service.spec.ts`](./systems-health.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`systems-repository-where.util.spec.ts`](./systems-repository-where.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |

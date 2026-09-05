@@ -18,12 +18,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Fase 6.3 del plan 10/10: la versión de Node se toma de .nvmrc (22.16.0) en vez de estar
       # hardcodeada a '20'. Así local/CI no vuelven a divergir nunca.
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
@@ -43,7 +43,11 @@ jobs:
       - name: Verify smoke result JSON files are never tracked
         run: yarn check:smoke-results-untracked
 
-      - name: Lint
+      # `yarn lint` lleva `--max-warnings=150`: el trinquete de complejidad (complexity, max-params,
+      # max-lines-per-function) estaba declarado como `warn` en eslint.config.mjs y CI no lo miraba,
+      # así que el "gate de complejidad" no bloqueaba nada. Ahora la deuda conocida está congelada y
+      # un warning NUEVO rompe el build. Al reducirla, bajar el número (nunca subirlo para pasar).
+      - name: Lint (0 errores, warnings congelados)
         run: yarn lint
 
       - name: Format check
@@ -76,16 +80,38 @@ jobs:
       - name: Check migrations can apply to an empty database
         run: yarn check:migrations
 
+      # ATLAS-DATA-004: una política de retención sembrada, activa y sin destino ejecutable es un
+      # control declarado que el sistema no ejerce — en KYC eso es un hallazgo de cumplimiento, no
+      # deuda técnica. El gate obliga a mapearla o a declarar por escrito por qué aún no se aplica.
+      - name: Check every seeded retention policy has an executable target or a declared decision
+        run: yarn check:retention-coverage
+
       # ATLAS-SEC-002: `@CurrentTenant()` ya encapsula la lectura de x-tenant-id. La brecha real la
       # cierra TenantGuard, así que lo que queda es duplicación y se migra al tocar cada controller
       # por otra razón — acuerdo que solo se sostiene si la deuda no CRECE. Este trinquete lo asegura.
       - name: Check x-tenant-id duplication does not grow
         run: yarn check:tenant-header
 
+      # ATL-003: este backend autenticaba por opt-in y dos controladores se olvidaron el
+      # `@UseGuards` —uno servía documentos de identidad, otro reasignaba la política que decide
+      # créditos—, ambos con un `@Roles(...)` que sin guard no lee nadie. Los guards ya son
+      # globales (`app.module.ts`), así que abrir una ruta es ahora escribir `@Public()`: este
+      # trinquete impide que esa superficie, y la de controladores sin regla de rol, crezcan sin
+      # que alguien lo firme bajando el baseline.
+      - name: Check auth coverage does not regress
+        run: yarn check:auth-coverage
+
       # Fase 2.1 del plan 10/10: congela la deuda de tamaño — ningún archivo runtime NUEVO grande
       # entra sin excepción documentada. Los umbrales de complejidad los aplica ESLint arriba.
       - name: Check runtime file size (complexity gate)
         run: yarn check:file-size
+
+      # Impide volver a publicar un script que arranque un punto de entrada de Nest con un
+      # transpilador que borra la metadata de decoradores: la aplicación muere señalando a un
+      # módulo sano y el diagnóstico cuesta horas. Quedó pendiente de este archivo por falta de
+      # alcance `workflow` en el token; el README lo documentaba mientras tanto.
+      - name: Check Nest entrypoints keep decorator metadata
+        run: yarn check:nest-entrypoints
 
       - name: Type-check
         run: yarn type-check
@@ -109,6 +135,29 @@ jobs:
       - name: Build
         run: yarn build
 
+      # Higiene de recursos (docs/performance/backend/00-prestart-resource-hygiene.md). En CI no hay
+      # instancias previas que limpiar, así que `cleanup` no aporta y se omite. Lo que sí aporta es
+      # `verify`: si el runner llega con un puerto del proyecto ocupado o sin memoria, cualquier paso
+      # posterior que arranque el backend fallaría con un síntoma confuso en vez de con la causa.
+      #
+      # Además es la única cobertura automatizada de estos scripts: se ejecutan de verdad en Linux,
+      # no sólo en la máquina de quien los escribió (macOS). Una regresión en el parseo de `ps`,
+      # `lsof` o `df` rompe aquí.
+      - name: Resource hygiene diagnose (inventory)
+        run: yarn prestart:diagnose
+
+      - name: Resource hygiene verify (gate)
+        run: yarn prestart:verify
+
+      - name: Upload resource hygiene evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: atlas-performance-hygiene
+          path: artifacts/performance/backend/reports/
+          if-no-files-found: warn
+          retention-days: 14
+
   # ATLAS-DOC-007: ADR-0007 y `strict: true` en mkdocs.yml solo tienen sentido si algo los aplica.
   # Hasta este patch existían los scripts (`check:openapi`, `docs:openapi:lint`, `docs:build`) pero
   # ningún job los corría: un contrato sin esquema de respuesta o un enlace roto pasaban el PR sin
@@ -124,16 +173,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -173,7 +222,7 @@ jobs:
 
       - name: Upload documentation portal
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: atlas-docs-site
           path: site
@@ -190,10 +239,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
@@ -208,7 +257,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: atlas-coverage
           path: |
@@ -266,10 +315,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
@@ -332,6 +381,12 @@ jobs:
           DB_PASSWORD: ci_app_rw_pw
           DB_READ_USER: atlas_app_ro
           DB_READ_PASSWORD: ci_app_ro_pw
+          # El gate comprueba que las migraciones NO corran con la identidad del runtime.
+          # El rol ya se crea unas líneas más arriba (`atlas_migrator`); sin declararlo aquí,
+          # el gate no puede distinguir «no configurado» de «configurado igual que el runtime»
+          # y falla con razón.
+          DB_MIGRATION_USER: atlas_migrator
+          DB_MIGRATION_PASSWORD: ci_migrator_pw
         run: yarn check:db-privileges --strict
 
       - name: Boot API in background
@@ -363,7 +418,8 @@ jobs:
           yarn smoke:external-providers:governance
 
       # Los smokes de CONTRATO con el Admin Portal autentican de verdad como el admin interno
-      # (`pablo@atlas.internal`), cuya contraseña en claro no está versionada (solo el hash Argon2id).
+      # (la que siembra `seed-pablo-admin-user`), cuya contraseña en claro no está versionada
+      # (solo el hash Argon2id).
       # Se fija una contraseña CI conocida hasheándola con la misma capa de la app y actualizando
       # auth_credentials, luego se corren los smokes con esa credencial. `frontend-contract` garantiza
       # que el Admin Portal no reciba tablas vacías; `internal-rbac` verifica los permisos internos
@@ -371,7 +427,6 @@ jobs:
       - name: Contract smokes (frontend-contract + internal-rbac) with seeded admin
         env:
           PGPASSWORD: atlas
-          INTERNAL_SMOKE_EMAIL: pablo@atlas.internal
         run: |
           CI_ADMIN_PW='AtlasCiSmoke1!'
           CI_ADMIN_HASH="$(yarn --silent hash-password "$CI_ADMIN_PW")"
@@ -388,7 +443,7 @@ jobs:
 
       - name: Upload API log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: atlas-api-log
           path: /tmp/atlas-api.log
@@ -399,7 +454,7 @@ jobs:
       # docs/progress/remediation-register.md para el seguimiento de ese gap.
       - name: Upload smoke JSON evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: atlas-smoke-results
           path: scripts/smoke/results/*.json
@@ -417,7 +472,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Build image
         run: |
@@ -471,10 +526,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
@@ -502,17 +557,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4.37.4
         with:
           languages: javascript-typescript
           queries: security-extended
 
       # JS/TS no necesita build para CodeQL: analiza el fuente directamente.
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4.37.4
         with:
           category: '/language:javascript-typescript'
 
@@ -531,7 +586,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install gitleaks (versión fijada)
         run: |
@@ -552,10 +607,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
@@ -576,7 +631,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # ATLAS-P11-T09: la migración monolítica original (12,554 líneas) se dividió en 20
       # migraciones domain-scoped (`schema-part-*`, `schema-relationships-part-*`), verificadas

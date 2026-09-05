@@ -13,6 +13,7 @@ import {
   CustomerStatusEventModel,
   DataChangeLogModel,
   FraudCaseModel,
+  IdentityVerificationAttemptModel,
   ManualReviewCaseModel,
   ManualReviewEventModel,
   OperationalAuditLogModel,
@@ -35,7 +36,25 @@ export class OperationsRepository {
     @InjectModel(OperationalAuditLogModel) private readonly operationalAuditLogModel: typeof OperationalAuditLogModel,
     @InjectModel(DataChangeLogModel) private readonly dataChangeLogModel: typeof DataChangeLogModel,
     @InjectModel(CustomerObservationModel) private readonly customerObservationModel: typeof CustomerObservationModel,
+    @InjectModel(IdentityVerificationAttemptModel)
+    private readonly identityAttemptModel: typeof IdentityVerificationAttemptModel,
   ) {}
+
+  /**
+   * El último intento de verificación de identidad del cliente, de cualquier canal.
+   *
+   * De CUALQUIER canal a propósito: quien investiga un caso necesita el estado
+   * actual de la identidad, no el de una vía concreta. Filtrar por canal aquí
+   * escondería una verificación de sucursal a quien mira un caso que llegó por el
+   * móvil, y al revés — que es exactamente la información que hace falta para
+   * saber si el expediente ya tiene respuesta.
+   */
+  findLatestIdentityAttempt(tenantId: string, customerId: string): Promise<IdentityVerificationAttemptModel | null> {
+    return this.identityAttemptModel.findOne({
+      where: { tenantId, customerId, deleted: { [Op.ne]: true } },
+      order: [['_id', 'DESC']],
+    } as FindOptions);
+  }
 
   async findManualReviewCasesForQueue(tenantId: string, query: WorkQueueQueryDto) {
     const where: WhereOptions = {

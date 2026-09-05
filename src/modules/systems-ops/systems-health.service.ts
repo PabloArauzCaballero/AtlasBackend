@@ -17,6 +17,7 @@ import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { SystemsHealthStatus } from './systems-ops.dtos.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
 import { mapTool } from './systems-ops.mapper.js';
+import { probePlatformService } from './platform-service-health.probe.js';
 
 type LiveHealthResult = Pick<SystemsHealthStatus, 'checkType' | 'isHealthy' | 'healthMessage'>;
 
@@ -110,6 +111,10 @@ export class SystemsHealthService implements OnModuleDestroy {
       }
       const localProbe = await this.localRuntimeProbe(code);
       if (localProbe) return localProbe;
+      // Servicios hermanos del ecosistema: se comprueban por HTTP contra su healthcheck, no por
+      // conexión de base ni por tabla, porque viven fuera de este proceso.
+      const platformProbe = await probePlatformService(code);
+      if (platformProbe) return platformProbe;
       const table = TABLE_PROBES[code];
       if (table) {
         const schema = atlasSchemaFor(table);

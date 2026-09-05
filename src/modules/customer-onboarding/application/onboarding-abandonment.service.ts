@@ -7,7 +7,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { FindOptions, Op } from 'sequelize';
-import { OnboardingFlowModel } from '../../../database/models/index.js';
+import { OnboardingFlowModel, OnboardingStepEventModel } from '../../../database/models/index.js';
 import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 
 /** Días de inactividad tras los cuales un onboarding sin terminar se considera abandonado. */
@@ -30,6 +30,7 @@ export class OnboardingAbandonmentService {
 
   constructor(
     @InjectModel(OnboardingFlowModel) private readonly flowModel: typeof OnboardingFlowModel,
+    @InjectModel(OnboardingStepEventModel) private readonly stepEventModel: typeof OnboardingStepEventModel,
     private readonly flowRepository: CustomerOnboardingFlowRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
@@ -43,7 +44,10 @@ export class OnboardingAbandonmentService {
     const threshold = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const limit = input.limit ?? 500;
 
-    const stale = await this.flowModel.findAll({
+    // Candidatos por fecha de INICIO. No alcanza como criterio: `startedAt` es cuándo empezó, no
+    // cuándo dejó de avanzar. Con el corte anterior, quien seguía cargando datos al día 31 quedaba
+    // marcado como abandonado en plena sesión.
+    const candidates = await this.flowModel.findAll({
       where: {
         tenantId: input.tenantId,
         completionStatus: 'in_progress',
@@ -55,8 +59,10 @@ export class OnboardingAbandonmentService {
       limit,
     } as FindOptions);
 
+    const stale = await this.withoutRecentActivity(input.tenantId, candidates, threshold);
+
     if (stale.length === 0) {
-      return { evaluated: 0, abandoned: 0, thresholdDate: threshold.toISOString() };
+      return { evaluated: candidates.length, abandoned: 0, thresholdDate: threshold.toISOString() };
     }
 
     const now = new Date();
@@ -71,6 +77,28 @@ export class OnboardingAbandonmentService {
     this.logger.log(
       `Onboardings marcados como abandonados en el tenant ${input.tenantId}: ${abandoned} (corte ${threshold.toISOString()}).`,
     );
-    return { evaluated: stale.length, abandoned, thresholdDate: threshold.toISOString() };
+    return { evaluated: candidates.length, abandoned, thresholdDate: threshold.toISOString() };
+  }
+
+  /**
+   * Descarta los flujos que registraron actividad después del corte.
+   *
+   * La última actividad son los eventos de paso del flujo: cada guardado parcial, cada verificación
+   * y cada paquete escriben uno. Un flujo con un evento reciente está vivo por más antiguo que sea
+   * su inicio.
+   */
+  private async withoutRecentActivity(tenantId: string, flows: OnboardingFlowModel[], threshold: Date): Promise<OnboardingFlowModel[]> {
+    if (flows.length === 0) return [];
+    const recent = await this.stepEventModel.findAll({
+      where: {
+        tenantId,
+        onboardingFlowId: { [Op.in]: flows.map((flow) => String(flow.id)) },
+        happenedAt: { [Op.gte]: threshold },
+      },
+      attributes: ['onboardingFlowId'],
+    } as FindOptions);
+
+    const active = new Set(recent.map((event) => String(event.onboardingFlowId)));
+    return flows.filter((flow) => !active.has(String(flow.id)));
   }
 }

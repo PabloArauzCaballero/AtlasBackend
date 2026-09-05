@@ -49,16 +49,23 @@ export async function encryptSecretEnvelope(plainText: string, provider: DataKey
   ].join(':');
 }
 
-export async function decryptSecretEnvelope(value: string | null): Promise<string | null> {
+export async function decryptSecretEnvelope(value: string | Buffer | null): Promise<string | null> {
   if (!value) return null;
 
+  // Las columnas que guardan sobres cifrados estan declaradas como `DataType.BLOB` (bytea), y el
+  // driver las devuelve como `Buffer`, no como `string`. Sin esta normalizacion, cada lectura real
+  // rompia con `value.startsWith is not a function` y el llamador lo interpretaba como "sobre
+  // ilegible": el codigo de verificacion de contacto nunca llegaba a entregarse.
+  const envelope = Buffer.isBuffer(value) ? value.toString('utf8') : value;
+  if (!envelope) return null;
+
   // Retrocompatibilidad con datos cifrados por secret-box.util.ts.
-  if (value.startsWith('v1:')) {
-    return decryptSecretLegacyV1(value);
+  if (envelope.startsWith('v1:')) {
+    return decryptSecretLegacyV1(envelope);
   }
 
   try {
-    const [version, providerId, keyId, encryptedKeyEncoded, ivB64, tagB64, ciphertextB64] = value.split(':');
+    const [version, providerId, keyId, encryptedKeyEncoded, ivB64, tagB64, ciphertextB64] = envelope.split(':');
     if (version !== 'v2' || !providerId || !keyId || !encryptedKeyEncoded || !ivB64 || !tagB64 || !ciphertextB64) {
       logger.warn('Valor cifrado con formato v2 malformado: no se pudo parsear (valor no registrado).');
       return null;

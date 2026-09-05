@@ -11,6 +11,7 @@ import {
   NotificationDeliveryModel,
   NotificationMessageModel,
   NotificationTemplateModel,
+  NotificationPolicyModel,
   TenantModel,
   UserNotificationPreferenceModel,
 } from '../../database/models/index.js';
@@ -18,7 +19,7 @@ import { CustomersModule } from '../customers/customers.module.js';
 import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { InAppNotificationAdapter } from './adapters/in-app-notification.adapter.js';
 import { EmailNotificationAdapter } from './adapters/email.adapter.js';
-import { NotificationProviderConfigService } from './adapters/notification-provider-config.service.js';
+import { GmailMailModule } from './adapters/gmail/gmail-mail.module.js';
 import { PushNotificationAdapter } from './adapters/push.adapter.js';
 import { SmsNotificationAdapter } from './adapters/sms.adapter.js';
 import { WhatsAppNotificationAdapter } from './adapters/whatsapp.adapter.js';
@@ -26,8 +27,10 @@ import { NotificationBroadcastService } from './notification-broadcast.service.j
 import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
 import { NotificationRulesService } from './notification-rules.service.js';
 import { NotificationTemplateRendererService } from './notification-template-renderer.service.js';
+import { NotificationPoliciesRepository } from './notification-policies.repository.js';
 import { NotificationPreferencesRepository } from './notification-preferences.repository.js';
 import { NotificationTemplatesRepository } from './notification-templates.repository.js';
+import { NotificationPoliciesOperationsController } from './notification-policies-operations.controller.js';
 import { NotificationsController } from './notifications.controller.js';
 import { NotificationsRepository } from './notifications.repository.js';
 import { NotificationsService } from './notifications.service.js';
@@ -36,6 +39,7 @@ import { NotificationsService } from './notifications.service.js';
   imports: [
     SequelizeModule.forFeature([
       NotificationTemplateModel,
+      NotificationPolicyModel,
       NotificationMessageModel,
       NotificationDeliveryModel,
       UserNotificationPreferenceModel,
@@ -45,11 +49,13 @@ import { NotificationsService } from './notifications.service.js';
     ]),
     CustomersModule,
     InternalUsersModule,
+    GmailMailModule,
   ],
-  controllers: [NotificationsController],
+  controllers: [NotificationsController, NotificationPoliciesOperationsController],
   providers: [
     NotificationsRepository,
     NotificationTemplatesRepository,
+    NotificationPoliciesRepository,
     NotificationPreferencesRepository,
     NotificationsService,
     NotificationRulesService,
@@ -57,7 +63,6 @@ import { NotificationsService } from './notifications.service.js';
     NotificationOrchestratorService,
     NotificationBroadcastService,
     InAppNotificationAdapter,
-    NotificationProviderConfigService,
     EmailNotificationAdapter,
     PushNotificationAdapter,
     SmsNotificationAdapter,
@@ -66,13 +71,19 @@ import { NotificationsService } from './notifications.service.js';
   // Los adaptadores de SMS/WhatsApp se exportan para que `customer-onboarding` pueda entregar el
   // código de verificación de contacto por el canal que el cliente eligió. Antes solo los usaba el
   // orquestador de notificaciones, y el OTP de onboarding no tenía por dónde salir.
+  // `GmailMailModule` se re-exporta por la misma razón: el `sendEmail()` tipado de su adaptador
+  // (HTML, cc/bcc, reply-to) es el camino para un correo transaccional puntual sin pasar por el
+  // orquestador. Quien sólo necesite eso puede importar ese módulo directamente y ahorrarse las
+  // siete tablas y los cinco canales que arrastra éste.
   exports: [
     NotificationOrchestratorService,
+    NotificationPoliciesRepository,
     NotificationsService,
     NotificationsRepository,
     NotificationBroadcastService,
     SmsNotificationAdapter,
     WhatsAppNotificationAdapter,
+    GmailMailModule,
   ],
 })
 export class NotificationsModule {}

@@ -99,6 +99,19 @@ export const PLATFORM_ACCESS_NARRATIVES: EntityBusinessNarrative[] = [
       'Tabla puente en `iam` con `_tenant_id`, FKs a `internal_users` e `internal_roles`, y campos de otorgamiento/revocación con actor. Un rol está vigente si `revoked_at IS NULL`; el guard filtra por eso en cada resolución de permisos. No se borran filas revocadas: la fila revocada ES la evidencia.',
   },
   {
+    tableName: 'merchant_users',
+    whyExists:
+      'Es la CUARTA población autenticable de Atlas, junto a clientes, usuarios internos y usuarios de plataforma: la persona que opera un comercio afiliado. El rol `merchant` ya existía en el vocabulario de tokens y los comercios ya generaban eventos y notificaciones, pero no había nadie detrás — el portal fabricaba ese acceso mapeándolo a un rol de EMPLEADO de Atlas, de modo que lo que se llamaba "usuario partner" era, en producción, personal interno.',
+    whyNotDelete:
+      'Sin esta tabla no hay forma de que un comercio entre al sistema con su propia identidad, y todo lo que un comercio hace queda atribuido a un empleado de Atlas. Eso rompe la trazabilidad de cada venta, devolución o solicitud originada en el punto de venta, que es exactamente lo que un auditor pide primero cuando revisa el canal.',
+    decisionContribution:
+      'Separa lo que hizo el comercio de lo que hizo Atlas en el rastro de auditoría, y habilita las decisiones de acceso que dependen del estado de la persona: sólo una identidad `active` inicia sesión, y suspenderla corta el acceso sin borrar el historial de lo que hizo mientras estuvo habilitada.',
+    usageExample:
+      'Se da de alta a la encargada de una tienda afiliada: queda `invited` hasta que fija su contraseña, pasa a `active` y desde ahí origina ventas a crédito con su propio token. Cuando deja la tienda, se la marca `suspended`: no vuelve a entrar, y las operaciones que originó siguen atribuidas a ella.',
+    systemsExplanation:
+      'Tabla en el schema de identidad con `_tenant_id`, `email` único por tenant, `role_code` (hoy sólo `merchant`) y `status` (`invited` | `active` | `suspended` | `disabled`; sólo `active` resuelve actor en el login y en el refresh). Guarda identidad, NO membresía: a qué comercio pertenece y qué puede hacer en él vive en el ERP (`atlas_sales.merchant_users.user_id`, enlazado por el `sub` del token). Las credenciales son las mismas de todos los actores (`auth_credentials` con `actor_type = merchant_user`), y el alta es siempre un acto de personal interno, registrado en `created_by_internal_user_id`.',
+  },
+  {
     tableName: 'auth_credentials',
     whyExists:
       'Separa "quién eres" (el usuario) de "cómo pruebas que eres tú" (la credencial). El negocio necesita poder bloquear una cuenta por intentos fallidos, forzar cambio de contraseña o invalidar todas las sesiones sin tocar el registro de la persona.',

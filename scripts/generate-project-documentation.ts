@@ -249,10 +249,20 @@ function readmeFor(path: string): string {
   const files = entries.files.length
     ? entries.files.map((name) => `| [\`${name}\`](./${encodeURI(name)}) | ${fileRole(name)} |`).join('\n')
     : '| — | Esta carpeta funciona como agrupador; su contenido está en subcarpetas. |';
+  // Se enlaza a `index.md` cuando la subcarpeta lo tiene: MkDocs trata `README.md` e `index.md` como
+  // el mismo índice y, si están los dos, EXCLUYE el README del sitio. Enlazarlo igual dejaba el
+  // portal con enlaces rotos que `mkdocs build --strict` corta —y así estaba, en ocho carpetas.
   const children = entries.directories.length
-    ? `\n## Subcarpetas\n\n${entries.directories.map((name) => `- [\`${name}/\`](./${encodeURI(name)}/README.md)`).join('\n')}\n`
+    ? `\n## Subcarpetas\n\n${entries.directories
+        .map((name) => `- [\`${name}/\`](./${encodeURI(name)}/${indexFileFor(join(path, name))})`)
+        .join('\n')}\n`
     : '';
   return `${GENERATED_MARKER}\n\n# ${title}\n\n## Por qué existe\n\n- **Negocio:** esta carpeta ${context.business}.\n- **Sistema:** esta carpeta ${context.system}.\n\n## Contenido\n\n| Documento o código | Responsabilidad |\n|---|---|\n${files}\n${children}\n## Reglas de mantenimiento\n\n- Mantener las reglas de negocio fuera de controladores y adaptadores de infraestructura.\n- Validar entradas en el borde, preservar aislamiento por tenant y no registrar secretos ni PII en claro.\n- Actualizar pruebas y este inventario con \`yarn docs:project\` cuando cambie la estructura.\n`;
+}
+
+/** Qué archivo hace de índice de una carpeta en el portal: `index.md` gana sobre `README.md`. */
+function indexFileFor(directory: string): string {
+  return existsSync(join(directory, 'index.md')) ? 'index.md' : 'README.md';
 }
 
 function walkDirectories(root: string): string[] {

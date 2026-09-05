@@ -11,6 +11,8 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`customer-contacts-snapshot.schemas.ts`](./customer-contacts-snapshot.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
+| [`customer-evidence-view.controller.ts`](./customer-evidence-view.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`customer-onboarding-profile.controller.ts`](./customer-onboarding-profile.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`customer-onboarding-profile.schemas.ts`](./customer-onboarding-profile.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
 | [`customer-onboarding-status.controller.ts`](./customer-onboarding-status.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
@@ -22,6 +24,7 @@
 | [`customer-onboarding.schemas.ts`](./customer-onboarding.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
 | [`customer-onboarding.service.ts`](./customer-onboarding.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`customer-verification.controller.ts`](./customer-verification.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`identity-review-callback.controller.ts`](./identity-review-callback.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 
 ## Subcarpetas
 

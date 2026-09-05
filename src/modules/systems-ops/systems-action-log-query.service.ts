@@ -4,6 +4,7 @@
  * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
  */
 import { Injectable } from '@nestjs/common';
+import { buildActionLogFilterCatalog } from './action-log-filter-catalog.js';
 import { mapActionLog } from './systems-ops.mapper.js';
 import { SystemsActionLogQueryDto } from './systems-ops.schemas.js';
 import { SystemsActionLogRepository } from './systems-action-log.repository.js';
@@ -17,6 +18,29 @@ export class SystemsActionLogQueryService {
   async listActionLogs(query: SystemsActionLogQueryDto, user: AuthenticatedUser) {
     const result = await this.actionLogRepository.listActionLogs(query, systemsTenantScope(user));
     return { items: result.rows.map(mapActionLog), meta: result.meta };
+  }
+
+  /**
+   * Qué se puede filtrar y con qué valores.
+   *
+   * Existe porque la pantalla de auditoría tenía sus opciones ESCRITAS A MANO
+   * —cuatro niveles de riesgo y cinco métodos, en un array de React— mientras el
+   * endpoint aceptaba once filtros. Dos consecuencias, y ninguna se veía: los
+   * ocho filtros restantes no existían para quien usaba el portal, y las
+   * opciones copiadas podían discrepar del esquema sin que nada fallara hasta
+   * que alguien filtrara y recibiera un 400.
+   *
+   * Los conjuntos cerrados salen del propio esquema de consulta; los abiertos
+   * —módulo, tipo de actor— de la tabla, porque nadie los declara en ningún
+   * sitio.
+   */
+  async getFilterCatalog(user: AuthenticatedUser) {
+    const scope = systemsTenantScope(user);
+    const [modules, actorTypes] = await Promise.all([
+      this.actionLogRepository.listDistinctValues('module', scope),
+      this.actionLogRepository.listDistinctValues('actor_type', scope),
+    ]);
+    return buildActionLogFilterCatalog({ modules, actorTypes });
   }
 
   async getActionLogsByRequest(requestId: string, user: AuthenticatedUser) {

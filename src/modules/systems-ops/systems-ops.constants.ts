@@ -4,6 +4,7 @@
  * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
  */
 import { ToolSeed } from './systems-ops.types.js';
+import { PLATFORM_SERVICE_TOOL_SEEDS } from './platform-services.constants.js';
 
 export const SYSTEMS_OPS_ROLES = [
   'system_admin',
@@ -61,6 +62,9 @@ export function canReadAllSystemsOpsTenants(role: string): boolean {
 }
 
 export const SYSTEM_TOOL_SEEDS: ToolSeed[] = [
+  // Los otros dos backends del ecosistema, en su propio archivo: su metadata es larga (valor de
+  // negocio, uso técnico, riesgos) y aquí sólo cabía la lista.
+  ...PLATFORM_SERVICE_TOOL_SEEDS,
   {
     code: 'POSTGRES',
     name: 'PostgreSQL',

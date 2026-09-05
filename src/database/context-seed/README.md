@@ -11,6 +11,11 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`context-seed-rows.ts`](./context-seed-rows.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
+| [`context-seed-upserts.constants.ts`](./context-seed-upserts.constants.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
+| [`context-seed-validation.ts`](./context-seed-validation.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
+| [`context-seed-writer.ts`](./context-seed-writer.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
+| [`context-seed.types.ts`](./context-seed.types.ts) | Seeder idempotente: instala datos de referencia o fixtures del perfil. |
 | [`multidomain-context-loader.ts`](./multidomain-context-loader.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento

@@ -48,7 +48,7 @@ describe('AuthController — OpenAPI document generation', () => {
     };
     const schema = loginBody.content['application/json'].schema;
     expect(schema.properties).toMatchObject({
-      actorType: { enum: ['customer', 'internal_user', 'platform_user'] },
+      actorType: { enum: ['customer', 'internal_user', 'platform_user', 'merchant_user'] },
       identifier: { type: 'string', minLength: 3, maxLength: 180 },
       password: { type: 'string', minLength: 1, maxLength: 128 },
     });

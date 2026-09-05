@@ -16,11 +16,11 @@ const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null 
 
 function commonMocks() {
   const customersRepository = {
-    findById: jest.fn(async () => ({ id: 'c1', lifecycleStatus: 'onboarding_in_progress' })),
+    findById: jest.fn(async (..._args: unknown[]) => ({ id: 'c1', lifecycleStatus: 'onboarding_in_progress' })),
     updateCurrentProfileVersion: jest.fn(),
   };
   const onboardingRepository = {
-    findLatestOnboardingFlow: jest.fn(async () => ({ id: 'flow-1' })),
+    findLatestOnboardingFlow: jest.fn(async (..._args: unknown[]) => ({ id: 'flow-1' })),
     createOnboardingStepEvent: jest.fn(),
     createOperationalAuditLog: jest.fn(),
   };
@@ -30,12 +30,12 @@ function commonMocks() {
 }
 
 describe('CustomerProfileUpdateService', () => {
-  function build() {
+  function build(identityResult: string | null = null) {
     const common = commonMocks();
     const profileDataRepository = {
-      findCurrentProfile: jest.fn(async () => null),
+      findCurrentProfile: jest.fn(async (..._args: unknown[]) => null),
       closeProfileVersion: jest.fn(),
-      createProfileVersion: jest.fn(async () => ({
+      createProfileVersion: jest.fn(async (..._args: unknown[]) => ({
         id: 'profile-2',
         firstName: 'Ana',
         lastName: 'Paz',
@@ -43,14 +43,36 @@ describe('CustomerProfileUpdateService', () => {
         supersedesVersionId: null,
       })),
     };
+    /*
+     * Identidad SIN verificar por defecto: es el estado en el que un cliente todavia esta editando
+     * su perfil, que es lo que estas pruebas fijan. El bloqueo de los campos de identidad tiene su
+     * propia prueba, que lo pone en `verified` a proposito.
+     */
+    const eligibilityRepository = {
+      loadFacts: jest.fn(async (..._args: unknown[]) => ({ identityVerificationResult: identityResult })),
+    };
+    /*
+     * El permiso de marketing se anota en el registro de consentimientos, asi que el servicio
+     * depende de su repositorio. Por defecto NO hay documento sembrado —`findActiveDocuments`
+     * devuelve vacio—, que es el camino que estas pruebas recorren: el perfil se guarda igual y no
+     * se escribe ningun consentimiento. Que falte el catalogo legal no puede romper «guardar mis
+     * datos».
+     */
+    const consentsRepository = {
+      findActiveDocuments: jest.fn(async (..._args: unknown[]) => []),
+      createCustomerConsent: jest.fn(async (..._args: unknown[]) => ({ id: 'consent-1' })),
+      createConsentEvent: jest.fn(),
+    };
     const service = new CustomerProfileUpdateService(
       common.customersRepository as never,
       profileDataRepository as never,
       common.onboardingRepository as never,
       common.lifecycleService as never,
+      eligibilityRepository as never,
+      consentsRepository as never,
       common.sequelize as never,
     );
-    return { service, profileDataRepository, ...common };
+    return { service, profileDataRepository, eligibilityRepository, consentsRepository, ...common };
   }
 
   const baseInput = { tenantId: 't1', customerId: 'c1', currentUser: customerUser, ipAddress: '10.0.0.1' };
@@ -59,6 +81,36 @@ describe('CustomerProfileUpdateService', () => {
     const { service, customersRepository } = build();
     (customersRepository.findById as jest.Mock).mockResolvedValueOnce(null as never);
     await expect(service.updateProfile({ ...baseInput, body: { firstName: 'Ana' } as never })).rejects.toThrow(NotFoundException);
+  });
+
+  /*
+   * Terminar el alta no es dejar de ser una persona con datos que cambian: un cliente ACTIVO puede
+   * corregir sus preferencias. Antes el endpoint se cerraba al quedar `active` y no habia otro
+   * camino que soporte.
+   */
+  it('deja editar a un cliente ya activo', async () => {
+    const { service, customersRepository } = build();
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'active' } as never);
+    await expect(service.updateProfile({ ...baseInput, body: { preferredLanguage: 'es' } as never })).resolves.toBeDefined();
+  });
+
+  /*
+   * Y el filo: los tres campos que se contrastaron contra el carnet NO se reescriben por
+   * autoservicio. Permitirlo convertiria una verificacion en una declaracion — el expediente diria
+   * «verificado» sobre datos que nadie miro.
+   */
+  it('bloquea los campos de identidad cuando el carnet ya fue verificado', async () => {
+    const { service, customersRepository } = build('verified');
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'active' } as never);
+    await expect(service.updateProfile({ ...baseInput, body: { firstName: 'Otra' } as never })).rejects.toThrow(
+      /IDENTITY_FIELDS_LOCKED: firstName/,
+    );
+  });
+
+  it('con la identidad verificada sigue dejando cambiar lo que no se verifico', async () => {
+    const { service, customersRepository } = build('verified');
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'active' } as never);
+    await expect(service.updateProfile({ ...baseInput, body: { marketingOptIn: true } as never })).resolves.toBeDefined();
   });
 
   it('bloquea la edición cuando el estado del cliente ya no la admite', async () => {
@@ -116,8 +168,8 @@ describe('CustomerFinancialProfileService', () => {
   function build() {
     const common = commonMocks();
     const profileDataRepository = {
-      findAttributeDefinitionsByCode: jest.fn(async () => DEFINITIONS),
-      findCurrentAttributeValues: jest.fn(async () => []),
+      findAttributeDefinitionsByCode: jest.fn(async (..._args: unknown[]) => DEFINITIONS),
+      findCurrentAttributeValues: jest.fn(async (..._args: unknown[]) => []),
       closeAttributeValue: jest.fn(),
       createAttributeValue: jest.fn(),
     };

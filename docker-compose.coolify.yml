@@ -1,0 +1,586 @@
+# Despliegue de AtlasBackend gestionado por COOLIFY.
+#
+# Va aparte de `docker-compose.dev.yml` —que sigue siendo el del VPS operado a mano, con los
+# `.env` en `/opt/atlas/env`— porque las dos formas de configurar son incompatibles y las dos
+# tienen su sitio. Aquí la configuración la inyecta Coolify: cada `${VARIABLE}` de este archivo
+# aparece en **Application → Environment Variables** y se sustituye al desplegar.
+#
+# ## La regla que hay que entender antes de tocar nada: AUSENTE no es VACÍO
+#
+# Es el defecto que hunde una conversión ingenua de `env_file` a variables de compose, y no da
+# un error que mencione la causa: el contenedor no arranca y la traza habla de un campo que
+# nadie tocó.
+#
+# Con `env_file`, una clave que no interesa simplemente no se escribe: llega AUSENTE, y el
+# esquema la da por buena porque es opcional. Con `${VAR:-}` la clave llega **vacía**, que es
+# un valor, y hay campos que rechazan la cadena vacía aunque acepten la ausencia. Medido
+# contra el esquema de este repositorio, **25 de las 69 claves en uso la rechazan** — entre
+# ellas `DB_MIGRATION_USER`, `DEV_ADMIN_EMAIL` y `DECISION_ENGINE_ENVIRONMENT_CODE`, que en un
+# borrador previo de este archivo iban como `${VAR:-}` y tumbaban el arranque en desarrollo:
+#
+#   DB_MIGRATION_USER: Too small: expected string to have >=1 characters
+#   DEV_ADMIN_EMAIL: Invalid email address
+#   DECISION_ENGINE_ENVIRONMENT_CODE: must match /^[A-Z0-9_-]{2,40}$/
+#
+# De ahí las tres formas que se usan aquí, y ninguna es intercambiable:
+#
+#   ${VAR:?}          obligatoria. `docker compose` falla ANTES de arrancar si falta.
+#                     **OJO CON COOLIFY: no lo respeta.** Sustituye la cadena vacía en vez de
+#                     negarse, así que una clave obligatoria sin valor no para el despliegue —
+#                     lo para el esquema al arrancar, con un mensaje sobre el campo. Medido:
+#                     `NOTIFICATION_TOKEN_ENCRYPTION_KEY` e `INTERNAL_FRONTEND_ORIGIN` llegaron
+#                     vacías y el contenedor salió con EXITED.
+#   ${VAR:-valor}     opcional con un valor real. Nunca con el valor vacío si la clave está en
+#                     la lista de las 25.
+#   ${VAR:-}          SÓLO para las claves que toleran la cadena vacía. Comprobado una a una.
+#
+# Para reclasificar una clave, pásala por el esquema en vez de suponerlo:
+#   node_modules/.bin/tsx -e "import {envBaseSchema} from './src/config/env.schema'; \
+#     console.log((envBaseSchema as any).shape.LA_CLAVE.safeParse('').success)"
+#
+# ## Lo que Coolify aporta y por eso no está aquí
+#
+# **La red y el proxy.** Coolify crea su propia red por proyecto y publica los servicios por su
+# proxy con el dominio que le configures. Por eso este archivo NO declara `networks:` externas
+# ni `ports:` del lado público: publicar `3005:3005` a pelo compite con el proxy y deja el
+# servicio accesible por dos caminos, uno de ellos sin TLS.
+#
+# El puerto del worker sí se publica, y sólo en `127.0.0.1`: es la sonda de salud, no atiende
+# tráfico de negocio y conviene poder curlearla desde el host.
+#
+# ## Lo que sigue haciendo falta aunque despliegue Coolify
+#
+# El endpoint de Neon tiene que ser el DIRECTO, sin `-pooler`. El de PgBouncer en modo
+# transacción rompe los cerrojos de sesión, el `LISTEN` de los trabajos de fondo y las
+# migraciones, y ninguno de los tres fallos menciona al pooler.
+
+name: atlas-backend
+
+x-common: &common
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '3'
+
+# La imagen se construye UNA VEZ, y sólo `migrate` la declara.
+#
+# Los tres servicios —migrate, api y worker— son EL MISMO artefacto con distinto `APP_ROLE`, así
+# que los tres apuntaban al mismo tag y los tres llevaban `build:`. Compose entonces lanza tres
+# construcciones CONCURRENTES de la misma imagen: en el log de Coolify se ve literalmente
+# «Image atlas-backend:coolify Building» tres veces.
+#
+# En un VPS eso no es sólo desperdicio: tres `yarn install` a la vez —cada uno resolviendo el
+# árbol entero, y con `--no-cache`, que es como despliega Coolify— agotan la memoria y el OOM
+# killer se lleva a uno. El síntoma es `yarn install --frozen-lockfile did not complete
+# successfully: exit code: 1`, sin una línea sobre memoria, y **el objetivo que muere CAMBIA
+# entre intentos** (worker, worker, api en tres despliegues seguidos). Ese baile es la firma de
+# una carrera por recursos y no de un fallo del código: un lockfile roto o un registro
+# inalcanzable habrían tumbado siempre al mismo.
+#
+# `api` y `worker` sólo referencian el tag. Compose construye el de `migrate` y ellos reutilizan
+# la imagen ya construida — que además es lo correcto: dos builds del mismo Dockerfile son dos
+# oportunidades de divergir.
+x-image: &image
+  image: atlas-backend:coolify
+
+x-build: &build
+  image: atlas-backend:coolify
+  build:
+    context: .
+    dockerfile: Dockerfile.dev
+    cache_from: ['atlas-backend:coolify']
+
+# ---------------------------------------------------------------------------------------------
+# La configuración, compartida por los tres servicios que la necesitan.
+#
+# Un ancla y no `env_file` porque es lo que permite que Coolify vea cada clave y la administre
+# desde su interfaz. El precio es que **lo que no esté nombrado aquí no existe dentro del
+# contenedor**, por mucho que esté puesto en Coolify: al añadir una variable al esquema hay que
+# añadirla también a esta lista.
+# ---------------------------------------------------------------------------------------------
+x-atlas-env: &atlas-env
+  # --- Aplicación --------------------------------------------------------------------------
+  NODE_ENV: '${NODE_ENV:-development}'
+  API_PREFIX: '${API_PREFIX:-api/v1}'
+  API_JSON_BODY_LIMIT: '${API_JSON_BODY_LIMIT:-2mb}'
+  API_DOCS_ENABLED: '${API_DOCS_ENABLED:-true}'
+  LOG_LEVEL: '${LOG_LEVEL:-log}'
+  # Rechaza la cadena vacía: default real, nunca `${LOG_FORMAT:-}`.
+  LOG_FORMAT: '${LOG_FORMAT:-json}'
+  SHUTDOWN_DRAIN_MS: '${SHUTDOWN_DRAIN_MS:-5000}'
+
+  # `localhost` y la IP son orígenes DISTINTOS para CORS: si el portal se sirve por dominio,
+  # ese dominio tiene que estar aquí o el login muere en un preflight rechazado.
+  CORS_ORIGINS: '${CORS_ORIGINS:?}'
+  INTERNAL_FRONTEND_ORIGIN: '${INTERNAL_FRONTEND_ORIGIN:?}'
+
+  # --- PostgreSQL (Neon; endpoint DIRECTO, sin -pooler) --------------------------------------
+  DB_HOST: '${DB_HOST:?}'
+  DB_PORT: '${DB_PORT:-5432}'
+  DB_NAME: '${DB_NAME:-atlas}'
+  DB_USER: '${DB_USER:?}'
+  DB_PASSWORD: '${DB_PASSWORD:?}'
+  DB_SCHEMA: '${DB_SCHEMA:-public}'
+  DB_SSL: '${DB_SSL:-true}'
+  DB_SSL_REJECT_UNAUTHORIZED: '${DB_SSL_REJECT_UNAUTHORIZED:-true}'
+  DB_LOG_SQL: '${DB_LOG_SQL:-false}'
+  DB_POOL_MAX: '${DB_POOL_MAX:-20}'
+  DB_POOL_MIN: '${DB_POOL_MIN:-2}'
+  DB_POOL_ACQUIRE_MS: '${DB_POOL_ACQUIRE_MS:-30000}'
+  DB_POOL_IDLE_MS: '${DB_POOL_IDLE_MS:-10000}'
+  DB_STATEMENT_TIMEOUT_MS: '${DB_STATEMENT_TIMEOUT_MS:-60000}'
+  DB_IDLE_IN_TRANSACTION_TIMEOUT_MS: '${DB_IDLE_IN_TRANSACTION_TIMEOUT_MS:-60000}'
+  DB_READ_ENABLED: '${DB_READ_ENABLED:-false}'
+
+  # Rol con el que se migra y se administra. Rechazan la cadena vacía, así que llevan el valor
+  # real de Neon por defecto en vez de `${VAR:-}`.
+  DB_MIGRATION_USER: '${DB_MIGRATION_USER:-neondb_owner}'
+  DB_MIGRATION_PASSWORD: '${DB_MIGRATION_PASSWORD:-}'
+  DB_ADMIN_USER: '${DB_ADMIN_USER:-neondb_owner}'
+  DB_ADMIN_PASSWORD: '${DB_ADMIN_PASSWORD:-}'
+
+  # --- Origen de las semillas ----------------------------------------------------------------
+  #
+  # **Sin esto el despliegue no levanta, y el síntoma no lo dice.** El job `migrate` corre
+  # `seed.js pull --if-empty`, y `commandPull` pide el origen en su PRIMERA línea —antes de
+  # mirar `--if-empty`—, así que sin `SEED_SOURCE_*` lanza «No hay origen de semillas
+  # configurado», el contenedor sale con código distinto de cero y `api` y `worker` no arrancan
+  # NUNCA, porque esperan a `service_completed_successfully`. Lo que se ve es todo EXITED y
+  # ningún error que mencione las semillas.
+  #
+  # Apuntan a la rama de PostgreSQL que publica el conjunto sembrado. Si este despliegue no
+  # tiene que sembrar, déjalas vacías: el comando de `migrate` se salta el paso y lo dice.
+  SEED_SOURCE_DATABASE_URL: '${SEED_SOURCE_DATABASE_URL:-}'
+  SEED_SOURCE_HOST: '${SEED_SOURCE_HOST:-}'
+  SEED_SOURCE_PORT: '${SEED_SOURCE_PORT:-5432}'
+  SEED_SOURCE_DB: '${SEED_SOURCE_DB:-atlas}'
+  SEED_SOURCE_USER: '${SEED_SOURCE_USER:-}'
+  SEED_SOURCE_PASSWORD: '${SEED_SOURCE_PASSWORD:-}'
+  SEED_SOURCE_SSL: '${SEED_SOURCE_SSL:-true}'
+  SEED_SOURCE_SSL_REJECT_UNAUTHORIZED: '${SEED_SOURCE_SSL_REJECT_UNAUTHORIZED:-true}'
+
+  # --- Siembra -------------------------------------------------------------------------------
+  # `--if-empty` mira la MARCA de siembra, no el número de filas: una base con datos pero sin
+  # marca se considera virgen y se vacían las tablas del manifiesto. Cualquier base nueva
+  # necesita que se le plante la marca antes del primer arranque.
+  DATABASE_SEED_ON_STARTUP: '${DATABASE_SEED_ON_STARTUP:-false}'
+  DATABASE_SEED_ON_STARTUP_FAIL_FAST: '${DATABASE_SEED_ON_STARTUP_FAIL_FAST:-false}'
+
+  # --- Usuarios de desarrollo ---------------------------------------------------------------
+  # `DEV_ADMIN_EMAIL` rechaza la cadena vacía y además tiene que ser un correo válido.
+  DEV_ADMIN_EMAIL: '${DEV_ADMIN_EMAIL:?}'
+  DEV_ADMIN_PASSWORD: '${DEV_ADMIN_PASSWORD:-}'
+  DEV_PARTNER_PASSWORD: '${DEV_PARTNER_PASSWORD:-}'
+
+  # --- JWT y sesión --------------------------------------------------------------------------
+  JWT_ACCESS_TOKEN_SECRET: '${JWT_ACCESS_TOKEN_SECRET:?}'
+  JWT_ACCESS_TOKEN_EXPIRES_IN: '${JWT_ACCESS_TOKEN_EXPIRES_IN:-1h}'
+  JWT_ISSUER: '${JWT_ISSUER:-atlas-backend}'
+  JWT_AUDIENCE: '${JWT_AUDIENCE:-atlas-api}'
+  AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS: '${AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS:-30}'
+  AUTH_MAX_FAILED_LOGIN_ATTEMPTS: '${AUTH_MAX_FAILED_LOGIN_ATTEMPTS:-5}'
+  AUTH_LOCKOUT_MINUTES: '${AUTH_LOCKOUT_MINUTES:-15}'
+  AUTH_LOGIN_PIN_ENABLED: '${AUTH_LOGIN_PIN_ENABLED:-true}'
+  AUTH_ONE_TIME_CODE_TTL_MINUTES: '${AUTH_ONE_TIME_CODE_TTL_MINUTES:-10}'
+  AUTH_ONE_TIME_CODE_MAX_ATTEMPTS: '${AUTH_ONE_TIME_CODE_MAX_ATTEMPTS:-5}'
+  # Tras el proxy de Coolify la sesión viaja por HTTPS: `secure` en true y `SameSite` acorde.
+  AUTH_COOKIE_SAMESITE: '${AUTH_COOKIE_SAMESITE:-lax}'
+  AUTH_COOKIE_DOMAIN: '${AUTH_COOKIE_DOMAIN:-}'
+  AUTH_COOKIE_SECURE: '${AUTH_COOKIE_SECURE:-true}'
+
+  # --- Redis ---------------------------------------------------------------------------------
+  REDIS_URL: '${REDIS_URL:-redis://atlas-redis:6379}'
+  API_RATE_LIMIT_TTL_MS: '${API_RATE_LIMIT_TTL_MS:-60000}'
+  API_RATE_LIMIT_MAX: '${API_RATE_LIMIT_MAX:-100}'
+
+  # --- Bitácora en Mongo ---------------------------------------------------------------------
+  MONGO_DB_URL_CONNECTION: '${MONGO_DB_URL_CONNECTION:-}'
+  MONGO_LOGS_DB_NAME: '${MONGO_LOGS_DB_NAME:-atlas_logs}'
+  MONGO_LOGS_COLLECTION: '${MONGO_LOGS_COLLECTION:-archivo_log_updates}'
+  LOG_SYNC_FILE_PATH: '${LOG_SYNC_FILE_PATH:-Archivo.log}'
+  LOG_SYNC_INTERVAL_MS: '${LOG_SYNC_INTERVAL_MS:-5000}'
+  LOG_SYNC_MAX_CHUNK_BYTES: '${LOG_SYNC_MAX_CHUNK_BYTES:-1000000}'
+  LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT: '${LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT:-false}'
+  LOG_SYNC_MONGO_SERVER_SELECTION_TIMEOUT_MS: '${LOG_SYNC_MONGO_SERVER_SELECTION_TIMEOUT_MS:-5000}'
+
+  # --- Almacenamiento de evidencia (MinIO) ---------------------------------------------------
+  STORAGE_S3_ENDPOINT: '${STORAGE_S3_ENDPOINT:-http://minio:9000}'
+  # Ésta la resuelve el NAVEGADOR: tiene que ser el dominio público, no el nombre de servicio.
+  # Si apunta dentro de la red, el alta se para en la subida del carnet con un 503.
+  STORAGE_S3_PUBLIC_ENDPOINT: '${STORAGE_S3_PUBLIC_ENDPOINT:?}'
+  # Cada clave referencia SU PROPIO nombre. Coolify sustituye `${X}` en la clave `X`, pero deja
+  # LITERAL una referencia cruzada —`STORAGE_S3_ACCESS_KEY_ID: '${MINIO_ROOT_USER:?}'` llegaba al
+  # contenedor como la cadena `${MINIO_ROOT_USER:?}` tal cual—, así que el nombre tiene que
+  # coincidir aunque duplique el valor en la interfaz.
+  STORAGE_S3_BUCKET: '${STORAGE_S3_BUCKET:-atlas}'
+  STORAGE_S3_REGION: '${STORAGE_S3_REGION:-us-east-1}'
+  STORAGE_S3_ACCESS_KEY_ID: '${STORAGE_S3_ACCESS_KEY_ID:-atlasminio}'
+  STORAGE_S3_SECRET_ACCESS_KEY: '${STORAGE_S3_SECRET_ACCESS_KEY:?}'
+  STORAGE_S3_FORCE_PATH_STYLE: '${STORAGE_S3_FORCE_PATH_STYLE:-true}'
+  STORAGE_UPLOAD_URL_TTL_SECONDS: '${STORAGE_UPLOAD_URL_TTL_SECONDS:-300}'
+
+  # --- Servicio de archivos por adaptadores (src/common/files) --------------------------------
+  # `minio` es el defecto del esquema; se declara igualmente para que el compose diga en voz alta
+  # dónde acaban los archivos. Con `local` escribirían en el disco del contenedor, que Coolify
+  # destruye en cada publicación — «guardado» hasta el próximo despliegue.
+  #
+  # No lleva credenciales propias: el servicio cae a las STORAGE_S3_* de arriba, porque hay UN solo
+  # MinIO por entorno. Lo único suyo es el prefijo dentro del bucket compartido.
+  FILE_INGEST_ADAPTER: '${FILE_INGEST_ADAPTER:-multer}'
+  FILE_STORAGE_ADAPTER: '${FILE_STORAGE_ADAPTER:-minio}'
+  FILE_STORAGE_MINIO_KEY_PREFIX: '${FILE_STORAGE_MINIO_KEY_PREFIX:-files}'
+
+  # --- Correo: es el canal que entrega el PIN del segundo factor -----------------------------
+  # Sin canal de correo, `AuthSecondFactorService.isRequired` devuelve false y el login interno
+  # pide un solo factor SIN decirlo en ninguna parte. Rechaza la cadena vacía.
+  #
+  # Las cuatro de Gmail son OBLIGATORIAS, y es deliberado: el esquema las exige cuando el
+  # proveedor es `gmail_api`, así que dejarlas con `${VAR:-}` tumba el arranque —lo tumbó al
+  # escribir este archivo, y por eso están así—. La salida fácil sería poner el proveedor en
+  # `disabled` por omisión, y es justo la que no se toma: sin canal de correo el login interno
+  # pide UN SOLO FACTOR y no lo dice en ninguna parte. Vale más que el despliegue falle a que
+  # el segundo factor desaparezca en silencio.
+  #
+  # Para desplegar de verdad sin correo, pon `NOTIFICATION_EMAIL_PROVIDER=disabled` en Coolify
+  # Y deja las cuatro con cualquier valor: el esquema deja de exigirlas. Es una decisión que
+  # queda escrita en la interfaz, que es donde tiene que quedar.
+  NOTIFICATION_EMAIL_PROVIDER: '${NOTIFICATION_EMAIL_PROVIDER:-gmail_api}'
+  GMAIL_CLIENT_ID: '${GMAIL_CLIENT_ID:?}'
+  GMAIL_CLIENT_SECRET: '${GMAIL_CLIENT_SECRET:?}'
+  GMAIL_REFRESH_TOKEN: '${GMAIL_REFRESH_TOKEN:?}'
+  GMAIL_FROM_EMAIL: '${GMAIL_FROM_EMAIL:?}'
+  GMAIL_FROM_NAME: '${GMAIL_FROM_NAME:-ATLAS}'
+  NOTIFICATION_TOKEN_ENCRYPTION_KEY: '${NOTIFICATION_TOKEN_ENCRYPTION_KEY:?}'
+
+  MAILSENDER_BASE_URL: '${MAILSENDER_BASE_URL:-}'
+  MAILSENDER_API_PREFIX: '${MAILSENDER_API_PREFIX:-/api/v1}'
+  MAILSENDER_EXTERNAL_API_KEY: '${MAILSENDER_EXTERNAL_API_KEY:-}'
+  MAILSENDER_ADMIN_USERNAME: '${MAILSENDER_ADMIN_USERNAME:-}'
+  MAILSENDER_ADMIN_PASSWORD: '${MAILSENDER_ADMIN_PASSWORD:-}'
+
+  # --- Motor de decisión ---------------------------------------------------------------------
+  DECISION_ENGINE_BASE_URL: '${DECISION_ENGINE_BASE_URL:-}'
+  DECISION_ENGINE_HEALTH_BASE_URL: '${DECISION_ENGINE_HEALTH_BASE_URL:-}'
+  DECISION_ENGINE_HEALTH_PATH: '${DECISION_ENGINE_HEALTH_PATH:-/health}'
+  DECISION_ENGINE_API_KEY: '${DECISION_ENGINE_API_KEY:-}'
+  DECISION_ENGINE_OUTCOME_API_KEY: '${DECISION_ENGINE_OUTCOME_API_KEY:-}'
+  DECISION_ENGINE_GOVERNANCE_API_KEY: '${DECISION_ENGINE_GOVERNANCE_API_KEY:-}'
+  DECISION_ENGINE_AUDIO_API_KEY: '${DECISION_ENGINE_AUDIO_API_KEY:-}'
+  # El worker de extractos. Sin ella las revisiones se quedan EN COLA en vez de resolverse —que
+  # es lo correcto, un motor inalcanzable no es un extracto inválido— pero conviene saber por qué.
+  DECISION_ENGINE_STATEMENT_API_KEY: '${DECISION_ENGINE_STATEMENT_API_KEY:-}'
+  # Con la que el MOTOR devuelve la resolución de una revisión de identidad. Sin ella, un caso
+  # que una persona resuelve en el portal no vuelve nunca a este backend.
+  ENGINE_CALLBACK_API_KEY: '${ENGINE_CALLBACK_API_KEY:-}'
+  # La sal con la que se deriva el identificador de sujeto: el mismo cliente tiene que ser el
+  # mismo sujeto entre llamadas, y NO puede serlo entre instalaciones.
+  DECISION_ENGINE_SUBJECT_SALT: '${DECISION_ENGINE_SUBJECT_SALT:-}'
+  DECISION_ENGINE_TIMEOUT_MS: '${DECISION_ENGINE_TIMEOUT_MS:-10000}'
+  DECISION_ENGINE_RETRIES: '${DECISION_ENGINE_RETRIES:-1}'
+  DECISION_ENGINE_RETRY_BASE_DELAY_MS: '${DECISION_ENGINE_RETRY_BASE_DELAY_MS:-250}'
+  # **No es `credit_underwriting`.** Ese es el defecto del esquema y NO existe en el motor: toda
+  # solicitud caía en 404 y se resolvía como `engine_unavailable_manual`, con el crédito
+  # esperando a una persona sin que nada dijera que el motor ni se había consultado.
+  DECISION_ENGINE_CREDIT_ARTIFACT: '${DECISION_ENGINE_CREDIT_ARTIFACT:-ATLAS_BNPL_UNDERWRITING}'
+  DECISION_ENGINE_IDENTITY_ARTIFACT: '${DECISION_ENGINE_IDENTITY_ARTIFACT:-IDENTIDAD_CARNET_MOVIL}'
+  # Rechaza la cadena vacía y exige /^[A-Z0-9_-]{2,40}$/.
+  DECISION_ENGINE_ENVIRONMENT_CODE: '${DECISION_ENGINE_ENVIRONMENT_CODE:-DEV}'
+
+  # --- ERP -----------------------------------------------------------------------------------
+  ERP_BACKEND_BASE_URL: '${ERP_BACKEND_BASE_URL:-}'
+  ERP_BACKEND_HEALTH_PATH: '${ERP_BACKEND_HEALTH_PATH:-/api/v1/health}'
+  ERP_BACKEND_TIMEOUT_MS: '${ERP_BACKEND_TIMEOUT_MS:-5000}'
+  ERP_BACKEND_CATALOG_PATH: '${ERP_BACKEND_CATALOG_PATH:-/api/v1/platform/catalog-manifest}'
+  ERP_BACKEND_CATALOG_API_KEY: '${ERP_BACKEND_CATALOG_API_KEY:-}'
+  ERP_BACKEND_CATALOG_TIMEOUT_MS: '${ERP_BACKEND_CATALOG_TIMEOUT_MS:-30000}'
+
+  # --- Notificaciones ------------------------------------------------------------------------
+  NOTIFICATION_DEFAULT_LOCALE: '${NOTIFICATION_DEFAULT_LOCALE:-es-BO}'
+  NOTIFICATION_PUSH_PROVIDER: '${NOTIFICATION_PUSH_PROVIDER:-disabled}'
+  NOTIFICATION_SMS_PROVIDER: '${NOTIFICATION_SMS_PROVIDER:-disabled}'
+  NOTIFICATION_WHATSAPP_PROVIDER: '${NOTIFICATION_WHATSAPP_PROVIDER:-disabled}'
+  NOTIFICATION_PHONE_PROVIDER: '${NOTIFICATION_PHONE_PROVIDER:-disabled}'
+
+services:
+  # El servicio se LLAMA `atlas-redis`, no `redis`, y el nombre no es cosmetico.
+  #
+  # `api` y `worker` estan tambien en la red COMPARTIDA de Coolify, y ahi `coolify-redis` —el Redis
+  # interno de Coolify, que SI pide contrasena— ya registra el alias `redis`. Con un contenedor en
+  # varias redes Docker no garantiza cual gana la resolucion, y ganaba esa: `redis` resolvia a la
+  # infraestructura de Coolify en vez de a este servicio. El sintoma no dice nada de un alias
+  # duplicado —el TCP abre, asi que parece alcanzable— y el PING muere con
+  # `NOAUTH HELLO must be called with the client already authenticated`, de modo que readiness
+  # devuelve 503 `redis=unreachable` teniendo este Redis sano al lado y `requirepass` vacio.
+  #
+  # Y va en el NOMBRE del servicio, no en `networks: {default: {aliases: [...]}}`: un alias se
+  # registra solo en la red donde se declara, y `worker` no declara `networks:`, asi que Coolify lo
+  # deja fuera de `default`. Con el alias ahi, el `api` resolvia el nombre y el worker moria con
+  # `getaddrinfo ENOTFOUND atlas-redis`, sin tomar el liderazgo de ninguna tanda. El nombre del
+  # servicio, en cambio, Compose lo registra en TODAS las redes que ocupe.
+  #
+  # Se comprueba resolviendo el nombre DENTRO del api Y del worker: cualquier nombre generico
+  # compartido con Coolify tiene el mismo problema.
+  atlas-redis:
+    <<: *common
+    image: redis:7-alpine
+    command:
+      ['redis-server', '--appendonly', 'yes', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru']
+    volumes: ['redis-data:/data']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Job de UN SOLO DISPARO: migra y siembra. `migrate up` es idempotente —aplica sólo lo que
+  # falta— así que corre en cada despliegue sin coste.
+  migrate:
+    # `init: true` sustituye al `tini` que antes iba como ENTRYPOINT en la imagen. Es el mismo
+    # programa —Docker trae tini incorporado— y no depende de que `apt` pueda descargarlo. Sin un
+    # init como PID 1, `SIGTERM` no llega a Node y el drenado ordenado no corre nunca.
+    init: true
+    <<: *build
+    environment:
+      <<: *atlas-env
+      APP_ROLE: all
+    # Migrar SIEMPRE; sembrar sólo si hay origen. El `if` es lo que separa «este despliegue no
+    # siembra» —legítimo y frecuente— de «la siembra falló», que sí tiene que parar el
+    # despliegue. Antes, sin origen configurado, las dos cosas se veían igual: EXITED.
+    command:
+      - sh
+      - -c
+      - >
+        node dist/src/database/migrate.js up &&
+        if [ -n "$${SEED_SOURCE_DATABASE_URL}$${SEED_SOURCE_HOST}" ]; then
+        node dist/src/database/seed.js pull --if-empty;
+        else echo 'sin SEED_SOURCE_*: se migra pero no se siembra'; fi
+    restart: 'no'
+
+  api:
+    # Alias ESTABLE en la red compartida: es como lo encuentran los otros bloques.
+    # El nombre del contenedor lleva una marca de tiempo y cambia en cada despliegue;
+    # este alias no.
+    networks:
+      default: {}
+      coolify:
+        aliases: ['atlas-backend']
+    # `init: true` sustituye al `tini` que antes iba como ENTRYPOINT en la imagen. Es el mismo
+    # programa —Docker trae tini incorporado— y no depende de que `apt` pueda descargarlo. Sin un
+    # init como PID 1, `SIGTERM` no llega a Node y el drenado ordenado no corre nunca.
+    init: true
+    <<: [*common, *image]
+    environment:
+      <<: *atlas-env
+      APP_ROLE: api
+      APP_PORT: '3005'
+      # La API no ejecuta trabajos de fondo: de eso se encarga `worker`. Dos programadores
+      # compitiendo por el mismo cerrojo es trabajo duplicado y contención en la base.
+      RUNTIME_JOBS_SCHEDULER_ENABLED: 'false'
+      NOTIFICATIONS_DELIVERY_MODE: deferred
+    # Sin puerto del host: los otros bloques llegan por el alias `atlas-backend` de la red
+    # compartida. Los navegadores entran por el proxy de Coolify.
+    expose: ['3005']
+    depends_on:
+      atlas-redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    volumes: ['api-logs:/app/logs']
+    stop_grace_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  worker:
+    # `init: true` sustituye al `tini` que antes iba como ENTRYPOINT en la imagen. Es el mismo
+    # programa —Docker trae tini incorporado— y no depende de que `apt` pueda descargarlo. Sin un
+    # init como PID 1, `SIGTERM` no llega a Node y el drenado ordenado no corre nunca.
+    init: true
+    <<: [*common, *image]
+    environment:
+      <<: *atlas-env
+      APP_ROLE: worker
+      WORKER_PROBE_PORT: '3006'
+      RUNTIME_JOBS_SCHEDULER_ENABLED: 'true'
+      NOTIFICATIONS_DELIVERY_MODE: deferred
+      SYSTEM_HEALTH_MONITOR_ENABLED: 'true'
+    # Sólo en el bucle local: es la sonda de salud, no atiende tráfico de negocio.
+    ports: ['127.0.0.1:3006:3006']
+    depends_on:
+      atlas-redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    volumes: ['worker-logs:/app/logs']
+    command: ['node', 'dist/src/worker.js']
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+  # -------------------------------------------------------------------------------------------
+  # MinIO: el ÚNICO sitio donde los archivos de Atlas sobreviven a un despliegue.
+  #
+  # Aquí acaban la cara del cliente, las dos caras de su carnet, los extractos y todo lo que
+  # escriba el servicio de archivos por adaptadores. El volumen `minio-data` es lo que hace que
+  # eso sea cierto: el disco del contenedor de la API se destruye en cada publicación de Coolify.
+  #
+  # ## Las tres cosas que estaban mal y por qué ninguna se veía
+  #
+  # 1. `MINIO_ROOT_USER`/`PASSWORD` llegaban VACÍAS. MinIO no falla por eso: arranca con
+  #    `minioadmin:minioadmin` y lo dice en una línea de WARN entre veinte de banner. La llave que
+  #    usaba el backend no existía, así que cada subida moría con 403 `InvalidAccessKeyId` — un
+  #    error del ALMACÉN, que el alta traduce a «no podemos recibir documentos».
+  # 2. `MINIO_BUCKET` (`atlas`) y `STORAGE_S3_BUCKET` (`atlas-evidence`) eran distintos. El job de
+  #    creación creaba uno y el backend escribía en el otro: 404 `NoSuchBucket`.
+  # 3. `STORAGE_S3_PUBLIC_ENDPOINT` apuntaba a `http://<ip>:9000`, un puerto que este archivo
+  #    NUNCA publicó. Las URLs prefirmadas que recibía el teléfono eran correctas y no las podía
+  #    abrir nadie.
+  #
+  # Las tres son de configuración, no de código, y las tres producen el mismo síntoma en pantalla.
+  # Por eso el `minio-bucket` de abajo ahora VERIFICA con las credenciales del backend en vez de
+  # dar por bueno que existen.
+  # -------------------------------------------------------------------------------------------
+  minio:
+    <<: *common
+    image: minio/minio:RELEASE.2024-09-13T20-26-02Z
+    command: server /data --console-address ":9001"
+    environment:
+      # `:?` para que un valor ausente pare el despliegue. No basta con declararlo: la variable
+      # llegaba PRESENTE Y VACÍA desde Coolify, y `:?` sólo dispara con la ausente. Por eso el job
+      # de abajo comprueba además que la llave del backend funcione de verdad.
+      MINIO_ROOT_USER: '${MINIO_ROOT_USER:?}'
+      MINIO_ROOT_PASSWORD: '${MINIO_ROOT_PASSWORD:?}'
+    # Alias ESTABLE en la red compartida: es como lo encuentran el motor y el ERP, que viven en
+    # otros compose. `minio` a secas no vale ahí —es un nombre que cualquier proyecto puede
+    # reclamar, y ya pasó con `redis`—; dentro de este compose el nombre del servicio sigue siendo
+    # `minio`, que es lo que resuelven la API y el worker.
+    networks:
+      default: {}
+      coolify:
+        aliases: ['atlas-minio']
+    # -----------------------------------------------------------------------------------------
+    # Publicación por el proxy de Coolify, para que el NAVEGADOR pueda abrir las URLs prefirmadas.
+    #
+    # NO se publica un puerto del host, y no es una preferencia: Coolify crea un contenedor NUEVO
+    # en cada despliegue, así que un puerto fijo lo sigue sujetando el viejo y el nuevo muere con
+    # `address already in use`. Es la misma razón por la que ningún otro servicio de este archivo
+    # publica puertos.
+    #
+    # ## Por qué comparte el dominio del portal en vez de tener el suyo
+    #
+    # Con `forcePathStyle`, TODA URL de objeto empieza por `/<bucket>/`, así que un `PathPrefix`
+    # con el nombre del bucket separa el tráfico de MinIO del portal sin ambigüedad — y Traefik da
+    # más prioridad a la regla más larga, así que gana sobre el `PathPrefix('/')` del portal sin
+    # tener que declararla.
+    #
+    # Y tiene una ventaja que un dominio propio no da: el navegador que sube el carnet ya está en
+    # ese origen, así que el PUT prefirmado es UNA PETICIÓN DEL MISMO ORIGEN. Con un dominio
+    # aparte haría falta configurar CORS en MinIO, y un preflight rechazado se ve en pantalla como
+    # «no se pudo subir el documento» sin mencionar el origen por ninguna parte.
+    #
+    # ## El host va LITERAL, y no es por comodidad
+    #
+    # **Coolify NO interpola variables dentro de `labels:`.** Se comprobó en caliente el
+    # 2026-09-04: con la regla escrita como `Host(`${MINIO_PUBLIC_HOST:?}`)` la etiqueta llegó al
+    # contenedor con esa cadena TAL CUAL, Traefik no registró el router, y el resultado no fue un
+    # error sino un 404 del portal — porque el `PathPrefix('/')` del portal sí enruta ese dominio y
+    # se quedó con la petición. Un fallo de configuración que se ve como «ese archivo no existe».
+    #
+    # Es la misma limitación que este archivo ya documenta para las referencias cruzadas entre
+    # claves de entorno, una capa más allá: ahí Coolify sustituye `${X}` en la clave `X` y deja
+    # literal lo demás; en las etiquetas no sustituye nada.
+    #
+    # `MINIO_PUBLIC_HOST` se conserva como variable de entorno porque de ella sale
+    # `STORAGE_S3_PUBLIC_ENDPOINT`, que es lo que se FIRMA. Los dos tienen que decir el mismo host:
+    # si se cambia uno hay que cambiar esta etiqueta AQUÍ, a mano.
+    # -----------------------------------------------------------------------------------------
+    labels:
+      traefik.enable: 'true'
+      # La red por la que Traefik alcanza este contenedor. Sin esto elige una cualquiera de las que
+      # ocupa y el enrutado falla de forma intermitente.
+      traefik.docker.network: coolify
+      traefik.http.routers.atlas-minio.rule: 'Host(`n2vmpw58-80.brs.devtunnels.ms`) && PathPrefix(`/atlas-evidence`)'
+      traefik.http.routers.atlas-minio.entryPoints: http
+      traefik.http.services.atlas-minio.loadbalancer.server.port: '9000'
+      # Sin `gzip`: los objetos son JPEG y PNG, ya comprimidos. Comprimirlos otra vez gasta CPU
+      # para crecer unos bytes, y además alteraría un cuerpo cuya integridad se comprueba por hash.
+    expose: ['9000']
+    # La consola SÓLO en el bucle local: es una pantalla de administración con las llaves del
+    # bucket detrás, y publicarla por el túnel la dejaría a un formulario de distancia de todo.
+    ports: ['127.0.0.1:9001:9001']
+    volumes: ['minio-data:/data']
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # Job de UN SOLO DISPARO: prepara el bucket y COMPRUEBA que el backend puede escribir en él.
+  #
+  # La comprobación es la parte nueva y es el motivo de que este job exista tal como está. Antes
+  # sólo creaba el bucket con las credenciales de root, y eso pasaba con las tres averías del VPS
+  # intactas: root funcionaba, el backend no, y nadie se enteraba hasta que un cliente intentaba
+  # subir su carnet. Ahora el despliegue no sale si la llave que usa el backend no puede escribir.
+  minio-bucket:
+    image: minio/mc:RELEASE.2024-09-16T17-43-14Z
+    environment:
+      MINIO_ROOT_USER: '${MINIO_ROOT_USER:?}'
+      MINIO_ROOT_PASSWORD: '${MINIO_ROOT_PASSWORD:?}'
+      # El MISMO bucket que escribe el backend. Eran dos nombres distintos y el resultado era un
+      # 404 en cada subida; el default cae a `STORAGE_S3_BUCKET` para que no puedan divergir otra
+      # vez por olvidar una variable.
+      # El MISMO valor que `STORAGE_S3_BUCKET`. Se declaran las dos porque Coolify no resuelve una
+      # referencia cruzada entre claves —la deja literal, como ya pasó con las credenciales de S3—
+      # y el job de abajo comprueba que el backend puede escribir, que es lo que detecta la
+      # divergencia si alguien cambia sólo una.
+      MINIO_BUCKET: '${MINIO_BUCKET:-atlas-evidence}'
+      STORAGE_S3_ACCESS_KEY_ID: '${STORAGE_S3_ACCESS_KEY_ID:-atlasminio}'
+      STORAGE_S3_SECRET_ACCESS_KEY: '${STORAGE_S3_SECRET_ACCESS_KEY:?}'
+    depends_on:
+      minio: { condition: service_healthy }
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        set -e;
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}";
+        mc mb --ignore-existing "local/$${MINIO_BUCKET}";
+        echo "bucket $${MINIO_BUCKET} listo";
+        mc alias set app http://minio:9000 "$${STORAGE_S3_ACCESS_KEY_ID}" "$${STORAGE_S3_SECRET_ACCESS_KEY}"
+        || { echo "FALLO: la llave del backend ($${STORAGE_S3_ACCESS_KEY_ID}) no existe en MinIO.
+        Igualala a MINIO_ROOT_USER/MINIO_ROOT_PASSWORD o crea el usuario."; exit 1; };
+        echo prueba | mc pipe "app/$${MINIO_BUCKET}/.despliegue/verificacion" > /dev/null
+        || { echo "FALLO: la llave del backend no puede ESCRIBIR en $${MINIO_BUCKET}."; exit 1; };
+        mc rm "app/$${MINIO_BUCKET}/.despliegue/verificacion" > /dev/null;
+        echo "verificado: el backend puede escribir en $${MINIO_BUCKET}"
+    restart: 'no'
+
+volumes:
+  redis-data:
+  minio-data:
+  api-logs:
+  worker-logs:
+
+# ---------------------------------------------------------------------------------------------
+# La red COMPARTIDA de Coolify, y por qué no se publican puertos del host.
+#
+# Coolify nombra cada contenedor con una MARCA DE TIEMPO —`api-<uuid>-124239539875`—, así que en
+# cada despliegue crea uno NUEVO en vez de reemplazar el anterior. Con un puerto fijo del host eso
+# choca siempre: el contenedor viejo sigue sujetando el puerto y el nuevo muere con
+# `failed to bind host port ...: address already in use`. No es un puerto mal elegido: es que
+# publicar un puerto fijo es incompatible con cómo despliega Coolify.
+#
+# La salida es la red compartida `coolify`, a la que se unen todas las aplicaciones, con un ALIAS
+# estable por servicio. El alias no cambia entre despliegues —el nombre del contenedor sí— así que
+# los bloques se encuentran por nombre igual que hacían en el VPS operado a mano, y sin abrir un
+# solo puerto en el host.
+#
+# **Hace falta activar «Connect To Predefined Network» en esta aplicación dentro de Coolify.** Sin
+# eso la red no existe para ella y el despliegue falla diciendo que no la encuentra, que es un
+# fallo claro y no silencioso.
+networks:
+  default: {}
+  coolify:
+    external: true
+    name: coolify

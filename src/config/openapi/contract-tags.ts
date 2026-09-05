@@ -40,6 +40,14 @@ export const CONTRACT_TAGS: ReadonlyArray<{ name: string; description: string }>
   { name: 'customer-privacy', description: 'Derechos del titular: consentimientos de tratamiento, retención y solicitudes de privacidad.' },
   { name: 'customer-telemetry', description: 'Señales de comportamiento y dispositivo capturadas durante el recorrido.' },
   { name: 'credit', description: 'Catálogo de productos de crédito, solicitudes y su ciclo hasta la decisión.' },
+  {
+    name: 'loans',
+    description: 'Préstamos desembolsados: cronograma de pagos, cobros aplicados e historial de cada operación viva.',
+  },
+  {
+    name: 'credit-rating',
+    description: 'Calificación de la deuda y de su titular contra la escala vigente, con el historial que sostiene cada cambio.',
+  },
 
   // --- Evaluación -----------------------------------------------------------------------------
   { name: 'risk', description: 'Evaluación de riesgo versionada y explicable, con las features y el ruleset usados en cada decisión.' },
@@ -58,6 +66,15 @@ export const CONTRACT_TAGS: ReadonlyArray<{ name: string; description: string }>
   // --- Operación interna ----------------------------------------------------------------------
   { name: 'operations', description: 'Back office: revisión de identidad, cumplimiento, observaciones, fraude y decisión de crédito.' },
   { name: 'internal-auth', description: 'Autenticación del personal interno.' },
+  {
+    name: 'merchant-auth',
+    description:
+      'Autenticación del comercio afiliado, la cuarta población autenticable. El alcance sobre cuentas concretas lo resuelve el ERP.',
+  },
+  {
+    name: 'merchant-users',
+    description: 'Alta y gobierno de las identidades de los comercios afiliados, siempre a cargo de personal interno.',
+  },
   { name: 'internal-users', description: 'Usuarios internos, roles y permisos (RBAC interno).' },
   { name: 'internal-admin-views', description: 'Vistas consolidadas para el portal administrativo.' },
   { name: 'internal-access-catalog', description: 'Catálogo de accesos: qué puede ver y hacer cada rol interno.' },
@@ -68,6 +85,20 @@ export const CONTRACT_TAGS: ReadonlyArray<{ name: string; description: string }>
     description: 'Catálogos versionados, definiciones semánticas y mapeos de riesgo que consume el motor de decisión.',
   },
   { name: 'internal-portal', description: 'Glosario de negocio, gobierno y trazabilidad para operadores internos.' },
+  {
+    name: 'loans-operations',
+    description: 'Operación de la cartera: recálculo de mora y entrega de los desenlaces de cosecha al motor de decisión.',
+  },
+  { name: 'credit-rating-operations', description: 'Recalificación de una deuda, de un cliente o de la cartera completa del tenant.' },
+  {
+    name: 'sql-console',
+    description: 'Consulta de solo lectura sobre `read_api`, con catálogo, validación previa y gobierno de lo que se puede leer.',
+  },
+  {
+    name: 'data-notebook',
+    description:
+      'Cuadernos de análisis sobre datasets gobernados. Registra la celda ejecutada, nunca su resultado: el dato no sale del backend.',
+  },
   {
     name: 'workflow-catalog',
     description: 'El recorrido estándar como dato versionado, y su verificación contra las rutas realmente montadas.',

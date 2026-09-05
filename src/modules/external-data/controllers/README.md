@@ -13,6 +13,7 @@
 |---|---|
 | [`kyc-bureau.controller.ts`](./kyc-bureau.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`payments-telco.controller.ts`](./payments-telco.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`provider-auth.controller.ts`](./provider-auth.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`social-trust.controller.ts`](./social-trust.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 
 ## Reglas de mantenimiento

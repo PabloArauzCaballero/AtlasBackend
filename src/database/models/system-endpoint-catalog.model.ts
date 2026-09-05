@@ -17,6 +17,17 @@ export class SystemEndpointCatalogModel extends Model {
   @Column({ type: DataType.STRING(120), allowNull: false })
   declare module: string;
 
+  /**
+   * Bloque del ecosistema que expone la ruta: `ATLAS_BACKEND`, `DECISION_ENGINE`, `ERP_BACKEND`.
+   *
+   * Distinta de `backendService` a propósito. Aquella es la identidad de DESPLIEGUE —qué proceso
+   * sirve la ruta— y un mismo bloque puede tener varios; ésta es la identidad de PRODUCTO, que es
+   * por la que el portal agrupa. Fundirlas obligaría a elegir cuál de las dos preguntas se puede
+   * contestar.
+   */
+  @Column({ field: 'system_code', type: DataType.STRING(60), allowNull: false, defaultValue: 'ATLAS_BACKEND' })
+  declare systemCode: string;
+
   @Column({ field: 'backend_service', type: DataType.STRING(120), allowNull: false, defaultValue: 'atlas-backend' })
   declare backendService: string;
 

@@ -10,11 +10,11 @@ import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.
 describe('NotificationsController', () => {
   function build() {
     const service = {
-      listMessages: jest.fn(async () => ({ items: [] })),
-      retryMessage: jest.fn(async () => ({ retried: true })),
-      broadcast: jest.fn(async () => ({ created: 3 })),
-      listCustomerNotifications: jest.fn(async () => ({ items: [] })),
-      listMyNotifications: jest.fn(async () => ({ items: [] })),
+      listMessages: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      retryMessage: jest.fn(async (..._args: unknown[]) => ({ retried: true })),
+      broadcast: jest.fn(async (..._args: unknown[]) => ({ created: 3 })),
+      listCustomerNotifications: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      listMyNotifications: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
     };
     return { controller: new NotificationsController(service as never), service };
   }

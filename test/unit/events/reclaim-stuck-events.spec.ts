@@ -13,8 +13,8 @@ import { EventsService } from '../../../src/modules/events/events.service.js';
 describe('EventsService.reclaimStuckEvents', () => {
   function build() {
     const repository = {
-      reclaimStuckProcessing: jest.fn(async () => ({ requeued: 2, deadLettered: 1, eventIds: ['10', '11', '12'] })),
-      countStuckProcessing: jest.fn(async () => 5),
+      reclaimStuckProcessing: jest.fn(async (..._args: unknown[]) => ({ requeued: 2, deadLettered: 1, eventIds: ['10', '11', '12'] })),
+      countStuckProcessing: jest.fn(async (..._args: unknown[]) => 5),
     };
     const service = new EventsService(repository as never, {} as never);
     return { service, repository };
@@ -95,14 +95,14 @@ describe('EventsService.retryEvent', () => {
       updatedAtValue: new Date(0),
       id: 42,
       eventCode: 'customer.created',
-      save: jest.fn(async () => undefined),
+      save: jest.fn(async (..._args: unknown[]) => undefined),
       ...overrides,
     };
   }
 
   it('devuelve el presupuesto de intentos y suelta el bloqueo', async () => {
     const event = buildEvent();
-    const repository = { getById: jest.fn(async () => event) };
+    const repository = { getById: jest.fn(async (..._args: unknown[]) => event) };
     const service = new EventsService(repository as never, {} as never);
 
     await service.retryEvent('7', '42');
@@ -119,7 +119,7 @@ describe('EventsService.retryEvent', () => {
 
   it('un evento ya procesado no se reintenta: sería duplicar un efecto ya aplicado', async () => {
     const event = buildEvent({ status: 'processed' });
-    const repository = { getById: jest.fn(async () => event) };
+    const repository = { getById: jest.fn(async (..._args: unknown[]) => event) };
     const service = new EventsService(repository as never, {} as never);
 
     await expect(service.retryEvent('7', '42')).rejects.toThrow('PROCESSED_EVENT_CANNOT_BE_RETRIED');

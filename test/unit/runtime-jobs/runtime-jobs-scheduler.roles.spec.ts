@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { RuntimeJobsSchedulerService } from '../../../src/modules/runtime-jobs/runtime-jobs-scheduler.service.js';
+import { buildScheduledJobs } from '../../../src/modules/runtime-jobs/scheduled-jobs.catalog.js';
 import { env } from '../../../src/config/env.js';
 
 /**
@@ -32,23 +33,53 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
 
   function build() {
     const runtimeJobs = {
-      processOutbox: jest.fn(async () => ({ status: 'completed' })),
-      processEvents: jest.fn(async () => ({ status: 'completed' })),
-      expireStaleSessions: jest.fn(async () => ({ status: 'completed' })),
-      applyRetentionPolicies: jest.fn(async () => ({ status: 'completed' })),
-      recalculateDataQuality: jest.fn(async () => ({ status: 'completed' })),
+      processOutbox: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      processEvents: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      expireStaleSessions: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      applyRetentionPolicies: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      recalculateDataQuality: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
     };
     const maintenance = {
-      retryStuckNotifications: jest.fn(async () => ({ status: 'completed' })),
-      purgeIdempotencyKeys: jest.fn(async () => ({ status: 'completed' })),
-      deliverPendingNotifications: jest.fn(async () => ({ status: 'completed' })),
-      reclaimStuckEvents: jest.fn(async () => ({ status: 'completed' })),
+      retryStuckNotifications: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      purgeIdempotencyKeys: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      purgeProcessedOutbox: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      deliverPendingNotifications: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
+      reclaimStuckEvents: jest.fn(async (..._args: unknown[]) => ({ status: 'completed' })),
     };
+    // El cierre de onboardings abandonados es un job de fondo más; su regla vive en el módulo de
+    // onboarding y el planificador solo recibe el catálogo ya construido.
+    const onboardingAbandonment = { markAbandonedFlows: jest.fn(async (..._args: unknown[]) => ({ evaluated: 0, abandoned: 0 })) };
+    /*
+     * Los tres trabajos nuevos: mora, capacidad de pago y extractos.
+     *
+     * No estaban porque no existian; sus reglas viven en sus dominios y el planificador solo las
+     * agenda. Se simulan aqui porque lo que se prueba es la MECANICA de agendado —liderazgo,
+     * reentrada, desfase—, no lo que cada job hace.
+     */
+    const delinquency = { sweep: jest.fn(async (..._args: unknown[]) => ({ evaluated: 0, enqueued: 0, total: 0, recalculated: 0 })) };
+    const creditLineRefresh = {
+      refreshStaleLines: jest.fn(async (..._args: unknown[]) => ({ missing: 0, stale: 0, recalculated: 0, failed: 0 })),
+    };
+    const bankStatements = {
+      processPending: jest.fn(async (..._args: unknown[]) => ({ picked: 0, applied: 0, unreadable: 0, failed: 0, breachingSoon: 0 })),
+    };
+    const supportSla = {
+      sweepWarnings: jest.fn(async (..._args: unknown[]) => ({ warned: 0 })),
+      sweepBreaches: jest.fn(async (..._args: unknown[]) => ({ breached: 0 })),
+    };
+    const scheduledJobs = buildScheduledJobs({
+      runtimeJobs: runtimeJobs as never,
+      maintenance: maintenance as never,
+      onboardingAbandonment: onboardingAbandonment as never,
+      delinquency: delinquency as never,
+      creditLineRefresh: creditLineRefresh as never,
+      bankStatements: bankStatements as never,
+      supportSla: supportSla as never,
+    });
     const service = new RuntimeJobsSchedulerService(
-      runtimeJobs as never,
-      maintenance as never,
-      { findAll: jest.fn(async () => [{ id: 1 }]) } as never,
-      { set: jest.fn(async () => 'OK') } as never,
+      scheduledJobs,
+      { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 1 }]) } as never,
+      { set: jest.fn(async (..._args: unknown[]) => 'OK') } as never,
       { recordScheduledJob: jest.fn() } as never,
     );
     return { service, maintenance };
@@ -73,7 +104,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
 
     service.onApplicationBootstrap();
 
-    expect(setTimeout).toHaveBeenCalledTimes(8);
+    expect(setTimeout).toHaveBeenCalledTimes(14);
     service.onModuleDestroy();
   });
 

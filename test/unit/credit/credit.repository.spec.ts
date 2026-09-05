@@ -29,18 +29,18 @@ describe('CreditRepository', () => {
     };
     const event = { id: '41' };
     const productModel = {
-      findAll: jest.fn(async () => [product]),
-      findOne: jest.fn(async () => product),
-      create: jest.fn(async () => product),
+      findAll: jest.fn(async (..._args: unknown[]) => [product]),
+      findOne: jest.fn(async (..._args: unknown[]) => product),
+      create: jest.fn(async (..._args: unknown[]) => product),
     };
     const applicationModel = {
-      findOne: jest.fn(async () => application),
-      findAll: jest.fn(async () => [application]),
-      create: jest.fn(async () => application),
+      findOne: jest.fn(async (..._args: unknown[]) => application),
+      findAll: jest.fn(async (..._args: unknown[]) => [application]),
+      create: jest.fn(async (..._args: unknown[]) => application),
     };
     const eventModel = {
-      create: jest.fn(async () => event),
-      findAll: jest.fn(async () => [event]),
+      create: jest.fn(async (..._args: unknown[]) => event),
+      findAll: jest.fn(async (..._args: unknown[]) => [event]),
     };
     const repository = new CreditRepository(productModel as never, applicationModel as never, eventModel as never);
     const transaction = { id: 'tx-1' } as never;

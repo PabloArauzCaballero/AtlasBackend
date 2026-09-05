@@ -5,12 +5,13 @@
  */
 import { describe, expect, it, jest } from '@jest/globals';
 import { CustomerEligibilityRepository } from '../../../src/modules/customers/repositories/customer-eligibility.repository.js';
+import { CustomerEligibilityRiskRepository } from '../../../src/modules/customers/repositories/customer-eligibility-risk.repository.js';
 
 function model() {
   return {
-    count: jest.fn(async () => 0),
-    findOne: jest.fn(async () => null),
-    findAll: jest.fn(async () => []),
+    count: jest.fn(async (..._args: unknown[]) => 0),
+    findOne: jest.fn(async (..._args: unknown[]) => null),
+    findAll: jest.fn(async (..._args: unknown[]) => []),
   };
 }
 
@@ -36,6 +37,15 @@ function build() {
     fraudCase: model(),
     onboardingFlow: model(),
   };
+  // Cumplimiento y riesgo —observaciones, listas, fraude, calificación— viven en su propio
+  // repositorio: son lo que el banco encontró sobre el cliente, no lo que el cliente completó.
+  const riskRepository = new CustomerEligibilityRiskRepository(
+    models.issue as never,
+    models.watchlistMatch as never,
+    models.riskResult as never,
+    models.fraudCase as never,
+    models.reviewCase as never,
+  );
   const repository = new CustomerEligibilityRepository(
     models.credential as never,
     models.contact as never,
@@ -50,14 +60,10 @@ function build() {
     models.evidenceReview as never,
     models.consent as never,
     models.consentDocument as never,
-    models.issue as never,
-    models.reviewCase as never,
-    models.watchlistMatch as never,
-    models.riskResult as never,
-    models.fraudCase as never,
     models.onboardingFlow as never,
+    riskRepository,
   );
-  return { repository, models };
+  return { repository, riskRepository, models };
 }
 
 describe('CustomerEligibilityRepository', () => {
@@ -99,6 +105,9 @@ describe('CustomerEligibilityRepository', () => {
       // Los valores numéricos salen de la MISMA consulta que los códigos: la completitud (C5) mira
       // los códigos y la elegibilidad por producto mira los valores.
       financialAttributeValues: { monthly_income: 4500 },
+      // Los atributos de catalogo viajan aparte de los numericos: la habilitacion necesita leer
+      // `employment_status` para saber si la antiguedad aplica. Aqui el banco no tiene ninguno.
+      financialAttributeTexts: {},
       hasCurrentAddress: true,
       referenceContactCount: 3,
       identityDocument,
@@ -135,13 +144,13 @@ describe('CustomerEligibilityRepository', () => {
   });
 
   it('expone observaciones, incidencias y flujo vigente con límites explícitos', async () => {
-    const { repository, models } = build();
+    const { repository, riskRepository, models } = build();
     models.reviewCase.findAll.mockResolvedValueOnce([{ id: 'review-1' }] as never);
     models.issue.findAll.mockResolvedValueOnce([{ id: 'issue-1' }] as never);
     models.onboardingFlow.findOne.mockResolvedValueOnce({ id: 'flow-1' } as never);
 
-    await expect(repository.findOpenReviewCases('7', '10')).resolves.toEqual([{ id: 'review-1' }]);
-    await expect(repository.findOpenIssues('7', '10')).resolves.toEqual([{ id: 'issue-1' }]);
+    await expect(riskRepository.findOpenReviewCases('7', '10')).resolves.toEqual([{ id: 'review-1' }]);
+    await expect(riskRepository.findOpenIssues('7', '10')).resolves.toEqual([{ id: 'issue-1' }]);
     await expect(repository.findLatestOnboardingFlow('7', '10')).resolves.toEqual({ id: 'flow-1' });
     expect(models.reviewCase.findAll).toHaveBeenCalledWith(expect.objectContaining({ limit: 50 }));
     expect(models.issue.findAll).toHaveBeenCalledWith(expect.objectContaining({ limit: 50 }));
