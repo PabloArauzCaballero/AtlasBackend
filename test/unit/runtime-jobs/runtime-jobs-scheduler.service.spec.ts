@@ -64,6 +64,10 @@ describe('RuntimeJobsSchedulerService', () => {
     const bankStatements = {
       processPending: jest.fn(async (..._args: unknown[]) => ({ picked: 0, applied: 0, unreadable: 0, failed: 0, breachingSoon: 0 })),
     };
+    const supportSla = {
+      sweepWarnings: jest.fn(async (..._args: unknown[]) => ({ warned: 0 })),
+      sweepBreaches: jest.fn(async (..._args: unknown[]) => ({ breached: 0 })),
+    };
     const scheduledJobs = buildScheduledJobs({
       runtimeJobs: runtimeJobs as never,
       maintenance: maintenance as never,
@@ -71,6 +75,7 @@ describe('RuntimeJobsSchedulerService', () => {
       delinquency: delinquency as never,
       creditLineRefresh: creditLineRefresh as never,
       bankStatements: bankStatements as never,
+      supportSla: supportSla as never,
     });
     const service = new RuntimeJobsSchedulerService(scheduledJobs, tenantModel as never, redis as never, metrics as never);
     return { service, runtimeJobs, maintenance, onboardingAbandonment, tenantModel, metrics, redis };
@@ -107,7 +112,7 @@ describe('RuntimeJobsSchedulerService', () => {
 
       service.onApplicationBootstrap();
 
-      expect(setTimeout).toHaveBeenCalledTimes(13);
+      expect(setTimeout).toHaveBeenCalledTimes(14);
       service.onModuleDestroy();
     });
 
@@ -119,7 +124,7 @@ describe('RuntimeJobsSchedulerService', () => {
       service.onApplicationBootstrap();
 
       const delays = (setTimeout as unknown as jest.Mock).mock.calls.map((call) => call[1] as number);
-      expect(delays).toHaveLength(13);
+      expect(delays).toHaveLength(14);
       for (const delay of delays) {
         expect(delay).toBeGreaterThanOrEqual(0);
         expect(delay).toBeLessThan(15_000);
@@ -158,7 +163,7 @@ describe('RuntimeJobsSchedulerService', () => {
 
       service.onApplicationBootstrap();
 
-      expect(setTimeout).toHaveBeenCalledTimes(13);
+      expect(setTimeout).toHaveBeenCalledTimes(14);
       service.onModuleDestroy();
     });
   });

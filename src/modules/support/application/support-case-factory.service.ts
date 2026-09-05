@@ -12,7 +12,14 @@ import { SupportCaseRepository } from '../support-case.repository.js';
 import { SupportCaseTimelineRepository } from '../support-case-timeline.repository.js';
 import { SupportChannelRepository } from '../support-channel.repository.js';
 import type { OpenCaseDto } from '../support-case.schemas.js';
-import { SUPPORT_RETENTION_CLASSES, type SupportCaseType, type SupportImpact, type SupportUrgency } from '../support.constants.js';
+import {
+  SECURITY_SENSITIVE_CASE_TYPES,
+  SUPPORT_RETENTION_CLASSES,
+  type SupportCaseType,
+  type SupportImpact,
+  type SupportSensitivity,
+  type SupportUrgency,
+} from '../support.constants.js';
 import type { SupportActor } from './support-actor.service.js';
 import { SupportMessageService } from './support-message.service.js';
 
@@ -23,6 +30,33 @@ import { SupportMessageService } from './support-message.service.js';
  * seguridad se conservan por razones distintas del resto, y esa razón no depende de si lo planteó
  * un cliente o un comercio.
  */
+const SENSITIVITY_ORDER: readonly SupportSensitivity[] = ['NORMAL', 'SENSITIVE', 'RESTRICTED'];
+
+/**
+ * La sensibilidad con la que nace el caso, que el catálogo puede subir pero nunca bajar.
+ *
+ * `SECURITY_SENSITIVE_CASE_TYPES` existía desde el principio y **sólo se usaba para subir la
+ * prioridad**: la sensibilidad real salía tal cual de `category.sensitivity`. El README del módulo,
+ * mientras tanto, prometía que estos casos «nacen con visibilidad restringida y cola especializada,
+ * sin esperar a que alguien lo note». Funcionaba de casualidad, porque las categorías de fraude y
+ * seguridad venían sembradas restringidas; en cuanto una no lo estaba, la promesa era falsa.
+ *
+ * La auditoría del 2026-09-05 encontró el hueco abierto: `AUTH` y `AUTH_OTP_NOT_RECEIVED` producen
+ * `ACCOUNT_ACCESS` —un tipo sensible— y están sembradas `NORMAL` en la cola de consumo. Los dos
+ * casos reales de ese tipo heredaron esa marca, así que un intento de acceso a la cuenta de alguien
+ * quedó con la misma protección que una consulta de cuotas.
+ *
+ * Que la garantía viva aquí y no en la siembra es la diferencia entre una propiedad del sistema y
+ * una coincidencia de configuración: el catálogo puede endurecer, nunca ablandar.
+ */
+function sensitivityFor(caseType: SupportCaseType, categorySensitivity: string): SupportSensitivity {
+  const fromCatalog = (
+    SENSITIVITY_ORDER.includes(categorySensitivity as SupportSensitivity) ? categorySensitivity : 'NORMAL'
+  ) as SupportSensitivity;
+  const floor: SupportSensitivity = SECURITY_SENSITIVE_CASE_TYPES.includes(caseType) ? 'SENSITIVE' : 'NORMAL';
+  return SENSITIVITY_ORDER.indexOf(fromCatalog) >= SENSITIVITY_ORDER.indexOf(floor) ? fromCatalog : floor;
+}
+
 function retentionClassFor(caseType: SupportCaseType): string {
   if (caseType === 'COMPLAINT') return SUPPORT_RETENTION_CLASSES.COMPLAINT;
   if (caseType === 'SECURITY_INCIDENT' || caseType === 'FRAUD_REPORT') return SUPPORT_RETENTION_CLASSES.SECURITY_INCIDENT;
@@ -96,7 +130,7 @@ export class SupportCaseFactoryService {
         priority,
         impact,
         urgency,
-        sensitivity: category.sensitivity,
+        sensitivity: sensitivityFor(caseType, category.sensitivity),
         status: 'TRIAGED',
         queueId: queue ? String(queue.id) : null,
         title: input.dto.title,

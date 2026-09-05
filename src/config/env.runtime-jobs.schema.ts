@@ -92,6 +92,18 @@ export const runtimeJobsEnvShape = {
   // Cuánto antes del vencimiento del compromiso se escala la revisión pendiente.
   RUNTIME_JOBS_BANK_STATEMENT_ESCALATE_BEFORE_MINUTES: z.coerce.number().int().min(5).max(1_440).default(240),
 
+  // Vigilancia de los compromisos de atención del soporte (`support_sla_clocks`). Mismo defecto que
+  // tuvo la mora: `sweepBreaches` estaba completo y colgaba EXCLUSIVAMENTE de
+  // `POST internal/support/desk/sla/sweep`, que no llamaba nadie. Auditoría del 2026-09-05 sobre el
+  // VPS: 13 relojes en marcha, los 13 con el plazo pasado —el peor, un P1 de toma de cuenta, 190 h
+  // tarde sobre un objetivo de 5 minutos— y ni una sola marca de incumplimiento. El indicador de
+  // cumplimiento no salía malo: salía PERFECTO, que es peor, porque nadie audita un cero.
+  //
+  // Un minuto porque el objetivo más corto del catálogo es el acuse de P1, de 5 minutos: con una
+  // cadencia mayor el aviso previo al incumplimiento llegaría después del incumplimiento y no
+  // serviría para evitar nada. El barrido es una consulta por índice sobre relojes en marcha.
+  RUNTIME_JOBS_SUPPORT_SLA_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+
   RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS: z.coerce.number().int().positive().default(86_400_000),
   RUNTIME_JOBS_IDEMPOTENCY_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
 

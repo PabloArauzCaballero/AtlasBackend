@@ -86,6 +86,20 @@ export class SupportCaseTimelineRepository {
     });
   }
 
+  /**
+   * Los relojes que todavía corren y aún no vencen: el material del aviso previo.
+   *
+   * Se excluye lo ya vencido porque de eso se ocupa `findBreachedClocks`: avisar de que algo «va a
+   * incumplirse» cuando ya se incumplió no es un aviso, es ruido encima de la marca.
+   */
+  findRunningClocks(tenantId: string, now: Date, limit = 500): Promise<SupportSlaClockModel[]> {
+    return this.clocks.findAll({
+      where: { tenantId, state: 'RUNNING', targetAt: { [Op.gt]: now } },
+      order: [['target_at', 'ASC']],
+      limit,
+    });
+  }
+
   async nextResolutionSequence(caseId: string, options: RepositoryOptions = {}): Promise<number> {
     const last = await this.resolutions.findOne({
       where: { caseId },
@@ -123,7 +137,10 @@ export class SupportCaseTimelineRepository {
     return this.links.findAll({ where: { [Op.or]: [{ caseId }, { linkedCaseId: caseId }] } });
   }
 
-  createReference(values: CreationAttributes<SupportCaseReferenceModel>, options: RepositoryOptions = {}): Promise<SupportCaseReferenceModel> {
+  createReference(
+    values: CreationAttributes<SupportCaseReferenceModel>,
+    options: RepositoryOptions = {},
+  ): Promise<SupportCaseReferenceModel> {
     return this.references.create(values, { transaction: options.transaction });
   }
 

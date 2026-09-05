@@ -45,7 +45,7 @@ export class SupportCaseWorkflowService {
 
     const updated = await this.sequelize.transaction(async (transaction) => {
       const supportCase = await this.cases.requireById(input.tenantId, input.caseId, { transaction });
-      const classification = await this.resolveClassification(input.tenantId, supportCase, input.dto, transaction);
+      const classification = await this.resolveClassification(input.tenantId, input.actor, supportCase, input.dto, transaction);
       const { category, queue, impact, urgency, caseType, priority } = classification;
 
       await this.transitions.apply({
@@ -117,6 +117,7 @@ export class SupportCaseWorkflowService {
 
   private async resolveClassification(
     tenantId: string,
+    actor: SupportActor,
     supportCase: { categoryId: string | null; caseType: string; domain: string; impact: string; urgency: string; queueId: string | null },
     dto: TriageCaseDto,
     transaction: Transaction,
@@ -125,6 +126,10 @@ export class SupportCaseWorkflowService {
     if (dto.categoryCode && !category) {
       throw new NotFoundException({ code: 'SUPPORT_CATEGORY_NOT_FOUND', categoryCode: dto.categoryCode });
     }
+    // Reclasificar es la otra puerta al catálogo, y estaba tan abierta como la de apertura. Al agente
+    // interno no se le limita: mover un caso entre audiencias es parte de su trabajo, y es
+    // precisamente lo que hay que hacer cuando alguien abrió por el motivo equivocado.
+    if (category) this.actors.assertCategoryAllowed(actor, category);
 
     const queue = await this.resolveQueue(tenantId, dto.queueCode, category?.defaultQueueId ?? null, transaction);
     const impact = (dto.impact ?? supportCase.impact) as SupportImpact;
@@ -232,7 +237,13 @@ export class SupportCaseWorkflowService {
     const updated = await this.sequelize.transaction(async (transaction) => {
       const supportCase = await this.cases.requireById(input.tenantId, input.caseId, { transaction });
       await this.timeline.releaseLiveAssignment(input.caseId, `transfer: ${input.dto.reason}`, { transaction });
-      await this.membership.leaveCaseChannels(input.tenantId, input.caseId, supportCase.currentAssigneeAgentId, input.dto.reason, transaction);
+      await this.membership.leaveCaseChannels(
+        input.tenantId,
+        input.caseId,
+        supportCase.currentAssigneeAgentId,
+        input.dto.reason,
+        transaction,
+      );
 
       if (input.dto.agentProfileId) {
         await this.timeline.createAssignment(

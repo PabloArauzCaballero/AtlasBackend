@@ -1,6 +1,6 @@
 # Motor de soporte, atención, casos y conocimiento
 
-Contexto acotado de *Service Management* de Atlas. Sirve a la vez al consumidor de la app, al usuario
+Contexto acotado de _Service Management_ de Atlas. Sirve a la vez al consumidor de la app, al usuario
 del portal de comercio, al comercio como organización y al equipo interno de soporte.
 
 No es un chat con un operador al otro lado: es un expediente trazable, auditable y medible, con una
@@ -11,13 +11,13 @@ transcripción que se puede verificar.
 **El caso es el expediente; el chat es un canal.** Un caso vive sin ningún chat y sobrevive a todos
 los que tenga. Cerrar la conversación no cierra el caso, y una caída de conexión no resuelve nada.
 
-| Concepto | Tabla | Qué responde |
-| --- | --- | --- |
-| Caso | `support_cases` | Cómo está el expediente ahora |
-| Historia del caso | `support_case_events` | Cómo llegó hasta ahí (append-only, encadenada) |
-| Canal | `support_channels` | Dónde ocurre la conversación |
-| Transcripción | `support_messages` | Qué se dijo, en qué orden (append-only, encadenada) |
-| Auditoría | `audit.operational_audit_logs` | Qué hicieron las personas con el sistema, incluidas las lecturas |
+| Concepto          | Tabla                          | Qué responde                                                     |
+| ----------------- | ------------------------------ | ---------------------------------------------------------------- |
+| Caso              | `support_cases`                | Cómo está el expediente ahora                                    |
+| Historia del caso | `support_case_events`          | Cómo llegó hasta ahí (append-only, encadenada)                   |
+| Canal             | `support_channels`             | Dónde ocurre la conversación                                     |
+| Transcripción     | `support_messages`             | Qué se dijo, en qué orden (append-only, encadenada)              |
+| Auditoría         | `audit.operational_audit_logs` | Qué hicieron las personas con el sistema, incluidas las lecturas |
 
 Las cuatro primeras son cosas distintas a propósito. La auditoría es un objeto **separado** de la
 historia del caso: un agente que abre veinte expedientes que no tiene asignados no genera ningún
@@ -81,13 +81,33 @@ support.constants.ts  taxonomía única: tipos, dominios, estados, transiciones 
 
 ## Puntos de entrada
 
-| Audiencia | Prefijo |
-| --- | --- |
-| Consumidor | `mobile/support` |
-| Comercio | `merchant/support` |
-| Conversación (todas) | `support/channels` |
-| Equipo de soporte | `internal/support/cases`, `internal/support/desk` |
-| Editores de conocimiento | `admin/support/knowledge` |
+| Audiencia                | Prefijo                                           |
+| ------------------------ | ------------------------------------------------- |
+| Consumidor               | `mobile/support`                                  |
+| Comercio                 | `merchant/support`                                |
+| Conversación (todas)     | `support/channels`                                |
+| Equipo de soporte        | `internal/support/cases`, `internal/support/desk` |
+| Editores de conocimiento | `admin/support/knowledge`                         |
+
+## Lo que garantiza el código frente a lo que configura el catálogo
+
+Distinción que costó una auditoría: `SECURITY_SENSITIVE_CASE_TYPES` **sube la prioridad y fija un
+piso de sensibilidad** (`support-case-factory.service.ts`), pero la cola y la sensibilidad concreta
+las sigue trayendo la categoría. El catálogo puede endurecer un caso; nunca ablandarlo por debajo
+de ese piso. Antes del 2026-09-05 la sensibilidad salía tal cual del catálogo, así que la promesa de
+que un caso sensible «nace protegido» dependía de que la siembra estuviera bien: los motivos de
+acceso a cuenta estaban sembrados `NORMAL` y los casos reales heredaron esa marca.
+
+La audiencia de la categoría se comprueba al abrir y al reclasificar
+(`SupportActorService.assertCategoryAllowed`). Sin eso, el código de categoría viaja en el cuerpo de
+la petición y un consumidor podía abrir con un motivo de comercio y caer en su cola.
+
+## El caso nace clasificado, no revisado
+
+Abrir con categoría deja el caso en `TRIAGED` con `triaged_at` puesto, y además escribe un
+`CASE_TRIAGED` con `automatic: true` y `classifiedBy: REQUESTER`. La distinción importa para medir:
+sin ella, el tiempo de triage sale cero para todos los casos y no se puede saber cuáles revisó una
+persona. Lo que el cliente elige de una lista es una declaración, no una clasificación validada.
 
 ## Lo que falta antes de producción
 
@@ -98,4 +118,12 @@ retención (las cinco clases están sembradas **inactivas** y declaradas en
 el uploader seguro.
 
 Y en el producto: la interfaz del centro de ayuda en la app, el centro de soporte del portal de
-comercio y la consola del agente. El backend está completo para las tres.
+comercio y la consola del agente. El backend cubre las tres, con dos salvedades que la auditoría del
+2026-09-05 dejó claras y que hay que cerrar antes de decir «completo»:
+
+- **No hay endpoint que liste el catálogo de motivos.** `SupportCatalogRepository.listCategories`
+  filtra por audiencia, es correcto y no lo llama ningún controlador, así que ninguna pantalla puede
+  ofrecer el motivo aunque quiera.
+- **El catálogo no vive en el repositorio.** Las migraciones crean las tablas vacías; las 18
+  categorías, las 8 colas y la política de plazos vienen de la rama de semillas. Una base recién
+  migrada rechaza toda apertura de caso con `SUPPORT_CATEGORY_NOT_FOUND`.

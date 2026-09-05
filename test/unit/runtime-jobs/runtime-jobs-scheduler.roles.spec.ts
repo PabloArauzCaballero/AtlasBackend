@@ -63,6 +63,10 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
     const bankStatements = {
       processPending: jest.fn(async (..._args: unknown[]) => ({ picked: 0, applied: 0, unreadable: 0, failed: 0, breachingSoon: 0 })),
     };
+    const supportSla = {
+      sweepWarnings: jest.fn(async (..._args: unknown[]) => ({ warned: 0 })),
+      sweepBreaches: jest.fn(async (..._args: unknown[]) => ({ breached: 0 })),
+    };
     const scheduledJobs = buildScheduledJobs({
       runtimeJobs: runtimeJobs as never,
       maintenance: maintenance as never,
@@ -70,6 +74,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
       delinquency: delinquency as never,
       creditLineRefresh: creditLineRefresh as never,
       bankStatements: bankStatements as never,
+      supportSla: supportSla as never,
     });
     const service = new RuntimeJobsSchedulerService(
       scheduledJobs,
@@ -99,7 +104,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
 
     service.onApplicationBootstrap();
 
-    expect(setTimeout).toHaveBeenCalledTimes(13);
+    expect(setTimeout).toHaveBeenCalledTimes(14);
     service.onModuleDestroy();
   });
 

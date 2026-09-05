@@ -9,6 +9,7 @@ import { BankStatementReviewWorker } from '../credit/application/bank-statement-
 import { CreditLineRefreshService } from '../credit/application/credit-line-refresh.service.js';
 import { OnboardingAbandonmentService } from '../customer-onboarding/application/onboarding-abandonment.service.js';
 import { LoanDelinquencyService } from '../loans/application/loan-delinquency.service.js';
+import { SupportSlaService } from '../support/application/support-sla.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
 
@@ -52,9 +53,10 @@ export function buildScheduledJobs(deps: {
   delinquency: LoanDelinquencyService;
   creditLineRefresh: CreditLineRefreshService;
   bankStatements: BankStatementReviewWorker;
+  supportSla: SupportSlaService;
 }): ScheduledJob[] {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
-  const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements } = deps;
+  const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements, supportSla } = deps;
 
   return [
     {
@@ -149,6 +151,32 @@ export function buildScheduledJobs(deps: {
       jobCode: 'recalculate_data_quality',
       intervalMs: env.RUNTIME_JOBS_DATA_QUALITY_INTERVAL_MS,
       run: (tenantId) => runtimeJobs.recalculateDataQuality({ tenantId, body: { dryRun: false }, currentUser: SCHEDULER_ACTOR }),
+    },
+    /*
+     * Lo que se le prometió a quien está esperando una respuesta.
+     *
+     * Mismo defecto exacto que tuvo la mora, y por eso va justo antes: `sweepBreaches` estaba
+     * escrito, probado y expuesto en `POST internal/support/desk/sla/sweep`, y no lo llamaba nadie.
+     * La auditoría del 2026-09-05 sobre el VPS encontró 13 relojes corriendo con los 13 plazos
+     * pasados, ninguno marcado, y cero eventos de SLA en toda la historia del soporte. El peor era
+     * un P1 de toma de cuenta con 190 horas de atraso sobre un objetivo de acuse de 5 minutos.
+     *
+     * Lo grave no era el atraso sino la forma del error: un informe de cumplimiento habría dicho
+     * «0 incumplimientos» con total sinceridad. Un indicador roto en verde no se investiga.
+     *
+     * Dos pasadas y no una porque son dos preguntas distintas: `sweepWarnings` avisa a tiempo de
+     * evitar el incumplimiento y `sweepBreaches` lo registra cuando ya no se pudo. El aviso va
+     * primero para que un reloj que cruza los dos umbrales en la misma pasada deje primero el aviso
+     * y luego la marca, y la historia se lea en el orden en que ocurrió.
+     */
+    {
+      jobCode: 'sweep_support_sla',
+      intervalMs: env.RUNTIME_JOBS_SUPPORT_SLA_INTERVAL_MS,
+      run: async (tenantId) => {
+        const warned = await supportSla.sweepWarnings(tenantId);
+        const breached = await supportSla.sweepBreaches(tenantId);
+        return { ...warned, ...breached };
+      },
     },
     /*
      * La mora, y lo que la mora le cuesta al cliente.

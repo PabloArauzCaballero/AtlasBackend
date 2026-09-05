@@ -5,6 +5,7 @@
  */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
+import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import type { SupportCaseModel } from '../../../database/models/index.js';
 import { derivePriority } from '../domain/priority-policy.js';
@@ -14,7 +15,7 @@ import type { OpenCaseDto } from '../support-case.schemas.js';
 import { NEVER_AUTO_CLOSE_CASE_TYPES, type SupportCaseType, type SupportImpact, type SupportUrgency } from '../support.constants.js';
 import { toCustomerCaseDto } from '../support.mapper.js';
 import type { CaseSubject, OpenCaseInput } from './support-case-factory.service.js';
-import type { SupportActor } from './support-actor.service.js';
+import { SupportActorService, type SupportActor } from './support-actor.service.js';
 import { SupportAuditService } from './support-audit.service.js';
 import { SupportCaseFactoryService } from './support-case-factory.service.js';
 import { SupportSlaService } from './support-sla.service.js';
@@ -30,6 +31,7 @@ export class SupportCaseService {
     private readonly sla: SupportSlaService,
     private readonly audit: SupportAuditService,
     private readonly factory: SupportCaseFactoryService,
+    private readonly actors: SupportActorService,
   ) {}
 
   /**
@@ -57,6 +59,7 @@ export class SupportCaseService {
   async openCase(input: OpenCaseInput) {
     const category = await this.catalog.findCategoryByCode(input.tenantId, input.dto.categoryCode);
     if (!category) throw new NotFoundException({ code: 'SUPPORT_CATEGORY_NOT_FOUND', categoryCode: input.dto.categoryCode });
+    this.actors.assertCategoryAllowed(input.actor, category);
 
     const caseType = (input.dto.caseType ?? category.defaultCaseType ?? 'QUESTION') as SupportCaseType;
     const impact = (input.dto.impact ?? category.defaultImpact) as SupportImpact;
@@ -89,29 +92,17 @@ export class SupportCaseService {
       await this.sla.startClocks({ tenantId: input.tenantId, caseId, policy, openedAt: new Date(), transaction });
       const channelId = await this.factory.openInitialChannel({ input, subject, queue, caseId }, transaction);
 
-      await this.cases.appendEvent(
-        {
-          tenantId: input.tenantId,
-          caseId,
-          eventType: 'CASE_CREATED',
-          actorType: input.actor.actorType,
-          actorId: input.actor.actorId,
-          payload: { caseNumber: supportCase.caseNumber, caseType, priority, categoryCode: category.categoryCode },
-          correlationId: input.correlationId ?? null,
-        },
+      await this.recordCreationEvents({
+        input,
+        caseId,
+        caseNumber: supportCase.caseNumber,
+        category,
+        caseType,
+        priority,
+        queueCode: queue?.queueCode ?? null,
+        channelId,
         transaction,
-      );
-      await this.cases.appendEvent(
-        {
-          tenantId: input.tenantId,
-          caseId,
-          eventType: 'CHANNEL_OPENED',
-          actorType: 'SYSTEM',
-          actorId: null,
-          payload: { channelId, channelType: 'ASYNC_MESSAGING' },
-        },
-        transaction,
-      );
+      });
 
       return { supportCase, channelId };
     });
@@ -130,6 +121,84 @@ export class SupportCaseService {
   }
 
   /** Los avisos que salen del caso recién abierto. Un reclamo y un incidente además suenan aparte. */
+  /**
+   * Los tres hechos que quedan escritos al nacer un caso: se creó, quién lo clasificó y dónde se habla.
+   *
+   * ## Por qué el triage automático también es un evento
+   *
+   * El caso nace en `TRIAGED` con `triaged_at` puesto porque el motivo vino del catálogo y ya basta
+   * para enrutar. Pero eso es la DECLARACIÓN de quien pide ayuda, no una clasificación revisada:
+   * quien abre elige de una lista lo que cree que le pasa, y acierta menos de lo que el dato
+   * sugiere —un cobro que no reconoce puede ser un fraude, un duplicado o su propia compra
+   * olvidada, y los tres viven en motivos distintos—.
+   *
+   * Sin este evento la historia no distingue el caso que un agente revisó del que nadie miró, y el
+   * tiempo de triage sale cero para todos: otro indicador perfecto que nadie investiga.
+   * `automatic: true` es lo que hace medible «casos cuya clasificación nunca validó una persona»,
+   * que es la cifra que de verdad dice si la taxonomía significa algo.
+   */
+  private async recordCreationEvents(input: {
+    input: OpenCaseInput;
+    caseId: string;
+    caseNumber: string;
+    category: { categoryCode: string };
+    caseType: SupportCaseType;
+    priority: string;
+    queueCode: string | null;
+    channelId: string;
+    transaction: Transaction;
+  }): Promise<void> {
+    const { transaction, caseId, caseType, priority } = input;
+    const tenantId = input.input.tenantId;
+    const correlationId = input.input.correlationId ?? null;
+
+    await this.cases.appendEvent(
+      {
+        tenantId,
+        caseId,
+        eventType: 'CASE_CREATED',
+        actorType: input.input.actor.actorType,
+        actorId: input.input.actor.actorId,
+        payload: { caseNumber: input.caseNumber, caseType, priority, categoryCode: input.category.categoryCode },
+        correlationId,
+      },
+      transaction,
+    );
+
+    await this.cases.appendEvent(
+      {
+        tenantId,
+        caseId,
+        eventType: 'CASE_TRIAGED',
+        actorType: 'SYSTEM',
+        actorId: null,
+        payload: {
+          automatic: true,
+          classifiedBy: 'REQUESTER',
+          categoryCode: input.category.categoryCode,
+          caseType,
+          priority,
+          queueCode: input.queueCode,
+          reason: 'Clasificación declarada por quien abrió el caso; pendiente de validación por un agente.',
+        },
+        correlationId,
+      },
+      transaction,
+    );
+
+    await this.cases.appendEvent(
+      {
+        tenantId,
+        caseId,
+        eventType: 'CHANNEL_OPENED',
+        actorType: 'SYSTEM',
+        actorId: null,
+        payload: { channelId: input.channelId, channelType: 'ASYNC_MESSAGING' },
+      },
+      transaction,
+    );
+  }
+
   private async publishCreation(tenantId: string, supportCase: SupportCaseModel, caseType: SupportCaseType, correlationId: string | null) {
     const caseId = String(supportCase.id);
     await this.audit.publish({
@@ -177,5 +246,4 @@ export class SupportCaseService {
     }
     return { contextType: 'INTERNAL' as const, customerId: null, partnerProfileId: dto.partnerProfileId ?? null };
   }
-
 }

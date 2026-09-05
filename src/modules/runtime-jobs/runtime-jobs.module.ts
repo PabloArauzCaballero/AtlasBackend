@@ -21,6 +21,8 @@ import {
 import { CreditModule } from '../credit/credit.module.js';
 import { CustomerOnboardingModule } from '../customer-onboarding/customer-onboarding.module.js';
 import { LoansModule } from '../loans/loans.module.js';
+import { SupportModule } from '../support/support.module.js';
+import { SupportSlaService } from '../support/application/support-sla.service.js';
 import { EventsModule } from '../events/events.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { RuntimeJobsController } from './runtime-jobs.controller.js';
@@ -50,6 +52,9 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
     // sus dominios: aquí sólo se declara CADA CUÁNTO corren, no QUÉ hacen.
     LoansModule,
     CreditModule,
+    // Aporta `SupportSlaService`: la vigilancia de los compromisos de atención es un trabajo de
+    // fondo, pero el plazo, el calendario hábil y la pausa son reglas del soporte y viven allí.
+    SupportModule,
     SequelizeModule.forFeature([
       SystemJobRunModel,
       OutboxEventModel,
@@ -79,7 +84,17 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
         delinquency: LoanDelinquencyService,
         creditLineRefresh: CreditLineRefreshService,
         bankStatements: BankStatementReviewWorker,
-      ) => buildScheduledJobs({ runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements }),
+        supportSla: SupportSlaService,
+      ) =>
+        buildScheduledJobs({
+          runtimeJobs,
+          maintenance,
+          onboardingAbandonment,
+          delinquency,
+          creditLineRefresh,
+          bankStatements,
+          supportSla,
+        }),
       inject: [
         RuntimeJobsService,
         RuntimeMaintenanceJobsService,
@@ -87,6 +102,7 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
         LoanDelinquencyService,
         CreditLineRefreshService,
         BankStatementReviewWorker,
+        SupportSlaService,
       ],
     },
   ],

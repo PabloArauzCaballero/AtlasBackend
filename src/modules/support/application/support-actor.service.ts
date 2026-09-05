@@ -27,7 +27,15 @@ export interface SupportActor {
 }
 
 const SUPERVISOR_ROLES = ['admin', 'platform_admin'];
-const INTERNAL_ROLES = ['internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'readonly_auditor'];
+const INTERNAL_ROLES = [
+  'internal_operator',
+  'risk_analyst',
+  'compliance_analyst',
+  'fraud_analyst',
+  'admin',
+  'platform_admin',
+  'readonly_auditor',
+];
 
 @Injectable()
 export class SupportActorService {
@@ -79,9 +87,7 @@ export class SupportActorService {
       };
     }
 
-    const profile = currentUser.internalUserId
-      ? await this.agents.findByInternalUser(tenantId, currentUser.internalUserId)
-      : null;
+    const profile = currentUser.internalUserId ? await this.agents.findByInternalUser(tenantId, currentUser.internalUserId) : null;
 
     return {
       actorType: isSupervisor ? 'SUPERVISOR' : 'AGENT',
@@ -166,6 +172,42 @@ export class SupportActorService {
     }
     if (supportCase.partnerVisibility === 'PRIVATE_TO_REQUESTER' && supportCase.openedByActorId !== actor.actorId) {
       throw new ForbiddenException({ code: 'SUPPORT_CASE_FORBIDDEN' });
+    }
+  }
+
+  /**
+   * Con qué motivos del catálogo puede abrirse o clasificarse un caso de este actor.
+   *
+   * La audiencia de la categoría no es una etiqueta de presentación: arrastra cola, sensibilidad,
+   * impacto y urgencia por defecto. `findCategoryByCode` sólo filtra por inquilino, código y
+   * vigencia, así que sin esta comprobación un consumidor podía abrir su caso con el motivo de
+   * conciliación del comercio y aterrizar en `partner_operations`, delante de los expedientes de
+   * los comercios y fuera de la cola de quien debía atenderle. Se cuela por el mismo sitio por el
+   * que se colaría cualquiera: el código de categoría viaja en el cuerpo de la petición.
+   *
+   * `ANY` está en todas las listas porque hay motivos que son de cualquiera —queja, fraude,
+   * consulta genérica— y negárselos a alguien sería peor que el problema que esto resuelve.
+   */
+  caseCategoryAudiences(actor: SupportActor): string[] {
+    if (actor.isInternal) return ['CONSUMER', 'PARTNER_USER', 'PARTNER_ORGANIZATION', 'INTERNAL', 'ANY'];
+    if (actor.actorType === 'PARTNER_USER') return ['PARTNER_USER', 'PARTNER_ORGANIZATION', 'ANY'];
+    if (actor.actorType === 'CUSTOMER') return ['CONSUMER', 'ANY'];
+    return ['ANY'];
+  }
+
+  /**
+   * Rechaza el motivo que no le corresponde a este actor.
+   *
+   * Se responde con un error propio y no con «no encontrado»: el motivo existe, y decir lo contrario
+   * mandaría a quien integra a buscar un error de catálogo que no hay.
+   */
+  assertCategoryAllowed(actor: SupportActor, category: { categoryCode: string; audience: string }): void {
+    if (!this.caseCategoryAudiences(actor).includes(category.audience)) {
+      throw new ForbiddenException({
+        code: 'SUPPORT_CATEGORY_NOT_ALLOWED',
+        categoryCode: category.categoryCode,
+        audience: category.audience,
+      });
     }
   }
 
