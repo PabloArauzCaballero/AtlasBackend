@@ -18,12 +18,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Fase 6.3 del plan 10/10: la versión de Node se toma de .nvmrc (22.16.0) en vez de estar
       # hardcodeada a '20'. Así local/CI no vuelven a divergir nunca.
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
@@ -124,16 +124,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -173,7 +173,7 @@ jobs:
 
       - name: Upload documentation portal
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: atlas-docs-site
           path: site
@@ -190,10 +190,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
@@ -208,7 +208,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: atlas-coverage
           path: |
@@ -266,10 +266,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
@@ -388,7 +388,7 @@ jobs:
 
       - name: Upload API log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: atlas-api-log
           path: /tmp/atlas-api.log
@@ -399,7 +399,7 @@ jobs:
       # docs/progress/remediation-register.md para el seguimiento de ese gap.
       - name: Upload smoke JSON evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: atlas-smoke-results
           path: scripts/smoke/results/*.json
@@ -417,7 +417,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Build image
         run: |
@@ -471,10 +471,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
@@ -502,17 +502,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
           queries: security-extended
 
       # JS/TS no necesita build para CodeQL: analiza el fuente directamente.
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: '/language:javascript-typescript'
 
@@ -531,7 +531,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install gitleaks (versión fijada)
         run: |
@@ -552,10 +552,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'yarn'
@@ -576,7 +576,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # ATLAS-P11-T09: la migración monolítica original (12,554 líneas) se dividió en 20
       # migraciones domain-scoped (`schema-part-*`, `schema-relationships-part-*`), verificadas
