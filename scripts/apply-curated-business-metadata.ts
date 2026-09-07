@@ -37,6 +37,13 @@ const ENTITY_CATALOG = `${ATLAS_SCHEMAS.PLATFORM_OPS}.system_data_entity_catalog
  */
 const COUNTRIES_APPLICABLE = ['BO'];
 
+/**
+ * Bloque del ecosistema propio. El catálogo federa tres (`ATLAS_BACKEND`, `DECISION_ENGINE`,
+ * `ERP_BACKEND`) y hay nombres de tabla que se repiten entre ellos, así que resolver una ficha sin
+ * acotar el bloque puede enlazar la relación —o poner el dueño— sobre la tabla de otro sistema.
+ */
+const OWN_SYSTEM_CODE = 'ATLAS_BACKEND';
+
 async function seedDomains(sequelize: Sequelize): Promise<number> {
   const now = new Date();
   for (const domain of DOMAIN_BUSINESS_METADATA) {
@@ -101,8 +108,11 @@ async function resolveSchemas(sequelize: Sequelize): Promise<Map<string, string>
 
 async function findEntityId(sequelize: Sequelize, schemaName: string, tableName: string): Promise<string | null> {
   const [row] = await sequelize.query<{ id: string }>(
-    `SELECT _id::text AS id FROM ${ENTITY_CATALOG} WHERE schema_name = :schemaName AND table_name = :tableName LIMIT 1;`,
-    { replacements: { schemaName, tableName }, type: QueryTypes.SELECT },
+    `SELECT _id::text AS id
+       FROM ${ENTITY_CATALOG}
+      WHERE system_code = :systemCode AND schema_name = :schemaName AND table_name = :tableName
+      LIMIT 1;`,
+    { replacements: { systemCode: OWN_SYSTEM_CODE, schemaName, tableName }, type: QueryTypes.SELECT },
   );
   return row?.id ?? null;
 }
@@ -237,8 +247,10 @@ async function assignDataOwners(sequelize: Sequelize): Promise<{ assigned: numbe
     const [, affected] = await sequelize.query(
       `UPDATE ${ENTITY_CATALOG}
           SET data_owner = :ownerTeam, _updated_at = :now
-        WHERE table_name = :tableName AND COALESCE(data_owner, '') <> :ownerTeam;`,
-      { replacements: { ownerTeam, tableName, now } },
+        WHERE table_name = :tableName
+          AND system_code = :systemCode
+          AND COALESCE(data_owner, '') <> :ownerTeam;`,
+      { replacements: { ownerTeam, tableName, now, systemCode: OWN_SYSTEM_CODE } },
     );
     if (typeof affected === 'number' && affected > 0) assigned += affected;
   }

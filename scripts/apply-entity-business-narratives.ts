@@ -26,6 +26,19 @@ const ENTITY_CATALOG = `${ATLAS_SCHEMAS.PLATFORM_OPS}.system_data_entity_catalog
 const NARRATIVE_SOURCE = 'CURATED';
 
 /**
+ * Bloque del ecosistema al que pertenecen estas tablas.
+ *
+ * El catálogo federa tres bloques (`ATLAS_BACKEND`, `DECISION_ENGINE`, `ERP_BACKEND`) y su clave
+ * única es `(system_code, schema_name, table_name)`, no el par de antes: la migración
+ * `20260820120000-add-platform-block-to-systems-catalog` la amplió. El seeder original seguía
+ * apuntando al par y desde entonces fallaba con «no unique or exclusion constraint matching the
+ * ON CONFLICT specification» — una segunda razón, además de haber salido del repositorio, por la
+ * que la narrativa dejó de reaplicarse. Las narrativas describen tablas propias de este backend,
+ * así que el bloque es fijo: escribirlas sin acotarlo pisaría la ficha homónima de otro bloque.
+ */
+const OWN_SYSTEM_CODE = 'ATLAS_BACKEND';
+
+/**
  * Módulo de negocio por schema. Es la agrupación con la que el portal presenta el catálogo y con
  * la que el mapa de dominios del linaje junta las fichas.
  *
@@ -102,6 +115,7 @@ async function realignStaleSchemas(sequelize: Sequelize, physical: Map<string, s
       `UPDATE ${ENTITY_CATALOG} AS target
           SET schema_name = :schemaName, _updated_at = :seededAt
         WHERE target.table_name = :tableName
+          AND target.system_code = :systemCode
           AND target.schema_name <> :schemaName
           AND NOT EXISTS (
             SELECT 1 FROM information_schema.tables t
@@ -109,10 +123,11 @@ async function realignStaleSchemas(sequelize: Sequelize, physical: Map<string, s
           )
           AND NOT EXISTS (
             SELECT 1 FROM ${ENTITY_CATALOG} existing
-             WHERE existing.schema_name = :schemaName AND existing.table_name = :tableName
+             WHERE existing.system_code = :systemCode
+               AND existing.schema_name = :schemaName AND existing.table_name = :tableName
           )
       RETURNING target.schema_name;`,
-      { replacements: { schemaName, tableName, seededAt }, type: QueryTypes.SELECT },
+      { replacements: { schemaName, tableName, seededAt, systemCode: OWN_SYSTEM_CODE }, type: QueryTypes.SELECT },
     );
     if (moved) continue;
     const stale = await sequelize.query<{ schema_name: string }>(
@@ -120,8 +135,8 @@ async function realignStaleSchemas(sequelize: Sequelize, physical: Map<string, s
          FROM ${ENTITY_CATALOG} c
          LEFT JOIN information_schema.tables t
            ON t.table_schema = c.schema_name AND t.table_name = c.table_name
-        WHERE c.table_name = :tableName AND t.table_name IS NULL;`,
-      { replacements: { tableName }, type: QueryTypes.SELECT },
+        WHERE c.table_name = :tableName AND c.system_code = :systemCode AND t.table_name IS NULL;`,
+      { replacements: { tableName, systemCode: OWN_SYSTEM_CODE }, type: QueryTypes.SELECT },
     );
     for (const row of stale) conflicts.push(`${row.schema_name}.${tableName}`);
   }
@@ -154,17 +169,17 @@ async function applyNarratives(sequelize: Sequelize): Promise<{ written: number;
      */
     await sequelize.query(
       `INSERT INTO ${ENTITY_CATALOG} (
-         schema_name, table_name, entity_name, module, business_purpose,
+         system_code, schema_name, table_name, entity_name, module, business_purpose,
          business_why_exists, business_why_not_delete, business_decision_contribution,
          business_usage_example, systems_explanation, narrative_source, narrative_updated_at,
          _created_at, _updated_at
        ) VALUES (
-         :schemaName, :tableName, :entityName, :module, :businessPurpose,
+         :systemCode, :schemaName, :tableName, :entityName, :module, :businessPurpose,
          :whyExists, :whyNotDelete, :decisionContribution,
          :usageExample, :systemsExplanation, :narrativeSource, :seededAt,
          :seededAt, :seededAt
        )
-       ON CONFLICT (schema_name, table_name) DO UPDATE SET
+       ON CONFLICT (system_code, schema_name, table_name) DO UPDATE SET
          entity_name = EXCLUDED.entity_name,
          module = EXCLUDED.module,
          business_why_exists = EXCLUDED.business_why_exists,
@@ -177,6 +192,7 @@ async function applyNarratives(sequelize: Sequelize): Promise<{ written: number;
          _updated_at = EXCLUDED.narrative_updated_at;`,
       {
         replacements: {
+          systemCode: OWN_SYSTEM_CODE,
           schemaName,
           tableName: narrative.tableName,
           entityName: humanize(narrative.tableName),
