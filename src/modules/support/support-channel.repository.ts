@@ -161,12 +161,7 @@ export class SupportChannelRepository {
    * él un ack viejo haría reaparecer como «sin leer» algo que la persona ya vio. En un chat eso se
    * percibe como que la aplicación pierde el hilo.
    */
-  async markRead(input: {
-    channelId: string;
-    actorType: string;
-    actorId: string;
-    upToSequence: string;
-  }): Promise<void> {
+  async markRead(input: { channelId: string; actorType: string; actorId: string; upToSequence: string }): Promise<void> {
     await this.participants.update(
       {
         lastReadSequence: literal(`GREATEST(last_read_sequence, ${Number(input.upToSequence) || 0})`) as unknown as string,
@@ -179,10 +174,7 @@ export class SupportChannelRepository {
 
   /** Deja constancia de que esta parte tiene la conversación abierta ahora. */
   async touchSeen(channelId: string, actorType: string, actorId: string): Promise<void> {
-    await this.participants.update(
-      { lastSeenAt: new Date() },
-      { where: { channelId, actorType, actorId, leftAt: null } },
-    );
+    await this.participants.update({ lastSeenAt: new Date() }, { where: { channelId, actorType, actorId, leftAt: null } });
   }
 
   /**

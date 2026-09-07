@@ -45,12 +45,7 @@ export class SupportKnowledgeRepository {
    * Se busca sólo en la versión PUBLICADA de cada artículo: un borrador es texto que nadie aprobó, y
    * ofrecerlo como respuesta oficial es peor que no tener respuesta.
    */
-  async search(input: {
-    tenantId: string;
-    query: string;
-    audiences: readonly string[];
-    limit: number;
-  }): Promise<KnowledgeSearchHit[]> {
+  async search(input: { tenantId: string; query: string; audiences: readonly string[]; limit: number }): Promise<KnowledgeSearchHit[]> {
     const rows = await this.sequelize.query<{
       article_id: string;
       article_key: string;
@@ -186,7 +181,12 @@ export class SupportKnowledgeRepository {
   }
 
   /** Retira las versiones publicadas anteriores del mismo idioma al publicar una nueva. */
-  async retirePublishedVersions(articleId: string, locale: string, exceptVersionId: string, options: RepositoryOptions = {}): Promise<void> {
+  async retirePublishedVersions(
+    articleId: string,
+    locale: string,
+    exceptVersionId: string,
+    options: RepositoryOptions = {},
+  ): Promise<void> {
     await this.versions.update(
       { status: 'RETIRED', retiredAt: new Date() },
       {

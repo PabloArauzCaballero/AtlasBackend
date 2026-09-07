@@ -3,7 +3,14 @@
  * @business Sin esto el adjunto es sólo una fila con metadatos que nadie puede subir ni abrir.
  * @system ticket de subida firmado, verificación real del objeto y entrega por bytes autenticados.
  */
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import {
   ALLOWED_EVIDENCE_MIME_TYPES,
   type AllowedEvidenceMimeType,
@@ -45,13 +52,7 @@ export class SupportAttachmentService {
    * La CLAVE del objeto la propone el servidor, nunca quien sube: si la propusiera el cliente,
    * podría escribir dentro de la carpeta de otra persona.
    */
-  async createTicket(input: {
-    tenantId: string;
-    actor: SupportActor;
-    channelId: string;
-    contentType: string;
-    sizeBytes: number;
-  }) {
+  async createTicket(input: { tenantId: string; actor: SupportActor; channelId: string; contentType: string; sizeBytes: number }) {
     const channel = await this.channels.requireById(input.tenantId, input.channelId);
     if (['CLOSED', 'ABANDONED'].includes(channel.status)) {
       throw new ForbiddenException({ code: 'SUPPORT_CHANNEL_CLOSED', channelId: input.channelId });

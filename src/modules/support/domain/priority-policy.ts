@@ -44,11 +44,7 @@ const URGENCY_WEIGHT: Readonly<Record<SupportUrgency, number>> = {
  * cola de las consultas, y para cuando el impacto se conoce, ya ocurrió. El piso es P2, y sube a P1
  * en cuanto la urgencia declarada es crítica o el alcance pasa de una persona.
  */
-export function derivePriority(input: {
-  impact: SupportImpact;
-  urgency: SupportUrgency;
-  caseType: SupportCaseType;
-}): SupportPriority {
+export function derivePriority(input: { impact: SupportImpact; urgency: SupportUrgency; caseType: SupportCaseType }): SupportPriority {
   const score = IMPACT_WEIGHT[input.impact] + URGENCY_WEIGHT[input.urgency];
   let priority: SupportPriority = score >= 5 ? 'P1' : score >= 3 ? 'P2' : score >= 1 ? 'P3' : 'P4';
 

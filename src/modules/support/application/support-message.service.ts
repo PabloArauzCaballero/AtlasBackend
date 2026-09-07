@@ -7,10 +7,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import {
-  encryptSecretEnvelope,
-  getActiveEncryptionProviderId,
-} from '../../../common/utils/crypto/envelope-encryption.util.js';
+import { encryptSecretEnvelope, getActiveEncryptionProviderId } from '../../../common/utils/crypto/envelope-encryption.util.js';
 import type { SupportMessageModel } from '../../../database/models/index.js';
 import { inspectMessageBody } from '../domain/message-dlp.js';
 import { SupportCaseTransitionService } from './support-case-transition.service.js';
@@ -154,13 +151,7 @@ export class SupportMessageService {
   }
 
   /** Camino público: comprueba que el actor está DENTRO del canal antes de dejarle escribir. */
-  async send(input: {
-    tenantId: string;
-    actor: SupportActor;
-    channelId: string;
-    dto: SendMessageDto;
-    correlationId?: string | null;
-  }) {
+  async send(input: { tenantId: string; actor: SupportActor; channelId: string; dto: SendMessageDto; correlationId?: string | null }) {
     await this.assertParticipates(input.tenantId, input.channelId, input.actor);
     // El archivo se comprueba ANTES de escribir nada: un mensaje inmutable no debe quedar
     // prometiendo un comprobante que resultó inválido.
@@ -193,16 +184,17 @@ export class SupportMessageService {
     await this.markFirstResponseIfAgent(input.tenantId, input.channelId, input.actor);
 
     const channel = await this.channels.findById(input.tenantId, input.channelId);
-    const saved = input.dto.attachment && verified
-      ? await this.attachments.persist({
-          tenantId: input.tenantId,
-          actor: input.actor,
-          messageId: String(message.id),
-          caseId: channel?.caseId ? String(channel.caseId) : null,
-          attachment: input.dto.attachment,
-          verified,
-        })
-      : null;
+    const saved =
+      input.dto.attachment && verified
+        ? await this.attachments.persist({
+            tenantId: input.tenantId,
+            actor: input.actor,
+            messageId: String(message.id),
+            caseId: channel?.caseId ? String(channel.caseId) : null,
+            attachment: input.dto.attachment,
+            verified,
+          })
+        : null;
 
     // El aviso al móvil sale por outbox y sólo cuando habla el equipo: notificar al cliente de su
     // propio mensaje sería avisarle de algo que acaba de hacer.

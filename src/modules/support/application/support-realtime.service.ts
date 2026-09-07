@@ -12,12 +12,7 @@ import { REDIS_CLIENT } from '../../../common/redis/redis.module.js';
 const BRIDGE_CHANNEL = 'atlas:support:events';
 
 export type SupportRealtimeEventType =
-  | 'message.created'
-  | 'message.read'
-  | 'agent.typing'
-  | 'channel.assigned'
-  | 'channel.closed'
-  | 'case.status_changed';
+  'message.created' | 'message.read' | 'agent.typing' | 'channel.assigned' | 'channel.closed' | 'case.status_changed';
 
 export interface SupportRealtimeEvent {
   readonly type: SupportRealtimeEventType;
