@@ -140,7 +140,7 @@
     "ioredis": "^5.4.1",
     "js-yaml": "^4.1.0",
     "jsonwebtoken": "^9.0.3",
-    "mongodb": "^7.5.0",
+    "mongodb": "^7.6.0",
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
     "prom-client": "^15.1.3",
