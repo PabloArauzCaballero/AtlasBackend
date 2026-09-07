@@ -85,4 +85,17 @@ export const COMMUNICATION_NARRATIVES: EntityBusinessNarrative[] = [
     systemsExplanation:
       'Tabla en `messaging` con `_tenant_id` y clave (`customer_id`, `event_code`, `channel`), enlazada al catálogo de eventos. `is_required` protege las notificaciones que el negocio no puede dejar de enviar: el motor debe respetar esa bandera por encima de la preferencia. La ausencia de fila implica el valor por defecto del evento, así que el default debe ser explícito y no accidental.',
   },
+  {
+    tableName: 'notification_policies',
+    whyExists:
+      'Es el catálogo de qué avisos existen, por qué canal salen y cuáles puede apagar el cliente. Define, evento por evento, si una notificación es opcional o `is_mandatory`, y con qué razón escrita se le niega al cliente la posibilidad de silenciarla.',
+    whyNotDelete:
+      '`mandatory_reason` es la justificación de por qué un aviso no se puede apagar. Borrar la fila deja la preferencia guardada del cliente sin catálogo contra el que resolverse, y convierte una obligación razonada en una imposición sin explicación el día que alguien pregunta.',
+    decisionContribution:
+      '`is_mandatory` gana sobre cualquier preferencia del cliente; `default_enabled` decide el estado inicial de quien nunca tocó el ajuste, e `is_active` decide qué eventos se ofrecen hoy. `category` y `display_order` gobiernan cómo se agrupa la pantalla de notificaciones.',
+    usageExample:
+      'Un cliente apaga todos los avisos comerciales y quiere apagar también el de cuota por vencer. Ese evento está marcado como obligatorio con su razón, así que el interruptor aparece bloqueado con la explicación a la vista, en lugar de fallar en silencio o de dejar de enviarse sin que nadie lo note.',
+    systemsExplanation:
+      'Tabla en `messaging` con `_tenant_id`, clave (`event_code`, `channel`) y borrado lógico. Es la contraparte de catálogo de `user_notification_preferences`: la ausencia de preferencia se resuelve con el `default_enabled` de aquí, así que ese valor por defecto tiene que ser una decisión explícita y no un accidente. `updated_by_internal_user_id` deja autoría de cada cambio.',
+  },
 ];

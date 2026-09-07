@@ -59,4 +59,30 @@ export const CREDIT_RATING_NARRATIVES: EntityBusinessNarrative[] = [
     systemsExplanation:
       'Tabla en `credit` con índice único parcial `(_tenant_id, customer_id) WHERE is_current`. Se escribe en la MISMA transacción que las calificaciones de sus créditos: separarlas abre una ventana en la que el crédito ya está en categoría D y su titular sigue figurando en A, que es justo el instante en que alguien consulta si le presta más. Un cliente sin deuda viva no se queda sin calificación: cae en la mejor banda con `rating_reason = no_open_debt`, porque devolver un hueco obligaría a cada consumidor a inventar qué significa y el que lo interpretara como «sin datos = riesgoso» castigaría a quien acaba de pagar.',
   },
+  {
+    tableName: 'bank_statement_reviews',
+    whyExists:
+      'Registra el compromiso que Atlas adquiere cuando un cliente sube su extracto bancario para que le recalculen la capacidad de pago: qué documento entregó, para cuándo se le prometió respuesta (`promised_by`), qué vio el motor de decisión y en qué terminó. El extracto en sí no vive aquí, vive cifrado en `evidence_documents`.',
+    whyNotDelete:
+      'Es la prueba de que se pidió una revisión y de por qué salió como salió: `affordability_json` guarda la resta renglón a renglón, `authenticity_verdict` dice si el archivo lo emitió el banco o lo fabricó alguien, y `applied_credit_line_id` enlaza con la línea que se movió por su causa. Sin la fila, un límite que subió el martes no tiene explicación y el cliente no tiene a qué apelar.',
+    decisionContribution:
+      '`affordability_eligible`, el ingreso observado menos `monthly_obligations` y `max_affordable_installment` son lo que la política usa para decidir si hay línea y de cuánto. `months_complete` sostiene el mínimo de meses exigido y `nsf_count` aporta una señal adversa —cheques sin fondo— que ningún dato declarado por el cliente puede dar.',
+    usageExample:
+      'Un cliente sube tres meses de extracto de un banco reconocido. El motor devuelve `authenticity_verdict = authentic` e ingreso disponible suficiente, se crea una fila nueva en `credit_lines` y su identificador queda en `applied_credit_line_id`. Si el PDF hubiera estado editado, la revisión quedaría rechazada con `rejection_category` y `rejection_message`, que es lo que la app le enseña al cliente para que sepa qué hacer.',
+    systemsExplanation:
+      'Tabla en `credit`. La escribe el backend al recibir el documento y la completa la respuesta del motor, identificada por `engine_request_id`. Las tres columnas de rechazo son deliberadamente distintas: `engine_error_code` es el código con el que se busca el caso, `rejection_category` la categoría con la que se mide cuál pesa y `rejection_message` la frase que lee la persona. `promised_by` se fija al RECIBIR, no al resolver: es un compromiso, y medirlo contra `reviewed_at` es lo que dice si se cumplió.',
+  },
+  {
+    tableName: 'credit_lines',
+    whyExists:
+      'Es la línea de crédito vigente del cliente y el registro de cómo llegó a serlo: cuánto puede gastar (`approved_limit`), con qué puntaje ATLAS, con qué tasa y bajo qué versión de artefacto de decisión se resolvió. Lo que el cliente ve en su perfil sale de aquí.',
+    whyNotDelete:
+      'Cada fila es la fotografía de una decisión de crédito con su `decision_execution_id`, su `artifact_version_id` y los `reason_codes_json` publicados por la política. Borrarla deja al cliente con un límite sin origen y a la institución sin defensa cuando alguien pregunta por qué se le aprobó eso a esa persona ese día. Las líneas no se borran: se suceden encadenadas por `supersedes_credit_line_id`.',
+    decisionContribution:
+      '`approved_limit` gobierna cuánto se puede prestar; `risk_band` y `pricing_tier` gobiernan la tasa; `probability_of_default` y `affordability_decision` son las dos mitades —riesgo y capacidad— que la política combina. Que `recommended_limit` conviva con `approved_limit` es lo que permite preguntar cuánto se apartó la política de la capacidad medida.',
+    usageExample:
+      'Tras revisar un extracto, el modelo de capacidad propone un límite y la política aprueba uno menor por banda de riesgo. La fila guarda las dos cifras: el cliente ve la aprobada, y el equipo de crédito puede medir en cuántos casos y en cuánto se recorta la propuesta, que es exactamente la calibración que con una sola cifra no se puede hacer.',
+    systemsExplanation:
+      'Tabla en `credit` con vigencia (`valid_from`/`valid_until`) y encadenamiento por `supersedes_credit_line_id`. `provenance_json` distingue, variable por variable, si el valor era dato real, derivado o ausente al decidir: es lo que separa un puntaje confiable de uno construido sobre huecos. La escribe el backend con lo que devuelve el motor; nada de esto se calcula en la app.',
+  },
 ];

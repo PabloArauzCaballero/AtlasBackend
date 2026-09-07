@@ -98,4 +98,30 @@ export const LOAN_BOOK_NARRATIVES: EntityBusinessNarrative[] = [
     systemsExplanation:
       'Tabla en `credit`, unicidad por `subject_reference` y por `(customer_id, purpose_code)`. La referencia se deriva con SHA-256 sobre sal, tenant, propósito y cliente: determinista para poder unir, con sal para que quien sólo ve el resultado no pueda recorrer el espacio de identificadores y deducir a quién corresponde. El propósito entra en la derivación, así que resolver referencias de crédito no entrega de paso las de otro uso. Vive en el core y no en el motor a propósito: llevarla allí convertiría un sistema que no conoce a nadie en uno que sí.',
   },
+  {
+    tableName: 'delinquency_policies',
+    whyExists:
+      'Guarda, versionada y con fecha de vigencia, la política de mora: qué pasa y en qué momento si un cliente se atrasa. Vive en la base y no en el texto de la app porque es la promesa que se le opone al cliente el día que reclama un cargo.',
+    whyNotDelete:
+      'Es lo único que permite decir bajo qué reglas compró alguien en marzo. Un texto que cambia con cada publicación de la app no tiene ni fecha ni versión, así que borrar o sobrescribir una política deja sin defensa tanto al cliente que reclama como a la institución que cobró.',
+    decisionContribution:
+      '`stages_json` define los tramos de mora y qué corresponde en cada uno, `effective_from`/`effective_until` deciden cuál regía en la fecha del hecho, y `source_kind` separa lo que manda la norma de lo que decide la casa, que es la diferencia entre un cargo discutible y uno que no lo es.',
+    usageExample:
+      'Un cliente reclama un cargo por atraso de febrero. Se recupera la política vigente en esa fecha por su rango de vigencia, se compara el tramo de `stages_json` con los días de atraso reales y el reclamo se resuelve con el texto que él aceptó, no con el que está publicado hoy.',
+    systemsExplanation:
+      'Tabla en `credit` con clave (`policy_code`, `version_code`, `language`) y borrado lógico. Una política no se edita: se publica una versión nueva y se cierra la anterior poniéndole `effective_until`. `body_md` es el texto íntegro que se le muestra al cliente y `summary` el resumen de pantalla; que convivan evita que la versión corta acabe siendo la única que alguien leyó.',
+  },
+  {
+    tableName: 'loan_payment_claims',
+    whyExists:
+      'Registra el aviso del cliente de que pagó una cuota por transferencia, con su comprobante, mientras todavía nadie lo ha comprobado. Es una afirmación pendiente de verificación, y existe precisamente para que no se confunda con un pago.',
+    whyNotDelete:
+      'Es el rastro de quién dijo haber pagado, cuándo, por cuánto y qué comercio lo aceptó o lo rechazó (`decided_by_merchant_user_id`, `rejection_reason`). Sin ella, un pago confirmado no tiene trazabilidad hasta el comprobante que lo justificó y un rechazo no tiene a quién atribuirse.',
+    decisionContribution:
+      '`status` gobierna el ciclo: nace `pending_verification`, no mueve un centavo, y solo la confirmación del comercio registra el pago real, cuyo identificador queda en `loan_payment_id`. Esa separación es lo que impide que una captura de pantalla salde una cuota.',
+    usageExample:
+      'Un cliente transfiere y sube el comprobante desde la app. El comercio ve el reclamo en su portal, verifica que el dinero entró en su cuenta y lo confirma: recién entonces se registra el pago y la cuota baja. Si el comprobante fuera de otra transferencia, el comercio lo rechaza con motivo y la cuota sigue debiéndose.',
+    systemsExplanation:
+      'Tabla en `credit`, con `claim_code` propio, apuntando a la cuota (`installment_id`) y al comercio (`partner_profile_id`). El comprobante no vive aquí: `proof_evidence_id` referencia el documento cifrado en `evidence_documents`, y por eso la imagen se sirve por bytes autenticados y no por una URL pública. La confirmación y la creación del pago ocurren en la misma transacción; separarlas dejaría reclamos aprobados sin pago.',
+  },
 ];
