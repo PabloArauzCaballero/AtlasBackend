@@ -4,7 +4,7 @@
  * @system sincroniza logs redactados hacia MongoDB, aplica TTL y ofrece consultas administrativas.
  */
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { open, stat } from 'node:fs/promises';
 
 /**
  * Lectura incremental del archivo de log y utilidades de diagnóstico de la sincronización.
@@ -71,6 +71,58 @@ export async function readLogDelta(filePath: string, lastOffset: number, maxChun
     content: Buffer.concat(chunks).toString('utf8'),
     fileSize,
   };
+}
+
+export type LogTrimResult = {
+  trimmed: boolean;
+  droppedBytes: number;
+  newSize: number;
+};
+
+/**
+ * Recorta el archivo de log dejando SOLO su cola, para que no crezca sin límite.
+ *
+ * `maybeResetLogFileAfterFullSync` sólo trunca cuando MongoDB confirmó todo el contenido, y esa
+ * es la política correcta mientras el destino remoto exista: nunca se borra una línea que no esté
+ * a salvo. Pero cuando el destino NO existe —el 2026-09-06 el clúster `cluster0.dp7qpim` devolvía
+ * NXDOMAIN desde tres resolvedores, o sea que estaba borrado— esa condición no se cumple jamás y
+ * el archivo crece para siempre. Encima vive en un volumen con nombre, así que tampoco lo limpia
+ * un redespliegue.
+ *
+ * De ahí este tope: es la válvula de seguridad para el modo degradado, no la vía normal.
+ *
+ * Se conserva la COLA, no la cabeza: cuando hay que tirar algo, lo último que pasó vale más que lo
+ * primero. Y se corta en el primer salto de línea para no dejar media línea al principio, que
+ * rompería a cualquiera que parsee el archivo por líneas.
+ *
+ * **La carrera existe y es aceptada.** El logger de la aplicación sigue añadiendo líneas en
+ * paralelo con su propio descriptor; las que escriba entre la lectura de la cola y el truncado se
+ * pierden. En modo degradado eso es preferible a un disco lleno, y las mismas líneas siguen en el
+ * `json-file` de Docker —limitado a 10 MB por 3 en el compose—, así que no son la única copia.
+ */
+export async function trimLogFileToTail(filePath: string, keepBytes: number): Promise<LogTrimResult> {
+  const fileSize = await getFileSize(filePath);
+  if (fileSize <= 0 || fileSize <= keepBytes) {
+    return { trimmed: false, droppedBytes: 0, newSize: Math.max(0, fileSize) };
+  }
+
+  const handle = await open(filePath, 'r+');
+  try {
+    const tail = Buffer.alloc(keepBytes);
+    await handle.read(tail, 0, keepBytes, fileSize - keepBytes);
+
+    // Descartar el trozo de línea partida que casi siempre queda al principio de la cola.
+    const firstNewline = tail.indexOf(0x0a);
+    const start = firstNewline >= 0 ? firstNewline + 1 : 0;
+    const kept = keepBytes - start;
+
+    await handle.write(tail, start, kept, 0);
+    await handle.truncate(kept);
+
+    return { trimmed: true, droppedBytes: fileSize - kept, newSize: kept };
+  } finally {
+    await handle.close();
+  }
 }
 
 export function countLines(content: string): number {

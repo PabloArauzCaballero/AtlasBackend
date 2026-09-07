@@ -308,6 +308,12 @@ export const envBaseSchema = z.object({
   LOG_SYNC_MONGO_SERVER_SELECTION_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(5_000),
   LOG_SYNC_FAILURES_BEFORE_PAUSE: z.coerce.number().int().positive().max(20).default(3),
   LOG_SYNC_FAILURE_PAUSE_MS: z.coerce.number().int().positive().max(3_600_000).default(60_000),
+  // Tope del archivo LOCAL, independiente de que MongoDB conteste. `maybeResetLogFileAfterFullSync`
+  // sólo trunca con la confirmación de Mongo delante; si el destino remoto desaparece —el clúster
+  // borrado del 2026-09-06— esa confirmación no llega nunca y el archivo crece sin freno en un
+  // volumen que además sobrevive a los redespliegues. Al pasarse de aquí se conserva la mitad más
+  // reciente. 64 MB deja historia de sobra sin que un destino caído se coma el disco.
+  LOG_SYNC_LOCAL_MAX_BYTES: z.coerce.number().int().positive().max(1_000_000_000).default(67_108_864),
 
   // Monitor de salud de herramientas críticas (systems-ops): chequea periódicamente
   // SystemsHealthService.getToolsHealth() y notifica a los usuarios internos (in-app) cuando

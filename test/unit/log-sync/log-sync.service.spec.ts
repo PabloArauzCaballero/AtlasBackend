@@ -1,7 +1,7 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { countLines, readLogDelta } from '../../../src/modules/log-sync/log-sync.reader.util.js';
+import { countLines, readLogDelta, trimLogFileToTail } from '../../../src/modules/log-sync/log-sync.reader.util.js';
 
 describe('readLogDelta', () => {
   let dir: string;
@@ -81,5 +81,64 @@ describe('countLines', () => {
     expect(countLines('one\ntwo\n')).toBe(2);
     expect(countLines('single line')).toBe(1);
     expect(countLines('')).toBe(0);
+  });
+});
+
+describe('trimLogFileToTail', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'atlas-log-trim-'));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('leaves a file that is under the cap untouched', async () => {
+    const filePath = join(dir, 'Archivo.log');
+    await writeFile(filePath, 'una\ndos\n', 'utf8');
+
+    const result = await trimLogFileToTail(filePath, 1_000);
+
+    expect(result).toEqual({ trimmed: false, droppedBytes: 0, newSize: 8 });
+    expect(await readFile(filePath, 'utf8')).toBe('una\ndos\n');
+  });
+
+  it('keeps the tail and drops the head when the file is over the cap', async () => {
+    const filePath = join(dir, 'Archivo.log');
+    await writeFile(filePath, 'aaaa\nbbbb\ncccc\ndddd\n', 'utf8');
+
+    const result = await trimLogFileToTail(filePath, 12);
+
+    // Lo conservado es el final, no el principio: cuando hay que tirar algo, lo ultimo vale mas.
+    const contenido = await readFile(filePath, 'utf8');
+    expect(contenido).toBe('cccc\ndddd\n');
+    expect(result.trimmed).toBe(true);
+    expect(result.newSize).toBe(contenido.length);
+    expect(result.droppedBytes).toBe(20 - contenido.length);
+  });
+
+  it('never leaves a half line at the start', async () => {
+    const filePath = join(dir, 'Archivo.log');
+    await writeFile(filePath, 'primera-linea-larga\nsegunda\n', 'utf8');
+
+    // El corte cae en mitad de «segunda», asi que la cola empieza partida.
+    await trimLogFileToTail(filePath, 10);
+
+    const contenido = await readFile(filePath, 'utf8');
+    expect(contenido.startsWith('segunda')).toBe(true);
+    expect(
+      contenido
+        .split('\n')
+        .filter(Boolean)
+        .every((l) => l === 'segunda'),
+    ).toBe(true);
+  });
+
+  it('reports nothing to do when the file does not exist', async () => {
+    const result = await trimLogFileToTail(join(dir, 'no-existe.log'), 10);
+
+    expect(result).toEqual({ trimmed: false, droppedBytes: 0, newSize: 0 });
   });
 });
