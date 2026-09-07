@@ -22,6 +22,7 @@ import { InternalAccessCatalogService } from './internal-access-catalog.service.
 import { InternalAuthController } from './internal-auth.controller.js';
 import { InternalAuthService } from './internal-auth.service.js';
 import { InternalRbacRepository } from './internal-rbac.repository.js';
+import { InternalPermissionHoldersRepository } from './internal-permission-holders.repository.js';
 import { InternalUsersController } from './internal-users.controller.js';
 import { InternalUsersService } from './internal-users.service.js';
 
@@ -44,9 +45,16 @@ import { InternalUsersService } from './internal-users.service.js';
     InternalUsersService,
     InternalAccessCatalogService,
     InternalRbacRepository,
+    InternalPermissionHoldersRepository,
     InternalAccessCatalogRepository,
     InternalPermissionsGuard,
   ],
-  exports: [InternalUsersService, InternalAccessCatalogService, InternalRbacRepository, InternalAccessCatalogRepository],
+  exports: [
+    InternalUsersService,
+    InternalAccessCatalogService,
+    InternalRbacRepository,
+    InternalPermissionHoldersRepository,
+    InternalAccessCatalogRepository,
+  ],
 })
 export class InternalUsersModule {}

@@ -37,6 +37,7 @@ import { NodoService } from './application/nodo.service.js';
 import { NodoMovimientoService } from './application/nodo-movimiento.service.js';
 import { ObjectRefCounterService } from './application/object-ref-counter.service.js';
 import { SubidaService } from './application/subida.service.js';
+import { VisibilidadService } from './application/visibilidad.service.js';
 import { ExpedienteAccesoGuard } from './guards/expediente-acceso.guard.js';
 import { ExpedientesMantenimientoService } from './jobs/expedientes-mantenimiento.service.js';
 
@@ -93,6 +94,7 @@ import { ExpedientesMantenimientoService } from './jobs/expedientes-mantenimient
     NodoMovimientoService,
     ObjectRefCounterService,
     SubidaService,
+    VisibilidadService,
     ExpedienteAccesoGuard,
     ExpedientesMantenimientoService,
     MalwareScannerService,

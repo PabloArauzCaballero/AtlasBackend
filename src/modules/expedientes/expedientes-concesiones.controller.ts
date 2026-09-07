@@ -10,6 +10,7 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { ConcesionService } from './application/concesion.service.js';
 import { NodoService } from './application/nodo.service.js';
+import { VisibilidadService } from './application/visibilidad.service.js';
 import { ExpedienteAccesoGuard, NivelRequerido, type RequestConExpediente } from './guards/expediente-acceso.guard.js';
 import {
   concederSchema,
@@ -37,6 +38,7 @@ export class ExpedientesConcesionesController {
   constructor(
     private readonly concesiones: ConcesionService,
     private readonly nodos: NodoService,
+    private readonly visibilidad: VisibilidadService,
   ) {}
 
   @Post()
@@ -91,10 +93,30 @@ export class ExpedientesConcesionesController {
     return { revocada: true };
   }
 
+  /**
+   * Quién lo ve, incluida la gente que lo ve por su rol.
+   *
+   * Exige `leer` y no `compartir` a propósito. Saber quién más mira la carpeta de una persona es
+   * parte de revisar el caso, no un privilegio de administración: pedir `compartir` dejaba la
+   * pestaña en blanco para el analista de riesgo —que es quien más la abre— y ese blanco se leía
+   * como «no lo ve nadie». No se revela nada que el catálogo de roles no publique ya.
+   */
+  @Get('visibilidad')
+  @ApiOperation({ summary: 'Todas las personas internas que pueden ver este nodo' })
+  @ApiOkResponse({ description: 'Espectadores por rol y por concesión, con su nivel efectivo.' })
+  @NivelRequerido('leer')
+  async listarVisibilidad(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(nodoParamsSchema)) params: NodoParamsDto,
+  ) {
+    const nodo = await this.nodos.obtenerNodo(tenantId, params.id, params.nodoId);
+    return this.visibilidad.quienLoVe({ tenantId, expedienteId: params.id, nodoId: nodo.id, ruta: nodo.ruta });
+  }
+
   @Get()
   @ApiOperation({ summary: 'Quién tiene acceso a este nodo, y de dónde le viene' })
   @ApiOkResponse({ description: 'Concesiones directas y heredadas, con el nodo de origen.' })
-  @NivelRequerido('compartir')
+  @NivelRequerido('leer')
   async listarConcesiones(
     @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(nodoParamsSchema)) params: NodoParamsDto,
