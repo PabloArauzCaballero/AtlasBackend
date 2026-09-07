@@ -48,6 +48,13 @@ export const lineageQuerySchema = z.object({
   nodeId: z.string().trim().max(200).optional(),
   depth: z.coerce.number().int().min(1).max(5).optional(),
   direction: z.enum(['upstream', 'downstream', 'both']).optional(),
+  // El portal ya mandaba `nodeType` y la paginación de `/lineage/impact`; al no estar declarados
+  // aquí, Zod los descartaba en silencio: el selector «tipo de nodo» no hacía nada y la lista de
+  // impactos se quedaba clavada en la primera página de 20 pasara lo que pasara.
+  nodeType: z.enum(['table', 'endpoint']).optional(),
+  nodeLimit: z.coerce.number().int().min(1).max(1000).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export type LineageQueryDto = z.infer<typeof lineageQuerySchema>;

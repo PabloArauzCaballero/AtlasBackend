@@ -34,6 +34,7 @@
     "db:extract-read-workload": "tsx scripts/extract-read-workload.ts",
     "db:capture-query-baseline": "tsx scripts/capture-query-baseline.ts",
     "dev:jwt": "tsx scripts/create-dev-jwt.ts",
+    "systems:catalog:introspect": "node dist/scripts/refresh-systems-catalog-introspection.js",
     "hash-password": "tsx scripts/hash-password.ts",
     "start": "node dist/src/main.js",
     "start:dev": "node scripts/dev-build-and-start.mjs",
