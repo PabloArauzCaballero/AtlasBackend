@@ -202,6 +202,49 @@ async function seedLogicalRelationships(sequelize: Sequelize): Promise<{ written
   return { written, skipped };
 }
 
+/**
+ * Pone dueño real a las fichas que un dominio nombra explícitamente entre sus `exampleTables`.
+ *
+ * El catálogo automático escribe `data_owner = 'systems'` en TODAS: un campo relleno que no dice
+ * nada y que además es falso —soporte no lo lleva sistemas—. Aquí el dueño sale de una lista
+ * escrita a mano por negocio, no de una inferencia sobre el nombre de la tabla, y por eso solo
+ * alcanza a las tablas que esa lista nombra. Las demás se quedan como están: poner un dueño
+ * adivinado sería el mismo problema con otra etiqueta.
+ *
+ * Una tabla puede aparecer en dos dominios (`attribute_definitions` está en riesgo de crédito y en
+ * capacidad de pago). Si ambos comparten equipo, no hay conflicto; si no, se omite y se reporta,
+ * porque elegir uno de los dos sería inventar la respuesta a una pregunta que es de negocio.
+ */
+async function assignDataOwners(sequelize: Sequelize): Promise<{ assigned: number; ambiguous: string[] }> {
+  const ownersByTable = new Map<string, Set<string>>();
+  for (const domain of DOMAIN_BUSINESS_METADATA) {
+    for (const table of domain.exampleTables) {
+      const owners = ownersByTable.get(table) ?? new Set<string>();
+      owners.add(domain.ownerTeam);
+      ownersByTable.set(table, owners);
+    }
+  }
+
+  const ambiguous: string[] = [];
+  const now = new Date();
+  let assigned = 0;
+  for (const [tableName, owners] of ownersByTable) {
+    if (owners.size > 1) {
+      ambiguous.push(`${tableName} (${[...owners].join(' / ')})`);
+      continue;
+    }
+    const [ownerTeam] = [...owners];
+    const [, affected] = await sequelize.query(
+      `UPDATE ${ENTITY_CATALOG}
+          SET data_owner = :ownerTeam, _updated_at = :now
+        WHERE table_name = :tableName AND COALESCE(data_owner, '') <> :ownerTeam;`,
+      { replacements: { ownerTeam, tableName, now } },
+    );
+    if (typeof affected === 'number' && affected > 0) assigned += affected;
+  }
+  return { assigned, ambiguous };
+}
+
 async function main(): Promise<void> {
   const { AppModule } = await import('../src/app.module.js');
   const context = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'], abortOnError: false });
@@ -209,7 +252,13 @@ async function main(): Promise<void> {
     const sequelize = context.get(Sequelize);
     const domains = await seedDomains(sequelize);
     const relations = await seedLogicalRelationships(sequelize);
-    console.log(`✅ ${domains} dominios de negocio y ${relations.written} relaciones lógicas aplicadas al catálogo.`);
+    const owners = await assignDataOwners(sequelize);
+    console.log(
+      `✅ ${domains} dominios de negocio, ${relations.written} relaciones lógicas y ${owners.assigned} ficha(s) con dueño real aplicadas al catálogo.`,
+    );
+    if (owners.ambiguous.length > 0) {
+      console.log(`   ${owners.ambiguous.length} tabla(s) reclamadas por dominios con dueños distintos: ${owners.ambiguous.join('; ')}`);
+    }
     if (relations.skipped.length > 0) {
       console.log(`   ${relations.skipped.length} relación(es) omitida(s) por tabla ausente aquí: ${relations.skipped.join('; ')}`);
     }
