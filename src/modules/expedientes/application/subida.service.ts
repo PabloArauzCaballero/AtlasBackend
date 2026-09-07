@@ -63,7 +63,11 @@ export class SubidaService {
     if (input.sizeBytes <= 0 || input.sizeBytes > env.FILE_UPLOAD_MAX_BYTES) {
       throw new BadRequestException('FILE_TOO_LARGE');
     }
-    if (!env.FILE_UPLOAD_ALLOWED_MIME_TYPES.split(',').map((tipo) => tipo.trim()).includes(input.contentType)) {
+    if (
+      !env.FILE_UPLOAD_ALLOWED_MIME_TYPES.split(',')
+        .map((tipo) => tipo.trim())
+        .includes(input.contentType)
+    ) {
       throw new BadRequestException('FILE_CONTENT_TYPE_NOT_ALLOWED');
     }
 
@@ -135,9 +139,7 @@ export class SubidaService {
 
     await this.accesos.consumirTicket(input.tenantId, ticket.id);
 
-    const carpeta = ticket.parentId
-      ? await this.nodos.obtenerNodo(input.tenantId, input.expedienteId, ticket.parentId)
-      : null;
+    const carpeta = ticket.parentId ? await this.nodos.obtenerNodo(input.tenantId, input.expedienteId, ticket.parentId) : null;
 
     const nodo = await this.nodos.registrarArchivo({
       tenantId: input.tenantId,

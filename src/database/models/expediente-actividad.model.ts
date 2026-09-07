@@ -38,7 +38,6 @@ export class ExpedienteActividadModel extends Model {
   @Column({ field: 'detalle', type: DataType.JSONB, allowNull: false, defaultValue: {} })
   declare detalle: Record<string, unknown>;
 
-
   /*
    * Sólo `created_at`: esta tabla no se actualiza nunca.
    *

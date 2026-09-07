@@ -136,8 +136,7 @@ export class LoanCalendarService {
     merchants: Map<string, { displayName: string; businessCategory: string | null }>,
     today: string,
   ) {
-    const owed =
-      toNumber(installment.principalAmount) + toNumber(installment.interestAmount) + toNumber(installment.lateFeeAmount);
+    const owed = toNumber(installment.principalAmount) + toNumber(installment.interestAmount) + toNumber(installment.lateFeeAmount);
     const paid = toNumber(installment.paidPrincipal) + toNumber(installment.paidInterest) + toNumber(installment.paidLateFee);
     const pending = Math.max(0, owed - paid);
 

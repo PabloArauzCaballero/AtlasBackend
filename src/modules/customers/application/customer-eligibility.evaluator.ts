@@ -90,8 +90,7 @@ function missingFinancialFields(facts: EligibilityFacts): string[] {
    * existe hasta que se sepa si aplica, y quitarlo antes daría por completa una sección a la que
    * todavía le falta el dato que decide.
    */
-  const senioritySkipped =
-    employmentStatus !== undefined && !EMPLOYMENT_STATUSES_WITH_SENIORITY.includes(employmentStatus);
+  const senioritySkipped = employmentStatus !== undefined && !EMPLOYMENT_STATUSES_WITH_SENIORITY.includes(employmentStatus);
 
   return REQUIRED_FINANCIAL_ATTRIBUTE_CODES.filter((code) => {
     if (code === 'employment_seniority_months' && senioritySkipped) return false;

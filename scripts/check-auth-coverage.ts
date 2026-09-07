@@ -144,8 +144,7 @@ function main(): void {
   for (const file of current.controllersWithoutAuthorization) {
     if (!known.has(file)) {
       errors.push(
-        `${file}: tiene rutas pero no declara @Roles(...) ni @InternalPermissions(...), ` +
-          'así que cualquier rol autenticado entra.',
+        `${file}: tiene rutas pero no declara @Roles(...) ni @InternalPermissions(...), ` + 'así que cualquier rol autenticado entra.',
       );
     }
   }

@@ -14,9 +14,7 @@ export type ExpedienteParamsDto = z.infer<typeof expedienteParamsSchema>;
 export const nodoParamsSchema = z.object({ id: idPositivo, nodoId: idPositivo }).strict();
 export type NodoParamsDto = z.infer<typeof nodoParamsSchema>;
 
-export const sujetoParamsSchema = z
-  .object({ subjectType: z.enum(['customer', 'partner', 'claim']), subjectId: idPositivo })
-  .strict();
+export const sujetoParamsSchema = z.object({ subjectType: z.enum(['customer', 'partner', 'claim']), subjectId: idPositivo }).strict();
 export type SujetoParamsDto = z.infer<typeof sujetoParamsSchema>;
 
 const paginaSchema = {
@@ -46,9 +44,7 @@ export const listarNodosQuerySchema = z
   .strict();
 export type ListarNodosQueryDto = z.infer<typeof listarNodosQuerySchema>;
 
-export const contenidoQuerySchema = z
-  .object({ disposition: z.enum(['inline', 'attachment']).default('inline') })
-  .strict();
+export const contenidoQuerySchema = z.object({ disposition: z.enum(['inline', 'attachment']).default('inline') }).strict();
 export type ContenidoQueryDto = z.infer<typeof contenidoQuerySchema>;
 
 export const crearCarpetaSchema = z.object({ parentId: idPositivo.nullish(), nombre: z.string().min(1).max(255) }).strict();

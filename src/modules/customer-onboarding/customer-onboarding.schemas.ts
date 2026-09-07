@@ -276,7 +276,11 @@ export const identityManualReviewSchema = z.object({
    * ID del usuario interno que decidió. Si no viene, se toma del token: nunca queda anónimo.
    * Es el ID y no el correo porque la columna es una clave foránea a `iam.internal_users`.
    */
-  reviewedByInternalUserId: z.string().trim().regex(/^[1-9][0-9]*$/).optional(),
+  reviewedByInternalUserId: z
+    .string()
+    .trim()
+    .regex(/^[1-9][0-9]*$/)
+    .optional(),
 });
 
 export type IdentityManualReviewDto = z.infer<typeof identityManualReviewSchema>;

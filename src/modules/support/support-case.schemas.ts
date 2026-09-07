@@ -198,7 +198,11 @@ export const sendMessageSchema = z.object({
       filename: z.string().trim().min(1).max(260),
       declaredMime: z.string().trim().min(3).max(120),
       sizeBytes: z.number().int().positive().max(15_000_000),
-      sha256: z.string().trim().regex(/^[a-f0-9]{64}$/u).optional(),
+      sha256: z
+        .string()
+        .trim()
+        .regex(/^[a-f0-9]{64}$/u)
+        .optional(),
     })
     .optional(),
 });
@@ -219,8 +223,14 @@ export type CorrectMessageDto = z.infer<typeof correctMessageSchema>;
  * novedades en una conexión mala descarga la conversación entera otra vez.
  */
 export const transcriptQuerySchema = z.object({
-  beforeSequence: z.string().regex(/^[0-9]+$/u).optional(),
-  afterSequence: z.string().regex(/^[0-9]+$/u).optional(),
+  beforeSequence: z
+    .string()
+    .regex(/^[0-9]+$/u)
+    .optional(),
+  afterSequence: z
+    .string()
+    .regex(/^[0-9]+$/u)
+    .optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 export type TranscriptQueryDto = z.infer<typeof transcriptQuerySchema>;

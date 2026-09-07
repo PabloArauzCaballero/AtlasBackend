@@ -181,11 +181,7 @@ export class ConcesionService {
      * acceso, y recuperarlo exige tocar la base a mano. Es la misma razón por la que una consola de
      * nube no deja borrar la última política de administrador.
      */
-    if (
-      concesion.nivel === 'administrar' &&
-      concesion.principalTipo === 'usuario_interno' &&
-      concesion.principalId === input.actor.id
-    ) {
+    if (concesion.nivel === 'administrar' && concesion.principalTipo === 'usuario_interno' && concesion.principalId === input.actor.id) {
       throw new ConflictException('EXPEDIENTE_ULTIMA_ADMINISTRACION');
     }
 

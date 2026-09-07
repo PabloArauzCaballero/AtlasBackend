@@ -277,8 +277,7 @@ export class SystemsReviewRepository {
     actorRole: string;
     tenantId: string | null;
   }): Promise<void> {
-    const { targetType, targetId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId } =
-      entrada;
+    const { targetType, targetId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId } = entrada;
     await this.reviewEventModel.create({
       tenantId,
       targetType,

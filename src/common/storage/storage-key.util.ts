@@ -37,7 +37,11 @@ export function safeKeySegment(value: string): string {
 
 /** La extensión, saneada y sin punto. Sale del tipo YA VERIFICADO, nunca del nombre que subió alguien. */
 export function safeExtension(value: string): string {
-  const cleaned = value.trim().replace(/^\.+/, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleaned = value
+    .trim()
+    .replace(/^\.+/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
   return cleaned.length > 0 ? cleaned.slice(0, 12) : 'bin';
 }
 

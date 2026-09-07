@@ -45,7 +45,8 @@ type RequestWithIp = {
 @Controller('customer-onboarding')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class CustomerOnboardingController {
-  constructor(private readonly customerOnboardingService: CustomerOnboardingService,
+  constructor(
+    private readonly customerOnboardingService: CustomerOnboardingService,
     private readonly identityManualReviewOutcomeService: IdentityManualReviewOutcomeService,
     private readonly contactsSnapshotService: CustomerContactsSnapshotService,
   ) {}

@@ -47,7 +47,7 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
       sequelize as never,
     );
 
-        // El expediente lo abre la FACHADA después del alta, no el servicio transaccional: es un
+    // El expediente lo abre la FACHADA después del alta, no el servicio transaccional: es un
     // gancho tolerante a fallos y no puede tumbar un registro ya comprometido.
     const service = new CustomerOnboardingService(
       startService,

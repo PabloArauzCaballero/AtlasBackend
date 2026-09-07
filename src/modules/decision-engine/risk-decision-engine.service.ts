@@ -33,7 +33,8 @@ export type RiskEngineDecision = {
 export class RiskDecisionEngineService {
   private readonly logger = new Logger(RiskDecisionEngineService.name);
 
-  constructor(private readonly client: DecisionEngineClient,
+  constructor(
+    private readonly client: DecisionEngineClient,
     private readonly artifactBindings: DecisionArtifactBindingService,
   ) {}
 

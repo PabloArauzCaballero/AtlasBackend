@@ -35,7 +35,6 @@ export class ExpedienteConcesionModel extends Model {
   @Column({ field: 'vence_en', type: DataType.DATE })
   declare venceEn: Date | null;
 
-
   /*
    * Sólo `created_at`: esta tabla no se actualiza nunca.
    *

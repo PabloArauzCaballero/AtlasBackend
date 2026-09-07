@@ -118,8 +118,7 @@ export const contactsSnapshotSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['granted'],
-        message:
-          'Un snapshot sin permiso concedido no puede traer medidas de la agenda: revisa el cliente.',
+        message: 'Un snapshot sin permiso concedido no puede traer medidas de la agenda: revisa el cliente.',
       });
     }
     if (valor.uniquePhoneCount > valor.contactsWithPhone) {

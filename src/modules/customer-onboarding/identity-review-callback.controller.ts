@@ -111,9 +111,7 @@ export class IdentityReviewCallbackController {
      * Sin id numerico se guarda `null`: es preferible no saber quien fue a inventar una referencia
      * que no apunta a nadie.
      */
-    const revisadoPor = /^[1-9][0-9]*$/u.test(body.resolvedByInternalUserId ?? '')
-      ? (body.resolvedByInternalUserId as string)
-      : null;
+    const revisadoPor = /^[1-9][0-9]*$/u.test(body.resolvedByInternalUserId ?? '') ? (body.resolvedByInternalUserId as string) : null;
 
     return this.outcome.apply({
       tenantId,

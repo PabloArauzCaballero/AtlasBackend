@@ -44,7 +44,6 @@ export class ExpedienteTicketSubidaModel extends Model {
   @Column({ field: 'consumido_en', type: DataType.DATE })
   declare consumidoEn: Date | null;
 
-
   /*
    * Sólo `created_at`: esta tabla no se actualiza nunca.
    *

@@ -126,16 +126,14 @@ export class OperationsService {
         // La agenda es una lectura auxiliar: si falla, el expediente entero no puede
         // dejar de verse por ella. Degradar a «no disponible» es lo mismo que la
         // pantalla enseña cuando la persona no dio el permiso.
-        this.contactsSnapshot
-          .featuresFor(tenantId, params.customerId)
-          .catch(() => ({
-            available: false,
-            totalContacts: 0,
-            uniqueRatio: 0,
-            bolivianRatio: 0,
-            referencesFoundInAddressBook: 0,
-            riskMatches: 0,
-          })),
+        this.contactsSnapshot.featuresFor(tenantId, params.customerId).catch(() => ({
+          available: false,
+          totalContacts: 0,
+          uniqueRatio: 0,
+          bolivianRatio: 0,
+          referencesFoundInAddressBook: 0,
+          riskMatches: 0,
+        })),
       ]);
 
     return toInvestigationSummaryResponse({

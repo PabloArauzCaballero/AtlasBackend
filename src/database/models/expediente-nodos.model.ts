@@ -72,7 +72,6 @@ export class ExpedienteNodoModel extends Model {
   @Column({ field: 'creado_por_id', type: DataType.BIGINT })
   declare creadoPorId: string | null;
 
-
   /*
    * Las marcas de tiempo las pone Sequelize, no el `DEFAULT NOW()` de la tabla.
    *
