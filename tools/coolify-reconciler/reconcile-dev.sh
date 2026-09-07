@@ -40,7 +40,25 @@ RAMA=dev
 # que no puede salir bien, y el build legitimo del vecino no coge turno nunca.
 MAX_INTENTOS=2
 
-sql() { docker exec -i coolify-db psql -U coolify -d coolify -At -F'|' -c "$1" 2>/dev/null; }
+# El stderr de psql NO se tira: se guarda y se enseña si la consulta no devuelve nada.
+#
+# Tirarlo costo la primera puesta en marcha entera. Una consulta invalida devolvia vacio, el
+# script lo interpretaba como «la aplicacion no existe» y escribia «no esta en Coolify» seis
+# veces — un mensaje que apunta a un UUID mal puesto o a una base inalcanzable, cuando lo que
+# pasaba era un error de sintaxis. El diagnostico solo aparecio al ejecutar la consulta a mano.
+#
+# Un vacio legitimo (la aplicacion de verdad no esta) deja SQL_ERROR vacio y el mensaje sigue
+# siendo el de siempre; si hubo error, se ve.
+# El error va a un FICHERO, no a una variable, y eso es obligatorio aqui: sql() se llama dentro
+# de $( ), que corre en una subshell, asi que cualquier variable que asignara se perderia al
+# volver. Un fichero sobrevive. (Comprobado: la primera version usaba una variable y el mensaje
+# de error nunca llegaba a verse, exactamente el mismo silencio que se estaba corrigiendo.)
+SQL_ERR=$(mktemp)
+trap 'rm -f "$SQL_ERR"' EXIT
+sql() {
+  docker exec -i coolify-db psql -U coolify -d coolify -At -F'|' -c "$1" 2>"$SQL_ERR"
+}
+error_sql() { tr -d '\r' < "$SQL_ERR" | grep -v '^[[:space:]]*$' | head -3 | tr '\n' ' '; }
 
 encolar() {
   docker exec coolify php /var/www/html/artisan tinker --execute="
@@ -61,8 +79,32 @@ for fila in "${APPS[@]}"; do
     echo "ERROR  $nombre: no se pudo leer $RAMA de GitHub"; errores=$((errores + 1)); continue
   fi
 
-  # `commit` vale 'HEAD' mientras el despliegue esta en cola y solo se resuelve al arrancar el
-  # build: por eso se excluye, comparar contra 'HEAD' daria siempre distinto.
+  # LA CADENA SQL NO LLEVA PROSA, y no es una preferencia de estilo.
+  #
+  # Va entre comillas DOBLES de bash, asi que dentro de ella bash sigue mandando: unas comillas
+  # invertidas se ejecutan como orden, un `$` se expande, y una comilla doble CIERRA la cadena.
+  # Esto ultimo tumbaba el script entero: un comentario de SQL que citaba
+  # -- "failed: command not found" -- cortaba la consulta justo ahi, psql recibia un SELECT sin
+  # su FROM, y como sql() manda stderr a /dev/null el error no se veia por ningun lado. El
+  # sintoma era «no esta en Coolify» para las seis aplicaciones, que suena a UUID mal puesto o a
+  # base inalcanzable y no a comillas. Medido el 2026-09-07: seis de seis, y los UUID correctos.
+  #
+  # Por eso las explicaciones viven AQUI FUERA, donde no pueden romper nada. Lo unico que se
+  # interpola en la consulta son $tip y $uuid, que son un sha y un cuid: sin comillas, sin
+  # espacios, y ya validados arriba.
+  #
+  # Lo que hace la consulta, columna por columna:
+  #
+  #   1. cuantos despliegues de esta aplicacion estan en vuelo (encolados o construyendose);
+  #   2. el ultimo commit que llego a desplegarse bien. Se excluye el valor literal HEAD porque
+  #      es lo que Coolify guarda MIENTRAS el despliegue esta en cola —solo lo resuelve al
+  #      arrancar el build—, y compararlo con un sha daria siempre distinto;
+  #   3. cuantas veces ha fallado ya ESTE commit, que es lo que alimenta el tope de intentos.
+  #      Los fallos con commit = HEAD no cuentan, y es deliberado: son despliegues que murieron
+  #      ANTES de arrancar el build (la autoactualizacion de Coolify pasa a failed lo que tenia
+  #      encolado sin correr), asi que no gastan intento: nada indica que el commit este roto.
+  #      Medido el 2026-09-06: 42 de los 44 failed si traen el commit resuelto, que son los
+  #      fallos de build de verdad y los unicos que deben acercar el ATASCO.
   lectura=$(sql "
     select
       (select count(*) from application_deployment_queues d
@@ -71,22 +113,18 @@ for fila in "${APPS[@]}"; do
          where d.application_id = a.id::varchar and d.status = 'finished'
            and d.commit is not null and d.commit <> 'HEAD'
          order by d.id desc limit 1), ''),
-      -- OJO: aqui dentro NO se pueden usar comillas invertidas. Esta cadena va entre comillas
-      -- dobles de bash, asi que una pareja de comillas invertidas se ejecuta como orden aunque
-      -- este en un comentario de SQL. Paso el 2026-09-07 y llenaba el journal de
-      -- "failed: command not found", doce por pasada, sin cambiar ninguna decision.
-      --
-      -- Los fallos con commit = HEAD NO cuentan, y es deliberado: son despliegues que murieron
-      -- ANTES de arrancar el build (la autoactualizacion de Coolify pasa a failed lo que tenia
-      -- encolado sin correr), asi que no gastan intento — no hay nada que indique que el commit
-      -- este roto. Medido el 2026-09-06: 42 de los 44 failed si traen el commit resuelto, que
-      -- son los fallos de build de verdad y los unicos que deben acercar el ATASCO.
       (select count(*) from application_deployment_queues d
          where d.application_id = a.id::varchar and d.status = 'failed' and d.commit = '$tip')
     from applications a where a.uuid = '$uuid';")
 
   if [ -z "$lectura" ]; then
-    echo "ERROR  $nombre: no esta en Coolify"; errores=$((errores + 1)); continue
+    detalle=$(error_sql)
+    if [ -n "$detalle" ]; then
+      echo "ERROR  $nombre: la consulta a Coolify fallo: $detalle"
+    else
+      echo "ERROR  $nombre: no esta en Coolify"
+    fi
+    errores=$((errores + 1)); continue
   fi
   IFS='|' read -r vuelo desplegado fallos <<<"$lectura"
 
