@@ -52,7 +52,7 @@ export const lineageQuerySchema = z.object({
   // aquí, Zod los descartaba en silencio: el selector «tipo de nodo» no hacía nada y la lista de
   // impactos se quedaba clavada en la primera página de 20 pasara lo que pasara.
   nodeType: z.enum(['table', 'endpoint']).optional(),
-  nodeLimit: z.coerce.number().int().min(1).max(1000).optional(),
+  nodeLimit: z.coerce.number().int().min(1).max(2000).optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });

@@ -7,9 +7,16 @@ import { NotFoundException } from '@nestjs/common';
 import { boolValue, clean, containsQuery, id, intValue, nullableText, paginate, Query, Row } from './portal-format.util.js';
 import { PortalQueryBase } from './portal-query.base.js';
 
-/** Tope por defecto de nodos de cada tipo (tablas y endpoints se piden por separado). */
-const DEFAULT_NODE_LIMIT = 400;
-const MAX_NODE_LIMIT = 1000;
+/**
+ * Tope por defecto de nodos de cada tipo (tablas y endpoints se piden por separado).
+ *
+ * Calibrado contra el catálogo real de dev —372 tablas y 747 endpoints—: por debajo de 1000 el
+ * corte deja fuera endpoints que SÍ tienen impacto registrado, y como una arista solo se dibuja si
+ * sus dos extremos están cargados, recortar nodos recorta aristas. Medido: con 400 solo 51 de los
+ * 171 impactos eran dibujables; con 1000 lo son los 171.
+ */
+const DEFAULT_NODE_LIMIT = 1000;
+const MAX_NODE_LIMIT = 2000;
 /** Tope de aristas de cada familia. Se aplica DESPUÉS de acotar a los nodos cargados. */
 const EDGE_LIMIT = 2000;
 
