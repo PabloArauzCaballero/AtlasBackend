@@ -1532,4 +1532,111 @@ export const DOMAIN_BUSINESS_METADATA: DomainBusinessMetadata[] = [
     decisionUseCases: ['autorizar release', 'ver impacto de endpoint', 'probar stress', 'auditar cambios técnicos'],
     auditRelevance: 'Permite demostrar cobertura de metadata, pruebas, endpoints críticos, payloads y relaciones impactadas.',
   },
+  {
+    domainCode: 'CREDITO',
+    domainName: 'Crédito: originación, cartera y cobranza',
+    dataNature: 'FINANCIERO',
+    description:
+      'Gobierna el producto de crédito, la solicitud, la línea aprobada, el préstamo vivo, sus cuotas, los pagos y la política de mora.',
+    businessDefinition:
+      'Es el negocio en sí: lo que se presta, bajo qué condiciones, a quién y qué se ha devuelto. El resto de dominios existe para poder tomar bien estas decisiones; este es donde el dinero se compromete y se cobra.',
+    technicalScope:
+      'Catálogo de productos, solicitudes con su instantánea de elegibilidad, líneas encadenadas por vigencia, préstamos con cuotas y asignación de pagos, reclamos de pago pendientes de verificación y políticas de mora versionadas.',
+    ownerTeam: 'credit-operations',
+    regulatoryNotes:
+      'Debe conservar las condiciones exactas bajo las que se pactó cada crédito, la política de mora vigente en la fecha del hecho y la trazabilidad de cada cobro. No admite borrado: las condiciones se suceden por versión.',
+    exampleTables: [
+      'credit_products',
+      'credit_applications',
+      'credit_lines',
+      'loans',
+      'loan_installments',
+      'loan_payments',
+      'delinquency_policies',
+    ],
+    decisionUseCases: [
+      'aprobar o rechazar una solicitud',
+      'fijar límite y tasa',
+      'aplicar un pago a una cuota',
+      'determinar el tramo de mora aplicable',
+    ],
+    auditRelevance:
+      'Permite reconstruir qué se le ofreció a una persona, bajo qué condiciones aceptó, qué ha pagado y por qué se le cobró un cargo por atraso.',
+  },
+  {
+    domainCode: 'SOPORTE',
+    domainName: 'Soporte: casos abiertos CONTRA Atlas',
+    dataNature: 'OPERACIONAL',
+    description:
+      'Gestiona los casos que la persona o el comercio abren contra Atlas, con sus canales, mensajes, colas, asignación, SLA, resolución y base de conocimiento.',
+    businessDefinition:
+      'Es el canal por el que un cliente reclama y obtiene respuesta. Vive en su propio dominio y no en gestión de casos porque allí están los expedientes que Atlas abre SOBRE una persona; mezclarlos daría a un agente de soporte la misma vista que a un analista de fraude.',
+    technicalScope:
+      'Casos con categoría y motivo, hilos de mensajes por canal, colas con perfiles y habilidades de agente, relojes de SLA, resoluciones con código, encuestas de satisfacción y artículos versionados de conocimiento.',
+    ownerTeam: 'support-operations',
+    regulatoryNotes:
+      'Un reclamo y su respuesta son evidencia frente al regulador de consumo. El reloj de SLA debe medir contra el compromiso publicado, no contra el momento en que alguien lo miró.',
+    exampleTables: [
+      'support_cases',
+      'support_messages',
+      'support_queues',
+      'support_sla_policies',
+      'support_sla_clocks',
+      'support_resolutions',
+      'knowledge_articles',
+    ],
+    decisionUseCases: [
+      'priorizar y enrutar un caso',
+      'medir cumplimiento de SLA',
+      'decidir escalamiento',
+      'detectar motivos recurrentes de reclamo',
+    ],
+    auditRelevance:
+      'Permite probar qué reclamó una persona, cuándo, quién le respondió, en cuánto tiempo y con qué resolución, sin depender de la memoria del agente.',
+  },
+  {
+    domainCode: 'COMERCIOS',
+    domainName: 'Comercios: el aliado como sujeto verificable',
+    dataNature: 'IDENTIDAD',
+    description:
+      'Registra al comercio aliado como sujeto verificado —no como cuenta comercial—, con sus sucursales, terminales de venta, códigos QR de cobro y representantes legales.',
+    businessDefinition:
+      'El comercio es quien recibe el dinero del cliente y quien confirma que un pago entró. Que sea un sujeto verificado, y no un registro administrativo, es lo que permite oponerle esa confirmación y responder de dónde salió un cobro.',
+    technicalScope:
+      'Perfil del comercio con su estado de verificación, sucursales con ubicación, terminales de punto de venta, códigos QR asociados a una sucursal o terminal, y representantes legales con su documento.',
+    ownerTeam: 'partner-operations',
+    regulatoryNotes:
+      'Exige conocer al aliado comercial y a sus representantes con el mismo rigor que a una persona: identidad verificada, vigencia de la representación y trazabilidad de quién confirmó cada cobro.',
+    exampleTables: ['partner_profiles', 'partner_branches', 'partner_pos_terminals', 'partner_qr_codes', 'partner_legal_representatives'],
+    decisionUseCases: [
+      'habilitar un comercio para cobrar',
+      'asociar un QR a una sucursal',
+      'aceptar la confirmación de un pago',
+      'suspender un punto de venta',
+    ],
+    auditRelevance:
+      'Permite responder qué comercio, qué sucursal y qué terminal intervinieron en un cobro, y quién dentro de ese comercio lo confirmó.',
+  },
+  {
+    domainCode: 'EXPEDIENTES',
+    domainName: 'Expediente: el archivo por cliente y quién puede abrirlo',
+    dataNature: 'EVIDENCIA',
+    description:
+      'Organiza el archivo documental de cada cliente en nodos, registra la actividad sobre él y gobierna a quién se le concede acceso y por cuánto tiempo.',
+    businessDefinition:
+      'Reúne en un solo lugar lo que está disperso por dominios —identidad, evidencias, crédito, soporte— para que una persona autorizada pueda ver el caso completo. Su valor no es guardar archivos, es que mirar dentro deje rastro.',
+    technicalScope:
+      'Expediente por cliente, árbol de nodos, concesiones de acceso con vigencia y alcance, bitácora de actividad y tickets de subida que autorizan escribir un documento nuevo.',
+    ownerTeam: 'compliance-operations',
+    regulatoryNotes:
+      'Acceder al expediente es acceder a datos personales: cada consulta y cada concesión deben quedar registradas, acotadas en el tiempo y revocables.',
+    exampleTables: ['expedientes', 'expediente_nodos', 'expediente_concesiones', 'expediente_actividad', 'expediente_tickets_subida'],
+    decisionUseCases: [
+      'conceder acceso temporal a un analista',
+      'revocar una concesión',
+      'autorizar la subida de un documento',
+      'auditar quién miró el archivo de un cliente',
+    ],
+    auditRelevance: 'Permite responder quién abrió el expediente de qué cliente, cuándo, con qué autorización y qué documentos tocó.',
+  },
 ] as const;

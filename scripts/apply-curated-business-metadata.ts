@@ -213,52 +213,135 @@ async function seedLogicalRelationships(sequelize: Sequelize): Promise<{ written
 }
 
 /**
- * Pone dueño real a las fichas que un dominio nombra explícitamente entre sus `exampleTables`.
+ * Dominio de negocio por schema.
  *
- * El catálogo automático escribe `data_owner = 'systems'` en TODAS: un campo relleno que no dice
- * nada y que además es falso —soporte no lo lleva sistemas—. Aquí el dueño sale de una lista
- * escrita a mano por negocio, no de una inferencia sobre el nombre de la tabla, y por eso solo
- * alcanza a las tablas que esa lista nombra. Las demás se quedan como están: poner un dueño
- * adivinado sería el mismo problema con otra etiqueta.
+ * La partición en esquemas de dominio ya es una decisión de arquitectura tomada
+ * (`20260717120000-split-write-model-into-domain-schemas`), así que asignar un dominio por schema
+ * no es inferir nada: es escribir la correspondencia que la partición ya expresa. Se declara a
+ * mano, tabla por tabla, para que se pueda revisar en un diff en vez de esconderse en un
+ * heurístico sobre el nombre.
  *
- * Una tabla puede aparecer en dos dominios (`attribute_definitions` está en riesgo de crédito y en
- * capacidad de pago). Si ambos comparten equipo, no hay conflicto; si no, se omite y se reporta,
- * porque elegir uno de los dos sería inventar la respuesta a una pregunta que es de negocio.
+ * Cubre los quince. Un schema sin entrada dejaría sus fichas sin dominio y, por tanto, sin dueño.
  */
-async function assignDataOwners(sequelize: Sequelize): Promise<{ assigned: number; ambiguous: string[] }> {
-  const ownersByTable = new Map<string, Set<string>>();
+const SCHEMA_DOMAIN: Record<string, string> = {
+  [ATLAS_SCHEMAS.IAM]: 'PLATAFORMA',
+  [ATLAS_SCHEMAS.CUSTOMER]: 'IDENTIDAD_KYC',
+  [ATLAS_SCHEMAS.PRIVACY]: 'PRIVACIDAD',
+  [ATLAS_SCHEMAS.TELEMETRY]: 'DISPOSITIVO',
+  [ATLAS_SCHEMAS.CATALOG]: 'CONTEXTO_RIESGO',
+  [ATLAS_SCHEMAS.RISK]: 'RIESGO_CREDITO',
+  [ATLAS_SCHEMAS.CASE_MANAGEMENT]: 'FRAUDE',
+  [ATLAS_SCHEMAS.AUDIT]: 'AUDITORIA',
+  [ATLAS_SCHEMAS.INTEGRATIONS]: 'PROVEEDORES',
+  [ATLAS_SCHEMAS.MESSAGING]: 'COMUNICACIONES',
+  [ATLAS_SCHEMAS.PLATFORM_OPS]: 'SISTEMAS_QA',
+  [ATLAS_SCHEMAS.CREDIT]: 'CREDITO',
+  [ATLAS_SCHEMAS.SUPPORT]: 'SOPORTE',
+  [ATLAS_SCHEMAS.PARTNER]: 'COMERCIOS',
+  [ATLAS_SCHEMAS.EXPEDIENTES]: 'EXPEDIENTES',
+};
+
+/**
+ * Excepción por tabla: un dominio que NOMBRA una tabla entre sus `exampleTables` la reclama por
+ * encima del dominio de su schema.
+ *
+ * Hace falta porque hay esquemas que alojan a dos dominios —`privacy` guarda privacidad Y
+ * evidencias, `telemetry` guarda dispositivo Y onboarding, `audit` guarda auditoría Y calidad de
+ * datos—. Cuando dos dominios reclaman la misma tabla gana el que nombra MENOS tablas: es el más
+ * específico, y el más general la incluía como parte de un conjunto amplio. Un empate exacto se
+ * omite y se reporta, porque desempatarlo es una decisión de negocio y no del script.
+ */
+function buildDomainByTable(): { byTable: Map<string, string>; ties: string[] } {
+  const claims = new Map<string, string[]>();
   for (const domain of DOMAIN_BUSINESS_METADATA) {
     for (const table of domain.exampleTables) {
-      const owners = ownersByTable.get(table) ?? new Set<string>();
-      owners.add(domain.ownerTeam);
-      ownersByTable.set(table, owners);
+      claims.set(table, [...(claims.get(table) ?? []), domain.domainCode]);
+    }
+  }
+  const size = new Map(DOMAIN_BUSINESS_METADATA.map((domain) => [domain.domainCode, domain.exampleTables.length]));
+  const byTable = new Map<string, string>();
+  const ties: string[] = [];
+  for (const [table, codes] of claims) {
+    const sorted = [...codes].sort((a, b) => (size.get(a) ?? 0) - (size.get(b) ?? 0));
+    if (sorted.length > 1 && size.get(sorted[0]) === size.get(sorted[1])) {
+      ties.push(`${table} (${sorted.join(' / ')})`);
+      continue;
+    }
+    byTable.set(table, sorted[0]);
+  }
+  return { byTable, ties };
+}
+
+/**
+ * Da dominio y dueño a cada ficha propia, y saca de `AUTO_DETECTED` lo que ya no lo es.
+ *
+ * `data_owner = 'systems'` en las 194 fichas era un campo relleno y falso —soporte no lo lleva
+ * sistemas, ni la cartera de crédito tampoco—. El dueño ahora no se escribe a mano por tabla: sale
+ * del dominio al que la ficha pertenece, que es como funciona el gobierno de datos y lo que hace
+ * que cambiar de dueño sea una edición en un sitio y no en doscientos.
+ *
+ * `review_status` se mueve de `AUTO_DETECTED` a `NEEDS_REVIEW` solo en las fichas con narrativa
+ * curada: decir que una tabla la clasificó una máquina cuando la escribió una persona es falso, y
+ * marcarla `APPROVED` sería peor —esa firma es de alguien que la revisó, y este script no revisa
+ * nada—. `NEEDS_REVIEW` es el estado que además las hace aparecer en la cola del portal.
+ */
+async function assignDomainsAndOwners(sequelize: Sequelize): Promise<{
+  domains: number;
+  owners: number;
+  reviewed: number;
+  ties: string[];
+  orphanSchemas: string[];
+}> {
+  const { byTable, ties } = buildDomainByTable();
+  const ownerByDomain = new Map(DOMAIN_BUSINESS_METADATA.map((domain) => [domain.domainCode, domain.ownerTeam]));
+  const now = new Date();
+
+  const fichas = await sequelize.query<{ id: string; schema_name: string; table_name: string }>(
+    `SELECT _id::text AS id, schema_name, table_name FROM ${ENTITY_CATALOG} WHERE system_code = :systemCode;`,
+    { replacements: { systemCode: OWN_SYSTEM_CODE }, type: QueryTypes.SELECT },
+  );
+
+  const orphanSchemas = new Set<string>();
+  let domains = 0;
+  let owners = 0;
+  for (const ficha of fichas) {
+    const domainCode = byTable.get(ficha.table_name) ?? SCHEMA_DOMAIN[ficha.schema_name];
+    if (!domainCode) {
+      orphanSchemas.add(ficha.schema_name);
+      continue;
+    }
+    const ownerTeam = ownerByDomain.get(domainCode);
+    if (!ownerTeam) {
+      orphanSchemas.add(`${ficha.schema_name} (dominio ${domainCode} sin equipo)`);
+      continue;
+    }
+    const updated = await sequelize.query<{ id: string; owner_changed: boolean }>(
+      `UPDATE ${ENTITY_CATALOG}
+          SET domain_code = :domainCode,
+              data_owner = :ownerTeam,
+              _updated_at = :now
+        WHERE _id = :id
+          AND (COALESCE(domain_code, '') <> :domainCode OR COALESCE(data_owner, '') <> :ownerTeam)
+      RETURNING _id::text AS id, (data_owner = :ownerTeam) AS owner_changed;`,
+      { replacements: { domainCode, ownerTeam, now, id: ficha.id }, type: QueryTypes.SELECT },
+    );
+    if (updated.length > 0) {
+      domains += 1;
+      owners += 1;
     }
   }
 
-  const ambiguous: string[] = [];
-  const now = new Date();
-  let assigned = 0;
-  for (const [tableName, owners] of ownersByTable) {
-    if (owners.size > 1) {
-      ambiguous.push(`${tableName} (${[...owners].join(' / ')})`);
-      continue;
-    }
-    const [ownerTeam] = [...owners];
-    // `RETURNING` + `SELECT` en vez de leer el conteo del metadata del UPDATE: en Postgres ese
-    // segundo elemento no es un número, así que el script decía «0 fichas con dueño» mientras las
-    // estaba escribiendo. Un informe que miente sobre su propio efecto es peor que no informar.
-    const updated = await sequelize.query<{ id: string }>(
-      `UPDATE ${ENTITY_CATALOG}
-          SET data_owner = :ownerTeam, _updated_at = :now
-        WHERE table_name = :tableName
-          AND system_code = :systemCode
-          AND COALESCE(data_owner, '') <> :ownerTeam
-      RETURNING _id::text AS id;`,
-      { replacements: { ownerTeam, tableName, now, systemCode: OWN_SYSTEM_CODE }, type: QueryTypes.SELECT },
-    );
-    assigned += updated.length;
-  }
-  return { assigned, ambiguous };
+  const reviewed = await sequelize.query<{ id: string }>(
+    `UPDATE ${ENTITY_CATALOG}
+        SET review_status = 'NEEDS_REVIEW', confidence_level = 'HIGH', _updated_at = :now
+      WHERE system_code = :systemCode
+        AND narrative_source = 'CURATED'
+        AND review_status = 'AUTO_DETECTED'
+    RETURNING _id::text AS id;`,
+    { replacements: { now, systemCode: OWN_SYSTEM_CODE }, type: QueryTypes.SELECT },
+  );
+
+  return { domains, owners, reviewed: reviewed.length, ties, orphanSchemas: [...orphanSchemas] };
 }
 
 async function main(): Promise<void> {
@@ -268,12 +351,16 @@ async function main(): Promise<void> {
     const sequelize = context.get(Sequelize);
     const domains = await seedDomains(sequelize);
     const relations = await seedLogicalRelationships(sequelize);
-    const owners = await assignDataOwners(sequelize);
+    const governance = await assignDomainsAndOwners(sequelize);
     console.log(
-      `✅ ${domains} dominios de negocio, ${relations.written} relaciones lógicas y ${owners.assigned} ficha(s) con dueño real aplicadas al catálogo.`,
+      `✅ ${domains} dominios de negocio y ${relations.written} relaciones lógicas en el catálogo; ` +
+        `${governance.domains} ficha(s) con dominio y dueño, ${governance.reviewed} pasada(s) a revisión pendiente.`,
     );
-    if (owners.ambiguous.length > 0) {
-      console.log(`   ${owners.ambiguous.length} tabla(s) reclamadas por dominios con dueños distintos: ${owners.ambiguous.join('; ')}`);
+    if (governance.ties.length > 0) {
+      console.log(`   ${governance.ties.length} tabla(s) reclamadas por dominios igual de específicos: ${governance.ties.join('; ')}`);
+    }
+    if (governance.orphanSchemas.length > 0) {
+      console.warn(`   ⚠️  Schema(s) sin dominio declarado en SCHEMA_DOMAIN: ${governance.orphanSchemas.join(', ')}`);
     }
     if (relations.skipped.length > 0) {
       console.log(`   ${relations.skipped.length} relación(es) omitida(s) por tabla ausente aquí: ${relations.skipped.join('; ')}`);
