@@ -244,15 +244,19 @@ async function assignDataOwners(sequelize: Sequelize): Promise<{ assigned: numbe
       continue;
     }
     const [ownerTeam] = [...owners];
-    const [, affected] = await sequelize.query(
+    // `RETURNING` + `SELECT` en vez de leer el conteo del metadata del UPDATE: en Postgres ese
+    // segundo elemento no es un número, así que el script decía «0 fichas con dueño» mientras las
+    // estaba escribiendo. Un informe que miente sobre su propio efecto es peor que no informar.
+    const updated = await sequelize.query<{ id: string }>(
       `UPDATE ${ENTITY_CATALOG}
           SET data_owner = :ownerTeam, _updated_at = :now
         WHERE table_name = :tableName
           AND system_code = :systemCode
-          AND COALESCE(data_owner, '') <> :ownerTeam;`,
-      { replacements: { ownerTeam, tableName, now, systemCode: OWN_SYSTEM_CODE } },
+          AND COALESCE(data_owner, '') <> :ownerTeam
+      RETURNING _id::text AS id;`,
+      { replacements: { ownerTeam, tableName, now, systemCode: OWN_SYSTEM_CODE }, type: QueryTypes.SELECT },
     );
-    if (typeof affected === 'number' && affected > 0) assigned += affected;
+    assigned += updated.length;
   }
   return { assigned, ambiguous };
 }
