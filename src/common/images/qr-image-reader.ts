@@ -33,9 +33,7 @@ export interface ImagenEnPixeles {
 
 export type MotivoIlegible = 'FORMATO_NO_SOPORTADO' | 'IMAGEN_CORRUPTA' | 'IMAGEN_DEMASIADO_GRANDE';
 
-export type LecturaQr =
-  | { ok: true; contenido: string }
-  | { ok: false; motivo: 'SIN_CODIGO' | MotivoIlegible };
+export type LecturaQr = { ok: true; contenido: string } | { ok: false; motivo: 'SIN_CODIGO' | MotivoIlegible };
 
 /** PNG o JPEG a RGBA. Cualquier otro formato no se adivina: se dice que no se soporta. */
 function aPixeles(buffer: Buffer, contentType: string): ImagenEnPixeles | MotivoIlegible {

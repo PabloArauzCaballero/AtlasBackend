@@ -112,6 +112,19 @@ export const PLATFORM_ACCESS_NARRATIVES: EntityBusinessNarrative[] = [
       'Tabla en el schema de identidad con `_tenant_id`, `email` único por tenant, `role_code` (hoy sólo `merchant`) y `status` (`invited` | `active` | `suspended` | `disabled`; sólo `active` resuelve actor en el login y en el refresh). Guarda identidad, NO membresía: a qué comercio pertenece y qué puede hacer en él vive en el ERP (`atlas_sales.merchant_users.user_id`, enlazado por el `sub` del token). Las credenciales son las mismas de todos los actores (`auth_credentials` con `actor_type = merchant_user`), y el alta es siempre un acto de personal interno, registrado en `created_by_internal_user_id`.',
   },
   {
+    tableName: 'merchant_user_provisioning_requests',
+    whyExists:
+      'Separa PEDIR un acceso de comercio de CONCEDERLO. Pide el ERP —donde se firma la relación comercial y donde están la cuenta B2B, la sucursal y el rol de la persona— y concede el personal interno de Atlas, que es quien responde de a quién se le entrega una credencial. Antes las dos cosas ocurrían por separado y sin relación: el ERP creaba su fila de membresía y un operador tecleaba la identidad en el portal interno, de modo que el portal era el ORIGEN de un usuario de comercio que no le pertenecía.',
+    whyNotDelete:
+      'Es el único sitio donde consta quién pidió cada acceso, para qué comercio y con qué justificación. Sin ella un alta de comercio vuelve a ser un acto sin expediente: sólo queda el resultado —la identidad creada— y nadie puede responder por qué existe ni quién la solicitó, que es la primera pregunta de cualquier revisión de accesos.',
+    decisionContribution:
+      'Habilita la decisión de conceder o rechazar con el contexto delante (comercio, sucursal, quién lo pidió y cuándo), y deja el rechazo con motivo, que es lo que el ERP lee para corregir y volver a pedirlo. El enlace `merchant_user_id` es además lo que permite al ERP rellenar su `user_id` y dejar de resolver el alcance del comercio por el correo.',
+    usageExample:
+      'Un ejecutivo comercial registra a la encargada de una tienda en el CRM; el ERP encola la petición con la referencia de esa fila. Operaciones la ve en la cola, comprueba que el comercio está verificado y concede: nace la identidad `invited` con los datos de la petición y se entrega una contraseña provisional. Si el correo estuviera mal, se rechaza con motivo y el ERP lo corrige.',
+    systemsExplanation:
+      'Tabla en el schema de identidad con `_tenant_id`, `source` (hoy sólo `erp`) y `external_reference` —el id de la fila del ERP—, únicos juntos: reintentar tras un corte de red no duplica la petición. Un índice único parcial impide dos peticiones `pending` para el mismo correo, y un CHECK exige que una fila resuelta diga cómo se resolvió (`provisioned` con `merchant_user_id`, `rejected` con motivo). Aprobar crea la identidad y cierra la petición en la MISMA transacción, con la fila bloqueada, para que dos operadores simultáneos no generen dos identidades.',
+  },
+  {
     tableName: 'auth_credentials',
     whyExists:
       'Separa "quién eres" (el usuario) de "cómo pruebas que eres tú" (la credencial). El negocio necesita poder bloquear una cuenta por intentos fallidos, forzar cambio de contraseña o invalidar todas las sesiones sin tocar el registro de la persona.',

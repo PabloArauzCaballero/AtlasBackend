@@ -110,11 +110,7 @@ export class CustomerContactsSnapshotService {
 
     const now = new Date();
     const run = await this.sequelize.transaction(async (transaction) => {
-      const flow = await this.onboardingRepository.findLatestOnboardingFlow(
-        input.tenantId,
-        input.customerId,
-        { transaction },
-      );
+      const flow = await this.onboardingRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
 
       const created = await this.snapshots.createRun(
         {
@@ -241,8 +237,7 @@ export class CustomerContactsSnapshotService {
       const fila = metricas.find((metrica) => metrica.metricCode === code);
       return fila?.valueNumber === null || fila?.valueNumber === undefined ? 0 : Number(fila.valueNumber);
     };
-    const booleano = (code: string): boolean =>
-      metricas.find((metrica) => metrica.metricCode === code)?.valueBoolean === true;
+    const booleano = (code: string): boolean => metricas.find((metrica) => metrica.metricCode === code)?.valueBoolean === true;
 
     if (!booleano(CONTACTS_METRIC_CODES.granted)) return vacio;
 
@@ -251,8 +246,7 @@ export class CustomerContactsSnapshotService {
     // proporciones no existen. Devolver 0 aquí es correcto porque el artefacto
     // sólo las mira cuando `available` es cierto Y hay contactos, y porque un
     // `NaN` en una variable DECIMAL rompería la ejecución del motor.
-    const razon = (parte: number): number =>
-      conTelefono <= 0 ? 0 : Number((parte / conTelefono).toFixed(4));
+    const razon = (parte: number): number => (conTelefono <= 0 ? 0 : Number((parte / conTelefono).toFixed(4)));
 
     return {
       available: true,
@@ -260,9 +254,7 @@ export class CustomerContactsSnapshotService {
       uniqueRatio: razon(numero(CONTACTS_METRIC_CODES.uniquePhones)),
       bolivianRatio: razon(numero(CONTACTS_METRIC_CODES.bolivianPhones)),
       referencesFoundInAddressBook: numero(CONTACTS_METRIC_CODES.referencesFound),
-      riskMatches:
-        numero(CONTACTS_METRIC_CODES.riskMatchesWatchlist) +
-        numero(CONTACTS_METRIC_CODES.riskMatchesOtherApplicants),
+      riskMatches: numero(CONTACTS_METRIC_CODES.riskMatchesWatchlist) + numero(CONTACTS_METRIC_CODES.riskMatchesOtherApplicants),
     };
   }
 }

@@ -122,9 +122,7 @@ export class NodoMovimientoService {
      * silencio.
      */
     const rutaAnterior = nodo.ruta;
-    const descendientes = (await this.repository.findSubarbol(tenantId, expedienteId, rutaAnterior)).filter(
-      (item) => item.id !== nodo.id,
-    );
+    const descendientes = (await this.repository.findSubarbol(tenantId, expedienteId, rutaAnterior)).filter((item) => item.id !== nodo.id);
     // Las rutas de los hijos también se leen antes: el mismo motivo.
     const nuevasRutas = descendientes.map((hijo) => ({ id: hijo.id, ruta: `${cambios.ruta}${hijo.ruta.slice(rutaAnterior.length)}` }));
 
@@ -137,12 +135,7 @@ export class NodoMovimientoService {
   }
 
   /** A la papelera. Carpetas: con todo lo que llevan dentro. */
-  async borrar(input: {
-    tenantId: string;
-    expedienteId: string;
-    nodo: ExpedienteNodoModel;
-    actor: ActorExpediente;
-  }): Promise<number> {
+  async borrar(input: { tenantId: string; expedienteId: string; nodo: ExpedienteNodoModel; actor: ActorExpediente }): Promise<number> {
     if (input.nodo.inmutable) throw new ConflictException('EXPEDIENTE_NODO_CONGELADO');
     const subarbol = await this.repository.findSubarbol(input.tenantId, input.expedienteId, input.nodo.ruta);
     const congelado = subarbol.find((item) => item.inmutable);
@@ -151,12 +144,7 @@ export class NodoMovimientoService {
     const ahora = new Date();
     await this.sequelize.transaction(async (transaction) => {
       for (const item of subarbol) {
-        await this.repository.actualizarNodo(
-          input.tenantId,
-          item.id,
-          { borradoEn: ahora, borradoPorId: input.actor.id },
-          transaction,
-        );
+        await this.repository.actualizarNodo(input.tenantId, item.id, { borradoEn: ahora, borradoPorId: input.actor.id }, transaction);
       }
     });
 
@@ -172,12 +160,7 @@ export class NodoMovimientoService {
     return subarbol.length;
   }
 
-  async restaurar(input: {
-    tenantId: string;
-    expedienteId: string;
-    nodo: ExpedienteNodoModel;
-    actor: ActorExpediente;
-  }): Promise<void> {
+  async restaurar(input: { tenantId: string; expedienteId: string; nodo: ExpedienteNodoModel; actor: ActorExpediente }): Promise<void> {
     if (!input.nodo.borradoEn) throw new ConflictException('EXPEDIENTE_NODO_NO_ESTA_EN_PAPELERA');
 
     /*
@@ -187,9 +170,7 @@ export class NodoMovimientoService {
      * tendría que restaurar antes una carpeta que quizá purgó a propósito. Volver a la raíz es lo
      * que hace cualquier papelera, y la ruta queda visible para que se pueda recolocar.
      */
-    const padre = input.nodo.parentId
-      ? await this.repository.findNodo(input.tenantId, input.expedienteId, input.nodo.parentId)
-      : null;
+    const padre = input.nodo.parentId ? await this.repository.findNodo(input.tenantId, input.expedienteId, input.nodo.parentId) : null;
     const padreVivo = padre && !padre.borradoEn ? padre : null;
     const nombre = await this.nodos.nombreLibre(input.tenantId, input.expedienteId, padreVivo?.id ?? null, input.nodo.nombre);
 

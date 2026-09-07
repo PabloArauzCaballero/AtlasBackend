@@ -29,11 +29,7 @@ import { PartnerProfileService } from '../partner-onboarding/application/partner
 import { PartnerQrService } from '../partner-onboarding/application/partner-qr.service.js';
 import { EventsService } from '../events/events.service.js';
 import { assertOwnPartnerResource } from '../../common/utils/auth/ownership.util.js';
-import type {
-  DecidePaymentClaimDto,
-  PaymentProofTicketDto,
-  SubmitPaymentClaimDto,
-} from './loan-payment-claims.schemas.js';
+import type { DecidePaymentClaimDto, PaymentProofTicketDto, SubmitPaymentClaimDto } from './loan-payment-claims.schemas.js';
 
 const PENDIENTE = 'pending_verification';
 
@@ -99,12 +95,7 @@ export class LoanPaymentClaimsService {
    * vencimiento, a quién le paga— para poder reclamarle al comercio. Un 404 dejaría la pantalla en
    * blanco y con la culpa aparentemente puesta en el cliente.
    */
-  async paymentInstruction(input: {
-    tenantId: string;
-    customerId: string;
-    installmentId: string;
-    currentUser: AuthenticatedUser;
-  }) {
+  async paymentInstruction(input: { tenantId: string; customerId: string; installmentId: string; currentUser: AuthenticatedUser }) {
     this.assertOwnCustomer(input.currentUser, input.customerId);
 
     const { loan, installment } = await this.requireOwnInstallment(input.tenantId, input.customerId, input.installmentId);
@@ -135,9 +126,7 @@ export class LoanPaymentClaimsService {
       amountDue: debido.toFixed(2),
       amountOutstanding: pendiente.toFixed(2),
       status: installment.status,
-      merchant: profile
-        ? { partnerProfileId: String(profile.id), displayName: profile.tradeName ?? profile.legalName }
-        : null,
+      merchant: profile ? { partnerProfileId: String(profile.id), displayName: profile.tradeName ?? profile.legalName } : null,
       paymentQr:
         qr && imagen
           ? {
@@ -155,7 +144,8 @@ export class LoanPaymentClaimsService {
        * Por qué no hay QR, dicho con precisión. «No disponible» a secas haría que el cliente
        * llamara a Atlas por algo que sólo su comercio puede resolver.
        */
-      paymentQrUnavailableReason: qr && imagen ? null : !partnerProfileId ? 'LOAN_WITHOUT_PARTNER' : !qr ? 'PARTNER_HAS_NO_PAYMENT_QR' : 'PAYMENT_QR_OBJECT_MISSING',
+      paymentQrUnavailableReason:
+        qr && imagen ? null : !partnerProfileId ? 'LOAN_WITHOUT_PARTNER' : !qr ? 'PARTNER_HAS_NO_PAYMENT_QR' : 'PAYMENT_QR_OBJECT_MISSING',
       openClaim: claimAbierto
         ? {
             claimId: String(claimAbierto.id),
@@ -494,9 +484,7 @@ export class LoanPaymentClaimsService {
     });
     /* Una solicitud produce como mucho un prestamo: los que aun no desembolsaron no tienen cartera. */
     const loans = (
-      await Promise.all(
-        applications.map((application) => this.loans.findLoanByApplication(input.tenantId, String(application.id))),
-      )
+      await Promise.all(applications.map((application) => this.loans.findLoanByApplication(input.tenantId, String(application.id))))
     ).filter((loan): loan is NonNullable<typeof loan> => loan !== null);
 
     const hoy = new Date().toISOString().slice(0, 10);
@@ -639,18 +627,12 @@ export class LoanPaymentClaimsService {
       input.tenantId,
       pagos.map((pago) => String(pago.id)),
     );
-    const numeroDeCuota = new Map(
-      input.cuotas.map((cuota) => [String(cuota.id), cuota.installmentNumber] as const),
-    );
+    const numeroDeCuota = new Map(input.cuotas.map((cuota) => [String(cuota.id), cuota.installmentNumber] as const));
 
     return pagos.map((pago) => {
       const suyas = imputaciones.filter((fila) => String(fila.loanPaymentId) === String(pago.id));
       const aplicado = suyas.reduce(
-        (suma, fila) =>
-          suma +
-          Number(fila.principalApplied) +
-          Number(fila.interestApplied) +
-          Number(fila.lateFeeApplied),
+        (suma, fila) => suma + Number(fila.principalApplied) + Number(fila.interestApplied) + Number(fila.lateFeeApplied),
         0,
       );
 
@@ -670,9 +652,7 @@ export class LoanPaymentClaimsService {
         mdrRatePercent: input.tasaMdr.toFixed(2),
         commissionAccrued: ((aplicado * input.tasaMdr) / 100).toFixed(2),
         /* Qué cuotas cubrió: un pago puede saldar varias, y una cuota recibir varios pagos. */
-        installmentNumbers: [
-          ...new Set(suyas.map((fila) => numeroDeCuota.get(String(fila.loanInstallmentId)))),
-        ]
+        installmentNumbers: [...new Set(suyas.map((fila) => numeroDeCuota.get(String(fila.loanInstallmentId))))]
           .filter((numero): numero is number => numero !== undefined)
           .sort((a, b) => a - b),
       };

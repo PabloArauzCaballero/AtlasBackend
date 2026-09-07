@@ -119,8 +119,7 @@ export function toInvestigationSummaryResponse(input: {
    * anterior del artefacto que escribiera otra escala. Se acota al publicar en vez
    * de al leer para que la pantalla no tenga que saber nada de la columna.
    */
-  const enCero_uno = (valor: number | null): number | null =>
-    valor === null ? null : Math.max(0, Math.min(1, valor));
+  const enCero_uno = (valor: number | null): number | null => (valor === null ? null : Math.max(0, Math.min(1, valor)));
 
   const latestIdentityVerification: IdentitySummaryDto | null = input.latestIdentityAttempt
     ? {

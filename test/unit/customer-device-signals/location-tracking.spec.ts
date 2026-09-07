@@ -1,9 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { haversineMeters } from '../../../src/modules/customer-device-signals/application/customer-location-tracking.service.js';
-import {
-  normalizeEmailForHash,
-  normalizePhoneForHash,
-} from '../../../src/common/utils/contact/phone-normalization.util.js';
+import { normalizeEmailForHash, normalizePhoneForHash } from '../../../src/common/utils/contact/phone-normalization.util.js';
 
 /**
  * La distancia al domicilio declarado, y la normalización que la acompaña.
@@ -15,7 +12,7 @@ import {
  */
 describe('haversineMeters', () => {
   it('devuelve cero para el mismo punto', () => {
-    const punto = { lat: -17.783327, lng: -63.182140 };
+    const punto = { lat: -17.783327, lng: -63.18214 };
     expect(haversineMeters(punto, punto)).toBeCloseTo(0, 6);
   });
 
@@ -36,7 +33,7 @@ describe('haversineMeters', () => {
 
   it('mide distancias cortas con precisión de metros, que es lo que se usa de verdad', () => {
     // La pregunta real no es «¿está en Bolivia?» sino «¿está en su casa o a tres cuadras?».
-    const distancia = haversineMeters({ lat: -17.783327, lng: -63.182140 }, { lat: -17.784327, lng: -63.182140 });
+    const distancia = haversineMeters({ lat: -17.783327, lng: -63.18214 }, { lat: -17.784327, lng: -63.18214 });
     expect(distancia).toBeCloseTo(111.2, 0);
   });
 });
