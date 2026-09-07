@@ -56,5 +56,64 @@ export const listMerchantUsersQuerySchema = z.object({
 });
 export type ListMerchantUsersQueryDto = z.infer<typeof listMerchantUsersQuerySchema>;
 
+/**
+ * ESTADOS DE UNA PETICIÓN DE ALTA ENCOLADA POR EL ERP.
+ *
+ * `pending` la atiende el personal interno; `provisioned` ya tiene identidad detrás; `rejected` se
+ * cerró con motivo. No hay «en curso»: aprobar es una transacción, o crea la identidad o no cambia
+ * nada.
+ */
+export const MERCHANT_PROVISIONING_STATUSES = ['pending', 'provisioned', 'rejected'] as const;
+
+/**
+ * Lo que el ERP encola.
+ *
+ * NO lleva contraseña, y es la diferencia que da sentido a todo el cambio: quien pide el acceso no
+ * fija la credencial. La genera Atlas al aprobar y se entrega una sola vez. Tampoco lleva
+ * `tenantId`: sale del token de quien llama, igual que en el alta directa.
+ */
+export const enqueueMerchantUserRequestSchema = z.object({
+  /** El identificador de la fila del ERP. Es la clave de idempotencia de la cola. */
+  externalReference: z.string().trim().min(1).max(120),
+  accountReference: z.string().trim().max(120).optional(),
+  accountName: z.string().trim().max(180).optional(),
+  branchName: z.string().trim().max(180).optional(),
+  email: z.string().trim().email().max(180),
+  fullName: z.string().trim().min(3).max(180),
+  phone: z.string().trim().max(40).optional(),
+  roleCode: z.string().trim().max(80).optional(),
+  requestedBy: z.string().trim().max(180).optional(),
+});
+export type EnqueueMerchantUserRequestDto = z.infer<typeof enqueueMerchantUserRequestSchema>;
+
+export const listMerchantUserRequestsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(25),
+  status: z.enum(MERCHANT_PROVISIONING_STATUSES).optional(),
+  email: z.string().trim().max(180).optional(),
+});
+export type ListMerchantUserRequestsQueryDto = z.infer<typeof listMerchantUserRequestsQuerySchema>;
+
+export const merchantUserRequestParamsSchema = z.object({ requestId: positiveId });
+export type MerchantUserRequestParamsDto = z.infer<typeof merchantUserRequestParamsSchema>;
+
+/**
+ * Aprobar no admite datos de la persona: se toman de la petición.
+ *
+ * Dejar que el aprobador reescribiera el correo devolvería exactamente el problema que esto
+ * resuelve —dos altas que no casan— con el agravante de que la petición diría una cosa y la
+ * identidad otra. Lo único opcional es el `userCode`, que es un dato de Atlas y no del ERP.
+ */
+export const approveMerchantUserRequestSchema = z.object({
+  userCode: z.string().trim().max(60).optional(),
+});
+export type ApproveMerchantUserRequestDto = z.infer<typeof approveMerchantUserRequestSchema>;
+
+export const rejectMerchantUserRequestSchema = z.object({
+  /** Obligatorio: el ERP lo lee y es lo que le dice qué corregir antes de volver a encolar. */
+  reason: z.string().trim().min(8).max(500),
+});
+export type RejectMerchantUserRequestDto = z.infer<typeof rejectMerchantUserRequestSchema>;
+
 export const merchantUserParamsSchema = z.object({ merchantUserId: positiveId });
 export type MerchantUserParamsDto = z.infer<typeof merchantUserParamsSchema>;

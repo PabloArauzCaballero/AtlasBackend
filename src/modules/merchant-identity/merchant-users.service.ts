@@ -5,13 +5,13 @@
  */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
-import { Op, col, fn, where } from 'sequelize';
+import { Op, Transaction, col, fn, where } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { MerchantUserModel } from '../../database/models/index.js';
 import { AuthRepository } from '../auth/auth.repository.js';
 import { MerchantActorRepository } from '../auth/merchant-actor.repository.js';
 import { hashPassword, isPasswordStrongEnough } from '../../common/utils/crypto/password.util.js';
-import { CreateMerchantUserDto, ListMerchantUsersQueryDto, UpdateMerchantUserStatusDto } from './merchant-identity.schemas.js';
+import { ListMerchantUsersQueryDto, UpdateMerchantUserStatusDto } from './merchant-identity.schemas.js';
 import { MerchantUserProfile, PaginatedMerchantUsers } from './merchant-identity.types.js';
 
 export function toMerchantUserProfile(model: MerchantUserModel): MerchantUserProfile {
@@ -51,54 +51,66 @@ export class MerchantUsersService {
    *
    * Separarlas dejaría identidades sin contraseña —invisibles para el login y difíciles de
    * diagnosticar— cada vez que fallara el segundo paso.
+   *
+   * ## Ya no hay ruta HTTP que llegue aquí con datos tecleados
+   *
+   * El único llamador es la aprobación de una petición encolada por el ERP
+   * (`MerchantUserRequestsService.approve`), que pasa su propia transacción para que la identidad y
+   * el cierre de la petición caigan juntos. El alta libre de `POST /merchant/users` se retiró: el
+   * portal interno CONCEDE accesos, no inventa usuarios de comercio. El corte está aquí y no en la
+   * pantalla porque una pantalla se salta con `curl`.
    */
-  async createMerchantUser(
-    dto: CreateMerchantUserDto,
+  async createIdentity(
+    input: { email: string; fullName: string; phone?: string | null; userCode?: string | null; password: string },
     actor: { tenantId: string; internalUserId: string | null },
+    transaction: Transaction,
   ): Promise<MerchantUserProfile> {
-    if (!isPasswordStrongEnough(dto.password)) {
+    if (!isPasswordStrongEnough(input.password)) {
       throw new ConflictException('WEAK_PASSWORD');
     }
 
-    const email = dto.email.trim().toLowerCase();
+    const email = input.email.trim().toLowerCase();
     const existing = await this.merchantActorRepository.findMerchantUserByEmail(email, actor.tenantId);
     if (existing) {
       throw new ConflictException('MERCHANT_USER_EMAIL_TAKEN');
     }
 
-    const passwordHash = await hashPassword(dto.password);
+    const passwordHash = await hashPassword(input.password);
 
-    return this.sequelize.transaction(async (transaction) => {
-      const created = await this.merchantUserModel.create(
-        {
-          tenantId: actor.tenantId,
-          email,
-          fullName: dto.fullName,
-          phone: dto.phone ?? null,
-          userCode: dto.userCode ?? null,
-          roleCode: 'merchant',
-          // Nace `invited`: existe y puede iniciar sesión sólo cuando alguien lo activa
-          // explícitamente. El alta y la habilitación son dos decisiones distintas.
-          status: 'invited',
-          mustChangePassword: true,
-          createdByInternalUserId: actor.internalUserId,
-          createdAtValue: new Date(),
-        } as never,
-        { transaction },
-      );
+    const created = await this.merchantUserModel.create(
+      {
+        tenantId: actor.tenantId,
+        email,
+        fullName: input.fullName,
+        phone: input.phone ?? null,
+        userCode: input.userCode ?? null,
+        roleCode: 'merchant',
+        // Nace `invited`: existe y puede iniciar sesión sólo cuando alguien lo activa
+        // explícitamente. El alta y la habilitación son dos decisiones distintas.
+        status: 'invited',
+        mustChangePassword: true,
+        createdByInternalUserId: actor.internalUserId,
+        createdAtValue: new Date(),
+      } as never,
+      { transaction },
+    );
 
-      await this.authRepository.createCredentials(
-        {
-          tenantId: actor.tenantId,
-          actorType: 'merchant_user',
-          actorId: String(created.id),
-          passwordHash,
-        },
-        { transaction },
-      );
+    await this.authRepository.createCredentials(
+      {
+        tenantId: actor.tenantId,
+        actorType: 'merchant_user',
+        actorId: String(created.id),
+        passwordHash,
+      },
+      { transaction },
+    );
 
-      return toMerchantUserProfile(created);
-    });
+    return toMerchantUserProfile(created);
+  }
+
+  /** La conexión, para que quien coordina varias escrituras abra UNA transacción y la comparta. */
+  get connection(): Sequelize {
+    return this.sequelize;
   }
 
   async listMerchantUsers(tenantId: string, query: ListMerchantUsersQueryDto): Promise<PaginatedMerchantUsers> {

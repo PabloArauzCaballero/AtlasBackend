@@ -7,9 +7,11 @@ jest.mock('../../../src/common/utils/crypto/envelope-encryption.util.js', () => 
 import { AuthActorResolverService } from '../../../src/modules/auth/auth-actor-resolver.service.js';
 import { MerchantUsersService, toMerchantUserProfile } from '../../../src/modules/merchant-identity/merchant-users.service.js';
 import {
-  createMerchantUserSchema,
+  approveMerchantUserRequestSchema,
+  enqueueMerchantUserRequestSchema,
   listMerchantUsersQuerySchema,
   merchantLoginSchema,
+  rejectMerchantUserRequestSchema,
   updateMerchantUserStatusSchema,
 } from '../../../src/modules/merchant-identity/merchant-identity.schemas.js';
 
@@ -141,9 +143,10 @@ describe('Identidad del comercio afiliado', () => {
   it('el alta nace invited y provisiona la credencial en la misma transacción', async () => {
     const { service, merchantUserModel, authRepository } = buildUsersService();
 
-    const profile = await service.createMerchantUser(
+    const profile = await service.createIdentity(
       { email: 'Nueva@Alfa.test', fullName: 'Nueva Persona', password: 'contrasena-larga-9' },
       { tenantId: 't1', internalUserId: 'i1' },
+      {} as never,
     );
 
     expect(profile.status).toBe('invited');
@@ -166,9 +169,10 @@ describe('Identidad del comercio afiliado', () => {
     (merchantActorRepository.findMerchantUserByEmail as jest.Mock).mockResolvedValueOnce({ id: 'm1' } as never);
 
     await expect(
-      service.createMerchantUser(
+      service.createIdentity(
         { email: 'nueva@alfa.test', fullName: 'Nueva Persona', password: 'contrasena-larga-9' },
         { tenantId: 't1', internalUserId: 'i1' },
+        {} as never,
       ),
     ).rejects.toThrow('MERCHANT_USER_EMAIL_TAKEN');
   });
@@ -177,9 +181,10 @@ describe('Identidad del comercio afiliado', () => {
     const { service, merchantUserModel } = buildUsersService();
 
     await expect(
-      service.createMerchantUser(
+      service.createIdentity(
         { email: 'nueva@alfa.test', fullName: 'Nueva Persona', password: '1234567890' },
         { tenantId: 't1', internalUserId: 'i1' },
+        {} as never,
       ),
     ).rejects.toThrow('WEAK_PASSWORD');
     expect(merchantUserModel.create).not.toHaveBeenCalled();
@@ -199,9 +204,25 @@ describe('Identidad del comercio afiliado', () => {
     );
   });
 
-  it('el alta exige contraseña de al menos 10 caracteres y correo válido', () => {
-    expect(createMerchantUserSchema.safeParse({ email: 'no-es-correo', fullName: 'Ana', password: 'x'.repeat(12) }).success).toBe(false);
-    expect(createMerchantUserSchema.safeParse({ email: 'a@b.test', fullName: 'Ana', password: 'corta' }).success).toBe(false);
+  /*
+   * El alta libre ya no existe: `POST /merchant/users` se retiró y la identidad sólo nace al
+   * APROBAR una petición encolada por el ERP. Lo que se fija aquí es que la petición NO admita
+   * contraseña —quien pide un acceso no elige la credencial— y que aprobar no admita reescribir el
+   * correo, que es la avería que la cola resuelve.
+   */
+  it('la petición del ERP no admite contraseña ni tenant', () => {
+    const base = { externalReference: 'erp-1', email: 'a@b.test', fullName: 'Ana Comercio' };
+    expect(enqueueMerchantUserRequestSchema.safeParse(base).success).toBe(true);
+    expect(enqueueMerchantUserRequestSchema.safeParse({ ...base, email: 'no-es-correo' }).success).toBe(false);
+    expect(enqueueMerchantUserRequestSchema.safeParse({ ...base, fullName: 'An' }).success).toBe(false);
+    expect('password' in enqueueMerchantUserRequestSchema.parse({ ...base, password: 'x'.repeat(12) })).toBe(false);
+    expect('tenantId' in enqueueMerchantUserRequestSchema.parse({ ...base, tenantId: '9' })).toBe(false);
+  });
+
+  it('aprobar no admite los datos de la persona; rechazar exige motivo', () => {
+    expect('email' in approveMerchantUserRequestSchema.parse({ email: 'otro@b.test' })).toBe(false);
+    expect(rejectMerchantUserRequestSchema.safeParse({ reason: 'corto' }).success).toBe(false);
+    expect(rejectMerchantUserRequestSchema.safeParse({ reason: 'El correo no es el del encargado.' }).success).toBe(true);
   });
 
   it('el estado sólo admite el vocabulario cerrado que declara la migración', () => {
