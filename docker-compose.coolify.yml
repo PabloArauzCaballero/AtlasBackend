@@ -417,6 +417,12 @@ services:
           memory: 1g
 
   worker:
+    # El worker SALE de su red privada a propósito: llama a otros bloques por sus alias de la red
+    # compartida, y sin declararla Compose lo deja sólo en `default`, donde esos nombres no
+    # resuelven. No lleva alias porque nadie lo llama a él: sólo llama.
+    networks:
+      default: {}
+      coolify: {}
     # `init: true` sustituye al `tini` que antes iba como ENTRYPOINT en la imagen. Es el mismo
     # programa —Docker trae tini incorporado— y no depende de que `apt` pueda descargarlo. Sin un
     # init como PID 1, `SIGTERM` no llega a Node y el drenado ordenado no corre nunca.
