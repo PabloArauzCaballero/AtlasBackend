@@ -71,10 +71,15 @@ for fila in "${APPS[@]}"; do
          where d.application_id = a.id::varchar and d.status = 'finished'
            and d.commit is not null and d.commit <> 'HEAD'
          order by d.id desc limit 1), ''),
-      -- Los fallos con commit = 'HEAD' NO cuentan, y es deliberado: son despliegues que murieron
-      -- ANTES de arrancar el build (la autoactualizacion de Coolify pasa a `failed` lo que tenia
+      -- OJO: aqui dentro NO se pueden usar comillas invertidas. Esta cadena va entre comillas
+      -- dobles de bash, asi que una pareja de comillas invertidas se ejecuta como orden aunque
+      -- este en un comentario de SQL. Paso el 2026-09-07 y llenaba el journal de
+      -- "failed: command not found", doce por pasada, sin cambiar ninguna decision.
+      --
+      -- Los fallos con commit = HEAD NO cuentan, y es deliberado: son despliegues que murieron
+      -- ANTES de arrancar el build (la autoactualizacion de Coolify pasa a failed lo que tenia
       -- encolado sin correr), asi que no gastan intento — no hay nada que indique que el commit
-      -- este roto. Medido el 2026-09-06: 42 de los 44 `failed` si traen el commit resuelto, que
+      -- este roto. Medido el 2026-09-06: 42 de los 44 failed si traen el commit resuelto, que
       -- son los fallos de build de verdad y los unicos que deben acercar el ATASCO.
       (select count(*) from application_deployment_queues d
          where d.application_id = a.id::varchar and d.status = 'failed' and d.commit = '$tip')
