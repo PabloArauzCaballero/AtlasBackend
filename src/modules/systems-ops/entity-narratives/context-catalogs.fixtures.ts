@@ -163,4 +163,17 @@ export const CONTEXT_CATALOG_NARRATIVES: EntityBusinessNarrative[] = [
     systemsExplanation:
       'Tabla en `catalog` con `_tenant_id`, borrado lógico (`_deleted`) y clave semántica (`surface`, `content_key`, `locale`). `bullets_json` y `metadata_json` son JSONB, así que admitir una viñeta más no exige desplegar la app. El backend sirve solo filas activas y con `published_at` no futuro; qué hacer cuando no existe fila para el idioma pedido lo decide el servicio, no la base.',
   },
+  {
+    tableName: 'decision_artifact_bindings',
+    whyExists:
+      'Dice qué política del motor decide cada cosa —identidad, crédito, y las que vengan— y en qué versión fijada. Antes eso era una variable de entorno, así que cambiar la política que aprueba un crédito exigía un despliegue: una decisión de Riesgo que solo podía ejecutar quien tuviera acceso al servidor.',
+    whyNotDelete:
+      'Cada fila es la historia de qué política estuvo decidiendo, desde cuándo y quién la cambió (`changed_by_internal_user_id`). Borrarla deja las decisiones tomadas sin la política que las produjo, y con ella se pierde la respuesta a por qué dos solicitudes equivalentes salieron distintas en fechas distintas.',
+    decisionContribution:
+      '`artifact_code` decide qué política se ejecuta y `pinned_version` en qué versión: sin fijarla, publicar una versión nueva en el motor cambia lo que decide producción sin que nadie lo apruebe. `consumer_endpoints` contesta «si cambio esta política, qué se rompe», y `workflow_stage` distingue la que corre en el alta de la que corre en una renovación aunque compartan artefacto.',
+    usageExample:
+      'El valor por defecto del entorno apuntaba a `credit_underwriting` y en el motor la política se llama `ATLAS_BNPL_UNDERWRITING`. Toda solicitud daba 404 y caía en «el motor no está disponible», dejando cada crédito esperando a una persona sin que nada dijera que el motor ni siquiera fue consultado. Con la asignación elegida de la lista que el propio motor publica, apuntar a un código inexistente deja de ser posible.',
+    systemsExplanation:
+      'Tabla en `catalog` con unicidad `(_tenant_id, decision_type)` y referencia al usuario interno que hizo el cambio. Es una tabla y no una columna en `tenants` porque los tipos de decisión crecen y cada uno necesita su propia historia; una columna por tipo obligaría a migrar cada vez que aparece una decisión nueva. Sin fila para un tipo se usa la variable de entorno como respaldo, así que la fila solo existe cuando alguien eligió de verdad.',
+  },
 ];
