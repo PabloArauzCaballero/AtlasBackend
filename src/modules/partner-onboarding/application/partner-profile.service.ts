@@ -26,6 +26,7 @@ import {
   UpdateCommercialProfileDto,
 } from '../partner-onboarding.schemas.js';
 import { PartnerProfileModel } from '../../../database/models/index.js';
+import { toPartnerProfileDto } from '../partner-onboarding.mapper.js';
 
 /** Lo que el expediente tiene que reunir antes de poder enviarse a revisión. */
 export interface SubmissionGap {
@@ -282,7 +283,10 @@ export class PartnerProfileService {
       this.repository.listBranches(tenantId, partnerId),
     ]);
     const branchById = new Map(sucursales.map((b) => [String(b.id), b]));
-    const map = new Map<string, { branchId: string; branchName: string; branchCode: string; terminalAlias: string | null; terminalSerial: string }>();
+    const map = new Map<
+      string,
+      { branchId: string; branchName: string; branchCode: string; terminalAlias: string | null; terminalSerial: string }
+    >();
     for (const t of terminales) {
       const branch = branchById.get(String(t.branchId));
       map.set(String(t.id), {
@@ -321,11 +325,7 @@ export class PartnerProfileService {
    * el analista firmó, así que no tiene por qué morir con la aprobación.
    */
   assertCommercialNetworkEditable(profile: PartnerProfileModel): void {
-    if (
-      !COMMERCIAL_NETWORK_EDITABLE_STATUSES.includes(
-        profile.onboardingStatus as (typeof COMMERCIAL_NETWORK_EDITABLE_STATUSES)[number],
-      )
-    ) {
+    if (!COMMERCIAL_NETWORK_EDITABLE_STATUSES.includes(profile.onboardingStatus as (typeof COMMERCIAL_NETWORK_EDITABLE_STATUSES)[number])) {
       throw new UnprocessableEntityException(`PARTNER_NETWORK_NOT_EDITABLE_IN_STATUS: ${profile.onboardingStatus}`);
     }
   }
@@ -339,9 +339,7 @@ export class PartnerProfileService {
    * que hubo antes.
    */
   assertPaymentQrEditable(profile: PartnerProfileModel): void {
-    if (
-      !PAYMENT_QR_EDITABLE_STATUSES.includes(profile.onboardingStatus as (typeof PAYMENT_QR_EDITABLE_STATUSES)[number])
-    ) {
+    if (!PAYMENT_QR_EDITABLE_STATUSES.includes(profile.onboardingStatus as (typeof PAYMENT_QR_EDITABLE_STATUSES)[number])) {
       throw new UnprocessableEntityException(`PARTNER_QR_NOT_EDITABLE_IN_STATUS: ${profile.onboardingStatus}`);
     }
   }
@@ -441,6 +439,29 @@ export class PartnerProfileService {
    * preguntar, y seis meses después nadie sabe qué se miró. Aprobar no lo exige — el motivo es el
    * expediente completo que se acaba de revisar.
    */
+  /**
+   * Los expedientes que esperan decisión.
+   *
+   * Es lo que convierte la verificación en una COLA y no en un formulario de búsqueda: antes había
+   * que traer el identificador del comercio desde otra pantalla, así que la carga de trabajo
+   * pendiente no se veía en ninguna parte.
+   */
+  async listAwaitingDecision(tenantId: string, query: { page: number; limit: number }) {
+    const { rows, count } = await this.repository.findProfilesAwaitingDecision(tenantId, {
+      limit: query.limit,
+      offset: (query.page - 1) * query.limit,
+    });
+    return {
+      items: rows.map(toPartnerProfileDto),
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total: count,
+        totalPages: Math.max(1, Math.ceil(count / query.limit)),
+      },
+    };
+  }
+
   async decide(
     tenantId: string,
     partnerId: string,

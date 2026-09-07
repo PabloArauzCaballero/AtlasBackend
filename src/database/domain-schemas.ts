@@ -61,6 +61,7 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'platform_users',
     'internal_users',
     'merchant_users',
+    'merchant_user_provisioning_requests',
     'internal_roles',
     'internal_permissions',
     'internal_role_permissions',

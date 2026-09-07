@@ -3,7 +3,7 @@
  * @business Esta pieza deja constancia de quién verificó a un comercio y cuándo, que es lo que lo hace confiable.
  * @system expone a operaciones la decisión sobre el expediente del partner.
  */
-import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -16,11 +16,11 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
 import {
+  ListPartnerQueueQueryDto,
+  listPartnerQueueQuerySchema,
   PartnerDecisionDto,
   partnerDecisionSchema,
   partnerIdParamsSchema,
-  SetMdrRateDto,
-  setMdrRateSchema,
 } from './partner-onboarding.schemas.js';
 import { toPartnerProfileDto } from './partner-onboarding.mapper.js';
 
@@ -43,6 +43,18 @@ import { toPartnerProfileDto } from './partner-onboarding.mapper.js';
 @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
 export class PartnerOperationsController {
   constructor(private readonly profiles: PartnerProfileService) {}
+
+  @ApiOperation({
+    summary: 'La cola de expedientes esperando decisión',
+    description:
+      'Expedientes en `under_review`, el más antiguo primero. Sin esto la pantalla de verificación obligaba a TECLEAR el identificador del comercio, sacado de otra vista.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Lista paginada de expedientes pendientes.' })
+  @Get('queue')
+  listQueue(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listPartnerQueueQuerySchema)) query: ListPartnerQueueQueryDto) {
+    return this.profiles.listAwaitingDecision(tenantId, query);
+  }
 
   @ApiOperation({
     summary: 'Aprobar o rechazar el expediente de un comercio',
@@ -70,22 +82,20 @@ export class PartnerOperationsController {
     return toPartnerProfileDto(profile);
   }
 
-  @ApiOperation({
-    summary: 'Fijar la comisión (MDR) del comercio',
-    description: 'Término comercial negociado en el onboarding. Se puede ajustar en cualquier estado; sólo staff interno.',
-  })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
-  @ApiBody({ schema: zodToApiSchema(setMdrRateSchema) })
-  @ApiResponse({ status: 200, description: 'Comisión actualizada.' })
-  @Patch(':partnerId/mdr-rate')
-  @HttpCode(HttpStatus.OK)
-  async setMdrRate(
-    @CurrentTenant() tenantId: string,
-    @Param('partnerId') partnerId: string,
-    @Body(new ZodValidationPipe(setMdrRateSchema)) body: SetMdrRateDto,
-  ) {
-    const profile = await this.profiles.setMdrRate(tenantId, partnerId, body.mdrRatePercent);
-    return toPartnerProfileDto(profile);
-  }
+  /*
+   * `PATCH /operations/partners/:partnerId/mdr-rate` SE RETIRÓ. No es un olvido.
+   *
+   * El MDR es un TÉRMINO COMERCIAL, y los términos comerciales son del ERP: allí viven
+   * `atlas_sales.mdr_rules` —con su regla por cuenta y por sucursal—, el `expected_mdr_rate` de la
+   * oportunidad y los términos de contrato de tipo `MDR`. Este endpoint escribía un único
+   * porcentaje plano en `partner_profiles`, así que la misma pregunta («¿qué comisión le cobramos a
+   * este comercio?») tenía dos respuestas que nadie conciliaba, y ganaba la que consultara primero
+   * quien preguntara.
+   *
+   * La verificación del expediente —lo que SÍ se queda aquí— responde otra cosa: si el comercio es
+   * quien dice ser. Negociar cuánto se le cobra no es parte de comprobarlo.
+   *
+   * `PartnerProfileService.setMdrRate` sigue existiendo para la lectura y para las semillas; lo que
+   * desaparece es la puerta HTTP que dejaba autoría comercial en la consola interna.
+   */
 }

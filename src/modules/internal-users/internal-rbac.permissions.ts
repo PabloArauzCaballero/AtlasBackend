@@ -223,8 +223,18 @@ export const INTERNAL_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
     module: 'merchant',
     resource: 'merchant_user',
     action: 'manage',
-    description: 'Dar de alta, activar, suspender y dar de baja el acceso de usuarios de comercios afiliados.',
+    description: 'Conceder o rechazar el acceso pedido por el ERP, y activar, suspender o dar de baja el de un usuario de comercio.',
     riskLevel: 'HIGH',
+  }),
+  permission({
+    code: 'merchant.users.request',
+    module: 'merchant',
+    resource: 'merchant_user',
+    action: 'request',
+    description: 'Encolar una petición de alta de identidad de comercio. Lo usa el ERP, no el portal interno.',
+    // Pedir no es conceder: separado de `manage` justamente para que el sistema que pide no pueda
+    // además aprobarse a sí mismo. Es la razón de ser de la cola.
+    riskLevel: 'MEDIUM',
   }),
   permission({
     code: 'internal.users.manage',
@@ -556,11 +566,42 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'reporting.read',
     'notifications.messages.read',
     'notifications.templates.read',
+    // Encolar el alta de un usuario de comercio. Este rol es el que el ERP ve como `OPERATIONS` /
+    // `COMMERCIAL_MANAGER` (ver `role-mapping.ts` del ERP), y es justo quien registra al usuario en
+    // el CRM. Se le da PEDIR y no CONCEDER a propósito: conceder es de `MERCHANT_OPERATIONS`, y que
+    // el mismo rol hiciera las dos cosas vaciaría de sentido la cola.
+    'merchant.users.request',
+    // Y ver la cola, para saber en qué quedó lo que pidió sin tener que preguntarlo por chat.
+    'merchant.users.read',
   ],
-  OPERATIONS_ANALYST: ['auth.internal.me.read', 'expedientes.leer', 'expedientes.escribir', 'operations.catalogs.read', 'operations.definitions.read', 'catalog.data.read'],
-  RISK_MANAGER: ['auth.internal.me.read', 'expedientes.leer', 'expedientes.escribir', 'expedientes.compartir', 'operations.riskPolicy.read', 'catalog.data.read', 'reporting.read', 'audit.events.read'],
+  OPERATIONS_ANALYST: [
+    'auth.internal.me.read',
+    'expedientes.leer',
+    'expedientes.escribir',
+    'operations.catalogs.read',
+    'operations.definitions.read',
+    'catalog.data.read',
+  ],
+  RISK_MANAGER: [
+    'auth.internal.me.read',
+    'expedientes.leer',
+    'expedientes.escribir',
+    'expedientes.compartir',
+    'operations.riskPolicy.read',
+    'catalog.data.read',
+    'reporting.read',
+    'audit.events.read',
+  ],
   RISK_ANALYST: ['auth.internal.me.read', 'expedientes.leer', 'expedientes.escribir', 'operations.riskPolicy.read', 'catalog.data.read'],
-  FRAUD_ANALYST: ['auth.internal.me.read', 'expedientes.leer', 'expedientes.escribir', 'expedientes.pii.revelar', 'operations.catalogs.read', 'catalog.data.read', 'audit.events.read'],
+  FRAUD_ANALYST: [
+    'auth.internal.me.read',
+    'expedientes.leer',
+    'expedientes.escribir',
+    'expedientes.pii.revelar',
+    'operations.catalogs.read',
+    'catalog.data.read',
+    'audit.events.read',
+  ],
   COMPLIANCE_MANAGER: [
     'auth.internal.me.read',
     'expedientes.leer',
@@ -572,8 +613,20 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'audit.events.detail',
     'reporting.read',
   ],
-  COMPLIANCE_ANALYST: ['auth.internal.me.read', 'expedientes.leer', 'governance.data.read', 'governance.policies.read', 'audit.events.read'],
-  COLLECTIONS_MANAGER: ['auth.internal.me.read', 'expedientes.leer', 'operations.catalogs.read', 'operations.definitions.read', 'reporting.read'],
+  COMPLIANCE_ANALYST: [
+    'auth.internal.me.read',
+    'expedientes.leer',
+    'governance.data.read',
+    'governance.policies.read',
+    'audit.events.read',
+  ],
+  COLLECTIONS_MANAGER: [
+    'auth.internal.me.read',
+    'expedientes.leer',
+    'operations.catalogs.read',
+    'operations.definitions.read',
+    'reporting.read',
+  ],
   COLLECTIONS_AGENT: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read'],
   FINANCE_MANAGER: ['auth.internal.me.read', 'reporting.read', 'reporting.execute', 'audit.events.read'],
   MERCHANT_OPERATIONS: [

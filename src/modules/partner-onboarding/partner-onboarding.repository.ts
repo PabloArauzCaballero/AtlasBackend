@@ -118,14 +118,35 @@ export class PartnerOnboardingRepository {
    * identificador justo después de crearlo, y al recargar la pantalla lo perdía. Sin esto, un
    * comercio no puede volver a entrar a lo suyo salvo que alguien le pase el número a mano.
    */
-  findProfilesByOwner(
-    tenantId: string,
-    ownerMerchantUserId: string,
-    options: RepositoryOptions = {},
-  ): Promise<PartnerProfileModel[]> {
+  findProfilesByOwner(tenantId: string, ownerMerchantUserId: string, options: RepositoryOptions = {}): Promise<PartnerProfileModel[]> {
     return this.profileModel.findAll({
       where: { tenantId, ownerMerchantUserId, deleted: false },
       order: [['id', 'DESC']],
+      transaction: options.transaction,
+    });
+  }
+
+  /**
+   * La cola de verificación: expedientes esperando decisión, el más antiguo primero.
+   *
+   * No existía, y su ausencia era la causa de que la pantalla de verificación pidiera TECLEAR el
+   * identificador del comercio. Eso obligaba a sacarlo de otra vista y a copiarlo a mano, así que
+   * en la práctica nadie sabía cuántos expedientes había esperando ni desde cuándo: un expediente
+   * que nadie mira se queda en `under_review` para siempre, y con él la afiliación entera.
+   *
+   * `under_review` fijo y no un parámetro: es el ÚNICO estado que admite decisión
+   * (`PartnerProfileService.decide` responde 409 en cualquier otro), y aceptar el estado desde
+   * fuera sólo serviría para llenar la cola de filas sobre las que no se puede hacer nada.
+   */
+  findProfilesAwaitingDecision(
+    tenantId: string,
+    options: { limit: number; offset: number } & RepositoryOptions,
+  ): Promise<{ rows: PartnerProfileModel[]; count: number }> {
+    return this.profileModel.findAndCountAll({
+      where: { tenantId, onboardingStatus: 'under_review', deleted: false },
+      order: [['submittedAt', 'ASC']],
+      limit: options.limit,
+      offset: options.offset,
       transaction: options.transaction,
     });
   }

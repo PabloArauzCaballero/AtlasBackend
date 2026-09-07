@@ -187,9 +187,7 @@ describe('PartnerProfileService · poder del representante', () => {
 
     await service.addLegalRepresentative('1', '10', representante());
 
-    expect(repository.createRepresentative).toHaveBeenCalledWith(
-      expect.objectContaining({ powerOfAttorneyKey: null }),
-    );
+    expect(repository.createRepresentative).toHaveBeenCalledWith(expect.objectContaining({ powerOfAttorneyKey: null }));
   });
 
   /*
@@ -199,18 +197,18 @@ describe('PartnerProfileService · poder del representante', () => {
   it('rechaza un poder que apunta al expediente de otro partner', async () => {
     const { service, repository } = build();
 
-    await expect(
-      service.addLegalRepresentative('1', '10', representante('1/partner-99/power-of-attorney/x.pdf')),
-    ).rejects.toThrow(/POWER_OF_ATTORNEY_OUTSIDE_PARTNER_SCOPE/);
+    await expect(service.addLegalRepresentative('1', '10', representante('1/partner-99/power-of-attorney/x.pdf'))).rejects.toThrow(
+      /POWER_OF_ATTORNEY_OUTSIDE_PARTNER_SCOPE/,
+    );
     expect(repository.createRepresentative).not.toHaveBeenCalled();
   });
 
   it('rechaza un poder que se declara pero no está subido', async () => {
     const { service, repository } = build(storageDouble(false));
 
-    await expect(
-      service.addLegalRepresentative('1', '10', representante('1/partner-10/power-of-attorney/x.pdf')),
-    ).rejects.toThrow(/POWER_OF_ATTORNEY_OBJECT_NOT_FOUND/);
+    await expect(service.addLegalRepresentative('1', '10', representante('1/partner-10/power-of-attorney/x.pdf'))).rejects.toThrow(
+      /POWER_OF_ATTORNEY_OBJECT_NOT_FOUND/,
+    );
     expect(repository.createRepresentative).not.toHaveBeenCalled();
   });
 
@@ -250,9 +248,7 @@ describe('PartnerQrService', () => {
       isConfigured: jest.fn(() => true),
       createUploadTicket: jest.fn(() => ({ storageKey: 'k', uploadUrl: 'u' })),
       readObjectMetadata: jest.fn(async (..._a: unknown[]) => metadata),
-      readObject: jest.fn(async (..._a: unknown[]) =>
-        metadata?.contentType === 'image/jpeg' ? qrJpeg() : qrPng(),
-      ),
+      readObject: jest.fn(async (..._a: unknown[]) => (metadata?.contentType === 'image/jpeg' ? qrJpeg() : qrPng())),
     };
     const service = new PartnerQrService(repository as never, profiles as never, storage as never, metricsDouble());
     return { service, repository, storage };
@@ -423,7 +419,9 @@ describe('PartnerCommerceService', () => {
   it('enlaza con el ERP una sucursal ya declarada', async () => {
     const update = jest.fn(async () => undefined);
     const { service } = build({
-      findBranchById: jest.fn(async (..._a: unknown[]) => ({ id: '5', branchCode: 'SC-01', erpBranchId: null, update }) as AnyRecord | null),
+      findBranchById: jest.fn(
+        async (..._a: unknown[]) => ({ id: '5', branchCode: 'SC-01', erpBranchId: null, update }) as AnyRecord | null,
+      ),
     });
 
     await service.linkBranchToErp('1', '10', '5', { erpBranchId: 'erp-9' });

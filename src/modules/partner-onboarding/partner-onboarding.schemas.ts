@@ -286,6 +286,18 @@ export const setMdrRateSchema = z
 export type SetMdrRateDto = z.infer<typeof setMdrRateSchema>;
 
 /**
+ * La consulta de la cola de verificación.
+ *
+ * Sin `status`: la cola es por definición lo que está en `under_review`, que es el único estado
+ * sobre el que `decide()` acepta trabajar. Ver `PartnerOperationsController.listQueue`.
+ */
+export const listPartnerQueueQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(25),
+});
+export type ListPartnerQueueQueryDto = z.infer<typeof listPartnerQueueQuerySchema>;
+
+/**
  * Decisión sobre el expediente de un comercio.
  *
  * Rechazar exige motivo y aprobar no: el motivo de un sí es el expediente completo que se acaba de
