@@ -36,6 +36,7 @@ export function toManualReviewWorkItem(caseModel: ManualReviewCaseModel): WorkQu
     priority: caseModel.priority,
     status: caseModel.status,
     reasonCode: caseModel.caseType,
+    decisionExecutionId: caseModel.decisionExecutionId,
     openedAt: toIsoOrNull(caseModel.openedAt),
     createdAt: caseModel.createdAtValue.toISOString(),
   };
@@ -50,6 +51,8 @@ export function toFraudWorkItem(caseModel: FraudCaseModel): WorkQueueItemDto {
     priority: caseModel.severity,
     status: caseModel.caseStatus,
     reasonCode: caseModel.patternDetected,
+    // Un caso de fraude no lo abre el Motor: no hay ejecución a la que delegarlo.
+    decisionExecutionId: null,
     openedAt: toIsoOrNull(caseModel.openedAt),
     createdAt: caseModel.createdAtValue.toISOString(),
   };

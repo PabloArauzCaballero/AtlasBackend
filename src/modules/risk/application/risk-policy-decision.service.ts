@@ -28,6 +28,14 @@ export type PolicyDecision = {
   decisionSource: RiskDecisionSource;
   /** La ejecución del motor, cuando fue él quien decidió. Ata la decisión a su versión. */
   decisionExecutionId: string | null;
+  /**
+   * El caso de revisión manual que abrió el MOTOR, si lo abrió.
+   *
+   * Con valor, Atlas no abre una segunda bandeja para el mismo cliente: la del motor manda. Es
+   * `null` en los otros dos escalones —no hay ejecución a la que colgar un caso— y también cuando
+   * el motor decidió sin pasar por un nodo de revisión manual.
+   */
+  motorAbrioCaso: string | null;
 };
 
 @Injectable()
@@ -80,6 +88,7 @@ export class RiskPolicyDecisionService {
         fromRuleset: false,
         decisionSource: 'decision_engine',
         decisionExecutionId: fromEngine.executionId,
+        motorAbrioCaso: fromEngine.manualReviewCaseCode,
       };
     }
 
@@ -92,6 +101,7 @@ export class RiskPolicyDecisionService {
         fromRuleset: false,
         decisionSource: 'heuristic_v0',
         decisionExecutionId: null,
+        motorAbrioCaso: null,
       };
     }
 
@@ -108,6 +118,7 @@ export class RiskPolicyDecisionService {
       fromRuleset: true,
       decisionSource: 'ruleset',
       decisionExecutionId: null,
+      motorAbrioCaso: null,
     };
   }
 }

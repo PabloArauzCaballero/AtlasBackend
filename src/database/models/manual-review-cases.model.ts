@@ -26,6 +26,15 @@ export class ManualReviewCaseModel extends Model {
   @Column({ field: 'fraud_case_id', type: DataType.BIGINT })
   declare fraudCaseId: string | null;
 
+  /**
+   * La ejecución del Motor que ya abrió su propio caso de revisión.
+   *
+   * Con valor, este caso está DELEGADO: la decisión se toma en el Motor y el portal no la ofrece.
+   * Sin valor, decidió la política local de Atlas y esta bandeja es la única que hay.
+   */
+  @Column({ field: 'decision_execution_id', type: DataType.STRING(64) })
+  declare decisionExecutionId: string | null;
+
   @Column({ field: 'case_type', type: DataType.STRING(80) })
   declare caseType: string | null;
 

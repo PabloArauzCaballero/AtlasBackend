@@ -312,6 +312,41 @@ describe('OperationsService', () => {
       await expect(service.decideManualReviewCase(baseInput())).rejects.toThrow(/CASE_NOT_FOUND/);
     });
 
+    /**
+     * Dos bandejas para el mismo cliente es peor que una bandeja incómoda.
+     *
+     * Cuando el Motor resolvió la evaluación, él abrió su propio caso con su expediente y su
+     * auditoría; esta fila es sólo el ancla del flujo de alta. Si además se pudiera cerrar desde
+     * aquí habría dos decisiones para la misma persona, tomadas por gente que no se ve, y ninguna
+     * respuesta a «quién aprobó». Se corta en el servicio y no en la pantalla porque una pantalla
+     * se salta con curl.
+     */
+    it('rechaza decidir un caso DELEGADO al Motor, aunque esté abierto', async () => {
+      const { service, operationsRepository } = await buildService();
+      (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce({
+        closedAt: null,
+        status: 'open',
+        customerId: null,
+        decisionExecutionId: 'exec-9182',
+      } as never);
+
+      await expect(service.decideManualReviewCase(baseInput())).rejects.toThrow(/MANUAL_REVIEW_DELEGADA_AL_MOTOR/);
+    });
+
+    it('sí deja decidir cuando la decisión salió de la política local (sin ejecución del Motor)', async () => {
+      const { service, operationsRepository } = await buildService();
+      (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce({
+        closedAt: null,
+        status: 'open',
+        customerId: null,
+        decisionExecutionId: null,
+      } as never);
+
+      const result = await service.decideManualReviewCase(baseInput({ body: { decision: 'approved', reasonCode: 'r1' } }));
+
+      expect(result.decision).toBe('approved');
+    });
+
     it('throws CASE_ALREADY_CLOSED when closedAt is set', async () => {
       const { service, operationsRepository } = await buildService();
       (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce({ closedAt: new Date(), status: 'open' } as never);

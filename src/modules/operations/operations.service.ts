@@ -167,6 +167,19 @@ export class OperationsService {
       const reviewCase = await this.operationsRepository.findManualReviewCaseById(input.tenantId, input.params.caseId);
       if (!reviewCase) throw new NotFoundException('CASE_NOT_FOUND');
       if (reviewCase.closedAt || reviewCase.status === 'closed') throw new ConflictException('CASE_ALREADY_CLOSED');
+      /*
+       * Un caso delegado NO se decide aquí.
+       *
+       * Cuando el Motor de Decisión resolvió la evaluación, él abrió su propio caso de revisión —con
+       * su expediente, su petición de información y su auditoría— y esta fila es sólo el ancla que el
+       * flujo de alta necesita. Dejar cerrarla desde el portal creaba dos decisiones para el mismo
+       * cliente, tomadas por dos personas que no se ven, y una pregunta sin respuesta después: quién
+       * aprobó. Se corta en el servicio y no sólo en la pantalla porque una pantalla se salta con
+       * curl, y esto es lo que hace que la bandeja del Motor sea la de verdad.
+       */
+      if (reviewCase.decisionExecutionId) {
+        throw new ConflictException('MANUAL_REVIEW_DELEGADA_AL_MOTOR');
+      }
       await this.operationsRepository.closeManualReviewCase(
         reviewCase,
         { resolution: input.body.decision, notes: input.body.notes ?? null, closedAt: now },

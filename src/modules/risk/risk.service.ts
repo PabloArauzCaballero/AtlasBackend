@@ -20,12 +20,14 @@ import {
   type AssessmentSubject,
 } from './application/risk-assessment-persistence.js';
 import { resolveModelIdentity } from './application/risk-model-identity.js';
+import { buildRiskExplanation } from './application/risk-explanation.js';
 import { RiskPolicyDecisionService } from './application/risk-policy-decision.service.js';
 import { toPolicyFeatures } from './application/risk-policy-features.js';
 import { buildHeuristicFallback, computeHeuristicScores, toPersistedFeatureMap } from './application/risk-heuristic-scoring.js';
 import { RiskAssessmentResultResponseDto } from './risk.dtos.js';
 import { toRiskAssessmentResultResponse } from './risk.mapper.js';
 import { RiskRepository } from './risk.repository.js';
+import { RevisionManualRepository } from './repositories/revision-manual.repository.js';
 import { CreateRiskAssessmentDto } from './risk.schemas.js';
 
 function toScore(value: number): string {
@@ -94,6 +96,9 @@ function dimensionScoreColumns(scores: ReturnType<typeof computeHeuristicScores>
 export class RiskService {
   constructor(
     private readonly riskRepository: RiskRepository,
+    // El caso de revisión y la incidencia de dato faltante viven en su propio puerto: no leen nada
+    // del modelo de riesgo, sólo abren el trabajo humano que la evaluación dejó pendiente.
+    private readonly revisionManualRepository: RevisionManualRepository,
     private readonly customersRepository: CustomersRepository,
     private readonly policyDecisionService: RiskPolicyDecisionService,
     @InjectConnection() private readonly sequelize: Sequelize,
@@ -188,6 +193,8 @@ export class RiskService {
         featureMap,
         missing,
         requestedLimitContext: input.body.requestedLimitContext,
+        decisionSource: policy.decisionSource,
+        decisionExecutionId: policy.decisionExecutionId,
         now,
         transaction,
       });
@@ -225,7 +232,7 @@ export class RiskService {
       );
 
       const manualReviewCaseId = await openManualReviewCase({
-        repository: this.riskRepository,
+        repository: this.revisionManualRepository,
         tenantId: input.tenantId,
         customerId: input.customerId,
         runId: String(run.id),
@@ -233,6 +240,8 @@ export class RiskService {
         riskLevel,
         reasons,
         missing,
+        // Sólo se delega si el Motor abrió de verdad su caso; el porqué, en `openManualReviewCase`.
+        decisionExecutionId: policy.motorAbrioCaso ? policy.decisionExecutionId : null,
         now,
         transaction,
       });
@@ -286,20 +295,8 @@ export class RiskService {
 
   async getRiskAssessmentExplanation(tenantId: string, runId: string) {
     const detail = await this.getRiskAssessmentDetail(tenantId, runId);
-    const result = detail.result;
-    if (!result) throw new NotFoundException('Resultado de riesgo no encontrado.');
-    const rules = detail.rulesFired.map((rule) => rule.reasonCode).filter((code): code is string => Boolean(code));
-    return {
-      decision: result.recommendedAction,
-      summary: rules.length > 0 ? `Decisión basada en: ${rules.join(', ')}.` : 'Evaluación registrada sin reglas explicativas adicionales.',
-      topPositiveFactors: detail.featureContributions
-        .filter((item) => Number(item.scorePoints ?? '0') >= 60)
-        .map((item) => ({ code: item.featureCode, label: item.reasonCode, impact: 'positive' })),
-      topNegativeFactors: detail.featureContributions
-        .filter((item) => Number(item.scorePoints ?? '0') < 60)
-        .map((item) => ({ code: item.featureCode, label: item.reasonCode, impact: 'negative' })),
-      rulesFired: rules,
-      recommendedAction: result.recommendedAction,
-    };
+    if (!detail.result) throw new NotFoundException('Resultado de riesgo no encontrado.');
+    // La forma la decide `risk-explanation.ts`, donde está escrito por qué la procedencia va antes.
+    return buildRiskExplanation(detail, detail.result.recommendedAction);
   }
 }

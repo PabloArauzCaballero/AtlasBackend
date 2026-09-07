@@ -13,6 +13,15 @@ export type WorkQueueItemDto = {
   priority: string | null;
   status: string | null;
   reasonCode: string | null;
+  /**
+   * La ejecución del Motor que se lleva la decisión de este caso.
+   *
+   * Con valor, la bandeja buena es la del Motor y este caso no se resuelve desde el portal: se
+   * publica para que la pantalla pueda decirlo y enlazar allí, en vez de ofrecer un formulario que
+   * el backend va a rechazar. Es `null` en los casos de fraude y en los que resolvió la política
+   * local de Atlas.
+   */
+  decisionExecutionId: string | null;
   openedAt: string | null;
   createdAt: string;
 };

@@ -33,6 +33,7 @@ import { RiskController } from './risk.controller.js';
 import { RiskPolicyDecisionService } from './application/risk-policy-decision.service.js';
 import { RiskPolicyRepository } from './repositories/risk-policy.repository.js';
 import { RiskRepository } from './risk.repository.js';
+import { RevisionManualRepository } from './repositories/revision-manual.repository.js';
 import { RiskService } from './risk.service.js';
 
 @Module({
@@ -65,7 +66,7 @@ import { RiskService } from './risk.service.js';
     DecisionEngineModule,
   ],
   controllers: [RiskController],
-  providers: [RiskRepository, RiskPolicyRepository, RiskPolicyDecisionService, RiskService],
+  providers: [RiskRepository, RevisionManualRepository, RiskPolicyRepository, RiskPolicyDecisionService, RiskService],
   exports: [RiskRepository, RiskService],
 })
 export class RiskModule {}

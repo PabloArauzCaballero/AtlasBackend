@@ -6,6 +6,7 @@
 import { Transaction } from 'sequelize';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { RiskRepository } from '../risk.repository.js';
+import type { RevisionManualRepository } from '../repositories/revision-manual.repository.js';
 import { writeFeatureEvidence } from './risk-feature-evidence.js';
 
 /** Identidad de lo que se está evaluando. Viaja completa porque cada tabla escribe un trozo distinto. */
@@ -39,6 +40,9 @@ export async function openAssessmentRun(input: {
   featureMap: FeatureMap;
   missing: string[];
   requestedLimitContext: unknown;
+  /** Procedencia de la decisión, para que la fila diga quién decidió y no sólo qué se decidió. */
+  decisionSource: string;
+  decisionExecutionId: string | null;
   now: Date;
   transaction: Transaction;
 }) {
@@ -62,6 +66,8 @@ export async function openAssessmentRun(input: {
       assessmentType: subject.assessmentType,
       triggerSource: subject.channel,
       idempotencyKey: subject.idempotencyKey,
+      decisionSource: input.decisionSource,
+      decisionExecutionId: input.decisionExecutionId,
       now,
     },
     { transaction },
@@ -144,7 +150,7 @@ export async function recordDecisionEvidence(input: {
  * tampoco se miren los que sí importan.
  */
 export async function openManualReviewCase(input: {
-  repository: RiskRepository;
+  repository: RevisionManualRepository;
   tenantId: string;
   customerId: string;
   runId: string;
@@ -152,6 +158,19 @@ export async function openManualReviewCase(input: {
   riskLevel: string;
   reasons: readonly string[];
   missing: readonly string[];
+  /**
+   * La ejecución del Motor que YA abrió allí su propio caso, si lo abrió.
+   *
+   * Con valor, este caso nace DELEGADO: el backend rechaza cerrarlo desde el portal porque la
+   * bandeja buena —con expediente, imágenes y petición de información— es la del Motor, y dos
+   * personas resolviendo el mismo caso sin verse dejan la pregunta «quién aprobó» sin respuesta.
+   *
+   * Ojo con la distinción que costó encontrarla: que el Motor DECIDA no implica que abra caso. Un
+   * rechazo suyo no pasa por un nodo de revisión manual, así que delegar por haber decidido habría
+   * cerrado la única cola posible —ésta— dejando al analista en una ejecución sin nada que atender.
+   * Por eso llega ya resuelto desde `risk.service.ts` y no se deduce del `decisionSource`.
+   */
+  decisionExecutionId: string | null;
   now: Date;
   transaction: Transaction;
 }): Promise<string | null> {
@@ -165,6 +184,8 @@ export async function openManualReviewCase(input: {
       riskAssessmentRunId: runId,
       priority: input.riskLevel === 'high' ? 'high' : 'medium',
       caseType: 'risk_assessment_review',
+      // El caso se abre igual: es el ancla que el flujo de alta lleva en `manualReviewCaseId`.
+      decisionExecutionId: input.decisionExecutionId,
       notes: `Revisión requerida: ${input.reasons.join(', ')}`,
       now,
     },

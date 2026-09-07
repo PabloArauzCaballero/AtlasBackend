@@ -59,6 +59,20 @@ export class RiskAssessmentRunModel extends Model {
   @Column({ field: 'completed_at', type: DataType.DATE })
   declare completedAt: Date | null;
 
+  /**
+   * De qué escalón salió la decisión: `decision_engine`, `ruleset` o `heuristic_v0`.
+   *
+   * `null` en las evaluaciones anteriores a que se registrara la procedencia: no se rellenó con un
+   * valor plausible porque nadie observó cuál fue, y una pantalla que dice «lo decidió el heurístico»
+   * sobre una fila que no lo sabe es peor que una que dice que no consta.
+   */
+  @Column({ field: 'decision_source', type: DataType.STRING(40) })
+  declare decisionSource: string | null;
+
+  /** La ejecución del Motor que decidió. Es lo único que ata esta evaluación a su explicación real. */
+  @Column({ field: 'decision_execution_id', type: DataType.STRING(64) })
+  declare decisionExecutionId: string | null;
+
   @Column({ field: 'latency_ms', type: DataType.INTEGER })
   declare latencyMs: number | null;
 

@@ -53,6 +53,32 @@ describe('RiskPolicyDecisionService', () => {
       executionId: '88001',
     };
 
+    /**
+     * Que el motor DECIDA y que el motor ABRA CASO son dos cosas distintas.
+     *
+     * Un rechazo lo resuelve el motor sin pasar por un nodo de revisión manual: no hay bandeja allí.
+     * Si Atlas se apartara sólo por haber decidido el motor, cerraría su propia cola —la única
+     * posible— y el analista acabaría en una ejecución sin nada que atender. Por eso la delegación
+     * viaja en su propio campo y no se deduce de `decisionExecutionId`.
+     */
+    it('propaga el caso del motor cuando lo abrió', async () => {
+      const { service } = build(null, { ...engineDecision, manualReviewCaseCode: 'MR-0000088001' });
+
+      const decision = await service.resolve(input);
+
+      expect(decision.motorAbrioCaso).toBe('MR-0000088001');
+      expect(decision.decisionExecutionId).toBe('88001');
+    });
+
+    it('sin caso en el motor no hay nada que delegar, aunque él decidiera', async () => {
+      const { service } = build(null, { ...engineDecision, manualReviewCaseCode: null });
+
+      const decision = await service.resolve(input);
+
+      expect(decision.motorAbrioCaso).toBeNull();
+      expect(decision.decisionSource).toBe('decision_engine');
+    });
+
     it('manda el motor: ni siquiera se consulta el ruleset local', async () => {
       const { service, policyRepository } = build({ rules: [{}] }, engineDecision);
 

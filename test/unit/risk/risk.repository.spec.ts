@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { RiskRepository } from '../../../src/modules/risk/risk.repository.js';
+import { RevisionManualRepository } from '../../../src/modules/risk/repositories/revision-manual.repository.js';
 
 /**
  * Cobertura directa de `RiskRepository` (Fase 1.2 del plan 10/10). `risk` es un dominio crítico con
@@ -41,17 +42,16 @@ describe('RiskRepository', () => {
       models.featureValue as never,
       models.featureLineageLink as never,
       models.featureSnapshot as never,
-      models.manualReviewCase as never,
       models.fraudCase as never,
       models.watchlistMatch as never,
-      models.dataQualityIssue as never,
       models.dataChangeLog as never,
       models.operationalAuditLog as never,
       models.consent as never,
       models.contactMethod as never,
       models.identityDocument as never,
     );
-    return { repo, models };
+    const revision = new RevisionManualRepository(models.manualReviewCase as never, models.dataQualityIssue as never);
+    return { repo, revision, models };
   }
 
   it('findLatestCustomerRiskResult toma el resultado más reciente (decidedAt DESC, id DESC como desempate)', async () => {
@@ -270,7 +270,7 @@ describe('RiskRepository', () => {
     });
 
     it('createRiskResult / ManualReviewCase / DataQualityIssue / Audit mapean sus constantes', async () => {
-      const { repo, models } = buildRepo();
+      const { repo, revision, models } = buildRepo();
       await repo.createRiskResult(
         {
           tenantId: 't1',
@@ -304,13 +304,13 @@ describe('RiskRepository', () => {
         recommendedAction: 'approve',
       });
 
-      await repo.createManualReviewCase(
-        { tenantId: 't1', customerId: 'c1', riskAssessmentRunId: 'run1', priority: 'high', caseType: 'risk', notes: 'n', now } as never,
+      await revision.createManualReviewCase(
+        { tenantId: 't1', customerId: 'c1', riskAssessmentRunId: 'run1', priority: 'high', caseType: 'risk', notes: 'n', decisionExecutionId: null, now } as never,
         opts,
       );
       expect(firstArg(models.manualReviewCase)).toMatchObject({ status: 'open', caseType: 'risk', notes: 'n', deleted: false });
 
-      await repo.createDataQualityIssue({ tenantId: 't1', targetRecordId: 'c1', issueCode: 'open', now } as never, opts);
+      await revision.createDataQualityIssue({ tenantId: 't1', targetRecordId: 'c1', issueCode: 'open', now } as never, opts);
       expect(firstArg(models.dataQualityIssue)).toMatchObject({ targetTable: 'customers', targetRecordId: 'c1', issueStatus: 'open' });
 
       await repo.createAudit(

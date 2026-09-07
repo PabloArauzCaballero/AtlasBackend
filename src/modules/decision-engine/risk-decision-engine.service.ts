@@ -19,6 +19,14 @@ export type RiskEngineDecision = {
   reasons: string[];
   artifactVersionId: string | null;
   executionId: string;
+  /**
+   * El caso de revisión manual que el motor abrió, si abrió alguno.
+   *
+   * Es lo que permite a Atlas apartarse: con caso en el motor, la bandeja buena es la suya y este
+   * lado no debe ofrecer un segundo formulario. Sin caso —un rechazo, por ejemplo— la cola de
+   * Atlas es la única que hay y tiene que seguir funcionando.
+   */
+  manualReviewCaseCode: string | null;
 };
 
 @Injectable()
@@ -74,6 +82,7 @@ export class RiskDecisionEngineService {
         reasons: reasons.length > 0 ? reasons : [`engine_outcome_${outcome.toLowerCase() || 'unknown'}`],
         artifactVersionId: response.artifact?.versionId ?? null,
         executionId: response.executionId,
+        manualReviewCaseCode: response.manualReview?.caseCode ?? null,
       };
     } catch (error) {
       this.logger.warn(`El motor no pudo evaluar el riesgo de onboarding; se usa la política local: ${(error as Error).message}`);

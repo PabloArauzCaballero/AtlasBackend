@@ -62,6 +62,25 @@ export const decisionResponseSchema = z
       })
       .passthrough()
       .nullish(),
+    /*
+     * El caso de revisión manual que el motor ABRIÓ, si abrió alguno.
+     *
+     * Lo que decide si Atlas se aparta o no. Sin este campo había que adivinarlo por el desenlace, y
+     * la adivinanza se equivoca en la dirección peor: un `REJECT` no abre caso en el motor, así que
+     * apartarse ante cualquier desenlace que no fuera «sigue adelante» dejaba al analista mirando
+     * una ejecución sin bandeja mientras la única cola posible —la de Atlas— se había cerrado.
+     *
+     * `nullish` y no obligatorio porque un motor anterior a este contrato no lo manda: en ese caso
+     * no se delega, que es el comportamiento de siempre y el que no pierde casos.
+     */
+    manualReview: z
+      .object({
+        caseCode: z.string().nullish(),
+        queueCode: z.string().nullish(),
+        priority: z.number().nullish(),
+      })
+      .passthrough()
+      .nullish(),
   })
   .passthrough();
 
