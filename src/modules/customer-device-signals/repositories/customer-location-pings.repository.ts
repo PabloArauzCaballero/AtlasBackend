@@ -6,10 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction } from 'sequelize';
-import {
-  AddressGpsObservationModel,
-  CustomerLocationPingModel,
-} from '../../../database/models/index.js';
+import { AddressGpsObservationModel, CustomerLocationPingModel } from '../../../database/models/index.js';
 
 export type PingRow = {
   tenantId: string;
@@ -48,10 +45,7 @@ export class CustomerLocationPingsRepository {
    * Sin esto, el reintento reventaría contra el índice único y perdería también las posiciones
    * nuevas que venían en el mismo lote.
    */
-  async bulkInsertIgnoringDuplicates(
-    rows: readonly PingRow[],
-    options: { transaction?: Transaction } = {},
-  ): Promise<number> {
+  async bulkInsertIgnoringDuplicates(rows: readonly PingRow[], options: { transaction?: Transaction } = {}): Promise<number> {
     if (rows.length === 0) return 0;
     const created = await this.pingModel.bulkCreate(
       rows.map((row) => ({ ...row, createdAtValue: row.receivedAt })),

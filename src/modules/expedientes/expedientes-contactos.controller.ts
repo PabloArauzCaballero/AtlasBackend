@@ -11,12 +11,7 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { ContactosService } from './application/contactos.service.js';
 import { ExpedienteService } from './application/expediente.service.js';
 import { ExpedienteAccesoGuard, NivelRequerido, type RequestConExpediente } from './guards/expediente-acceso.guard.js';
-import {
-  contactosQuerySchema,
-  expedienteParamsSchema,
-  type ContactosQueryDto,
-  type ExpedienteParamsDto,
-} from './expedientes.schemas.js';
+import { contactosQuerySchema, expedienteParamsSchema, type ContactosQueryDto, type ExpedienteParamsDto } from './expedientes.schemas.js';
 
 /**
  * Los contactos, en su propio controlador.

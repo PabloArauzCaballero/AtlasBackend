@@ -40,17 +40,11 @@ export class EngineAudioClient {
    * esta misma voz, la ejecución terminará sirviendo lo que había. Por eso el estado se consulta
    * después en vez de asumir que hay que esperar.
    */
-  async enqueue(
-    tenantId: string,
-    templateCode: string,
-    variables: Record<string, string>,
-  ): Promise<{ requestId: string; status: string }> {
-    const cuerpo = await this.json<{ requestId?: string; status?: string }>(
-      'POST',
-      tenantId,
-      '/v1/workers/audio-tts/runs',
-      { templateCode, variables },
-    );
+  async enqueue(tenantId: string, templateCode: string, variables: Record<string, string>): Promise<{ requestId: string; status: string }> {
+    const cuerpo = await this.json<{ requestId?: string; status?: string }>('POST', tenantId, '/v1/workers/audio-tts/runs', {
+      templateCode,
+      variables,
+    });
     if (!cuerpo?.requestId) throw new Error('El motor aceptó la locución sin devolver requestId.');
     return { requestId: cuerpo.requestId, status: String(cuerpo.status ?? 'QUEUED') };
   }

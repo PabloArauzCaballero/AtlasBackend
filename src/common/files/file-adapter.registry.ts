@@ -48,7 +48,9 @@ export class FileAdapterRegistry implements OnModuleInit {
             '(o sus equivalentes FILE_STORAGE_MINIO_*). Si de verdad querías el disco del contenedor —que se pierde en ' +
             'cada despliegue— escribe FILE_STORAGE_ADAPTER=local de forma explícita.'
           : 'Revisa las variables FILE_STORAGE_LOCAL_* en tu entorno.';
-      throw new Error(`El adaptador de almacenamiento de archivos "${storage.name}" está seleccionado pero le falta configuración. ${hint}`);
+      throw new Error(
+        `El adaptador de almacenamiento de archivos "${storage.name}" está seleccionado pero le falta configuración. ${hint}`,
+      );
     }
 
     const unverifiable = this.config.getUnverifiableMimeTypes();

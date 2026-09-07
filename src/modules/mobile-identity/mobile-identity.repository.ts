@@ -83,10 +83,7 @@ export class MobileIdentityRepository {
    * Se excluye el canal móvil a propósito: los intentos móviles son los que crea
    * ESTE servicio, y leer uno de ellos sería leerse a sí mismo.
    */
-  findLatestOnboardingAttempt(
-    tenantId: string,
-    customerId: string,
-  ): Promise<IdentityVerificationAttemptModel | null> {
+  findLatestOnboardingAttempt(tenantId: string, customerId: string): Promise<IdentityVerificationAttemptModel | null> {
     return this.attemptModel.findOne({
       where: {
         tenantId,

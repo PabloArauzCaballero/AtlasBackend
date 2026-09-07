@@ -7,11 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { CreationAttributes, Op, QueryTypes, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import {
-  SupportAttachmentModel,
-  SupportMessageModel,
-  SupportMessageRelationModel,
-} from '../../database/models/index.js';
+import { SupportAttachmentModel, SupportMessageModel, SupportMessageRelationModel } from '../../database/models/index.js';
 import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { contentHashOf, messageIntegrityHash, verifyChain, type ChainVerification } from './domain/support-hash-chain.js';
 
@@ -132,10 +128,11 @@ export class SupportMessageRepository {
       { transaction },
     );
 
-    await this.sequelize.query(
-      `UPDATE ${CHANNELS} SET last_message_hash = :hash WHERE _tenant_id = :tenantId AND _id = :channelId;`,
-      { replacements: { hash: integrityHash, tenantId: input.tenantId, channelId: input.channelId }, type: QueryTypes.UPDATE, transaction },
-    );
+    await this.sequelize.query(`UPDATE ${CHANNELS} SET last_message_hash = :hash WHERE _tenant_id = :tenantId AND _id = :channelId;`, {
+      replacements: { hash: integrityHash, tenantId: input.tenantId, channelId: input.channelId },
+      type: QueryTypes.UPDATE,
+      transaction,
+    });
 
     return { message, created: true };
   }

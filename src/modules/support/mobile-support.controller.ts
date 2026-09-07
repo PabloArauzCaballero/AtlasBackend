@@ -31,7 +31,12 @@ import {
   type ReopenCaseDto,
   reopenCaseSchema,
 } from './support-case.schemas.js';
-import { type KnowledgeFeedbackDto, knowledgeFeedbackSchema, type KnowledgeSearchDto, knowledgeSearchSchema } from './support-knowledge.schemas.js';
+import {
+  type KnowledgeFeedbackDto,
+  knowledgeFeedbackSchema,
+  type KnowledgeSearchDto,
+  knowledgeSearchSchema,
+} from './support-knowledge.schemas.js';
 
 /**
  * El centro de ayuda del cliente.

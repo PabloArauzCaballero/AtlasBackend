@@ -28,10 +28,7 @@ export type ContactRowContext = {
  * —el móvil sobre el fijo, por ejemplo— daría un primario distinto según el país y rompería la
  * comparación entre expedientes.
  */
-export async function toContactRow(
-  contacto: DeviceContactDto,
-  contexto: ContactRowContext,
-): Promise<ContactRow> {
+export async function toContactRow(contacto: DeviceContactDto, contexto: ContactRowContext): Promise<ContactRow> {
   const numeros = contacto.phones
     .map((telefono) => ({ ...telefono, normalized: normalizePhoneForHash(telefono.number) }))
     .filter((telefono): telefono is typeof telefono & { normalized: string } => telefono.normalized !== null);

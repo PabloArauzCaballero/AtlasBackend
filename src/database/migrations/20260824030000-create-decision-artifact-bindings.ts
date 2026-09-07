@@ -58,9 +58,7 @@ CREATE TABLE IF NOT EXISTS ${TABLE} (
   CONSTRAINT uq_decision_artifact_binding UNIQUE (_tenant_id, decision_type)
 );`);
 
-  await queryInterface.sequelize.query(
-    `CREATE INDEX IF NOT EXISTS idx_decision_artifact_bindings__tenant_id ON ${TABLE} (_tenant_id);`,
-  );
+  await queryInterface.sequelize.query(`CREATE INDEX IF NOT EXISTS idx_decision_artifact_bindings__tenant_id ON ${TABLE} (_tenant_id);`);
 }
 
 export async function down({ context: queryInterface }: MigrationContext): Promise<void> {

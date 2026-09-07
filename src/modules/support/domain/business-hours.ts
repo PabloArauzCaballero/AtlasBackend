@@ -100,10 +100,13 @@ function isWorkingDay(parts: ZonedParts, calendar: BusinessCalendar): boolean {
 function addDays(parts: ZonedParts, days: number, timeZone: string): ZonedParts {
   const base = Date.UTC(parts.year, parts.month - 1, parts.day, 12, 0, 0) + days * 86_400_000;
   const moved = new Date(base);
-  return zonedParts(fromZonedWallClock(
-    { year: moved.getUTCFullYear(), month: moved.getUTCMonth() + 1, day: moved.getUTCDate(), minuteOfDay: 12 * 60 },
+  return zonedParts(
+    fromZonedWallClock(
+      { year: moved.getUTCFullYear(), month: moved.getUTCMonth() + 1, day: moved.getUTCDate(), minuteOfDay: 12 * 60 },
+      timeZone,
+    ),
     timeZone,
-  ), timeZone);
+  );
 }
 
 /**

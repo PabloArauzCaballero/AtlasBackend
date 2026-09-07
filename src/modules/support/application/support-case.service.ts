@@ -222,12 +222,9 @@ export class SupportCaseService {
     const queue = category.defaultQueueId
       ? await this.catalog.findQueueById(input.tenantId, String(category.defaultQueueId), { transaction: input.transaction })
       : null;
-    const policy = await this.catalog.findActiveSlaPolicy(
-      input.tenantId,
-      queue?.slaPolicyCode ?? DEFAULT_SLA_POLICY_CODE,
-      priority,
-      { transaction: input.transaction },
-    );
+    const policy = await this.catalog.findActiveSlaPolicy(input.tenantId, queue?.slaPolicyCode ?? DEFAULT_SLA_POLICY_CODE, priority, {
+      transaction: input.transaction,
+    });
 
     const supportCase = await this.factory.insertCase(
       { input: caseInput, subject, category, queue, policy, caseType, impact, urgency, priority },

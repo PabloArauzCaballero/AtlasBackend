@@ -65,10 +65,7 @@ export class DecisionArtifactBindingController {
   @Get()
   async list(@Headers('x-tenant-id') tenantIdHeader: string | undefined) {
     const tenantId = tenantIdFromHeader(tenantIdHeader);
-    const [bindings, available] = await Promise.all([
-      this.bindings.list(tenantId),
-      this.bindings.availableArtifacts(),
-    ]);
+    const [bindings, available] = await Promise.all([this.bindings.list(tenantId), this.bindings.availableArtifacts()]);
     return { bindings, availableArtifacts: available };
   }
 

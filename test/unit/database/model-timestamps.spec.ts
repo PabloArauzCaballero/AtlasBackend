@@ -71,11 +71,7 @@ describe('modelos: marcas de tiempo', () => {
   it('una tabla sin columna updated_at apaga esa marca en lugar de inventarla', () => {
     // `expediente_actividad` es append-only por disparador: un UPDATE del ORM la haría fallar, y
     // las otras dos ni siquiera tienen la columna.
-    for (const name of [
-      'expediente-concesiones.model.ts',
-      'expediente-actividad.model.ts',
-      'expediente-tickets-subida.model.ts',
-    ]) {
+    for (const name of ['expediente-concesiones.model.ts', 'expediente-actividad.model.ts', 'expediente-tickets-subida.model.ts']) {
       const source = readFileSync(path.join(MODELS_DIR, name), 'utf8');
       expect(source).not.toMatch(/field: 'updated_at'/);
       expect(source).toMatch(/updatedAt: false/);

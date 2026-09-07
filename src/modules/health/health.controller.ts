@@ -173,10 +173,9 @@ export class HealthController {
        * No se filtra nada sensible: son nombres de dependencia y un estado, sin host, usuario ni
        * cadena de conexión — la misma regla que sigue `/health/data-sources`.
        */
-      const caidas = [
-        postgres !== 'ok' ? `postgres=${postgres}` : null,
-        redis === 'unreachable' ? 'redis=unreachable' : null,
-      ].filter((x): x is string => x !== null);
+      const caidas = [postgres !== 'ok' ? `postgres=${postgres}` : null, redis === 'unreachable' ? 'redis=unreachable' : null].filter(
+        (x): x is string => x !== null,
+      );
       throw new ServiceUnavailableException({
         ...body,
         message: shuttingDown

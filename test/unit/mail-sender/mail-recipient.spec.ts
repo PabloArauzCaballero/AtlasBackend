@@ -12,13 +12,7 @@ import { resolveProductName } from '../../../src/modules/mail-sender/mail-produc
  */
 describe('destinatarios de correo', () => {
   it('rechaza los dominios reservados que nunca van a resolver', () => {
-    for (const address of [
-      'pablo@atlas.internal',
-      'ana@atlas.test',
-      'x@atlas.local',
-      'y@algo.invalid',
-      'z@cualquiera.example',
-    ]) {
+    for (const address of ['pablo@atlas.internal', 'ana@atlas.test', 'x@atlas.local', 'y@algo.invalid', 'z@cualquiera.example']) {
       expect(isDeliverableAddress(address)).toBe(false);
     }
   });

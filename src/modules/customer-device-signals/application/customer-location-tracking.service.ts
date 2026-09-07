@@ -34,11 +34,9 @@ export function haversineMeters(a: { lat: number; lng: number }, b: { lat: numbe
   const radianes = (grados: number): number => (grados * Math.PI) / 180;
   const dLat = radianes(b.lat - a.lat);
   const dLng = radianes(b.lng - a.lng);
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(radianes(a.lat)) * Math.cos(radianes(b.lat)) * Math.sin(dLng / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(radianes(a.lat)) * Math.cos(radianes(b.lat)) * Math.sin(dLng / 2) ** 2;
   return 2 * RADIO_TERRESTRE_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
-
 
 /** Un decimal fijo, o nulo. PostgreSQL guarda NUMERIC como texto y Sequelize lo devuelve así. */
 function decimal(valor: number | null | undefined, digitos: number): string | null {
@@ -77,13 +75,8 @@ function toRow(
     isMocked: ping.isMocked,
     // El sistema lo entrega de 0 a 1; se guarda como porcentaje para que la columna se lea sin
     // tener que recordar la escala.
-    batteryLevel: decimal(
-      ping.batteryLevel === null || ping.batteryLevel === undefined ? null : ping.batteryLevel * 100,
-      2,
-    ),
-    distanceToDeclaredMeters: referencia
-      ? haversineMeters(referencia, { lat: ping.lat, lng: ping.lng }).toFixed(2)
-      : null,
+    batteryLevel: decimal(ping.batteryLevel === null || ping.batteryLevel === undefined ? null : ping.batteryLevel * 100, 2),
+    distanceToDeclaredMeters: referencia ? haversineMeters(referencia, { lat: ping.lat, lng: ping.lng }).toFixed(2) : null,
     capturedAt: new Date(ping.capturedAt),
     receivedAt: now,
   };

@@ -24,9 +24,7 @@ const TABLE = `${atlasSchemaFor('credit_applications')}.credit_applications`;
  * sigue apuntando a dónde ocurrió el cobro, que es lo correcto para un histórico.
  */
 export async function up({ context: queryInterface }: MigrationContext): Promise<void> {
-  await queryInterface.sequelize.query(
-    `ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS pos_terminal_id BIGINT NULL`,
-  );
+  await queryInterface.sequelize.query(`ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS pos_terminal_id BIGINT NULL`);
 }
 
 export async function down({ context: queryInterface }: MigrationContext): Promise<void> {

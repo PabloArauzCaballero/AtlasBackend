@@ -92,7 +92,10 @@ describe('MailSenderService', () => {
     const { service, client } = build();
     await service.sendLoginPin({ to: 'a@x.com', recipientName: null, pin: '999', ttlMinutes: 5, reference: 'r' });
     expect(client.sendTemplateEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ template: 'atlas-login-pin', variables: { producto: 'Plataforma corporativa', nombre: 'Usuario ATLAS', pin: '999', minutos: '5' } }),
+      expect.objectContaining({
+        template: 'atlas-login-pin',
+        variables: { producto: 'Plataforma corporativa', nombre: 'Usuario ATLAS', pin: '999', minutos: '5' },
+      }),
     );
   });
 

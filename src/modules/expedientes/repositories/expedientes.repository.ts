@@ -6,11 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction } from 'sequelize';
-import {
-  ExpedienteActividadModel,
-  ExpedienteModel,
-  ExpedienteNodoModel,
-} from '../../../database/models/index.js';
+import { ExpedienteActividadModel, ExpedienteModel, ExpedienteNodoModel } from '../../../database/models/index.js';
 import type { AccionActividad, EstadoExpediente } from '../expedientes.types.js';
 
 /**

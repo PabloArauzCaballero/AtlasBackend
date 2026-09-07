@@ -76,15 +76,17 @@ export class CustomerAddressBookService {
      * este momento.
      */
     const integrityHash = createHash('sha256')
-      .update([
-        input.customerId,
-        input.body.deviceId,
-        input.body.algorithmVersion,
-        input.body.capturedAt,
-        input.body.accessScope,
-        input.body.totalContactsInDevice,
-        input.body.contacts.length,
-      ].join('|'))
+      .update(
+        [
+          input.customerId,
+          input.body.deviceId,
+          input.body.algorithmVersion,
+          input.body.capturedAt,
+          input.body.accessScope,
+          input.body.totalContactsInDevice,
+          input.body.contacts.length,
+        ].join('|'),
+      )
       .digest('hex');
 
     // Cifrar es asíncrono y toca al proveedor de llaves; se hace ANTES de abrir la transacción para
@@ -141,7 +143,6 @@ export class CustomerAddressBookService {
       receivedAt: now.toISOString(),
     };
   }
-
 
   /**
    * Borra la agenda guardada de este cliente.

@@ -112,10 +112,7 @@ export class PartnerOnboardingController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Expedientes del comercio que hace la llamada.' })
   @Get('mine')
-  async mine(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
+  async mine(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
     const tenantId = tenantIdFromHeader(tenantIdHeader);
     /*
      * Va ANTES de `:partnerId/status` a proposito: Nest resuelve por orden de declaracion y

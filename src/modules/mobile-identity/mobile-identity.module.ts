@@ -30,11 +30,7 @@ import { MobileIdentityService } from './mobile-identity.service.js';
    * agenda de este cliente», y basta con que se separen una vez para que la
    * política decida sobre números que nadie escribió.
    */
-  imports: [
-    SequelizeModule.forFeature([IdentityVerificationAttemptModel]),
-    DecisionEngineModule,
-    CustomerOnboardingModule,
-  ],
+  imports: [SequelizeModule.forFeature([IdentityVerificationAttemptModel]), DecisionEngineModule, CustomerOnboardingModule],
   controllers: [MobileIdentityController],
   providers: [MobileIdentityRepository, MobileIdentityService],
   exports: [MobileIdentityService],

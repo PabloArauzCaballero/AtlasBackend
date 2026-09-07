@@ -95,9 +95,7 @@ export class MobileIdentityService {
      * propio. Para un cliente, lo que diga el cuerpo se ignora.
      */
     const customerId =
-      currentUser?.role === 'customer'
-        ? (currentUser.customerId ?? null)
-        : (body.customerId ?? currentUser?.customerId ?? null);
+      currentUser?.role === 'customer' ? (currentUser.customerId ?? null) : (body.customerId ?? currentUser?.customerId ?? null);
 
     const attempt = await this.repository.createPending(tenantId, customerId);
     const verificationId = String(attempt.id);
@@ -169,10 +167,7 @@ export class MobileIdentityService {
        * confirmación explícita del registro, así que una lectura fallida no
        * puede aprobar a nadie: manda el caso a una persona.
        */
-      const [segip, agenda] = await Promise.all([
-        this.estadoDelRegistroEstatal(tenantId, customerId),
-        this.agendaDe(tenantId, customerId),
-      ]);
+      const [segip, agenda] = await Promise.all([this.estadoDelRegistroEstatal(tenantId, customerId), this.agendaDe(tenantId, customerId)]);
 
       /*
        * El artefacto sale de la ASIGNACIÓN, no del entorno.
@@ -229,8 +224,7 @@ export class MobileIdentityService {
          * riesgo de fraude es lo que un analista necesita ver junto al parecido
          * para decidir, y es lo que ordena la bandeja por gravedad.
          */
-        documentForensicsScore:
-          decimal(salida.identidad_riesgo_fraude) ?? decimal(salida.identidad_evidencia_documento),
+        documentForensicsScore: decimal(salida.identidad_riesgo_fraude) ?? decimal(salida.identidad_evidencia_documento),
         completedAt: new Date(),
       });
     } catch (error: unknown) {
@@ -262,10 +256,7 @@ export class MobileIdentityService {
    * distinguen, porque quien abra el caso necesita saber si preguntar otra vez
    * sirve de algo.
    */
-  private async estadoDelRegistroEstatal(
-    tenantId: string,
-    customerId: string | null,
-  ): Promise<{ estado: string; coincidencia: number }> {
+  private async estadoDelRegistroEstatal(tenantId: string, customerId: string | null): Promise<{ estado: string; coincidencia: number }> {
     if (!customerId) return { estado: 'NO_CONSULTADO', coincidencia: 0 };
     try {
       const intento = await this.repository.findLatestOnboardingAttempt(tenantId, customerId);

@@ -105,10 +105,7 @@ export class ExpedientesConcesionesController {
   @ApiOperation({ summary: 'Todas las personas internas que pueden ver este nodo' })
   @ApiOkResponse({ description: 'Espectadores por rol y por concesión, con su nivel efectivo.' })
   @NivelRequerido('leer')
-  async listarVisibilidad(
-    @CurrentTenant() tenantId: string,
-    @Param(new ZodValidationPipe(nodoParamsSchema)) params: NodoParamsDto,
-  ) {
+  async listarVisibilidad(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(nodoParamsSchema)) params: NodoParamsDto) {
     const nodo = await this.nodos.obtenerNodo(tenantId, params.id, params.nodoId);
     return this.visibilidad.quienLoVe({ tenantId, expedienteId: params.id, nodoId: nodo.id, ruta: nodo.ruta });
   }
@@ -117,10 +114,7 @@ export class ExpedientesConcesionesController {
   @ApiOperation({ summary: 'Quién tiene acceso a este nodo, y de dónde le viene' })
   @ApiOkResponse({ description: 'Concesiones directas y heredadas, con el nodo de origen.' })
   @NivelRequerido('leer')
-  async listarConcesiones(
-    @CurrentTenant() tenantId: string,
-    @Param(new ZodValidationPipe(nodoParamsSchema)) params: NodoParamsDto,
-  ) {
+  async listarConcesiones(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(nodoParamsSchema)) params: NodoParamsDto) {
     const nodo = await this.nodos.obtenerNodo(tenantId, params.id, params.nodoId);
     return this.concesiones.listar(tenantId, params.id, nodo.id, nodo.ruta);
   }

@@ -14,8 +14,7 @@ jest.mock('../../../src/common/utils/crypto/envelope-encryption.util.js', () => 
 }));
 
 /** Se importa DENTRO de cada prueba: el mock del cifrado tiene que estar puesto antes de cargarlo. */
-const cargar = async () =>
-  (await import('../../../src/modules/customer-device-signals/application/device-contact-row.js')).toContactRow;
+const cargar = async () => (await import('../../../src/modules/customer-device-signals/application/device-contact-row.js')).toContactRow;
 
 const contexto = {
   tenantId: '1',
@@ -66,11 +65,37 @@ describe('toContactRow', () => {
     */
     const toContactRow = await cargar();
     const conPrefijo = await toContactRow(
-      { externalId: 'a', phones: [{ label: null, number: '+591 7650-0122' }], emails: [], addresses: [], displayName: 'X', givenName: null, familyName: null, company: null, jobTitle: null, birthday: null, contactType: 'person', isFavorite: false },
+      {
+        externalId: 'a',
+        phones: [{ label: null, number: '+591 7650-0122' }],
+        emails: [],
+        addresses: [],
+        displayName: 'X',
+        givenName: null,
+        familyName: null,
+        company: null,
+        jobTitle: null,
+        birthday: null,
+        contactType: 'person',
+        isFavorite: false,
+      },
       contexto,
     );
     const sinPrefijo = await toContactRow(
-      { externalId: 'b', phones: [{ label: null, number: '76500122' }], emails: [], addresses: [], displayName: 'X', givenName: null, familyName: null, company: null, jobTitle: null, birthday: null, contactType: 'person', isFavorite: false },
+      {
+        externalId: 'b',
+        phones: [{ label: null, number: '76500122' }],
+        emails: [],
+        addresses: [],
+        displayName: 'X',
+        givenName: null,
+        familyName: null,
+        company: null,
+        jobTitle: null,
+        birthday: null,
+        contactType: 'person',
+        isFavorite: false,
+      },
       contexto,
     );
     expect(conPrefijo.primaryPhoneHash).toBe(sinPrefijo.primaryPhoneHash);
@@ -83,7 +108,23 @@ describe('toContactRow', () => {
     // contra la restricción con una ficha que trae una extensión de tres dígitos.
     const toContactRow = await cargar();
     const fila = await toContactRow(
-      { externalId: 'c', phones: [{ label: null, number: '123' }, { label: null, number: '76500122' }], emails: [], addresses: [], displayName: 'X', givenName: null, familyName: null, company: null, jobTitle: null, birthday: null, contactType: 'person', isFavorite: false },
+      {
+        externalId: 'c',
+        phones: [
+          { label: null, number: '123' },
+          { label: null, number: '76500122' },
+        ],
+        emails: [],
+        addresses: [],
+        displayName: 'X',
+        givenName: null,
+        familyName: null,
+        company: null,
+        jobTitle: null,
+        birthday: null,
+        contactType: 'person',
+        isFavorite: false,
+      },
       contexto,
     );
     expect(fila.phoneCount).toBe(fila.phoneHashes.length);
@@ -93,7 +134,23 @@ describe('toContactRow', () => {
   it('deduplica y ordena los hashes, para que resincronizar no parezca un cambio', async () => {
     const toContactRow = await cargar();
     const fila = await toContactRow(
-      { externalId: 'd', phones: [{ label: 'casa', number: '76500122' }, { label: 'móvil', number: '+591 76500122' }], emails: [], addresses: [], displayName: 'X', givenName: null, familyName: null, company: null, jobTitle: null, birthday: null, contactType: 'person', isFavorite: false },
+      {
+        externalId: 'd',
+        phones: [
+          { label: 'casa', number: '76500122' },
+          { label: 'móvil', number: '+591 76500122' },
+        ],
+        emails: [],
+        addresses: [],
+        displayName: 'X',
+        givenName: null,
+        familyName: null,
+        company: null,
+        jobTitle: null,
+        birthday: null,
+        contactType: 'person',
+        isFavorite: false,
+      },
       contexto,
     );
     expect(fila.phoneHashes).toHaveLength(1);
@@ -102,7 +159,20 @@ describe('toContactRow', () => {
   it('no cifra nada cuando el campo viene vacío, en vez de guardar un sobre con la cadena vacía', async () => {
     const toContactRow = await cargar();
     const fila = await toContactRow(
-      { externalId: 'e', phones: [], emails: [], addresses: [], displayName: null, givenName: null, familyName: null, company: null, jobTitle: null, birthday: null, contactType: 'unknown', isFavorite: false },
+      {
+        externalId: 'e',
+        phones: [],
+        emails: [],
+        addresses: [],
+        displayName: null,
+        givenName: null,
+        familyName: null,
+        company: null,
+        jobTitle: null,
+        birthday: null,
+        contactType: 'unknown',
+        isFavorite: false,
+      },
       contexto,
     );
     expect(fila.displayNameEncrypted).toBeNull();

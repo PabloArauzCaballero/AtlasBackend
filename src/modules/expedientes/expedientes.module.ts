@@ -74,12 +74,7 @@ import { ExpedientesMantenimientoService } from './jobs/expedientes-mantenimient
     CustomersModule,
     InternalUsersModule,
   ],
-  controllers: [
-    ExpedientesController,
-    ExpedientesNodosController,
-    ExpedientesConcesionesController,
-    ExpedientesContactosController,
-  ],
+  controllers: [ExpedientesController, ExpedientesNodosController, ExpedientesConcesionesController, ExpedientesContactosController],
   providers: [
     ExpedientesRepository,
     ExpedienteAccesosRepository,

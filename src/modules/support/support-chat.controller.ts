@@ -3,7 +3,20 @@
  * @business Hablar con un agente, ver lo que se dijo y cerrar la conversación sin cerrar el caso.
  * @system un solo controlador para ambas audiencias: la separación la impone el actor, no la ruta.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, type MessageEvent, Param, Post, Query, Sse, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  type MessageEvent,
+  Param,
+  Post,
+  Query,
+  Sse,
+  UseGuards,
+} from '@nestjs/common';
 import { type Observable, filter, map } from 'rxjs';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -177,7 +190,10 @@ export class SupportChatController {
    */
   @ApiOperation({ summary: 'Hilo en vivo de la conversación (Server-Sent Events)' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
-  @ApiResponse({ status: 200, description: 'Stream `text/event-stream`; cada `data:` es {type, data} con message.created, message.read o agent.typing.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Stream `text/event-stream`; cada `data:` es {type, data} con message.created, message.read o agent.typing.',
+  })
   @Sse(':channelId/stream')
   async stream(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,

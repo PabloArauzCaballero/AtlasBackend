@@ -305,7 +305,16 @@ describe('RiskRepository', () => {
       });
 
       await revision.createManualReviewCase(
-        { tenantId: 't1', customerId: 'c1', riskAssessmentRunId: 'run1', priority: 'high', caseType: 'risk', notes: 'n', decisionExecutionId: null, now } as never,
+        {
+          tenantId: 't1',
+          customerId: 'c1',
+          riskAssessmentRunId: 'run1',
+          priority: 'high',
+          caseType: 'risk',
+          notes: 'n',
+          decisionExecutionId: null,
+          now,
+        } as never,
         opts,
       );
       expect(firstArg(models.manualReviewCase)).toMatchObject({ status: 'open', caseType: 'risk', notes: 'n', deleted: false });

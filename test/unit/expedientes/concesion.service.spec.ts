@@ -103,7 +103,10 @@ describe('ConcesionService', () => {
     it('se HEREDA desde el ancestro hacia el nodo', async () => {
       // La concesión está en la raíz del expediente y el nodo es un archivo hondo: sin herencia,
       // compartir una carpeta obligaría a repetir la concesión archivo por archivo.
-      ancestros = [{ id: '1', ruta: '' }, { id: '2', ruta: '/auth' }];
+      ancestros = [
+        { id: '1', ruta: '' },
+        { id: '2', ruta: '/auth' },
+      ];
       concesiones = [concesion({ nodoId: '2', nivel: 'compartir' })];
       const sinPermisos = actor();
       await expect(resolver({ actor: sinPermisos, nodoId: '100', ruta: '/auth/anverso.jpg' })).resolves.toBe('compartir');
@@ -113,10 +116,7 @@ describe('ConcesionService', () => {
       // El nivel efectivo es el MAYOR, nunca el más cercano: si una concesión pudiera restar, el
       // acceso dependería del orden en que la base devuelve las filas.
       ancestros = [{ id: '1', ruta: '' }];
-      concesiones = [
-        concesion({ id: '1', nodoId: '1', nivel: 'escribir' }),
-        concesion({ id: '2', nodoId: '100', nivel: 'leer' }),
-      ];
+      concesiones = [concesion({ id: '1', nodoId: '1', nivel: 'escribir' }), concesion({ id: '2', nodoId: '100', nivel: 'leer' })];
       await expect(resolver({ actor: actor(), nodoId: '100', ruta: '/otros/x.pdf' })).resolves.toBe('escribir');
     });
 
@@ -151,9 +151,9 @@ describe('ConcesionService', () => {
     };
 
     it('no se puede dar más nivel del que se tiene', async () => {
-      await expect(
-        service.conceder({ ...base, nivelDelActor: 'compartir', nivel: 'administrar' }),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.conceder({ ...base, nivelDelActor: 'compartir', nivel: 'administrar' })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
 
     it('exige un motivo con contenido', async () => {

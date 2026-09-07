@@ -154,10 +154,7 @@ export class SupportAgentRepository {
   }
 
   async setPresence(tenantId: string, agentProfileId: string, presenceState: string): Promise<void> {
-    await this.agents.update(
-      { presenceState, presenceChangedAt: new Date() },
-      { where: { tenantId, id: agentProfileId, deleted: false } },
-    );
+    await this.agents.update({ presenceState, presenceChangedAt: new Date() }, { where: { tenantId, id: agentProfileId, deleted: false } });
   }
 
   /** Cuántos agentes hay ahora mismo con hueco. Alimenta el aviso de espera al usuario. */

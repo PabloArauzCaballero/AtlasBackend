@@ -156,7 +156,9 @@ export class SupportCaseReadService {
       cursorId: input.query.cursorId ?? null,
     });
 
-    const visible = rows.filter((row) => row.sensitivity !== 'RESTRICTED' || input.actor.isSupervisor || String(row.currentAssigneeAgentId) === agentProfileId);
+    const visible = rows.filter(
+      (row) => row.sensitivity !== 'RESTRICTED' || input.actor.isSupervisor || String(row.currentAssigneeAgentId) === agentProfileId,
+    );
     return { cases: visible.map(toInternalCaseDto), nextCursor: this.nextCursor(rows, input.query.limit) };
   }
 

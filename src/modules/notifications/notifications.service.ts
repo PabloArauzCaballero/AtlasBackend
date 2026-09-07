@@ -120,10 +120,7 @@ export class NotificationsService {
    * lee como abuso, y aquí el motivo es exactamente lo que justifica el bloqueo.
    */
   async getPreferences(tenantId: string, customerId: string) {
-    const [policies, saved] = await Promise.all([
-      this.policies.listActive(tenantId),
-      this.repository.getPreferences(tenantId, customerId),
-    ]);
+    const [policies, saved] = await Promise.all([this.policies.listActive(tenantId), this.repository.getPreferences(tenantId, customerId)]);
 
     const chosen = new Map(saved.map((preference) => [`${preference.eventCode}:${preference.channel}`, preference]));
 
@@ -151,7 +148,14 @@ export class NotificationsService {
      * elección que el cliente había hecho sigue ahí y se respeta. Borrarlas convertiría un cambio de
      * configuración en una pérdida silenciosa de la voluntad de la persona.
      */
-    return { data, legacy: saved.filter((preference) => !policies.some((policy) => policy.eventCode === preference.eventCode && policy.channel === preference.channel)).map(mapPreference) };
+    return {
+      data,
+      legacy: saved
+        .filter(
+          (preference) => !policies.some((policy) => policy.eventCode === preference.eventCode && policy.channel === preference.channel),
+        )
+        .map(mapPreference),
+    };
   }
 
   async updatePreferences(tenantId: string, customerId: string, body: UpdatePreferencesDto) {

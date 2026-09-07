@@ -35,9 +35,7 @@ describe('CustomerContactsSnapshotService', () => {
     const creados: Array<Record<string, unknown>> = [];
     const metricas: Array<Record<string, unknown>> = [];
     const snapshots = {
-      countKnownPhoneHashes: jest.fn(async (..._args: unknown[]) =>
-        overrides.conocidos ?? { watchlist: 0, otherApplicants: 0 },
-      ),
+      countKnownPhoneHashes: jest.fn(async (..._args: unknown[]) => overrides.conocidos ?? { watchlist: 0, otherApplicants: 0 }),
       createRun: jest.fn(async (valores: unknown) => {
         creados.push(valores as Record<string, unknown>);
         return { id: 'run-1' };
@@ -196,24 +194,14 @@ describe('el contrato del snapshot', () => {
      * entrar datos recogidos sin permiso y, peor, los dejaría entrar ETIQUETADOS como recogidos con
      * él.
      */
-    expect(() =>
-      contactsSnapshotSchema.parse({ ...base, granted: false, totalContacts: 200 }),
-    ).toThrow();
-    expect(() =>
-      contactsSnapshotSchema.parse({ ...base, granted: false, phoneHashes: ['a'.repeat(64)] }),
-    ).toThrow();
+    expect(() => contactsSnapshotSchema.parse({ ...base, granted: false, totalContacts: 200 })).toThrow();
+    expect(() => contactsSnapshotSchema.parse({ ...base, granted: false, phoneHashes: ['a'.repeat(64)] })).toThrow();
   });
 
   it('rechaza cuentas que se contradicen entre sí', () => {
-    expect(() =>
-      contactsSnapshotSchema.parse({ ...base, totalContacts: 10, contactsWithPhone: 20 }),
-    ).toThrow();
-    expect(() =>
-      contactsSnapshotSchema.parse({ ...base, contactsWithPhone: 10, uniquePhoneCount: 20 }),
-    ).toThrow();
-    expect(() =>
-      contactsSnapshotSchema.parse({ ...base, referencesDeclared: 2, referencesFoundInAddressBook: 3 }),
-    ).toThrow();
+    expect(() => contactsSnapshotSchema.parse({ ...base, totalContacts: 10, contactsWithPhone: 20 })).toThrow();
+    expect(() => contactsSnapshotSchema.parse({ ...base, contactsWithPhone: 10, uniquePhoneCount: 20 })).toThrow();
+    expect(() => contactsSnapshotSchema.parse({ ...base, referencesDeclared: 2, referencesFoundInAddressBook: 3 })).toThrow();
   });
 
   it('sólo admite SHA-256 en la lista de hashes', () => {

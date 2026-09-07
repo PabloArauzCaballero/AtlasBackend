@@ -134,9 +134,9 @@ describe('NodoService', () => {
       nodos.push(nodo({ id: '1', ruta: '/auth', parentId: null }));
       nodos.push(nodo({ id: '2', nombre: 'motor', ruta: '/auth/motor', parentId: '1' }));
 
-      await expect(
-        movimiento.mover({ tenantId: '1', expedienteId: '10', nodo: nodos[0], destinoId: '2', actor }),
-      ).rejects.toBeInstanceOf(ConflictException);
+      await expect(movimiento.mover({ tenantId: '1', expedienteId: '10', nodo: nodos[0], destinoId: '2', actor })).rejects.toBeInstanceOf(
+        ConflictException,
+      );
     });
 
     it('reescribe la ruta de TODO el subárbol', async () => {
@@ -169,9 +169,9 @@ describe('NodoService', () => {
       // Borrar la carpeta padre sería una forma indirecta de sacar de la vista lo que se congeló.
       nodos.push(nodo({ id: '1', ruta: '/auth', parentId: null }));
       nodos.push(nodo({ id: '2', tipo: 'archivo', nombre: 'x.jpg', ruta: '/auth/x.jpg', parentId: '1', inmutable: true }));
-      await expect(
-        movimiento.borrar({ tenantId: '1', expedienteId: '10', nodo: nodos[0], actor }),
-      ).rejects.toBeInstanceOf(ConflictException);
+      await expect(movimiento.borrar({ tenantId: '1', expedienteId: '10', nodo: nodos[0], actor })).rejects.toBeInstanceOf(
+        ConflictException,
+      );
     });
   });
 

@@ -271,13 +271,9 @@ export class SupportChannelService {
       const participants = await this.channels.listParticipants(input.channelId, { transaction });
       for (const participant of participants) {
         if (participant.leftAt) continue;
-        await this.channels.removeParticipant(
-          input.channelId,
-          participant.actorType,
-          participant.actorId,
-          input.dto.reason,
-          { transaction },
-        );
+        await this.channels.removeParticipant(input.channelId, participant.actorType, participant.actorId, input.dto.reason, {
+          transaction,
+        });
       }
 
       if (channel.caseId) {

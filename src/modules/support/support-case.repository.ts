@@ -85,12 +85,7 @@ export class SupportCaseRepository {
     return found;
   }
 
-  async update(
-    tenantId: string,
-    caseId: string,
-    values: Partial<SupportCaseModel>,
-    options: RepositoryOptions = {},
-  ): Promise<void> {
+  async update(tenantId: string, caseId: string, values: Partial<SupportCaseModel>, options: RepositoryOptions = {}): Promise<void> {
     await this.cases.update({ ...values, updatedAtValue: new Date() } as Partial<SupportCaseModel>, {
       where: { tenantId, id: caseId },
       transaction: options.transaction,

@@ -6,11 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Transaction } from 'sequelize';
-import {
-  OnboardingFlowModel,
-  OnboardingStepEventModel,
-  OperationalAuditLogModel,
-} from '../../../database/models/index.js';
+import { OnboardingFlowModel, OnboardingStepEventModel, OperationalAuditLogModel } from '../../../database/models/index.js';
 
 /**
  * El diario del módulo, con modelos propios y no con el repositorio de onboarding.
@@ -155,9 +151,7 @@ export class DeviceSignalsJournalRepository {
           batchSize: values.created + values.updated,
           totalContactsInDevice: values.totalContactsInDevice,
           totalStored: values.totalStored,
-          ...(values.customersSharingContacts === null
-            ? {}
-            : { customersSharingContacts: values.customersSharingContacts }),
+          ...(values.customersSharingContacts === null ? {} : { customersSharingContacts: values.customersSharingContacts }),
         },
       },
       options,

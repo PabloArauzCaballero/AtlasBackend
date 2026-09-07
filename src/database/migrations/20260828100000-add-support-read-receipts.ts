@@ -50,7 +50,9 @@ ALTER TABLE ${PARTICIPANTS}
 }
 
 export async function down({ context: queryInterface }: MigrationContext): Promise<void> {
-  await queryInterface.sequelize.query(`DROP INDEX IF EXISTS ${atlasSchemaFor('support_channel_participants')}.idx_support_participants__sin_leer;`);
+  await queryInterface.sequelize.query(
+    `DROP INDEX IF EXISTS ${atlasSchemaFor('support_channel_participants')}.idx_support_participants__sin_leer;`,
+  );
   await queryInterface.sequelize.query(`
 ALTER TABLE ${PARTICIPANTS}
   DROP COLUMN IF EXISTS last_read_sequence,

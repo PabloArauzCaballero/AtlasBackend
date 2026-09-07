@@ -31,12 +31,7 @@ describe('CreditController', () => {
       applicationService,
       creditLines,
       bankStatements,
-      controller: new CreditController(
-        productService as never,
-        applicationService as never,
-        creditLines as never,
-        bankStatements as never,
-      ),
+      controller: new CreditController(productService as never, applicationService as never, creditLines as never, bankStatements as never),
     };
   }
 

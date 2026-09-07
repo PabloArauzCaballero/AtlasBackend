@@ -54,10 +54,7 @@ export class ExpedientesJobsController {
   @ApiResponse({ status: 200, description: 'Cuántos clientes, nodos y objetos ausentes procesó el lote.' })
   @Post('backfill-expedientes')
   @HttpCode(HttpStatus.OK)
-  backfillExpedientes(
-    @CurrentTenant() tenantId: string,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-  ) {
+  backfillExpedientes(@CurrentTenant() tenantId: string, @Headers('x-idempotency-key') idempotencyKey: string | undefined) {
     this.exigirCabeceras(tenantId, idempotencyKey);
     return this.expedientes.rellenar();
   }
@@ -71,10 +68,7 @@ export class ExpedientesJobsController {
   @ApiResponse({ status: 200, description: 'Cuántos tickets, nodos y expedientes se purgaron.' })
   @Post('limpiar-expedientes')
   @HttpCode(HttpStatus.OK)
-  limpiarExpedientes(
-    @CurrentTenant() tenantId: string,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-  ) {
+  limpiarExpedientes(@CurrentTenant() tenantId: string, @Headers('x-idempotency-key') idempotencyKey: string | undefined) {
     this.exigirCabeceras(tenantId, idempotencyKey);
     return this.expedientes.limpiar();
   }

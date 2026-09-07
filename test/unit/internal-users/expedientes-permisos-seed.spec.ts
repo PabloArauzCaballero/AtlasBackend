@@ -1,8 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import {
-  INTERNAL_PERMISSION_SEEDS,
-  ROLE_PERMISSION_CODES,
-} from '../../../src/modules/internal-users/internal-rbac.permissions.js';
+import { INTERNAL_PERMISSION_SEEDS, ROLE_PERMISSION_CODES } from '../../../src/modules/internal-users/internal-rbac.permissions.js';
 
 /**
  * Los permisos del expediente están en el catálogo canónico y llegan a quien los necesita.

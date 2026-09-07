@@ -69,12 +69,7 @@ describe('MobileIdentityService', () => {
         riskMatches: 0,
       })),
     };
-    const service = new MobileIdentityService(
-      repository as never,
-      engine as never,
-      bindings as never,
-      contacts as never,
-    );
+    const service = new MobileIdentityService(repository as never, engine as never, bindings as never, contacts as never);
     return { service, repository, engine, bindings, contacts };
   }
 

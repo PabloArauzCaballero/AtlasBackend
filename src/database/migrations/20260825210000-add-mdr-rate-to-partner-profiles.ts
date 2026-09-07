@@ -22,9 +22,7 @@ const TABLE = `${atlasSchemaFor('partner_profiles')}.partner_profiles`;
  * ajusta por comercio desde el ERP interno de Atlas, que es donde se negocia el término comercial.
  */
 export async function up({ context: queryInterface }: MigrationContext): Promise<void> {
-  await queryInterface.sequelize.query(
-    `ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS mdr_rate_percent NUMERIC(5,2) NOT NULL DEFAULT 3.00`,
-  );
+  await queryInterface.sequelize.query(`ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS mdr_rate_percent NUMERIC(5,2) NOT NULL DEFAULT 3.00`);
 }
 
 export async function down({ context: queryInterface }: MigrationContext): Promise<void> {

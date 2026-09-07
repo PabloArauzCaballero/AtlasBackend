@@ -133,8 +133,7 @@ const DECISION_CATALOG: Record<DecisionType, CatalogEntry> = {
       'No decide una operacion concreta: vigila al cliente despues de tenerlo. Es lo que permite ajustar un limite antes de que la mora ocurra, en vez de reaccionar cuando ya ocurrio.',
     systems:
       'Opcional. Sin artefacto asignado no se consulta y el resto del sistema funciona igual; con el, se evalua al cliente contra la politica de riesgo vigente.',
-    example:
-      'Un cliente que empieza a pagar tarde de forma sistematica puede ver su linea reducida antes de caer en impago.',
+    example: 'Un cliente que empieza a pagar tarde de forma sistematica puede ver su linea reducida antes de caer en impago.',
     endpoints: [
       {
         method: '—',
@@ -209,10 +208,10 @@ export class DecisionArtifactBindingService {
       const rows = await this.sequelize.query<{
         artifact_code: string;
         pinned_version: string | null;
-      }>(
-        `SELECT artifact_code, pinned_version FROM ${TABLE} WHERE _tenant_id = :tenantId AND decision_type = :decisionType LIMIT 1`,
-        { replacements: { tenantId, decisionType }, type: QueryTypes.SELECT },
-      );
+      }>(`SELECT artifact_code, pinned_version FROM ${TABLE} WHERE _tenant_id = :tenantId AND decision_type = :decisionType LIMIT 1`, {
+        replacements: { tenantId, decisionType },
+        type: QueryTypes.SELECT,
+      });
       if (rows[0]?.artifact_code) {
         return {
           decisionType,
@@ -223,9 +222,7 @@ export class DecisionArtifactBindingService {
         };
       }
     } catch (error) {
-      this.logger.warn(
-        `No se pudo leer la asignación de artefacto para ${decisionType}; se usa el entorno. ${(error as Error).message}`,
-      );
+      this.logger.warn(`No se pudo leer la asignación de artefacto para ${decisionType}; se usa el entorno. ${(error as Error).message}`);
     }
     const fromEnv = this.envFallback(decisionType);
     return {

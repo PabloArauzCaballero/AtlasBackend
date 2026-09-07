@@ -162,10 +162,7 @@ export class CustomerDeviceContactsRepository {
    */
   update(id: string, values: ContactRow, options: { transaction?: Transaction } = {}): Promise<[number]> {
     const { tenantId: _tenantId, customerId: _customerId, contactExternalIdHash: _hash, ...mutable } = values;
-    return this.contactModel.update(
-      { ...mutable, updatedAtValue: values.receivedAt },
-      { where: { id }, transaction: options.transaction },
-    );
+    return this.contactModel.update({ ...mutable, updatedAtValue: values.receivedAt }, { where: { id }, transaction: options.transaction });
   }
 
   countFor(tenantId: string, customerId: string, options: { transaction?: Transaction } = {}): Promise<number> {

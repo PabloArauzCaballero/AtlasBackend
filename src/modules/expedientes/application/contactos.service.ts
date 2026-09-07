@@ -6,11 +6,7 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { decryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
-import {
-  CustomerReferenceContactModel,
-  OnDeviceComputationRunModel,
-  OnDeviceMetricValueModel,
-} from '../../../database/models/index.js';
+import { CustomerReferenceContactModel, OnDeviceComputationRunModel, OnDeviceMetricValueModel } from '../../../database/models/index.js';
 import { CustomerContactsRepository } from '../../customers/repositories/customer-contacts.repository.js';
 import { ExpedientesRepository } from '../repositories/expedientes.repository.js';
 import type { ActorExpediente } from '../expedientes.types.js';

@@ -225,7 +225,12 @@ export class SupportKnowledgeService {
       if (input.dto.retirePrevious) {
         await this.knowledge.retirePublishedVersions(String(version.articleId), version.locale, input.versionId, { transaction });
       }
-      await this.knowledge.updateVersion(input.tenantId, input.versionId, { status: 'PUBLISHED', publishedAt: new Date() }, { transaction });
+      await this.knowledge.updateVersion(
+        input.tenantId,
+        input.versionId,
+        { status: 'PUBLISHED', publishedAt: new Date() },
+        { transaction },
+      );
       await this.knowledge.updateArticle(
         input.tenantId,
         String(version.articleId),

@@ -35,7 +35,12 @@ function collectNestEntrypoints(dir: string, found: string[] = []): string[] {
        * substring no coincidia nunca, asi que el gate aprobaba cualquier cosa: en Windows no
        * protegia de nada y lo hacia en silencio, que es la peor forma de no proteger.
        */
-      found.push(full.slice(ROOT.length + 1).split(sep).join('/'));
+      found.push(
+        full
+          .slice(ROOT.length + 1)
+          .split(sep)
+          .join('/'),
+      );
     }
   }
   return found;

@@ -49,12 +49,7 @@ export class ExpedienteService {
     customerCode: string | null;
     actor: ActorExpediente;
   }): Promise<ExpedienteModel> {
-    const existente = await this.repository.findExpedientePorSujeto(
-      input.tenantId,
-      input.subjectType,
-      input.subjectId,
-      input.sessionId,
-    );
+    const existente = await this.repository.findExpedientePorSujeto(input.tenantId, input.subjectType, input.subjectId, input.sessionId);
     if (existente) return existente;
 
     const expediente = await this.repository.crearExpediente({
@@ -96,12 +91,7 @@ export class ExpedienteService {
     return expediente;
   }
 
-  async porSujeto(
-    tenantId: string,
-    subjectType: string,
-    subjectId: string,
-    sessionId?: string | null,
-  ): Promise<ExpedienteModel | null> {
+  async porSujeto(tenantId: string, subjectType: string, subjectId: string, sessionId?: string | null): Promise<ExpedienteModel | null> {
     this.exigirHabilitado();
     return this.repository.findExpedientePorSujeto(tenantId, subjectType, subjectId, sessionId);
   }

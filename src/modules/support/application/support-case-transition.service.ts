@@ -56,12 +56,9 @@ export class SupportCaseTransitionService {
     const from = supportCase.status as SupportCaseStatus;
     assertTransition(from, input.to);
 
-    await this.cases.update(
-      input.tenantId,
-      input.caseId,
-      { status: input.to, ...(input.extra ?? {}) } as Partial<SupportCaseModel>,
-      { transaction: input.transaction },
-    );
+    await this.cases.update(input.tenantId, input.caseId, { status: input.to, ...(input.extra ?? {}) } as Partial<SupportCaseModel>, {
+      transaction: input.transaction,
+    });
 
     await this.cases.appendEvent(
       {

@@ -133,11 +133,7 @@ export class PartnerQrService {
    * El contenido decodificado NO se guarda ni se registra: en el QR bancario es un número de
    * cuenta. Sólo se usa para responder si hay código o no.
    */
-  private async assertImagenContieneQr(
-    qrKind: string,
-    storageKey: string,
-    contentType: string,
-  ): Promise<void> {
+  private async assertImagenContieneQr(qrKind: string, storageKey: string, contentType: string): Promise<void> {
     const contenido = await this.storage.readObject(storageKey);
     if (!contenido) {
       this.metrics.recordPartnerOnboardingStep({ step: `qr_${qrKind}`, outcome: 'rejected' });
@@ -160,9 +156,7 @@ export class PartnerQrService {
         'QR_IMAGE_TOO_LARGE: la imagen tiene demasiados píxeles para poder leerla. Vuelve a fotografiar el código más de cerca o reduce su tamaño.',
       );
     }
-    throw new UnprocessableEntityException(
-      `QR_IMAGE_UNREADABLE: no se pudo interpretar la imagen (${lectura.motivo}).`,
-    );
+    throw new UnprocessableEntityException(`QR_IMAGE_UNREADABLE: no se pudo interpretar la imagen (${lectura.motivo}).`);
   }
 
   /**

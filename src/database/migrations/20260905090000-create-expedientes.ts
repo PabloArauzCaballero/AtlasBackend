@@ -147,15 +147,11 @@ CREATE TABLE IF NOT EXISTS ${NODOS} (
        ON ${NODOS} (expediente_id, storage_key)
        WHERE storage_key IS NOT NULL AND borrado_en IS NULL;`,
   );
-  await queryInterface.sequelize.query(
-    `CREATE INDEX IF NOT EXISTS idx_nodos__carpeta ON ${NODOS} (_tenant_id, expediente_id, parent_id);`,
-  );
+  await queryInterface.sequelize.query(`CREATE INDEX IF NOT EXISTS idx_nodos__carpeta ON ${NODOS} (_tenant_id, expediente_id, parent_id);`);
   // El conteo de referencias pregunta por clave a través de todos los expedientes.
   await queryInterface.sequelize.query(`CREATE INDEX IF NOT EXISTS idx_nodos__clave ON ${NODOS} (storage_key);`);
   // La herencia de permisos resuelve ancestros por prefijo de ruta.
-  await queryInterface.sequelize.query(
-    `CREATE INDEX IF NOT EXISTS idx_nodos__ruta ON ${NODOS} (expediente_id, ruta text_pattern_ops);`,
-  );
+  await queryInterface.sequelize.query(`CREATE INDEX IF NOT EXISTS idx_nodos__ruta ON ${NODOS} (expediente_id, ruta text_pattern_ops);`);
   await queryInterface.sequelize.query(
     `CREATE INDEX IF NOT EXISTS idx_nodos__papelera ON ${NODOS} (_tenant_id, borrado_en) WHERE borrado_en IS NOT NULL;`,
   );

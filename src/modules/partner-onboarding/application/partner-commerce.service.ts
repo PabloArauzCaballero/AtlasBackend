@@ -66,12 +66,7 @@ export class PartnerCommerceService {
    * Sólo se ESTABLECE: una sucursal ya enlazada no se re-enlaza aquí. Mover el puente cambiaría en
    * silencio a qué local pertenecen las cajas y sus cobros, y eso no es una corrección de datos.
    */
-  async linkBranchToErp(
-    tenantId: string,
-    partnerId: string,
-    branchId: string,
-    dto: LinkBranchDto,
-  ): Promise<PartnerBranchModel> {
+  async linkBranchToErp(tenantId: string, partnerId: string, branchId: string, dto: LinkBranchDto): Promise<PartnerBranchModel> {
     const profile = await this.profiles.requireProfile(tenantId, partnerId);
     this.profiles.assertCommercialNetworkEditable(profile);
 

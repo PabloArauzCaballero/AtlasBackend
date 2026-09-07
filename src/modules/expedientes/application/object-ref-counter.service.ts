@@ -45,16 +45,8 @@ export class ObjectRefCounterService {
   async contar(storageKey: string, excluyendoNodoId?: string): Promise<Referencias> {
     const nodos = await this.repository.contarNodosPorClave(storageKey, excluyendoNodoId);
 
-    const evidencia = await this.contarEn(
-      `${atlasSchemaFor('evidence_documents')}.evidence_documents`,
-      's3_key',
-      storageKey,
-    );
-    const extractos = await this.contarEn(
-      `${atlasSchemaFor('bank_statement_reviews')}.bank_statement_reviews`,
-      'storage_key',
-      storageKey,
-    );
+    const evidencia = await this.contarEn(`${atlasSchemaFor('evidence_documents')}.evidence_documents`, 's3_key', storageKey);
+    const extractos = await this.contarEn(`${atlasSchemaFor('bank_statement_reviews')}.bank_statement_reviews`, 'storage_key', storageKey);
 
     const motor = await this.contarEnElMotor(storageKey);
     return { nodos, evidencia, extractos, motor: motor ?? 0, motorIncierto: motor === null };

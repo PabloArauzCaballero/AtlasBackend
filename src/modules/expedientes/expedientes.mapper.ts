@@ -3,11 +3,7 @@
  * @business Enseña del expediente lo que alguien necesita para decidir, y nada más.
  * @system traduce modelos a DTO; la clave del almacén nunca cruza el borde HTTP.
  */
-import type {
-  ExpedienteActividadModel,
-  ExpedienteModel,
-  ExpedienteNodoModel,
-} from '../../database/models/index.js';
+import type { ExpedienteActividadModel, ExpedienteModel, ExpedienteNodoModel } from '../../database/models/index.js';
 import type { Nivel } from './expedientes.types.js';
 
 export type ExpedienteDto = ReturnType<typeof toExpedienteDto>;

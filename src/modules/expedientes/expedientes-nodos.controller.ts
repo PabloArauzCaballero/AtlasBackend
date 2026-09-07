@@ -3,20 +3,7 @@
  * @business Deja recorrer, abrir, subir y ordenar los archivos del expediente de una persona.
  * @system expone el árbol, el contenido y las mutaciones sobre nodos.
  */
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Header,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';

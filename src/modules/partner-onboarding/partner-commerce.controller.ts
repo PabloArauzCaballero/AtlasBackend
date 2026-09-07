@@ -3,7 +3,21 @@
  * @business Esta pieza convierte un comercio declarado en un partner verificable, con locales, cobro y terminales trazables.
  * @system expone los locales del partner, la subida de sus QR de cobro y el alta de sus terminales.
  */
-import { Body, Controller, Get, Header, HttpCode, HttpStatus, Headers, Param, Patch, Post, Res, StreamableFile, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  HttpCode,
+  HttpStatus,
+  Headers,
+  Param,
+  Patch,
+  Post,
+  Res,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -96,9 +110,7 @@ export class PartnerCommerceController {
     @Body(new ZodValidationPipe(linkBranchSchema)) body: LinkBranchDto,
   ) {
     const tenantId = tenantIdFromHeader(tenantIdHeader);
-    return toPartnerBranchDto(
-      await this.commerce.linkBranchToErp(tenantId, params.partnerId, params.branchId, body),
-    );
+    return toPartnerBranchDto(await this.commerce.linkBranchToErp(tenantId, params.partnerId, params.branchId, body));
   }
 
   @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')

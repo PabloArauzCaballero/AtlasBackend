@@ -72,8 +72,7 @@ const PIEZAS = [
     key: 'permisos.aviso',
     title: null,
     subtitle: null,
-    body:
-      'Tu teléfono te va a preguntar por cada permiso. Si eliges «Siempre» en la ubicación, también la registramos con la app cerrada; si eliges «Mientras uso la app», solo mientras la tienes abierta. Puedes cambiarlo cuando quieras desde «Privacidad» o desde los ajustes de tu teléfono.',
+    body: 'Tu teléfono te va a preguntar por cada permiso. Si eliges «Siempre» en la ubicación, también la registramos con la app cerrada; si eliges «Mientras uso la app», solo mientras la tienes abierta. Puedes cambiarlo cuando quieras desde «Privacidad» o desde los ajustes de tu teléfono.',
     bullets: null,
     metadata: null,
     order: 40,
@@ -81,10 +80,8 @@ const PIEZAS = [
   {
     key: 'permisos.siempre',
     title: '¿También con la app cerrada?',
-    subtitle:
-      'Ya puedes seguir. Esto solo añade una señal más, y puedes decir que no sin que cambie nada de tu cuenta.',
-    body:
-      'Registramos tu ubicación cada cierto tiempo aunque no tengas la app abierta. Sirve para lo mismo: comprobar tu domicilio y detectar si alguien usa tu cuenta desde otro lugar.',
+    subtitle: 'Ya puedes seguir. Esto solo añade una señal más, y puedes decir que no sin que cambie nada de tu cuenta.',
+    body: 'Registramos tu ubicación cada cierto tiempo aunque no tengas la app abierta. Sirve para lo mismo: comprobar tu domicilio y detectar si alguien usa tu cuenta desde otro lugar.',
     bullets: null,
     metadata: { eyebrow: 'Un paso más, opcional' },
     order: 50,
@@ -130,8 +127,7 @@ export async function down({ context: queryInterface }: MigrationContext): Promi
    * Se retiran las cinco piezas. Al revés que un documento de consentimiento, aquí no queda nada
    * colgando: la app vuelve a pintar sus valores por defecto, que son los mismos textos.
    */
-  await queryInterface.sequelize.query(
-    `DELETE FROM ${TABLE} WHERE surface = 'legal' AND content_key IN (:keys);`,
-    { replacements: { keys: PIEZAS.map((pieza) => pieza.key) } },
-  );
+  await queryInterface.sequelize.query(`DELETE FROM ${TABLE} WHERE surface = 'legal' AND content_key IN (:keys);`, {
+    replacements: { keys: PIEZAS.map((pieza) => pieza.key) },
+  });
 }

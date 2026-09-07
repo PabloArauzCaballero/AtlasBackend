@@ -52,8 +52,6 @@ export async function up({ context: queryInterface }: MigrationContext): Promise
 }
 
 export async function down({ context: queryInterface }: MigrationContext): Promise<void> {
-  await queryInterface.sequelize.query(
-    `DROP INDEX IF EXISTS ${TABLA.schema}.manual_review_cases_decision_execution_idx`,
-  );
+  await queryInterface.sequelize.query(`DROP INDEX IF EXISTS ${TABLA.schema}.manual_review_cases_decision_execution_idx`);
   await queryInterface.removeColumn(TABLA, 'decision_execution_id');
 }

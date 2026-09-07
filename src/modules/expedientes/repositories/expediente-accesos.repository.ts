@@ -64,20 +64,18 @@ export class ExpedienteAccesosRepository {
 
   // ---------------------------------------------------------------- tickets
 
-  crearTicket(
-    values: {
-      tenantId: string;
-      expedienteId: string;
-      parentId: string | null;
-      nombrePrevisto: string;
-      mimeType: string;
-      sizeBytes: string;
-      sha256Declarado: string | null;
-      storageKey: string;
-      emitidoPorId: string | null;
-      venceEn: Date;
-    },
-  ): Promise<ExpedienteTicketSubidaModel> {
+  crearTicket(values: {
+    tenantId: string;
+    expedienteId: string;
+    parentId: string | null;
+    nombrePrevisto: string;
+    mimeType: string;
+    sizeBytes: string;
+    sha256Declarado: string | null;
+    storageKey: string;
+    emitidoPorId: string | null;
+    venceEn: Date;
+  }): Promise<ExpedienteTicketSubidaModel> {
     return this.tickets.create(values);
   }
 

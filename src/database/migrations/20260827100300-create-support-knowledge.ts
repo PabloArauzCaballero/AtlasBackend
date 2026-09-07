@@ -139,9 +139,7 @@ END $$;`);
 }
 
 export async function down({ context: queryInterface }: MigrationContext): Promise<void> {
-  await queryInterface.sequelize.query(
-    `ALTER TABLE ${ARTICLES} DROP CONSTRAINT IF EXISTS fk_knowledge_article_current_version;`,
-  );
+  await queryInterface.sequelize.query(`ALTER TABLE ${ARTICLES} DROP CONSTRAINT IF EXISTS fk_knowledge_article_current_version;`);
   await queryInterface.sequelize.query(`DROP TABLE IF EXISTS ${VERSIONS};`);
   await queryInterface.sequelize.query(`DROP TABLE IF EXISTS ${ARTICLES};`);
 }

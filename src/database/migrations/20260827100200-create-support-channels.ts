@@ -273,8 +273,6 @@ export async function down({ context: queryInterface }: MigrationContext): Promi
   await queryInterface.sequelize.query(`DROP TABLE IF EXISTS ${RELATIONS};`);
   await queryInterface.sequelize.query(`DROP TABLE IF EXISTS ${MESSAGES};`);
   await queryInterface.sequelize.query(`DROP TABLE IF EXISTS ${PARTICIPANTS};`);
-  await queryInterface.sequelize.query(
-    `ALTER TABLE ${ASSIGNMENTS} DROP CONSTRAINT IF EXISTS fk_support_assignments_channel;`,
-  );
+  await queryInterface.sequelize.query(`ALTER TABLE ${ASSIGNMENTS} DROP CONSTRAINT IF EXISTS fk_support_assignments_channel;`);
   await queryInterface.sequelize.query(`DROP TABLE IF EXISTS ${CHANNELS};`);
 }

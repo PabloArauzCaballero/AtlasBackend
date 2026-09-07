@@ -222,9 +222,7 @@ export class ExpedientesMantenimientoService {
     }
 
     if (tickets.length + nodosPurgados + expedientes.length > 0) {
-      this.logger.log(
-        `Limpieza de expedientes: ${tickets.length} tickets, ${nodosPurgados} nodos, ${expedientes.length} expedientes.`,
-      );
+      this.logger.log(`Limpieza de expedientes: ${tickets.length} tickets, ${nodosPurgados} nodos, ${expedientes.length} expedientes.`);
     }
     return { ticketsCaducados: tickets.length, nodosPurgados, expedientesPurgados: expedientes.length };
   }
