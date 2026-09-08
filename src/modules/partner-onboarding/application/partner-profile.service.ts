@@ -26,6 +26,7 @@ import {
   UpdateCommercialProfileDto,
 } from '../partner-onboarding.schemas.js';
 import { PartnerProfileModel } from '../../../database/models/index.js';
+import { PartnerKybDecisionService, type KybDecision } from './partner-kyb-decision.service.js';
 import { toPartnerProfileDto } from '../partner-onboarding.mapper.js';
 
 /** Lo que el expediente tiene que reunir antes de poder enviarse a revisión. */
@@ -42,6 +43,7 @@ export class PartnerProfileService {
     private readonly repository: PartnerOnboardingRepository,
     private readonly metrics: MetricsService,
     private readonly storage: DocumentStorageService,
+    private readonly kyb: PartnerKybDecisionService,
   ) {}
 
   /**
@@ -407,13 +409,90 @@ export class PartnerProfileService {
       throw new UnprocessableEntityException(`PARTNER_SUBMISSION_INCOMPLETE: faltan ${gaps.map((gap) => gap.requirement).join(', ')}.`);
     }
 
-    const updated = await this.repository.updateProfile(profile, {
+    const enviado = await this.repository.updateProfile(profile, {
       onboardingStatus: 'under_review',
       submittedAt: new Date(),
     });
     this.metrics.recordPartnerOnboardingStep({ step: 'submit', outcome: 'ok' });
     this.logger.log(`Expediente de partner enviado a revisión: partnerId=${partnerId} tenant=${tenantId}`);
-    return { profile: updated, gaps: [] };
+
+    /*
+     * Enviar dispara la verificación, igual que enviar una solicitud de crédito dispara la
+     * decisión de crédito. Antes el expediente se quedaba en `under_review` esperando a que alguien
+     * se acordara de mirarlo, y quien lo miraba decidía con su propio criterio: la política que
+     * habilita a un comercio a cobrar no estaba escrita en ninguna parte.
+     */
+    const { profile: evaluado } = await this.evaluarConMotor(tenantId, enviado, { idempotencyKey: `submit-${enviado.id}` });
+    return { profile: evaluado, gaps: [] };
+  }
+
+  /**
+   * Pide al Motor que verifique el expediente y aplica su veredicto.
+   *
+   * Es UNA sola función y la llaman los dos orígenes —el autoservicio del comercio al enviar, y
+   * `POST /operations/partners/:id/kyb-review` que usan operaciones y el ERP—. Tenerla en un solo
+   * sitio es lo que impide que vuelvan a existir dos formas de decidir lo mismo.
+   *
+   * `APROBADO` deja el expediente firmado por el Motor: `decided_by_internal_user_id` queda nulo
+   * porque no lo firmó una persona, y la pantalla lo dice. `REVISION_MANUAL` lo deja en
+   * `under_review` con el caso del Motor apuntado, que es lo que hace que esta consola deje de
+   * ofrecer un segundo formulario.
+   */
+  async evaluarConMotor(
+    tenantId: string,
+    profile: PartnerProfileModel,
+    options: { idempotencyKey: string },
+  ): Promise<{ profile: PartnerProfileModel; decision: KybDecision }> {
+    const gaps = await this.findSubmissionGaps(tenantId, profile);
+    const branches = await this.repository.listBranches(tenantId, profile.id);
+    const decision = await this.kyb.evaluate({
+      tenantId,
+      profile,
+      gaps,
+      sucursales: branches.length,
+      idempotencyKey: options.idempotencyKey,
+    });
+
+    const comun = {
+      decisionExecutionId: decision.executionId,
+      decisionOutcome: decision.outcome,
+      decisionReason: decision.reason,
+      decisionArtifactVersion: decision.artifactVersionId,
+      manualReviewCaseCode: decision.manualReviewCaseCode,
+      decisionEvaluatedAt: decision.evaluatedAt,
+    };
+
+    if (decision.outcome === 'APROBADO') {
+      const updated = await this.repository.updateProfile(profile, {
+        ...comun,
+        onboardingStatus: 'approved',
+        decidedAt: decision.evaluatedAt,
+        // Nulo a propósito: lo firmó el Motor, no una persona, y rellenarlo con el operador que
+        // pidió la verificación atribuiría a alguien una decisión que no tomó.
+        decidedByInternalUserId: null,
+        rejectionReason: null,
+      });
+      this.metrics.recordPartnerOnboardingStep({ step: 'decision', outcome: 'ok' });
+      return { profile: updated, decision };
+    }
+
+    if (decision.outcome === 'RECHAZADO') {
+      const updated = await this.repository.updateProfile(profile, {
+        ...comun,
+        onboardingStatus: 'rejected',
+        decidedAt: decision.evaluatedAt,
+        decidedByInternalUserId: null,
+        // El motivo del Motor es lo que el comercio verá y lo que le dice qué corregir.
+        rejectionReason: decision.reason,
+      });
+      this.metrics.recordPartnerOnboardingStep({ step: 'decision', outcome: 'rejected' });
+      return { profile: updated, decision };
+    }
+
+    // REVISION_MANUAL —o cualquier desenlace que el artefacto añada mañana y este código no
+    // conozca—: se queda esperando a una persona. Un desenlace desconocido NUNCA habilita a cobrar.
+    const updated = await this.repository.updateProfile(profile, { ...comun, onboardingStatus: 'under_review' });
+    return { profile: updated, decision };
   }
 
   /**
@@ -462,6 +541,75 @@ export class PartnerProfileService {
     };
   }
 
+  /**
+   * Busca el expediente que corresponde a una cuenta del ERP o a un NIT.
+   *
+   * Devuelve una lista y no un expediente: por NIT puede haber más de uno —un comercio que fue
+   * rechazado y volvió a intentarlo—, y decidir cuál es «el bueno» desde aquí sería inventarse una
+   * regla que quien pregunta conoce mejor. Vacío es `items: []` con 200, nunca un 404: «esta cuenta
+   * todavía no tiene expediente» es una respuesta legítima, no un error.
+   */
+  async findByExternalKeys(
+    tenantId: string,
+    query: { erpAccountId?: string; taxId?: string; page: number; limit: number },
+  ) {
+    const { rows, count } = await this.repository.findProfilesByExternalKeys(
+      tenantId,
+      { erpAccountId: query.erpAccountId, taxId: query.taxId },
+      { limit: query.limit, offset: (query.page - 1) * query.limit },
+    );
+    return {
+      items: rows.map(toPartnerProfileDto),
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total: count,
+        totalPages: Math.max(1, Math.ceil(count / query.limit)),
+      },
+    };
+  }
+
+  /**
+   * Enlaza el expediente con la cuenta del ERP.
+   *
+   * De una vía: si ya apunta a otra cuenta, 409. Reescribir el puente convertiría el historial de
+   * verificación de un comercio en el de otro, y nada lo delataría después.
+   */
+  async linkErpAccount(tenantId: string, partnerId: string, erpAccountId: string): Promise<PartnerProfileModel> {
+    const profile = await this.requireProfile(tenantId, partnerId);
+    if (profile.erpAccountId && profile.erpAccountId !== erpAccountId) {
+      throw new ConflictException(
+        `PARTNER_ERP_ACCOUNT_ALREADY_LINKED: el expediente ya apunta a la cuenta ${profile.erpAccountId}.`,
+      );
+    }
+    if (profile.erpAccountId === erpAccountId) return profile;
+    return this.repository.updateProfile(profile, { erpAccountId });
+  }
+
+  /**
+   * Pide la verificación de un expediente que ya está en revisión.
+   *
+   * Existe para los dos casos que el envío del comercio no cubre: el ERP que da de alta la cuenta y
+   * quiere la verificación sin esperar a que el comercio pulse nada, y el reintento después de
+   * subir lo que faltaba. Sólo desde `under_review`, por lo mismo que `decide`: verificar un
+   * borrador saltaría la comprobación de completitud, y volver a verificar un expediente ya
+   * resuelto reescribiría una decisión firme sin dejar constancia de que hubo dos.
+   */
+  async requestKybReview(
+    tenantId: string,
+    partnerId: string,
+    options: { idempotencyKey: string; reason?: string },
+  ): Promise<{ profile: PartnerProfileModel; decision: KybDecision }> {
+    const profile = await this.requireProfile(tenantId, partnerId);
+    if (profile.onboardingStatus !== 'under_review') {
+      throw new ConflictException(`PARTNER_NOT_UNDER_REVIEW: el expediente está en ${profile.onboardingStatus}.`);
+    }
+    this.logger.log(
+      `Verificación pedida para el expediente ${partnerId}${options.reason ? `: ${options.reason}` : ''}`,
+    );
+    return this.evaluarConMotor(tenantId, profile, { idempotencyKey: options.idempotencyKey });
+  }
+
   async decide(
     tenantId: string,
     partnerId: string,
@@ -471,6 +619,20 @@ export class PartnerProfileService {
 
     if (profile.onboardingStatus !== 'under_review') {
       throw new ConflictException(`PARTNER_NOT_UNDER_REVIEW: el expediente está en ${profile.onboardingStatus}.`);
+    }
+
+    /*
+     * Con caso abierto en el Motor, la decisión se toma ALLÍ.
+     *
+     * Es la misma regla que ya gobierna la revisión manual del riesgo
+     * (`MANUAL_REVIEW_DELEGADA_AL_MOTOR`): dos bandejas para el mismo expediente producen dos
+     * veredictos y gana el que alguien mire primero. Se corta en el servicio y no en la pantalla,
+     * porque una pantalla se salta con curl.
+     */
+    if (profile.manualReviewCaseCode) {
+      throw new ConflictException(
+        `PARTNER_DECISION_DELEGADA_AL_MOTOR: el caso ${profile.manualReviewCaseCode} se resuelve en el Motor.`,
+      );
     }
 
     const updated = await this.repository.updateProfile(profile, {

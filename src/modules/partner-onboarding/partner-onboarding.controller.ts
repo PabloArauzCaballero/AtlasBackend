@@ -36,10 +36,8 @@ import {
   PartnerDocumentUploadUrlDto,
   LegalRepresentativeDto,
   legalRepresentativeSchema,
-  DecidePartnerDto,
   PartnerIdParamsDto,
   UpdateCommercialProfileDto,
-  decidePartnerSchema,
   partnerIdParamsSchema,
   updateCommercialProfileSchema,
   StartPartnerOnboardingDto,
@@ -305,41 +303,16 @@ export class PartnerOnboardingController {
   }
 
   /*
-   * La decisión sobre el expediente, que hasta ahora no se podía tomar.
+   * `POST /partner-onboarding/:partnerId/decision` SE RETIRÓ. No es un olvido.
    *
-   * `PartnerProfileService.decide()` existía —con su regla de que rechazar exige motivo— y no lo
-   * llamaba nadie: no había endpoint. Un comercio que enviaba su expediente se quedaba en
-   * `under_review` para siempre, y con él la afiliación entera, porque el QR sólo resuelve contra
-   * un partner `approved`.
+   * Era la MISMA operación que `POST /operations/partners/:partnerId/decision`: los mismos roles,
+   * el mismo `profiles.decide()`. Dos rutas para una operación no son una comodidad: son dos sitios
+   * donde arreglar un fallo, dos contratos que se separan en cuanto uno cambia, y dos respuestas a
+   * «¿por dónde se decide un expediente?».
    *
-   * NO lo puede llamar el propio comercio: quien decide sobre una afiliación no es el afiliado. Por
-   * eso los roles excluyen `merchant`, al revés que el resto de este controlador.
+   * Se queda la de `operations/partners`, que es donde vive la cola y donde la decisión manual
+   * convive con el 409 que la delega al Motor cuando éste abrió caso. Esta ruta no llevaba esa
+   * comprobación, así que además era la puerta por la que se podía decidir un expediente que el
+   * Motor ya tenía en su bandeja.
    */
-  @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
-  @ApiBearerAuth('access-token')
-  @ApiOperation({
-    summary: 'Decidir el expediente del comercio',
-    description: 'Aprueba o rechaza un expediente en `under_review`. Rechazar exige motivo.',
-  })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
-  @ApiBody({ schema: zodToApiSchema(decidePartnerSchema) })
-  @ApiResponse({ status: 200, description: 'Expediente decidido.' })
-  @ApiResponse({ status: 409, description: 'PARTNER_NOT_UNDER_REVIEW.' })
-  @Post(':partnerId/decision')
-  @HttpCode(HttpStatus.OK)
-  async decide(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
-    @Body(new ZodValidationPipe(decidePartnerSchema)) body: DecidePartnerDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
-    const profile = await this.profiles.decide(tenantId, params.partnerId, {
-      approved: body.approved,
-      rejectionReason: body.rejectionReason,
-      internalUserId: currentUser.internalUserId ? String(currentUser.internalUserId) : null,
-    });
-    return toPartnerProfileDto(profile);
-  }
 }

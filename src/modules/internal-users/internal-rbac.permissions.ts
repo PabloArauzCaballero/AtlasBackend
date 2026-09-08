@@ -237,6 +237,17 @@ export const INTERNAL_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
     riskLevel: 'MEDIUM',
   }),
   permission({
+    code: 'partner.kyb.request',
+    module: 'merchant',
+    resource: 'partner_profile',
+    action: 'request',
+    description:
+      'Pedir al Motor la verificación del expediente de un comercio, y enlazar el expediente con su cuenta del ERP. Lo usa el ERP, no el portal interno.',
+    // Pedir no es decidir: la verificación la resuelve el Motor y, cuando abre caso, una persona en
+    // su cola. Este permiso sólo abre la puerta a PEDIRLA, igual que `merchant.users.request`.
+    riskLevel: 'MEDIUM',
+  }),
+  permission({
     code: 'internal.users.manage',
     module: 'internal',
     resource: 'internal_user',
@@ -573,6 +584,9 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'merchant.users.request',
     // Y ver la cola, para saber en qué quedó lo que pidió sin tener que preguntarlo por chat.
     'merchant.users.read',
+    // Pedir la verificación del expediente del comercio y enlazarlo con su cuenta del ERP. Mismo
+    // reparto: el ERP pide, el Motor decide y —si hay señales— una persona resuelve en su cola.
+    'partner.kyb.request',
   ],
   OPERATIONS_ANALYST: [
     'auth.internal.me.read',

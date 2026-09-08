@@ -1,5 +1,11 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { ConflictException, NotFoundException, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { hashOneTimeCode } from '../../../src/common/utils/crypto/one-time-code.util.js';
 import { imagenSinQr, qrJpeg, qrPng } from '../../support/qr-imagen.js';
 import { PartnerCommerceService } from '../../../src/modules/partner-onboarding/application/partner-commerce.service.js';
@@ -48,6 +54,26 @@ function profileDouble(overrides: AnyRecord = {}): AnyRecord {
   return { id: '10', onboardingStatus: 'draft', commercialRegistry: 'MAT-1', ...overrides };
 }
 
+/**
+ * El Motor, simulado. Lo que se prueba aquí es qué hace Atlas con CADA veredicto, no cómo se llega
+ * a él: eso lo prueba `partner-kyb-manual-review.spec.ts` en el propio Motor, contra su ejecutor.
+ */
+function kybDouble(decision: Partial<Record<string, unknown>> = {}) {
+  return {
+    evaluate: jest.fn(async () => ({
+      outcome: 'REVISION_MANUAL',
+      reason: 'KYB_SENALES_OPERATIVAS',
+      executionId: 'exec-1',
+      artifactVersionId: '7',
+      manualReviewCaseCode: null,
+      requisitosFaltantes: 0,
+      senalesOperativas: 1,
+      evaluatedAt: new Date('2026-09-08T00:00:00.000Z'),
+      ...decision,
+    })),
+  };
+}
+
 describe('PartnerProfileService', () => {
   /*
    * Dos expedientes del mismo NIT son dos verificaciones que pueden contradecirse, y nada obliga a
@@ -59,7 +85,7 @@ describe('PartnerProfileService', () => {
       findProfileByTaxId: jest.fn(async () => profileDouble({ id: '77', onboardingStatus: 'under_review' })),
       createProfile: jest.fn(),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never);
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
 
     await expect(
       service.start('1', {
@@ -82,7 +108,7 @@ describe('PartnerProfileService', () => {
       listBranches: jest.fn(async (..._a: unknown[]) => [] as AnyRecord[]),
       listQrCodes: jest.fn(async () => []),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never);
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
 
     const gaps = await service.findSubmissionGaps('1', profileDouble({ commercialRegistry: null }) as never);
 
@@ -100,7 +126,7 @@ describe('PartnerProfileService', () => {
         { qrKind: 'bank', status: 'active' },
       ]),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never);
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
 
     const gaps = await service.findSubmissionGaps('1', profileDouble() as never);
 
@@ -115,15 +141,19 @@ describe('PartnerProfileService', () => {
       listQrCodes: jest.fn(async () => []),
       updateProfile: jest.fn(),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never);
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
 
     await expect(service.submit('1', '10')).rejects.toBeInstanceOf(UnprocessableEntityException);
     expect(repository.updateProfile).not.toHaveBeenCalled();
   });
 
-  /* `submit` NO aprueba: deja el caso en revisión. Un onboarding que se auto-aprueba al completar
-   * sus campos es un formulario, no una verificación. */
-  it('el envío deja el caso en revisión, nunca en aprobado', async () => {
+  /*
+   * `submit` no decide por su cuenta: pide el veredicto al Motor. Lo que NO puede hacer nunca es
+   * aprobar solo, que era el riesgo original —un onboarding que se auto-aprueba al completar sus
+   * campos es un formulario, no una verificación—. Ahora la aprobación existe, pero la firma una
+   * política versionada y con traza, no el propio envío.
+   */
+  it('el envío deja el caso en revisión cuando el Motor deriva a una persona', async () => {
     const profile = profileDouble();
     const repository = {
       findProfileById: jest.fn(async () => profile),
@@ -135,15 +165,118 @@ describe('PartnerProfileService', () => {
       ]),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never);
+    const kyb = kybDouble({ outcome: 'REVISION_MANUAL', manualReviewCaseCode: 'MRC-7' });
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kyb as never);
+
+    const { profile: updated } = await service.submit('1', '10');
+
+    expect(updated.onboardingStatus).toBe('under_review');
+    expect(updated.manualReviewCaseCode).toBe('MRC-7');
+    // Las siete variables salen del expediente y de sus huecos: el Motor no recibe documentos.
+    expect(kyb.evaluate).toHaveBeenCalledTimes(1);
+  });
+
+  it('el envío con veredicto APROBADO deja el expediente firmado por el Motor, sin usuario interno', async () => {
+    const profile = profileDouble();
+    const repository = {
+      findProfileById: jest.fn(async () => profile),
+      listRepresentatives: jest.fn(async () => [{ powerOfAttorneyKey: 'k' }]),
+      listBranches: jest.fn(async () => [{ id: '1' }]),
+      listQrCodes: jest.fn(async () => [
+        { qrKind: 'business', status: 'active' },
+        { qrKind: 'bank', status: 'active' },
+      ]),
+      updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+    };
+    const kyb = kybDouble({ outcome: 'APROBADO', reason: 'KYB_COMPLETO' });
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kyb as never);
+
+    const { profile: updated } = await service.submit('1', '10');
+
+    expect(updated.onboardingStatus).toBe('approved');
+    expect(updated.decisionOutcome).toBe('APROBADO');
+    expect(updated.decisionExecutionId).toBe('exec-1');
+    // Nulo a propósito: lo firmó el Motor. Poner aquí a quien pidió la verificación le atribuiría
+    // una decisión que no tomó.
+    expect(updated.decidedByInternalUserId).toBeNull();
+  });
+
+  it('un desenlace que este código no conoce NUNCA habilita a cobrar', async () => {
+    const profile = profileDouble();
+    const repository = {
+      findProfileById: jest.fn(async () => profile),
+      listRepresentatives: jest.fn(async () => [{ powerOfAttorneyKey: 'k' }]),
+      listBranches: jest.fn(async () => [{ id: '1' }]),
+      listQrCodes: jest.fn(async () => [
+        { qrKind: 'business', status: 'active' },
+        { qrKind: 'bank', status: 'active' },
+      ]),
+      updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+    };
+    const kyb = kybDouble({ outcome: 'DESENLACE_NUEVO_DEL_ARTEFACTO' });
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kyb as never);
 
     const { profile: updated } = await service.submit('1', '10');
 
     expect(updated.onboardingStatus).toBe('under_review');
   });
 
+  it('con el Motor caído el envío falla y el expediente NO se decide en local', async () => {
+    const profile = profileDouble();
+    const repository = {
+      findProfileById: jest.fn(async () => profile),
+      listRepresentatives: jest.fn(async () => [{ powerOfAttorneyKey: 'k' }]),
+      listBranches: jest.fn(async () => [{ id: '1' }]),
+      listQrCodes: jest.fn(async () => [
+        { qrKind: 'business', status: 'active' },
+        { qrKind: 'bank', status: 'active' },
+      ]),
+      updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+    };
+    const kyb = {
+      evaluate: jest.fn(async () => {
+        throw new ServiceUnavailableException('DECISION_ENGINE_UNAVAILABLE');
+      }),
+    };
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kyb as never);
+
+    await expect(service.submit('1', '10')).rejects.toBeInstanceOf(ServiceUnavailableException);
+    // El expediente sí quedó enviado: lo que falla es la verificación, y reintentarla es el camino.
+    expect(repository.updateProfile).toHaveBeenCalledTimes(1);
+  });
+
+  /*
+   * La regla que impide que vuelvan a existir dos bandejas para el mismo expediente. Se corta en el
+   * servicio y no en la pantalla, porque una pantalla se salta con curl.
+   */
+  it('con caso abierto en el Motor, decidir aquí responde 409 y no toca el expediente', async () => {
+    const profile = profileDouble({ onboardingStatus: 'under_review', manualReviewCaseCode: 'MRC-9' });
+    const repository = {
+      findProfileById: jest.fn(async () => profile),
+      updateProfile: jest.fn(),
+    };
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
+
+    await expect(service.decide('1', '10', { approved: true, internalUserId: '3' })).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('sin caso en el Motor la decisión manual sigue funcionando: es la degradación', async () => {
+    const profile = profileDouble({ onboardingStatus: 'under_review', manualReviewCaseCode: null });
+    const repository = {
+      findProfileById: jest.fn(async () => profile),
+      updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+    };
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
+
+    const updated = await service.decide('1', '10', { approved: true, internalUserId: '3' });
+
+    expect(updated.onboardingStatus).toBe('approved');
+    expect(updated.decidedByInternalUserId).toBe('3');
+  });
+
   it('un expediente ya en revisión no admite más cambios', () => {
-    const service = new PartnerProfileService({} as never, metricsDouble(), storageDouble() as never);
+    const service = new PartnerProfileService({} as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
 
     expect(() => service.assertEditable(profileDouble({ onboardingStatus: 'under_review' }) as never)).toThrow(
       UnprocessableEntityException,
@@ -156,7 +289,7 @@ describe('PartnerProfileService', () => {
    * congelado mientras un analista mira es `under_review`.
    */
   it('el QR de cobro se puede reemplazar con el expediente aprobado, pero no en revisión', () => {
-    const service = new PartnerProfileService({} as never, metricsDouble(), storageDouble() as never);
+    const service = new PartnerProfileService({} as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
 
     expect(() => service.assertPaymentQrEditable(profileDouble({ onboardingStatus: 'approved' }) as never)).not.toThrow();
     expect(() => service.assertPaymentQrEditable(profileDouble({ onboardingStatus: 'under_review' }) as never)).toThrow(

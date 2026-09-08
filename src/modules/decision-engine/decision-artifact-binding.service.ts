@@ -12,7 +12,7 @@ import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { DecisionEngineClient } from './decision-engine.client.js';
 
 /** Los tipos de decisión que hoy delegan en el motor. Uno por consumidor real. */
-export const DECISION_TYPES = ['identity', 'credit', 'risk'] as const;
+export const DECISION_TYPES = ['identity', 'credit', 'risk', 'partner'] as const;
 export type DecisionType = (typeof DECISION_TYPES)[number];
 
 const TABLE = `${atlasSchemaFor('decision_artifact_bindings')}.decision_artifact_bindings`;
@@ -126,6 +126,36 @@ const DECISION_CATALOG: Record<DecisionType, CatalogEntry> = {
       'Se desembolsa y nace el calendario de cuotas',
     ],
   },
+  partner: {
+    title: 'Comercio (KYB)',
+    description: 'Decide si el expediente de un comercio esta completo para habilitarlo a cobrar.',
+    business:
+      'Un comercio verificado puede cobrar: sus QR resuelven y sus ventas se le atribuyen. Aflojar esto habilita a cobrar a quien no ha dicho a que cuenta va el dinero; apretarlo de mas deja sin operar a comercios legitimos que ya firmaron. Antes esta decision no tenia politica versionada: la firmaba una persona en el portal y no habia forma de mover un umbral sin tocar codigo.',
+    systems:
+      'Se le mandan SIETE booleanos y numeros derivados del expediente —matricula, representante acreditado, los dos QR, correo probado, sucursales y antiguedad—, nunca los documentos: la evidencia con su hash se queda en Atlas. Devuelve APROBADO, RECHAZADO o REVISION_MANUAL, y en el ultimo caso abre su propio caso en la cola MERCHANT_KYB.',
+    example:
+      'Un expediente completo con el correo sin verificar no se rechaza ni se aprueba: sale a revision, y el analista ve en el caso que lo unico pendiente es el correo.',
+    endpoints: [
+      {
+        method: 'POST',
+        path: '/api/v1/partner-onboarding/:partnerId/submit',
+        purpose: 'El comercio termina su expediente y lo envia.',
+      },
+      {
+        method: 'POST',
+        path: '/api/v1/operations/partners/:partnerId/kyb-review',
+        purpose: 'Operaciones —o el ERP por su pasarela— pide la verificacion.',
+      },
+    ],
+    stage: 'Alta del comercio · verificacion del expediente',
+    workflowSteps: [
+      'El comercio completa su expediente y lo envia',
+      'El artefacto evalua requisitos duros y señales operativas',
+      'Aprobado habilita el cobro; rechazado dice que falta',
+      'Con señales, el Motor abre caso en la cola MERCHANT_KYB',
+      'La resolucion del caso vuelve al expediente',
+    ],
+  },
   risk: {
     title: 'Riesgo',
     description: 'Evalua el riesgo del cliente de forma continua.',
@@ -194,6 +224,7 @@ export class DecisionArtifactBindingService {
   private envFallback(decisionType: DecisionType): string | null {
     if (decisionType === 'identity') return env.DECISION_ENGINE_IDENTITY_ARTIFACT || null;
     if (decisionType === 'credit') return env.DECISION_ENGINE_CREDIT_ARTIFACT || null;
+    if (decisionType === 'partner') return env.DECISION_ENGINE_PARTNER_ARTIFACT || null;
     return env.DECISION_ENGINE_RISK_ARTIFACT || null;
   }
 

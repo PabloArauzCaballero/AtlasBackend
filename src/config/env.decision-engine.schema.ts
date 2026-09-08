@@ -98,6 +98,16 @@ export const decisionEngineEnvShape = {
    * sin configurar nada.
    */
   DECISION_ENGINE_IDENTITY_ARTIFACT: z.string().trim().max(120).default('IDENTIDAD_CARNET_MOVIL'),
+
+  /*
+   * El artefacto que verifica el expediente del comercio (KYB).
+   *
+   * Existía desplegado en el Motor desde el 2026-08-27 y no lo ejecutaba nadie: la decisión que
+   * habilita a un comercio a cobrar se firmaba a mano en el portal, sin versión de política ni
+   * traza. Igual que los otros tres, el valor del entorno es sólo el RESPALDO: manda la fila de
+   * `decision_artifact_bindings` cuando alguien elige de verdad desde el portal.
+   */
+  DECISION_ENGINE_PARTNER_ARTIFACT: z.string().trim().max(120).default('PARTNER_KYB_REVIEW'),
   DECISION_ENGINE_ENVIRONMENT_CODE: z
     .string()
     .trim()

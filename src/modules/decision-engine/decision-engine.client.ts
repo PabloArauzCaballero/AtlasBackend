@@ -162,6 +162,49 @@ export class DecisionEngineClient {
     }[];
   }
 
+  /**
+   * Cómo quedó un caso de revisión manual del motor.
+   *
+   * Es la vuelta del circuito que faltaba: el motor abre el caso y una persona lo resuelve EN SU
+   * COLA, pero el expediente que lo originó vive en Atlas y no se enteraba. Sin esto, un comercio
+   * aprobado por un analista en el motor seguía figurando «en revisión» aquí para siempre — y con
+   * él, su QR sin resolver.
+   *
+   * Lectura, como el catálogo: un fallo no se reintenta ni tumba nada, devuelve `null` y quien
+   * llama —un job— lo intentará en la pasada siguiente. Va por el plano de GESTIÓN: la llave de
+   * ejecución no puede leer la bandeja.
+   */
+  async getManualReviewCase(caseCode: string): Promise<{
+    caseCode: string;
+    status: string;
+    resolution: Record<string, unknown> | null;
+    resolvedAt: string | null;
+    assignedTo: string | null;
+  } | null> {
+    if (!this.isConfigured) return null;
+    const url = `${this.baseUrl()}/v1/manual-reviews/${encodeURIComponent(caseCode)}`;
+    const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_API_KEY ?? '';
+    try {
+      const response = await fetch(url, { headers: { 'x-api-key': apiKey, 'x-tenant-id': '1' } });
+      if (!response.ok) {
+        this.logger.warn(`El motor respondió ${response.status} al leer el caso ${caseCode}.`);
+        return null;
+      }
+      const body = (await response.json()) as Record<string, unknown>;
+      const caso = ((body.data ?? body) ?? {}) as Record<string, unknown>;
+      return {
+        caseCode: String(caso.caseCode ?? caseCode),
+        status: String(caso.status ?? ''),
+        resolution: (caso.resolutionJson ?? caso.resolution ?? null) as Record<string, unknown> | null,
+        resolvedAt: caso.resolvedAt ? String(caso.resolvedAt) : null,
+        assignedTo: caso.assignedTo ? String(caso.assignedTo) : null,
+      };
+    } catch (error) {
+      this.logger.warn(`No se pudo leer el caso ${caseCode} del motor: ${(error as Error).message}`);
+      return null;
+    }
+  }
+
   private baseUrl(): string {
     const base = env.DECISION_ENGINE_BASE_URL;
     if (!base) throw toAdapterError({ provider: PROVIDER, message: 'DECISION_ENGINE_BASE_URL no está configurada.' });

@@ -37,6 +37,22 @@ export function toPartnerProfileDto(model: PartnerProfileModel) {
     decidedAt: model.decidedAt?.toISOString() ?? null,
     rejectionReason: model.rejectionReason,
     erpAccountId: model.erpAccountId,
+    /*
+     * QUIÉN decidió, antes de explicar nada.
+     *
+     * Sin esto la pantalla enseñaba «aprobado» sin decir si lo firmó una persona o lo resolvió una
+     * política versionada, que son dos cosas muy distintas para quien audita. `null` en todo el
+     * bloque significa que se decidió antes de que esto se registrara, y se dice así: no se
+     * rellena con un valor inventado.
+     */
+    decision: {
+      executionId: model.decisionExecutionId,
+      outcome: model.decisionOutcome,
+      reason: model.decisionReason,
+      artifactVersionId: model.decisionArtifactVersion,
+      manualReviewCaseCode: model.manualReviewCaseCode,
+      evaluatedAt: model.decisionEvaluatedAt?.toISOString() ?? null,
+    },
   };
 }
 

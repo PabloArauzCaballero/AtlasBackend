@@ -95,6 +95,14 @@ export const runtimeJobsEnvShape = {
   RUNTIME_JOBS_RATING_SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(21_600_000),
   RUNTIME_JOBS_RATING_SWEEP_LIMIT: z.coerce.number().int().min(1).max(5_000).default(500),
 
+  /*
+   * La vuelta del circuito de la verificación de comercios: qué pasó con los casos que el Motor
+   * abrió. Cada 5 minutos porque un comercio aprobado y no habilitado no puede cobrar, y ese
+   * retraso lo paga él en ventas; leer una bandeja pequeña es barato.
+   */
+  RUNTIME_JOBS_PARTNER_KYB_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
+  RUNTIME_JOBS_PARTNER_KYB_SYNC_LIMIT: z.coerce.number().int().min(1).max(500).default(50),
+
   // Recálculo de la capacidad de pago para quien todavía no tiene línea (recién dado de alta) y para
   // quien la tiene vieja. Sin esto la línea sólo se movía a mano desde operaciones.
   RUNTIME_JOBS_CREDIT_LINE_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),

@@ -16,7 +16,11 @@ import {
 } from '../../database/models/index.js';
 import { PartnerCommerceService } from './application/partner-commerce.service.js';
 import { PartnerContactVerificationService } from './application/partner-contact-verification.service.js';
+import { PartnerKybDecisionService } from './application/partner-kyb-decision.service.js';
+import { PartnerKybSyncService } from './application/partner-kyb-sync.service.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
+import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
+import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { PartnerQrService } from './application/partner-qr.service.js';
 import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { MerchantQrController } from './merchant-qr.controller.js';
@@ -45,6 +49,12 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     ]),
     // El canal de correo, que es lo que hace posible probar el contacto declarado.
     MailSenderModule,
+    // La verificación del expediente la decide el Motor: aporta el cliente y la resolución del
+    // artefacto. Aquí sólo se declara CUÁNDO se pide, no qué se decide.
+    DecisionEngineModule,
+    // Aporta `InternalPermissionsGuard`: la puerta por la que el ERP pide la verificación
+    // (`partner.kyb.request`) sin ser ninguno de los roles de aplicación de esta consola.
+    InternalUsersModule,
   ],
   controllers: [PartnerOnboardingController, PartnerCommerceController, MerchantQrController, PartnerOperationsController],
   providers: [
@@ -53,6 +63,8 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     // necesita el repositorio para resolver quién es el dueño del expediente.
     PartnerOwnershipGuard,
     PartnerProfileService,
+    PartnerKybDecisionService,
+    PartnerKybSyncService,
     PartnerCommerceService,
     PartnerQrService,
     PartnerContactVerificationService,
@@ -69,6 +81,6 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
      * después del smoke; ningún test lo habría visto.
      */
   ],
-  exports: [PartnerProfileService, PartnerCommerceService, PartnerQrService],
+  exports: [PartnerProfileService, PartnerCommerceService, PartnerQrService, PartnerKybSyncService],
 })
 export class PartnerOnboardingModule {}

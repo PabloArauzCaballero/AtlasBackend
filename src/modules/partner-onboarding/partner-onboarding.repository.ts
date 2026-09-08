@@ -151,6 +151,33 @@ export class PartnerOnboardingRepository {
     });
   }
 
+  /**
+   * Los expedientes que corresponden a una cuenta del ERP o a un NIT.
+   *
+   * Es lo que permite al ERP saber si el comercio que acaba de dar de alta ya tiene expediente en
+   * Atlas, sin que nadie copie un identificador de una pantalla a otra. Se piden los dos criterios
+   * juntos cuando llegan los dos: con `erpAccountId` de una cuenta y `taxId` de otra, devolver
+   * cualquiera de las dos coincidencias enlazaría comercios distintos.
+   */
+  findProfilesByExternalKeys(
+    tenantId: string,
+    criteria: { erpAccountId?: string; taxId?: string },
+    options: { limit: number; offset: number } & RepositoryOptions,
+  ): Promise<{ rows: PartnerProfileModel[]; count: number }> {
+    return this.profileModel.findAndCountAll({
+      where: {
+        tenantId,
+        deleted: false,
+        ...(criteria.erpAccountId ? { erpAccountId: criteria.erpAccountId } : {}),
+        ...(criteria.taxId ? { taxId: criteria.taxId } : {}),
+      },
+      order: [['_created_at', 'DESC']],
+      limit: options.limit,
+      offset: options.offset,
+      transaction: options.transaction,
+    });
+  }
+
   createProfile(
     values: {
       tenantId: string;
@@ -200,6 +227,12 @@ export class PartnerOnboardingRepository {
       contactCodeExpiresAt: Date | null;
       contactCodeAttempts: number;
       contactCodeSentAt: Date | null;
+      decisionExecutionId: string | null;
+      decisionOutcome: string | null;
+      decisionReason: string | null;
+      decisionArtifactVersion: string | null;
+      manualReviewCaseCode: string | null;
+      decisionEvaluatedAt: Date | null;
     }>,
     options: RepositoryOptions = {},
   ): Promise<PartnerProfileModel> {

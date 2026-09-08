@@ -11,6 +11,7 @@ import { OnboardingAbandonmentService } from '../customer-onboarding/application
 import { LoanDelinquencyService } from '../loans/application/loan-delinquency.service.js';
 import { DebtRatingService } from '../credit-rating/application/debt-rating.service.js';
 import { OutcomeDispatchService } from '../decision-engine/outcome-dispatch.service.js';
+import { PartnerKybSyncService } from '../partner-onboarding/application/partner-kyb-sync.service.js';
 import { SupportSlaService } from '../support/application/support-sla.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
@@ -58,10 +59,11 @@ export function buildScheduledJobs(deps: {
   supportSla: SupportSlaService;
   debtRating: DebtRatingService;
   outcomeDispatch: OutcomeDispatchService;
+  partnerKybSync: PartnerKybSyncService;
 }): ScheduledJob[] {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
   const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements, supportSla } = deps;
-  const { debtRating, outcomeDispatch } = deps;
+  const { debtRating, outcomeDispatch, partnerKybSync } = deps;
 
   return [
     {
@@ -224,6 +226,19 @@ export function buildScheduledJobs(deps: {
       jobCode: 'sweep_debt_ratings',
       intervalMs: env.RUNTIME_JOBS_RATING_SWEEP_INTERVAL_MS,
       run: (tenantId) => debtRating.sweep({ tenantId, limit: env.RUNTIME_JOBS_RATING_SWEEP_LIMIT }),
+    },
+    /*
+     * La vuelta del circuito de la verificación de comercios.
+     *
+     * El Motor abre el caso y una persona lo resuelve en SU cola; el expediente vive aquí y es lo
+     * que hace que un QR de caja resuelva. Sin esto, un comercio aprobado por un analista seguía
+     * figurando «en revisión» en Atlas para siempre, y nadie lo notaba porque las dos pantallas
+     * decían la verdad de su propio lado.
+     */
+    {
+      jobCode: 'sync_partner_kyb_reviews',
+      intervalMs: env.RUNTIME_JOBS_PARTNER_KYB_SYNC_INTERVAL_MS,
+      run: (tenantId) => partnerKybSync.syncPendingReviews({ tenantId, limit: env.RUNTIME_JOBS_PARTNER_KYB_SYNC_LIMIT }),
     },
     // La otra mitad: quien nunca tuvo línea porque nadie se acordó de pedirla, y quien la tiene tan
     // vieja que responde a un expediente que ya no es el suyo.

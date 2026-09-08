@@ -113,6 +113,40 @@ export class PartnerProfileModel extends Model {
   @Column({ field: 'erp_account_id', type: DataType.STRING(64) })
   declare erpAccountId: string | null;
 
+  /**
+   * Quién decidió la verificación, y con qué política.
+   *
+   * La decisión era humana y local mientras el Motor tenía el artefacto `PARTNER_KYB_REVIEW`
+   * desplegado sin que lo ejecutara nadie. Con estas columnas, cada expediente dice si lo evaluó
+   * el Motor —en qué ejecución y con qué versión— o si viene de antes del registro (`NULL`, que se
+   * enseña como tal y no se rellena).
+   */
+  @Column({ field: 'decision_execution_id', type: DataType.STRING(64) })
+  declare decisionExecutionId: string | null;
+
+  @Column({ field: 'decision_outcome', type: DataType.STRING(40) })
+  declare decisionOutcome: string | null;
+
+  @Column({ field: 'decision_reason', type: DataType.STRING(120) })
+  declare decisionReason: string | null;
+
+  @Column({ field: 'decision_artifact_version', type: DataType.STRING(40) })
+  declare decisionArtifactVersion: string | null;
+
+  /**
+   * El caso que el Motor abrió, cuando lo abrió.
+   *
+   * Con valor, la decisión se toma en el Motor y esta consola NO debe ofrecer un segundo
+   * formulario: dos bandejas para el mismo expediente producen dos veredictos y gana el que
+   * alguien mire primero. Sin valor, la decisión local es la única que hay.
+   */
+  @Column({ field: 'manual_review_case_code', type: DataType.STRING(80) })
+  declare manualReviewCaseCode: string | null;
+
+  /** Cuándo respondió el Motor. Distinto de `decidedAt`, que es cuándo quedó firme el expediente. */
+  @Column({ field: 'decision_evaluated_at', type: DataType.DATE })
+  declare decisionEvaluatedAt: Date | null;
+
   @Column({ field: '_created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 

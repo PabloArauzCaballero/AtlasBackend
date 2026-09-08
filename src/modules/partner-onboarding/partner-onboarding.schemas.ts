@@ -298,6 +298,56 @@ export const listPartnerQueueQuerySchema = z.object({
 export type ListPartnerQueueQueryDto = z.infer<typeof listPartnerQueueQuerySchema>;
 
 /**
+ * La búsqueda de un expediente por su lado del ERP.
+ *
+ * El ERP origina la cuenta B2B y no conoce el `partnerId`: el puente `partner_profiles.erp_account_id`
+ * va en el otro sentido y nace nulo. Sin esta búsqueda, enlazar los dos sistemas exigía que alguien
+ * copiara un identificador a mano de una pantalla a otra, que es como se enlazaban antes las
+ * identidades de comercio — y el resultado fue un `user_id` nulo para siempre por un dedazo.
+ *
+ * Exige AL MENOS uno de los dos criterios: sin ninguno, esto sería un listado completo de comercios
+ * con otro nombre.
+ */
+export const findPartnerQuerySchema = z
+  .object({
+    erpAccountId: z.string().trim().min(1).max(64).optional(),
+    taxId: z.string().trim().min(1).max(40).optional(),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(25),
+  })
+  .refine((value) => Boolean(value.erpAccountId ?? value.taxId), {
+    message: 'Indica erpAccountId o taxId: esta búsqueda no lista comercios.',
+    path: ['erpAccountId'],
+  });
+export type FindPartnerQueryDto = z.infer<typeof findPartnerQuerySchema>;
+
+/**
+ * El enlace con la cuenta del ERP, escrito por el ERP al contratar.
+ *
+ * Es de una vía y no se reescribe: un expediente que ya apunta a una cuenta y de pronto apunta a
+ * otra son dos verificaciones distintas del mismo comercio, y la que gane será la que alguien mire
+ * primero. Cambiarlo es un caso nuevo, no un PATCH.
+ */
+export const linkErpAccountSchema = z
+  .object({
+    erpAccountId: z.string().trim().min(1).max(64),
+  })
+  .strict();
+export type LinkErpAccountDto = z.infer<typeof linkErpAccountSchema>;
+
+/**
+ * La petición de verificación. `reason` es opcional y sólo deja constancia de POR QUÉ se pidió
+ * —«el ERP dio de alta la cuenta», «se reintenta tras subir el poder»—: quién y cuándo ya los
+ * registra la auditoría de la llamada.
+ */
+export const requestKybReviewSchema = z
+  .object({
+    reason: z.string().trim().min(3).max(200).optional(),
+  })
+  .strict();
+export type RequestKybReviewDto = z.infer<typeof requestKybReviewSchema>;
+
+/**
  * Decisión sobre el expediente de un comercio.
  *
  * Rechazar exige motivo y aprobar no: el motivo de un sí es el expediente completo que se acaba de
