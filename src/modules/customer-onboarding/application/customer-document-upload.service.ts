@@ -7,7 +7,7 @@ import { Injectable, NotFoundException, ServiceUnavailableException, Unprocessab
 import { MAX_EVIDENCE_BYTES, DocumentStorageService } from '../../../common/storage/document-storage.service.js';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
-import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
+import { CREDIT_ELIGIBLE_STATUS, EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { UploadUrlRequestDto } from '../customer-onboarding-profile.schemas.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
@@ -45,7 +45,16 @@ export class CustomerDocumentUploadService {
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
 
     const status = normalizeLifecycleStatus(customer.lifecycleStatus);
-    if (!EDITABLE_ONBOARDING_STATUSES.includes(status)) {
+    // El extracto bancario alimenta la LÍNEA DE CRÉDITO y lo sube un cliente YA ACTIVO desde la app
+    // (pantalla `extracto-bancario`, sección autenticada). El resto de la evidencia documental
+    // —identidad, domicilio— es del alta. Gatear TODO documento tras el onboarding dejaba a un
+    // cliente activo sin forma de pedir o refrescar crédito: el mismo patrón que el QR de cobro, que
+    // el comercio APROBADO tampoco podía subir. `active` es el único estado extra que se admite y
+    // sólo para `bank_statement`; blocked/rejected/closed/suspended siguen sin poder subir nada.
+    const isCreditStatementUpload = input.body.documentType === 'bank_statement';
+    const uploadAllowed =
+      EDITABLE_ONBOARDING_STATUSES.includes(status) || (isCreditStatementUpload && status === CREDIT_ELIGIBLE_STATUS);
+    if (!uploadAllowed) {
       throw new UnprocessableEntityException(`PROFILE_NOT_EDITABLE_IN_STATUS: ${status}`);
     }
     if (input.body.sizeBytes > MAX_EVIDENCE_BYTES) {
