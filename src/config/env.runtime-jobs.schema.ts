@@ -74,6 +74,27 @@ export const runtimeJobsEnvShape = {
   // momento en que la mora se ve, y una menor recorrería la misma cartera sin que nada haya cambiado.
   RUNTIME_JOBS_DELINQUENCY_SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
 
+  /*
+   * Entrega al Motor de los desenlaces de cosecha. El barrido de mora los ENCOLABA en
+   * `loan_outcome_reports` y nada los entregaba: se acumulaban en `pending` hasta que alguien
+   * pulsara un botón del portal, y el Motor medía su acierto sobre una muestra que no crecía. Cada
+   * 15 minutos: la ventana ya venció cuando se encola, así que lo único que importa es no dejar
+   * pasar el día; y el lote es idempotente en el Motor (ejecución + ventana), así que insistir es
+   * barato.
+   */
+  RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
+  RUNTIME_JOBS_OUTCOME_DISPATCH_LIMIT: z.coerce.number().int().min(1).max(500).default(100),
+
+  /*
+   * Calificación de la cartera (categoría de riesgo y previsión de cada deuda y de su titular).
+   * Sólo se ejecutaba desde un endpoint HTTP, así que la calificación «vigente» era la del último
+   * que se acordó de pedirla. Cada seis horas: la categoría depende de los días de atraso, que el
+   * barrido de mora mueve cada hora; recalificar cuatro veces al día basta para un cierre y no
+   * recorre la cartera entera por cada cuota que vence.
+   */
+  RUNTIME_JOBS_RATING_SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(21_600_000),
+  RUNTIME_JOBS_RATING_SWEEP_LIMIT: z.coerce.number().int().min(1).max(5_000).default(500),
+
   // Recálculo de la capacidad de pago para quien todavía no tiene línea (recién dado de alta) y para
   // quien la tiene vieja. Sin esto la línea sólo se movía a mano desde operaciones.
   RUNTIME_JOBS_CREDIT_LINE_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),

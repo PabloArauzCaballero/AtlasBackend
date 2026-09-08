@@ -19,6 +19,10 @@ import {
   TenantModel,
 } from '../../database/models/index.js';
 import { CreditModule } from '../credit/credit.module.js';
+import { CreditRatingModule } from '../credit-rating/credit-rating.module.js';
+import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
+import { DebtRatingService } from '../credit-rating/application/debt-rating.service.js';
+import { OutcomeDispatchService } from '../decision-engine/outcome-dispatch.service.js';
 import { CustomerOnboardingModule } from '../customer-onboarding/customer-onboarding.module.js';
 import { LoansModule } from '../loans/loans.module.js';
 import { SupportModule } from '../support/support.module.js';
@@ -52,6 +56,10 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
     // sus dominios: aquí sólo se declara CADA CUÁNTO corren, no QUÉ hacen.
     LoansModule,
     CreditModule,
+    // La calificación de la cartera y la entrega de desenlaces al Motor son trabajos de fondo por la
+    // misma razón que el barrido de mora: si dependen de un botón, dependen de que alguien se acuerde.
+    CreditRatingModule,
+    DecisionEngineModule,
     // Aporta `SupportSlaService`: la vigilancia de los compromisos de atención es un trabajo de
     // fondo, pero el plazo, el calendario hábil y la pausa son reglas del soporte y viven allí.
     SupportModule,
@@ -85,6 +93,8 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
         creditLineRefresh: CreditLineRefreshService,
         bankStatements: BankStatementReviewWorker,
         supportSla: SupportSlaService,
+        debtRating: DebtRatingService,
+        outcomeDispatch: OutcomeDispatchService,
       ) =>
         buildScheduledJobs({
           runtimeJobs,
@@ -94,6 +104,8 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
           creditLineRefresh,
           bankStatements,
           supportSla,
+          debtRating,
+          outcomeDispatch,
         }),
       inject: [
         RuntimeJobsService,
@@ -103,6 +115,8 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
         CreditLineRefreshService,
         BankStatementReviewWorker,
         SupportSlaService,
+        DebtRatingService,
+        OutcomeDispatchService,
       ],
     },
   ],

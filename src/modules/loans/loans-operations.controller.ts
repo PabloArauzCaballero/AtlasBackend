@@ -14,7 +14,7 @@ import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { OutcomeDispatchService } from '../decision-engine/outcome-dispatch.service.js';
 import { LoanDelinquencyService } from './application/loan-delinquency.service.js';
-import { LoanSweepDto, OutcomeDispatchDto, loanSweepSchema, outcomeDispatchSchema } from './loans.schemas.js';
+import { LoanSweepDto, loanSweepSchema } from './loans.schemas.js';
 
 /**
  * Operación del libro: recalcular mora y entregar desenlaces al motor.
@@ -50,25 +50,29 @@ export class LoansOperationsController {
   @Post('delinquency-sweep')
   @HttpCode(HttpStatus.OK)
   sweep(@CurrentTenant() tenantId: string, @Body(new ZodValidationPipe(loanSweepSchema)) body: LoanSweepDto) {
-    // `tenantScoped: false` barre la cartera de TODOS los tenants: sólo tiene sentido en una
-    // operación de plataforma, y por eso el barrido acotado es el valor por omisión.
-    return this.delinquency.sweep({ tenantId: body.tenantScoped ? tenantId : null, limit: body.limit });
+    // Siempre acotado al tenant de la sesión. Barrer la cartera de TODOS los tenants desde una
+    // consola de operaciones era una operación de plataforma escondida tras una casilla.
+    return this.delinquency.sweep({ tenantId, limit: body.limit });
   }
 
-  @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  /*
+   * `POST outcome-dispatch` ya no vive aquí. Entregar desenlaces al Motor es integración, no una
+   * decisión de operaciones: lo hace el job `dispatch_loan_outcomes` y, a mano, `POST
+   * /runtime-jobs/dispatch-loan-outcomes`. Lo que sí sigue siendo de esta pantalla es SABER si la
+   * entrega va al día (`outcome-backlog`).
+   */
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')
   @ApiOperation({
-    summary: 'Entregar al motor los desenlaces pendientes',
+    summary: 'Estado de la entrega de desenlaces al Motor',
     description:
-      'Manda en lote las observaciones encoladas. El motor deduplica por (ejecución, ventana), así que ' +
-      'reintentar un lote es seguro. Sin credencial del plano de gestión no se envía nada y se dice por qué.',
+      'Cuántos desenlaces esperan, cuántos reintentan, cuántos agotaron y cuántos llegaron; desde cuándo espera el más ' +
+      'antiguo y cuándo fue la última entrega. La entrega la hace el job dispatch_loan_outcomes; la medida está en el Motor.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiBody({ schema: zodToApiSchema(outcomeDispatchSchema) })
-  @ApiResponse({ status: 200, description: 'Desenlaces entregados o reencolados.' })
-  @Post('outcome-dispatch')
-  @HttpCode(HttpStatus.OK)
-  dispatch(@CurrentTenant() tenantId: string, @Body(new ZodValidationPipe(outcomeDispatchSchema)) body: OutcomeDispatchDto) {
-    return this.outcomes.dispatchPending({ tenantId, limit: body.limit });
+  @ApiResponse({ status: 200, description: 'Resumen de la cola de desenlaces.' })
+  @Get('outcome-status')
+  outcomeStatus(@CurrentTenant() tenantId: string) {
+    return this.outcomes.summarize(tenantId);
   }
 
   @Roles('risk_analyst', 'admin', 'platform_admin')

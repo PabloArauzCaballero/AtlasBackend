@@ -88,12 +88,7 @@ export type WriteOffLoanDto = z.infer<typeof writeOffLoanSchema>;
 export const loanSweepSchema = z
   .object({
     limit: z.number().int().positive().max(1_000).default(200),
-    tenantScoped: z.boolean().default(true),
   })
   .strict();
 
 export type LoanSweepDto = z.infer<typeof loanSweepSchema>;
-
-export const outcomeDispatchSchema = z.object({ limit: z.number().int().positive().max(500).default(100) }).strict();
-
-export type OutcomeDispatchDto = z.infer<typeof outcomeDispatchSchema>;

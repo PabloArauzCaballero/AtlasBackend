@@ -9,6 +9,8 @@ import { BankStatementReviewWorker } from '../credit/application/bank-statement-
 import { CreditLineRefreshService } from '../credit/application/credit-line-refresh.service.js';
 import { OnboardingAbandonmentService } from '../customer-onboarding/application/onboarding-abandonment.service.js';
 import { LoanDelinquencyService } from '../loans/application/loan-delinquency.service.js';
+import { DebtRatingService } from '../credit-rating/application/debt-rating.service.js';
+import { OutcomeDispatchService } from '../decision-engine/outcome-dispatch.service.js';
 import { SupportSlaService } from '../support/application/support-sla.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
@@ -54,9 +56,12 @@ export function buildScheduledJobs(deps: {
   creditLineRefresh: CreditLineRefreshService;
   bankStatements: BankStatementReviewWorker;
   supportSla: SupportSlaService;
+  debtRating: DebtRatingService;
+  outcomeDispatch: OutcomeDispatchService;
 }): ScheduledJob[] {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
   const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements, supportSla } = deps;
+  const { debtRating, outcomeDispatch } = deps;
 
   return [
     {
@@ -194,6 +199,31 @@ export function buildScheduledJobs(deps: {
       jobCode: 'sweep_loan_delinquency',
       intervalMs: env.RUNTIME_JOBS_DELINQUENCY_SWEEP_INTERVAL_MS,
       run: (tenantId) => delinquency.sweep({ tenantId, limit }),
+    },
+    /*
+     * Cerrar el bucle con el Motor sin que nadie pulse nada.
+     *
+     * El barrido de arriba ENCOLA los desenlaces (`loan_outcome_reports`), y hasta ahora nada los
+     * entregaba: el portal tenía un botón «Entregar desenlaces» que era un `curl` con interfaz, y
+     * mientras nadie lo pulsara el Motor medía su acierto sobre una muestra congelada. Entregar es
+     * integración, no una decisión de negocio: le corresponde a un job. La pantalla del portal
+     * enseña ahora si la entrega va al día y enlaza a la medida en el Motor.
+     */
+    {
+      jobCode: 'dispatch_loan_outcomes',
+      intervalMs: env.RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS,
+      run: (tenantId) => outcomeDispatch.dispatchPending({ tenantId, limit: env.RUNTIME_JOBS_OUTCOME_DISPATCH_LIMIT }),
+    },
+    /*
+     * La calificación de la cartera —categoría de riesgo y previsión— dependía de que alguien
+     * pulsara «Recalificar» antes de un cierre. La categoría se deriva de los días de atraso, que
+     * el barrido de mora ya mueve solo; dejar la calificación a mano era tener la mitad del
+     * cálculo automática y la otra mitad esperando a que alguien se acordara.
+     */
+    {
+      jobCode: 'sweep_debt_ratings',
+      intervalMs: env.RUNTIME_JOBS_RATING_SWEEP_INTERVAL_MS,
+      run: (tenantId) => debtRating.sweep({ tenantId, limit: env.RUNTIME_JOBS_RATING_SWEEP_LIMIT }),
     },
     // La otra mitad: quien nunca tuvo línea porque nadie se acordó de pedirla, y quien la tiene tan
     // vieja que responde a un expediente que ya no es el suyo.

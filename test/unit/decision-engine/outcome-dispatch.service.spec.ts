@@ -105,4 +105,44 @@ describe('OutcomeDispatchService', () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toMatchObject({ decisionExecutionId: '88001', windowDays: 90, attempts: 6 });
   });
+
+  /*
+   * El resumen que sustituye al botón «Entregar desenlaces» del portal: ahora entrega un job, y lo
+   * que hay que poder ver es si va al día.
+   */
+  it('summarize devuelve la cola en cuatro cifras, el más antiguo y la última entrega', async () => {
+    const counts: Record<string, number> = { pending: 4, retrying: 1, exhausted: 2, sent: 40 };
+    const reportModel = {
+      findAll: jest.fn(async (..._args: unknown[]) => []),
+      count: jest.fn(async (options: { where: { status: string; attempts?: unknown } }) => {
+        if (options.where.status === 'pending') return counts.pending;
+        if (options.where.status === 'sent') return counts.sent;
+        return options.where.attempts && Object.getOwnPropertySymbols(options.where.attempts).length > 0 &&
+          String(Object.getOwnPropertySymbols(options.where.attempts)[0]).includes('gte')
+          ? counts.exhausted
+          : counts.retrying;
+      }),
+      min: jest.fn(async (..._args: unknown[]) => new Date('2026-08-01T00:00:00.000Z')),
+      max: jest.fn(async (..._args: unknown[]) => new Date('2026-09-07T10:00:00.000Z')),
+    };
+    const client = { canReportOutcomes: true, recordOutcomes: jest.fn() };
+    const service = new OutcomeDispatchService(client as never, reportModel as never);
+
+    const result = await service.summarize('1');
+
+    expect(result).toEqual({
+      pending: 4,
+      retrying: 1,
+      exhausted: 2,
+      sent: 40,
+      oldestPendingObservedAt: new Date('2026-08-01T00:00:00.000Z'),
+      lastSentAt: new Date('2026-09-07T10:00:00.000Z'),
+      configured: true,
+      maxAttempts: 6,
+    });
+    // Todas las cuentas van acotadas al tenant: la cola de otro inquilino no es asunto de esta pantalla.
+    for (const call of reportModel.count.mock.calls as unknown as [{ where: { tenantId?: string } }][]) {
+      expect(call[0].where.tenantId).toBe('1');
+    }
+  });
 });

@@ -87,6 +87,35 @@ export class OutcomeDispatchService {
   }
 
   /**
+   * Si la entrega va al día, en cuatro cifras.
+   *
+   * Es lo que el portal enseña en lugar del botón «Entregar desenlaces»: ahora entrega un job, y
+   * lo que un operador necesita saber es si ese job está haciendo su trabajo — cuántos esperan,
+   * desde cuándo, cuántos se quedaron por el camino — y dónde se MIDE lo entregado (en el Motor).
+   */
+  async summarize(tenantId: string | null) {
+    const scope = tenantId ? { tenantId } : {};
+    const [pending, failed, exhausted, sent, oldestPending, lastSent] = await Promise.all([
+      this.reportModel.count({ where: { ...scope, status: 'pending' } }),
+      this.reportModel.count({ where: { ...scope, status: 'failed', attempts: { [Op.lt]: MAX_ATTEMPTS } } }),
+      this.reportModel.count({ where: { ...scope, status: 'failed', attempts: { [Op.gte]: MAX_ATTEMPTS } } }),
+      this.reportModel.count({ where: { ...scope, status: 'sent' } }),
+      this.reportModel.min<Date | null, LoanOutcomeReportModel>('observedAt', { where: { ...scope, status: 'pending' } }),
+      this.reportModel.max<Date | null, LoanOutcomeReportModel>('sentAt', { where: { ...scope, status: 'sent' } }),
+    ]);
+    return {
+      pending,
+      retrying: failed,
+      exhausted,
+      sent,
+      oldestPendingObservedAt: oldestPending ?? null,
+      lastSentAt: lastSent ?? null,
+      configured: this.client.canReportOutcomes,
+      maxAttempts: MAX_ATTEMPTS,
+    };
+  }
+
+  /**
    * Los que agotaron los reintentos. No se esconden: un desenlace que nunca llegó es un agujero en
    * la medida del modelo, y el equipo de riesgo tiene que poder verlo antes de recalibrar sobre una
    * muestra incompleta.

@@ -102,6 +102,17 @@ export type RetryStuckNotificationsDto = z.infer<typeof retryStuckNotificationsS
 export type DeliverPendingNotificationsDto = z.infer<typeof deliverPendingNotificationsSchema>;
 export type PurgeIdempotencyKeysDto = z.infer<typeof purgeIdempotencyKeysSchema>;
 export type PurgeProcessedOutboxDto = z.infer<typeof purgeProcessedOutboxSchema>;
+export const dispatchLoanOutcomesSchema = z.object({
+  limit: z.number().int().positive().max(500).default(100),
+});
+
+export const sweepDebtRatingsSchema = z.object({
+  limit: z.number().int().positive().max(5_000).default(500),
+});
+
+export type DispatchLoanOutcomesDto = z.infer<typeof dispatchLoanOutcomesSchema>;
+export type SweepDebtRatingsDto = z.infer<typeof sweepDebtRatingsSchema>;
+
 export type ProcessOutboxDto = z.infer<typeof processOutboxSchema>;
 export type ProcessEventsDto = z.infer<typeof processEventsSchema>;
 export type ApplyRetentionPoliciesDto = z.infer<typeof applyRetentionPoliciesSchema>;
