@@ -11,6 +11,7 @@ import { SystemsActionLogQueryService } from '../../../src/modules/systems-ops/s
 import { SystemsCatalogQueryService } from '../../../src/modules/systems-ops/systems-catalog-query.service.js';
 import { SystemsToolInferenceService } from '../../../src/modules/systems-ops/systems-tool-inference.service.js';
 import { SystemsDataImpactInferenceService } from '../../../src/modules/systems-ops/systems-data-impact-inference.service.js';
+import { SystemsDomainOverviewService } from '../../../src/modules/systems-ops/systems-domain-overview.service.js';
 import { SystemsReviewService } from '../../../src/modules/systems-ops/systems-review.service.js';
 import { SystemsStressProfileService } from '../../../src/modules/systems-ops/systems-stress-profile.service.js';
 import { SystemsStressRunService } from '../../../src/modules/systems-ops/systems-stress-run.service.js';
@@ -50,7 +51,8 @@ describe('systems-ops — OpenAPI document generation (5 controllers)', () => {
     };
     const toolInferenceServiceMock = { infer: jest.fn() };
     const dataImpactInferenceServiceMock = { infer: jest.fn() };
-    const reviewServiceMock = {
+    const domainOverviewServiceMock = { overview: jest.fn() };
+  const reviewServiceMock = {
       getReviewQueue: jest.fn(),
       reviewEndpoint: jest.fn(),
       reviewToolRequirement: jest.fn(),
@@ -97,6 +99,7 @@ describe('systems-ops — OpenAPI document generation (5 controllers)', () => {
         { provide: SystemsCatalogQueryService, useValue: catalogServiceMock },
         { provide: SystemsToolInferenceService, useValue: toolInferenceServiceMock },
         { provide: SystemsDataImpactInferenceService, useValue: dataImpactInferenceServiceMock },
+        { provide: SystemsDomainOverviewService, useValue: domainOverviewServiceMock },
         { provide: SystemsReviewService, useValue: reviewServiceMock },
         { provide: SystemsStressProfileService, useValue: stressProfileServiceMock },
         { provide: SystemsStressRunService, useValue: stressRunServiceMock },
