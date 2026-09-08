@@ -10,7 +10,7 @@ import { DecisionEngineClient } from '../../decision-engine/decision-engine.clie
 import type { DecisionResponse } from '../../decision-engine/decision-engine.types.js';
 import { env } from '../../../config/env.js';
 import { PartnerProfileModel } from '../../../database/models/index.js';
-import type { SubmissionGap } from './partner-profile.service.js';
+import type { SubmissionGap } from './partner-verification.service.js';
 
 /** Los desenlaces que publica el artefacto. Cualquier otro se trata como «no concluyente». */
 export const KYB_OUTCOMES = ['APROBADO', 'RECHAZADO', 'REVISION_MANUAL'] as const;

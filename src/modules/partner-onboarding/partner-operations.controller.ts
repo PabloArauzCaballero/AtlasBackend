@@ -17,6 +17,7 @@ import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
+import { PartnerVerificationService } from './application/partner-verification.service.js';
 import {
   FindPartnerQueryDto,
   findPartnerQuerySchema,
@@ -60,7 +61,10 @@ import { toPartnerProfileDto } from './partner-onboarding.mapper.js';
  */
 @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
 export class PartnerOperationsController {
-  constructor(private readonly profiles: PartnerProfileService) {}
+  constructor(
+    private readonly profiles: PartnerProfileService,
+    private readonly verification: PartnerVerificationService,
+  ) {}
 
   @ApiOperation({
     summary: 'La cola de expedientes esperando decisión',
@@ -71,7 +75,7 @@ export class PartnerOperationsController {
   @ApiResponse({ status: 200, description: 'Lista paginada de expedientes pendientes.' })
   @Get('queue')
   listQueue(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listPartnerQueueQuerySchema)) query: ListPartnerQueueQueryDto) {
-    return this.profiles.listAwaitingDecision(tenantId, query);
+    return this.verification.listAwaitingDecision(tenantId, query);
   }
 
   @ApiOperation({
@@ -85,7 +89,7 @@ export class PartnerOperationsController {
   @ApiResponse({ status: 400, description: 'Sin erpAccountId ni taxId: esta búsqueda no lista comercios.' })
   @Get()
   find(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(findPartnerQuerySchema)) query: FindPartnerQueryDto) {
-    return this.profiles.findByExternalKeys(tenantId, query);
+    return this.verification.findByExternalKeys(tenantId, query);
   }
 
   @ApiOperation({
@@ -107,7 +111,7 @@ export class PartnerOperationsController {
     @Param('partnerId') partnerId: string,
     @Body(new ZodValidationPipe(linkErpAccountSchema)) body: LinkErpAccountDto,
   ) {
-    return toPartnerProfileDto(await this.profiles.linkErpAccount(tenantId, partnerId, body.erpAccountId));
+    return toPartnerProfileDto(await this.verification.linkErpAccount(tenantId, partnerId, body.erpAccountId));
   }
 
   @ApiOperation({
@@ -134,7 +138,7 @@ export class PartnerOperationsController {
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(requestKybReviewSchema)) body: RequestKybReviewDto,
   ) {
-    const { profile, decision } = await this.profiles.requestKybReview(tenantId, partnerId, {
+    const { profile, decision } = await this.verification.requestKybReview(tenantId, partnerId, {
       // Sin llave del que llama, una por petición: reintentar entonces SÍ produce otra ejecución, y
       // es lo correcto —el Motor deduplica por llave y no puede adivinar que dos llamadas son la misma—.
       idempotencyKey: idempotencyKey ?? `kyb-${partnerId}-${Date.now()}`,

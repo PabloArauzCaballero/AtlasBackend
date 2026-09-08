@@ -36,15 +36,9 @@ import {
   ProcessEventsDto,
   ProcessOutboxDto,
   RecalculateDataQualityDto,
-  sweepDebtRatingsSchema,
-  SweepDebtRatingsDto,
-  dispatchLoanOutcomesSchema,
-  DispatchLoanOutcomesDto,
 } from './runtime-jobs.schemas.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
-import { DebtRatingService } from '../credit-rating/application/debt-rating.service.js';
-import { OutcomeDispatchService } from '../decision-engine/outcome-dispatch.service.js';
 
 /**
  * El tenant lo resuelve `@CurrentTenant()`; aquí solo queda exigir la clave de idempotencia, que
@@ -64,8 +58,6 @@ export class RuntimeJobsController {
   constructor(
     private readonly service: RuntimeJobsService,
     private readonly maintenance: RuntimeMaintenanceJobsService,
-    private readonly debtRating: DebtRatingService,
-    private readonly outcomeDispatch: OutcomeDispatchService,
   ) {}
 
   @ApiOperation({
@@ -280,47 +272,4 @@ export class RuntimeJobsController {
     return this.service.recalculateDataQuality({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
   }
 
-  /*
-   * Los dos jobs que cierran el bucle de la cartera, disparables a mano tras una incidencia.
-   *
-   * Vivían en `operations/loans` y `operations/credit-rating` como botones de runbook del portal,
-   * y eran la ÚNICA forma de que ocurrieran. Ahora corren solos (`dispatch_loan_outcomes`,
-   * `sweep_debt_ratings`); estos disparos son el mismo camino, con los mismos roles que el resto
-   * de jobs, para cuando hay que adelantarse al reloj.
-   */
-  @ApiOperation({
-    summary: 'Entregar al Motor los desenlaces de cosecha pendientes (job dispatch_loan_outcomes)',
-    description: 'El Motor deduplica por (ejecución, ventana): repetir un lote es seguro. Restringido a admin/platform_admin/system.',
-  })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: true })
-  @ApiBody({ schema: zodToApiSchema(dispatchLoanOutcomesSchema) })
-  @ApiResponse({ status: 200, description: 'Desenlaces entregados, fallidos y omitidos.' })
-  @Post('dispatch-loan-outcomes')
-  @HttpCode(HttpStatus.OK)
-  dispatchLoanOutcomes(
-    @CurrentTenant() tenantId: string,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(dispatchLoanOutcomesSchema)) body: DispatchLoanOutcomesDto,
-  ) {
-    return this.outcomeDispatch.dispatchPending({ tenantId: requireHeaders(tenantId, idempotencyKey), limit: body.limit });
-  }
-
-  @ApiOperation({
-    summary: 'Recalificar la cartera con la política vigente (job sweep_debt_ratings)',
-    description: 'Recorre los clientes con deuda viva y recalifica cada operación y su ficha. Restringido a admin/platform_admin/system.',
-  })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: true })
-  @ApiBody({ schema: zodToApiSchema(sweepDebtRatingsSchema) })
-  @ApiResponse({ status: 200, description: 'Clientes recorridos, calificados y fallidos.' })
-  @Post('sweep-debt-ratings')
-  @HttpCode(HttpStatus.OK)
-  sweepDebtRatings(
-    @CurrentTenant() tenantId: string,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(sweepDebtRatingsSchema)) body: SweepDebtRatingsDto,
-  ) {
-    return this.debtRating.sweep({ tenantId: requireHeaders(tenantId, idempotencyKey), limit: body.limit });
-  }
 }

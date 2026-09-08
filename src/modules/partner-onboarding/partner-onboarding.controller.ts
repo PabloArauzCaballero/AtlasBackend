@@ -19,6 +19,7 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerCommerceService } from './application/partner-commerce.service.js';
 import { PartnerContactVerificationService } from './application/partner-contact-verification.service.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
+import { PartnerVerificationService } from './application/partner-verification.service.js';
 import { PartnerQrService } from './application/partner-qr.service.js';
 import {
   toPartnerBranchDto,
@@ -61,6 +62,7 @@ export class PartnerOnboardingController {
     private readonly commerce: PartnerCommerceService,
     private readonly qr: PartnerQrService,
     private readonly contact: PartnerContactVerificationService,
+    private readonly verification: PartnerVerificationService,
   ) {}
 
   // Diez altas por minuto y por IP: abrir expedientes en masa es la forma barata de sondear qué
@@ -129,7 +131,7 @@ export class PartnerOnboardingController {
     const tenantId = tenantIdFromHeader(tenantIdHeader);
     const profile = await this.profiles.requireProfile(tenantId, params.partnerId);
     const [gaps, branches, qrCodes, terminals] = await Promise.all([
-      this.profiles.findSubmissionGaps(tenantId, profile),
+      this.verification.findSubmissionGaps(tenantId, profile),
       this.commerce.listBranches(tenantId, params.partnerId),
       this.qr.list(tenantId, params.partnerId),
       this.commerce.listPosTerminals(tenantId, params.partnerId),

@@ -32,6 +32,7 @@ import { SupportSlaService } from '../support/application/support-sla.service.js
 import { EventsModule } from '../events/events.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { RuntimeJobsController } from './runtime-jobs.controller.js';
+import { RuntimeDecisionJobsController } from './runtime-decision-jobs.controller.js';
 import { ExpedientesJobsController } from './expedientes-jobs.controller.js';
 import { RuntimeJobsSchedulerService } from './runtime-jobs-scheduler.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
@@ -82,7 +83,7 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
       TenantModel,
     ]),
   ],
-  controllers: [RuntimeJobsController, ExpedientesJobsController],
+  controllers: [RuntimeJobsController, RuntimeDecisionJobsController, ExpedientesJobsController],
   providers: [
     JobRunRecorderService,
     RuntimeJobsService,

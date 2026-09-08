@@ -11,6 +11,7 @@ import { imagenSinQr, qrJpeg, qrPng } from '../../support/qr-imagen.js';
 import { PartnerCommerceService } from '../../../src/modules/partner-onboarding/application/partner-commerce.service.js';
 import { PartnerContactVerificationService } from '../../../src/modules/partner-onboarding/application/partner-contact-verification.service.js';
 import { PartnerProfileService } from '../../../src/modules/partner-onboarding/application/partner-profile.service.js';
+import { PartnerVerificationService } from '../../../src/modules/partner-onboarding/application/partner-verification.service.js';
 import { PartnerQrService } from '../../../src/modules/partner-onboarding/application/partner-qr.service.js';
 
 /**
@@ -55,6 +56,15 @@ function profileDouble(overrides: AnyRecord = {}): AnyRecord {
 }
 
 /**
+ * La verificación, con el Motor simulado detrás. Se construye de verdad (y no como doble) porque lo
+ * que se prueba es qué hace Atlas con cada veredicto: los huecos del expediente, el estado que
+ * queda y qué se escribe. Cómo se llega al veredicto lo prueba el propio Motor.
+ */
+function verificationCon(repository: unknown, kyb: unknown) {
+  return new PartnerVerificationService(repository as never, metricsDouble(), kyb as never);
+}
+
+/**
  * El Motor, simulado. Lo que se prueba aquí es qué hace Atlas con CADA veredicto, no cómo se llega
  * a él: eso lo prueba `partner-kyb-manual-review.spec.ts` en el propio Motor, contra su ejecutor.
  */
@@ -85,7 +95,7 @@ describe('PartnerProfileService', () => {
       findProfileByTaxId: jest.fn(async () => profileDouble({ id: '77', onboardingStatus: 'under_review' })),
       createProfile: jest.fn(),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kybDouble()));
 
     await expect(
       service.start('1', {
@@ -108,9 +118,7 @@ describe('PartnerProfileService', () => {
       listBranches: jest.fn(async (..._a: unknown[]) => [] as AnyRecord[]),
       listQrCodes: jest.fn(async () => []),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
-
-    const gaps = await service.findSubmissionGaps('1', profileDouble({ commercialRegistry: null }) as never);
+    const gaps = await verificationCon(repository, kybDouble()).findSubmissionGaps('1', profileDouble({ commercialRegistry: null }) as never);
 
     expect(gaps.map((gap) => gap.requirement)).toEqual(['commercial_registry', 'legal_representative', 'branch', 'business_qr', 'bank_qr']);
   });
@@ -126,9 +134,7 @@ describe('PartnerProfileService', () => {
         { qrKind: 'bank', status: 'active' },
       ]),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
-
-    const gaps = await service.findSubmissionGaps('1', profileDouble() as never);
+    const gaps = await verificationCon(repository, kybDouble()).findSubmissionGaps('1', profileDouble() as never);
 
     expect(gaps.map((gap) => gap.requirement)).toEqual(['power_of_attorney']);
   });
@@ -141,7 +147,7 @@ describe('PartnerProfileService', () => {
       listQrCodes: jest.fn(async () => []),
       updateProfile: jest.fn(),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kybDouble()));
 
     await expect(service.submit('1', '10')).rejects.toBeInstanceOf(UnprocessableEntityException);
     expect(repository.updateProfile).not.toHaveBeenCalled();
@@ -166,7 +172,7 @@ describe('PartnerProfileService', () => {
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'REVISION_MANUAL', manualReviewCaseCode: 'MRC-7' });
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kyb as never);
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kyb));
 
     const { profile: updated } = await service.submit('1', '10');
 
@@ -189,7 +195,7 @@ describe('PartnerProfileService', () => {
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'APROBADO', reason: 'KYB_COMPLETO' });
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kyb as never);
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kyb));
 
     const { profile: updated } = await service.submit('1', '10');
 
@@ -214,7 +220,7 @@ describe('PartnerProfileService', () => {
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'DESENLACE_NUEVO_DEL_ARTEFACTO' });
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kyb as never);
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kyb));
 
     const { profile: updated } = await service.submit('1', '10');
 
@@ -238,7 +244,7 @@ describe('PartnerProfileService', () => {
         throw new ServiceUnavailableException('DECISION_ENGINE_UNAVAILABLE');
       }),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kyb as never);
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kyb));
 
     await expect(service.submit('1', '10')).rejects.toBeInstanceOf(ServiceUnavailableException);
     // El expediente sí quedó enviado: lo que falla es la verificación, y reintentarla es el camino.
@@ -255,7 +261,7 @@ describe('PartnerProfileService', () => {
       findProfileById: jest.fn(async () => profile),
       updateProfile: jest.fn(),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kybDouble()));
 
     await expect(service.decide('1', '10', { approved: true, internalUserId: '3' })).rejects.toBeInstanceOf(ConflictException);
     expect(repository.updateProfile).not.toHaveBeenCalled();
@@ -267,7 +273,7 @@ describe('PartnerProfileService', () => {
       findProfileById: jest.fn(async () => profile),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
+    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kybDouble()));
 
     const updated = await service.decide('1', '10', { approved: true, internalUserId: '3' });
 
@@ -276,7 +282,7 @@ describe('PartnerProfileService', () => {
   });
 
   it('un expediente ya en revisión no admite más cambios', () => {
-    const service = new PartnerProfileService({} as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
+    const service = new PartnerProfileService({} as never, metricsDouble(), storageDouble() as never, verificationCon({}, kybDouble()));
 
     expect(() => service.assertEditable(profileDouble({ onboardingStatus: 'under_review' }) as never)).toThrow(
       UnprocessableEntityException,
@@ -289,7 +295,7 @@ describe('PartnerProfileService', () => {
    * congelado mientras un analista mira es `under_review`.
    */
   it('el QR de cobro se puede reemplazar con el expediente aprobado, pero no en revisión', () => {
-    const service = new PartnerProfileService({} as never, metricsDouble(), storageDouble() as never, kybDouble() as never);
+    const service = new PartnerProfileService({} as never, metricsDouble(), storageDouble() as never, verificationCon({}, kybDouble()));
 
     expect(() => service.assertPaymentQrEditable(profileDouble({ onboardingStatus: 'approved' }) as never)).not.toThrow();
     expect(() => service.assertPaymentQrEditable(profileDouble({ onboardingStatus: 'under_review' }) as never)).toThrow(

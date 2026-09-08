@@ -19,6 +19,7 @@ import { PartnerContactVerificationService } from './application/partner-contact
 import { PartnerKybDecisionService } from './application/partner-kyb-decision.service.js';
 import { PartnerKybSyncService } from './application/partner-kyb-sync.service.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
+import { PartnerVerificationService } from './application/partner-verification.service.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { PartnerQrService } from './application/partner-qr.service.js';
@@ -64,6 +65,7 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     PartnerOwnershipGuard,
     PartnerProfileService,
     PartnerKybDecisionService,
+    PartnerVerificationService,
     PartnerKybSyncService,
     PartnerCommerceService,
     PartnerQrService,
@@ -81,6 +83,6 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
      * después del smoke; ningún test lo habría visto.
      */
   ],
-  exports: [PartnerProfileService, PartnerCommerceService, PartnerQrService, PartnerKybSyncService],
+  exports: [PartnerProfileService, PartnerVerificationService, PartnerCommerceService, PartnerQrService, PartnerKybSyncService],
 })
 export class PartnerOnboardingModule {}
