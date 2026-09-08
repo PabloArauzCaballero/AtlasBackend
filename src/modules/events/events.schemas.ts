@@ -23,8 +23,18 @@ export const publishEventSchema = z.object({
   sourceAction: z.string().trim().max(120).optional().nullable(),
 });
 
+/*
+ * El estado se acepta en cualquier caja. Los valores se guardan en minúsculas, pero quien filtra
+ * desde una pantalla suele tomarlos de una insignia que los pinta en mayúsculas, y `PENDING`
+ * respondía 400 de validación en vez de la lista: parecía un fallo del portal y era del borde.
+ */
+const eventStatusFilterSchema = z.preprocess(
+  (value) => (typeof value === 'string' ? value.trim().toLowerCase() : value),
+  eventStatusSchema,
+);
+
 export const listEventsQuerySchema = z.object({
-  status: eventStatusSchema.optional(),
+  status: eventStatusFilterSchema.optional(),
   eventCode: z.string().trim().min(1).max(160).optional(),
   aggregateType: z.string().trim().min(1).max(120).optional(),
   correlationId: z.string().trim().min(1).max(120).optional(),

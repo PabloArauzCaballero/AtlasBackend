@@ -92,7 +92,7 @@ export class EventsController {
   @ApiParam({ name: 'eventId', schema: zodToApiSchema(eventIdParamsSchema.shape.eventId) })
   @ApiResponse({ status: 200, description: 'Evento re-encolado para reintento.' })
   @ApiResponse({ status: 404, description: 'EVENT_NOT_FOUND.' })
-  @ApiResponse({ status: 409, description: 'EVENT_NOT_RETRYABLE.' })
+  @ApiResponse({ status: 409, description: 'PROCESSED_EVENT_CANNOT_BE_RETRIED.' })
   @Post(':eventId/retry')
   @HttpCode(HttpStatus.OK)
   retryEvent(
@@ -110,7 +110,7 @@ export class EventsController {
   @ApiParam({ name: 'eventId', schema: zodToApiSchema(eventIdParamsSchema.shape.eventId) })
   @ApiResponse({ status: 200, description: 'Evento cancelado.' })
   @ApiResponse({ status: 404, description: 'EVENT_NOT_FOUND.' })
-  @ApiResponse({ status: 409, description: 'EVENT_NOT_CANCELLABLE.' })
+  @ApiResponse({ status: 409, description: 'PROCESSED_EVENT_CANNOT_BE_CANCELLED | EVENT_ALREADY_CANCELLED.' })
   @Post(':eventId/cancel')
   @HttpCode(HttpStatus.OK)
   cancelEvent(

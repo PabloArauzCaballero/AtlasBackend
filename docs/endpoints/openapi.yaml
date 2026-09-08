@@ -3034,7 +3034,7 @@ paths:
         '404':
           description: EVENT_NOT_FOUND.
         '409':
-          description: EVENT_NOT_RETRYABLE.
+          description: PROCESSED_EVENT_CANNOT_BE_RETRIED.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -3074,7 +3074,7 @@ paths:
         '404':
           description: EVENT_NOT_FOUND.
         '409':
-          description: EVENT_NOT_CANCELLABLE.
+          description: PROCESSED_EVENT_CANNOT_BE_CANCELLED | EVENT_ALREADY_CANCELLED.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':

@@ -3,7 +3,7 @@
  * @business Esta pieza desacopla procesos de negocio y permite reintentos auditables sin perder eventos.
  * @system registra definiciones, outbox y procesamiento idempotente de eventos de dominio.
  */
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
 import { decodeCursor, paginateWithCursor } from '../../common/utils/pagination/cursor-pagination.util.js';
 import { listEventDefinitions, getEventDefinition } from './event-registry.js';
 import { EventsRepository } from './events.repository.js';
@@ -128,7 +128,12 @@ export class EventsService {
 
   async retryEvent(tenantId: string, eventId: string) {
     const event = await this.repository.getById(tenantId, eventId);
-    if (event.status === 'processed') throw new BadRequestException('PROCESSED_EVENT_CANNOT_BE_RETRIED');
+    /*
+     * 409 y no 400: la petición está bien formada; es el ESTADO del evento el que la contradice.
+     * Swagger prometía 409 desde el principio y el servicio lanzaba 400, así que un cliente que
+     * distinguiera «me equivoqué en la llamada» de «llegué tarde» no acertaba nunca.
+     */
+    if (event.status === 'processed') throw new ConflictException('PROCESSED_EVENT_CANNOT_BE_RETRIED');
     const now = new Date();
     event.status = 'pending';
     event.availableAt = now;
@@ -180,7 +185,8 @@ export class EventsService {
 
   async cancelEvent(tenantId: string, eventId: string) {
     const event = await this.repository.getById(tenantId, eventId);
-    if (event.status === 'processed') throw new BadRequestException('PROCESSED_EVENT_CANNOT_BE_CANCELLED');
+    if (event.status === 'processed') throw new ConflictException('PROCESSED_EVENT_CANNOT_BE_CANCELLED');
+    if (event.status === 'cancelled') throw new ConflictException('EVENT_ALREADY_CANCELLED');
     const now = new Date();
     event.status = 'cancelled';
     event.updatedAtValue = now;
