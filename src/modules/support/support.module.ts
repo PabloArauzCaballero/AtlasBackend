@@ -53,6 +53,7 @@ import { SupportDeskService } from './application/support-desk.service.js';
 import { SupportKnowledgeService } from './application/support-knowledge.service.js';
 import { SupportMessageService } from './application/support-message.service.js';
 import { SupportSlaService } from './application/support-sla.service.js';
+import { InternalSupportCatalogController } from './internal-support-catalog.controller.js';
 import { InternalSupportController } from './internal-support.controller.js';
 import { InternalSupportDeskController } from './internal-support-desk.controller.js';
 import { MerchantSupportController } from './merchant-support.controller.js';
@@ -116,6 +117,7 @@ import { SupportMessageRepository } from './support-message.repository.js';
     SupportChatController,
     SupportAttachmentsController,
     InternalSupportController,
+    InternalSupportCatalogController,
     InternalSupportDeskController,
     SupportKnowledgeAdminController,
   ],

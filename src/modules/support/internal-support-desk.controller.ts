@@ -3,7 +3,7 @@
  * @business Permite tomar chats en espera, declararse disponible y publicar respuestas aprobadas.
  * @system separa la mesa (canales y presencia) del expediente para no crecer un solo controlador.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -18,7 +18,12 @@ import { SupportChannelService } from './application/support-channel.service.js'
 import { SupportDeskService } from './application/support-desk.service.js';
 import { SupportMessageService } from './application/support-message.service.js';
 import { SupportSlaService } from './application/support-sla.service.js';
-import { type PresenceDto, presenceSchema } from './support-case.schemas.js';
+import {
+  type CreateAgentProfileDto,
+  createAgentProfileSchema,
+  type PresenceDto,
+  presenceSchema,
+} from './support-case.schemas.js';
 
 @ApiTags('Interno · Mesa de soporte')
 @ApiBearerAuth('access-token')
@@ -102,6 +107,56 @@ export class InternalSupportDeskController {
     const actor = await this.actors.resolve(currentUser, tenantId);
     this.actors.assertIsAgent(actor);
     return this.messages.verifyIntegrity(channelId);
+  }
+
+  /**
+   * Quién está habilitado para atender.
+   *
+   * Lo administra un supervisor y no cualquier interno: habilitar agentes decide quién puede LEER
+   * expedientes de soporte, que llevan dentro la conversación completa con el cliente.
+   */
+  @ApiOperation({ summary: 'Perfiles de agente habilitados en la mesa' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @Get('agents')
+  @Roles('admin', 'platform_admin')
+  async agents(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
+    return this.desk.listAgents({ tenantId: tenantIdFromHeader(tenantIdHeader, currentUser) });
+  }
+
+  /**
+   * Habilitar a una persona interna como agente.
+   *
+   * Es el alta que faltaba en todo el circuito. Sin perfil, cada ruta de esta consola responde 403
+   * `SUPPORT_AGENT_PROFILE_REQUIRED` —también a un administrador con todos los permisos— y hasta hoy
+   * la única forma de crearlo era escribir SQL contra `support.support_agent_profiles`.
+   */
+  @ApiOperation({ summary: 'Habilitar a un usuario interno como agente de soporte' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 404, description: 'SUPPORT_INTERNAL_USER_NOT_FOUND o SUPPORT_QUEUE_NOT_FOUND.' })
+  @ApiResponse({ status: 409, description: 'SUPPORT_AGENT_PROFILE_EXISTS: ya tiene perfil activo.' })
+  @Post('agents')
+  @HttpCode(HttpStatus.CREATED)
+  @Roles('admin', 'platform_admin')
+  async createAgent(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Body(new ZodValidationPipe(createAgentProfileSchema)) body: CreateAgentProfileDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.desk.createAgent({ tenantId: tenantIdFromHeader(tenantIdHeader, currentUser), body });
+  }
+
+  @ApiOperation({ summary: 'Quitar a un agente de la mesa (no borra su historia)' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 404, description: 'SUPPORT_AGENT_PROFILE_NOT_FOUND.' })
+  @Delete('agents/:agentProfileId')
+  @HttpCode(HttpStatus.OK)
+  @Roles('admin', 'platform_admin')
+  async deactivateAgent(
+    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @Param('agentProfileId') agentProfileId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.desk.deactivateAgent({ tenantId: tenantIdFromHeader(tenantIdHeader, currentUser), agentProfileId });
   }
 
   /**

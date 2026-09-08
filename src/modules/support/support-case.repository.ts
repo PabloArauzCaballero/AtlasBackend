@@ -14,6 +14,7 @@ import { caseEventHash, eventContentHashOf } from './domain/support-hash-chain.j
 import type { SupportCaseEventType } from './support.constants.js';
 
 const CASES = `${atlasSchemaFor('support_cases')}.support_cases`;
+const RESOLUTIONS = `${atlasSchemaFor('support_resolutions')}.support_resolutions`;
 
 export type RepositoryOptions = { transaction?: Transaction };
 
@@ -33,10 +34,14 @@ export interface ListCasesFilter {
   customerId?: string | null;
   partnerProfileId?: string | null;
   queueId?: string | null;
+  categoryId?: string | null;
+  caseType?: string | null;
   assigneeAgentId?: string | null;
   statuses?: readonly string[];
   priorities?: readonly string[];
   openedByActorId?: string | null;
+  resolutionCode?: string | null;
+  rootCauseCode?: string | null;
   limit: number;
   cursorOpenedAt?: Date | null;
   cursorId?: string | null;
@@ -170,10 +175,15 @@ export class SupportCaseRepository {
     if (filter.customerId) conditions.subjectCustomerId = filter.customerId;
     if (filter.partnerProfileId) conditions.subjectPartnerProfileId = filter.partnerProfileId;
     if (filter.queueId) conditions.queueId = filter.queueId;
+    if (filter.categoryId) conditions.categoryId = filter.categoryId;
+    if (filter.caseType) conditions.caseType = filter.caseType;
     if (filter.assigneeAgentId) conditions.currentAssigneeAgentId = filter.assigneeAgentId;
     if (filter.openedByActorId) conditions.openedByActorId = filter.openedByActorId;
     if (filter.statuses?.length) conditions.status = { [Op.in]: filter.statuses };
     if (filter.priorities?.length) conditions.priority = { [Op.in]: filter.priorities };
+
+    const byResolution = this.resolutionCondition(filter);
+    if (byResolution) conditions.id = byResolution;
 
     const cursor =
       filter.cursorOpenedAt && filter.cursorId
@@ -193,6 +203,31 @@ export class SupportCaseRepository {
       ],
       limit: filter.limit,
     });
+  }
+
+  /**
+   * Filtrar por cómo se resolvió, cuando la resolución no vive en el caso.
+   *
+   * `resolution_code` y `root_cause_code` están en `support_resolutions`, una fila por resolución y
+   * con las anteriores marcadas `superseded_at`: un caso reabierto y vuelto a resolver tiene varias.
+   * Se filtra sólo por la VIGENTE, porque preguntar «cuántos cerramos por causa desconocida» y que
+   * cuente también la explicación que ya fue reemplazada daría un número más alto que la realidad.
+   *
+   * Los códigos llegan validados contra el catálogo cerrado en Zod; aun así se escapan, porque una
+   * subconsulta construida por concatenación no debe depender de que el esquema de arriba no cambie.
+   */
+  private resolutionCondition(filter: ListCasesFilter): WhereOptions | null {
+    const clauses: string[] = [];
+    if (filter.resolutionCode) clauses.push(`resolution_code = ${this.sequelize.escape(filter.resolutionCode)}`);
+    if (filter.rootCauseCode) clauses.push(`root_cause_code = ${this.sequelize.escape(filter.rootCauseCode)}`);
+    if (!clauses.length) return null;
+
+    return {
+      [Op.in]: this.sequelize.literal(
+        `(SELECT case_id FROM ${RESOLUTIONS} WHERE _tenant_id = ${this.sequelize.escape(filter.tenantId)}
+            AND _deleted = FALSE AND superseded_at IS NULL AND ${clauses.join(' AND ')})`,
+      ),
+    } as unknown as WhereOptions;
   }
 
   /** Casos abiertos del mismo sujeto sobre la misma entidad: alimenta el aviso de duplicado. */

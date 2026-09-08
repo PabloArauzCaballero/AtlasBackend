@@ -3,9 +3,10 @@
  * @business Un cliente ve su caso en su idioma; el equipo ve además cola, prioridad y SLA.
  * @system separa la LECTURA de la escritura: aquí no hay transiciones, sólo autorización y proyección.
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { SupportCaseModel } from '../../../database/models/index.js';
 import { SupportCaseRepository } from '../support-case.repository.js';
+import { SupportCatalogRepository } from '../support-catalog.repository.js';
 import { SupportCaseTimelineRepository } from '../support-case-timeline.repository.js';
 import { SupportChannelRepository } from '../support-channel.repository.js';
 import type { ListCasesQueryDto } from '../support-case.schemas.js';
@@ -22,6 +23,7 @@ export class SupportCaseReadService {
     private readonly channels: SupportChannelRepository,
     private readonly actors: SupportActorService,
     private readonly audit: SupportAuditService,
+    private readonly catalog: SupportCatalogRepository,
   ) {}
 
   /**
@@ -143,9 +145,14 @@ export class SupportCaseReadService {
    */
   async listWorkQueue(input: { tenantId: string; actor: SupportActor; query: ListCasesQueryDto }) {
     const agentProfileId = this.actors.assertIsAgent(input.actor);
+    const category = await this.categoryFilter(input.tenantId, input.query.categoryCode);
     const rows = await this.cases.listCases({
       tenantId: input.tenantId,
       queueId: input.query.queueId ?? null,
+      categoryId: category ? String(category.id) : null,
+      caseType: input.query.caseType ?? null,
+      resolutionCode: input.query.resolutionCode ?? null,
+      rootCauseCode: input.query.rootCauseCode ?? null,
       assigneeAgentId: input.query.assignedToMe ? agentProfileId : null,
       statuses: input.query.status
         ? input.query.status.split(',')
@@ -160,6 +167,20 @@ export class SupportCaseReadService {
       (row) => row.sensitivity !== 'RESTRICTED' || input.actor.isSupervisor || String(row.currentAssigneeAgentId) === agentProfileId,
     );
     return { cases: visible.map(toInternalCaseDto), nextCursor: this.nextCursor(rows, input.query.limit) };
+  }
+
+  /**
+   * El motivo por el que se filtra tiene que existir.
+   *
+   * Un `categoryCode` mal escrito que se ignorara devolvería la cola ENTERA con cara de estar
+   * filtrada: quien mira la pantalla creería estar viendo los casos de ese motivo y estaría viendo
+   * todos. Es el fallo peor de un filtro — no da error, da un número equivocado.
+   */
+  private async categoryFilter(tenantId: string, categoryCode?: string) {
+    if (!categoryCode) return null;
+    const category = await this.catalog.findCategoryByCode(tenantId, categoryCode);
+    if (!category) throw new NotFoundException({ code: 'SUPPORT_CATEGORY_NOT_FOUND', categoryCode });
+    return category;
   }
 
   private nextCursor(rows: SupportCaseModel[], limit: number) {

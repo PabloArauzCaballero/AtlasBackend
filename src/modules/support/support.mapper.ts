@@ -12,6 +12,7 @@ import type {
   SupportCaseModel,
   SupportChannelModel,
   SupportMessageModel,
+  SupportQueueModel,
 } from '../../database/models/index.js';
 import { customerVisibleStatus } from './domain/case-state-machine.js';
 import type { SupportCaseStatus } from './support.constants.js';
@@ -114,6 +115,64 @@ export function toCategoryTreeDto(categories: readonly SupportCaseCategoryModel[
     ...toCategoryDto(root),
     subcategories: (children.get(String(root.id)) ?? []).map(toCategoryDto),
   }));
+}
+
+/**
+ * El mismo motivo, visto por quien clasifica.
+ *
+ * Aquí SÍ viajan cola, sensibilidad, impacto y urgencia por defecto, justo lo que `toCategoryDto`
+ * oculta. La diferencia no es un descuido de simetría: quien abre un caso describe su problema y no
+ * debe poder elegir la cola especializada eligiendo el motivo, mientras que el agente que reclasifica
+ * necesita ver a dónde manda el caso ANTES de mandarlo. Dos lectores, dos proyecciones.
+ */
+export function toInternalCategoryDto(category: SupportCaseCategoryModel) {
+  return {
+    ...toCategoryDto(category),
+    categoryId: String(category.id),
+    audience: category.audience,
+    domain: category.domain,
+    defaultCaseType: category.defaultCaseType,
+    sensitivity: category.sensitivity,
+    defaultQueueId: category.defaultQueueId ? String(category.defaultQueueId) : null,
+    defaultImpact: category.defaultImpact,
+    defaultUrgency: category.defaultUrgency,
+    catalogVersion: category.catalogVersion,
+  };
+}
+
+/** El árbol completo para el triage. Misma forma que el del cliente, con la proyección interna. */
+export function toInternalCategoryTreeDto(categories: readonly SupportCaseCategoryModel[]) {
+  const byId = new Map(categories.map((category) => [String(category.id), category]));
+  const children = new Map<string, SupportCaseCategoryModel[]>();
+  const roots: SupportCaseCategoryModel[] = [];
+
+  for (const category of categories) {
+    const parentId = category.parentCategoryId ? String(category.parentCategoryId) : null;
+    if (parentId && byId.has(parentId)) {
+      children.set(parentId, [...(children.get(parentId) ?? []), category]);
+    } else {
+      roots.push(category);
+    }
+  }
+
+  return roots.map((root) => ({
+    ...toInternalCategoryDto(root),
+    subcategories: (children.get(String(root.id)) ?? []).map(toInternalCategoryDto),
+  }));
+}
+
+/** La cola como destino de un triage o de una transferencia: código, nombre y a qué se compromete. */
+export function toQueueDto(queue: SupportQueueModel) {
+  return {
+    queueId: String(queue.id),
+    queueCode: queue.queueCode,
+    name: queue.name,
+    description: queue.description,
+    contextType: queue.contextType,
+    defaultPriority: queue.defaultPriority,
+    slaPolicyCode: queue.slaPolicyCode,
+    skillsRequired: queue.skillsRequiredJson ?? [],
+  };
 }
 
 export function toChannelDto(channel: SupportChannelModel) {

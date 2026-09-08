@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import {
+  SUPPORT_AGENT_LEVELS,
   SUPPORT_CASE_LINK_TYPES,
   SUPPORT_CASE_TYPES,
   SUPPORT_CHANNEL_CLOSE_REASONS,
@@ -86,16 +87,49 @@ export const openCaseSchema = z.object({
 });
 export type OpenCaseDto = z.infer<typeof openCaseSchema>;
 
+/**
+ * Los filtros de la cola.
+ *
+ * `categoryCode`, `caseType`, `resolutionCode` y `rootCauseCode` no son comodidad de la pantalla:
+ * sin ellos no hay forma de sacar la lista de casos cerrados con causa `UNKNOWN`, que es la revisión
+ * semanal que convierte los códigos en gestión de problemas en vez de en columnas que nadie mira.
+ * Se validan contra el catálogo cerrado —no como texto libre— porque viajan a una subconsulta.
+ */
 export const listCasesQuerySchema = z.object({
   status: z.string().trim().max(200).optional(),
   priority: z.string().trim().max(20).optional(),
   queueId: positiveId.optional(),
   assignedToMe: z.coerce.boolean().optional(),
+  categoryCode: z.string().trim().min(2).max(80).optional(),
+  caseType: z.enum(SUPPORT_CASE_TYPES).optional(),
+  resolutionCode: z.enum(SUPPORT_RESOLUTION_CODES).optional(),
+  rootCauseCode: z.enum(SUPPORT_ROOT_CAUSE_CODES).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   cursorOpenedAt: z.string().datetime().optional(),
   cursorId: positiveId.optional(),
 });
 export type ListCasesQueryDto = z.infer<typeof listCasesQuerySchema>;
+
+/**
+ * Habilitar a una persona interna como agente de soporte.
+ *
+ * Es el alta que faltaba: el rol interno abre las rutas, pero atender exige además un PERFIL, y sin
+ * esta pantalla ese perfil sólo se creaba escribiendo SQL a mano contra la base. El resultado
+ * visible del hueco era una cola de trabajo que respondía 403 `SUPPORT_AGENT_PROFILE_REQUIRED` a un
+ * administrador con todos los permisos, sin decirle qué le faltaba ni dónde conseguirlo.
+ *
+ * `maxConcurrentChannels` es capacidad real, no una preferencia: de él depende el reparto de chats,
+ * así que tiene tope. Un agente con 50 conversaciones simultáneas no atiende ninguna.
+ */
+export const createAgentProfileSchema = z.object({
+  internalUserId: positiveId,
+  supportLevel: z.enum(SUPPORT_AGENT_LEVELS).default('L1'),
+  queueCode: z.string().trim().min(2).max(60).optional(),
+  maxConcurrentChannels: z.coerce.number().int().min(1).max(10).default(3),
+  timezone: z.string().trim().min(3).max(60).default('America/La_Paz'),
+  languageCodes: z.array(z.string().trim().min(2).max(10)).min(1).max(5).default(['es']),
+});
+export type CreateAgentProfileDto = z.infer<typeof createAgentProfileSchema>;
 
 /** Clasificar el caso. Es lo que lo convierte en trabajo medible. */
 export const triageCaseSchema = z.object({

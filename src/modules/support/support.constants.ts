@@ -201,6 +201,67 @@ export const SUPPORT_ROOT_CAUSE_CODES = [
 ] as const;
 export type SupportRootCauseCode = (typeof SUPPORT_ROOT_CAUSE_CODES)[number];
 
+/**
+ * Qué significa cada código de resolución, en la lengua de quien lo va a elegir.
+ *
+ * Las descripciones viven aquí y viajan por `GET internal/support/codes` en vez de escribirse en la
+ * consola del agente. Un catálogo copiado en el frontend se desincroniza en la primera revisión de
+ * la taxonomía, y el síntoma es el peor posible: dos equipos midiendo lo mismo con etiquetas
+ * distintas sin que nadie lo note, porque la columna sigue siendo VARCHAR y acepta ambas.
+ */
+export const SUPPORT_RESOLUTION_CODE_LABELS: Readonly<Record<SupportResolutionCode, string>> = {
+  ANSWERED: 'Se respondió la consulta con la información que pedía.',
+  USER_GUIDANCE: 'Se acompañó a la persona hasta que pudo hacerlo por su cuenta.',
+  CONFIGURATION_FIXED: 'Había una configuración mal puesta y se corrigió.',
+  ACCESS_RESTORED: 'Se devolvió el acceso a la cuenta o a la función bloqueada.',
+  DOCUMENT_RECEIVED: 'Faltaba un documento, llegó y se dio por válido.',
+  PAYMENT_EVIDENCE_ACCEPTED: 'Se verificó el comprobante y se aceptó el pago.',
+  PAYMENT_EVIDENCE_REJECTED: 'Se verificó el comprobante y no acredita el pago.',
+  DUPLICATE: 'Ya existía otro caso por lo mismo; se trabaja en aquél.',
+  KNOWN_ISSUE: 'Es una falla ya conocida y registrada; el caso queda enlazado a ella.',
+  BUG_FIXED: 'Era un defecto del producto y se corrigió.',
+  WORKAROUND_PROVIDED: 'La causa sigue abierta, pero la persona pudo continuar por otra vía.',
+  NO_ISSUE_FOUND: 'Se revisó y el sistema se comporta como debe.',
+  USER_ERROR: 'El resultado vino de un paso mal dado, no de una falla.',
+  PARTNER_ACTION_REQUIRED: 'Se resuelve con una acción del comercio, que ya fue informado.',
+  INTERNAL_OPERATION_COMPLETED: 'Hacía falta una operación interna y se ejecutó.',
+  SECURITY_ACTION_COMPLETED: 'Se aplicó la medida de seguridad que el caso exigía.',
+  FRAUD_ESCALATED: 'Se derivó al equipo de fraude, que sigue con su propio expediente.',
+  POLICY_EXPLANATION: 'La respuesta es una política vigente y se explicó cuál y por qué.',
+  OUT_OF_SCOPE: 'Lo pedido está fuera de lo que Atlas puede hacer.',
+};
+
+/**
+ * La causa raíz responde otra pregunta que la resolución: no «qué hicimos» sino «por qué pasó».
+ *
+ * `UNKNOWN` es el default de la columna a propósito —cerrar es más importante que adivinar— pero es
+ * también el código que hay que vigilar: una tasa alta significa que se está cerrando sin entender,
+ * y eso no se ve en ningún indicador de cumplimiento.
+ */
+export const SUPPORT_ROOT_CAUSE_CODE_LABELS: Readonly<Record<SupportRootCauseCode, string>> = {
+  APPLICATION_DEFECT: 'Defecto en el código de Atlas.',
+  CONFIGURATION: 'Parámetro o catálogo mal configurado.',
+  INFRASTRUCTURE: 'Falla de la infraestructura que sostiene el servicio.',
+  THIRD_PARTY: 'Falla de un proveedor externo.',
+  NETWORK: 'Problema de red o de conectividad del dispositivo.',
+  USER_MISUNDERSTANDING: 'La persona esperaba algo distinto de lo que el producto hace.',
+  DATA_QUALITY: 'Los datos estaban incompletos, duplicados o mal cargados.',
+  PROCESS_FAILURE: 'Un proceso interno no se cumplió como está definido.',
+  PARTNER_PROCESS: 'Un proceso del comercio no se cumplió como está definido.',
+  SECURITY_EVENT: 'Un evento de seguridad disparó la restricción.',
+  FRAUD: 'Intento o sospecha de fraude confirmada.',
+  POLICY: 'El resultado es el que la política define, no una falla.',
+  UNKNOWN: 'No se determinó la causa. Se cierra igual, pero queda medido como tal.',
+};
+
+/** Qué promete cada prioridad. El agente la cambia en el triage y necesita saber qué está firmando. */
+export const SUPPORT_PRIORITY_LABELS: Readonly<Record<SupportPriority, string>> = {
+  P1: 'Crítica: bloquea a muchas personas o compromete dinero o seguridad.',
+  P2: 'Alta: bloquea a quien lo reporta y no tiene vuelta por otra vía.',
+  P3: 'Normal: molesta pero se puede seguir operando.',
+  P4: 'Baja: consulta o mejora, sin urgencia.',
+};
+
 export const SUPPORT_AGENT_SKILLS = [
   'CONSUMER_SUPPORT',
   'PARTNER_SUPPORT',
