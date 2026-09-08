@@ -91,8 +91,11 @@ export class CustomerIdentityProviderVerificationService {
       requestedByUserId: input.currentUser.internalUserId ?? input.currentUser.customerId,
     });
 
+    // El veredicto de identidad es el del PROVEEDOR (`FOUND`/`PARTIAL_MATCH`/`NOT_FOUND`), no el
+    // estado de ejecución (`COMPLETED`/`MOCKED`): con `status` un mock quedaría siempre en revisión
+    // y una llamada real también, porque ninguno es un veredicto. Ver `ExternalDataRequestResult`.
     const outcome = resolveIdentityOutcome({
-      status: providerResult.status,
+      status: providerResult.providerVerdict ?? providerResult.status,
       manualReviewRequired: providerResult.manualReviewRequired,
       reasonCode: providerResult.reasonCode,
     });

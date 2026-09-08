@@ -175,6 +175,17 @@ describe('CustomerIdentityProviderVerificationService', () => {
       expect(result.identityVerificationResult).toBe('verified');
     });
 
+    it('el veredicto FOUND verifica aunque el estado de ejecución sea MOCKED (modo simulado)', async () => {
+      // En mock_local el estado de ejecución colapsa a MOCKED; el veredicto real viaja en
+      // providerVerdict. Sin leerlo, un cliente legítimo quedaba eternamente en revisión.
+      const { service, verificationRepository } = build({ status: 'MOCKED', providerVerdict: 'FOUND', manualReviewRequired: false });
+
+      const result = await service.verifyWithProvider(baseInput);
+
+      expect((verificationRepository.resolveAttempt as jest.Mock).mock.calls[0][1]).toMatchObject({ finalResult: 'verified' });
+      expect(result.identityVerificationResult).toBe('verified');
+    });
+
     it('NOT_FOUND rechaza el documento y devuelve al cliente a corregir', async () => {
       const { service, verificationRepository, lifecycleService } = build({ status: 'NOT_FOUND', manualReviewRequired: true });
 

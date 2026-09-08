@@ -338,6 +338,9 @@ export class ExternalDataExecutionService {
         requestId: String(request.id),
         providerCode,
         status,
+        // El veredicto del proveedor viaja aparte del estado de ejecución: `status` colapsa a MOCKED
+        // toda respuesta simulada, así que quien decide identidad/crédito lo perdería.
+        providerVerdict: String(raw.status),
         reasonCode: String(raw.payload.reasonCode ?? raw.status),
         observations,
         features,
