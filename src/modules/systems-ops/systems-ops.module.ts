@@ -58,6 +58,7 @@ import { SystemsStressProfileRepository } from './systems-stress-profile.reposit
 import { SystemsTestExecutionRepository } from './systems-test-execution.repository.js';
 import { SystemsActionLogQueryService } from './systems-action-log-query.service.js';
 import { SystemsCatalogQueryService } from './systems-catalog-query.service.js';
+import { SystemsDomainOverviewService } from './systems-domain-overview.service.js';
 import { SystemsReviewService } from './systems-review.service.js';
 import { SystemsStressProfileService } from './systems-stress-profile.service.js';
 import { SystemsTestQueryService } from './systems-test-query.service.js';
@@ -110,6 +111,7 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
     SystemsSchemaIntrospectionService,
     SystemsEndpointDocsService,
     SystemsCatalogQueryService,
+    SystemsDomainOverviewService,
     SystemsReviewService,
     SystemsTestQueryService,
     SystemsStressProfileService,

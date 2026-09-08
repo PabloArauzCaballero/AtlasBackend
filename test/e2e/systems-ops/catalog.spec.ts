@@ -5,6 +5,7 @@ import { SystemsCatalogController } from '../../../src/modules/systems-ops/syste
 import { SystemsCatalogQueryService } from '../../../src/modules/systems-ops/systems-catalog-query.service.js';
 import { SystemsToolInferenceService } from '../../../src/modules/systems-ops/systems-tool-inference.service.js';
 import { SystemsDataImpactInferenceService } from '../../../src/modules/systems-ops/systems-data-impact-inference.service.js';
+import { SystemsDomainOverviewService } from '../../../src/modules/systems-ops/systems-domain-overview.service.js';
 import { buildSystemsOpsTestApp, authHeader } from './support/systems-ops-test-app.js';
 
 describe('SystemsCatalogController (e2e/supertest)', () => {
@@ -28,6 +29,7 @@ describe('SystemsCatalogController (e2e/supertest)', () => {
   };
   const toolInferenceService = { infer: jest.fn(async (..._args: unknown[]) => ({ inferred: 0 })) };
   const dataImpactInferenceService = { infer: jest.fn(async (..._args: unknown[]) => ({ inferred: 0 })) };
+  const domainOverviewService = { overview: jest.fn(async () => ({ items: [], unassigned: { tables: 0, endpoints: 0, modules: [] } })) };
 
   beforeAll(async () => {
     app = await buildSystemsOpsTestApp(
@@ -36,6 +38,7 @@ describe('SystemsCatalogController (e2e/supertest)', () => {
         { provide: SystemsCatalogQueryService, useValue: service },
         { provide: SystemsToolInferenceService, useValue: toolInferenceService },
         { provide: SystemsDataImpactInferenceService, useValue: dataImpactInferenceService },
+        { provide: SystemsDomainOverviewService, useValue: domainOverviewService },
       ],
     );
   });
@@ -156,6 +159,19 @@ describe('SystemsCatalogController (e2e/supertest)', () => {
       .set(...authHeader('readonly_auditor'))
       .send({})
       .expect(403);
+  });
+
+  /*
+   * «overview» va declarado antes que `:domainCode`: si el orden se invirtiera, esta ruta caería en
+   * `getDomain('overview')` y respondería 404 SYSTEM_DOMAIN_NOT_FOUND. La prueba fija ese orden.
+   */
+  it('GET /systems/domains/overview delega en el agregado y no en el detalle por código', async () => {
+    await request(app.getHttpServer())
+      .get('/systems/domains/overview')
+      .set(...authHeader('readonly_auditor'))
+      .expect(200);
+    expect(domainOverviewService.overview).toHaveBeenCalledTimes(1);
+    expect(service.getDomain).not.toHaveBeenCalledWith('overview');
   });
 
   it('GET /systems/domains/:domainCode delega', async () => {
