@@ -8,10 +8,11 @@
 #
 # ## Lo que este archivo NO trae, y por qué
 #
-# **PostgreSQL.** Las bases viven en Neon. Es una decisión de espacio del VPS, y tiene dos
-# consecuencias antes de diagnosticar nada: la latencia a la base ya no son microsegundos sino un
-# salto por Internet con TLS —de ahí los `start_period` más largos que en local—, y un endpoint de
-# Neon en autosuspend tarda varios segundos en despertar la primera vez.
+# **PostgreSQL.** Las bases viven en `atlas-postgres`, el contenedor propio del host
+# `pablo-h310`, fuera de este compose. La latencia a la base ya no son microsegundos sino un
+# salto de red —de ahí los `start_period` más largos que en local—, pero ya no hay pooler ni
+# autosuspend que justifiquen plazos de conexión largos por esa razón: la base está siempre
+# despierta y se llega por el alias `atlas-postgres`, nunca por la IP del host.
 #
 # **MongoDB.** El visor de logs apunta al cluster gestionado de Atlas, igual que tu `.env`.
 #
@@ -96,10 +97,10 @@ services:
   #                          poblada?» el arranque se saltaba la siembra en una base virgen y dejaba
   #                          la instalación sin catálogo.
   #
-  # **La única vez que esto no es inocuo** es la PRIMERA, contra una base de Neon que ya tenga datos
-  # puestos por otra vía y por tanto ninguna marca: la guarda la considera virgen y el pull vacía las
-  # tablas del manifiesto antes de cargarlas. Si ese es tu caso, planta la marca antes de levantar
-  # nada (`README` del paquete de despliegue) o arranca contra una rama nueva de Neon.
+  # **La única vez que esto no es inocuo** es la PRIMERA, contra una base de atlas-postgres que ya
+  # tenga datos puestos por otra vía y por tanto ninguna marca: la guarda la considera virgen y el
+  # pull vacía las tablas del manifiesto antes de cargarlas. Si ese es tu caso, planta la marca
+  # antes de levantar nada (`README` del paquete de despliegue) o arranca contra una base nueva.
   # -------------------------------------------------------------------------------------------
   migrate:
     # `init: true` sustituye al `tini` que antes iba como ENTRYPOINT en la imagen. Es el mismo
