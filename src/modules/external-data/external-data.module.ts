@@ -27,6 +27,7 @@ import {
   WhatsappExternalDataController,
 } from './controllers/social-trust.controller.js';
 import { ProviderAuthAdminController } from './controllers/provider-auth.controller.js';
+import { ExternalProvidersDashboardController } from './controllers/external-providers-dashboard.controller.js';
 import { AuthBrokerClient } from './infrastructure/auth-broker/auth-broker.client.js';
 import { ExternalDataRepository } from './external-data.repository.js';
 import { ExternalDataService } from './external-data.service.js';
@@ -37,6 +38,8 @@ import { ExternalDataGovernanceService } from './application/external-data-gover
 import { ExternalProviderRegistryService } from './application/external-provider-registry.service.js';
 import { ExternalProviderConvenienceService } from './application/external-provider-convenience.service.js';
 import { BankingQrService } from './application/banking-qr.service.js';
+import { ExternalProviderDashboardService } from './application/external-provider-dashboard.service.js';
+import { ExternalProviderDashboardRepository } from './infrastructure/external-provider-dashboard.repository.js';
 import { SegipAdapter } from './infrastructure/adapters/segip/segip.adapter.js';
 import { InfoCenterAdapter } from './infrastructure/adapters/infocenter/infocenter.adapter.js';
 import { QrGenericAdapter } from './infrastructure/adapters/qr-generic/qr-generic.adapter.js';
@@ -67,6 +70,10 @@ import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-tr
     // con ninguna existente — el controller de administración no declara ningún `@Get(':providerCode')`
     // de un solo segmento que pudiera capturarlas.
     ProviderAuthAdminController,
+    // Sus rutas (`dashboard`, `requests`) son de UN solo segmento y el controller de administración
+    // no declara ningún `@Get(':providerCode')` de un segmento, así que no las captura. Va después
+    // por coherencia con el resto y porque no hay ambigüedad que resolver por orden.
+    ExternalProvidersDashboardController,
     KycExternalDataController,
     BureauExternalDataController,
     PaymentsExternalDataController,
@@ -86,6 +93,8 @@ import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-tr
     ExternalDataGovernanceService,
     ExternalProviderConvenienceService,
     BankingQrService,
+    ExternalProviderDashboardService,
+    ExternalProviderDashboardRepository,
     SegipAdapter,
     InfoCenterAdapter,
     QrGenericAdapter,

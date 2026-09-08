@@ -315,6 +315,38 @@ x-atlas-env: &atlas-env
   ERP_BACKEND_CATALOG_API_KEY: '${ERP_BACKEND_CATALOG_API_KEY:-}'
   ERP_BACKEND_CATALOG_TIMEOUT_MS: '${ERP_BACKEND_CATALOG_TIMEOUT_MS:-30000}'
 
+  # --- Proveedores externos (SEGIP, INFOCENTER, telco, QR, banca…) ---------------------------
+  #
+  # El emulador `AtlasExternalProvidersMock` corre en esta misma máquina como la aplicación
+  # `atlas-provider-mockup-server`, sin dominio, y se alcanza por el alias de la red compartida.
+  #
+  # **El sufijo `/mock` NO es opcional.** `mockBaseUrlFor()` le concatena el path del proveedor
+  # (`/segip`, `/infocenter`, …). Sin el sufijo la llamada sale a `…:4010/segip/identity/verify`,
+  # que el emulador contesta con un 404 — y el adaptador lo reporta como falla del PROVEEDOR, no
+  # como una URL mal armada. El README del emulador tenía esa URL incompleta hasta hoy.
+  #
+  # Default real y no `${VAR:-}`: `optionalUrlEnvSchema` rechaza la cadena vacía, así que dejarla
+  # vacía tumba el arranque (ver la regla AUSENTE-no-es-VACÍO al principio de este archivo).
+  #
+  # Sin esta línea, poner la variable en Coolify NO sirve de nada: lo que no está nombrado en este
+  # ancla no existe dentro del contenedor, por mucho que aparezca en el panel.
+  EXTERNAL_PROVIDERS_MOCK_BASE_URL: '${EXTERNAL_PROVIDERS_MOCK_BASE_URL:-http://external-providers-mock:4010/mock}'
+  # Escape hatch para servir datos simulados con NODE_ENV=production. Aquí se construye con
+  # `Dockerfile.dev` (NODE_ENV=development), así que no hace falta; queda nombrada para que un
+  # despliegue productivo pueda decidirlo sin editar este archivo.
+  EXTERNAL_PROVIDERS_ALLOW_MOCK_IN_PRODUCTION: '${EXTERNAL_PROVIDERS_ALLOW_MOCK_IN_PRODUCTION:-false}'
+  # El modo efectivo de cada proveedor vive en la BASE (`data_providers.default_mode`) y se cambia
+  # desde el portal (Gestionar → Runtime). Estas variables lo PISAN, proveedor por proveedor, y por
+  # eso van vacías: una sola de ellas puesta aquí volvería inútil el selector del portal.
+  SEGIP_MODE: '${SEGIP_MODE:-}'
+  INFOCENTER_MODE: '${INFOCENTER_MODE:-}'
+  QR_GENERIC_MODE: '${QR_GENERIC_MODE:-}'
+  BANKING_GENERIC_MODE: '${BANKING_GENERIC_MODE:-}'
+  TELCO_GENERIC_MODE: '${TELCO_GENERIC_MODE:-}'
+  FACEBOOK_META_MODE: '${FACEBOOK_META_MODE:-}'
+  WHATSAPP_GENERIC_MODE: '${WHATSAPP_GENERIC_MODE:-}'
+  DIGITAL_TRUST_GENERIC_MODE: '${DIGITAL_TRUST_GENERIC_MODE:-}'
+
   # --- Notificaciones ------------------------------------------------------------------------
   NOTIFICATION_DEFAULT_LOCALE: '${NOTIFICATION_DEFAULT_LOCALE:-es-BO}'
   NOTIFICATION_PUSH_PROVIDER: '${NOTIFICATION_PUSH_PROVIDER:-disabled}'

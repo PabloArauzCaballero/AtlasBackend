@@ -84,7 +84,7 @@
     "crypto:reencrypt-pii": "tsx scripts/reencrypt-pii-to-envelope.ts",
     "crypto:reencrypt-pii:dry-run": "tsx scripts/reencrypt-pii-to-envelope.ts --dry-run",
     "clean:legacy-configs": "node scripts/cleanup-legacy-configs.cjs",
-    "mock:providers": "node ../AtlasExternalProvidersMock/src/main.mjs",
+    "mock:providers": "node ../AtlasExternalProvidersMock/src/server.mjs",
     "test:external-providers": "jest --config jest.config.cjs --testPathPatterns=test/unit/external-data",
     "test:external-providers:smoke": "tsx scripts/smoke/external-providers.smoke.ts",
     "test:external-providers:errors": "tsx scripts/smoke/external-providers-errors.smoke.ts",
