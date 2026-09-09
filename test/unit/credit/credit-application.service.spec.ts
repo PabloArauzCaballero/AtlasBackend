@@ -93,15 +93,21 @@ describe('CreditApplicationService', () => {
         onboardingStatus: options.partnerOnboardingStatus ?? 'approved',
       })),
     };
+    const partnerDirectory = {
+      findOwnedTerminal: jest.fn(async (..._args: unknown[]) => null),
+    };
     const service = new CreditApplicationService(
       creditRepository as never,
       eligibilityService as never,
       eligibilityRepository as never,
       underwriting as never,
       partnerProfiles as never,
+      // El directorio del comercio: resuelve la CAJA en la que nació la compra. Es un servicio
+      // aparte del expediente porque sólo lee, y `credit-application` usa los dos.
+      partnerDirectory as never,
       sequelize as never,
     );
-    return { service, creditRepository, eligibilityService, eligibilityRepository, underwriting, partnerProfiles };
+    return { service, creditRepository, eligibilityService, eligibilityRepository, underwriting, partnerProfiles, partnerDirectory };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null } as never;

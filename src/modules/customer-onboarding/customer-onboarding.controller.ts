@@ -15,7 +15,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
 import { IdentityManualReviewOutcomeService } from './application/identity-manual-review-outcome.service.js';
 import { CustomerContactsSnapshotService } from './application/customer-contacts-snapshot.service.js';
 import { contactsSnapshotSchema, ContactsSnapshotDto } from './customer-contacts-snapshot.schemas.js';
@@ -36,6 +36,7 @@ import {
   startOnboardingSchema,
   StartOnboardingDto,
 } from './customer-onboarding.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 type RequestWithIp = {
   ip?: string;
@@ -71,13 +72,12 @@ export class CustomerOnboardingController {
   @Post('start')
   @HttpCode(HttpStatus.CREATED)
   startOnboarding(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Headers('x-client-channel') _channel: string | undefined,
     @Body(new ZodValidationPipe(startOnboardingSchema)) body: StartOnboardingDto,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.startOnboarding(tenantId, body, request.ip ?? null, requireIdempotencyKey(idempotencyKey));
   }
 
@@ -99,14 +99,13 @@ export class CustomerOnboardingController {
   @Post(':customerId/contact-verification/request')
   @HttpCode(HttpStatus.ACCEPTED)
   requestContactVerification(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(contactVerificationRequestSchema)) body: ContactVerificationRequestDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.requestContactVerification({
       tenantId,
       customerId: params.customerId,
@@ -135,14 +134,13 @@ export class CustomerOnboardingController {
   @Post(':customerId/contact-verification/submit')
   @HttpCode(HttpStatus.OK)
   submitContactVerification(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(contactVerificationSubmitSchema)) body: ContactVerificationSubmitDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.submitContactVerification({
       tenantId,
       customerId: params.customerId,
@@ -182,13 +180,13 @@ export class CustomerOnboardingController {
   @Post(':customerId/identity-manual-review')
   @HttpCode(HttpStatus.OK)
   applyIdentityManualReview(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(identityManualReviewSchema)) body: IdentityManualReviewDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.identityManualReviewOutcomeService.apply({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId,
       customerId: params.customerId,
       decision: body.decision,
       reviewedByInternalUserId: body.reviewedByInternalUserId ?? String(currentUser.internalUserId ?? ''),
@@ -208,14 +206,13 @@ export class CustomerOnboardingController {
   @Post(':customerId/identity-package')
   @HttpCode(HttpStatus.ACCEPTED)
   submitIdentityPackage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(identityPackageSchema)) body: IdentityPackageDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.submitIdentityPackage({
       tenantId,
       customerId: params.customerId,
@@ -273,14 +270,14 @@ export class CustomerOnboardingController {
   @Post(':customerId/contacts-snapshot')
   @HttpCode(HttpStatus.ACCEPTED)
   submitContactsSnapshot(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(contactsSnapshotSchema)) body: ContactsSnapshotDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithIp,
   ) {
     return this.contactsSnapshotService.submit({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId,
       customerId: params.customerId,
       body,
       currentUser,
@@ -297,14 +294,13 @@ export class CustomerOnboardingController {
   @Post(':customerId/address-package')
   @HttpCode(HttpStatus.OK)
   submitAddressPackage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(addressPackageSchema)) body: AddressPackageDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.submitAddressPackage({
       tenantId,
       customerId: params.customerId,

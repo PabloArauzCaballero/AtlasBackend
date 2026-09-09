@@ -3,7 +3,7 @@
  * @business Esta pieza protege el acceso de clientes y operadores, la recuperación de cuenta y la continuidad segura de sesiones.
  * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
  */
-import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
@@ -15,7 +15,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { RequestWithNetwork, tenantIdFromHeader, userAgentFrom } from '../../common/utils/http/headers.util.js';
+import { RequestWithNetwork, userAgentFrom } from '../../common/utils/http/headers.util.js';
 import { AuthService } from './auth.service.js';
 import {
   LoginDto,
@@ -35,6 +35,7 @@ import {
   provisionCredentialsSchema,
   refreshSchema,
 } from './auth.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
  * Endpoints públicos de autenticación y endpoints administrativos de provisión de credenciales.
@@ -71,12 +72,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Credenciales inválidas, o cuenta bloqueada temporalmente por intentos fallidos.' })
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Body(new ZodValidationPipe(loginSchema)) body: LoginDto,
-    @Req() request: RequestWithNetwork,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+  login(@CurrentTenant() tenantId: string, @Body(new ZodValidationPipe(loginSchema)) body: LoginDto, @Req() request: RequestWithNetwork) {
     return this.authService.login({
       tenantId,
       dto: body,
@@ -125,11 +121,10 @@ export class AuthController {
   @Post('password-reset/request')
   @HttpCode(HttpStatus.OK)
   requestPasswordReset(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(passwordResetRequestSchema)) body: PasswordResetRequestDto,
     @Req() request: RequestWithNetwork,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.authService.requestPasswordReset({
       tenantId,
       actorType: body.actorType,
@@ -155,11 +150,10 @@ export class AuthController {
   @Post('password-reset/confirm')
   @HttpCode(HttpStatus.OK)
   confirmPasswordReset(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(passwordResetConfirmSchema)) body: PasswordResetConfirmDto,
     @Req() request: RequestWithNetwork,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.authService.confirmPasswordReset({
       tenantId,
       actorType: body.actorType,

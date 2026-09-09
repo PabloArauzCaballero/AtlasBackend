@@ -3,21 +3,7 @@
  * @business Esta pieza convierte un comercio declarado en un partner verificable, con locales, cobro y terminales trazables.
  * @system expone los locales del partner, la subida de sus QR de cobro y el alta de sus terminales.
  */
-import {
-  Body,
-  Controller,
-  Get,
-  Header,
-  HttpCode,
-  HttpStatus,
-  Headers,
-  Param,
-  Patch,
-  Post,
-  Res,
-  StreamableFile,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Patch, Post, Res, StreamableFile, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -26,7 +12,6 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
 import { PartnerCommerceService } from './application/partner-commerce.service.js';
 import { PartnerQrService } from './application/partner-qr.service.js';
@@ -51,6 +36,7 @@ import {
   TerminalIdParamsDto,
   terminalIdParamsSchema,
 } from './partner-onboarding.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
  * Lo que el comercio opera de su propio expediente: sus locales, sus dos QR y sus terminales.
@@ -79,11 +65,10 @@ export class PartnerCommerceController {
   @Post(':partnerId/branches')
   @HttpCode(HttpStatus.CREATED)
   async registerBranch(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(registerBranchSchema)) body: RegisterBranchDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return toPartnerBranchDto(await this.commerce.registerBranch(tenantId, params.partnerId, body));
   }
 
@@ -105,11 +90,10 @@ export class PartnerCommerceController {
   @ApiResponse({ status: 409, description: 'PARTNER_BRANCH_ALREADY_LINKED / ERP_BRANCH_ALREADY_LINKED.' })
   @Patch(':partnerId/branches/:branchId')
   async linkBranch(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(branchIdParamsSchema)) params: BranchIdParamsDto,
     @Body(new ZodValidationPipe(linkBranchSchema)) body: LinkBranchDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return toPartnerBranchDto(await this.commerce.linkBranchToErp(tenantId, params.partnerId, params.branchId, body));
   }
 
@@ -120,11 +104,7 @@ export class PartnerCommerceController {
   @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
   @ApiResponse({ status: 200, description: 'Listado de sucursales.' })
   @Get(':partnerId/branches')
-  async listBranches(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+  async listBranches(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto) {
     const branches = await this.commerce.listBranches(tenantId, params.partnerId);
     return branches.map(toPartnerBranchDto);
   }
@@ -147,11 +127,10 @@ export class PartnerCommerceController {
   @Post(':partnerId/qr-codes/upload-url')
   @HttpCode(HttpStatus.CREATED)
   async createQrUploadUrl(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(qrUploadUrlSchema)) body: QrUploadUrlDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.qr.createUploadTicket(tenantId, params.partnerId, body);
   }
 
@@ -174,11 +153,10 @@ export class PartnerCommerceController {
   @Post(':partnerId/qr-codes')
   @HttpCode(HttpStatus.CREATED)
   async registerQr(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(registerQrSchema)) body: RegisterQrDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return toPartnerQrDto(await this.qr.register(tenantId, params.partnerId, body));
   }
 
@@ -189,11 +167,7 @@ export class PartnerCommerceController {
   @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
   @ApiResponse({ status: 200, description: 'Listado de QR.' })
   @Get(':partnerId/qr-codes')
-  async listQr(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+  async listQr(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto) {
     const codes = await this.qr.list(tenantId, params.partnerId);
     return codes.map(toPartnerQrDto);
   }
@@ -220,12 +194,11 @@ export class PartnerCommerceController {
   @Get(':partnerId/qr-codes/:qrId/content')
   @Header('Cache-Control', 'private, max-age=60')
   async qrContent(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
     @Param('qrId') qrId: string,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     const imagen = await this.qr.readQrImage(tenantId, params.partnerId, qrId);
     response.setHeader('Content-Type', imagen.contentType);
     return new StreamableFile(imagen.bytes);
@@ -244,11 +217,10 @@ export class PartnerCommerceController {
   @Post(':partnerId/branches/:branchId/pos-terminals')
   @HttpCode(HttpStatus.CREATED)
   async registerPos(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(branchIdParamsSchema)) params: BranchIdParamsDto,
     @Body(new ZodValidationPipe(registerPosTerminalSchema)) body: RegisterPosTerminalDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     const terminal = await this.commerce.registerPosTerminal(tenantId, params.partnerId, params.branchId, body);
     return toPartnerPosTerminalDto(terminal);
   }
@@ -260,11 +232,7 @@ export class PartnerCommerceController {
   @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
   @ApiResponse({ status: 200, description: 'Listado de terminales.' })
   @Get(':partnerId/pos-terminals')
-  async listPos(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+  async listPos(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto) {
     const terminals = await this.commerce.listPosTerminals(tenantId, params.partnerId);
     return terminals.map(toPartnerPosTerminalDto);
   }
@@ -287,11 +255,10 @@ export class PartnerCommerceController {
   @ApiResponse({ status: 404, description: 'Terminal no encontrado para este partner.' })
   @Patch(':partnerId/pos-terminals/:terminalId')
   async changePosStatus(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(terminalIdParamsSchema)) params: TerminalIdParamsDto,
     @Body(new ZodValidationPipe(posTerminalStatusSchema)) body: PosTerminalStatusDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     const terminal = await this.commerce.changePosStatus(tenantId, params.partnerId, params.terminalId, body);
     return toPartnerPosTerminalDto(terminal);
   }

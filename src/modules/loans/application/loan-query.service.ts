@@ -5,7 +5,7 @@
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LoanModel } from '../../../database/models/index.js';
-import { PartnerProfileService } from '../../partner-onboarding/application/partner-profile.service.js';
+import { PartnerDirectoryService } from '../../partner-onboarding/application/partner-directory.service.js';
 import { LoansRepository } from '../loans.repository.js';
 
 type MerchantView = { partnerProfileId: string; displayName: string; businessCategory: string | null } | null;
@@ -14,7 +14,7 @@ type MerchantView = { partnerProfileId: string; displayName: string; businessCat
 export class LoanQueryService {
   constructor(
     private readonly loans: LoansRepository,
-    private readonly partnerProfiles: PartnerProfileService,
+    private readonly partnerDirectory: PartnerDirectoryService,
   ) {}
 
   /**
@@ -31,7 +31,7 @@ export class LoanQueryService {
 
   private merchantsFor(tenantId: string, loans: readonly LoanModel[]) {
     const ids = loans.map((loan) => loan.partnerProfileId).filter((id): id is string => Boolean(id));
-    return this.partnerProfiles.describeMany(tenantId, ids.map(String));
+    return this.partnerDirectory.describeMany(tenantId, ids.map(String));
   }
 
   /**

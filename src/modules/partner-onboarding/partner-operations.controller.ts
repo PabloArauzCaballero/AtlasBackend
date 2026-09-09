@@ -18,6 +18,7 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
 import { PartnerVerificationService } from './application/partner-verification.service.js';
+import { partnerIdParamsSchema } from './partner-onboarding.schemas.js';
 import {
   FindPartnerQueryDto,
   findPartnerQuerySchema,
@@ -27,10 +28,9 @@ import {
   listPartnerQueueQuerySchema,
   PartnerDecisionDto,
   partnerDecisionSchema,
-  partnerIdParamsSchema,
   RequestKybReviewDto,
   requestKybReviewSchema,
-} from './partner-onboarding.schemas.js';
+} from './partner-operations.schemas.js';
 import { toPartnerProfileDto } from './partner-onboarding.mapper.js';
 
 /**

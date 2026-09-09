@@ -3,7 +3,7 @@
  * @business Esta pieza convierte un comercio declarado en un partner verificable, con locales, cobro y terminales trazables.
  * @system expone el alta del expediente, su estado y su envío a revisión.
  */
-import { Body, Controller, Get, HttpCode, HttpStatus, Headers, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -12,7 +12,6 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
@@ -44,6 +43,7 @@ import {
   StartPartnerOnboardingDto,
   startPartnerOnboardingSchema,
 } from './partner-onboarding.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
  * El expediente del comercio.
@@ -83,11 +83,10 @@ export class PartnerOnboardingController {
   @Post('start')
   @HttpCode(HttpStatus.CREATED)
   async start(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(startPartnerOnboardingSchema)) body: StartPartnerOnboardingDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     // Quien abre el expediente queda como dueño: es contra eso que se comprueba la propiedad en
     // todas las operaciones posteriores. Ver `PartnerOwnershipGuard`.
     return toPartnerProfileDto(await this.profiles.start(tenantId, body, currentUser));
@@ -106,8 +105,7 @@ export class PartnerOnboardingController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Expedientes del comercio que hace la llamada.' })
   @Get('mine')
-  async mine(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+  async mine(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     /*
      * Va ANTES de `:partnerId/status` a proposito: Nest resuelve por orden de declaracion y
      * `mine` encajaria en el parametro, devolviendo un 404 raro en vez de la lista.
@@ -124,11 +122,7 @@ export class PartnerOnboardingController {
   @ApiResponse({ status: 200, description: 'Estado, requisitos pendientes, sucursales, QR y terminales.' })
   @ApiResponse({ status: 404, description: 'Expediente no encontrado.' })
   @Get(':partnerId/status')
-  async status(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+  async status(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto) {
     const profile = await this.profiles.requireProfile(tenantId, params.partnerId);
     const [gaps, branches, qrCodes, terminals] = await Promise.all([
       this.verification.findSubmissionGaps(tenantId, profile),
@@ -165,10 +159,10 @@ export class PartnerOnboardingController {
   @Post(':partnerId/contact-verification/request')
   @HttpCode(HttpStatus.ACCEPTED)
   requestContactVerification(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
   ) {
-    return this.contact.request(tenantIdFromHeader(tenantIdHeader), params.partnerId);
+    return this.contact.request(tenantId, params.partnerId);
   }
 
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
@@ -183,11 +177,11 @@ export class PartnerOnboardingController {
   @Post(':partnerId/contact-verification/submit')
   @HttpCode(HttpStatus.OK)
   submitContactVerification(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(contactVerificationSubmitSchema)) body: ContactVerificationSubmitDto,
   ) {
-    return this.contact.submit(tenantIdFromHeader(tenantIdHeader), params.partnerId, body.code);
+    return this.contact.submit(tenantId, params.partnerId, body.code);
   }
 
   /**
@@ -204,11 +198,10 @@ export class PartnerOnboardingController {
   @Post(':partnerId/legal-representative')
   @HttpCode(HttpStatus.CREATED)
   async addLegalRepresentative(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(legalRepresentativeSchema)) body: LegalRepresentativeDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     const representative = await this.profiles.addLegalRepresentative(tenantId, params.partnerId, body);
     return toPartnerRepresentativeDto(representative);
   }
@@ -228,11 +221,10 @@ export class PartnerOnboardingController {
   @Post(':partnerId/documents/upload-url')
   @HttpCode(HttpStatus.CREATED)
   async documentUploadUrl(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(partnerDocumentUploadUrlSchema)) body: PartnerDocumentUploadUrlDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.profiles.createDocumentUploadTicket(tenantId, params.partnerId, body);
   }
 
@@ -249,11 +241,10 @@ export class PartnerOnboardingController {
   @Post(':partnerId/commercial-registry')
   @HttpCode(HttpStatus.OK)
   async setCommercialRegistry(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(commercialRegistrySchema)) body: CommercialRegistryDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     const profile = await this.profiles.setCommercialRegistry(tenantId, params.partnerId, body.commercialRegistry);
     return toPartnerProfileDto(profile);
   }
@@ -274,11 +265,10 @@ export class PartnerOnboardingController {
   @Patch(':partnerId/commercial-profile')
   @HttpCode(HttpStatus.OK)
   async updateCommercialProfile(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(updateCommercialProfileSchema)) body: UpdateCommercialProfileDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     const profile = await this.profiles.updateCommercialProfile(tenantId, params.partnerId, body);
     return toPartnerProfileDto(profile);
   }
@@ -295,11 +285,7 @@ export class PartnerOnboardingController {
   @ApiResponse({ status: 422, description: 'PARTNER_SUBMISSION_INCOMPLETE — devuelve la lista de lo que falta.' })
   @Post(':partnerId/submit')
   @HttpCode(HttpStatus.OK)
-  async submit(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+  async submit(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto) {
     const { profile } = await this.profiles.submit(tenantId, params.partnerId);
     return toPartnerProfileDto(profile);
   }

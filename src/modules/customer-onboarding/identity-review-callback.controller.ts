@@ -17,9 +17,9 @@ import {
 import { ApiExcludeController } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { env } from '../../config/env.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { IdentityManualReviewOutcomeService } from './application/identity-manual-review-outcome.service.js';
 import { CustomerVerificationRepository } from './repositories/customer-verification.repository.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /*
  * La cabecera con la que el motor se identifica.
@@ -68,7 +68,7 @@ export class IdentityReviewCallbackController {
   @Post('manual-review-callback')
   @HttpCode(HttpStatus.OK)
   async aplicar(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers(CLAVE_HEADER) clave: string | undefined,
     @Body()
     body: {
@@ -83,7 +83,6 @@ export class IdentityReviewCallbackController {
       throw new UnauthorizedException('Credencial de servicio invalida.');
     }
 
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     const executionId = body.executionId?.trim();
     if (!executionId) throw new BadRequestException('Falta executionId.');
     if (body.decision !== 'APPROVE' && body.decision !== 'DECLINE') {

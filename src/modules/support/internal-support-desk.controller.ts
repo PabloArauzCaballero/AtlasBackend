@@ -3,7 +3,7 @@
  * @business Permite tomar chats en espera, declararse disponible y publicar respuestas aprobadas.
  * @system separa la mesa (canales y presencia) del expediente para no crecer un solo controlador.
  */
-import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -12,13 +12,13 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { SupportActorService } from './application/support-actor.service.js';
 import { SupportChannelService } from './application/support-channel.service.js';
 import { SupportDeskService } from './application/support-desk.service.js';
 import { SupportMessageService } from './application/support-message.service.js';
 import { SupportSlaService } from './application/support-sla.service.js';
 import { type CreateAgentProfileDto, createAgentProfileSchema, type PresenceDto, presenceSchema } from './support-case.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 @ApiTags('Interno · Mesa de soporte')
 @ApiBearerAuth('access-token')
@@ -38,11 +38,10 @@ export class InternalSupportDeskController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('queue')
   async queue(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Query('queueId') queueId: string | undefined,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.desk.listQueuedChannels({ tenantId, actor, queueId: queueId ?? null });
   }
@@ -59,11 +58,10 @@ export class InternalSupportDeskController {
   @Post('presence')
   @HttpCode(HttpStatus.OK)
   async presence(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(presenceSchema)) body: PresenceDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.desk.setPresence({ tenantId, actor, presenceState: body.presenceState });
   }
@@ -74,12 +72,7 @@ export class InternalSupportDeskController {
   @ApiResponse({ status: 200, description: 'Conversación tomada por el agente.' })
   @Post('channels/:channelId/claim')
   @HttpCode(HttpStatus.OK)
-  async claim(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param('channelId') channelId: string,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+  async claim(@CurrentTenant() tenantId: string, @Param('channelId') channelId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.channels.claimChannel({ tenantId, actor, channelId });
   }
@@ -94,12 +87,7 @@ export class InternalSupportDeskController {
   @ApiOperation({ summary: 'Verificar la cadena de integridad de una conversación' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('channels/:channelId/integrity')
-  async integrity(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param('channelId') channelId: string,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+  async integrity(@CurrentTenant() tenantId: string, @Param('channelId') channelId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     this.actors.assertIsAgent(actor);
     return this.messages.verifyIntegrity(channelId);
@@ -116,8 +104,8 @@ export class InternalSupportDeskController {
   @ApiResponse({ status: 200, description: 'Perfiles con la persona, su nivel, su cola y su ocupación actual.' })
   @Get('agents')
   @Roles('admin', 'platform_admin')
-  async agents(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
-    return this.desk.listAgents({ tenantId: tenantIdFromHeader(tenantIdHeader, currentUser) });
+  async agents(@CurrentTenant() tenantId: string) {
+    return this.desk.listAgents({ tenantId });
   }
 
   /**
@@ -135,12 +123,8 @@ export class InternalSupportDeskController {
   @Post('agents')
   @HttpCode(HttpStatus.CREATED)
   @Roles('admin', 'platform_admin')
-  async createAgent(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Body(new ZodValidationPipe(createAgentProfileSchema)) body: CreateAgentProfileDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    return this.desk.createAgent({ tenantId: tenantIdFromHeader(tenantIdHeader, currentUser), body });
+  async createAgent(@CurrentTenant() tenantId: string, @Body(new ZodValidationPipe(createAgentProfileSchema)) body: CreateAgentProfileDto) {
+    return this.desk.createAgent({ tenantId, body });
   }
 
   @ApiOperation({ summary: 'Quitar a un agente de la mesa (no borra su historia)' })
@@ -150,12 +134,8 @@ export class InternalSupportDeskController {
   @Delete('agents/:agentProfileId')
   @HttpCode(HttpStatus.OK)
   @Roles('admin', 'platform_admin')
-  async deactivateAgent(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param('agentProfileId') agentProfileId: string,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    return this.desk.deactivateAgent({ tenantId: tenantIdFromHeader(tenantIdHeader, currentUser), agentProfileId });
+  async deactivateAgent(@CurrentTenant() tenantId: string, @Param('agentProfileId') agentProfileId: string) {
+    return this.desk.deactivateAgent({ tenantId, agentProfileId });
   }
 
   /**
@@ -169,7 +149,7 @@ export class InternalSupportDeskController {
   @Post('sla/sweep')
   @HttpCode(HttpStatus.OK)
   @Roles('admin', 'platform_admin')
-  async sweep(@Headers('x-tenant-id') tenantIdHeader: string | undefined) {
-    return this.sla.sweepBreaches(tenantIdFromHeader(tenantIdHeader));
+  async sweep(@CurrentTenant() tenantId: string) {
+    return this.sla.sweepBreaches(tenantId);
   }
 }

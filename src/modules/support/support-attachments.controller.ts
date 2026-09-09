@@ -3,7 +3,7 @@
  * @business Que se pueda enviar la foto del comprobante y que sólo la vea quien está en el chat.
  * @system ticket de subida firmado y entrega por bytes autenticados; nunca una URL pública.
  */
-import { Body, Controller, Get, Headers, Param, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -13,10 +13,10 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { SupportActorService } from './application/support-actor.service.js';
 import { SupportAttachmentService } from './application/support-attachment.service.js';
 import { type AttachmentTicketDto, attachmentTicketSchema } from './support-case.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 @ApiTags('Soporte · Adjuntos')
 @ApiBearerAuth('access-token')
@@ -41,12 +41,11 @@ export class SupportAttachmentsController {
   @ApiResponse({ status: 201, description: 'URL firmada, clave del objeto y cabeceras obligatorias.' })
   @Post('channels/:channelId/attachments/ticket')
   async ticket(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('channelId') channelId: string,
     @Body(new ZodValidationPipe(attachmentTicketSchema)) body: AttachmentTicketDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.attachments.createTicket({
       tenantId,
@@ -70,12 +69,11 @@ export class SupportAttachmentsController {
   @ApiResponse({ status: 200, description: 'Los bytes del adjunto, con su tipo de contenido.' })
   @Get('attachments/:attachmentId/content')
   async content(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('attachmentId') attachmentId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Res() response: Response,
   ): Promise<void> {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     const file = await this.attachments.readContent({ tenantId, actor, attachmentId });
 

@@ -1,8 +1,4 @@
 {
-  "src/modules/auth/auth.controller.ts": 3,
-  "src/modules/consents/consents.controller.ts": 1,
-  "src/modules/customer-onboarding/customer-onboarding.controller.ts": 5,
-  "src/modules/customers/customers.controller.ts": 1,
   "src/modules/internal-users/internal-auth.controller.ts": 1,
   "src/modules/merchant-identity/merchant-auth.controller.ts": 1
 }

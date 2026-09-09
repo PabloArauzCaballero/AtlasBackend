@@ -8,6 +8,7 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnPartnerResource } from '../../../common/utils/auth/ownership.util.js';
+import { PartnerDirectoryService } from '../../partner-onboarding/application/partner-directory.service.js';
 import { PartnerProfileService } from '../../partner-onboarding/application/partner-profile.service.js';
 import { CreditRepository } from '../credit.repository.js';
 import { CreditBusinessAcceptanceDto } from '../credit.schemas.js';
@@ -35,6 +36,7 @@ export class CreditBusinessAcceptanceService {
   constructor(
     private readonly credit: CreditRepository,
     private readonly partnerProfiles: PartnerProfileService,
+    private readonly partnerDirectory: PartnerDirectoryService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -148,7 +150,7 @@ export class CreditBusinessAcceptanceService {
     });
 
     // El local de cada solicitud: se resuelve una vez para todo el listado.
-    const terminales = await this.partnerProfiles.terminalDirectory(input.tenantId, input.partnerProfileId);
+    const terminales = await this.partnerDirectory.terminalDirectory(input.tenantId, input.partnerProfileId);
 
     return {
       partnerProfileId: input.partnerProfileId,

@@ -12,7 +12,6 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { SupportActorService } from './application/support-actor.service.js';
 import { SupportCaseReadService } from './application/support-case-read.service.js';
 import { SupportCaseClosureService } from './application/support-case-closure.service.js';
@@ -37,6 +36,7 @@ import {
   type KnowledgeSearchDto,
   knowledgeSearchSchema,
 } from './support-knowledge.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
  * El centro de ayuda del cliente.
@@ -63,8 +63,7 @@ export class MobileSupportController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 200, description: 'FAQ publicadas para la audiencia del solicitante.' })
   @Get('faq')
-  async faq(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+  async faq(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.featuredFaq({ tenantId, actor });
   }
@@ -73,8 +72,7 @@ export class MobileSupportController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 200, description: 'Árbol de motivo y submotivo para la audiencia del solicitante.' })
   @Get('categories')
-  async categories(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+  async categories(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.cases.listCategories({ tenantId, actor });
   }
@@ -84,11 +82,10 @@ export class MobileSupportController {
   @ApiResponse({ status: 200, description: 'Artículos publicados ordenados por relevancia.' })
   @Get('knowledge/search')
   async search(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Query(new ZodValidationPipe(knowledgeSearchSchema)) query: KnowledgeSearchDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.search({ tenantId, actor, dto: query });
   }
@@ -96,12 +93,7 @@ export class MobileSupportController {
   @ApiOperation({ summary: 'Leer un artículo de ayuda' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('knowledge/articles/:articleKey')
-  async article(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param('articleKey') articleKey: string,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+  async article(@CurrentTenant() tenantId: string, @Param('articleKey') articleKey: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.getByKey({ tenantId, actor, articleKey });
   }
@@ -110,12 +102,11 @@ export class MobileSupportController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('knowledge/articles/:articleId/feedback')
   async articleFeedback(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('articleId') articleId: string,
     @Body(new ZodValidationPipe(knowledgeFeedbackSchema)) body: KnowledgeFeedbackDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.submitFeedback({ tenantId, actor, articleId, dto: body });
   }
@@ -126,12 +117,11 @@ export class MobileSupportController {
   @ApiResponse({ status: 409, description: 'SUPPORT_CASE_POSSIBLE_DUPLICATE: ya hay un caso abierto igual.' })
   @Post('cases')
   async openCase(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-correlation-id') correlationId: string | undefined,
     @Body(new ZodValidationPipe(openCaseSchema)) body: OpenCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.cases.openCase({ tenantId, actor, dto: body, correlationId: correlationId ?? null });
   }
@@ -140,11 +130,10 @@ export class MobileSupportController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('cases')
   async listCases(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Query(new ZodValidationPipe(listCasesQuerySchema)) query: ListCasesQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.read.listOwnCases({ tenantId, actor, query });
   }
@@ -154,12 +143,7 @@ export class MobileSupportController {
   @ApiResponse({ status: 403, description: 'SUPPORT_CASE_FORBIDDEN: el caso no es de este cliente.' })
   @ApiResponse({ status: 200, description: 'El caso con su detalle y su canal de conversación.' })
   @Get('cases/:caseId')
-  async getCase(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param('caseId') caseId: string,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+  async getCase(@CurrentTenant() tenantId: string, @Param('caseId') caseId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.read.getCase({ tenantId, actor, caseId });
   }
@@ -168,12 +152,11 @@ export class MobileSupportController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('cases/:caseId/close-request')
   async closeRequest(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('caseId') caseId: string,
     @Body(new ZodValidationPipe(closeCaseSchema)) body: CloseCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.customerActions.registerCustomerRequest({ tenantId, actor, caseId, kind: 'CLOSE', reason: body.reason });
   }
@@ -184,12 +167,11 @@ export class MobileSupportController {
   @ApiResponse({ status: 201, description: 'Petición de reapertura registrada.' })
   @Post('cases/:caseId/reopen')
   async reopen(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('caseId') caseId: string,
     @Body(new ZodValidationPipe(reopenCaseSchema)) body: ReopenCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.closure.reopen({ tenantId, actor, caseId, dto: body });
   }
@@ -198,12 +180,11 @@ export class MobileSupportController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('cases/:caseId/feedback')
   async feedback(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('caseId') caseId: string,
     @Body(new ZodValidationPipe(caseFeedbackSchema)) body: CaseFeedbackDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.customerActions.submitFeedback({ tenantId, actor, caseId, dto: body });
   }

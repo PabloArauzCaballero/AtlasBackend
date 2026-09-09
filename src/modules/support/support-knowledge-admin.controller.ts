@@ -3,7 +3,7 @@
  * @business Redactar, revisar, aprobar y publicar las respuestas oficiales de Atlas.
  * @system flujo DRAFT → IN_REVIEW → APPROVED → PUBLISHED; publicado no se edita, se versiona.
  */
-import { Body, Controller, Headers, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -12,7 +12,6 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { SupportActorService } from './application/support-actor.service.js';
 import { SupportKnowledgeService } from './application/support-knowledge.service.js';
 import {
@@ -25,6 +24,7 @@ import {
   type ReviewDecisionDto,
   reviewDecisionSchema,
 } from './support-knowledge.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
  * El gobierno del contenido de ayuda.
@@ -50,11 +50,10 @@ export class SupportKnowledgeAdminController {
   @ApiResponse({ status: 201, description: 'Artículo creado, todavía sin versión publicada.' })
   @Post('articles')
   async createArticle(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(createArticleSchema)) body: CreateArticleDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.createArticle({ tenantId, actor, dto: body });
   }
@@ -63,12 +62,11 @@ export class SupportKnowledgeAdminController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post('articles/:articleId/versions')
   async createVersion(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('articleId') articleId: string,
     @Body(new ZodValidationPipe(createArticleVersionSchema)) body: CreateArticleVersionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.createVersion({ tenantId, actor, articleId, dto: body });
   }
@@ -78,12 +76,11 @@ export class SupportKnowledgeAdminController {
   @Post('versions/:versionId/submit-review')
   @HttpCode(HttpStatus.OK)
   async submitReview(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('versionId') versionId: string,
     @Body(new ZodValidationPipe(reviewDecisionSchema)) body: ReviewDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.submitForReview({ tenantId, actor, versionId, dto: body });
   }
@@ -95,12 +92,11 @@ export class SupportKnowledgeAdminController {
   @Post('versions/:versionId/approve')
   @HttpCode(HttpStatus.OK)
   async approve(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('versionId') versionId: string,
     @Body(new ZodValidationPipe(reviewDecisionSchema)) body: ReviewDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.approve({ tenantId, actor, versionId, dto: body });
   }
@@ -112,12 +108,11 @@ export class SupportKnowledgeAdminController {
   @Post('versions/:versionId/publish')
   @HttpCode(HttpStatus.OK)
   async publish(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('versionId') versionId: string,
     @Body(new ZodValidationPipe(publishVersionSchema)) body: PublishVersionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.knowledge.publish({ tenantId, actor, versionId, dto: body });
   }

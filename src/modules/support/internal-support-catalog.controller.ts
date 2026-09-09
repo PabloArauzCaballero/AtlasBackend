@@ -3,7 +3,7 @@
  * @business Los motivos, las colas y los códigos de resolución que la consola del agente ofrece.
  * @system sólo lectura; separado de `internal/support/cases` para no chocar con la ruta `:caseId`.
  */
-import { Controller, Get, Headers, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -11,9 +11,9 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { SupportActorService } from './application/support-actor.service.js';
 import { SupportDeskService } from './application/support-desk.service.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
  * Por qué es un controlador aparte y no dos rutas más en `internal/support/cases`.
@@ -39,8 +39,7 @@ export class InternalSupportCatalogController {
   @ApiResponse({ status: 200, description: 'Árbol de motivo y submotivo con la política de atención de cada uno.' })
   @ApiResponse({ status: 403, description: 'SUPPORT_AGENT_PROFILE_REQUIRED: el rol no basta, hace falta perfil.' })
   @Get('categories')
-  async categories(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+  async categories(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.desk.listInternalCategories({ tenantId, actor });
   }
@@ -49,8 +48,7 @@ export class InternalSupportCatalogController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 200, description: 'Colas activas con su prioridad por defecto y las competencias que exigen.' })
   @Get('queues')
-  async queues(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+  async queues(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.desk.listQueues({ tenantId, actor });
   }

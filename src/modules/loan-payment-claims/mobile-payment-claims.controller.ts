@@ -3,7 +3,7 @@
  * @business Sube su comprobante y queda esperando que el comercio lo confirme.
  * @system dos pasos: ticket de subida y aviso con la referencia del banco.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -12,7 +12,6 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import {
   type PaymentProofTicketDto,
   paymentProofTicketSchema,
@@ -20,6 +19,7 @@ import {
   submitPaymentClaimSchema,
 } from './loan-payment-claims.schemas.js';
 import { LoanPaymentClaimsService } from './loan-payment-claims.service.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
  * El aviso de pago, desde el teléfono.
@@ -49,13 +49,13 @@ export class MobilePaymentClaimsController {
   @ApiResponse({ status: 404, description: 'INSTALLMENT_NOT_FOUND.' })
   @Get('instructions/:installmentId')
   instruction(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('customerId') customerId: string,
     @Param('installmentId') installmentId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.service.paymentInstruction({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId,
       customerId,
       installmentId,
       currentUser,
@@ -67,13 +67,13 @@ export class MobilePaymentClaimsController {
   @ApiResponse({ status: 201, description: 'URL firmada y clave del objeto.' })
   @Post('proof-tickets')
   createTicket(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('customerId') customerId: string,
     @Body(new ZodValidationPipe(paymentProofTicketSchema)) body: PaymentProofTicketDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.service.createProofTicket({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId,
       customerId,
       body,
       currentUser,
@@ -87,13 +87,13 @@ export class MobilePaymentClaimsController {
   @Post()
   @HttpCode(HttpStatus.OK)
   submit(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('customerId') customerId: string,
     @Body(new ZodValidationPipe(submitPaymentClaimSchema)) body: SubmitPaymentClaimDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.service.submit({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId,
       customerId,
       body,
       currentUser,

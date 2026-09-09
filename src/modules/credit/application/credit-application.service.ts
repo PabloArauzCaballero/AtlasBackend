@@ -12,6 +12,7 @@ import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/
 import { createStableCode, sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { CustomerEligibilityRepository } from '../../customers/repositories/customer-eligibility.repository.js';
+import { PartnerDirectoryService } from '../../partner-onboarding/application/partner-directory.service.js';
 import { PartnerProfileService } from '../../partner-onboarding/application/partner-profile.service.js';
 import { evaluateProductEligibility } from './credit-product-eligibility.js';
 import { CreditUnderwritingService } from './credit-underwriting.service.js';
@@ -39,6 +40,7 @@ export class CreditApplicationService {
     private readonly eligibilityRepository: CustomerEligibilityRepository,
     private readonly underwriting: CreditUnderwritingService,
     private readonly partnerProfiles: PartnerProfileService,
+    private readonly partnerDirectory: PartnerDirectoryService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -275,7 +277,7 @@ export class CreditApplicationService {
     // se queda sin caja registrada, que es preferible a atribuirla a una sucursal equivocada.
     let terminalId: string | null = null;
     if (posTerminalId) {
-      const terminal = await this.partnerProfiles.findOwnedTerminal(tenantId, String(profile.id), posTerminalId);
+      const terminal = await this.partnerDirectory.findOwnedTerminal(tenantId, String(profile.id), posTerminalId);
       terminalId = terminal ? String(terminal.id) : null;
     }
     return { partnerProfileId: String(profile.id), posTerminalId: terminalId };

@@ -16,6 +16,7 @@ import {
 } from '../../database/models/index.js';
 import { PartnerCommerceService } from './application/partner-commerce.service.js';
 import { PartnerContactVerificationService } from './application/partner-contact-verification.service.js';
+import { PartnerDirectoryService } from './application/partner-directory.service.js';
 import { PartnerKybDecisionService } from './application/partner-kyb-decision.service.js';
 import { PartnerKybSyncService } from './application/partner-kyb-sync.service.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
@@ -83,6 +84,6 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
      * después del smoke; ningún test lo habría visto.
      */
   ],
-  exports: [PartnerProfileService, PartnerVerificationService, PartnerCommerceService, PartnerQrService, PartnerKybSyncService],
+  exports: [PartnerProfileService, PartnerDirectoryService, PartnerVerificationService, PartnerCommerceService, PartnerQrService, PartnerKybSyncService],
 })
 export class PartnerOnboardingModule {}

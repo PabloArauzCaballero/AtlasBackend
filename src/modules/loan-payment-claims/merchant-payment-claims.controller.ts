@@ -3,21 +3,7 @@
  * @business Sólo el comercio ve el dinero entrar en su cuenta, así que sólo él puede dar por pagada la cuota.
  * @system lista lo pendiente de SU expediente y registra el pago al verificar.
  */
-import {
-  Body,
-  Controller,
-  Get,
-  Header,
-  Headers,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Post,
-  Query,
-  Res,
-  StreamableFile,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Query, Res, StreamableFile, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -27,7 +13,6 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import {
   type ClaimsQueryDto,
   claimsQuerySchema,
@@ -35,6 +20,7 @@ import {
   decidePaymentClaimSchema,
 } from './loan-payment-claims.schemas.js';
 import { LoanPaymentClaimsService } from './loan-payment-claims.service.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
  * Los comprobantes que esperan la palabra del comercio.
@@ -59,13 +45,13 @@ export class MerchantPaymentClaimsController {
   @ApiResponse({ status: 200, description: 'Reclamos del comercio, más recientes primero.' })
   @Get()
   list(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('partnerId') partnerId: string,
     @Query(new ZodValidationPipe(claimsQuerySchema)) query: ClaimsQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.service.listForPartner({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId,
       partnerProfileId: partnerId,
       onlyPending: query.onlyPending,
       currentUser,
@@ -76,13 +62,9 @@ export class MerchantPaymentClaimsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Resumen, créditos con su detalle y calendario de cobros.' })
   @Get('portfolio')
-  portfolio(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param('partnerId') partnerId: string,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
+  portfolio(@CurrentTenant() tenantId: string, @Param('partnerId') partnerId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     return this.service.portfolioForPartner({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId,
       partnerProfileId: partnerId,
       currentUser,
     });
@@ -102,14 +84,14 @@ export class MerchantPaymentClaimsController {
   @Get(':claimId/proof')
   @Header('Cache-Control', 'private, max-age=60')
   async proof(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('partnerId') partnerId: string,
     @Param('claimId') claimId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
     const imagen = await this.service.readProof({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId,
       partnerProfileId: partnerId,
       claimId,
       currentUser,
@@ -125,14 +107,14 @@ export class MerchantPaymentClaimsController {
   @Post(':claimId/verification')
   @HttpCode(HttpStatus.OK)
   decide(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('partnerId') partnerId: string,
     @Param('claimId') claimId: string,
     @Body(new ZodValidationPipe(decidePaymentClaimSchema)) body: DecidePaymentClaimDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.service.decide({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId,
       partnerProfileId: partnerId,
       claimId,
       body,

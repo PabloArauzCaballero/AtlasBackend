@@ -26,7 +26,6 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { SupportActorService } from './application/support-actor.service.js';
 import { SupportChannelService } from './application/support-channel.service.js';
 import { SupportConversationService } from './application/support-conversation.service.js';
@@ -46,6 +45,7 @@ import {
   type TranscriptQueryDto,
   transcriptQuerySchema,
 } from './support-case.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
  * La conversación.
@@ -79,11 +79,10 @@ export class SupportChatController {
   @ApiResponse({ status: 201, description: 'Canal abierto con agente, o encolado si no hay ninguno libre.' })
   @Post()
   async open(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(openChannelSchema)) body: OpenChannelDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.channels.requestChannel({ tenantId, actor, dto: body });
   }
@@ -95,13 +94,12 @@ export class SupportChatController {
   @Post(':channelId/messages')
   @HttpCode(HttpStatus.OK)
   async send(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-correlation-id') correlationId: string | undefined,
     @Param('channelId') channelId: string,
     @Body(new ZodValidationPipe(sendMessageSchema)) body: SendMessageDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.messages.send({ tenantId, actor, channelId, dto: body, correlationId: correlationId ?? null });
   }
@@ -116,12 +114,11 @@ export class SupportChatController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get(':channelId/messages')
   async transcript(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('channelId') channelId: string,
     @Query(new ZodValidationPipe(transcriptQuerySchema)) query: TranscriptQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.conversation.transcript({ tenantId, actor, channelId, query });
   }
@@ -138,13 +135,12 @@ export class SupportChatController {
   @ApiResponse({ status: 201, description: 'Mensaje corregido, creado y enlazado al original.' })
   @Post(':channelId/messages/:messageId/corrections')
   async correct(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('channelId') channelId: string,
     @Param('messageId') messageId: string,
     @Body(new ZodValidationPipe(correctMessageSchema)) body: CorrectMessageDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.conversation.correct({ tenantId, actor, channelId, messageId, dto: body });
   }
@@ -155,12 +151,11 @@ export class SupportChatController {
   @Post(':channelId/close')
   @HttpCode(HttpStatus.OK)
   async close(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('channelId') channelId: string,
     @Body(new ZodValidationPipe(closeChannelSchema)) body: CloseChannelDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.channels.closeChannel({ tenantId, actor, channelId, dto: body });
   }
@@ -197,11 +192,10 @@ export class SupportChatController {
   })
   @Sse(':channelId/stream')
   async stream(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('channelId') channelId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<Observable<MessageEvent>> {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     await this.messages.assertParticipates(tenantId, channelId, actor);
 
@@ -216,12 +210,11 @@ export class SupportChatController {
   @Post(':channelId/read')
   @HttpCode(HttpStatus.OK)
   async read(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('channelId') channelId: string,
     @Body(new ZodValidationPipe(markReadSchema)) body: MarkReadDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.conversation.markRead({ tenantId, actor, channelId, upToSequence: body.upToSequence });
   }
@@ -230,12 +223,7 @@ export class SupportChatController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post(':channelId/typing')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async typing(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param('channelId') channelId: string,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+  async typing(@CurrentTenant() tenantId: string, @Param('channelId') channelId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     await this.conversation.announceTyping({ tenantId, actor, channelId });
   }
@@ -243,8 +231,7 @@ export class SupportChatController {
   @ApiOperation({ summary: 'Mis conversaciones con mensajes sin leer' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get('unread')
-  async unread(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+  async unread(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.conversation.unread({ tenantId, actor });
   }

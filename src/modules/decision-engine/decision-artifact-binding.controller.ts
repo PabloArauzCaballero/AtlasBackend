@@ -3,7 +3,7 @@
  * @business Permite a Riesgo elegir la política vigente sin pedir un despliegue.
  * @system lee y escribe `catalog.decision_artifact_bindings` con el catálogo del motor como origen.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Post, UnprocessableEntityException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UnprocessableEntityException, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -13,8 +13,8 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { DECISION_TYPES, DecisionArtifactBindingService } from './decision-artifact-binding.service.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 const assignSchema = z
   .object({
@@ -63,8 +63,7 @@ export class DecisionArtifactBindingController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Asignación vigente por tipo de decisión.' })
   @Get()
-  async list(@Headers('x-tenant-id') tenantIdHeader: string | undefined) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+  async list(@CurrentTenant() tenantId: string) {
     const [bindings, available] = await Promise.all([this.bindings.list(tenantId), this.bindings.availableArtifacts()]);
     return { bindings, availableArtifacts: available };
   }
@@ -76,13 +75,13 @@ export class DecisionArtifactBindingController {
   @Post()
   @HttpCode(HttpStatus.OK)
   async assign(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(assignSchema)) body: AssignDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     try {
       return await this.bindings.assign({
-        tenantId: tenantIdFromHeader(tenantIdHeader),
+        tenantId,
         decisionType: body.decisionType,
         artifactCode: body.artifactCode,
         pinnedVersion: body.pinnedVersion ?? null,

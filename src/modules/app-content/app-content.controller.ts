@@ -3,7 +3,7 @@
  * @business Esta pieza entrega a la app lo que el cliente lee, sin que haya que publicar una versión.
  * @system expone el catálogo de contenidos por pantalla e idioma.
  */
-import { Controller, Get, Headers, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -11,9 +11,9 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodObjectPropertySchemas } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { AppContentService } from './app-content.service.js';
 import { listContentQuerySchema, type ListContentQueryDto } from './app-content.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 @ApiTags('app-content')
 @Controller()
@@ -50,10 +50,7 @@ export class AppContentController {
   })
   @ApiResponse({ status: 200, description: 'Piezas de contenido activas, ordenadas para pintar.' })
   @Get('app-content')
-  list(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Query(new ZodValidationPipe(listContentQuerySchema)) query: ListContentQueryDto,
-  ) {
-    return this.service.listPublic(tenantIdFromHeader(tenantIdHeader), query);
+  list(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listContentQuerySchema)) query: ListContentQueryDto) {
+    return this.service.listPublic(tenantId, query);
   }
 }

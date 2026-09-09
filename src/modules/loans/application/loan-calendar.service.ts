@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { LoanInstallmentModel, LoanModel } from '../../../database/models/index.js';
-import { PartnerProfileService } from '../../partner-onboarding/application/partner-profile.service.js';
+import { PartnerDirectoryService } from '../../partner-onboarding/application/partner-directory.service.js';
 import { LoansRepository } from '../loans.repository.js';
 
 /**
@@ -52,7 +52,7 @@ function round(value: number): number {
 export class LoanCalendarService {
   constructor(
     private readonly loans: LoansRepository,
-    private readonly partnerProfiles: PartnerProfileService,
+    private readonly partnerDirectory: PartnerDirectoryService,
   ) {}
 
   async forCustomer(tenantId: string, customerId: string, now = new Date()) {
@@ -64,7 +64,7 @@ export class LoanCalendarService {
       active.map((loan) => String(loan.id)),
     );
 
-    const merchants = await this.partnerProfiles.describeMany(
+    const merchants = await this.partnerDirectory.describeMany(
       tenantId,
       active
         .map((loan) => loan.partnerProfileId)

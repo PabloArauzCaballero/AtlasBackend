@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { LoanInstallmentModel, LoanModel } from '../../../database/models/index.js';
-import { PartnerProfileService } from '../../partner-onboarding/application/partner-profile.service.js';
+import { PartnerDirectoryService } from '../../partner-onboarding/application/partner-directory.service.js';
 import { LoansRepository } from '../loans.repository.js';
 
 /** Lo que se cuenta de un grupo, sea un rubro o un comercio. */
@@ -62,7 +62,7 @@ function round(value: number): number {
 export class LoanSpendingService {
   constructor(
     private readonly loans: LoansRepository,
-    private readonly partnerProfiles: PartnerProfileService,
+    private readonly partnerDirectory: PartnerDirectoryService,
   ) {}
 
   /**
@@ -137,7 +137,7 @@ export class LoanSpendingService {
       tenantId,
       active.map((loan) => String(loan.id)),
     );
-    const merchants = await this.partnerProfiles.describeMany(
+    const merchants = await this.partnerDirectory.describeMany(
       tenantId,
       active
         .map((loan) => loan.partnerProfileId)

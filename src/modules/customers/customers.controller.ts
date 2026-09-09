@@ -3,7 +3,7 @@
  * @business Esta pieza mantiene la identidad operativa, ciclo de vida y elegibilidad del cliente como fuente de verdad.
  * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
  */
-import { Controller, Get, Headers, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -13,9 +13,9 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
 import { CustomersService } from './customers.service.js';
 import { customerIdParamsSchema, CustomerIdParamsDto } from './customers.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 @ApiTags('customers')
 @ApiBearerAuth('access-token')
@@ -55,11 +55,10 @@ export class CustomersController {
   @ApiResponse({ status: 404, description: 'Cliente no encontrado.' })
   @Get(':customerId/me')
   getCustomerMe(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? currentUser.tenantId ?? ''), 'x-tenant-id');
     return this.customersService.getCustomerMe(tenantId, params.customerId, currentUser);
   }
 }

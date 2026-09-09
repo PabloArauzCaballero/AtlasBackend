@@ -3,7 +3,7 @@
  * @business Ver la cola, tomar un caso, clasificarlo, escalarlo, resolverlo y cerrarlo.
  * @system exige perfil de agente además del rol; cada acción deja evento y auditoría.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -12,7 +12,6 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { SupportActorService } from './application/support-actor.service.js';
 import { SupportCaseClosureService } from './application/support-case-closure.service.js';
 import { SupportCaseEscalationService } from './application/support-case-escalation.service.js';
@@ -36,6 +35,7 @@ import {
   type TriageCaseDto,
   triageCaseSchema,
 } from './support-case.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
  * La consola del agente.
@@ -62,11 +62,10 @@ export class InternalSupportController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get()
   async workQueue(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Query(new ZodValidationPipe(listCasesQuerySchema)) query: ListCasesQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.read.listWorkQueue({ tenantId, actor, query });
   }
@@ -76,12 +75,7 @@ export class InternalSupportController {
   @ApiResponse({ status: 403, description: 'SUPPORT_CASE_RESTRICTED: expediente sensible no asignado.' })
   @ApiResponse({ status: 200, description: 'El caso con su detalle, su asignación y su estado.' })
   @Get(':caseId')
-  async detail(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param('caseId') caseId: string,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+  async detail(@CurrentTenant() tenantId: string, @Param('caseId') caseId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.read.getCase({ tenantId, actor, caseId });
   }
@@ -89,12 +83,7 @@ export class InternalSupportController {
   @ApiOperation({ summary: 'Historia completa del expediente, con hashes verificables' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Get(':caseId/timeline')
-  async timeline(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Param('caseId') caseId: string,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
+  async timeline(@CurrentTenant() tenantId: string, @Param('caseId') caseId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.read.getTimeline({ tenantId, actor, caseId });
   }
@@ -104,12 +93,11 @@ export class InternalSupportController {
   @Post(':caseId/triage')
   @HttpCode(HttpStatus.OK)
   async triage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('caseId') caseId: string,
     @Body(new ZodValidationPipe(triageCaseSchema)) body: TriageCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.workflow.triage({ tenantId, actor, caseId, dto: body });
   }
@@ -121,12 +109,11 @@ export class InternalSupportController {
   @Post(':caseId/claim')
   @HttpCode(HttpStatus.OK)
   async claim(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('caseId') caseId: string,
     @Body(new ZodValidationPipe(assignCaseSchema)) body: AssignCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.workflow.assign({ tenantId, actor, caseId, dto: body });
   }
@@ -136,12 +123,11 @@ export class InternalSupportController {
   @Post(':caseId/transfer')
   @HttpCode(HttpStatus.OK)
   async transfer(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('caseId') caseId: string,
     @Body(new ZodValidationPipe(assignCaseSchema)) body: AssignCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.workflow.transfer({ tenantId, actor, caseId, dto: body });
   }
@@ -151,12 +137,11 @@ export class InternalSupportController {
   @Post(':caseId/escalate')
   @HttpCode(HttpStatus.OK)
   async escalate(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('caseId') caseId: string,
     @Body(new ZodValidationPipe(escalateCaseSchema)) body: EscalateCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.escalation.escalate({ tenantId, actor, caseId, dto: body });
   }
@@ -165,12 +150,11 @@ export class InternalSupportController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post(':caseId/notes')
   async note(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('caseId') caseId: string,
     @Body(new ZodValidationPipe(internalNoteSchema)) body: InternalNoteDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.escalation.addInternalNote({ tenantId, actor, caseId, dto: body });
   }
@@ -179,12 +163,11 @@ export class InternalSupportController {
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @Post(':caseId/links')
   async link(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('caseId') caseId: string,
     @Body(new ZodValidationPipe(linkCaseSchema)) body: LinkCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.escalation.link({ tenantId, actor, caseId, dto: body });
   }
@@ -194,12 +177,11 @@ export class InternalSupportController {
   @Post(':caseId/resolve')
   @HttpCode(HttpStatus.OK)
   async resolve(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('caseId') caseId: string,
     @Body(new ZodValidationPipe(resolveCaseSchema)) body: ResolveCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.closure.resolve({ tenantId, actor, caseId, dto: body });
   }
@@ -211,12 +193,11 @@ export class InternalSupportController {
   @Post(':caseId/close')
   @HttpCode(HttpStatus.OK)
   async close(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('caseId') caseId: string,
     @Body(new ZodValidationPipe(closeCaseSchema)) body: CloseCaseDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
     const actor = await this.actors.resolve(currentUser, tenantId);
     return this.closure.close({ tenantId, actor, caseId, dto: body });
   }

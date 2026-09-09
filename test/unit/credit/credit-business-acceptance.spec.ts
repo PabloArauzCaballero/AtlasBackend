@@ -49,8 +49,17 @@ function build(applicationOverrides: AnyRecord | null, ownerMerchantUserId?: str
   const partnerProfiles = {
     requireProfile: jest.fn(async (..._a: unknown[]) => ({ id: '77', ownerMerchantUserId: ownerMerchantUserId ?? 'm1' })),
   };
-  const service = new CreditBusinessAcceptanceService(credit as never, partnerProfiles as never, sequelize as never);
-  return { service, application, credit, events, partnerProfiles };
+  /** El directorio del comercio: el índice de cajas con el que la venta recuerda su local. */
+  const partnerDirectory = {
+    terminalDirectory: jest.fn(async (..._a: unknown[]) => new Map()),
+  };
+  const service = new CreditBusinessAcceptanceService(
+    credit as never,
+    partnerProfiles as never,
+    partnerDirectory as never,
+    sequelize as never,
+  );
+  return { service, application, credit, events, partnerProfiles, partnerDirectory };
 }
 
 describe('creditBusinessAcceptanceSchema', () => {
