@@ -393,18 +393,24 @@ jobs:
           DB_MIGRATION_PASSWORD: ci_migrator_pw
         run: yarn check:db-privileges --strict
 
+      # El puerto se FIJA aquí y la sonda lo reutiliza. Antes la sonda pedía el 3000 y la API
+      # escucha en `APP_PORT`, que por defecto es 3005: nunca respondía, y el paso moría con «La
+      # API no respondió a tiempo» — un mensaje que manda a mirar el arranque cuando lo que
+      # fallaba era la dirección a la que se llamaba.
       - name: Boot API in background
+        env:
+          APP_PORT: '3005'
         run: |
           nohup node scripts/run-dev.mjs > /tmp/atlas-api.log 2>&1 &
           echo $! > /tmp/atlas-api.pid
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:3000/api/v1/health > /dev/null; then
-              echo "API arriba."
+          for i in $(seq 1 60); do
+            if curl -sf "http://localhost:${APP_PORT}/api/v1/health" > /dev/null; then
+              echo "API arriba en el puerto ${APP_PORT}."
               exit 0
             fi
             sleep 1
           done
-          echo "La API no respondió a tiempo. Log:"
+          echo "La API no respondió en http://localhost:${APP_PORT}/api/v1/health tras 60 s. Log:"
           cat /tmp/atlas-api.log
           exit 1
 
