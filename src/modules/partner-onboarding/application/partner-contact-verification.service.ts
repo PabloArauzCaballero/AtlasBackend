@@ -19,6 +19,7 @@ import { generateNumericCode, hashOneTimeCode, verifyOneTimeCode } from '../../.
 import { MailSenderService } from '../../mail-sender/mail-sender.service.js';
 import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
 import { PartnerProfileService } from './partner-profile.service.js';
+import { assertEditable } from './partner-profile.guards.js';
 
 /** Un código nuevo cada 30 s como máximo. Igual que en el onboarding del consumidor. */
 const RESEND_COOLDOWN_MS = 30_000;
@@ -60,7 +61,7 @@ export class PartnerContactVerificationService {
    */
   async request(tenantId: string, partnerId: string): Promise<{ sent: boolean; expiresInMinutes: number }> {
     const profile = await this.profiles.requireProfile(tenantId, partnerId);
-    this.profiles.assertEditable(profile);
+    assertEditable(profile);
 
     if (profile.emailVerifiedAt) {
       throw new ConflictException('PARTNER_CONTACT_ALREADY_VERIFIED');
@@ -119,7 +120,7 @@ export class PartnerContactVerificationService {
     return this.sequelize.transaction(async (transaction) => {
       const profile = await this.repository.lockProfileById(tenantId, partnerId, transaction);
       if (!profile) throw new NotFoundException('El expediente del partner no existe.');
-      this.profiles.assertEditable(profile);
+      assertEditable(profile);
 
       if (profile.emailVerifiedAt) return { verified: true };
       if (!profile.contactCodeHash || !profile.contactCodeExpiresAt) {

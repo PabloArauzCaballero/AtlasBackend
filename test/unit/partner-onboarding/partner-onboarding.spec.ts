@@ -12,6 +12,7 @@ import { PartnerCommerceService } from '../../../src/modules/partner-onboarding/
 import { PartnerContactVerificationService } from '../../../src/modules/partner-onboarding/application/partner-contact-verification.service.js';
 import { PartnerProfileService } from '../../../src/modules/partner-onboarding/application/partner-profile.service.js';
 import { PartnerVerificationService } from '../../../src/modules/partner-onboarding/application/partner-verification.service.js';
+import { assertEditable, assertPaymentQrEditable } from '../../../src/modules/partner-onboarding/application/partner-profile.guards.js';
 import { PartnerQrService } from '../../../src/modules/partner-onboarding/application/partner-qr.service.js';
 
 /**
@@ -61,7 +62,12 @@ function profileDouble(overrides: AnyRecord = {}): AnyRecord {
  * queda y qué se escribe. Cómo se llega al veredicto lo prueba el propio Motor.
  */
 function verificationCon(repository: unknown, kyb: unknown) {
-  return new PartnerVerificationService(repository as never, metricsDouble(), kyb as never);
+  /*
+   * El MISMO doble hace de repositorio del perfil y de la red comercial: en estas pruebas el
+   * expediente y sus sucursales se leen del mismo objeto simulado, y separarlos sólo obligaría a
+   * declarar dos veces los mismos métodos.
+   */
+  return new PartnerVerificationService(repository as never, repository as never, metricsDouble(), kyb as never);
 }
 
 /**
@@ -96,6 +102,7 @@ describe('PartnerProfileService', () => {
       createProfile: jest.fn(),
     };
     const service = new PartnerProfileService(
+      repository as never,
       repository as never,
       metricsDouble(),
       storageDouble() as never,
@@ -157,6 +164,7 @@ describe('PartnerProfileService', () => {
     };
     const service = new PartnerProfileService(
       repository as never,
+      repository as never,
       metricsDouble(),
       storageDouble() as never,
       verificationCon(repository, kybDouble()),
@@ -187,6 +195,7 @@ describe('PartnerProfileService', () => {
     const kyb = kybDouble({ outcome: 'REVISION_MANUAL', manualReviewCaseCode: 'MRC-7' });
     const service = new PartnerProfileService(
       repository as never,
+      repository as never,
       metricsDouble(),
       storageDouble() as never,
       verificationCon(repository, kyb),
@@ -214,6 +223,7 @@ describe('PartnerProfileService', () => {
     };
     const kyb = kybDouble({ outcome: 'APROBADO', reason: 'KYB_COMPLETO' });
     const service = new PartnerProfileService(
+      repository as never,
       repository as never,
       metricsDouble(),
       storageDouble() as never,
@@ -245,6 +255,7 @@ describe('PartnerProfileService', () => {
     const kyb = kybDouble({ outcome: 'DESENLACE_NUEVO_DEL_ARTEFACTO' });
     const service = new PartnerProfileService(
       repository as never,
+      repository as never,
       metricsDouble(),
       storageDouble() as never,
       verificationCon(repository, kyb),
@@ -274,6 +285,7 @@ describe('PartnerProfileService', () => {
     };
     const service = new PartnerProfileService(
       repository as never,
+      repository as never,
       metricsDouble(),
       storageDouble() as never,
       verificationCon(repository, kyb),
@@ -296,6 +308,7 @@ describe('PartnerProfileService', () => {
     };
     const service = new PartnerProfileService(
       repository as never,
+      repository as never,
       metricsDouble(),
       storageDouble() as never,
       verificationCon(repository, kybDouble()),
@@ -313,6 +326,7 @@ describe('PartnerProfileService', () => {
     };
     const service = new PartnerProfileService(
       repository as never,
+      repository as never,
       metricsDouble(),
       storageDouble() as never,
       verificationCon(repository, kybDouble()),
@@ -325,11 +339,7 @@ describe('PartnerProfileService', () => {
   });
 
   it('un expediente ya en revisión no admite más cambios', () => {
-    const service = new PartnerProfileService({} as never, metricsDouble(), storageDouble() as never, verificationCon({}, kybDouble()));
-
-    expect(() => service.assertEditable(profileDouble({ onboardingStatus: 'under_review' }) as never)).toThrow(
-      UnprocessableEntityException,
-    );
+    expect(() => assertEditable(profileDouble({ onboardingStatus: 'under_review' }) as never)).toThrow(UnprocessableEntityException);
   });
 
   /*
@@ -338,10 +348,8 @@ describe('PartnerProfileService', () => {
    * congelado mientras un analista mira es `under_review`.
    */
   it('el QR de cobro se puede reemplazar con el expediente aprobado, pero no en revisión', () => {
-    const service = new PartnerProfileService({} as never, metricsDouble(), storageDouble() as never, verificationCon({}, kybDouble()));
-
-    expect(() => service.assertPaymentQrEditable(profileDouble({ onboardingStatus: 'approved' }) as never)).not.toThrow();
-    expect(() => service.assertPaymentQrEditable(profileDouble({ onboardingStatus: 'under_review' }) as never)).toThrow(
+    expect(() => assertPaymentQrEditable(profileDouble({ onboardingStatus: 'approved' }) as never)).not.toThrow();
+    expect(() => assertPaymentQrEditable(profileDouble({ onboardingStatus: 'under_review' }) as never)).toThrow(
       UnprocessableEntityException,
     );
   });
@@ -354,6 +362,7 @@ describe('PartnerProfileService · poder del representante', () => {
       createRepresentative: jest.fn(async (input: AnyRecord) => ({ id: '7', ...input })),
     };
     const service = new PartnerProfileService(
+      repository as never,
       repository as never,
       metricsDouble(),
       storage as never,
@@ -554,7 +563,7 @@ describe('PartnerCommerceService', () => {
          abriendo locales. El doble no la mockeaba y estos casos morían con un TypeError. */
       assertCommercialNetworkEditable: jest.fn(),
     };
-    const service = new PartnerCommerceService(repository as never, profiles as never, metricsDouble());
+    const service = new PartnerCommerceService(repository as never, repository as never, profiles as never, metricsDouble());
     return { service, repository, profiles };
   }
 

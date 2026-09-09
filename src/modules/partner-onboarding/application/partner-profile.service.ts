@@ -13,12 +13,8 @@ import {
 } from '@nestjs/common';
 import { MetricsService } from '../../../common/observability/metrics.service.js';
 import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
-import {
-  COMMERCIAL_NETWORK_EDITABLE_STATUSES,
-  EDITABLE_PARTNER_STATUSES,
-  PAYMENT_QR_EDITABLE_STATUSES,
-  PartnerOnboardingRepository,
-} from '../partner-onboarding.repository.js';
+import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
+import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
 import {
   LegalRepresentativeDto,
   PartnerDocumentUploadUrlDto,
@@ -27,6 +23,7 @@ import {
 } from '../partner-onboarding.schemas.js';
 import { PartnerProfileModel } from '../../../database/models/index.js';
 import { PartnerVerificationService, type SubmissionGap } from './partner-verification.service.js';
+import { assertCommercialNetworkEditable, assertEditable } from './partner-profile.guards.js';
 
 /** Lo que el expediente tiene que reunir antes de poder enviarse a revisión. */
 
@@ -36,6 +33,7 @@ export class PartnerProfileService {
 
   constructor(
     private readonly repository: PartnerOnboardingRepository,
+    private readonly network: PartnerCommercialNetworkRepository,
     private readonly metrics: MetricsService,
     private readonly storage: DocumentStorageService,
     private readonly verification: PartnerVerificationService,
@@ -124,7 +122,7 @@ export class PartnerProfileService {
    */
   async addLegalRepresentative(tenantId: string, partnerId: string, dto: LegalRepresentativeDto) {
     const profile = await this.requireProfile(tenantId, partnerId);
-    this.assertEditable(profile);
+    assertEditable(profile);
 
     /*
      * Si viene el poder, tiene que ser un objeto de ESTE expediente y tiene que existir.
@@ -144,7 +142,7 @@ export class PartnerProfileService {
       }
     }
 
-    const representative = await this.repository.createRepresentative({
+    const representative = await this.network.createRepresentative({
       tenantId,
       partnerProfileId: partnerId,
       fullName: dto.fullName,
@@ -168,7 +166,7 @@ export class PartnerProfileService {
    */
   async setCommercialRegistry(tenantId: string, partnerId: string, commercialRegistry: string) {
     const profile = await this.requireProfile(tenantId, partnerId);
-    this.assertEditable(profile);
+    assertEditable(profile);
     return this.repository.updateProfile(profile, { commercialRegistry });
   }
 
@@ -187,7 +185,7 @@ export class PartnerProfileService {
    */
   async updateCommercialProfile(tenantId: string, partnerId: string, dto: UpdateCommercialProfileDto) {
     const profile = await this.requireProfile(tenantId, partnerId);
-    this.assertCommercialNetworkEditable(profile);
+    assertCommercialNetworkEditable(profile);
 
     const changes: Record<string, string> = {};
     if (dto.tradeName !== undefined) changes.tradeName = dto.tradeName;
@@ -199,26 +197,6 @@ export class PartnerProfileService {
     // una persona y el log no es el sitio donde debe quedar.
     this.logger.log(`Ficha comercial actualizada: partnerId=${partnerId} campos=${Object.keys(changes).join(',')}`);
     return updated;
-  }
-
-  /**
-   * Los expedientes de este comercio, para que el portal sepa a cual entrar.
-   *
-   * Devuelve lo minimo con lo que la pantalla puede trabajar —identificador, nombre y estado—: el
-   * detalle ya lo sirve `:partnerId/status`, y duplicarlo aqui solo daria dos formas distintas de
-   * responder a la misma pregunta.
-   */
-  async listOwnedBy(
-    tenantId: string,
-    ownerMerchantUserId: string,
-  ): Promise<{ partnerId: string; legalName: string | null; tradeName: string | null; status: string }[]> {
-    const profiles = await this.repository.findProfilesByOwner(tenantId, ownerMerchantUserId);
-    return profiles.map((profile) => ({
-      partnerId: String(profile.id),
-      legalName: profile.legalName ?? null,
-      tradeName: profile.tradeName ?? null,
-      status: profile.onboardingStatus,
-    }));
   }
 
   /**
@@ -238,43 +216,6 @@ export class PartnerProfileService {
   }
 
   /**
-   * Un expediente ya enviado o resuelto no admite cambios del comercio.
-   *
-   * Sin esta puerta, un comercio podría cambiar su QR bancario mientras un analista mira el
-   * expediente, y la aprobación quedaría firmada sobre datos que ya no son los que se revisaron.
-   */
-  assertEditable(profile: PartnerProfileModel): void {
-    if (!EDITABLE_PARTNER_STATUSES.includes(profile.onboardingStatus as (typeof EDITABLE_PARTNER_STATUSES)[number])) {
-      throw new UnprocessableEntityException(`PARTNER_NOT_EDITABLE_IN_STATUS: ${profile.onboardingStatus}`);
-    }
-  }
-
-  /**
-   * Igual que `assertEditable`, pero para la red comercial: sucursales y terminales.
-   *
-   * Un comercio aprobado sigue abriendo locales y rotando POS; ese movimiento no toca nada de lo que
-   * el analista firmó, así que no tiene por qué morir con la aprobación.
-   */
-  assertCommercialNetworkEditable(profile: PartnerProfileModel): void {
-    if (!COMMERCIAL_NETWORK_EDITABLE_STATUSES.includes(profile.onboardingStatus as (typeof COMMERCIAL_NETWORK_EDITABLE_STATUSES)[number])) {
-      throw new UnprocessableEntityException(`PARTNER_NETWORK_NOT_EDITABLE_IN_STATUS: ${profile.onboardingStatus}`);
-    }
-  }
-
-  /**
-   * Igual que `assertEditable`, pero para el QR DE COBRO.
-   *
-   * El comercio aprobado —el único que de verdad cobra— no podía subir el suyo, así que la app no
-   * tenía qué enseñar cuando el cliente pulsaba «pagar». Un QR no se edita: se reemplaza, y el
-   * anterior queda archivado apuntando al nuevo, de modo que abrir esta puerta no borra nada de lo
-   * que hubo antes.
-   */
-  assertPaymentQrEditable(profile: PartnerProfileModel): void {
-    if (!PAYMENT_QR_EDITABLE_STATUSES.includes(profile.onboardingStatus as (typeof PAYMENT_QR_EDITABLE_STATUSES)[number])) {
-      throw new UnprocessableEntityException(`PARTNER_QR_NOT_EDITABLE_IN_STATUS: ${profile.onboardingStatus}`);
-    }
-  }
-  /**
    * Envía el expediente a revisión.
    *
    * No aprueba nada: deja el caso en `under_review`. La aprobación la firma una persona, y que
@@ -283,7 +224,7 @@ export class PartnerProfileService {
    */
   async submit(tenantId: string, partnerId: string): Promise<{ profile: PartnerProfileModel; gaps: SubmissionGap[] }> {
     const profile = await this.requireProfile(tenantId, partnerId);
-    this.assertEditable(profile);
+    assertEditable(profile);
 
     const gaps = await this.verification.findSubmissionGaps(tenantId, profile);
     if (gaps.length > 0) {

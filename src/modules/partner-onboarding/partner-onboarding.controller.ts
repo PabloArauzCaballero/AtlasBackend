@@ -17,6 +17,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerCommerceService } from './application/partner-commerce.service.js';
 import { PartnerContactVerificationService } from './application/partner-contact-verification.service.js';
+import { PartnerDirectoryService } from './application/partner-directory.service.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
 import { PartnerVerificationService } from './application/partner-verification.service.js';
 import { PartnerQrService } from './application/partner-qr.service.js';
@@ -30,8 +31,6 @@ import {
 import {
   commercialRegistrySchema,
   partnerDocumentUploadUrlSchema,
-  ContactVerificationSubmitDto,
-  contactVerificationSubmitSchema,
   CommercialRegistryDto,
   PartnerDocumentUploadUrlDto,
   LegalRepresentativeDto,
@@ -63,6 +62,7 @@ export class PartnerOnboardingController {
     private readonly qr: PartnerQrService,
     private readonly contact: PartnerContactVerificationService,
     private readonly verification: PartnerVerificationService,
+    private readonly directory: PartnerDirectoryService,
   ) {}
 
   // Diez altas por minuto y por IP: abrir expedientes en masa es la forma barata de sondear qué
@@ -112,7 +112,7 @@ export class PartnerOnboardingController {
      */
     const merchantUserId = currentUser.role === 'merchant' ? (currentUser.merchantUserId ?? null) : null;
     if (!merchantUserId) return { profiles: [] };
-    return { profiles: await this.profiles.listOwnedBy(tenantId, merchantUserId) };
+    return { profiles: await this.directory.listOwnedBy(tenantId, merchantUserId) };
   }
 
   @ApiBearerAuth('access-token')
@@ -139,49 +139,6 @@ export class PartnerOnboardingController {
       qrCodes: qrCodes.map(toPartnerQrDto),
       posTerminals: terminals.map(toPartnerPosTerminalDto),
     };
-  }
-
-  /**
-   * Pide el código que prueba el contacto.
-   *
-   * Se manda al correo QUE ESTÁ EN EL EXPEDIENTE, nunca a uno que venga en la petición: si el
-   * destino viajara en el cuerpo, esto no probaría nada — cualquiera pediría el código a su buzón.
-   */
-  @Throttle({ default: { ttl: 60_000, limit: 5 } })
-  @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
-  @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Enviar el código de verificación al correo del comercio' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
-  @ApiResponse({ status: 202, description: 'Código enviado.' })
-  @ApiResponse({ status: 409, description: 'PARTNER_VERIFICATION_RATE_LIMITED | PARTNER_CONTACT_ALREADY_VERIFIED.' })
-  @ApiResponse({ status: 422, description: 'MAIL_CHANNEL_NOT_AVAILABLE.' })
-  @Post(':partnerId/contact-verification/request')
-  @HttpCode(HttpStatus.ACCEPTED)
-  requestContactVerification(
-    @CurrentTenant() tenantId: string,
-    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
-  ) {
-    return this.contact.request(tenantId, params.partnerId);
-  }
-
-  @Throttle({ default: { ttl: 60_000, limit: 10 } })
-  @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
-  @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Comprobar el código y dar por probado el contacto' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
-  @ApiBody({ schema: zodToApiSchema(contactVerificationSubmitSchema) })
-  @ApiResponse({ status: 200, description: 'Contacto verificado.' })
-  @ApiResponse({ status: 401, description: 'Código inválido, vencido o con intentos agotados.' })
-  @Post(':partnerId/contact-verification/submit')
-  @HttpCode(HttpStatus.OK)
-  submitContactVerification(
-    @CurrentTenant() tenantId: string,
-    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
-    @Body(new ZodValidationPipe(contactVerificationSubmitSchema)) body: ContactVerificationSubmitDto,
-  ) {
-    return this.contact.submit(tenantId, params.partnerId, body.code);
   }
 
   /**

@@ -8,9 +8,10 @@ import { leerQrDeImagen } from '../../../common/images/qr-image-reader.js';
 import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
 import { MetricsService } from '../../../common/observability/metrics.service.js';
 import { PartnerQrCodeModel } from '../../../database/models/index.js';
-import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
+import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
 import { QrUploadUrlDto, RegisterQrDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileService } from './partner-profile.service.js';
+import { assertPaymentQrEditable } from './partner-profile.guards.js';
 
 /**
  * Los dos QR del comercio: el suyo y el de su cuenta bancaria.
@@ -32,7 +33,7 @@ export class PartnerQrService {
   private readonly logger = new Logger(PartnerQrService.name);
 
   constructor(
-    private readonly repository: PartnerOnboardingRepository,
+    private readonly network: PartnerCommercialNetworkRepository,
     private readonly profiles: PartnerProfileService,
     private readonly storage: DocumentStorageService,
     private readonly metrics: MetricsService,
@@ -47,7 +48,7 @@ export class PartnerQrService {
    */
   async createUploadTicket(tenantId: string, partnerId: string, dto: QrUploadUrlDto) {
     const profile = await this.profiles.requireProfile(tenantId, partnerId);
-    this.profiles.assertPaymentQrEditable(profile);
+    assertPaymentQrEditable(profile);
 
     if (!this.storage.isConfigured()) {
       throw new ServiceUnavailableException('DOCUMENT_STORAGE_NOT_CONFIGURED');
@@ -72,7 +73,7 @@ export class PartnerQrService {
    */
   async register(tenantId: string, partnerId: string, dto: RegisterQrDto): Promise<PartnerQrCodeModel> {
     const profile = await this.profiles.requireProfile(tenantId, partnerId);
-    this.profiles.assertPaymentQrEditable(profile);
+    assertPaymentQrEditable(profile);
 
     const branchId = await this.resolveBranchId(tenantId, partnerId, dto.branchId);
 
@@ -95,8 +96,8 @@ export class PartnerQrService {
      * y después se marca el viejo apuntando a él. Al revés quedaría una ventana sin ningún QR
      * vigente, y el índice único parcial impediría además tener dos activos a la vez.
      */
-    const previous = await this.repository.findLiveQr(tenantId, partnerId, dto.qrKind, branchId);
-    const created = await this.repository.createQrCode({
+    const previous = await this.network.findLiveQr(tenantId, partnerId, dto.qrKind, branchId);
+    const created = await this.network.createQrCode({
       tenantId,
       partnerProfileId: partnerId,
       branchId,
@@ -110,7 +111,7 @@ export class PartnerQrService {
       bankInstitutionCode: dto.bankInstitutionCode ?? null,
       accountNumberMasked: dto.accountNumberMasked ?? null,
     });
-    if (previous) await this.repository.markQrReplaced(previous, created.id);
+    if (previous) await this.network.markQrReplaced(previous, created.id);
 
     this.metrics.recordPartnerOnboardingStep({ step: `qr_${dto.qrKind}`, outcome: 'ok' });
     this.logger.log(
@@ -183,7 +184,7 @@ export class PartnerQrService {
   }
 
   list(tenantId: string, partnerId: string): Promise<PartnerQrCodeModel[]> {
-    return this.repository.listQrCodes(tenantId, partnerId);
+    return this.network.listQrCodes(tenantId, partnerId);
   }
 
   /**
@@ -196,7 +197,7 @@ export class PartnerQrService {
    * el cobro en mostrador; una cuota se transfiere al comercio, no a la caja donde se compró.
    */
   findLivePaymentQr(tenantId: string, partnerId: string): Promise<PartnerQrCodeModel | null> {
-    return this.repository.findLiveQr(tenantId, partnerId, 'bank', null);
+    return this.network.findLiveQr(tenantId, partnerId, 'bank', null);
   }
 
   /**
@@ -212,7 +213,7 @@ export class PartnerQrService {
    * por el token y el rol de quien pregunta.
    */
   async readQrImage(tenantId: string, partnerId: string, qrId: string): Promise<{ bytes: Buffer; contentType: string }> {
-    const codes = await this.repository.listQrCodes(tenantId, partnerId);
+    const codes = await this.network.listQrCodes(tenantId, partnerId);
     const qr = codes.find((code) => String(code.id) === String(qrId));
     if (!qr) throw new NotFoundException('QR_NOT_FOUND');
 
@@ -224,7 +225,7 @@ export class PartnerQrService {
   /** La sucursal tiene que ser de ESTE partner: si no, un QR podría colgarse del local de otro. */
   private async resolveBranchId(tenantId: string, partnerId: string, branchId?: string): Promise<string | null> {
     if (branchId === undefined) return null;
-    const branch = await this.repository.findBranchById(tenantId, partnerId, branchId);
+    const branch = await this.network.findBranchById(tenantId, partnerId, branchId);
     if (!branch) throw new NotFoundException('La sucursal no pertenece a este partner.');
     return branch.id;
   }

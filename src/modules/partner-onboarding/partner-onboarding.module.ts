@@ -27,8 +27,10 @@ import { PartnerQrService } from './application/partner-qr.service.js';
 import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { MerchantQrController } from './merchant-qr.controller.js';
 import { PartnerCommerceController } from './partner-commerce.controller.js';
+import { PartnerContactVerificationController } from './partner-contact-verification.controller.js';
 import { PartnerOnboardingController } from './partner-onboarding.controller.js';
 import { PartnerOperationsController } from './partner-operations.controller.js';
+import { PartnerCommercialNetworkRepository } from './partner-commercial-network.repository.js';
 import { PartnerOnboardingRepository } from './partner-onboarding.repository.js';
 import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
 
@@ -58,13 +60,21 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     // (`partner.kyb.request`) sin ser ninguno de los roles de aplicación de esta consola.
     InternalUsersModule,
   ],
-  controllers: [PartnerOnboardingController, PartnerCommerceController, MerchantQrController, PartnerOperationsController],
+  controllers: [
+    PartnerOnboardingController,
+    PartnerContactVerificationController,
+    PartnerCommerceController,
+    MerchantQrController,
+    PartnerOperationsController,
+  ],
   providers: [
     PartnerOnboardingRepository,
+    PartnerCommercialNetworkRepository,
     // Guard de propiedad de los controladores: Nest lo instancia por el contenedor porque
     // necesita el repositorio para resolver quién es el dueño del expediente.
     PartnerOwnershipGuard,
     PartnerProfileService,
+    PartnerDirectoryService,
     PartnerKybDecisionService,
     PartnerVerificationService,
     PartnerKybSyncService,
@@ -84,6 +94,13 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
      * después del smoke; ningún test lo habría visto.
      */
   ],
-  exports: [PartnerProfileService, PartnerDirectoryService, PartnerVerificationService, PartnerCommerceService, PartnerQrService, PartnerKybSyncService],
+  exports: [
+    PartnerProfileService,
+    PartnerDirectoryService,
+    PartnerVerificationService,
+    PartnerCommerceService,
+    PartnerQrService,
+    PartnerKybSyncService,
+  ],
 })
 export class PartnerOnboardingModule {}

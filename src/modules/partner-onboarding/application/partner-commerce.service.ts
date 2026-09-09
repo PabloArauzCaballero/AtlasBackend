@@ -6,9 +6,11 @@
 import { ConflictException, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { MetricsService } from '../../../common/observability/metrics.service.js';
 import { PartnerBranchModel, PartnerPosTerminalModel } from '../../../database/models/index.js';
+import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
 import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
 import { LinkBranchDto, PosTerminalStatusDto, RegisterBranchDto, RegisterPosTerminalDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileService } from './partner-profile.service.js';
+import { assertCommercialNetworkEditable } from './partner-profile.guards.js';
 
 /**
  * Los locales del comercio y los terminales que cobran en ellos.
@@ -24,21 +26,22 @@ export class PartnerCommerceService {
 
   constructor(
     private readonly repository: PartnerOnboardingRepository,
+    private readonly network: PartnerCommercialNetworkRepository,
     private readonly profiles: PartnerProfileService,
     private readonly metrics: MetricsService,
   ) {}
 
   async registerBranch(tenantId: string, partnerId: string, dto: RegisterBranchDto): Promise<PartnerBranchModel> {
     const profile = await this.profiles.requireProfile(tenantId, partnerId);
-    this.profiles.assertCommercialNetworkEditable(profile);
+    assertCommercialNetworkEditable(profile);
 
-    const existing = await this.repository.listBranches(tenantId, partnerId);
+    const existing = await this.network.listBranches(tenantId, partnerId);
     if (existing.some((branch) => branch.branchCode === dto.branchCode)) {
       this.metrics.recordPartnerOnboardingStep({ step: 'branch', outcome: 'rejected' });
       throw new ConflictException('BRANCH_CODE_ALREADY_REGISTERED');
     }
 
-    const branch = await this.repository.createBranch({
+    const branch = await this.network.createBranch({
       tenantId,
       partnerProfileId: partnerId,
       branchCode: dto.branchCode,
@@ -68,9 +71,9 @@ export class PartnerCommerceService {
    */
   async linkBranchToErp(tenantId: string, partnerId: string, branchId: string, dto: LinkBranchDto): Promise<PartnerBranchModel> {
     const profile = await this.profiles.requireProfile(tenantId, partnerId);
-    this.profiles.assertCommercialNetworkEditable(profile);
+    assertCommercialNetworkEditable(profile);
 
-    const branch = await this.repository.findBranchById(tenantId, partnerId, branchId);
+    const branch = await this.network.findBranchById(tenantId, partnerId, branchId);
     if (!branch) throw new NotFoundException('PARTNER_BRANCH_NOT_FOUND');
 
     if (branch.erpBranchId) {
@@ -80,7 +83,7 @@ export class PartnerCommerceService {
 
     // Dos sucursales del expediente apuntando al mismo local del ERP serían dos QR para el mismo
     // mostrador, que es la avería que el puente existe para impedir.
-    const branches = await this.repository.listBranches(tenantId, partnerId);
+    const branches = await this.network.listBranches(tenantId, partnerId);
     if (branches.some((other) => other.erpBranchId === dto.erpBranchId)) {
       throw new ConflictException('ERP_BRANCH_ALREADY_LINKED');
     }
@@ -91,7 +94,7 @@ export class PartnerCommerceService {
   }
 
   listBranches(tenantId: string, partnerId: string): Promise<PartnerBranchModel[]> {
-    return this.repository.listBranches(tenantId, partnerId);
+    return this.network.listBranches(tenantId, partnerId);
   }
 
   /**
@@ -110,12 +113,12 @@ export class PartnerCommerceService {
     dto: RegisterPosTerminalDto,
   ): Promise<PartnerPosTerminalModel> {
     const profile = await this.profiles.requireProfile(tenantId, partnerId);
-    this.profiles.assertCommercialNetworkEditable(profile);
+    assertCommercialNetworkEditable(profile);
 
-    const branch = await this.repository.findBranchById(tenantId, partnerId, branchId);
+    const branch = await this.network.findBranchById(tenantId, partnerId, branchId);
     if (!branch) throw new NotFoundException('La sucursal no pertenece a este partner.');
 
-    const duplicate = await this.repository.findPosBySerial(tenantId, dto.terminalSerial);
+    const duplicate = await this.network.findPosBySerial(tenantId, dto.terminalSerial);
     if (duplicate) {
       this.metrics.recordPartnerOnboardingStep({ step: 'pos_terminal', outcome: 'rejected' });
       // En el mensaje: el filtro global publica sólo `{ code genérico, message }`, así que la
@@ -124,7 +127,7 @@ export class PartnerCommerceService {
       throw new ConflictException(`POS_SERIAL_ALREADY_REGISTERED: el serial ya está activo en la sucursal ${duplicate.branchId}.`);
     }
 
-    const terminal = await this.repository.createPosTerminal({
+    const terminal = await this.network.createPosTerminal({
       tenantId,
       partnerProfileId: partnerId,
       branchId: branch.id,
@@ -140,7 +143,7 @@ export class PartnerCommerceService {
   }
 
   listPosTerminals(tenantId: string, partnerId: string): Promise<PartnerPosTerminalModel[]> {
-    return this.repository.listPosTerminals(tenantId, partnerId);
+    return this.network.listPosTerminals(tenantId, partnerId);
   }
 
   /**
@@ -157,14 +160,14 @@ export class PartnerCommerceService {
     dto: PosTerminalStatusDto,
   ): Promise<PartnerPosTerminalModel> {
     await this.profiles.requireProfile(tenantId, partnerId);
-    const terminal = await this.repository.findPosById(tenantId, partnerId, terminalId);
+    const terminal = await this.network.findPosById(tenantId, partnerId, terminalId);
     if (!terminal) throw new NotFoundException('Terminal no encontrado para este partner.');
 
     // El estado ANTERIOR se captura antes de escribir: `update()` de Sequelize muta la instancia,
     // así que leerlo después registraría «de=active a=active» y la traza perdería justo el dato
     // por el que existe.
     const previousStatus = terminal.status;
-    const updated = await this.repository.updatePosStatus(terminal, dto.status);
+    const updated = await this.network.updatePosStatus(terminal, dto.status);
     this.logger.log(
       `Terminal de partner cambió de estado: partnerId=${partnerId} terminal=${terminalId} ` + `de=${previousStatus} a=${dto.status}`,
     );
@@ -214,7 +217,7 @@ export class PartnerCommerceService {
     businessCategory: string | null;
     verified: true;
   }> {
-    const terminal = await this.repository.findPosBySerial(tenantId, token);
+    const terminal = await this.network.findPosBySerial(tenantId, token);
     if (!terminal) throw new NotFoundException('QR_NOT_RECOGNIZED');
     if (terminal.status === 'retired') throw new UnprocessableEntityException('QR_REVOKED');
     if (terminal.status !== 'active') throw new UnprocessableEntityException('QR_EXPIRED');

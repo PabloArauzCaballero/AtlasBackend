@@ -4,6 +4,7 @@
  * @system lecturas y cruces en memoria sobre el expediente; no toca su ciclo de vida.
  */
 import { Injectable } from '@nestjs/common';
+import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
 import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
 
 /**
@@ -21,7 +22,10 @@ import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js
  */
 @Injectable()
 export class PartnerDirectoryService {
-  constructor(private readonly repository: PartnerOnboardingRepository) {}
+  constructor(
+    private readonly repository: PartnerOnboardingRepository,
+    private readonly network: PartnerCommercialNetworkRepository,
+  ) {}
 
   /**
    * Cómo se llaman y de qué rubro son varios comercios, en una sola consulta.
@@ -34,6 +38,26 @@ export class PartnerDirectoryService {
    * Un identificador que no resuelve simplemente no aparece en el mapa: quien lo consulte decide
    * qué hacer con la ausencia, que en la práctica es agrupar esos créditos como «sin comercio».
    */
+  /**
+   * Los expedientes de este comercio, para que el portal sepa a cual entrar.
+   *
+   * Devuelve lo minimo con lo que la pantalla puede trabajar —identificador, nombre y estado—: el
+   * detalle ya lo sirve `:partnerId/status`, y duplicarlo aqui solo daria dos formas distintas de
+   * responder a la misma pregunta.
+   */
+  async listOwnedBy(
+    tenantId: string,
+    ownerMerchantUserId: string,
+  ): Promise<{ partnerId: string; legalName: string | null; tradeName: string | null; status: string }[]> {
+    const profiles = await this.repository.findProfilesByOwner(tenantId, ownerMerchantUserId);
+    return profiles.map((profile) => ({
+      partnerId: String(profile.id),
+      legalName: profile.legalName ?? null,
+      tradeName: profile.tradeName ?? null,
+      status: profile.onboardingStatus,
+    }));
+  }
+
   async describeMany(
     tenantId: string,
     partnerIds: readonly string[],
@@ -56,7 +80,7 @@ export class PartnerDirectoryService {
    * atribuirla a una equivocada—.
    */
   async findOwnedTerminal(tenantId: string, partnerId: string, terminalId: string) {
-    return this.repository.findPosById(tenantId, partnerId, terminalId);
+    return this.network.findPosById(tenantId, partnerId, terminalId);
   }
 
   /**
@@ -68,8 +92,8 @@ export class PartnerDirectoryService {
    */
   async terminalDirectory(tenantId: string, partnerId: string) {
     const [terminales, sucursales] = await Promise.all([
-      this.repository.listPosTerminals(tenantId, partnerId),
-      this.repository.listBranches(tenantId, partnerId),
+      this.network.listPosTerminals(tenantId, partnerId),
+      this.network.listBranches(tenantId, partnerId),
     ]);
     const branchById = new Map(sucursales.map((b) => [String(b.id), b]));
     const map = new Map<

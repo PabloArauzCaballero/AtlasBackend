@@ -7,6 +7,7 @@ import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { MetricsService } from '../../../common/observability/metrics.service.js';
 import { PartnerProfileModel } from '../../../database/models/index.js';
 import { toPartnerProfileDto } from '../partner-onboarding.mapper.js';
+import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
 import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
 import { PartnerKybDecisionService, type KybDecision } from './partner-kyb-decision.service.js';
 
@@ -36,6 +37,7 @@ export class PartnerVerificationService {
 
   constructor(
     private readonly repository: PartnerOnboardingRepository,
+    private readonly network: PartnerCommercialNetworkRepository,
     private readonly metrics: MetricsService,
     private readonly kyb: PartnerKybDecisionService,
   ) {}
@@ -60,7 +62,7 @@ export class PartnerVerificationService {
       gaps.push({ requirement: 'commercial_registry', detail: 'Falta la matrícula de comercio.' });
     }
 
-    const representatives = await this.repository.listRepresentatives(tenantId, profile.id);
+    const representatives = await this.network.listRepresentatives(tenantId, profile.id);
     if (representatives.length === 0) {
       gaps.push({ requirement: 'legal_representative', detail: 'Falta declarar al representante legal.' });
     } else if (!representatives.some((item) => item.powerOfAttorneyKey)) {
@@ -69,12 +71,12 @@ export class PartnerVerificationService {
       gaps.push({ requirement: 'power_of_attorney', detail: 'Falta el poder que acredita al representante legal.' });
     }
 
-    const branches = await this.repository.listBranches(tenantId, profile.id);
+    const branches = await this.network.listBranches(tenantId, profile.id);
     if (branches.length === 0) {
       gaps.push({ requirement: 'branch', detail: 'Falta registrar al menos una sucursal.' });
     }
 
-    const qrCodes = await this.repository.listQrCodes(tenantId, profile.id);
+    const qrCodes = await this.network.listQrCodes(tenantId, profile.id);
     const live = qrCodes.filter((qr) => qr.status === 'pending_review' || qr.status === 'active');
     if (!live.some((qr) => qr.qrKind === 'business')) {
       gaps.push({ requirement: 'business_qr', detail: 'Falta subir el QR del negocio.' });
@@ -104,7 +106,7 @@ export class PartnerVerificationService {
     options: { idempotencyKey: string },
   ): Promise<{ profile: PartnerProfileModel; decision: KybDecision }> {
     const gaps = await this.findSubmissionGaps(tenantId, profile);
-    const branches = await this.repository.listBranches(tenantId, profile.id);
+    const branches = await this.network.listBranches(tenantId, profile.id);
     const decision = await this.kyb.evaluate({
       tenantId,
       profile,
