@@ -17,7 +17,17 @@ describe('SystemsCatalogController', () => {
     };
     const toolInferenceService = { infer: jest.fn(async (..._args: unknown[]) => ({ inferred: 1 })) };
     const dataImpactInferenceService = { infer: jest.fn(async (..._args: unknown[]) => ({ inferred: 2 })) };
-    const domainOverviewService = { overview: jest.fn(async (..._args: unknown[]) => ({ domains: [] })) };
+    const domainOverviewService = {
+      // La forma real de `GET /systems/domains/overview`, no un `{ domains: [] }` de conveniencia:
+      // este doble se lee como referencia de la respuesta.
+      overview: jest.fn(async (..._args: unknown[]) => ({
+        generatedAt: '2026-09-09T00:00:00.000Z',
+        domainSource: 'catalog',
+        items: [],
+        unassigned: { tables: 0, endpoints: 0, modules: [] },
+        totals: { tables: 0, endpoints: 0, testSuites: 0 },
+      })),
+    };
     return {
       controller: new SystemsCatalogController(
         service as never,
