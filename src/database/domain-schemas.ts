@@ -260,6 +260,11 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'system_test_runs',
     'system_test_step_runs',
     'system_action_logs',
+    // Flujos (Flow Intelligence): catálogo derivado del código, regenerable desde el artefacto.
+    'system_flow_catalog',
+    'system_screen_catalog',
+    'system_flow_findings',
+    'system_flow_imports',
     // Historial del cuaderno de datos: guarda el CÓDIGO de cada celda y nunca su resultado.
     'data_notebook_query_history',
     // Los cuadernos guardados. Va en el mismo dominio que su historial —son la

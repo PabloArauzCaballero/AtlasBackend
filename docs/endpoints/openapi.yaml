@@ -24567,6 +24567,537 @@ paths:
       summary: Artefactos ACTIVOS del motor de decisión, con su despliegue vigente
       tags:
         - systems-ops
+  /systems/flows/summary:
+    get:
+      operationId: SystemFlowsController_summary
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Conteos para las tarjetas del explorador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: 'Resumen de Flujos: totales por riesgo, verificación, frescura y bloque'
+      tags:
+        - systems-ops
+  /systems/flows/modules:
+    get:
+      operationId: SystemFlowsController_modules
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Lista de (bloque, módulo, cantidad).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Módulos con flujos, por bloque
+      tags:
+        - systems-ops
+  /systems/flows:
+    get:
+      operationId: SystemFlowsController_list
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: >-
+            Lista paginada de flujos con filtros por bloque, módulo, tipo,
+            riesgo y estado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Listar flujos derivados del código
+      tags:
+        - systems-ops
+  /systems/flows/screens:
+    get:
+      operationId: SystemFlowsController_screens
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Lista paginada de pantallas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Pantallas de los clientes con los permisos que exige su menú
+      tags:
+        - systems-ops
+  /systems/flows/findings:
+    get:
+      operationId: SystemFlowsController_findings
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Lista paginada de hallazgos (abiertos por defecto).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Hallazgos de los detectores de Flujos
+      tags:
+        - systems-ops
+  /systems/flows/imports:
+    get:
+      operationId: SystemFlowsController_imports
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Quién cargó qué bloque, con qué commit y cuántas filas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Últimas cargas del artefacto de Flujos
+      tags:
+        - systems-ops
+  /systems/flows/{flowId}:
+    get:
+      operationId: SystemFlowsController_detail
+      parameters:
+        - name: flowId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^flow_[a-f0-9]{12}$
+          description: >-
+            Identificador de ruta `flowId` del recurso direccionado por la
+            operación.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Flujo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No existe el flujo.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Detalle de un flujo con sus hallazgos
+      tags:
+        - systems-ops
+  /systems/flows/import/endpoints:
+    post:
+      operationId: SystemFlowsController_importEndpoints
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                systemCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+                analyzedCommit:
+                  type: string
+                  maxLength: 64
+                analyzedBranch:
+                  type: string
+                  maxLength: 80
+                contentHash:
+                  type: string
+                  maxLength: 64
+                endpoints:
+                  maxItems: 2000
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      method:
+                        type: string
+                        minLength: 3
+                        maxLength: 10
+                      path:
+                        type: string
+                        maxLength: 400
+                      module:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                      controller:
+                        type: string
+                        minLength: 1
+                        maxLength: 160
+                      handler:
+                        type: string
+                        minLength: 1
+                        maxLength: 160
+                      file:
+                        type: string
+                        maxLength: 300
+                      line:
+                        type: integer
+                        minimum: 0
+                        maximum: 9007199254740991
+                      isPublic:
+                        default: false
+                        type: boolean
+                      roles:
+                        default: []
+                        maxItems: 200
+                        type: array
+                        items:
+                          type: string
+                          minLength: 1
+                          maxLength: 200
+                      internalPermissions:
+                        default: []
+                        maxItems: 200
+                        type: array
+                        items:
+                          type: string
+                          minLength: 1
+                          maxLength: 200
+                      guards:
+                        default: []
+                        maxItems: 200
+                        type: array
+                        items:
+                          type: string
+                          minLength: 1
+                          maxLength: 200
+                      callers:
+                        default: []
+                        maxItems: 200
+                        type: array
+                        items:
+                          type: string
+                          minLength: 1
+                          maxLength: 200
+                      testStatus:
+                        default: UNTESTED
+                        type: string
+                        enum:
+                          - TESTED
+                          - UNTESTED
+                      contractStatus:
+                        default: NO_CONTRACT
+                        type: string
+                        enum:
+                          - IN_CONTRACT
+                          - CODE_ONLY
+                          - NO_CONTRACT
+                    required:
+                      - method
+                      - path
+                      - module
+                      - controller
+                      - handler
+                      - isPublic
+                      - roles
+                      - internalPermissions
+                      - guards
+                      - callers
+                      - testStatus
+                      - contractStatus
+                    additionalProperties: false
+              required:
+                - systemCode
+                - endpoints
+              additionalProperties: false
+      responses:
+        '201':
+          description: Filas cargadas y retiradas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Cargar los endpoints derivados de un bloque (reemplaza los del bloque)
+      tags:
+        - systems-ops
+  /systems/flows/import/screens:
+    post:
+      operationId: SystemFlowsController_importScreens
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                clientCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+                analyzedCommit:
+                  type: string
+                  maxLength: 64
+                screens:
+                  maxItems: 2000
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      route:
+                        type: string
+                        minLength: 1
+                        maxLength: 300
+                      file:
+                        type: string
+                        maxLength: 300
+                      navLabel:
+                        anyOf:
+                          - type: string
+                            maxLength: 160
+                          - type: 'null'
+                      navPermissions:
+                        default: []
+                        maxItems: 200
+                        type: array
+                        items:
+                          type: string
+                          minLength: 1
+                          maxLength: 200
+                      navRoles:
+                        default: []
+                        maxItems: 200
+                        type: array
+                        items:
+                          type: string
+                          minLength: 1
+                          maxLength: 200
+                    required:
+                      - route
+                      - navPermissions
+                      - navRoles
+                    additionalProperties: false
+              required:
+                - clientCode
+                - screens
+              additionalProperties: false
+      responses:
+        '201':
+          description: Filas cargadas y retiradas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Cargar las pantallas derivadas de un cliente (reemplaza las del cliente)
+      tags:
+        - systems-ops
+  /systems/flows/import/findings:
+    post:
+      operationId: SystemFlowsController_importFindings
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                systemCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+                analyzedCommit:
+                  type: string
+                  maxLength: 64
+                findings:
+                  maxItems: 5000
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      kind:
+                        type: string
+                        minLength: 1
+                        maxLength: 40
+                      severity:
+                        type: string
+                        enum:
+                          - LOW
+                          - MEDIUM
+                          - HIGH
+                          - CRITICAL
+                      systemCode:
+                        type: string
+                        minLength: 1
+                        maxLength: 60
+                      ref:
+                        type: string
+                        minLength: 1
+                        maxLength: 400
+                      module:
+                        type: string
+                        maxLength: 120
+                      summary:
+                        type: string
+                        minLength: 1
+                        maxLength: 2000
+                      knownSince:
+                        type: string
+                        maxLength: 300
+                      extra:
+                        type: object
+                        propertyNames:
+                          type: string
+                        additionalProperties: {}
+                    required:
+                      - kind
+                      - severity
+                      - systemCode
+                      - ref
+                      - summary
+                    additionalProperties: false
+              required:
+                - systemCode
+                - findings
+              additionalProperties: false
+      responses:
+        '201':
+          description: Filas cargadas, resueltas e ignoradas por bloque distinto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: >-
+        Cargar los hallazgos de un bloque (los que ya no vienen se marcan
+        resueltos)
+      tags:
+        - systems-ops
   /operations/schema/versions:
     get:
       operationId: SchemaManagementController_listVersions

@@ -25,6 +25,10 @@ import {
   SystemDataRelationshipCatalogModel,
   SystemOperationalRuleCatalogModel,
   SystemCatalogReviewEventModel,
+  SystemFlowCatalogModel,
+  SystemScreenCatalogModel,
+  SystemFlowFindingModel,
+  SystemFlowImportModel,
   SystemBlockFederationStateModel,
 } from '../../database/models/index.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
@@ -42,6 +46,9 @@ import { SystemsStressRunService } from './systems-stress-run.service.js';
 import { SystemsActionLogController } from './systems-action-log.controller.js';
 import { SystemsCatalogController } from './systems-catalog.controller.js';
 import { SystemsNetworkController } from './systems-network.controller.js';
+import { SystemFlowsController } from './system-flows.controller.js';
+import { SystemFlowsRepository } from './system-flows.repository.js';
+import { SystemFlowsService } from './system-flows.service.js';
 import { SystemsNetworkHealthService } from './systems-network-health.service.js';
 import { PlatformCatalogFederationClient } from './platform-catalog-federation.client.js';
 import { PlatformCatalogFederationRepository } from './platform-catalog-federation.repository.js';
@@ -96,6 +103,10 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
       SystemDataRelationshipCatalogModel,
       SystemOperationalRuleCatalogModel,
       SystemCatalogReviewEventModel,
+      SystemFlowCatalogModel,
+      SystemScreenCatalogModel,
+      SystemFlowFindingModel,
+      SystemFlowImportModel,
     ]),
     NotificationsModule,
   ],
@@ -106,8 +117,11 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
     SystemsStressController,
     SystemsActionLogController,
     SystemsNetworkController,
+    SystemFlowsController,
   ],
   providers: [
+    SystemFlowsService,
+    SystemFlowsRepository,
     SystemsSchemaIntrospectionService,
     SystemsEndpointDocsService,
     SystemsCatalogQueryService,
