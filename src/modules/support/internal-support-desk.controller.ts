@@ -112,6 +112,7 @@ export class InternalSupportDeskController {
    */
   @ApiOperation({ summary: 'Perfiles de agente habilitados en la mesa' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Perfiles con la persona, su nivel, su cola y su ocupación actual.' })
   @Get('agents')
   @Roles('admin', 'platform_admin')
   async agents(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
@@ -127,6 +128,7 @@ export class InternalSupportDeskController {
    */
   @ApiOperation({ summary: 'Habilitar a un usuario interno como agente de soporte' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 201, description: 'Perfil creado, o reactivado si esa persona ya había estado en la mesa.' })
   @ApiResponse({ status: 404, description: 'SUPPORT_INTERNAL_USER_NOT_FOUND o SUPPORT_QUEUE_NOT_FOUND.' })
   @ApiResponse({ status: 409, description: 'SUPPORT_AGENT_PROFILE_EXISTS: ya tiene perfil activo.' })
   @Post('agents')
@@ -142,6 +144,7 @@ export class InternalSupportDeskController {
 
   @ApiOperation({ summary: 'Quitar a un agente de la mesa (no borra su historia)' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Perfil apagado. Las asignaciones y eventos ya escritos siguen apuntando a él.' })
   @ApiResponse({ status: 404, description: 'SUPPORT_AGENT_PROFILE_NOT_FOUND.' })
   @Delete('agents/:agentProfileId')
   @HttpCode(HttpStatus.OK)

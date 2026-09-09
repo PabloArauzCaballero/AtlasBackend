@@ -36,6 +36,7 @@ export class InternalSupportCatalogController {
 
   @ApiOperation({ summary: 'Árbol de motivos para clasificar, con cola y sensibilidad' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Árbol de motivo y submotivo con la política de atención de cada uno.' })
   @ApiResponse({ status: 403, description: 'SUPPORT_AGENT_PROFILE_REQUIRED: el rol no basta, hace falta perfil.' })
   @Get('categories')
   async categories(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
@@ -46,6 +47,7 @@ export class InternalSupportCatalogController {
 
   @ApiOperation({ summary: 'Colas activas: destino de un triage, una transferencia o un escalado' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Colas activas con su prioridad por defecto y las competencias que exigen.' })
   @Get('queues')
   async queues(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @CurrentUser() currentUser: AuthenticatedUser) {
     const tenantId = tenantIdFromHeader(tenantIdHeader, currentUser);
@@ -60,6 +62,7 @@ export class InternalSupportCatalogController {
    * interna de atención, y publicarla enseñaría de qué se queja la plataforma y con qué frecuencia.
    */
   @ApiOperation({ summary: 'Códigos de resolución, causa raíz y prioridad, con su significado' })
+  @ApiResponse({ status: 200, description: 'Catálogo cerrado de códigos con su descripción, para que la consola no lo duplique.' })
   @Get('codes')
   codes() {
     return this.desk.supportCodes();
