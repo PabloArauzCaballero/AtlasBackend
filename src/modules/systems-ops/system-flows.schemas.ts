@@ -98,6 +98,13 @@ export const flowsListQuerySchema = z.object({
 });
 export type FlowsListQueryDto = z.infer<typeof flowsListQuerySchema>;
 
+export const flowsGraphQuerySchema = z.object({
+  systemCode: code,
+  module: z.string().trim().min(1).max(120),
+  includeRoles: z.coerce.boolean().default(false),
+});
+export type FlowsGraphQueryDto = z.infer<typeof flowsGraphQuerySchema>;
+
 export const flowIdParamsSchema = z.object({
   flowId: z
     .string()

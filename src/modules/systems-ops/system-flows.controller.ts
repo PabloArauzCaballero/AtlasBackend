@@ -19,6 +19,8 @@ import {
   findingsListQuerySchema,
   FlowIdParamsDto,
   flowIdParamsSchema,
+  FlowsGraphQueryDto,
+  flowsGraphQuerySchema,
   FlowsListQueryDto,
   flowsListQuerySchema,
   ImportEndpointsDto,
@@ -81,6 +83,23 @@ export class SystemFlowsController {
   @Get('flows/imports')
   imports() {
     return this.service.imports();
+  }
+
+  @ApiOperation({ summary: 'Grafo de un módulo: sus flujos compartiendo clientes y controllers' })
+  @ApiResponse({ status: 200, description: 'Nodos y aristas tipados con confianza y evidencia.' })
+  @ApiResponse({ status: 404, description: 'No hay flujos para ese bloque y módulo.' })
+  @Get('flows/graph')
+  moduleGraph(@Query(new ZodValidationPipe(flowsGraphQuerySchema)) query: FlowsGraphQueryDto) {
+    return this.service.getModuleGraph(query);
+  }
+
+  @ApiOperation({ summary: 'Grafo de un flujo: cliente → request → endpoint → autorización → handler → (sin resolver)' })
+  @ApiParam({ name: 'flowId', schema: zodToApiSchema(flowIdParamsSchema.shape.flowId) })
+  @ApiResponse({ status: 200, description: 'Nodos y aristas del flujo.' })
+  @ApiResponse({ status: 404, description: 'No existe el flujo.' })
+  @Get('flows/:flowId/graph')
+  flowGraph(@Param(new ZodValidationPipe(flowIdParamsSchema)) params: FlowIdParamsDto) {
+    return this.service.getFlowGraph(params.flowId);
   }
 
   @ApiOperation({ summary: 'Detalle de un flujo con sus hallazgos' })

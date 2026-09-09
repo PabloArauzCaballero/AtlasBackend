@@ -140,6 +140,16 @@ export class SystemFlowsRepository {
     return { rows: result.rows, meta: buildPaginationMeta(query, result.count) };
   }
 
+  findFlowsByModule(systemCode: string, module: string): Promise<SystemFlowCatalogModel[]> {
+    return this.flows.findAll({
+      where: { systemCode, module },
+      order: [
+        ['path', 'ASC'],
+        ['httpMethod', 'ASC'],
+      ],
+    });
+  }
+
   findFlow(flowId: string): Promise<SystemFlowCatalogModel | null> {
     return this.flows.findOne({ where: { flowId } });
   }

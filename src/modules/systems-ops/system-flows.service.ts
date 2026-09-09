@@ -5,11 +5,13 @@
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SystemFlowCatalogModel, SystemFlowFindingModel, SystemScreenCatalogModel } from '../../database/models/index.js';
+import { buildFlowGraph, buildModuleGraph } from './system-flows.graph.util.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
 import { findingKeyFor, flowBadgesFor, flowIdFor, flowKindFor, flowNameFor, flowRiskFor, flowSlugFor } from './system-flows.risk.util.js';
 import {
   DerivedEndpointDto,
   FindingsListQueryDto,
+  FlowsGraphQueryDto,
   FlowsListQueryDto,
   ImportEndpointsDto,
   ImportFindingsDto,
@@ -233,6 +235,18 @@ export class SystemFlowsService {
     if (!row) throw new NotFoundException(`No existe el flujo ${flowId}.`);
     const findings = await this.repository.findingsForRef(row.systemCode, `${row.httpMethod} ${row.path}`);
     return { ...mapFlow(row), findings: findings.map(mapFinding) };
+  }
+
+  async getFlowGraph(flowId: string) {
+    const row = await this.repository.findFlow(flowId);
+    if (!row) throw new NotFoundException(`No existe el flujo ${flowId}.`);
+    return buildFlowGraph(row);
+  }
+
+  async getModuleGraph(query: FlowsGraphQueryDto) {
+    const rows = await this.repository.findFlowsByModule(query.systemCode, query.module);
+    if (!rows.length) throw new NotFoundException(`No hay flujos para ${query.systemCode}/${query.module}.`);
+    return buildModuleGraph(rows, { includeRoles: query.includeRoles });
   }
 
   summary() {

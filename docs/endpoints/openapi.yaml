@@ -24731,6 +24731,75 @@ paths:
       summary: Últimas cargas del artefacto de Flujos
       tags:
         - systems-ops
+  /systems/flows/graph:
+    get:
+      operationId: SystemFlowsController_moduleGraph
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Nodos y aristas tipados con confianza y evidencia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No hay flujos para ese bloque y módulo.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: 'Grafo de un módulo: sus flujos compartiendo clientes y controllers'
+      tags:
+        - systems-ops
+  /systems/flows/{flowId}/graph:
+    get:
+      operationId: SystemFlowsController_flowGraph
+      parameters:
+        - name: flowId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^flow_[a-f0-9]{12}$
+          description: >-
+            Identificador de ruta `flowId` del recurso direccionado por la
+            operación.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Nodos y aristas del flujo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No existe el flujo.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: >-
+        Grafo de un flujo: cliente → request → endpoint → autorización → handler
+        → (sin resolver)
+      tags:
+        - systems-ops
   /systems/flows/{flowId}:
     get:
       operationId: SystemFlowsController_detail
