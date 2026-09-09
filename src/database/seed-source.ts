@@ -1,18 +1,18 @@
 /**
  * @file Resuelve DE DÓNDE se traen los datos de semilla.
  * @business Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
- * @system declara la conexión de solo lectura contra la rama que publica el conjunto sembrado.
+ * @system declara la conexión de solo lectura contra la base que publica el conjunto sembrado.
  */
 
 /**
- * Los datos de semilla ya no viven en el repositorio: viven en una RAMA de PostgreSQL gestionado
- * (Neon), y este módulo dice cuál.
+ * Los datos de semilla ya no viven en el repositorio: viven en una BASE separada del mismo
+ * PostgreSQL propio (`seed_atlas`, en `atlas-postgres`), y este módulo dice cuál.
  *
- * La rama es la unidad de configuración a propósito. Un despliegue no elige "perfil de seeds"
- * compilado en el código, elige una rama: la de desarrollo trae también los usuarios y comercios de
+ * La base es la unidad de configuración a propósito. Un despliegue no elige "perfil de seeds"
+ * compilado en el código, elige una base: la de desarrollo trae también los usuarios y comercios de
  * prueba, la de producción sólo el dato maestro. Cambiar de una a otra es cambiar UNA variable, y
- * como cada rama de Neon tiene su propio endpoint, `SEED_SOURCE_HOST` es literalmente el nombre de
- * la rama a la que se apunta.
+ * como todas viven en el mismo host, `SEED_SOURCE_HOST` casi nunca cambia: basta con mover
+ * `SEED_SOURCE_DB` a la base de la que se quiere sembrar.
  *
  * Dos formas de declararla, en este orden:
  *

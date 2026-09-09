@@ -2,12 +2,12 @@
 
 ## Dónde viven los datos de semilla
 
-**Fuera del repositorio.** Viven en una **rama** de PostgreSQL gestionado (Neon) que publica el
-conjunto ya materializado, y el backend lo trae con un comando:
+**Fuera del repositorio.** Viven en una **base separada** (`seed_atlas`) del mismo PostgreSQL propio
+(`atlas-postgres`) que publica el conjunto ya materializado, y el backend lo trae con un comando:
 
 ```bash
 yarn db:migration:up   # el esquema lo siguen definiendo las migraciones versionadas
-yarn db:seed:pull      # los datos los trae la rama
+yarn db:seed:pull      # los datos los trae la base de semillas
 ```
 
 Antes eran ~24 000 líneas de seeders versionados bajo `src/database/seeders/`. El motivo del cambio
@@ -19,17 +19,18 @@ notaba porque en las bases existentes el seeder ya constaba como aplicado. Un co
 materializado no puede derivar de esa forma: o las filas encajan en el esquema del destino, o la
 carga falla entera y se ve.
 
-## La rama es el perfil
+## La base es el perfil
 
-No hay `--profile`. Lo que antes elegía un argumento del comando ahora lo elige **a qué rama se
-apunta**, y como cada rama de Neon tiene su propio endpoint, apuntar a otra es cambiar un host:
+No hay `--profile`. Lo que antes elegía un argumento del comando ahora lo elige **a qué base se
+apunta**, y como todas las bases de semillas viven en el mismo host (`atlas-postgres`), apuntar a
+otra es cambiar `SEED_SOURCE_DB`, no el host:
 
-| Rama          | Qué publica                                                            |
+| Base          | Qué publica                                                            |
 | ------------- | ---------------------------------------------------------------------- |
 | desarrollo    | Dato maestro **más** usuarios internos, comercios y casos de prueba.    |
 | producción    | Sólo dato maestro: RBAC, catálogos, definiciones técnicas, baselines.   |
 
-La diferencia con el `--profile` de antes no es cosmética: a la rama de producción **no se le puede
+La diferencia con el `--profile` de antes no es cosmética: a la base de producción **no se le puede
 pedir** que entregue fixtures que no tiene. El error de sembrar datos ficticios en un entorno real
 deja de ser un argumento mal escrito para pasar a ser imposible.
 
@@ -40,10 +41,10 @@ Dos formas, en este orden de precedencia (ver `src/database/seed-source.ts`):
 1. `SEED_SOURCE_DATABASE_URL` — cadena completa. Gana sobre todo lo demás; es la vía para CI y para
    un secreto inyectado de una pieza.
 2. `SEED_SOURCE_HOST` + `SEED_SOURCE_DB` + `SEED_SOURCE_USER` + `SEED_SOURCE_PASSWORD` — la vía
-   cómoda cuando **sólo cambia la rama**: se toca el host y el resto queda igual.
+   cómoda cuando **sólo cambia la base**: se toca `SEED_SOURCE_DB` y el resto queda igual.
 
-`SEED_SOURCE_SSL` está activo por defecto porque la fuente es una base gestionada remota; sólo se
-apaga para apuntar a un PostgreSQL local sin certificado.
+`SEED_SOURCE_SSL` va en `false`: el tráfico no sale de la red docker del host `atlas-postgres`, y un
+certificado autofirmado obligaría a desactivar la validación, que es peor que no cifrar.
 
 ## Comandos
 

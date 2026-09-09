@@ -134,10 +134,11 @@ USER node
 # VPS fija `api` y `worker` en cada servicio.
 #
 # `NODE_OPTIONS` se repite aquí a propósito, aunque la etapa ya lo herede de más arriba: en
-# EJECUCIÓN también hace falta. El proceso sale a Neon y a Mongo Atlas, y en un VPS con IPv6
-# anunciado sin ruta esas conexiones se van contra una dirección inalcanzable igual que las del
-# registro de yarn. Declararlo dos veces cuesta nada y sobrevive a que alguien reordene el
-# archivo; heredarlo por accidente, no.
+# EJECUCIÓN también hace falta. El proceso sale a Mongo Atlas (PostgreSQL ya no sale a Internet:
+# vive en `atlas-postgres`, en la red del host), y en un VPS con IPv6 anunciado sin ruta esas
+# conexiones se van contra una dirección inalcanzable igual que las del registro de yarn.
+# Declararlo dos veces cuesta nada y sobrevive a que alguien reordene el archivo; heredarlo por
+# accidente, no.
 ENV NODE_ENV=development \
     NODE_OPTIONS=--dns-result-order=ipv4first \
     APP_ROLE=all \

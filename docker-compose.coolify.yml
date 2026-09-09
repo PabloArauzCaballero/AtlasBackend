@@ -50,9 +50,11 @@
 #
 # ## Lo que sigue haciendo falta aunque despliegue Coolify
 #
-# El endpoint de Neon tiene que ser el DIRECTO, sin `-pooler`. El de PgBouncer en modo
-# transacción rompe los cerrojos de sesión, el `LISTEN` de los trabajos de fondo y las
-# migraciones, y ninguno de los tres fallos menciona al pooler.
+# La base es el PostgreSQL propio del host (`atlas-postgres`, fuera de Coolify), no un
+# servicio gestionado: sin pooler, así que los cerrojos de sesión, el `LISTEN` de los
+# trabajos de fondo y las migraciones ya no llevan la advertencia que exigía Neon. Lo que
+# sí sigue haciendo falta: llegar por el alias de red `atlas-postgres`, nunca por la IP del
+# host, porque `ufw` sólo abre 22/80/443 y un paquete a la IP se descarta en vez de fallar.
 
 name: atlas-backend
 
@@ -135,7 +137,7 @@ x-atlas-env: &atlas-env
   CORS_ORIGINS: '${CORS_ORIGINS:?}'
   INTERNAL_FRONTEND_ORIGIN: '${INTERNAL_FRONTEND_ORIGIN:?}'
 
-  # --- PostgreSQL (Neon; endpoint DIRECTO, sin -pooler) --------------------------------------
+  # --- PostgreSQL (atlas-postgres, local al host, sin TLS ni pooler) -------------------------
   DB_HOST: '${DB_HOST:?}'
   DB_PORT: '${DB_PORT:-5432}'
   DB_NAME: '${DB_NAME:-atlas}'
@@ -154,10 +156,10 @@ x-atlas-env: &atlas-env
   DB_READ_ENABLED: '${DB_READ_ENABLED:-false}'
 
   # Rol con el que se migra y se administra. Rechazan la cadena vacía, así que llevan el valor
-  # real de Neon por defecto en vez de `${VAR:-}`.
-  DB_MIGRATION_USER: '${DB_MIGRATION_USER:-neondb_owner}'
+  # real de atlas-postgres (`atlas_admin`, único propietario) por defecto en vez de `${VAR:-}`.
+  DB_MIGRATION_USER: '${DB_MIGRATION_USER:-atlas_admin}'
   DB_MIGRATION_PASSWORD: '${DB_MIGRATION_PASSWORD:-}'
-  DB_ADMIN_USER: '${DB_ADMIN_USER:-neondb_owner}'
+  DB_ADMIN_USER: '${DB_ADMIN_USER:-atlas_admin}'
   DB_ADMIN_PASSWORD: '${DB_ADMIN_PASSWORD:-}'
 
   # --- Origen de las semillas ----------------------------------------------------------------
