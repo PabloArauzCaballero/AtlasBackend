@@ -196,6 +196,10 @@ export class CustomerOnboardingController {
     });
   }
 
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Entrega el paquete de identidad del cliente' })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiBody({ schema: zodToApiSchema(identityPackageSchema) })
   @ApiResponse({ status: 202, description: 'Paquete de identidad recibido y encolado para procesamiento.' })
   @ApiResponse({ status: 403, description: 'El token no permite operar sobre este cliente.' })
@@ -284,6 +288,12 @@ export class CustomerOnboardingController {
     });
   }
 
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Entrega el paquete de domicilio del cliente' })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-idempotency-key', required: true })
+  @ApiBody({ schema: zodToApiSchema(addressPackageSchema) })
+  @ApiResponse({ status: 200, description: 'Paquete de domicilio registrado.' })
   @Post(':customerId/address-package')
   @HttpCode(HttpStatus.OK)
   submitAddressPackage(

@@ -71,6 +71,7 @@ export class InternalSupportDeskController {
   @ApiOperation({ summary: 'Tomar una conversación en espera' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 409, description: 'SUPPORT_CHANNEL_ALREADY_CLAIMED o SUPPORT_AGENT_AT_CAPACITY.' })
+  @ApiResponse({ status: 200, description: 'Conversación tomada por el agente.' })
   @Post('channels/:channelId/claim')
   @HttpCode(HttpStatus.OK)
   async claim(

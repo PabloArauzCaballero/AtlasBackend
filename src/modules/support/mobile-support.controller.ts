@@ -152,6 +152,7 @@ export class MobileSupportController {
   @ApiOperation({ summary: 'Detalle de mi caso' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'SUPPORT_CASE_FORBIDDEN: el caso no es de este cliente.' })
+  @ApiResponse({ status: 200, description: 'El caso con su detalle y su canal de conversación.' })
   @Get('cases/:caseId')
   async getCase(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -180,6 +181,7 @@ export class MobileSupportController {
   @ApiOperation({ summary: 'Pedir la reapertura de mi caso' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 409, description: 'SUPPORT_REOPEN_WINDOW_EXPIRED: abre un caso nuevo enlazado.' })
+  @ApiResponse({ status: 201, description: 'Petición de reapertura registrada.' })
   @Post('cases/:caseId/reopen')
   async reopen(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,

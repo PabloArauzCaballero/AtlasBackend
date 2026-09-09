@@ -108,6 +108,7 @@ export class MerchantUsersController {
   })
   @ApiParam({ name: 'requestId', schema: zodToApiSchema(merchantUserRequestParamsSchema.shape.requestId) })
   @ApiResponse({ status: 404, description: 'MERCHANT_PROVISIONING_REQUEST_NOT_FOUND.' })
+  @ApiResponse({ status: 200, description: 'La petición de alta con su estado y su decisión.' })
   @Get('provisioning-requests/:requestId')
   @InternalPermissions('merchant.users.read')
   getRequest(
@@ -143,6 +144,7 @@ export class MerchantUsersController {
   })
   @ApiParam({ name: 'requestId', schema: zodToApiSchema(merchantUserRequestParamsSchema.shape.requestId) })
   @ApiResponse({ status: 409, description: 'MERCHANT_PROVISIONING_REQUEST_ALREADY_DECIDED.' })
+  @ApiResponse({ status: 201, description: 'Petición rechazada, con el motivo registrado.' })
   @Post('provisioning-requests/:requestId/reject')
   @InternalPermissions('merchant.users.manage')
   rejectRequest(

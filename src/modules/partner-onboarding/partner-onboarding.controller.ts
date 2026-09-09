@@ -102,12 +102,6 @@ export class PartnerOnboardingController {
    */
   @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Estado del expediente y lo que falta para enviarlo' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
-  @ApiResponse({ status: 200, description: 'Estado, requisitos pendientes, sucursales, QR y terminales.' })
-  @ApiResponse({ status: 404, description: 'Expediente no encontrado.' })
-  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Los expedientes de los que soy dueño' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Expedientes del comercio que hace la llamada.' })
@@ -123,6 +117,12 @@ export class PartnerOnboardingController {
     return { profiles: await this.profiles.listOwnedBy(tenantId, merchantUserId) };
   }
 
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Estado del expediente y lo que falta para enviarlo' })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
+  @ApiResponse({ status: 200, description: 'Estado, requisitos pendientes, sucursales, QR y terminales.' })
+  @ApiResponse({ status: 404, description: 'Expediente no encontrado.' })
   @Get(':partnerId/status')
   async status(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,

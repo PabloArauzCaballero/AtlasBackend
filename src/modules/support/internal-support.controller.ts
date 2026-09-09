@@ -74,6 +74,7 @@ export class InternalSupportController {
   @ApiOperation({ summary: 'Detalle operativo del caso' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'SUPPORT_CASE_RESTRICTED: expediente sensible no asignado.' })
+  @ApiResponse({ status: 200, description: 'El caso con su detalle, su asignación y su estado.' })
   @Get(':caseId')
   async detail(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -116,6 +117,7 @@ export class InternalSupportController {
   @ApiOperation({ summary: 'Tomar el caso (o asignarlo, si eres supervisor)' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'SUPPORT_ASSIGN_REQUIRES_SUPERVISOR al asignar a otra persona.' })
+  @ApiResponse({ status: 200, description: 'Caso asignado a quien lo toma.' })
   @Post(':caseId/claim')
   @HttpCode(HttpStatus.OK)
   async claim(
@@ -205,6 +207,7 @@ export class InternalSupportController {
   @ApiOperation({ summary: 'Cerrar el expediente' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 409, description: 'SUPPORT_CASE_WITHOUT_RESOLUTION: documenta antes de cerrar.' })
+  @ApiResponse({ status: 200, description: 'Caso cerrado, con su resolución ya documentada.' })
   @Post(':caseId/close')
   @HttpCode(HttpStatus.OK)
   async close(

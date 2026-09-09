@@ -36,8 +36,18 @@ export class AppContentController {
       'trae el prefijo del país) para que la app no tenga que componer nada.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiQuery({ name: 'surface', required: false, schema: zodObjectPropertySchemas(listContentQuerySchema).surface })
-  @ApiQuery({ name: 'locale', required: false, schema: zodObjectPropertySchemas(listContentQuerySchema).locale })
+  @ApiQuery({
+    name: 'surface',
+    required: false,
+    description: 'Superficie de la app a la que pertenece el contenido. Sin ella se devuelven todas.',
+    schema: zodObjectPropertySchemas(listContentQuerySchema).surface,
+  })
+  @ApiQuery({
+    name: 'locale',
+    required: false,
+    description: 'Idioma del contenido, en formato BCP 47. Por defecto `es-BO`.',
+    schema: zodObjectPropertySchemas(listContentQuerySchema).locale,
+  })
   @ApiResponse({ status: 200, description: 'Piezas de contenido activas, ordenadas para pintar.' })
   @Get('app-content')
   list(

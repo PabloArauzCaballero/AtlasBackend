@@ -47,6 +47,7 @@ export class SupportKnowledgeAdminController {
   @ApiOperation({ summary: 'Crear un artículo (identidad y gobierno; el texto va en su versión)' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 409, description: 'KNOWLEDGE_ARTICLE_KEY_TAKEN.' })
+  @ApiResponse({ status: 201, description: 'Artículo creado, todavía sin versión publicada.' })
   @Post('articles')
   async createArticle(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,
@@ -90,6 +91,7 @@ export class SupportKnowledgeAdminController {
   @ApiOperation({ summary: 'Aprobar la versión (quien la redactó no puede aprobarla)' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'KNOWLEDGE_SELF_APPROVAL_FORBIDDEN o KNOWLEDGE_DOMAIN_APPROVER_REQUIRED.' })
+  @ApiResponse({ status: 200, description: 'Versión aprobada y lista para publicar.' })
   @Post('versions/:versionId/approve')
   @HttpCode(HttpStatus.OK)
   async approve(
@@ -106,6 +108,7 @@ export class SupportKnowledgeAdminController {
   @ApiOperation({ summary: 'Publicar la versión aprobada' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 409, description: 'KNOWLEDGE_VERSION_NOT_APPROVED.' })
+  @ApiResponse({ status: 200, description: 'Versión publicada; pasa a ser la vigente del artículo.' })
   @Post('versions/:versionId/publish')
   @HttpCode(HttpStatus.OK)
   async publish(

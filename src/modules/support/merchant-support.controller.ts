@@ -116,6 +116,7 @@ export class MerchantSupportController {
   @ApiOperation({ summary: 'Detalle de un caso del comercio' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'SUPPORT_CASE_FORBIDDEN: el caso es de otro comercio.' })
+  @ApiResponse({ status: 200, description: 'El caso del comercio con su detalle.' })
   @Get('cases/:caseId')
   async getCase(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,

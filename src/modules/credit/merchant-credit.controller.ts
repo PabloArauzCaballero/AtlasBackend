@@ -56,7 +56,12 @@ export class MerchantCreditController {
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'partnerId', schema: zodToApiSchema(merchantPartnerParamsSchema.shape.partnerId) })
-  @ApiQuery({ name: 'onlyPending', required: false, enum: ['true', 'false'] })
+  @ApiQuery({
+    name: 'onlyPending',
+    required: false,
+    enum: ['true', 'false'],
+    description: 'Por defecto TRUE: sólo las solicitudes que esperan respuesta. `false` devuelve también el histórico ya resuelto.',
+  })
   @ApiResponse({ status: 200, description: 'Solicitudes del comercio, más recientes primero.' })
   @ApiResponse({ status: 403, description: 'El expediente no pertenece a este comercio.' })
   @Get()

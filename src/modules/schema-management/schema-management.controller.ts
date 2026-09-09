@@ -84,7 +84,12 @@ export class SchemaManagementController {
   }
 
   @ApiOperation({ summary: 'Listar tablas del catálogo de esquema' })
-  @ApiQuery({ name: 'schemaName', required: false, schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).schemaName })
+  @ApiQuery({
+    name: 'schemaName',
+    required: false,
+    description: 'Filtra por esquema de PostgreSQL (`customer`, `iam`, `telemetry`…). Sin él se listan todos.',
+    schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).schemaName,
+  })
   @ApiQuery({ name: 'versionId', required: false, schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).versionId })
   @ApiQuery({ name: 'tableType', required: false, schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).tableType })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).limit })

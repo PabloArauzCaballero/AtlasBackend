@@ -135,6 +135,7 @@ export class SupportChatController {
   @ApiOperation({ summary: 'Corregir un mensaje ya enviado (crea uno nuevo enlazado)' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'SUPPORT_MESSAGE_NOT_OWN: sólo su autor puede corregirlo.' })
+  @ApiResponse({ status: 201, description: 'Mensaje corregido, creado y enlazado al original.' })
   @Post(':channelId/messages/:messageId/corrections')
   async correct(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,

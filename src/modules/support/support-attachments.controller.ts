@@ -67,6 +67,7 @@ export class SupportAttachmentsController {
   @ApiOperation({ summary: 'Descargar un adjunto del chat (bytes autenticados)' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
   @ApiResponse({ status: 403, description: 'SUPPORT_CHANNEL_NOT_PARTICIPANT o adjunto aún sin escanear.' })
+  @ApiResponse({ status: 200, description: 'Los bytes del adjunto, con su tipo de contenido.' })
   @Get('attachments/:attachmentId/content')
   async content(
     @Headers('x-tenant-id') tenantIdHeader: string | undefined,

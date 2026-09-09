@@ -43,8 +43,18 @@ export class ExternalProvidersDashboardController {
       'Por proveedor: modo efectivo, última salud medida, serie de los últimos chequeos, llamadas del período con éxito/fallo/bloqueo, latencia p95 y costo. Todo sale de data_provider_requests y provider_health_logs.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiQuery({ name: 'days', required: false, schema: zodObjectPropertySchemas(dashboardQuerySchema).days })
-  @ApiQuery({ name: 'healthPoints', required: false, schema: zodObjectPropertySchemas(dashboardQuerySchema).healthPoints })
+  @ApiQuery({
+    name: 'days',
+    required: false,
+    description: 'Ventana en días sobre la que se agregan las cifras del tablero. Por defecto 30.',
+    schema: zodObjectPropertySchemas(dashboardQuerySchema).days,
+  })
+  @ApiQuery({
+    name: 'healthPoints',
+    required: false,
+    description: 'Cuántos puntos de la serie de salud se devuelven por proveedor (entre 2 y 120). Por defecto 30.',
+    schema: zodObjectPropertySchemas(dashboardQuerySchema).healthPoints,
+  })
   @ApiResponse({ status: 200, description: 'Tablero de actividad.' })
   @Get('dashboard')
   dashboard(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(dashboardQuerySchema)) query: DashboardQueryDto) {
