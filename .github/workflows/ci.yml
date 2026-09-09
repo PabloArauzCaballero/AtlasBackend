@@ -75,12 +75,14 @@ jobs:
       - name: Check migrations can apply to an empty database
         run: yarn check:migrations
 
-      # ATLAS-DATA-004: una política de retención sembrada, activa y sin destino ejecutable es un
-      # control declarado que el sistema no ejerce — en KYC eso es un hallazgo de cumplimiento, no
-      # deuda técnica. El gate obliga a mapearla o a declarar por escrito por qué aún no se aplica.
-      - name: Check every seeded retention policy has an executable target or a declared decision
-        run: yarn check:retention-coverage
-
+      # Aquí corría `check:retention-coverage`. Se retira de CI, no del repositorio: desde que las
+      # semillas salieron a una base aparte (`25fb6cd`), ese gate CONSULTA `privacy.retention_policies`
+      # en la base de semillas, y esa base vive en la red docker del host —un runner de GitHub no la
+      # alcanza, así que aquí fallaba siempre con «No hay origen de semillas configurado».
+      #
+      # No se le pone `--allow-skip`: ATLAS-CI-002 dice que un gate que no comprobó nada no puede
+      # reportarse en verde, y dejarlo imprimiendo `[skip]` para siempre es justo el fallo que esa
+      # política describe. Se corre con `yarn check:retention-coverage` donde la base sí se alcanza.
       # ATLAS-SEC-002: `@CurrentTenant()` ya encapsula la lectura de x-tenant-id. La brecha real la
       # cierra TenantGuard, así que lo que queda es duplicación y se migra al tocar cada controller
       # por otra razón — acuerdo que solo se sostiene si la deuda no CRECE. Este trinquete lo asegura.
@@ -307,6 +309,11 @@ jobs:
       REDIS_URL: redis://localhost:6379
       JWT_ACCESS_TOKEN_SECRET: ci-only-atlas-access-token-secret-change-me-please-32
       NOTIFICATION_TOKEN_ENCRYPTION_KEY: ci-only-32-plus-character-key-for-device-tokens
+      # Sin esto la API NO arranca: el almacén de archivos por defecto es `minio`, y sin sus cuatro
+      # variables `FileAdapterRegistry.onModuleInit` lanza al iniciar el módulo. Aquí se elige el
+      # disco del runner a propósito y de forma explícita —que es lo que el propio mensaje de error
+      # pide—: es efímero, y para un smoke que sube y lee un archivo dentro del mismo job basta.
+      FILE_STORAGE_ADAPTER: local
 
     steps:
       - name: Checkout
@@ -535,11 +542,28 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Audit dependencies (high/critical)
-        run: yarn audit --level high
+        # `yarn audit --level high` NO hace lo que el nombre del paso promete: `--level` sólo filtra
+        # lo que se IMPRIME, mientras que el código de salida es una máscara de bits con TODAS las
+        # severidades encontradas (1 info, 2 low, 4 moderate, 8 high, 16 critical). Con `set -e` el
+        # paso fallaba por un 4 —seis avisos moderados— y el mensaje decía «high/critical», así que
+        # el gate parecía estar cazando algo que no era. Aquí se lee la máscara y se falla sólo por
+        # los bits 8 y 16, que es la regla que este paso siempre quiso aplicar.
+        #
         # No se usa `continue-on-error` a propósito: un CVE high/critical debe bloquear el
         # merge, no quedar como advertencia ignorable. Si una dependencia específica tiene un
         # falso positivo o no aplica al código realmente usado, documentarlo explícitamente en
         # docs/pending/pending-items.md con el ID del advisory antes de silenciarlo.
+        run: |
+          set +e
+          yarn audit --level high
+          codigo=$?
+          set -e
+          if [ $(( codigo & 24 )) -ne 0 ]; then
+            echo "::error::yarn audit encontró vulnerabilidades high o critical (máscara $codigo)."
+            exit 1
+          fi
+          echo "Sin vulnerabilidades high/critical (máscara $codigo: sólo severidades por debajo del umbral)."
+
 
   # Fase 4.1 del plan 10/10: análisis estático de seguridad (SAST). Complementa `yarn audit` (CVEs de
   # dependencias) buscando vulnerabilidades en el CÓDIGO de Atlas (inyección, path traversal, etc.).
