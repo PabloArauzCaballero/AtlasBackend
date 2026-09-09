@@ -187,15 +187,45 @@ export class SupportCaseService {
    * registra el problema y la conversación sigue: un canal sin caso es un defecto de datos; un
    * cliente que no puede pedir ayuda es un defecto de producto.
    */
+  /**
+   * El motivo elegido, si vale para este actor; si no, la red de seguridad.
+   *
+   * Se cae a `OTHER` en vez de lanzar `SUPPORT_CATEGORY_NOT_ALLOWED` porque aquí el usuario ya está
+   * abriendo una conversación: rechazarla por un código que no le corresponde —un cliente viejo con
+   * el catálogo cacheado, por ejemplo— le dejaría sin poder pedir ayuda por un problema que no es
+   * suyo. Abrir un caso SÍ rechaza, y con razón: allí el motivo es el dato principal.
+   */
+  private async resolveChannelCategory(
+    tenantId: string,
+    actor: SupportActor,
+    categoryCode: string | null | undefined,
+    transaction: Transaction,
+  ) {
+    if (categoryCode) {
+      const elegida = await this.catalog.findCategoryByCode(tenantId, categoryCode, { transaction });
+      const audiencias = this.actors.caseCategoryAudiences(actor);
+      if (elegida && audiencias.includes(elegida.audience)) return elegida;
+    }
+    return this.catalog.findCategoryByCode(tenantId, UNCLASSIFIED_CATEGORY_CODE, { transaction });
+  }
+
   async createUnclassifiedCase(input: {
     tenantId: string;
     actor: SupportActor;
     partnerProfileId?: string | null;
+    /**
+     * El motivo que la persona eligió al abrir el chat, si eligió alguno.
+     *
+     * Sin esto el motivo se usaba SÓLO para elegir la cola y se tiraba a la hora de clasificar: el
+     * caso nacía siempre en `OTHER` aunque la persona hubiera dicho de qué se trataba. La analítica
+     * de motivos salía vacía no porque nadie eligiera, sino porque su elección no llegaba al
+     * expediente. Se valida contra la audiencia del actor igual que al abrir un caso: si el motivo
+     * no le corresponde, se cae a `OTHER` en vez de rechazar la conversación.
+     */
+    categoryCode?: string | null;
     transaction: Transaction;
   }): Promise<{ caseId: string; caseNumber: string } | null> {
-    const category = await this.catalog.findCategoryByCode(input.tenantId, UNCLASSIFIED_CATEGORY_CODE, {
-      transaction: input.transaction,
-    });
+    const category = await this.resolveChannelCategory(input.tenantId, input.actor, input.categoryCode, input.transaction);
     if (!category) {
       this.logger.warn(
         `No existe la categoría "${UNCLASSIFIED_CATEGORY_CODE}" en el tenant ${input.tenantId}: la conversación se abre sin expediente.`,
@@ -203,10 +233,13 @@ export class SupportCaseService {
       return null;
     }
 
+    const clasificado = category.categoryCode !== UNCLASSIFIED_CATEGORY_CODE;
     const dto = {
       categoryCode: category.categoryCode,
-      title: 'Conversación sin clasificar',
-      description: 'Abierta desde el chat de soporte. Pendiente de clasificar por un agente.',
+      title: clasificado ? category.label : 'Conversación sin clasificar',
+      description: clasificado
+        ? `Abierta desde el chat de soporte con el motivo "${category.label}".`
+        : 'Abierta desde el chat de soporte. Pendiente de clasificar por un agente.',
       locale: 'es-BO',
       acknowledgeDuplicate: true,
       partnerProfileId: input.partnerProfileId ?? undefined,

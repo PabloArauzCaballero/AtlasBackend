@@ -129,6 +129,7 @@ export class SupportChannelService {
             tenantId: input.tenantId,
             actor: input.actor,
             partnerProfileId: input.dto.partnerProfileId ?? null,
+            categoryCode: input.dto.categoryCode,
             transaction,
           });
 
