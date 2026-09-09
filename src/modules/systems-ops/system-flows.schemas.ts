@@ -15,6 +15,40 @@ export const FLOW_VERIFICATION = ['UNVERIFIED', 'VERIFIED', 'BROKEN'] as const;
 export const FLOW_FRESHNESS = ['FRESH', 'STALE'] as const;
 export const FINDING_STATUSES = ['open', 'acknowledged', 'resolved', 'false_positive'] as const;
 
+/** Lo que `tools/analyze.mjs` (fase 2) resolvió del handler hacia el service y la tabla. */
+export const flowAnalysisSchema = z.object({
+  status: z.enum(['DISCOVERED', 'PARTIAL', 'MAPPED']).default('DISCOVERED'),
+  chain: z
+    .array(
+      z.object({
+        kind: z.enum(['SERVICE', 'REPOSITORY', 'CLASS', 'FUNCTION']),
+        class: z.string().max(160).nullable().optional(),
+        method: z.string().max(160),
+        file: z.string().max(300),
+        line: z.number().int().nonnegative(),
+        depth: z.number().int().nonnegative(),
+      }),
+    )
+    .max(200)
+    .default([]),
+  reads: z.array(z.string().max(160)).max(200).default([]),
+  writes: z
+    .array(z.object({ table: z.string().max(160), op: z.string().max(20), via: z.string().max(40) }))
+    .max(200)
+    .default([]),
+  errors: z.array(z.string().max(120)).max(100).default([]),
+  blockCalls: z
+    .array(z.object({ target: z.string().max(300), at: z.string().max(300) }))
+    .max(50)
+    .default([]),
+  unknowns: z
+    .array(z.object({ reason: z.string().max(120), at: z.string().max(300) }))
+    .max(200)
+    .default([]),
+  transactional: z.boolean().default(false),
+});
+export type FlowAnalysis = z.infer<typeof flowAnalysisSchema>;
+
 /** Una fila de `endpoints.json` tal como la escribe `tools/derive.mjs`. */
 export const derivedEndpointSchema = z.object({
   method: z.string().trim().toUpperCase().min(3).max(10),
@@ -31,6 +65,7 @@ export const derivedEndpointSchema = z.object({
   callers: stringList,
   testStatus: z.enum(['TESTED', 'UNTESTED']).default('UNTESTED'),
   contractStatus: z.enum(['IN_CONTRACT', 'CODE_ONLY', 'NO_CONTRACT']).default('NO_CONTRACT'),
+  analysis: flowAnalysisSchema.optional(),
 });
 export type DerivedEndpointDto = z.infer<typeof derivedEndpointSchema>;
 
@@ -92,6 +127,7 @@ export const flowsListQuerySchema = z.object({
   freshness: z.enum(FLOW_FRESHNESS).optional(),
   caller: z.string().trim().min(1).max(40).optional(),
   role: z.string().trim().min(1).max(120).optional(),
+  table: z.string().trim().min(1).max(160).optional(),
   isPublic: z.coerce.boolean().optional(),
   tested: z.coerce.boolean().optional(),
   withFindings: z.coerce.boolean().optional(),

@@ -7,9 +7,19 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { SystemFlowCatalogModel, SystemFlowFindingModel, SystemScreenCatalogModel } from '../../database/models/index.js';
 import { buildFlowGraph, buildModuleGraph } from './system-flows.graph.util.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
-import { findingKeyFor, flowBadgesFor, flowIdFor, flowKindFor, flowNameFor, flowRiskFor, flowSlugFor } from './system-flows.risk.util.js';
+import {
+  findingKeyFor,
+  flowBadgesFor,
+  flowIdFor,
+  flowKindFor,
+  flowNameFor,
+  flowRiskFor,
+  flowRiskFromTables,
+  flowSlugFor,
+} from './system-flows.risk.util.js';
 import {
   DerivedEndpointDto,
+  FlowAnalysis,
   FindingsListQueryDto,
   FlowsGraphQueryDto,
   FlowsListQueryDto,
@@ -18,6 +28,22 @@ import {
   ImportScreensDto,
   ScreensListQueryDto,
 } from './system-flows.schemas.js';
+
+/** La ficha no manda la cadena entera (puede tener 120 pasos): manda lo que se lee de un vistazo. */
+export function summarizeAnalysis(analysis: Record<string, unknown>) {
+  if (!analysis || !('status' in analysis)) return null;
+  const a = analysis as FlowAnalysis;
+  return {
+    status: a.status,
+    chainLength: a.chain.length,
+    services: [...new Set(a.chain.map((s) => s.class ?? s.method))].slice(0, 20),
+    writes: a.writes,
+    errors: a.errors,
+    blockCalls: a.blockCalls,
+    unknowns: a.unknowns.slice(0, 10),
+    transactional: a.transactional,
+  };
+}
 
 export function mapFlow(row: SystemFlowCatalogModel) {
   return {
@@ -47,6 +73,9 @@ export function mapFlow(row: SystemFlowCatalogModel) {
     testStatus: row.testStatus,
     contractStatus: row.contractStatus,
     findingsCount: row.findingsCount,
+    reads: row.reads,
+    writes: row.writes,
+    analysis: summarizeAnalysis(row.analysisJson),
     analyzedCommit: row.analyzedCommit,
     analyzedBranch: row.analyzedBranch,
     updatedAt: row.updatedAtValue,
@@ -82,6 +111,15 @@ export function mapFinding(row: SystemFlowFindingModel) {
   };
 }
 
+/** Con análisis (fase 2) el riesgo sale de las tablas escritas; sin él, del módulo. La base queda declarada en la fila. */
+function riskOf(endpoint: DerivedEndpointDto, kind: ReturnType<typeof flowKindFor>) {
+  const analysis = endpoint.analysis && endpoint.analysis.status !== 'DISCOVERED' ? endpoint.analysis : null;
+  if (!analysis) return { value: flowRiskFor(endpoint, kind), basis: 'module-heuristic', analysis: null };
+  const isPublicWrite =
+    kind !== 'READ' && endpoint.isPublic && !endpoint.roles.length && !endpoint.internalPermissions.length && endpoint.module !== 'auth';
+  return { value: flowRiskFromTables(analysis, kind, isPublicWrite), basis: 'tables-written', analysis };
+}
+
 /** Un endpoint derivado → la fila de flujo (nivel 2). Sin base de datos: es una función pura y se prueba sola. */
 export function flowRowFor(
   systemCode: string,
@@ -89,6 +127,7 @@ export function flowRowFor(
   meta: { analyzedCommit?: string; analyzedBranch?: string; importId: string | null },
 ) {
   const kind = flowKindFor(endpoint.method, endpoint.path);
+  const risk = riskOf(endpoint, kind);
   return {
     flowId: flowIdFor(systemCode, endpoint.method, endpoint.path),
     slug: flowSlugFor(systemCode, endpoint),
@@ -96,10 +135,10 @@ export function flowRowFor(
     name: flowNameFor(endpoint),
     module: endpoint.module,
     kind,
-    risk: flowRiskFor(endpoint, kind),
-    riskBasis: 'module-heuristic',
+    risk: risk.value,
+    riskBasis: risk.basis,
     badges: flowBadgesFor(endpoint, kind),
-    discovery: 'DISCOVERED',
+    discovery: risk.analysis?.status ?? 'DISCOVERED',
     verification: 'UNVERIFIED',
     freshness: 'FRESH',
     httpMethod: endpoint.method,
@@ -116,6 +155,9 @@ export function flowRowFor(
     testStatus: endpoint.testStatus,
     contractStatus: endpoint.contractStatus,
     findingsCount: 0,
+    analysisJson: risk.analysis ?? {},
+    reads: risk.analysis?.reads ?? [],
+    writes: risk.analysis ? [...new Set(risk.analysis.writes.map((w) => w.table))].sort() : [],
     analyzedCommit: meta.analyzedCommit ?? null,
     analyzedBranch: meta.analyzedBranch ?? null,
     importId: meta.importId,

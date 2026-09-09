@@ -4,7 +4,7 @@
  * @system deriva riesgo e identidad estable de un flujo a partir de método, ruta y módulo.
  */
 import { createHash } from 'node:crypto';
-import { DerivedEndpointDto } from './system-flows.schemas.js';
+import { DerivedEndpointDto, FlowAnalysis } from './system-flows.schemas.js';
 
 export type FlowKind = 'READ' | 'CREATE' | 'UPDATE' | 'DELETE' | 'ACTION';
 export type FlowRisk = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -28,6 +28,27 @@ const PII_MODULES = /^(customers?|customer-|expedientes|identity|mobile-identity
 const FINANCIAL_MODULES = /^(loans?|loan-|credit|payments?|accounting|journal|bnpl|treasury|tax|billing)/;
 const IDENTITY_MODULES = /^(auth|identity|sessions|merchant-identity|mobile-identity|identity-session|internal-users)/;
 const ADMIN_MODULES = /^(internal-users|systems-ops|internal-portal|sql-console|schema-management|runtime-jobs)/;
+
+/**
+ * Riesgo por TABLAS escritas, fase 2 («tables-written»): la lista del PLAN §7 sobre nombres reales de
+ * los tres bloques. Es un dato: se corrige aquí y se re-importa.
+ */
+const CRITICAL_TABLES =
+  /^(loans?|loan_[a-z_]+|credit_applications?|credit_lines|credit_application_events|customer_identity_documents|identity_verification_attempts|auth_[a-z_]+|internal_[a-z_]+|platform_users|risk_policy_rules|risk_ruleset_versions|risk_model_versions|consent_[a-z_]+|customer_consents|decision_deployment[a-z_]*|decision_approval_[a-z_]+|decision_artifact_version|decision_policy_[a-z_]+|decision_identity_verification_run|decision_manual_review_case|decision_data_subject_request|journal_entry[a-z_]*|ledger|payment_order|supplier_payment|merchant_payments|merchant_invoices|merchant_credit_notes|consumer_payments_to_merchant|bnpl_[a-z_]+|loan_contract|electronic_tax_document|close_run)$/;
+const HIGH_TABLES =
+  /^(customers?|customer_[a-z_]+|expediente[a-z_]*|partner_[a-z_]+|merchant_[a-z_]+|manual_review_[a-z_]+|fraud_[a-z_]+|notification_policies|data_subject_requests|decision_execution[a-z_]*|decision_outbox_event|decision_reason_code|decision_calculated_field[a-z_]*|merchant_onboarding_cases|business_partner[a-z_]*|contract_[a-z_]+|bank_statement[a-z_]*|reconciliation_[a-z_]+|merchant_receivables|merchant_payables|ar_invoice[a-z_]*|ap_invoice[a-z_]*)$/;
+const SENSITIVE_READS =
+  /^(customer_identity_documents|identity_verification_attempts|credit_applications?|loans?|loan_[a-z_]+|journal_entry[a-z_]*|auth_credentials)$/;
+
+export function flowRiskFromTables(analysis: FlowAnalysis, kind: FlowKind, isPublicWrite: boolean): FlowRisk {
+  if (isPublicWrite) return 'CRITICAL';
+  const written = analysis.writes.map((w) => w.table);
+  if (kind === 'DELETE' || written.some((t) => CRITICAL_TABLES.test(t))) return 'CRITICAL';
+  if (written.some((t) => HIGH_TABLES.test(t))) return 'HIGH';
+  if (written.length) return 'MEDIUM';
+  if (analysis.reads.some((t) => SENSITIVE_READS.test(t))) return 'MEDIUM';
+  return 'LOW';
+}
 
 export function flowKindFor(method: string, path: string): FlowKind {
   if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return 'READ';

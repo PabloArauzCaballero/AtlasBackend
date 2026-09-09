@@ -5,6 +5,7 @@ import {
   flowKindFor,
   flowNameFor,
   flowRiskFor,
+  flowRiskFromTables,
   flowSlugFor,
 } from '../../src/modules/systems-ops/system-flows.risk.util.js';
 import { buildFlowsWhere } from '../../src/modules/systems-ops/system-flows.repository.js';
@@ -119,5 +120,39 @@ describe('buildFlowsWhere', () => {
     expect(where.testStatus).toBe('UNTESTED');
     expect(where.findingsCount).toBeDefined();
     expect(where.module).toBeUndefined();
+  });
+});
+
+describe('flowRiskFromTables (fase 2)', () => {
+  const analysis = (writes: string[], reads: string[] = []) => ({
+    status: 'MAPPED' as const,
+    chain: [],
+    reads,
+    writes: writes.map((table) => ({ table, op: 'INSERT', via: 'SEQUELIZE' })),
+    errors: [],
+    blockCalls: [],
+    unknowns: [],
+    transactional: false,
+  });
+  it('escribir en loans es CRITICAL aunque el módulo no lo sea', () => {
+    expect(flowRiskFromTables(analysis(['loans']), 'CREATE', false)).toBe('CRITICAL');
+  });
+  it('escribir en customers es HIGH; en un catálogo, MEDIUM', () => {
+    expect(flowRiskFromTables(analysis(['customers']), 'UPDATE', false)).toBe('HIGH');
+    expect(flowRiskFromTables(analysis(['app_content_entries']), 'CREATE', false)).toBe('MEDIUM');
+  });
+  it('leer identidad sin escribir es MEDIUM; leer un catálogo, LOW', () => {
+    expect(flowRiskFromTables(analysis([], ['customer_identity_documents']), 'READ', false)).toBe('MEDIUM');
+    expect(flowRiskFromTables(analysis([], ['catalog_entries']), 'READ', false)).toBe('LOW');
+  });
+  it('la fila usa tables-written cuando hay análisis y conserva reads/writes desnormalizados', () => {
+    const row = flowRowFor('ATLAS_BACKEND', endpoint({ module: 'app-content', analysis: analysis(['loans', 'loans'], ['customers']) }), {
+      importId: null,
+    });
+    expect(row.riskBasis).toBe('tables-written');
+    expect(row.risk).toBe('CRITICAL');
+    expect(row.discovery).toBe('MAPPED');
+    expect(row.writes).toEqual(['loans']);
+    expect(row.reads).toEqual(['customers']);
   });
 });

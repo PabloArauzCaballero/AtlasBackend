@@ -34,7 +34,7 @@ describe('buildFlowGraph', () => {
     const graph = buildFlowGraph(flow());
     const gap = graph.edges.find((e) => e.relation === 'CONTINUES');
     expect(gap?.confidence).toBe(40);
-    expect(graph.nodes.find((n) => n.type === 'UNKNOWN')?.meta).toEqual({ reason: 'NOT_ANALYZED_YET' });
+    expect(graph.nodes.find((n) => n.type === 'UNKNOWN')?.meta).toEqual({ reasons: ['NOT_ANALYZED_YET'] });
     expect(graph.edges.filter((e) => e.relation !== 'CONTINUES').every((e) => e.confidence === 95)).toBe(true);
   });
   it('etiqueta la capa de autorización según la que aplica', () => {
@@ -62,5 +62,55 @@ describe('buildModuleGraph', () => {
     const a = buildModuleGraph([flow(), flow({ flowId: 'flow_000000000002' })]);
     const b = buildModuleGraph([flow({ flowId: 'flow_000000000002' }), flow()]);
     expect(a).toEqual(b);
+  });
+});
+
+describe('buildFlowGraph con análisis (fase 2)', () => {
+  const analyzed = flow({
+    analysisJson: {
+      status: 'PARTIAL',
+      chain: [
+        { kind: 'SERVICE', class: 'CreditService', method: 'create', file: 'src/modules/credit/credit.service.ts', line: 40, depth: 0 },
+        {
+          kind: 'REPOSITORY',
+          class: 'CreditRepository',
+          method: 'insert',
+          file: 'src/modules/credit/credit.repository.ts',
+          line: 12,
+          depth: 1,
+        },
+        {
+          kind: 'REPOSITORY',
+          class: 'CreditRepository',
+          method: 'find',
+          file: 'src/modules/credit/credit.repository.ts',
+          line: 30,
+          depth: 1,
+        },
+      ],
+      reads: ['customers'],
+      writes: [{ table: 'credit_applications', op: 'INSERT', via: 'SEQUELIZE' }],
+      errors: ['ConflictException'],
+      blockCalls: [{ target: '/v1/decisions', at: 'src/modules/credit/credit.service.ts:77' }],
+      unknowns: [{ reason: 'RAW_SQL_DYNAMIC', at: 'src/modules/credit/credit.repository.ts:50' }],
+      transactional: true,
+    },
+  });
+  it('sustituye el hueco por services, tablas, errores y salidas, y deja un UNKNOWN sólo por lo no resuelto', () => {
+    const graph = buildFlowGraph(analyzed);
+    const types = graph.nodes.map((n) => n.type);
+    expect(types.filter((t) => t === 'SERVICE')).toHaveLength(1);
+    expect(types.filter((t) => t === 'REPOSITORY')).toHaveLength(1);
+    expect(types.filter((t) => t === 'DATABASE')).toHaveLength(2);
+    expect(types).toContain('ERROR');
+    expect(types).toContain('BLOCK_CALL');
+    expect(graph.nodes.find((n) => n.type === 'UNKNOWN')?.sublabel).toBe('RAW_SQL_DYNAMIC');
+    expect(graph.edges.find((e) => e.relation === 'WRITES')?.label).toBe('INSERT');
+    expect(graph.edges.filter((e) => e.evidence.includes('STATIC_AST_DIRECT')).every((e) => e.confidence === 75)).toBe(true);
+    expect(graph.nodes.find((n) => n.type === 'HANDLER')?.meta?.transactional).toBe(true);
+  });
+  it('un análisis con forma vieja o inválida se ignora y vuelve al hueco declarado', () => {
+    const graph = buildFlowGraph(flow({ analysisJson: { status: 'MAPPED', chain: 'no-es-lista' } }));
+    expect(graph.nodes.find((n) => n.type === 'UNKNOWN')?.meta).toEqual({ reasons: ['NOT_ANALYZED_YET'] });
   });
 });

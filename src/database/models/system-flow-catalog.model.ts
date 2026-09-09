@@ -90,6 +90,15 @@ export class SystemFlowCatalogModel extends Model {
   @Column({ field: 'contract_status', type: DataType.STRING(16), allowNull: false })
   declare contractStatus: string;
 
+  @Column({ field: 'analysis_json', type: DataType.JSONB, allowNull: false })
+  declare analysisJson: Record<string, unknown>;
+
+  @Column({ type: DataType.JSONB, allowNull: false })
+  declare reads: string[];
+
+  @Column({ type: DataType.JSONB, allowNull: false })
+  declare writes: string[];
+
   @Column({ field: 'findings_count', type: DataType.INTEGER, allowNull: false })
   declare findingsCount: number;
 

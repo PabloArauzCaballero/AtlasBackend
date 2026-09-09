@@ -39,6 +39,8 @@ export function buildFlowsWhere(query: FlowsListQueryDto): WhereOptions {
   if (query.kind) where.kind = query.kind;
   if (query.risk) where.risk = query.risk;
   if (query.caller) where.callers = { [Op.contains]: [query.caller] };
+  if (query.table)
+    where[Op.or as unknown as string] = [{ reads: { [Op.contains]: [query.table] } }, { writes: { [Op.contains]: [query.table] } }];
   if (query.role)
     where[Op.or as unknown as string] = [
       { roles: { [Op.contains]: [query.role] } },
