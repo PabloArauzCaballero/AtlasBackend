@@ -14,6 +14,10 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import { LoansModule } from '../loans/loans.module.js';
 import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
 import { LoanPaymentClaimsService } from './loan-payment-claims.service.js';
+import { PartnerPaymentClaimsService } from './partner-payment-claims.service.js';
+import { PartnerPortfolioService } from './partner-portfolio.service.js';
+import { PaymentInstructionService } from './payment-instruction.service.js';
+import { PaymentClaimsContextService } from './payment-claims.shared.js';
 import { MerchantPaymentClaimsController } from './merchant-payment-claims.controller.js';
 import { MobilePaymentClaimsController } from './mobile-payment-claims.controller.js';
 
@@ -32,7 +36,15 @@ import { MobilePaymentClaimsController } from './mobile-payment-claims.controlle
    * pero no lo exporta, y es un servicio sin estado —solo firma URLs contra la configuracion—, asi
    * que una segunda instancia no divide nada. Es lo que ya hacen credit y partner-onboarding.
    */
-  providers: [LoanPaymentClaimsService, DocumentStorageService, MalwareScannerService],
-  exports: [LoanPaymentClaimsService],
+  providers: [
+    LoanPaymentClaimsService,
+    PartnerPaymentClaimsService,
+    PartnerPortfolioService,
+    PaymentInstructionService,
+    PaymentClaimsContextService,
+    DocumentStorageService,
+    MalwareScannerService,
+  ],
+  exports: [LoanPaymentClaimsService, PartnerPaymentClaimsService, PartnerPortfolioService, PaymentInstructionService],
 })
 export class LoanPaymentClaimsModule {}

@@ -24,13 +24,7 @@ function construir() {
     /* sequelize */ { transaction: jest.fn(async (fn: never) => (fn as unknown as (t: unknown) => unknown)({})) } as never,
     /* claims */ {
       findOne: jest.fn(async () => null),
-      create: jest.fn(async (valores: never) => ({
-        ...(valores as object),
-        id: '900',
-        claimCode: 'PC-1',
-        status: 'pending',
-        submittedAt: new Date(),
-      })),
+      create: jest.fn(async (valores: never) => ({ ...(valores as object), id: '900', claimCode: 'PC-1', status: 'pending', submittedAt: new Date() })),
     } as never,
     /* storage */ {
       isConfigured: () => true,
@@ -38,15 +32,14 @@ function construir() {
       readObjectMetadata: jest.fn(async () => ({ sha256Hex: 'abc123', sizeBytes: 4096 })),
     } as never,
     /* evidences */ { create: jest.fn(async (valores: never) => ({ ...(valores as object), id: '77' })) } as never,
-    /* loans */ {
-      findLoansByCustomer: jest.fn(async () => [{ id: '5', currencyCode: 'BOB', creditApplicationId: null }]),
-      findInstallments: jest.fn(async () => [{ id: '11', loanId: '5', status: 'pending' }]),
-    } as never,
-    /* credit */ { findApplicationById: jest.fn(async () => null) } as never,
-    /* payments */ {} as never,
-    /* partners */ {} as never,
-    /* partnerQr */ {} as never,
     /* events */ { publish: jest.fn(async (e: never) => void eventos.push(e as Registro)) } as never,
+    /* contexto */ {
+      requireOwnInstallment: jest.fn(async () => ({
+        loan: { id: '5', currencyCode: 'BOB', creditApplicationId: null },
+        installment: { id: '11', loanId: '5', status: 'pending' },
+      })),
+      resolvePartner: jest.fn(async () => null),
+    } as never,
     expedienteHooks as never,
   );
 

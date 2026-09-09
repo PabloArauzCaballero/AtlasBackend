@@ -19,6 +19,7 @@ import {
   submitPaymentClaimSchema,
 } from './loan-payment-claims.schemas.js';
 import { LoanPaymentClaimsService } from './loan-payment-claims.service.js';
+import { PaymentInstructionService } from './payment-instruction.service.js';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
@@ -34,7 +35,10 @@ import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('customer', 'internal_operator', 'admin', 'platform_admin')
 export class MobilePaymentClaimsController {
-  constructor(private readonly service: LoanPaymentClaimsService) {}
+  constructor(
+    private readonly service: LoanPaymentClaimsService,
+    private readonly instrucciones: PaymentInstructionService,
+  ) {}
 
   /**
    * Dónde pagar esta cuota: el QR bancario REAL del comercio, con su beneficiario y el importe.
@@ -54,7 +58,7 @@ export class MobilePaymentClaimsController {
     @Param('installmentId') installmentId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.paymentInstruction({
+    return this.instrucciones.paymentInstruction({
       tenantId,
       customerId,
       installmentId,

@@ -19,7 +19,8 @@ import {
   type DecidePaymentClaimDto,
   decidePaymentClaimSchema,
 } from './loan-payment-claims.schemas.js';
-import { LoanPaymentClaimsService } from './loan-payment-claims.service.js';
+import { PartnerPaymentClaimsService } from './partner-payment-claims.service.js';
+import { PartnerPortfolioService } from './partner-portfolio.service.js';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
@@ -38,7 +39,10 @@ import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('merchant', 'internal_operator', 'admin', 'platform_admin')
 export class MerchantPaymentClaimsController {
-  constructor(private readonly service: LoanPaymentClaimsService) {}
+  constructor(
+    private readonly service: PartnerPaymentClaimsService,
+    private readonly cartera: PartnerPortfolioService,
+  ) {}
 
   @ApiOperation({ summary: 'Comprobantes que esperan mi confirmación' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
@@ -63,7 +67,7 @@ export class MerchantPaymentClaimsController {
   @ApiResponse({ status: 200, description: 'Resumen, créditos con su detalle y calendario de cobros.' })
   @Get('portfolio')
   portfolio(@CurrentTenant() tenantId: string, @Param('partnerId') partnerId: string, @CurrentUser() currentUser: AuthenticatedUser) {
-    return this.service.portfolioForPartner({
+    return this.cartera.portfolioForPartner({
       tenantId,
       partnerProfileId: partnerId,
       currentUser,
