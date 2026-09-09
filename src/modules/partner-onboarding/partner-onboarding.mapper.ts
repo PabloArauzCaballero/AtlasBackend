@@ -5,6 +5,7 @@
  */
 import {
   PartnerBranchModel,
+  PartnerContractTemplateModel,
   PartnerLegalRepresentativeModel,
   PartnerPosTerminalModel,
   PartnerProfileModel,
@@ -115,5 +116,25 @@ export function toPartnerRepresentativeDto(model: PartnerLegalRepresentativeMode
     documentNumberMasked: number.length <= 4 ? '****' : `****${number.slice(-4)}`,
     hasPowerOfAttorney: model.powerOfAttorneyKey !== null,
     verifiedAt: model.verifiedAt?.toISOString() ?? null,
+  };
+}
+
+/**
+ * El contrato, para la pantalla y para el ERP.
+ *
+ * `body` viaja entero: es el texto que hay que ENSEÑAR, y recortarlo en el listado obligaría a una
+ * segunda llamada por cada versión que alguien quisiera leer.
+ */
+export function toContractTemplateDto(model: PartnerContractTemplateModel) {
+  return {
+    templateId: String(model.id),
+    templateCode: model.templateCode,
+    name: model.name,
+    version: model.version,
+    body: model.body,
+    status: model.status,
+    isDefault: model.isDefault,
+    effectiveFrom: model.effectiveFrom?.toISOString() ?? null,
+    createdAt: model.createdAtValue?.toISOString() ?? null,
   };
 }

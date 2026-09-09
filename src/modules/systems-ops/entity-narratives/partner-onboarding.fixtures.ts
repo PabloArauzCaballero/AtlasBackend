@@ -8,6 +8,19 @@ import type { EntityBusinessNarrative } from './entity-narrative.types.js';
 /** Expediente verificable del comercio: perfil, representación, locales, QR y terminales (schema `partner`). */
 export const PARTNER_ONBOARDING_NARRATIVES: EntityBusinessNarrative[] = [
   {
+    tableName: 'partner_contract_templates',
+    whyExists:
+      'Es el texto bajo el que opera un comercio al que nadie le negoció uno propio. La verificación del expediente comprobaba matrícula, representante, QR y correo —todo lo que prueba que el comercio EXISTE y es quien dice— y nada comprobaba que hubiera un contrato. En la práctica se habilitaba a cobrar a un comercio con el que no se había pactado por escrito ni la comisión, ni los plazos de liquidación, ni qué pasa con una devolución.',
+    whyNotDelete:
+      'Un contrato es la evidencia de a qué se comprometió alguien un día concreto. Las versiones archivadas son lo que permite responder «¿bajo qué texto operaba este comercio en marzo?» cuando llega el reclamo, y borrarlas deja esa pregunta sin respuesta posible. Por eso el cuerpo no se edita nunca: se da de alta una versión nueva y la anterior queda `archived`.',
+    decisionContribution:
+      '`is_default` con `status = active` es lo que responde «¿hay contrato vigente para este inquilino?», y esa respuesta viaja al Motor como `kyb_contrato_legal_vigente` en la verificación del expediente. Sin plantilla vigente, la política puede negarse a habilitar a un comercio en lugar de aprobarlo por omisión.',
+    usageExample:
+      'Operaciones publica la versión 3 del contrato de afiliación y la marca por defecto. La versión 2 pasa a `archived` y sigue explicando bajo qué texto se afiliaron los comercios del trimestre anterior. Un comercio con contrato negociado en el ERP no mira ninguna de las dos: esta tabla es el respaldo, no la excepción.',
+    systemsExplanation:
+      'Tabla en el schema `partner`. Dos índices únicos parciales la sostienen: uno permite un SOLO predeterminado vigente por inquilino —con dos, cuál manda lo decidiría el orden de la consulta, que es la peor forma de decidir un asunto legal— y otro impide repetir `(código, versión)`. Un contrato PARTICULAR no vive aquí: es un término comercial y su sitio es el ERP, igual que el MDR.',
+  },
+  {
     tableName: 'partner_profiles',
     whyExists:
       'Es el expediente que prueba que un comercio existe, opera y está representado por quien dice. Antes el partner sólo tenía un flujo comercial —un caso con checklist en el ERP— que registra que alguien revisó unos papeles: no emite códigos, no consulta listas y no deja evidencia. El resultado medible es que un comprador de 300 Bs pasaba por más verificación que el comercio que le vende a crédito.',

@@ -67,7 +67,14 @@ function verificationCon(repository: unknown, kyb: unknown) {
    * expediente y sus sucursales se leen del mismo objeto simulado, y separarlos sólo obligaría a
    * declarar dos veces los mismos métodos.
    */
-  return new PartnerVerificationService(repository as never, repository as never, metricsDouble(), kyb as never);
+  return new PartnerVerificationService(
+    repository as never,
+    repository as never,
+    metricsDouble(),
+    kyb as never,
+    // El contrato legal por defecto: en estas pruebas hay uno vigente, que es el caso normal.
+    { hasActiveDefault: jest.fn(async () => true) } as never,
+  );
 }
 
 /**

@@ -9,6 +9,7 @@ import { PartnerProfileModel } from '../../../database/models/index.js';
 import { toPartnerProfileDto } from '../partner-onboarding.mapper.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
 import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
+import { PartnerContractTemplateService } from './partner-contract-template.service.js';
 import { PartnerKybDecisionService, type KybDecision } from './partner-kyb-decision.service.js';
 
 /** Un requisito que le falta al expediente para poder verificarse. */
@@ -40,6 +41,7 @@ export class PartnerVerificationService {
     private readonly network: PartnerCommercialNetworkRepository,
     private readonly metrics: MetricsService,
     private readonly kyb: PartnerKybDecisionService,
+    private readonly contracts: PartnerContractTemplateService,
   ) {}
 
   private async requireProfile(tenantId: string, partnerId: string): Promise<PartnerProfileModel> {
@@ -112,6 +114,7 @@ export class PartnerVerificationService {
       profile,
       gaps,
       sucursales: branches.length,
+      contratoVigente: await this.contracts.hasActiveDefault(tenantId),
       idempotencyKey: options.idempotencyKey,
     });
 

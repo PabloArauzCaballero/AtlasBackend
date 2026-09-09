@@ -285,5 +285,7 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     // Los dos QR del negocio: el suyo y el de su cuenta bancaria. Ver la migración.
     'partner_qr_codes',
     'partner_pos_terminals',
+    // El texto bajo el que opera un comercio al que nadie le negoció uno propio.
+    'partner_contract_templates',
   ],
 };

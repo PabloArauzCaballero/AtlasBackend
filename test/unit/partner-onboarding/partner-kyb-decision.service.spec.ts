@@ -57,6 +57,7 @@ describe('PartnerKybDecisionService', () => {
           { requirement: 'bank_qr', detail: '' },
         ],
         2,
+        true,
       );
 
       expect(variables.kyb_tiene_matricula).toBe(false);
@@ -69,14 +70,14 @@ describe('PartnerKybDecisionService', () => {
     /* Declarar al representante no es acreditarlo: el poder que falta invalida el mismo requisito. */
     it('el poder que falta invalida el requisito del representante', () => {
       const { service } = build();
-      const variables = service.buildVariables(perfil(), [{ requirement: 'power_of_attorney', detail: '' }], 1);
+      const variables = service.buildVariables(perfil(), [{ requirement: 'power_of_attorney', detail: '' }], 1, true);
       expect(variables.kyb_representante_acreditado).toBe(false);
     });
 
     it('el correo probado y la antigüedad salen del expediente, no de los huecos', () => {
       const { service } = build();
 
-      const sinCorreo = service.buildVariables(perfil({ emailVerifiedAt: null }), [], 1);
+      const sinCorreo = service.buildVariables(perfil({ emailVerifiedAt: null }), [], 1, true);
       expect(sinCorreo.kyb_correo_verificado).toBe(false);
       expect(sinCorreo.kyb_antiguedad_dias).toBe(30);
     });
@@ -84,9 +85,10 @@ describe('PartnerKybDecisionService', () => {
     /* El hueco `branch` no es una variable: el artefacto cuenta sucursales, no si faltan. */
     it('no manda ningún dato del comercio: sólo booleanos y números', () => {
       const { service } = build();
-      const variables = service.buildVariables(perfil({ taxId: '123456', legalName: 'Comercial X' }), [], 1);
+      const variables = service.buildVariables(perfil({ taxId: '123456', legalName: 'Comercial X' }), [], 1, true);
       expect(Object.keys(variables).sort()).toEqual([
         'kyb_antiguedad_dias',
+        'kyb_contrato_legal_vigente',
         'kyb_correo_verificado',
         'kyb_qr_bancario',
         'kyb_qr_negocio',
@@ -102,7 +104,14 @@ describe('PartnerKybDecisionService', () => {
     it('traduce el veredicto del Motor, con su ejecución, su versión y su caso', async () => {
       const { service, client } = build();
 
-      const decision = await service.evaluate({ tenantId: '1', profile: perfil(), gaps: [], sucursales: 1, idempotencyKey: 'k1' });
+      const decision = await service.evaluate({
+        tenantId: '1',
+        profile: perfil(),
+        gaps: [],
+        sucursales: 1,
+        contratoVigente: true,
+        idempotencyKey: 'k1',
+      });
 
       expect(decision).toMatchObject({
         outcome: 'REVISION_MANUAL',
@@ -120,7 +129,14 @@ describe('PartnerKybDecisionService', () => {
 
     it('el desenlace lo manda `kyb_decision`, la salida declarada, no el `outcome` del motor', async () => {
       const { service } = build({ response: { outcome: 'OTRA_COSA' } });
-      const decision = await service.evaluate({ tenantId: '1', profile: perfil(), gaps: [], sucursales: 1, idempotencyKey: 'k' });
+      const decision = await service.evaluate({
+        tenantId: '1',
+        profile: perfil(),
+        gaps: [],
+        sucursales: 1,
+        contratoVigente: true,
+        idempotencyKey: 'k',
+      });
       expect(decision.outcome).toBe('REVISION_MANUAL');
     });
 
@@ -128,7 +144,7 @@ describe('PartnerKybDecisionService', () => {
       const { service, client } = build({ configured: false });
 
       await expect(
-        service.evaluate({ tenantId: '1', profile: perfil(), gaps: [], sucursales: 1, idempotencyKey: 'k' }),
+        service.evaluate({ tenantId: '1', profile: perfil(), gaps: [], sucursales: 1, contratoVigente: true, idempotencyKey: 'k' }),
       ).rejects.toBeInstanceOf(ServiceUnavailableException);
       expect(client.execute).not.toHaveBeenCalled();
     });
@@ -137,7 +153,7 @@ describe('PartnerKybDecisionService', () => {
       const { service } = build({ fails: true });
 
       await expect(
-        service.evaluate({ tenantId: '1', profile: perfil(), gaps: [], sucursales: 1, idempotencyKey: 'k' }),
+        service.evaluate({ tenantId: '1', profile: perfil(), gaps: [], sucursales: 1, contratoVigente: true, idempotencyKey: 'k' }),
       ).rejects.toBeInstanceOf(ServiceUnavailableException);
     });
 
@@ -145,7 +161,7 @@ describe('PartnerKybDecisionService', () => {
       const { service } = build({ response: { status: 'RUNNING' } });
 
       await expect(
-        service.evaluate({ tenantId: '1', profile: perfil(), gaps: [], sucursales: 1, idempotencyKey: 'k' }),
+        service.evaluate({ tenantId: '1', profile: perfil(), gaps: [], sucursales: 1, contratoVigente: true, idempotencyKey: 'k' }),
       ).rejects.toBeInstanceOf(ServiceUnavailableException);
     });
 
@@ -153,7 +169,7 @@ describe('PartnerKybDecisionService', () => {
       const { service, client, bindings } = build();
       bindings.resolve.mockResolvedValueOnce({ artifactCode: 'KYB_PILOTO', source: 'binding' } as never);
 
-      await service.evaluate({ tenantId: '1', profile: perfil(), gaps: [], sucursales: 1, idempotencyKey: 'k' });
+      await service.evaluate({ tenantId: '1', profile: perfil(), gaps: [], sucursales: 1, contratoVigente: true, idempotencyKey: 'k' });
 
       expect(client.execute.mock.calls[0][0]).toBe('KYB_PILOTO');
     });

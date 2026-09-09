@@ -11,11 +11,13 @@ import {
   PartnerBranchModel,
   PartnerLegalRepresentativeModel,
   PartnerPosTerminalModel,
+  PartnerContractTemplateModel,
   PartnerProfileModel,
   PartnerQrCodeModel,
 } from '../../database/models/index.js';
 import { PartnerCommerceService } from './application/partner-commerce.service.js';
 import { PartnerContactVerificationService } from './application/partner-contact-verification.service.js';
+import { PartnerContractTemplateService } from './application/partner-contract-template.service.js';
 import { PartnerDirectoryService } from './application/partner-directory.service.js';
 import { PartnerKybDecisionService } from './application/partner-kyb-decision.service.js';
 import { PartnerKybSyncService } from './application/partner-kyb-sync.service.js';
@@ -28,6 +30,7 @@ import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { MerchantQrController } from './merchant-qr.controller.js';
 import { PartnerCommerceController } from './partner-commerce.controller.js';
 import { PartnerContactVerificationController } from './partner-contact-verification.controller.js';
+import { PartnerContractTemplatesController } from './partner-contract-templates.controller.js';
 import { PartnerOnboardingController } from './partner-onboarding.controller.js';
 import { PartnerOperationsController } from './partner-operations.controller.js';
 import { PartnerCommercialNetworkRepository } from './partner-commercial-network.repository.js';
@@ -45,6 +48,7 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
 @Module({
   imports: [
     SequelizeModule.forFeature([
+      PartnerContractTemplateModel,
       PartnerProfileModel,
       PartnerLegalRepresentativeModel,
       PartnerBranchModel,
@@ -66,6 +70,7 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     PartnerCommerceController,
     MerchantQrController,
     PartnerOperationsController,
+    PartnerContractTemplatesController,
   ],
   providers: [
     PartnerOnboardingRepository,
@@ -75,6 +80,7 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     PartnerOwnershipGuard,
     PartnerProfileService,
     PartnerDirectoryService,
+    PartnerContractTemplateService,
     PartnerKybDecisionService,
     PartnerVerificationService,
     PartnerKybSyncService,
@@ -96,6 +102,7 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
   ],
   exports: [
     PartnerProfileService,
+    PartnerContractTemplateService,
     PartnerDirectoryService,
     PartnerVerificationService,
     PartnerCommerceService,

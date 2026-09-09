@@ -124,3 +124,24 @@ export const decidePartnerSchema = z
     path: ['rejectionReason'],
   });
 export type DecidePartnerDto = z.infer<typeof decidePartnerSchema>;
+
+/**
+ * Publicar una versión del contrato legal por defecto.
+ *
+ * `version` NO se acepta: la calcula el backend. Pedirla desde fuera invita a repetirla o a
+ * saltársela, y el número de versión de un contrato es justo lo que después se cita en una
+ * reclamación.
+ */
+export const publishContractTemplateSchema = z
+  .object({
+    templateCode: z
+      .string()
+      .trim()
+      .regex(/^[A-Z0-9_-]{3,60}$/, 'El código va en mayúsculas, sin espacios: identifica el MISMO contrato entre versiones.'),
+    name: z.string().trim().min(3).max(160),
+    body: z.string().trim().min(50).max(200_000),
+    /** Publicar sin marcar por defecto sirve para preparar un texto antes de que entre en vigor. */
+    makeDefault: z.boolean().default(true),
+  })
+  .strict();
+export type PublishContractTemplateDto = z.infer<typeof publishContractTemplateSchema>;

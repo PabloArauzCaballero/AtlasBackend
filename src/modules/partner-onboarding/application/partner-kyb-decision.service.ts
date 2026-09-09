@@ -63,7 +63,12 @@ export class PartnerKybDecisionService {
    * expediente. Copiar aquí el número de matrícula o la cuenta bancaria duplicaría datos
    * personales del comercio en un segundo sistema para no usarlos.
    */
-  buildVariables(profile: PartnerProfileModel, gaps: SubmissionGap[], sucursales: number): Record<string, number | boolean> {
+  buildVariables(
+    profile: PartnerProfileModel,
+    gaps: SubmissionGap[],
+    sucursales: number,
+    contratoVigente: boolean,
+  ): Record<string, number | boolean> {
     const faltantes = new Set(gaps.map((gap) => REQUISITO_POR_HUECO[gap.requirement]).filter(Boolean));
     const abiertoDesde = profile.createdAtValue ?? new Date();
     const antiguedadDias = Math.max(0, Math.floor((Date.now() - new Date(abiertoDesde).getTime()) / 86_400_000));
@@ -77,6 +82,20 @@ export class PartnerKybDecisionService {
       // El artefacto la usa como SEÑAL (por encima de 120 días manda a revisión), no como rechazo:
       // un expediente que lleva medio año abierto pudo cambiar de manos desde que se empezó.
       kyb_antiguedad_dias: antiguedadDias,
+      /*
+       * Si el inquilino tiene contrato de afiliación vigente.
+       *
+       * Comprobar que el comercio EXISTE no es comprobar que hay algo firmado: sin contrato se
+       * habilitaba a cobrar a alguien con quien no se pactó por escrito ni la comisión, ni los
+       * plazos de liquidación, ni qué pasa con una devolución.
+       *
+       * **La versión desplegada del artefacto todavía no declara esta entrada, y el Motor ignora
+       * las que no conoce** (comprobado el 2026-09-09: una ejecución con la variable de más
+       * responde `SUCCEEDED` igual). Se manda desde ya para que el día que se despliegue la versión
+       * que la consume no haga falta tocar Atlas — y para que, hasta entonces, la ausencia sea del
+       * artefacto y no del dato.
+       */
+      kyb_contrato_legal_vigente: contratoVigente,
     };
   }
 
@@ -95,6 +114,7 @@ export class PartnerKybDecisionService {
     profile: PartnerProfileModel;
     gaps: SubmissionGap[];
     sucursales: number;
+    contratoVigente: boolean;
     /** Lo que hace que reintentar la misma petición no produzca dos ejecuciones. */
     idempotencyKey: string;
   }): Promise<KybDecision> {
@@ -116,7 +136,7 @@ export class PartnerKybDecisionService {
         // El expediente, no el comercio: es lo que el Motor puede usar para atribuir el desenlace
         // sin recibir el NIT ni la razón social.
         subjectReference: `partner:${input.profile.id}`,
-        variables: this.buildVariables(input.profile, input.gaps, input.sucursales),
+        variables: this.buildVariables(input.profile, input.gaps, input.sucursales, input.contratoVigente),
         context: { source: 'atlas-backend', module: 'partner-onboarding' },
       });
 
