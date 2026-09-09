@@ -30,7 +30,13 @@ describe('PartnerKybSyncService', () => {
 
   it('un caso aprobado en el Motor habilita el expediente, sin atribuírselo a nadie de este lado', async () => {
     const { service, profiles } = build({
-      caso: { caseCode: 'MRC-1', status: 'RESOLVED_APPROVED', resolution: { reason: 'Documentación completa' }, resolvedAt: '2026-09-08T10:00:00.000Z', assignedTo: 'ana' },
+      caso: {
+        caseCode: 'MRC-1',
+        status: 'RESOLVED_APPROVED',
+        resolution: { reason: 'Documentación completa' },
+        resolvedAt: '2026-09-08T10:00:00.000Z',
+        assignedTo: 'ana',
+      },
     });
 
     const resultado = await service.syncPendingReviews({ tenantId: '1', limit: 10 });
@@ -47,7 +53,13 @@ describe('PartnerKybSyncService', () => {
 
   it('un caso rechazado trae el motivo escrito por quien lo resolvió', async () => {
     const { service, profiles } = build({
-      caso: { caseCode: 'MRC-1', status: 'RESOLVED_DECLINED', resolution: { comments: 'El poder no acredita al firmante' }, resolvedAt: null, assignedTo: null },
+      caso: {
+        caseCode: 'MRC-1',
+        status: 'RESOLVED_DECLINED',
+        resolution: { comments: 'El poder no acredita al firmante' },
+        resolvedAt: null,
+        assignedTo: null,
+      },
     });
 
     const resultado = await service.syncPendingReviews({ tenantId: '1', limit: 10 });
@@ -65,7 +77,9 @@ describe('PartnerKybSyncService', () => {
    * existe. Condenar al comercio por un problema administrativo sería el error fácil aquí.
    */
   it('un caso cancelado devuelve el expediente a la decisión local, no lo rechaza', async () => {
-    const { service, profiles } = build({ caso: { caseCode: 'MRC-1', status: 'CANCELLED', resolution: null, resolvedAt: null, assignedTo: null } });
+    const { service, profiles } = build({
+      caso: { caseCode: 'MRC-1', status: 'CANCELLED', resolution: null, resolvedAt: null, assignedTo: null },
+    });
 
     const resultado = await service.syncPendingReviews({ tenantId: '1', limit: 10 });
 
@@ -76,7 +90,9 @@ describe('PartnerKybSyncService', () => {
   });
 
   it('un caso todavía abierto no toca el expediente', async () => {
-    const { service, profiles } = build({ caso: { caseCode: 'MRC-1', status: 'ASSIGNED', resolution: null, resolvedAt: null, assignedTo: 'ana' } });
+    const { service, profiles } = build({
+      caso: { caseCode: 'MRC-1', status: 'ASSIGNED', resolution: null, resolvedAt: null, assignedTo: 'ana' },
+    });
 
     const resultado = await service.syncPendingReviews({ tenantId: '1', limit: 10 });
 
@@ -104,7 +120,9 @@ describe('PartnerKybSyncService', () => {
   });
 
   it('sólo mira expedientes en revisión CON caso abierto, del tenant que le toca', async () => {
-    const { service, profileModel } = build({ caso: { caseCode: 'MRC-1', status: 'ASSIGNED', resolution: null, resolvedAt: null, assignedTo: null } });
+    const { service, profileModel } = build({
+      caso: { caseCode: 'MRC-1', status: 'ASSIGNED', resolution: null, resolvedAt: null, assignedTo: null },
+    });
 
     await service.syncPendingReviews({ tenantId: '7', limit: 25 });
 

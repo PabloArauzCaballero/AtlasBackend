@@ -117,7 +117,8 @@ describe('OutcomeDispatchService', () => {
       count: jest.fn(async (options: { where: { status: string; attempts?: unknown } }) => {
         if (options.where.status === 'pending') return counts.pending;
         if (options.where.status === 'sent') return counts.sent;
-        return options.where.attempts && Object.getOwnPropertySymbols(options.where.attempts).length > 0 &&
+        return options.where.attempts &&
+          Object.getOwnPropertySymbols(options.where.attempts).length > 0 &&
           String(Object.getOwnPropertySymbols(options.where.attempts)[0]).includes('gte')
           ? counts.exhausted
           : counts.retrying;

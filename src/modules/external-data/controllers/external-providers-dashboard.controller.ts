@@ -70,10 +70,7 @@ export class ExternalProvidersDashboardController {
   @ApiQuery({ name: 'offset', required: false, schema: zodObjectPropertySchemas(providerRequestsQuerySchema).offset })
   @ApiResponse({ status: 200, description: 'Página de solicitudes.' })
   @Get('requests')
-  requests(
-    @CurrentTenant() tenantId: string,
-    @Query(new ZodValidationPipe(providerRequestsQuerySchema)) query: ProviderRequestsQueryDto,
-  ) {
+  requests(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(providerRequestsQuerySchema)) query: ProviderRequestsQueryDto) {
     return this.dashboardService.listRequests({
       // Acotado al inquilino de la cabecera, como el resto de reportes de esta pantalla: es una
       // lista de consultas hechas SOBRE CLIENTES, no un agregado anónimo.

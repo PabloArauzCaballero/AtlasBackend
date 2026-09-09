@@ -121,18 +121,14 @@ export class PartnerKybDecisionService {
       });
 
       if (!COMPLETED_STATUSES.has(response.status.toUpperCase())) {
-        throw new ServiceUnavailableException(
-          `DECISION_ENGINE_UNAVAILABLE: el Motor respondió ${response.status} y no un veredicto.`,
-        );
+        throw new ServiceUnavailableException(`DECISION_ENGINE_UNAVAILABLE: el Motor respondió ${response.status} y no un veredicto.`);
       }
 
       return toKybDecision(response);
     } catch (error) {
       if (error instanceof ServiceUnavailableException) throw error;
       this.logger.error(`El Motor no pudo verificar el expediente ${input.profile.id}: ${(error as Error).message}`);
-      throw new ServiceUnavailableException(
-        `DECISION_ENGINE_UNAVAILABLE: ${(error as Error).message}. El expediente queda como estaba.`,
-      );
+      throw new ServiceUnavailableException(`DECISION_ENGINE_UNAVAILABLE: ${(error as Error).message}. El expediente queda como estaba.`);
     }
   }
 }

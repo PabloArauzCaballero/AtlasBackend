@@ -52,7 +52,7 @@ describe('systems-ops — OpenAPI document generation (5 controllers)', () => {
     const toolInferenceServiceMock = { infer: jest.fn() };
     const dataImpactInferenceServiceMock = { infer: jest.fn() };
     const domainOverviewServiceMock = { overview: jest.fn() };
-  const reviewServiceMock = {
+    const reviewServiceMock = {
       getReviewQueue: jest.fn(),
       reviewEndpoint: jest.fn(),
       reviewToolRequirement: jest.fn(),

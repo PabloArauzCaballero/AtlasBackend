@@ -191,7 +191,7 @@ export class DecisionEngineClient {
         return null;
       }
       const body = (await response.json()) as Record<string, unknown>;
-      const caso = ((body.data ?? body) ?? {}) as Record<string, unknown>;
+      const caso = (body.data ?? body ?? {}) as Record<string, unknown>;
       return {
         caseCode: String(caso.caseCode ?? caseCode),
         status: String(caso.status ?? ''),

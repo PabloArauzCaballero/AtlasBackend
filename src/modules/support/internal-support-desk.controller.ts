@@ -18,12 +18,7 @@ import { SupportChannelService } from './application/support-channel.service.js'
 import { SupportDeskService } from './application/support-desk.service.js';
 import { SupportMessageService } from './application/support-message.service.js';
 import { SupportSlaService } from './application/support-sla.service.js';
-import {
-  type CreateAgentProfileDto,
-  createAgentProfileSchema,
-  type PresenceDto,
-  presenceSchema,
-} from './support-case.schemas.js';
+import { type CreateAgentProfileDto, createAgentProfileSchema, type PresenceDto, presenceSchema } from './support-case.schemas.js';
 
 @ApiTags('Interno · Mesa de soporte')
 @ApiBearerAuth('access-token')

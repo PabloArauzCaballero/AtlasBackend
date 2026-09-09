@@ -271,5 +271,4 @@ export class RuntimeJobsController {
   ) {
     return this.service.recalculateDataQuality({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
   }
-
 }

@@ -401,9 +401,7 @@ export class PartnerProfileService {
      * porque una pantalla se salta con curl.
      */
     if (profile.manualReviewCaseCode) {
-      throw new ConflictException(
-        `PARTNER_DECISION_DELEGADA_AL_MOTOR: el caso ${profile.manualReviewCaseCode} se resuelve en el Motor.`,
-      );
+      throw new ConflictException(`PARTNER_DECISION_DELEGADA_AL_MOTOR: el caso ${profile.manualReviewCaseCode} se resuelve en el Motor.`);
     }
 
     const updated = await this.repository.updateProfile(profile, {

@@ -73,9 +73,7 @@ export type DomainOverview = {
  */
 @Injectable()
 export class SystemsDomainOverviewService {
-  private readonly fixtureDomainByTable = new Map(
-    TABLE_BUSINESS_METADATA.map((entry) => [entry.tableName, entry.domainCode] as const),
-  );
+  private readonly fixtureDomainByTable = new Map(TABLE_BUSINESS_METADATA.map((entry) => [entry.tableName, entry.domainCode] as const));
 
   constructor(
     @InjectModel(SystemDomainCatalogModel) private readonly domainModel: typeof SystemDomainCatalogModel,
@@ -97,9 +95,7 @@ export class SystemsDomainOverviewService {
       this.testSuiteModel.findAll({ attributes: ['id', 'module'] }),
     ]);
 
-    const items = new Map<string, DomainOverviewItem>(
-      domains.items.map((domain) => [domain.domainCode, { ...domain }] as const),
-    );
+    const items = new Map<string, DomainOverviewItem>(domains.items.map((domain) => [domain.domainCode, { ...domain }] as const));
     const domainByEntity = new Map<string, string>();
     const modulesByDomain = new Map<string, Set<string>>();
     const unassignedByModule = new Map<string, number>();

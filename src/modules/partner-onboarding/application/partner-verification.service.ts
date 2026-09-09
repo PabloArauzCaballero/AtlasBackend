@@ -86,8 +86,6 @@ export class PartnerVerificationService {
     return gaps;
   }
 
-
-
   /**
    * Pide al Motor que verifique el expediente y aplica su veredicto.
    *
@@ -203,7 +201,6 @@ export class PartnerVerificationService {
     };
   }
 
-
   /**
    * Busca el expediente que corresponde a una cuenta del ERP o a un NIT.
    *
@@ -212,10 +209,7 @@ export class PartnerVerificationService {
    * regla que quien pregunta conoce mejor. Vacío es `items: []` con 200, nunca un 404: «esta cuenta
    * todavía no tiene expediente» es una respuesta legítima, no un error.
    */
-  async findByExternalKeys(
-    tenantId: string,
-    query: { erpAccountId?: string; taxId?: string; page: number; limit: number },
-  ) {
+  async findByExternalKeys(tenantId: string, query: { erpAccountId?: string; taxId?: string; page: number; limit: number }) {
     const { rows, count } = await this.repository.findProfilesByExternalKeys(
       tenantId,
       { erpAccountId: query.erpAccountId, taxId: query.taxId },
@@ -241,14 +235,11 @@ export class PartnerVerificationService {
   async linkErpAccount(tenantId: string, partnerId: string, erpAccountId: string): Promise<PartnerProfileModel> {
     const profile = await this.requireProfile(tenantId, partnerId);
     if (profile.erpAccountId && profile.erpAccountId !== erpAccountId) {
-      throw new ConflictException(
-        `PARTNER_ERP_ACCOUNT_ALREADY_LINKED: el expediente ya apunta a la cuenta ${profile.erpAccountId}.`,
-      );
+      throw new ConflictException(`PARTNER_ERP_ACCOUNT_ALREADY_LINKED: el expediente ya apunta a la cuenta ${profile.erpAccountId}.`);
     }
     if (profile.erpAccountId === erpAccountId) return profile;
     return this.repository.updateProfile(profile, { erpAccountId });
   }
-
 
   /**
    * Pide la verificación de un expediente que ya está en revisión.
@@ -268,10 +259,7 @@ export class PartnerVerificationService {
     if (profile.onboardingStatus !== 'under_review') {
       throw new ConflictException(`PARTNER_NOT_UNDER_REVIEW: el expediente está en ${profile.onboardingStatus}.`);
     }
-    this.logger.log(
-      `Verificación pedida para el expediente ${partnerId}${options.reason ? `: ${options.reason}` : ''}`,
-    );
+    this.logger.log(`Verificación pedida para el expediente ${partnerId}${options.reason ? `: ${options.reason}` : ''}`);
     return this.evaluarConMotor(tenantId, profile, { idempotencyKey: options.idempotencyKey });
   }
-
 }

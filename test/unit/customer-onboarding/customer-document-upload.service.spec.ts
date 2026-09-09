@@ -15,11 +15,7 @@ describe('CustomerDocumentUploadService.createUploadUrl (gate de estado)', () =>
     const customersRepository = { findById: jest.fn(async () => ({ lifecycleStatus })) };
     const onboardingRepository = { createOperationalAuditLog: jest.fn() };
     const storageService = { isConfigured: jest.fn(() => true), createUploadTicket: jest.fn(() => ticket) };
-    const service = new CustomerDocumentUploadService(
-      customersRepository as never,
-      onboardingRepository as never,
-      storageService as never,
-    );
+    const service = new CustomerDocumentUploadService(customersRepository as never, onboardingRepository as never, storageService as never);
     return { service, storageService };
   }
   const run = (service: CustomerDocumentUploadService, documentType: string) =>

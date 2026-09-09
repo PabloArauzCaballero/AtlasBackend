@@ -76,10 +76,19 @@ describe('RuntimeJobsSchedulerService', () => {
       creditLineRefresh: creditLineRefresh as never,
       bankStatements: bankStatements as never,
       supportSla: supportSla as never,
-      debtRating: { sweep: jest.fn(async (..._args: unknown[]) => ({ customers: 0, rated: 0, failed: 0, failedCustomerIds: [] })) } as never,
+      debtRating: {
+        sweep: jest.fn(async (..._args: unknown[]) => ({ customers: 0, rated: 0, failed: 0, failedCustomerIds: [] })),
+      } as never,
       outcomeDispatch: { dispatchPending: jest.fn(async (..._args: unknown[]) => ({ sent: 0, failed: 0, skipped: 0 })) } as never,
       partnerKybSync: {
-        syncPendingReviews: jest.fn(async (..._args: unknown[]) => ({ checked: 0, approved: 0, rejected: 0, cancelled: 0, pending: 0, unreachable: 0 })),
+        syncPendingReviews: jest.fn(async (..._args: unknown[]) => ({
+          checked: 0,
+          approved: 0,
+          rejected: 0,
+          cancelled: 0,
+          pending: 0,
+          unreachable: 0,
+        })),
       } as never,
     });
     const service = new RuntimeJobsSchedulerService(scheduledJobs, tenantModel as never, redis as never, metrics as never);

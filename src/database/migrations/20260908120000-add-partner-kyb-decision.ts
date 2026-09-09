@@ -61,17 +61,24 @@ export async function up({ context: queryInterface }: MigrationContext): Promise
     ['decision_evaluated_at', 'TIMESTAMPTZ'],
   ];
   for (const [columna, tipo] of columnas) {
-    await queryInterface.sequelize.query(
-      `ALTER TABLE ${TABLA.schema}.${TABLA.tableName} ADD COLUMN IF NOT EXISTS ${columna} ${tipo}`,
-    );
+    await queryInterface.sequelize.query(`ALTER TABLE ${TABLA.schema}.${TABLA.tableName} ADD COLUMN IF NOT EXISTS ${columna} ${tipo}`);
   }
 
   const comentarios: [string, string][] = [
-    ['decision_execution_id', 'Ejecución del Motor que evaluó el expediente (PARTNER_KYB_REVIEW). NULL = decisión anterior al registro de procedencia, o el Motor no respondió.'],
+    [
+      'decision_execution_id',
+      'Ejecución del Motor que evaluó el expediente (PARTNER_KYB_REVIEW). NULL = decisión anterior al registro de procedencia, o el Motor no respondió.',
+    ],
     ['decision_outcome', 'Desenlace del Motor: APROBADO | RECHAZADO | REVISION_MANUAL.'],
     ['decision_reason', 'Motivo publicado por el Motor: KYB_COMPLETO | KYB_REQUISITOS_INCOMPLETOS | KYB_SENALES_OPERATIVAS.'],
-    ['decision_artifact_version', 'Versión del artefacto que decidió. Es lo que permite releer una decisión vieja con la política que la tomó.'],
-    ['manual_review_case_code', 'Caso abierto por el Motor cuando el expediente exige criterio humano. Con valor, la decisión se toma allí y el portal no la ofrece.'],
+    [
+      'decision_artifact_version',
+      'Versión del artefacto que decidió. Es lo que permite releer una decisión vieja con la política que la tomó.',
+    ],
+    [
+      'manual_review_case_code',
+      'Caso abierto por el Motor cuando el expediente exige criterio humano. Con valor, la decisión se toma allí y el portal no la ofrece.',
+    ],
     ['decision_evaluated_at', 'Cuándo respondió el Motor. Distinto de decided_at, que es cuándo quedó firme el expediente.'],
   ];
   for (const [columna, comentario] of comentarios) {

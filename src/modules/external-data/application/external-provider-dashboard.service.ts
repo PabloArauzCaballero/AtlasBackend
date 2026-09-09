@@ -234,9 +234,7 @@ export class ExternalProviderDashboardService {
       successRate: bucket.total > 0 ? round2((bucket.success / bucket.total) * 100) : null,
       p95LatencyMs: percentile(bucket.latencies, 95),
       avgLatencyMs:
-        bucket.latencies.length > 0
-          ? Math.round(bucket.latencies.reduce((sum, value) => sum + value, 0) / bucket.latencies.length)
-          : null,
+        bucket.latencies.length > 0 ? Math.round(bucket.latencies.reduce((sum, value) => sum + value, 0) / bucket.latencies.length) : null,
       estimatedCost: round2(bucket.estimatedCost),
       actualCost: round2(bucket.actualCost),
       lastRequestAt: bucket.lastRequestAt,
