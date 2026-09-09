@@ -40,6 +40,12 @@ const ALLOWED_DUPLICATE_TIMESTAMPS: Record<string, string> = {
     'cambio de metadatos de systems-ops escrito dos veces. Ambas son idempotentes (ADD COLUMN/CREATE TABLE ' +
     'IF NOT EXISTS), así que el orden entre ellas no altera el esquema resultante. Ya están aplicadas en ' +
     'entornos existentes: renombrarlas rompería SequelizeMeta.',
+  '20260820120000':
+    'add-partner-profile-owner toca `partner_profiles` y add-platform-block-to-systems-catalog toca ' +
+    'el catálogo de systems-ops (`system_endpoint_catalog`, `system_data_entity_catalog` y una tabla ' +
+    'nueva en `platform_ops`). No comparten ni una tabla, así que el orden entre ellas no puede ' +
+    'cambiar el esquema resultante. Ya están aplicadas en dev y en el VPS: renombrar una la volvería ' +
+    'a ejecutar, porque SequelizeMeta guarda el NOMBRE del archivo.',
 };
 
 type TableCreation = { table: string; migration: string; idempotent: boolean };

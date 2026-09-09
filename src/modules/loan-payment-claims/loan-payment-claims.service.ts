@@ -27,6 +27,7 @@ import { CreditRepository } from '../credit/credit.repository.js';
 import { LoanPaymentService } from '../loans/application/loan-payment.service.js';
 import { PartnerProfileService } from '../partner-onboarding/application/partner-profile.service.js';
 import { PartnerQrService } from '../partner-onboarding/application/partner-qr.service.js';
+import { ExpedienteHooksService } from '../expedientes/application/expediente-hooks.service.js';
 import { EventsService } from '../events/events.service.js';
 import { assertOwnPartnerResource } from '../../common/utils/auth/ownership.util.js';
 import type { DecidePaymentClaimDto, PaymentProofTicketDto, SubmitPaymentClaimDto } from './loan-payment-claims.schemas.js';
@@ -65,6 +66,7 @@ export class LoanPaymentClaimsService {
     private readonly partners: PartnerProfileService,
     private readonly partnerQr: PartnerQrService,
     private readonly events: EventsService,
+    private readonly expedienteHooks: ExpedienteHooksService,
   ) {}
 
   /**
@@ -223,6 +225,52 @@ export class LoanPaymentClaimsService {
     const contentType = this.assertMimeType(input.body.contentType);
     const partnerProfileId = await this.resolvePartner(input.tenantId, loan);
 
+    const resultado = await this.escribirReclamo({ input, loan, installment, metadata, contentType, partnerProfileId });
+
+    /*
+     * El comprobante aparece en el expediente del cliente, igual que su carnet y su extracto.
+     *
+     * Hasta aqui no lo hacia: `PAYMENT_PROOF` se escribia en `evidence_documents` y en el almacen,
+     * pero nadie llamaba al gancho, asi que el archivo existia y la carpeta del cliente no lo
+     * enseñaba. Quien revisaba el expediente veia identidad y extracto, y del pago nada — sin
+     * ningun error por medio, que es lo que hizo que pasara desapercibido.
+     *
+     * Va DESPUES del commit, como el extracto: el gancho se traga sus errores a proposito, y
+     * llamarlo dentro de la transaccion ataria el aviso de pago —que el cliente ya dio y que ya
+     * disparo su evento— al explorador de archivos.
+     */
+    await this.expedienteHooks.alRegistrarEvidencia({
+      tenantId: input.tenantId,
+      customerId: String(input.customerId),
+      documentType: 'payment_proof',
+      evidenceDocumentId: resultado.evidenceDocumentId,
+      storageKey: input.body.storageKey,
+      storageBucket: this.storage.getBucket(),
+      sha256: metadata.sha256Hex,
+      mimeType: contentType,
+      sizeBytes: String(metadata.sizeBytes),
+    });
+
+    const { evidenceDocumentId: _evidencia, ...respuesta } = resultado;
+    return respuesta;
+  }
+
+  /**
+   * La escritura del aviso, en una sola transaccion: la evidencia, el reclamo y su evento.
+   *
+   * Sale de `submit` para que alli quede visible el orden real del caso de uso —se comprueba, se
+   * escribe, y solo despues se toca el expediente— y porque con el gancho `submit` pasaba de las
+   * 80 lineas que admite el linter.
+   */
+  private escribirReclamo(ctx: {
+    input: { tenantId: string; customerId: string; body: SubmitPaymentClaimDto; currentUser: AuthenticatedUser };
+    loan: { id: unknown; currencyCode: string; creditApplicationId?: string | null };
+    installment: { id: unknown };
+    metadata: { sha256Hex: string; sizeBytes: number };
+    contentType: AllowedEvidenceMimeType;
+    partnerProfileId: string | null;
+  }) {
+    const { input, loan, installment, metadata, contentType, partnerProfileId } = ctx;
     return this.sequelize.transaction(async (transaction) => {
       /*
        * Una cuota no puede tener DOS reclamos esperando. Lo impide tambien un indice unico, pero
@@ -319,6 +367,7 @@ export class LoanPaymentClaimsService {
         status: claim.status,
         installmentId: String(installment.id),
         submittedAt: claim.submittedAt,
+        evidenceDocumentId: String(evidence.id),
       };
     });
   }

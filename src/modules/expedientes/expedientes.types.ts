@@ -42,6 +42,7 @@ export type ClaseNodo =
   | 'selfie'
   | 'bank_statement'
   | 'proof_of_address'
+  | 'payment_proof'
   | 'contactos'
   | 'consentimientos'
   | 'manifest'
@@ -86,6 +87,7 @@ export const CARPETA_POR_TIPO: Readonly<Record<string, { carpeta: string; clase:
   selfie: { carpeta: 'auth', clase: 'selfie', nombre: 'selfie' },
   bank_statement: { carpeta: 'extractos', clase: 'bank_statement', nombre: 'extracto' },
   proof_of_address: { carpeta: 'domicilio', clase: 'proof_of_address', nombre: 'comprobante' },
+  payment_proof: { carpeta: 'pagos', clase: 'payment_proof', nombre: 'comprobante de pago' },
   other: { carpeta: 'otros', clase: 'otro', nombre: 'documento' },
 };
 

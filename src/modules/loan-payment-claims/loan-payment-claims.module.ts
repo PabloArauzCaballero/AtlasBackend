@@ -10,6 +10,7 @@ import { DocumentStorageService } from '../../common/storage/document-storage.se
 import { MalwareScannerService } from '../../common/storage/malware-scanner.service.js';
 import { CreditModule } from '../credit/credit.module.js';
 import { EventsModule } from '../events/events.module.js';
+import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import { LoansModule } from '../loans/loans.module.js';
 import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
 import { LoanPaymentClaimsService } from './loan-payment-claims.service.js';
@@ -21,6 +22,7 @@ import { MobilePaymentClaimsController } from './mobile-payment-claims.controlle
     SequelizeModule.forFeature([LoanPaymentClaimModel, EvidenceDocumentModel]),
     CreditModule,
     EventsModule,
+    ExpedientesModule,
     LoansModule,
     PartnerOnboardingModule,
   ],
