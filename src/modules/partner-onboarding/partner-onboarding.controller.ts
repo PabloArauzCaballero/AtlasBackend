@@ -16,7 +16,6 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerCommerceService } from './application/partner-commerce.service.js';
-import { PartnerContactVerificationService } from './application/partner-contact-verification.service.js';
 import { PartnerDirectoryService } from './application/partner-directory.service.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
 import { PartnerVerificationService } from './application/partner-verification.service.js';
@@ -60,7 +59,6 @@ export class PartnerOnboardingController {
     private readonly profiles: PartnerProfileService,
     private readonly commerce: PartnerCommerceService,
     private readonly qr: PartnerQrService,
-    private readonly contact: PartnerContactVerificationService,
     private readonly verification: PartnerVerificationService,
     private readonly directory: PartnerDirectoryService,
   ) {}
