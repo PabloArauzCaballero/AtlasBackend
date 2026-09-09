@@ -24838,6 +24838,60 @@ paths:
       summary: Detalle de un flujo con sus hallazgos
       tags:
         - systems-ops
+  /systems/flows/verify:
+    post:
+      operationId: SystemFlowsController_verify
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                windowDays:
+                  default: 30
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 365
+                systemCode:
+                  default: ATLAS_BACKEND
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+              required:
+                - windowDays
+                - systemCode
+              additionalProperties: false
+      responses:
+        '201':
+          description: >-
+            Cuántos flujos quedaron VERIFIED, BROKEN, sin corridas, FRESH y
+            STALE.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: >-
+        Verificar los flujos contra corridas reales (system_action_logs) y
+        recalcular su frescura
+      tags:
+        - systems-ops
   /systems/flows/import/endpoints:
     post:
       operationId: SystemFlowsController_importEndpoints

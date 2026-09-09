@@ -31,6 +31,8 @@ import {
   importScreensSchema,
   ScreensListQueryDto,
   screensListQuerySchema,
+  VerifyFlowsDto,
+  verifyFlowsSchema,
 } from './system-flows.schemas.js';
 
 /**
@@ -109,6 +111,15 @@ export class SystemFlowsController {
   @Get('flows/:flowId')
   detail(@Param(new ZodValidationPipe(flowIdParamsSchema)) params: FlowIdParamsDto) {
     return this.service.getFlow(params.flowId);
+  }
+
+  @ApiOperation({ summary: 'Verificar los flujos contra corridas reales (system_action_logs) y recalcular su frescura' })
+  @ApiBody({ schema: zodToApiSchema(verifyFlowsSchema) })
+  @ApiResponse({ status: 201, description: 'Cuántos flujos quedaron VERIFIED, BROKEN, sin corridas, FRESH y STALE.' })
+  @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
+  @Post('flows/verify')
+  verify(@Body(new ZodValidationPipe(verifyFlowsSchema)) body: VerifyFlowsDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.verify(body, actorId(user));
   }
 
   @ApiOperation({ summary: 'Cargar los endpoints derivados de un bloque (reemplaza los del bloque)' })

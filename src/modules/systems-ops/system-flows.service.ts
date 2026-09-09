@@ -4,6 +4,8 @@
  * @system carga endpoints, pantallas y hallazgos por bloque, calcula riesgo e identidad estable, y sirve el explorador.
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { env } from '../../config/env.js';
+import { freshnessFor, verificationFromRuns } from './system-flows.verification.util.js';
 import { SystemFlowCatalogModel, SystemFlowFindingModel, SystemScreenCatalogModel } from '../../database/models/index.js';
 import { buildFlowGraph, buildModuleGraph } from './system-flows.graph.util.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
@@ -27,6 +29,7 @@ import {
   ImportFindingsDto,
   ImportScreensDto,
   ScreensListQueryDto,
+  VerifyFlowsDto,
 } from './system-flows.schemas.js';
 
 /** La ficha no manda la cadena entera (puede tener 120 pasos): manda lo que se lee de un vistazo. */
@@ -73,6 +76,9 @@ export function mapFlow(row: SystemFlowCatalogModel) {
     testStatus: row.testStatus,
     contractStatus: row.contractStatus,
     findingsCount: row.findingsCount,
+    verifiedAt: row.verifiedAt,
+    verifiedBy: row.verifiedBy,
+    verificationEvidence: row.verificationEvidenceJson,
     reads: row.reads,
     writes: row.writes,
     analysis: summarizeAnalysis(row.analysisJson),
@@ -289,6 +295,45 @@ export class SystemFlowsService {
     const rows = await this.repository.findFlowsByModule(query.systemCode, query.module);
     if (!rows.length) throw new NotFoundException(`No hay flujos para ${query.systemCode}/${query.module}.`);
     return buildModuleGraph(rows, { includeRoles: query.includeRoles });
+  }
+
+  /**
+   * Verifica contra corridas reales (`system_action_logs`) y recalcula la frescura contra el commit
+   * desplegado (`APP_COMMIT_SHA`). Sólo el bloque que escribe esos logs (el Backend) puede pasar a
+   * VERIFIED por esta vía; los demás bloques quedan como estaban y se dice cuántos se saltaron.
+   */
+  verify(dto: VerifyFlowsDto, actor: string | null) {
+    return this.repository.transaction(async (tx) => {
+      const runs = dto.systemCode === 'ATLAS_BACKEND' ? await this.repository.runsByRoute(dto.windowDays) : new Map();
+      const flows = await this.repository.flowsOfSystem(dto.systemCode);
+      const counts = {
+        verified: 0,
+        broken: 0,
+        unverified: 0,
+        stale: 0,
+        fresh: 0,
+        skippedNoLogs: dto.systemCode === 'ATLAS_BACKEND' ? 0 : flows.length,
+      };
+      for (const flow of flows) {
+        const outcome = verificationFromRuns(runs.get(`${flow.httpMethod} ${flow.path}`) ?? null, 'system_action_logs');
+        if (outcome) {
+          await this.repository.applyVerification(flow.flowId, outcome, actor, tx);
+          if (outcome.verification === 'VERIFIED') counts.verified += 1;
+          else counts.broken += 1;
+        } else counts.unverified += 1;
+        const freshness = freshnessFor(flow.analyzedCommit, env.APP_COMMIT_SHA);
+        if (freshness && freshness !== flow.freshness) await this.repository.applyFreshness(flow.flowId, freshness, tx);
+        if (freshness === 'STALE') counts.stale += 1;
+        else if (freshness === 'FRESH') counts.fresh += 1;
+      }
+      return {
+        systemCode: dto.systemCode,
+        windowDays: dto.windowDays,
+        deployedCommit: env.APP_COMMIT_SHA ?? null,
+        routesWithRuns: runs.size,
+        ...counts,
+      };
+    });
   }
 
   summary() {

@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindAndCountOptions, literal, Op, Transaction, WhereOptions } from 'sequelize';
+import { FindAndCountOptions, literal, Op, QueryTypes, Transaction, WhereOptions } from 'sequelize';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
 import {
   SystemFlowCatalogModel,
@@ -14,6 +14,10 @@ import {
   SystemScreenCatalogModel,
 } from '../../database/models/index.js';
 import { FindingsListQueryDto, FlowsListQueryDto, ScreensListQueryDto } from './system-flows.schemas.js';
+import { RouteRuns } from './system-flows.verification.util.js';
+import { atlasSchemaFor } from '../../database/domain-schemas.js';
+
+const SCHEMA = atlasSchemaFor('system_action_logs');
 
 type FlowRow = Omit<SystemFlowCatalogModel['dataValues'], 'id' | 'createdAtValue' | 'updatedAtValue'>;
 type ScreenRow = Omit<SystemScreenCatalogModel['dataValues'], 'id' | 'createdAtValue' | 'updatedAtValue'>;
@@ -215,6 +219,87 @@ export class SystemFlowsRepository {
       offset: toOffset(query),
     } as FindAndCountOptions);
     return { rows: result.rows, meta: buildPaginationMeta(query, result.count) };
+  }
+
+  /**
+   * Corridas por ruta en `system_action_logs` dentro de la ventana. La plantilla se normaliza al
+   * formato del catálogo en SQL para que el cruce sea un JOIN y no un bucle. Sólo lecturas agregadas:
+   * ningún payload sale de aquí.
+   */
+  async runsByRoute(windowDays: number): Promise<Map<string, RouteRuns>> {
+    const rows = await this.flows.sequelize!.query<{
+      method: string;
+      path: string;
+      ok: string;
+      failed: string;
+      last_at: Date | null;
+      last_status: number | null;
+      statuses: Record<string, number>;
+      correlation_sample: string[];
+    }>(
+      `WITH runs AS (
+         SELECT method,
+                regexp_replace(regexp_replace(route_template, '^/?(api/v1|api|v1)/', ''), ':[A-Za-z_][A-Za-z0-9_]*', ':p', 'g') AS path,
+                response_status_code AS status,
+                occurred_at,
+                correlation_id
+           FROM ${SCHEMA}.system_action_logs
+          WHERE route_template IS NOT NULL
+            AND occurred_at >= NOW() - (:windowDays || ' days')::interval
+       ),
+       latest AS (SELECT DISTINCT ON (method, path) method, path, status AS last_status FROM runs ORDER BY method, path, occurred_at DESC)
+       SELECT r.method, r.path,
+              COUNT(*) FILTER (WHERE r.status < 500) AS ok,
+              COUNT(*) FILTER (WHERE r.status >= 500) AS failed,
+              MAX(r.occurred_at) AS last_at,
+              MAX(l.last_status) AS last_status,
+              jsonb_object_agg(r.status::text, 1) AS statuses,
+              (array_agg(r.correlation_id ORDER BY r.occurred_at DESC))[1:5] AS correlation_sample
+         FROM runs r JOIN latest l USING (method, path)
+        GROUP BY r.method, r.path`,
+      { type: QueryTypes.SELECT, replacements: { windowDays: String(windowDays) } },
+    );
+    const out = new Map<string, RouteRuns>();
+    for (const row of rows) {
+      out.set(`${row.method} ${row.path}`, {
+        ok: Number(row.ok),
+        failed: Number(row.failed),
+        lastAt: row.last_at ? new Date(row.last_at) : null,
+        lastStatus: row.last_status,
+        statuses: row.statuses ?? {},
+        correlationSample: (row.correlation_sample ?? []).filter(Boolean),
+      });
+    }
+    return out;
+  }
+
+  async flowsOfSystem(systemCode: string): Promise<SystemFlowCatalogModel[]> {
+    return this.flows.findAll({
+      where: { systemCode },
+      attributes: ['id', 'flowId', 'httpMethod', 'path', 'analyzedCommit', 'verification', 'freshness'],
+    });
+  }
+
+  async applyVerification(
+    flowId: string,
+    outcome: { verification: string; evidence: Record<string, unknown> },
+    actor: string | null,
+    tx: Transaction,
+  ): Promise<void> {
+    await this.flows.update(
+      {
+        verification: outcome.verification,
+        verificationEvidenceJson: outcome.evidence,
+        verifiedAt: new Date(),
+        verifiedBy: actor,
+        updatedAtValue: new Date(),
+      },
+      { where: { flowId }, transaction: tx },
+    );
+  }
+
+  async applyFreshness(flowId: string, freshness: string, tx: Transaction): Promise<void> {
+    await this.flows.update({ freshness, updatedAtValue: new Date() }, { where: { flowId }, transaction: tx });
   }
 
   latestImports(): Promise<SystemFlowImportModel[]> {

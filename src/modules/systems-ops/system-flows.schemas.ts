@@ -141,6 +141,13 @@ export const flowsGraphQuerySchema = z.object({
 });
 export type FlowsGraphQueryDto = z.infer<typeof flowsGraphQuerySchema>;
 
+export const verifyFlowsSchema = z.object({
+  /** Ventana hacia atrás sobre `system_action_logs`. 30 días por defecto: una corrida más vieja no dice nada del código actual. */
+  windowDays: z.coerce.number().int().positive().max(365).default(30),
+  systemCode: code.default('ATLAS_BACKEND'),
+});
+export type VerifyFlowsDto = z.infer<typeof verifyFlowsSchema>;
+
 export const flowIdParamsSchema = z.object({
   flowId: z
     .string()

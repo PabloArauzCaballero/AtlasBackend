@@ -99,6 +99,15 @@ export class SystemFlowCatalogModel extends Model {
   @Column({ type: DataType.JSONB, allowNull: false })
   declare writes: string[];
 
+  @Column({ field: 'verified_at', type: DataType.DATE })
+  declare verifiedAt: Date | null;
+
+  @Column({ field: 'verified_by', type: DataType.STRING(80) })
+  declare verifiedBy: string | null;
+
+  @Column({ field: 'verification_evidence_json', type: DataType.JSONB, allowNull: false })
+  declare verificationEvidenceJson: Record<string, unknown>;
+
   @Column({ field: 'findings_count', type: DataType.INTEGER, allowNull: false })
   declare findingsCount: number;
 
