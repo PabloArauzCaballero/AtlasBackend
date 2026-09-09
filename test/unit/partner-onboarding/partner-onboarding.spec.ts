@@ -95,7 +95,12 @@ describe('PartnerProfileService', () => {
       findProfileByTaxId: jest.fn(async () => profileDouble({ id: '77', onboardingStatus: 'under_review' })),
       createProfile: jest.fn(),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kybDouble()));
+    const service = new PartnerProfileService(
+      repository as never,
+      metricsDouble(),
+      storageDouble() as never,
+      verificationCon(repository, kybDouble()),
+    );
 
     await expect(
       service.start('1', {
@@ -118,7 +123,10 @@ describe('PartnerProfileService', () => {
       listBranches: jest.fn(async (..._a: unknown[]) => [] as AnyRecord[]),
       listQrCodes: jest.fn(async () => []),
     };
-    const gaps = await verificationCon(repository, kybDouble()).findSubmissionGaps('1', profileDouble({ commercialRegistry: null }) as never);
+    const gaps = await verificationCon(repository, kybDouble()).findSubmissionGaps(
+      '1',
+      profileDouble({ commercialRegistry: null }) as never,
+    );
 
     expect(gaps.map((gap) => gap.requirement)).toEqual(['commercial_registry', 'legal_representative', 'branch', 'business_qr', 'bank_qr']);
   });
@@ -147,7 +155,12 @@ describe('PartnerProfileService', () => {
       listQrCodes: jest.fn(async () => []),
       updateProfile: jest.fn(),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kybDouble()));
+    const service = new PartnerProfileService(
+      repository as never,
+      metricsDouble(),
+      storageDouble() as never,
+      verificationCon(repository, kybDouble()),
+    );
 
     await expect(service.submit('1', '10')).rejects.toBeInstanceOf(UnprocessableEntityException);
     expect(repository.updateProfile).not.toHaveBeenCalled();
@@ -172,7 +185,12 @@ describe('PartnerProfileService', () => {
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'REVISION_MANUAL', manualReviewCaseCode: 'MRC-7' });
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kyb));
+    const service = new PartnerProfileService(
+      repository as never,
+      metricsDouble(),
+      storageDouble() as never,
+      verificationCon(repository, kyb),
+    );
 
     const { profile: updated } = await service.submit('1', '10');
 
@@ -195,7 +213,12 @@ describe('PartnerProfileService', () => {
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'APROBADO', reason: 'KYB_COMPLETO' });
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kyb));
+    const service = new PartnerProfileService(
+      repository as never,
+      metricsDouble(),
+      storageDouble() as never,
+      verificationCon(repository, kyb),
+    );
 
     const { profile: updated } = await service.submit('1', '10');
 
@@ -220,7 +243,12 @@ describe('PartnerProfileService', () => {
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'DESENLACE_NUEVO_DEL_ARTEFACTO' });
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kyb));
+    const service = new PartnerProfileService(
+      repository as never,
+      metricsDouble(),
+      storageDouble() as never,
+      verificationCon(repository, kyb),
+    );
 
     const { profile: updated } = await service.submit('1', '10');
 
@@ -244,7 +272,12 @@ describe('PartnerProfileService', () => {
         throw new ServiceUnavailableException('DECISION_ENGINE_UNAVAILABLE');
       }),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kyb));
+    const service = new PartnerProfileService(
+      repository as never,
+      metricsDouble(),
+      storageDouble() as never,
+      verificationCon(repository, kyb),
+    );
 
     await expect(service.submit('1', '10')).rejects.toBeInstanceOf(ServiceUnavailableException);
     // El expediente sí quedó enviado: lo que falla es la verificación, y reintentarla es el camino.
@@ -261,7 +294,12 @@ describe('PartnerProfileService', () => {
       findProfileById: jest.fn(async () => profile),
       updateProfile: jest.fn(),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kybDouble()));
+    const service = new PartnerProfileService(
+      repository as never,
+      metricsDouble(),
+      storageDouble() as never,
+      verificationCon(repository, kybDouble()),
+    );
 
     await expect(service.decide('1', '10', { approved: true, internalUserId: '3' })).rejects.toBeInstanceOf(ConflictException);
     expect(repository.updateProfile).not.toHaveBeenCalled();
@@ -273,7 +311,12 @@ describe('PartnerProfileService', () => {
       findProfileById: jest.fn(async () => profile),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storageDouble() as never, verificationCon(repository, kybDouble()));
+    const service = new PartnerProfileService(
+      repository as never,
+      metricsDouble(),
+      storageDouble() as never,
+      verificationCon(repository, kybDouble()),
+    );
 
     const updated = await service.decide('1', '10', { approved: true, internalUserId: '3' });
 
@@ -310,7 +353,12 @@ describe('PartnerProfileService · poder del representante', () => {
       findProfileById: jest.fn(async () => profileDouble()),
       createRepresentative: jest.fn(async (input: AnyRecord) => ({ id: '7', ...input })),
     };
-    const service = new PartnerProfileService(repository as never, metricsDouble(), storage as never);
+    const service = new PartnerProfileService(
+      repository as never,
+      metricsDouble(),
+      storage as never,
+      verificationCon(repository, kybDouble()),
+    );
     return { service, repository, storage };
   }
 
@@ -556,7 +604,7 @@ describe('PartnerCommerceService', () => {
    * las cajas colgando de una y el ERP mirando la otra.
    */
   it('enlaza con el ERP una sucursal ya declarada', async () => {
-    const update = jest.fn(async () => undefined);
+    const update = jest.fn(async (..._a: unknown[]) => undefined);
     const { service } = build({
       findBranchById: jest.fn(
         async (..._a: unknown[]) => ({ id: '5', branchCode: 'SC-01', erpBranchId: null, update }) as AnyRecord | null,

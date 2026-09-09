@@ -15,16 +15,18 @@ import { MerchantUserRequestsService } from '../../../src/modules/merchant-ident
 describe('Cola de altas de identidad de comercio', () => {
   function buildService(existente: Record<string, unknown> | null = null) {
     const actualizada: Record<string, unknown>[] = [];
-    const fila = existente
-      ? {
-          ...existente,
-          update: jest.fn(async (valores: never) => {
-            actualizada.push(valores as Record<string, unknown>);
-            Object.assign(fila, valores as object);
-            return fila;
-          }),
-        }
-      : null;
+    /*
+     * La fila se declara ANTES del `update` que la muta: escribir el `Object.assign` dentro del
+     * mismo literal deja a `fila` con el tipo `... | null` de la rama vacía y no compila.
+     */
+    const fila: Record<string, unknown> | null = existente ? { ...existente } : null;
+    if (fila) {
+      fila.update = jest.fn(async (valores: never) => {
+        actualizada.push(valores as Record<string, unknown>);
+        Object.assign(fila, valores as object);
+        return fila;
+      });
+    }
 
     const requestModel = {
       findOne: jest.fn(async (..._args: unknown[]) => fila),

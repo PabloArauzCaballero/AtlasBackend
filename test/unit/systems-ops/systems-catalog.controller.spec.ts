@@ -17,11 +17,18 @@ describe('SystemsCatalogController', () => {
     };
     const toolInferenceService = { infer: jest.fn(async (..._args: unknown[]) => ({ inferred: 1 })) };
     const dataImpactInferenceService = { infer: jest.fn(async (..._args: unknown[]) => ({ inferred: 2 })) };
+    const domainOverviewService = { overview: jest.fn(async (..._args: unknown[]) => ({ domains: [] })) };
     return {
-      controller: new SystemsCatalogController(service as never, toolInferenceService as never, dataImpactInferenceService as never),
+      controller: new SystemsCatalogController(
+        service as never,
+        toolInferenceService as never,
+        dataImpactInferenceService as never,
+        domainOverviewService as never,
+      ),
       service,
       toolInferenceService,
       dataImpactInferenceService,
+      domainOverviewService,
     };
   }
 
