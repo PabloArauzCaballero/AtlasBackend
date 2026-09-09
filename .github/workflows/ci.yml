@@ -53,11 +53,6 @@ jobs:
       - name: Format check
         run: yarn format:check
 
-      # Fase 1 del plan de modelo de datos: los seeders deben estar separados por perfil y el
-      # directorio production/ no puede contener datos ficticios (nombres ni contenido).
-      - name: Check seed profile separation
-        run: yarn check:seed-profiles
-
       # Fase 7: sin overfetching en la capa de lectura (ninguna vista/consulta read_api con SELECT *).
       - name: Check no overfetching in read_api layer
         run: yarn check:overfetching
@@ -344,18 +339,20 @@ jobs:
       - name: Verify physical domain schema layout
         run: yarn check:domain-schema-layout
 
-      # Perfil demo = production + development + demo: reproduce el dataset completo que antes cargaba
-      # `db:seed:up` (todos los seeders), ahora reorganizado por perfil, para los smoke tests.
-      - name: Run seeders (demo profile)
-        run: yarn db:seed:demo
+      # Aquí se sembraba el perfil demo y se comprobaba la idempotencia de los seeders de
+      # producción. Ya no: `25fb6cd` sacó los seeders del repositorio a una base aparte y borró los
+      # tres guiones (`check-seed-profile.ts`, `db:seed:demo`, `verify-prod-seed-idempotency.ts`)
+      # sin tocar este workflow, así que estos pasos llevaban desde entonces llamando a comandos
+      # que no existen —`error Command "db:seed:demo" not found`— y tumbando el job entero.
+      #
+      # No se sustituyen por `db:seed:pull`: la base de semillas vive dentro de la red docker del
+      # host y un runner de GitHub no la alcanza. Los smoke tests de aquí abajo corren contra una
+      # base MIGRADA Y VACÍA, que es lo que este repositorio puede garantizar por sí solo. Sembrar
+      # en CI necesitaría un volcado versionado, y esa es una decisión de producto sin tomar.
 
       # Fase 7: las 7 vistas de read_api existen y responden (smoke SELECT + EXPLAIN del feed).
       - name: Verify read_api views
         run: yarn check:read-api-views
-
-      # Fase 1 §10: los seeders de producción son idempotentes (re-aplicar no duplica ni falla).
-      - name: Verify production seeders are idempotent
-        run: yarn db:seed:verify-prod-idempotency
 
       # Fase 2: crear la jerarquía de roles y grants contra el Postgres real, y verificar la matriz
       # de privilegios conectando como atlas_app_rw y atlas_app_ro (no destructivo).
