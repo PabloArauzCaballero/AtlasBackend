@@ -146,14 +146,30 @@ describe('SupportCaseRepository', () => {
     });
 
     it('el hash se calcula sobre el payload ya redactado: si no, verificar exigiría la PII original', async () => {
-      const conPii = (await repo.appendEvent({ ...evento, payload: { email: 'ana@atlas.bo' } }, tx)) as unknown as Record<string, unknown>;
-      events.findOne.mockResolvedValueOnce(null as never);
-      const conOtroPii = (await repo.appendEvent({ ...evento, payload: { email: 'otro@atlas.bo' } }, tx)) as unknown as Record<
-        string,
-        unknown
-      >;
+      /*
+       * El reloj se congela porque `caseEventHash` incluye `occurredAt`.
+       *
+       * Sin congelarlo, los dos eventos se escriben en milisegundos distintos en cuanto la máquina
+       * va cargada y los hashes difieren por la FECHA, no por el payload: la prueba pasaba sola y
+       * fallaba una vez de cada tantas en la suite completa. Lo que se compara aquí es el efecto de
+       * la redacción, así que todo lo demás tiene que ser idéntico a propósito.
+       */
+      jest.useFakeTimers().setSystemTime(new Date('2026-09-10T10:00:00.000Z'));
+      try {
+        const conPii = (await repo.appendEvent({ ...evento, payload: { email: 'ana@atlas.bo' } }, tx)) as unknown as Record<
+          string,
+          unknown
+        >;
+        events.findOne.mockResolvedValueOnce(null as never);
+        const conOtroPii = (await repo.appendEvent({ ...evento, payload: { email: 'otro@atlas.bo' } }, tx)) as unknown as Record<
+          string,
+          unknown
+        >;
 
-      expect(conPii.eventHash).toBe(conOtroPii.eventHash);
+        expect(conPii.eventHash).toBe(conOtroPii.eventHash);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('un caso que no existe es 404 y no deja un evento huérfano', async () => {
