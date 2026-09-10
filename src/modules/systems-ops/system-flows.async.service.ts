@@ -4,6 +4,7 @@
  * @system traduce los eventos observados a un diagnóstico por flujo, distinguiendo entorno de avería.
  */
 import { Injectable } from '@nestjs/common';
+import { env } from '../../config/env.js';
 import { listEventDefinitions } from '../events/event-registry.js';
 import {
   SystemFlowsAsyncRepository,
@@ -11,6 +12,7 @@ import {
   type OutboxHealthRow,
   type PendingWorkRow,
 } from './system-flows.async.repository.js';
+import { DOMAIN_EVENTS_LIMIT } from './system-flows.sql.constants.js';
 
 const DIA_MS = 86_400_000;
 /** Sin una corrida completada del consumidor en este margen, se da por ausente en este entorno. */
@@ -33,10 +35,13 @@ export class SystemFlowsAsyncService {
   constructor(private readonly repository: SystemFlowsAsyncRepository) {}
 
   async pendingWork(windowDays = 30) {
+    // Más allá de la retención, `purge_processed_outbox` ya borró los procesados y sólo sobreviven
+    // pendientes y fallidos: una ventana larga se inclinaría sola hacia «sin aviso».
+    const ventanaDominio = Math.min(windowDays, env.RUNTIME_JOBS_OUTBOX_RETENTION_DAYS);
     const [filas, salud, dominio] = await Promise.all([
       this.repository.pendingWork(windowDays),
       this.repository.outboxHealth(),
-      this.repository.domainEventConsumers(windowDays),
+      this.repository.domainEventConsumers(ventanaDominio),
     ]);
     const ultimaCorrida = salud?.consumer_last_run ? new Date(salud.consumer_last_run) : null;
     const consumidorVivo = Boolean(ultimaCorrida && Date.now() - ultimaCorrida.getTime() <= CONSUMIDOR_VIVO_MS);
@@ -59,7 +64,11 @@ export class SystemFlowsAsyncService {
       skipped: flows.filter((flujo) => flujo.skippedByConsumer).map((flujo) => `${flujo.method} ${flujo.path}`),
       failing: flows.filter((flujo) => flujo.failed > 0).map((flujo) => `${flujo.method} ${flujo.path}`),
       flows,
-      domainEvents: clasificarDominio(dominio),
+      domainEvents: {
+        windowDays: ventanaDominio,
+        clampedByRetention: ventanaDominio < windowDays,
+        ...clasificarDominio(dominio),
+      },
     };
   }
 }
@@ -67,34 +76,61 @@ export class SystemFlowsAsyncService {
 /**
  * Quién consume cada evento de dominio, con la prueba que hay para decirlo.
  *
- * - `SIN_REGISTRO`: avería segura, y no por deducción. `process_events` sólo reclama códigos del
- *   registro y `process_outbox` sólo los que no están, así que un evento de dominio sin registro lo
- *   marca procesado el job de compatibilidad sin avisar a nadie. Así estaba `customer.lifecycle.*`:
- *   23 transiciones, 0 avisos, con un comentario que afirmaba lo contrario.
- * - `REGISTRADO_SIN_AVISOS`: lo toma `process_events` pero no dejó ningún mensaje. Puede ser a propósito
- *   —un evento para auditoría o métricas— y por eso no se llama avería: se enseña para que alguien
- *   decida.
- * - `AVISA`: al menos uno de sus eventos terminó en un mensaje.
+ * - `AVISA`: al menos un mensaje suyo SALIÓ (entrega `sent`/`delivered`). Escribir la fila no basta:
+ *   se escribe `pending` antes de entregar.
+ * - `MENSAJE_SIN_SALIDA`: generó mensajes y ninguno salió. El circuito llega al final y se rompe en
+ *   la entrega.
+ * - `SIN_PROCESAR`: ningún evento procesado todavía. Pendiente o fallido no dice nada de quién lo
+ *   consume; eso ya lo mide el diagnóstico del outbox.
+ * - `SIN_REGISTRO`: procesado, sin mensaje y fuera del registro. Avería segura por construcción:
+ *   `process_events` sólo reclama registrados y `process_outbox` sólo los que no lo están, así que lo
+ *   marca procesado el job de compatibilidad sin avisar a nadie. Así estaba `customer.lifecycle.*`.
+ * - `REGISTRADO_SIN_AVISOS`: procesado por `process_events` sin dejar mensaje. Puede ser a propósito
+ *   —auditoría, métricas— y por eso no se llama avería. Tampoco es silencio seguro: resolver un caso
+ *   le escribe al cliente por el chat, que no pasa por aquí.
+ *
+ * La evidencia manda sobre el registro: con mensajes es `AVISA` aunque el código ya no esté
+ * registrado. Lo que NO se puede corregir sin historial del registro es el caso inverso: si mañana
+ * se registra `customer.lifecycle.*`, los eventos ya tragados pasarán a leerse como
+ * `REGISTRADO_SIN_AVISOS`. Se clasifica contra el registro ACTUAL, y `registered` lo dice por fila.
  */
 function clasificarDominio(filas: DomainEventRow[]) {
   const registrados = new Set(listEventDefinitions().map((definicion) => definicion.code));
-  const rows = filas.map((fila) => {
-    const conAviso = Number(fila.events_with_message);
+  const rows = filas.slice(0, DOMAIN_EVENTS_LIMIT).map((fila) => {
+    const registered = registrados.has(fila.event_code);
+    const processed = Number(fila.processed);
+    const eventsWithMessage = Number(fila.events_with_message);
+    const messagesSent = Number(fila.messages_sent);
     return {
       eventCode: fila.event_code,
-      aggregateType: fila.aggregate_type,
+      aggregateTypes: fila.aggregate_types ?? [],
       events: Number(fila.events),
-      eventsWithMessage: conAviso,
+      processed,
+      failed: Number(fila.failed),
+      eventsWithMessage,
       messages: Number(fila.messages),
+      messagesSent,
+      registered,
       lastEventAt: fila.last_event_at ? new Date(fila.last_event_at) : null,
-      consumer: !registrados.has(fila.event_code) ? 'SIN_REGISTRO' : conAviso > 0 ? 'AVISA' : 'REGISTRADO_SIN_AVISOS',
+      consumer: consumo(registered, processed, eventsWithMessage, messagesSent),
     };
   });
+  const codigos = (consumer: Consumo) => rows.filter((row) => row.consumer === consumer).map((row) => row.eventCode);
   return {
-    unregistered: rows.filter((row) => row.consumer === 'SIN_REGISTRO').map((row) => row.eventCode),
-    registeredWithoutMessages: rows.filter((row) => row.consumer === 'REGISTRADO_SIN_AVISOS').map((row) => row.eventCode),
+    truncated: filas.length > DOMAIN_EVENTS_LIMIT,
+    unregistered: codigos('SIN_REGISTRO'),
+    registeredWithoutMessages: codigos('REGISTRADO_SIN_AVISOS'),
+    messagesNotSent: codigos('MENSAJE_SIN_SALIDA'),
     rows,
   };
+}
+
+type Consumo = 'AVISA' | 'MENSAJE_SIN_SALIDA' | 'SIN_PROCESAR' | 'SIN_REGISTRO' | 'REGISTRADO_SIN_AVISOS';
+
+function consumo(registrado: boolean, procesados: number, conMensaje: number, salidos: number): Consumo {
+  if (conMensaje > 0) return salidos > 0 ? 'AVISA' : 'MENSAJE_SIN_SALIDA';
+  if (procesados === 0) return 'SIN_PROCESAR';
+  return registrado ? 'REGISTRADO_SIN_AVISOS' : 'SIN_REGISTRO';
 }
 
 function diagnosticar(consumidorVivo: boolean, flows: ReturnType<typeof traducir>[]): Diagnostico {

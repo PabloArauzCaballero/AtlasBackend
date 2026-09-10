@@ -11,6 +11,7 @@ const SCREENS = atlasSchemaFor('system_screen_catalog');
 const OUTBOX = atlasSchemaFor('outbox_events');
 const JOBS = atlasSchemaFor('system_job_runs');
 const MESSAGES = atlasSchemaFor('notification_messages');
+const DELIVERIES = atlasSchemaFor('notification_deliveries');
 const WORKFLOW = atlasSchemaFor('workflow_definitions');
 
 /**
@@ -98,20 +99,40 @@ export const SCREEN_RUNS_SQL = `WITH runs AS (
  *
  * `api_command` se excluye: son los eventos de compatibilidad de cada mutación, sin consumidor a
  * propósito.
+ *
+ * Lo que corrigió la revisión de la primera versión, todo del mismo tipo —un cero que no significa
+ * lo que parece—:
+ * - **Estado**: un evento pendiente o fallido tampoco tiene mensaje, y contaba como «sin aviso». Se
+ *   separan los procesados, que son los únicos de los que se puede concluir algo.
+ * - **Mensaje no es aviso**: la fila se escribe `pending` ANTES de entregar. Lo que prueba que salió
+ *   hacia alguien es una entrega `sent`/`delivered`. Medido en el servidor: `user.registered` tiene
+ *   sus correos en `failed`.
+ * - **Por código, no por código y tipo**: el registro admite varios tipos de agregado por familia, y
+ *   un mismo código salía en dos filas y podía caer en dos listas a la vez.
+ * - **Tope con aviso**: se pide una fila de más para poder decir que se cortó.
+ *
+ * El JOIN con entregas multiplica filas, por eso TODO se cuenta con DISTINCT.
  */
+export const DOMAIN_EVENTS_LIMIT = 500;
+
 export const DOMAIN_EVENT_CONSUMERS_SQL = `SELECT o.event_code,
-              o.aggregate_type,
-              COUNT(DISTINCT o._id)             AS events,
-              COUNT(DISTINCT m.outbox_event_id) AS events_with_message,
-              COUNT(m._id)                      AS messages,
-              MAX(o._created_at)                AS last_event_at
+              array_agg(DISTINCT o.aggregate_type)                           AS aggregate_types,
+              COUNT(DISTINCT o._id)                                          AS events,
+              COUNT(DISTINCT o._id) FILTER (WHERE o.status = 'processed')    AS processed,
+              COUNT(DISTINCT o._id) FILTER (WHERE o.status = 'failed')       AS failed,
+              COUNT(DISTINCT m.outbox_event_id)                              AS events_with_message,
+              COUNT(DISTINCT m._id)                                          AS messages,
+              COUNT(DISTINCT d.notification_message_id)
+                FILTER (WHERE d.status IN ('sent', 'delivered'))             AS messages_sent,
+              MAX(o._created_at)                                             AS last_event_at
          FROM ${OUTBOX}.outbox_events o
          LEFT JOIN ${MESSAGES}.notification_messages m ON m.outbox_event_id = o._id
+         LEFT JOIN ${DELIVERIES}.notification_deliveries d ON d.notification_message_id = m._id
         WHERE o.aggregate_type <> 'api_command'
           AND o._created_at >= NOW() - (:windowDays || ' days')::interval
-        GROUP BY o.event_code, o.aggregate_type
+        GROUP BY o.event_code
         ORDER BY COUNT(DISTINCT m.outbox_event_id) ASC, COUNT(DISTINCT o._id) DESC, o.event_code
-        LIMIT 500`;
+        LIMIT ${DOMAIN_EVENTS_LIMIT + 1}`;
 
 /**
  * Pantallas cuya puerta declarada en el menú NO es la que aplica la API.

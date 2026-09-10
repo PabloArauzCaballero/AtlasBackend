@@ -1,6 +1,8 @@
+import { env } from '../../src/config/env.js';
 import { SystemFlowsAsyncService } from '../../src/modules/systems-ops/system-flows.async.service.js';
 import {
   DOMAIN_EVENT_CONSUMERS_SQL,
+  DOMAIN_EVENTS_LIMIT,
   OUTBOX_HEALTH_SQL,
   PENDING_WORK_SQL,
 } from '../../src/modules/systems-ops/system-flows.sql.constants.js';
@@ -124,34 +126,100 @@ describe('las consultas que alimentan el diagnóstico', () => {
 });
 
 describe('SystemFlowsAsyncService.pendingWork · quién consume cada evento de dominio', () => {
-  const evento = (codigo: string, eventos: number, conAviso: number) => ({
-    event_code: codigo,
-    aggregate_type: 'x',
-    events: String(eventos),
-    events_with_message: String(conAviso),
-    messages: String(conAviso),
-    last_event_at: null,
+  const evento = (codigo: string, over: Record<string, number> = {}) => {
+    const eventos = over.eventos ?? 2;
+    const conMensaje = over.conMensaje ?? 0;
+    return {
+      event_code: codigo,
+      aggregate_types: ['x'],
+      events: String(eventos),
+      processed: String(over.procesados ?? eventos),
+      failed: String(over.fallidos ?? 0),
+      events_with_message: String(conMensaje),
+      messages: String(over.mensajes ?? conMensaje),
+      messages_sent: String(over.salidos ?? conMensaje),
+      last_event_at: null,
+    };
+  };
+  const dominio = async (...filas: unknown[]) => (await servicio([], {}, filas).pendingWork()).domainEvents;
+
+  it('procesado, sin mensaje y fuera del registro es SIN_REGISTRO: lo traga el job de compatibilidad', async () => {
+    const d = await dominio(evento('customer.lifecycle.under_review', { eventos: 4 }));
+    expect(d.unregistered).toEqual(['customer.lifecycle.under_review']);
+    expect(d.rows[0]).toMatchObject({ registered: false, consumer: 'SIN_REGISTRO' });
   });
 
-  it('un código fuera del registro es SIN_REGISTRO: lo traga el job de compatibilidad, por construcción', async () => {
-    const { domainEvents } = await servicio([], {}, [evento('customer.lifecycle.under_review', 4, 0)]).pendingWork();
-    expect(domainEvents.unregistered).toEqual(['customer.lifecycle.under_review']);
+  it('registrado y sin ningún mensaje NO se llama avería: puede ser un evento de auditoría', async () => {
+    const d = await dominio(evento('support.sla.breached', { eventos: 13 }));
+    expect(d.unregistered).toEqual([]);
+    expect(d.registeredWithoutMessages).toEqual(['support.sla.breached']);
   });
 
-  it('registrado y sin ningún aviso NO se llama avería: puede ser un evento de auditoría', async () => {
-    const { domainEvents } = await servicio([], {}, [evento('support.sla.breached', 13, 0)]).pendingWork();
-    expect(domainEvents.unregistered).toEqual([]);
-    expect(domainEvents.registeredWithoutMessages).toEqual(['support.sla.breached']);
+  it('AVISA exige que un mensaje SALIERA: la fila se escribe pendiente antes de entregar', async () => {
+    const d = await dominio(
+      evento('payment.confirmed', { conMensaje: 2, salidos: 1 }),
+      evento('user.registered', { conMensaje: 2, salidos: 0 }),
+    );
+    expect(d.rows.find((row) => row.eventCode === 'payment.confirmed')).toMatchObject({ consumer: 'AVISA', messagesSent: 1 });
+    expect(d.rows.find((row) => row.eventCode === 'user.registered')?.consumer).toBe('MENSAJE_SIN_SALIDA');
+    expect(d.messagesNotSent).toEqual(['user.registered']);
   });
 
-  it('registrado y con avisos es AVISA: el control que dice que el circuito funciona', async () => {
-    const { domainEvents } = await servicio([], {}, [evento('payment.confirmed', 2, 2)]).pendingWork();
-    expect(domainEvents.rows[0]).toMatchObject({ consumer: 'AVISA', eventsWithMessage: 2 });
+  it('la evidencia manda sobre el registro: fuera del registro pero con mensajes que salieron es AVISA', async () => {
+    const d = await dominio(evento('codigo.retirado.del.registro', { conMensaje: 1 }));
+    expect(d.rows[0]).toMatchObject({ registered: false, consumer: 'AVISA' });
+    expect(d.unregistered).toEqual([]);
   });
 
-  it('el aviso se prueba por el vínculo real, no por nombre de política ni por locked_by', () => {
+  it('sin ningún evento procesado no se concluye nada, esté registrado o no', async () => {
+    const d = await dominio(
+      evento('support.sla.breached', { procesados: 0, fallidos: 2 }),
+      evento('customer.lifecycle.active', { procesados: 0 }),
+    );
+    expect(d.rows.map((row) => row.consumer)).toEqual(['SIN_PROCESAR', 'SIN_PROCESAR']);
+    expect(d.unregistered).toEqual([]);
+    expect(d.registeredWithoutMessages).toEqual([]);
+  });
+
+  it('mensajes, eventos con mensaje y mensajes que salieron son tres cuentas distintas', async () => {
+    const d = await dominio(evento('payment.confirmed', { eventos: 2, conMensaje: 2, mensajes: 6, salidos: 3 }));
+    expect(d.rows[0]).toMatchObject({ eventsWithMessage: 2, messages: 6, messagesSent: 3 });
+  });
+
+  it('si la consulta trae una fila de más, se dice que vino cortada', async () => {
+    const d = await dominio(...Array.from({ length: DOMAIN_EVENTS_LIMIT + 1 }, (_, i) => evento(`codigo.${i}`)));
+    expect(d.truncated).toBe(true);
+    expect(d.rows).toHaveLength(DOMAIN_EVENTS_LIMIT);
+  });
+
+  it('la ventana no pasa de la retención del outbox: más allá ya se purgaron los procesados', async () => {
+    let pedida = 0;
+    const svc = new SystemFlowsAsyncService({
+      pendingWork: async () => [],
+      outboxHealth: async () => ({}),
+      domainEventConsumers: async (ventana: number) => {
+        pedida = ventana;
+        return [];
+      },
+    } as never);
+    const { domainEvents } = await svc.pendingWork(365);
+    expect(pedida).toBe(env.RUNTIME_JOBS_OUTBOX_RETENTION_DAYS);
+    expect(domainEvents).toMatchObject({ windowDays: env.RUNTIME_JOBS_OUTBOX_RETENTION_DAYS, clampedByRetention: true });
+  });
+
+  it('el aviso se prueba por el vínculo real y por la entrega, no por nombre de política ni por locked_by', () => {
     expect(DOMAIN_EVENT_CONSUMERS_SQL).toMatch(/LEFT JOIN .*notification_messages m ON m\.outbox_event_id = o\._id/);
+    expect(DOMAIN_EVENT_CONSUMERS_SQL).toMatch(/LEFT JOIN .*notification_deliveries d ON d\.notification_message_id = m\._id/);
+    expect(DOMAIN_EVENT_CONSUMERS_SQL).toMatch(/FILTER \(WHERE d\.status IN \('sent', 'delivered'\)\)/);
     expect(DOMAIN_EVENT_CONSUMERS_SQL).toMatch(/aggregate_type <> 'api_command'/);
     expect(DOMAIN_EVENT_CONSUMERS_SQL).not.toMatch(/notification_policies|locked_by/);
+  });
+
+  it('agrupa por código y cuenta con DISTINCT, porque el JOIN con entregas multiplica filas', () => {
+    expect(DOMAIN_EVENT_CONSUMERS_SQL).toMatch(/GROUP BY o\.event_code\n/);
+    expect(DOMAIN_EVENT_CONSUMERS_SQL).toMatch(/COUNT\(DISTINCT m\._id\)\s+AS messages/);
+    expect(DOMAIN_EVENT_CONSUMERS_SQL).not.toMatch(/COUNT\(m\._id\)/);
+    expect(DOMAIN_EVENT_CONSUMERS_SQL).toMatch(/FILTER \(WHERE o\.status = 'processed'\)/);
+    expect(DOMAIN_EVENT_CONSUMERS_SQL).toMatch(new RegExp(`LIMIT ${DOMAIN_EVENTS_LIMIT + 1}$`));
   });
 });

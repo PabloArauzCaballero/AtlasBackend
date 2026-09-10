@@ -27,10 +27,13 @@ export interface PendingWorkRow {
 /** Un código de evento de dominio en la ventana, con cuántos de sus eventos acabaron en un aviso. */
 export interface DomainEventRow {
   event_code: string;
-  aggregate_type: string;
+  aggregate_types: string[] | null;
   events: string;
+  processed: string;
+  failed: string;
   events_with_message: string;
   messages: string;
+  messages_sent: string;
   last_event_at: Date | null;
 }
 
