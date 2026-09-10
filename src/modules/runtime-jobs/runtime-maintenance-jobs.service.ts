@@ -182,6 +182,11 @@ export class RuntimeMaintenanceJobsService {
       { tenantId: input.tenantId, jobCode: 'purge_idempotency_keys', body: input.body, currentUser: input.currentUser },
       async () => {
         const cutoff = new Date(Date.now() - input.body.retentionDays * 24 * 60 * 60 * 1000);
+        // Latente, anotado a propósito y sin cambiar: el interceptor guarda como ámbito
+        // `user?.tenantId ?? x-tenant-id ?? 'global'`, y ningún inquilino activo se llama 'global', así
+        // que una clave de ese ámbito no se purgaría nunca. Es la misma trampa que dejó 67 eventos del
+        // outbox sin recoger (f263d37). Medido en el servidor el 2026-09-10: 0 claves 'global' de 200,
+        // porque todos los clientes mandan `x-tenant-id`. Se deja escrito para el día que alguno no lo haga.
         const where = {
           tenantScope: input.tenantId,
           status: { [Op.in]: ['completed', 'failed'] },
