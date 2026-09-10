@@ -4,6 +4,7 @@ import { ExternalDataExecutionService } from '../../../src/modules/external-data
 import { ExternalDataDecisionService } from '../../../src/modules/external-data/application/external-data-decision.service.js';
 import { sha256Hex } from '../../../src/common/utils/crypto/hash.util.js';
 import { stableStringify } from '../../../src/common/utils/privacy/redaction.util.js';
+import { ExternalDataPreviewService } from '../../../src/modules/external-data/application/external-data-preview.service.js';
 
 /**
  * Este archivo testea la ORQUESTACIÓN de `ExternalDataExecutionService` a través de su método
@@ -40,7 +41,26 @@ describe('ExternalDataExecutionService', () => {
       decision,
       sequelize as never,
     );
-    return { service, repository, registry, resilience };
+    /*
+     * La PREVISUALIZACIÓN —qué pasaría si se consultara, sin consultar— salió a
+     * `ExternalDataPreviewService` al partir el archivo por tamaño. Se construye con los mismos
+     * dobles y en el mismo orden, así que las aserciones de este spec no cambian.
+     */
+    const preview = new ExternalDataPreviewService(
+      repository as never,
+      registry as never,
+      resilience as never,
+      decision,
+      sequelize as never,
+    );
+    return {
+      service: Object.assign(service, {
+        previewExternalDataRequest: preview.previewExternalDataRequest.bind(preview),
+      }),
+      repository,
+      registry,
+      resilience,
+    };
   }
 
   const ORIGINAL_ENV = { ...process.env };

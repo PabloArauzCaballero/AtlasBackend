@@ -7,14 +7,12 @@ import { DecisionArtifactBindingService } from '../../decision-engine/decision-a
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { randomUUID } from 'node:crypto';
-import { FindOptions, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { env } from '../../../config/env.js';
 import { CreditLineModel } from '../../../database/models/index.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
 import { CREDIT_DECISION_PURPOSE, SubjectReferenceService } from '../../decision-engine/subject-reference.service.js';
 import { UnderwritingFeaturesService } from '../../decision-engine/underwriting-features.service.js';
-import type { PaymentCapacityAssessment } from '../domain/payment-capacity.js';
 import { PaymentCapacityService } from './payment-capacity.service.js';
 import { capacityProvenance, capacityVariables } from './credit-line.service.js';
 
@@ -68,6 +66,7 @@ function str(value: unknown): string | null {
  * historial— pegada a un cálculo de 230 líneas. Juntos pasaban del límite de `check:file-size`, y
  * quien sólo quiere saber cuál es la línea de un cliente no necesita leer cómo se calcula.
  */
+import { CreditLineWriterService } from './credit-line-writer.service.js';
 @Injectable()
 export class CreditLineRecalculationService {
   private readonly logger = new Logger(CreditLineRecalculationService.name);
@@ -80,6 +79,7 @@ export class CreditLineRecalculationService {
     private readonly subjects: SubjectReferenceService,
     private readonly capacity: PaymentCapacityService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly escritor: CreditLineWriterService,
   ) {}
 
   /**
@@ -107,7 +107,7 @@ export class CreditLineRecalculationService {
     const requestedAmount = input.requestedAmount ?? PROBE_AMOUNT;
     const requestedTermMonths = input.requestedTermMonths ?? PROBE_TERM_MONTHS;
 
-    const current = await this.lineaVigente(input.tenantId, input.customerId);
+    const current = await this.escritor.lineaVigente(input.tenantId, input.customerId);
     const { variables, provenance } = await this.features.build({
       tenantId: input.tenantId,
       customerId: input.customerId,
@@ -210,7 +210,7 @@ export class CreditLineRecalculationService {
      */
     const approvedLimit = num(output.approved_credit_limit ?? response.limit) ?? 0;
 
-    return this.persist({
+    return this.escritor.persist({
       tenantId: input.tenantId,
       customerId: input.customerId,
       trigger: input.trigger,
@@ -236,101 +236,5 @@ export class CreditLineRecalculationService {
         provenance,
       },
     });
-  }
-
-  /**
-   * Cierra la vigente y abre la nueva, en la misma transacción.
-   *
-   * Las dos escrituras van juntas porque el índice único parcial sólo admite UNA línea sin
-   * `valid_until`: separarlas dejaría un instante con dos vigentes —que la base rechaza— o con
-   * ninguna —en el que la app le diría al cliente que no tiene crédito—.
-   */
-  private persist(input: {
-    tenantId: string;
-    customerId: string;
-    trigger: CalculationTrigger;
-    now: Date;
-    values: {
-      approvedLimit: number;
-      maxAffordableInstallment: number | null;
-      disposableIncome: number | null;
-      scoring: number | null;
-      creditRiskScore: number | null;
-      riskBand: string | null;
-      pricingTier: string | null;
-      annualPercentageRate: number | null;
-      affordabilityScore: number | null;
-      affordabilityDecision: string | null;
-      probabilityOfDefault: number | null;
-      capacity: PaymentCapacityAssessment;
-      decisionOutcome: string;
-      decisionExecutionId: string | null;
-      artifactCode: string | null;
-      artifactVersionId: string | null;
-      reasonCodes: unknown[];
-      provenance: Record<string, string>;
-    };
-  }): Promise<CreditLineModel> {
-    return this.sequelize.transaction(async (transaction) => {
-      const previous = await this.lineaVigente(input.tenantId, input.customerId, { transaction });
-      if (previous) {
-        previous.validUntil = input.now;
-        previous.updatedAtValue = input.now;
-        await previous.save({ transaction });
-      }
-
-      const values = input.values;
-      return this.creditLines.create(
-        {
-          tenantId: input.tenantId,
-          customerId: input.customerId,
-          currencyCode: 'BOB',
-          approvedLimit: values.approvedLimit.toFixed(2),
-          maxAffordableInstallment: values.maxAffordableInstallment?.toFixed(2) ?? null,
-          disposableIncome: values.disposableIncome?.toFixed(2) ?? null,
-          scoring: values.scoring === null ? null : Math.round(values.scoring),
-          creditRiskScore: values.creditRiskScore === null ? null : Math.round(values.creditRiskScore),
-          riskBand: values.riskBand,
-          pricingTier: values.pricingTier,
-          annualPercentageRate: values.annualPercentageRate?.toFixed(2) ?? null,
-          affordabilityScore: values.affordabilityScore === null ? null : Math.round(values.affordabilityScore),
-          affordabilityDecision: values.affordabilityDecision,
-          probabilityOfDefault: values.probabilityOfDefault?.toFixed(4) ?? null,
-          recommendedLimit: values.capacity.recommendedLimit.toFixed(2),
-          capacityJson: values.capacity as unknown as Record<string, unknown>,
-          relationshipScore: values.capacity.relationshipScore,
-          relationshipTier: values.capacity.relationshipTier,
-          capacityBinding: values.capacity.bindingConstraint,
-          capacityEvidence: values.capacity.evidence,
-          decisionOutcome: values.decisionOutcome,
-          decisionExecutionId: values.decisionExecutionId,
-          artifactCode: values.artifactCode,
-          artifactVersionId: values.artifactVersionId,
-          reasonCodesJson: values.reasonCodes,
-          provenanceJson: values.provenance,
-          calculationTrigger: input.trigger,
-          validFrom: input.now,
-          validUntil: null,
-          supersedesCreditLineId: previous?.id ?? null,
-          createdAtValue: input.now,
-          updatedAtValue: input.now,
-          deleted: false,
-        },
-        { transaction },
-      );
-    });
-  }
-
-  /**
-   * La línea vigente. Se lee aquí y no a través de `CreditLineService` a propósito: inyectarlo
-   * crearía una dependencia mutua entre los dos servicios, y Nest la rechaza al arrancar salvo con
-   * `forwardRef`. Es una consulta de cuatro líneas contra el mismo modelo que este servicio ya
-   * tiene inyectado.
-   */
-  private lineaVigente(tenantId: string, customerId: string, options: { transaction?: Transaction } = {}): Promise<CreditLineModel | null> {
-    return this.creditLines.findOne({
-      where: { tenantId, customerId, validUntil: null, deleted: false },
-      transaction: options.transaction,
-    } as FindOptions);
   }
 }

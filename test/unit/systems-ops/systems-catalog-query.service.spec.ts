@@ -47,6 +47,8 @@ describe('SystemsCatalogQueryService', () => {
       discovery as never,
       seedService as never,
       healthService as never,
+      // Los metadatos salieron a `SystemsMetadataRepository`; el mismo doble los sigue exponiendo.
+      catalogRepository as never,
     );
     return { service, catalogRepository, dashboardRepository, discovery, seedService, healthService };
   }

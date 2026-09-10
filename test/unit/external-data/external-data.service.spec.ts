@@ -17,7 +17,7 @@ describe('ExternalDataService', () => {
   function buildService() {
     const repository = { createCustomerConsent: asyncMock() };
     const registry = mocks('listProviders', 'getProviderHealth');
-    const execution = mocks('executeExternalDataRequest', 'previewExternalDataRequest');
+    const execution = mocks('executeExternalDataRequest');
     const convenience = mocks(
       'executeSegip',
       'executeInfocenter',
@@ -56,6 +56,7 @@ describe('ExternalDataService', () => {
       'getProviderSlaReport',
     );
     const bankingQr = mocks('generateBankQr');
+    const previsualizacion = mocks('previewExternalDataRequest');
     const service = new ExternalDataService(
       repository as never,
       registry as never,
@@ -64,8 +65,10 @@ describe('ExternalDataService', () => {
       evidence as never,
       governance as never,
       bankingQr as never,
+      // La previsualización salió a `ExternalDataPreviewService` al partir el archivo por tamaño.
+      previsualizacion as never,
     );
-    return { service, repository, registry, execution, convenience, evidence, governance, bankingQr };
+    return { service, repository, registry, execution, convenience, evidence, governance, bankingQr, previsualizacion };
   }
 
   describe('createConsent — derivación de purposeCode', () => {
@@ -169,8 +172,8 @@ describe('ExternalDataService', () => {
         includeRawResponses: false,
         patch: {},
       } as never;
-      const routes: Array<[string, 'execution' | 'convenience' | 'evidence' | 'governance']> = [
-        ['previewExternalDataRequest', 'execution'],
+      const routes: Array<[string, 'execution' | 'convenience' | 'evidence' | 'governance' | 'previsualizacion']> = [
+        ['previewExternalDataRequest', 'previsualizacion'],
         ['executeInfocenter', 'convenience'],
         ['executeQrPayment', 'convenience'],
         ['executeBankTransfer', 'convenience'],

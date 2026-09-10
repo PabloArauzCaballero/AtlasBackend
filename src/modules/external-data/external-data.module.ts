@@ -48,6 +48,7 @@ import { TelcoGenericAdapter } from './infrastructure/adapters/telco-generic/tel
 import { FacebookMetaAdapter } from './infrastructure/adapters/facebook-meta/facebook-meta.adapter.js';
 import { WhatsappAdapter } from './infrastructure/adapters/whatsapp/whatsapp.adapter.js';
 import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-trust-generic/digital-trust-generic.adapter.js';
+import { ExternalDataPreviewService } from './application/external-data-preview.service.js';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-tr
     DigitalTrustExternalDataController,
   ],
   providers: [
+    ExternalDataPreviewService,
     ExternalDataRepository,
     ExternalDataService,
     AuthBrokerClient,

@@ -39,6 +39,7 @@ import { CreditUnderwritingService } from './application/credit-underwriting.ser
 import { CreditOperationsController } from './credit-operations.controller.js';
 import { CreditController } from './credit.controller.js';
 import { CreditRepository } from './credit.repository.js';
+import { CreditLineWriterService } from './application/credit-line-writer.service.js';
 
 /**
  * Dominio de crédito: catálogo de productos y ciclo de vida de la solicitud.
@@ -78,6 +79,7 @@ import { CreditRepository } from './credit.repository.js';
   ],
   controllers: [CreditController, CreditOperationsController, MerchantCreditController],
   providers: [
+    CreditLineWriterService,
     CreditRepository,
     CreditProductService,
     CreditApplicationService,

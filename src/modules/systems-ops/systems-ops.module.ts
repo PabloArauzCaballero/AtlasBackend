@@ -79,6 +79,7 @@ import { SystemsToolInferenceRepository } from './systems-tool-inference.reposit
 import { SystemsToolInferenceService } from './systems-tool-inference.service.js';
 import { SystemsDataImpactInferenceRepository } from './systems-data-impact-inference.repository.js';
 import { SystemsDataImpactInferenceService } from './systems-data-impact-inference.service.js';
+import { SystemsMetadataRepository } from './systems-metadata.repository.js';
 
 @Module({
   imports: [
@@ -120,6 +121,7 @@ import { SystemsDataImpactInferenceService } from './systems-data-impact-inferen
     SystemFlowsController,
   ],
   providers: [
+    SystemsMetadataRepository,
     SystemFlowsService,
     SystemFlowsRepository,
     SystemsSchemaIntrospectionService,

@@ -18,9 +18,13 @@ type DocsImpact = { method: string; path: string; reads: string[]; writes: strin
  * Vive aparte de las semillas porque su fuente no es la base ni el código: es Markdown. Un cambio de
  * formato en esos documentos rompe esto y nada más, que es exactamente la frontera que se quiere.
  */
+import { SystemsMetadataRepository } from './systems-metadata.repository.js';
 @Injectable()
 export class SystemsEndpointDocsService {
-  constructor(private readonly catalogRepository: SystemsCatalogRepository) {}
+  constructor(
+    private readonly catalogRepository: SystemsCatalogRepository,
+    private readonly metadatos: SystemsMetadataRepository,
+  ) {}
 
   async seedImpactsFromDocs(): Promise<number> {
     const docs = await this.parseEndpointDocs();
@@ -46,7 +50,7 @@ export class SystemsEndpointDocsService {
   ): Promise<boolean> {
     const entity = await this.catalogRepository.findDataEntityByTable(atlasSchemaFor(tableName), tableName);
     if (!entity) return false;
-    await this.catalogRepository.upsertDataImpact({
+    await this.metadatos.upsertDataImpact({
       endpointId,
       dataEntityId: String(entity.id),
       operationType,
