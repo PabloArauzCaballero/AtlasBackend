@@ -173,6 +173,15 @@ describe('SystemFlowsScreensService.rbacDrift', () => {
     expect(await deriva([])).toMatchObject({ notMeasured: ['ERP_PORTAL', 'MOTOR_PORTAL'] });
   });
 
+  it('el denominador no cuenta tráfico sin cliente ni códigos que el catálogo no tiene', async () => {
+    const observado = new Map([
+      ['ADMIN_PORTAL', new Map([['/a', {}]])],
+      ['(sin cliente)', new Map([['/b', {}]])],
+      ['FLOWS_LOADER', new Map([['/c', {}]])],
+    ]);
+    expect(await deriva([], observado as never)).toMatchObject({ screensWithObservedEdges: 1 });
+  });
+
   it('el denominador dice sobre cuántas pantallas se pudo opinar', async () => {
     // En la primera versión era un booleano constante, así que un `[]` no se distinguía de «nadie ha
     // abierto ninguna pantalla todavía».

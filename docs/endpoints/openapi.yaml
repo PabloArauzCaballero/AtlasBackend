@@ -25396,12 +25396,19 @@ paths:
                                 dynamic:
                                   default: false
                                   type: boolean
+                                via:
+                                  default: publish
+                                  type: string
+                                  enum:
+                                    - publish
+                                    - outbox
                                 at:
                                   type: string
                                   maxLength: 300
                               required:
                                 - code
                                 - dynamic
+                                - via
                                 - at
                               additionalProperties: false
                           unknowns:

@@ -42,7 +42,11 @@ export class SystemFlowsScreensRepository {
       routes: Array<{ method: string; path: string; calls: number; failed: number }>;
     }>(SCREEN_RUNS_SQL, {
       type: QueryTypes.SELECT,
-      replacements: { windowDays: String(windowDays), clientesDeOtrosBloques: clientesMedidosFuera('ATLAS_BACKEND') },
+      replacements: {
+        windowDays: String(windowDays), // Un valor que ningún cliente tiene, para que la lista nunca quede vacía: `NOT IN ()` es un error
+        // de sintaxis en PostgreSQL, y tumbaría la verificación el día que todos los midiera este bloque.
+        clientesDeOtrosBloques: [...clientesMedidosFuera('ATLAS_BACKEND'), '__ningun_cliente__'],
+      },
     });
     // Indexado por CLIENTE y luego por ruta concreta: `/` es una pantalla distinta en cada portal,
     // y sin separar por cliente una visita marcaría verificadas las cinco.

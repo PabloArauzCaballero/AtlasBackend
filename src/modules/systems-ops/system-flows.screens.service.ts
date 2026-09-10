@@ -131,7 +131,11 @@ export class SystemFlowsScreensService {
       });
       porPantalla.set(clave, entrada);
     }
-    const consideradas = [...porCliente.values()].reduce((n, pantallas) => n + pantallas.size, 0);
+    // Sólo clientes que mide ESTE bloque: ni el tráfico sin cliente ni códigos que el catálogo no tiene
+    // («erp», «flows-loader») son pantallas sobre las que se pueda opinar. Siguen siendo rutas concretas.
+    const consideradas = [...porCliente.entries()]
+      .filter(([cliente]) => CLIENT_EVIDENCE[cliente] === 'ATLAS_BACKEND')
+      .reduce((n, [, pantallas]) => n + pantallas.size, 0);
     const todos = await this.repository.screenClients();
     return {
       // La deriva se mide contra los endpoints de ESTE backend y lo que se llamó en sus logs. Las

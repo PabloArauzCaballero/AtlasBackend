@@ -43,11 +43,19 @@ export const flowAnalysisSchema = z.object({
     .default([]),
   /**
    * Eventos de dominio que el flujo publica (`publish({ eventCode })`). `dynamic`: el código se arma en
-   * ejecución y sólo se conoce su prefijo, que viaja con `*`. Sin este campo en el esquema, Zod lo
-   * descartaba en la importación sin avisar.
+   * ejecución y sólo se conoce su prefijo, que viaja con `*`. `via`: `publish` pasa por el registro de
+   * eventos; `outbox` escribe el outbox directamente. Sin estos campos en el esquema, Zod los descartaba
+   * en la importación sin avisar.
    */
   events: z
-    .array(z.object({ code: z.string().max(160), dynamic: z.boolean().default(false), at: z.string().max(300) }))
+    .array(
+      z.object({
+        code: z.string().max(160),
+        dynamic: z.boolean().default(false),
+        via: z.enum(['publish', 'outbox']).default('publish'),
+        at: z.string().max(300),
+      }),
+    )
     .max(50)
     .default([]),
   unknowns: z
