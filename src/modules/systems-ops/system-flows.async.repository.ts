@@ -7,7 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
 import { SystemFlowCatalogModel } from '../../database/models/system-flow-catalog.model.js';
-import { PENDING_WORK_SQL } from './system-flows.sql.constants.js';
+import { OUTBOX_HEALTH_SQL, PENDING_WORK_SQL } from './system-flows.sql.constants.js';
 
 /** Lo que un flujo dejó encargado en una ventana, y qué pasó con ello. */
 export interface PendingWorkRow {
@@ -16,9 +16,21 @@ export interface PendingWorkRow {
   events: string;
   pending: string;
   processed: string;
+  failed: string;
   other: string;
+  pending_without_tenant: string;
   pending_since: Date | null;
+  last_processed_at: Date | null;
   codes: string[];
+}
+
+/** El outbox entero y el consumidor, sin pasar por la atribución a una petición. */
+export interface OutboxHealthRow {
+  pending: string;
+  pending_without_tenant: string;
+  failed: string;
+  oldest_pending: Date | null;
+  consumer_last_run: Date | null;
 }
 
 /**
@@ -37,5 +49,10 @@ export class SystemFlowsAsyncRepository {
       type: QueryTypes.SELECT,
       replacements: { windowDays: String(windowDays) },
     });
+  }
+
+  async outboxHealth(): Promise<OutboxHealthRow> {
+    const [fila] = await this.flows.sequelize!.query<OutboxHealthRow>(OUTBOX_HEALTH_SQL, { type: QueryTypes.SELECT });
+    return fila;
   }
 }

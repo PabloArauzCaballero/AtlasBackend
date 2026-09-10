@@ -108,7 +108,8 @@ export class SystemFlowsController {
   @Get('flows/pending-work')
   pendingWork(@Query('windowDays') windowDays?: string) {
     const dias = Number(windowDays ?? 30);
-    return this.service.pendingWork(Number.isFinite(dias) && dias > 0 && dias <= 365 ? Math.trunc(dias) : 30);
+    // `Math.trunc(0.5)` daba 0 y la respuesta salía vacía, que se lee como «no se encola nada».
+    return this.service.pendingWork(Number.isFinite(dias) && dias >= 1 && dias <= 365 ? Math.trunc(dias) : 30);
   }
 
   @ApiOperation({ summary: 'Pantallas cuya puerta declarada no es la que aplica la API' })

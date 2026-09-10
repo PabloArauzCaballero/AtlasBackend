@@ -8,6 +8,8 @@ import { atlasSchemaFor } from '../../database/domain-schemas.js';
 const LOGS = atlasSchemaFor('system_action_logs');
 const FLOWS = atlasSchemaFor('system_flow_catalog');
 const SCREENS = atlasSchemaFor('system_screen_catalog');
+const OUTBOX = atlasSchemaFor('outbox_events');
+const JOBS = atlasSchemaFor('system_job_runs');
 const WORKFLOW = atlasSchemaFor('workflow_definitions');
 
 /**
@@ -140,40 +142,77 @@ export const RBAC_DRIFT_SQL = `WITH llamadas AS (
         LIMIT 5000`;
 
 /**
- * Lo que cada flujo deja PENDIENTE cuando termina de responder.
+ * Lo que cada flujo deja ENCARGADO al terminar de responder, atribuido a la petición exacta.
  *
- * ## El hueco que cierra
+ * ## Tres correcciones sobre la primera versión, medidas
  *
- * El mapa acababa en el endpoint. Un flujo que encola algo —un correo, una notificación, un
- * recálculo— parecía terminar ahí, y no termina: deja trabajo que alguien tiene que recoger después.
- * `event_definitions` está vacío en esta base, así que el catálogo no sirve como fuente; lo que sí
- * existe son los eventos REALES que se escribieron, con su `correlation_id`.
+ * - **El cruce sólo por `correlation_id` multiplicaba.** La app reutiliza el MISMO id en la
+ *   petición que recibe 401, en el `/auth/refresh` y en el reintento: tres filas de log para un
+ *   evento. Simulado: 3 eventos reales se contaban como 9, y aparecían GET como flujos que encolan.
+ *   El evento guarda método y ruta en su carga, así que se ata a la fila con ese método, esa ruta y
+ *   un estado < 400 (el outbox sólo escribe en éxito). Medido: 455 de 455 cruzan así, 1:1.
+ * - **La ventana escondía los atascos más graves.** Filtraba también los pendientes por fecha, así
+ *   que con 1 día no salía nunca nada atascado y con 30 un pendiente de 40 días desaparecía. La
+ *   ventana limita ahora sólo lo PROCESADO; lo pendiente o fallido cuenta tenga la edad que tenga.
+ * - **El orden cortaba primero lo más viejo.** Se ordena por el pendiente o fallido más antiguo.
  *
- * ## Por qué se cruza por correlación y no por tabla
- *
- * El análisis estático ya dice que un flujo escribe en `outbox_events`; eso es la mitad de la
- * historia. Lo que no puede decir es QUÉ evento dejó y si alguien lo recogió. `correlation_id` une
- * la petición con lo que dejó escrito, y ese id lo escribe el mismo request. Medido: los 447 eventos
- * de esta base cruzan con su petición.
- *
- * `pending_since` es la fecha del pendiente MÁS ANTIGUO, no la del último: la pregunta útil no es
- * «¿hay pendientes?» sino «¿cuánto llevan sin recogerse?».
+ * El margen de cinco minutos entre la fila de log y el evento no es una aproximación: los dos se
+ * escriben al terminar la misma petición. Sirve para que el cruce use el índice de correlación en
+ * vez de leer entero `system_action_logs`, que crece con cada request.
  */
-export const PENDING_WORK_SQL = `SELECT l.method,
-              regexp_replace(regexp_replace(l.route_template, '^/?(api/v1|api|v1)/', ''), ':[A-Za-z_][A-Za-z0-9_]*', ':p', 'g') AS path,
-              COUNT(*)                                                        AS events,
-              COUNT(*) FILTER (WHERE o.status = 'pending')                    AS pending,
-              COUNT(*) FILTER (WHERE o.status = 'processed')                  AS processed,
-              COUNT(*) FILTER (WHERE o.status NOT IN ('pending', 'processed')) AS other,
-              MIN(o._created_at) FILTER (WHERE o.status = 'pending')          AS pending_since,
-              (array_agg(DISTINCT o.event_code))[1:5]                          AS codes
-         FROM ${LOGS}.outbox_events o
-         JOIN ${LOGS}.system_action_logs l ON l.correlation_id = o.correlation_id
-        WHERE l.route_template IS NOT NULL
-          AND o._created_at >= NOW() - (:windowDays || ' days')::interval
-        GROUP BY 1, 2
-        ORDER BY COUNT(*) FILTER (WHERE o.status = 'pending') DESC, 1, 2
+export const PENDING_WORK_SQL = `WITH eventos AS (
+         SELECT o._id, o.status, o._created_at, o.processed_at, o.event_code, o._tenant_id, o.correlation_id,
+                o.event_payload_json->>'method'                  AS ev_method,
+                split_part(o.event_payload_json->>'path', '?', 1) AS ev_path
+           FROM ${OUTBOX}.outbox_events o
+          WHERE o.status <> 'processed'
+             OR o._created_at >= NOW() - (:windowDays || ' days')::interval
+       ),
+       atribuidos AS (
+         SELECT DISTINCT ON (e._id)
+                e._id, e.status, e._created_at, e.processed_at, e.event_code, e._tenant_id, l.method,
+                regexp_replace(regexp_replace(l.route_template, '^/?(api/v1|api|v1)/', ''), ':[A-Za-z_][A-Za-z0-9_]*', ':p', 'g') AS path
+           FROM eventos e
+           JOIN ${LOGS}.system_action_logs l
+             ON l.correlation_id = e.correlation_id
+            AND l.method = e.ev_method
+            AND l.resolved_url_sanitized = e.ev_path
+            AND l.response_status_code < 400
+            AND l.route_template IS NOT NULL
+            AND l.occurred_at BETWEEN e._created_at - interval '5 minutes' AND e._created_at + interval '5 minutes'
+          ORDER BY e._id, l.occurred_at DESC
+       )
+       SELECT method, path,
+              COUNT(*)                                                                AS events,
+              COUNT(*) FILTER (WHERE status = 'pending')                              AS pending,
+              COUNT(*) FILTER (WHERE status = 'processed')                            AS processed,
+              COUNT(*) FILTER (WHERE status = 'failed')                               AS failed,
+              COUNT(*) FILTER (WHERE status NOT IN ('pending', 'processed', 'failed')) AS other,
+              COUNT(*) FILTER (WHERE status = 'pending' AND _tenant_id IS NULL)        AS pending_without_tenant,
+              MIN(_created_at) FILTER (WHERE status = 'pending')                      AS pending_since,
+              MAX(processed_at)                                                        AS last_processed_at,
+              (array_agg(DISTINCT event_code))[1:5]                                    AS codes
+         FROM atribuidos
+        GROUP BY method, path
+        ORDER BY MIN(_created_at) FILTER (WHERE status IN ('pending', 'failed')) ASC NULLS LAST, method, path
         LIMIT 500`;
+
+/**
+ * El estado del outbox ENTERO y del consumidor, sin pasar por la atribución.
+ *
+ * Existe por dos cosas que el cruce por flujo no puede decir. La primera: si el consumidor corre en
+ * este entorno. Sin eso, un stack local sin worker enseñaba cientos de pendientes «atascados» que
+ * nadie iba a recoger nunca AHÍ, y era un artefacto del entorno, no una avería. La segunda: cuánto
+ * queda sin poder atribuirse a ninguna petición —el log de éxito es fire-and-forget y puede faltar—,
+ * que sin este total desaparecería del recuento en silencio.
+ */
+export const OUTBOX_HEALTH_SQL = `SELECT
+         (SELECT COUNT(*) FROM ${OUTBOX}.outbox_events WHERE status = 'pending')                        AS pending,
+         (SELECT COUNT(*) FROM ${OUTBOX}.outbox_events WHERE status = 'pending' AND _tenant_id IS NULL) AS pending_without_tenant,
+         (SELECT COUNT(*) FROM ${OUTBOX}.outbox_events WHERE status = 'failed')                         AS failed,
+         (SELECT MIN(_created_at) FROM ${OUTBOX}.outbox_events WHERE status = 'pending')                AS oldest_pending,
+         (SELECT MAX(completed_at) FROM ${JOBS}.system_job_runs
+           WHERE job_code = 'process_outbox' AND status = 'completed')                                 AS consumer_last_run`;
 
 /**
  * Los pasos de los procesos activos del `workflow-catalog`, cada uno con el flujo que lo implementa.
