@@ -36,6 +36,44 @@ export const RUNS_BY_ROUTE_SQL = `WITH runs AS (
         GROUP BY r.method, r.path`;
 
 /**
+ * Qué se ha hecho DESDE cada pantalla, dentro de la ventana.
+ *
+ * La arista pantalla→endpoint del catálogo se deriva del AST: dice lo que el código PARECE llamar.
+ * Esto dice lo que de verdad se llamó cuando alguien abrió la pantalla, porque el portal declara su
+ * ruta en `x-atlas-flow` y el interceptor la guarda en `origin_screen`.
+ *
+ * Se agrupa por pantalla y se devuelve el detalle por ruta llamada, que es lo que permite las dos
+ * preguntas interesantes: «¿alguien ha usado esta pantalla?» y «¿llama a lo que dijimos que llama?».
+ * `failed` cuenta sólo el 5xx: un 401 o un 404 desde una pantalla es el flujo haciendo lo que debe.
+ */
+export const SCREEN_RUNS_SQL = `WITH runs AS (
+         SELECT origin_screen AS screen,
+                method,
+                regexp_replace(regexp_replace(route_template, '^/?(api/v1|api|v1)/', ''), ':[A-Za-z_][A-Za-z0-9_]*', ':p', 'g') AS path,
+                response_status_code AS status,
+                occurred_at
+           FROM ${LOGS}.system_action_logs
+          WHERE origin_screen IS NOT NULL
+            AND route_template IS NOT NULL
+            AND occurred_at >= NOW() - (:windowDays || ' days')::interval
+       ),
+       por_ruta AS (
+         SELECT screen, method, path,
+                COUNT(*) AS calls,
+                COUNT(*) FILTER (WHERE status >= 500) AS failed,
+                MAX(occurred_at) AS last_at
+           FROM runs GROUP BY screen, method, path
+       )
+       SELECT screen,
+              SUM(calls)::bigint  AS calls,
+              SUM(failed)::bigint AS failed,
+              MAX(last_at)        AS last_at,
+              jsonb_agg(jsonb_build_object('method', method, 'path', path, 'calls', calls, 'failed', failed)
+                        ORDER BY calls DESC) AS routes
+         FROM por_ruta
+        GROUP BY screen`;
+
+/**
  * Los pasos de los procesos activos del `workflow-catalog`, cada uno con el flujo que lo implementa.
  * `LEFT JOIN` a propósito: un paso sin flujo es un paso declarado sobre una ruta que ya no existe,
  * y esconderlo con un JOIN interno sería perder justo el hallazgo. La ruta se normaliza igual que en

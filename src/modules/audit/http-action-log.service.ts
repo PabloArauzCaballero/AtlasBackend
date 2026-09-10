@@ -28,6 +28,8 @@ export type HttpActionLogInput = {
   occurredAt: Date;
   requestId?: string | null;
   correlationId?: string | null;
+  /** Ruta de la pantalla que originó la petición, si el cliente la declaró. */
+  originScreen?: string | null;
   method?: string | null;
   routeTemplate?: string | null;
   resolvedUrlSanitized?: string | null;

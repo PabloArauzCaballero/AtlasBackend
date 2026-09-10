@@ -20,6 +20,10 @@ export class SystemActionLogModel extends Model {
   @Column({ field: 'correlation_id', type: DataType.STRING(120) })
   declare correlationId: string | null;
 
+  /** Ruta de la pantalla que originó la petición. Nulo = nadie la declaró (app, webhook, job). */
+  @Column({ field: 'origin_screen', type: DataType.STRING(200) })
+  declare originScreen: string | null;
+
   @Column({ field: 'endpoint_catalog_id', type: DataType.BIGINT })
   declare endpointCatalogId: string | null;
 

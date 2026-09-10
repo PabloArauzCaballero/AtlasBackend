@@ -99,6 +99,7 @@ export class HttpActionLogInterceptor implements NestInterceptor {
         occurredAt: new Date(),
         requestId,
         correlationId: request.correlationId ?? requestId,
+        originScreen: originScreen(request),
         method: request.method,
         routeTemplate: request.route?.path ?? null,
         resolvedUrlSanitized: path,
@@ -150,4 +151,23 @@ export class HttpActionLogInterceptor implements NestInterceptor {
       }),
     );
   }
+}
+
+/**
+ * La PANTALLA desde la que se originó la petición, tal como el cliente la declara en `x-atlas-flow`.
+ *
+ * Nulo es lo normal y no es un hueco: la app móvil, los webhooks, los trabajos de fondo y las suites
+ * de prueba no tienen pantalla que declarar. Un nulo significa «nadie dijo de dónde venía», que es
+ * distinto de «vino de ninguna parte».
+ *
+ * Se valida contra un patrón cerrado por el mismo motivo que el `x-correlation-id`: esto acaba en
+ * una tabla y en pantallas del portal, y un header arbitrario del cliente es una inyección esperando
+ * sitio. Lo que no cumple el formato se descarta —no se trunca ni se sanea—, porque una ruta a
+ * medias identificaría una pantalla equivocada, que es peor que no identificar ninguna.
+ */
+const ORIGIN_SCREEN_PATTERN = /^\/[A-Za-z0-9/_:.-]{0,199}$/;
+
+function originScreen(request: RequestLike): string | null {
+  const declarada = firstHeader(request.headers['x-atlas-flow']);
+  return declarada && ORIGIN_SCREEN_PATTERN.test(declarada) ? declarada : null;
 }

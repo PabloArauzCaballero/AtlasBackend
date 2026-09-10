@@ -33,6 +33,24 @@ export class SystemScreenCatalogModel extends Model {
   @Column({ field: 'analyzed_commit', type: DataType.STRING(64) })
   declare analyzedCommit: string | null;
 
+  /**
+   * Eje de verificación de la pantalla, en paralelo al de los endpoints: UNVERIFIED hasta que
+   * alguien la abre de verdad. No hay BROKEN aquí —una pantalla no «falla», fallan las llamadas que
+   * hace— y por eso el estado que importa es si se ha ejercitado o no.
+   */
+  @Column({ field: 'verification', type: DataType.STRING(20) })
+  declare verification: string;
+
+  @Column({ field: 'verified_at', type: DataType.DATE })
+  declare verifiedAt: Date | null;
+
+  @Column({ field: 'last_seen_at', type: DataType.DATE })
+  declare lastSeenAt: Date | null;
+
+  /** Qué se observó desde ella: cuántas peticiones, a qué rutas y cómo acabaron. */
+  @Column({ field: 'observed_json', type: DataType.JSONB })
+  declare observed: Record<string, unknown>;
+
   @Column({ field: 'import_id', type: DataType.BIGINT })
   declare importId: string | null;
 

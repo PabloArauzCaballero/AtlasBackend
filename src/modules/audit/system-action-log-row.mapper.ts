@@ -35,6 +35,7 @@ export function toSystemActionLogRow(
     tenantId: input.tenantId,
     requestId: input.requestId ?? input.correlationId ?? null,
     correlationId: input.correlationId ?? null,
+    originScreen: input.originScreen ?? null,
     endpointCatalogId: endpoint?.id ?? null,
     actorUserId: input.actorUserId ?? null,
     actorType: input.actorType,

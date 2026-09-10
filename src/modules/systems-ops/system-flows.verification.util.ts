@@ -122,6 +122,111 @@ export function indexBlockPathRuns(rows: readonly BlockPathRun[]): Map<string, R
   return out;
 }
 
+/** Lo que se observó desde una pantalla en la ventana: cuánto, cómo acabó y contra qué rutas. */
+export type ScreenRuns = {
+  calls: number;
+  failed: number;
+  lastAt: Date | null;
+  routes: Array<{ method: string; path: string; calls: number; failed: number }>;
+};
+
+/**
+ * Reparte lo observado —rutas CONCRETAS, tal como el cliente las declaró— entre las plantillas del
+ * catálogo de pantallas.
+ *
+ * ## Por qué se resuelve aquí y no en el cliente
+ *
+ * Porque aquí están las plantillas. El portal no sabe qué segmento de `/internal/customers/internal`
+ * es un identificador sin adivinar, y adivinar produce plantillas que no existen: sustituyendo el
+ * valor del parámetro por su nombre, un id que coincide con un segmento estático se come el prefijo.
+ *
+ * ## Qué gana la más específica
+ *
+ * Una ruta concreta puede encajar en dos plantillas —`/internal/customers/new` encaja también en
+ * `/internal/customers/:id`—. Gana la literal exacta; si no hay, la de MENOS parámetros, y a igualdad
+ * la de prefijo estático más largo. Sin esa regla, una pantalla de alta se contaría como visita a la
+ * ficha de un cliente que no existe.
+ *
+ * Lo que no encaja en ninguna plantilla se devuelve aparte: es una pantalla que alguien usó y el
+ * catálogo no conoce —o una ruta que dejó de existir— y esconderlo sería perder justo el hallazgo.
+ */
+export function matchScreenRuns(
+  observado: Map<string, ScreenRuns>,
+  plantillas: readonly string[],
+): { porPlantilla: Map<string, ScreenRuns>; sinCatalogar: string[] } {
+  const literales = new Set(plantillas.filter((ruta) => !ruta.includes(':')));
+  const conParametros = plantillas
+    .filter((ruta) => ruta.includes(':'))
+    .map((ruta) => ({
+      ruta,
+      params: (ruta.match(/:[^/]+/g) ?? []).length,
+      prefijo: ruta.split('/:')[0]?.length ?? 0,
+      regex: new RegExp(`^${ruta.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/:[^/]+/g, '[^/]+')}$`),
+    }))
+    .sort((a, b) => a.params - b.params || b.prefijo - a.prefijo);
+
+  const porPlantilla = new Map<string, ScreenRuns>();
+  const sinCatalogar: string[] = [];
+  for (const [concreta, runs] of observado) {
+    const plantilla = literales.has(concreta) ? concreta : conParametros.find((candidata) => candidata.regex.test(concreta))?.ruta;
+    if (!plantilla) {
+      sinCatalogar.push(concreta);
+      continue;
+    }
+    const previo = porPlantilla.get(plantilla);
+    porPlantilla.set(plantilla, previo ? fundir(previo, runs) : { ...runs, routes: [...runs.routes] });
+  }
+  return { porPlantilla, sinCatalogar };
+}
+
+/** Dos visitas a la misma plantilla con identificadores distintos son la MISMA pantalla. */
+function fundir(a: ScreenRuns, b: ScreenRuns): ScreenRuns {
+  const porRuta = new Map<string, { method: string; path: string; calls: number; failed: number }>();
+  for (const llamada of [...a.routes, ...b.routes]) {
+    const clave = `${llamada.method} ${llamada.path}`;
+    const previa = porRuta.get(clave);
+    porRuta.set(
+      clave,
+      previa ? { ...previa, calls: previa.calls + llamada.calls, failed: previa.failed + llamada.failed } : { ...llamada },
+    );
+  }
+  return {
+    calls: a.calls + b.calls,
+    failed: a.failed + b.failed,
+    lastAt: !a.lastAt ? b.lastAt : !b.lastAt ? a.lastAt : a.lastAt > b.lastAt ? a.lastAt : b.lastAt,
+    routes: [...porRuta.values()].sort((x, y) => y.calls - x.calls),
+  };
+}
+
+/**
+ * El desenlace de una pantalla. Deliberadamente sólo hay dos: **usada o no usada**.
+ *
+ * No existe un BROKEN de pantalla, y la tentación de inventarlo con «tiene llamadas fallidas» sería
+ * un error de categoría: lo que falla es el endpoint, y ése ya tiene su propio eje y su propia
+ * ficha. Una pantalla que llama a algo roto no está rota —hace su trabajo y enseña el error—, y
+ * marcarla en rojo duplicaría el mismo hallazgo en dos sitios con dos dueños distintos.
+ *
+ * Lo que sí se guarda es el detalle observado, porque responde la pregunta que ningún análisis
+ * estático puede: contra qué rutas llama DE VERDAD esta pantalla.
+ */
+export function screenVerificationFrom(runs: ScreenRuns | null): {
+  verification: string;
+  lastSeenAt: Date | null;
+  observed: Record<string, unknown>;
+} | null {
+  if (!runs || runs.calls === 0) return null;
+  return {
+    verification: 'VERIFIED',
+    lastSeenAt: runs.lastAt,
+    observed: {
+      source: 'system_action_logs (origin_screen)',
+      calls: runs.calls,
+      failed: runs.failed,
+      routes: runs.routes.slice(0, 40),
+    },
+  };
+}
+
 /** FRESH si el commit analizado es el desplegado; STALE si difieren; sin commit desplegado no se opina. */
 export function freshnessFor(analyzedCommit: string | null, deployedCommit: string | null | undefined): 'FRESH' | 'STALE' | null {
   // `APP_COMMIT_SHA=local` (o cualquier valor que no sea un sha) no es un commit: no se compara, no se opina.
