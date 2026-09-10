@@ -111,6 +111,14 @@ export const CLIENT_EVIDENCE: Record<string, string> = {
   DASHBOARDS_PORTAL: 'DASHBOARDS',
 };
 
+/**
+ * Clientes cuya deriva de permisos se mide: los que mide AtlasBackend (por método y ruta) y el portal
+ * del Motor (por `Controller.handler`). Ver `RBAC_DRIFT_SQL`.
+ */
+export const CLIENTES_CON_DERIVA = Object.keys(CLIENT_EVIDENCE)
+  .filter((cliente) => ['ATLAS_BACKEND', 'DECISION_ENGINE'].includes(CLIENT_EVIDENCE[cliente] ?? ''))
+  .sort();
+
 type BlockScreenRun = {
   client?: unknown;
   screen?: unknown;

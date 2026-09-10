@@ -1,3 +1,4 @@
+import { RBAC_DRIFT_SQL } from '../../src/modules/systems-ops/system-flows.sql.constants.js';
 import { SystemFlowsScreensService } from '../../src/modules/systems-ops/system-flows.screens.service.js';
 import { matchScreenRuns, screenVerificationFrom, type ScreenRuns } from '../../src/modules/systems-ops/system-flows.verification.util.js';
 
@@ -129,16 +130,16 @@ describe('SystemFlowsScreensService.rbacDrift', () => {
    * La primera versión preguntaba «¿el endpoint tiene permiso fino?» y llamaba a eso estar
    * desprotegido. No lo es: `RolesGuard` es global y `@Roles(...)` deniega igual. De 1 029 flujos
    * del catálogo, 995 no tienen permiso fino pero 914 sí tienen roles, así que el 92 % de aquellos
-   * hallazgos era falso —incluido el único que produjo con tráfico real, que además estaba
-   * protegido a nivel de clase—. Una lista donde casi todo es ruido no la lee nadie.
+   * hallazgos era falso. Una lista donde casi todo es ruido no la lee nadie.
    */
-  const deriva = (filas: unknown[], observado = new Map([['ADMIN_PORTAL', new Map([['/x', {}]])]])) =>
-    new SystemFlowsScreensService({
+  const deriva = (filas: unknown[], over: { conRutas?: number; conPuerta?: string[] } = {}) => {
+    const repo = {
       rbacDrift: async () => filas,
-      screenRuns: async () => ({ porCliente: observado, truncado: false }),
-      screenClients: async () => ['ADMIN_PORTAL', 'ERP_PORTAL', 'MOTOR_PORTAL'],
-      clientsWithMenuGates: async () => ['ADMIN_PORTAL', 'MOTOR_PORTAL'],
-    } as never).rbacDrift();
+      screensWithObservedRoutes: jest.fn(async () => over.conRutas ?? 2),
+      clientsWithMenuGates: async () => over.conPuerta ?? ['ADMIN_PORTAL', 'MOTOR_PORTAL'],
+    };
+    return { repo, resultado: new SystemFlowsScreensService(repo as never).rbacDrift() };
+  };
 
   const fila = (over: Record<string, unknown> = {}) => ({
     client_code: 'ADMIN_PORTAL',
@@ -154,48 +155,39 @@ describe('SystemFlowsScreensService.rbacDrift', () => {
   });
 
   it('sin permiso, sin roles y sin @Public es la única AVERÍA', async () => {
-    const { screens } = await deriva([fila()]);
+    const { screens } = await deriva([fila()]).resultado;
     expect(screens[0].calls).toEqual([expect.objectContaining({ severity: 'SIN_GUARDA' })]);
   });
 
   it('con roles NO se llama desprotegido: es otra puerta, no una abierta', async () => {
-    // Es el falso positivo que produjo la primera versión: `GET systems/action-logs` está protegido
-    // a nivel de clase por `@SystemsOpsControllerSecurity()`, que aplica `RolesGuard` con ocho roles.
-    const { screens } = await deriva([fila({ roles: ['system_admin', 'qa_engineer'] })]);
+    const { screens } = await deriva([fila({ roles: ['system_admin', 'qa_engineer'] })]).resultado;
     expect(screens[0].calls).toEqual([expect.objectContaining({ severity: 'SOLO_ROL' })]);
   });
 
   it('`@Public` se separa: puede estar bien, y en el mismo saco se ignorarían los dos', async () => {
-    const { screens } = await deriva([fila({ is_public: true })]);
+    const { screens } = await deriva([fila({ is_public: true })]).resultado;
     expect(screens[0].calls).toEqual([expect.objectContaining({ severity: 'PUBLIC' })]);
   });
 
-  it('declara qué clientes NO se miden aquí, para que su lista vacía no se lea como «sin deriva»', async () => {
-    // Sólo los que tienen puerta de menú: el ERP no filtra su menú por permiso, así que no hay deriva que medirle.
-    expect(await deriva([])).toMatchObject({ notMeasured: ['MOTOR_PORTAL'] });
+  it('el portal del Motor se mide: sólo quedan sin medir los clientes con menú filtrado que nadie mide', async () => {
+    expect(await deriva([]).resultado).toMatchObject({ notMeasured: [] });
+    expect(await deriva([], { conPuerta: ['ADMIN_PORTAL', 'ERP_PORTAL'] }).resultado).toMatchObject({ notMeasured: ['ERP_PORTAL'] });
   });
 
-  it('el denominador no cuenta tráfico sin cliente ni códigos que el catálogo no tiene', async () => {
-    const observado = new Map([
-      ['ADMIN_PORTAL', new Map([['/a', {}]])],
-      ['(sin cliente)', new Map([['/b', {}]])],
-      ['FLOWS_LOADER', new Map([['/c', {}]])],
-    ]);
-    expect(await deriva([], observado as never)).toMatchObject({ screensWithObservedEdges: 1 });
+  it('el denominador sale del catálogo y sólo de los clientes cuya deriva se mide', async () => {
+    const { repo, resultado } = deriva([], { conRutas: 7 });
+    expect(await resultado).toMatchObject({ screensWithObservedEdges: 7, screens: [] });
+    expect(repo.screensWithObservedRoutes).toHaveBeenCalledWith(['ADMIN_PORTAL', 'CONSUMER_APP', 'MOTOR_PORTAL']);
+  });
+});
+
+describe('RBAC_DRIFT_SQL · cada pantalla contra el bloque que la mide', () => {
+  it('el Motor se cruza por Controller.handler y sólo por sus flujos sin roles', () => {
+    expect(RBAC_DRIFT_SQL).toMatch(/f\.system_code = 'DECISION_ENGINE' AND l\.client_code = 'MOTOR_PORTAL'/);
+    expect(RBAC_DRIFT_SQL).toMatch(/f\.controller \|\| '\.' \|\| f\.handler = l\.path AND jsonb_array_length\(f\.roles\) = 0/);
   });
 
-  it('el denominador dice sobre cuántas pantallas se pudo opinar', async () => {
-    // En la primera versión era un booleano constante, así que un `[]` no se distinguía de «nadie ha
-    // abierto ninguna pantalla todavía».
-    const observado = new Map([
-      [
-        'ADMIN_PORTAL',
-        new Map([
-          ['/a', {}],
-          ['/b', {}],
-        ]),
-      ],
-    ]);
-    expect(await deriva([], observado)).toMatchObject({ screensWithObservedEdges: 2, screens: [] });
+  it('los clientes de AtlasBackend siguen cruzándose por ruta y sin permiso fino, y nunca con el Motor', () => {
+    expect(RBAC_DRIFT_SQL).toMatch(/f\.system_code = 'ATLAS_BACKEND' AND l\.client_code <> 'MOTOR_PORTAL' AND f\.path = l\.path/);
   });
 });

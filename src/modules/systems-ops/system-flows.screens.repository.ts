@@ -159,11 +159,29 @@ export class SystemFlowsScreensRepository {
   async clientsWithMenuGates(): Promise<string[]> {
     const rows = await this.screens.findAll({
       attributes: ['clientCode'],
-      where: literal(`jsonb_array_length(nav_permissions) > 0 OR jsonb_array_length(nav_roles) > 0`),
+      where: literal(
+        `(jsonb_typeof(nav_permissions) = 'array' AND jsonb_array_length(nav_permissions) > 0) OR (jsonb_typeof(nav_roles) = 'array' AND jsonb_array_length(nav_roles) > 0)`,
+      ),
       group: ['client_code'],
       raw: true,
     });
     return (rows as unknown as Array<{ clientCode: string }>).map((row) => row.clientCode).sort();
+  }
+
+  /**
+   * El denominador de la deriva: pantallas VERIFICADAS con rutas observadas, de los clientes cuya deriva se
+   * mide. Sale del catálogo, igual que las filas de la deriva, y no de 30 días de logs recalculados en cada
+   * llamada, que además sólo veían lo que llega a AtlasBackend.
+   */
+  screensWithObservedRoutes(clientCodes: readonly string[]): Promise<number> {
+    if (!clientCodes.length) return Promise.resolve(0);
+    return this.screens.count({
+      where: {
+        clientCode: { [Op.in]: [...clientCodes] },
+        verification: 'VERIFIED',
+        [Op.and]: [literal(`jsonb_typeof(observed_json->'routes') = 'array' AND jsonb_array_length(observed_json->'routes') > 0`)],
+      },
+    });
   }
 
   /** Las pantallas de un cliente, con lo mínimo para cruzarlas y escribir su desenlace. */

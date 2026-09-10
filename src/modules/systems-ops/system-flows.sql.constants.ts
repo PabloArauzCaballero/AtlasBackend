@@ -158,12 +158,18 @@ export const DOMAIN_EVENT_CONSUMERS_SQL = `SELECT o.event_code,
  * - `SOLO_ROL`: la API exige roles pero no el permiso que el menú declara. No está abierta; es OTRA
  *   puerta. Quien tenga el rol y no el permiso no ve la pantalla y sí puede llamar a la ruta.
  *
- * ## Por qué el JOIN se ata a ATLAS_BACKEND
+ * ## Contra qué bloque se cruza cada cliente
  *
- * No es una aproximación: las aristas observadas salen de `system_action_logs`, que sólo registra lo
- * que llega a ESTE backend. Sin esa condición el JOIN cruzaba por (método, ruta) contra los cuatro
- * bloques —45 pares están duplicados entre sistemas— y atribuía a una pantalla endpoints de un
- * backend que nunca tocó.
+ * Cada pantalla se cruza con los flujos del bloque que la mide, y con la clave con que ese bloque
+ * registra sus rutas. Sin esa condición el JOIN cruzaba por (método, ruta) contra los cuatro bloques
+ * —45 pares están duplicados entre sistemas— y atribuía a una pantalla endpoints que nunca tocó.
+ *
+ * - Clientes de AtlasBackend: por método y ruta, y sólo flujos sin permiso fino.
+ * - Portal del Motor: por método y `Controller.handler`, que es como el Motor registra sus accesos. En
+ *   el Motor no existe permiso fino, así que «sólo rol» es lo normal y contarlo sería ruido: sólo entran
+ *   sus flujos SIN roles, que son las averías posibles (`SIN_GUARDA` o `PUBLIC`).
+ *
+ * El portal del ERP y Tableros no filtran su menú por permiso: no tienen deriva que medir.
  */
 /** Tope de filas de la deriva. Al alcanzarlo, la respuesta se declara cortada. */
 export const RBAC_DRIFT_LIMIT = 5000;
@@ -189,8 +195,13 @@ export const RBAC_DRIFT_SQL = `WITH llamadas AS (
               f.flow_id, f.internal_permissions, f.roles, f.is_public
          FROM llamadas l
          JOIN ${FLOWS}.system_flow_catalog f
-           ON f.system_code = 'ATLAS_BACKEND' AND f.http_method = l.method AND f.path = l.path
-        WHERE jsonb_array_length(f.internal_permissions) = 0
+           ON f.http_method = l.method
+          AND (
+                (f.system_code = 'ATLAS_BACKEND' AND l.client_code <> 'MOTOR_PORTAL' AND f.path = l.path
+                  AND jsonb_array_length(f.internal_permissions) = 0)
+             OR (f.system_code = 'DECISION_ENGINE' AND l.client_code = 'MOTOR_PORTAL'
+                  AND f.controller || '.' || f.handler = l.path AND jsonb_array_length(f.roles) = 0)
+              )
         ORDER BY l.client_code, l.route, l.method, l.path
         LIMIT ${RBAC_DRIFT_LIMIT}`;
 

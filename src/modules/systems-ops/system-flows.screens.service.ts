@@ -9,7 +9,7 @@ import { SystemFlowsScreensRepository } from './system-flows.screens.repository.
 import { VerifyFlowsDto } from './system-flows.schemas.js';
 import { SIN_CLIENTE } from './system-flows.screens.repository.js';
 import { matchScreenRuns, screenVerificationFrom } from './system-flows.verification.util.js';
-import { CLIENT_EVIDENCE, type PantallasObservadas } from './system-flows.evidence.js';
+import { CLIENT_EVIDENCE, CLIENTES_CON_DERIVA, type PantallasObservadas } from './system-flows.evidence.js';
 import { RBAC_DRIFT_LIMIT } from './system-flows.sql.constants.js';
 
 @Injectable()
@@ -108,7 +108,6 @@ export class SystemFlowsScreensService {
    * primero es una avería. Ver `RBAC_DRIFT_SQL`.
    */
   async rbacDrift() {
-    const { porCliente, truncado } = await this.repository.screenRuns(30);
     const filas = await this.repository.rbacDrift();
     const porPantalla = new Map<
       string,
@@ -132,23 +131,19 @@ export class SystemFlowsScreensService {
       });
       porPantalla.set(clave, entrada);
     }
-    // Sólo clientes que mide ESTE bloque: ni el tráfico sin cliente ni códigos que el catálogo no tiene
-    // («erp», «flows-loader») son pantallas sobre las que se pueda opinar. Siguen siendo rutas concretas.
-    const consideradas = [...porCliente.entries()]
-      .filter(([cliente]) => CLIENT_EVIDENCE[cliente] === 'ATLAS_BACKEND')
-      .reduce((n, [, pantallas]) => n + pantallas.size, 0);
-    const conPuertaDeMenu = await this.repository.clientsWithMenuGates();
+    const [consideradas, conPuertaDeMenu] = await Promise.all([
+      this.repository.screensWithObservedRoutes(CLIENTES_CON_DERIVA),
+      this.repository.clientsWithMenuGates(),
+    ]);
     return {
-      // Clientes cuyo MENÚ filtra por permiso o rol y cuya deriva no mide este bloque: la deriva se calcula
-      // contra los endpoints y los logs de AtlasBackend. Un cliente sin puerta de menú no tiene deriva que
-      // medir, y listarlo aquí dejaba la compuerta en rojo por algo que no existe.
-      notMeasured: conPuertaDeMenu.filter((code) => CLIENT_EVIDENCE[code] !== 'ATLAS_BACKEND'),
+      // Clientes cuyo MENÚ filtra por permiso o rol y cuya deriva no se mide. Un cliente sin puerta de menú
+      // no tiene deriva posible, y listarlo dejaba la compuerta en rojo por algo que no existe.
+      notMeasured: conPuertaDeMenu.filter((code) => !CLIENTES_CON_DERIVA.includes(code)),
       // El denominador, que en la primera versión era un booleano constante: sin él, un `[]` no se
       // distingue de «nadie ha abierto ninguna pantalla todavía».
       screensWithObservedEdges: consideradas,
-      // Si el catálogo observado vino cortado, esto opina sobre datos incompletos y hay que decirlo. Lo mismo si
-      // la propia consulta de deriva llegó a su tope.
-      truncated: truncado || filas.length >= RBAC_DRIFT_LIMIT,
+      // Si la consulta de deriva llegó a su tope, esto opina sobre datos incompletos y hay que decirlo.
+      truncated: filas.length >= RBAC_DRIFT_LIMIT,
       screens: [...porPantalla.values()].filter((pantalla) => pantalla.calls.length),
     };
   }
