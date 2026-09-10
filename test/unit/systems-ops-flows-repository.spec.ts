@@ -191,3 +191,18 @@ describe('SystemFlowsRepository · consultas', () => {
     expect(imports.findAll.mock.calls[0][0]).toMatchObject({ order: [['createdAtValue', 'DESC']], limit: 30 });
   });
 });
+
+describe('SystemFlowsRepository · recargar el catálogo de pantallas', () => {
+  it('la recarga NO pisa la verificación: es evidencia de uso, no un dato derivado del código', async () => {
+    // `verification`, `verified_at`, `last_seen_at` y lo observado salen de corridas reales; el
+    // artefacto sólo aporta ruta, fichero y navegación. Si el upsert los mandara, cada recarga —que
+    // ocurre en cada corrida del gate— borraría la única prueba de que alguien usó esa pantalla, y
+    // el panel diría «nadie la ha abierto» sobre una que se abre a diario.
+    const { repo, screens } = build();
+    await repo.replaceScreens('ADMIN_PORTAL', [{ clientCode: 'ADMIN_PORTAL', route: '/internal/flows' }] as never, 'tx' as never);
+    const valores = screens.upsert.mock.calls[0][0] as Record<string, unknown>;
+    expect(Object.keys(valores)).not.toContain('verification');
+    expect(Object.keys(valores)).not.toContain('lastSeenAt');
+    expect(Object.keys(valores)).not.toContain('observed');
+  });
+});
