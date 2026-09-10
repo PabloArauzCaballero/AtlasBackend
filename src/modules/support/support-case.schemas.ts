@@ -157,6 +157,11 @@ export type AssignCaseDto = z.infer<typeof assignCaseSchema>;
  *
  * `notifyCustomer` existe porque escalar sin decírselo a quien espera produce el mismo silencio que
  * no escalar: la persona sigue sin saber nada, sólo que ahora hay más gente sin contarle.
+ *
+ * **Hoy se registra y no se cumple.** Escalar no envía nada al cliente: no hay aviso directo y
+ * `support.case.escalated` no tiene canales en `notification-rules.service.ts`. Por eso el expediente
+ * lo guarda como `customerNotificationRequested`, con `customerNotified: false`. Cumplirlo —qué canal,
+ * qué texto— es decisión pendiente.
  */
 export const escalateCaseSchema = z.object({
   escalationType: z.enum(['FUNCTIONAL', 'HIERARCHICAL', 'SECURITY', 'FRAUD', 'PRIVACY']),

@@ -196,8 +196,11 @@ export class SupportMessageService {
           })
         : null;
 
-    // El aviso al móvil sale por outbox y sólo cuando habla el equipo: notificar al cliente de su
-    // propio mensaje sería avisarle de algo que acaba de hacer.
+    // Se publica sólo cuando habla el equipo: notificar al cliente de su propio mensaje sería
+    // avisarle de algo que acaba de hacer. Pero OJO: este comentario decía que «el aviso al móvil sale
+    // por outbox», y no sale. `support.message.created` no tiene canales en
+    // `notification-rules.service.ts` y el motor lo consume sin generar mensaje (servidor,
+    // 2026-09-10: 2 eventos, 0 mensajes). Qué avisar es decisión pendiente.
     if (input.actor.actorType !== 'CUSTOMER' && input.actor.actorType !== 'PARTNER_USER') {
       await this.audit.publish({
         tenantId: input.tenantId,

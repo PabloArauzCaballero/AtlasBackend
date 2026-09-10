@@ -139,10 +139,15 @@ const eventGroups: Array<{ family: string; events: string[]; aggregateTypes: str
   },
   {
     /*
-     * Soporte y gestión de servicio (ISO/IEC 20000-1). Los consumidores de estos eventos son el
-     * motor de notificaciones —que avisa al cliente sin que soporte tenga que acordarse—, analítica
-     * y el tablero del supervisor. Van por outbox y no por llamada directa para que un fallo del
-     * canal de avisos no impida cerrar un caso.
+     * Soporte y gestión de servicio (ISO/IEC 20000-1). Van por outbox y no por llamada directa para
+     * que un fallo de un consumidor no impida cerrar un caso.
+     *
+     * Este comentario decía que el motor de notificaciones «avisa al cliente sin que soporte tenga
+     * que acordarse». No lo hace: ningún evento de esta familia tiene canales en
+     * `notification-rules.service.ts`, así que `process_events` los consume sin generar mensaje.
+     * Medido en el servidor el 2026-09-10: 35 eventos, 0 mensajes. Lo que sí le llega al cliente al
+     * resolver es el mensaje del chat, que no pasa por aquí. Qué avisar es decisión pendiente, y
+     * `GET systems/flows/pending-work` lo enseña por código.
      */
     family: 'support_service_management',
     aggregateTypes: ['support_case', 'support_channel', 'support_message', 'knowledge_article', 'customer', 'partner'],

@@ -74,7 +74,12 @@ export class SupportCaseEscalationService {
           escalationType: input.dto.escalationType,
           reason: input.dto.reason,
           targetQueue: queueCode,
-          customerNotified: input.dto.notifyCustomer,
+          // Lo que PIDIÓ quien escala, no lo que pasó: escalar no envía nada al cliente. Guardarlo como
+          // `customerNotified` dejaba escrito en un expediente encadenado —que no se corrige después—
+          // que se avisó a alguien a quien nadie avisó. En el servidor aún no hay escaladas (0), así
+          // que no hay historia falsa que arrastrar.
+          customerNotificationRequested: input.dto.notifyCustomer,
+          customerNotified: false,
         },
         transaction,
         extra: {
