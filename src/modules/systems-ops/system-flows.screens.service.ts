@@ -9,6 +9,7 @@ import { SystemFlowsScreensRepository } from './system-flows.screens.repository.
 import { VerifyFlowsDto } from './system-flows.schemas.js';
 import { SIN_CLIENTE } from './system-flows.screens.repository.js';
 import { matchScreenRuns, screenVerificationFrom } from './system-flows.verification.util.js';
+import { CLIENT_EVIDENCE, type PantallasObservadas } from './system-flows.evidence.js';
 
 @Injectable()
 export class SystemFlowsScreensService {
@@ -17,23 +18,31 @@ export class SystemFlowsScreensService {
   /**
    * Verifica las PANTALLAS contra lo que de verdad se hizo desde ellas.
    *
-   * ## Por qué cuelga de la verificación del Backend y no de la de cada bloque
+   * ## Quién puede verificar a quién
    *
-   * Porque la evidencia vive aquí: `origin_screen` lo escribe el interceptor de ESTE backend con lo
-   * que el cliente declara en `x-atlas-flow`. Una pantalla del portal del ERP que sólo llama al ERP
-   * no deja rastro en `system_action_logs`, y por eso el resultado se devuelve por cliente: para que
-   * «0 verificadas» se lea como «ese cliente aún no declara su origen» y no como «nadie las usa».
+   * La evidencia la guarda el backend al que cada cliente declara su origen, y sólo ése opina de sus
+   * pantallas (`CLIENT_EVIDENCE`). Antes la verificación del Backend recorría TODOS los clientes y
+   * degradaba lo que no veía en sus propios logs: en cuanto el ERP aportara evidencia, cada
+   * verificación del Backend habría despintado las pantallas que acababa de verificar el ERP.
+   *
+   * ## Degradar exige una ventana
+   *
+   * Los logs del Backend cubren una ventana: «no apareció» significa «no se usó en N días». El
+   * contador del ERP cuenta desde que arrancó su proceso, y un despliegue lo vacía: «no apareció»
+   * sólo significa «no desde el último arranque». Con esa evidencia se AFIRMA uso y nunca se niega.
    *
    * ## Qué NO se hace aquí
    *
    * No se marca ninguna pantalla como rota. Lo que falla es el endpoint, que ya tiene su eje y su
-   * ficha; una pantalla que llama a algo roto hace su trabajo y enseña el error. Duplicar ese
-   * hallazgo en dos sitios con dos dueños distintos sería peor que no tenerlo.
+   * ficha; una pantalla que llama a algo roto hace su trabajo y enseña el error.
    */
-  async verify(dto: VerifyFlowsDto, tx: Transaction) {
-    if (dto.systemCode !== 'ATLAS_BACKEND') return undefined;
-    const { porCliente: observado, truncado } = await this.repository.screenRuns(dto.windowDays);
-    const clientes = await this.repository.screenClients();
+  async verify(dto: VerifyFlowsDto, tx: Transaction, federadas: PantallasObservadas | null = null, source?: string) {
+    const propias = dto.systemCode === 'ATLAS_BACKEND';
+    const evidencia = propias ? await this.repository.screenRuns(dto.windowDays) : federadas;
+    if (!evidencia) return undefined;
+    const { porCliente: observado, truncado } = evidencia;
+    const todos = await this.repository.screenClients();
+    const clientes = todos.filter((code) => CLIENT_EVIDENCE[code] === dto.systemCode);
     const resumen: Record<string, { total: number; verified: number }> = {};
     const sinCatalogar: string[] = [];
     let conTrafico = 0;
@@ -42,7 +51,7 @@ export class SystemFlowsScreensService {
       const pantallas = await this.repository.screensOfClient(clientCode);
       // Sólo lo que ESE cliente declaró: `/` existe en los cinco portales y `/login` en tres, así
       // que cruzar el tráfico de todos contra las plantillas de cada uno marcaría verificadas las
-      // cinco de golpe y copiaría en todas las llamadas del único que se usó.
+      // cinco de golpe.
       const { porPlantilla, sinCatalogar: suyas } = matchScreenRuns(
         observado.get(clientCode) ?? new Map(),
         pantallas.map((pantalla) => pantalla.route),
@@ -52,27 +61,27 @@ export class SystemFlowsScreensService {
       resumen[clientCode] = { total: pantallas.length, verified: porPlantilla.size };
 
       for (const [route, runs] of porPlantilla) {
-        const outcome = screenVerificationFrom(runs);
+        const outcome = screenVerificationFrom(runs, source);
         if (outcome) await this.repository.applyScreenVerification(clientCode, route, outcome, tx);
       }
-      // Y las que NO aparecieron vuelven a UNVERIFIED —salvo que la consulta viniera cortada, en cuyo
-      // caso no se sabe si faltan por no usarse o por el tope, y degradar sería inventarse un dato—.
-      if (!truncado) await this.repository.resetScreensNotSeen(clientCode, [...porPlantilla.keys()], tx);
+      // Degradar sólo con ventana propia y completa: si la consulta vino cortada no se sabe si una
+      // pantalla falta por no usarse o por el tope, y con un contador de proceso, tampoco.
+      if (propias && !truncado) await this.repository.resetScreensNotSeen(clientCode, [...porPlantilla.keys()], tx);
     }
 
-    // Clientes que declararon origen y NO están en el catálogo de pantallas. Es el desajuste que más
-    // fácil pasa desapercibido: `x-atlas-product` la mandan también backends («erp», «flows-loader»)
-    // con otro vocabulario, y su tráfico se quedaba sin atribuir sin que nada lo dijera.
-    const desconocidos = [...observado.keys()].filter((code) => code !== SIN_CLIENTE && !clientes.includes(code));
+    // Clientes que declararon origen y NO están en el catálogo de pantallas: `x-atlas-product` la
+    // mandan también backends («erp», «flows-loader») con otro vocabulario.
+    const desconocidos = [...observado.keys()].filter((code) => code !== SIN_CLIENTE && !todos.includes(code));
 
     return {
-      // Pantallas DEL CATÁLOGO con tráfico. Contar rutas concretas daba un número mayor que el
-      // catálogo entero en cuanto una pantalla lleva identificador.
+      evidence: propias ? 'window' : 'process',
       screensWithRuns: conTrafico,
       screensWithoutClient: observado.get(SIN_CLIENTE)?.size ?? 0,
       unknownClients: desconocidos.slice(0, 10),
       truncated: truncado,
       byClient: resumen,
+      // Clientes cuyo origen no guarda este bloque: aquí ni se verifican ni se degradan.
+      notMeasuredHere: todos.filter((code) => !clientes.includes(code)),
       uncatalogued: sinCatalogar.slice(0, 20),
     };
   }

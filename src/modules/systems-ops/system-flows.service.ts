@@ -6,14 +6,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Transaction } from 'sequelize';
 import { env } from '../../config/env.js';
-import {
-  indexBlockPathRuns,
-  indexBlockRuns,
-  type BlockAccessRun,
-  type BlockPathRun,
-  type RouteRuns,
-  verificationFromRuns,
-} from './system-flows.verification.util.js';
+import { type RouteRuns, verificationFromRuns } from './system-flows.verification.util.js';
+import { ACCESS_EVIDENCE, type EvidenciaDeBloque } from './system-flows.evidence.js';
 import { PlatformCatalogFederationClient } from './platform-catalog-federation.client.js';
 import { buildFlowGraph, buildModuleGraph } from './system-flows.graph.util.js';
 import { mapFinding, mapFlow, mapScreen } from './system-flows.mapper.js';
@@ -31,49 +25,6 @@ import {
   ScreensListQueryDto,
   VerifyFlowsDto,
 } from './system-flows.schemas.js';
-
-/** Lo mínimo de un flujo que hace falta para nombrarlo en el índice de otro bloque. */
-type FlujoIdentificable = { httpMethod: string; path: string; controller: string | null; handler: string | null };
-
-/**
- * Dónde pide cada bloque su evidencia de ejecución, cómo se indexa lo que devuelve y —lo que de
- * verdad separa a un bloque de otro— con qué identidad se cruza: el Motor sólo registra controlador
- * y handler, el ERP registra la plantilla de ruta. Cruzarlos con la clave del otro no da un error:
- * da cero coincidencias, que se leería como «nada se ejecutó». Por eso la clave vive aquí, junto a
- * la fuente que la produce, y no en un `if` del bucle de verificación.
- */
-type EvidenciaDeBloque = {
-  /** Ruta de la evidencia en ese bloque, leída de su configuración; `dias` es la ventana pedida. */
-  path: (dias: number) => string;
-  index: (body: unknown) => Map<string, RouteRuns>;
-  key: (flow: FlujoIdentificable) => string;
-  /** Qué se guarda como procedencia de la verificación: de dónde salió, textualmente. */
-  source: string;
-};
-
-const ACCESS_EVIDENCE: Record<string, EvidenciaDeBloque> = {
-  DECISION_ENGINE: {
-    path: (dias) => `${env.DECISION_ENGINE_ACCESS_RUNS_PATH}?windowDays=${dias}`,
-    index: (body) => indexBlockRuns((body as { resources?: BlockAccessRun[] })?.resources ?? []),
-    key: (flow) => `${flow.httpMethod} ${flow.controller}.${flow.handler}`,
-    source: 'decision_access_audit (federado)',
-  },
-  DASHBOARDS: {
-    // Este bloque no instrumenta nada nuevo: su `MetricsInterceptor` ya contaba las peticiones por
-    // (método, patrón de ruta, estado) para Prometheus, y lo que publica es ese mismo contador.
-    path: () => env.DASHBOARDS_ACCESS_RUNS_PATH,
-    index: (body) => indexBlockPathRuns((body as { entries?: BlockPathRun[] })?.entries ?? []),
-    key: (flow) => `${flow.httpMethod} ${flow.path}`,
-    source: 'atlas_dashboards_http_requests_total (federado, desde el arranque del proceso)',
-  },
-  ERP_BACKEND: {
-    // El ERP no acota por ventana: cuenta desde que arrancó la instancia y lo declara en la respuesta.
-    path: () => env.ERP_BACKEND_ACCESS_RUNS_PATH,
-    index: (body) => indexBlockPathRuns((body as { entries?: BlockPathRun[] })?.entries ?? []),
-    key: (flow) => `${flow.httpMethod} ${flow.path}`,
-    source: 'http_access_registry (federado, desde el arranque del proceso)',
-  },
-};
 
 @Injectable()
 export class SystemFlowsService {
@@ -150,7 +101,7 @@ export class SystemFlowsService {
         routesWithRuns: runs.size,
         federation: federado ? { ok: federado.ok, message: federado.message } : undefined,
         ...counts,
-        screens: await this.screensService.verify(dto, tx),
+        screens: await this.screensService.verify(dto, tx, federado?.screens ?? null, fuente?.screensSource),
       };
     });
   }
@@ -240,11 +191,19 @@ export class SystemFlowsService {
     // Cada bloque publica lo que de verdad tiene, y se cruza como corresponda: el Motor identifica
     // sus accesos por controlador y handler; el ERP, por ruta y código HTTP, como el Backend.
     if (!fuente) {
-      return { ok: false, message: `El bloque ${dto.systemCode} no publica evidencia de ejecución HTTP.`, runs: new Map() };
+      return {
+        ok: false,
+        message: `El bloque ${dto.systemCode} no publica evidencia de ejecución HTTP.`,
+        runs: new Map(),
+        screens: null,
+      };
     }
     const result = await this.federation.fetchFromBlock(dto.systemCode, callerToken, fuente.path(dto.windowDays));
-    if (!result.ok) return { ok: false, message: result.message ?? 'No se pudo pedir el resumen de accesos.', runs: new Map() };
-    return { ok: true, message: undefined, runs: fuente.index((result as { body?: unknown }).body) };
+    if (!result.ok) {
+      return { ok: false, message: result.message ?? 'No se pudo pedir el resumen de accesos.', runs: new Map(), screens: null };
+    }
+    const body = (result as { body?: unknown }).body;
+    return { ok: true, message: undefined, runs: fuente.index(body), screens: fuente.screens?.(body) ?? null };
   }
 
   /** Qué deja encargado cada flujo y si alguien lo recoge. Ver el servicio. */

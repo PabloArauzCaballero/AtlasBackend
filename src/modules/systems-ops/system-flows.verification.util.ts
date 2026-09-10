@@ -213,7 +213,10 @@ function fundir(a: ScreenRuns, b: ScreenRuns): ScreenRuns {
  * Lo que sí se guarda es el detalle observado, porque responde la pregunta que ningún análisis
  * estático puede: contra qué rutas llama DE VERDAD esta pantalla.
  */
-export function screenVerificationFrom(runs: ScreenRuns | null): {
+export function screenVerificationFrom(
+  runs: ScreenRuns | null,
+  source = 'system_action_logs (origin_screen)',
+): {
   verification: string;
   lastSeenAt: Date | null;
   observed: Record<string, unknown>;
@@ -223,7 +226,7 @@ export function screenVerificationFrom(runs: ScreenRuns | null): {
     verification: 'VERIFIED',
     lastSeenAt: runs.lastAt,
     observed: {
-      source: 'system_action_logs (origin_screen)',
+      source,
       calls: runs.calls,
       failed: runs.failed,
       routes: runs.routes.slice(0, 40),
