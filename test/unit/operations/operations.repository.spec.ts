@@ -73,6 +73,23 @@ describe('OperationsRepository', () => {
       expect(options.limit).toBe(10);
     });
 
+    /**
+     * Regresión del 500 en `GET /operations/customers/:id/investigation-summary` (2026-09-07).
+     * El filtro `deleted` estaba copiado de las consultas de `customers`, pero
+     * `identity_verification_attempts` no tiene esa columna: PostgreSQL respondía 42703
+     * («column IdentityVerificationAttemptModel.deleted does not exist») y el endpoint moría.
+     * Lo encontró Flujos al cruzar el catálogo con las corridas reales de `system_action_logs`.
+     */
+    it('findLatestIdentityAttempt NO filtra por `deleted`: esa columna no existe en la tabla', async () => {
+      const { repo, models } = buildRepo();
+      (models.identityAttempt.findOne as jest.Mock).mockResolvedValue(null as never);
+      await repo.findLatestIdentityAttempt('t1', 'c1');
+      const options = (models.identityAttempt.findOne as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; order: unknown };
+      expect(options.where).toEqual({ tenantId: 't1', customerId: 'c1' });
+      expect(options.where.deleted).toBeUndefined();
+      expect(options.order).toEqual([['_id', 'DESC']]);
+    });
+
     it('findFraudCasesForCustomer filtra por tenant+cliente no borrado, top 10', async () => {
       const { repo, models } = buildRepo();
       (models.fraudCase.findAll as jest.Mock).mockResolvedValue([] as never);

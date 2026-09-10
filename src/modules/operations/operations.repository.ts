@@ -47,9 +47,19 @@ export class OperationsRepository {
    * móvil, y al revés — que es exactamente la información que hace falta para
    * saber si el expediente ya tiene respuesta.
    */
+  /*
+   * Sin filtro por `deleted`: esa columna NO existe en `identity_verification_attempts`.
+   *
+   * El filtro estaba copiado de las consultas de `customers`, donde sí existe, y hacía que
+   * Sequelize generara `WHERE ... AND "IdentityVerificationAttemptModel"."deleted" != true`
+   * contra una columna inexistente: PostgreSQL respondía 42703 y el endpoint devolvía 500 en
+   * producción (medido el 2026-09-07 en `system_action_logs`, y detectado por Flujos al cruzar el
+   * catálogo con esas corridas). Los intentos de verificación no se borran ni lógicamente: son
+   * evidencia, y por eso la tabla no tiene la columna.
+   */
   findLatestIdentityAttempt(tenantId: string, customerId: string): Promise<IdentityVerificationAttemptModel | null> {
     return this.identityAttemptModel.findOne({
-      where: { tenantId, customerId, deleted: { [Op.ne]: true } },
+      where: { tenantId, customerId },
       order: [['_id', 'DESC']],
     } as FindOptions);
   }
