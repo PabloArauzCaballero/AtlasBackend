@@ -75,6 +75,33 @@ describe('SystemFlowsScreensService.verify · quién verifica y quién degrada c
     expect(repo.applyScreenVerification).not.toHaveBeenCalled();
   });
 
+  it('el Motor tiene ventana: verifica y DEGRADA a su portal, y a nadie más', async () => {
+    const repo = repositorio();
+    const federadas = { porCliente: new Map([['MOTOR_PORTAL', new Map([['/actions', runs()]])]]), truncado: false };
+    const resultado = await new SystemFlowsScreensService(repo as never).verify(
+      dto('DECISION_ENGINE'),
+      tx,
+      federadas,
+      'decision_access_audit.origin_screen',
+      'window',
+    );
+    expect(repo.applyScreenVerification).toHaveBeenCalledWith(
+      'MOTOR_PORTAL',
+      '/actions',
+      expect.objectContaining({ verification: 'VERIFIED' }),
+      tx,
+    );
+    expect(repo.resetScreensNotSeen.mock.calls.map((llamada: unknown[]) => llamada[0])).toEqual(['MOTOR_PORTAL']);
+    expect(resultado).toMatchObject({ evidence: 'window' });
+  });
+
+  it('con ventana pero lista cortada no se degrada: faltan grupos y no se sabe cuáles', async () => {
+    const repo = repositorio();
+    const federadas = { porCliente: new Map([['MOTOR_PORTAL', new Map([['/actions', runs()]])]]), truncado: true };
+    await new SystemFlowsScreensService(repo as never).verify(dto('DECISION_ENGINE'), tx, federadas, undefined, 'window');
+    expect(repo.resetScreensNotSeen).not.toHaveBeenCalled();
+  });
+
   it('un bloque sin evidencia de pantallas no toca el catálogo', async () => {
     const repo = repositorio();
     expect(await new SystemFlowsScreensService(repo as never).verify(dto('DECISION_ENGINE'), tx, null)).toBeUndefined();
@@ -99,22 +126,25 @@ describe('indexBlockScreens · lo que publica el ERP', () => {
         null,
       ],
       screensTruncated: true,
-    });
+    }) ?? { porCliente: new Map(), truncado: false };
     expect(porCliente.size).toBe(1);
     expect(porCliente.get('ERP_PORTAL')?.get('/a')).toMatchObject({ calls: 3, failed: 1 });
     expect(porCliente.get('ERP_PORTAL')?.get('/a')?.lastAt?.toISOString()).toBe('2026-09-10T10:00:00.000Z');
     expect(truncado).toBe(true);
   });
 
-  it('un ERP que aún no publica pantallas da un mapa vacío, no un error', () => {
-    expect(indexBlockScreens({ entries: [] })).toEqual({ porCliente: new Map(), truncado: false });
-    expect(indexBlockScreens(undefined)).toEqual({ porCliente: new Map(), truncado: false });
+  it('un bloque que aún no publica pantallas no aporta evidencia: nulo, no un mapa vacío', () => {
+    // Con evidencia de ventana, un mapa vacío se leería como «ninguna pantalla se usó» y degradaría todas.
+    expect(indexBlockScreens({ entries: [] })).toBeNull();
+    expect(indexBlockScreens(undefined)).toBeNull();
+    expect(indexBlockScreens({ screens: [] })).toEqual({ porCliente: new Map(), truncado: false });
   });
 
-  it('el ERP declara pantallas y mide a su portal; el Motor todavía no', () => {
-    expect(ACCESS_EVIDENCE.ERP_BACKEND.screens).toBeDefined();
-    expect(ACCESS_EVIDENCE.DECISION_ENGINE.screens).toBeUndefined();
-    expect(CLIENT_EVIDENCE.ERP_PORTAL).toBe('ERP_BACKEND');
-    expect(CLIENT_EVIDENCE.MOTOR_PORTAL).toBeUndefined();
+  it('ERP y Motor miden a su portal, con alcances distintos; Tableros todavía no', () => {
+    expect(ACCESS_EVIDENCE.ERP_BACKEND).toMatchObject({ screensScope: 'process' });
+    expect(ACCESS_EVIDENCE.DECISION_ENGINE).toMatchObject({ screensScope: 'window' });
+    expect(ACCESS_EVIDENCE.DASHBOARDS.screens).toBeUndefined();
+    expect(CLIENT_EVIDENCE).toMatchObject({ ERP_PORTAL: 'ERP_BACKEND', MOTOR_PORTAL: 'DECISION_ENGINE' });
+    expect(CLIENT_EVIDENCE.DASHBOARDS_PORTAL).toBeUndefined();
   });
 });

@@ -101,7 +101,7 @@ export class SystemFlowsService {
         routesWithRuns: runs.size,
         federation: federado ? { ok: federado.ok, message: federado.message } : undefined,
         ...counts,
-        screens: await this.screensService.verify(dto, tx, federado?.screens ?? null, fuente?.screensSource),
+        screens: await this.screensService.verify(dto, tx, federado?.screens ?? null, fuente?.screensSource, fuente?.screensScope),
       };
     });
   }

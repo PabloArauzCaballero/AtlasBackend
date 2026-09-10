@@ -27,17 +27,25 @@ export class SystemFlowsScreensService {
    *
    * ## Degradar exige una ventana
    *
-   * Los logs del Backend cubren una ventana: «no apareció» significa «no se usó en N días». El
-   * contador del ERP cuenta desde que arrancó su proceso, y un despliegue lo vacía: «no apareció»
-   * sólo significa «no desde el último arranque». Con esa evidencia se AFIRMA uso y nunca se niega.
+   * Los logs del Backend y la auditoría del Motor cubren una ventana: «no apareció» significa «no se
+   * usó en N días». El contador del ERP cuenta desde que arrancó su proceso, y un despliegue lo
+   * vacía: «no apareció» sólo significa «no desde el último arranque». Con esa evidencia se AFIRMA
+   * uso y nunca se niega (`screensScope`).
    *
    * ## Qué NO se hace aquí
    *
    * No se marca ninguna pantalla como rota. Lo que falla es el endpoint, que ya tiene su eje y su
    * ficha; una pantalla que llama a algo roto hace su trabajo y enseña el error.
    */
-  async verify(dto: VerifyFlowsDto, tx: Transaction, federadas: PantallasObservadas | null = null, source?: string) {
+  async verify(
+    dto: VerifyFlowsDto,
+    tx: Transaction,
+    federadas: PantallasObservadas | null = null,
+    source?: string,
+    scope: 'window' | 'process' = 'process',
+  ) {
     const propias = dto.systemCode === 'ATLAS_BACKEND';
+    const conVentana = propias || scope === 'window';
     const evidencia = propias ? await this.repository.screenRuns(dto.windowDays) : federadas;
     if (!evidencia) return undefined;
     const { porCliente: observado, truncado } = evidencia;
@@ -66,7 +74,7 @@ export class SystemFlowsScreensService {
       }
       // Degradar sólo con ventana propia y completa: si la consulta vino cortada no se sabe si una
       // pantalla falta por no usarse o por el tope, y con un contador de proceso, tampoco.
-      if (propias && !truncado) await this.repository.resetScreensNotSeen(clientCode, [...porPlantilla.keys()], tx);
+      if (conVentana && !truncado) await this.repository.resetScreensNotSeen(clientCode, [...porPlantilla.keys()], tx);
     }
 
     // Clientes que declararon origen y NO están en el catálogo de pantallas: `x-atlas-product` la
@@ -74,7 +82,7 @@ export class SystemFlowsScreensService {
     const desconocidos = [...observado.keys()].filter((code) => code !== SIN_CLIENTE && !todos.includes(code));
 
     return {
-      evidence: propias ? 'window' : 'process',
+      evidence: conVentana ? 'window' : 'process',
       screensWithRuns: conTrafico,
       screensWithoutClient: observado.get(SIN_CLIENTE)?.size ?? 0,
       unknownClients: desconocidos.slice(0, 10),
@@ -124,7 +132,12 @@ export class SystemFlowsScreensService {
       porPantalla.set(clave, entrada);
     }
     const consideradas = [...porCliente.values()].reduce((n, pantallas) => n + pantallas.size, 0);
+    const todos = await this.repository.screenClients();
     return {
+      // La deriva se mide contra los endpoints de ESTE backend y lo que se llamó en sus logs. Las
+      // pantallas de clientes que declaran su origen a otro bloque no entran, y se dice: una lista
+      // vacía para ellas no significaría «sin deriva».
+      notMeasured: todos.filter((code) => CLIENT_EVIDENCE[code] !== 'ATLAS_BACKEND'),
       // El denominador, que en la primera versión era un booleano constante: sin él, un `[]` no se
       // distingue de «nadie ha abierto ninguna pantalla todavía».
       screensWithObservedEdges: consideradas,

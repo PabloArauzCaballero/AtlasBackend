@@ -136,6 +136,7 @@ describe('SystemFlowsScreensService.rbacDrift', () => {
     new SystemFlowsScreensService({
       rbacDrift: async () => filas,
       screenRuns: async () => ({ porCliente: observado, truncado: false }),
+      screenClients: async () => ['ADMIN_PORTAL', 'ERP_PORTAL', 'MOTOR_PORTAL'],
     } as never).rbacDrift();
 
   const fila = (over: Record<string, unknown> = {}) => ({
@@ -166,6 +167,10 @@ describe('SystemFlowsScreensService.rbacDrift', () => {
   it('`@Public` se separa: puede estar bien, y en el mismo saco se ignorarían los dos', async () => {
     const { screens } = await deriva([fila({ is_public: true })]);
     expect(screens[0].calls).toEqual([expect.objectContaining({ severity: 'PUBLIC' })]);
+  });
+
+  it('declara qué clientes NO se miden aquí, para que su lista vacía no se lea como «sin deriva»', async () => {
+    expect(await deriva([])).toMatchObject({ notMeasured: ['ERP_PORTAL', 'MOTOR_PORTAL'] });
   });
 
   it('el denominador dice sobre cuántas pantallas se pudo opinar', async () => {

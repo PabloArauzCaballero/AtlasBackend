@@ -33,9 +33,14 @@ export type EvidenciaDeBloque = {
   key: (flow: FlujoIdentificable) => string;
   /** Qué se guarda como procedencia de la verificación: de dónde salió, textualmente. */
   source: string;
-  /** Si el bloque guarda también desde qué pantalla se le llamó, cómo leerlo. */
-  screens?: (body: unknown) => PantallasObservadas;
+  /** Si el bloque guarda también desde qué pantalla se le llamó, cómo leerlo. Nulo = no lo publica. */
+  screens?: (body: unknown) => PantallasObservadas | null;
   screensSource?: string;
+  /**
+   * `window`: la evidencia cubre N días, así que «no apareció» es «no se usó en N días» y se puede
+   * degradar. `process`: cuenta desde que arrancó el proceso, y sólo sirve para afirmar uso.
+   */
+  screensScope?: 'window' | 'process';
 };
 
 export const ACCESS_EVIDENCE: Record<string, EvidenciaDeBloque> = {
@@ -44,6 +49,10 @@ export const ACCESS_EVIDENCE: Record<string, EvidenciaDeBloque> = {
     index: (body) => indexBlockRuns((body as { resources?: BlockAccessRun[] })?.resources ?? []),
     key: (flow) => `${flow.httpMethod} ${flow.controller}.${flow.handler}`,
     source: 'decision_access_audit (federado)',
+    // Su portal le declara la pantalla y el Motor la guarda con cada acceso, en una tabla con ventana.
+    screens: indexBlockScreens,
+    screensSource: 'decision_access_audit.origin_screen (federado, ventana de días)',
+    screensScope: 'window',
   },
   DASHBOARDS: {
     // Este bloque no instrumenta nada nuevo: su `MetricsInterceptor` ya contaba las peticiones por
@@ -62,6 +71,7 @@ export const ACCESS_EVIDENCE: Record<string, EvidenciaDeBloque> = {
     // Su portal sólo le llama a él, así que sólo él sabe desde qué pantalla se le llamó.
     screens: indexBlockScreens,
     screensSource: 'http_access_registry.screens (federado, desde el arranque del proceso)',
+    screensScope: 'process',
   },
 };
 
@@ -74,6 +84,9 @@ export const CLIENT_EVIDENCE: Record<string, string> = {
   ADMIN_PORTAL: 'ATLAS_BACKEND',
   CONSUMER_APP: 'ATLAS_BACKEND',
   ERP_PORTAL: 'ERP_BACKEND',
+  // El portal del Motor llama también a AtlasBackend por su proxy, pero sus pantallas las mide sólo
+  // el Motor: con dos bloques, uno degradaría lo que acababa de verificar el otro.
+  MOTOR_PORTAL: 'DECISION_ENGINE',
 };
 
 type BlockScreenRun = {
@@ -87,13 +100,16 @@ type BlockScreenRun = {
 
 /**
  * Lee las pantallas que publica un bloque. Es otro servicio, así que lo que no tenga forma de
- * pantalla se ignora en vez de tumbar la verificación, y un bloque antiguo que no las publica da un
- * mapa vacío, no un error.
+ * pantalla se ignora en vez de tumbar la verificación.
+ *
+ * Un bloque que NO publica `screens` (una versión anterior) devuelve nulo, no un mapa vacío: con
+ * evidencia de ventana, un mapa vacío se leería como «ninguna pantalla se usó» y degradaría todas.
  */
-export function indexBlockScreens(body: unknown): PantallasObservadas {
+export function indexBlockScreens(body: unknown): PantallasObservadas | null {
   const cuerpo = (body ?? {}) as { screens?: unknown; screensTruncated?: unknown };
+  if (!Array.isArray(cuerpo.screens)) return null;
   const porCliente = new Map<string, Map<string, ScreenRuns>>();
-  const filas = Array.isArray(cuerpo.screens) ? (cuerpo.screens as Array<BlockScreenRun | null>) : [];
+  const filas = cuerpo.screens as Array<BlockScreenRun | null>;
   for (const fila of filas) {
     if (typeof fila?.client !== 'string' || typeof fila.screen !== 'string') continue;
     const porPantalla = porCliente.get(fila.client) ?? new Map<string, ScreenRuns>();
