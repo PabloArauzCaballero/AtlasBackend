@@ -102,7 +102,12 @@ export function mapFinding(row: SystemFlowFindingModel) {
 
 /** Con análisis (fase 2) el riesgo sale de las tablas escritas; sin él, del módulo. La base queda declarada en la fila. */
 function riskOf(endpoint: DerivedEndpointDto, kind: ReturnType<typeof flowKindFor>) {
-  const analysis = endpoint.analysis && endpoint.analysis.status !== 'DISCOVERED' ? endpoint.analysis : null;
+  // Un análisis que no llegó a ninguna tabla no puede decidir el riesgo POR tablas: daría LOW con
+  // base `tables-written`, que suena a medido cuando en realidad no se resolvió nada. En ese caso
+  // se vuelve a la heurística de módulo, que al menos declara lo que es. Son 62 de los 81 PARTIAL
+  // del Backend: casi todos los que se quedaron a medias, no unos pocos raros.
+  const parcialSinDatos = endpoint.analysis?.status === 'PARTIAL' && !endpoint.analysis.writes.length && !endpoint.analysis.reads.length;
+  const analysis = endpoint.analysis && endpoint.analysis.status !== 'DISCOVERED' && !parcialSinDatos ? endpoint.analysis : null;
   if (!analysis) return { value: flowRiskFor(endpoint, kind), basis: 'module-heuristic', analysis: null };
   const isPublicWrite =
     kind !== 'READ' && endpoint.isPublic && !endpoint.roles.length && !endpoint.internalPermissions.length && endpoint.module !== 'auth';

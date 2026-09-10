@@ -1,0 +1,167 @@
+import { SystemFlowsImportService } from '../../src/modules/systems-ops/system-flows.import.service.js';
+import type { SystemFlowsRepository } from '../../src/modules/systems-ops/system-flows.repository.js';
+
+/**
+ * `SystemFlowsImportService` con un doble hecho a mano del repositorio: lo que se protege es
+ * cómo arma cada fila antes de guardarla y qué llama para dejar el catálogo consistente, no
+ * el acceso a datos en sí (eso ya lo prueba `systems-ops-flows-repository.spec.ts`).
+ */
+type RepoDouble = { calls: Record<string, unknown[][]> } & Record<string, unknown>;
+
+function repositoryDouble(): RepoDouble {
+  const calls: Record<string, unknown[][]> = {};
+  const spy =
+    (name: string, result: (args: unknown[]) => unknown = () => undefined) =>
+    (...args: unknown[]) => {
+      (calls[name] ??= []).push(args);
+      return Promise.resolve(result(args));
+    };
+  return {
+    calls,
+    transaction: (work: (tx: unknown) => Promise<unknown>) => work('tx'),
+    createImport: spy('createImport', () => ({ id: '7', update: spy('importUpdate') })),
+    replaceFlows: spy('replaceFlows', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
+    replaceScreens: spy('replaceScreens', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
+    replaceFindings: spy('replaceFindings', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
+    recountFindings: spy('recountFindings'),
+  };
+}
+
+const endpoint = (over: Record<string, unknown> = {}) => ({
+  method: 'GET',
+  path: 'auth/me',
+  module: 'auth',
+  controller: 'AuthController',
+  handler: 'me',
+  isPublic: false,
+  roles: [],
+  internalPermissions: [],
+  guards: [],
+  callers: [],
+  testStatus: 'UNTESTED' as const,
+  contractStatus: 'NO_CONTRACT' as const,
+  ...over,
+});
+
+describe('SystemFlowsImportService.importEndpoints', () => {
+  it('registra la carga antes de escribir filas: el `importId` de las filas viene del import ya creado', async () => {
+    const repo = repositoryDouble();
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importEndpoints(
+      { systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] as never },
+      'pablo',
+    );
+    expect(repo.calls.createImport?.[0]?.[0]).toMatchObject({ scope: 'endpoints', systemCode: 'ATLAS_BACKEND', createdBy: 'pablo' });
+    const filas = repo.calls.replaceFlows?.[0]?.[1] as Array<{ importId: string }>;
+    expect(filas[0].importId).toBe('7');
+  });
+
+  it('recuenta los hallazgos tras recargar el bloque: si no, un flujo que ya no existe conservaría su contador viejo', async () => {
+    const repo = repositoryDouble();
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importEndpoints(
+      { systemCode: 'ATLAS_BACKEND', endpoints: [] as never },
+      null,
+    );
+    expect(repo.calls.recountFindings?.[0]?.[0]).toBe('ATLAS_BACKEND');
+  });
+
+  it('deja escrito cuántas filas se guardaron y cuántas se retiraron, no sólo el conteo recibido', async () => {
+    const repo = repositoryDouble();
+    const importUpdate = jest.fn(() => Promise.resolve(undefined));
+    repo.createImport = (...args: unknown[]) => {
+      (repo.calls.createImport ??= []).push(args);
+      return Promise.resolve({ id: '7', update: importUpdate });
+    };
+    repo.replaceFlows = (...args: unknown[]) => {
+      (repo.calls.replaceFlows ??= []).push(args);
+      return Promise.resolve({ upserted: 1, removed: 3 });
+    };
+    const result = await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importEndpoints(
+      { systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] as never },
+      'pablo',
+    );
+    expect(importUpdate).toHaveBeenCalledWith({ rowsUpserted: 1, rowsRemoved: 3 }, { transaction: 'tx' });
+    expect(result).toMatchObject({ importId: '7', upserted: 1, removed: 3 });
+  });
+
+  it('cada endpoint recibe el mismo commit y rama de la carga, no uno por fila', async () => {
+    const repo = repositoryDouble();
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importEndpoints(
+      {
+        systemCode: 'ATLAS_BACKEND',
+        analyzedCommit: 'abc1234',
+        analyzedBranch: 'dev',
+        endpoints: [endpoint({ path: 'a' }), endpoint({ path: 'b' })] as never,
+      },
+      null,
+    );
+    const filas = repo.calls.replaceFlows?.[0]?.[1] as Array<{ analyzedCommit: string; analyzedBranch: string }>;
+    expect(filas).toHaveLength(2);
+    expect(filas.every((f) => f.analyzedCommit === 'abc1234' && f.analyzedBranch === 'dev')).toBe(true);
+  });
+});
+
+describe('SystemFlowsImportService.importScreens', () => {
+  it('mapea cada pantalla al bloque del cliente que la envía, no al de los flujos', async () => {
+    const repo = repositoryDouble();
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importScreens(
+      { clientCode: 'ADMIN_PORTAL', screens: [{ route: '/internal/flows', navPermissions: [], navRoles: [] }] as never },
+      'pablo',
+    );
+    expect(repo.calls.replaceScreens?.[0]?.[0]).toBe('ADMIN_PORTAL');
+    const filas = repo.calls.replaceScreens?.[0]?.[1] as Array<Record<string, unknown>>;
+    expect(filas[0]).toMatchObject({ clientCode: 'ADMIN_PORTAL', route: '/internal/flows', sourceFile: null, navLabel: null });
+  });
+
+  it('no recuenta hallazgos: las pantallas no los tienen y llamarlo ensuciaría un bloque que no es el de flujos', async () => {
+    const repo = repositoryDouble();
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importScreens(
+      { clientCode: 'ADMIN_PORTAL', screens: [] as never },
+      null,
+    );
+    expect(repo.calls.recountFindings).toBeUndefined();
+  });
+
+  it('un archivo o etiqueta de navegación ausentes se guardan como null, no como cadena vacía', async () => {
+    const repo = repositoryDouble();
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importScreens(
+      {
+        clientCode: 'ADMIN_PORTAL',
+        screens: [{ route: '/x', file: 'X.tsx', navLabel: 'X', navPermissions: ['p'], navRoles: ['ADMIN'] }] as never,
+      },
+      null,
+    );
+    const fila = (repo.calls.replaceScreens?.[0]?.[1] as Array<Record<string, unknown>>)[0];
+    expect(fila).toMatchObject({ sourceFile: 'X.tsx', navLabel: 'X', navPermissions: ['p'], navRoles: ['ADMIN'] });
+  });
+});
+
+describe('SystemFlowsImportService.importFindings', () => {
+  it('calcula la clave estable con `findingKeyFor`: la misma terna kind+systemCode+ref siempre produce la misma clave', async () => {
+    const repo = repositoryDouble();
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importFindings(
+      {
+        systemCode: 'ATLAS_BACKEND',
+        findings: [
+          { kind: 'CONTRACT_DRIFT', severity: 'HIGH', systemCode: 'ATLAS_BACKEND', ref: 'POST auth/login', summary: 'x' },
+        ] as never,
+      },
+      null,
+    );
+    const fila = (repo.calls.replaceFindings?.[0]?.[1] as Array<Record<string, unknown>>)[0];
+    expect(typeof fila.findingKey).toBe('string');
+    expect(fila.findingKey).toHaveLength(40); // sha1 en hex
+  });
+
+  it('un hallazgo sin `extra` guarda un objeto vacío, no `undefined`', async () => {
+    const repo = repositoryDouble();
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importFindings(
+      {
+        systemCode: 'ATLAS_BACKEND',
+        findings: [{ kind: 'k', severity: 'LOW', systemCode: 'ATLAS_BACKEND', ref: 'r', summary: 's' }] as never,
+      },
+      null,
+    );
+    const fila = (repo.calls.replaceFindings?.[0]?.[1] as Array<Record<string, unknown>>)[0];
+    expect(fila.extraJson).toEqual({});
+  });
+});
