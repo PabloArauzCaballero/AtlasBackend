@@ -12,6 +12,7 @@ import { RBAC_DRIFT_SQL, SCREEN_RUNS_LIMIT, SCREEN_RUNS_SQL } from './system-flo
 /** Cubeta del tráfico que no declaró cliente. No se atribuye a nadie: se cuenta aparte. */
 export const SIN_CLIENTE = '(sin cliente)';
 import { ScreenRuns } from './system-flows.verification.util.js';
+import { clientesMedidosFuera } from './system-flows.evidence.js';
 
 /**
  * Todo lo que Flujos sabe de las PANTALLAS, separado del repositorio de flujos.
@@ -39,7 +40,10 @@ export class SystemFlowsScreensRepository {
       failed: string;
       last_at: Date | null;
       routes: Array<{ method: string; path: string; calls: number; failed: number }>;
-    }>(SCREEN_RUNS_SQL, { type: QueryTypes.SELECT, replacements: { windowDays: String(windowDays) } });
+    }>(SCREEN_RUNS_SQL, {
+      type: QueryTypes.SELECT,
+      replacements: { windowDays: String(windowDays), clientesDeOtrosBloques: clientesMedidosFuera('ATLAS_BACKEND') },
+    });
     // Indexado por CLIENTE y luego por ruta concreta: `/` es una pantalla distinta en cada portal,
     // y sin separar por cliente una visita marcaría verificadas las cinco.
     const out = new Map<string, Map<string, ScreenRuns>>();

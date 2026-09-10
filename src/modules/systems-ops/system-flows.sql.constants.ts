@@ -64,6 +64,9 @@ export const SCREEN_RUNS_SQL = `WITH runs AS (
            FROM ${LOGS}.system_action_logs
           WHERE origin_screen IS NOT NULL
             AND route_template IS NOT NULL
+            -- Los clientes que mide otro bloque no gastan el tope ni el denominador. El nulo se queda:
+            -- se cuenta aparte como «sin cliente», y los códigos desconocidos siguen a la vista.
+            AND (origin_client IS NULL OR origin_client NOT IN (:clientesDeOtrosBloques))
             AND occurred_at >= NOW() - (:windowDays || ' days')::interval
        ),
        por_ruta AS (

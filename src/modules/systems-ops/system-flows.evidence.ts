@@ -50,9 +50,15 @@ export const ACCESS_EVIDENCE: Record<string, EvidenciaDeBloque> = {
     key: (flow) => `${flow.httpMethod} ${flow.controller}.${flow.handler}`,
     source: 'decision_access_audit (federado)',
     // Su portal le declara la pantalla y el Motor la guarda con cada acceso, en una tabla con ventana.
+    //
+    // Aun así, PROCESO y no ventana: la lectura del Motor pasa por RLS con el tenant de quien llama
+    // (`applyTenantRls`), y AtlasBackend reenvía el token del operador. Así que la lista cubre SÓLO su
+    // tenant. Con alcance de ventana, un operador del tenant 1 degradaba las pantallas que sólo usó el
+    // tenant 2, y otro del tenant 2 las volvía a verificar. Hasta que el Motor declare qué cubre, esta
+    // evidencia afirma uso y nunca lo niega.
     screens: indexBlockScreens,
-    screensSource: 'decision_access_audit.origin_screen (federado, ventana de días)',
-    screensScope: 'window',
+    screensSource: 'decision_access_audit.origin_screen (federado, ventana de días, sólo el tenant de quien verifica)',
+    screensScope: 'process',
   },
   DASHBOARDS: {
     // Este bloque no instrumenta nada nuevo: su `MetricsInterceptor` ya contaba las peticiones por
@@ -84,6 +90,17 @@ export const ACCESS_EVIDENCE: Record<string, EvidenciaDeBloque> = {
  * pantallas. Un cliente que no está aquí no se verifica ni se degrada en ninguna parte: sigue sin
  * evidencia, y la respuesta lo dice en vez de contarlo como «no usado».
  */
+/**
+ * Clientes cuyo origen guarda OTRO bloque. Sus filas en los logs de un bloque —el portal del Motor
+ * llama a AtlasBackend por su proxy— no se usan para verificar, y tampoco deben gastar el tope de la
+ * consulta de pantallas de ese bloque ni contar en su denominador.
+ */
+export function clientesMedidosFuera(bloque: string): string[] {
+  return Object.entries(CLIENT_EVIDENCE)
+    .filter(([, medidoPor]) => medidoPor !== bloque)
+    .map(([cliente]) => cliente);
+}
+
 export const CLIENT_EVIDENCE: Record<string, string> = {
   ADMIN_PORTAL: 'ATLAS_BACKEND',
   CONSUMER_APP: 'ATLAS_BACKEND',

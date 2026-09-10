@@ -1,5 +1,11 @@
 import { SystemFlowsScreensService } from '../../src/modules/systems-ops/system-flows.screens.service.js';
-import { ACCESS_EVIDENCE, CLIENT_EVIDENCE, indexBlockScreens } from '../../src/modules/systems-ops/system-flows.evidence.js';
+import {
+  ACCESS_EVIDENCE,
+  CLIENT_EVIDENCE,
+  clientesMedidosFuera,
+  indexBlockScreens,
+} from '../../src/modules/systems-ops/system-flows.evidence.js';
+import { SCREEN_RUNS_SQL } from '../../src/modules/systems-ops/system-flows.sql.constants.js';
 import type { ScreenRuns } from '../../src/modules/systems-ops/system-flows.verification.util.js';
 
 /**
@@ -75,7 +81,7 @@ describe('SystemFlowsScreensService.verify · quién verifica y quién degrada c
     expect(repo.applyScreenVerification).not.toHaveBeenCalled();
   });
 
-  it('el Motor tiene ventana: verifica y DEGRADA a su portal, y a nadie más', async () => {
+  it('con evidencia de ventana se verifica y DEGRADA sólo al cliente de ese bloque', async () => {
     const repo = repositorio();
     const federadas = { porCliente: new Map([['MOTOR_PORTAL', new Map([['/actions', runs()]])]]), truncado: false };
     const resultado = await new SystemFlowsScreensService(repo as never).verify(
@@ -142,9 +148,19 @@ describe('indexBlockScreens · lo que publica el ERP', () => {
 
   it('los tres bloques con portal miden a su portal, con alcances distintos', () => {
     expect(ACCESS_EVIDENCE.ERP_BACKEND).toMatchObject({ screensScope: 'process' });
-    expect(ACCESS_EVIDENCE.DECISION_ENGINE).toMatchObject({ screensScope: 'window' });
+    // PROCESO aunque sea una tabla: la lectura del Motor pasa por RLS y sólo cubre el tenant de quien verifica.
+    expect(ACCESS_EVIDENCE.DECISION_ENGINE).toMatchObject({ screensScope: 'process' });
     expect(ACCESS_EVIDENCE.DASHBOARDS).toMatchObject({ screensScope: 'process' });
     expect(CLIENT_EVIDENCE).toMatchObject({ ERP_PORTAL: 'ERP_BACKEND', MOTOR_PORTAL: 'DECISION_ENGINE' });
     expect(CLIENT_EVIDENCE.DASHBOARDS_PORTAL).toBe('DASHBOARDS');
+  });
+});
+
+describe('la consulta de pantallas del Backend', () => {
+  it('no gasta su tope ni su denominador en clientes que mide otro bloque', () => {
+    // El portal del Motor llama a AtlasBackend por su proxy y ya declara su origen: sus filas cortaban
+    // la consulta y paraban la degradación del portal interno y de la app sin decir por qué.
+    expect(clientesMedidosFuera('ATLAS_BACKEND').sort()).toEqual(['DASHBOARDS_PORTAL', 'ERP_PORTAL', 'MOTOR_PORTAL']);
+    expect(SCREEN_RUNS_SQL).toMatch(/origin_client IS NULL OR origin_client NOT IN \(:clientesDeOtrosBloques\)/);
   });
 });
