@@ -1,8 +1,4 @@
-import {
-  catalogPathFromRouteTemplate,
-  freshnessFor,
-  verificationFromRuns,
-} from '../../src/modules/systems-ops/system-flows.verification.util.js';
+import { catalogPathFromRouteTemplate, verificationFromRuns } from '../../src/modules/systems-ops/system-flows.verification.util.js';
 
 const runs = (ok: number, failed: number) => ({
   ok,
@@ -42,15 +38,5 @@ describe('catalogPathFromRouteTemplate', () => {
     ['/v1/decisions/:id/run/', 'decisions/:p/run'],
   ])('%s → %s', (template, path) => {
     expect(catalogPathFromRouteTemplate(template)).toBe(path);
-  });
-});
-
-describe('freshnessFor', () => {
-  it('compara el commit analizado con el desplegado, tolerando abreviaturas', () => {
-    expect(freshnessFor('abc1234def', 'abc1234')).toBe('FRESH');
-    expect(freshnessFor('abc1234', 'ffff000')).toBe('STALE');
-    expect(freshnessFor('abc1234', undefined)).toBeNull();
-    expect(freshnessFor(null, 'abc')).toBeNull();
-    expect(freshnessFor('abc1234', 'local')).toBeNull();
   });
 });

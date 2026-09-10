@@ -185,6 +185,34 @@ export class SystemFlowsRepository {
   }
 
   /**
+   * Marca STALE los flujos cuyo CÓDIGO cambió desde la última carga, y sólo ésos.
+   *
+   * Se compara la huella guardada con la que trae la recarga. Un flujo sin huella guardada no se
+   * toca: significa «no consta», y suponerlo desactualizado inundaría el panel el primer día.
+   *
+   * Devuelve cuántos cambiaron, que es el número que hace útil la recarga: dice qué parte del bloque
+   * se movió de verdad, en vez de «todo» como hacía la comparación por commit.
+   */
+  async markStaleByDepsHash(
+    systemCode: string,
+    rows: ReadonlyArray<{ flowId: string; depsHash: string | null }>,
+    tx: Transaction,
+  ): Promise<number> {
+    const entrantes = new Map(rows.map((row) => [row.flowId, row.depsHash]));
+    const guardados = await this.flows.findAll({
+      where: { systemCode },
+      attributes: ['flowId', 'depsHash'],
+      transaction: tx,
+    });
+    const cambiados = guardados
+      .filter((fila) => fila.depsHash && entrantes.get(fila.flowId) && entrantes.get(fila.flowId) !== fila.depsHash)
+      .map((fila) => fila.flowId);
+    if (!cambiados.length) return 0;
+    await this.flows.update({ freshness: 'STALE' }, { where: { flowId: { [Op.in]: cambiados } }, transaction: tx });
+    return cambiados.length;
+  }
+
+  /**
    * Corridas por ruta en `system_action_logs` dentro de la ventana. La plantilla se normaliza al
    * formato del catálogo en SQL para que el cruce sea un JOIN y no un bucle. Sólo lecturas agregadas:
    * ningún payload sale de aquí.

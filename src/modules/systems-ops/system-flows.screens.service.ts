@@ -32,28 +32,48 @@ export class SystemFlowsScreensService {
   async verify(dto: VerifyFlowsDto, tx: Transaction) {
     if (dto.systemCode !== 'ATLAS_BACKEND') return undefined;
     const observado = await this.repository.screenRuns(dto.windowDays);
-    const porCliente: Record<string, { total: number; verified: number }> = {};
+    const porCliente: Record<string, { total: number; verified: number; unverified: number }> = {};
+    const sinCatalogar: string[] = [];
+    let conTrafico = 0;
+
     for (const clientCode of await this.repository.screenClients()) {
       const pantallas = await this.repository.screensOfClient(clientCode);
-      const { porPlantilla } = matchScreenRuns(
-        observado,
+      // Sólo lo que ESE cliente declaró: `/` existe en los cinco portales y `/login` en tres, así
+      // que cruzar el tráfico de todos contra las plantillas de cada uno marcaría verificadas las
+      // cinco de golpe y copiaría en todas las llamadas del único que se usó.
+      const suyo = observado.get(clientCode) ?? new Map();
+      const { porPlantilla, sinCatalogar: suyasSinCatalogar } = matchScreenRuns(
+        suyo,
         pantallas.map((pantalla) => pantalla.route),
       );
-      porCliente[clientCode] = { total: pantallas.length, verified: 0 };
+      sinCatalogar.push(...suyasSinCatalogar.map((ruta) => `${clientCode} ${ruta}`));
+      conTrafico += porPlantilla.size;
+      porCliente[clientCode] = { total: pantallas.length, verified: 0, unverified: 0 };
+
       for (const pantalla of pantallas) {
         const outcome = screenVerificationFrom(porPlantilla.get(pantalla.route) ?? null);
-        if (!outcome) continue;
-        await this.repository.applyScreenVerification(clientCode, pantalla.route, outcome, tx);
-        porCliente[clientCode].verified += 1;
+        // Una pantalla que dejó de usarse VUELVE a UNVERIFIED. Sin esto, el eje sólo sabía avanzar:
+        // el catálogo acumulaba «verificadas» para siempre mientras la respuesta de la corrida decía
+        // otra cosa, y nadie podía notar que una pantalla lleva medio año sin abrirse.
+        await this.repository.applyScreenVerification(
+          clientCode,
+          pantalla.route,
+          outcome ?? { verification: 'UNVERIFIED', lastSeenAt: null, observed: {} },
+          tx,
+        );
+        porCliente[clientCode][outcome ? 'verified' : 'unverified'] += 1;
       }
     }
-    // Lo que no encajó en NINGÚN cliente: alguien usó una ruta que el catálogo no conoce. Se cruza
-    // contra todas las plantillas juntas para no llamar «desconocida» a una pantalla de otro portal.
-    const todas = (await Promise.all(Object.keys(porCliente).map((code) => this.repository.screensOfClient(code)))).flat();
-    const { sinCatalogar } = matchScreenRuns(
-      observado,
-      todas.map((pantalla) => pantalla.route),
-    );
-    return { screensWithRuns: observado.size, byClient: porCliente, uncatalogued: sinCatalogar.slice(0, 20) };
+
+    // Un tráfico sin cliente declarado no se atribuye a nadie: se cuenta aparte para que se vea.
+    const anonimo = observado.get('(sin cliente)')?.size ?? 0;
+    return {
+      // Pantallas DEL CATÁLOGO con tráfico en la ventana. Contar las rutas concretas observadas
+      // daría un número mayor que el catálogo entero en cuanto una pantalla lleve identificador.
+      screensWithRuns: conTrafico,
+      screensWithoutClient: anonimo,
+      byClient: porCliente,
+      uncatalogued: sinCatalogar.slice(0, 20),
+    };
   }
 }

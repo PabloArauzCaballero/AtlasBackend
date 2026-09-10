@@ -1,6 +1,5 @@
 import { Reflector } from '@nestjs/core';
 import { INTERNAL_PERMISSIONS_KEY } from '../../src/modules/internal-users/internal-permissions.decorator.js';
-import { InternalPermissionsGuard } from '../../src/modules/internal-users/guards/internal-permissions.guard.js';
 import { SystemFlowsController } from '../../src/modules/systems-ops/system-flows.controller.js';
 
 /**
@@ -51,9 +50,15 @@ describe('SystemFlowsController · el permiso fino que el catálogo promete', ()
     expect(sinPermiso).toEqual([]);
   });
 
-  it('el controlador monta el guard que hace cumplir esos permisos', () => {
+  it('el guard de permisos corre DESPUÉS de los de sesión, no antes', () => {
     // Sin el guard, los decoradores son metadatos decorativos: declaran el permiso y no lo exigen.
-    const guards = reflector.get<unknown[]>('__guards__', SystemFlowsController) ?? [];
-    expect(guards).toContain(InternalPermissionsGuard);
+    // Y el ORDEN importa: los decoradores de clase se aplican de abajo arriba y `UseGuards` extiende
+    // el array, así que es fácil dejar el de permisos primero. Preguntar por el permiso de alguien a
+    // quien aún no se ha identificado devuelve «requiere una sesión interna» a un usuario válido.
+    // Hoy lo tapa que Jwt y Roles sean además globales; esta prueba impide depender de eso.
+    const guards = (reflector.get<Array<{ name: string }>>('__guards__', SystemFlowsController) ?? []).map((g) => g.name);
+    expect(guards).toContain('InternalPermissionsGuard');
+    expect(guards.indexOf('InternalPermissionsGuard')).toBe(guards.length - 1);
+    expect(guards[0]).toBe('JwtAuthGuard');
   });
 });

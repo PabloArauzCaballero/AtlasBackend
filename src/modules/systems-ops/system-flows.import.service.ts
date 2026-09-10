@@ -36,10 +36,14 @@ export class SystemFlowsImportService {
           importId: record.id,
         }),
       );
+      // La frescura se decide ANTES de escribir, comparando la huella guardada con la que trae la
+      // recarga: después ya no se sabría cuál era la anterior. Un flujo cuyo código cambió desde que
+      // se verificó pasa a STALE; el resto se queda como estaba, que es lo que hace útil el aviso.
+      const stale = await this.repository.markStaleByDepsHash(dto.systemCode, rows, tx);
       const result = await this.repository.replaceFlows(dto.systemCode, rows, tx);
       await this.repository.recountFindings(dto.systemCode, tx);
       await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });
-      return { importId: record.id, ...result };
+      return { importId: record.id, ...result, stale };
     });
   }
 

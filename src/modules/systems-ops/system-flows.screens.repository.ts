@@ -28,22 +28,29 @@ export class SystemFlowsScreensRepository {
    * Sólo aparecen las pantallas cuyo cliente DECLARÓ su origen. Una pantalla ausente de este mapa no
    * es una pantalla rota: es una que nadie abrió, o una cuyo cliente todavía no manda la cabecera.
    */
-  async screenRuns(windowDays: number): Promise<Map<string, ScreenRuns>> {
+  async screenRuns(windowDays: number): Promise<Map<string, Map<string, ScreenRuns>>> {
     const rows = await this.screens.sequelize!.query<{
       screen: string;
+      client: string | null;
       calls: string;
       failed: string;
       last_at: Date | null;
       routes: Array<{ method: string; path: string; calls: number; failed: number }>;
     }>(SCREEN_RUNS_SQL, { type: QueryTypes.SELECT, replacements: { windowDays: String(windowDays) } });
-    const out = new Map<string, ScreenRuns>();
+    // Indexado por CLIENTE y luego por ruta concreta: `/` es una pantalla distinta en cada portal,
+    // y sin separar por cliente una visita marcaría verificadas las cinco.
+    const out = new Map<string, Map<string, ScreenRuns>>();
     for (const row of rows) {
-      out.set(row.screen, {
+      // Sin cliente declarado no se puede atribuir a ninguno: se agrupa aparte y no se cruza.
+      const cliente = row.client ?? '(sin cliente)';
+      const porPantalla = out.get(cliente) ?? new Map<string, ScreenRuns>();
+      porPantalla.set(row.screen, {
         calls: Number(row.calls),
         failed: Number(row.failed),
         lastAt: row.last_at ? new Date(row.last_at) : null,
         routes: row.routes ?? [],
       });
+      out.set(cliente, porPantalla);
     }
     return out;
   }

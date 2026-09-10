@@ -5,6 +5,7 @@
  */
 import { SystemFlowCatalogModel } from '../../database/models/index.js';
 import { FlowAnalysis, flowAnalysisSchema } from './system-flows.schemas.js';
+import { env } from '../../config/env.js';
 
 export type GraphLayer = 'CLIENT' | 'API' | 'BACKEND' | 'DATA';
 export type GraphNodeType =
@@ -191,8 +192,11 @@ class GraphBuilder {
         type: kind,
         layer: 'BACKEND',
         label: owner,
-        sublabel: `${step.file}:${step.line}`,
-        meta: { file: step.file, line: step.line },
+        // El grafo enseñaba MÁS fuente que la ficha —el árbol de llamadas entero, no un fichero—, y
+        // se le escapó al primer intento de cerrar esto: la ficha decía «—» y el grafo de la misma
+        // pantalla seguía dando `fichero:línea` de cada paso.
+        sublabel: env.FLOWS_EXPOSE_SOURCE ? `${step.file}:${step.line}` : `${kind.toLowerCase()} · profundidad ${step.depth}`,
+        meta: env.FLOWS_EXPOSE_SOURCE ? { file: step.file, line: step.line } : { depth: step.depth },
       });
       this.edge(previous, id, 'CONTINUES', { ...AST, label: 'CALLS' });
       previous = id;

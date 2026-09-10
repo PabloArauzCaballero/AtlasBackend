@@ -30,6 +30,8 @@ export type HttpActionLogInput = {
   correlationId?: string | null;
   /** Ruta de la pantalla que originó la petición, si el cliente la declaró. */
   originScreen?: string | null;
+  /** Cliente que la declaró, normalizado al código del catálogo (`ADMIN_PORTAL`). */
+  originClient?: string | null;
   method?: string | null;
   routeTemplate?: string | null;
   resolvedUrlSanitized?: string | null;

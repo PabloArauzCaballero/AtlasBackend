@@ -20,6 +20,8 @@ function repositoryDouble(): RepoDouble {
     calls,
     transaction: (work: (tx: unknown) => Promise<unknown>) => work('tx'),
     createImport: spy('createImport', () => ({ id: '7', update: spy('importUpdate') })),
+    // Devuelve 0 cambiados: lo que estas pruebas fijan es el orden y el contenido de la recarga.
+    markStaleByDepsHash: spy('markStaleByDepsHash', () => 0),
     replaceFlows: spy('replaceFlows', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
     replaceScreens: spy('replaceScreens', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
     replaceFindings: spy('replaceFindings', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
@@ -163,5 +165,27 @@ describe('SystemFlowsImportService.importFindings', () => {
     );
     const fila = (repo.calls.replaceFindings?.[0]?.[1] as Array<Record<string, unknown>>)[0];
     expect(fila.extraJson).toEqual({});
+  });
+});
+
+describe('SystemFlowsImportService · frescura por flujo', () => {
+  it('la frescura se decide ANTES de escribir: después ya no se sabría cuál era la huella anterior', async () => {
+    const repo = repositoryDouble();
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importEndpoints(
+      { systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] } as never,
+      'pablo',
+    );
+    const orden = Object.keys(repo.calls);
+    expect(orden.indexOf('markStaleByDepsHash')).toBeLessThan(orden.indexOf('replaceFlows'));
+  });
+
+  it('devuelve cuántos flujos quedaron desactualizados, que es lo que hace útil la recarga', async () => {
+    const repo = repositoryDouble();
+    repo.markStaleByDepsHash = () => Promise.resolve(7);
+    const resultado = await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importEndpoints(
+      { systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] } as never,
+      null,
+    );
+    expect(resultado).toMatchObject({ stale: 7 });
   });
 });

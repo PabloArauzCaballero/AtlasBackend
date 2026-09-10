@@ -226,10 +226,3 @@ export function screenVerificationFrom(runs: ScreenRuns | null): {
     },
   };
 }
-
-/** FRESH si el commit analizado es el desplegado; STALE si difieren; sin commit desplegado no se opina. */
-export function freshnessFor(analyzedCommit: string | null, deployedCommit: string | null | undefined): 'FRESH' | 'STALE' | null {
-  // `APP_COMMIT_SHA=local` (o cualquier valor que no sea un sha) no es un commit: no se compara, no se opina.
-  if (!deployedCommit || !analyzedCommit || !/^[0-9a-f]{7,40}$/i.test(deployedCommit)) return null;
-  return analyzedCommit.startsWith(deployedCommit) || deployedCommit.startsWith(analyzedCommit) ? 'FRESH' : 'STALE';
-}

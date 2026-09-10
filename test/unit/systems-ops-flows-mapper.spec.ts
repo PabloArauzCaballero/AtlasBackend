@@ -243,8 +243,15 @@ describe('flowRowFor', () => {
     expect(row.analyzedBranch).toBe('dev');
     expect(row.importId).toBe('7');
     expect(row.findingsCount).toBe(0);
-    expect(row.verification).toBe('UNVERIFIED');
-    expect(row.freshness).toBe('FRESH');
+  });
+
+  it('la recarga NO trae verificación ni frescura: son evidencia de corridas, no datos del código', () => {
+    // Iban aquí con 'UNVERIFIED'/'FRESH', así que CADA recarga —una por corrida del gate— borraba
+    // la verificación de los mil flujos y el panel volvía a decir «nadie ha ejercitado nada».
+    // Medido: 1 029 flujos a UNVERIFIED tras un `load.mjs` sin `--verify`. Sin error y sin rojo.
+    const row = flowRowFor('ATLAS_BACKEND', endpoint(), meta) as Record<string, unknown>;
+    expect(row).not.toHaveProperty('verification');
+    expect(row).not.toHaveProperty('freshness');
   });
 
   it('sin commit ni rama en la carga, quedan null y no "undefined": la columna no debe mentir con un valor ausente', () => {
@@ -332,6 +339,27 @@ describe('exposición del código fuente', () => {
     const flujo = mapFlow({ tables: {}, analysis: null, sourceFile: 'a.ts', sourceLine: 12 } as never);
     expect(flujo).toMatchObject({ sourceFile: null, sourceLine: null });
     expect(mapScreen({ sourceFile: 'Pantalla.tsx' } as never)).toMatchObject({ sourceFile: null });
+  });
+
+  it('tampoco por la puerta de atrás: el hueco conserva su MOTIVO y pierde su ubicación', async () => {
+    // `unknowns[].at` es literalmente `src/modules/…/algo.service.ts:62`, y 60 endpoints del Backend
+    // lo traen. Apagar `sourceFile` y dejar esto habría sido tapar la ficha y no el dato.
+    const { mapFlow } = await conBandera(false);
+    const flujo = mapFlow({
+      tables: {},
+      sourceFile: 'a.ts',
+      analysisJson: {
+        status: 'PARTIAL',
+        chain: [],
+        reads: ['x'],
+        writes: [],
+        errors: [],
+        blockCalls: [],
+        unknowns: [{ reason: 'MAX_CHAIN', at: 'src/modules/x/y.service.ts:62' }],
+        transactional: false,
+      },
+    } as never) as { analysis: { unknowns: Array<{ reason: string; at: string }> } };
+    expect(flujo.analysis.unknowns).toEqual([{ reason: 'MAX_CHAIN', at: '' }]);
   });
 
   it('con la bandera encendida salen tal cual', async () => {

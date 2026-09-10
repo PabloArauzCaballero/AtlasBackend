@@ -7,7 +7,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Transaction } from 'sequelize';
 import { env } from '../../config/env.js';
 import {
-  freshnessFor,
   indexBlockPathRuns,
   indexBlockRuns,
   type BlockAccessRun,
@@ -227,9 +226,11 @@ export class SystemFlowsService {
       await this.repository.applyVerification(flow.flowId, outcome, ctx.actor, ctx.tx);
       ctx.counts[outcome.verification === 'VERIFIED' ? 'verified' : 'broken'] += 1;
     } else ctx.counts.unverified += 1;
-    const freshness = freshnessFor(flow.analyzedCommit, env.APP_COMMIT_SHA);
-    if (freshness && freshness !== flow.freshness) await this.repository.applyFreshness(flow.flowId, freshness, ctx.tx);
-    if (freshness) ctx.counts[freshness === 'STALE' ? 'stale' : 'fresh'] += 1;
+    // La frescura ya NO se decide aquí. La decidía comparando el commit analizado con el desplegado,
+    // así que cualquier commit del repositorio marcaba STALE los mil flujos del bloque —incluidos los
+    // novecientos que nadie tocó— y el aviso dejaba de leerse. Ahora la fija la recarga, por flujo y
+    // por huella de su código. Aquí sólo se cuenta lo que hay guardado.
+    ctx.counts[flow.freshness === 'STALE' ? 'stale' : 'fresh'] += 1;
   }
 
   /** Pide a otro bloque su resumen de accesos. Si no se puede, se dice por qué y no se verifica nada. */

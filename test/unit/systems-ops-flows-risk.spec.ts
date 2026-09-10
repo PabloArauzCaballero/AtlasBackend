@@ -85,16 +85,17 @@ describe('identidad y presentación', () => {
 });
 
 describe('flowRowFor', () => {
-  it('arma la fila completa con los tres ejes en su estado inicial', () => {
+  it('arma la fila con lo que se deriva del código; los ejes de evidencia no vienen de aquí', () => {
     const row = flowRowFor('ATLAS_BACKEND', endpoint(), { analyzedCommit: 'abc', analyzedBranch: 'dev', importId: '7' });
     expect(row).toMatchObject({
       systemCode: 'ATLAS_BACKEND',
       kind: 'CREATE',
       risk: 'CRITICAL',
       riskBasis: 'module-heuristic',
+      // `discovery` SÍ sale del código —es lo que el análisis pudo resolver—; `verification` y
+      // `freshness` no: son evidencia de corridas y de cambios, y mandarlas aquí las borraba en cada
+      // recarga.
       discovery: 'DISCOVERED',
-      verification: 'UNVERIFIED',
-      freshness: 'FRESH',
       httpMethod: 'POST',
       path: 'credit/applications',
       callers: ['CONSUMER_APP'],

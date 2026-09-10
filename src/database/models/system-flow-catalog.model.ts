@@ -114,6 +114,10 @@ export class SystemFlowCatalogModel extends Model {
   @Column({ field: 'analyzed_commit', type: DataType.STRING(64) })
   declare analyzedCommit: string | null;
 
+  /** Huella del código del que cuelga este flujo. Nula = aún no consta, y por eso no se opina. */
+  @Column({ field: 'deps_hash', type: DataType.STRING(32) })
+  declare depsHash: string | null;
+
   @Column({ field: 'analyzed_branch', type: DataType.STRING(80) })
   declare analyzedBranch: string | null;
 

@@ -27,7 +27,9 @@ export function summarizeAnalysis(analysis: Record<string, unknown>) {
     writes: a.writes,
     errors: a.errors,
     blockCalls: a.blockCalls,
-    unknowns: a.unknowns.slice(0, 10),
+    // `at` es literalmente `src/modules/…/algo.service.ts:62`. Con la exposición apagada se conserva
+    // el MOTIVO del hueco —que es lo que hace falta para entender el mapa— y se quita la ubicación.
+    unknowns: a.unknowns.slice(0, 10).map((u) => (env.FLOWS_EXPOSE_SOURCE ? u : { ...u, at: '' })),
     transactional: a.transactional,
   };
 }
@@ -141,8 +143,13 @@ export function flowRowFor(
     riskBasis: risk.basis,
     badges: flowBadgesFor(endpoint, kind),
     discovery: risk.analysis?.status ?? 'DISCOVERED',
-    verification: 'UNVERIFIED',
-    freshness: 'FRESH',
+    // `verification` y `freshness` NO se mandan, y es la diferencia entre tener evidencia y no
+    // tenerla: son el resultado de cruzar corridas reales, no un dato derivado del código. Iban aquí
+    // con 'UNVERIFIED'/'FRESH', así que CADA recarga —una por corrida del gate— borraba la
+    // verificación de los mil flujos y el panel volvía a decir «nadie ha ejercitado nada». Medido:
+    // 1 029 flujos a UNVERIFIED tras un `load.mjs` sin `--verify`. Sin error y sin rojo.
+    // Al insertar una fila nueva, el DEFAULT de la columna pone esos mismos valores.
+    depsHash: risk.analysis?.depsHash ?? null,
     httpMethod: endpoint.method,
     path: endpoint.path,
     controller: endpoint.controller,

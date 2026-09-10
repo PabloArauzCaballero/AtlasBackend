@@ -44,6 +44,7 @@ import {
  * Pulsar una card en el portal NUNCA ejecuta el endpoint que describe: aquí sólo se lee y se importa.
  */
 @Controller('systems')
+@UseGuards(InternalPermissionsGuard)
 @SystemsOpsControllerSecurity()
 /**
  * Y ADEMÁS el permiso fino, que es lo que el catálogo de RBAC promete desde el primer día.
@@ -57,8 +58,16 @@ import {
  * `InternalPermissionsGuard` exige además una sesión INTERNA: un `platform_user` con rol de admin ya
  * no entra. Es lo correcto —estos endpoints son gobierno interno, no producto— y obliga a que quien
  * carga el artefacto lo haga con una identidad a la que se le puede revocar el permiso.
+ *
+ * ## Por qué el `@UseGuards` va ARRIBA y no aquí
+ *
+ * Los decoradores de clase se aplican de abajo arriba y `UseGuards` EXTIENDE el array, así que
+ * declarado debajo quedaba `[InternalPermissionsGuard, JwtAuthGuard, RolesGuard]` —medido, no
+ * supuesto—: el guard de permisos antes que el de sesión. Preguntar por el permiso de alguien a
+ * quien todavía no se ha identificado devuelve «requiere una sesión interna» a un usuario válido.
+ * Hoy no rompía porque `JwtAuthGuard` y `RolesGuard` son además `APP_GUARD` y los globales corren
+ * primero; eso hacía que el controlador dependiera de una configuración de otro fichero.
  */
-@UseGuards(InternalPermissionsGuard)
 export class SystemFlowsController {
   constructor(private readonly service: SystemFlowsService) {}
 

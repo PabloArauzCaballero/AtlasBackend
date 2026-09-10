@@ -24,6 +24,10 @@ export class SystemActionLogModel extends Model {
   @Column({ field: 'origin_screen', type: DataType.STRING(200) })
   declare originScreen: string | null;
 
+  /** Cliente que declaró ese origen. Sin él, `/` de cinco portales sería la misma pantalla. */
+  @Column({ field: 'origin_client', type: DataType.STRING(60) })
+  declare originClient: string | null;
+
   @Column({ field: 'endpoint_catalog_id', type: DataType.BIGINT })
   declare endpointCatalogId: string | null;
 

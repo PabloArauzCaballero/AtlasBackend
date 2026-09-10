@@ -48,6 +48,7 @@ export const RUNS_BY_ROUTE_SQL = `WITH runs AS (
  */
 export const SCREEN_RUNS_SQL = `WITH runs AS (
          SELECT origin_screen AS screen,
+                origin_client AS client,
                 method,
                 regexp_replace(regexp_replace(route_template, '^/?(api/v1|api|v1)/', ''), ':[A-Za-z_][A-Za-z0-9_]*', ':p', 'g') AS path,
                 response_status_code AS status,
@@ -58,20 +59,25 @@ export const SCREEN_RUNS_SQL = `WITH runs AS (
             AND occurred_at >= NOW() - (:windowDays || ' days')::interval
        ),
        por_ruta AS (
-         SELECT screen, method, path,
+         SELECT screen, client, method, path,
                 COUNT(*) AS calls,
                 COUNT(*) FILTER (WHERE status >= 500) AS failed,
                 MAX(occurred_at) AS last_at
-           FROM runs GROUP BY screen, method, path
+           FROM runs GROUP BY screen, client, method, path
        )
-       SELECT screen,
+       SELECT screen, client,
               SUM(calls)::bigint  AS calls,
               SUM(failed)::bigint AS failed,
               MAX(last_at)        AS last_at,
               jsonb_agg(jsonb_build_object('method', method, 'path', path, 'calls', calls, 'failed', failed)
                         ORDER BY calls DESC) AS routes
          FROM por_ruta
-        GROUP BY screen`;
+        GROUP BY screen, client
+        -- Tope de seguridad: una ruta con identificador produce una fila por entidad visitada, así
+        -- que sin esto el tamaño de lo que entra en memoria crece con el tráfico y no con el número
+        -- de pantallas. Se ordena por actividad para que lo que se corte sea lo menos usado.
+        ORDER BY SUM(calls) DESC
+        LIMIT 20000`;
 
 /**
  * Los pasos de los procesos activos del `workflow-catalog`, cada uno con el flujo que lo implementa.

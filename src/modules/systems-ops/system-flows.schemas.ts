@@ -46,6 +46,12 @@ export const flowAnalysisSchema = z.object({
     .max(200)
     .default([]),
   transactional: z.boolean().default(false),
+  /**
+   * Huella del código del que cuelga el flujo. Con ella la frescura pasa a ser por FLUJO: se compara
+   * la guardada con la que trae la recarga. Antes cualquier commit del repositorio marcaba STALE los
+   * mil flujos del bloque, y un aviso que salta siempre deja de leerse.
+   */
+  depsHash: z.string().max(32).optional(),
 });
 export type FlowAnalysis = z.infer<typeof flowAnalysisSchema>;
 

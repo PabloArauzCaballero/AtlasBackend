@@ -100,6 +100,7 @@ export class HttpActionLogInterceptor implements NestInterceptor {
         requestId,
         correlationId: request.correlationId ?? requestId,
         originScreen: originScreen(request),
+        originClient: originClient(request),
         method: request.method,
         routeTemplate: request.route?.path ?? null,
         resolvedUrlSanitized: path,
@@ -170,4 +171,21 @@ const ORIGIN_SCREEN_PATTERN = /^\/[A-Za-z0-9/_:.-]{0,199}$/;
 function originScreen(request: RequestLike): string | null {
   const declarada = firstHeader(request.headers['x-atlas-flow']);
   return declarada && ORIGIN_SCREEN_PATTERN.test(declarada) ? declarada : null;
+}
+
+/**
+ * El CLIENTE que declara el origen, normalizado al código del catálogo de pantallas.
+ *
+ * La ruta sola no basta: `/` existe como pantalla en los cinco clientes y `/login` en tres, así que
+ * cruzar sólo por ruta atribuiría una visita a las cinco a la vez. El portal ya mandaba
+ * `x-atlas-product` («admin-portal»); lo único que faltaba era guardarlo.
+ *
+ * La normalización es la traducción obvia —guiones a subrayados, mayúsculas— y no una tabla de
+ * equivalencias: una tabla habría que mantenerla al día con cada cliente nuevo, y el día que se
+ * olvide, ese cliente deja de contar sin que nada avise.
+ */
+function originClient(request: RequestLike): string | null {
+  const declarado = firstHeader(request.headers['x-atlas-product']);
+  if (!declarado || !/^[A-Za-z0-9_-]{1,60}$/.test(declarado)) return null;
+  return declarado.replace(/-/g, '_').toUpperCase();
 }
