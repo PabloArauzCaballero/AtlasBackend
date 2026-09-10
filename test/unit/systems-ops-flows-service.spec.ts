@@ -60,6 +60,12 @@ const federationDouble = (result?: unknown, pedidas?: string[]) =>
     },
   }) as never;
 const importDouble = (repo: unknown) => new SystemFlowsImportService(repo as never);
+/**
+ * Las pantallas se verifican en su propio servicio y con su propio repositorio. Aquí se sustituye
+ * por uno que no devuelve ninguna: lo que estas pruebas fijan es la verificación de ENDPOINTS, y un
+ * doble que inventara pantallas mezclaría dos recuentos en la misma aserción.
+ */
+const screensDouble = () => ({ verify: async () => undefined }) as never;
 
 const flow = (over: Record<string, unknown> = {}) => ({
   flowId: 'flow_000000000001',
@@ -84,10 +90,12 @@ describe('SystemFlowsService.verify', () => {
       runs: new Map([['GET systems/flows', runs(3, 0)]]),
       flows: [flow(), flow({ flowId: 'flow_000000000002', path: 'systems/flows/screens' })],
     });
-    const result = await new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).verify(
-      { systemCode: 'ATLAS_BACKEND', windowDays: 30 },
-      'pablo',
-    );
+    const result = await new SystemFlowsService(
+      repo as unknown as SystemFlowsRepository,
+      federationDouble(),
+      importDouble(repo),
+      screensDouble(),
+    ).verify({ systemCode: 'ATLAS_BACKEND', windowDays: 30 }, 'pablo');
     expect(result).toMatchObject({ verified: 1, broken: 0, unverified: 1, routesWithRuns: 1 });
     expect(repo.calls.applyVerification).toHaveLength(1);
     expect(repo.calls.applyVerification?.[0]?.[0]).toBe('flow_000000000001');
@@ -95,20 +103,24 @@ describe('SystemFlowsService.verify', () => {
 
   it('sólo 5xx en la ventana marca BROKEN', async () => {
     const repo = repositoryDouble({ runs: new Map([['GET systems/flows', runs(0, 4)]]), flows: [flow()] });
-    const result = await new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).verify(
-      { systemCode: 'ATLAS_BACKEND', windowDays: 7 },
-      null,
-    );
+    const result = await new SystemFlowsService(
+      repo as unknown as SystemFlowsRepository,
+      federationDouble(),
+      importDouble(repo),
+      screensDouble(),
+    ).verify({ systemCode: 'ATLAS_BACKEND', windowDays: 7 }, null);
     expect(result).toMatchObject({ verified: 0, broken: 1 });
     expect((repo.calls.applyVerification?.[0]?.[1] as { verification: string }).verification).toBe('BROKEN');
   });
 
   it('un bloque que no escribe en system_action_logs no se consulta ni se marca: se declara saltado', async () => {
     const repo = repositoryDouble({ flows: [flow(), flow({ flowId: 'flow_000000000002' })] });
-    const result = await new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).verify(
-      { systemCode: 'ERP_BACKEND', windowDays: 30 },
-      null,
-    );
+    const result = await new SystemFlowsService(
+      repo as unknown as SystemFlowsRepository,
+      federationDouble(),
+      importDouble(repo),
+      screensDouble(),
+    ).verify({ systemCode: 'ERP_BACKEND', windowDays: 30 }, null);
     expect(result).toMatchObject({ systemCode: 'ERP_BACKEND', skippedNoLogs: 2, verified: 0, broken: 0, routesWithRuns: 0 });
     expect(repo.calls.runsByRoute).toBeUndefined();
     expect(repo.calls.applyVerification).toBeUndefined();
@@ -116,7 +128,7 @@ describe('SystemFlowsService.verify', () => {
 
   it('la ventana llega tal cual al repositorio: verificar con 7 días no puede consultar 30', async () => {
     const repo = repositoryDouble({ flows: [] });
-    await new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).verify(
+    await new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo), screensDouble()).verify(
       { systemCode: 'ATLAS_BACKEND', windowDays: 7 },
       null,
     );
@@ -128,10 +140,12 @@ describe('SystemFlowsService.verify', () => {
     const anterior = process.env.APP_COMMIT_SHA;
     process.env.APP_COMMIT_SHA = 'abc1234';
     try {
-      await new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).verify(
-        { systemCode: 'ATLAS_BACKEND', windowDays: 30 },
-        null,
-      );
+      await new SystemFlowsService(
+        repo as unknown as SystemFlowsRepository,
+        federationDouble(),
+        importDouble(repo),
+        screensDouble(),
+      ).verify({ systemCode: 'ATLAS_BACKEND', windowDays: 30 }, null);
     } finally {
       if (anterior === undefined) delete process.env.APP_COMMIT_SHA;
       else process.env.APP_COMMIT_SHA = anterior;
@@ -171,14 +185,21 @@ describe('SystemFlowsService.getFlow', () => {
   it('un flujo que no existe es 404, no una ficha vacía', async () => {
     const repo = repositoryDouble();
     await expect(
-      new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).getFlow('flow_000000000009'),
+      new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo), screensDouble()).getFlow(
+        'flow_000000000009',
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('un módulo sin flujos es 404, no un grafo de cero nodos', async () => {
     const repo = repositoryDouble();
     await expect(
-      new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).getModuleGraph({
+      new SystemFlowsService(
+        repo as unknown as SystemFlowsRepository,
+        federationDouble(),
+        importDouble(repo),
+        screensDouble(),
+      ).getModuleGraph({
         systemCode: 'ATLAS_BACKEND',
         module: 'inexistente',
         includeRoles: false,
@@ -204,7 +225,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       ok: true,
       body: { resources: [{ resource: 'POST DecisionsController.run', decision: 'ALLOW', count: 4, lastAt: '2026-09-09T10:00:00Z' }] },
     });
-    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo));
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo), screensDouble());
     const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, 'pablo', 'token');
     expect(result).toMatchObject({ verified: 1, broken: 0, skippedNoLogs: 0, federation: { ok: true } });
     // La evidencia dice de dónde salió: nadie debe creer que esto vino de system_action_logs.
@@ -220,7 +241,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       ok: true,
       body: { resources: [{ resource: 'POST DecisionsController.run', decision: 'DENY', status: 500, count: 2, lastAt: null }] },
     });
-    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo));
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo), screensDouble());
     const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, 'token');
     expect(result).toMatchObject({ verified: 0, broken: 1 });
     expect(evidenciaDe(repo).statuses).toMatchObject({ 'DENY 500': 2 });
@@ -234,7 +255,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       ok: true,
       body: { resources: [{ resource: 'POST DecisionsController.run', decision: 'DENY', status: 400, count: 3, lastAt: null }] },
     });
-    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo));
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo), screensDouble());
     const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, 'token');
     expect(result).toMatchObject({ verified: 1, broken: 0 });
     expect(evidenciaDe(repo).statuses).toMatchObject({ 'DENY 400': 3 });
@@ -247,7 +268,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       ok: true,
       body: { resources: [{ resource: 'POST DecisionsController.run', decision: 'DENY', count: 2, lastAt: null }] },
     });
-    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo));
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo), screensDouble());
     const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, 'token');
     expect(result).toMatchObject({ verified: 1, broken: 0 });
     // No se inventa un código: el DENY queda desnudo en la evidencia y `lastStatus` sigue nulo.
@@ -257,7 +278,12 @@ describe('SystemFlowsService.verify · bloques federados', () => {
 
   it('si el bloque no se puede alcanzar, sus flujos quedan saltados y se dice por qué', async () => {
     const repo = repositoryDouble({ flows: [flowDelMotor, { ...flowDelMotor, flowId: 'flow_000000000010' }] });
-    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo));
+    const service = new SystemFlowsService(
+      repo as unknown as SystemFlowsRepository,
+      federationDouble(),
+      importDouble(repo),
+      screensDouble(),
+    );
     const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, null);
     expect(result).toMatchObject({ skippedNoLogs: 2, verified: 0, broken: 0, federation: { ok: false } });
     expect(repo.calls.applyVerification).toBeUndefined();
@@ -291,7 +317,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
         ],
       },
     });
-    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo));
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo), screensDouble());
     const result = await service.verify({ systemCode: 'ERP_BACKEND', windowDays: 30 }, null, 'token');
     expect(result).toMatchObject({ verified: 1, broken: 0, skippedNoLogs: 0 });
     expect((repo.calls.applyVerification?.[0]?.[1] as { evidence: { lastStatus: number } }).evidence.lastStatus).toBe(200);
@@ -311,6 +337,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       repo as unknown as SystemFlowsRepository,
       federationDouble({ ok: true, body: {} }, pedidas),
       importDouble(repo),
+      screensDouble(),
     );
     await service.verify({ systemCode, windowDays: 30 }, null, 'token');
     expect(pedidas).toEqual([esperada]);
@@ -326,6 +353,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       repo as unknown as SystemFlowsRepository,
       federationDouble({ ok: true, body: { resources: [] } }, pedidas),
       importDouble(repo),
+      screensDouble(),
     );
     const result = await service.verify({ systemCode: 'BLOQUE_NUEVO', windowDays: 30 }, null, 'token');
     expect(result).toMatchObject({ skippedNoLogs: 1, verified: 0, broken: 0 });
@@ -350,7 +378,12 @@ describe('SystemFlowsService · delegación de consultas', () => {
       (repo.calls[esperado] ??= []).push(args);
       return Promise.resolve({ rows: [], meta: {} });
     };
-    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo));
+    const service = new SystemFlowsService(
+      repo as unknown as SystemFlowsRepository,
+      federationDouble(),
+      importDouble(repo),
+      screensDouble(),
+    );
     await (service as unknown as Record<string, (q: unknown) => Promise<unknown>>)[metodo](query);
     expect(repo.calls[esperado]?.[0]?.[0]).toBe(query);
   });
@@ -361,7 +394,12 @@ describe('SystemFlowsService · delegación de consultas', () => {
       (repo.calls[metodo] ??= []).push(args);
       return Promise.resolve({ ok: true });
     };
-    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo));
+    const service = new SystemFlowsService(
+      repo as unknown as SystemFlowsRepository,
+      federationDouble(),
+      importDouble(repo),
+      screensDouble(),
+    );
     void (service as unknown as Record<string, () => unknown>)[metodo]();
     expect(repo.calls[metodo]).toHaveLength(1);
   });
@@ -384,7 +422,12 @@ describe('SystemFlowsService · delegación de consultas', () => {
           createdAtValue: new Date('2026-09-09T00:00:00Z'),
         },
       ]);
-    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo));
+    const service = new SystemFlowsService(
+      repo as unknown as SystemFlowsRepository,
+      federationDouble(),
+      importDouble(repo),
+      screensDouble(),
+    );
     const result = await service.imports();
     expect(result[0]).toMatchObject({ id: '3', analyzedCommit: 'abc1234', createdBy: 'pablo' });
     expect(result[0]).toHaveProperty('createdAt');
@@ -434,7 +477,12 @@ describe('SystemFlowsService · delegación de consultas', () => {
           module: null,
         },
       ]);
-    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo));
+    const service = new SystemFlowsService(
+      repo as unknown as SystemFlowsRepository,
+      federationDouble(),
+      importDouble(repo),
+      screensDouble(),
+    );
     const result = await service.businessFlows();
     expect(result.totals).toEqual({ processes: 1, steps: 2, unlinked: 1 });
     expect(result.processes[0]).toMatchObject({ workflowCode: 'alta', stepCount: 2, linked: 1, unlinked: 1, verified: 1, critical: 1 });

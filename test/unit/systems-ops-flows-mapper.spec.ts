@@ -101,7 +101,7 @@ describe('mapFlow', () => {
 });
 
 describe('mapScreen', () => {
-  it('sólo expone los campos de navegación, sin arrastrar nada del catálogo de flujos', () => {
+  it('sólo expone los campos de navegación y su verificación, sin arrastrar nada del catálogo de flujos', () => {
     const row = {
       clientCode: 'ADMIN_PORTAL',
       route: '/internal/flows',
@@ -110,6 +110,10 @@ describe('mapScreen', () => {
       navPermissions: ['flows.read'],
       navRoles: ['ADMIN'],
       analyzedCommit: 'abc1234',
+      verification: 'VERIFIED',
+      verifiedAt: new Date('2026-09-10T10:00:00Z'),
+      lastSeenAt: new Date('2026-09-10T09:00:00Z'),
+      observed: { calls: 3 },
     } as never;
     expect(mapScreen(row)).toEqual({
       clientCode: 'ADMIN_PORTAL',
@@ -119,7 +123,18 @@ describe('mapScreen', () => {
       navPermissions: ['flows.read'],
       navRoles: ['ADMIN'],
       analyzedCommit: 'abc1234',
+      verification: 'VERIFIED',
+      verifiedAt: new Date('2026-09-10T10:00:00Z'),
+      lastSeenAt: new Date('2026-09-10T09:00:00Z'),
+      observed: { calls: 3 },
     });
+  });
+
+  it('una pantalla que nadie ha abierto sale con lo observado VACÍO, no nulo', () => {
+    // Un `{}` se lee como «no consta que se haya usado». Un nulo obliga a quien pinta la ficha a
+    // decidir qué significa, y esa decisión acaba siendo «no llama a nada», que es otra cosa.
+    const row = { clientCode: 'ERP_PORTAL', route: '/x', verification: 'UNVERIFIED' } as never;
+    expect(mapScreen(row)).toMatchObject({ verification: 'UNVERIFIED', observed: {} });
   });
 });
 
@@ -294,5 +309,36 @@ describe('flowRowFor · un análisis a medias no finge estar medido', () => {
       { importId: null },
     );
     expect(row.riskBasis).toBe('tables-written');
+  });
+});
+
+describe('exposición del código fuente', () => {
+  /**
+   * `sourceFile` y `sourceLine` son el atajo del hallazgo al código, y a la vez el árbol de fuentes
+   * de los cuatro bloques servido por HTTP a quien tenga una sesión con `systems.flows.read`. En
+   * producción el valor cae —nadie abre el editor desde ahí— y el coste no, así que el defecto
+   * depende del entorno. Aquí se fija que la bandera de verdad manda, en los dos sentidos.
+   */
+  const conBandera = async (valor: boolean) => {
+    jest.resetModules();
+    jest.doMock('../../src/config/env.js', () => ({ env: { FLOWS_EXPOSE_SOURCE: valor } }));
+    return import('../../src/modules/systems-ops/system-flows.mapper.js');
+  };
+
+  afterEach(() => jest.resetModules());
+
+  it('con la bandera apagada no salen ni el fichero ni la línea', async () => {
+    const { mapFlow, mapScreen } = await conBandera(false);
+    const flujo = mapFlow({ tables: {}, analysis: null, sourceFile: 'a.ts', sourceLine: 12 } as never);
+    expect(flujo).toMatchObject({ sourceFile: null, sourceLine: null });
+    expect(mapScreen({ sourceFile: 'Pantalla.tsx' } as never)).toMatchObject({ sourceFile: null });
+  });
+
+  it('con la bandera encendida salen tal cual', async () => {
+    const { mapFlow } = await conBandera(true);
+    expect(mapFlow({ tables: {}, analysis: null, sourceFile: 'a.ts', sourceLine: 12 } as never)).toMatchObject({
+      sourceFile: 'a.ts',
+      sourceLine: 12,
+    });
   });
 });

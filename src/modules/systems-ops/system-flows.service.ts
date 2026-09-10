@@ -20,6 +20,7 @@ import { buildFlowGraph, buildModuleGraph } from './system-flows.graph.util.js';
 import { mapFinding, mapFlow, mapScreen } from './system-flows.mapper.js';
 import { SystemFlowsImportService } from './system-flows.import.service.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
+import { SystemFlowsScreensService } from './system-flows.screens.service.js';
 import {
   FindingsListQueryDto,
   FlowsGraphQueryDto,
@@ -80,6 +81,7 @@ export class SystemFlowsService {
     private readonly repository: SystemFlowsRepository,
     private readonly federation: PlatformCatalogFederationClient,
     private readonly imports_: SystemFlowsImportService,
+    private readonly screensService: SystemFlowsScreensService,
   ) {}
 
   importEndpoints(dto: ImportEndpointsDto, actor: string | null) {
@@ -147,6 +149,7 @@ export class SystemFlowsService {
         routesWithRuns: runs.size,
         federation: federado ? { ok: federado.ok, message: federado.message } : undefined,
         ...counts,
+        screens: await this.screensService.verify(dto, tx),
       };
     });
   }

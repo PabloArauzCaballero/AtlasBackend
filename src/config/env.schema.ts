@@ -201,6 +201,14 @@ export const envBaseSchema = z.object({
   ...erpEnvShape,
   ...dashboardsEnvShape,
 
+  /**
+   * Si Flujos devuelve el FICHERO y la LÍNEA de cada endpoint y pantalla: el atajo del hallazgo al
+   * código, y a la vez el árbol de fuentes de los cuatro bloques servido a quien tenga una sesión con
+   * `systems.flows.read`. Fuera de producción compensa; en producción el valor cae y el coste no,
+   * así que el defecto sigue al entorno (ver `env.ts`) en vez de ser un `true` a secas.
+   */
+  FLOWS_EXPOSE_SOURCE: optionalBooleanEnvSchema,
+
   NOTIFICATION_EMAIL_PROVIDER: z.enum(['disabled', 'resend', 'sendgrid', 'gmail_api', 'webhook']).default('disabled'),
   NOTIFICATION_PUSH_PROVIDER: z.enum(['disabled', 'fcm', 'webhook']).default('disabled'),
   NOTIFICATION_SMS_PROVIDER: z.enum(['disabled', 'twilio', 'webhook']).default('disabled'),

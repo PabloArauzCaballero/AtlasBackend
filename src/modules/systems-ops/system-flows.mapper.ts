@@ -14,6 +14,7 @@ import {
   flowSlugFor,
 } from './system-flows.risk.util.js';
 import { DerivedEndpointDto, FlowAnalysis } from './system-flows.schemas.js';
+import { env } from '../../config/env.js';
 
 /** La ficha no manda la cadena entera (puede tener 120 pasos): manda lo que se lee de un vistazo. */
 export function summarizeAnalysis(analysis: Record<string, unknown>) {
@@ -49,8 +50,10 @@ export function mapFlow(row: SystemFlowCatalogModel) {
     path: `/${row.path}`,
     controller: row.controller,
     handler: row.handler,
-    sourceFile: row.sourceFile,
-    sourceLine: row.sourceLine,
+    // Fichero y línea sólo si el despliegue lo permite: es el atajo al código, y también el árbol
+    // de fuentes servido por HTTP a quien tenga una sesión con `systems.flows.read`.
+    sourceFile: env.FLOWS_EXPOSE_SOURCE ? row.sourceFile : null,
+    sourceLine: env.FLOWS_EXPOSE_SOURCE ? row.sourceLine : null,
     isPublic: row.isPublic,
     roles: row.roles,
     internalPermissions: row.internalPermissions,
@@ -75,11 +78,16 @@ export function mapScreen(row: SystemScreenCatalogModel) {
   return {
     clientCode: row.clientCode,
     route: row.route,
-    sourceFile: row.sourceFile,
+    sourceFile: env.FLOWS_EXPOSE_SOURCE ? row.sourceFile : null,
     navLabel: row.navLabel,
     navPermissions: row.navPermissions,
     navRoles: row.navRoles,
     analyzedCommit: row.analyzedCommit,
+    verification: row.verification,
+    verifiedAt: row.verifiedAt,
+    lastSeenAt: row.lastSeenAt,
+    // Vacío = nadie ha abierto esta pantalla desde que se mide, NO que no llame a nada.
+    observed: row.observed ?? {},
   };
 }
 

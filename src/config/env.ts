@@ -52,6 +52,9 @@ function parseEnv(): AppEnv {
   return {
     ...parsed.data,
     API_DOCS_ENABLED: parsed.data.API_DOCS_ENABLED ?? parsed.data.NODE_ENV !== 'production',
+    // Mismo criterio que la documentación de la API: útil fuera de producción, y en producción un
+    // mapa del árbol de fuentes que no compensa. Se puede forzar declarándolo, nunca por descuido.
+    FLOWS_EXPOSE_SOURCE: parsed.data.FLOWS_EXPOSE_SOURCE ?? parsed.data.NODE_ENV !== 'production',
     AUTH_COOKIE_SECURE: cookieSecure,
   };
 }

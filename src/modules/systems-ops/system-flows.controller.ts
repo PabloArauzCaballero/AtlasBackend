@@ -3,7 +3,7 @@
  * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
  * @system expone Flujos (Flow Intelligence): carga del artefacto derivado y consultas del explorador.
  */
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { AccessToken } from '../../common/decorators/access-token.decorator.js';
@@ -13,6 +13,8 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { actorId } from './systems-actor.util.js';
 import { SystemsOpsControllerSecurity } from './systems-controller.decorators.js';
+import { InternalPermissions } from '../internal-users/internal-permissions.decorator.js';
+import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
 import { SYSTEMS_OPS_GOVERNANCE_ROLES } from './systems-ops.constants.js';
 import { SystemFlowsService } from './system-flows.service.js';
 import {
@@ -43,11 +45,26 @@ import {
  */
 @Controller('systems')
 @SystemsOpsControllerSecurity()
+/**
+ * Y ADEMÁS el permiso fino, que es lo que el catálogo de RBAC promete desde el primer día.
+ *
+ * El decorador de arriba comprueba el ROL, que es grueso: `SYSTEMS_OPS_ROLES` incluye a qa_engineer,
+ * devops y risk_analyst, así que cualquiera de ellos leía el mapa completo de rutas, permisos y
+ * hallazgos de los cuatro bloques. `systems.flows.read` existía, estaba sembrado, el menú del portal
+ * ya lo usaba para decidir si enseñar la sección… y el backend no lo exigía. La ficha del catálogo
+ * afirmaba que sí: era la propia herramienta contando algo que no era verdad.
+ *
+ * `InternalPermissionsGuard` exige además una sesión INTERNA: un `platform_user` con rol de admin ya
+ * no entra. Es lo correcto —estos endpoints son gobierno interno, no producto— y obliga a que quien
+ * carga el artefacto lo haga con una identidad a la que se le puede revocar el permiso.
+ */
+@UseGuards(InternalPermissionsGuard)
 export class SystemFlowsController {
   constructor(private readonly service: SystemFlowsService) {}
 
   @ApiOperation({ summary: 'Resumen de Flujos: totales por riesgo, verificación, frescura y bloque' })
   @ApiResponse({ status: 200, description: 'Conteos para las tarjetas del explorador.' })
+  @InternalPermissions('systems.flows.read')
   @Get('flows/summary')
   summary() {
     return this.service.summary();
@@ -55,6 +72,7 @@ export class SystemFlowsController {
 
   @ApiOperation({ summary: 'Procesos de negocio del catálogo de flujos, con cada paso enlazado a su flujo' })
   @ApiResponse({ status: 200, description: 'Procesos activos con sus pasos, cuáles están enlazados y cuáles no.' })
+  @InternalPermissions('systems.flows.read')
   @Get('flows/business')
   businessFlows() {
     return this.service.businessFlows();
@@ -62,6 +80,7 @@ export class SystemFlowsController {
 
   @ApiOperation({ summary: 'Módulos con flujos, por bloque' })
   @ApiResponse({ status: 200, description: 'Lista de (bloque, módulo, cantidad).' })
+  @InternalPermissions('systems.flows.read')
   @Get('flows/modules')
   modules() {
     return this.service.modules();
@@ -69,6 +88,7 @@ export class SystemFlowsController {
 
   @ApiOperation({ summary: 'Listar flujos derivados del código' })
   @ApiResponse({ status: 200, description: 'Lista paginada de flujos con filtros por bloque, módulo, tipo, riesgo y estado.' })
+  @InternalPermissions('systems.flows.read')
   @Get('flows')
   list(@Query(new ZodValidationPipe(flowsListQuerySchema)) query: FlowsListQueryDto) {
     return this.service.listFlows(query);
@@ -76,6 +96,7 @@ export class SystemFlowsController {
 
   @ApiOperation({ summary: 'Pantallas de los clientes con los permisos que exige su menú' })
   @ApiResponse({ status: 200, description: 'Lista paginada de pantallas.' })
+  @InternalPermissions('systems.flows.read')
   @Get('flows/screens')
   screens(@Query(new ZodValidationPipe(screensListQuerySchema)) query: ScreensListQueryDto) {
     return this.service.listScreens(query);
@@ -83,6 +104,7 @@ export class SystemFlowsController {
 
   @ApiOperation({ summary: 'Hallazgos de los detectores de Flujos' })
   @ApiResponse({ status: 200, description: 'Lista paginada de hallazgos (abiertos por defecto).' })
+  @InternalPermissions('systems.flows.read')
   @Get('flows/findings')
   findings(@Query(new ZodValidationPipe(findingsListQuerySchema)) query: FindingsListQueryDto) {
     return this.service.listFindings(query);
@@ -90,6 +112,7 @@ export class SystemFlowsController {
 
   @ApiOperation({ summary: 'Últimas cargas del artefacto de Flujos' })
   @ApiResponse({ status: 200, description: 'Quién cargó qué bloque, con qué commit y cuántas filas.' })
+  @InternalPermissions('systems.flows.read')
   @Get('flows/imports')
   imports() {
     return this.service.imports();
@@ -98,6 +121,7 @@ export class SystemFlowsController {
   @ApiOperation({ summary: 'Grafo de un módulo: sus flujos compartiendo clientes y controllers' })
   @ApiResponse({ status: 200, description: 'Nodos y aristas tipados con confianza y evidencia.' })
   @ApiResponse({ status: 404, description: 'No hay flujos para ese bloque y módulo.' })
+  @InternalPermissions('systems.flows.read')
   @Get('flows/graph')
   moduleGraph(@Query(new ZodValidationPipe(flowsGraphQuerySchema)) query: FlowsGraphQueryDto) {
     return this.service.getModuleGraph(query);
@@ -107,6 +131,7 @@ export class SystemFlowsController {
   @ApiParam({ name: 'flowId', schema: zodToApiSchema(flowIdParamsSchema.shape.flowId) })
   @ApiResponse({ status: 200, description: 'Nodos y aristas del flujo.' })
   @ApiResponse({ status: 404, description: 'No existe el flujo.' })
+  @InternalPermissions('systems.flows.read')
   @Get('flows/:flowId/graph')
   flowGraph(@Param(new ZodValidationPipe(flowIdParamsSchema)) params: FlowIdParamsDto) {
     return this.service.getFlowGraph(params.flowId);
@@ -116,6 +141,7 @@ export class SystemFlowsController {
   @ApiParam({ name: 'flowId', schema: zodToApiSchema(flowIdParamsSchema.shape.flowId) })
   @ApiResponse({ status: 200, description: 'Flujo.' })
   @ApiResponse({ status: 404, description: 'No existe el flujo.' })
+  @InternalPermissions('systems.flows.read')
   @Get('flows/:flowId')
   detail(@Param(new ZodValidationPipe(flowIdParamsSchema)) params: FlowIdParamsDto) {
     return this.service.getFlow(params.flowId);
@@ -125,6 +151,7 @@ export class SystemFlowsController {
   @ApiBody({ schema: zodToApiSchema(verifyFlowsSchema) })
   @ApiResponse({ status: 201, description: 'Cuántos flujos quedaron VERIFIED, BROKEN, sin corridas, FRESH y STALE.' })
   @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
+  @InternalPermissions('systems.flows.analyze')
   @Post('flows/verify')
   verify(
     @Body(new ZodValidationPipe(verifyFlowsSchema)) body: VerifyFlowsDto,
@@ -138,6 +165,7 @@ export class SystemFlowsController {
   @ApiBody({ schema: zodToApiSchema(importEndpointsSchema) })
   @ApiResponse({ status: 201, description: 'Filas cargadas y retiradas.' })
   @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
+  @InternalPermissions('systems.flows.analyze')
   @Post('flows/import/endpoints')
   importEndpoints(@Body(new ZodValidationPipe(importEndpointsSchema)) body: ImportEndpointsDto, @CurrentUser() user: AuthenticatedUser) {
     return this.service.importEndpoints(body, actorId(user));
@@ -147,6 +175,7 @@ export class SystemFlowsController {
   @ApiBody({ schema: zodToApiSchema(importScreensSchema) })
   @ApiResponse({ status: 201, description: 'Filas cargadas y retiradas.' })
   @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
+  @InternalPermissions('systems.flows.analyze')
   @Post('flows/import/screens')
   importScreens(@Body(new ZodValidationPipe(importScreensSchema)) body: ImportScreensDto, @CurrentUser() user: AuthenticatedUser) {
     return this.service.importScreens(body, actorId(user));
@@ -156,6 +185,7 @@ export class SystemFlowsController {
   @ApiBody({ schema: zodToApiSchema(importFindingsSchema) })
   @ApiResponse({ status: 201, description: 'Filas cargadas, resueltas e ignoradas por bloque distinto.' })
   @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
+  @InternalPermissions('systems.flows.analyze')
   @Post('flows/import/findings')
   importFindings(@Body(new ZodValidationPipe(importFindingsSchema)) body: ImportFindingsDto, @CurrentUser() user: AuthenticatedUser) {
     return this.service.importFindings(body, actorId(user));
