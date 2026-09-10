@@ -99,6 +99,17 @@ export const onboardingCustomerIdParamsSchema = z.object({
 });
 
 /**
+ * El id del intento de verificación es un `bigint` en la base, así que la ruta tiene que
+ * rechazar lo que no lo sea ANTES de consultar. Sin esto, un identificador de otro dominio
+ * (se midió `orig-BNPL-2026-0198` el 2026-09-06) llegaba crudo a PostgreSQL, que respondía
+ * «invalid input syntax for type bigint» y el endpoint devolvía 500 en vez de 400.
+ */
+export const onboardingAttemptIdParamsSchema = z.object({
+  attemptId: z.string().regex(/^[1-9][0-9]*$/),
+});
+export type OnboardingAttemptIdParamsDto = z.infer<typeof onboardingAttemptIdParamsSchema>;
+
+/**
  * Canales por los que se puede entregar el código de CADA tipo de contacto.
  *
  * No estaban cruzados: `contactType: 'email'` con `verificationChannel: 'sms'` pasaba la validación

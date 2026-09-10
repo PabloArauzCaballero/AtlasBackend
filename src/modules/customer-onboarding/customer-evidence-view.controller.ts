@@ -13,7 +13,12 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
-import { onboardingCustomerIdParamsSchema, type OnboardingCustomerIdParamsDto } from './customer-onboarding.schemas.js';
+import {
+  OnboardingAttemptIdParamsDto,
+  onboardingAttemptIdParamsSchema,
+  onboardingCustomerIdParamsSchema,
+  type OnboardingCustomerIdParamsDto,
+} from './customer-onboarding.schemas.js';
 import { CustomerVerificationRepository } from './repositories/customer-verification.repository.js';
 
 /**
@@ -74,8 +79,11 @@ export class CustomerEvidenceViewController {
   @ApiResponse({ status: 200, description: 'Documentos del cliente dueno de esa verificacion.' })
   @ApiResponse({ status: 404, description: 'IDENTITY_ATTEMPT_NOT_FOUND.' })
   @Get('identity-verifications/:attemptId/evidence-documents')
-  async byAttempt(@CurrentTenant() tenantId: string, @Param('attemptId') attemptId: string) {
-    const customerId = await this.verificationRepository.findCustomerIdByAttempt(tenantId, attemptId);
+  async byAttempt(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(onboardingAttemptIdParamsSchema)) params: OnboardingAttemptIdParamsDto,
+  ) {
+    const customerId = await this.verificationRepository.findCustomerIdByAttempt(tenantId, params.attemptId);
     if (!customerId) throw new NotFoundException('IDENTITY_ATTEMPT_NOT_FOUND');
     return this.list(tenantId, { customerId } as OnboardingCustomerIdParamsDto);
   }

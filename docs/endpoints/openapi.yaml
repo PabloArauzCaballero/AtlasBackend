@@ -4716,13 +4716,11 @@ paths:
       operationId: CustomerEvidenceViewController_byAttempt
       parameters:
         - name: attemptId
-          required: true
           in: path
+          required: true
+          description: Identificador de ruta `attemptId`.
           schema:
             type: string
-          description: >-
-            Identificador de ruta `attemptId` del recurso direccionado por la
-            operación.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
