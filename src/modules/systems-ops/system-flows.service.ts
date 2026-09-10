@@ -187,6 +187,54 @@ export class SystemFlowsService {
     });
   }
 
+  /** Los procesos de negocio con sus pasos, cada uno enlazado al flujo que lo implementa. */
+  async businessFlows() {
+    const rows = await this.repository.businessFlows();
+    const porProceso = new Map<string, Record<string, unknown>>();
+    for (const row of rows as Array<Record<string, string | number | null>>) {
+      const code = String(row.workflow_code);
+      const proceso = porProceso.get(code) ?? {
+        workflowCode: code,
+        name: row.workflow_name,
+        version: row.version,
+        steps: [] as Array<Record<string, unknown>>,
+      };
+      (proceso.steps as Array<Record<string, unknown>>).push({
+        stepCode: row.step_code,
+        name: row.step_name,
+        stage: row.stage_code,
+        order: row.execution_order,
+        method: row.http_method,
+        path: row.route_path,
+        mandatory: row.is_mandatory,
+        requiresAuth: row.requires_auth,
+        requiresIdempotencyKey: row.requires_idempotency_key,
+        // Nulo = el paso declara una ruta que el catálogo no tiene: o cambió, o ya no existe.
+        flowId: row.flow_id,
+        risk: row.risk,
+        verification: row.verification,
+        testStatus: row.test_status,
+        module: row.module,
+      });
+      porProceso.set(code, proceso);
+    }
+    const processes = [...porProceso.values()].map((p) => {
+      const steps = p.steps as Array<Record<string, unknown>>;
+      return {
+        ...p,
+        stepCount: steps.length,
+        linked: steps.filter((s) => s.flowId).length,
+        unlinked: steps.filter((s) => !s.flowId).length,
+        verified: steps.filter((s) => s.verification === 'VERIFIED').length,
+        critical: steps.filter((s) => s.risk === 'CRITICAL').length,
+      };
+    });
+    return {
+      processes,
+      totals: { processes: processes.length, steps: rows.length, unlinked: processes.reduce((n, p) => n + p.unlinked, 0) },
+    };
+  }
+
   summary() {
     return this.repository.summary();
   }

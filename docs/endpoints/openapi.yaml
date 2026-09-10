@@ -24754,6 +24754,35 @@ paths:
       summary: 'Resumen de Flujos: totales por riesgo, verificación, frescura y bloque'
       tags:
         - systems-ops
+  /systems/flows/business:
+    get:
+      operationId: SystemFlowsController_businessFlows
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Procesos activos con sus pasos, cuáles están enlazados y cuáles no.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: >-
+        Procesos de negocio del catálogo de flujos, con cada paso enlazado a su
+        flujo
+      tags:
+        - systems-ops
   /systems/flows/modules:
     get:
       operationId: SystemFlowsController_modules

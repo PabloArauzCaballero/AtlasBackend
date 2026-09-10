@@ -52,6 +52,13 @@ export class SystemFlowsController {
     return this.service.summary();
   }
 
+  @ApiOperation({ summary: 'Procesos de negocio del catálogo de flujos, con cada paso enlazado a su flujo' })
+  @ApiResponse({ status: 200, description: 'Procesos activos con sus pasos, cuáles están enlazados y cuáles no.' })
+  @Get('flows/business')
+  businessFlows() {
+    return this.service.businessFlows();
+  }
+
   @ApiOperation({ summary: 'Módulos con flujos, por bloque' })
   @ApiResponse({ status: 200, description: 'Lista de (bloque, módulo, cantidad).' })
   @Get('flows/modules')

@@ -16,9 +16,7 @@ import {
 import { FindingsListQueryDto, FlowsListQueryDto, ScreensListQueryDto } from './system-flows.schemas.js';
 import { buildFlowsWhere, like } from './system-flows.where.util.js';
 import { RouteRuns } from './system-flows.verification.util.js';
-import { atlasSchemaFor } from '../../database/domain-schemas.js';
-
-const SCHEMA = atlasSchemaFor('system_action_logs');
+import { BUSINESS_FLOWS_SQL, RUNS_BY_ROUTE_SQL } from './system-flows.sql.constants.js';
 
 type FlowRow = Omit<SystemFlowCatalogModel['dataValues'], 'id' | 'createdAtValue' | 'updatedAtValue'>;
 type ScreenRow = Omit<SystemScreenCatalogModel['dataValues'], 'id' | 'createdAtValue' | 'updatedAtValue'>;
@@ -201,29 +199,7 @@ export class SystemFlowsRepository {
       last_status: number | null;
       statuses: Record<string, number>;
       correlation_sample: string[];
-    }>(
-      `WITH runs AS (
-         SELECT method,
-                regexp_replace(regexp_replace(route_template, '^/?(api/v1|api|v1)/', ''), ':[A-Za-z_][A-Za-z0-9_]*', ':p', 'g') AS path,
-                response_status_code AS status,
-                occurred_at,
-                correlation_id
-           FROM ${SCHEMA}.system_action_logs
-          WHERE route_template IS NOT NULL
-            AND occurred_at >= NOW() - (:windowDays || ' days')::interval
-       ),
-       latest AS (SELECT DISTINCT ON (method, path) method, path, status AS last_status FROM runs ORDER BY method, path, occurred_at DESC)
-       SELECT r.method, r.path,
-              COUNT(*) FILTER (WHERE r.status < 500) AS ok,
-              COUNT(*) FILTER (WHERE r.status >= 500) AS failed,
-              MAX(r.occurred_at) AS last_at,
-              MAX(l.last_status) AS last_status,
-              jsonb_object_agg(r.status::text, 1) AS statuses,
-              (array_agg(r.correlation_id ORDER BY r.occurred_at DESC))[1:5] AS correlation_sample
-         FROM runs r JOIN latest l USING (method, path)
-        GROUP BY r.method, r.path`,
-      { type: QueryTypes.SELECT, replacements: { windowDays: String(windowDays) } },
-    );
+    }>(RUNS_BY_ROUTE_SQL, { type: QueryTypes.SELECT, replacements: { windowDays: String(windowDays) } });
     const out = new Map<string, RouteRuns>();
     for (const row of rows) {
       out.set(`${row.method} ${row.path}`, {
@@ -265,6 +241,18 @@ export class SystemFlowsRepository {
 
   async applyFreshness(flowId: string, freshness: string, tx: Transaction): Promise<void> {
     await this.flows.update({ freshness, updatedAtValue: new Date() }, { where: { flowId }, transaction: tx });
+  }
+
+  /**
+   * Los procesos de negocio del `workflow-catalog` cruzados con los flujos por (método, ruta).
+   *
+   * Es la mitad que el análisis del código no puede dar: `workflow_definitions` dice qué pasos
+   * componen «alta de cuenta» o «recorrido hasta la decisión de crédito», y el catálogo dice qué
+   * hace cada uno por dentro. Un paso cuyo endpoint no aparece en el catálogo sale con `flowId`
+   * nulo: es un paso declarado sobre una ruta que ya no existe, y verlo es el punto.
+   */
+  async businessFlows(): Promise<Array<Record<string, unknown>>> {
+    return this.flows.sequelize!.query(BUSINESS_FLOWS_SQL, { type: QueryTypes.SELECT });
   }
 
   latestImports(): Promise<SystemFlowImportModel[]> {
