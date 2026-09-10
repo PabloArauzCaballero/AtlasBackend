@@ -49,11 +49,16 @@ export class SystemFlowsRepository {
   async replaceFlows(systemCode: string, rows: FlowRow[], tx: Transaction): Promise<{ upserted: number; removed: number }> {
     const now = new Date();
     // `conflictFields` explícito: el índice único es (system_code, http_method, path); sin él Sequelize choca contra la PK.
-    for (const row of rows)
+    for (const row of rows) {
+      // Una carga sin análisis trae la huella a nulo. Escribirla borraría la del código ya conocido, y con
+      // ella la capacidad de marcar STALE y de reabrir revisiones en la siguiente carga con análisis.
+      const { depsHash, ...sinHuella } = row;
+      const valores = (depsHash === null ? sinHuella : row) as typeof row;
       await this.flows.upsert(
-        { ...row, createdAtValue: now, updatedAtValue: now },
+        { ...valores, createdAtValue: now, updatedAtValue: now },
         { transaction: tx, conflictFields: ['system_code', 'http_method', 'path'] },
       );
+    }
     const removed = await this.flows.destroy({ where: { systemCode, flowId: { [Op.notIn]: rows.map((r) => r.flowId) } }, transaction: tx });
     return { upserted: rows.length, removed };
   }

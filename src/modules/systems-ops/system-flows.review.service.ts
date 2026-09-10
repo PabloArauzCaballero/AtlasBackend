@@ -3,12 +3,11 @@
  * @business Esta pieza deja que una persona confirme o rechace lo que el análisis dedujo de un flujo.
  * @system sirve la cola de revisión de flujos con sus motivos y aplica decisiones con rastro.
  */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { mapFlow } from './system-flows.mapper.js';
 import { SystemFlowsReviewRepository, type ActorDeRevision } from './system-flows.review.repository.js';
-import type { FlowReviewQueueDto } from './system-flows.review.schemas.js';
+import type { FlowReviewDecisionDto, FlowReviewQueueDto } from './system-flows.review.schemas.js';
 import { motivosDeRevision } from './system-flows.review.util.js';
-import type { ReviewDecisionDto } from './systems-ops.schemas.js';
 
 @Injectable()
 export class SystemFlowsReviewService {
@@ -19,12 +18,14 @@ export class SystemFlowsReviewService {
     return {
       items: rows.map((row) => ({
         ...mapFlow(row),
+        // La huella del código actual: hay que devolverla al decidir, para no aprobar un código que no se vio.
+        depsHash: row.depsHash,
         reviewStatus: row.reviewStatus,
         reviewConfidence: row.reviewConfidence,
         reviewedAt: row.reviewedAt,
         reviewedBy: row.reviewedBy,
-        // Por qué está aquí. Vacío en un flujo NEEDS_REVIEW significa que volvió a la cola porque su
-        // código cambió después de revisarse, no porque el análisis sea incierto.
+        // Por qué está aquí. Vacío en un NEEDS_REVIEW significa que volvió porque su código cambió después
+        // de decidirse: la recarga suelta de la cola lo que se queda sin motivo y nadie revisó.
         reasons: motivosDeRevision(row),
         codeChangedSinceReview: Boolean(row.reviewedDepsHash && row.depsHash !== row.reviewedDepsHash),
       })),
@@ -32,18 +33,23 @@ export class SystemFlowsReviewService {
     };
   }
 
-  async review(flowId: string, decision: ReviewDecisionDto, actor: ActorDeRevision) {
-    const row = await this.repository.findByFlowId(flowId);
-    if (!row) throw new NotFoundException(`No existe el flujo ${flowId}.`);
-    const saved = await this.repository.decide(row, decision, actor);
+  async review(flowId: string, decision: FlowReviewDecisionDto, actor: ActorDeRevision) {
+    const resultado = await this.repository.decide(flowId, decision, actor);
+    if (resultado.outcome === 'NOT_FOUND') throw new NotFoundException(`No existe el flujo ${flowId}.`);
+    if (resultado.outcome === 'CONFLICT') {
+      throw new ConflictException(
+        `El código de este flujo cambió desde que se cargó la cola (huella actual: ${resultado.currentDepsHash ?? 'sin huella'}). Vuelve a cargarla antes de decidir.`,
+      );
+    }
+    const { row } = resultado;
     return {
-      flowId: saved.flowId,
-      reviewStatus: saved.reviewStatus,
-      reviewConfidence: saved.reviewConfidence,
-      reviewedAt: saved.reviewedAt,
-      reviewedBy: saved.reviewedBy,
+      flowId: row.flowId,
+      reviewStatus: row.reviewStatus,
+      reviewConfidence: row.reviewConfidence,
+      reviewedAt: row.reviewedAt,
+      reviewedBy: row.reviewedBy,
       // Sobre qué código se decidió: si cambia, el flujo vuelve a la cola en la siguiente recarga.
-      reviewedDepsHash: saved.reviewedDepsHash,
+      reviewedDepsHash: row.reviewedDepsHash,
     };
   }
 }

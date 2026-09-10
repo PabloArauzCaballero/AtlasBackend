@@ -3,7 +3,7 @@
  * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
  * @system reemplaza por bloque los endpoints, pantallas y hallazgos derivados, dentro de una transacción.
  */
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { flowRowFor } from './system-flows.mapper.js';
 import { SystemFlowsFreshnessRepository } from './system-flows.freshness.repository.js';
 import { SystemFlowsReviewRepository } from './system-flows.review.repository.js';
@@ -46,6 +46,18 @@ export class SystemFlowsImportService {
       // La frescura se decide ANTES de escribir, comparando la huella guardada con la que trae la
       // recarga: después ya no se sabría cuál era la anterior. Un flujo cuyo código cambió desde que
       // se verificó pasa a STALE; el resto se queda como estaba, que es lo que hace útil el aviso.
+      // Una carga vacía retiraría el catálogo entero del bloque, y con él cada revisión humana. Si el bloque
+      // se retiró de verdad hay que hacerlo a propósito, no por un artefacto truncado.
+      if (!rows.length && (await this.review.catalogSize(dto.systemCode, tx)) > 0) {
+        throw new BadRequestException(
+          `La carga no trae endpoints y ${dto.systemCode} tiene flujos catalogados: se borrarían todos, con sus revisiones.`,
+        );
+      }
+      const removedDecisions = await this.review.decisionsToBeRemoved(
+        dto.systemCode,
+        rows.map((row) => row.flowId),
+        tx,
+      );
       const cambiados = await this.freshness.markStaleByDepsHash(dto.systemCode, rows, tx);
       const result = await this.repository.replaceFlows(dto.systemCode, rows, tx);
       // A revisión humana: riesgo alto con un análisis que no se puede dar por bueno solo. Sólo a los
@@ -55,10 +67,20 @@ export class SystemFlowsImportService {
         tx,
       );
       // Y lo ya decidido cuyo código cambió vuelve a la cola: aprobar un flujo era aprobar ESE código.
-      const reopenedReviews = await this.review.reopen(cambiados, tx);
+      const reopenedReviews =
+        (await this.review.reopen(cambiados, tx)) +
+        (await this.review.reopenWithoutReviewedHash(
+          rows.filter((row) => row.depsHash).map((row) => row.flowId),
+          tx,
+        ));
+      // Y lo que se queda sin motivo sin que nadie lo revisara sale de la cola, en vez de quedarse sin explicación.
+      const releasedReviews = await this.review.release(
+        rows.filter((row) => !motivosDeRevision(row).length).map((row) => row.flowId),
+        tx,
+      );
       await this.repository.recountFindings(dto.systemCode, tx);
       await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });
-      return { importId: record.id, ...result, stale: cambiados.length, needsReview, reopenedReviews };
+      return { importId: record.id, ...result, stale: cambiados.length, needsReview, reopenedReviews, releasedReviews, removedDecisions };
     });
   }
 

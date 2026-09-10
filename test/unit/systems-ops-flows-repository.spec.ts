@@ -53,6 +53,17 @@ describe('SystemFlowsRepository · recarga por bloque', () => {
     expect((where.flowId as Record<symbol, string[]>)[Op.notIn]).toEqual(['flow_000000000001', 'flow_000000000002']);
   });
 
+  it('una fila sin huella no borra la huella guardada: sin ella no se marcaría STALE ni se reabriría nada', async () => {
+    const { repo, flows } = build();
+    await repo.replaceFlows(
+      'ATLAS_BACKEND',
+      [filaFlujo({ depsHash: null }), filaFlujo({ flowId: 'flow_000000000002', depsHash: 'abc' })] as never,
+      'tx' as never,
+    );
+    expect(flows.upsert.mock.calls[0][0]).not.toHaveProperty('depsHash');
+    expect(flows.upsert.mock.calls[1][0]).toMatchObject({ depsHash: 'abc' });
+  });
+
   it('el upsert declara la clave única compuesta: sin ella Sequelize choca contra la PK y responde 409', async () => {
     const { repo, flows } = build();
     await repo.replaceFlows('ATLAS_BACKEND', [filaFlujo()] as never, 'tx' as never);

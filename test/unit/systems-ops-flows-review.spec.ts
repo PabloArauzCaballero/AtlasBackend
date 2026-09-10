@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { flowRowFor } from '../../src/modules/systems-ops/system-flows.mapper.js';
 import { SystemFlowsReviewService } from '../../src/modules/systems-ops/system-flows.review.service.js';
 import { motivosDeRevision } from '../../src/modules/systems-ops/system-flows.review.util.js';
@@ -81,36 +81,36 @@ describe('SystemFlowsReviewService', () => {
     reviewedDepsHash: null,
     ...over,
   });
+  const actor = { id: 'u1', role: 'internal_operator', tenantId: '1' };
 
   it('un flujo que no existe es 404, no una revisión en el vacío', async () => {
-    const servicio = new SystemFlowsReviewService({ findByFlowId: async () => null } as never);
-    await expect(servicio.review('flow_nada', { reviewStatus: 'APPROVED' }, { id: 'u', role: 'r', tenantId: null })).rejects.toBeInstanceOf(
+    const servicio = new SystemFlowsReviewService({ decide: async () => ({ outcome: 'NOT_FOUND' }) } as never);
+    await expect(servicio.review('flow_nada', { reviewStatus: 'APPROVED', depsHash: 'x' }, actor)).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });
 
+  it('si el código cambió desde que se cargó la cola, 409 y no se decide nada', async () => {
+    const servicio = new SystemFlowsReviewService({ decide: async () => ({ outcome: 'CONFLICT', currentDepsHash: 'nuevo' }) } as never);
+    await expect(servicio.review('flow_abc123def456', { reviewStatus: 'APPROVED', depsHash: 'viejo' }, actor)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+
   it('aplica la decisión con su actor y devuelve sobre qué código se tomó', async () => {
-    const decide = jest.fn(async (row: Record<string, unknown>) => ({ ...row, reviewStatus: 'APPROVED', reviewedDepsHash: row.depsHash }));
-    const servicio = new SystemFlowsReviewService({ findByFlowId: async () => fila(), decide } as never);
-    const resultado = await servicio.review(
-      'flow_abc123def456',
-      { reviewStatus: 'APPROVED' },
-      { id: 'u1', role: 'data_governance_manager', tenantId: '1' },
-    );
-    expect(decide).toHaveBeenCalledWith(
-      expect.objectContaining({ flowId: 'flow_abc123def456' }),
-      { reviewStatus: 'APPROVED' },
-      { id: 'u1', role: 'data_governance_manager', tenantId: '1' },
-    );
+    const decide = jest.fn(async () => ({ outcome: 'OK', row: { ...fila(), reviewStatus: 'APPROVED', reviewedDepsHash: 'nuevo' } }));
+    const servicio = new SystemFlowsReviewService({ decide } as never);
+    const resultado = await servicio.review('flow_abc123def456', { reviewStatus: 'APPROVED', depsHash: 'nuevo' }, actor);
+    expect(decide).toHaveBeenCalledWith('flow_abc123def456', { reviewStatus: 'APPROVED', depsHash: 'nuevo' }, actor);
     expect(resultado).toMatchObject({ reviewStatus: 'APPROVED', reviewedDepsHash: 'nuevo' });
   });
 
-  it('la cola dice el motivo, y si el código cambió desde que se revisó', async () => {
+  it('la cola dice el motivo, la huella actual y si el código cambió desde que se revisó', async () => {
     const servicio = new SystemFlowsReviewService({
       listQueue: async () => ({ rows: [fila({ reviewedDepsHash: 'viejo' })], count: 1 }),
     } as never);
     const { items, meta } = await servicio.queue({ reviewStatus: 'NEEDS_REVIEW', page: 1, limit: 20 });
-    expect(items[0]).toMatchObject({ reasons: ['ANALISIS_PARCIAL'], codeChangedSinceReview: true, reviewStatus: 'NEEDS_REVIEW' });
+    expect(items[0]).toMatchObject({ reasons: ['ANALISIS_PARCIAL'], depsHash: 'nuevo', codeChangedSinceReview: true });
     expect(meta).toMatchObject({ total: 1, totalPages: 1 });
   });
 });

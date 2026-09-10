@@ -47,6 +47,7 @@ import { SystemsActionLogController } from './systems-action-log.controller.js';
 import { SystemsCatalogController } from './systems-catalog.controller.js';
 import { SystemsNetworkController } from './systems-network.controller.js';
 import { SystemFlowsController } from './system-flows.controller.js';
+import { SystemFlowsReviewController } from './system-flows-review.controller.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
 import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { SystemFlowsImportService } from './system-flows.import.service.js';
@@ -134,6 +135,8 @@ import { SystemsMetadataRepository } from './systems-metadata.repository.js';
     SystemsStressController,
     SystemsActionLogController,
     SystemsNetworkController,
+    // ANTES que SystemFlowsController: sus GET chocarían con `flows/:flowId`.
+    SystemFlowsReviewController,
     SystemFlowsController,
   ],
   providers: [

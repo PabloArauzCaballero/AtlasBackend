@@ -24727,6 +24727,143 @@ paths:
       summary: Artefactos ACTIVOS del motor de decisión, con su despliegue vigente
       tags:
         - systems-ops
+  /systems/flows/documentation-gate:
+    get:
+      description: >-
+        Cada comprobación con su cifra. Sin uso observado de pantallas, la de
+        deriva no pasa: no se afirma lo que no se ha podido mirar.
+      operationId: SystemFlowsReviewController_documentationGate
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Resultado y comprobaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: >-
+        FLOW_DOCUMENTATION_GATE: si se puede certificar la documentación de
+        flujos hoy
+      tags:
+        - systems-ops
+  /systems/flows/review-queue:
+    get:
+      description: >-
+        Flujos de riesgo alto cuyo análisis no se puede dar por bueno solo, y
+        los ya revisados cuyo código cambió. Cada fila lleva la huella del
+        código actual, que hay que devolver al decidir.
+      operationId: SystemFlowsReviewController_reviewQueue
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Flujos a revisar, con el motivo y la huella de cada uno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Cola de revisión humana de flujos
+      tags:
+        - systems-ops
+  /systems/flows/{flowId}/review:
+    patch:
+      description: >-
+        Exige la huella del código que se revisó. Si el código cambió desde que
+        se cargó la cola, responde 409 y no decide nada.
+      operationId: SystemFlowsReviewController_reviewFlow
+      parameters:
+        - name: flowId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^flow_[a-f0-9]{12}$
+          description: >-
+            Identificador de ruta `flowId` del recurso direccionado por la
+            operación.
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reviewStatus:
+                  type: string
+                  enum:
+                    - NEEDS_REVIEW
+                    - APPROVED
+                    - REJECTED
+                confidenceLevel:
+                  type: string
+                  enum:
+                    - LOW
+                    - MEDIUM
+                    - HIGH
+                notes:
+                  type: string
+                  maxLength: 1000
+                depsHash:
+                  anyOf:
+                    - type: string
+                      maxLength: 32
+                    - type: 'null'
+              required:
+                - reviewStatus
+                - depsHash
+              additionalProperties: false
+      responses:
+        '200':
+          description: Decisión aplicada, con la huella del código sobre el que se tomó.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No existe el flujo.
+        '409':
+          description: El código del flujo cambió desde que se cargó la cola.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: 'Revisar un flujo: aprobar, rechazar o devolver a revisión'
+      tags:
+        - systems-ops
   /systems/flows/summary:
     get:
       operationId: SystemFlowsController_summary
@@ -25051,69 +25188,6 @@ paths:
       summary: >-
         Grafo de un flujo: cliente → request → endpoint → autorización → handler
         → (sin resolver)
-      tags:
-        - systems-ops
-  /systems/flows/documentation-gate:
-    get:
-      description: >-
-        Cada comprobación con su cifra. Sin uso observado de pantallas, la de
-        deriva no pasa: no se puede afirmar lo que no se ha podido mirar.
-      operationId: SystemFlowsController_documentationGate
-      parameters:
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Resultado y comprobaciones.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: >-
-        FLOW_DOCUMENTATION_GATE: si se puede certificar la documentación de
-        flujos hoy
-      tags:
-        - systems-ops
-  /systems/flows/review-queue:
-    get:
-      description: >-
-        Flujos de riesgo alto cuyo análisis no se puede dar por bueno solo
-        (parcial, con huecos, con eventos de código dinámico), y los ya
-        revisados cuyo código cambió desde la revisión.
-      operationId: SystemFlowsController_reviewQueue
-      parameters:
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Flujos a revisar, con el motivo de cada uno.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Cola de revisión humana de flujos
       tags:
         - systems-ops
   /systems/flows/{flowId}:
@@ -25699,74 +25773,6 @@ paths:
       summary: >-
         Cargar los hallazgos de un bloque (los que ya no vienen se marcan
         resueltos)
-      tags:
-        - systems-ops
-  /systems/flows/{flowId}/review:
-    patch:
-      description: >-
-        Queda la huella del código revisado: si cambia, el flujo vuelve a la
-        cola en la siguiente recarga.
-      operationId: SystemFlowsController_reviewFlow
-      parameters:
-        - name: flowId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^flow_[a-f0-9]{12}$
-          description: >-
-            Identificador de ruta `flowId` del recurso direccionado por la
-            operación.
-        - $ref: '#/components/parameters/CorrelationId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                reviewStatus:
-                  type: string
-                  enum:
-                    - NEEDS_REVIEW
-                    - APPROVED
-                    - REJECTED
-                confidenceLevel:
-                  type: string
-                  enum:
-                    - LOW
-                    - MEDIUM
-                    - HIGH
-                notes:
-                  type: string
-                  maxLength: 1000
-              required:
-                - reviewStatus
-              additionalProperties: false
-      responses:
-        '200':
-          description: Decisión aplicada, con la huella del código sobre el que se tomó.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          description: No existe el flujo.
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: 'Revisar un flujo: aprobar, rechazar o devolver a revisión'
       tags:
         - systems-ops
   /operations/schema/versions:
