@@ -52,8 +52,13 @@ function repositoryDouble(over: Partial<{ runs: Map<string, unknown>; flows: Arr
 }
 
 /** El servicio pide una federación y un importador; ninguna prueba de aquí los ejercita. */
-const federationDouble = (result?: unknown) =>
-  ({ fetchFromBlock: async () => result ?? { ok: false, status: 'NOT_CONFIGURED', message: 'no aplica' } }) as never;
+const federationDouble = (result?: unknown, pedidas?: string[]) =>
+  ({
+    fetchFromBlock: async (_code: string, _token: string | null, path?: string) => {
+      if (path) pedidas?.push(path);
+      return result ?? { ok: false, status: 'NOT_CONFIGURED', message: 'no aplica' };
+    },
+  }) as never;
 const importDouble = (repo: unknown) => new SystemFlowsImportService(repo as never);
 
 const flow = (over: Record<string, unknown> = {}) => ({
@@ -262,6 +267,23 @@ describe('SystemFlowsService.verify · bloques federados', () => {
     const result = await service.verify({ systemCode: 'ERP_BACKEND', windowDays: 30 }, null, 'token');
     expect(result).toMatchObject({ verified: 1, broken: 0, skippedNoLogs: 0 });
     expect((repo.calls.applyVerification?.[0]?.[1] as { evidence: { lastStatus: number } }).evidence.lastStatus).toBe(200);
+  });
+
+  it.each([
+    ['DECISION_ENGINE', 'v1/audit/access-runs?windowDays=30'],
+    ['ERP_BACKEND', 'api/v1/platform/access-runs'],
+  ])('a %s se le pide la evidencia con el prefijo de API que él declara, no con uno clavado', async (systemCode, esperada) => {
+    // El prefijo se lee de la ruta del manifiesto configurada (`/api/v1/…` el ERP, `/v1/…` el
+    // Motor). Pedirlo sin prefijo devolvía 404, que se leería como «este bloque no registra nada».
+    const pedidas: string[] = [];
+    const repo = repositoryDouble({ flows: [] });
+    const service = new SystemFlowsService(
+      repo as unknown as SystemFlowsRepository,
+      federationDouble({ ok: true, body: {} }, pedidas),
+      importDouble(repo),
+    );
+    await service.verify({ systemCode, windowDays: 30 }, null, 'token');
+    expect(pedidas).toEqual([esperada]);
   });
 
   it('un bloque que no publica evidencia no se intenta federar siquiera', async () => {
