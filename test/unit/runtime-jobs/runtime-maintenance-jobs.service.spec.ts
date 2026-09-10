@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { describe, expect, it, jest } from '@jest/globals';
 import { RuntimeMaintenanceJobsService } from '../../../src/modules/runtime-jobs/runtime-maintenance-jobs.service.js';
 
@@ -218,13 +219,33 @@ describe('RuntimeMaintenanceJobsService.purgeProcessedOutbox', () => {
       currentUser,
     });
 
-    const where = (outboxEventModel.destroy as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; limit: number };
+    const where = (outboxEventModel.destroy as jest.Mock).mock.calls[0][0] as {
+      where: Record<string | symbol, unknown>;
+      limit: number;
+    };
     expect(where.where.status).toBe('processed');
-    expect(where.where.tenantId).toBe('1');
+    expect(where.where[Op.or]).toEqual([{ tenantId: '1' }, { tenantId: null }]);
     // El corte va sobre `processedAt`: una fila `processed` sin marca de procesado es un estado
     // inconsistente y debe sobrevivir para poder investigarse, no desaparecer con la purga.
     expect(where.where).toHaveProperty('processedAt');
     expect(where.limit).toBe(100);
+  });
+
+  /**
+   * `process_outbox` reclama ya los eventos SIN inquilino de las mutaciones anónimas (login, refresh,
+   * logout). Si la purga siguiera filtrando sólo por inquilino, esos eventos dejarían de acumularse
+   * como pendientes para acumularse como procesados, para siempre: el mismo defecto, un estado más
+   * adelante. Arreglar uno sin el otro no arregla nada.
+   */
+  it('borra también los procesados SIN inquilino: si no, el defecto sólo cambia de estado', async () => {
+    const { service, outboxEventModel } = buildWithOutbox();
+
+    await service.purgeProcessedOutbox({ tenantId: '1', body: { retentionDays: 30, limit: 100, dryRun: false }, currentUser });
+
+    const { where } = (outboxEventModel.destroy as jest.Mock).mock.calls[0][0] as { where: Record<string | symbol, unknown> };
+    expect(where[Op.or]).toContainEqual({ tenantId: null });
+    // Y nunca a costa de tocar un pendiente: el estado sigue siendo sólo `processed`.
+    expect(where.status).toBe('processed');
   });
 
   it('se registra como corrida de job con su propio jobCode', async () => {

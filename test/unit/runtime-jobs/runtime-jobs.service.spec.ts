@@ -291,6 +291,35 @@ describe('RuntimeJobsService', () => {
       expect(result).toMatchObject({ selected: 2, processed: 2, skippedBusinessEvents: 4, dryRun: false });
       expect(sequelize.transaction).toHaveBeenCalled();
     });
+
+    /**
+     * Las mutaciones anónimas —login, `auth/refresh`, `logout`— escriben su evento con `_tenant_id`
+     * nulo, y cada corrida reclamaba `_tenant_id = :tenantId`: un evento nulo no lo recogía NUNCA
+     * nadie. En el servidor, el 2026-09-10, los 67 pendientes eran todos nulos y llevaban desde el 23
+     * de agosto. Estas pruebas fijan que tanto la reclamación como el recuento en seco los incluyen:
+     * si sólo uno lo hiciera, el modo en seco diría «nada que hacer» sobre filas que el real sí toma.
+     */
+    it('real: reclama también los eventos SIN inquilino, que nadie más va a recoger', async () => {
+      const { service, sequelize, outboxModel } = buildService();
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(0 as never);
+
+      await service.processOutbox({ tenantId: 't1', body: { dryRun: false, limit: 100 } as never, currentUser: internalUser });
+
+      const sql = String((sequelize.query as jest.Mock).mock.calls[0]?.[0]);
+      expect(sql).toContain('FOR UPDATE SKIP LOCKED');
+      expect(sql).toMatch(/_tenant_id = CAST\(:tenantId AS BIGINT\) OR _tenant_id IS NULL/);
+    });
+
+    it('dryRun: el recuento de candidatos incluye los mismos nulos que reclamaría el modo real', async () => {
+      const { service, sequelize, outboxModel } = buildService();
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([{ count: '0' }] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(0 as never);
+
+      await service.processOutbox({ tenantId: 't1', body: { dryRun: true, limit: 100 } as never, currentUser: internalUser });
+
+      expect(String((sequelize.query as jest.Mock).mock.calls[0]?.[0])).toMatch(/OR _tenant_id IS NULL/);
+    });
   });
 
   describe('processEvents', () => {

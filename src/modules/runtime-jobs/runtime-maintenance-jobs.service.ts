@@ -221,7 +221,11 @@ export class RuntimeMaintenanceJobsService {
 
         const cutoff = new Date(Date.now() - input.body.retentionDays * 24 * 60 * 60 * 1000);
         const where = {
-          tenantId: input.tenantId,
+          // También los procesados SIN inquilino. `process_outbox` reclama ya los eventos nulos de las
+          // mutaciones anónimas (login, refresh, logout); si la purga siguiera filtrando sólo por
+          // inquilino, esos eventos dejarían de acumularse como pendientes para acumularse como
+          // procesados, para siempre, un estado más adelante.
+          [Op.or]: [{ tenantId: input.tenantId }, { tenantId: null }],
           // Solo `processed`. `pending`/`processing` no se tocan jamás (se perdería un efecto de
           // negocio en silencio) y no existe ningún otro estado terminal en esta tabla: si mañana se
           // añade uno, tiene que sumarse aquí a conciencia, no heredarse de una lista abierta.

@@ -104,8 +104,8 @@ export class RuntimeJobsService {
   }
 
   /**
-   * Reclama eventos con `SELECT ... FOR UPDATE SKIP LOCKED` dentro de una transacción.
-   * Dos ejecuciones concurrentes se reparten las filas sin solaparse.
+   * Reclama con `SELECT ... FOR UPDATE SKIP LOCKED` (dos corridas no se solapan) los eventos del inquilino Y los
+   * SIN inquilino: mutaciones anónimas (login, refresh, logout) que ninguna corrida tomaba nunca. Sin efecto de negocio.
    */
   async processOutbox(input: { tenantId: string; body: ProcessOutboxDto; currentUser: AuthenticatedUser }) {
     return this.jobRuns.run(
@@ -119,7 +119,7 @@ export class RuntimeJobsService {
           const [{ count }] = await this.sequelize.query<{ count: string }>(
             `SELECT COUNT(*) AS count FROM outbox_events
              WHERE status = 'pending'
-               AND _tenant_id = CAST(:tenantId AS BIGINT)
+               AND (_tenant_id = CAST(:tenantId AS BIGINT) OR _tenant_id IS NULL)
                AND COALESCE(available_at, now()) <= now()
                AND event_code NOT IN (:excludedCodes)`,
             { replacements: { tenantId: input.tenantId, excludedCodes }, type: QueryTypes.SELECT },
@@ -146,7 +146,7 @@ export class RuntimeJobsService {
              SELECT _id
              FROM outbox_events
              WHERE status = 'pending'
-               AND _tenant_id = CAST(:tenantId AS BIGINT)
+               AND (_tenant_id = CAST(:tenantId AS BIGINT) OR _tenant_id IS NULL)
                AND COALESCE(available_at, now()) <= now()
                AND event_code NOT IN (:excludedCodes)
              ORDER BY COALESCE(available_at, now()) ASC, _id ASC
