@@ -266,7 +266,8 @@ describe('RuntimeJobsService', () => {
     it('dryRun: cuenta candidatos vía SQL y reporta el backlog sin reclamar filas', async () => {
       const { service, sequelize, outboxModel } = buildService();
       (sequelize.query as jest.Mock).mockResolvedValueOnce([{ count: '5' }] as never);
-      (outboxModel.count as jest.Mock).mockResolvedValueOnce(8 as never);
+      // Dos cuentas: pendientes del inquilino y pendientes sin inquilino, en ese orden.
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(8 as never).mockResolvedValueOnce(0 as never);
 
       const response = await service.processOutbox({
         tenantId: 't1',
@@ -279,8 +280,11 @@ describe('RuntimeJobsService', () => {
 
     it('real: reclama filas con SELECT..FOR UPDATE SKIP LOCKED dentro de una transacción', async () => {
       const { service, sequelize, outboxModel } = buildService();
-      (sequelize.query as jest.Mock).mockResolvedValueOnce([{ id: '1' }, { id: '2' }] as never);
-      (outboxModel.count as jest.Mock).mockResolvedValueOnce(4 as never);
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([
+        { id: '1', tenant_id: '1' },
+        { id: '2', tenant_id: '1' },
+      ] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(4 as never).mockResolvedValueOnce(0 as never);
 
       const response = await service.processOutbox({
         tenantId: 't1',
@@ -302,7 +306,7 @@ describe('RuntimeJobsService', () => {
     it('real: reclama también los eventos SIN inquilino, que nadie más va a recoger', async () => {
       const { service, sequelize, outboxModel } = buildService();
       (sequelize.query as jest.Mock).mockResolvedValueOnce([] as never);
-      (outboxModel.count as jest.Mock).mockResolvedValueOnce(0 as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(0 as never).mockResolvedValueOnce(0 as never);
 
       await service.processOutbox({ tenantId: 't1', body: { dryRun: false, limit: 100 } as never, currentUser: internalUser });
 
@@ -314,11 +318,51 @@ describe('RuntimeJobsService', () => {
     it('dryRun: el recuento de candidatos incluye los mismos nulos que reclamaría el modo real', async () => {
       const { service, sequelize, outboxModel } = buildService();
       (sequelize.query as jest.Mock).mockResolvedValueOnce([{ count: '0' }] as never);
-      (outboxModel.count as jest.Mock).mockResolvedValueOnce(0 as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(0 as never).mockResolvedValueOnce(0 as never);
 
       await service.processOutbox({ tenantId: 't1', body: { dryRun: true, limit: 100 } as never, currentUser: internalUser });
 
       expect(String((sequelize.query as jest.Mock).mock.calls[0]?.[0])).toMatch(/OR _tenant_id IS NULL/);
+    });
+
+    /**
+     * Señalado por otra sesión revisando el arreglo: se reclamaban los nulos pero se CONTABAN sin
+     * ellos. En seco, `skippedBusinessEvents` restaba dos poblaciones distintas y podía salir negativo,
+     * y la corrida de un inquilino se llevaba en su resultado eventos que no eran suyos.
+     */
+    it('dryRun: con eventos sin inquilino, lo saltado no sale negativo', async () => {
+      const { service, sequelize, outboxModel } = buildService();
+      // 5 candidatos: 2 del inquilino y 3 sin inquilino. Con la cuenta vieja: 2 - 5 = -3.
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([{ count: '5' }] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(2 as never).mockResolvedValueOnce(3 as never);
+
+      const response = await service.processOutbox({
+        tenantId: 't1',
+        body: { dryRun: true, limit: 100 } as never,
+        currentUser: internalUser,
+      });
+
+      expect((response.result as { skippedBusinessEvents: number }).skippedBusinessEvents).toBe(0);
+    });
+
+    it('real: dice cuántos de los procesados NO eran de este inquilino', async () => {
+      const { service, sequelize, outboxModel } = buildService();
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([
+        { id: '1', tenant_id: null },
+        { id: '2', tenant_id: '1' },
+        { id: '3', tenant_id: null },
+      ] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(0 as never).mockResolvedValueOnce(0 as never);
+
+      const response = await service.processOutbox({
+        tenantId: 't1',
+        body: { dryRun: false, limit: 100 } as never,
+        currentUser: internalUser,
+      });
+
+      // El portal enseña `result_json` acotado por inquilino: sin esto, el primero en correr se
+      // llevaba como suyos eventos ajenos.
+      expect(response.result).toMatchObject({ processed: 3, processedWithoutTenant: 2 });
     });
   });
 

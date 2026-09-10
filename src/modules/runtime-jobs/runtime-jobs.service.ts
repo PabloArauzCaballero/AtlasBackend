@@ -29,6 +29,7 @@ import {
   ProcessOutboxDto,
   RecalculateDataQualityDto,
 } from './runtime-jobs.schemas.js';
+import { countOutboxBacklog, publishOutboxBacklog } from './outbox-backlog.js';
 
 function registeredEventCodesOrSentinel(): string[] {
   const codes = listEventDefinitions().map((event) => event.code);
@@ -124,16 +125,14 @@ export class RuntimeJobsService {
                AND event_code NOT IN (:excludedCodes)`,
             { replacements: { tenantId: input.tenantId, excludedCodes }, type: QueryTypes.SELECT },
           );
-          const totalPending = await this.outboxModel.count({
-            where: { tenantId: input.tenantId, status: 'pending', availableAt: { [Op.lte]: new Date() } } as never,
-          });
+          const backlog = await countOutboxBacklog(this.outboxModel, input.tenantId);
           const selected = Math.min(Number(count), input.body.limit);
-          // Fase 3.4: profundidad del backlog del outbox, ya calculada aquí (sin query extra).
-          this.metrics?.setOutboxPendingEvents({ tenantId: input.tenantId, pending: totalPending });
+          publishOutboxBacklog(this.metrics, input.tenantId, backlog);
           return {
             selected,
             processed: 0,
-            skippedBusinessEvents: totalPending - Number(count),
+            // Misma población que `count` (inquilino + sin inquilino): si no, la resta puede ser negativa.
+            skippedBusinessEvents: backlog.tenant + backlog.withoutTenant - Number(count),
             dryRun: true,
             note: 'process-outbox conserva compatibilidad y no procesa eventos de negocio registrados; usa process-events para notificaciones.',
           };
@@ -141,7 +140,7 @@ export class RuntimeJobsService {
 
         const now = new Date();
         const claimed = await this.sequelize.transaction(async (transaction) => {
-          const rows = await this.sequelize.query<{ id: string }>(
+          const rows = await this.sequelize.query<{ id: string; tenant_id: string | null }>(
             `WITH candidates AS (
              SELECT _id
              FROM outbox_events
@@ -160,7 +159,7 @@ export class RuntimeJobsService {
                _updated_at = :now
            FROM candidates
            WHERE event._id = candidates._id
-           RETURNING event._id AS id;`,
+           RETURNING event._id AS id, event._tenant_id AS tenant_id;`,
             {
               replacements: { tenantId: input.tenantId, excludedCodes, limit: input.body.limit, now },
               type: QueryTypes.SELECT,
@@ -170,16 +169,17 @@ export class RuntimeJobsService {
           return rows;
         });
 
-        const totalPendingAfter = await this.outboxModel.count({
-          where: { tenantId: input.tenantId, status: 'pending', availableAt: { [Op.lte]: new Date() } } as never,
-        });
-        // Fase 3.4: backlog restante tras drenar — la señal que alerta si el outbox no da abasto.
-        this.metrics?.setOutboxPendingEvents({ tenantId: input.tenantId, pending: totalPendingAfter });
+        // Fase 3.4: backlog restante tras drenar, en dos series para que el nulo no quede invisible.
+        const after = await countOutboxBacklog(this.outboxModel, input.tenantId);
+        publishOutboxBacklog(this.metrics, input.tenantId, after);
 
         return {
           selected: claimed.length,
           processed: claimed.length,
-          skippedBusinessEvents: totalPendingAfter,
+          // Atribución: cuántos de los procesados NO eran de este inquilino. Sin esto, el primero en
+          // correr se llevaba en su `result_json` eventos ajenos, y el portal lo enseña por inquilino.
+          processedWithoutTenant: claimed.filter((row) => row.tenant_id === null).length,
+          skippedBusinessEvents: after.tenant + after.withoutTenant,
           dryRun: false,
           note: 'process-outbox conserva compatibilidad y no procesa eventos de negocio registrados; usa process-events para notificaciones.',
         };
