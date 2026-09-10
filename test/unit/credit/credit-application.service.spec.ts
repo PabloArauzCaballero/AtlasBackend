@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { UniqueConstraintError } from 'sequelize';
 import { CreditApplicationService } from '../../../src/modules/credit/application/credit-application.service.js';
+import { CreditApplicationAdmissionService } from '../../../src/modules/credit/application/credit-application-admission.service.js';
 
 /**
  * Creación de la solicitud de crédito.
@@ -106,6 +107,18 @@ describe('CreditApplicationService', () => {
       // aparte del expediente porque sólo lee, y `credit-application` usa los dos.
       partnerDirectory as never,
       sequelize as never,
+      // La ADMISIÓN —escribir la solicitud y decidir si entra a evaluación— salió a su propio
+      // servicio al partir el archivo por tamaño. Se construye con los MISMOS dobles y en el mismo
+      // orden, así que ninguna aserción de este spec cambia.
+      new CreditApplicationAdmissionService(
+        creditRepository as never,
+        eligibilityService as never,
+        eligibilityRepository as never,
+        underwriting as never,
+        partnerProfiles as never,
+        partnerDirectory as never,
+        sequelize as never,
+      ),
     );
     return { service, creditRepository, eligibilityService, eligibilityRepository, underwriting, partnerProfiles, partnerDirectory };
   }

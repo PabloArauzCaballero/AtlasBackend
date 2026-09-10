@@ -1,6 +1,8 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { NotificationsController } from '../../../src/modules/notifications/notifications.controller.js';
 import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.js';
+import { NotificationBroadcastController } from '../../../src/modules/notifications/notification-broadcast.controller.js';
+import { CustomerNotificationsController } from '../../../src/modules/notifications/customer-notifications.controller.js';
 
 /**
  * `NotificationsController` (19 endpoints) delega todo en `NotificationsService`. Spec representativo:
@@ -33,14 +35,19 @@ describe('NotificationsController', () => {
     expect(service.retryMessage).toHaveBeenCalledWith(tenantIdFromHeader('1'), 'm1');
     expect(() => controller.retryMessage('1', undefined, { messageId: 'm1' } as never)).toThrow();
 
-    await controller.broadcastNotification('1', 'idem', { title: 'hi' } as never);
+    // El broadcast salió a `NotificationBroadcastController` al partir el archivo por tamaño;
+    // mismo doble de servicio, misma aserción.
+    const broadcast = new NotificationBroadcastController(service as never);
+    await broadcast.broadcastNotification('1', 'idem', { title: 'hi' } as never);
     expect(service.broadcast).toHaveBeenCalledWith(tenantIdFromHeader('1'), { title: 'hi' });
-    expect(() => controller.broadcastNotification('1', undefined, {} as never)).toThrow();
+    expect(() => broadcast.broadcastNotification('1', undefined, {} as never)).toThrow();
   });
 
   it('el autoservicio de cliente usa el tenant con fallback al token', async () => {
-    const { controller, service } = build();
-    await controller.listCustomerNotifications('1', { customerId: '9' } as never, { status: 'unread' } as never, customer);
+    const { service } = build();
+    // El autoservicio vive en `CustomerNotificationsController` desde el corte por tamaño.
+    const autoservicio = new CustomerNotificationsController(service as never);
+    await autoservicio.listCustomerNotifications('1', { customerId: '9' } as never, { status: 'unread' } as never, customer);
     expect(service.listCustomerNotifications).toHaveBeenCalledWith(tenantIdFromHeader('1', customer), '9', { status: 'unread' }, customer);
   });
 

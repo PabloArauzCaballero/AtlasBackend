@@ -43,11 +43,15 @@ import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.
  * `login`, `refresh` y `logout` son públicos por diseño: son la puerta de entrada antes de tener
  * access token y operan sobre credenciales/refresh tokens.
  */
+import { AuthCredentialsService } from './auth-credentials.service.js';
 @ApiTags('auth')
 @Controller('auth')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly credenciales: AuthCredentialsService,
+  ) {}
 
   // 10 intentos de login por minuto por IP — frena fuerza bruta de credenciales sin estorbar uso legítimo.
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
@@ -125,7 +129,7 @@ export class AuthController {
     @Body(new ZodValidationPipe(passwordResetRequestSchema)) body: PasswordResetRequestDto,
     @Req() request: RequestWithNetwork,
   ) {
-    return this.authService.requestPasswordReset({
+    return this.credenciales.requestPasswordReset({
       tenantId,
       actorType: body.actorType,
       identifier: body.identifier,
@@ -154,7 +158,7 @@ export class AuthController {
     @Body(new ZodValidationPipe(passwordResetConfirmSchema)) body: PasswordResetConfirmDto,
     @Req() request: RequestWithNetwork,
   ) {
-    return this.authService.confirmPasswordReset({
+    return this.credenciales.confirmPasswordReset({
       tenantId,
       actorType: body.actorType,
       identifier: body.identifier,
@@ -255,7 +259,7 @@ export class AuthController {
     if (currentUser.role !== 'customer' || !currentUser.customerId) {
       throw new ForbiddenException('Solo un cliente puede configurar su MFA.');
     }
-    return this.authService.setCustomerMfaPreference({ actorId: currentUser.customerId, enabled: body.enabled });
+    return this.credenciales.setCustomerMfaPreference({ actorId: currentUser.customerId, enabled: body.enabled });
   }
 
   /**
@@ -293,6 +297,6 @@ export class AuthController {
     @Body(new ZodValidationPipe(provisionCredentialsSchema)) body: ProvisionCredentialsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.authService.provisionCredentials(body, { role: currentUser.role, tenantId: currentUser.tenantId ?? null });
+    return this.credenciales.provisionCredentials(body, { role: currentUser.role, tenantId: currentUser.tenantId ?? null });
   }
 }

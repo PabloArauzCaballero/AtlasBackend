@@ -11,7 +11,7 @@ import { DecisionArtifactBindingService } from '../decision-engine/decision-arti
 import { DecisionEngineClient } from '../decision-engine/decision-engine.client.js';
 import { MobileIdentityRepository, PENDING_RESULT } from './mobile-identity.repository.js';
 import { CustomerContactsSnapshotService } from '../customer-onboarding/application/customer-contacts-snapshot.service.js';
-import type { ContactsSnapshotFeatures } from '../customer-onboarding/customer-contacts-snapshot.schemas.js';
+
 import { StartIdentityVerificationDto, type IdentityVerificationState, type IdentityVerificationView } from './mobile-identity.schemas.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
 
@@ -48,6 +48,8 @@ const ESTADO_POR_DECISION: Readonly<Record<string, IdentityVerificationState>> =
  * sus puntajes. Un carnet guardado «por si acaso» es exactamente el dato que una
  * fuga convierte en suplantación.
  */
+import { MobileIdentitySignalsService } from './mobile-identity-signals.service.js';
+import { describir } from './mobile-identity.errors.js';
 @Injectable()
 export class MobileIdentityService {
   private readonly logger = new Logger(MobileIdentityService.name);
@@ -57,6 +59,7 @@ export class MobileIdentityService {
     private readonly engine: DecisionEngineClient,
     private readonly bindings: DecisionArtifactBindingService,
     private readonly contacts: CustomerContactsSnapshotService,
+    private readonly senales: MobileIdentitySignalsService,
   ) {}
 
   /**
@@ -167,7 +170,10 @@ export class MobileIdentityService {
        * confirmación explícita del registro, así que una lectura fallida no
        * puede aprobar a nadie: manda el caso a una persona.
        */
-      const [segip, agenda] = await Promise.all([this.estadoDelRegistroEstatal(tenantId, customerId), this.agendaDe(tenantId, customerId)]);
+      const [segip, agenda] = await Promise.all([
+        this.senales.estadoDelRegistroEstatal(tenantId, customerId),
+        this.senales.agendaDe(tenantId, customerId),
+      ]);
 
       /*
        * El artefacto sale de la ASIGNACIÓN, no del entorno.
@@ -238,60 +244,6 @@ export class MobileIdentityService {
       throw error;
     }
   }
-
-  /**
-   * Qué contestó el registro estatal sobre este cliente, si contestó.
-   *
-   * Traduce el desenlace guardado por el flujo de alta al vocabulario del
-   * proveedor, que es el que el artefacto enruta. La traducción es de tres a
-   * cuatro y no es simétrica a propósito:
-   *
-   * - `verified` → `FOUND`. Es el ÚNICO que confirma.
-   * - `rejected` → `NOT_FOUND`. El registro no encontró el documento declarado.
-   * - `pending_review` → `PENDING`. Se preguntó y no se resolvió.
-   * - sin cliente, sin intento o error de lectura → `NO_CONSULTADO`.
-   *
-   * Los tres últimos hacen exactamente lo mismo en el artefacto —impiden la
-   * aprobación automática y mandan el caso a una persona— y aun así se
-   * distinguen, porque quien abra el caso necesita saber si preguntar otra vez
-   * sirve de algo.
-   */
-  private async estadoDelRegistroEstatal(tenantId: string, customerId: string | null): Promise<{ estado: string; coincidencia: number }> {
-    if (!customerId) return { estado: 'NO_CONSULTADO', coincidencia: 0 };
-    try {
-      const intento = await this.repository.findLatestOnboardingAttempt(tenantId, customerId);
-      if (!intento) return { estado: 'NO_CONSULTADO', coincidencia: 0 };
-      const resultado = String(intento.finalResult ?? '').toLowerCase();
-      if (resultado === 'verified') return { estado: 'FOUND', coincidencia: 1 };
-      if (resultado === 'rejected') return { estado: 'NOT_FOUND', coincidencia: 0 };
-      return { estado: 'PENDING', coincidencia: 0 };
-    } catch (error: unknown) {
-      // Se degrada, no se propaga: perder la verificación entera porque no se
-      // pudo leer una fila auxiliar castigaría al solicitante por un problema
-      // nuestro. `NO_CONSULTADO` no aprueba a nadie.
-      this.logger.warn(`No se pudo leer el registro estatal del cliente ${customerId}: ${describir(error)}`);
-      return { estado: 'NO_CONSULTADO', coincidencia: 0 };
-    }
-  }
-
-  /** Los agregados de la agenda, o el vacío explícito cuando no los hay. */
-  private async agendaDe(tenantId: string, customerId: string | null): Promise<ContactsSnapshotFeatures> {
-    const vacio: ContactsSnapshotFeatures = {
-      available: false,
-      totalContacts: 0,
-      uniqueRatio: 0,
-      bolivianRatio: 0,
-      referencesFoundInAddressBook: 0,
-      riskMatches: 0,
-    };
-    if (!customerId) return vacio;
-    try {
-      return await this.contacts.featuresFor(tenantId, customerId);
-    } catch (error: unknown) {
-      this.logger.warn(`No se pudo leer la agenda del cliente ${customerId}: ${describir(error)}`);
-      return vacio;
-    }
-  }
 }
 
 /** La columna es `DECIMAL(5,2)`: se acota antes de escribir, no después de fallar. */
@@ -299,8 +251,4 @@ function decimal(valor: unknown): string | null {
   const numero = Number(valor);
   if (!Number.isFinite(numero)) return null;
   return Math.max(0, Math.min(999.99, numero)).toFixed(2);
-}
-
-function describir(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

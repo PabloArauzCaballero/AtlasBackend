@@ -11,6 +11,7 @@ import { CustomerOnboardingModule } from '../customer-onboarding/customer-onboar
 import { MobileIdentityController } from './mobile-identity.controller.js';
 import { MobileIdentityRepository } from './mobile-identity.repository.js';
 import { MobileIdentityService } from './mobile-identity.service.js';
+import { MobileIdentitySignalsService } from './mobile-identity-signals.service.js';
 
 /**
  * Módulo propio y no una carpeta dentro de `customer-onboarding`.
@@ -32,7 +33,7 @@ import { MobileIdentityService } from './mobile-identity.service.js';
    */
   imports: [SequelizeModule.forFeature([IdentityVerificationAttemptModel]), DecisionEngineModule, CustomerOnboardingModule],
   controllers: [MobileIdentityController],
-  providers: [MobileIdentityRepository, MobileIdentityService],
+  providers: [MobileIdentityRepository, MobileIdentityService, MobileIdentitySignalsService],
   exports: [MobileIdentityService],
 })
 export class MobileIdentityModule {}

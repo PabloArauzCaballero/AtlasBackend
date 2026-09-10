@@ -29,6 +29,7 @@ import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
 import { AuthRepository } from './auth.repository.js';
 import { MerchantActorRepository } from './merchant-actor.repository.js';
 import { AuthService } from './auth.service.js';
+import { AuthCredentialsService } from './auth-credentials.service.js';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { AuthService } from './auth.service.js';
   controllers: [AuthController, AuthPasswordChangeController],
   providers: [
     AuthService,
+    AuthCredentialsService,
     AuthActorResolverService,
     AuthPasswordChangeService,
     AuthPasswordChangeRepository,

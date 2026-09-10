@@ -81,6 +81,9 @@ describe('OperationsService', () => {
       // devuelve «no disponible», que es el mismo camino que toma un cliente sin captura.
       contactsSnapshotService as never,
       sequelize as never,
+      // Las cuatro consultas de la COLA salieron a `OperationsQueueRepository` al partir el
+      // repositorio por tamaño. El mismo doble las sigue exponiendo, así que este spec no cambia.
+      operationsRepository as never,
     );
     return { service, operationsRepository, customersRepository, riskRepository, lifecycleService };
   }

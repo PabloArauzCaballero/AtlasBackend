@@ -25,7 +25,9 @@ describe('AuthController', () => {
       setCustomerMfaPreference: jest.fn(async (..._args: unknown[]) => ({ mfaEnabled: true })),
       provisionCredentials: jest.fn(async (..._args: unknown[]) => ({ ok: true })),
     };
-    return { controller: new AuthController(authService as never), authService };
+    // Dos colaboradores: la credencial salió a `AuthCredentialsService`. El mismo doble sirve
+    // para los dos, así que ninguna aserción cambia.
+    return { controller: new AuthController(authService as never, authService as never), authService };
   }
 
   it('login delega con tenant, ip y user-agent', async () => {

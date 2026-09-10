@@ -30,18 +30,10 @@ import {
   LoanApplicationParamsDto,
   LoanCustomerParamsDto,
   LoanIdParamsDto,
-  LoanPaymentParamsDto,
-  RegisterPaymentDto,
-  ReversePaymentDto,
-  WriteOffLoanDto,
   disburseLoanSchema,
   loanApplicationParamsSchema,
   loanCustomerParamsSchema,
   loanIdParamsSchema,
-  loanPaymentParamsSchema,
-  registerPaymentSchema,
-  reversePaymentSchema,
-  writeOffLoanSchema,
 } from './loans.schemas.js';
 
 /**
@@ -226,85 +218,5 @@ export class LoansController {
     const loan = await this.queries.detail(tenantId, params.loanId);
     assertOwnCustomerResourceOrInternalOperational(currentUser, String(loan.customerId));
     return loan;
-  }
-
-  @Roles('internal_operator', 'admin', 'platform_admin')
-  @ApiOperation({
-    summary: 'Registrar un cobro',
-    description:
-      'Aplica el cobro con prelación mora → interés → capital, sobre la cuota más antigua primero. ' +
-      'Un importe mayor que lo pendiente se rechaza: adelantar cuotas es una decisión de producto.',
-  })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: true })
-  @ApiBody({ schema: zodToApiSchema(registerPaymentSchema) })
-  @ApiResponse({ status: 201, description: 'Cobro aplicado.' })
-  @ApiResponse({ status: 422, description: 'PAYMENT_EXCEEDS_OUTSTANDING o CURRENCY_MISMATCH.' })
-  @Post('loans/:loanId/payments')
-  @HttpCode(HttpStatus.CREATED)
-  registerPayment(
-    @CurrentTenant() tenantId: string,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Param(new ZodValidationPipe(loanIdParamsSchema)) params: LoanIdParamsDto,
-    @Body(new ZodValidationPipe(registerPaymentSchema)) body: RegisterPaymentDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    return this.payments.registerPayment({
-      tenantId,
-      loanId: params.loanId,
-      body,
-      currentUser,
-      idempotencyKey: requireIdempotencyKey(idempotencyKey),
-    });
-  }
-
-  @Roles('internal_operator', 'admin', 'platform_admin')
-  @ApiOperation({ summary: 'Reversar un cobro ya aplicado' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiBody({ schema: zodToApiSchema(reversePaymentSchema) })
-  @ApiResponse({ status: 200, description: 'Cobro reversado.' })
-  @ApiResponse({ status: 409, description: 'LOAN_PAYMENT_ALREADY_REVERSED.' })
-  @Post('loans/:loanId/payments/:paymentId/reversal')
-  @HttpCode(HttpStatus.OK)
-  reversePayment(
-    @CurrentTenant() tenantId: string,
-    @Param(new ZodValidationPipe(loanPaymentParamsSchema)) params: LoanPaymentParamsDto,
-    @Body(new ZodValidationPipe(reversePaymentSchema)) body: ReversePaymentDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    return this.payments.reversePayment({
-      tenantId,
-      loanId: params.loanId,
-      paymentId: params.paymentId,
-      body,
-      currentUser,
-    });
-  }
-
-  @Roles('admin', 'platform_admin')
-  @ApiOperation({
-    summary: 'Castigar un préstamo incobrable',
-    description:
-      'Reconoce la pérdida sin borrar el préstamo: el importe castigado queda escrito porque es dato ' +
-      'de riesgo de primer orden y alimenta el desenlace que recibe el motor.',
-  })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiBody({ schema: zodToApiSchema(writeOffLoanSchema) })
-  @ApiResponse({ status: 200, description: 'Préstamo castigado.' })
-  @ApiResponse({ status: 409, description: 'LOAN_ALREADY_WRITTEN_OFF o LOAN_NOT_WRITE_OFF_ELIGIBLE.' })
-  @Post('loans/:loanId/write-off')
-  @HttpCode(HttpStatus.OK)
-  writeOffLoan(
-    @CurrentTenant() tenantId: string,
-    @Param(new ZodValidationPipe(loanIdParamsSchema)) params: LoanIdParamsDto,
-    @Body(new ZodValidationPipe(writeOffLoanSchema)) body: WriteOffLoanDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ) {
-    return this.writeOff.writeOff({
-      tenantId,
-      loanId: params.loanId,
-      body,
-      currentUser,
-    });
   }
 }

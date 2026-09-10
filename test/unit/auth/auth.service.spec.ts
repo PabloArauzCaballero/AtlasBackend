@@ -22,6 +22,7 @@ import { AuthPasswordResetService } from '../../../src/modules/auth/auth-passwor
 import { AuthSecondFactorService } from '../../../src/modules/auth/auth-second-factor.service.js';
 import { hashOneTimeCode } from '../../../src/common/utils/crypto/one-time-code.util.js';
 import { env } from '../../../src/config/env.js';
+import { AuthCredentialsService } from '../../../src/modules/auth/auth-credentials.service.js';
 
 function buildAuthRepositoryMock() {
   return {
@@ -135,7 +136,7 @@ function buildService(
   // Emisor real: la emisión de tokens salió de `AuthService`, pero sigue apoyándose en el mismo
   // doble de repositorio, así que las aserciones sobre `createRefreshToken` no cambian.
   const tokenIssuer = new AuthTokenIssuerService(authRepository as never);
-  return new AuthService(
+  const service = new AuthService(
     authRepository as never,
     actorResolver,
     passwordReset,
@@ -146,6 +147,30 @@ function buildService(
     sequelize as never,
     metrics as never,
   );
+
+  /*
+   * La CREDENCIAL —recuperarla, provisionarla y elegir si pide segundo factor— vive desde el
+   * corte de tamaño en `AuthCredentialsService`, con los mismos colaboradores y en el mismo
+   * orden. Se cuelga del servicio de sesión para que las pruebas que la ejercitan sigan
+   * escribiéndose como antes: lo que se prueba no ha cambiado, sólo dónde vive el método.
+   */
+  const credenciales = new AuthCredentialsService(
+    authRepository as never,
+    actorResolver,
+    passwordReset,
+    secondFactor,
+    tokenIssuer,
+    tokenRevocationService as never,
+    mailSenderService as never,
+    sequelize as never,
+    metrics as never,
+  );
+  return Object.assign(service, {
+    requestPasswordReset: credenciales.requestPasswordReset.bind(credenciales),
+    confirmPasswordReset: credenciales.confirmPasswordReset.bind(credenciales),
+    provisionCredentials: credenciales.provisionCredentials.bind(credenciales),
+    setCustomerMfaPreference: credenciales.setCustomerMfaPreference.bind(credenciales),
+  });
 }
 
 // El login exitoso ahora retorna `LoginOutcome` (`LoginResult | LoginPinChallenge`). Los tests que

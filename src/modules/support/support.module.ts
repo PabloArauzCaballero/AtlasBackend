@@ -43,7 +43,12 @@ import { SupportCaseEscalationService } from './application/support-case-escalat
 import { SupportCaseFactoryService } from './application/support-case-factory.service.js';
 import { SupportCaseMembershipService } from './application/support-case-membership.service.js';
 import { SupportCaseReadService } from './application/support-case-read.service.js';
+import { SupportCaseRoutingService } from './application/support-case-routing.service.js';
+import { SupportChannelCreationService } from './application/support-channel-creation.service.js';
+import { SupportAgentAvailabilityRepository } from './support-agent-availability.repository.js';
 import { SupportCaseService } from './application/support-case.service.js';
+import { SupportCaseCreationEventsService } from './application/support-case-creation-events.service.js';
+import { SupportCaseUnclassifiedService } from './application/support-case-unclassified.service.js';
 import { SupportCaseTransitionService } from './application/support-case-transition.service.js';
 import { SupportCaseWorkflowService } from './application/support-case-workflow.service.js';
 import { SupportChannelService } from './application/support-channel.service.js';
@@ -142,6 +147,11 @@ import { SupportMessageRepository } from './support-message.repository.js';
     SupportConversationService,
     SupportCaseFactoryService,
     SupportCaseService,
+    SupportAgentAvailabilityRepository,
+    SupportChannelCreationService,
+    SupportCaseRoutingService,
+    SupportCaseCreationEventsService,
+    SupportCaseUnclassifiedService,
     SupportCaseReadService,
     SupportCaseWorkflowService,
     SupportCaseEscalationService,

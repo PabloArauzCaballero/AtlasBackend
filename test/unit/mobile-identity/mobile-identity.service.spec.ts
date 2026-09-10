@@ -69,8 +69,21 @@ describe('MobileIdentityService', () => {
         riskMatches: 0,
       })),
     };
-    const service = new MobileIdentityService(repository as never, engine as never, bindings as never, contacts as never);
-    return { service, repository, engine, bindings, contacts };
+    // Las señales externas —registro estatal y agenda— salieron a `MobileIdentitySignalsService`
+    // al partir el archivo por tamaño. Este spec no las ejercita: el doble responde «sin dato».
+    const senales = {
+      estadoDelRegistroEstatal: jest.fn(async () => ({ estado: 'sin_dato', coincidencia: 0 })),
+      agendaDe: jest.fn(async () => ({
+        available: false,
+        totalContacts: 0,
+        uniqueRatio: 0,
+        bolivianRatio: 0,
+        referencesFoundInAddressBook: 0,
+        riskMatches: 0,
+      })),
+    };
+    const service = new MobileIdentityService(repository as never, engine as never, bindings as never, contacts as never, senales as never);
+    return { service, repository, engine, bindings, contacts, senales };
   }
 
   /** Deja correr la promesa que el servicio lanzó sin esperar. */

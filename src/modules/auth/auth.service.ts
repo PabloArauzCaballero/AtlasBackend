@@ -3,14 +3,14 @@
  * @business Esta pieza protege el acceso de clientes y operadores, la recuperación de cuenta y la continuidad segura de sesiones.
  * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
  */
-import { Injectable, UnauthorizedException, ForbiddenException, ConflictException, Optional } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Optional } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { MetricsService } from '../../common/observability/metrics.service.js';
 import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { env } from '../../config/env.js';
-import { AtlasUserRole } from '../../common/types/auth.types.js';
-import { hashPassword, isPasswordStrongEnough, verifyPassword } from '../../common/utils/crypto/password.util.js';
+
+import { verifyPassword } from '../../common/utils/crypto/password.util.js';
 import { hashRefreshToken } from '../../common/utils/crypto/refresh-token.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
@@ -19,15 +19,8 @@ import { AuthPasswordResetService } from './auth-password-reset.service.js';
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
-import {
-  LoginPinChallengeResponseDto,
-  LoginResponseDto,
-  LogoutResponseDto,
-  PasswordResetConfirmedResponseDto,
-  PasswordResetRequestedResponseDto,
-  ProvisionCredentialsResponseDto,
-} from './auth.dtos.js';
-import { LoginDto, ProvisionCredentialsDto } from './auth.schemas.js';
+import { LoginPinChallengeResponseDto, LoginResponseDto, LogoutResponseDto } from './auth.dtos.js';
+import { LoginDto } from './auth.schemas.js';
 
 type LoginResult = LoginResponseDto;
 
@@ -152,14 +145,6 @@ export class AuthService {
   }
 
   /**
-   * MFA opt-in del cliente. Delegado en `AuthSecondFactorService` (ver ese archivo para la política
-   * completa del segundo factor).
-   */
-  setCustomerMfaPreference(input: { actorId: string; enabled: boolean }): Promise<{ mfaEnabled: boolean }> {
-    return this.secondFactor.setCustomerMfaPreference(input);
-  }
-
-  /**
    * Completa el login con segundo factor: token de desafío (paso 1, contraseña) + PIN del correo.
    *
    * La verificación vive en `AuthSecondFactorService`; aquí queda solo lo que es competencia de este
@@ -171,30 +156,6 @@ export class AuthService {
       ip: input.ip,
       userAgent: input.userAgent,
     });
-  }
-
-  /** "Olvidé mi contraseña" (paso 1). Delegado en `AuthPasswordResetService`. */
-  async requestPasswordReset(input: {
-    tenantId: string;
-    actorType: ActorType;
-    identifier: string;
-    ip: string | null;
-    userAgent: string | null;
-  }): Promise<PasswordResetRequestedResponseDto> {
-    return this.passwordReset.requestPasswordReset(input);
-  }
-
-  /** Reset de contraseña (paso 2). Delegado en `AuthPasswordResetService`. */
-  async confirmPasswordReset(input: {
-    tenantId: string;
-    actorType: ActorType;
-    identifier: string;
-    code: string;
-    newPassword: string;
-    ip: string | null;
-    userAgent: string | null;
-  }): Promise<PasswordResetConfirmedResponseDto> {
-    return this.passwordReset.confirmPasswordReset(input);
   }
 
   /**
@@ -331,77 +292,5 @@ export class AuthService {
     }
 
     return { loggedOut: true };
-  }
-
-  /**
-   * Provisión de credenciales para actores internos (`internal_user`/`platform_user`).
-   * No existe autoregistro público para estos roles a propósito: permitir que cualquiera cree
-   * una cuenta con rol `admin`/`platform_admin` sería una vulnerabilidad crítica. El flujo
-   * correcto es: un `platform_admin` crea la fila en `internal_users`/`platform_users` y luego
-   * usa este endpoint para fijar su contraseña inicial.
-   *
-   * ATLAS-SEC-007 — contención por tenant. Este endpoint fija la contraseña de una cuenta que el
-   * solicitante NO controla, así que es el único punto del backend donde un actor puede fabricarse
-   * un acceso ajeno. `TenantGuard` no lo cubre: el destino llega en `actorId` (cuerpo), no en
-   * `x-tenant-id`. Sin este chequeo, un `admin` del tenant A provisionaba a un usuario interno del
-   * tenant B sin credenciales y entraba como él con `x-tenant-id: B` — toma de cuenta entre
-   * tenants, verificada en vivo (docs/audit/evidence/live-exploit-2026-08-06.md).
-   *
-   * Reglas:
-   *  - `platform_admin` opera a nivel plataforma (su token no lleva `tenantId`): puede provisionar
-   *    en cualquier tenant, y es el único que puede provisionar un `platform_user`.
-   *  - `admin` es un rol DE TENANT: solo puede provisionar `internal_user` de su propio tenant.
-   */
-  async provisionCredentials(
-    dto: ProvisionCredentialsDto,
-    requestedBy: { role: AtlasUserRole; tenantId: string | null },
-  ): Promise<ProvisionCredentialsResponseDto> {
-    if (requestedBy.role !== 'admin' && requestedBy.role !== 'platform_admin') {
-      throw new ForbiddenException('Solo un administrador puede provisionar credenciales.');
-    }
-
-    if (!isPasswordStrongEnough(dto.password)) {
-      throw new UnauthorizedException('La contraseña no cumple el mínimo de seguridad requerido.');
-    }
-
-    const isPlatformAdmin = requestedBy.role === 'platform_admin';
-
-    // Un `platform_user` no pertenece a ningún tenant: darle credenciales es un acto de alcance
-    // plataforma y no puede autorizarlo un administrador de tenant.
-    if (dto.actorType === 'platform_user' && !isPlatformAdmin) {
-      throw new ForbiddenException('Solo un platform_admin puede provisionar credenciales de un usuario de plataforma.');
-    }
-
-    const actor =
-      dto.actorType === 'internal_user'
-        ? await this.authRepository.findInternalUserById(dto.actorId)
-        : await this.authRepository.findPlatformUserById(dto.actorId);
-
-    if (!actor) {
-      throw new UnauthorizedException('El actor indicado no existe.');
-    }
-
-    const tenantId = 'tenantId' in actor ? (actor as { tenantId: string | null }).tenantId : null;
-
-    // El mismo `ForbiddenException` para "otro tenant" y para "mi token no trae tenant": distinguir
-    // ambos casos le confirmaría a un atacante que el `actorId` que probó SÍ existe en otro tenant.
-    if (!isPlatformAdmin && (requestedBy.tenantId === null || tenantId !== requestedBy.tenantId)) {
-      throw new ForbiddenException('No es posible provisionar credenciales de un actor de otro tenant.');
-    }
-
-    const existing = await this.authRepository.findCredentialsByActor(dto.actorType, dto.actorId);
-    if (existing) {
-      throw new ConflictException('CREDENTIALS_ALREADY_PROVISIONED');
-    }
-
-    const passwordHash = await hashPassword(dto.password);
-    await this.authRepository.createCredentials({
-      tenantId,
-      actorType: dto.actorType,
-      actorId: dto.actorId,
-      passwordHash,
-    });
-
-    return { provisioned: true };
   }
 }

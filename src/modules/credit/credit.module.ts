@@ -31,6 +31,7 @@ import { BankStatementService } from './application/bank-statement.service.js';
 import { CreditLineRefreshService } from './application/credit-line-refresh.service.js';
 import { CreditLineService } from './application/credit-line.service.js';
 import { CreditLineRecalculationService } from './application/credit-line-recalculation.service.js';
+import { CreditApplicationAdmissionService } from './application/credit-application-admission.service.js';
 import { CreditProductService } from './application/credit-product.service.js';
 import { PaymentCapacityService } from './application/payment-capacity.service.js';
 import { MerchantCreditController } from './merchant-credit.controller.js';
@@ -83,6 +84,7 @@ import { CreditRepository } from './credit.repository.js';
     CreditDecisionService,
     CreditLineService,
     CreditLineRecalculationService,
+    CreditApplicationAdmissionService,
     CreditLineRefreshService,
     PaymentCapacityService,
     BankStatementService,

@@ -3402,813 +3402,6 @@ paths:
       summary: Cancelar un mensaje de notificación pendiente
       tags:
         - notifications
-  /operations/notifications/templates:
-    get:
-      operationId: NotificationsController_listTemplates
-      parameters:
-        - name: active
-          required: false
-          in: query
-          schema:
-            type: boolean
-          description: Restringe a los registros vigentes cuando es `true`.
-        - name: channel
-          required: false
-          in: query
-          schema:
-            type: string
-            enum:
-              - in_app
-              - push
-              - email
-              - sms
-              - whatsapp
-              - phone
-          description: Canal de comunicación (`email`, `sms`, `push`, `whatsapp`).
-        - name: code
-          required: false
-          in: query
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 160
-          description: Filtra por el código natural del recurso.
-        - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Lista paginada de plantillas.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Listar plantillas de notificación
-      tags:
-        - notifications
-    post:
-      operationId: NotificationsController_createTemplate
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/CorrelationId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                code:
-                  type: string
-                  minLength: 3
-                  maxLength: 160
-                channel:
-                  type: string
-                  enum:
-                    - in_app
-                    - push
-                    - email
-                    - sms
-                    - whatsapp
-                    - phone
-                locale:
-                  default: es-BO
-                  type: string
-                  minLength: 2
-                  maxLength: 12
-                titleTemplate:
-                  anyOf:
-                    - type: string
-                      maxLength: 400
-                    - type: 'null'
-                subjectTemplate:
-                  anyOf:
-                    - type: string
-                      maxLength: 400
-                    - type: 'null'
-                bodyTemplate:
-                  type: string
-                  minLength: 1
-                  maxLength: 5000
-                payloadSchema:
-                  anyOf:
-                    - type: object
-                      propertyNames:
-                        type: string
-                      additionalProperties: {}
-                    - type: 'null'
-                category:
-                  anyOf:
-                    - type: string
-                      minLength: 1
-                      maxLength: 60
-                    - type: 'null'
-                icon:
-                  anyOf:
-                    - type: string
-                      minLength: 1
-                      maxLength: 60
-                    - type: 'null'
-                isActive:
-                  default: true
-                  type: boolean
-                version:
-                  default: 1
-                  type: integer
-                  exclusiveMinimum: 0
-                  maximum: 9007199254740991
-              required:
-                - code
-                - channel
-                - locale
-                - bodyTemplate
-                - isActive
-                - version
-              additionalProperties: false
-      responses:
-        '201':
-          description: Plantilla creada.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          description: X-Idempotency-Key ausente.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Crear plantilla de notificación
-      tags:
-        - notifications
-  /operations/notifications/templates/{templateId}:
-    patch:
-      operationId: NotificationsController_updateTemplate
-      parameters:
-        - name: templateId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-          description: Identificador de la plantilla de notificación.
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/CorrelationId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                code:
-                  type: string
-                  minLength: 3
-                  maxLength: 160
-                channel:
-                  type: string
-                  enum:
-                    - in_app
-                    - push
-                    - email
-                    - sms
-                    - whatsapp
-                    - phone
-                locale:
-                  default: es-BO
-                  type: string
-                  minLength: 2
-                  maxLength: 12
-                titleTemplate:
-                  anyOf:
-                    - type: string
-                      maxLength: 400
-                    - type: 'null'
-                subjectTemplate:
-                  anyOf:
-                    - type: string
-                      maxLength: 400
-                    - type: 'null'
-                bodyTemplate:
-                  type: string
-                  minLength: 1
-                  maxLength: 5000
-                payloadSchema:
-                  anyOf:
-                    - type: object
-                      propertyNames:
-                        type: string
-                      additionalProperties: {}
-                    - type: 'null'
-                category:
-                  anyOf:
-                    - type: string
-                      minLength: 1
-                      maxLength: 60
-                    - type: 'null'
-                icon:
-                  anyOf:
-                    - type: string
-                      minLength: 1
-                      maxLength: 60
-                    - type: 'null'
-                isActive:
-                  default: true
-                  type: boolean
-                version:
-                  default: 1
-                  type: integer
-                  exclusiveMinimum: 0
-                  maximum: 9007199254740991
-              additionalProperties: false
-      responses:
-        '200':
-          description: Plantilla actualizada.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          description: NOTIFICATION_TEMPLATE_NOT_FOUND.
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Editar plantilla de notificación
-      tags:
-        - notifications
-  /operations/notifications/preferences/{customerId}:
-    get:
-      operationId: NotificationsController_getPreferences
-      parameters:
-        - name: customerId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-          description: >-
-            Identificador del cliente. Un actor con rol `customer` sólo puede
-            operar sobre el suyo.
-        - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Preferencias del cliente por evento/canal.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Preferencias de notificación de un cliente (operaciones)
-      tags:
-        - notifications
-    patch:
-      description: >-
-        No puede desactivar notificaciones marcadas como requeridas
-        (REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED).
-      operationId: NotificationsController_updatePreferences
-      parameters:
-        - name: customerId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-          description: >-
-            Identificador del cliente. Un actor con rol `customer` sólo puede
-            operar sobre el suyo.
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/CorrelationId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                preferences:
-                  minItems: 1
-                  maxItems: 100
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      eventCode:
-                        type: string
-                        minLength: 3
-                        maxLength: 160
-                      channel:
-                        type: string
-                        enum:
-                          - in_app
-                          - push
-                          - email
-                          - sms
-                          - whatsapp
-                          - phone
-                      isEnabled:
-                        type: boolean
-                      isRequired:
-                        default: false
-                        type: boolean
-                    required:
-                      - eventCode
-                      - channel
-                      - isEnabled
-                      - isRequired
-                    additionalProperties: false
-              required:
-                - preferences
-              additionalProperties: false
-      responses:
-        '200':
-          description: Preferencias actualizadas.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          description: REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Editar preferencias de notificación de un cliente (operaciones)
-      tags:
-        - notifications
-  /operations/notifications/broadcast:
-    post:
-      description: >-
-        Crea y entrega una notificación in-app real a customers y/o usuarios
-        internos — a los ids indicados, o a todos los activos del tenant si no
-        se indican. No usa email/SMS/push (esos canales siguen disponibles vía
-        plantillas de eventos de dominio).
-      operationId: NotificationsController_broadcastNotification
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/CorrelationId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                title:
-                  type: string
-                  minLength: 1
-                  maxLength: 200
-                body:
-                  type: string
-                  minLength: 1
-                  maxLength: 2000
-                priority:
-                  default: 0
-                  type: integer
-                  minimum: 0
-                  maximum: 100
-                category:
-                  default: custom_broadcast
-                  type: string
-                  minLength: 1
-                  maxLength: 60
-                icon:
-                  anyOf:
-                    - type: string
-                      minLength: 1
-                      maxLength: 60
-                    - type: 'null'
-                audience:
-                  type: string
-                  enum:
-                    - customers
-                    - internal_users
-                    - both
-                customerIds:
-                  minItems: 1
-                  maxItems: 5000
-                  type: array
-                  items:
-                    type: string
-                    pattern: ^[1-9][0-9]*$
-                internalUserIds:
-                  minItems: 1
-                  maxItems: 5000
-                  type: array
-                  items:
-                    type: string
-                    pattern: ^[1-9][0-9]*$
-              required:
-                - title
-                - body
-                - priority
-                - category
-                - audience
-              additionalProperties: false
-      responses:
-        '202':
-          description: >-
-            Broadcast aceptado — los mensajes se crearon (devuelve
-            targeted/created) y la entrega corre en background (status:
-            "queued"). Un broadcast grande no bloquea el request.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          description: >-
-            X-Idempotency-Key ausente, o customerIds/internalUserIds usado con
-            la audience equivocada.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Enviar notificación in-app personalizada (broadcast de admin)
-      tags:
-        - notifications
-  /customers/{customerId}/notifications:
-    get:
-      operationId: NotificationsController_listCustomerNotifications
-      parameters:
-        - name: channel
-          required: false
-          in: query
-          schema:
-            type: string
-            enum:
-              - in_app
-              - push
-              - email
-              - sms
-              - whatsapp
-              - phone
-          description: Canal de comunicación (`email`, `sms`, `push`, `whatsapp`).
-        - name: status
-          required: false
-          in: query
-          schema:
-            type: string
-            enum:
-              - pending
-              - queued
-              - sending
-              - sent
-              - delivered
-              - read
-              - failed
-              - retrying
-              - cancelled
-          description: >-
-            Filtra por estado del recurso. Los valores admitidos son los del
-            dominio de ese recurso.
-        - name: customerId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-          description: >-
-            Identificador del cliente. Un actor con rol `customer` sólo puede
-            operar sobre el suyo.
-        - name: x-tenant-id
-          in: header
-          description: Opcional para customer (se toma del token).
-          required: false
-          schema:
-            type: string
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Lista paginada de notificaciones del cliente.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          description: CUSTOMER_NOTIFICATION_ACCESS_DENIED.
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Listar notificaciones del cliente (autoservicio)
-      tags:
-        - notifications
-  /customers/{customerId}/notification-preferences:
-    get:
-      description: >-
-        Las mismas preferencias que operaciones administra, leídas por su dueño.
-        Existían solo bajo `operations/`, así que el cliente no podía ver —ni
-        menos elegir— por qué canal se le avisa de su propia deuda.
-      operationId: NotificationsController_getOwnPreferences
-      parameters:
-        - name: x-tenant-id
-          in: header
-          required: false
-          schema:
-            type: string
-          description: >-
-            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
-            `tenantId` del token y responde 403 si no coinciden, así que no es
-            un selector libre.
-        - name: customerId
-          in: path
-          required: true
-          description: Identificador de ruta `customerId`.
-          schema:
-            type: string
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Preferencias del cliente, con las obligatorias marcadas.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Preferencias de notificación del PROPIO cliente
-      tags:
-        - notifications
-    patch:
-      description: >-
-        El cliente elige por dónde se le avisa. NO puede apagar las obligatorias
-        —vencimientos, mora, cambios en su línea—: son las que le protegen de
-        enterarse tarde de una deuda suya, y apagarlas sería dejar de avisarle
-        de lo único que no puede permitirse ignorar. Responde
-        `REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED`.
-      operationId: NotificationsController_updateOwnPreferences
-      parameters:
-        - name: x-tenant-id
-          in: header
-          required: false
-          schema:
-            type: string
-          description: >-
-            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
-            `tenantId` del token y responde 403 si no coinciden, así que no es
-            un selector libre.
-        - name: customerId
-          in: path
-          required: true
-          description: Identificador de ruta `customerId`.
-          schema:
-            type: string
-        - $ref: '#/components/parameters/CorrelationId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                preferences:
-                  minItems: 1
-                  maxItems: 100
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      eventCode:
-                        type: string
-                        minLength: 3
-                        maxLength: 160
-                      channel:
-                        type: string
-                        enum:
-                          - in_app
-                          - push
-                          - email
-                          - sms
-                          - whatsapp
-                          - phone
-                      isEnabled:
-                        type: boolean
-                      isRequired:
-                        default: false
-                        type: boolean
-                    required:
-                      - eventCode
-                      - channel
-                      - isEnabled
-                      - isRequired
-                    additionalProperties: false
-              required:
-                - preferences
-              additionalProperties: false
-      responses:
-        '200':
-          description: Preferencias actualizadas.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          description: REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Cambiar sus propias preferencias de notificación
-      tags:
-        - notifications
-  /customers/{customerId}/notifications/unread-count:
-    get:
-      operationId: NotificationsController_unreadCount
-      parameters:
-        - name: customerId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-          description: >-
-            Identificador del cliente. Un actor con rol `customer` sólo puede
-            operar sobre el suyo.
-        - name: x-tenant-id
-          in: header
-          required: false
-          schema:
-            type: string
-          description: >-
-            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
-            `tenantId` del token y responde 403 si no coinciden, así que no es
-            un selector libre.
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Cantidad de notificaciones no leídas.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          description: CUSTOMER_NOTIFICATION_ACCESS_DENIED.
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Contador de notificaciones no leídas del cliente
-      tags:
-        - notifications
-  /customers/{customerId}/notifications/{notificationId}/read:
-    post:
-      operationId: NotificationsController_markRead
-      parameters:
-        - name: notificationId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-          description: Identificador de la notificación del cliente.
-        - name: customerId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-          description: >-
-            Identificador del cliente. Un actor con rol `customer` sólo puede
-            operar sobre el suyo.
-        - name: x-tenant-id
-          in: header
-          required: false
-          schema:
-            type: string
-          description: >-
-            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
-            `tenantId` del token y responde 403 si no coinciden, así que no es
-            un selector libre.
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Notificación marcada como leída.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          description: CUSTOMER_NOTIFICATION_ACCESS_DENIED.
-        '404':
-          description: CUSTOMER_NOTIFICATION_NOT_FOUND.
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Marcar una notificación como leída
-      tags:
-        - notifications
   /customers/{customerId}/notifications/read-all:
     post:
       operationId: NotificationsController_markAllRead
@@ -4575,6 +3768,813 @@ paths:
       security:
         - access-token: []
       summary: Marcar todas mis notificaciones como leídas (usuario interno)
+      tags:
+        - notifications
+  /customers/{customerId}/notifications:
+    get:
+      operationId: CustomerNotificationsController_listCustomerNotifications
+      parameters:
+        - name: channel
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - in_app
+              - push
+              - email
+              - sms
+              - whatsapp
+              - phone
+          description: Canal de comunicación (`email`, `sms`, `push`, `whatsapp`).
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending
+              - queued
+              - sending
+              - sent
+              - delivered
+              - read
+              - failed
+              - retrying
+              - cancelled
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - name: x-tenant-id
+          in: header
+          description: Opcional para customer (se toma del token).
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Lista paginada de notificaciones del cliente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: CUSTOMER_NOTIFICATION_ACCESS_DENIED.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Listar notificaciones del cliente (autoservicio)
+      tags:
+        - notifications
+  /customers/{customerId}/notification-preferences:
+    get:
+      description: >-
+        Las mismas preferencias que operaciones administra, leídas por su dueño.
+        Existían solo bajo `operations/`, así que el cliente no podía ver —ni
+        menos elegir— por qué canal se le avisa de su propia deuda.
+      operationId: CustomerNotificationsController_getOwnPreferences
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - name: customerId
+          in: path
+          required: true
+          description: Identificador de ruta `customerId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Preferencias del cliente, con las obligatorias marcadas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Preferencias de notificación del PROPIO cliente
+      tags:
+        - notifications
+    patch:
+      description: >-
+        El cliente elige por dónde se le avisa. NO puede apagar las obligatorias
+        —vencimientos, mora, cambios en su línea—: son las que le protegen de
+        enterarse tarde de una deuda suya, y apagarlas sería dejar de avisarle
+        de lo único que no puede permitirse ignorar. Responde
+        `REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED`.
+      operationId: CustomerNotificationsController_updateOwnPreferences
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - name: customerId
+          in: path
+          required: true
+          description: Identificador de ruta `customerId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                preferences:
+                  minItems: 1
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      eventCode:
+                        type: string
+                        minLength: 3
+                        maxLength: 160
+                      channel:
+                        type: string
+                        enum:
+                          - in_app
+                          - push
+                          - email
+                          - sms
+                          - whatsapp
+                          - phone
+                      isEnabled:
+                        type: boolean
+                      isRequired:
+                        default: false
+                        type: boolean
+                    required:
+                      - eventCode
+                      - channel
+                      - isEnabled
+                      - isRequired
+                    additionalProperties: false
+              required:
+                - preferences
+              additionalProperties: false
+      responses:
+        '200':
+          description: Preferencias actualizadas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Cambiar sus propias preferencias de notificación
+      tags:
+        - notifications
+  /customers/{customerId}/notifications/unread-count:
+    get:
+      operationId: CustomerNotificationsController_unreadCount
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Cantidad de notificaciones no leídas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: CUSTOMER_NOTIFICATION_ACCESS_DENIED.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Contador de notificaciones no leídas del cliente
+      tags:
+        - notifications
+  /customers/{customerId}/notifications/{notificationId}/read:
+    post:
+      operationId: CustomerNotificationsController_markRead
+      parameters:
+        - name: notificationId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: Identificador de la notificación del cliente.
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Notificación marcada como leída.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: CUSTOMER_NOTIFICATION_ACCESS_DENIED.
+        '404':
+          description: CUSTOMER_NOTIFICATION_NOT_FOUND.
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Marcar una notificación como leída
+      tags:
+        - notifications
+  /operations/notifications/templates:
+    get:
+      operationId: NotificationTemplatesController_listTemplates
+      parameters:
+        - name: active
+          required: false
+          in: query
+          schema:
+            type: boolean
+          description: Restringe a los registros vigentes cuando es `true`.
+        - name: channel
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - in_app
+              - push
+              - email
+              - sms
+              - whatsapp
+              - phone
+          description: Canal de comunicación (`email`, `sms`, `push`, `whatsapp`).
+        - name: code
+          required: false
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 160
+          description: Filtra por el código natural del recurso.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Lista paginada de plantillas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Listar plantillas de notificación
+      tags:
+        - notifications
+    post:
+      operationId: NotificationTemplatesController_createTemplate
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  minLength: 3
+                  maxLength: 160
+                channel:
+                  type: string
+                  enum:
+                    - in_app
+                    - push
+                    - email
+                    - sms
+                    - whatsapp
+                    - phone
+                locale:
+                  default: es-BO
+                  type: string
+                  minLength: 2
+                  maxLength: 12
+                titleTemplate:
+                  anyOf:
+                    - type: string
+                      maxLength: 400
+                    - type: 'null'
+                subjectTemplate:
+                  anyOf:
+                    - type: string
+                      maxLength: 400
+                    - type: 'null'
+                bodyTemplate:
+                  type: string
+                  minLength: 1
+                  maxLength: 5000
+                payloadSchema:
+                  anyOf:
+                    - type: object
+                      propertyNames:
+                        type: string
+                      additionalProperties: {}
+                    - type: 'null'
+                category:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 60
+                    - type: 'null'
+                icon:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 60
+                    - type: 'null'
+                isActive:
+                  default: true
+                  type: boolean
+                version:
+                  default: 1
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 9007199254740991
+              required:
+                - code
+                - channel
+                - locale
+                - bodyTemplate
+                - isActive
+                - version
+              additionalProperties: false
+      responses:
+        '201':
+          description: Plantilla creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: X-Idempotency-Key ausente.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Crear plantilla de notificación
+      tags:
+        - notifications
+  /operations/notifications/templates/{templateId}:
+    patch:
+      operationId: NotificationTemplatesController_updateTemplate
+      parameters:
+        - name: templateId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: Identificador de la plantilla de notificación.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  minLength: 3
+                  maxLength: 160
+                channel:
+                  type: string
+                  enum:
+                    - in_app
+                    - push
+                    - email
+                    - sms
+                    - whatsapp
+                    - phone
+                locale:
+                  default: es-BO
+                  type: string
+                  minLength: 2
+                  maxLength: 12
+                titleTemplate:
+                  anyOf:
+                    - type: string
+                      maxLength: 400
+                    - type: 'null'
+                subjectTemplate:
+                  anyOf:
+                    - type: string
+                      maxLength: 400
+                    - type: 'null'
+                bodyTemplate:
+                  type: string
+                  minLength: 1
+                  maxLength: 5000
+                payloadSchema:
+                  anyOf:
+                    - type: object
+                      propertyNames:
+                        type: string
+                      additionalProperties: {}
+                    - type: 'null'
+                category:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 60
+                    - type: 'null'
+                icon:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 60
+                    - type: 'null'
+                isActive:
+                  default: true
+                  type: boolean
+                version:
+                  default: 1
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 9007199254740991
+              additionalProperties: false
+      responses:
+        '200':
+          description: Plantilla actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: NOTIFICATION_TEMPLATE_NOT_FOUND.
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Editar plantilla de notificación
+      tags:
+        - notifications
+  /operations/notifications/preferences/{customerId}:
+    get:
+      operationId: NotificationTemplatesController_getPreferences
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Preferencias del cliente por evento/canal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Preferencias de notificación de un cliente (operaciones)
+      tags:
+        - notifications
+    patch:
+      description: >-
+        No puede desactivar notificaciones marcadas como requeridas
+        (REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED).
+      operationId: NotificationTemplatesController_updatePreferences
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                preferences:
+                  minItems: 1
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      eventCode:
+                        type: string
+                        minLength: 3
+                        maxLength: 160
+                      channel:
+                        type: string
+                        enum:
+                          - in_app
+                          - push
+                          - email
+                          - sms
+                          - whatsapp
+                          - phone
+                      isEnabled:
+                        type: boolean
+                      isRequired:
+                        default: false
+                        type: boolean
+                    required:
+                      - eventCode
+                      - channel
+                      - isEnabled
+                      - isRequired
+                    additionalProperties: false
+              required:
+                - preferences
+              additionalProperties: false
+      responses:
+        '200':
+          description: Preferencias actualizadas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Editar preferencias de notificación de un cliente (operaciones)
+      tags:
+        - notifications
+  /operations/notifications/broadcast:
+    post:
+      description: >-
+        Crea y entrega una notificación in-app real a customers y/o usuarios
+        internos — a los ids indicados, o a todos los activos del tenant si no
+        se indican. No usa email/SMS/push (esos canales siguen disponibles vía
+        plantillas de eventos de dominio).
+      operationId: NotificationBroadcastController_broadcastNotification
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+                priority:
+                  default: 0
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                category:
+                  default: custom_broadcast
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+                icon:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 60
+                    - type: 'null'
+                audience:
+                  type: string
+                  enum:
+                    - customers
+                    - internal_users
+                    - both
+                customerIds:
+                  minItems: 1
+                  maxItems: 5000
+                  type: array
+                  items:
+                    type: string
+                    pattern: ^[1-9][0-9]*$
+                internalUserIds:
+                  minItems: 1
+                  maxItems: 5000
+                  type: array
+                  items:
+                    type: string
+                    pattern: ^[1-9][0-9]*$
+              required:
+                - title
+                - body
+                - priority
+                - category
+                - audience
+              additionalProperties: false
+      responses:
+        '202':
+          description: >-
+            Broadcast aceptado — los mensajes se crearon (devuelve
+            targeted/created) y la entrega corre en background (status:
+            "queued"). Un broadcast grande no bloquea el request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: >-
+            X-Idempotency-Key ausente, o customerIds/internalUserIds usado con
+            la audience equivocada.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Enviar notificación in-app personalizada (broadcast de admin)
       tags:
         - notifications
   /operations/notification-policies:
@@ -5236,7 +5236,7 @@ paths:
         - customer-onboarding
   /customer-onboarding/{customerId}/identity-package:
     post:
-      operationId: CustomerOnboardingController_submitIdentityPackage
+      operationId: CustomerPackagesController_submitIdentityPackage
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
@@ -5390,7 +5390,7 @@ paths:
       description: >-
         Registra la dirección declarada del cliente (y evidencia
         GPS/geolocalización cuando corresponda).
-      operationId: CustomerOnboardingController_submitContactsSnapshot
+      operationId: CustomerPackagesController_submitContactsSnapshot
       parameters:
         - name: customerId
           required: true
@@ -5516,7 +5516,7 @@ paths:
         - customer-onboarding
   /customer-onboarding/{customerId}/address-package:
     post:
-      operationId: CustomerOnboardingController_submitAddressPackage
+      operationId: CustomerPackagesController_submitAddressPackage
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
@@ -10823,7 +10823,7 @@ paths:
         Aplica el cobro con prelación mora → interés → capital, sobre la cuota
         más antigua primero. Un importe mayor que lo pendiente se rechaza:
         adelantar cuotas es una decisión de producto.
-      operationId: LoansController_registerPayment
+      operationId: LoanPaymentsController_registerPayment
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
@@ -10901,7 +10901,7 @@ paths:
         - loans
   /loans/{loanId}/payments/{paymentId}/reversal:
     post:
-      operationId: LoansController_reversePayment
+      operationId: LoanPaymentsController_reversePayment
       parameters:
         - $ref: '#/components/parameters/TenantId'
         - name: loanId
@@ -10966,7 +10966,7 @@ paths:
         Reconoce la pérdida sin borrar el préstamo: el importe castigado queda
         escrito porque es dato de riesgo de primer orden y alimenta el desenlace
         que recibe el motor.
-      operationId: LoansController_writeOffLoan
+      operationId: LoanPaymentsController_writeOffLoan
       parameters:
         - $ref: '#/components/parameters/TenantId'
         - name: loanId
@@ -12178,105 +12178,6 @@ paths:
       summary: Estado del expediente y lo que falta para enviarlo
       tags:
         - partner-onboarding
-  /partner-onboarding/{partnerId}/contact-verification/request:
-    post:
-      operationId: PartnerOnboardingController_requestContactVerification
-      parameters:
-        - name: partnerId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-          description: >-
-            Identificador de ruta `partnerId` del recurso direccionado por la
-            operación.
-        - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '202':
-          description: Código enviado.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: >-
-            PARTNER_VERIFICATION_RATE_LIMITED |
-            PARTNER_CONTACT_ALREADY_VERIFIED.
-        '422':
-          description: MAIL_CHANNEL_NOT_AVAILABLE.
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Enviar el código de verificación al correo del comercio
-      tags:
-        - partner-onboarding
-  /partner-onboarding/{partnerId}/contact-verification/submit:
-    post:
-      operationId: PartnerOnboardingController_submitContactVerification
-      parameters:
-        - name: partnerId
-          required: true
-          in: path
-          schema:
-            type: string
-            pattern: ^[1-9][0-9]*$
-          description: >-
-            Identificador de ruta `partnerId` del recurso direccionado por la
-            operación.
-        - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/CorrelationId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                code:
-                  type: string
-                  pattern: ^[0-9]{6}$
-              required:
-                - code
-              additionalProperties: false
-      responses:
-        '200':
-          description: Contacto verificado.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          description: Código inválido, vencido o con intentos agotados.
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
-      summary: Comprobar el código y dar por probado el contacto
-      tags:
-        - partner-onboarding
   /partner-onboarding/{partnerId}/legal-representative:
     post:
       operationId: PartnerOnboardingController_addLegalRepresentative
@@ -12585,6 +12486,105 @@ paths:
       security:
         - access-token: []
       summary: Enviar el expediente a revisión
+      tags:
+        - partner-onboarding
+  /partner-onboarding/{partnerId}/contact-verification/request:
+    post:
+      operationId: PartnerContactVerificationController_requestContactVerification
+      parameters:
+        - name: partnerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador de ruta `partnerId` del recurso direccionado por la
+            operación.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '202':
+          description: Código enviado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >-
+            PARTNER_VERIFICATION_RATE_LIMITED |
+            PARTNER_CONTACT_ALREADY_VERIFIED.
+        '422':
+          description: MAIL_CHANNEL_NOT_AVAILABLE.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Enviar el código de verificación al correo del comercio
+      tags:
+        - partner-onboarding
+  /partner-onboarding/{partnerId}/contact-verification/submit:
+    post:
+      operationId: PartnerContactVerificationController_submitContactVerification
+      parameters:
+        - name: partnerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador de ruta `partnerId` del recurso direccionado por la
+            operación.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  pattern: ^[0-9]{6}$
+              required:
+                - code
+              additionalProperties: false
+      responses:
+        '200':
+          description: Contacto verificado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Código inválido, vencido o con intentos agotados.
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Comprobar el código y dar por probado el contacto
       tags:
         - partner-onboarding
   /partner-onboarding/{partnerId}/branches:
@@ -13484,6 +13484,168 @@ paths:
       security:
         - access-token: []
       summary: Aprobar o rechazar el expediente de un comercio
+      tags:
+        - partner-onboarding
+  /operations/partner-contract-templates/default:
+    get:
+      description: >-
+        Responde 200 con `null` cuando el inquilino todavía no publicó ninguno:
+        un inquilino recién abierto no tiene contrato, y decirlo es más útil que
+        un 404 que quien llama tendría que traducir.
+      operationId: PartnerContractTemplatesController_getDefault
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: La plantilla vigente, o null.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: El contrato por defecto vigente del inquilino
+      tags:
+        - partner-onboarding
+  /operations/partner-contract-templates:
+    get:
+      description: 'Las archivadas NO se ocultan: son la prueba de qué texto regía cada día.'
+      operationId: PartnerContractTemplatesController_list
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Listado por código y versión descendente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Todas las versiones publicadas, vigentes y archivadas
+      tags:
+        - partner-onboarding
+    post:
+      description: >-
+        El cuerpo NO se edita: cada publicación crea una versión y archiva la
+        anterior. La versión la calcula el backend; pedirla desde fuera invita a
+        repetirla o a saltársela, y es justo el número que después se cita.
+      operationId: PartnerContractTemplatesController_publish
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateCode:
+                  type: string
+                  pattern: ^[A-Z0-9_-]{3,60}$
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 160
+                body:
+                  type: string
+                  minLength: 50
+                  maxLength: 200000
+                makeDefault:
+                  default: true
+                  type: boolean
+              required:
+                - templateCode
+                - name
+                - body
+                - makeDefault
+              additionalProperties: false
+      responses:
+        '201':
+          description: Versión publicada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Publicar una versión nueva del contrato
+      tags:
+        - partner-onboarding
+  /operations/partner-contract-templates/{templateId}/default:
+    patch:
+      description: >-
+        Sólo una vigente: revivir un texto archivado desharía la retirada de
+        quien tuvo un motivo para retirarlo.
+      operationId: PartnerContractTemplatesController_setDefault
+      parameters:
+        - name: templateId
+          required: true
+          in: path
+          schema:
+            type: string
+          description: Identificador de la plantilla de notificación.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Plantilla marcada como predeterminada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: PARTNER_CONTRACT_TEMPLATE_NOT_FOUND.
+        '409':
+          description: PARTNER_CONTRACT_TEMPLATE_ARCHIVED.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Marcar como predeterminada una versión ya publicada
       tags:
         - partner-onboarding
   /operations/rating-scale:

@@ -31,7 +31,19 @@ function servicio() {
       CATALOGO.find((categoria) => categoria.categoryCode === categoryCode) ?? null,
   };
   const actors = new SupportActorService(null as never, null as never);
-  return new SupportCaseService(null as never, catalog as never, null as never, null as never, null as never, null as never, actors);
+  // Nueve colaboradores: `SupportCaseService` delega desde entonces la bitácora de apertura y el
+  // caso sin clasificar en dos servicios propios. Esta ruta no toca ninguno de los dos.
+  return new SupportCaseService(
+    null as never,
+    catalog as never,
+    null as never,
+    null as never,
+    null as never,
+    null as never,
+    actors,
+    null as never,
+    null as never,
+  );
 }
 
 function actor(overrides: Partial<SupportActor>): SupportActor {

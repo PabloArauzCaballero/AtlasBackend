@@ -21,6 +21,7 @@ import { FraudModule } from '../fraud/fraud.module.js';
 import { CustomerOnboardingModule } from '../customer-onboarding/customer-onboarding.module.js';
 import { OperationsController } from './operations.controller.js';
 import { OperationsRepository } from './operations.repository.js';
+import { OperationsQueueRepository } from './operations-queue.repository.js';
 import { OperationsService } from './operations.service.js';
 
 @Module({
@@ -42,6 +43,6 @@ import { OperationsService } from './operations.service.js';
     CustomerOnboardingModule,
   ],
   controllers: [OperationsController],
-  providers: [OperationsRepository, OperationsService],
+  providers: [OperationsRepository, OperationsQueueRepository, OperationsService],
 })
 export class OperationsModule {}

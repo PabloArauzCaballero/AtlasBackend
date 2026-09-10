@@ -39,58 +39,15 @@
  * medida, y cuánto?», que es la pregunta con la que se calibra un modelo de crédito.
  */
 
-/** Lo que el extracto demostró. Todo `null` cuando el cliente no subió ninguno. */
-export interface StatementCapacityInput {
-  /** Si la evaluación del motor es utilizable: tres meses completos y legibles. */
-  readonly eligible: boolean;
-  readonly maxAffordableInstallment: number | null;
-  readonly monthlyIncome: number | null;
-  readonly monthlyObligations: number | null;
-  readonly stabilityScore: number | null;
-  readonly affordabilityScore: number | null;
-  readonly band: string | null;
-  readonly monthsComplete: number | null;
-}
+import type {
+  CapacityReason,
+  PaymentCapacityAssessment,
+  PaymentCapacityPolicy,
+  RelationshipInput,
+  StatementCapacityInput,
+} from './payment-capacity.types.js';
 
-/** Lo que la relación con la plataforma demostró. */
-export interface RelationshipInput {
-  /** Meses desde el alta del cliente. */
-  readonly tenureMonths: number;
-  /** Créditos ya cerrados sin castigo. Es la prueba más fuerte de fidelización. */
-  readonly loansSettled: number;
-  readonly loansActive: number;
-  /** Proporción de cuotas pagadas a tiempo sobre las vencidas. `null` sin historial. */
-  readonly onTimeRatio: number | null;
-  readonly worstDaysPastDue: number;
-  readonly chargeOffCount: number;
-  readonly delinquencyCount12m: number;
-  /** Meses desde el último crédito. Alto = relación dormida. `null` si nunca hubo. */
-  readonly monthsSinceLastLoan: number | null;
-  /** Identidad verificada, domicilio y contacto confirmados. */
-  readonly kycComplete: boolean;
-  /** Casos de fraude o alertas abiertas. Cualquiera corta la escalera. */
-  readonly fraudFlags: number;
-}
-
-export interface PaymentCapacityPolicy {
-  /** Plazo con el que se convierte una cuota mensual en un límite. */
-  readonly termMonths: number;
-  /** Techo del producto. Ninguna combinación lo supera. */
-  readonly productCeiling: number;
-  /** Lo máximo para quien no tiene ninguna relación todavía. */
-  readonly starterCap: number;
-  /** Cuánto puede subir un límite respecto del anterior en un solo recálculo. */
-  readonly graduationFactor: number;
-  /** Lo mínimo que tiene sentido conceder; por debajo, mejor no conceder. */
-  readonly minimumUsefulLimit: number;
-  /**
-   * Lo máximo que se propone SIN extracto, sobre el ingreso declarado.
-   *
-   * Existe para que un cliente sin extracto no se quede en cero —eso convertiría el extracto en un
-   * requisito de facto— y es deliberadamente pequeño: lo declarado no es evidencia.
-   */
-  readonly declaredIncomeShare: number;
-}
+export type { CapacityReason, PaymentCapacityAssessment, PaymentCapacityPolicy, RelationshipInput, StatementCapacityInput };
 
 export const DEFAULT_CAPACITY_POLICY: PaymentCapacityPolicy = {
   termMonths: 3,
@@ -100,41 +57,6 @@ export const DEFAULT_CAPACITY_POLICY: PaymentCapacityPolicy = {
   minimumUsefulLimit: 300,
   declaredIncomeShare: 0.1,
 };
-
-export interface CapacityReason {
-  readonly code: string;
-  readonly message: string;
-  readonly evidence?: string;
-}
-
-export interface PaymentCapacityAssessment {
-  /** La propuesta, en la moneda del producto. */
-  readonly recommendedLimit: number;
-  /** Cuota mensual con la que se calculó. */
-  readonly monthlyInstallment: number;
-  /** Qué techo mordió primero. Es la respuesta a «¿por qué no más?». */
-  readonly bindingConstraint: 'CAPACIDAD' | 'RELACION' | 'GRADUACION' | 'PRODUCTO' | 'SIN_CAPACIDAD';
-  /** 0..100. Confianza ganada con la plataforma. */
-  readonly relationshipScore: number;
-  readonly relationshipTier: 'NUEVO' | 'EN_CONSTRUCCION' | 'ESTABLECIDO' | 'CONSOLIDADO' | 'PREFERENTE';
-  /** Los cuatro techos, para poder auditar la resta. */
-  readonly ceilings: {
-    readonly byCapacity: number | null;
-    readonly byRelationship: number;
-    readonly byGraduation: number | null;
-    readonly product: number;
-  };
-  readonly components: {
-    readonly tenure: number;
-    readonly paymentHistory: number;
-    readonly loyalty: number;
-    readonly verification: number;
-  };
-  /** Si la propuesta se apoya en un extracto o en lo declarado. */
-  readonly evidence: 'EXTRACTO' | 'DECLARADO';
-  readonly reasons: readonly CapacityReason[];
-  readonly modelVersion: string;
-}
 
 /**
  * Versión del modelo. Viaja con cada propuesta.
@@ -158,60 +80,12 @@ const TIERS: ReadonlyArray<{
   { from: 0, tier: 'NUEVO', multiplier: 1 },
 ];
 
-function clamp(value: number, low: number, high: number): number {
+export function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
 }
 
-function round2(value: number): number {
+export function round2(value: number): number {
   return Math.round(value * 100) / 100;
-}
-
-/**
- * La antigüedad, en puntos.
- *
- * Satura a los doce meses y no crece más: el primer año es donde la antigüedad discrimina de verdad
- * —quien lleva un mes y quien lleva un año no se parecen en nada— y a partir de ahí lo que
- * distingue a un cliente de otro es cómo paga, no cuánto lleva. Dejarla crecer indefinidamente
- * premiaría la inercia por encima del comportamiento.
- */
-function tenureScore(tenureMonths: number): number {
-  return Math.round(clamp(tenureMonths / 12, 0, 1) * 100);
-}
-
-/**
- * El historial de pago DENTRO de Atlas, en puntos.
- *
- * Sin historial se parte de 50 y no de 0: cero significa «paga fatal», y quien no ha pedido nunca no
- * paga fatal — simplemente no ha pagado. Confundir las dos cosas le niega crédito a quien nunca lo
- * pidió, que es el error que este producto existe para no cometer.
- *
- * Los castigos son duros y acumulativos porque son la señal más predictiva que hay: un castigo de
- * cartera pesa más que cualquier cosa buena que se pueda decir del cliente.
- */
-function paymentHistoryScore(input: RelationshipInput): number {
-  if (input.onTimeRatio === null && input.loansSettled === 0 && input.loansActive === 0) return 50;
-
-  const base = (input.onTimeRatio ?? 0.5) * 100;
-  const dpdPenalty = input.worstDaysPastDue >= 90 ? 60 : input.worstDaysPastDue >= 30 ? 30 : input.worstDaysPastDue >= 1 ? 10 : 0;
-  const chargeOffPenalty = input.chargeOffCount > 0 ? 70 : 0;
-  const recentPenalty = Math.min(30, input.delinquencyCount12m * 10);
-
-  return Math.round(clamp(base - dpdPenalty - chargeOffPenalty - recentPenalty, 0, 100));
-}
-
-/**
- * La fidelización, en puntos.
- *
- * No es «cuánto ha usado el producto» sino «cuántas veces ha completado el ciclo»: un crédito
- * cerrado sin castigo es la prueba de que la relación funciona en las dos direcciones. Los créditos
- * vivos suman menos que los cerrados —todavía no han terminado— y la relación dormida descuenta,
- * porque un cliente que no vuelve en un año no es un cliente fiel: es uno que se fue.
- */
-function loyaltyScore(input: RelationshipInput): number {
-  const settled = Math.min(60, input.loansSettled * 20);
-  const active = Math.min(20, input.loansActive * 10);
-  const recency = input.monthsSinceLastLoan === null ? 0 : Math.round(clamp(1 - input.monthsSinceLastLoan / 12, 0, 1) * 20);
-  return Math.round(clamp(settled + active + recency, 0, 100));
 }
 
 /**
@@ -220,6 +94,8 @@ function loyaltyScore(input: RelationshipInput): number {
  * NO decide: lo que devuelve viaja al artefacto como una variable más y se guarda junto al límite
  * que el artefacto emitió.
  */
+import { loyaltyScore, paymentHistoryScore, tenureScore } from './relationship-score.js';
+
 export function assessPaymentCapacity(input: {
   statement: StatementCapacityInput;
   relationship: RelationshipInput;

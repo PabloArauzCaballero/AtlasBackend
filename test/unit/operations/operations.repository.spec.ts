@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { OperationsRepository } from '../../../src/modules/operations/operations.repository.js';
 import { encodeCursor } from '../../../src/common/utils/pagination/cursor-pagination.util.js';
+import { OperationsQueueRepository } from '../../../src/modules/operations/operations-queue.repository.js';
 
 /**
  * Cobertura directa de `OperationsRepository` (Fase 1.2 del plan 10/10): finders de la cola de
@@ -33,7 +34,30 @@ describe('OperationsRepository', () => {
       models.customerObservation as never,
       models.identityAttempt as never,
     );
-    return { repo, models };
+    /*
+     * Las cuatro consultas de la COLA salieron a `OperationsQueueRepository` al partir el archivo
+     * por tamaño. Se construye con los MISMOS dobles y en el mismo orden, así que las aserciones de
+     * este spec no cambian: sólo cambia de qué objeto cuelga el método.
+     */
+    const cola = new OperationsQueueRepository(
+      models.manualReviewCase as never,
+      models.fraudCase as never,
+      models.manualReviewEvent as never,
+      models.customerStatusEvent as never,
+      models.operationalAudit as never,
+      models.dataChangeLog as never,
+      models.customerObservation as never,
+      models.identityAttempt as never,
+    );
+    return {
+      repo: Object.assign(repo, {
+        findManualReviewCasesForQueue: cola.findManualReviewCasesForQueue.bind(cola),
+        findManualReviewCasesForQueueWithCursor: cola.findManualReviewCasesForQueueWithCursor.bind(cola),
+        findFraudCasesForQueue: cola.findFraudCasesForQueue.bind(cola),
+        findFraudCasesForQueueWithCursor: cola.findFraudCasesForQueueWithCursor.bind(cola),
+      }),
+      models,
+    };
   }
 
   const tx = { transaction: 'tx' as never };

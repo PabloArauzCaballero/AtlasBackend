@@ -32,6 +32,9 @@ import { NotificationPreferencesRepository } from './notification-preferences.re
 import { NotificationTemplatesRepository } from './notification-templates.repository.js';
 import { NotificationPoliciesOperationsController } from './notification-policies-operations.controller.js';
 import { NotificationsController } from './notifications.controller.js';
+import { CustomerNotificationsController } from './customer-notifications.controller.js';
+import { NotificationTemplatesController } from './notification-templates.controller.js';
+import { NotificationBroadcastController } from './notification-broadcast.controller.js';
 import { NotificationsRepository } from './notifications.repository.js';
 import { NotificationsService } from './notifications.service.js';
 
@@ -51,7 +54,13 @@ import { NotificationsService } from './notifications.service.js';
     InternalUsersModule,
     GmailMailModule,
   ],
-  controllers: [NotificationsController, NotificationPoliciesOperationsController],
+  controllers: [
+    NotificationsController,
+    CustomerNotificationsController,
+    NotificationTemplatesController,
+    NotificationBroadcastController,
+    NotificationPoliciesOperationsController,
+  ],
   providers: [
     NotificationsRepository,
     NotificationTemplatesRepository,

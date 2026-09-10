@@ -44,6 +44,7 @@ import { AuthModule } from '../auth/auth.module.js';
 import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { CustomerOnboardingController } from './customer-onboarding.controller.js';
+import { CustomerPackagesController } from './customer-packages.controller.js';
 import { CustomerOnboardingProfileController } from './customer-onboarding-profile.controller.js';
 import { CustomerOnboardingStatusController } from './customer-onboarding-status.controller.js';
 import { CustomerVerificationController } from './customer-verification.controller.js';
@@ -137,6 +138,7 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
     CustomerEvidenceViewController,
     IdentityReviewCallbackController,
     CustomerOnboardingController,
+    CustomerPackagesController,
     CustomerOnboardingProfileController,
     CustomerOnboardingStatusController,
     CustomerVerificationController,

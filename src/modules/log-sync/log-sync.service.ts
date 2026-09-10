@@ -18,55 +18,7 @@ import { countLines, formatError, getFileSize, mongoSyncHint, readLogDelta, trim
 // cambiarla es una decisión de gobernanza, no de configuración por entorno.
 const LOG_RETENTION_SECONDS = 30 * 24 * 60 * 60;
 
-type RemoteLogDocument =
-  | {
-      type: 'startup';
-      bootId: string;
-      idArranque: string;
-      capturedAt: Date;
-      service: string;
-      source: LogSource;
-      fileSizeAtStartup: number;
-      startOffset: number;
-      intervalMs: number;
-      maxChunkBytes: number;
-      process: {
-        pid: number;
-        cwd: string;
-        nodeEnv: string;
-      };
-    }
-  | {
-      type: 'append';
-      bootId: string;
-      idArranque: string;
-      sequence: number;
-      capturedAt: Date;
-      service: string;
-      source: LogSource;
-      offsetFrom: number;
-      offsetTo: number;
-      bytes: number;
-      chars: number;
-      lineCount: number;
-      content: string;
-    }
-  | {
-      type: 'rotation';
-      bootId: string;
-      idArranque: string;
-      capturedAt: Date;
-      service: string;
-      source: LogSource;
-      previousOffset: number;
-      fileSize: number;
-    };
-
-type LogSource = {
-  filePath: string;
-  fileName: string;
-};
-
+import type { LogSource, RemoteLogDocument } from './log-sync.documents.js';
 @Injectable()
 export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(ArchivoLogMongoSyncService.name);

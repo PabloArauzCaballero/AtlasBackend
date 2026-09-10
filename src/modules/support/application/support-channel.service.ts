@@ -6,7 +6,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import { generateChannelCode } from '../domain/case-number.util.js';
+
 import { SUPPORT_QUEUE_CODES } from '../support.constants.js';
 import { SupportAgentRepository } from '../support-agent.repository.js';
 import { SupportCatalogRepository } from '../support-catalog.repository.js';
@@ -20,7 +20,9 @@ import { SupportAuditService } from './support-audit.service.js';
 import { SupportCaseService } from './support-case.service.js';
 import { SupportMessageService } from './support-message.service.js';
 import { SUPPORT_NEVER_ASKS_WARNING } from '../domain/message-dlp.js';
+import { SupportChannelCreationService } from './support-channel-creation.service.js';
 
+import { SupportAgentAvailabilityRepository } from '../support-agent-availability.repository.js';
 @Injectable()
 export class SupportChannelService {
   constructor(
@@ -33,6 +35,8 @@ export class SupportChannelService {
     private readonly actors: SupportActorService,
     private readonly audit: SupportAuditService,
     private readonly caseService: SupportCaseService,
+    private readonly apertura: SupportChannelCreationService,
+    private readonly disponibilidad: SupportAgentAvailabilityRepository,
   ) {}
 
   /**
@@ -71,13 +75,13 @@ export class SupportChannelService {
       ? await this.catalog.findQueueById(input.tenantId, String(category.defaultQueueId))
       : await this.catalog.findQueueByCode(input.tenantId, defaultQueueCode);
 
-    const reserved = await this.agents.reserveAvailableAgent({
+    const reserved = await this.disponibilidad.reserveAvailableAgent({
       tenantId: input.tenantId,
       queueId: queue ? String(queue.id) : null,
       requiredSkills: (queue?.skillsRequiredJson ?? []) as string[],
     });
 
-    const channel = await this.persistRequestedChannel({ input, queue, reserved });
+    const channel = await this.apertura.persistRequestedChannel({ input, queue, reserved });
 
     // El aviso de seguridad lo manda el SISTEMA, no el agente: así aparece siempre, incluso a las
     // once de la noche cuando quien atiende está cansado y no se acuerda de escribirlo.
@@ -100,93 +104,8 @@ export class SupportChannelService {
       idempotencyKey: `support-channel-opened-${channel.id}`,
     });
 
-    const agentsAvailable = reserved ? null : await this.agents.countAvailable(input.tenantId, queue ? String(queue.id) : null);
+    const agentsAvailable = reserved ? null : await this.disponibilidad.countAvailable(input.tenantId, queue ? String(queue.id) : null);
     return { ...toChannelDto(channel), reused: false, agentsAvailable };
-  }
-
-  /** Escribe el canal y sus participantes en una sola transacción, con o sin agente reservado. */
-  private persistRequestedChannel(context: {
-    input: { tenantId: string; actor: SupportActor; dto: OpenChannelDto };
-    queue: { id: string } | null;
-    reserved: { agentProfileId: string; internalUserId: string } | null;
-  }) {
-    const { input, queue, reserved } = context;
-    return this.sequelize.transaction(async (transaction) => {
-      /*
-       * Ninguna conversación sin expediente.
-       *
-       * Si quien abre no trae `caseId` —y hoy no lo trae NADIE: la app llama `openChannel({})` y el
-       * portal manda sólo el comercio— el servidor crea el caso mínimo antes de crear el canal. Va
-       * dentro de la misma transacción para que no exista jamás el estado intermedio de un canal
-       * apuntando a un caso que no llegó a escribirse.
-       *
-       * Devuelve null sólo si falta la categoría de red de seguridad; en ese caso la conversación se
-       * abre igual, sin caso, porque no dejar hablar con soporte sería peor que el dato que falta.
-       */
-      const unclassified = input.dto.caseId
-        ? null
-        : await this.caseService.createUnclassifiedCase({
-            tenantId: input.tenantId,
-            actor: input.actor,
-            partnerProfileId: input.dto.partnerProfileId ?? null,
-            categoryCode: input.dto.categoryCode,
-            transaction,
-          });
-
-      const created = await this.channels.create(
-        {
-          tenantId: input.tenantId,
-          channelCode: generateChannelCode(),
-          caseId: input.dto.caseId ?? unclassified?.caseId ?? null,
-          channelType: 'CHAT',
-          subjectContextType: input.actor.actorType === 'PARTNER_USER' ? 'PARTNER_USER' : 'CONSUMER',
-          subjectCustomerId: input.actor.customerId,
-          subjectPartnerProfileId: input.dto.partnerProfileId ?? null,
-          status: reserved ? 'OPEN' : 'QUEUED',
-          queueId: queue ? String(queue.id) : null,
-          assignedAgentProfileId: reserved?.agentProfileId ?? null,
-          requestedAt: new Date(),
-          openedAt: reserved ? new Date() : null,
-          lastActivityAt: new Date(),
-          lastMessageSequence: '0',
-          claimVersion: reserved ? 1 : 0,
-          locale: input.dto.locale,
-          deleted: false,
-        },
-        { transaction },
-      );
-
-      await this.channels.addParticipant(
-        {
-          tenantId: input.tenantId,
-          channelId: String(created.id),
-          actorType: input.actor.actorType,
-          actorId: input.actor.actorId,
-          roleInChannel: 'REQUESTER',
-          joinedAt: new Date(),
-          joinReason: 'channel_requested',
-        },
-        { transaction },
-      );
-
-      if (reserved) {
-        await this.channels.addParticipant(
-          {
-            tenantId: input.tenantId,
-            channelId: String(created.id),
-            actorType: 'AGENT',
-            actorId: reserved.internalUserId,
-            agentProfileId: reserved.agentProfileId,
-            roleInChannel: 'AGENT',
-            joinedAt: new Date(),
-            joinReason: 'auto_routing',
-          },
-          { transaction },
-        );
-      }
-
-      return created;
-    });
   }
 
   /**
@@ -204,14 +123,14 @@ export class SupportChannelService {
       throw new ConflictException({ code: 'SUPPORT_CHANNEL_ALREADY_CLAIMED', status: channel.status });
     }
 
-    const reserved = await this.agents.reserveAvailableAgent({
+    const reserved = await this.disponibilidad.reserveAvailableAgent({
       tenantId: input.tenantId,
       queueId: channel.queueId ? String(channel.queueId) : null,
       requiredSkills: [],
     });
     if (!reserved || reserved.agentProfileId !== agentProfileId) {
       // Se reservó a otro (o a nadie): se devuelve el hueco y se pide reintentar sin adivinar.
-      if (reserved) await this.agents.releaseAgentSlot(input.tenantId, reserved.agentProfileId);
+      if (reserved) await this.disponibilidad.releaseAgentSlot(input.tenantId, reserved.agentProfileId);
       throw new ConflictException({ code: 'SUPPORT_AGENT_AT_CAPACITY', message: 'No tienes capacidad libre para otra conversación.' });
     }
 
@@ -295,7 +214,7 @@ export class SupportChannelService {
     });
 
     if (channel.assignedAgentProfileId) {
-      await this.agents.releaseAgentSlot(input.tenantId, String(channel.assignedAgentProfileId));
+      await this.disponibilidad.releaseAgentSlot(input.tenantId, String(channel.assignedAgentProfileId));
     }
     await this.audit.publish({
       tenantId: input.tenantId,

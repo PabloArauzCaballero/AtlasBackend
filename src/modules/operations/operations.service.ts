@@ -28,6 +28,7 @@ import {
 
 // La decisión de fraude vive en FraudService; OperationsController conserva la ruta compatible.
 
+import { OperationsQueueRepository } from './operations-queue.repository.js';
 @Injectable()
 export class OperationsService {
   constructor(
@@ -45,6 +46,7 @@ export class OperationsService {
      */
     private readonly contactsSnapshot: CustomerContactsSnapshotService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly cola: OperationsQueueRepository,
   ) {}
 
   /**
@@ -53,18 +55,18 @@ export class OperationsService {
    * volumen de casos crezca lo suficiente para que `OFFSET` se vuelva costoso.
    */
   async getManualReviewCasesCursorPage(tenantId: string, query: CursorWorkQueueQueryDto) {
-    const result = await this.operationsRepository.findManualReviewCasesForQueueWithCursor(tenantId, query);
+    const result = await this.cola.findManualReviewCasesForQueueWithCursor(tenantId, query);
     return { items: result.items.map(toManualReviewWorkItem), nextCursor: result.nextCursor };
   }
 
   async getFraudCasesCursorPage(tenantId: string, query: CursorWorkQueueQueryDto) {
-    const result = await this.operationsRepository.findFraudCasesForQueueWithCursor(tenantId, query);
+    const result = await this.cola.findFraudCasesForQueueWithCursor(tenantId, query);
     return { items: result.items.map(toFraudWorkItem), nextCursor: result.nextCursor };
   }
 
   async getWorkQueue(tenantId: string, query: WorkQueueQueryDto): Promise<PaginatedWorkQueueResponseDto> {
     if (query.queue === 'manual_review') {
-      const result = await this.operationsRepository.findManualReviewCasesForQueue(tenantId, query);
+      const result = await this.cola.findManualReviewCasesForQueue(tenantId, query);
       return {
         items: result.rows.map(toManualReviewWorkItem),
         meta: result.meta,
@@ -72,7 +74,7 @@ export class OperationsService {
     }
 
     if (query.queue === 'fraud') {
-      const result = await this.operationsRepository.findFraudCasesForQueue(tenantId, query);
+      const result = await this.cola.findFraudCasesForQueue(tenantId, query);
       return {
         items: result.rows.map(toFraudWorkItem),
         meta: result.meta,
@@ -89,8 +91,8 @@ export class OperationsService {
     const topK = query.page * query.limit;
     const topKQuery = { ...query, page: 1, limit: topK };
     const [manualResult, fraudResult] = await Promise.all([
-      this.operationsRepository.findManualReviewCasesForQueue(tenantId, topKQuery),
-      this.operationsRepository.findFraudCasesForQueue(tenantId, topKQuery),
+      this.cola.findManualReviewCasesForQueue(tenantId, topKQuery),
+      this.cola.findFraudCasesForQueue(tenantId, topKQuery),
     ]);
 
     const allItems = [...manualResult.rows.map(toManualReviewWorkItem), ...fraudResult.rows.map(toFraudWorkItem)].sort((a, b) => {

@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { callArg } from '../../support/jest-mocks.js';
 import { CustomerOnboardingController } from '../../../src/modules/customer-onboarding/customer-onboarding.controller.js';
 import { requireIdempotencyKey, tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.js';
+import { CustomerPackagesController } from '../../../src/modules/customer-onboarding/customer-packages.controller.js';
 
 /**
  * `CustomerOnboardingController`: start público (args posicionales) + 4 pasos autenticados con input
@@ -57,7 +58,10 @@ describe('CustomerOnboardingController', () => {
   });
 
   it('submitIdentityPackage y submitAddressPackage delegan con input estructurado', async () => {
-    const { controller, service } = build();
+    // Los tres envíos de evidencia viven en `CustomerPackagesController` desde el corte por
+    // tamaño. Se construye con el mismo doble de servicio, así que las aserciones no cambian.
+    const { service } = build();
+    const controller = new CustomerPackagesController(service as never, service as never, service as never);
     await controller.submitIdentityPackage('1', 'idem', params, { docs: [] } as never, user, req);
     await controller.submitAddressPackage('1', 'idem', params, { address: {} } as never, user, req);
     expect(callArg<{ customerId: string }>(service.submitIdentityPackage, 0, 0).customerId).toBe('9');
