@@ -18,6 +18,7 @@ import { InternalPermissionsGuard } from '../internal-users/guards/internal-perm
 import { SYSTEMS_OPS_GOVERNANCE_ROLES } from './systems-ops.constants.js';
 import { SystemFlowsService } from './system-flows.service.js';
 import { SystemFlowsReviewService } from './system-flows.review.service.js';
+import { SystemFlowsGateService } from './system-flows.gate.service.js';
 import { flowReviewQueueSchema, type FlowReviewQueueDto } from './system-flows.review.schemas.js';
 import { reviewDecisionSchema, type ReviewDecisionDto } from './systems-ops.schemas.js';
 import {
@@ -75,6 +76,7 @@ export class SystemFlowsController {
   constructor(
     private readonly service: SystemFlowsService,
     private readonly review: SystemFlowsReviewService,
+    private readonly gate: SystemFlowsGateService,
   ) {}
 
   @ApiOperation({ summary: 'Resumen de Flujos: totales por riesgo, verificación, frescura y bloque' })
@@ -188,6 +190,19 @@ export class SystemFlowsController {
   @Get('flows/:flowId/graph')
   flowGraph(@Param(new ZodValidationPipe(flowIdParamsSchema)) params: FlowIdParamsDto) {
     return this.service.getFlowGraph(params.flowId);
+  }
+
+  @ApiOperation({
+    summary: 'FLOW_DOCUMENTATION_GATE: si se puede certificar la documentación de flujos hoy',
+    description:
+      'Cada comprobación con su cifra. Sin uso observado de pantallas, la de deriva no pasa: no se puede afirmar lo que no se ha podido mirar.',
+  })
+  @ApiResponse({ status: 200, description: 'Resultado y comprobaciones.' })
+  @InternalPermissions('systems.flows.read')
+  // Antes que `flows/:flowId`, por la misma razón que la cola de revisión.
+  @Get('flows/documentation-gate')
+  documentationGate() {
+    return this.gate.evaluate();
   }
 
   @ApiOperation({
