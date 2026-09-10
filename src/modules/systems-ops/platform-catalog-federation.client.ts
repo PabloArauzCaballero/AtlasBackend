@@ -79,7 +79,7 @@ export class PlatformCatalogFederationClient {
       // INVALID_MANIFEST sobre una respuesta perfectamente válida.
       if (path) {
         this.logger.log(`Respuesta de ${systemCode} (${path}) recibida en ${elapsed} ms.`);
-        return { ok: true, manifest: EMPTY_MANIFEST, body: unwrapEnvelope(body) };
+        return { ok: true, manifest: EMPTY_MANIFEST, body: unwrapSuccessEnvelope(body) };
       }
       const parsed = catalogManifestSchema.safeParse(unwrapEnvelope(body));
       if (!parsed.success) {
@@ -127,6 +127,23 @@ function unwrapEnvelope(body: unknown): unknown {
   const inner = envelope.data;
   if (inner && typeof inner === 'object' && 'block' in inner) return inner;
   return body;
+}
+
+/**
+ * Abre el sobre `{ success, data }` con el que responden estos backends, y sólo ese.
+ *
+ * `unwrapEnvelope` no sirve para una ruta cualquiera: reconoce el sobre por una clave del
+ * MANIFIESTO (`block`), así que con el resumen de accesos devolvía el sobre entero y quien lo
+ * indexaba no encontraba nada. El resultado era el peor posible: federación `ok: true` y cero
+ * corridas, es decir «se preguntó bien y ese bloque no ha ejecutado nada», que es mentira.
+ *
+ * Se reconoce por `success` booleano junto a `data`, que es la forma exacta del sobre: un cuerpo
+ * que traiga un `data` propio sin `success` no se toca.
+ */
+function unwrapSuccessEnvelope(body: unknown): unknown {
+  if (!body || typeof body !== 'object') return body;
+  const sobre = body as { success?: unknown; data?: unknown };
+  return typeof sobre.success === 'boolean' && sobre.data !== undefined ? sobre.data : body;
 }
 
 function joinUrl(baseUrl: string, path: string): string {
