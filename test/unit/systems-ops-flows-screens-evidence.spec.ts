@@ -140,11 +140,11 @@ describe('indexBlockScreens · lo que publica el ERP', () => {
     expect(indexBlockScreens({ screens: [] })).toEqual({ porCliente: new Map(), truncado: false });
   });
 
-  it('ERP y Motor miden a su portal, con alcances distintos; Tableros todavía no', () => {
+  it('los tres bloques con portal miden a su portal, con alcances distintos', () => {
     expect(ACCESS_EVIDENCE.ERP_BACKEND).toMatchObject({ screensScope: 'process' });
     expect(ACCESS_EVIDENCE.DECISION_ENGINE).toMatchObject({ screensScope: 'window' });
-    expect(ACCESS_EVIDENCE.DASHBOARDS.screens).toBeUndefined();
+    expect(ACCESS_EVIDENCE.DASHBOARDS).toMatchObject({ screensScope: 'process' });
     expect(CLIENT_EVIDENCE).toMatchObject({ ERP_PORTAL: 'ERP_BACKEND', MOTOR_PORTAL: 'DECISION_ENGINE' });
-    expect(CLIENT_EVIDENCE.DASHBOARDS_PORTAL).toBeUndefined();
+    expect(CLIENT_EVIDENCE.DASHBOARDS_PORTAL).toBe('DASHBOARDS');
   });
 });

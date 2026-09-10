@@ -61,6 +61,10 @@ export const ACCESS_EVIDENCE: Record<string, EvidenciaDeBloque> = {
     index: (body) => indexBlockPathRuns((body as { entries?: BlockPathRun[] })?.entries ?? []),
     key: (flow) => `${flow.httpMethod} ${flow.path}`,
     source: 'atlas_dashboards_http_requests_total (federado, desde el arranque del proceso)',
+    // Su portal le declara la pantalla y Tableros la cuenta en un registro de proceso, aparte de Prometheus.
+    screens: indexBlockScreens,
+    screensSource: 'screen-runs.registry (federado, desde el arranque del proceso)',
+    screensScope: 'process',
   },
   ERP_BACKEND: {
     // El ERP no acota por ventana: cuenta desde que arrancó la instancia y lo declara en la respuesta.
@@ -87,6 +91,7 @@ export const CLIENT_EVIDENCE: Record<string, string> = {
   // El portal del Motor llama también a AtlasBackend por su proxy, pero sus pantallas las mide sólo
   // el Motor: con dos bloques, uno degradaría lo que acababa de verificar el otro.
   MOTOR_PORTAL: 'DECISION_ENGINE',
+  DASHBOARDS_PORTAL: 'DASHBOARDS',
 };
 
 type BlockScreenRun = {
