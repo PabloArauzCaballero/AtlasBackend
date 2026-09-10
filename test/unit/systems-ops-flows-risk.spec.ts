@@ -132,6 +132,7 @@ describe('flowRiskFromTables (fase 2)', () => {
     writes: writes.map((table) => ({ table, op: 'INSERT', via: 'SEQUELIZE' })),
     errors: [],
     blockCalls: [],
+    events: [],
     unknowns: [],
     transactional: false,
   });

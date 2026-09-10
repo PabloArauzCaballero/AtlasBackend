@@ -25352,6 +25352,27 @@ paths:
                                 - target
                                 - at
                               additionalProperties: false
+                          events:
+                            default: []
+                            maxItems: 50
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                code:
+                                  type: string
+                                  maxLength: 160
+                                dynamic:
+                                  default: false
+                                  type: boolean
+                                at:
+                                  type: string
+                                  maxLength: 300
+                              required:
+                                - code
+                                - dynamic
+                                - at
+                              additionalProperties: false
                           unknowns:
                             default: []
                             maxItems: 200
@@ -25382,6 +25403,7 @@ paths:
                           - writes
                           - errors
                           - blockCalls
+                          - events
                           - unknowns
                           - transactional
                         additionalProperties: false

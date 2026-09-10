@@ -6,43 +6,10 @@
 import { SystemFlowCatalogModel } from '../../database/models/index.js';
 import { FlowAnalysis, flowAnalysisSchema } from './system-flows.schemas.js';
 import { env } from '../../config/env.js';
+import { eventosDelFlujo } from './system-flows.graph.events.js';
 
-export type GraphLayer = 'CLIENT' | 'API' | 'BACKEND' | 'DATA';
-export type GraphNodeType =
-  | 'ACTOR'
-  | 'CLIENT'
-  | 'ENDPOINT'
-  | 'GUARD'
-  | 'CONTROLLER'
-  | 'HANDLER'
-  | 'SERVICE'
-  | 'REPOSITORY'
-  | 'DATABASE'
-  | 'ERROR'
-  | 'BLOCK_CALL'
-  | 'UNKNOWN';
-export type GraphRelation =
-  'CALLS' | 'AUTHORIZES' | 'HANDLED_BY' | 'BELONGS_TO' | 'CONTINUES' | 'GRANTS' | 'READS' | 'WRITES' | 'THROWS' | 'CALLS_BLOCK';
-
-export type GraphNode = {
-  id: string;
-  type: GraphNodeType;
-  layer: GraphLayer;
-  label: string;
-  sublabel?: string;
-  meta?: Record<string, unknown>;
-};
-export type GraphEdge = {
-  id: string;
-  source: string;
-  target: string;
-  relation: GraphRelation;
-  /** 95 = configuración (decoradores, literales); 75 = AST resuelto por tipo; 40 = hueco. Nunca 100: no hay corrida. */
-  confidence: number;
-  evidence: string[];
-  label?: string;
-};
-export type FlowGraph = { nodes: GraphNode[]; edges: GraphEdge[]; stats: { nodes: number; edges: number; flows: number; unknown: number } };
+export type { FlowGraph, GraphEdge, GraphLayer, GraphNode, GraphNodeType, GraphRelation } from './system-flows.graph.types.js';
+import type { FlowGraph, GraphEdge, GraphNode, GraphRelation } from './system-flows.graph.types.js';
 
 type FlowRow = Pick<
   SystemFlowCatalogModel,
@@ -240,6 +207,9 @@ class GraphBuilder {
         sublabel: `HTTP saliente · ${call.at}`,
       });
       this.edge(previous, id, 'CALLS_BLOCK', { ...AST, label: 'HTTP' });
+    }
+    for (const evento of eventosDelFlujo(flow.systemCode, a)) {
+      this.edge(previous, this.node({ ...evento, type: 'EVENT', layer: 'DATA' }), 'ENQUEUES', { ...AST, label: 'PUBLICA' });
     }
     if (a.unknowns.length) {
       const reasons = [...new Set(a.unknowns.map((u) => u.reason.split(':')[0]))];

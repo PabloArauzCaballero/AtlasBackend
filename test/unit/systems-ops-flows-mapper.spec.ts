@@ -54,6 +54,7 @@ describe('summarizeAnalysis', () => {
       writes: [{ table: 'customers', op: 'UPDATE', via: 'sequelize' }],
       errors: ['boom'],
       blockCalls: [],
+      events: [],
       unknowns: Array.from({ length: 15 }, (_, i) => ({ reason: `r${i}`, at: 'x' })),
       transactional: true,
     });
@@ -72,6 +73,7 @@ describe('summarizeAnalysis', () => {
       writes: [],
       errors: [],
       blockCalls: [],
+      events: [],
       unknowns: [],
       transactional: false,
     });
@@ -88,7 +90,17 @@ describe('mapFlow', () => {
   it('incrusta el resumen del análisis, no el JSON crudo de la columna', () => {
     const row = {
       path: 'x',
-      analysisJson: { status: 'MAPPED', chain: [], reads: [], writes: [], errors: [], blockCalls: [], unknowns: [], transactional: false },
+      analysisJson: {
+        status: 'MAPPED',
+        chain: [],
+        reads: [],
+        writes: [],
+        errors: [],
+        blockCalls: [],
+        events: [],
+        unknowns: [],
+        transactional: false,
+      },
     } as never;
     expect(mapFlow(row).analysis).toMatchObject({ status: 'MAPPED', chainLength: 0 });
   });
@@ -196,6 +208,7 @@ describe('flowRowFor', () => {
           writes: [],
           errors: [],
           blockCalls: [],
+          events: [],
           unknowns: [],
           transactional: false,
         },
@@ -223,6 +236,7 @@ describe('flowRowFor', () => {
           ],
           errors: [],
           blockCalls: [],
+          events: [],
           unknowns: [],
           transactional: true,
         },
@@ -288,6 +302,7 @@ describe('flowRowFor · un análisis a medias no finge estar medido', () => {
     writes: [],
     errors: [],
     blockCalls: [],
+    events: [],
     unknowns: [{ reason: 'RAW_SQL_DYNAMIC', at: 'x.ts:1' }],
     transactional: false,
     ...over,
@@ -355,6 +370,7 @@ describe('exposición del código fuente', () => {
         writes: [],
         errors: [],
         blockCalls: [],
+        events: [],
         unknowns: [{ reason: 'MAX_CHAIN', at: 'src/modules/x/y.service.ts:62' }],
         transactional: false,
       },
