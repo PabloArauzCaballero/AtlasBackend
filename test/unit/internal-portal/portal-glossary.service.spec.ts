@@ -103,7 +103,7 @@ describe('PortalGlossaryService', () => {
 
     it('un dominio lleva sus tablas, sus columnas y los endpoints que las tocan', async () => {
       const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
-      const dominio = items[0];
+      const dominio = items[0] as { relatedTables: string[]; relatedColumns: string[]; relatedEndpoints: string[] };
 
       expect(dominio.relatedTables).toEqual(['loans']);
       expect(dominio.relatedColumns).toEqual(['loans.principal_amount']);
@@ -166,8 +166,9 @@ describe('PortalGlossaryService', () => {
 
       const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
 
-      expect(items[0].relatedEndpoints).toEqual(['GET /api/v1/loans']);
-      expect(items[1].relatedEndpoints).toEqual(['GET /api/v1/loans']);
+      const conEndpoints = items as Array<{ relatedEndpoints: string[] }>;
+      expect(conEndpoints[0].relatedEndpoints).toEqual(['GET /api/v1/loans']);
+      expect(conEndpoints[1].relatedEndpoints).toEqual(['GET /api/v1/loans']);
     });
 
     it('sin tablas catalogadas no se pregunta por los endpoints: un `IN ()` vacío no aporta nada', async () => {
@@ -210,7 +211,7 @@ describe('PortalGlossaryService', () => {
 
       expect(items[0].name).toBe('principal_amount');
       expect(items[0].domain).toBe('PLATAFORMA');
-      expect(items[0].metadata.sensitivityLevel).toBe('INTERNAL');
+      expect((items[0].metadata as { sensitivityLevel: string }).sensitivityLevel).toBe('INTERNAL');
     });
 
     it('el buscador filtra el catálogo ya compuesto, y mira TODO el término y no sólo su nombre', async () => {
