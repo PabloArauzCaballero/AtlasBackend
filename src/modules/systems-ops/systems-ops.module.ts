@@ -48,6 +48,7 @@ import { SystemsCatalogController } from './systems-catalog.controller.js';
 import { SystemsNetworkController } from './systems-network.controller.js';
 import { SystemFlowsController } from './system-flows.controller.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
+import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { SystemFlowsImportService } from './system-flows.import.service.js';
 import { SystemFlowsScreensRepository } from './system-flows.screens.repository.js';
 import { SystemFlowsScreensService } from './system-flows.screens.service.js';
@@ -113,6 +114,11 @@ import { SystemsMetadataRepository } from './systems-metadata.repository.js';
       SystemFlowImportModel,
     ]),
     NotificationsModule,
+    // `InternalPermissionsGuard` (que exige `systems.flows.*` en el controlador de Flujos) resuelve
+    // los permisos contra `InternalRbacRepository`, y un guard se instancia en el módulo que lo monta:
+    // sin esta importación Nest no arranca. Compila y pasa las pruebas —ninguna levanta el árbol—,
+    // así que el único sitio donde aparece es el arranque del proceso.
+    InternalUsersModule,
   ],
   controllers: [
     SystemsCatalogController,
