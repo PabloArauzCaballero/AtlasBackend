@@ -217,7 +217,7 @@ export class SystemFlowsRepository {
   async flowsOfSystem(systemCode: string): Promise<SystemFlowCatalogModel[]> {
     return this.flows.findAll({
       where: { systemCode },
-      attributes: ['id', 'flowId', 'httpMethod', 'path', 'analyzedCommit', 'verification', 'freshness'],
+      attributes: ['id', 'flowId', 'httpMethod', 'path', 'controller', 'handler', 'analyzedCommit', 'verification', 'freshness'],
     });
   }
 

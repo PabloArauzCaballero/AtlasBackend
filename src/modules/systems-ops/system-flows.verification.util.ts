@@ -52,6 +52,32 @@ export function catalogPathFromRouteTemplate(routeTemplate: string): string {
     .replace(/\/$/, '');
 }
 
+/**
+ * Una fila del resumen de accesos de otro bloque, tal como la federa (`GET /v1/audit/access-runs`).
+ * `resource` es "MÉTODO Clase.handler" y `decision` es ALLOW/DENY del handler, no un código HTTP.
+ */
+export type BlockAccessRun = { resource: string; decision: string; count: number; lastAt: string | Date | null };
+
+/**
+ * Índice por `MÉTODO Controller.handler`, que es como el bloque identifica sus accesos. El catálogo
+ * de Flujos guarda controller y handler por separado, así que la clave se arma igual en los dos
+ * lados y el cruce no depende de la ruta —que el interceptor del Motor no registra—.
+ */
+export function indexBlockRuns(rows: readonly BlockAccessRun[]): Map<string, RouteRuns> {
+  const out = new Map<string, RouteRuns>();
+  for (const row of rows) {
+    const previo = out.get(row.resource) ?? { ok: 0, failed: 0, lastAt: null, lastStatus: null, statuses: {}, correlationSample: [] };
+    // ALLOW = el handler terminó; DENY = lanzó. No es un 5xx, y por eso no se inventa un estado.
+    const permitido = row.decision.toUpperCase() === 'ALLOW';
+    previo[permitido ? 'ok' : 'failed'] += row.count;
+    previo.statuses[row.decision] = (previo.statuses[row.decision] ?? 0) + row.count;
+    const fecha = row.lastAt ? new Date(row.lastAt) : null;
+    if (fecha && (!previo.lastAt || fecha > previo.lastAt)) previo.lastAt = fecha;
+    out.set(row.resource, previo);
+  }
+  return out;
+}
+
 /** FRESH si el commit analizado es el desplegado; STALE si difieren; sin commit desplegado no se opina. */
 export function freshnessFor(analyzedCommit: string | null, deployedCommit: string | null | undefined): 'FRESH' | 'STALE' | null {
   // `APP_COMMIT_SHA=local` (o cualquier valor que no sea un sha) no es un commit: no se compara, no se opina.

@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { SystemFlowsImportService } from '../../src/modules/systems-ops/system-flows.import.service.js';
 import { SystemFlowsService } from '../../src/modules/systems-ops/system-flows.service.js';
 import type { SystemFlowsRepository } from '../../src/modules/systems-ops/system-flows.repository.js';
 
@@ -50,6 +51,10 @@ function repositoryDouble(over: Partial<{ runs: Map<string, unknown>; flows: Arr
   return double as RepoDouble;
 }
 
+/** El servicio pide una federación y un importador; ninguna prueba de aquí los ejercita. */
+const federationDouble = () => ({ fetchFromBlock: async () => ({ ok: false, status: 'NOT_CONFIGURED', message: 'no aplica' }) }) as never;
+const importDouble = (repo: unknown) => new SystemFlowsImportService(repo as never);
+
 const flow = (over: Record<string, unknown> = {}) => ({
   flowId: 'flow_000000000001',
   httpMethod: 'GET',
@@ -73,7 +78,7 @@ describe('SystemFlowsService.verify', () => {
       runs: new Map([['GET systems/flows', runs(3, 0)]]),
       flows: [flow(), flow({ flowId: 'flow_000000000002', path: 'systems/flows/screens' })],
     });
-    const result = await new SystemFlowsService(repo as unknown as SystemFlowsRepository).verify(
+    const result = await new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).verify(
       { systemCode: 'ATLAS_BACKEND', windowDays: 30 },
       'pablo',
     );
@@ -84,7 +89,7 @@ describe('SystemFlowsService.verify', () => {
 
   it('sólo 5xx en la ventana marca BROKEN', async () => {
     const repo = repositoryDouble({ runs: new Map([['GET systems/flows', runs(0, 4)]]), flows: [flow()] });
-    const result = await new SystemFlowsService(repo as unknown as SystemFlowsRepository).verify(
+    const result = await new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).verify(
       { systemCode: 'ATLAS_BACKEND', windowDays: 7 },
       null,
     );
@@ -94,7 +99,7 @@ describe('SystemFlowsService.verify', () => {
 
   it('un bloque que no escribe en system_action_logs no se consulta ni se marca: se declara saltado', async () => {
     const repo = repositoryDouble({ flows: [flow(), flow({ flowId: 'flow_000000000002' })] });
-    const result = await new SystemFlowsService(repo as unknown as SystemFlowsRepository).verify(
+    const result = await new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).verify(
       { systemCode: 'ERP_BACKEND', windowDays: 30 },
       null,
     );
@@ -105,7 +110,10 @@ describe('SystemFlowsService.verify', () => {
 
   it('la ventana llega tal cual al repositorio: verificar con 7 días no puede consultar 30', async () => {
     const repo = repositoryDouble({ flows: [] });
-    await new SystemFlowsService(repo as unknown as SystemFlowsRepository).verify({ systemCode: 'ATLAS_BACKEND', windowDays: 7 }, null);
+    await new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).verify(
+      { systemCode: 'ATLAS_BACKEND', windowDays: 7 },
+      null,
+    );
     expect(repo.calls.runsByRoute?.[0]?.[0]).toBe(7);
   });
 
@@ -114,7 +122,10 @@ describe('SystemFlowsService.verify', () => {
     const anterior = process.env.APP_COMMIT_SHA;
     process.env.APP_COMMIT_SHA = 'abc1234';
     try {
-      await new SystemFlowsService(repo as unknown as SystemFlowsRepository).verify({ systemCode: 'ATLAS_BACKEND', windowDays: 30 }, null);
+      await new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).verify(
+        { systemCode: 'ATLAS_BACKEND', windowDays: 30 },
+        null,
+      );
     } finally {
       if (anterior === undefined) delete process.env.APP_COMMIT_SHA;
       else process.env.APP_COMMIT_SHA = anterior;
@@ -123,10 +134,10 @@ describe('SystemFlowsService.verify', () => {
   });
 });
 
-describe('SystemFlowsService.importFindings', () => {
+describe('SystemFlowsImportService.importFindings', () => {
   it('ignora los hallazgos de otro bloque: cargar el ERP no puede tocar las filas del Backend', async () => {
     const repo = repositoryDouble();
-    const result = await new SystemFlowsService(repo as unknown as SystemFlowsRepository).importFindings(
+    const result = await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importFindings(
       {
         systemCode: 'ERP_BACKEND',
         findings: [
@@ -142,7 +153,7 @@ describe('SystemFlowsService.importFindings', () => {
 
   it('recuenta los hallazgos por flujo tras cargar: el contador de la tabla no puede quedar viejo', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsService(repo as unknown as SystemFlowsRepository).importFindings(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importFindings(
       { systemCode: 'ATLAS_BACKEND', findings: [] },
       null,
     );
@@ -153,15 +164,15 @@ describe('SystemFlowsService.importFindings', () => {
 describe('SystemFlowsService.getFlow', () => {
   it('un flujo que no existe es 404, no una ficha vacía', async () => {
     const repo = repositoryDouble();
-    await expect(new SystemFlowsService(repo as unknown as SystemFlowsRepository).getFlow('flow_000000000009')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).getFlow('flow_000000000009'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('un módulo sin flujos es 404, no un grafo de cero nodos', async () => {
     const repo = repositoryDouble();
     await expect(
-      new SystemFlowsService(repo as unknown as SystemFlowsRepository).getModuleGraph({
+      new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo)).getModuleGraph({
         systemCode: 'ATLAS_BACKEND',
         module: 'inexistente',
         includeRoles: false,

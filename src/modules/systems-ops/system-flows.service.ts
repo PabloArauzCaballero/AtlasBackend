@@ -4,11 +4,19 @@
  * @system carga endpoints, pantallas y hallazgos por bloque, calcula riesgo e identidad estable, y sirve el explorador.
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Transaction } from 'sequelize';
 import { env } from '../../config/env.js';
-import { freshnessFor, verificationFromRuns } from './system-flows.verification.util.js';
+import {
+  freshnessFor,
+  indexBlockRuns,
+  verificationFromRuns,
+  type BlockAccessRun,
+  type RouteRuns,
+} from './system-flows.verification.util.js';
+import { PlatformCatalogFederationClient } from './platform-catalog-federation.client.js';
 import { buildFlowGraph, buildModuleGraph } from './system-flows.graph.util.js';
-import { flowRowFor, mapFinding, mapFlow, mapScreen } from './system-flows.mapper.js';
-import { findingKeyFor } from './system-flows.risk.util.js';
+import { mapFinding, mapFlow, mapScreen } from './system-flows.mapper.js';
+import { SystemFlowsImportService } from './system-flows.import.service.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
 import {
   FindingsListQueryDto,
@@ -23,105 +31,22 @@ import {
 
 @Injectable()
 export class SystemFlowsService {
-  constructor(private readonly repository: SystemFlowsRepository) {}
+  constructor(
+    private readonly repository: SystemFlowsRepository,
+    private readonly federation: PlatformCatalogFederationClient,
+    private readonly imports_: SystemFlowsImportService,
+  ) {}
 
   importEndpoints(dto: ImportEndpointsDto, actor: string | null) {
-    return this.repository.transaction(async (tx) => {
-      const record = await this.repository.createImport(
-        {
-          scope: 'endpoints',
-          systemCode: dto.systemCode,
-          analyzedCommit: dto.analyzedCommit ?? null,
-          analyzedBranch: dto.analyzedBranch ?? null,
-          contentHash: dto.contentHash ?? null,
-          rowsReceived: dto.endpoints.length,
-          rowsUpserted: 0,
-          rowsRemoved: 0,
-          createdBy: actor,
-        },
-        tx,
-      );
-      const rows = dto.endpoints.map((endpoint) =>
-        flowRowFor(dto.systemCode, endpoint, {
-          analyzedCommit: dto.analyzedCommit,
-          analyzedBranch: dto.analyzedBranch,
-          importId: record.id,
-        }),
-      );
-      const result = await this.repository.replaceFlows(dto.systemCode, rows, tx);
-      await this.repository.recountFindings(dto.systemCode, tx);
-      await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });
-      return { importId: record.id, ...result };
-    });
+    return this.imports_.importEndpoints(dto, actor);
   }
 
   importScreens(dto: ImportScreensDto, actor: string | null) {
-    return this.repository.transaction(async (tx) => {
-      const record = await this.repository.createImport(
-        {
-          scope: 'screens',
-          systemCode: dto.clientCode,
-          analyzedCommit: dto.analyzedCommit ?? null,
-          analyzedBranch: null,
-          contentHash: null,
-          rowsReceived: dto.screens.length,
-          rowsUpserted: 0,
-          rowsRemoved: 0,
-          createdBy: actor,
-        },
-        tx,
-      );
-      const rows = dto.screens.map((screen) => ({
-        clientCode: dto.clientCode,
-        route: screen.route,
-        sourceFile: screen.file ?? null,
-        navLabel: screen.navLabel ?? null,
-        navPermissions: screen.navPermissions,
-        navRoles: screen.navRoles,
-        analyzedCommit: dto.analyzedCommit ?? null,
-        importId: record.id,
-      }));
-      const result = await this.repository.replaceScreens(dto.clientCode, rows, tx);
-      await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });
-      return { importId: record.id, ...result };
-    });
+    return this.imports_.importScreens(dto, actor);
   }
 
   importFindings(dto: ImportFindingsDto, actor: string | null) {
-    return this.repository.transaction(async (tx) => {
-      const record = await this.repository.createImport(
-        {
-          scope: 'findings',
-          systemCode: dto.systemCode,
-          analyzedCommit: dto.analyzedCommit ?? null,
-          analyzedBranch: null,
-          contentHash: null,
-          rowsReceived: dto.findings.length,
-          rowsUpserted: 0,
-          rowsRemoved: 0,
-          createdBy: actor,
-        },
-        tx,
-      );
-      const rows = dto.findings
-        .filter((finding) => finding.systemCode === dto.systemCode)
-        .map((finding) => ({
-          findingKey: findingKeyFor(finding),
-          kind: finding.kind,
-          severity: finding.severity,
-          systemCode: finding.systemCode,
-          ref: finding.ref,
-          module: finding.module ?? null,
-          summary: finding.summary,
-          extraJson: finding.extra ?? {},
-          knownSince: finding.knownSince ?? null,
-          importId: record.id,
-        }));
-      const result = await this.repository.replaceFindings(dto.systemCode, rows, tx);
-      await this.repository.recountFindings(dto.systemCode, tx);
-      await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });
-      return { importId: record.id, ...result, ignored: dto.findings.length - rows.length };
-    });
+    return this.imports_.importFindings(dto, actor);
   }
 
   async listFlows(query: FlowsListQueryDto) {
@@ -153,9 +78,13 @@ export class SystemFlowsService {
    * desplegado (`APP_COMMIT_SHA`). Sólo el bloque que escribe esos logs (el Backend) puede pasar a
    * VERIFIED por esta vía; los demás bloques quedan como estaban y se dice cuántos se saltaron.
    */
-  verify(dto: VerifyFlowsDto, actor: string | null) {
+  verify(dto: VerifyFlowsDto, actor: string | null, callerToken: string | null = null) {
     return this.repository.transaction(async (tx) => {
-      const runs = dto.systemCode === 'ATLAS_BACKEND' ? await this.repository.runsByRoute(dto.windowDays) : new Map();
+      // El Backend cruza por ruta contra sus propios logs; los demás bloques federan su resumen y
+      // se cruzan por `MÉTODO Controller.handler`, que es la identidad que ellos registran.
+      const federado = dto.systemCode === 'ATLAS_BACKEND' ? null : await this.fetchBlockRuns(dto, callerToken);
+      const runs = dto.systemCode === 'ATLAS_BACKEND' ? await this.repository.runsByRoute(dto.windowDays) : (federado?.runs ?? new Map());
+      const porRecurso = dto.systemCode !== 'ATLAS_BACKEND';
       const flows = await this.repository.flowsOfSystem(dto.systemCode);
       const counts = {
         verified: 0,
@@ -163,25 +92,18 @@ export class SystemFlowsService {
         unverified: 0,
         stale: 0,
         fresh: 0,
-        skippedNoLogs: dto.systemCode === 'ATLAS_BACKEND' ? 0 : flows.length,
+        skippedNoLogs: dto.systemCode === 'ATLAS_BACKEND' || federado?.ok ? 0 : flows.length,
       };
       for (const flow of flows) {
-        const outcome = verificationFromRuns(runs.get(`${flow.httpMethod} ${flow.path}`) ?? null, 'system_action_logs');
-        if (outcome) {
-          await this.repository.applyVerification(flow.flowId, outcome, actor, tx);
-          if (outcome.verification === 'VERIFIED') counts.verified += 1;
-          else counts.broken += 1;
-        } else counts.unverified += 1;
-        const freshness = freshnessFor(flow.analyzedCommit, env.APP_COMMIT_SHA);
-        if (freshness && freshness !== flow.freshness) await this.repository.applyFreshness(flow.flowId, freshness, tx);
-        if (freshness === 'STALE') counts.stale += 1;
-        else if (freshness === 'FRESH') counts.fresh += 1;
+        const clave = porRecurso ? `${flow.httpMethod} ${flow.controller}.${flow.handler}` : `${flow.httpMethod} ${flow.path}`;
+        await this.applyFlowVerification(flow, runs.get(clave) ?? null, { federado: Boolean(federado), actor, tx, counts });
       }
       return {
         systemCode: dto.systemCode,
         windowDays: dto.windowDays,
         deployedCommit: env.APP_COMMIT_SHA ?? null,
         routesWithRuns: runs.size,
+        federation: federado ? { ok: federado.ok, message: federado.message } : undefined,
         ...counts,
       };
     });
@@ -233,6 +155,33 @@ export class SystemFlowsService {
       processes,
       totals: { processes: processes.length, steps: rows.length, unlinked: processes.reduce((n, p) => n + p.unlinked, 0) },
     };
+  }
+
+  /** Aplica a un flujo lo que dicen sus corridas y su commit, y lleva la cuenta. Extraído del bucle. */
+  private async applyFlowVerification(
+    flow: { flowId: string; analyzedCommit: string | null; freshness: string },
+    runs: RouteRuns | null,
+    ctx: { federado: boolean; actor: string | null; tx: Transaction; counts: Record<string, number> },
+  ) {
+    const outcome = verificationFromRuns(runs, ctx.federado ? 'decision_access_audit (federado)' : 'system_action_logs');
+    if (outcome) {
+      await this.repository.applyVerification(flow.flowId, outcome, ctx.actor, ctx.tx);
+      ctx.counts[outcome.verification === 'VERIFIED' ? 'verified' : 'broken'] += 1;
+    } else ctx.counts.unverified += 1;
+    const freshness = freshnessFor(flow.analyzedCommit, env.APP_COMMIT_SHA);
+    if (freshness && freshness !== flow.freshness) await this.repository.applyFreshness(flow.flowId, freshness, ctx.tx);
+    if (freshness) ctx.counts[freshness === 'STALE' ? 'stale' : 'fresh'] += 1;
+  }
+
+  /** Pide a otro bloque su resumen de accesos. Si no se puede, se dice por qué y no se verifica nada. */
+  private async fetchBlockRuns(dto: VerifyFlowsDto, callerToken: string | null) {
+    if (dto.systemCode !== 'DECISION_ENGINE') {
+      return { ok: false, message: `El bloque ${dto.systemCode} no publica evidencia de ejecución HTTP.`, runs: new Map() };
+    }
+    const result = await this.federation.fetchFromBlock(dto.systemCode, callerToken, `v1/audit/access-runs?windowDays=${dto.windowDays}`);
+    if (!result.ok) return { ok: false, message: result.message ?? 'No se pudo pedir el resumen de accesos.', runs: new Map() };
+    const cuerpo = (result as { body?: { resources?: BlockAccessRun[] } }).body;
+    return { ok: true, message: undefined, runs: indexBlockRuns(cuerpo?.resources ?? []) };
   }
 
   summary() {

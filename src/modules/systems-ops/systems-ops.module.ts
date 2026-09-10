@@ -48,6 +48,7 @@ import { SystemsCatalogController } from './systems-catalog.controller.js';
 import { SystemsNetworkController } from './systems-network.controller.js';
 import { SystemFlowsController } from './system-flows.controller.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
+import { SystemFlowsImportService } from './system-flows.import.service.js';
 import { SystemFlowsService } from './system-flows.service.js';
 import { SystemsNetworkHealthService } from './systems-network-health.service.js';
 import { PlatformCatalogFederationClient } from './platform-catalog-federation.client.js';
@@ -123,6 +124,7 @@ import { SystemsMetadataRepository } from './systems-metadata.repository.js';
   providers: [
     SystemsMetadataRepository,
     SystemFlowsService,
+    SystemFlowsImportService,
     SystemFlowsRepository,
     SystemsSchemaIntrospectionService,
     SystemsEndpointDocsService,

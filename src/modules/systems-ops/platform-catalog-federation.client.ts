@@ -4,11 +4,11 @@
  * @system trae por HTTP el manifiesto que cada bloque del ecosistema publica sobre sí mismo.
  */
 import { Injectable, Logger } from '@nestjs/common';
-import { manifestConfigFor } from './platform-blocks.constants.js';
+import { manifestConfigFor, type BlockManifestEndpointConfig } from './platform-blocks.constants.js';
 import { catalogManifestSchema, CatalogManifest, FederationStatus } from './platform-catalog-manifest.types.js';
 
 export type ManifestFetchResult =
-  | { readonly ok: true; readonly manifest: CatalogManifest }
+  | { readonly ok: true; readonly manifest: CatalogManifest; readonly body?: unknown }
   | { readonly ok: false; readonly status: Exclude<FederationStatus, 'OK'>; readonly message: string };
 
 /**
@@ -24,36 +24,27 @@ export type ManifestFetchResult =
  * de una petición de negocio, y un reintento aquí sólo alargaría el tiempo hasta que el panel
  * pueda decir la verdad sobre el bloque.
  */
+/** Marcador para respuestas que no son un manifiesto: el consumidor mira `body`, no esto. */
+const EMPTY_MANIFEST = { systemCode: '', generatedAt: '', endpoints: [], dataEntities: [] } as unknown as CatalogManifest;
+
 @Injectable()
 export class PlatformCatalogFederationClient {
   private readonly logger = new Logger(PlatformCatalogFederationClient.name);
 
-  async fetchManifest(systemCode: string, callerToken: string | null): Promise<ManifestFetchResult> {
-    const config = manifestConfigFor(systemCode, callerToken);
-    if (!config) {
-      return { ok: false, status: 'ERROR', message: `El bloque ${systemCode} no declara cómo alcanzar su manifiesto.` };
-    }
-    if (!config.baseUrl) {
-      return {
-        ok: false,
-        status: 'NOT_CONFIGURED',
-        message:
-          `El bloque ${systemCode} no tiene dirección configurada en este despliegue, así que no hay a quién ` +
-          'pedirle su catálogo. No es lo mismo que estar vacío: nadie ha dicho dónde buscarlo.',
-      };
-    }
-    if (!config.authValue) {
-      return {
-        ok: false,
-        status: 'NOT_CONFIGURED',
-        message:
-          `El bloque ${systemCode} tiene dirección pero no se le puede pedir el manifiesto: ` +
-          `${config.missingCredentialReason}. El manifiesto enumera rutas y tablas del servicio, así que se pide ` +
-          'con identidad o no se pide.',
-      };
-    }
+  fetchManifest(systemCode: string, callerToken: string | null): Promise<ManifestFetchResult> {
+    return this.fetchFromBlock(systemCode, callerToken);
+  }
 
-    const url = joinUrl(config.baseUrl, config.manifestPath);
+  /**
+   * Pide una ruta cualquiera del bloque con la misma identidad y las mismas guardas que el
+   * manifiesto. `path` la usa Flujos para pedir el resumen de accesos del Motor; sin `path` se pide
+   * el manifiesto, que es el caso original.
+   */
+  async fetchFromBlock(systemCode: string, callerToken: string | null, path?: string): Promise<ManifestFetchResult> {
+    const alcanzable = reachableConfig(systemCode, manifestConfigFor(systemCode, callerToken));
+    if ('ok' in alcanzable) return alcanzable;
+    const config = alcanzable.config;
+    const url = joinUrl(config.baseUrl, path ?? config.manifestPath);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
     const startedAt = Date.now();
@@ -83,6 +74,13 @@ export class PlatformCatalogFederationClient {
       }
 
       const body: unknown = await response.json().catch(() => null);
+      // Sólo el manifiesto se valida contra su esquema. Si se pidió otra ruta del bloque, el cuerpo
+      // se devuelve crudo: no todo lo que sirve un bloque es un catálogo, y forzarlo daría
+      // INVALID_MANIFEST sobre una respuesta perfectamente válida.
+      if (path) {
+        this.logger.log(`Respuesta de ${systemCode} (${path}) recibida en ${elapsed} ms.`);
+        return { ok: true, manifest: EMPTY_MANIFEST, body: unwrapEnvelope(body) };
+      }
       const parsed = catalogManifestSchema.safeParse(unwrapEnvelope(body));
       if (!parsed.success) {
         const detail = parsed.error.issues
@@ -133,4 +131,45 @@ function unwrapEnvelope(body: unknown): unknown {
 
 function joinUrl(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
+}
+
+/**
+ * O el bloque es alcanzable —con dirección e identidad— o se explica por qué no. Devolver la
+ * configuración ya estrechada evita repetir las comprobaciones dentro de la petición.
+ */
+function reachableConfig(
+  systemCode: string,
+  config: BlockManifestEndpointConfig | null,
+): ManifestFetchResult | { config: BlockManifestEndpointConfig & { baseUrl: string; authValue: string } } {
+  const problema = configProblem(systemCode, config);
+  if (problema) return problema;
+  return { config: config as BlockManifestEndpointConfig & { baseUrl: string; authValue: string } };
+}
+
+/** Las tres razones por las que a un bloque no se le puede pedir nada, con su explicación. */
+function configProblem(systemCode: string, config: BlockManifestEndpointConfig | null): ManifestFetchResult | null {
+  if (!config) {
+    return { ok: false, status: 'ERROR', message: `El bloque ${systemCode} no declara cómo alcanzar su manifiesto.` };
+  }
+  if (!config!.baseUrl) {
+    return {
+      ok: false,
+      status: 'NOT_CONFIGURED',
+      message:
+        `El bloque ${systemCode} no tiene dirección configurada en este despliegue, así que no hay a quién ` +
+        'pedirle su catálogo. No es lo mismo que estar vacío: nadie ha dicho dónde buscarlo.',
+    };
+  }
+  if (!config!.authValue) {
+    return {
+      ok: false,
+      status: 'NOT_CONFIGURED',
+      message:
+        `El bloque ${systemCode} tiene dirección pero no se le puede pedir el manifiesto: ` +
+        `${config!.missingCredentialReason}. El manifiesto enumera rutas y tablas del servicio, así que se pide ` +
+        'con identidad o no se pide.',
+    };
+  }
+
+  return null;
 }

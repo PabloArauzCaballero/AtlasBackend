@@ -6,6 +6,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { AccessToken } from '../../common/decorators/access-token.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
@@ -125,8 +126,12 @@ export class SystemFlowsController {
   @ApiResponse({ status: 201, description: 'Cuántos flujos quedaron VERIFIED, BROKEN, sin corridas, FRESH y STALE.' })
   @Roles(...SYSTEMS_OPS_GOVERNANCE_ROLES)
   @Post('flows/verify')
-  verify(@Body(new ZodValidationPipe(verifyFlowsSchema)) body: VerifyFlowsDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.service.verify(body, actorId(user));
+  verify(
+    @Body(new ZodValidationPipe(verifyFlowsSchema)) body: VerifyFlowsDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @AccessToken() callerToken: string | null,
+  ) {
+    return this.service.verify(body, actorId(user), callerToken);
   }
 
   @ApiOperation({ summary: 'Cargar los endpoints derivados de un bloque (reemplaza los del bloque)' })
