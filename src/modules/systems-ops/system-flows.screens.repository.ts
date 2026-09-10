@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, QueryTypes, Transaction } from 'sequelize';
+import { literal, Op, QueryTypes, Transaction } from 'sequelize';
 import { SystemScreenCatalogModel } from '../../database/models/system-screen-catalog.model.js';
 import { RBAC_DRIFT_SQL, SCREEN_RUNS_LIMIT, SCREEN_RUNS_SQL } from './system-flows.sql.constants.js';
 
@@ -150,6 +150,20 @@ export class SystemFlowsScreensRepository {
       raw: true,
     });
     return (rows as unknown as Array<{ clientCode: string }>).map((row) => row.clientCode);
+  }
+
+  /**
+   * Clientes con al menos una pantalla cuyo menú declara permiso o rol. Sólo en ellos hay deriva que medir:
+   * un menú que no filtra no puede pedir algo distinto de lo que exige la API.
+   */
+  async clientsWithMenuGates(): Promise<string[]> {
+    const rows = await this.screens.findAll({
+      attributes: ['clientCode'],
+      where: literal(`jsonb_array_length(nav_permissions) > 0 OR jsonb_array_length(nav_roles) > 0`),
+      group: ['client_code'],
+      raw: true,
+    });
+    return (rows as unknown as Array<{ clientCode: string }>).map((row) => row.clientCode).sort();
   }
 
   /** Las pantallas de un cliente, con lo mínimo para cruzarlas y escribir su desenlace. */

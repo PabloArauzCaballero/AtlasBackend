@@ -137,6 +137,7 @@ describe('SystemFlowsScreensService.rbacDrift', () => {
       rbacDrift: async () => filas,
       screenRuns: async () => ({ porCliente: observado, truncado: false }),
       screenClients: async () => ['ADMIN_PORTAL', 'ERP_PORTAL', 'MOTOR_PORTAL'],
+      clientsWithMenuGates: async () => ['ADMIN_PORTAL', 'MOTOR_PORTAL'],
     } as never).rbacDrift();
 
   const fila = (over: Record<string, unknown> = {}) => ({
@@ -170,7 +171,8 @@ describe('SystemFlowsScreensService.rbacDrift', () => {
   });
 
   it('declara qué clientes NO se miden aquí, para que su lista vacía no se lea como «sin deriva»', async () => {
-    expect(await deriva([])).toMatchObject({ notMeasured: ['ERP_PORTAL', 'MOTOR_PORTAL'] });
+    // Sólo los que tienen puerta de menú: el ERP no filtra su menú por permiso, así que no hay deriva que medirle.
+    expect(await deriva([])).toMatchObject({ notMeasured: ['MOTOR_PORTAL'] });
   });
 
   it('el denominador no cuenta tráfico sin cliente ni códigos que el catálogo no tiene', async () => {

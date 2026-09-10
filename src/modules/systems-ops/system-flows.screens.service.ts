@@ -137,12 +137,12 @@ export class SystemFlowsScreensService {
     const consideradas = [...porCliente.entries()]
       .filter(([cliente]) => CLIENT_EVIDENCE[cliente] === 'ATLAS_BACKEND')
       .reduce((n, [, pantallas]) => n + pantallas.size, 0);
-    const todos = await this.repository.screenClients();
+    const conPuertaDeMenu = await this.repository.clientsWithMenuGates();
     return {
-      // La deriva se mide contra los endpoints de ESTE backend y lo que se llamó en sus logs. Las
-      // pantallas de clientes que declaran su origen a otro bloque no entran, y se dice: una lista
-      // vacía para ellas no significaría «sin deriva».
-      notMeasured: todos.filter((code) => CLIENT_EVIDENCE[code] !== 'ATLAS_BACKEND'),
+      // Clientes cuyo MENÚ filtra por permiso o rol y cuya deriva no mide este bloque: la deriva se calcula
+      // contra los endpoints y los logs de AtlasBackend. Un cliente sin puerta de menú no tiene deriva que
+      // medir, y listarlo aquí dejaba la compuerta en rojo por algo que no existe.
+      notMeasured: conPuertaDeMenu.filter((code) => CLIENT_EVIDENCE[code] !== 'ATLAS_BACKEND'),
       // El denominador, que en la primera versión era un booleano constante: sin él, un `[]` no se
       // distingue de «nadie ha abierto ninguna pantalla todavía».
       screensWithObservedEdges: consideradas,
