@@ -39,10 +39,10 @@ describe('DataNotebookCatalogService', () => {
 
   /** Responde la lista de vistas a la primera consulta y las columnas a las siguientes. */
   function conVistas(vistas: Array<{ table_name: string; has_tenant: boolean | null }>, columnas: string[] = []) {
-    select.mockImplementation(async (sql: string) => {
-      if ((sql as string).includes('information_schema.views')) return vistas as never;
-      return columnas.map((nombre) => ({ column_name: nombre, data_type: 'text' })) as never;
-    });
+    select.mockImplementation((async (sql: unknown) => {
+      if (String(sql).includes('information_schema.views')) return vistas;
+      return columnas.map((nombre) => ({ column_name: nombre, data_type: 'text' }));
+    }) as never);
   }
 
   describe('el catálogo se descubre', () => {
