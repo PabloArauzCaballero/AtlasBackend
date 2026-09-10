@@ -211,7 +211,37 @@ describe('SystemFlowsService.verify · bloques federados', () => {
     expect((repo.calls.applyVerification?.[0]?.[1] as { evidence: { source: string } }).evidence.source).toContain('decision_access_audit');
   });
 
-  it('un DENY del handler marca BROKEN, pero no se inventa un código HTTP', async () => {
+  const evidenciaDe = (repo: { calls: Record<string, unknown[][]> }) =>
+    (repo.calls.applyVerification?.[0]?.[1] as { evidence: { statuses: Record<string, number>; lastStatus: number | null } }).evidence;
+
+  it('un DENY con 5xx sí marca BROKEN', async () => {
+    const repo = repositoryDouble({ flows: [flowDelMotor] });
+    const federacion = federationDouble({
+      ok: true,
+      body: { resources: [{ resource: 'POST DecisionsController.run', decision: 'DENY', status: 500, count: 2, lastAt: null }] },
+    });
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo));
+    const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, 'token');
+    expect(result).toMatchObject({ verified: 0, broken: 1 });
+    expect(evidenciaDe(repo).statuses).toMatchObject({ 'DENY 500': 2 });
+  });
+
+  it('un DENY con 4xx NO es estar roto: el flujo rechazó, que es su trabajo', async () => {
+    // Medido el 2026-09-10 contra el Motor: un DENY con motivo «Version is not fully approved»
+    // —una regla de negocio haciendo lo suyo— marcaba BROKEN el despliegue de versiones.
+    const repo = repositoryDouble({ flows: [flowDelMotor] });
+    const federacion = federationDouble({
+      ok: true,
+      body: { resources: [{ resource: 'POST DecisionsController.run', decision: 'DENY', status: 400, count: 3, lastAt: null }] },
+    });
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo));
+    const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, 'token');
+    expect(result).toMatchObject({ verified: 1, broken: 0 });
+    expect(evidenciaDe(repo).statuses).toMatchObject({ 'DENY 400': 3 });
+    expect(evidenciaDe(repo).lastStatus).toBe(400);
+  });
+
+  it('un DENY SIN código es de antes de que el Motor lo guardara: cuenta como corrida y se deja a la vista', async () => {
     const repo = repositoryDouble({ flows: [flowDelMotor] });
     const federacion = federationDouble({
       ok: true,
@@ -219,12 +249,10 @@ describe('SystemFlowsService.verify · bloques federados', () => {
     });
     const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo));
     const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, 'token');
-    expect(result).toMatchObject({ verified: 0, broken: 1 });
-    const evidencia = (
-      repo.calls.applyVerification?.[0]?.[1] as { evidence: { statuses: Record<string, number>; lastStatus: number | null } }
-    ).evidence;
-    expect(evidencia.statuses).toMatchObject({ DENY: 2 });
-    expect(evidencia.lastStatus).toBeNull();
+    expect(result).toMatchObject({ verified: 1, broken: 0 });
+    // No se inventa un código: el DENY queda desnudo en la evidencia y `lastStatus` sigue nulo.
+    expect(evidenciaDe(repo).statuses).toMatchObject({ DENY: 2 });
+    expect(evidenciaDe(repo).lastStatus).toBeNull();
   });
 
   it('si el bloque no se puede alcanzar, sus flujos quedan saltados y se dice por qué', async () => {

@@ -56,7 +56,14 @@ export function catalogPathFromRouteTemplate(routeTemplate: string): string {
  * Una fila del resumen de accesos de otro bloque, tal como la federa (`GET /v1/audit/access-runs`).
  * `resource` es "MÉTODO Clase.handler" y `decision` es ALLOW/DENY del handler, no un código HTTP.
  */
-export type BlockAccessRun = { resource: string; decision: string; count: number; lastAt: string | Date | null };
+export type BlockAccessRun = {
+  resource: string;
+  decision: string;
+  /** Código HTTP con el que acabó. Nulo en las filas que el Motor guardó antes de anotarlo. */
+  status?: number | null;
+  count: number;
+  lastAt: string | Date | null;
+};
 
 /**
  * Índice por `MÉTODO Controller.handler`, que es como el bloque identifica sus accesos. El catálogo
@@ -67,10 +74,16 @@ export function indexBlockRuns(rows: readonly BlockAccessRun[]): Map<string, Rou
   const out = new Map<string, RouteRuns>();
   for (const row of rows) {
     const previo = out.get(row.resource) ?? { ok: 0, failed: 0, lastAt: null, lastStatus: null, statuses: {}, correlationSample: [] };
-    // ALLOW = el handler terminó; DENY = lanzó. No es un 5xx, y por eso no se inventa un estado.
-    const permitido = row.decision.toUpperCase() === 'ALLOW';
-    previo[permitido ? 'ok' : 'failed'] += row.count;
-    previo.statuses[row.decision] = (previo.statuses[row.decision] ?? 0) + row.count;
+    // ALLOW = el handler terminó; DENY = lanzó, y lanzar cubre desde un 400 de validación hasta un
+    // 500 de verdad. Sólo el 5xx es un fallo: contar todo DENY como fallo marcaba BROKEN flujos que
+    // hacían su trabajo (medido: un «Version is not fully approved» rompía el despliegue de
+    // versiones). Un DENY SIN código es de antes de que el Motor lo guardara: no se puede afirmar
+    // que reventó, así que cuenta como corrida y se deja el DENY a la vista en la evidencia.
+    const esFallo = (row.status ?? 0) >= 500;
+    previo[esFallo ? 'failed' : 'ok'] += row.count;
+    const etiqueta = row.status ? `${row.decision} ${row.status}` : row.decision;
+    previo.statuses[etiqueta] = (previo.statuses[etiqueta] ?? 0) + row.count;
+    if (row.status) previo.lastStatus = row.status;
     const fecha = row.lastAt ? new Date(row.lastAt) : null;
     if (fecha && (!previo.lastAt || fecha > previo.lastAt)) previo.lastAt = fecha;
     out.set(row.resource, previo);
