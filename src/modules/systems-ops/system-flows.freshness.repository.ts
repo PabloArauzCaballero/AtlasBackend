@@ -25,14 +25,14 @@ export class SystemFlowsFreshnessRepository {
    * Se compara la huella guardada con la que trae la recarga. Un flujo sin huella guardada no se
    * toca: significa «no consta», y suponerlo desactualizado inundaría el panel el primer día.
    *
-   * Devuelve cuántos cambiaron, que es el número que hace útil la recarga: dice qué parte del bloque
-   * se movió de verdad, en vez de «todo» como hacía la comparación por commit.
+   * Devuelve CUÁLES cambiaron. Su número es lo que hace útil la recarga —qué parte del bloque se movió
+   * de verdad—, y la lista es lo que devuelve a la cola de revisión lo que se aprobó sobre el código viejo.
    */
   async markStaleByDepsHash(
     systemCode: string,
     rows: ReadonlyArray<{ flowId: string; depsHash: string | null }>,
     tx: Transaction,
-  ): Promise<number> {
+  ): Promise<string[]> {
     const entrantes = new Map(rows.map((row) => [row.flowId, row.depsHash]));
     const guardados = await this.flows.findAll({
       where: { systemCode },
@@ -42,13 +42,13 @@ export class SystemFlowsFreshnessRepository {
     const cambiados = guardados
       .filter((fila) => fila.depsHash && entrantes.get(fila.flowId) && entrantes.get(fila.flowId) !== fila.depsHash)
       .map((fila) => fila.flowId);
-    if (!cambiados.length) return 0;
+    if (!cambiados.length) return [];
     // Se anota CUÁNDO cambió: sin eso, «desactualizado» no se puede apagar con criterio. Una corrida
     // anterior al cambio ejercitó el código viejo y no dice nada del nuevo.
     await this.flows.update(
       { freshness: 'STALE', depsChangedAt: new Date() },
       { where: { flowId: { [Op.in]: cambiados } }, transaction: tx },
     );
-    return cambiados.length;
+    return cambiados;
   }
 }

@@ -6,6 +6,8 @@
 import { Injectable } from '@nestjs/common';
 import { flowRowFor } from './system-flows.mapper.js';
 import { SystemFlowsFreshnessRepository } from './system-flows.freshness.repository.js';
+import { SystemFlowsReviewRepository } from './system-flows.review.repository.js';
+import { motivosDeRevision } from './system-flows.review.util.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
 import { findingKeyFor } from './system-flows.risk.util.js';
 import { ImportEndpointsDto, ImportFindingsDto, ImportScreensDto } from './system-flows.schemas.js';
@@ -15,6 +17,7 @@ export class SystemFlowsImportService {
   constructor(
     private readonly repository: SystemFlowsRepository,
     private readonly freshness: SystemFlowsFreshnessRepository,
+    private readonly review: SystemFlowsReviewRepository,
   ) {}
 
   importEndpoints(dto: ImportEndpointsDto, actor: string | null) {
@@ -43,11 +46,19 @@ export class SystemFlowsImportService {
       // La frescura se decide ANTES de escribir, comparando la huella guardada con la que trae la
       // recarga: después ya no se sabría cuál era la anterior. Un flujo cuyo código cambió desde que
       // se verificó pasa a STALE; el resto se queda como estaba, que es lo que hace útil el aviso.
-      const stale = await this.freshness.markStaleByDepsHash(dto.systemCode, rows, tx);
+      const cambiados = await this.freshness.markStaleByDepsHash(dto.systemCode, rows, tx);
       const result = await this.repository.replaceFlows(dto.systemCode, rows, tx);
+      // A revisión humana: riesgo alto con un análisis que no se puede dar por bueno solo. Sólo a los
+      // que nadie ha tocado; una decisión ya tomada no la pisa una recarga.
+      const needsReview = await this.review.markForReview(
+        rows.filter((row) => motivosDeRevision(row).length).map((row) => row.flowId),
+        tx,
+      );
+      // Y lo ya decidido cuyo código cambió vuelve a la cola: aprobar un flujo era aprobar ESE código.
+      const reopenedReviews = await this.review.reopen(cambiados, tx);
       await this.repository.recountFindings(dto.systemCode, tx);
       await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });
-      return { importId: record.id, ...result, stale };
+      return { importId: record.id, ...result, stale: cambiados.length, needsReview, reopenedReviews };
     });
   }
 

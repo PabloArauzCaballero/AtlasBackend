@@ -21,7 +21,7 @@ function build() {
       get: (_target, prop: string) => espia(prop),
     },
   ) as unknown as SystemFlowsService;
-  return { controller: new SystemFlowsController(service), llamadas };
+  return { controller: new SystemFlowsController(service, {} as never), llamadas };
 }
 
 const usuario = { sub: '7', role: 'system_admin' } as never;

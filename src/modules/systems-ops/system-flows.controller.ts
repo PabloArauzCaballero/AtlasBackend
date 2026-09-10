@@ -3,7 +3,7 @@
  * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
  * @system expone Flujos (Flow Intelligence): carga del artefacto derivado y consultas del explorador.
  */
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { AccessToken } from '../../common/decorators/access-token.decorator.js';
@@ -17,6 +17,9 @@ import { InternalPermissions } from '../internal-users/internal-permissions.deco
 import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
 import { SYSTEMS_OPS_GOVERNANCE_ROLES } from './systems-ops.constants.js';
 import { SystemFlowsService } from './system-flows.service.js';
+import { SystemFlowsReviewService } from './system-flows.review.service.js';
+import { flowReviewQueueSchema, type FlowReviewQueueDto } from './system-flows.review.schemas.js';
+import { reviewDecisionSchema, type ReviewDecisionDto } from './systems-ops.schemas.js';
 import {
   FindingsListQueryDto,
   findingsListQuerySchema,
@@ -69,7 +72,10 @@ import {
  * primero; eso hacía que el controlador dependiera de una configuración de otro fichero.
  */
 export class SystemFlowsController {
-  constructor(private readonly service: SystemFlowsService) {}
+  constructor(
+    private readonly service: SystemFlowsService,
+    private readonly review: SystemFlowsReviewService,
+  ) {}
 
   @ApiOperation({ summary: 'Resumen de Flujos: totales por riesgo, verificación, frescura y bloque' })
   @ApiResponse({ status: 200, description: 'Conteos para las tarjetas del explorador.' })
@@ -184,6 +190,19 @@ export class SystemFlowsController {
     return this.service.getFlowGraph(params.flowId);
   }
 
+  @ApiOperation({
+    summary: 'Cola de revisión humana de flujos',
+    description:
+      'Flujos de riesgo alto cuyo análisis no se puede dar por bueno solo (parcial, con huecos, con eventos de código dinámico), y los ya revisados cuyo código cambió desde la revisión.',
+  })
+  @ApiResponse({ status: 200, description: 'Flujos a revisar, con el motivo de cada uno.' })
+  @InternalPermissions('systems.flows.read')
+  // Antes que `flows/:flowId`: si no, «review-queue» se leería como un identificador de flujo.
+  @Get('flows/review-queue')
+  reviewQueue(@Query(new ZodValidationPipe(flowReviewQueueSchema)) query: FlowReviewQueueDto) {
+    return this.review.queue(query);
+  }
+
   @ApiOperation({ summary: 'Detalle de un flujo con sus hallazgos' })
   @ApiParam({ name: 'flowId', schema: zodToApiSchema(flowIdParamsSchema.shape.flowId) })
   @ApiResponse({ status: 200, description: 'Flujo.' })
@@ -236,5 +255,23 @@ export class SystemFlowsController {
   @Post('flows/import/findings')
   importFindings(@Body(new ZodValidationPipe(importFindingsSchema)) body: ImportFindingsDto, @CurrentUser() user: AuthenticatedUser) {
     return this.service.importFindings(body, actorId(user));
+  }
+
+  @ApiOperation({
+    summary: 'Revisar un flujo: aprobar, rechazar o devolver a revisión',
+    description: 'Queda la huella del código revisado: si cambia, el flujo vuelve a la cola en la siguiente recarga.',
+  })
+  @ApiParam({ name: 'flowId', schema: zodToApiSchema(flowIdParamsSchema.shape.flowId) })
+  @ApiBody({ schema: zodToApiSchema(reviewDecisionSchema) })
+  @ApiResponse({ status: 200, description: 'Decisión aplicada, con la huella del código sobre el que se tomó.' })
+  @ApiResponse({ status: 404, description: 'No existe el flujo.' })
+  @InternalPermissions('systems.flows.review')
+  @Patch('flows/:flowId/review')
+  reviewFlow(
+    @Param(new ZodValidationPipe(flowIdParamsSchema)) params: FlowIdParamsDto,
+    @Body(new ZodValidationPipe(reviewDecisionSchema)) body: ReviewDecisionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.review.review(params.flowId, body, { id: actorId(user), role: user.role, tenantId: user.tenantId ?? null });
   }
 }

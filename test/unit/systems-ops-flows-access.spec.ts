@@ -14,6 +14,7 @@ import { SystemFlowsController } from '../../src/modules/systems-ops/system-flow
 const reflector = new Reflector();
 
 const metodosDeLectura = [
+  'reviewQueue',
   'rbacDrift',
   'pendingWork',
   'summary',
@@ -42,6 +43,10 @@ describe('SystemFlowsController · el permiso fino que el catálogo promete', ()
     // Leer el mapa y REGENERARLO no son la misma autoridad: quien consulta no debería poder
     // reescribir el catálogo ni lanzar una verificación contra otro bloque.
     expect(permisoDe(metodo)).toEqual(['systems.flows.analyze']);
+  });
+
+  it('revisar un flujo exige systems.flows.review: ni quien sólo lee ni quien regenera deciden', () => {
+    expect(permisoDe('reviewFlow')).toEqual(['systems.flows.review']);
   });
 
   it('ningún método del controlador se queda sin permiso declarado', () => {

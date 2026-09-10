@@ -21,7 +21,9 @@ function repositoryDouble(): RepoDouble {
     transaction: (work: (tx: unknown) => Promise<unknown>) => work('tx'),
     createImport: spy('createImport', () => ({ id: '7', update: spy('importUpdate') })),
     // Devuelve 0 cambiados: lo que estas pruebas fijan es el orden y el contenido de la recarga.
-    markStaleByDepsHash: spy('markStaleByDepsHash', () => 0),
+    markStaleByDepsHash: spy('markStaleByDepsHash', () => []),
+    markForReview: spy('markForReview', (args) => (args[0] as unknown[]).length),
+    reopen: spy('reopen', (args) => (args[0] as unknown[]).length),
     replaceFlows: spy('replaceFlows', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
     replaceScreens: spy('replaceScreens', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
     replaceFindings: spy('replaceFindings', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
@@ -48,7 +50,7 @@ const endpoint = (over: Record<string, unknown> = {}) => ({
 describe('SystemFlowsImportService.importEndpoints', () => {
   it('registra la carga antes de escribir filas: el `importId` de las filas viene del import ya creado', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importEndpoints(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never).importEndpoints(
       { systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] as never },
       'pablo',
     );
@@ -59,7 +61,7 @@ describe('SystemFlowsImportService.importEndpoints', () => {
 
   it('recuenta los hallazgos tras recargar el bloque: si no, un flujo que ya no existe conservaría su contador viejo', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importEndpoints(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never).importEndpoints(
       { systemCode: 'ATLAS_BACKEND', endpoints: [] as never },
       null,
     );
@@ -77,17 +79,18 @@ describe('SystemFlowsImportService.importEndpoints', () => {
       (repo.calls.replaceFlows ??= []).push(args);
       return Promise.resolve({ upserted: 1, removed: 3 });
     };
-    const result = await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importEndpoints(
-      { systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] as never },
-      'pablo',
-    );
+    const result = await new SystemFlowsImportService(
+      repo as unknown as SystemFlowsRepository,
+      repo as never,
+      repo as never,
+    ).importEndpoints({ systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] as never }, 'pablo');
     expect(importUpdate).toHaveBeenCalledWith({ rowsUpserted: 1, rowsRemoved: 3 }, { transaction: 'tx' });
     expect(result).toMatchObject({ importId: '7', upserted: 1, removed: 3 });
   });
 
   it('cada endpoint recibe el mismo commit y rama de la carga, no uno por fila', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importEndpoints(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never).importEndpoints(
       {
         systemCode: 'ATLAS_BACKEND',
         analyzedCommit: 'abc1234',
@@ -105,7 +108,7 @@ describe('SystemFlowsImportService.importEndpoints', () => {
 describe('SystemFlowsImportService.importScreens', () => {
   it('mapea cada pantalla al bloque del cliente que la envía, no al de los flujos', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importScreens(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never).importScreens(
       { clientCode: 'ADMIN_PORTAL', screens: [{ route: '/internal/flows', navPermissions: [], navRoles: [] }] as never },
       'pablo',
     );
@@ -116,7 +119,7 @@ describe('SystemFlowsImportService.importScreens', () => {
 
   it('no recuenta hallazgos: las pantallas no los tienen y llamarlo ensuciaría un bloque que no es el de flujos', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importScreens(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never).importScreens(
       { clientCode: 'ADMIN_PORTAL', screens: [] as never },
       null,
     );
@@ -125,7 +128,7 @@ describe('SystemFlowsImportService.importScreens', () => {
 
   it('un archivo o etiqueta de navegación ausentes se guardan como null, no como cadena vacía', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importScreens(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never).importScreens(
       {
         clientCode: 'ADMIN_PORTAL',
         screens: [{ route: '/x', file: 'X.tsx', navLabel: 'X', navPermissions: ['p'], navRoles: ['ADMIN'] }] as never,
@@ -140,7 +143,7 @@ describe('SystemFlowsImportService.importScreens', () => {
 describe('SystemFlowsImportService.importFindings', () => {
   it('calcula la clave estable con `findingKeyFor`: la misma terna kind+systemCode+ref siempre produce la misma clave', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importFindings(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never).importFindings(
       {
         systemCode: 'ATLAS_BACKEND',
         findings: [
@@ -156,7 +159,7 @@ describe('SystemFlowsImportService.importFindings', () => {
 
   it('un hallazgo sin `extra` guarda un objeto vacío, no `undefined`', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importFindings(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never).importFindings(
       {
         systemCode: 'ATLAS_BACKEND',
         findings: [{ kind: 'k', severity: 'LOW', systemCode: 'ATLAS_BACKEND', ref: 'r', summary: 's' }] as never,
@@ -171,7 +174,7 @@ describe('SystemFlowsImportService.importFindings', () => {
 describe('SystemFlowsImportService · frescura por flujo', () => {
   it('la frescura se decide ANTES de escribir: después ya no se sabría cuál era la huella anterior', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importEndpoints(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never).importEndpoints(
       { systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] } as never,
       'pablo',
     );
@@ -181,11 +184,55 @@ describe('SystemFlowsImportService · frescura por flujo', () => {
 
   it('devuelve cuántos flujos quedaron desactualizados, que es lo que hace útil la recarga', async () => {
     const repo = repositoryDouble();
-    repo.markStaleByDepsHash = () => Promise.resolve(7);
-    const resultado = await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importEndpoints(
-      { systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] } as never,
+    repo.markStaleByDepsHash = () => Promise.resolve(['a', 'b', 'c', 'd', 'e', 'f', 'g']);
+    const resultado = await new SystemFlowsImportService(
+      repo as unknown as SystemFlowsRepository,
+      repo as never,
+      repo as never,
+    ).importEndpoints({ systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] } as never, null);
+    expect(resultado).toMatchObject({ stale: 7 });
+  });
+});
+
+describe('SystemFlowsImportService · revisión humana', () => {
+  const analisisIncierto = {
+    status: 'PARTIAL',
+    chain: [],
+    reads: [],
+    writes: [{ table: 'loans', op: 'INSERT', via: 'SEQUELIZE' }],
+    errors: [],
+    blockCalls: [],
+    events: [],
+    unknowns: [{ reason: 'MAX_DEPTH', at: 'a.ts:1' }],
+    transactional: false,
+  };
+
+  it('manda a revisión los flujos de riesgo alto con análisis incierto, y no los demás', async () => {
+    const repo = repositoryDouble();
+    const resultado = await new SystemFlowsImportService(
+      repo as unknown as SystemFlowsRepository,
+      repo as never,
+      repo as never,
+    ).importEndpoints(
+      {
+        systemCode: 'ATLAS_BACKEND',
+        endpoints: [endpoint({ method: 'POST', path: 'loans', module: 'loans', analysis: analisisIncierto }), endpoint()],
+      } as never,
       null,
     );
-    expect(resultado).toMatchObject({ stale: 7 });
+    expect(repo.calls.markForReview?.[0]?.[0]).toHaveLength(1);
+    expect(resultado).toMatchObject({ needsReview: 1 });
+  });
+
+  it('reabre la revisión de lo que cambió: aprobar un flujo era aprobar ESE código', async () => {
+    const repo = repositoryDouble();
+    repo.markStaleByDepsHash = () => Promise.resolve(['flow_cambiado']);
+    const resultado = await new SystemFlowsImportService(
+      repo as unknown as SystemFlowsRepository,
+      repo as never,
+      repo as never,
+    ).importEndpoints({ systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] } as never, null);
+    expect(repo.calls.reopen?.[0]?.[0]).toEqual(['flow_cambiado']);
+    expect(resultado).toMatchObject({ stale: 1, reopenedReviews: 1 });
   });
 });

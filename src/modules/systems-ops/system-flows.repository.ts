@@ -18,7 +18,11 @@ import { buildFlowsWhere, like } from './system-flows.where.util.js';
 import { RouteRuns } from './system-flows.verification.util.js';
 import { BUSINESS_FLOWS_SQL, RUNS_BY_ROUTE_SQL } from './system-flows.sql.constants.js';
 
-type FlowRow = Omit<SystemFlowCatalogModel['dataValues'], 'id' | 'createdAtValue' | 'updatedAtValue'>;
+// La recarga NUNCA escribe la revisión humana: esos campos son de quien revisa, no del análisis.
+type FlowRow = Omit<
+  SystemFlowCatalogModel['dataValues'],
+  'id' | 'createdAtValue' | 'updatedAtValue' | 'reviewStatus' | 'reviewConfidence' | 'reviewedAt' | 'reviewedBy' | 'reviewedDepsHash'
+>;
 type ScreenRow = Omit<SystemScreenCatalogModel['dataValues'], 'id' | 'createdAtValue' | 'updatedAtValue'>;
 type FindingRow = Omit<SystemFlowFindingModel['dataValues'], 'id' | 'createdAtValue' | 'updatedAtValue' | 'status'>;
 

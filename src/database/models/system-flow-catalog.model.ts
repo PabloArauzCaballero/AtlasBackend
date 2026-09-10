@@ -128,6 +128,28 @@ export class SystemFlowCatalogModel extends Model {
   @Column({ field: 'import_id', type: DataType.BIGINT })
   declare importId: string | null;
 
+  /**
+   * Revisión humana: AUTO_DETECTED (nadie la pidió), NEEDS_REVIEW, APPROVED o REJECTED.
+   *
+   * Sin `defaultValue` a propósito: el default vive en la base. La recarga hace `upsert`, y un default
+   * del modelo viajaría en cada fila y pisaría las decisiones ya tomadas.
+   */
+  @Column({ field: 'review_status', type: DataType.STRING(20) })
+  declare reviewStatus: string;
+
+  @Column({ field: 'review_confidence', type: DataType.STRING(10) })
+  declare reviewConfidence: string | null;
+
+  @Column({ field: 'reviewed_at', type: DataType.DATE })
+  declare reviewedAt: Date | null;
+
+  @Column({ field: 'reviewed_by', type: DataType.STRING(120) })
+  declare reviewedBy: string | null;
+
+  /** Huella del código que se revisó: si cambia, la revisión deja de valer y el flujo vuelve a la cola. */
+  @Column({ field: 'reviewed_deps_hash', type: DataType.STRING(32) })
+  declare reviewedDepsHash: string | null;
+
   @Column({ field: '_created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 
