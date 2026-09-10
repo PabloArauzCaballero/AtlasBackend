@@ -52,7 +52,8 @@ function repositoryDouble(over: Partial<{ runs: Map<string, unknown>; flows: Arr
 }
 
 /** El servicio pide una federación y un importador; ninguna prueba de aquí los ejercita. */
-const federationDouble = () => ({ fetchFromBlock: async () => ({ ok: false, status: 'NOT_CONFIGURED', message: 'no aplica' }) }) as never;
+const federationDouble = (result?: unknown) =>
+  ({ fetchFromBlock: async () => result ?? { ok: false, status: 'NOT_CONFIGURED', message: 'no aplica' } }) as never;
 const importDouble = (repo: unknown) => new SystemFlowsImportService(repo as never);
 
 const flow = (over: Record<string, unknown> = {}) => ({
@@ -178,5 +179,173 @@ describe('SystemFlowsService.getFlow', () => {
         includeRoles: false,
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe('SystemFlowsService.verify · bloques federados', () => {
+  const flowDelMotor = {
+    flowId: 'flow_000000000009',
+    httpMethod: 'POST',
+    path: 'v1/decisions/:p',
+    controller: 'DecisionsController',
+    handler: 'run',
+    analyzedCommit: null,
+    freshness: 'FRESH',
+  };
+
+  it('verifica el Motor cruzando por controller y handler, que es lo que su auditoría registra', async () => {
+    const repo = repositoryDouble({ flows: [flowDelMotor] });
+    const federacion = federationDouble({
+      ok: true,
+      body: { resources: [{ resource: 'POST DecisionsController.run', decision: 'ALLOW', count: 4, lastAt: '2026-09-09T10:00:00Z' }] },
+    });
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo));
+    const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, 'pablo', 'token');
+    expect(result).toMatchObject({ verified: 1, broken: 0, skippedNoLogs: 0, federation: { ok: true } });
+    // La evidencia dice de dónde salió: nadie debe creer que esto vino de system_action_logs.
+    expect((repo.calls.applyVerification?.[0]?.[1] as { evidence: { source: string } }).evidence.source).toContain('decision_access_audit');
+  });
+
+  it('un DENY del handler marca BROKEN, pero no se inventa un código HTTP', async () => {
+    const repo = repositoryDouble({ flows: [flowDelMotor] });
+    const federacion = federationDouble({
+      ok: true,
+      body: { resources: [{ resource: 'POST DecisionsController.run', decision: 'DENY', count: 2, lastAt: null }] },
+    });
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo));
+    const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, 'token');
+    expect(result).toMatchObject({ verified: 0, broken: 1 });
+    const evidencia = (
+      repo.calls.applyVerification?.[0]?.[1] as { evidence: { statuses: Record<string, number>; lastStatus: number | null } }
+    ).evidence;
+    expect(evidencia.statuses).toMatchObject({ DENY: 2 });
+    expect(evidencia.lastStatus).toBeNull();
+  });
+
+  it('si el bloque no se puede alcanzar, sus flujos quedan saltados y se dice por qué', async () => {
+    const repo = repositoryDouble({ flows: [flowDelMotor, { ...flowDelMotor, flowId: 'flow_000000000010' }] });
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo));
+    const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, null);
+    expect(result).toMatchObject({ skippedNoLogs: 2, verified: 0, broken: 0, federation: { ok: false } });
+    expect(repo.calls.applyVerification).toBeUndefined();
+  });
+
+  it('un bloque que no publica evidencia no se intenta federar siquiera', async () => {
+    const repo = repositoryDouble({ flows: [flowDelMotor] });
+    const service = new SystemFlowsService(
+      repo as unknown as SystemFlowsRepository,
+      federationDouble({ ok: true, body: { resources: [] } }),
+      importDouble(repo),
+    );
+    const result = await service.verify({ systemCode: 'ERP_BACKEND', windowDays: 30 }, null, 'token');
+    expect(result).toMatchObject({ skippedNoLogs: 1 });
+    expect((result as { federation?: { message?: string } }).federation?.message).toContain('no publica evidencia');
+  });
+});
+
+describe('SystemFlowsService · delegación de consultas', () => {
+  /**
+   * Los métodos de consulta son de una línea, y precisamente por eso un cruce entre dos que
+   * devuelven listas parecidas —pantallas y hallazgos, por ejemplo— compila, responde 200 y
+   * enseña los datos equivocados sin un solo error. Se comprueba que cada uno llama al suyo.
+   */
+  it.each([
+    ['listFlows', 'listFlows', { page: 1, limit: 20 }],
+    ['listScreens', 'listScreens', { page: 1, limit: 20 }],
+    ['listFindings', 'listFindings', { page: 1, limit: 20 }],
+  ])('%s pasa su consulta al repositorio', async (metodo, esperado, query) => {
+    const repo = repositoryDouble();
+    repo[esperado] = (...args: unknown[]) => {
+      (repo.calls[esperado] ??= []).push(args);
+      return Promise.resolve({ rows: [], meta: {} });
+    };
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo));
+    await (service as unknown as Record<string, (q: unknown) => Promise<unknown>>)[metodo](query);
+    expect(repo.calls[esperado]?.[0]?.[0]).toBe(query);
+  });
+
+  it.each(['summary', 'modules'])('%s delega sin transformar', (metodo) => {
+    const repo = repositoryDouble();
+    repo[metodo] = (...args: unknown[]) => {
+      (repo.calls[metodo] ??= []).push(args);
+      return Promise.resolve({ ok: true });
+    };
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo));
+    void (service as unknown as Record<string, () => unknown>)[metodo]();
+    expect(repo.calls[metodo]).toHaveLength(1);
+  });
+
+  it('imports devuelve las cargas con su commit y quién las hizo, no el modelo crudo', async () => {
+    const repo = repositoryDouble();
+    repo.latestImports = () =>
+      Promise.resolve([
+        {
+          id: '3',
+          scope: 'endpoints',
+          systemCode: 'ATLAS_BACKEND',
+          analyzedCommit: 'abc1234',
+          analyzedBranch: 'dev',
+          contentHash: 'h',
+          rowsReceived: 10,
+          rowsUpserted: 10,
+          rowsRemoved: 0,
+          createdBy: 'pablo',
+          createdAtValue: new Date('2026-09-09T00:00:00Z'),
+        },
+      ]);
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo));
+    const result = await service.imports();
+    expect(result[0]).toMatchObject({ id: '3', analyzedCommit: 'abc1234', createdBy: 'pablo' });
+    expect(result[0]).toHaveProperty('createdAt');
+    expect(result[0]).not.toHaveProperty('createdAtValue');
+  });
+
+  it('businessFlows agrupa los pasos por proceso y cuenta los que no enlazan con un flujo', async () => {
+    const repo = repositoryDouble();
+    repo.businessFlows = () =>
+      Promise.resolve([
+        {
+          workflow_code: 'alta',
+          workflow_name: 'Alta',
+          version: 'v1',
+          stage_code: 'A',
+          step_code: 's1',
+          step_name: 'Uno',
+          execution_order: 1,
+          http_method: 'POST',
+          route_path: '/x',
+          is_mandatory: true,
+          requires_auth: true,
+          requires_idempotency_key: false,
+          flow_id: 'flow_000000000001',
+          risk: 'CRITICAL',
+          verification: 'VERIFIED',
+          test_status: 'TESTED',
+          module: 'auth',
+        },
+        {
+          workflow_code: 'alta',
+          workflow_name: 'Alta',
+          version: 'v1',
+          stage_code: 'A',
+          step_code: 's2',
+          step_name: 'Dos',
+          execution_order: 2,
+          http_method: 'GET',
+          route_path: '/y',
+          is_mandatory: false,
+          requires_auth: true,
+          requires_idempotency_key: false,
+          flow_id: null,
+          risk: null,
+          verification: null,
+          test_status: null,
+          module: null,
+        },
+      ]);
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federationDouble(), importDouble(repo));
+    const result = await service.businessFlows();
+    expect(result.totals).toEqual({ processes: 1, steps: 2, unlinked: 1 });
+    expect(result.processes[0]).toMatchObject({ workflowCode: 'alta', stepCount: 2, linked: 1, unlinked: 1, verified: 1, critical: 1 });
   });
 });
