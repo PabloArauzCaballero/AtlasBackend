@@ -93,6 +93,24 @@ export class SystemFlowsController {
    * Lectura, no análisis: no recalcula el catálogo, cruza lo que ya hay. Por eso `read` y no
    * `analyze`.
    */
+  /**
+   * Lo que cada flujo deja encargado al terminar de responder, y si alguien lo recoge.
+   *
+   * El mapa acababa en el endpoint: un flujo que encola un correo o un recálculo parecía terminar
+   * ahí. Esto lo cruza con los eventos que de verdad se escribieron.
+   */
+  @ApiOperation({ summary: 'Trabajo que los flujos dejan encargado, y si alguien lo recoge' })
+  @ApiResponse({
+    status: 200,
+    description: 'Eventos escritos por cada flujo en la ventana, con cuántos siguen sin recogerse.',
+  })
+  @InternalPermissions('systems.flows.read')
+  @Get('flows/pending-work')
+  pendingWork(@Query('windowDays') windowDays?: string) {
+    const dias = Number(windowDays ?? 30);
+    return this.service.pendingWork(Number.isFinite(dias) && dias > 0 && dias <= 365 ? Math.trunc(dias) : 30);
+  }
+
   @ApiOperation({ summary: 'Pantallas cuya puerta declarada no es la que aplica la API' })
   @ApiResponse({
     status: 200,

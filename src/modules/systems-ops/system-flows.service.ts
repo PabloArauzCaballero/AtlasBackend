@@ -19,6 +19,7 @@ import { buildFlowGraph, buildModuleGraph } from './system-flows.graph.util.js';
 import { mapFinding, mapFlow, mapScreen } from './system-flows.mapper.js';
 import { SystemFlowsImportService } from './system-flows.import.service.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
+import { SystemFlowsAsyncService } from './system-flows.async.service.js';
 import { SystemFlowsScreensService } from './system-flows.screens.service.js';
 import {
   FindingsListQueryDto,
@@ -81,6 +82,7 @@ export class SystemFlowsService {
     private readonly federation: PlatformCatalogFederationClient,
     private readonly imports_: SystemFlowsImportService,
     private readonly screensService: SystemFlowsScreensService,
+    private readonly asyncService: SystemFlowsAsyncService,
   ) {}
 
   importEndpoints(dto: ImportEndpointsDto, actor: string | null) {
@@ -243,6 +245,11 @@ export class SystemFlowsService {
     const result = await this.federation.fetchFromBlock(dto.systemCode, callerToken, fuente.path(dto.windowDays));
     if (!result.ok) return { ok: false, message: result.message ?? 'No se pudo pedir el resumen de accesos.', runs: new Map() };
     return { ok: true, message: undefined, runs: fuente.index((result as { body?: unknown }).body) };
+  }
+
+  /** Qué deja encargado cada flujo y si alguien lo recoge. Ver el servicio. */
+  pendingWork(windowDays?: number) {
+    return this.asyncService.pendingWork(windowDays);
   }
 
   /** Pantallas protegidas por permiso cuyos endpoints no exigen ninguno. Ver el servicio. */

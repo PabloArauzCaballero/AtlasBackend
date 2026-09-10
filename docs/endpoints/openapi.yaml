@@ -24783,6 +24783,40 @@ paths:
         flujo
       tags:
         - systems-ops
+  /systems/flows/pending-work:
+    get:
+      operationId: SystemFlowsController_pendingWork
+      parameters:
+        - name: windowDays
+          required: true
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: >-
+            Eventos escritos por cada flujo en la ventana, con cuántos siguen
+            sin recogerse.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Trabajo que los flujos dejan encargado, y si alguien lo recoge
+      tags:
+        - systems-ops
   /systems/flows/rbac-drift:
     get:
       operationId: SystemFlowsController_rbacDrift

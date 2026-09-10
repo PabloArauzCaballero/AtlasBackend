@@ -15,6 +15,7 @@ const reflector = new Reflector();
 
 const metodosDeLectura = [
   'rbacDrift',
+  'pendingWork',
   'summary',
   'businessFlows',
   'modules',

@@ -140,6 +140,42 @@ export const RBAC_DRIFT_SQL = `WITH llamadas AS (
         LIMIT 5000`;
 
 /**
+ * Lo que cada flujo deja PENDIENTE cuando termina de responder.
+ *
+ * ## El hueco que cierra
+ *
+ * El mapa acababa en el endpoint. Un flujo que encola algo —un correo, una notificación, un
+ * recálculo— parecía terminar ahí, y no termina: deja trabajo que alguien tiene que recoger después.
+ * `event_definitions` está vacío en esta base, así que el catálogo no sirve como fuente; lo que sí
+ * existe son los eventos REALES que se escribieron, con su `correlation_id`.
+ *
+ * ## Por qué se cruza por correlación y no por tabla
+ *
+ * El análisis estático ya dice que un flujo escribe en `outbox_events`; eso es la mitad de la
+ * historia. Lo que no puede decir es QUÉ evento dejó y si alguien lo recogió. `correlation_id` une
+ * la petición con lo que dejó escrito, y ese id lo escribe el mismo request. Medido: los 447 eventos
+ * de esta base cruzan con su petición.
+ *
+ * `pending_since` es la fecha del pendiente MÁS ANTIGUO, no la del último: la pregunta útil no es
+ * «¿hay pendientes?» sino «¿cuánto llevan sin recogerse?».
+ */
+export const PENDING_WORK_SQL = `SELECT l.method,
+              regexp_replace(regexp_replace(l.route_template, '^/?(api/v1|api|v1)/', ''), ':[A-Za-z_][A-Za-z0-9_]*', ':p', 'g') AS path,
+              COUNT(*)                                                        AS events,
+              COUNT(*) FILTER (WHERE o.status = 'pending')                    AS pending,
+              COUNT(*) FILTER (WHERE o.status = 'processed')                  AS processed,
+              COUNT(*) FILTER (WHERE o.status NOT IN ('pending', 'processed')) AS other,
+              MIN(o._created_at) FILTER (WHERE o.status = 'pending')          AS pending_since,
+              (array_agg(DISTINCT o.event_code))[1:5]                          AS codes
+         FROM ${LOGS}.outbox_events o
+         JOIN ${LOGS}.system_action_logs l ON l.correlation_id = o.correlation_id
+        WHERE l.route_template IS NOT NULL
+          AND o._created_at >= NOW() - (:windowDays || ' days')::interval
+        GROUP BY 1, 2
+        ORDER BY COUNT(*) FILTER (WHERE o.status = 'pending') DESC, 1, 2
+        LIMIT 500`;
+
+/**
  * Los pasos de los procesos activos del `workflow-catalog`, cada uno con el flujo que lo implementa.
  * `LEFT JOIN` a propósito: un paso sin flujo es un paso declarado sobre una ruta que ya no existe,
  * y esconderlo con un JOIN interno sería perder justo el hallazgo. La ruta se normaliza igual que en
