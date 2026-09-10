@@ -24783,9 +24783,9 @@ paths:
         flujo
       tags:
         - systems-ops
-  /systems/flows/modules:
+  /systems/flows/rbac-drift:
     get:
-      operationId: SystemFlowsController_modules
+      operationId: SystemFlowsController_rbacDrift
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -24808,6 +24808,32 @@ paths:
       security:
         - access-token: []
       summary: Módulos con flujos, por bloque
+      tags:
+        - systems-ops
+  /systems/flows/modules:
+    get:
+      operationId: SystemFlowsController_modules
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
       tags:
         - systems-ops
   /systems/flows:
@@ -25308,6 +25334,9 @@ paths:
                           transactional:
                             default: false
                             type: boolean
+                          depsHash:
+                            type: string
+                            maxLength: 32
                         required:
                           - status
                           - chain

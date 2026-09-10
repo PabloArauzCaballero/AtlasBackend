@@ -7,6 +7,7 @@ import { atlasSchemaFor } from '../../database/domain-schemas.js';
 
 const LOGS = atlasSchemaFor('system_action_logs');
 const FLOWS = atlasSchemaFor('system_flow_catalog');
+const SCREENS = atlasSchemaFor('system_screen_catalog');
 const WORKFLOW = atlasSchemaFor('workflow_definitions');
 
 /**
@@ -83,6 +84,43 @@ export const SCREEN_RUNS_SQL = `WITH runs AS (
         -- qué se corta cambia entre corridas y una pantalla aparecería usada un día y no al siguiente.
         ORDER BY SUM(calls) DESC, screen ASC, client ASC
         LIMIT ${SCREEN_RUNS_LIMIT}`;
+
+/**
+ * Pantallas cuyo MENÚ exige un permiso y que llaman a endpoints que no exigen ninguno.
+ *
+ * ## Por qué esto es un hallazgo y no una curiosidad
+ *
+ * Es exactamente el fallo que se corrigió a mano el 2026-09-10 en el propio módulo de Flujos: el
+ * permiso existía, estaba sembrado, el menú lo usaba para decidir si enseñar la sección… y el
+ * backend no lo exigía. Esconder una pantalla no protege sus datos —quien sabe la ruta de la API
+ * entra igual—, y el catálogo de RBAC dice lo contrario. La pregunta que contesta esto es «¿de qué
+ * otras pantallas es verdad lo mismo?».
+ *
+ * ## Por qué se cruza con aristas OBSERVADAS
+ *
+ * La arista pantalla→endpoint derivada del AST no existe: las llamadas viven en servicios
+ * compartidos, no en el fichero de la página. Lo que sí existe desde la ola 9 es lo que de verdad se
+ * llamó desde cada pantalla. Así que este detector sólo opina de pantallas que alguien ha usado, y
+ * lo dice: sobre las demás no se afirma nada, en vez de inventar una arista plausible.
+ */
+export const RBAC_DRIFT_SQL = `WITH llamadas AS (
+         SELECT s.client_code,
+                s.route,
+                s.nav_permissions,
+                r->>'method' AS method,
+                r->>'path'   AS path
+           FROM ${SCREENS}.system_screen_catalog s
+           CROSS JOIN LATERAL jsonb_array_elements(COALESCE(s.observed_json->'routes', '[]'::jsonb)) AS r
+          WHERE s.verification = 'VERIFIED'
+            AND jsonb_array_length(s.nav_permissions) > 0
+       )
+       SELECT l.client_code, l.route, l.nav_permissions, l.method, l.path,
+              f.flow_id, f.internal_permissions, f.roles, f.is_public
+         FROM llamadas l
+         JOIN ${FLOWS}.system_flow_catalog f
+           ON f.http_method = l.method AND f.path = l.path
+        WHERE jsonb_array_length(f.internal_permissions) = 0
+        ORDER BY l.client_code, l.route, l.method, l.path`;
 
 /**
  * Los pasos de los procesos activos del `workflow-catalog`, cada uno con el flujo que lo implementa.

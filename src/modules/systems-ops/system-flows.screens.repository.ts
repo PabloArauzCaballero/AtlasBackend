@@ -7,7 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, QueryTypes, Transaction } from 'sequelize';
 import { SystemScreenCatalogModel } from '../../database/models/system-screen-catalog.model.js';
-import { SCREEN_RUNS_LIMIT, SCREEN_RUNS_SQL } from './system-flows.sql.constants.js';
+import { RBAC_DRIFT_SQL, SCREEN_RUNS_LIMIT, SCREEN_RUNS_SQL } from './system-flows.sql.constants.js';
 
 /** Cubeta del tráfico que no declaró cliente. No se atribuye a nadie: se cuenta aparte. */
 export const SIN_CLIENTE = '(sin cliente)';
@@ -108,6 +108,28 @@ export class SystemFlowsScreensRepository {
       },
     );
     return afectadas;
+  }
+
+  /**
+   * Pantallas protegidas por permiso que llaman a endpoints sin permiso, cruzando aristas OBSERVADAS.
+   *
+   * Sólo se opina de lo que alguien ha usado de verdad: la arista pantalla→endpoint derivada del AST
+   * no existe (las llamadas viven en servicios compartidos, no en el fichero de la página), y
+   * inventarla daría hallazgos plausibles sobre relaciones que quizá no ocurren.
+   */
+  rbacDrift(): Promise<
+    Array<{
+      client_code: string;
+      route: string;
+      nav_permissions: string[];
+      method: string;
+      path: string;
+      flow_id: string;
+      roles: string[];
+      is_public: boolean;
+    }>
+  > {
+    return this.screens.sequelize!.query(RBAC_DRIFT_SQL, { type: QueryTypes.SELECT });
   }
 
   /** Los códigos de cliente que hay en el catálogo de pantallas  /** Los códigos de cliente que hay en el catálogo de pantallas, sin suponer cuáles son. */

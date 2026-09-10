@@ -89,6 +89,18 @@ export class SystemFlowsController {
 
   @ApiOperation({ summary: 'Módulos con flujos, por bloque' })
   @ApiResponse({ status: 200, description: 'Lista de (bloque, módulo, cantidad).' })
+  /**
+   * Deriva de RBAC: pantallas que el menú protege y cuyos endpoints no exigen permiso.
+   *
+   * Lectura, no análisis: no recalcula el catálogo, cruza lo que ya hay. Por eso `read` y no
+   * `analyze`.
+   */
+  @InternalPermissions('systems.flows.read')
+  @Get('flows/rbac-drift')
+  rbacDrift() {
+    return this.service.rbacDrift();
+  }
+
   @InternalPermissions('systems.flows.read')
   @Get('flows/modules')
   modules() {

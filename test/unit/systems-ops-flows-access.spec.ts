@@ -14,6 +14,7 @@ import { SystemFlowsController } from '../../src/modules/systems-ops/system-flow
 const reflector = new Reflector();
 
 const metodosDeLectura = [
+  'rbacDrift',
   'summary',
   'businessFlows',
   'modules',

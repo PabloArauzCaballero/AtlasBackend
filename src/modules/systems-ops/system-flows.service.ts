@@ -245,6 +245,11 @@ export class SystemFlowsService {
     return { ok: true, message: undefined, runs: fuente.index((result as { body?: unknown }).body) };
   }
 
+  /** Pantallas protegidas por permiso cuyos endpoints no exigen ninguno. Ver el servicio. */
+  rbacDrift() {
+    return this.screensService.rbacDrift();
+  }
+
   summary() {
     return this.repository.summary();
   }

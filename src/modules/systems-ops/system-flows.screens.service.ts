@@ -76,4 +76,43 @@ export class SystemFlowsScreensService {
       uncatalogued: sinCatalogar.slice(0, 20),
     };
   }
+
+  /**
+   * Pantallas que el menú protege con un permiso y cuyos endpoints no exigen ninguno.
+   *
+   * Es el fallo que se corrigió a mano en el propio módulo de Flujos el 2026-09-10: el permiso
+   * existía, el menú lo usaba para decidir si enseñar la sección y el backend no lo exigía. Esconder
+   * una pantalla no protege sus datos —quien sabe la ruta de la API entra igual— y el catálogo de
+   * RBAC afirmaba lo contrario. Esto contesta «¿de qué otras pantallas es verdad lo mismo?».
+   *
+   * `PUBLIC` se separa de `SIN_PERMISO` porque son dos conversaciones distintas: lo primero es una
+   * decisión declarada que puede estar bien (un login, un webhook) y lo segundo es un olvido.
+   */
+  async rbacDrift() {
+    const filas = await this.repository.rbacDrift();
+    const porPantalla = new Map<string, { clientCode: string; route: string; navPermissions: string[]; calls: unknown[] }>();
+    for (const fila of filas) {
+      const clave = `${fila.client_code} ${fila.route}`;
+      const entrada = porPantalla.get(clave) ?? {
+        clientCode: fila.client_code,
+        route: fila.route,
+        navPermissions: fila.nav_permissions,
+        calls: [],
+      };
+      entrada.calls.push({
+        flowId: fila.flow_id,
+        method: fila.method,
+        path: fila.path,
+        severity: fila.is_public ? 'PUBLIC' : 'SIN_PERMISO',
+        roles: fila.roles,
+      });
+      porPantalla.set(clave, entrada);
+    }
+    return {
+      // Se dice sobre cuántas se pudo opinar: el detector sólo mira aristas OBSERVADAS, así que un
+      // cero puede significar «no hay deriva» o «nadie ha usado esas pantallas todavía».
+      basedOnObservedEdges: true,
+      screens: [...porPantalla.values()],
+    };
+  }
 }

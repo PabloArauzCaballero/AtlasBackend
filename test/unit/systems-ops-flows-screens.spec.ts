@@ -1,3 +1,4 @@
+import { SystemFlowsScreensService } from '../../src/modules/systems-ops/system-flows.screens.service.js';
 import { matchScreenRuns, screenVerificationFrom, type ScreenRuns } from '../../src/modules/systems-ops/system-flows.verification.util.js';
 
 /**
@@ -120,5 +121,54 @@ describe('el desenlace de una pantalla que dejó de usarse', () => {
   it('la función que escribe el desenlace positivo no se usa para degradar', () => {
     expect(screenVerificationFrom(null)).toBeNull();
     expect(screenVerificationFrom({ calls: 0, failed: 0, lastAt: null, routes: [] })).toBeNull();
+  });
+});
+
+describe('SystemFlowsScreensService.rbacDrift', () => {
+  /**
+   * Es el fallo que se corrigió a mano en este mismo módulo el 2026-09-10: el permiso existía, el
+   * menú lo usaba para decidir si enseñar la sección y el backend no lo exigía. Esconder una
+   * pantalla no protege sus datos —quien sabe la ruta de la API entra igual— y el catálogo de RBAC
+   * afirmaba lo contrario. Esto contesta de qué otras pantallas es verdad lo mismo.
+   */
+  const deriva = (filas: unknown[]) => new SystemFlowsScreensService({ rbacDrift: async () => filas } as never).rbacDrift();
+
+  it('agrupa por pantalla y separa lo público de lo simplemente desprotegido', async () => {
+    const { screens } = await deriva([
+      {
+        client_code: 'ADMIN_PORTAL',
+        route: '/internal/flows',
+        nav_permissions: ['systems.flows.read'],
+        method: 'GET',
+        path: 'systems/flows',
+        flow_id: 'flow_1',
+        roles: ['system_admin'],
+        is_public: false,
+      },
+      {
+        client_code: 'ADMIN_PORTAL',
+        route: '/internal/flows',
+        nav_permissions: ['systems.flows.read'],
+        method: 'GET',
+        path: 'auth/me',
+        flow_id: 'flow_2',
+        roles: [],
+        is_public: true,
+      },
+    ]);
+
+    expect(screens).toHaveLength(1);
+    expect(screens[0]).toMatchObject({ clientCode: 'ADMIN_PORTAL', route: '/internal/flows' });
+    // `PUBLIC` es una decisión declarada que puede estar bien —un login, un webhook—; `SIN_PERMISO`
+    // es un olvido. Meterlos en el mismo saco haría que se ignoraran los dos.
+    expect(screens[0].calls).toEqual([
+      expect.objectContaining({ path: 'systems/flows', severity: 'SIN_PERMISO' }),
+      expect.objectContaining({ path: 'auth/me', severity: 'PUBLIC' }),
+    ]);
+  });
+
+  it('declara que sólo mira aristas observadas: un cero no significa «no hay deriva»', async () => {
+    const resultado = await deriva([]);
+    expect(resultado).toMatchObject({ basedOnObservedEdges: true, screens: [] });
   });
 });
