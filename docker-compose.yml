@@ -206,6 +206,12 @@ x-atlas-env: &atlas-env
   ERP_BACKEND_BASE_URL: ${ERP_BACKEND_BASE_URL:-http://host.docker.internal:3007}
   ERP_BACKEND_CATALOG_API_KEY: ${ERP_BACKEND_CATALOG_API_KEY:-}
 
+  # Tableros no publica manifiesto de catálogo: lo único que federa es su resumen de accesos, que es
+  # lo que Flujos necesita para verificar sus flujos contra ejecución real. Sin dirección o sin
+  # llave, Flujos lo declara «sin evidencia» y cuenta sus flujos como saltados —un hueco visible—.
+  DASHBOARDS_BASE_URL: ${DASHBOARDS_BASE_URL:-}
+  DASHBOARDS_CATALOG_API_KEY: ${DASHBOARDS_CATALOG_API_KEY:-}
+
   # Visor de logs (`GET /systems/logs/mongo`) y sincronización de `Archivo.log` hacia MongoDB.
   #
   # El servicio `mongo` del perfil `logs` existía desde hace tiempo, pero esta variable NO se pasaba
