@@ -86,41 +86,58 @@ export const SCREEN_RUNS_SQL = `WITH runs AS (
         LIMIT ${SCREEN_RUNS_LIMIT}`;
 
 /**
- * Pantallas cuyo MENÚ exige un permiso y que llaman a endpoints que no exigen ninguno.
+ * Pantallas cuya puerta declarada en el menú NO es la que aplica la API.
  *
- * ## Por qué esto es un hallazgo y no una curiosidad
+ * ## La pregunta, con la corrección que costó una primera versión inútil
  *
- * Es exactamente el fallo que se corrigió a mano el 2026-09-10 en el propio módulo de Flujos: el
- * permiso existía, estaba sembrado, el menú lo usaba para decidir si enseñar la sección… y el
- * backend no lo exigía. Esconder una pantalla no protege sus datos —quien sabe la ruta de la API
- * entra igual—, y el catálogo de RBAC dice lo contrario. La pregunta que contesta esto es «¿de qué
- * otras pantallas es verdad lo mismo?».
+ * La primera versión preguntaba «¿el endpoint tiene permiso fino?», y eso no es lo mismo que «¿está
+ * protegido?». `RolesGuard` es global y `@Roles(...)` deniega igual: de los 1 029 flujos del
+ * catálogo, 995 no tienen permiso fino pero **914 sí tienen roles**. Es decir, el 92 % de lo que
+ * aquel detector podía emitir era falso —y el único candidato que produjo con tráfico real lo era—.
+ * Una lista donde casi todo es ruido es una lista que nadie lee, que es el fallo que este proyecto
+ * lleva persiguiendo desde la ola 12.
  *
- * ## Por qué se cruza con aristas OBSERVADAS
+ * Ahora se distinguen tres desenlaces, y sólo el primero es una avería:
  *
- * La arista pantalla→endpoint derivada del AST no existe: las llamadas viven en servicios
- * compartidos, no en el fichero de la página. Lo que sí existe desde la ola 9 es lo que de verdad se
- * llamó desde cada pantalla. Así que este detector sólo opina de pantallas que alguien ha usado, y
- * lo dice: sobre las demás no se afirma nada, en vez de inventar una arista plausible.
+ * - `SIN_GUARDA`: ni permiso, ni roles, ni `@Public`. La ruta la puede llamar cualquiera con sesión,
+ *   y el menú promete que hace falta un permiso. Hoy son 29 flujos en todo el catálogo.
+ * - `PUBLIC`: `@Public` declarado. Puede estar perfectamente bien —un login, un webhook— y por eso
+ *   no se mezcla con lo anterior: en el mismo saco se ignorarían los dos.
+ * - `SOLO_ROL`: la API exige roles pero no el permiso que el menú declara. No está abierta; es OTRA
+ *   puerta. Quien tenga el rol y no el permiso no ve la pantalla y sí puede llamar a la ruta.
+ *
+ * ## Por qué el JOIN se ata a ATLAS_BACKEND
+ *
+ * No es una aproximación: las aristas observadas salen de `system_action_logs`, que sólo registra lo
+ * que llega a ESTE backend. Sin esa condición el JOIN cruzaba por (método, ruta) contra los cuatro
+ * bloques —45 pares están duplicados entre sistemas— y atribuía a una pantalla endpoints de un
+ * backend que nunca tocó.
  */
 export const RBAC_DRIFT_SQL = `WITH llamadas AS (
          SELECT s.client_code,
                 s.route,
                 s.nav_permissions,
+                s.nav_roles,
                 r->>'method' AS method,
                 r->>'path'   AS path
            FROM ${SCREENS}.system_screen_catalog s
-           CROSS JOIN LATERAL jsonb_array_elements(COALESCE(s.observed_json->'routes', '[]'::jsonb)) AS r
+           CROSS JOIN LATERAL jsonb_array_elements(
+             CASE WHEN jsonb_typeof(s.observed_json->'routes') = 'array'
+                  THEN s.observed_json->'routes' ELSE '[]'::jsonb END
+           ) AS r
           WHERE s.verification = 'VERIFIED'
-            AND jsonb_array_length(s.nav_permissions) > 0
+            -- El menú puede restringir por permiso O por rol; mirar sólo lo primero dejaba fuera
+            -- pantallas que sí declaran una puerta.
+            AND (jsonb_array_length(s.nav_permissions) > 0 OR jsonb_array_length(s.nav_roles) > 0)
        )
-       SELECT l.client_code, l.route, l.nav_permissions, l.method, l.path,
+       SELECT l.client_code, l.route, l.nav_permissions, l.nav_roles, l.method, l.path,
               f.flow_id, f.internal_permissions, f.roles, f.is_public
          FROM llamadas l
          JOIN ${FLOWS}.system_flow_catalog f
-           ON f.http_method = l.method AND f.path = l.path
+           ON f.system_code = 'ATLAS_BACKEND' AND f.http_method = l.method AND f.path = l.path
         WHERE jsonb_array_length(f.internal_permissions) = 0
-        ORDER BY l.client_code, l.route, l.method, l.path`;
+        ORDER BY l.client_code, l.route, l.method, l.path
+        LIMIT 5000`;
 
 /**
  * Los pasos de los procesos activos del `workflow-catalog`, cada uno con el flujo que lo implementa.

@@ -87,20 +87,27 @@ export class SystemFlowsController {
     return this.service.businessFlows();
   }
 
-  @ApiOperation({ summary: 'Módulos con flujos, por bloque' })
-  @ApiResponse({ status: 200, description: 'Lista de (bloque, módulo, cantidad).' })
   /**
-   * Deriva de RBAC: pantallas que el menú protege y cuyos endpoints no exigen permiso.
+   * Deriva de RBAC: pantallas cuya puerta declarada en el menú no es la que aplica la API.
    *
    * Lectura, no análisis: no recalcula el catálogo, cruza lo que ya hay. Por eso `read` y no
    * `analyze`.
    */
+  @ApiOperation({ summary: 'Pantallas cuya puerta declarada no es la que aplica la API' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Pantallas con aristas observadas cuyo endpoint no exige el permiso que el menú declara, ' +
+      'clasificadas en SIN_GUARDA (avería), PUBLIC (decisión declarada) y SOLO_ROL (otra puerta).',
+  })
   @InternalPermissions('systems.flows.read')
   @Get('flows/rbac-drift')
   rbacDrift() {
     return this.service.rbacDrift();
   }
 
+  @ApiOperation({ summary: 'Módulos con flujos, por bloque' })
+  @ApiResponse({ status: 200, description: 'Lista de (bloque, módulo, cantidad).' })
   @InternalPermissions('systems.flows.read')
   @Get('flows/modules')
   modules() {

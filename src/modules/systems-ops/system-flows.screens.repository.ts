@@ -122,6 +122,7 @@ export class SystemFlowsScreensRepository {
       client_code: string;
       route: string;
       nav_permissions: string[];
+      nav_roles: string[];
       method: string;
       path: string;
       flow_id: string;

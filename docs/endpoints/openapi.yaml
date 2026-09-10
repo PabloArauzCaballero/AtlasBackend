@@ -24790,6 +24790,36 @@ paths:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
+          description: >-
+            Pantallas con aristas observadas cuyo endpoint no exige el permiso
+            que el menú declara, clasificadas en SIN_GUARDA (avería), PUBLIC
+            (decisión declarada) y SOLO_ROL (otra puerta).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Pantallas cuya puerta declarada no es la que aplica la API
+      tags:
+        - systems-ops
+  /systems/flows/modules:
+    get:
+      operationId: SystemFlowsController_modules
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
           description: Lista de (bloque, módulo, cantidad).
           content:
             application/json:
@@ -24808,32 +24838,6 @@ paths:
       security:
         - access-token: []
       summary: Módulos con flujos, por bloque
-      tags:
-        - systems-ops
-  /systems/flows/modules:
-    get:
-      operationId: SystemFlowsController_modules
-      parameters:
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-      security:
-        - access-token: []
       tags:
         - systems-ops
   /systems/flows:

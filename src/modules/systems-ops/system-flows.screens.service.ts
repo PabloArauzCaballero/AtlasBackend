@@ -78,41 +78,58 @@ export class SystemFlowsScreensService {
   }
 
   /**
-   * Pantallas que el menú protege con un permiso y cuyos endpoints no exigen ninguno.
+   * Pantallas cuya puerta declarada en el menú NO es la que aplica la API.
    *
-   * Es el fallo que se corrigió a mano en el propio módulo de Flujos el 2026-09-10: el permiso
-   * existía, el menú lo usaba para decidir si enseñar la sección y el backend no lo exigía. Esconder
-   * una pantalla no protege sus datos —quien sabe la ruta de la API entra igual— y el catálogo de
-   * RBAC afirmaba lo contrario. Esto contesta «¿de qué otras pantallas es verdad lo mismo?».
+   * La primera versión preguntaba «¿el endpoint tiene permiso fino?» y llamaba a eso estar
+   * desprotegido. No lo es: `RolesGuard` es global y `@Roles(...)` deniega igual. De 1 029 flujos,
+   * 995 no tienen permiso fino pero 914 sí tienen roles, así que el 92 % de aquellos hallazgos era
+   * falso —incluido el único que produjo con tráfico real—. Una lista donde casi todo es ruido no
+   * la lee nadie, que es justo el fallo que este proyecto lleva persiguiendo.
    *
-   * `PUBLIC` se separa de `SIN_PERMISO` porque son dos conversaciones distintas: lo primero es una
-   * decisión declarada que puede estar bien (un login, un webhook) y lo segundo es un olvido.
+   * Los tres desenlaces se separan porque piden acciones distintas de personas distintas, y sólo el
+   * primero es una avería. Ver `RBAC_DRIFT_SQL`.
    */
   async rbacDrift() {
+    const { porCliente, truncado } = await this.repository.screenRuns(30);
     const filas = await this.repository.rbacDrift();
-    const porPantalla = new Map<string, { clientCode: string; route: string; navPermissions: string[]; calls: unknown[] }>();
+    const porPantalla = new Map<
+      string,
+      { clientCode: string; route: string; navPermissions: string[]; navRoles: string[]; calls: unknown[] }
+    >();
     for (const fila of filas) {
       const clave = `${fila.client_code} ${fila.route}`;
       const entrada = porPantalla.get(clave) ?? {
         clientCode: fila.client_code,
         route: fila.route,
         navPermissions: fila.nav_permissions,
+        navRoles: fila.nav_roles,
         calls: [],
       };
       entrada.calls.push({
         flowId: fila.flow_id,
         method: fila.method,
         path: fila.path,
-        severity: fila.is_public ? 'PUBLIC' : 'SIN_PERMISO',
+        severity: severidad(fila),
         roles: fila.roles,
       });
       porPantalla.set(clave, entrada);
     }
+    const consideradas = [...porCliente.values()].reduce((n, pantallas) => n + pantallas.size, 0);
     return {
-      // Se dice sobre cuántas se pudo opinar: el detector sólo mira aristas OBSERVADAS, así que un
-      // cero puede significar «no hay deriva» o «nadie ha usado esas pantallas todavía».
-      basedOnObservedEdges: true,
-      screens: [...porPantalla.values()],
+      // El denominador, que en la primera versión era un booleano constante: sin él, un `[]` no se
+      // distingue de «nadie ha abierto ninguna pantalla todavía».
+      screensWithObservedEdges: consideradas,
+      // Si el catálogo observado vino cortado, esto opina sobre datos incompletos y hay que decirlo.
+      truncated: truncado,
+      screens: [...porPantalla.values()].filter((pantalla) => pantalla.calls.length),
     };
   }
+}
+
+/**
+ * Qué clase de desajuste es. Sólo `SIN_GUARDA` es una avería; los otros dos son otra conversación.
+ */
+function severidad(fila: { is_public: boolean; roles: string[] }): 'PUBLIC' | 'SOLO_ROL' | 'SIN_GUARDA' {
+  if (fila.is_public) return 'PUBLIC';
+  return fila.roles.length ? 'SOLO_ROL' : 'SIN_GUARDA';
 }

@@ -126,49 +126,60 @@ describe('el desenlace de una pantalla que dejó de usarse', () => {
 
 describe('SystemFlowsScreensService.rbacDrift', () => {
   /**
-   * Es el fallo que se corrigió a mano en este mismo módulo el 2026-09-10: el permiso existía, el
-   * menú lo usaba para decidir si enseñar la sección y el backend no lo exigía. Esconder una
-   * pantalla no protege sus datos —quien sabe la ruta de la API entra igual— y el catálogo de RBAC
-   * afirmaba lo contrario. Esto contesta de qué otras pantallas es verdad lo mismo.
+   * La primera versión preguntaba «¿el endpoint tiene permiso fino?» y llamaba a eso estar
+   * desprotegido. No lo es: `RolesGuard` es global y `@Roles(...)` deniega igual. De 1 029 flujos
+   * del catálogo, 995 no tienen permiso fino pero 914 sí tienen roles, así que el 92 % de aquellos
+   * hallazgos era falso —incluido el único que produjo con tráfico real, que además estaba
+   * protegido a nivel de clase—. Una lista donde casi todo es ruido no la lee nadie.
    */
-  const deriva = (filas: unknown[]) => new SystemFlowsScreensService({ rbacDrift: async () => filas } as never).rbacDrift();
+  const deriva = (filas: unknown[], observado = new Map([['ADMIN_PORTAL', new Map([['/x', {}]])]])) =>
+    new SystemFlowsScreensService({
+      rbacDrift: async () => filas,
+      screenRuns: async () => ({ porCliente: observado, truncado: false }),
+    } as never).rbacDrift();
 
-  it('agrupa por pantalla y separa lo público de lo simplemente desprotegido', async () => {
-    const { screens } = await deriva([
-      {
-        client_code: 'ADMIN_PORTAL',
-        route: '/internal/flows',
-        nav_permissions: ['systems.flows.read'],
-        method: 'GET',
-        path: 'systems/flows',
-        flow_id: 'flow_1',
-        roles: ['system_admin'],
-        is_public: false,
-      },
-      {
-        client_code: 'ADMIN_PORTAL',
-        route: '/internal/flows',
-        nav_permissions: ['systems.flows.read'],
-        method: 'GET',
-        path: 'auth/me',
-        flow_id: 'flow_2',
-        roles: [],
-        is_public: true,
-      },
-    ]);
-
-    expect(screens).toHaveLength(1);
-    expect(screens[0]).toMatchObject({ clientCode: 'ADMIN_PORTAL', route: '/internal/flows' });
-    // `PUBLIC` es una decisión declarada que puede estar bien —un login, un webhook—; `SIN_PERMISO`
-    // es un olvido. Meterlos en el mismo saco haría que se ignoraran los dos.
-    expect(screens[0].calls).toEqual([
-      expect.objectContaining({ path: 'systems/flows', severity: 'SIN_PERMISO' }),
-      expect.objectContaining({ path: 'auth/me', severity: 'PUBLIC' }),
-    ]);
+  const fila = (over: Record<string, unknown> = {}) => ({
+    client_code: 'ADMIN_PORTAL',
+    route: '/internal/audit',
+    nav_permissions: ['audit.events.read'],
+    nav_roles: [],
+    method: 'GET',
+    path: 'systems/action-logs',
+    flow_id: 'flow_1',
+    roles: [],
+    is_public: false,
+    ...over,
   });
 
-  it('declara que sólo mira aristas observadas: un cero no significa «no hay deriva»', async () => {
-    const resultado = await deriva([]);
-    expect(resultado).toMatchObject({ basedOnObservedEdges: true, screens: [] });
+  it('sin permiso, sin roles y sin @Public es la única AVERÍA', async () => {
+    const { screens } = await deriva([fila()]);
+    expect(screens[0].calls).toEqual([expect.objectContaining({ severity: 'SIN_GUARDA' })]);
+  });
+
+  it('con roles NO se llama desprotegido: es otra puerta, no una abierta', async () => {
+    // Es el falso positivo que produjo la primera versión: `GET systems/action-logs` está protegido
+    // a nivel de clase por `@SystemsOpsControllerSecurity()`, que aplica `RolesGuard` con ocho roles.
+    const { screens } = await deriva([fila({ roles: ['system_admin', 'qa_engineer'] })]);
+    expect(screens[0].calls).toEqual([expect.objectContaining({ severity: 'SOLO_ROL' })]);
+  });
+
+  it('`@Public` se separa: puede estar bien, y en el mismo saco se ignorarían los dos', async () => {
+    const { screens } = await deriva([fila({ is_public: true })]);
+    expect(screens[0].calls).toEqual([expect.objectContaining({ severity: 'PUBLIC' })]);
+  });
+
+  it('el denominador dice sobre cuántas pantallas se pudo opinar', async () => {
+    // En la primera versión era un booleano constante, así que un `[]` no se distinguía de «nadie ha
+    // abierto ninguna pantalla todavía».
+    const observado = new Map([
+      [
+        'ADMIN_PORTAL',
+        new Map([
+          ['/a', {}],
+          ['/b', {}],
+        ]),
+      ],
+    ]);
+    expect(await deriva([], observado)).toMatchObject({ screensWithObservedEdges: 2, screens: [] });
   });
 });
