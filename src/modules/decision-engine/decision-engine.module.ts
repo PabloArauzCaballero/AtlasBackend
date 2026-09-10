@@ -29,6 +29,8 @@ import { OutcomeDispatchService } from './outcome-dispatch.service.js';
 import { RiskDecisionEngineService } from './risk-decision-engine.service.js';
 import { SubjectReferenceService } from './subject-reference.service.js';
 import { UnderwritingFeaturesService } from './underwriting-features.service.js';
+import { UnderwritingSignalsService } from './underwriting-signals.service.js';
+import { UnderwritingCreditHistoryService } from './underwriting-credit-history.service.js';
 
 /**
  * Integración con el ATLAS Decision Engine.
@@ -70,6 +72,8 @@ import { UnderwritingFeaturesService } from './underwriting-features.service.js'
     DecisionArtifactBindingService,
     FeatureProjectionService,
     UnderwritingFeaturesService,
+    UnderwritingSignalsService,
+    UnderwritingCreditHistoryService,
     SubjectReferenceService,
     CreditDecisionEngineService,
     RiskDecisionEngineService,

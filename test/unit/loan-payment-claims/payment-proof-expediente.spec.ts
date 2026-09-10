@@ -24,7 +24,13 @@ function construir() {
     /* sequelize */ { transaction: jest.fn(async (fn: never) => (fn as unknown as (t: unknown) => unknown)({})) } as never,
     /* claims */ {
       findOne: jest.fn(async () => null),
-      create: jest.fn(async (valores: never) => ({ ...(valores as object), id: '900', claimCode: 'PC-1', status: 'pending', submittedAt: new Date() })),
+      create: jest.fn(async (valores: never) => ({
+        ...(valores as object),
+        id: '900',
+        claimCode: 'PC-1',
+        status: 'pending',
+        submittedAt: new Date(),
+      })),
     } as never,
     /* storage */ {
       isConfigured: () => true,

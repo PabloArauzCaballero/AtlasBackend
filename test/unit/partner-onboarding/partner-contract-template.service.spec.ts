@@ -36,7 +36,9 @@ describe('PartnerContractTemplateService', () => {
         creadas.push(valores);
         return valores;
       }),
-      update: jest.fn(async (valores: Record<string, unknown>) => {
+      // Dos argumentos: `clearDefault` pasa además el `where` y la transacción, y sin declararlos
+      // aquí `toHaveBeenCalledWith(valores, opciones)` no compila.
+      update: jest.fn(async (valores: Record<string, unknown>, ..._opciones: unknown[]) => {
         actualizadas.push(valores);
         return [1];
       }),
@@ -50,6 +52,7 @@ describe('PartnerContractTemplateService', () => {
       creadas,
       actualizadas,
       filas,
+      sequelize,
     };
   }
 

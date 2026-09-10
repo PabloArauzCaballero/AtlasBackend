@@ -4,18 +4,10 @@
  * @system arma el contrato de entrada del artefacto de suscripción desde el expediente real del cliente.
  */
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op } from 'sequelize';
-import {
-  AttributeDefinitionModel,
-  CustomerAddressModel,
-  CustomerAttributeValueModel,
-  CustomerContactMethodModel,
-  CustomerProfileVersionModel,
-  IdentityVerificationAttemptModel,
-  LoanInstallmentModel,
-  LoanModel,
-} from '../../database/models/index.js';
+
+import {} from '../../database/models/index.js';
+import { UnderwritingSignalsService } from './underwriting-signals.service.js';
+import { UnderwritingCreditHistoryService } from './underwriting-credit-history.service.js';
 
 /** Lo que se manda al motor, y de dónde salió cada cosa. */
 export type UnderwritingFeatures = {
@@ -30,14 +22,6 @@ export type UnderwritingFeatures = {
   provenance: Record<string, 'expediente' | 'derivado' | 'ausente'>;
 };
 
-/**
- * El puntaje que Atlas atestigua cuando el proveedor verificó pero no desglosó.
- *
- * Es deliberadamente el mínimo aprobatorio y no un valor alto: se afirma «pasó», no «pasó
- * brillantemente». La diferencia importa porque estos puntajes ponderan la decisión.
- */
-const ATTESTED_PASS = 70;
-
 const MISSING = 'ausente' as const;
 const FILE = 'expediente' as const;
 const DERIVED = 'derivado' as const;
@@ -46,7 +30,6 @@ const DERIVED = 'derivado' as const;
 const INCOME = 'monthly_income_declared';
 const OTHER_INCOME = 'other_monthly_income';
 const EXPENSES = 'monthly_expenses_declared';
-const EMPLOYMENT = 'employment_status';
 const SENIORITY = 'employment_seniority_months';
 
 /** Del vocabulario del alta al del artefacto. Lo que no encaje va a `UNEMPLOYED`, que no aprueba. */
@@ -60,22 +43,6 @@ const EMPLOYMENT_MAP: Record<string, string> = {
   student: 'STUDENT',
   unemployed: 'UNEMPLOYED',
 };
-
-/** Del tramo de mora del préstamo al enum del artefacto. */
-const DELINQUENCY_MAP: Record<string, string> = {
-  current: 'CURRENT',
-  dpd_1_29: 'DPD_30',
-  dpd_30_59: 'DPD_30',
-  dpd_60_89: 'DPD_60',
-  dpd_90_119: 'DPD_90',
-  dpd_120_plus: 'DPD_120_PLUS',
-  charged_off: 'CHARGE_OFF',
-};
-
-function toNumber(value: unknown): number {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
 
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
@@ -107,14 +74,8 @@ export class UnderwritingFeaturesService {
   private readonly logger = new Logger(UnderwritingFeaturesService.name);
 
   constructor(
-    @InjectModel(CustomerAttributeValueModel) private readonly attributeValues: typeof CustomerAttributeValueModel,
-    @InjectModel(AttributeDefinitionModel) private readonly attributeDefinitions: typeof AttributeDefinitionModel,
-    @InjectModel(CustomerProfileVersionModel) private readonly profiles: typeof CustomerProfileVersionModel,
-    @InjectModel(CustomerContactMethodModel) private readonly contacts: typeof CustomerContactMethodModel,
-    @InjectModel(CustomerAddressModel) private readonly addresses: typeof CustomerAddressModel,
-    @InjectModel(IdentityVerificationAttemptModel) private readonly identityAttempts: typeof IdentityVerificationAttemptModel,
-    @InjectModel(LoanModel) private readonly loans: typeof LoanModel,
-    @InjectModel(LoanInstallmentModel) private readonly installments: typeof LoanInstallmentModel,
+    private readonly signals: UnderwritingSignalsService,
+    private readonly historial: UnderwritingCreditHistoryService,
   ) {}
 
   async build(input: {
@@ -134,12 +95,12 @@ export class UnderwritingFeaturesService {
     };
 
     const [economy, profile, contactState, hasAddress, identity, history] = await Promise.all([
-      this.economicAttributes(input.tenantId, input.customerId),
-      this.currentProfile(input.tenantId, input.customerId),
-      this.contactVerification(input.tenantId, input.customerId),
-      this.hasVerifiedAddress(input.tenantId, input.customerId),
-      this.identitySignals(input.tenantId, input.customerId),
-      this.creditHistory(input.tenantId, input.customerId, now),
+      this.signals.economicAttributes(input.tenantId, input.customerId),
+      this.signals.currentProfile(input.tenantId, input.customerId),
+      this.signals.contactVerification(input.tenantId, input.customerId),
+      this.signals.hasVerifiedAddress(input.tenantId, input.customerId),
+      this.signals.identitySignals(input.tenantId, input.customerId),
+      this.historial.creditHistory(input.tenantId, input.customerId, now),
     ]);
 
     const income = economy[INCOME] ?? 0;
@@ -275,212 +236,5 @@ export class UnderwritingFeaturesService {
     };
 
     return { variables, provenance };
-  }
-
-  /** Los atributos económicos vigentes, por código. */
-  private async economicAttributes(tenantId: string, customerId: string): Promise<Record<string, number> & Record<string, unknown>> {
-    const definitions = await this.attributeDefinitions.findAll({
-      where: { attributeCode: { [Op.in]: [INCOME, OTHER_INCOME, EXPENSES, EMPLOYMENT, SENIORITY, 'source_of_funds'] } },
-    } as FindOptions);
-    if (definitions.length === 0) return {} as Record<string, number>;
-
-    const byId = new Map(definitions.map((definition) => [String(definition.id), definition.attributeCode]));
-    const values = await this.attributeValues.findAll({
-      where: { tenantId, customerId, attributeDefinitionId: { [Op.in]: [...byId.keys()] } },
-      order: [['_id', 'DESC']],
-    } as FindOptions);
-
-    const result: Record<string, unknown> = {};
-    const seen = new Set<string>();
-    for (const value of values) {
-      const code = byId.get(String(value.attributeDefinitionId));
-      if (!code || seen.has(code)) continue;
-      seen.add(code);
-
-      if (code === EMPLOYMENT) result.__employmentStatus = value.valueText ?? null;
-      else if (code === 'source_of_funds') result.__sourceOfFunds = value.valueText ?? null;
-      else result[code] = toNumber(value.valueNumber);
-    }
-    return result as Record<string, number> & Record<string, unknown>;
-  }
-
-  private async currentProfile(tenantId: string, customerId: string): Promise<{ age: number }> {
-    const profile = await this.profiles.findOne({
-      where: { tenantId, customerId, validUntil: null },
-      order: [['_id', 'DESC']],
-    } as FindOptions);
-
-    if (!profile?.birthDate) return { age: 0 };
-    const born = new Date(`${String(profile.birthDate).slice(0, 10)}T00:00:00Z`);
-    if (Number.isNaN(born.getTime())) return { age: 0 };
-    return { age: Math.floor((Date.now() - born.getTime()) / (365.25 * 86_400_000)) };
-  }
-
-  private async contactVerification(tenantId: string, customerId: string): Promise<{ emailVerified: boolean; phoneVerified: boolean }> {
-    const methods = await this.contacts.findAll({ where: { tenantId, customerId } } as FindOptions);
-    return {
-      emailVerified: methods.some((method) => method.emailDomain !== null && method.status === 'verified'),
-      phoneVerified: methods.some((method) => method.emailDomain === null && method.status === 'verified'),
-    };
-  }
-
-  private async hasVerifiedAddress(tenantId: string, customerId: string): Promise<boolean> {
-    const count = await this.addresses.count({ where: { tenantId, customerId } } as FindOptions);
-    return count > 0;
-  }
-
-  /**
-   * Lo que Atlas sabe de la identidad, sin confundir «no registrado» con «falló».
-   *
-   * El proveedor devuelve un veredicto y, cuando el canal lo permite, los puntajes que lo sostienen.
-   * En el paquete de alta el veredicto llega verificado y los puntajes NO se guardan. Derivar de esa
-   * ausencia un «no pasó la prueba de vida» —que es lo que hacía la primera versión de este
-   * servicio— rechazaba a una clienta que el proveedor sí había verificado, por un campo vacío.
-   *
-   * La regla: si el puntaje está, manda el puntaje. Si no está pero el veredicto es `verified`, se
-   * atestigua un aprobado CONSERVADOR y queda marcado como `derivado`, no como dato del expediente:
-   * un veredicto verificado significa que los umbrales del proveedor se cumplieron, y eso es lo
-   * único que Atlas puede afirmar. Si no hay ni veredicto ni puntaje, no se afirma nada.
-   */
-  private async identitySignals(
-    tenantId: string,
-    customerId: string,
-  ): Promise<{ verified: boolean; liveness: boolean; matchScore: number; confidence: number; inferred: boolean }> {
-    const attempt = await this.identityAttempts.findOne({
-      where: { tenantId, customerId },
-      order: [['_id', 'DESC']],
-    } as FindOptions);
-
-    if (!attempt) return { verified: false, liveness: false, matchScore: 0, confidence: 0, inferred: false };
-    const verified = attempt.finalResult === 'verified';
-
-    // Los puntajes del proveedor llegan en 0..1; el artefacto los espera en 0..100.
-    const liveness = toNumber(attempt.livenessScore);
-    const selfie = clamp(Math.round(toNumber(attempt.selfieMatchScore) * 100), 0, 100);
-    const name = clamp(Math.round(toNumber(attempt.nameMatchScore) * 100), 0, 100);
-    const hasScores = liveness > 0 || selfie > 0 || name > 0;
-
-    if (hasScores) {
-      return { verified, liveness: liveness > 0, matchScore: selfie, confidence: name, inferred: false };
-    }
-
-    /*
-     * Sin desglose. Se atestigua el aprobado del proveedor con el valor mínimo que la política
-     * considera aprobado (70) y no con uno alto: Atlas no puede afirmar que la coincidencia fue
-     * excelente, solo que fue suficiente para quien la midió.
-     */
-    return {
-      verified,
-      liveness: verified,
-      matchScore: verified ? ATTESTED_PASS : 0,
-      confidence: verified ? ATTESTED_PASS : 0,
-      inferred: verified,
-    };
-  }
-
-  /**
-   * El historial de pago del cliente DENTRO de Atlas.
-   *
-   * Es lo único que se sabe con certeza sobre cómo paga, y por eso pesa: sustituye a un buró que
-   * aquí no existe. El peor tramo de mora y el número de moras en doce meses son entradas directas
-   * del artefacto, y son las que hacen que entrar en mora cueste puntaje.
-   */
-  private async creditHistory(
-    tenantId: string,
-    customerId: string,
-    now: Date,
-  ): Promise<{
-    loanCount: number;
-    delinquencyCount12m: number;
-    worstStatus: string;
-    chargeOffCount: number;
-    oldestTradeAgeMonths: number;
-    utilization: number;
-    paymentHistoryScore: number;
-    monthlyCommitted: number;
-    applications6m: number;
-    applications24h: number;
-  }> {
-    const loans = await this.loans.findAll({ where: { tenantId, customerId } } as FindOptions);
-    if (loans.length === 0) {
-      return {
-        loanCount: 0,
-        delinquencyCount12m: 0,
-        worstStatus: 'CURRENT',
-        chargeOffCount: 0,
-        oldestTradeAgeMonths: 0,
-        utilization: 0,
-        // Sin historial NO se parte de cero: cero es «paga fatal», y quien no ha pedido nunca no
-        // paga fatal, simplemente no ha pagado. Se parte de un valor medio y la política decide.
-        paymentHistoryScore: 50,
-        monthlyCommitted: 0,
-        applications6m: 0,
-        applications24h: 0,
-      };
-    }
-
-    const schedule = await this.installments.findAll({
-      where: { tenantId, loanId: { [Op.in]: loans.map((loan) => String(loan.id)) } },
-    } as FindOptions);
-
-    const today = now.toISOString().slice(0, 10);
-    const yearAgo = new Date(now.getTime() - 365 * 86_400_000).toISOString().slice(0, 10);
-
-    let overdueInLastYear = 0;
-    let worstDaysLate = 0;
-    let settledOnTime = 0;
-    let settledLate = 0;
-    let pendingMonthly = 0;
-
-    for (const instalment of schedule) {
-      const paid = instalment.status === 'paid';
-      const late = instalment.dueDate < today && !paid;
-
-      if (late && instalment.dueDate >= yearAgo) overdueInLastYear += 1;
-      if (late) {
-        const days = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${instalment.dueDate}T00:00:00Z`)) / 86_400_000);
-        worstDaysLate = Math.max(worstDaysLate, days);
-      }
-      if (paid) {
-        if (toNumber(instalment.daysPastDue) > 0) settledLate += 1;
-        else settledOnTime += 1;
-      }
-      if (!paid) pendingMonthly += toNumber(instalment.principalAmount) + toNumber(instalment.interestAmount);
-    }
-
-    const worstBucket = loans
-      .map((loan) => String(loan.delinquencyBucket ?? 'current'))
-      .sort()
-      .reverse()[0];
-
-    const settled = settledOnTime + settledLate;
-    const paymentHistoryScore = settled > 0 ? clamp(Math.round((settledOnTime / settled) * 100), 0, 100) : 50;
-
-    const disbursedDates = loans.map((loan) => loan.disbursedAt).filter((date): date is Date => Boolean(date));
-    const oldest = disbursedDates.length > 0 ? Math.min(...disbursedDates.map((date) => new Date(date).getTime())) : now.getTime();
-
-    return {
-      loanCount: loans.length,
-      delinquencyCount12m: overdueInLastYear,
-      worstStatus: this.worstStatusOf(worstDaysLate, worstBucket),
-      chargeOffCount: loans.filter((loan) => loan.status === 'written_off').length,
-      oldestTradeAgeMonths: Math.max(0, Math.floor((now.getTime() - oldest) / (30.44 * 86_400_000))),
-      utilization: 0,
-      paymentHistoryScore,
-      // El compromiso mensual pendiente entra en la relación deuda-ingreso: quien ya tiene tres
-      // cuotas corriendo no dispone del mismo sueldo que quien no tiene ninguna.
-      monthlyCommitted: Math.round((pendingMonthly / Math.max(1, loans.length * 3)) * 100) / 100,
-      applications6m: loans.length,
-      applications24h: loans.filter((loan) => loan.disbursedAt && now.getTime() - new Date(loan.disbursedAt).getTime() < 86_400_000).length,
-    };
-  }
-
-  /** El peor tramo, medido contra el calendario y contrastado con el que dejó el barrido. */
-  private worstStatusOf(worstDaysLate: number, bucket: string | undefined): string {
-    if (worstDaysLate >= 120) return 'DPD_120_PLUS';
-    if (worstDaysLate >= 90) return 'DPD_90';
-    if (worstDaysLate >= 60) return 'DPD_60';
-    if (worstDaysLate >= 1) return 'DPD_30';
-    return DELINQUENCY_MAP[String(bucket ?? 'current').toLowerCase()] ?? 'CURRENT';
   }
 }
