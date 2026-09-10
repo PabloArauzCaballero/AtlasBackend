@@ -171,7 +171,14 @@ export class SupportSlaService {
    * Existe como barrido y no como comprobación al leer el caso porque un incumplimiento que sólo se
    * detecta cuando alguien abre la pantalla es un incumplimiento que nadie ve el fin de semana. El
    * evento de integración va por outbox: si el motor de notificaciones está caído, el incumplimiento
-   * igual queda marcado y el aviso sale después.
+   * igual queda marcado.
+   *
+   * **El aviso, en cambio, no sale ni después, aunque este comentario decía que sí.** `support.sla.breached`
+   * está en `EVENT_REGISTRY` y lo toma `process_events`, pero no tiene canales en
+   * `notification-rules.service.ts`, así que el orquestador no genera ningún mensaje. Medido en el
+   * servidor el 2026-09-10 por `notification_messages.outbox_event_id`: 13 incumplimientos, 0 avisos. El
+   * incumplimiento sí queda en el expediente; a quién avisar —agente, supervisor— y por qué canal es una
+   * decisión pendiente.
    *
    * ## Por qué también se escribe en `support_case_events`
    *
