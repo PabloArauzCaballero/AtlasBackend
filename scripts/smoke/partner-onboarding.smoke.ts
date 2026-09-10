@@ -1,4 +1,5 @@
 import { getStringFromPaths, request, uniqueKey } from './http.js';
+import { qrPng } from '../fixtures/qr-imagen.js';
 
 /**
  * Smoke del expediente del partner contra un servidor y una base REALES.
@@ -35,7 +36,25 @@ function assert(condition: boolean, message: string): void {
  * Un PNG mínimo REAL. El servidor descarga el objeto y comprueba que sea una imagen, así que un
  * cuerpo cualquiera haría fallar el registro por el motivo equivocado.
  */
-const QR_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+/*
+ * Un QR DE VERDAD, y no el píxel transparente que había aquí.
+ *
+ * El registro del QR comprueba desde hace semanas que la imagen contenga un código legible
+ * (`QR_IMAGE_HAS_NO_CODE`: «sube la imagen del código, no una foto del local»). Este smoke seguía
+ * subiendo un PNG de 1×1, así que moría con un 422 ANTES de llegar al envío del expediente — es
+ * decir, la mitad más importante del recorrido llevaba semanas sin ejercitarse y el fallo se leía
+ * como un problema del almacenamiento.
+ *
+ * Se reutiliza el fixture de `test/support/qr-imagen.ts` a propósito: duplicarlo dejaría que el
+ * smoke siguiera pasando con un QR que las pruebas ya no aceptan.
+ */
+const QR_PNG = qrPng();
+
+/** Un PDF mínimo pero válido: el poder no se lee, sólo tiene que existir donde se dice que está. */
+const PODER_PDF = Buffer.from(
+  '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\n' + 'trailer<</Root 1 0 R>>\n%%EOF\n',
+  'utf8',
+);
 
 /** Un NIT distinto por corrida: el expediente es único por NIT y el smoke no debe chocar consigo mismo. */
 function uniqueTaxId(): string {
@@ -177,6 +196,15 @@ export async function runPartnerOnboardingSmoke(): Promise<void> {
     expected: [200],
     body: { commercialRegistry: `MAT-${taxId.slice(-6)}` },
   });
+  /*
+   * El poder se SUBE de verdad antes de declararlo.
+   *
+   * El registro del representante comprueba que el objeto exista en el almacenamiento
+   * (`POWER_OF_ATTORNEY_OBJECT_NOT_FOUND`), y aquí se inventaba una clave que no apuntaba a nada.
+   * Un smoke que declara un poder inexistente no prueba la acreditación: prueba que el campo acepta
+   * texto.
+   */
+  const poderKey = await subirPoder(partnerId);
   await request({
     method: 'POST',
     path: `/partner-onboarding/${partnerId}/legal-representative`,
@@ -188,7 +216,7 @@ export async function runPartnerOnboardingSmoke(): Promise<void> {
       documentNumber: '4567890 SC',
       // El poder es lo que ACREDITA la representación: sin él, el expediente sigue incompleto
       // aunque la persona esté declarada. Se comprueba justo debajo.
-      powerOfAttorneyKey: `1/partner-${partnerId}/poder/${taxId}.pdf`,
+      powerOfAttorneyKey: poderKey,
     },
   });
 
@@ -201,13 +229,32 @@ export async function runPartnerOnboardingSmoke(): Promise<void> {
   });
   const submittedBody = unwrap(submitted.data);
   /*
-   * `under_review` y NO `approved`: el envío no aprueba nada. Un onboarding que se auto-aprueba al
-   * completar sus campos es un formulario, no una verificación, y esta afirmación es la que impide
-   * que alguien lo convierta en eso sin que salte nada.
+   * El envío NO decide por su cuenta: se lo pregunta al Motor, y aquí se comprueba que la respuesta
+   * llegó y quedó registrada. Un expediente enviado sin ejecución detrás significa que el circuito
+   * está roto en algún punto y el veredicto lo puso alguien de este lado.
    */
+  const decision = (submittedBody.decision ?? {}) as JsonRecord;
   assert(
-    submittedBody.onboardingStatus === 'under_review',
-    `tras enviar, el expediente debe quedar en revisión; quedó en ${String(submittedBody.onboardingStatus)}`,
+    typeof decision.executionId === 'string' && decision.executionId.length > 0,
+    'tras enviar debe constar la ejecución del Motor que evaluó el expediente; no llegó ninguna',
+  );
+  assert(
+    ['APROBADO', 'RECHAZADO', 'REVISION_MANUAL'].includes(String(decision.outcome)),
+    `el desenlace del Motor no es uno de los tres del artefacto: ${String(decision.outcome)}`,
+  );
+  /*
+   * Y el estado del expediente TIENE que corresponderse con ese desenlace. Es la afirmación que
+   * impide que alguien vuelva a convertir esto en un formulario que se auto-aprueba: un
+   * `approved` sólo es legítimo si el Motor dijo `APROBADO`.
+   */
+  const esperado: Record<string, string> = {
+    APROBADO: 'approved',
+    RECHAZADO: 'rejected',
+    REVISION_MANUAL: 'under_review',
+  };
+  assert(
+    submittedBody.onboardingStatus === esperado[String(decision.outcome)],
+    `el expediente quedó en ${String(submittedBody.onboardingStatus)} con desenlace ${String(decision.outcome)}`,
   );
 
   // Y ya enviado deja de admitir cambios: la aprobación se firma sobre lo que se revisó.
@@ -234,7 +281,99 @@ export async function runPartnerOnboardingSmoke(): Promise<void> {
 
   const remaining = (finalBody.gaps ?? []) as JsonRecord[];
   assert(remaining.length === 0, `el expediente enviado no debería tener pendientes; quedan ${remaining.length}`);
+  // --- 12. El contrato bajo el que se afilia -----------------------------------------------------
+  await verificarContratoDeAfiliacion();
+
   console.log(`[partner-onboarding] expediente ${partnerId} completo y en revisión.`);
+}
+
+/**
+ * El contrato de afiliación: publicar una versión, leer la vigente y comprobar que se archiva.
+ *
+ * Verificar que un comercio EXISTE no es tener algo firmado con él. Esta parte comprueba las tres
+ * reglas que hacen del contrato una evidencia y no un campo de texto: la versión sube sola, la
+ * anterior se archiva, y sólo hay UNA vigente.
+ */
+async function verificarContratoDeAfiliacion(): Promise<void> {
+  const codigo = `SMOKE-${String(Date.now()).slice(-8)}`;
+  const cuerpo =
+    `PRIMERA. Objeto. Contrato de prueba del smoke, generado el ${new Date().toISOString()}. ` +
+    'SEGUNDA. Comisión. La pactada por escrito entre las partes. TERCERA. Devoluciones. Revierten la comisión.';
+
+  const primera = unwrap(
+    (
+      await request<JsonRecord>({
+        method: 'POST',
+        path: '/operations/partner-contract-templates',
+        role: 'admin',
+        expected: [201],
+        body: { templateCode: codigo, name: 'Contrato de afiliación (smoke)', body: cuerpo, makeDefault: true },
+      })
+    ).data,
+  );
+  assert(primera.version === 1, `la primera versión de un código debe ser 1; llegó ${String(primera.version)}`);
+
+  const segunda = unwrap(
+    (
+      await request<JsonRecord>({
+        method: 'POST',
+        path: '/operations/partner-contract-templates',
+        role: 'admin',
+        expected: [201],
+        body: { templateCode: codigo, name: 'Contrato de afiliación (smoke)', body: `${cuerpo} CUARTA. Añadida.`, makeDefault: true },
+      })
+    ).data,
+  );
+  assert(segunda.version === 2, `publicar debe SUBIR la versión; llegó ${String(segunda.version)}`);
+
+  const vigente = unwrap(
+    (await request<JsonRecord>({ method: 'GET', path: '/operations/partner-contract-templates/default', role: 'admin' })).data,
+  );
+  const plantilla = (vigente.template ?? {}) as JsonRecord;
+  assert(
+    plantilla.version === 2 && plantilla.templateCode === codigo,
+    `la vigente debe ser la última publicada; es ${String(plantilla.templateCode)} v${String(plantilla.version)}`,
+  );
+
+  /*
+   * La anterior sigue ahí, archivada. Es la prueba de qué texto regía cada día, y ocultarla dejaría
+   * sin respuesta posible la pregunta que llega con el primer reclamo.
+   */
+  const listado = unwrap(
+    (await request<JsonRecord>({ method: 'GET', path: '/operations/partner-contract-templates', role: 'admin' })).data,
+  );
+  const mias = ((listado.items ?? []) as JsonRecord[]).filter((item) => item.templateCode === codigo);
+  const archivadas = mias.filter((item) => item.status === 'archived');
+  assert(mias.length === 2, `deben conservarse las dos versiones publicadas; hay ${mias.length}`);
+  assert(archivadas.length === 1 && archivadas[0].version === 1, 'la versión anterior debe quedar archivada, no borrada');
+}
+
+/**
+ * Sube un poder notarial y devuelve su clave de almacenamiento.
+ *
+ * Dos pasos, como en la app: se pide el ticket firmado y se sube el objeto contra él. Hacerlo de
+ * verdad es lo que permite que el registro del representante compruebe que el documento existe.
+ */
+async function subirPoder(partnerId: string): Promise<string> {
+  const ticket = await request<JsonRecord>({
+    method: 'POST',
+    path: `/partner-onboarding/${partnerId}/documents/upload-url`,
+    role: 'merchant',
+    expected: [201, 503],
+    body: { documentKind: 'power-of-attorney', contentType: 'application/pdf', sizeBytes: PODER_PDF.byteLength },
+  });
+  if (ticket.status === 503) {
+    throw new Error('El almacenamiento de objetos no está configurado: el poder no se puede subir y el expediente no podrá enviarse.');
+  }
+  const uploadUrl = getStringFromPaths(ticket.data, [['data', 'uploadUrl'], ['uploadUrl']]);
+  const storageKey = getStringFromPaths(ticket.data, [['data', 'storageKey'], ['storageKey']]);
+  const put = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/pdf', 'content-length': String(PODER_PDF.byteLength) },
+    body: PODER_PDF,
+  });
+  if (!put.ok) throw new Error(`El almacenamiento rechazó el poder (${put.status}).`);
+  return storageKey;
 }
 
 /**

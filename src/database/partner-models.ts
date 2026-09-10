@@ -5,6 +5,7 @@
  */
 import {
   PartnerBranchModel,
+  PartnerContractTemplateModel,
   PartnerLegalRepresentativeModel,
   PartnerPosTerminalModel,
   PartnerProfileModel,
@@ -12,7 +13,7 @@ import {
 } from './models/index.js';
 
 /**
- * Los cinco modelos del expediente del comercio (ADR-0009), como un bloque.
+ * Los seis modelos del expediente del comercio (ADR-0009), como un bloque.
  *
  * Mismo motivo que `CREDIT_RATING_MODELS`: `sequelize.module.ts` nombra cada modelo dos veces
  * —import y registro— y cinco tablas más lo empujaban por encima del gate de tamaño. Agrupar dice
@@ -26,6 +27,10 @@ import {
  */
 export const PARTNER_MODELS = [
   PartnerProfileModel,
+  // El contrato bajo el que se afilia un comercio. Va aquí por lo que dice el párrafo de arriba:
+  // sin registrarlo, el `forFeature` del módulo basta para inyectarlo y la primera consulta muere
+  // con «Model not initialized», que señala al repositorio y no al registro.
+  PartnerContractTemplateModel,
   PartnerLegalRepresentativeModel,
   PartnerBranchModel,
   PartnerQrCodeModel,
