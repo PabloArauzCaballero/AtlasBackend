@@ -118,6 +118,10 @@ export class SystemFlowCatalogModel extends Model {
   @Column({ field: 'deps_hash', type: DataType.STRING(32) })
   declare depsHash: string | null;
 
+  /** Cuándo cambió por última vez ese código. Es lo que permite decidir si una corrida lo ejercitó. */
+  @Column({ field: 'deps_changed_at', type: DataType.DATE })
+  declare depsChangedAt: Date | null;
+
   @Column({ field: 'analyzed_branch', type: DataType.STRING(80) })
   declare analyzedBranch: string | null;
 

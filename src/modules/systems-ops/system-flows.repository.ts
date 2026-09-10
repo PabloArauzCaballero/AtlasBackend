@@ -185,34 +185,6 @@ export class SystemFlowsRepository {
   }
 
   /**
-   * Marca STALE los flujos cuyo CÓDIGO cambió desde la última carga, y sólo ésos.
-   *
-   * Se compara la huella guardada con la que trae la recarga. Un flujo sin huella guardada no se
-   * toca: significa «no consta», y suponerlo desactualizado inundaría el panel el primer día.
-   *
-   * Devuelve cuántos cambiaron, que es el número que hace útil la recarga: dice qué parte del bloque
-   * se movió de verdad, en vez de «todo» como hacía la comparación por commit.
-   */
-  async markStaleByDepsHash(
-    systemCode: string,
-    rows: ReadonlyArray<{ flowId: string; depsHash: string | null }>,
-    tx: Transaction,
-  ): Promise<number> {
-    const entrantes = new Map(rows.map((row) => [row.flowId, row.depsHash]));
-    const guardados = await this.flows.findAll({
-      where: { systemCode },
-      attributes: ['flowId', 'depsHash'],
-      transaction: tx,
-    });
-    const cambiados = guardados
-      .filter((fila) => fila.depsHash && entrantes.get(fila.flowId) && entrantes.get(fila.flowId) !== fila.depsHash)
-      .map((fila) => fila.flowId);
-    if (!cambiados.length) return 0;
-    await this.flows.update({ freshness: 'STALE' }, { where: { flowId: { [Op.in]: cambiados } }, transaction: tx });
-    return cambiados.length;
-  }
-
-  /**
    * Corridas por ruta en `system_action_logs` dentro de la ventana. La plantilla se normaliza al
    * formato del catálogo en SQL para que el cruce sea un JOIN y no un bucle. Sólo lecturas agregadas:
    * ningún payload sale de aquí.
@@ -245,22 +217,45 @@ export class SystemFlowsRepository {
   async flowsOfSystem(systemCode: string): Promise<SystemFlowCatalogModel[]> {
     return this.flows.findAll({
       where: { systemCode },
-      attributes: ['id', 'flowId', 'httpMethod', 'path', 'controller', 'handler', 'analyzedCommit', 'verification', 'freshness'],
+      attributes: [
+        'id',
+        'flowId',
+        'httpMethod',
+        'path',
+        'controller',
+        'handler',
+        'analyzedCommit',
+        'verification',
+        'freshness',
+        'depsChangedAt',
+      ],
     });
   }
 
+  /**
+   * Escribe el desenlace de un flujo y, si la evidencia es POSTERIOR al último cambio de su código,
+   * lo devuelve a FRESH.
+   *
+   * Sin esa vuelta, STALE era un trinquete: un flujo cambiaba, se desplegaba, se ejercitaba, se
+   * re-verificaba… y seguía marcado para siempre. Recarga tras recarga el conjunto sólo crecía hasta
+   * volver a ser «un aviso que salta siempre». Con corridas ANTERIORES al cambio no se devuelve: esas
+   * corridas ejercitaron el código viejo y no dicen nada del nuevo.
+   */
   async applyVerification(
     flowId: string,
-    outcome: { verification: string; evidence: Record<string, unknown> },
+    outcome: { verification: string; evidence: Record<string, unknown>; lastAt?: Date | null },
     actor: string | null,
     tx: Transaction,
+    depsChangedAt?: Date | null,
   ): Promise<void> {
+    const ejercitaElCodigoNuevo = Boolean(outcome.lastAt && (!depsChangedAt || outcome.lastAt > depsChangedAt));
     await this.flows.update(
       {
         verification: outcome.verification,
         verificationEvidenceJson: outcome.evidence,
         verifiedAt: new Date(),
         verifiedBy: actor,
+        ...(ejercitaElCodigoNuevo ? { freshness: 'FRESH', depsChangedAt: null } : {}),
         updatedAtValue: new Date(),
       },
       { where: { flowId }, transaction: tx },

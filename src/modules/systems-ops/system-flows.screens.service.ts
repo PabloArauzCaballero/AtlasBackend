@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import type { Transaction } from 'sequelize';
 import { SystemFlowsScreensRepository } from './system-flows.screens.repository.js';
 import { VerifyFlowsDto } from './system-flows.schemas.js';
+import { SIN_CLIENTE } from './system-flows.screens.repository.js';
 import { matchScreenRuns, screenVerificationFrom } from './system-flows.verification.util.js';
 
 @Injectable()
@@ -31,48 +32,47 @@ export class SystemFlowsScreensService {
    */
   async verify(dto: VerifyFlowsDto, tx: Transaction) {
     if (dto.systemCode !== 'ATLAS_BACKEND') return undefined;
-    const observado = await this.repository.screenRuns(dto.windowDays);
-    const porCliente: Record<string, { total: number; verified: number; unverified: number }> = {};
+    const { porCliente: observado, truncado } = await this.repository.screenRuns(dto.windowDays);
+    const clientes = await this.repository.screenClients();
+    const resumen: Record<string, { total: number; verified: number }> = {};
     const sinCatalogar: string[] = [];
     let conTrafico = 0;
 
-    for (const clientCode of await this.repository.screenClients()) {
+    for (const clientCode of clientes) {
       const pantallas = await this.repository.screensOfClient(clientCode);
       // Sólo lo que ESE cliente declaró: `/` existe en los cinco portales y `/login` en tres, así
       // que cruzar el tráfico de todos contra las plantillas de cada uno marcaría verificadas las
       // cinco de golpe y copiaría en todas las llamadas del único que se usó.
-      const suyo = observado.get(clientCode) ?? new Map();
-      const { porPlantilla, sinCatalogar: suyasSinCatalogar } = matchScreenRuns(
-        suyo,
+      const { porPlantilla, sinCatalogar: suyas } = matchScreenRuns(
+        observado.get(clientCode) ?? new Map(),
         pantallas.map((pantalla) => pantalla.route),
       );
-      sinCatalogar.push(...suyasSinCatalogar.map((ruta) => `${clientCode} ${ruta}`));
+      sinCatalogar.push(...suyas.map((ruta) => `${clientCode} ${ruta}`));
       conTrafico += porPlantilla.size;
-      porCliente[clientCode] = { total: pantallas.length, verified: 0, unverified: 0 };
+      resumen[clientCode] = { total: pantallas.length, verified: porPlantilla.size };
 
-      for (const pantalla of pantallas) {
-        const outcome = screenVerificationFrom(porPlantilla.get(pantalla.route) ?? null);
-        // Una pantalla que dejó de usarse VUELVE a UNVERIFIED. Sin esto, el eje sólo sabía avanzar:
-        // el catálogo acumulaba «verificadas» para siempre mientras la respuesta de la corrida decía
-        // otra cosa, y nadie podía notar que una pantalla lleva medio año sin abrirse.
-        await this.repository.applyScreenVerification(
-          clientCode,
-          pantalla.route,
-          outcome ?? { verification: 'UNVERIFIED', lastSeenAt: null, observed: {} },
-          tx,
-        );
-        porCliente[clientCode][outcome ? 'verified' : 'unverified'] += 1;
+      for (const [route, runs] of porPlantilla) {
+        const outcome = screenVerificationFrom(runs);
+        if (outcome) await this.repository.applyScreenVerification(clientCode, route, outcome, tx);
       }
+      // Y las que NO aparecieron vuelven a UNVERIFIED —salvo que la consulta viniera cortada, en cuyo
+      // caso no se sabe si faltan por no usarse o por el tope, y degradar sería inventarse un dato—.
+      if (!truncado) await this.repository.resetScreensNotSeen(clientCode, [...porPlantilla.keys()], tx);
     }
 
-    // Un tráfico sin cliente declarado no se atribuye a nadie: se cuenta aparte para que se vea.
-    const anonimo = observado.get('(sin cliente)')?.size ?? 0;
+    // Clientes que declararon origen y NO están en el catálogo de pantallas. Es el desajuste que más
+    // fácil pasa desapercibido: `x-atlas-product` la mandan también backends («erp», «flows-loader»)
+    // con otro vocabulario, y su tráfico se quedaba sin atribuir sin que nada lo dijera.
+    const desconocidos = [...observado.keys()].filter((code) => code !== SIN_CLIENTE && !clientes.includes(code));
+
     return {
-      // Pantallas DEL CATÁLOGO con tráfico en la ventana. Contar las rutas concretas observadas
-      // daría un número mayor que el catálogo entero en cuanto una pantalla lleve identificador.
+      // Pantallas DEL CATÁLOGO con tráfico. Contar rutas concretas daba un número mayor que el
+      // catálogo entero en cuanto una pantalla lleva identificador.
       screensWithRuns: conTrafico,
-      screensWithoutClient: anonimo,
-      byClient: porCliente,
+      screensWithoutClient: observado.get(SIN_CLIENTE)?.size ?? 0,
+      unknownClients: desconocidos.slice(0, 10),
+      truncated: truncado,
+      byClient: resumen,
       uncatalogued: sinCatalogar.slice(0, 20),
     };
   }

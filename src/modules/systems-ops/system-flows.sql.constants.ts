@@ -46,6 +46,9 @@ export const RUNS_BY_ROUTE_SQL = `WITH runs AS (
  * preguntas interesantes: «¿alguien ha usado esta pantalla?» y «¿llama a lo que dijimos que llama?».
  * `failed` cuenta sólo el 5xx: un 401 o un 404 desde una pantalla es el flujo haciendo lo que debe.
  */
+/** Tope de grupos que se traen. Si se alcanza, quien consuma debe saber que faltan. */
+export const SCREEN_RUNS_LIMIT = 20000;
+
 export const SCREEN_RUNS_SQL = `WITH runs AS (
          SELECT origin_screen AS screen,
                 origin_client AS client,
@@ -76,8 +79,10 @@ export const SCREEN_RUNS_SQL = `WITH runs AS (
         -- Tope de seguridad: una ruta con identificador produce una fila por entidad visitada, así
         -- que sin esto el tamaño de lo que entra en memoria crece con el tráfico y no con el número
         -- de pantallas. Se ordena por actividad para que lo que se corte sea lo menos usado.
-        ORDER BY SUM(calls) DESC
-        LIMIT 20000`;
+        -- Desempate por pantalla y cliente: sin él, con miles de grupos empatados en una llamada,
+        -- qué se corta cambia entre corridas y una pantalla aparecería usada un día y no al siguiente.
+        ORDER BY SUM(calls) DESC, screen ASC, client ASC
+        LIMIT ${SCREEN_RUNS_LIMIT}`;
 
 /**
  * Los pasos de los procesos activos del `workflow-catalog`, cada uno con el flujo que lo implementa.

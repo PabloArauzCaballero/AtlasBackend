@@ -107,3 +107,18 @@ describe('screenVerificationFrom · qué se afirma de una pantalla', () => {
     expect(screenVerificationFrom(runs({ calls: 3, failed: 3 }))?.verification).toBe('VERIFIED');
   });
 });
+
+describe('el desenlace de una pantalla que dejó de usarse', () => {
+  /**
+   * Degradar a UNVERIFIED es correcto —el catálogo no puede acumular «verificadas» para siempre
+   * mientras la corrida dice otra cosa—, pero la primera versión borraba además `lastSeenAt` y lo
+   * observado. Con eso se perdía justo lo que se quería poder decir, «esta pantalla lleva medio año
+   * sin abrirse»: los logs de aquella ventana acaban podados y no queda otro sitio donde mirarlo.
+   *
+   * Por eso el reinicio es un UPDATE que toca SÓLO `verification`, y no pasa por aquí.
+   */
+  it('la función que escribe el desenlace positivo no se usa para degradar', () => {
+    expect(screenVerificationFrom(null)).toBeNull();
+    expect(screenVerificationFrom({ calls: 0, failed: 0, lastAt: null, routes: [] })).toBeNull();
+  });
+});

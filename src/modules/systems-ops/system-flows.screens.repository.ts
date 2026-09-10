@@ -5,9 +5,12 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { QueryTypes, Transaction } from 'sequelize';
+import { Op, QueryTypes, Transaction } from 'sequelize';
 import { SystemScreenCatalogModel } from '../../database/models/system-screen-catalog.model.js';
-import { SCREEN_RUNS_SQL } from './system-flows.sql.constants.js';
+import { SCREEN_RUNS_LIMIT, SCREEN_RUNS_SQL } from './system-flows.sql.constants.js';
+
+/** Cubeta del tráfico que no declaró cliente. No se atribuye a nadie: se cuenta aparte. */
+export const SIN_CLIENTE = '(sin cliente)';
 import { ScreenRuns } from './system-flows.verification.util.js';
 
 /**
@@ -28,7 +31,7 @@ export class SystemFlowsScreensRepository {
    * Sólo aparecen las pantallas cuyo cliente DECLARÓ su origen. Una pantalla ausente de este mapa no
    * es una pantalla rota: es una que nadie abrió, o una cuyo cliente todavía no manda la cabecera.
    */
-  async screenRuns(windowDays: number): Promise<Map<string, Map<string, ScreenRuns>>> {
+  async screenRuns(windowDays: number): Promise<{ porCliente: Map<string, Map<string, ScreenRuns>>; truncado: boolean }> {
     const rows = await this.screens.sequelize!.query<{
       screen: string;
       client: string | null;
@@ -42,7 +45,7 @@ export class SystemFlowsScreensRepository {
     const out = new Map<string, Map<string, ScreenRuns>>();
     for (const row of rows) {
       // Sin cliente declarado no se puede atribuir a ninguno: se agrupa aparte y no se cruza.
-      const cliente = row.client ?? '(sin cliente)';
+      const cliente = row.client ?? SIN_CLIENTE;
       const porPantalla = out.get(cliente) ?? new Map<string, ScreenRuns>();
       porPantalla.set(row.screen, {
         calls: Number(row.calls),
@@ -52,10 +55,18 @@ export class SystemFlowsScreensRepository {
       });
       out.set(cliente, porPantalla);
     }
-    return out;
+    // Si la consulta vino al tope, faltan grupos y no se sabe cuáles: quien decida degradar una
+    // pantalla a «no usada» tiene que saberlo, o convertirá un corte en una afirmación falsa.
+    return { porCliente: out, truncado: rows.length >= SCREEN_RUNS_LIMIT };
   }
 
-  /** Escribe el desenlace de una pantalla dentro de la transacción que recibe. */
+  /**
+   * Escribe el desenlace POSITIVO de una pantalla: se usó, y contra qué llamó.
+   *
+   * `verified_at` se escribe sólo aquí. En la rama de reinicio se refrescaba también, así que una
+   * pantalla que nadie abre mostraba «verificada hace un minuto» en cada corrida, que es lo
+   * contrario de lo que significa.
+   */
   async applyScreenVerification(
     clientCode: string,
     route: string,
@@ -73,7 +84,33 @@ export class SystemFlowsScreensRepository {
     );
   }
 
-  /** Los códigos de cliente que hay en el catálogo de pantallas, sin suponer cuáles son. */
+  /**
+   * Devuelve a UNVERIFIED las pantallas de un cliente que NO aparecieron en la ventana.
+   *
+   * Dos decisiones que importan:
+   *
+   * - **No se borra `last_seen_at` ni lo observado.** La primera versión los ponía a nulo, y con eso
+   *   se perdía justo lo que se quería poder decir —«esta pantalla lleva medio año sin abrirse»—,
+   *   porque los logs de aquella ventana acaban podados y no queda otro sitio donde mirarlo.
+   * - **Un solo UPDATE.** Antes era uno por pantalla dentro de la transacción de `verify`: 268
+   *   viajes serializados, encima de los 1 029 de los flujos.
+   */
+  async resetScreensNotSeen(clientCode: string, vistas: readonly string[], tx: Transaction): Promise<number> {
+    const [afectadas] = await this.screens.update(
+      { verification: 'UNVERIFIED' },
+      {
+        where: {
+          clientCode,
+          verification: { [Op.ne]: 'UNVERIFIED' },
+          ...(vistas.length ? { route: { [Op.notIn]: [...vistas] } } : {}),
+        },
+        transaction: tx,
+      },
+    );
+    return afectadas;
+  }
+
+  /** Los códigos de cliente que hay en el catálogo de pantallas  /** Los códigos de cliente que hay en el catálogo de pantallas, sin suponer cuáles son. */
   async screenClients(): Promise<string[]> {
     const rows = await this.screens.findAll({
       attributes: ['clientCode'],

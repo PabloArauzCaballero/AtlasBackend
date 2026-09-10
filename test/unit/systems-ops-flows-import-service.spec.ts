@@ -48,7 +48,7 @@ const endpoint = (over: Record<string, unknown> = {}) => ({
 describe('SystemFlowsImportService.importEndpoints', () => {
   it('registra la carga antes de escribir filas: el `importId` de las filas viene del import ya creado', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importEndpoints(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importEndpoints(
       { systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] as never },
       'pablo',
     );
@@ -59,7 +59,7 @@ describe('SystemFlowsImportService.importEndpoints', () => {
 
   it('recuenta los hallazgos tras recargar el bloque: si no, un flujo que ya no existe conservaría su contador viejo', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importEndpoints(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importEndpoints(
       { systemCode: 'ATLAS_BACKEND', endpoints: [] as never },
       null,
     );
@@ -77,7 +77,7 @@ describe('SystemFlowsImportService.importEndpoints', () => {
       (repo.calls.replaceFlows ??= []).push(args);
       return Promise.resolve({ upserted: 1, removed: 3 });
     };
-    const result = await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importEndpoints(
+    const result = await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importEndpoints(
       { systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] as never },
       'pablo',
     );
@@ -87,7 +87,7 @@ describe('SystemFlowsImportService.importEndpoints', () => {
 
   it('cada endpoint recibe el mismo commit y rama de la carga, no uno por fila', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importEndpoints(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importEndpoints(
       {
         systemCode: 'ATLAS_BACKEND',
         analyzedCommit: 'abc1234',
@@ -105,7 +105,7 @@ describe('SystemFlowsImportService.importEndpoints', () => {
 describe('SystemFlowsImportService.importScreens', () => {
   it('mapea cada pantalla al bloque del cliente que la envía, no al de los flujos', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importScreens(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importScreens(
       { clientCode: 'ADMIN_PORTAL', screens: [{ route: '/internal/flows', navPermissions: [], navRoles: [] }] as never },
       'pablo',
     );
@@ -116,7 +116,7 @@ describe('SystemFlowsImportService.importScreens', () => {
 
   it('no recuenta hallazgos: las pantallas no los tienen y llamarlo ensuciaría un bloque que no es el de flujos', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importScreens(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importScreens(
       { clientCode: 'ADMIN_PORTAL', screens: [] as never },
       null,
     );
@@ -125,7 +125,7 @@ describe('SystemFlowsImportService.importScreens', () => {
 
   it('un archivo o etiqueta de navegación ausentes se guardan como null, no como cadena vacía', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importScreens(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importScreens(
       {
         clientCode: 'ADMIN_PORTAL',
         screens: [{ route: '/x', file: 'X.tsx', navLabel: 'X', navPermissions: ['p'], navRoles: ['ADMIN'] }] as never,
@@ -140,7 +140,7 @@ describe('SystemFlowsImportService.importScreens', () => {
 describe('SystemFlowsImportService.importFindings', () => {
   it('calcula la clave estable con `findingKeyFor`: la misma terna kind+systemCode+ref siempre produce la misma clave', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importFindings(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importFindings(
       {
         systemCode: 'ATLAS_BACKEND',
         findings: [
@@ -156,7 +156,7 @@ describe('SystemFlowsImportService.importFindings', () => {
 
   it('un hallazgo sin `extra` guarda un objeto vacío, no `undefined`', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importFindings(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importFindings(
       {
         systemCode: 'ATLAS_BACKEND',
         findings: [{ kind: 'k', severity: 'LOW', systemCode: 'ATLAS_BACKEND', ref: 'r', summary: 's' }] as never,
@@ -171,7 +171,7 @@ describe('SystemFlowsImportService.importFindings', () => {
 describe('SystemFlowsImportService · frescura por flujo', () => {
   it('la frescura se decide ANTES de escribir: después ya no se sabría cuál era la huella anterior', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importEndpoints(
+    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importEndpoints(
       { systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] } as never,
       'pablo',
     );
@@ -182,7 +182,7 @@ describe('SystemFlowsImportService · frescura por flujo', () => {
   it('devuelve cuántos flujos quedaron desactualizados, que es lo que hace útil la recarga', async () => {
     const repo = repositoryDouble();
     repo.markStaleByDepsHash = () => Promise.resolve(7);
-    const resultado = await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository).importEndpoints(
+    const resultado = await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never).importEndpoints(
       { systemCode: 'ATLAS_BACKEND', endpoints: [endpoint()] } as never,
       null,
     );

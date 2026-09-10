@@ -50,6 +50,7 @@ import { SystemFlowsController } from './system-flows.controller.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
 import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { SystemFlowsImportService } from './system-flows.import.service.js';
+import { SystemFlowsFreshnessRepository } from './system-flows.freshness.repository.js';
 import { SystemFlowsScreensRepository } from './system-flows.screens.repository.js';
 import { SystemFlowsScreensService } from './system-flows.screens.service.js';
 import { SystemFlowsService } from './system-flows.service.js';
@@ -133,6 +134,7 @@ import { SystemsMetadataRepository } from './systems-metadata.repository.js';
     SystemsMetadataRepository,
     SystemFlowsService,
     SystemFlowsImportService,
+    SystemFlowsFreshnessRepository,
     SystemFlowsScreensRepository,
     SystemFlowsScreensService,
     SystemFlowsRepository,

@@ -149,7 +149,11 @@ export function flowRowFor(
     // verificación de los mil flujos y el panel volvía a decir «nadie ha ejercitado nada». Medido:
     // 1 029 flujos a UNVERIFIED tras un `load.mjs` sin `--verify`. Sin error y sin rojo.
     // Al insertar una fila nueva, el DEFAULT de la columna pone esos mismos valores.
-    depsHash: risk.analysis?.depsHash ?? null,
+    // La huella se toma del análisis CRUDO y no de `risk.analysis`, que es nulo cuando el análisis
+    // quedó en DISCOVERED o en un PARTIAL sin datos. Colgarla de ahí dejaba 222 de 1 029 flujos sin
+    // huella —precisamente los peor analizados, o sea los más propensos a cambiar sin que se note— y,
+    // peor, una recarga que reclasificara un flujo a DISCOVERED borraba la huella buena.
+    depsHash: endpoint.analysis?.depsHash ?? null,
     httpMethod: endpoint.method,
     path: endpoint.path,
     controller: endpoint.controller,

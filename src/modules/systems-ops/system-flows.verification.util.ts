@@ -17,6 +17,8 @@ export type RouteRuns = {
 export type VerificationOutcome = {
   verification: 'UNVERIFIED' | 'VERIFIED' | 'BROKEN';
   evidence: Record<string, unknown>;
+  /** Fecha de la corrida más reciente. Decide si la evidencia ejercitó el código de HOY. */
+  lastAt: Date | null;
 };
 
 /**
@@ -37,7 +39,9 @@ export function verificationFromRuns(runs: RouteRuns | null, source: string): Ve
     statuses: runs.statuses,
     correlationSample: runs.correlationSample.slice(0, 5),
   };
-  return { verification: runs.ok > 0 ? 'VERIFIED' : 'BROKEN', evidence };
+  // `lastAt` viaja también fuera de la evidencia: quien decide la frescura necesita compararla
+  // con la fecha del último cambio de código, y hurgar dentro del JSON para eso sería peor.
+  return { verification: runs.ok > 0 ? 'VERIFIED' : 'BROKEN', evidence, lastAt: runs.lastAt };
 }
 
 /**

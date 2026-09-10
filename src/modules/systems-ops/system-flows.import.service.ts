@@ -5,13 +5,17 @@
  */
 import { Injectable } from '@nestjs/common';
 import { flowRowFor } from './system-flows.mapper.js';
+import { SystemFlowsFreshnessRepository } from './system-flows.freshness.repository.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
 import { findingKeyFor } from './system-flows.risk.util.js';
 import { ImportEndpointsDto, ImportFindingsDto, ImportScreensDto } from './system-flows.schemas.js';
 
 @Injectable()
 export class SystemFlowsImportService {
-  constructor(private readonly repository: SystemFlowsRepository) {}
+  constructor(
+    private readonly repository: SystemFlowsRepository,
+    private readonly freshness: SystemFlowsFreshnessRepository,
+  ) {}
 
   importEndpoints(dto: ImportEndpointsDto, actor: string | null) {
     return this.repository.transaction(async (tx) => {
@@ -39,7 +43,7 @@ export class SystemFlowsImportService {
       // La frescura se decide ANTES de escribir, comparando la huella guardada con la que trae la
       // recarga: después ya no se sabría cuál era la anterior. Un flujo cuyo código cambió desde que
       // se verificó pasa a STALE; el resto se queda como estaba, que es lo que hace útil el aviso.
-      const stale = await this.repository.markStaleByDepsHash(dto.systemCode, rows, tx);
+      const stale = await this.freshness.markStaleByDepsHash(dto.systemCode, rows, tx);
       const result = await this.repository.replaceFlows(dto.systemCode, rows, tx);
       await this.repository.recountFindings(dto.systemCode, tx);
       await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });

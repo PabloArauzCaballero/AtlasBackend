@@ -217,13 +217,13 @@ export class SystemFlowsService {
 
   /** Aplica a un flujo lo que dicen sus corridas y su commit, y lleva la cuenta. Extraído del bucle. */
   private async applyFlowVerification(
-    flow: { flowId: string; analyzedCommit: string | null; freshness: string },
+    flow: { flowId: string; analyzedCommit: string | null; freshness: string; depsChangedAt: Date | null },
     runs: RouteRuns | null,
     ctx: { source: string; actor: string | null; tx: Transaction; counts: Record<string, number> },
   ) {
     const outcome = verificationFromRuns(runs, ctx.source);
     if (outcome) {
-      await this.repository.applyVerification(flow.flowId, outcome, ctx.actor, ctx.tx);
+      await this.repository.applyVerification(flow.flowId, outcome, ctx.actor, ctx.tx, flow.depsChangedAt);
       ctx.counts[outcome.verification === 'VERIFIED' ? 'verified' : 'broken'] += 1;
     } else ctx.counts.unverified += 1;
     // La frescura ya NO se decide aquí. La decidía comparando el commit analizado con el desplegado,
