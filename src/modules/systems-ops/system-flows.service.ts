@@ -15,7 +15,6 @@ import {
   type RouteRuns,
   verificationFromRuns,
 } from './system-flows.verification.util.js';
-import { manifestConfigFor } from './platform-blocks.constants.js';
 import { PlatformCatalogFederationClient } from './platform-catalog-federation.client.js';
 import { buildFlowGraph, buildModuleGraph } from './system-flows.graph.util.js';
 import { mapFinding, mapFlow, mapScreen } from './system-flows.mapper.js';
@@ -43,8 +42,8 @@ type FlujoIdentificable = { httpMethod: string; path: string; controller: string
  * la fuente que la produce, y no en un `if` del bucle de verificación.
  */
 type EvidenciaDeBloque = {
-  /** `dias` es la ventana pedida; `prefijo`, el de la API de ese bloque, leído de su configuración. */
-  path: (dias: number, prefijo: string) => string;
+  /** Ruta de la evidencia en ese bloque, leída de su configuración; `dias` es la ventana pedida. */
+  path: (dias: number) => string;
   index: (body: unknown) => Map<string, RouteRuns>;
   key: (flow: FlujoIdentificable) => string;
   /** Qué se guarda como procedencia de la verificación: de dónde salió, textualmente. */
@@ -53,14 +52,22 @@ type EvidenciaDeBloque = {
 
 const ACCESS_EVIDENCE: Record<string, EvidenciaDeBloque> = {
   DECISION_ENGINE: {
-    path: (dias, prefijo) => `${prefijo}/audit/access-runs?windowDays=${dias}`,
+    path: (dias) => `${env.DECISION_ENGINE_ACCESS_RUNS_PATH}?windowDays=${dias}`,
     index: (body) => indexBlockRuns((body as { resources?: BlockAccessRun[] })?.resources ?? []),
     key: (flow) => `${flow.httpMethod} ${flow.controller}.${flow.handler}`,
     source: 'decision_access_audit (federado)',
   },
+  DASHBOARDS: {
+    // Este bloque no instrumenta nada nuevo: su `MetricsInterceptor` ya contaba las peticiones por
+    // (método, patrón de ruta, estado) para Prometheus, y lo que publica es ese mismo contador.
+    path: () => env.DASHBOARDS_ACCESS_RUNS_PATH,
+    index: (body) => indexBlockPathRuns((body as { entries?: BlockPathRun[] })?.entries ?? []),
+    key: (flow) => `${flow.httpMethod} ${flow.path}`,
+    source: 'atlas_dashboards_http_requests_total (federado, desde el arranque del proceso)',
+  },
   ERP_BACKEND: {
     // El ERP no acota por ventana: cuenta desde que arrancó la instancia y lo declara en la respuesta.
-    path: (_dias, prefijo) => `${prefijo}/platform/access-runs`,
+    path: () => env.ERP_BACKEND_ACCESS_RUNS_PATH,
     index: (body) => indexBlockPathRuns((body as { entries?: BlockPathRun[] })?.entries ?? []),
     key: (flow) => `${flow.httpMethod} ${flow.path}`,
     source: 'http_access_registry (federado, desde el arranque del proceso)',
@@ -229,11 +236,7 @@ export class SystemFlowsService {
     if (!fuente) {
       return { ok: false, message: `El bloque ${dto.systemCode} no publica evidencia de ejecución HTTP.`, runs: new Map() };
     }
-    const result = await this.federation.fetchFromBlock(
-      dto.systemCode,
-      callerToken,
-      fuente.path(dto.windowDays, apiPrefixOf(dto.systemCode)),
-    );
+    const result = await this.federation.fetchFromBlock(dto.systemCode, callerToken, fuente.path(dto.windowDays));
     if (!result.ok) return { ok: false, message: result.message ?? 'No se pudo pedir el resumen de accesos.', runs: new Map() };
     return { ok: true, message: undefined, runs: fuente.index((result as { body?: unknown }).body) };
   }
@@ -272,17 +275,4 @@ export class SystemFlowsService {
       createdAt: row.createdAtValue,
     }));
   }
-}
-
-/**
- * El prefijo de API de un bloque, leído de la ruta de su manifiesto en vez de clavado aquí.
- *
- * Los dos bloques federados publican `<prefijo>/platform/catalog-manifest` —`/api/v1/` el ERP,
- * `/v1/` el Motor— y ese prefijo es SUYO: está parametrizado en el entorno justamente porque pueden
- * cambiarlo sin que este repo se entere. Escribir `platform/access-runs` a pelo daba un 404, que
- * aquí se leería como «el bloque no registra nada» en vez de como «se pidió la ruta equivocada».
- */
-function apiPrefixOf(systemCode: string): string {
-  const manifestPath = manifestConfigFor(systemCode, null)?.manifestPath ?? '';
-  return manifestPath.split('/').filter(Boolean).slice(0, -2).join('/');
 }

@@ -36,6 +36,8 @@ export const erpEnvShape = {
    * hueco silencioso haría creer.
    */
   ERP_BACKEND_CATALOG_PATH: z.string().trim().min(1).max(200).default('/api/v1/platform/catalog-manifest'),
+  /** Ruta del resumen de accesos del ERP, parametrizada por lo mismo que la del manifiesto. */
+  ERP_BACKEND_ACCESS_RUNS_PATH: z.string().trim().min(1).max(200).default('/api/v1/platform/access-runs'),
   ERP_BACKEND_CATALOG_API_KEY: z.string().optional(),
 
   /**

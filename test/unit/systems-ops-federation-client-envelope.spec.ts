@@ -52,7 +52,18 @@ describe('PlatformCatalogFederationClient · el sobre de la respuesta', () => {
     expect(body).toMatchObject({ scope: 'process', entries: [{ method: 'GET' }] });
   });
 
-  it('un cuerpo con `data` propio pero sin `success` NO se abre: no es un sobre', async () => {
+  it('abre también el otro sobre del ecosistema, el de `requestId`', async () => {
+    // El ERP responde `{ success, data }`; el Backend y Tableros, `{ requestId, data, timestamp }`.
+    // Reconocer sólo uno dejaba al otro devolviendo «federación correcta, cero corridas».
+    const body = await pedir({
+      requestId: 'a1b2',
+      data: { since: '2026-09-10T00:00:00Z', scope: 'process', entries: [{ method: 'GET' }] },
+      timestamp: '2026-09-10T00:00:01Z',
+    });
+    expect(body).toMatchObject({ scope: 'process', entries: [{ method: 'GET' }] });
+  });
+
+  it('un cuerpo con `data` propio y sin ninguna marca de sobre NO se abre', async () => {
     const body = await pedir({ entries: [], data: { esto: 'es del bloque' } });
     expect(body).toMatchObject({ entries: [], data: { esto: 'es del bloque' } });
   });

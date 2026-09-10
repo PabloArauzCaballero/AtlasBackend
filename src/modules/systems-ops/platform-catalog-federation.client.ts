@@ -130,20 +130,24 @@ function unwrapEnvelope(body: unknown): unknown {
 }
 
 /**
- * Abre el sobre `{ success, data }` con el que responden estos backends, y sólo ese.
+ * Abre el sobre de respuesta de un bloque del ecosistema, y sólo eso.
  *
- * `unwrapEnvelope` no sirve para una ruta cualquiera: reconoce el sobre por una clave del
- * MANIFIESTO (`block`), así que con el resumen de accesos devolvía el sobre entero y quien lo
- * indexaba no encontraba nada. El resultado era el peor posible: federación `ok: true` y cero
- * corridas, es decir «se preguntó bien y ese bloque no ha ejecutado nada», que es mentira.
+ * Hay DOS sobres en circulación y ninguno es el del otro: el ERP responde `{ success, data }` y el
+ * Backend y Tableros responden `{ requestId, data, timestamp }`. `unwrapEnvelope` no sirve para una
+ * ruta cualquiera porque reconoce el sobre por una clave del MANIFIESTO (`block`), así que con el
+ * resumen de accesos devolvía el sobre entero y quien lo indexaba no encontraba nada.
  *
- * Se reconoce por `success` booleano junto a `data`, que es la forma exacta del sobre: un cuerpo
- * que traiga un `data` propio sin `success` no se toca.
+ * El resultado era el peor posible: federación `ok: true` y cero corridas, es decir «se preguntó
+ * bien y ese bloque no ha ejecutado nada», que es mentira. Por eso el sobre se reconoce por su forma
+ * —`data` acompañado de un `success` booleano o de un `requestId` de texto—: un cuerpo que traiga un
+ * `data` propio sin ninguna de las dos marcas no se toca.
  */
 function unwrapSuccessEnvelope(body: unknown): unknown {
   if (!body || typeof body !== 'object') return body;
-  const sobre = body as { success?: unknown; data?: unknown };
-  return typeof sobre.success === 'boolean' && sobre.data !== undefined ? sobre.data : body;
+  const sobre = body as { success?: unknown; requestId?: unknown; data?: unknown };
+  if (sobre.data === undefined) return body;
+  const esSobre = typeof sobre.success === 'boolean' || typeof sobre.requestId === 'string';
+  return esSobre ? sobre.data : body;
 }
 
 function joinUrl(baseUrl: string, path: string): string {

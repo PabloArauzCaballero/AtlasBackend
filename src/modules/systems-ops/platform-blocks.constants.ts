@@ -142,5 +142,22 @@ export function manifestConfigFor(code: string, callerToken: string | null): Blo
       missingCredentialReason: 'falta ERP_BACKEND_CATALOG_API_KEY, la credencial de sólo lectura de su manifiesto',
     };
   }
+  if (code === 'DASHBOARDS') {
+    return {
+      baseUrl: env.DASHBOARDS_BASE_URL,
+      /**
+       * Tableros NO publica manifiesto de catálogo: lo único que federa hoy es su resumen de
+       * accesos, y por eso ésa es su ruta por defecto. No está en `PLATFORM_BLOCKS`, así que la
+       * consolidación de catálogo no lo visita; quien lo alcanza es sólo la verificación de Flujos.
+       */
+      manifestPath: env.DASHBOARDS_ACCESS_RUNS_PATH,
+      timeoutMs: env.DASHBOARDS_ACCESS_RUNS_TIMEOUT_MS,
+      // Misma idea que en el ERP: una llave de un solo propósito, no el secreto JWT ni el token de
+      // métricas, que son de otros consumidores y con otro alcance.
+      authHeader: 'x-platform-catalog-key',
+      authValue: env.DASHBOARDS_CATALOG_API_KEY,
+      missingCredentialReason: 'falta DASHBOARDS_CATALOG_API_KEY, la credencial de sólo lectura de su resumen de accesos',
+    };
+  }
   return null;
 }

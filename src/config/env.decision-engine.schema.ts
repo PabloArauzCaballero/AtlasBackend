@@ -142,6 +142,12 @@ export const decisionEngineEnvShape = {
    * las identidades es este backend.
    */
   DECISION_ENGINE_CATALOG_PATH: z.string().trim().min(1).max(200).default('/v1/platform/catalog-manifest'),
+  /**
+   * Ruta del resumen de accesos del motor, la evidencia con la que Flujos verifica sus flujos.
+   * Parametrizada por lo mismo que la del manifiesto: el prefijo de su API es SUYO. Escribirla a
+   * pelo aquí daba un 404, que se leería como «ese bloque no ha ejecutado nada».
+   */
+  DECISION_ENGINE_ACCESS_RUNS_PATH: z.string().trim().min(1).max(200).default('/v1/audit/access-runs'),
   /** Plazo propio del manifiesto: una introspección completa no cabe en el tiempo de un healthcheck. */
   DECISION_ENGINE_CATALOG_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(30_000),
   /**

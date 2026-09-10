@@ -298,11 +298,13 @@ describe('SystemFlowsService.verify · bloques federados', () => {
   });
 
   it.each([
-    ['DECISION_ENGINE', 'v1/audit/access-runs?windowDays=30'],
-    ['ERP_BACKEND', 'api/v1/platform/access-runs'],
-  ])('a %s se le pide la evidencia con el prefijo de API que él declara, no con uno clavado', async (systemCode, esperada) => {
-    // El prefijo se lee de la ruta del manifiesto configurada (`/api/v1/…` el ERP, `/v1/…` el
-    // Motor). Pedirlo sin prefijo devolvía 404, que se leería como «este bloque no registra nada».
+    ['DECISION_ENGINE', '/v1/audit/access-runs?windowDays=30'],
+    ['ERP_BACKEND', '/api/v1/platform/access-runs'],
+    ['DASHBOARDS', '/api/v1/platform/access-runs'],
+  ])('a %s se le pide la evidencia en la ruta que declara su configuración, no en una clavada', async (systemCode, esperada) => {
+    // El prefijo de la API de cada bloque es SUYO y está parametrizado en el entorno justamente
+    // porque puede cambiar sin que este repo se entere. Pedirla sin prefijo devolvía 404, que se
+    // leería como «este bloque no registra nada» en vez de como «se pidió la ruta equivocada».
     const pedidas: string[] = [];
     const repo = repositoryDouble({ flows: [] });
     const service = new SystemFlowsService(
@@ -315,15 +317,20 @@ describe('SystemFlowsService.verify · bloques federados', () => {
   });
 
   it('un bloque que no publica evidencia no se intenta federar siquiera', async () => {
+    // Hoy los cuatro backends del catálogo publican la suya, así que el caso se prueba con un
+    // código que no está en `ACCESS_EVIDENCE`: es lo que pasaría con un bloque nuevo antes de
+    // enseñarle a publicar. Lo importante es que no se inventa una corrida ni se llama roto a nada.
     const repo = repositoryDouble({ flows: [flowDelMotor] });
+    const pedidas: string[] = [];
     const service = new SystemFlowsService(
       repo as unknown as SystemFlowsRepository,
-      federationDouble({ ok: true, body: { resources: [] } }),
+      federationDouble({ ok: true, body: { resources: [] } }, pedidas),
       importDouble(repo),
     );
-    const result = await service.verify({ systemCode: 'DASHBOARDS', windowDays: 30 }, null, 'token');
-    expect(result).toMatchObject({ skippedNoLogs: 1 });
+    const result = await service.verify({ systemCode: 'BLOQUE_NUEVO', windowDays: 30 }, null, 'token');
+    expect(result).toMatchObject({ skippedNoLogs: 1, verified: 0, broken: 0 });
     expect((result as { federation?: { message?: string } }).federation?.message).toContain('no publica evidencia');
+    expect(pedidas).toEqual([]);
   });
 });
 
