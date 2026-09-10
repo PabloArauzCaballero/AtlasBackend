@@ -10,6 +10,7 @@ const FLOWS = atlasSchemaFor('system_flow_catalog');
 const SCREENS = atlasSchemaFor('system_screen_catalog');
 const OUTBOX = atlasSchemaFor('outbox_events');
 const JOBS = atlasSchemaFor('system_job_runs');
+const MESSAGES = atlasSchemaFor('notification_messages');
 const WORKFLOW = atlasSchemaFor('workflow_definitions');
 
 /**
@@ -86,6 +87,31 @@ export const SCREEN_RUNS_SQL = `WITH runs AS (
         -- qué se corta cambia entre corridas y una pantalla aparecería usada un día y no al siguiente.
         ORDER BY SUM(calls) DESC, screen ASC, client ASC
         LIMIT ${SCREEN_RUNS_LIMIT}`;
+
+/**
+ * Eventos de DOMINIO escritos en la ventana, y cuántos produjeron de verdad un aviso.
+ *
+ * El vínculo es `notification_messages.outbox_event_id`, no un cruce por nombre. Se probaron las dos
+ * vías tentadoras y engañaban: `notification_policies` son preferencias por categoría con otro
+ * vocabulario (`payment_received`), y ese cruce acusaba en falso a `payment.confirmed`, que sí avisa;
+ * y `locked_by` está vacío en todos porque `process_events` lo limpia al terminar.
+ *
+ * `api_command` se excluye: son los eventos de compatibilidad de cada mutación, sin consumidor a
+ * propósito.
+ */
+export const DOMAIN_EVENT_CONSUMERS_SQL = `SELECT o.event_code,
+              o.aggregate_type,
+              COUNT(DISTINCT o._id)             AS events,
+              COUNT(DISTINCT m.outbox_event_id) AS events_with_message,
+              COUNT(m._id)                      AS messages,
+              MAX(o._created_at)                AS last_event_at
+         FROM ${OUTBOX}.outbox_events o
+         LEFT JOIN ${MESSAGES}.notification_messages m ON m.outbox_event_id = o._id
+        WHERE o.aggregate_type <> 'api_command'
+          AND o._created_at >= NOW() - (:windowDays || ' days')::interval
+        GROUP BY o.event_code, o.aggregate_type
+        ORDER BY COUNT(DISTINCT m.outbox_event_id) ASC, COUNT(DISTINCT o._id) DESC, o.event_code
+        LIMIT 500`;
 
 /**
  * Pantallas cuya puerta declarada en el menú NO es la que aplica la API.

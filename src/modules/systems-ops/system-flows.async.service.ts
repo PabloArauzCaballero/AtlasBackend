@@ -4,7 +4,13 @@
  * @system traduce los eventos observados a un diagnóstico por flujo, distinguiendo entorno de avería.
  */
 import { Injectable } from '@nestjs/common';
-import { SystemFlowsAsyncRepository, type OutboxHealthRow, type PendingWorkRow } from './system-flows.async.repository.js';
+import { listEventDefinitions } from '../events/event-registry.js';
+import {
+  SystemFlowsAsyncRepository,
+  type DomainEventRow,
+  type OutboxHealthRow,
+  type PendingWorkRow,
+} from './system-flows.async.repository.js';
 
 const DIA_MS = 86_400_000;
 /** Sin una corrida completada del consumidor en este margen, se da por ausente en este entorno. */
@@ -27,7 +33,11 @@ export class SystemFlowsAsyncService {
   constructor(private readonly repository: SystemFlowsAsyncRepository) {}
 
   async pendingWork(windowDays = 30) {
-    const [filas, salud] = await Promise.all([this.repository.pendingWork(windowDays), this.repository.outboxHealth()]);
+    const [filas, salud, dominio] = await Promise.all([
+      this.repository.pendingWork(windowDays),
+      this.repository.outboxHealth(),
+      this.repository.domainEventConsumers(windowDays),
+    ]);
     const ultimaCorrida = salud?.consumer_last_run ? new Date(salud.consumer_last_run) : null;
     const consumidorVivo = Boolean(ultimaCorrida && Date.now() - ultimaCorrida.getTime() <= CONSUMIDOR_VIVO_MS);
     const flows = filas.map((fila) => traducir(fila, consumidorVivo ? ultimaCorrida : null));
@@ -49,8 +59,42 @@ export class SystemFlowsAsyncService {
       skipped: flows.filter((flujo) => flujo.skippedByConsumer).map((flujo) => `${flujo.method} ${flujo.path}`),
       failing: flows.filter((flujo) => flujo.failed > 0).map((flujo) => `${flujo.method} ${flujo.path}`),
       flows,
+      domainEvents: clasificarDominio(dominio),
     };
   }
+}
+
+/**
+ * Quién consume cada evento de dominio, con la prueba que hay para decirlo.
+ *
+ * - `SIN_REGISTRO`: avería segura, y no por deducción. `process_events` sólo reclama códigos del
+ *   registro y `process_outbox` sólo los que no están, así que un evento de dominio sin registro lo
+ *   marca procesado el job de compatibilidad sin avisar a nadie. Así estaba `customer.lifecycle.*`:
+ *   23 transiciones, 0 avisos, con un comentario que afirmaba lo contrario.
+ * - `REGISTRADO_SIN_AVISOS`: lo toma `process_events` pero no dejó ningún mensaje. Puede ser a propósito
+ *   —un evento para auditoría o métricas— y por eso no se llama avería: se enseña para que alguien
+ *   decida.
+ * - `AVISA`: al menos uno de sus eventos terminó en un mensaje.
+ */
+function clasificarDominio(filas: DomainEventRow[]) {
+  const registrados = new Set(listEventDefinitions().map((definicion) => definicion.code));
+  const rows = filas.map((fila) => {
+    const conAviso = Number(fila.events_with_message);
+    return {
+      eventCode: fila.event_code,
+      aggregateType: fila.aggregate_type,
+      events: Number(fila.events),
+      eventsWithMessage: conAviso,
+      messages: Number(fila.messages),
+      lastEventAt: fila.last_event_at ? new Date(fila.last_event_at) : null,
+      consumer: !registrados.has(fila.event_code) ? 'SIN_REGISTRO' : conAviso > 0 ? 'AVISA' : 'REGISTRADO_SIN_AVISOS',
+    };
+  });
+  return {
+    unregistered: rows.filter((row) => row.consumer === 'SIN_REGISTRO').map((row) => row.eventCode),
+    registeredWithoutMessages: rows.filter((row) => row.consumer === 'REGISTRADO_SIN_AVISOS').map((row) => row.eventCode),
+    rows,
+  };
 }
 
 function diagnosticar(consumidorVivo: boolean, flows: ReturnType<typeof traducir>[]): Diagnostico {

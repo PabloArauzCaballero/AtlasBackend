@@ -7,7 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
 import { SystemFlowCatalogModel } from '../../database/models/system-flow-catalog.model.js';
-import { OUTBOX_HEALTH_SQL, PENDING_WORK_SQL } from './system-flows.sql.constants.js';
+import { DOMAIN_EVENT_CONSUMERS_SQL, OUTBOX_HEALTH_SQL, PENDING_WORK_SQL } from './system-flows.sql.constants.js';
 
 /** Lo que un flujo dejó encargado en una ventana, y qué pasó con ello. */
 export interface PendingWorkRow {
@@ -22,6 +22,16 @@ export interface PendingWorkRow {
   pending_since: Date | null;
   last_processed_at: Date | null;
   codes: string[];
+}
+
+/** Un código de evento de dominio en la ventana, con cuántos de sus eventos acabaron en un aviso. */
+export interface DomainEventRow {
+  event_code: string;
+  aggregate_type: string;
+  events: string;
+  events_with_message: string;
+  messages: string;
+  last_event_at: Date | null;
 }
 
 /** El outbox entero y el consumidor, sin pasar por la atribución a una petición. */
@@ -54,5 +64,12 @@ export class SystemFlowsAsyncRepository {
   async outboxHealth(): Promise<OutboxHealthRow> {
     const [fila] = await this.flows.sequelize!.query<OutboxHealthRow>(OUTBOX_HEALTH_SQL, { type: QueryTypes.SELECT });
     return fila;
+  }
+
+  domainEventConsumers(windowDays: number): Promise<DomainEventRow[]> {
+    return this.flows.sequelize!.query<DomainEventRow>(DOMAIN_EVENT_CONSUMERS_SQL, {
+      type: QueryTypes.SELECT,
+      replacements: { windowDays: String(windowDays) },
+    });
   }
 }

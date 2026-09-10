@@ -1,5 +1,9 @@
 import { SystemFlowsAsyncService } from '../../src/modules/systems-ops/system-flows.async.service.js';
-import { OUTBOX_HEALTH_SQL, PENDING_WORK_SQL } from '../../src/modules/systems-ops/system-flows.sql.constants.js';
+import {
+  DOMAIN_EVENT_CONSUMERS_SQL,
+  OUTBOX_HEALTH_SQL,
+  PENDING_WORK_SQL,
+} from '../../src/modules/systems-ops/system-flows.sql.constants.js';
 
 /**
  * El mapa de Flujos acababa en el endpoint. Un flujo que encola algo parecía terminar al responder,
@@ -17,9 +21,10 @@ const MIN = 60_000;
 const DIA = 86_400_000;
 const hace = (ms: number) => new Date(Date.now() - ms);
 
-function servicio(filas: unknown[], salud: Record<string, unknown> = {}) {
+function servicio(filas: unknown[], salud: Record<string, unknown> = {}, dominio: unknown[] = []) {
   return new SystemFlowsAsyncService({
     pendingWork: async () => filas,
+    domainEventConsumers: async () => dominio,
     outboxHealth: async () => ({
       pending: String((filas as Array<{ pending?: string }>).reduce((n, f) => n + Number(f.pending ?? 0), 0)),
       pending_without_tenant: '0',
@@ -115,5 +120,38 @@ describe('las consultas que alimentan el diagnóstico', () => {
 
   it('la salud del consumidor sale de sus corridas COMPLETADAS, no de las que empezaron', () => {
     expect(OUTBOX_HEALTH_SQL).toMatch(/job_code = 'process_outbox' AND status = 'completed'/);
+  });
+});
+
+describe('SystemFlowsAsyncService.pendingWork · quién consume cada evento de dominio', () => {
+  const evento = (codigo: string, eventos: number, conAviso: number) => ({
+    event_code: codigo,
+    aggregate_type: 'x',
+    events: String(eventos),
+    events_with_message: String(conAviso),
+    messages: String(conAviso),
+    last_event_at: null,
+  });
+
+  it('un código fuera del registro es SIN_REGISTRO: lo traga el job de compatibilidad, por construcción', async () => {
+    const { domainEvents } = await servicio([], {}, [evento('customer.lifecycle.under_review', 4, 0)]).pendingWork();
+    expect(domainEvents.unregistered).toEqual(['customer.lifecycle.under_review']);
+  });
+
+  it('registrado y sin ningún aviso NO se llama avería: puede ser un evento de auditoría', async () => {
+    const { domainEvents } = await servicio([], {}, [evento('support.sla.breached', 13, 0)]).pendingWork();
+    expect(domainEvents.unregistered).toEqual([]);
+    expect(domainEvents.registeredWithoutMessages).toEqual(['support.sla.breached']);
+  });
+
+  it('registrado y con avisos es AVISA: el control que dice que el circuito funciona', async () => {
+    const { domainEvents } = await servicio([], {}, [evento('payment.confirmed', 2, 2)]).pendingWork();
+    expect(domainEvents.rows[0]).toMatchObject({ consumer: 'AVISA', eventsWithMessage: 2 });
+  });
+
+  it('el aviso se prueba por el vínculo real, no por nombre de política ni por locked_by', () => {
+    expect(DOMAIN_EVENT_CONSUMERS_SQL).toMatch(/LEFT JOIN .*notification_messages m ON m\.outbox_event_id = o\._id/);
+    expect(DOMAIN_EVENT_CONSUMERS_SQL).toMatch(/aggregate_type <> 'api_command'/);
+    expect(DOMAIN_EVENT_CONSUMERS_SQL).not.toMatch(/notification_policies|locked_by/);
   });
 });
