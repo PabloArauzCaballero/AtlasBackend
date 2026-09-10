@@ -15,7 +15,7 @@ import { actorId } from './systems-actor.util.js';
 import { SystemsOpsControllerSecurity } from './systems-controller.decorators.js';
 import { InternalPermissions } from '../internal-users/internal-permissions.decorator.js';
 import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
-import { SYSTEMS_OPS_GOVERNANCE_ROLES } from './systems-ops.constants.js';
+import { SYSTEMS_OPS_FINE_PERMISSION_ROLES, SYSTEMS_OPS_GOVERNANCE_ROLES } from './systems-ops.constants.js';
 import { SystemFlowsService } from './system-flows.service.js';
 import {
   FindingsListQueryDto,
@@ -45,6 +45,9 @@ import {
  */
 @Controller('systems')
 @UseGuards(InternalPermissionsGuard)
+// Encima de `SystemsOpsControllerSecurity` para que se aplique después y mande: quien revisa flujos tiene
+// que poder abrirlos. Cada método exige además su permiso fino (ver `SYSTEMS_OPS_FINE_PERMISSION_ROLES`).
+@Roles(...SYSTEMS_OPS_FINE_PERMISSION_ROLES)
 @SystemsOpsControllerSecurity()
 /**
  * Y ADEMÁS el permiso fino, que es lo que el catálogo de RBAC promete desde el primer día.

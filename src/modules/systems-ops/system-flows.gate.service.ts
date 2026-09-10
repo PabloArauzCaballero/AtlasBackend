@@ -32,7 +32,7 @@ export class SystemFlowsGateService {
     const [criticos, desprotegidas, pendientes, cargas, deriva] = await Promise.all([
       this.repository.criticalNotCertified(),
       this.repository.openFindingsOfKind('UNPROTECTED_WRITE'),
-      this.repository.pendingHighReviews(),
+      this.repository.unresolvedHighReviews(),
       this.repository.importedScopes(),
       this.screens.rbacDrift(),
     ]);
@@ -49,7 +49,7 @@ export class SystemFlowsGateService {
         code: 'REVIEW_PENDING_HIGH',
         passed: pendientes === 0,
         count: pendientes,
-        detail: 'flujos de riesgo alto pendientes de revisión humana',
+        detail: 'flujos de riesgo alto pendientes de revisión humana o rechazados (un rechazo dice que su análisis está mal)',
       },
       comprobacionArtefactos(cargas),
     ];
@@ -85,25 +85,34 @@ function comprobacionDeriva(deriva: Awaited<ReturnType<SystemFlowsScreensService
       detail: 'sin uso observado de pantallas: no se puede afirmar que no haya llamadas sin guarda',
     };
   }
+  const noMedidos = deriva.notMeasured ?? [];
+  const limites = [
+    deriva.truncated ? 'la consulta vino cortada y la cifra puede quedarse corta' : null,
+    // Los portales que llaman a otro bloque no entran en esta medida: afirmar que no tienen deriva sería
+    // afirmar lo que no se ha podido mirar.
+    noMedidos.length ? `no se mide para ${noMedidos.join(', ')}` : null,
+  ].filter(Boolean);
   return {
     code: 'RBAC_DRIFT_SIN_GUARDA',
-    passed: sinGuarda === 0 && !deriva.truncated,
+    passed: sinGuarda === 0 && limites.length === 0,
     count: sinGuarda,
-    detail: deriva.truncated
-      ? 'llamadas sin guarda sobre una consulta cortada: la cifra puede quedarse corta'
-      : 'llamadas desde pantallas a endpoints sin permiso ni rol',
+    detail: `llamadas desde pantallas a endpoints sin permiso ni rol, sobre ${deriva.screensWithObservedEdges} pantalla(s) con uso observado${limites.length ? ` · ${limites.join(' · ')}` : ''}`,
   };
 }
 
 function comprobacionArtefactos(cargas: Set<string>): GateCheck {
   const faltan = [
     ...BLOQUES.filter((bloque) => !cargas.has(`endpoints:${bloque}`)).map((bloque) => `endpoints de ${bloque}`),
+    // Sin carga de hallazgos, «0 escrituras desprotegidas abiertas» no dice nada.
+    ...BLOQUES.filter((bloque) => !cargas.has(`findings:${bloque}`)).map((bloque) => `hallazgos de ${bloque}`),
     ...CLIENTES.filter((cliente) => !cargas.has(`screens:${cliente}`)).map((cliente) => `pantallas de ${cliente}`),
   ];
   return {
     code: 'ARTIFACTS_PRESENT',
     passed: faltan.length === 0,
     count: faltan.length,
-    detail: faltan.length ? `falta cargar: ${faltan.join(', ')}` : 'artefacto cargado para los cuatro bloques y los cinco clientes',
+    detail: faltan.length
+      ? `falta cargar: ${faltan.join(', ')}`
+      : 'endpoints y hallazgos de los cuatro bloques y pantallas de los cinco clientes cargados',
   };
 }

@@ -14,7 +14,7 @@ import { actorId } from './systems-actor.util.js';
 import { SystemsOpsControllerSecurity } from './systems-controller.decorators.js';
 import { InternalPermissions } from '../internal-users/internal-permissions.decorator.js';
 import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
-import { SYSTEMS_OPS_ROLES } from './systems-ops.constants.js';
+import { SYSTEMS_OPS_FINE_PERMISSION_ROLES } from './systems-ops.constants.js';
 import { SystemFlowsGateService } from './system-flows.gate.service.js';
 import { SystemFlowsReviewService } from './system-flows.review.service.js';
 import {
@@ -24,20 +24,6 @@ import {
   type FlowReviewQueueDto,
 } from './system-flows.review.schemas.js';
 import { flowIdParamsSchema, type FlowIdParamsDto } from './system-flows.schemas.js';
-
-/**
- * Roles de SESIÓN que llegan a estas rutas, y por qué incluyen `internal_operator`.
- *
- * El permiso de revisar lo dan los paquetes RBAC `SUPER_ADMIN`, `SYSTEMS_ADMIN` y
- * `DATA_GOVERNANCE_MANAGER`. Pero el rol de sesión de un interno sale de
- * `legacyRoleForInternalRoles`, que convierte `DATA_GOVERNANCE_MANAGER` en `internal_operator`, y los
- * roles de clase de Systems Ops no lo admiten: el único paquete pensado para revisar recibía 403 antes
- * de que nadie mirara su permiso.
- *
- * Admitir `internal_operator` no abre nada por sí solo. Cada ruta exige además su permiso fino
- * (`InternalPermissionsGuard`), así que el rol grueso sólo deja pasar a la comprobación que decide.
- */
-const ROLES_DE_REVISION = [...SYSTEMS_OPS_ROLES, 'internal_operator'] as const;
 
 /**
  * Se registra ANTES que `SystemFlowsController` en el módulo: sus `GET` (`flows/review-queue`,
@@ -58,7 +44,7 @@ export class SystemFlowsReviewController {
       'Cada comprobación con su cifra. Sin uso observado de pantallas, la de deriva no pasa: no se afirma lo que no se ha podido mirar.',
   })
   @ApiResponse({ status: 200, description: 'Resultado y comprobaciones.' })
-  @Roles(...ROLES_DE_REVISION)
+  @Roles(...SYSTEMS_OPS_FINE_PERMISSION_ROLES)
   @InternalPermissions('systems.flows.read')
   @Get('flows/documentation-gate')
   documentationGate() {
@@ -71,7 +57,7 @@ export class SystemFlowsReviewController {
       'Flujos de riesgo alto cuyo análisis no se puede dar por bueno solo, y los ya revisados cuyo código cambió. Cada fila lleva la huella del código actual, que hay que devolver al decidir.',
   })
   @ApiResponse({ status: 200, description: 'Flujos a revisar, con el motivo y la huella de cada uno.' })
-  @Roles(...ROLES_DE_REVISION)
+  @Roles(...SYSTEMS_OPS_FINE_PERMISSION_ROLES)
   @InternalPermissions('systems.flows.read')
   @Get('flows/review-queue')
   reviewQueue(@Query(new ZodValidationPipe(flowReviewQueueSchema)) query: FlowReviewQueueDto) {
@@ -87,7 +73,7 @@ export class SystemFlowsReviewController {
   @ApiResponse({ status: 200, description: 'Decisión aplicada, con la huella del código sobre el que se tomó.' })
   @ApiResponse({ status: 404, description: 'No existe el flujo.' })
   @ApiResponse({ status: 409, description: 'El código del flujo cambió desde que se cargó la cola.' })
-  @Roles(...ROLES_DE_REVISION)
+  @Roles(...SYSTEMS_OPS_FINE_PERMISSION_ROLES)
   @InternalPermissions('systems.flows.review')
   @Patch('flows/:flowId/review')
   reviewFlow(

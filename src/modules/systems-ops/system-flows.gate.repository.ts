@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 import { SystemFlowCatalogModel } from '../../database/models/system-flow-catalog.model.js';
 import { SystemFlowFindingModel } from '../../database/models/system-flow-findings.model.js';
 import { SystemFlowImportModel } from '../../database/models/system-flow-imports.model.js';
@@ -31,8 +31,15 @@ export class SystemFlowsGateRepository {
     return this.findings.count({ where: { kind, status: 'open' } });
   }
 
-  pendingHighReviews(): Promise<number> {
-    return this.flows.count({ where: { reviewStatus: 'NEEDS_REVIEW', risk: { [Op.in]: ['CRITICAL', 'HIGH'] } } });
+  /** Pendientes Y rechazados de riesgo alto: un rechazo dice que el análisis de ese flujo está mal. */
+  unresolvedHighReviews(): Promise<number> {
+    return this.flows.count({
+      where: { reviewStatus: { [Op.in]: ['NEEDS_REVIEW', 'REJECTED'] }, risk: { [Op.in]: ['CRITICAL', 'HIGH'] } },
+    });
+  }
+
+  openFindingsOfSystem(systemCode: string, tx?: Transaction): Promise<number> {
+    return this.findings.count({ where: { systemCode, status: 'open' }, transaction: tx });
   }
 
   /** Qué (alcance, bloque o cliente) tiene al menos una carga del artefacto. */

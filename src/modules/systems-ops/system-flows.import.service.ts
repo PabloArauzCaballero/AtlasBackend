@@ -7,6 +7,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { flowRowFor } from './system-flows.mapper.js';
 import { SystemFlowsFreshnessRepository } from './system-flows.freshness.repository.js';
 import { SystemFlowsReviewRepository } from './system-flows.review.repository.js';
+import { SystemFlowsGateRepository } from './system-flows.gate.repository.js';
 import { motivosDeRevision } from './system-flows.review.util.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
 import { findingKeyFor } from './system-flows.risk.util.js';
@@ -18,6 +19,7 @@ export class SystemFlowsImportService {
     private readonly repository: SystemFlowsRepository,
     private readonly freshness: SystemFlowsFreshnessRepository,
     private readonly review: SystemFlowsReviewRepository,
+    private readonly gate: SystemFlowsGateRepository,
   ) {}
 
   importEndpoints(dto: ImportEndpointsDto, actor: string | null) {
@@ -58,6 +60,13 @@ export class SystemFlowsImportService {
         rows.map((row) => row.flowId),
         tx,
       );
+      // Un artefacto truncado pero no vacío también retiraría flujos, y con ellos sus decisiones. Se para, salvo
+      // que quien carga confirme que el bloque cambió de verdad.
+      if (removedDecisions > 0 && !dto.allowRemovingDecisions) {
+        throw new BadRequestException(
+          `La carga retiraría ${removedDecisions} flujo(s) de ${dto.systemCode} con revisión humana. Si el bloque cambió de verdad, repítela con allowRemovingDecisions.`,
+        );
+      }
       const cambiados = await this.freshness.markStaleByDepsHash(dto.systemCode, rows, tx);
       const result = await this.repository.replaceFlows(dto.systemCode, rows, tx);
       // A revisión humana: riesgo alto con un análisis que no se puede dar por bueno solo. Sólo a los
@@ -146,6 +155,13 @@ export class SystemFlowsImportService {
           knownSince: finding.knownSince ?? null,
           importId: record.id,
         }));
+      // Los hallazgos que no vienen se dan por resueltos. Una carga sin ninguno —vacía, truncada o de otro
+      // bloque— resolvería todos los abiertos, y la compuerta vería «0 escrituras desprotegidas».
+      if (!rows.length && (await this.gate.openFindingsOfSystem(dto.systemCode, tx)) > 0) {
+        throw new BadRequestException(
+          `La carga no trae hallazgos de ${dto.systemCode} y hay abiertos: se darían todos por resueltos sin que nadie los resolviera.`,
+        );
+      }
       const result = await this.repository.replaceFindings(dto.systemCode, rows, tx);
       await this.repository.recountFindings(dto.systemCode, tx);
       await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });

@@ -10,6 +10,7 @@ import { VerifyFlowsDto } from './system-flows.schemas.js';
 import { SIN_CLIENTE } from './system-flows.screens.repository.js';
 import { matchScreenRuns, screenVerificationFrom } from './system-flows.verification.util.js';
 import { CLIENT_EVIDENCE, type PantallasObservadas } from './system-flows.evidence.js';
+import { RBAC_DRIFT_LIMIT } from './system-flows.sql.constants.js';
 
 @Injectable()
 export class SystemFlowsScreensService {
@@ -145,8 +146,9 @@ export class SystemFlowsScreensService {
       // El denominador, que en la primera versión era un booleano constante: sin él, un `[]` no se
       // distingue de «nadie ha abierto ninguna pantalla todavía».
       screensWithObservedEdges: consideradas,
-      // Si el catálogo observado vino cortado, esto opina sobre datos incompletos y hay que decirlo.
-      truncated: truncado,
+      // Si el catálogo observado vino cortado, esto opina sobre datos incompletos y hay que decirlo. Lo mismo si
+      // la propia consulta de deriva llegó a su tope.
+      truncated: truncado || filas.length >= RBAC_DRIFT_LIMIT,
       screens: [...porPantalla.values()].filter((pantalla) => pantalla.calls.length),
     };
   }

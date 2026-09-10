@@ -24,10 +24,11 @@ export class SystemFlowsReviewService {
         reviewConfidence: row.reviewConfidence,
         reviewedAt: row.reviewedAt,
         reviewedBy: row.reviewedBy,
-        // Por qué está aquí. Vacío en un NEEDS_REVIEW significa que volvió porque su código cambió después
-        // de decidirse: la recarga suelta de la cola lo que se queda sin motivo y nadie revisó.
+        // Por qué está aquí. Vacío en un NEEDS_REVIEW ya decidido significa que volvió porque el código cambió
+        // desde la decisión, o porque se decidió sin huella y ahora la hay: las dos cosas marcan
+        // `codeChangedSinceReview`. La recarga suelta de la cola lo que se queda sin motivo y nadie revisó.
         reasons: motivosDeRevision(row),
-        codeChangedSinceReview: Boolean(row.reviewedDepsHash && row.depsHash !== row.reviewedDepsHash),
+        codeChangedSinceReview: Boolean(row.reviewedAt && row.depsHash !== row.reviewedDepsHash),
       })),
       meta: { page: query.page, limit: query.limit, total: count, totalPages: Math.max(1, Math.ceil(count / query.limit)) },
     };

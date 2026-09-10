@@ -6,6 +6,7 @@ import { SystemFlowsGateService } from '../../src/modules/systems-ops/system-flo
  */
 const todasLasCargas = new Set([
   ...['ATLAS_BACKEND', 'DECISION_ENGINE', 'ERP_BACKEND', 'DASHBOARDS'].map((b) => `endpoints:${b}`),
+  ...['ATLAS_BACKEND', 'DECISION_ENGINE', 'ERP_BACKEND', 'DASHBOARDS'].map((b) => `findings:${b}`),
   ...['ADMIN_PORTAL', 'CONSUMER_APP', 'ERP_PORTAL', 'MOTOR_PORTAL', 'DASHBOARDS_PORTAL'].map((c) => `screens:${c}`),
 ]);
 
@@ -16,7 +17,7 @@ function servicio(
     {
       criticalNotCertified: async () => over.criticos ?? [],
       openFindingsOfKind: async () => over.desprotegidas ?? 0,
-      pendingHighReviews: async () => over.pendientes ?? 0,
+      unresolvedHighReviews: async () => over.pendientes ?? 0,
       importedScopes: async () => over.cargas ?? todasLasCargas,
     } as never,
     { rbacDrift: async () => ({ screensWithObservedEdges: 5, truncated: false, notMeasured: [], screens: [], ...over.deriva }) } as never,
@@ -80,6 +81,22 @@ describe('SystemFlowsGateService', () => {
       passed: false,
       count: 1,
       detail: expect.stringContaining('pantallas de DASHBOARDS_PORTAL'),
+    });
+  });
+
+  it('la deriva no pasa mientras haya portales cuya deriva no se mide', async () => {
+    const resultado = await servicio({ deriva: { notMeasured: ['ERP_PORTAL'] } }).evaluate();
+    expect(check(resultado, 'RBAC_DRIFT_SIN_GUARDA')).toMatchObject({
+      passed: false,
+      detail: expect.stringContaining('no se mide para ERP_PORTAL'),
+    });
+  });
+
+  it('sin hallazgos cargados de un bloque no pasa: «0 abiertos» no diría nada', async () => {
+    const cargas = new Set([...todasLasCargas].filter((c) => c !== 'findings:ERP_BACKEND'));
+    expect(check(await servicio({ cargas }).evaluate(), 'ARTIFACTS_PRESENT')).toMatchObject({
+      passed: false,
+      detail: expect.stringContaining('hallazgos de ERP_BACKEND'),
     });
   });
 });

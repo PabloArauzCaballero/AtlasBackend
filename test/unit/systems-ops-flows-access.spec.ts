@@ -44,6 +44,11 @@ describe('SystemFlowsController · el permiso fino que el catálogo promete', ()
     expect(permisoDe(metodo)).toEqual(['systems.flows.analyze']);
   });
 
+  it('quien revisa flujos puede abrirlos: la clase admite internal_operator, y cada método pide permiso fino', () => {
+    const roles = reflector.get<string[]>('roles', SystemFlowsController) ?? [];
+    expect(roles).toEqual(expect.arrayContaining(['internal_operator', 'system_admin']));
+  });
+
   it('ningún método del controlador se queda sin permiso declarado', () => {
     // El fallo que esto evita es el de omisión: añadir un endpoint nuevo y olvidar el decorador
     // deja una ruta que sólo comprueba el rol, sin que nada se ponga rojo.

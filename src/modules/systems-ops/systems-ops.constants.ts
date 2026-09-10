@@ -18,6 +18,16 @@ export const SYSTEMS_OPS_ROLES = [
 ] as const;
 
 /**
+ * Roles de SESIÓN que llegan a las rutas de Flujos, que además exigen permiso fino en cada método.
+ *
+ * Incluye `internal_operator` porque `legacyRoleForInternalRoles` convierte en él a los paquetes RBAC
+ * sin rol de sesión propio, como `DATA_GOVERNANCE_MANAGER`, que tiene `systems.flows.read` y `.review`.
+ * Sin esto recibían 403 antes de que nadie mirara su permiso. No abre nada por sí solo:
+ * `InternalPermissionsGuard` decide.
+ */
+export const SYSTEMS_OPS_FINE_PERMISSION_ROLES = [...SYSTEMS_OPS_ROLES, 'internal_operator'] as const;
+
+/**
  * Roles separados por superficie de acción. `readonly_auditor` puede leer, pero nunca escribir.
  *
  * `admin` está en la lista de gobierno porque, sin él, estos endpoints quedaban INALCANZABLES para
@@ -50,6 +60,7 @@ export const SYSTEMS_OPS_WRITE_ROLES = SYSTEMS_OPS_GOVERNANCE_ROLES;
  * aquí, junto a las listas que expande, para que añadir un rol sea un solo cambio.
  */
 export const SYSTEMS_OPS_ROLE_CONSTANTS: Record<string, readonly string[]> = {
+  SYSTEMS_OPS_FINE_PERMISSION_ROLES,
   SYSTEMS_OPS_ROLES,
   SYSTEMS_OPS_GOVERNANCE_ROLES,
   SYSTEMS_OPS_QA_ROLES,

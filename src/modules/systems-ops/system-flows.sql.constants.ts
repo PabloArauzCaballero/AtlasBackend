@@ -165,6 +165,9 @@ export const DOMAIN_EVENT_CONSUMERS_SQL = `SELECT o.event_code,
  * bloques —45 pares están duplicados entre sistemas— y atribuía a una pantalla endpoints de un
  * backend que nunca tocó.
  */
+/** Tope de filas de la deriva. Al alcanzarlo, la respuesta se declara cortada. */
+export const RBAC_DRIFT_LIMIT = 5000;
+
 export const RBAC_DRIFT_SQL = `WITH llamadas AS (
          SELECT s.client_code,
                 s.route,
@@ -189,7 +192,7 @@ export const RBAC_DRIFT_SQL = `WITH llamadas AS (
            ON f.system_code = 'ATLAS_BACKEND' AND f.http_method = l.method AND f.path = l.path
         WHERE jsonb_array_length(f.internal_permissions) = 0
         ORDER BY l.client_code, l.route, l.method, l.path
-        LIMIT 5000`;
+        LIMIT ${RBAC_DRIFT_LIMIT}`;
 
 /**
  * Lo que cada flujo deja ENCARGADO al terminar de responder, atribuido a la petición exacta.

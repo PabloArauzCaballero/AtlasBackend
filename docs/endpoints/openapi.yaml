@@ -25565,9 +25565,13 @@ paths:
                       - testStatus
                       - contractStatus
                     additionalProperties: false
+                allowRemovingDecisions:
+                  default: false
+                  type: boolean
               required:
                 - systemCode
                 - endpoints
+                - allowRemovingDecisions
               additionalProperties: false
       responses:
         '201':

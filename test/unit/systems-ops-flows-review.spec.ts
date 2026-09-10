@@ -105,9 +105,17 @@ describe('SystemFlowsReviewService', () => {
     expect(resultado).toMatchObject({ reviewStatus: 'APPROVED', reviewedDepsHash: 'nuevo' });
   });
 
+  it('una decisión tomada sin huella se explica en cuanto la hay: cuenta como código cambiado', async () => {
+    const servicio = new SystemFlowsReviewService({
+      listQueue: async () => ({ rows: [fila({ reviewedAt: new Date(), reviewedDepsHash: null, analysisJson: analisis() })], count: 1 }),
+    } as never);
+    const { items } = await servicio.queue({ reviewStatus: 'NEEDS_REVIEW', page: 1, limit: 20 });
+    expect(items[0]).toMatchObject({ reasons: [], codeChangedSinceReview: true });
+  });
+
   it('la cola dice el motivo, la huella actual y si el código cambió desde que se revisó', async () => {
     const servicio = new SystemFlowsReviewService({
-      listQueue: async () => ({ rows: [fila({ reviewedDepsHash: 'viejo' })], count: 1 }),
+      listQueue: async () => ({ rows: [fila({ reviewedAt: new Date(), reviewedDepsHash: 'viejo' })], count: 1 }),
     } as never);
     const { items, meta } = await servicio.queue({ reviewStatus: 'NEEDS_REVIEW', page: 1, limit: 20 });
     expect(items[0]).toMatchObject({ reasons: ['ANALISIS_PARCIAL'], depsHash: 'nuevo', codeChangedSinceReview: true });

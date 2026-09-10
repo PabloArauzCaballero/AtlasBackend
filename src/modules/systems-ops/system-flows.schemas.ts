@@ -99,7 +99,15 @@ const importEnvelope = {
   contentHash: z.string().trim().max(64).optional(),
 };
 
-export const importEndpointsSchema = z.object({ ...importEnvelope, endpoints: z.array(derivedEndpointSchema).max(2000) });
+export const importEndpointsSchema = z.object({
+  ...importEnvelope,
+  endpoints: z.array(derivedEndpointSchema).max(2000),
+  /**
+   * Retirar un flujo borra su revisión humana. Por defecto, una carga que lo haría se rechaza; quien sabe
+   * que el bloque cambió de verdad lo confirma aquí.
+   */
+  allowRemovingDecisions: z.boolean().default(false),
+});
 export type ImportEndpointsDto = z.infer<typeof importEndpointsSchema>;
 
 export const derivedScreenSchema = z.object({

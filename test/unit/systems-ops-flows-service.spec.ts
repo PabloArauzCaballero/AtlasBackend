@@ -59,7 +59,8 @@ const federationDouble = (result?: unknown, pedidas?: string[]) =>
       return result ?? { ok: false, status: 'NOT_CONFIGURED', message: 'no aplica' };
     },
   }) as never;
-const importDouble = (repo: unknown) => new SystemFlowsImportService(repo as never, repo as never, {} as never);
+const importDouble = (repo: unknown) =>
+  new SystemFlowsImportService(repo as never, repo as never, {} as never, { openFindingsOfSystem: async () => 0 } as never);
 /**
  * Las pantallas se verifican en su propio servicio y con su propio repositorio. Aquí se sustituye
  * por uno que no devuelve ninguna: lo que estas pruebas fijan es la verificación de ENDPOINTS, y un
@@ -166,7 +167,12 @@ describe('SystemFlowsService.verify', () => {
 describe('SystemFlowsImportService.importFindings', () => {
   it('ignora los hallazgos de otro bloque: cargar el ERP no puede tocar las filas del Backend', async () => {
     const repo = repositoryDouble();
-    const result = await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, {} as never).importFindings(
+    const result = await new SystemFlowsImportService(
+      repo as unknown as SystemFlowsRepository,
+      repo as never,
+      {} as never,
+      { openFindingsOfSystem: async () => 0 } as never,
+    ).importFindings(
       {
         systemCode: 'ERP_BACKEND',
         findings: [
@@ -182,10 +188,12 @@ describe('SystemFlowsImportService.importFindings', () => {
 
   it('recuenta los hallazgos por flujo tras cargar: el contador de la tabla no puede quedar viejo', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, {} as never).importFindings(
-      { systemCode: 'ATLAS_BACKEND', findings: [] },
-      null,
-    );
+    await new SystemFlowsImportService(
+      repo as unknown as SystemFlowsRepository,
+      repo as never,
+      {} as never,
+      { openFindingsOfSystem: async () => 0 } as never,
+    ).importFindings({ systemCode: 'ATLAS_BACKEND', findings: [] }, null);
     expect(repo.calls.recountFindings?.[0]?.[0]).toBe('ATLAS_BACKEND');
   });
 });
