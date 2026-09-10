@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindAndCountOptions, literal, Op, QueryTypes, Transaction, WhereOptions } from 'sequelize';
+import { FindAndCountOptions, literal, Op, QueryTypes, Transaction } from 'sequelize';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
 import {
   SystemFlowCatalogModel,
@@ -14,6 +14,7 @@ import {
   SystemScreenCatalogModel,
 } from '../../database/models/index.js';
 import { FindingsListQueryDto, FlowsListQueryDto, ScreensListQueryDto } from './system-flows.schemas.js';
+import { buildFlowsWhere, like } from './system-flows.where.util.js';
 import { RouteRuns } from './system-flows.verification.util.js';
 import { atlasSchemaFor } from '../../database/domain-schemas.js';
 
@@ -22,42 +23,6 @@ const SCHEMA = atlasSchemaFor('system_action_logs');
 type FlowRow = Omit<SystemFlowCatalogModel['dataValues'], 'id' | 'createdAtValue' | 'updatedAtValue'>;
 type ScreenRow = Omit<SystemScreenCatalogModel['dataValues'], 'id' | 'createdAtValue' | 'updatedAtValue'>;
 type FindingRow = Omit<SystemFlowFindingModel['dataValues'], 'id' | 'createdAtValue' | 'updatedAtValue' | 'status'>;
-
-const like = (value: string) => ({ [Op.iLike]: `%${value.replace(/[%_]/g, '\\$&')}%` });
-
-function flowStateWhere(query: FlowsListQueryDto): Record<string, unknown> {
-  const where: Record<string, unknown> = {};
-  if (query.discovery) where.discovery = query.discovery;
-  if (query.verification) where.verification = query.verification;
-  if (query.freshness) where.freshness = query.freshness;
-  if (query.isPublic !== undefined) where.isPublic = query.isPublic;
-  if (query.tested !== undefined) where.testStatus = query.tested ? 'TESTED' : 'UNTESTED';
-  if (query.withFindings !== undefined) where.findingsCount = query.withFindings ? { [Op.gt]: 0 } : 0;
-  return where;
-}
-
-export function buildFlowsWhere(query: FlowsListQueryDto): WhereOptions {
-  const where: Record<string, unknown> = flowStateWhere(query);
-  if (query.systemCode) where.systemCode = query.systemCode;
-  if (query.module) where.module = query.module;
-  if (query.kind) where.kind = query.kind;
-  if (query.risk) where.risk = query.risk;
-  if (query.caller) where.callers = { [Op.contains]: [query.caller] };
-  if (query.table)
-    where[Op.or as unknown as string] = [{ reads: { [Op.contains]: [query.table] } }, { writes: { [Op.contains]: [query.table] } }];
-  if (query.role)
-    where[Op.or as unknown as string] = [
-      { roles: { [Op.contains]: [query.role] } },
-      { internalPermissions: { [Op.contains]: [query.role] } },
-    ];
-  if (query.q) {
-    const q = like(query.q);
-    where[Op.and as unknown as string] = [
-      { [Op.or]: [{ name: q }, { slug: q }, { path: q }, { handler: q }, { controller: q }, { module: q }] },
-    ];
-  }
-  return where as WhereOptions;
-}
 
 @Injectable()
 export class SystemFlowsRepository {

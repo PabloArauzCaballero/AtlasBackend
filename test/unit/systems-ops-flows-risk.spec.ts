@@ -8,8 +8,8 @@ import {
   flowRiskFromTables,
   flowSlugFor,
 } from '../../src/modules/systems-ops/system-flows.risk.util.js';
-import { buildFlowsWhere } from '../../src/modules/systems-ops/system-flows.repository.js';
-import { flowRowFor } from '../../src/modules/systems-ops/system-flows.service.js';
+import { buildFlowsWhere } from '../../src/modules/systems-ops/system-flows.where.util.js';
+import { flowRowFor } from '../../src/modules/systems-ops/system-flows.mapper.js';
 
 const endpoint = (over: Partial<Parameters<typeof flowRowFor>[1]> = {}) => ({
   method: 'POST',
