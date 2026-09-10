@@ -8,10 +8,12 @@ import type { Transaction } from 'sequelize';
 import { env } from '../../config/env.js';
 import {
   freshnessFor,
+  indexBlockPathRuns,
   indexBlockRuns,
-  verificationFromRuns,
   type BlockAccessRun,
+  type BlockPathRun,
   type RouteRuns,
+  verificationFromRuns,
 } from './system-flows.verification.util.js';
 import { PlatformCatalogFederationClient } from './platform-catalog-federation.client.js';
 import { buildFlowGraph, buildModuleGraph } from './system-flows.graph.util.js';
@@ -28,6 +30,40 @@ import {
   ScreensListQueryDto,
   VerifyFlowsDto,
 } from './system-flows.schemas.js';
+
+/** Lo mínimo de un flujo que hace falta para nombrarlo en el índice de otro bloque. */
+type FlujoIdentificable = { httpMethod: string; path: string; controller: string | null; handler: string | null };
+
+/**
+ * Dónde pide cada bloque su evidencia de ejecución, cómo se indexa lo que devuelve y —lo que de
+ * verdad separa a un bloque de otro— con qué identidad se cruza: el Motor sólo registra controlador
+ * y handler, el ERP registra la plantilla de ruta. Cruzarlos con la clave del otro no da un error:
+ * da cero coincidencias, que se leería como «nada se ejecutó». Por eso la clave vive aquí, junto a
+ * la fuente que la produce, y no en un `if` del bucle de verificación.
+ */
+type EvidenciaDeBloque = {
+  path: (dias: number) => string;
+  index: (body: unknown) => Map<string, RouteRuns>;
+  key: (flow: FlujoIdentificable) => string;
+  /** Qué se guarda como procedencia de la verificación: de dónde salió, textualmente. */
+  source: string;
+};
+
+const ACCESS_EVIDENCE: Record<string, EvidenciaDeBloque> = {
+  DECISION_ENGINE: {
+    path: (dias) => `v1/audit/access-runs?windowDays=${dias}`,
+    index: (body) => indexBlockRuns((body as { resources?: BlockAccessRun[] })?.resources ?? []),
+    key: (flow) => `${flow.httpMethod} ${flow.controller}.${flow.handler}`,
+    source: 'decision_access_audit (federado)',
+  },
+  ERP_BACKEND: {
+    // El ERP no acota por ventana: cuenta desde que arrancó la instancia y lo declara en la respuesta.
+    path: () => 'platform/access-runs',
+    index: (body) => indexBlockPathRuns((body as { entries?: BlockPathRun[] })?.entries ?? []),
+    key: (flow) => `${flow.httpMethod} ${flow.path}`,
+    source: 'http_access_registry (federado, desde el arranque del proceso)',
+  },
+};
 
 @Injectable()
 export class SystemFlowsService {
@@ -80,11 +116,7 @@ export class SystemFlowsService {
    */
   verify(dto: VerifyFlowsDto, actor: string | null, callerToken: string | null = null) {
     return this.repository.transaction(async (tx) => {
-      // El Backend cruza por ruta contra sus propios logs; los demás bloques federan su resumen y
-      // se cruzan por `MÉTODO Controller.handler`, que es la identidad que ellos registran.
-      const federado = dto.systemCode === 'ATLAS_BACKEND' ? null : await this.fetchBlockRuns(dto, callerToken);
-      const runs = dto.systemCode === 'ATLAS_BACKEND' ? await this.repository.runsByRoute(dto.windowDays) : (federado?.runs ?? new Map());
-      const porRecurso = dto.systemCode !== 'ATLAS_BACKEND';
+      const { fuente, federado, runs } = await this.gatherRuns(dto, callerToken);
       const flows = await this.repository.flowsOfSystem(dto.systemCode);
       const counts = {
         verified: 0,
@@ -92,11 +124,12 @@ export class SystemFlowsService {
         unverified: 0,
         stale: 0,
         fresh: 0,
-        skippedNoLogs: dto.systemCode === 'ATLAS_BACKEND' || federado?.ok ? 0 : flows.length,
+        skippedNoLogs: !federado || federado.ok ? 0 : flows.length,
       };
+      const source = fuente?.source ?? 'system_action_logs';
       for (const flow of flows) {
-        const clave = porRecurso ? `${flow.httpMethod} ${flow.controller}.${flow.handler}` : `${flow.httpMethod} ${flow.path}`;
-        await this.applyFlowVerification(flow, runs.get(clave) ?? null, { federado: Boolean(federado), actor, tx, counts });
+        const clave = fuente ? fuente.key(flow) : `${flow.httpMethod} ${flow.path}`;
+        await this.applyFlowVerification(flow, runs.get(clave) ?? null, { source, actor, tx, counts });
       }
       return {
         systemCode: dto.systemCode,
@@ -157,13 +190,27 @@ export class SystemFlowsService {
     };
   }
 
+  /**
+   * De dónde salen las corridas de este bloque. El Backend las lee de sus propios logs; los demás
+   * federan el resumen que publican y se cruzan con la identidad que cada uno registra: quién la
+   * declara está en `ACCESS_EVIDENCE`, no en un `if` de este método.
+   */
+  private async gatherRuns(dto: VerifyFlowsDto, callerToken: string | null) {
+    if (dto.systemCode === 'ATLAS_BACKEND') {
+      return { fuente: undefined, federado: null, runs: await this.repository.runsByRoute(dto.windowDays) };
+    }
+    const fuente = ACCESS_EVIDENCE[dto.systemCode];
+    const federado = await this.fetchBlockRuns(dto, callerToken, fuente);
+    return { fuente, federado, runs: federado.runs };
+  }
+
   /** Aplica a un flujo lo que dicen sus corridas y su commit, y lleva la cuenta. Extraído del bucle. */
   private async applyFlowVerification(
     flow: { flowId: string; analyzedCommit: string | null; freshness: string },
     runs: RouteRuns | null,
-    ctx: { federado: boolean; actor: string | null; tx: Transaction; counts: Record<string, number> },
+    ctx: { source: string; actor: string | null; tx: Transaction; counts: Record<string, number> },
   ) {
-    const outcome = verificationFromRuns(runs, ctx.federado ? 'decision_access_audit (federado)' : 'system_action_logs');
+    const outcome = verificationFromRuns(runs, ctx.source);
     if (outcome) {
       await this.repository.applyVerification(flow.flowId, outcome, ctx.actor, ctx.tx);
       ctx.counts[outcome.verification === 'VERIFIED' ? 'verified' : 'broken'] += 1;
@@ -174,14 +221,15 @@ export class SystemFlowsService {
   }
 
   /** Pide a otro bloque su resumen de accesos. Si no se puede, se dice por qué y no se verifica nada. */
-  private async fetchBlockRuns(dto: VerifyFlowsDto, callerToken: string | null) {
-    if (dto.systemCode !== 'DECISION_ENGINE') {
+  private async fetchBlockRuns(dto: VerifyFlowsDto, callerToken: string | null, fuente: EvidenciaDeBloque | undefined) {
+    // Cada bloque publica lo que de verdad tiene, y se cruza como corresponda: el Motor identifica
+    // sus accesos por controlador y handler; el ERP, por ruta y código HTTP, como el Backend.
+    if (!fuente) {
       return { ok: false, message: `El bloque ${dto.systemCode} no publica evidencia de ejecución HTTP.`, runs: new Map() };
     }
-    const result = await this.federation.fetchFromBlock(dto.systemCode, callerToken, `v1/audit/access-runs?windowDays=${dto.windowDays}`);
+    const result = await this.federation.fetchFromBlock(dto.systemCode, callerToken, fuente.path(dto.windowDays));
     if (!result.ok) return { ok: false, message: result.message ?? 'No se pudo pedir el resumen de accesos.', runs: new Map() };
-    const cuerpo = (result as { body?: { resources?: BlockAccessRun[] } }).body;
-    return { ok: true, message: undefined, runs: indexBlockRuns(cuerpo?.resources ?? []) };
+    return { ok: true, message: undefined, runs: fuente.index((result as { body?: unknown }).body) };
   }
 
   summary() {

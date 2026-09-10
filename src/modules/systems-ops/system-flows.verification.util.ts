@@ -78,6 +78,37 @@ export function indexBlockRuns(rows: readonly BlockAccessRun[]): Map<string, Rou
   return out;
 }
 
+/** Una entrada del recuento que publica el ERP: método, plantilla de ruta y estados HTTP reales. */
+export type BlockPathRun = {
+  method: string;
+  path: string;
+  ok: number;
+  failed: number;
+  lastStatus: number;
+  lastAt: string | null;
+  statuses: Record<string, number>;
+};
+
+/**
+ * Índice por `MÉTODO ruta`, normalizando la ruta al formato del catálogo. El ERP sí registra ruta y
+ * código HTTP, así que su cruce es el mismo que el del Backend y no hace falta traducir nada.
+ */
+export function indexBlockPathRuns(rows: readonly BlockPathRun[]): Map<string, RouteRuns> {
+  const out = new Map<string, RouteRuns>();
+  for (const row of rows) {
+    const clave = `${row.method} ${catalogPathFromRouteTemplate(row.path)}`;
+    const previo = out.get(clave) ?? { ok: 0, failed: 0, lastAt: null, lastStatus: null, statuses: {}, correlationSample: [] };
+    previo.ok += row.ok;
+    previo.failed += row.failed;
+    previo.lastStatus = row.lastStatus ?? previo.lastStatus;
+    for (const [estado, veces] of Object.entries(row.statuses ?? {})) previo.statuses[estado] = (previo.statuses[estado] ?? 0) + veces;
+    const fecha = row.lastAt ? new Date(row.lastAt) : null;
+    if (fecha && (!previo.lastAt || fecha > previo.lastAt)) previo.lastAt = fecha;
+    out.set(clave, previo);
+  }
+  return out;
+}
+
 /** FRESH si el commit analizado es el desplegado; STALE si difieren; sin commit desplegado no se opina. */
 export function freshnessFor(analyzedCommit: string | null, deployedCommit: string | null | undefined): 'FRESH' | 'STALE' | null {
   // `APP_COMMIT_SHA=local` (o cualquier valor que no sea un sha) no es un commit: no se compara, no se opina.

@@ -230,6 +230,40 @@ describe('SystemFlowsService.verify · bloques federados', () => {
     expect(repo.calls.applyVerification).toBeUndefined();
   });
 
+  it('el ERP se cruza por ruta y código HTTP, que es lo que él sí registra', async () => {
+    const flowDelErp = {
+      flowId: 'flow_000000000011',
+      httpMethod: 'GET',
+      path: 'accounting/ar-invoices/:p',
+      controller: 'ArInvoicesController',
+      handler: 'find',
+      analyzedCommit: null,
+      freshness: 'FRESH',
+    };
+    const repo = repositoryDouble({ flows: [flowDelErp] });
+    const federacion = federationDouble({
+      ok: true,
+      // El ERP publica la plantilla con prefijo y barra inicial: se normaliza al formato del catálogo.
+      body: {
+        entries: [
+          {
+            method: 'GET',
+            path: '/api/v1/accounting/ar-invoices/:id',
+            ok: 5,
+            failed: 0,
+            lastStatus: 200,
+            lastAt: '2026-09-10T00:00:00Z',
+            statuses: { '200': 5 },
+          },
+        ],
+      },
+    });
+    const service = new SystemFlowsService(repo as unknown as SystemFlowsRepository, federacion, importDouble(repo));
+    const result = await service.verify({ systemCode: 'ERP_BACKEND', windowDays: 30 }, null, 'token');
+    expect(result).toMatchObject({ verified: 1, broken: 0, skippedNoLogs: 0 });
+    expect((repo.calls.applyVerification?.[0]?.[1] as { evidence: { lastStatus: number } }).evidence.lastStatus).toBe(200);
+  });
+
   it('un bloque que no publica evidencia no se intenta federar siquiera', async () => {
     const repo = repositoryDouble({ flows: [flowDelMotor] });
     const service = new SystemFlowsService(
@@ -237,7 +271,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       federationDouble({ ok: true, body: { resources: [] } }),
       importDouble(repo),
     );
-    const result = await service.verify({ systemCode: 'ERP_BACKEND', windowDays: 30 }, null, 'token');
+    const result = await service.verify({ systemCode: 'DASHBOARDS', windowDays: 30 }, null, 'token');
     expect(result).toMatchObject({ skippedNoLogs: 1 });
     expect((result as { federation?: { message?: string } }).federation?.message).toContain('no publica evidencia');
   });
