@@ -221,6 +221,9 @@ export class RuntimeJobsSchedulerService implements OnApplicationBootstrap, OnMo
     const rows = await this.tenantModel.findAll({
       where: { deleted: { [Op.ne]: true }, [Op.or]: [{ status: null }, { status: { [Op.ne]: 'inactive' } }] } as never,
       attributes: ['id'],
+      // Orden estable: la primera corrida se lleva los eventos sin inquilino, y sin orden eso cambiaba de
+      // inquilino entre ticks según lo que devolviera Postgres.
+      order: [['id', 'ASC']],
     });
     return rows.map((row) => String(row.id));
   }

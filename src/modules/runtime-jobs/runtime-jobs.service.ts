@@ -176,10 +176,10 @@ export class RuntimeJobsService {
         return {
           selected: claimed.length,
           processed: claimed.length,
-          // Atribución: cuántos de los procesados NO eran de este inquilino. Sin esto, el primero en
-          // correr se llevaba en su `result_json` eventos ajenos, y el portal lo enseña por inquilino.
+          // Atribución: lo ajeno aparte, para que el `result_json` de un inquilino no se lleve lo de nadie.
           processedWithoutTenant: claimed.filter((row) => row.tenant_id === null).length,
-          skippedBusinessEvents: after.tenant + after.withoutTenant,
+          skippedBusinessEvents: after.tenant,
+          pendingWithoutTenant: after.withoutTenant,
           dryRun: false,
           note: 'process-outbox conserva compatibilidad y no procesa eventos de negocio registrados; usa process-events para notificaciones.',
         };

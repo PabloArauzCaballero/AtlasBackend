@@ -28,7 +28,9 @@ type MetricaBacklog = { setOutboxPendingEvents(input: { tenantId: string; pendin
  * sin verlos. Se había cambiado un silencio por otro.
  */
 export async function countOutboxBacklog(outbox: ContadorOutbox, tenantId: string): Promise<OutboxBacklog> {
-  const disponible = { status: 'pending', availableAt: { [Op.lte]: new Date() } };
+  // Igual que la reclamación, `COALESCE(available_at, now()) <= now()`: un `available_at` nulo cuenta como
+  // disponible. Sin esto las dos cifras medían poblaciones distintas y la resta en seco podía salir negativa.
+  const disponible = { status: 'pending', [Op.or]: [{ availableAt: null }, { availableAt: { [Op.lte]: new Date() } }] };
   const [tenant, withoutTenant] = await Promise.all([
     outbox.count({ where: { ...disponible, tenantId } as never }),
     outbox.count({ where: { ...disponible, tenantId: null } as never }),

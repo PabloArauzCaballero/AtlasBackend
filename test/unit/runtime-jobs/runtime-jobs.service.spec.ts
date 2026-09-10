@@ -312,7 +312,13 @@ describe('RuntimeJobsService', () => {
 
       const sql = String((sequelize.query as jest.Mock).mock.calls[0]?.[0]);
       expect(sql).toContain('FOR UPDATE SKIP LOCKED');
-      expect(sql).toMatch(/_tenant_id = CAST\(:tenantId AS BIGINT\) OR _tenant_id IS NULL/);
+      // Con los PARÉNTESIS y seguido de las demás condiciones. Sin paréntesis Postgres agrupa
+      // `(pending AND inquilino) OR (nulo AND disponible AND no registrado)`: la rama del inquilino pierde
+      // `event_code NOT IN`, así que se marcarían procesados eventos de negocio registrados —notificaciones
+      // perdidas sin aviso— y la de los nulos pierde `status`. Comprobado con EXPLAIN en local.
+      expect(sql).toMatch(
+        /AND \(_tenant_id = CAST\(:tenantId AS BIGINT\) OR _tenant_id IS NULL\)\s+AND COALESCE\(available_at, now\(\)\) <= now\(\)\s+AND event_code NOT IN/,
+      );
     });
 
     it('dryRun: el recuento de candidatos incluye los mismos nulos que reclamaría el modo real', async () => {
@@ -322,7 +328,9 @@ describe('RuntimeJobsService', () => {
 
       await service.processOutbox({ tenantId: 't1', body: { dryRun: true, limit: 100 } as never, currentUser: internalUser });
 
-      expect(String((sequelize.query as jest.Mock).mock.calls[0]?.[0])).toMatch(/OR _tenant_id IS NULL/);
+      expect(String((sequelize.query as jest.Mock).mock.calls[0]?.[0])).toMatch(
+        /AND \(_tenant_id = CAST\(:tenantId AS BIGINT\) OR _tenant_id IS NULL\)\s+AND COALESCE\(available_at, now\(\)\) <= now\(\)\s+AND event_code NOT IN/,
+      );
     });
 
     /**
@@ -363,6 +371,8 @@ describe('RuntimeJobsService', () => {
       // El portal enseña `result_json` acotado por inquilino: sin esto, el primero en correr se
       // llevaba como suyos eventos ajenos.
       expect(response.result).toMatchObject({ processed: 3, processedWithoutTenant: 2 });
+      // Y lo pendiente sin inquilino va aparte: sumarlo a lo de cada inquilino lo repetía N veces.
+      expect(response.result).toHaveProperty('pendingWithoutTenant');
     });
   });
 

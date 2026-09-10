@@ -22,7 +22,8 @@ describe('countOutboxBacklog', () => {
     // Sólo lo disponible y pendiente, igual que la reclamación: si no, se medirían cosas distintas.
     for (const w of where) {
       expect(w.status).toBe('pending');
-      expect((w.availableAt as Record<symbol, unknown>)[Op.lte]).toBeInstanceOf(Date);
+      // `available_at` nulo cuenta como disponible, igual que el `COALESCE` de la reclamación.
+      expect(w[Op.or]).toEqual([{ availableAt: null }, { availableAt: { [Op.lte]: expect.any(Date) } }]);
     }
   });
 });
