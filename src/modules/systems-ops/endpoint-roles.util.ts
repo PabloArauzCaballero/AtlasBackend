@@ -9,9 +9,12 @@ export type RoleConstants = Readonly<Record<string, readonly string[]>>;
 
 const LIST_CONSTANT = /(?:^|\n)[ \t]*(?:export\s+)?const\s+([A-Z][A-Z0-9_]*)\s*(?::[^=\n]+)?=\s*\[([^\]]*)\]/g;
 
-/** Sin comentarios: un `@Roles(` citado en un comentario no es un decorador. */
+/**
+ * Sin comentarios: un `@Roles(` citado en un comentario no es un decorador, y un `]` dentro de un comentario al final
+ * de línea cortaba la lista de roles por la mitad. El `//` de un `http://` no cuenta: va pegado a `:`.
+ */
 function withoutComments(text: string): string {
-  return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
+  return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
 }
 
 /** Listas `const NOMBRE = ['a', ...OTRA]` de un fichero, todavía sin resolver. */
@@ -23,8 +26,14 @@ export function listConstantsIn(source: string): Record<string, string> {
 
 /** Roles de una lista de argumentos. Una constante que no se encuentra se dice (`<unresolved:X>`), no se calla. */
 function rolesInList(body: string, lookup: (name: string) => readonly string[] | undefined): string[] {
-  const roles = [...body.matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
-  for (const spread of body.matchAll(/\.\.\.([A-Za-z0-9_]+)/g)) roles.push(...(lookup(spread[1]) ?? [`<unresolved:${spread[1]}>`]));
+  const limpio = withoutComments(body);
+  const roles = [...limpio.matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
+  for (const spread of limpio.matchAll(/\.\.\.([A-Za-z0-9_$]+)/g)) roles.push(...(lookup(spread[1]) ?? [`<unresolved:${spread[1]}>`]));
+  // Un elemento que no es texto ni propagación (`ROLE.ADMIN`, `rolesDe()`) no es un rol conocido: se dice. Callarlo
+  // dejaba la ruta con lista vacía, que el catálogo lee como «sin restricción», que es lo contrario de lo que ocurre.
+  for (const suelto of limpio.replace(/\.\.\.[A-Za-z0-9_$]+/g, '').matchAll(/(?:^|,)\s*([A-Za-z_$][\w$]*(?:\.[\w$]+)*)\s*(?=,|$)/g)) {
+    roles.push(`<unresolved:${suelto[1]}>`);
+  }
   return [...new Set(roles)];
 }
 
@@ -78,25 +87,54 @@ export function classDecorators(source: string, controllerIndex: number, classBl
 export function methodDecorators(classBlock: string, routeIndex: number): string {
   const before = classBlock.slice(0, routeIndex);
   let start = classHeaderEnd(classBlock);
-  for (const close of before.matchAll(/\n {2}\};?[ \t]*(?=\r?\n)/g)) start = Math.max(start, (close.index ?? 0) + close[0].length);
+  // Una a cuatro espacios o un tabulador: el cierre de un miembro. Con sólo dos, una clase indentada con cuatro (o con
+  // tabuladores) no cerraba ningún método y la segunda ruta heredaba el `@Roles` de la primera.
+  for (const close of before.matchAll(/\n(?: {1,4}|\t+)\};?[ \t]*(?=\r?\n)/g))
+    start = Math.max(start, (close.index ?? 0) + close[0].length);
   return before.slice(start);
 }
 
-function rolesCall(decorators: string, constants: RoleConstants): string[] | null {
-  const call = /@Roles\(([^)]*)\)/.exec(decorators)?.[1];
-  return call === undefined ? null : rolesInList(call, (name) => constants[name]);
+/**
+ * Decoradores COMPUESTOS del propio repositorio: `export function X() { return applyDecorators(Roles(...)) }`. Nest los
+ * aplica como si fueran el `@Roles` que envuelven, así que ignorarlos dejaba la ruta con lista vacía —«sin
+ * restricción»— justo donde sí había una.
+ */
+export function composedRoleDecorators(sources: readonly string[], constants: RoleConstants): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const source of sources) {
+    for (const fn of withoutComments(source).matchAll(
+      /export\s+(?:const|function)\s+([A-Za-z_$][\w$]*)[\s\S]{0,400}?applyDecorators\(([\s\S]{0,1500}?)\n\s*\);/g,
+    )) {
+      const roles = /Roles\(([^)]*)\)/.exec(fn[2]);
+      if (roles) out[fn[1]] = rolesInList(roles[1], (name) => constants[name]);
+    }
+  }
+  return out;
+}
+
+function rolesCall(decorators: string, constants: RoleConstants, composed: Record<string, string[]> = {}): string[] | null {
+  const propio = /@Roles\(([^)]*)\)/.exec(decorators);
+  const compuesto = Object.keys(composed)
+    .map((name) => ({ name, index: decorators.indexOf(`@${name}(`) }))
+    .filter((c) => c.index >= 0)
+    .sort((a, b) => a.index - b.index)[0];
+  // Nest aplica de abajo arriba: manda el de más arriba en el texto.
+  if (propio && (!compuesto || propio.index < compuesto.index)) return rolesInList(propio[1], (name) => constants[name]);
+  if (compuesto) return [...composed[compuesto.name]];
+  return null;
 }
 
 /** Roles de la clase. Nest aplica los decoradores de abajo arriba: manda el más ALTO entre `@Roles` y `@SystemsOpsControllerSecurity`. */
-export function classRoles(decorators: string, constants: RoleConstants): string[] | null {
-  const text = withoutComments(decorators);
-  const roles = text.indexOf('@Roles(');
-  const security = text.indexOf('@SystemsOpsControllerSecurity()');
-  if (security >= 0 && (roles < 0 || security < roles)) return [...(constants.SYSTEMS_OPS_ROLES ?? [])];
-  return roles < 0 ? null : rolesCall(text.slice(roles), constants);
+export function classRoles(decorators: string, constants: RoleConstants, composed: Record<string, string[]> = {}): string[] | null {
+  return rolesCall(withoutComments(decorators), constants, composed);
 }
 
 /** Como `RolesGuard`: el `@Roles` del método y, sin él, el de la clase. Uno de método sin resolver NO hereda el de la clase. */
-export function routeRoles(methodBlock: string, fromClass: string[] | null, constants: RoleConstants): string[] {
-  return rolesCall(withoutComments(methodBlock), constants) ?? fromClass ?? [];
+export function routeRoles(
+  methodBlock: string,
+  fromClass: string[] | null,
+  constants: RoleConstants,
+  composed: Record<string, string[]> = {},
+): string[] {
+  return [...new Set(rolesCall(withoutComments(methodBlock), constants, composed) ?? fromClass ?? [])];
 }

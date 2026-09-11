@@ -36,6 +36,9 @@ import {
   screensListQuerySchema,
   VerifyFlowsDto,
   verifyFlowsSchema,
+  IMPORT_CONTRACT,
+  importsQuerySchema,
+  ImportsQueryDto,
 } from './system-flows.schemas.js';
 
 /**
@@ -169,8 +172,20 @@ export class SystemFlowsController {
   @ApiResponse({ status: 200, description: 'Quién cargó qué bloque, con qué commit y cuántas filas.' })
   @InternalPermissions('systems.flows.read')
   @Get('flows/imports')
-  imports() {
-    return this.service.imports();
+  imports(@Query(new ZodValidationPipe(importsQuerySchema)) query: ImportsQueryDto) {
+    return this.service.imports(query);
+  }
+
+  /**
+   * Qué exige hoy la carga del artefacto. El cargador lo lee ANTES de escribir: un backend anterior no tiene esta ruta
+   * y responde 404, así que se para sin haber tocado el catálogo, en vez de enterarse tras nueve cargas.
+   */
+  @ApiOperation({ summary: 'Contrato que debe cumplir una carga del artefacto de Flujos' })
+  @ApiResponse({ status: 200, description: 'Versión del contrato, campos obligatorios y confirmaciones admitidas.' })
+  @InternalPermissions('systems.flows.read')
+  @Get('flows/import/contract')
+  importContract() {
+    return IMPORT_CONTRACT;
   }
 
   @ApiOperation({ summary: 'Grafo de un módulo: sus flujos compartiendo clientes y controllers' })

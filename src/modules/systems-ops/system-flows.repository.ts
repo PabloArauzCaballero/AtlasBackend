@@ -294,8 +294,4 @@ export class SystemFlowsRepository {
   async businessFlows(): Promise<Array<Record<string, unknown>>> {
     return this.flows.sequelize!.query(BUSINESS_FLOWS_SQL, { type: QueryTypes.SELECT });
   }
-
-  latestImports(): Promise<SystemFlowImportModel[]> {
-    return this.imports.findAll({ order: [['createdAtValue', 'DESC']], limit: 30 });
-  }
 }

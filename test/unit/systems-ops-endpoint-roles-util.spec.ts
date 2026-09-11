@@ -1,6 +1,7 @@
 import {
   classDecorators,
   classRoles,
+  composedRoleDecorators,
   methodDecorators,
   resolveRoleConstants,
   listConstantsIn,
@@ -14,6 +15,14 @@ import { SYSTEMS_OPS_ROLES } from '../../src/modules/systems-ops/systems-ops.con
  * en la que el escaneo anterior asignaba mal los roles (119 de 498 rutas contra el compilador).
  */
 const otroModulo = `export const BASE_ROLES = ['admin'] as const;`;
+// El decorador compuesto real del repositorio, tal cual: Nest lo aplica como el `@Roles` que envuelve.
+const decoradorCompuesto = `export function SystemsOpsControllerSecurity() {
+  return applyDecorators(
+    ApiTags('systems-ops'),
+    UseGuards(JwtAuthGuard, RolesGuard),
+    Roles(...SYSTEMS_OPS_ROLES),
+  );
+}`;
 const controlador = `import { Roles } from 'x';
 const LOCAL_ROLES = ['customer', ...BASE_ROLES] as const;
 
@@ -48,8 +57,9 @@ function rolesDe(source: string, ruta: string, globales = roleConstantsFromSourc
   const start = source.indexOf('@Controller(');
   const classBlock = source.slice(start);
   const constants = resolveRoleConstants(listConstantsIn(source), globales);
-  const fromClass = classRoles(classDecorators(source, start, classBlock), constants);
-  return routeRoles(methodDecorators(classBlock, classBlock.indexOf(ruta)), fromClass, constants);
+  const compuestos = composedRoleDecorators([decoradorCompuesto], constants);
+  const fromClass = classRoles(classDecorators(source, start, classBlock), constants, compuestos);
+  return routeRoles(methodDecorators(classBlock, classBlock.indexOf(ruta)), fromClass, constants, compuestos);
 }
 
 describe('endpoint-roles.util', () => {
@@ -79,5 +89,23 @@ describe('endpoint-roles.util', () => {
     const controladorSinLocal = "@Controller('d')\nexport class D {\n  @Roles(...DOBLE)\n  @Get('r')\n  r() {}\n}\n";
     expect(rolesDe(controladorSinLocal, "@Get('r')", globales)).toEqual(['<unresolved:DOBLE>']);
     expect(rolesDe(`const DOBLE = ['local'];\n${controladorSinLocal}`, "@Get('r')", globales)).toEqual(['local']);
+  });
+  it('un decorador compuesto del repositorio (`applyDecorators(Roles(...))`) cuenta como su @Roles, en clase y en método', () => {
+    const conCompuesto =
+      "@SystemsOpsControllerSecurity()\n@Controller('s')\nexport class S {\n  @Get('r')\n  r() {}\n\n  @SystemsOpsControllerSecurity()\n  @Get('m')\n  m() {}\n}\n";
+    expect(rolesDe(conCompuesto, "@Get('r')")).toEqual([...SYSTEMS_OPS_ROLES]);
+    expect(rolesDe(conCompuesto, "@Get('m')")).toEqual([...SYSTEMS_OPS_ROLES]);
+  });
+
+  it('un rol que no es texto (`ROLE.ADMIN`) se dice, no se calla: una lista vacía se lee «sin restricción»', () => {
+    const conEnum = "@Controller('e')\nexport class E {\n  @Roles(ROLE.ADMIN)\n  @Get('r')\n  r() {}\n}\n";
+    expect(rolesDe(conEnum, "@Get('r')")).toEqual(['<unresolved:ROLE.ADMIN>']);
+  });
+
+  it('un comentario al final de línea no corta la lista de roles, y la indentación de 4 espacios no cruza métodos', () => {
+    const conComentario =
+      "const CON_COMENTARIO = [\n  'admin', // antes [ops]\n  'risk_analyst',\n];\n@Controller('c')\nexport class C {\n    @Roles(...CON_COMENTARIO)\n    @Get('a')\n    a() {\n      return 1;\n    }\n\n    @Get('b')\n    b() {}\n}\n";
+    expect(rolesDe(conComentario, "@Get('a')")).toEqual(['admin', 'risk_analyst']);
+    expect(rolesDe(conComentario, "@Get('b')")).toEqual([]);
   });
 });

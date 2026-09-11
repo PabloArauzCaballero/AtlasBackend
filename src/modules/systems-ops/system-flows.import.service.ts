@@ -9,6 +9,7 @@ import { flowRowFor } from './system-flows.mapper.js';
 import { SystemFlowsFreshnessRepository } from './system-flows.freshness.repository.js';
 import { SystemFlowsReviewRepository } from './system-flows.review.repository.js';
 import { SystemFlowsGateRepository } from './system-flows.gate.repository.js';
+import { SystemFlowsImportsRepository } from './system-flows.imports.repository.js';
 import { motivosDeRevision } from './system-flows.review.util.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
 import { findingKeyFor } from './system-flows.risk.util.js';
@@ -18,6 +19,9 @@ import { ImportEndpointsDto, ImportFindingsDto, ImportScreensDto } from './syste
  * Una carga con otro número de filas del que declara su artefacto está truncada: se para antes de escribir, porque lo
  * que falta se daría por retirado (flujos, pantallas) o por resuelto (hallazgos) sin que nadie lo tocara.
  */
+/** Un artefacto fechado en el futuro dejaría bloqueado el alcance hasta esa fecha: se rechaza con un margen de reloj. */
+const MARGEN_DE_RELOJ_MS = 5 * 60 * 1000;
+
 function exigirCompleta(alcance: string, bloque: string, recibidas: number, declaradas: number): void {
   if (recibidas === declaradas) return;
   throw new BadRequestException(
@@ -32,6 +36,7 @@ export class SystemFlowsImportService {
     private readonly freshness: SystemFlowsFreshnessRepository,
     private readonly review: SystemFlowsReviewRepository,
     private readonly gate: SystemFlowsGateRepository,
+    private readonly imports: SystemFlowsImportsRepository,
   ) {}
 
   /**
@@ -40,6 +45,14 @@ export class SystemFlowsImportService {
    * sirve de respuesta: quien carga sabe así que habló con un backend que comprueba.
    */
   private async exigirNoAnterior(scope: string, systemCode: string, generatedAt: string, allow: boolean | undefined, tx: Transaction) {
+    // El cerrojo va ANTES de leer la fecha anterior: si no, dos cargas simultáneas leen la misma y ambas pasan.
+    await this.imports.lockScope(scope, systemCode, tx);
+    const futuro = new Date(generatedAt).getTime() - Date.now();
+    if (futuro > MARGEN_DE_RELOJ_MS) {
+      throw new BadRequestException(
+        `El artefacto de ${scope} de ${systemCode} dice haberse generado el ${generatedAt}, en el futuro: ¿el reloj de la máquina que lo derivó? Cargarlo dejaría bloqueada esa carga hasta esa fecha.`,
+      );
+    }
     if (allow) return;
     const ultimo = await this.gate.lastArtifactGeneratedAt(scope, systemCode, tx);
     if (ultimo && new Date(generatedAt).getTime() < ultimo.getTime()) {
@@ -164,15 +177,23 @@ export class SystemFlowsImportService {
       // Una carga que deja sin puerta una pantalla que la tiene —porque no la trae, o la trae sin puerta— se para. Contar
       // sólo «ninguna puerta» dejaba pasar un artefacto viejo que conservaba 30 de 35 y borraba las de los cinco workers.
       const llegan = new Map(rows.map((row) => [row.route, row.navPermissions.length + row.navRoles.length]));
-      const pierden = (await this.gate.gatedScreensOfClient(dto.clientCode, tx)).filter((route) => !llegan.get(route));
-      if (pierden.length && !dto.allowRemovingMenuGates) {
+      const conPuerta = await this.gate.gatedScreensOfClient(dto.clientCode, tx);
+      const pierden = conPuerta.filter((route) => !llegan.get(route));
+      // Se confirma RUTA A RUTA. Un «adelante» general dejaba pasar, en el mismo gesto, la retirada que no se miró.
+      const confirmadas = new Set(dto.allowRemovingMenuGates ?? []);
+      const sinConfirmar = pierden.filter((route) => !confirmadas.has(route));
+      if (sinConfirmar.length) {
+        // Una ruta nueva con la misma puerta suele ser la misma pantalla renombrada: se dice, para no confundirlo con una retirada.
+        const nuevas = rows
+          .filter((row) => !conPuerta.includes(row.route) && (row.navPermissions.length || row.navRoles.length))
+          .map((row) => row.route);
         throw new BadRequestException(
-          `La carga deja sin puerta de menú ${pierden.length} pantalla(s) de ${dto.clientCode} (${pierden.slice(0, 5).join(', ')}${pierden.length > 5 ? ', …' : ''}): ¿es un artefacto viejo? Si el menú dejó de restringir de verdad, repítela con allowRemovingMenuGates.`,
+          `La carga deja sin puerta de menú ${sinConfirmar.length} pantalla(s) de ${dto.clientCode}: ${sinConfirmar.slice(0, 50).join(', ')}${sinConfirmar.length > 50 ? ', …' : ''}. Si el menú dejó de restringirlas de verdad, repítela con allowRemovingMenuGates y esas rutas. Rutas con puerta en esta carga que no estaban en el catálogo (¿un renombrado?): ${nuevas.slice(0, 20).join(', ') || 'ninguna'}.`,
         );
       }
       const result = await this.repository.replaceScreens(dto.clientCode, rows, tx);
       await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });
-      return { importId: record.id, ...result, declaredCount: dto.declaredCount };
+      return { importId: record.id, ...result, declaredCount: dto.declaredCount, menuGatesRemoved: pierden };
     });
   }
 

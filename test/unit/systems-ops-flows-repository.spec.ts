@@ -1,4 +1,5 @@
 import { Op } from 'sequelize';
+import { SystemFlowsImportsRepository } from '../../src/modules/systems-ops/system-flows.imports.repository.js';
 import { SystemFlowsRepository } from '../../src/modules/systems-ops/system-flows.repository.js';
 
 /**
@@ -207,10 +208,15 @@ describe('SystemFlowsRepository · consultas', () => {
     expect(imports.create.mock.calls[0][0].createdAtValue).toBeInstanceOf(Date);
   });
 
-  it('latestImports devuelve los últimos primero y acotados', async () => {
-    const { repo, imports } = build();
-    await repo.latestImports();
-    expect(imports.findAll.mock.calls[0][0]).toMatchObject({ order: [['createdAtValue', 'DESC']], limit: 30 });
+  it('latestImports devuelve los últimos primero, acotados y filtrables por bloque y alcance', async () => {
+    const { imports } = build();
+    const repoImports = new SystemFlowsImportsRepository(imports as never);
+    await repoImports.latestImports();
+    expect(imports.findAll.mock.calls[0][0]).toMatchObject({ where: {}, order: [['createdAtValue', 'DESC']], limit: 30 });
+    // Sin filtro por bloque, treinta filas no llegan ni a dos cargas completas: quien pregunta «¿retrocede esta carga?»
+    // no encontraba la suya y se quedaba sin comparar.
+    await repoImports.latestImports({ systemCode: 'ATLAS_BACKEND', scope: 'endpoints', limit: 1 });
+    expect(imports.findAll.mock.calls[1][0]).toMatchObject({ where: { systemCode: 'ATLAS_BACKEND', scope: 'endpoints' }, limit: 1 });
   });
 });
 

@@ -12,6 +12,7 @@ import { PlatformCatalogFederationClient } from './platform-catalog-federation.c
 import { buildFlowGraph, buildModuleGraph } from './system-flows.graph.util.js';
 import { mapFinding, mapFlow, mapScreen } from './system-flows.mapper.js';
 import { SystemFlowsImportService } from './system-flows.import.service.js';
+import { SystemFlowsImportsRepository } from './system-flows.imports.repository.js';
 import { SystemFlowsRepository } from './system-flows.repository.js';
 import { SystemFlowsAsyncService } from './system-flows.async.service.js';
 import { SystemFlowsScreensService } from './system-flows.screens.service.js';
@@ -24,6 +25,7 @@ import {
   ImportScreensDto,
   ScreensListQueryDto,
   VerifyFlowsDto,
+  ImportsQueryDto,
 } from './system-flows.schemas.js';
 
 @Injectable()
@@ -34,6 +36,7 @@ export class SystemFlowsService {
     private readonly imports_: SystemFlowsImportService,
     private readonly screensService: SystemFlowsScreensService,
     private readonly asyncService: SystemFlowsAsyncService,
+    private readonly importsRepository: SystemFlowsImportsRepository,
   ) {}
 
   importEndpoints(dto: ImportEndpointsDto, actor: string | null) {
@@ -234,8 +237,8 @@ export class SystemFlowsService {
     return { items: result.rows.map(mapFinding), meta: result.meta };
   }
 
-  async imports() {
-    const rows = await this.repository.latestImports();
+  async imports(query: ImportsQueryDto) {
+    const rows = await this.importsRepository.latestImports(query);
     return rows.map((row) => ({
       id: row.id,
       scope: row.scope,

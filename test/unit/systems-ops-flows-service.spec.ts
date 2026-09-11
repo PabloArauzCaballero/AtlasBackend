@@ -45,6 +45,10 @@ function repositoryDouble(over: Partial<{ runs: Map<string, unknown>; flows: Arr
       return Promise.resolve({ upserted: (args[1] as unknown[]).length, removed: 0 });
     },
     recountFindings: spy('recountFindings'),
+    lockScope: (...args: unknown[]) => {
+      (calls.lockScope ??= []).push(args);
+      return Promise.resolve(undefined);
+    },
     findFlow: spy('findFlow', null),
     findFlowsByModule: spy('findFlowsByModule', []),
   };
@@ -65,6 +69,7 @@ const importDouble = (repo: unknown) =>
     repo as never,
     {} as never,
     { openFindingsOfSystem: async () => 0, lastArtifactGeneratedAt: async () => null } as never,
+    repo as never,
   );
 /**
  * Las pantallas se verifican en su propio servicio y con su propio repositorio. Aquí se sustituye
@@ -104,6 +109,7 @@ describe('SystemFlowsService.verify', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     ).verify({ systemCode: 'ATLAS_BACKEND', windowDays: 30 }, 'pablo');
     expect(result).toMatchObject({ verified: 1, broken: 0, unverified: 1, routesWithRuns: 1 });
     expect(repo.calls.applyVerification).toHaveLength(1);
@@ -118,6 +124,7 @@ describe('SystemFlowsService.verify', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     ).verify({ systemCode: 'ATLAS_BACKEND', windowDays: 7 }, null);
     expect(result).toMatchObject({ verified: 0, broken: 1 });
     expect((repo.calls.applyVerification?.[0]?.[1] as { verification: string }).verification).toBe('BROKEN');
@@ -131,6 +138,7 @@ describe('SystemFlowsService.verify', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     ).verify({ systemCode: 'ERP_BACKEND', windowDays: 30 }, null);
     expect(result).toMatchObject({ systemCode: 'ERP_BACKEND', skippedNoLogs: 2, verified: 0, broken: 0, routesWithRuns: 0 });
     expect(repo.calls.runsByRoute).toBeUndefined();
@@ -145,6 +153,7 @@ describe('SystemFlowsService.verify', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     ).verify({ systemCode: 'ATLAS_BACKEND', windowDays: 7 }, null);
     expect(repo.calls.runsByRoute?.[0]?.[0]).toBe(7);
   });
@@ -160,6 +169,7 @@ describe('SystemFlowsService.verify', () => {
         importDouble(repo),
         screensDouble(),
         asyncDouble(),
+        repo as never,
       ).verify({ systemCode: 'ATLAS_BACKEND', windowDays: 30 }, null);
     } finally {
       if (anterior === undefined) delete process.env.APP_COMMIT_SHA;
@@ -177,6 +187,7 @@ describe('SystemFlowsImportService.importFindings', () => {
       repo as never,
       {} as never,
       { openFindingsOfSystem: async () => 0, lastArtifactGeneratedAt: async () => null } as never,
+      repo as never,
     ).importFindings(
       {
         systemCode: 'ERP_BACKEND',
@@ -200,6 +211,7 @@ describe('SystemFlowsImportService.importFindings', () => {
       repo as never,
       {} as never,
       { openFindingsOfSystem: async () => 0, lastArtifactGeneratedAt: async () => null } as never,
+      repo as never,
     ).importFindings(
       { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 0, findings: [] },
       null,
@@ -218,6 +230,7 @@ describe('SystemFlowsService.getFlow', () => {
         importDouble(repo),
         screensDouble(),
         asyncDouble(),
+        repo as never,
       ).getFlow('flow_000000000009'),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
@@ -231,6 +244,7 @@ describe('SystemFlowsService.getFlow', () => {
         importDouble(repo),
         screensDouble(),
         asyncDouble(),
+        repo as never,
       ).getModuleGraph({
         systemCode: 'ATLAS_BACKEND',
         module: 'inexistente',
@@ -263,6 +277,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     );
     const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, 'pablo', 'token');
     expect(result).toMatchObject({ verified: 1, broken: 0, skippedNoLogs: 0, federation: { ok: true } });
@@ -285,6 +300,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     );
     const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, 'token');
     expect(result).toMatchObject({ verified: 0, broken: 1 });
@@ -305,6 +321,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     );
     const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, 'token');
     expect(result).toMatchObject({ verified: 1, broken: 0 });
@@ -324,6 +341,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     );
     const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, 'token');
     expect(result).toMatchObject({ verified: 1, broken: 0 });
@@ -340,6 +358,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     );
     const result = await service.verify({ systemCode: 'DECISION_ENGINE', windowDays: 30 }, null, null);
     expect(result).toMatchObject({ skippedNoLogs: 2, verified: 0, broken: 0, federation: { ok: false } });
@@ -380,6 +399,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     );
     const result = await service.verify({ systemCode: 'ERP_BACKEND', windowDays: 30 }, null, 'token');
     expect(result).toMatchObject({ verified: 1, broken: 0, skippedNoLogs: 0 });
@@ -402,6 +422,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     );
     await service.verify({ systemCode, windowDays: 30 }, null, 'token');
     expect(pedidas).toEqual([esperada]);
@@ -419,6 +440,7 @@ describe('SystemFlowsService.verify · bloques federados', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     );
     const result = await service.verify({ systemCode: 'BLOQUE_NUEVO', windowDays: 30 }, null, 'token');
     expect(result).toMatchObject({ skippedNoLogs: 1, verified: 0, broken: 0 });
@@ -449,6 +471,7 @@ describe('SystemFlowsService · delegación de consultas', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     );
     await (service as unknown as Record<string, (q: unknown) => Promise<unknown>>)[metodo](query);
     expect(repo.calls[esperado]?.[0]?.[0]).toBe(query);
@@ -466,6 +489,7 @@ describe('SystemFlowsService · delegación de consultas', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     );
     void (service as unknown as Record<string, () => unknown>)[metodo]();
     expect(repo.calls[metodo]).toHaveLength(1);
@@ -495,8 +519,9 @@ describe('SystemFlowsService · delegación de consultas', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     );
-    const result = await service.imports();
+    const result = await service.imports({ limit: 30 });
     expect(result[0]).toMatchObject({ id: '3', analyzedCommit: 'abc1234', createdBy: 'pablo' });
     expect(result[0]).toHaveProperty('createdAt');
     expect(result[0]).not.toHaveProperty('createdAtValue');
@@ -551,6 +576,7 @@ describe('SystemFlowsService · delegación de consultas', () => {
       importDouble(repo),
       screensDouble(),
       asyncDouble(),
+      repo as never,
     );
     const result = await service.businessFlows();
     expect(result.totals).toEqual({ processes: 1, steps: 2, unlinked: 1 });

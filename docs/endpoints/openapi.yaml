@@ -25124,6 +25124,35 @@ paths:
       summary: Últimas cargas del artefacto de Flujos
       tags:
         - systems-ops
+  /systems/flows/import/contract:
+    get:
+      operationId: SystemFlowsController_importContract
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: >-
+            Versión del contrato, campos obligatorios y confirmaciones
+            admitidas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Contrato que debe cumplir una carga del artefacto de Flujos
+      tags:
+        - systems-ops
   /systems/flows/graph:
     get:
       operationId: SystemFlowsController_moduleGraph
@@ -25683,7 +25712,12 @@ paths:
                 allowOlderArtifact:
                   type: boolean
                 allowRemovingMenuGates:
-                  type: boolean
+                  maxItems: 2000
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 300
               required:
                 - clientCode
                 - screens

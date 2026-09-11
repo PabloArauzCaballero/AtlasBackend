@@ -32,6 +32,7 @@ function repositoryDouble(): RepoDouble {
     openFindingsOfSystem: spy('openFindingsOfSystem', () => 0),
     gatedScreensOfClient: spy('gatedScreensOfClient', () => []),
     lastArtifactGeneratedAt: spy('lastArtifactGeneratedAt', () => null),
+    lockScope: spy('lockScope'),
     replaceFlows: spy('replaceFlows', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
     replaceScreens: spy('replaceScreens', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
     replaceFindings: spy('replaceFindings', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
@@ -63,6 +64,7 @@ describe('SystemFlowsImportService.importEndpoints', () => {
       repo as never,
       repo as never,
       repo as never,
+      repo as never,
     ).importEndpoints(
       {
         systemCode: 'ATLAS_BACKEND',
@@ -82,6 +84,7 @@ describe('SystemFlowsImportService.importEndpoints', () => {
     const repo = repositoryDouble();
     await new SystemFlowsImportService(
       repo as unknown as SystemFlowsRepository,
+      repo as never,
       repo as never,
       repo as never,
       repo as never,
@@ -114,6 +117,7 @@ describe('SystemFlowsImportService.importEndpoints', () => {
       repo as never,
       repo as never,
       repo as never,
+      repo as never,
     ).importEndpoints(
       {
         allowRemovingDecisions: false,
@@ -132,6 +136,7 @@ describe('SystemFlowsImportService.importEndpoints', () => {
     const repo = repositoryDouble();
     await new SystemFlowsImportService(
       repo as unknown as SystemFlowsRepository,
+      repo as never,
       repo as never,
       repo as never,
       repo as never,
@@ -156,7 +161,13 @@ describe('SystemFlowsImportService.importEndpoints', () => {
 describe('SystemFlowsImportService.importScreens', () => {
   it('mapea cada pantalla al bloque del cliente que la envía, no al de los flujos', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never, repo as never).importScreens(
+    await new SystemFlowsImportService(
+      repo as unknown as SystemFlowsRepository,
+      repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
+    ).importScreens(
       {
         clientCode: 'ADMIN_PORTAL',
         artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
@@ -172,7 +183,13 @@ describe('SystemFlowsImportService.importScreens', () => {
 
   it('no recuenta hallazgos: las pantallas no los tienen y llamarlo ensuciaría un bloque que no es el de flujos', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never, repo as never).importScreens(
+    await new SystemFlowsImportService(
+      repo as unknown as SystemFlowsRepository,
+      repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
+    ).importScreens(
       { clientCode: 'ADMIN_PORTAL', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 0, screens: [] as never },
       null,
     );
@@ -181,7 +198,13 @@ describe('SystemFlowsImportService.importScreens', () => {
 
   it('un archivo o etiqueta de navegación ausentes se guardan como null, no como cadena vacía', async () => {
     const repo = repositoryDouble();
-    await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never, repo as never).importScreens(
+    await new SystemFlowsImportService(
+      repo as unknown as SystemFlowsRepository,
+      repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
+    ).importScreens(
       {
         clientCode: 'ADMIN_PORTAL',
         artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
@@ -200,6 +223,7 @@ describe('SystemFlowsImportService.importFindings', () => {
     const repo = repositoryDouble();
     await new SystemFlowsImportService(
       repo as unknown as SystemFlowsRepository,
+      repo as never,
       repo as never,
       repo as never,
       repo as never,
@@ -226,6 +250,7 @@ describe('SystemFlowsImportService.importFindings', () => {
       repo as never,
       repo as never,
       repo as never,
+      repo as never,
     ).importFindings(
       {
         systemCode: 'ATLAS_BACKEND',
@@ -248,6 +273,7 @@ describe('SystemFlowsImportService · frescura por flujo', () => {
       repo as never,
       repo as never,
       repo as never,
+      repo as never,
     ).importEndpoints(
       { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 1, endpoints: [endpoint()] } as never,
       'pablo',
@@ -261,6 +287,7 @@ describe('SystemFlowsImportService · frescura por flujo', () => {
     repo.markStaleByDepsHash = () => Promise.resolve(['a', 'b', 'c', 'd', 'e', 'f', 'g']);
     const resultado = await new SystemFlowsImportService(
       repo as unknown as SystemFlowsRepository,
+      repo as never,
       repo as never,
       repo as never,
       repo as never,
@@ -292,6 +319,7 @@ describe('SystemFlowsImportService · revisión humana', () => {
       repo as never,
       repo as never,
       repo as never,
+      repo as never,
     ).importEndpoints(
       {
         systemCode: 'ATLAS_BACKEND',
@@ -313,6 +341,7 @@ describe('SystemFlowsImportService · revisión humana', () => {
       repo as never,
       repo as never,
       repo as never,
+      repo as never,
     ).importEndpoints(
       { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 1, endpoints: [endpoint()] } as never,
       null,
@@ -327,7 +356,13 @@ describe('SystemFlowsImportService · lo que una recarga no debe borrar', () => 
     const repo = repositoryDouble();
     repo.catalogSize = () => Promise.resolve(498);
     await expect(
-      new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never, repo as never).importEndpoints(
+      new SystemFlowsImportService(
+        repo as unknown as SystemFlowsRepository,
+        repo as never,
+        repo as never,
+        repo as never,
+        repo as never,
+      ).importEndpoints(
         { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 0, endpoints: [] } as never,
         null,
       ),
@@ -340,6 +375,7 @@ describe('SystemFlowsImportService · lo que una recarga no debe borrar', () => 
     repo.decisionsToBeRemoved = () => Promise.resolve(2);
     const resultado = await new SystemFlowsImportService(
       repo as unknown as SystemFlowsRepository,
+      repo as never,
       repo as never,
       repo as never,
       repo as never,
@@ -363,6 +399,7 @@ describe('SystemFlowsImportService · lo que una recarga no debe borrar', () => 
       repo as never,
       repo as never,
       repo as never,
+      repo as never,
     ).importEndpoints(
       { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 1, endpoints: [endpoint()] } as never,
       null,
@@ -373,7 +410,7 @@ describe('SystemFlowsImportService · lo que una recarga no debe borrar', () => 
 
 describe('SystemFlowsImportService · cargas que borrarían evidencia', () => {
   const servicioCon = (repo: RepoDouble) =>
-    new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never, repo as never);
+    new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never, repo as never, repo as never);
 
   it('una carga que retira flujos con decisión humana se para, salvo confirmación explícita', async () => {
     const repo = repositoryDouble();
@@ -464,14 +501,14 @@ describe('SystemFlowsImportService · cargas que borrarían evidencia', () => {
     // El artefacto viejo: el catálogo conserva su puerta y los cinco workers llegan sin ella.
     const vieja = [pantalla('/catalog', ['ADMIN']), ...workers.map((w) => pantalla(w, []))];
     await expect(servicioCon(repo).importScreens(carga(vieja), null)).rejects.toThrow(
-      /5 pantalla\(s\) de MOTOR_PORTAL \(\/workers\/audio-tts/,
+      /5 pantalla\(s\) de MOTOR_PORTAL: \/workers\/audio-tts/,
     );
     // Una pantalla con puerta que ya no viene también la pierde.
     await expect(servicioCon(repo).importScreens(carga([pantalla('/catalog', ['ADMIN'])]), null)).rejects.toThrow(/allowRemovingMenuGates/);
     expect(repo.calls.replaceScreens).toBeUndefined();
     const buena = [pantalla('/catalog', ['ADMIN']), ...workers.map((w) => pantalla(w, ['RISK_ANALYST']))];
     await expect(servicioCon(repo).importScreens(carga(buena), null)).resolves.toMatchObject({ upserted: 6, declaredCount: 6 });
-    await expect(servicioCon(repo).importScreens(carga(vieja, { allowRemovingMenuGates: true }), null)).resolves.toMatchObject({
+    await expect(servicioCon(repo).importScreens(carga(vieja, { allowRemovingMenuGates: workers }), null)).resolves.toMatchObject({
       upserted: 6,
     });
   });
@@ -510,5 +547,45 @@ describe('SystemFlowsImportService · cargas que borrarían evidencia', () => {
     });
     expect(importScreensSchema.safeParse(pantalla(['ADMIN'])).success).toBe(true);
     expect(importScreensSchema.safeParse(pantalla(['<unresolved:accessPolicies.workers>'])).success).toBe(false);
+  });
+  it('confirmar unas rutas no confirma las demás: la lista es exacta', async () => {
+    const repo = repositoryDouble();
+    repo.gatedScreensOfClient = () => Promise.resolve(['/a', '/b']);
+    const carga = (allowRemovingMenuGates?: string[]) =>
+      ({
+        clientCode: 'MOTOR_PORTAL',
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+        declaredCount: 2,
+        screens: [
+          { route: '/a', navPermissions: [], navRoles: [] },
+          { route: '/b', navPermissions: [], navRoles: [] },
+        ],
+        ...(allowRemovingMenuGates ? { allowRemovingMenuGates } : {}),
+      }) as never;
+    await expect(servicioCon(repo).importScreens(carga(['/a']), null)).rejects.toThrow(/1 pantalla\(s\) de MOTOR_PORTAL: \/b/);
+    await expect(servicioCon(repo).importScreens(carga(['/a', '/b']), null)).resolves.toMatchObject({ menuGatesRemoved: ['/a', '/b'] });
+  });
+
+  it('un artefacto fechado en el futuro se rechaza: bloquearía ese alcance hasta esa fecha', async () => {
+    const repo = repositoryDouble();
+    const dentroDeUnAno = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString();
+    await expect(
+      servicioCon(repo).importEndpoints(
+        { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: dentroDeUnAno, declaredCount: 1, endpoints: [endpoint()] } as never,
+        null,
+      ),
+    ).rejects.toThrow(/en el futuro/);
+    expect(repo.calls.replaceFlows).toBeUndefined();
+  });
+
+  it('toma el cerrojo del alcance ANTES de leer la fecha del artefacto anterior', async () => {
+    const repo = repositoryDouble();
+    await servicioCon(repo).importEndpoints(
+      { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 1, endpoints: [endpoint()] } as never,
+      null,
+    );
+    expect(repo.calls.lockScope?.[0]?.slice(0, 2)).toEqual(['endpoints', 'ATLAS_BACKEND']);
+    const orden = Object.keys(repo.calls);
+    expect(orden.indexOf('lockScope')).toBeLessThan(orden.indexOf('lastArtifactGeneratedAt'));
   });
 });

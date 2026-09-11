@@ -104,6 +104,20 @@ const declaredCount = z.number().int().nonnegative();
  */
 const artifactAge = { artifactGeneratedAt: z.iso.datetime(), allowOlderArtifact: z.boolean().optional() };
 
+/** Contrato de carga que el backend exige hoy. El cargador lo lee ANTES de escribir nada. */
+export const IMPORT_CONTRACT = {
+  version: 2,
+  requires: ['declaredCount', 'artifactGeneratedAt'],
+  confirmations: ['allowRemovingDecisions', 'allowRemovingMenuGates', 'allowOlderArtifact'],
+} as const;
+
+export const importsQuerySchema = z.object({
+  systemCode: code.optional(),
+  scope: z.enum(['endpoints', 'screens', 'findings']).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(30),
+});
+export type ImportsQueryDto = z.infer<typeof importsQuerySchema>;
+
 /** Una puerta del menú sin resolver (`<unresolved:…>`) no es una puerta: el artefacto tiene que resolverla antes. */
 const menuGateList = z
   .array(z.string().trim().min(1).max(200).regex(/^[^<]/, 'Puerta de menú sin resolver en el artefacto.'))
@@ -117,7 +131,12 @@ const importEnvelope = {
   contentHash: z.string().trim().max(64).optional(),
 };
 
-export const importEndpointsSchema = z.object({
+/**
+ * `strictObject` y no `object`: zod QUITA los campos desconocidos sin decir nada, así que un cargador nuevo contra un
+ * backend viejo perdía `declaredCount` —y con él todas estas comprobaciones— sin un solo error. Rechazarlos hace que
+ * la próxima pareja desalineada falle en la primera carga, en vez de escribir sin comprobar.
+ */
+export const importEndpointsSchema = z.strictObject({
   ...importEnvelope,
   endpoints: z.array(derivedEndpointSchema).max(2000),
   /**
@@ -137,14 +156,17 @@ export const derivedScreenSchema = z.object({
   navPermissions: menuGateList,
   navRoles: menuGateList,
 });
-export const importScreensSchema = z.object({
+export const importScreensSchema = z.strictObject({
   clientCode: code,
   analyzedCommit: z.string().trim().max(64).optional(),
   screens: z.array(derivedScreenSchema).max(2000),
   declaredCount,
   ...artifactAge,
-  /** Una carga que deja sin puertas de menú a un cliente que las tiene se rechaza salvo que se confirme aquí. */
-  allowRemovingMenuGates: z.boolean().optional(),
+  /**
+   * Las rutas que SÍ pueden quedarse sin puerta de menú. Es una lista y no un sí general: un artefacto viejo retira
+   * varias a la vez, y confirmar «adelante» dejaba pasar en el mismo gesto la que no se había mirado.
+   */
+  allowRemovingMenuGates: z.array(z.string().trim().min(1).max(300)).max(2000).optional(),
 });
 export type ImportScreensDto = z.infer<typeof importScreensSchema>;
 
@@ -158,7 +180,7 @@ export const derivedFindingSchema = z.object({
   knownSince: z.string().trim().max(300).optional(),
   extra: z.record(z.string(), z.unknown()).optional(),
 });
-export const importFindingsSchema = z.object({
+export const importFindingsSchema = z.strictObject({
   systemCode: code,
   analyzedCommit: z.string().trim().max(64).optional(),
   findings: z.array(derivedFindingSchema).max(5000),

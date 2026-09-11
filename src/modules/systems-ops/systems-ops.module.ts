@@ -57,6 +57,7 @@ import { SystemFlowsFreshnessRepository } from './system-flows.freshness.reposit
 import { SystemFlowsReviewRepository } from './system-flows.review.repository.js';
 import { SystemFlowsReviewService } from './system-flows.review.service.js';
 import { SystemFlowsGateRepository } from './system-flows.gate.repository.js';
+import { SystemFlowsImportsRepository } from './system-flows.imports.repository.js';
 import { SystemFlowsGateService } from './system-flows.gate.service.js';
 import { SystemFlowsScreensRepository } from './system-flows.screens.repository.js';
 import { SystemFlowsScreensService } from './system-flows.screens.service.js';
@@ -149,6 +150,7 @@ import { SystemsMetadataRepository } from './systems-metadata.repository.js';
     SystemFlowsReviewRepository,
     SystemFlowsReviewService,
     SystemFlowsGateRepository,
+    SystemFlowsImportsRepository,
     SystemFlowsGateService,
     SystemFlowsScreensRepository,
     SystemFlowsScreensService,

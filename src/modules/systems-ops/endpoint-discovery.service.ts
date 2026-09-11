@@ -16,6 +16,7 @@ import {
   RoleConstants,
   classDecorators,
   classRoles,
+  composedRoleDecorators,
   listConstantsIn,
   methodDecorators,
   resolveRoleConstants,
@@ -25,7 +26,11 @@ import {
 import { EndpointSeed } from './systems-ops.types.js';
 import { endpointBusinessContext, endpointPayloadSummary } from './endpoint-narrative.util.js';
 
-const ROUTE_DECORATOR = /@(Get|Post|Put|Patch|Delete|Options|Head)\(([^)]*)\)([\s\S]*?)(?:\n\s*(?:async\s+)?([A-Za-z0-9_]+)\s*\()/g;
+// `Sse` también declara una ruta HTTP (GET de `text/event-stream`): sin él, el hilo en vivo del soporte no estaba en
+// el catálogo, y por tanto tampoco su puerta. `All` responde a cualquier método y se cataloga como tal.
+const ROUTE_DECORATOR = /@(Get|Post|Put|Patch|Delete|Options|Head|Sse|All)\(([^)]*)\)([\s\S]*?)(?:\n\s*(?:async\s+)?([A-Za-z0-9_]+)\s*\()/g;
+/** `@Sse` es un GET para quien llama; el catálogo guarda el método que viaja por la red, no el decorador. */
+const HTTP_METHOD_OF = { SSE: 'GET' } as Readonly<Record<string, string>>;
 const CONTROLLER_DECORATOR = /@Controller\(([^)]*)\)[\s\S]*?export\s+class\s+([A-Za-z0-9_]+)\s*\{/g;
 
 export type DiscoveredEndpoint = EndpointSeed & {
@@ -112,7 +117,9 @@ export class EndpointDiscoveryService {
       (file) => readFile(file, 'utf8'),
     );
     const constants = roleConstantsFromSources(sources);
-    const perFile = await mapWithConcurrency(files, SCAN_CONCURRENCY, (file) => this.scanControllerFile(file, constants));
+    // Decoradores compuestos del repo (`applyDecorators(Roles(...))`): Nest los aplica como el `@Roles` que envuelven.
+    const composed = composedRoleDecorators(sources, constants);
+    const perFile = await mapWithConcurrency(files, SCAN_CONCURRENCY, (file) => this.scanControllerFile(file, constants, composed));
     const seen = new Set<string>();
     return perFile.flat().filter((item) => {
       const key = `${item.method} ${item.fullPath}`;
@@ -122,7 +129,11 @@ export class EndpointDiscoveryService {
     });
   }
 
-  private async scanControllerFile(file: string, globalConstants: RoleConstants): Promise<DiscoveredEndpoint[]> {
+  private async scanControllerFile(
+    file: string,
+    globalConstants: RoleConstants,
+    composed: Record<string, string[]>,
+  ): Promise<DiscoveredEndpoint[]> {
     const source = await readFile(file, 'utf8');
     const constants = resolveRoleConstants(listConstantsIn(source), globalConstants);
     const controllers = [...source.matchAll(CONTROLLER_DECORATOR)];
@@ -134,10 +145,11 @@ export class EndpointDiscoveryService {
       const start = controller.index ?? 0;
       const end = controllers[index + 1]?.index ?? source.length;
       const classBlock = source.slice(start, end);
-      const fromClass = classRoles(classDecorators(source, start, classBlock), constants);
+      const fromClass = classRoles(classDecorators(source, start, classBlock), constants, composed);
 
       for (const route of classBlock.matchAll(ROUTE_DECORATOR)) {
-        const method = route[1].toUpperCase();
+        const decorador = route[1].toUpperCase();
+        const method = HTTP_METHOD_OF[decorador] ?? decorador;
         const handlerName = route[4] ?? null;
         const apiPath = joinPaths(env.API_PREFIX, controllerPath, decoratorPath(route[2] ?? ''));
         const riskLevel = this.classifier.riskLevelForEndpoint(method, apiPath);
@@ -145,7 +157,7 @@ export class EndpointDiscoveryService {
         const payloadSummary = endpointPayloadSummary(method, apiPath);
         const decorators = `${methodDecorators(classBlock, route.index ?? 0)}
 ${route[3] ?? ''}`;
-        const allowedRoles = routeRoles(decorators, fromClass, constants);
+        const allowedRoles = routeRoles(decorators, fromClass, constants, composed);
         endpoints.push({
           code: buildEndpointCode(method, apiPath),
           module: moduleFromPath(apiPath),
