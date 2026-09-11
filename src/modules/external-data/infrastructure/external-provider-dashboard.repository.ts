@@ -9,16 +9,28 @@ import { Op } from 'sequelize';
 import { DataProviderRequestModel, ProviderHealthLogModel } from '../../../database/models/index.js';
 
 /**
- * Un chequeo CONTÓ como medición si tardó algo o si falló con una causa.
+ * Un chequeo CONTÓ como medición.
  *
- * La regla va por el RESULTADO y no por una lista de modos a propósito. `checkMockHealth` sólo sale
- * a la red en `mock_server`; en todos los demás —`mock_local`, y hoy también `sandbox` y
- * `production`, cuyos adaptadores no tienen integración real— devuelve `UP` con `latencyMs: 0` sin
- * llamar a nadie. Una lista de modos habría que corregirla el día que `production` mida de verdad,
- * y nadie se acordaría; esta condición se vuelve cierta sola en cuanto haya una llamada detrás.
+ * `checkMockHealth` sólo sale a la red en `mock_server`; en los demás modos —`mock_local`, y hoy
+ * también `sandbox` y `production`, cuyos adaptadores no tienen integración real— devuelve `UP` con
+ * `latencyMs: 0` sin llamar a nadie. Esas filas registran una comprobación que no ocurrió, y la
+ * serie del tablero las dibujaba como una línea plana en cero: el mismo «responde al instante» que
+ * se quitó de la tabla.
+ *
+ * Las tres condiciones hacen falta y ninguna sobra:
+ *
+ * - `mock_server` entra SIEMPRE, aunque la latencia salga 0. Se calcula con `Date.now() - started`
+ *   y el health del emulador no duerme: es un ida y vuelta local. Medido contra el VPS el
+ *   2026-09-10, los ocho dieron entre 1 y 49 ms — con la máquina descargada, redondear a 0 es
+ *   cuestión de tiempo, y filtrar sólo por latencia habría empezado a tirar mediciones buenas sin
+ *   que nadie lo notara.
+ * - La latencia positiva entra aunque el modo no sea `mock_server`, para que el día que
+ *   `production` mida de verdad esto se vuelva cierto solo, sin que nadie recuerde tocar una lista.
+ * - El código de error entra porque un fallo SÍ es una medición: es la mitad de la serie que
+ *   importa.
  */
 const MEDICION_REAL = {
-  [Op.or]: [{ latencyMs: { [Op.gt]: 0 } }, { errorCode: { [Op.ne]: null } }],
+  [Op.or]: [{ modeChecked: 'mock_server' }, { latencyMs: { [Op.gt]: 0 } }, { errorCode: { [Op.ne]: null } }],
 };
 
 /**
