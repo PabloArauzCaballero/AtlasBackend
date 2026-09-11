@@ -9,6 +9,19 @@ import { Op } from 'sequelize';
 import { DataProviderRequestModel, ProviderHealthLogModel } from '../../../database/models/index.js';
 
 /**
+ * Un chequeo CONTÓ como medición si tardó algo o si falló con una causa.
+ *
+ * La regla va por el RESULTADO y no por una lista de modos a propósito. `checkMockHealth` sólo sale
+ * a la red en `mock_server`; en todos los demás —`mock_local`, y hoy también `sandbox` y
+ * `production`, cuyos adaptadores no tienen integración real— devuelve `UP` con `latencyMs: 0` sin
+ * llamar a nadie. Una lista de modos habría que corregirla el día que `production` mida de verdad,
+ * y nadie se acordaría; esta condición se vuelve cierta sola en cuanto haya una llamada detrás.
+ */
+const MEDICION_REAL = {
+  [Op.or]: [{ latencyMs: { [Op.gt]: 0 } }, { errorCode: { [Op.ne]: null } }],
+};
+
+/**
  * Vive APARTE de `ExternalDataRepository` por el trinquete `check:file-size` (ese archivo está en
  * el baseline y no puede crecer) y porque su naturaleza es distinta: aquí no se escribe nada, son
  * lecturas agregadas para pintar una pantalla.
@@ -30,7 +43,11 @@ export class ExternalProviderDashboardRepository {
    */
   listRecentHealthLogs(providerId: string, limit: number): Promise<ProviderHealthLogModel[]> {
     return this.healthLogModel.findAll({
-      where: { providerId },
+      // Sólo los chequeos que MIDIERON algo: ver `MEDICION_REAL`. Sin este filtro la serie dibuja
+      // los veredictos constantes como una línea plana en cero, que se lee «responde al instante»
+      // — la afirmación falsa que se quitó de la tabla. Medido el 2026-09-10 en el VPS: 296 filas
+      // así, todas anteriores a pasar los proveedores a `mock_server`.
+      where: { providerId, ...MEDICION_REAL },
       order: [['checked_at', 'DESC']],
       limit,
     });

@@ -125,6 +125,23 @@ describe('ExternalProviderDashboardService', () => {
     expect(row.health?.latencyMs).toBe(30);
   });
 
+  it('la serie sólo lleva chequeos que midieron algo, no veredictos constantes', async () => {
+    // El repositorio ya filtra por resultado (`MEDICION_REAL`); aquí se fija que el servicio no
+    // vuelva a colar ceros por su cuenta y respete lo que le llega.
+    const service = build({
+      providers: [provider()],
+      healthLogs: [
+        healthLog({ latencyMs: 812 }),
+        healthLog({ latencyMs: 640, checkedAt: new Date('2026-09-08T10:00:00Z') }),
+      ],
+    });
+
+    const row = (await service.getDashboard({ days: 1, healthPoints: 30 })).providers[0];
+
+    expect(row.healthSeries).toHaveLength(2);
+    expect(row.healthSeries.every((point) => point.latencyMs > 0)).toBe(true);
+  });
+
   it('filtrar por un proveedor que no existe devuelve vacío, nunca todas las solicitudes', async () => {
     const service = build({ providers: [provider()], page: { rows: [request()], count: 1 } });
 
