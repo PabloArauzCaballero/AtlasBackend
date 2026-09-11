@@ -98,6 +98,12 @@ export type DerivedEndpointDto = z.infer<typeof derivedEndpointSchema>;
  */
 const declaredCount = z.number().int().nonnegative();
 
+/**
+ * Cuándo se generó el artefacto (`manifest.generatedAt`). Uno anterior al último cargado del mismo alcance es un paso
+ * atrás coherente consigo mismo, que `declaredCount` no ve; se rechaza salvo `allowOlderArtifact`.
+ */
+const artifactAge = { artifactGeneratedAt: z.iso.datetime(), allowOlderArtifact: z.boolean().optional() };
+
 /** Una puerta del menú sin resolver (`<unresolved:…>`) no es una puerta: el artefacto tiene que resolverla antes. */
 const menuGateList = z
   .array(z.string().trim().min(1).max(200).regex(/^[^<]/, 'Puerta de menú sin resolver en el artefacto.'))
@@ -120,6 +126,7 @@ export const importEndpointsSchema = z.object({
    */
   allowRemovingDecisions: z.boolean().optional(),
   declaredCount,
+  ...artifactAge,
 });
 export type ImportEndpointsDto = z.infer<typeof importEndpointsSchema>;
 
@@ -135,6 +142,7 @@ export const importScreensSchema = z.object({
   analyzedCommit: z.string().trim().max(64).optional(),
   screens: z.array(derivedScreenSchema).max(2000),
   declaredCount,
+  ...artifactAge,
   /** Una carga que deja sin puertas de menú a un cliente que las tiene se rechaza salvo que se confirme aquí. */
   allowRemovingMenuGates: z.boolean().optional(),
 });
@@ -155,6 +163,7 @@ export const importFindingsSchema = z.object({
   analyzedCommit: z.string().trim().max(64).optional(),
   findings: z.array(derivedFindingSchema).max(5000),
   declaredCount,
+  ...artifactAge,
 });
 export type ImportFindingsDto = z.infer<typeof importFindingsSchema>;
 

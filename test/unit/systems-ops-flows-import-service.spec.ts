@@ -30,7 +30,8 @@ function repositoryDouble(): RepoDouble {
     decisionsToBeRemoved: spy('decisionsToBeRemoved', () => 0),
     catalogSize: spy('catalogSize', () => 0),
     openFindingsOfSystem: spy('openFindingsOfSystem', () => 0),
-    gatedScreensOfClient: spy('gatedScreensOfClient', () => 0),
+    gatedScreensOfClient: spy('gatedScreensOfClient', () => []),
+    lastArtifactGeneratedAt: spy('lastArtifactGeneratedAt', () => null),
     replaceFlows: spy('replaceFlows', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
     replaceScreens: spy('replaceScreens', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
     replaceFindings: spy('replaceFindings', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
@@ -63,7 +64,13 @@ describe('SystemFlowsImportService.importEndpoints', () => {
       repo as never,
       repo as never,
     ).importEndpoints(
-      { systemCode: 'ATLAS_BACKEND', allowRemovingDecisions: false, declaredCount: 1, endpoints: [endpoint()] as never },
+      {
+        systemCode: 'ATLAS_BACKEND',
+        allowRemovingDecisions: false,
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+        declaredCount: 1,
+        endpoints: [endpoint()] as never,
+      },
       'pablo',
     );
     expect(repo.calls.createImport?.[0]?.[0]).toMatchObject({ scope: 'endpoints', systemCode: 'ATLAS_BACKEND', createdBy: 'pablo' });
@@ -78,7 +85,16 @@ describe('SystemFlowsImportService.importEndpoints', () => {
       repo as never,
       repo as never,
       repo as never,
-    ).importEndpoints({ systemCode: 'ATLAS_BACKEND', allowRemovingDecisions: false, declaredCount: 0, endpoints: [] as never }, null);
+    ).importEndpoints(
+      {
+        systemCode: 'ATLAS_BACKEND',
+        allowRemovingDecisions: false,
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+        declaredCount: 0,
+        endpoints: [] as never,
+      },
+      null,
+    );
     expect(repo.calls.recountFindings?.[0]?.[0]).toBe('ATLAS_BACKEND');
   });
 
@@ -99,7 +115,13 @@ describe('SystemFlowsImportService.importEndpoints', () => {
       repo as never,
       repo as never,
     ).importEndpoints(
-      { allowRemovingDecisions: false, systemCode: 'ATLAS_BACKEND', declaredCount: 1, endpoints: [endpoint()] as never },
+      {
+        allowRemovingDecisions: false,
+        systemCode: 'ATLAS_BACKEND',
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+        declaredCount: 1,
+        endpoints: [endpoint()] as never,
+      },
       'pablo',
     );
     expect(importUpdate).toHaveBeenCalledWith({ rowsUpserted: 1, rowsRemoved: 3 }, { transaction: 'tx' });
@@ -119,6 +141,7 @@ describe('SystemFlowsImportService.importEndpoints', () => {
         allowRemovingDecisions: false,
         analyzedCommit: 'abc1234',
         analyzedBranch: 'dev',
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
         declaredCount: 2,
         endpoints: [endpoint({ path: 'a' }), endpoint({ path: 'b' })] as never,
       },
@@ -134,7 +157,12 @@ describe('SystemFlowsImportService.importScreens', () => {
   it('mapea cada pantalla al bloque del cliente que la envía, no al de los flujos', async () => {
     const repo = repositoryDouble();
     await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never, repo as never).importScreens(
-      { clientCode: 'ADMIN_PORTAL', declaredCount: 1, screens: [{ route: '/internal/flows', navPermissions: [], navRoles: [] }] as never },
+      {
+        clientCode: 'ADMIN_PORTAL',
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+        declaredCount: 1,
+        screens: [{ route: '/internal/flows', navPermissions: [], navRoles: [] }] as never,
+      },
       'pablo',
     );
     expect(repo.calls.replaceScreens?.[0]?.[0]).toBe('ADMIN_PORTAL');
@@ -145,7 +173,7 @@ describe('SystemFlowsImportService.importScreens', () => {
   it('no recuenta hallazgos: las pantallas no los tienen y llamarlo ensuciaría un bloque que no es el de flujos', async () => {
     const repo = repositoryDouble();
     await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never, repo as never).importScreens(
-      { clientCode: 'ADMIN_PORTAL', declaredCount: 0, screens: [] as never },
+      { clientCode: 'ADMIN_PORTAL', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 0, screens: [] as never },
       null,
     );
     expect(repo.calls.recountFindings).toBeUndefined();
@@ -156,6 +184,7 @@ describe('SystemFlowsImportService.importScreens', () => {
     await new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never, repo as never).importScreens(
       {
         clientCode: 'ADMIN_PORTAL',
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
         declaredCount: 1,
         screens: [{ route: '/x', file: 'X.tsx', navLabel: 'X', navPermissions: ['p'], navRoles: ['ADMIN'] }] as never,
       },
@@ -177,6 +206,7 @@ describe('SystemFlowsImportService.importFindings', () => {
     ).importFindings(
       {
         systemCode: 'ATLAS_BACKEND',
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
         declaredCount: 1,
         findings: [
           { kind: 'CONTRACT_DRIFT', severity: 'HIGH', systemCode: 'ATLAS_BACKEND', ref: 'POST auth/login', summary: 'x' },
@@ -199,6 +229,7 @@ describe('SystemFlowsImportService.importFindings', () => {
     ).importFindings(
       {
         systemCode: 'ATLAS_BACKEND',
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
         declaredCount: 1,
         findings: [{ kind: 'k', severity: 'LOW', systemCode: 'ATLAS_BACKEND', ref: 'r', summary: 's' }] as never,
       },
@@ -217,7 +248,10 @@ describe('SystemFlowsImportService · frescura por flujo', () => {
       repo as never,
       repo as never,
       repo as never,
-    ).importEndpoints({ systemCode: 'ATLAS_BACKEND', declaredCount: 1, endpoints: [endpoint()] } as never, 'pablo');
+    ).importEndpoints(
+      { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 1, endpoints: [endpoint()] } as never,
+      'pablo',
+    );
     const orden = Object.keys(repo.calls);
     expect(orden.indexOf('markStaleByDepsHash')).toBeLessThan(orden.indexOf('replaceFlows'));
   });
@@ -230,7 +264,10 @@ describe('SystemFlowsImportService · frescura por flujo', () => {
       repo as never,
       repo as never,
       repo as never,
-    ).importEndpoints({ systemCode: 'ATLAS_BACKEND', declaredCount: 1, endpoints: [endpoint()] } as never, null);
+    ).importEndpoints(
+      { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 1, endpoints: [endpoint()] } as never,
+      null,
+    );
     expect(resultado).toMatchObject({ stale: 7 });
   });
 });
@@ -258,6 +295,7 @@ describe('SystemFlowsImportService · revisión humana', () => {
     ).importEndpoints(
       {
         systemCode: 'ATLAS_BACKEND',
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
         declaredCount: 2,
         endpoints: [endpoint({ method: 'POST', path: 'loans', module: 'loans', analysis: analisisIncierto }), endpoint()],
       } as never,
@@ -275,7 +313,10 @@ describe('SystemFlowsImportService · revisión humana', () => {
       repo as never,
       repo as never,
       repo as never,
-    ).importEndpoints({ systemCode: 'ATLAS_BACKEND', declaredCount: 1, endpoints: [endpoint()] } as never, null);
+    ).importEndpoints(
+      { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 1, endpoints: [endpoint()] } as never,
+      null,
+    );
     expect(repo.calls.reopen?.[0]?.[0]).toEqual(['flow_cambiado']);
     expect(resultado).toMatchObject({ stale: 1, reopenedReviews: 1 });
   });
@@ -287,7 +328,7 @@ describe('SystemFlowsImportService · lo que una recarga no debe borrar', () => 
     repo.catalogSize = () => Promise.resolve(498);
     await expect(
       new SystemFlowsImportService(repo as unknown as SystemFlowsRepository, repo as never, repo as never, repo as never).importEndpoints(
-        { systemCode: 'ATLAS_BACKEND', declaredCount: 0, endpoints: [] } as never,
+        { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 0, endpoints: [] } as never,
         null,
       ),
     ).rejects.toThrow(/se borrarían todos/);
@@ -303,7 +344,13 @@ describe('SystemFlowsImportService · lo que una recarga no debe borrar', () => 
       repo as never,
       repo as never,
     ).importEndpoints(
-      { systemCode: 'ATLAS_BACKEND', declaredCount: 1, endpoints: [endpoint()], allowRemovingDecisions: true } as never,
+      {
+        systemCode: 'ATLAS_BACKEND',
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+        declaredCount: 1,
+        endpoints: [endpoint()],
+        allowRemovingDecisions: true,
+      } as never,
       null,
     );
     expect(resultado).toMatchObject({ removedDecisions: 2 });
@@ -316,7 +363,10 @@ describe('SystemFlowsImportService · lo que una recarga no debe borrar', () => 
       repo as never,
       repo as never,
       repo as never,
-    ).importEndpoints({ systemCode: 'ATLAS_BACKEND', declaredCount: 1, endpoints: [endpoint()] } as never, null);
+    ).importEndpoints(
+      { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 1, endpoints: [endpoint()] } as never,
+      null,
+    );
     expect(repo.calls.release?.[0]?.[0]).toHaveLength(1);
   });
 });
@@ -329,11 +379,25 @@ describe('SystemFlowsImportService · cargas que borrarían evidencia', () => {
     const repo = repositoryDouble();
     repo.decisionsToBeRemoved = () => Promise.resolve(3);
     await expect(
-      servicioCon(repo).importEndpoints({ systemCode: 'ATLAS_BACKEND', declaredCount: 1, endpoints: [endpoint()] } as never, null),
+      servicioCon(repo).importEndpoints(
+        {
+          systemCode: 'ATLAS_BACKEND',
+          artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+          declaredCount: 1,
+          endpoints: [endpoint()],
+        } as never,
+        null,
+      ),
     ).rejects.toThrow(/allowRemovingDecisions/);
     await expect(
       servicioCon(repo).importEndpoints(
-        { systemCode: 'ATLAS_BACKEND', declaredCount: 1, endpoints: [endpoint()], allowRemovingDecisions: true } as never,
+        {
+          systemCode: 'ATLAS_BACKEND',
+          artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+          declaredCount: 1,
+          endpoints: [endpoint()],
+          allowRemovingDecisions: true,
+        } as never,
         null,
       ),
     ).resolves.toMatchObject({ removedDecisions: 3 });
@@ -343,7 +407,10 @@ describe('SystemFlowsImportService · cargas que borrarían evidencia', () => {
     const repo = repositoryDouble();
     repo.openFindingsOfSystem = () => Promise.resolve(10);
     await expect(
-      servicioCon(repo).importFindings({ systemCode: 'ATLAS_BACKEND', declaredCount: 0, findings: [] } as never, null),
+      servicioCon(repo).importFindings(
+        { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 0, findings: [] } as never,
+        null,
+      ),
     ).rejects.toThrow(/se darían todos por resueltos/);
     expect(repo.calls.replaceFindings).toBeUndefined();
   });
@@ -351,36 +418,96 @@ describe('SystemFlowsImportService · cargas que borrarían evidencia', () => {
   it('una carga truncada se para antes de escribir: lo que falta se daría por retirado o por resuelto', async () => {
     const repo = repositoryDouble();
     await expect(
-      servicioCon(repo).importEndpoints({ systemCode: 'ATLAS_BACKEND', declaredCount: 499, endpoints: [endpoint()] } as never, null),
+      servicioCon(repo).importEndpoints(
+        {
+          systemCode: 'ATLAS_BACKEND',
+          artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+          declaredCount: 499,
+          endpoints: [endpoint()],
+        } as never,
+        null,
+      ),
     ).rejects.toThrow(/trae 1 fila\(s\) y su artefacto declara 499/);
     const hallazgo = { kind: 'k', severity: 'LOW', systemCode: 'ATLAS_BACKEND', ref: 'r', summary: 's' };
     await expect(
-      servicioCon(repo).importFindings({ systemCode: 'ATLAS_BACKEND', declaredCount: 401, findings: [hallazgo] } as never, null),
+      servicioCon(repo).importFindings(
+        { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 401, findings: [hallazgo] } as never,
+        null,
+      ),
     ).rejects.toThrow(/está truncada/);
     await expect(
-      servicioCon(repo).importScreens({ clientCode: 'MOTOR_PORTAL', declaredCount: 55, screens: [] } as never, null),
+      servicioCon(repo).importScreens(
+        { clientCode: 'MOTOR_PORTAL', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 55, screens: [] } as never,
+        null,
+      ),
     ).rejects.toThrow(/está truncada/);
     expect(repo.calls.replaceFlows).toBeUndefined();
     expect(repo.calls.replaceFindings).toBeUndefined();
     expect(repo.calls.replaceScreens).toBeUndefined();
   });
 
-  it('un artefacto sin puertas de menú no borra las que tiene el catálogo, salvo confirmación', async () => {
+  it('una carga que deja sin puerta aunque sea UNA pantalla se para, salvo confirmación', async () => {
     const repo = repositoryDouble();
-    repo.gatedScreensOfClient = () => Promise.resolve(30);
-    const sinPuertas = { clientCode: 'MOTOR_PORTAL', declaredCount: 1, screens: [{ route: '/workers', navPermissions: [], navRoles: [] }] };
-    await expect(servicioCon(repo).importScreens(sinPuertas as never, null)).rejects.toThrow(/allowRemovingMenuGates/);
+    const workers = ['audio-tts', 'bank-statement', 'identity-verification', 'pdf-generator', 'semantic-analysis'].map(
+      (w) => `/workers/${w}`,
+    );
+    repo.gatedScreensOfClient = () => Promise.resolve(['/catalog', ...workers]);
+    const pantalla = (route: string, navRoles: string[]) => ({ route, navPermissions: [], navRoles });
+    const carga = (screens: unknown[], extra: Record<string, unknown> = {}) =>
+      ({
+        clientCode: 'MOTOR_PORTAL',
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+        declaredCount: screens.length,
+        screens,
+        ...extra,
+      }) as never;
+    // El artefacto viejo: el catálogo conserva su puerta y los cinco workers llegan sin ella.
+    const vieja = [pantalla('/catalog', ['ADMIN']), ...workers.map((w) => pantalla(w, []))];
+    await expect(servicioCon(repo).importScreens(carga(vieja), null)).rejects.toThrow(
+      /5 pantalla\(s\) de MOTOR_PORTAL \(\/workers\/audio-tts/,
+    );
+    // Una pantalla con puerta que ya no viene también la pierde.
+    await expect(servicioCon(repo).importScreens(carga([pantalla('/catalog', ['ADMIN'])]), null)).rejects.toThrow(/allowRemovingMenuGates/);
     expect(repo.calls.replaceScreens).toBeUndefined();
-    const conPuerta = { ...sinPuertas, screens: [{ route: '/workers', navPermissions: [], navRoles: ['ADMIN'] }] };
-    await expect(servicioCon(repo).importScreens(conPuerta as never, null)).resolves.toMatchObject({ upserted: 1 });
-    await expect(servicioCon(repo).importScreens({ ...sinPuertas, allowRemovingMenuGates: true } as never, null)).resolves.toMatchObject({
+    const buena = [pantalla('/catalog', ['ADMIN']), ...workers.map((w) => pantalla(w, ['RISK_ANALYST']))];
+    await expect(servicioCon(repo).importScreens(carga(buena), null)).resolves.toMatchObject({ upserted: 6, declaredCount: 6 });
+    await expect(servicioCon(repo).importScreens(carga(vieja, { allowRemovingMenuGates: true }), null)).resolves.toMatchObject({
+      upserted: 6,
+    });
+  });
+
+  it('un artefacto generado antes que el último cargado es un paso atrás: se para salvo confirmación', async () => {
+    const repo = repositoryDouble();
+    repo.lastArtifactGeneratedAt = () => Promise.resolve(new Date('2026-09-10T12:00:00.000Z'));
+    const carga = (artifactGeneratedAt: string, extra: Record<string, unknown> = {}) =>
+      ({ systemCode: 'ATLAS_BACKEND', artifactGeneratedAt, declaredCount: 1, endpoints: [endpoint()], ...extra }) as never;
+    await expect(servicioCon(repo).importEndpoints(carga('2026-09-09T08:00:00.000Z'), null)).rejects.toThrow(/allowOlderArtifact/);
+    expect(repo.calls.replaceFlows).toBeUndefined();
+    await expect(servicioCon(repo).importEndpoints(carga('2026-09-10T12:00:00.000Z'), null)).resolves.toMatchObject({ declaredCount: 1 });
+    await expect(
+      servicioCon(repo).importEndpoints(carga('2026-09-09T08:00:00.000Z', { allowOlderArtifact: true }), null),
+    ).resolves.toMatchObject({
       upserted: 1,
     });
   });
 
+  it('la cifra de hallazgos se compara con los del bloque, no con los ajenos que se ignoran', async () => {
+    const repo = repositoryDouble();
+    const hallazgo = (systemCode: string, ref: string) => ({ kind: 'k', severity: 'LOW', systemCode, ref, summary: 's' });
+    const findings = [hallazgo('ATLAS_BACKEND', 'r'), ...Array.from({ length: 399 }, (_, i) => hallazgo('ERP_BACKEND', `r${i}`))];
+    const carga = { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 400, findings };
+    await expect(servicioCon(repo).importFindings(carga as never, null)).rejects.toThrow(/trae 1 fila\(s\) y su artefacto declara 400/);
+    expect(repo.calls.replaceFindings).toBeUndefined();
+  });
+
   it('el contrato exige cuántas filas declara el artefacto, y no acepta una puerta de menú sin resolver', () => {
     expect(importEndpointsSchema.safeParse({ systemCode: 'ATLAS_BACKEND', endpoints: [] }).success).toBe(false);
-    const pantalla = (navRoles: string[]) => ({ clientCode: 'MOTOR_PORTAL', declaredCount: 1, screens: [{ route: '/x', navRoles }] });
+    const pantalla = (navRoles: string[]) => ({
+      clientCode: 'MOTOR_PORTAL',
+      artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+      declaredCount: 1,
+      screens: [{ route: '/x', navRoles }],
+    });
     expect(importScreensSchema.safeParse(pantalla(['ADMIN'])).success).toBe(true);
     expect(importScreensSchema.safeParse(pantalla(['<unresolved:accessPolicies.workers>'])).success).toBe(false);
   });

@@ -60,7 +60,12 @@ const federationDouble = (result?: unknown, pedidas?: string[]) =>
     },
   }) as never;
 const importDouble = (repo: unknown) =>
-  new SystemFlowsImportService(repo as never, repo as never, {} as never, { openFindingsOfSystem: async () => 0 } as never);
+  new SystemFlowsImportService(
+    repo as never,
+    repo as never,
+    {} as never,
+    { openFindingsOfSystem: async () => 0, lastArtifactGeneratedAt: async () => null } as never,
+  );
 /**
  * Las pantallas se verifican en su propio servicio y con su propio repositorio. Aquí se sustituye
  * por uno que no devuelve ninguna: lo que estas pruebas fijan es la verificación de ENDPOINTS, y un
@@ -171,11 +176,12 @@ describe('SystemFlowsImportService.importFindings', () => {
       repo as unknown as SystemFlowsRepository,
       repo as never,
       {} as never,
-      { openFindingsOfSystem: async () => 0 } as never,
+      { openFindingsOfSystem: async () => 0, lastArtifactGeneratedAt: async () => null } as never,
     ).importFindings(
       {
         systemCode: 'ERP_BACKEND',
-        declaredCount: 2,
+        artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+        declaredCount: 1,
         findings: [
           { kind: 'CONTRACT_DRIFT', severity: 'HIGH', systemCode: 'ERP_BACKEND', ref: 'POST auth/login', summary: 'x' },
           { kind: 'CONTRACT_DRIFT', severity: 'HIGH', systemCode: 'ATLAS_BACKEND', ref: 'POST auth/login', summary: 'x' },
@@ -193,8 +199,11 @@ describe('SystemFlowsImportService.importFindings', () => {
       repo as unknown as SystemFlowsRepository,
       repo as never,
       {} as never,
-      { openFindingsOfSystem: async () => 0 } as never,
-    ).importFindings({ systemCode: 'ATLAS_BACKEND', declaredCount: 0, findings: [] }, null);
+      { openFindingsOfSystem: async () => 0, lastArtifactGeneratedAt: async () => null } as never,
+    ).importFindings(
+      { systemCode: 'ATLAS_BACKEND', artifactGeneratedAt: '2026-09-10T12:00:00.000Z', declaredCount: 0, findings: [] },
+      null,
+    );
     expect(repo.calls.recountFindings?.[0]?.[0]).toBe('ATLAS_BACKEND');
   });
 });

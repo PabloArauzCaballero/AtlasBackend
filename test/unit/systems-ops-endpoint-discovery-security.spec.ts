@@ -39,4 +39,16 @@ describe('EndpointDiscoveryService security metadata', () => {
     // Una escritura con @Roles propio: manda el suyo, aunque la clase declare otros.
     expect(ruta('POST', '/api/v1/systems/flows/import/endpoints')?.allowedRoles).toEqual([...SYSTEMS_OPS_GOVERNANCE_ROLES]);
   });
+
+  it('lee el @Roles de encima de un decorador multilínea y las constantes de cualquier módulo, sin dejar ninguna sin resolver', async () => {
+    const classifier = { riskLevelForEndpoint: () => 'LOW', containsPiiForEndpoint: () => false };
+    const service = new EndpointDiscoveryService({} as never, classifier as never, {} as never);
+    const endpoints = await service.scanControllers();
+    const creditLine = endpoints.find(
+      (endpoint) => endpoint.method === 'GET' && endpoint.fullPath === '/api/v1/customers/:customerId/credit-line',
+    );
+
+    expect(creditLine?.allowedRoles).toEqual(expect.arrayContaining(['customer', 'internal_operator', 'risk_analyst']));
+    expect(endpoints.filter((endpoint) => (endpoint.allowedRoles ?? []).some((role) => role.startsWith('<unresolved:')))).toEqual([]);
+  });
 });

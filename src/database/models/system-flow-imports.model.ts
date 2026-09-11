@@ -39,6 +39,10 @@ export class SystemFlowImportModel extends Model {
   @Column({ field: 'created_by', type: DataType.STRING(80) })
   declare createdBy: string | null;
 
+  /** Cuándo se generó el artefacto de esta carga (`manifest.generatedAt`): impide volver a uno anterior. */
+  @Column({ field: 'artifact_generated_at', type: DataType.DATE })
+  declare artifactGeneratedAt: Date | null;
+
   @Column({ field: '_created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 }

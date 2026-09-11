@@ -4,6 +4,7 @@
  * @system reemplaza por bloque los endpoints, pantallas y hallazgos derivados, dentro de una transacción.
  */
 import { BadRequestException, Injectable } from '@nestjs/common';
+import type { Transaction } from 'sequelize';
 import { flowRowFor } from './system-flows.mapper.js';
 import { SystemFlowsFreshnessRepository } from './system-flows.freshness.repository.js';
 import { SystemFlowsReviewRepository } from './system-flows.review.repository.js';
@@ -33,9 +34,25 @@ export class SystemFlowsImportService {
     private readonly gate: SystemFlowsGateRepository,
   ) {}
 
+  /**
+   * Un artefacto generado ANTES que el último cargado de este alcance es un paso atrás: coherente consigo mismo pasa
+   * `declaredCount`, y retiraría o resolvería lo que el código ya tiene. Se para salvo confirmación. La cifra del backend
+   * sirve de respuesta: quien carga sabe así que habló con un backend que comprueba.
+   */
+  private async exigirNoAnterior(scope: string, systemCode: string, generatedAt: string, allow: boolean | undefined, tx: Transaction) {
+    if (allow) return;
+    const ultimo = await this.gate.lastArtifactGeneratedAt(scope, systemCode, tx);
+    if (ultimo && new Date(generatedAt).getTime() < ultimo.getTime()) {
+      throw new BadRequestException(
+        `El artefacto de ${scope} de ${systemCode} se generó el ${generatedAt}, antes que el último cargado (${ultimo.toISOString()}). Si es a propósito, repítela con allowOlderArtifact.`,
+      );
+    }
+  }
+
   importEndpoints(dto: ImportEndpointsDto, actor: string | null) {
     return this.repository.transaction(async (tx) => {
       exigirCompleta('endpoints', dto.systemCode, dto.endpoints.length, dto.declaredCount);
+      await this.exigirNoAnterior('endpoints', dto.systemCode, dto.artifactGeneratedAt, dto.allowOlderArtifact, tx);
       const record = await this.repository.createImport(
         {
           scope: 'endpoints',
@@ -47,6 +64,7 @@ export class SystemFlowsImportService {
           rowsUpserted: 0,
           rowsRemoved: 0,
           createdBy: actor,
+          artifactGeneratedAt: new Date(dto.artifactGeneratedAt),
         },
         tx,
       );
@@ -101,13 +119,23 @@ export class SystemFlowsImportService {
       );
       await this.repository.recountFindings(dto.systemCode, tx);
       await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });
-      return { importId: record.id, ...result, stale: cambiados.length, needsReview, reopenedReviews, releasedReviews, removedDecisions };
+      return {
+        importId: record.id,
+        ...result,
+        stale: cambiados.length,
+        needsReview,
+        reopenedReviews,
+        releasedReviews,
+        removedDecisions,
+        declaredCount: dto.declaredCount,
+      };
     });
   }
 
   importScreens(dto: ImportScreensDto, actor: string | null) {
     return this.repository.transaction(async (tx) => {
       exigirCompleta('pantallas', dto.clientCode, dto.screens.length, dto.declaredCount);
+      await this.exigirNoAnterior('screens', dto.clientCode, dto.artifactGeneratedAt, dto.allowOlderArtifact, tx);
       const record = await this.repository.createImport(
         {
           scope: 'screens',
@@ -119,6 +147,7 @@ export class SystemFlowsImportService {
           rowsUpserted: 0,
           rowsRemoved: 0,
           createdBy: actor,
+          artifactGeneratedAt: new Date(dto.artifactGeneratedAt),
         },
         tx,
       );
@@ -132,23 +161,24 @@ export class SystemFlowsImportService {
         analyzedCommit: dto.analyzedCommit ?? null,
         importId: record.id,
       }));
-      // Un artefacto de antes de leer el menú trae las pantallas sin puertas. Cargarlo borraría las del catálogo, y la
-      // deriva de RBAC saldría en verde por no tener nada con qué comparar.
-      const conPuerta = await this.gate.gatedScreensOfClient(dto.clientCode, tx);
-      if (conPuerta > 0 && !dto.allowRemovingMenuGates && !rows.some((row) => row.navPermissions.length || row.navRoles.length)) {
+      // Una carga que deja sin puerta una pantalla que la tiene —porque no la trae, o la trae sin puerta— se para. Contar
+      // sólo «ninguna puerta» dejaba pasar un artefacto viejo que conservaba 30 de 35 y borraba las de los cinco workers.
+      const llegan = new Map(rows.map((row) => [row.route, row.navPermissions.length + row.navRoles.length]));
+      const pierden = (await this.gate.gatedScreensOfClient(dto.clientCode, tx)).filter((route) => !llegan.get(route));
+      if (pierden.length && !dto.allowRemovingMenuGates) {
         throw new BadRequestException(
-          `La carga deja sin puertas de menú a ${dto.clientCode}, que tiene ${conPuerta} pantalla(s) con puerta: ¿es un artefacto viejo? Si el menú dejó de restringir de verdad, repítela con allowRemovingMenuGates.`,
+          `La carga deja sin puerta de menú ${pierden.length} pantalla(s) de ${dto.clientCode} (${pierden.slice(0, 5).join(', ')}${pierden.length > 5 ? ', …' : ''}): ¿es un artefacto viejo? Si el menú dejó de restringir de verdad, repítela con allowRemovingMenuGates.`,
         );
       }
       const result = await this.repository.replaceScreens(dto.clientCode, rows, tx);
       await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });
-      return { importId: record.id, ...result };
+      return { importId: record.id, ...result, declaredCount: dto.declaredCount };
     });
   }
 
   importFindings(dto: ImportFindingsDto, actor: string | null) {
     return this.repository.transaction(async (tx) => {
-      exigirCompleta('hallazgos', dto.systemCode, dto.findings.length, dto.declaredCount);
+      await this.exigirNoAnterior('findings', dto.systemCode, dto.artifactGeneratedAt, dto.allowOlderArtifact, tx);
       const record = await this.repository.createImport(
         {
           scope: 'findings',
@@ -160,6 +190,7 @@ export class SystemFlowsImportService {
           rowsUpserted: 0,
           rowsRemoved: 0,
           createdBy: actor,
+          artifactGeneratedAt: new Date(dto.artifactGeneratedAt),
         },
         tx,
       );
@@ -177,6 +208,9 @@ export class SystemFlowsImportService {
           knownSince: finding.knownSince ?? null,
           importId: record.id,
         }));
+      // La cifra se compara con los hallazgos DE ESTE BLOQUE: los de otro se ignoran, y contarlos dejaba pasar 1 propio + 399
+      // ajenos como si fueran los 400 declarados.
+      exigirCompleta('hallazgos', dto.systemCode, rows.length, dto.declaredCount);
       // Los hallazgos que no vienen se dan por resueltos. Una carga sin ninguno —vacía, truncada o de otro
       // bloque— resolvería todos los abiertos, y la compuerta vería «0 escrituras desprotegidas».
       if (!rows.length && (await this.gate.openFindingsOfSystem(dto.systemCode, tx)) > 0) {
@@ -187,7 +221,7 @@ export class SystemFlowsImportService {
       const result = await this.repository.replaceFindings(dto.systemCode, rows, tx);
       await this.repository.recountFindings(dto.systemCode, tx);
       await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });
-      return { importId: record.id, ...result, ignored: dto.findings.length - rows.length };
+      return { importId: record.id, ...result, ignored: dto.findings.length - rows.length, declaredCount: dto.declaredCount };
     });
   }
 }

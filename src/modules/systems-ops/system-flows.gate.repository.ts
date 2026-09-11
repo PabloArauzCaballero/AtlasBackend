@@ -44,10 +44,22 @@ export class SystemFlowsGateRepository {
     return this.findings.count({ where: { systemCode, status: 'open' }, transaction: tx });
   }
 
-  /** Pantallas del cliente cuyo menú pide permiso o rol: lo que una carga sin puertas borraría. */
-  gatedScreensOfClient(clientCode: string, tx?: Transaction): Promise<number> {
+  /** Rutas del cliente cuyo menú pide permiso o rol: lo que una carga podría dejar sin puerta. */
+  async gatedScreensOfClient(clientCode: string, tx?: Transaction): Promise<string[]> {
     const conPuerta = `(jsonb_typeof(nav_permissions) = 'array' AND jsonb_array_length(nav_permissions) > 0) OR (jsonb_typeof(nav_roles) = 'array' AND jsonb_array_length(nav_roles) > 0)`;
-    return this.screens.count({ where: { clientCode, [Op.and]: [literal(conPuerta)] }, transaction: tx });
+    const rows = await this.screens.findAll({
+      attributes: ['route'],
+      where: { clientCode, [Op.and]: [literal(conPuerta)] },
+      transaction: tx,
+      raw: true,
+    });
+    return (rows as unknown as Array<{ route: string }>).map((row) => row.route);
+  }
+
+  /** Cuándo se generó el artefacto más reciente cargado para este alcance y bloque; null si ninguna carga lo dijo. */
+  async lastArtifactGeneratedAt(scope: string, systemCode: string, tx?: Transaction): Promise<Date | null> {
+    const value: unknown = await this.imports.max('artifactGeneratedAt', { where: { scope, systemCode }, transaction: tx });
+    return value ? new Date(value as string | Date) : null;
   }
 
   /** Qué (alcance, bloque o cliente) tiene al menos una carga del artefacto. */

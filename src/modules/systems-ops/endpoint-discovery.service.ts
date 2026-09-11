@@ -12,7 +12,16 @@ import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from '.
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { OpenApiCatalogService } from './openapi-catalog.service.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
-import { SYSTEMS_OPS_ROLE_CONSTANTS } from './systems-ops.constants.js';
+import {
+  RoleConstants,
+  classDecorators,
+  classRoles,
+  listConstantsIn,
+  methodDecorators,
+  resolveRoleConstants,
+  roleConstantsFromSources,
+  routeRoles,
+} from './endpoint-roles.util.js';
 import { EndpointSeed } from './systems-ops.types.js';
 import { endpointBusinessContext, endpointPayloadSummary } from './endpoint-narrative.util.js';
 
@@ -23,30 +32,6 @@ export type DiscoveredEndpoint = EndpointSeed & {
   controllerName: string | null;
   handlerName: string | null;
 };
-
-/** Fin de la cabecera `export class X {`: lo que va antes son decoradores de la CLASE, no de un método. */
-function classHeaderEnd(classBlock: string): number {
-  const header = /export\s+class\s+[A-Za-z0-9_]+[^{]*\{/.exec(classBlock);
-  return header ? header.index + header[0].length : 0;
-}
-
-/**
- * Decoradores del método: desde el final del método anterior o, en el primero, desde el final de la cabecera
- * de la clase. Antes el primero se llevaba también los de la clase, y su `@Roles` pasaba por el del método.
- */
-function methodDecoratorBlock(classBlock: string, routeIndex: number): string {
-  const beforeRoute = classBlock.slice(0, routeIndex);
-  const previousMethodEnd = Math.max(beforeRoute.lastIndexOf('\n  }'), beforeRoute.lastIndexOf('\n}'), classHeaderEnd(classBlock) - 1);
-  return beforeRoute.slice(previousMethodEnd + 1);
-}
-
-function rolesFromDecorators(decorators: string): string[] {
-  const rolesCall = decorators.match(/@Roles\(([^)]*)\)/s)?.[1];
-  if (!rolesCall) return [];
-  const roles = [...rolesCall.matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
-  for (const constant of rolesCall.matchAll(/\.\.\.([A-Z0-9_]+)/g)) roles.push(...(SYSTEMS_OPS_ROLE_CONSTANTS[constant[1]] ?? []));
-  return [...new Set(roles)];
-}
 
 function isRoutePublic(classBlock: string, routeIndex: number): boolean {
   const publicMatches = [...classBlock.slice(0, routeIndex).matchAll(/^\s*@Public\(\)/gm)];
@@ -118,8 +103,16 @@ export class EndpointDiscoveryService {
         'El escaneo de código fuente necesita `src/modules`, que la imagen desplegada no incluye. Usa el modo OPENAPI_CONTRACT, que lee el contrato que este proceso genera de sus propias rutas.',
       );
     }
-    const files = (await walk(root)).filter((file) => file.endsWith('.controller.ts'));
-    const perFile = await mapWithConcurrency(files, SCAN_CONCURRENCY, (file) => this.scanControllerFile(file));
+    const all = await walk(root);
+    const files = all.filter((file) => file.endsWith('.controller.ts'));
+    // Un `@Roles(...CONSTANTE)` puede usar una lista de cualquier módulo, no sólo de Systems Ops.
+    const sources = await mapWithConcurrency(
+      all.filter((file) => file.endsWith('.ts') && !file.endsWith('.spec.ts')),
+      SCAN_CONCURRENCY,
+      (file) => readFile(file, 'utf8'),
+    );
+    const constants = roleConstantsFromSources(sources);
+    const perFile = await mapWithConcurrency(files, SCAN_CONCURRENCY, (file) => this.scanControllerFile(file, constants));
     const seen = new Set<string>();
     return perFile.flat().filter((item) => {
       const key = `${item.method} ${item.fullPath}`;
@@ -129,8 +122,9 @@ export class EndpointDiscoveryService {
     });
   }
 
-  private async scanControllerFile(file: string): Promise<DiscoveredEndpoint[]> {
+  private async scanControllerFile(file: string, globalConstants: RoleConstants): Promise<DiscoveredEndpoint[]> {
     const source = await readFile(file, 'utf8');
+    const constants = resolveRoleConstants(listConstantsIn(source), globalConstants);
     const controllers = [...source.matchAll(CONTROLLER_DECORATOR)];
     const endpoints: DiscoveredEndpoint[] = [];
 
@@ -140,7 +134,7 @@ export class EndpointDiscoveryService {
       const start = controller.index ?? 0;
       const end = controllers[index + 1]?.index ?? source.length;
       const classBlock = source.slice(start, end);
-      const classRoles = rolesFromDecorators(classBlock.slice(0, classHeaderEnd(classBlock)));
+      const fromClass = classRoles(classDecorators(source, start, classBlock), constants);
 
       for (const route of classBlock.matchAll(ROUTE_DECORATOR)) {
         const method = route[1].toUpperCase();
@@ -149,12 +143,9 @@ export class EndpointDiscoveryService {
         const riskLevel = this.classifier.riskLevelForEndpoint(method, apiPath);
         const businessContext = endpointBusinessContext(method, apiPath, handlerName);
         const payloadSummary = endpointPayloadSummary(method, apiPath);
-        const decorators = `${methodDecoratorBlock(classBlock, route.index ?? 0)}\n${route[3] ?? ''}`;
-        // Como `RolesGuard` (`getAllAndOverride([handler, class])`): manda el `@Roles` del método y, sin él, el de la
-        // clase. Antes sólo la primera ruta veía el de la clase; las demás caían a SYSTEMS_OPS_ROLES.
-        const methodRoles = rolesFromDecorators(decorators);
-        const explicitRoles = methodRoles.length > 0 ? methodRoles : classRoles;
-        const systemsController = classBlock.includes('@SystemsOpsControllerSecurity()');
+        const decorators = `${methodDecorators(classBlock, route.index ?? 0)}
+${route[3] ?? ''}`;
+        const allowedRoles = routeRoles(decorators, fromClass, constants);
         endpoints.push({
           code: buildEndpointCode(method, apiPath),
           module: moduleFromPath(apiPath),
@@ -180,8 +171,7 @@ export class EndpointDiscoveryService {
           metadataCompletenessScore: 82,
           expectedStatusCodes: [method === 'POST' ? 201 : 200],
           requiresAuth: !isRoutePublic(classBlock, route.index ?? 0),
-          allowedRoles:
-            explicitRoles.length > 0 ? explicitRoles : systemsController ? [...SYSTEMS_OPS_ROLE_CONSTANTS.SYSTEMS_OPS_ROLES] : [],
+          allowedRoles,
           containsPii: this.classifier.containsPiiForEndpoint(apiPath),
           riskLevel,
           isDestructive: method === 'DELETE',
