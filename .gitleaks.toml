@@ -55,6 +55,14 @@ regexes = [
   # literal completo y no al fichero: una clave real pegada ahí no haría match y el gate la
   # atraparía.
   '''BEGIN PRIVATE KEY-----\\nMIIEvQ==\\n-----END PRIVATE KEY''',
+
+  # Fixtures INVENTADOS, revisados uno por uno el 11-sep-2026. Anclados a su literal exacto, como los de arriba:
+  # - test/unit/support/support-knowledge.service.spec.ts: la clave de idempotencia que el servicio CALCULA para la
+  #   versión 5 de un artículo (`knowledge-published-<versión>`). Es el valor esperado, no una credencial.
+  # - test/unit/systems-ops-federation-client-envelope.spec.ts: la clave de catálogo del entorno de prueba del cliente
+  #   de federación; su contenido describe lo que es.
+  '''knowledge-published-5''',
+  '''clave-de-catalogo-de-mas-de-32-caracteres''',
 ]
 
 paths = [

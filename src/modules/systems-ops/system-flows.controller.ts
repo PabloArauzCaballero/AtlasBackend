@@ -4,7 +4,7 @@
  * @system expone Flujos (Flow Intelligence): carga del artefacto derivado y consultas del explorador.
  */
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { AccessToken } from '../../common/decorators/access-token.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -106,6 +106,11 @@ export class SystemFlowsController {
   @ApiResponse({
     status: 200,
     description: 'Eventos escritos por cada flujo en la ventana, con cuántos siguen sin recogerse.',
+  })
+  @ApiQuery({
+    name: 'windowDays',
+    required: false,
+    description: 'Días hacia atrás que se miran (1 a 365; 30 si no se indica o no es válido).',
   })
   @InternalPermissions('systems.flows.read')
   @Get('flows/pending-work')

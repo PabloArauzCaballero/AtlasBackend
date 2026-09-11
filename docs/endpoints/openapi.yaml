@@ -24925,8 +24925,11 @@ paths:
       operationId: SystemFlowsController_pendingWork
       parameters:
         - name: windowDays
-          required: true
+          required: false
           in: query
+          description: >-
+            Días hacia atrás que se miran (1 a 365; 30 si no se indica o no es
+            válido).
           schema:
             type: string
         - $ref: '#/components/parameters/CorrelationId'

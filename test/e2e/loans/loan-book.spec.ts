@@ -9,6 +9,7 @@ import { LoanCalendarService } from '../../../src/modules/loans/application/loan
 import { DelinquencyPolicyService } from '../../../src/modules/loans/application/delinquency-policy.service.js';
 import { SpendingReportService } from '../../../src/modules/loans/application/spending-report.service.js';
 import { LoanWriteOffService } from '../../../src/modules/loans/application/loan-writeoff.service.js';
+import { LoanPaymentsController } from '../../../src/modules/loans/loan-payments.controller.js';
 import { LoansController } from '../../../src/modules/loans/loans.controller.js';
 import { authHeader, buildLoansTestApp } from './support/loans-test-app.js';
 
@@ -70,7 +71,9 @@ describe('LoansController (e2e/supertest)', () => {
 
   beforeAll(async () => {
     app = await buildLoansTestApp(
-      [LoansController],
+      // Cobros, reversos y castigos viven en `LoanPaymentsController` desde que se partió el controlador por tamaño
+      // (5f6c238). Montar sólo `LoansController` dejaba esas rutas en 404 y la suite fallaba sin probar ningún permiso.
+      [LoansController, LoanPaymentsController],
       [
         { provide: LoanDisbursementService, useValue: disbursement },
         { provide: LoanPaymentService, useValue: payments },

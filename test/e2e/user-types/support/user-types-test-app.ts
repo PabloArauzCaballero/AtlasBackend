@@ -16,6 +16,7 @@ import { InternalPermissions } from '../../../../src/modules/internal-users/inte
 import { InternalPermissionsGuard } from '../../../../src/modules/internal-users/guards/internal-permissions.guard.js';
 import { InternalRbacRepository } from '../../../../src/modules/internal-users/internal-rbac.repository.js';
 import { ROLE_PERMISSION_CODES, type InternalRoleCode } from '../../../../src/modules/internal-users/internal-rbac.seed-data.js';
+import { CustomerNotificationsController } from '../../../../src/modules/notifications/customer-notifications.controller.js';
 import { NotificationsController } from '../../../../src/modules/notifications/notifications.controller.js';
 import { NotificationsService } from '../../../../src/modules/notifications/notifications.service.js';
 
@@ -204,7 +205,12 @@ export async function buildNotificationsSelfServiceApp(): Promise<{ app: INestAp
     { provide: NotificationsService, useValue: service },
   ];
 
-  const moduleRef = await Test.createTestingModule({ controllers: [NotificationsController], providers }).compile();
+  // El inbox del CLIENTE vive en `CustomerNotificationsController` desde que se partió el controlador por tamaño (5f6c238):
+  // sin montarlo, `GET /customers/:id/notifications` daba 404 en vez del 403 que la prueba exige.
+  const moduleRef = await Test.createTestingModule({
+    controllers: [NotificationsController, CustomerNotificationsController],
+    providers,
+  }).compile();
   const app = moduleRef.createNestApplication();
   await app.init();
   return { app, service };
