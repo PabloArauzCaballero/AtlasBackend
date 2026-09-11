@@ -130,10 +130,7 @@ describe('ExternalProviderDashboardService', () => {
     // vuelva a colar ceros por su cuenta y respete lo que le llega.
     const service = build({
       providers: [provider()],
-      healthLogs: [
-        healthLog({ latencyMs: 812 }),
-        healthLog({ latencyMs: 640, checkedAt: new Date('2026-09-08T10:00:00Z') }),
-      ],
+      healthLogs: [healthLog({ latencyMs: 812 }), healthLog({ latencyMs: 640, checkedAt: new Date('2026-09-08T10:00:00Z') })],
     });
 
     const row = (await service.getDashboard({ days: 1, healthPoints: 30 })).providers[0];
