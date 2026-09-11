@@ -35,10 +35,18 @@ describe('EventsService.reclaimStuckEvents', () => {
 
     await service.reclaimStuckEvents({ tenantId: '7', olderThanMinutes: 30, limit: 50, dryRun: false });
 
+    const after = Date.now();
     const { olderThan } = (repository.reclaimStuckProcessing as jest.Mock).mock.calls[0][0] as { olderThan: Date };
-    // El corte debe caer 30 minutos atrás; se comprueba con holgura para no depender del reloj.
-    expect(before - olderThan.getTime()).toBeGreaterThanOrEqual(30 * 60_000);
-    expect(before - olderThan.getTime()).toBeLessThan(30 * 60_000 + 5_000);
+    /*
+      El corte cae 30 minutos antes del instante en que el servicio lo calcula, que está entre `before` y `after`.
+
+      Antes se comparaba sólo contra `before`, tomado ANTES de la llamada, y se exigía una diferencia de al menos 30
+      minutos exactos: eso sólo se cumple si las dos lecturas del reloj caen en el mismo milisegundo. En local pasaba
+      casi siempre y en el CI, con la máquina cargada, fallaba: dejó el job de pruebas en rojo sin que nada del código
+      hubiera cambiado. Acotarlo por los dos extremos comprueba lo mismo sin depender de la velocidad de la máquina.
+    */
+    expect(olderThan.getTime()).toBeGreaterThanOrEqual(before - 30 * 60_000);
+    expect(olderThan.getTime()).toBeLessThanOrEqual(after - 30 * 60_000);
   });
 
   it('en dryRun cuenta pero no toca ninguna fila', async () => {
