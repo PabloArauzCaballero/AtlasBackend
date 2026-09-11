@@ -5,10 +5,11 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, Transaction } from 'sequelize';
+import { Op, Transaction, literal } from 'sequelize';
 import { SystemFlowCatalogModel } from '../../database/models/system-flow-catalog.model.js';
 import { SystemFlowFindingModel } from '../../database/models/system-flow-findings.model.js';
 import { SystemFlowImportModel } from '../../database/models/system-flow-imports.model.js';
+import { SystemScreenCatalogModel } from '../../database/models/system-screen-catalog.model.js';
 
 @Injectable()
 export class SystemFlowsGateRepository {
@@ -16,6 +17,7 @@ export class SystemFlowsGateRepository {
     @InjectModel(SystemFlowCatalogModel) private readonly flows: typeof SystemFlowCatalogModel,
     @InjectModel(SystemFlowFindingModel) private readonly findings: typeof SystemFlowFindingModel,
     @InjectModel(SystemFlowImportModel) private readonly imports: typeof SystemFlowImportModel,
+    @InjectModel(SystemScreenCatalogModel) private readonly screens: typeof SystemScreenCatalogModel,
   ) {}
 
   /** CRITICAL que no están verificados SOBRE SU CÓDIGO ACTUAL: sin corridas, rotos, o verificados antes de cambiar. */
@@ -40,6 +42,12 @@ export class SystemFlowsGateRepository {
 
   openFindingsOfSystem(systemCode: string, tx?: Transaction): Promise<number> {
     return this.findings.count({ where: { systemCode, status: 'open' }, transaction: tx });
+  }
+
+  /** Pantallas del cliente cuyo menú pide permiso o rol: lo que una carga sin puertas borraría. */
+  gatedScreensOfClient(clientCode: string, tx?: Transaction): Promise<number> {
+    const conPuerta = `(jsonb_typeof(nav_permissions) = 'array' AND jsonb_array_length(nav_permissions) > 0) OR (jsonb_typeof(nav_roles) = 'array' AND jsonb_array_length(nav_roles) > 0)`;
+    return this.screens.count({ where: { clientCode, [Op.and]: [literal(conPuerta)] }, transaction: tx });
   }
 
   /** Qué (alcance, bloque o cliente) tiene al menos una carga del artefacto. */

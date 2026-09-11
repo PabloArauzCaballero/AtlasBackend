@@ -13,6 +13,17 @@ import { SystemFlowsRepository } from './system-flows.repository.js';
 import { findingKeyFor } from './system-flows.risk.util.js';
 import { ImportEndpointsDto, ImportFindingsDto, ImportScreensDto } from './system-flows.schemas.js';
 
+/**
+ * Una carga con otro número de filas del que declara su artefacto está truncada: se para antes de escribir, porque lo
+ * que falta se daría por retirado (flujos, pantallas) o por resuelto (hallazgos) sin que nadie lo tocara.
+ */
+function exigirCompleta(alcance: string, bloque: string, recibidas: number, declaradas: number): void {
+  if (recibidas === declaradas) return;
+  throw new BadRequestException(
+    `La carga de ${alcance} de ${bloque} trae ${recibidas} fila(s) y su artefacto declara ${declaradas}: está truncada.`,
+  );
+}
+
 @Injectable()
 export class SystemFlowsImportService {
   constructor(
@@ -24,6 +35,7 @@ export class SystemFlowsImportService {
 
   importEndpoints(dto: ImportEndpointsDto, actor: string | null) {
     return this.repository.transaction(async (tx) => {
+      exigirCompleta('endpoints', dto.systemCode, dto.endpoints.length, dto.declaredCount);
       const record = await this.repository.createImport(
         {
           scope: 'endpoints',
@@ -95,6 +107,7 @@ export class SystemFlowsImportService {
 
   importScreens(dto: ImportScreensDto, actor: string | null) {
     return this.repository.transaction(async (tx) => {
+      exigirCompleta('pantallas', dto.clientCode, dto.screens.length, dto.declaredCount);
       const record = await this.repository.createImport(
         {
           scope: 'screens',
@@ -119,6 +132,14 @@ export class SystemFlowsImportService {
         analyzedCommit: dto.analyzedCommit ?? null,
         importId: record.id,
       }));
+      // Un artefacto de antes de leer el menú trae las pantallas sin puertas. Cargarlo borraría las del catálogo, y la
+      // deriva de RBAC saldría en verde por no tener nada con qué comparar.
+      const conPuerta = await this.gate.gatedScreensOfClient(dto.clientCode, tx);
+      if (conPuerta > 0 && !dto.allowRemovingMenuGates && !rows.some((row) => row.navPermissions.length || row.navRoles.length)) {
+        throw new BadRequestException(
+          `La carga deja sin puertas de menú a ${dto.clientCode}, que tiene ${conPuerta} pantalla(s) con puerta: ¿es un artefacto viejo? Si el menú dejó de restringir de verdad, repítela con allowRemovingMenuGates.`,
+        );
+      }
       const result = await this.repository.replaceScreens(dto.clientCode, rows, tx);
       await record.update({ rowsUpserted: result.upserted, rowsRemoved: result.removed }, { transaction: tx });
       return { importId: record.id, ...result };
@@ -127,6 +148,7 @@ export class SystemFlowsImportService {
 
   importFindings(dto: ImportFindingsDto, actor: string | null) {
     return this.repository.transaction(async (tx) => {
+      exigirCompleta('hallazgos', dto.systemCode, dto.findings.length, dto.declaredCount);
       const record = await this.repository.createImport(
         {
           scope: 'findings',

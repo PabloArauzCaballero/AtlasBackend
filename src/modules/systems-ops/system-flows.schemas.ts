@@ -92,6 +92,18 @@ export const derivedEndpointSchema = z.object({
 });
 export type DerivedEndpointDto = z.infer<typeof derivedEndpointSchema>;
 
+/**
+ * Cuántas filas declara el artefacto para este alcance (`manifest.counts`). Una carga con otro número está
+ * truncada, y lo que falta se daría por retirado o por resuelto sin que nadie lo tocara.
+ */
+const declaredCount = z.number().int().nonnegative();
+
+/** Una puerta del menú sin resolver (`<unresolved:…>`) no es una puerta: el artefacto tiene que resolverla antes. */
+const menuGateList = z
+  .array(z.string().trim().min(1).max(200).regex(/^[^<]/, 'Puerta de menú sin resolver en el artefacto.'))
+  .max(200)
+  .default([]);
+
 const importEnvelope = {
   systemCode: code,
   analyzedCommit: z.string().trim().max(64).optional(),
@@ -106,7 +118,8 @@ export const importEndpointsSchema = z.object({
    * Retirar un flujo borra su revisión humana. Por defecto, una carga que lo haría se rechaza; quien sabe
    * que el bloque cambió de verdad lo confirma aquí.
    */
-  allowRemovingDecisions: z.boolean().default(false),
+  allowRemovingDecisions: z.boolean().optional(),
+  declaredCount,
 });
 export type ImportEndpointsDto = z.infer<typeof importEndpointsSchema>;
 
@@ -114,13 +127,16 @@ export const derivedScreenSchema = z.object({
   route: z.string().trim().min(1).max(300),
   file: z.string().trim().max(300).optional(),
   navLabel: z.string().trim().max(160).nullable().optional(),
-  navPermissions: stringList,
-  navRoles: stringList,
+  navPermissions: menuGateList,
+  navRoles: menuGateList,
 });
 export const importScreensSchema = z.object({
   clientCode: code,
   analyzedCommit: z.string().trim().max(64).optional(),
   screens: z.array(derivedScreenSchema).max(2000),
+  declaredCount,
+  /** Una carga que deja sin puertas de menú a un cliente que las tiene se rechaza salvo que se confirme aquí. */
+  allowRemovingMenuGates: z.boolean().optional(),
 });
 export type ImportScreensDto = z.infer<typeof importScreensSchema>;
 
@@ -138,6 +154,7 @@ export const importFindingsSchema = z.object({
   systemCode: code,
   analyzedCommit: z.string().trim().max(64).optional(),
   findings: z.array(derivedFindingSchema).max(5000),
+  declaredCount,
 });
 export type ImportFindingsDto = z.infer<typeof importFindingsSchema>;
 

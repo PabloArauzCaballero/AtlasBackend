@@ -75,18 +75,26 @@ export class SystemFlowsRepository {
   }
 
   /** Los hallazgos que dejan de venir se cierran como resueltos, no se borran: su historial vale. */
-  async replaceFindings(systemCode: string, rows: FindingRow[], tx: Transaction): Promise<{ upserted: number; removed: number }> {
+  async replaceFindings(
+    systemCode: string,
+    rows: FindingRow[],
+    tx: Transaction,
+  ): Promise<{ upserted: number; removed: number; reopened: number }> {
     const now = new Date();
+    let reopened = 0;
     for (const row of rows) {
       const existing = await this.findings.findOne({ where: { findingKey: row.findingKey }, transaction: tx });
-      if (existing) await existing.update({ ...row, updatedAtValue: now }, { transaction: tx });
+      // Resuelto que reaparece se reabre (si no, la compuerta lo contaría cerrado); lo que marcó una persona no se pisa.
+      const reabre = existing?.status === 'resolved';
+      if (reabre) reopened += 1;
+      if (existing) await existing.update({ ...row, ...(reabre ? { status: 'open' } : {}), updatedAtValue: now }, { transaction: tx });
       else await this.findings.create({ ...row, status: 'open', createdAtValue: now, updatedAtValue: now }, { transaction: tx });
     }
     const [removed] = await this.findings.update(
       { status: 'resolved', updatedAtValue: now },
       { where: { systemCode, status: 'open', findingKey: { [Op.notIn]: rows.map((r) => r.findingKey) } }, transaction: tx },
     );
-    return { upserted: rows.length, removed };
+    return { upserted: rows.length, removed, reopened };
   }
 
   async recountFindings(systemCode: string, tx: Transaction): Promise<void> {

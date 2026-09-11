@@ -24,9 +24,19 @@ export type DiscoveredEndpoint = EndpointSeed & {
   handlerName: string | null;
 };
 
+/** Fin de la cabecera `export class X {`: lo que va antes son decoradores de la CLASE, no de un método. */
+function classHeaderEnd(classBlock: string): number {
+  const header = /export\s+class\s+[A-Za-z0-9_]+[^{]*\{/.exec(classBlock);
+  return header ? header.index + header[0].length : 0;
+}
+
+/**
+ * Decoradores del método: desde el final del método anterior o, en el primero, desde el final de la cabecera
+ * de la clase. Antes el primero se llevaba también los de la clase, y su `@Roles` pasaba por el del método.
+ */
 function methodDecoratorBlock(classBlock: string, routeIndex: number): string {
   const beforeRoute = classBlock.slice(0, routeIndex);
-  const previousMethodEnd = Math.max(beforeRoute.lastIndexOf('\n  }'), beforeRoute.lastIndexOf('\n}'));
+  const previousMethodEnd = Math.max(beforeRoute.lastIndexOf('\n  }'), beforeRoute.lastIndexOf('\n}'), classHeaderEnd(classBlock) - 1);
   return beforeRoute.slice(previousMethodEnd + 1);
 }
 
@@ -130,6 +140,7 @@ export class EndpointDiscoveryService {
       const start = controller.index ?? 0;
       const end = controllers[index + 1]?.index ?? source.length;
       const classBlock = source.slice(start, end);
+      const classRoles = rolesFromDecorators(classBlock.slice(0, classHeaderEnd(classBlock)));
 
       for (const route of classBlock.matchAll(ROUTE_DECORATOR)) {
         const method = route[1].toUpperCase();
@@ -139,7 +150,10 @@ export class EndpointDiscoveryService {
         const businessContext = endpointBusinessContext(method, apiPath, handlerName);
         const payloadSummary = endpointPayloadSummary(method, apiPath);
         const decorators = `${methodDecoratorBlock(classBlock, route.index ?? 0)}\n${route[3] ?? ''}`;
-        const explicitRoles = rolesFromDecorators(decorators);
+        // Como `RolesGuard` (`getAllAndOverride([handler, class])`): manda el `@Roles` del método y, sin él, el de la
+        // clase. Antes sólo la primera ruta veía el de la clase; las demás caían a SYSTEMS_OPS_ROLES.
+        const methodRoles = rolesFromDecorators(decorators);
+        const explicitRoles = methodRoles.length > 0 ? methodRoles : classRoles;
         const systemsController = classBlock.includes('@SystemsOpsControllerSecurity()');
         endpoints.push({
           code: buildEndpointCode(method, apiPath),

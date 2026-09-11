@@ -25566,12 +25566,15 @@ paths:
                       - contractStatus
                     additionalProperties: false
                 allowRemovingDecisions:
-                  default: false
                   type: boolean
+                declaredCount:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
               required:
                 - systemCode
                 - endpoints
-                - allowRemovingDecisions
+                - declaredCount
               additionalProperties: false
       responses:
         '201':
@@ -25642,6 +25645,7 @@ paths:
                           type: string
                           minLength: 1
                           maxLength: 200
+                          pattern: ^[^<]
                       navRoles:
                         default: []
                         maxItems: 200
@@ -25650,14 +25654,22 @@ paths:
                           type: string
                           minLength: 1
                           maxLength: 200
+                          pattern: ^[^<]
                     required:
                       - route
                       - navPermissions
                       - navRoles
                     additionalProperties: false
+                declaredCount:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                allowRemovingMenuGates:
+                  type: boolean
               required:
                 - clientCode
                 - screens
+                - declaredCount
               additionalProperties: false
       responses:
         '201':
@@ -25749,9 +25761,14 @@ paths:
                       - ref
                       - summary
                     additionalProperties: false
+                declaredCount:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
               required:
                 - systemCode
                 - findings
+                - declaredCount
               additionalProperties: false
       responses:
         '201':

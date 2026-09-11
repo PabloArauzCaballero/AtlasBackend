@@ -175,6 +175,7 @@ describe('SystemFlowsImportService.importFindings', () => {
     ).importFindings(
       {
         systemCode: 'ERP_BACKEND',
+        declaredCount: 2,
         findings: [
           { kind: 'CONTRACT_DRIFT', severity: 'HIGH', systemCode: 'ERP_BACKEND', ref: 'POST auth/login', summary: 'x' },
           { kind: 'CONTRACT_DRIFT', severity: 'HIGH', systemCode: 'ATLAS_BACKEND', ref: 'POST auth/login', summary: 'x' },
@@ -193,7 +194,7 @@ describe('SystemFlowsImportService.importFindings', () => {
       repo as never,
       {} as never,
       { openFindingsOfSystem: async () => 0 } as never,
-    ).importFindings({ systemCode: 'ATLAS_BACKEND', findings: [] }, null);
+    ).importFindings({ systemCode: 'ATLAS_BACKEND', declaredCount: 0, findings: [] }, null);
     expect(repo.calls.recountFindings?.[0]?.[0]).toBe('ATLAS_BACKEND');
   });
 });

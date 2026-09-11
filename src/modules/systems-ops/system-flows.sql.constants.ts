@@ -189,7 +189,7 @@ export const RBAC_DRIFT_SQL = `WITH llamadas AS (
           WHERE s.verification = 'VERIFIED'
             -- El menú puede restringir por permiso O por rol; mirar sólo lo primero dejaba fuera
             -- pantallas que sí declaran una puerta.
-            AND (jsonb_array_length(s.nav_permissions) > 0 OR jsonb_array_length(s.nav_roles) > 0)
+            AND ((jsonb_typeof(s.nav_permissions) = 'array' AND jsonb_array_length(s.nav_permissions) > 0) OR (jsonb_typeof(s.nav_roles) = 'array' AND jsonb_array_length(s.nav_roles) > 0))
        )
        SELECT l.client_code, l.route, l.nav_permissions, l.nav_roles, l.method, l.path,
               f.flow_id, f.internal_permissions, f.roles, f.is_public

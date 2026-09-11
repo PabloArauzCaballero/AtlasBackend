@@ -81,11 +81,22 @@ describe('SystemFlowsRepository · recarga por bloque', () => {
     const { repo, findings } = build();
     findings.update.mockResolvedValueOnce([4]);
     const result = await repo.replaceFindings('ATLAS_BACKEND', [{ findingKey: 'k1', systemCode: 'ATLAS_BACKEND' }] as never, 'tx' as never);
-    expect(result).toEqual({ upserted: 1, removed: 4 });
+    expect(result).toEqual({ upserted: 1, removed: 4, reopened: 0 });
     expect(findings.destroy).not.toHaveBeenCalled();
     const [valores, opciones] = findings.update.mock.calls[0];
     expect(valores).toMatchObject({ status: 'resolved' });
     expect((opciones.where as Record<string, unknown>).status).toBe('open');
+  });
+
+  it('un hallazgo resuelto que vuelve a aparecer se reabre; el que una persona descartó, no', async () => {
+    const { repo, findings } = build();
+    const resuelto = { status: 'resolved', update: jest.fn(async (_values: unknown, _opts?: unknown) => undefined) };
+    const descartado = { status: 'false_positive', update: jest.fn(async (_values: unknown, _opts?: unknown) => undefined) };
+    findings.findOne.mockResolvedValueOnce(resuelto).mockResolvedValueOnce(descartado);
+    const result = await repo.replaceFindings('ATLAS_BACKEND', [{ findingKey: 'k1' }, { findingKey: 'k2' }] as never, 'tx' as never);
+    expect(resuelto.update.mock.calls[0][0]).toMatchObject({ status: 'open' });
+    expect(descartado.update.mock.calls[0][0]).not.toHaveProperty('status');
+    expect(result).toMatchObject({ reopened: 1 });
   });
 });
 
