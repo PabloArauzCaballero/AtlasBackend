@@ -99,13 +99,33 @@ export function methodDecorators(classBlock: string, routeIndex: number): string
  * aplica como si fueran el `@Roles` que envuelven, así que ignorarlos dejaba la ruta con lista vacía —«sin
  * restricción»— justo donde sí había una.
  */
+/** El argumento de una llamada, contando paréntesis desde `abre`; null si no cierra. */
+function argumentoDe(texto: string, abre: number): string | null {
+  let profundidad = 0;
+  for (let i = abre; i < texto.length; i += 1) {
+    if (texto[i] === '(') profundidad += 1;
+    else if (texto[i] === ')') {
+      profundidad -= 1;
+      if (profundidad === 0) return texto.slice(abre + 1, i);
+    }
+  }
+  return null;
+}
+
 export function composedRoleDecorators(sources: readonly string[], constants: RoleConstants): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   for (const source of sources) {
-    for (const fn of withoutComments(source).matchAll(
-      /export\s+(?:const|function)\s+([A-Za-z_$][\w$]*)[\s\S]{0,400}?applyDecorators\(([\s\S]{0,1500}?)\n\s*\);/g,
-    )) {
-      const roles = /Roles\(([^)]*)\)/.exec(fn[2]);
+    const limpio = withoutComments(source);
+    for (const fn of limpio.matchAll(/export\s+(?:const|function)\s+([A-Za-z_$][\w$]*)/g)) {
+      const desde = (fn.index ?? 0) + fn[0].length;
+      const llamada = limpio.indexOf('applyDecorators(', desde);
+      // Dentro de ESTA declaración: hasta la siguiente `export`, para que el `applyDecorators` de la de abajo no se
+      // atribuya a ésta. Y el argumento se lee contando paréntesis, no con un tope de caracteres ni un cierre en una
+      // línea suelta: escrito todo en una línea, el compuesto se perdía y su ruta quedaba «sin restricción».
+      const siguiente = limpio.indexOf('\nexport ', desde);
+      if (llamada < 0 || (siguiente >= 0 && llamada > siguiente)) continue;
+      const argumento = argumentoDe(limpio, llamada + 'applyDecorators'.length);
+      const roles = argumento === null ? null : /\bRoles\(([^)]*)\)/.exec(argumento);
       if (roles) out[fn[1]] = rolesInList(roles[1], (name) => constants[name]);
     }
   }

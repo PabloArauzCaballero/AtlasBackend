@@ -10,6 +10,7 @@ import { TokenRevocationService } from '../../../../src/common/services/token-re
 import type { AtlasUserRole } from '../../../../src/common/types/auth.types.js';
 import { env } from '../../../../src/config/env.js';
 import { NotificationBroadcastController } from '../../../../src/modules/notifications/notification-broadcast.controller.js';
+import { NotificationTemplatesController } from '../../../../src/modules/notifications/notification-templates.controller.js';
 import { NotificationsController } from '../../../../src/modules/notifications/notifications.controller.js';
 
 /**
@@ -22,7 +23,9 @@ export async function buildNotificationsTestApp(services: Provider[]): Promise<I
   const moduleRef = await Test.createTestingModule({
     // El broadcast vive en su propio controlador desde que se partió `NotificationsController` por tamaño (5f6c238):
     // sin montarlo, `POST /operations/notifications/broadcast` daba 404 y ninguna prueba llegaba a los guards.
-    controllers: [NotificationsController, NotificationBroadcastController],
+    // Las plantillas y las preferencias de operación también salieron del controlador grande en 5f6c238 y ninguna
+    // prueba las montaba: sus cinco rutas con `@Roles` no se afirmaban en ninguna parte.
+    controllers: [NotificationsController, NotificationBroadcastController, NotificationTemplatesController],
     providers: [
       JwtAuthGuard,
       RolesGuard,

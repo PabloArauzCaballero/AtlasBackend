@@ -108,4 +108,15 @@ describe('endpoint-roles.util', () => {
     expect(rolesDe(conComentario, "@Get('a')")).toEqual(['admin', 'risk_analyst']);
     expect(rolesDe(conComentario, "@Get('b')")).toEqual([]);
   });
+  it('un decorador compuesto escrito en una línea, o seguido de otro, se resuelve sin contagiarse', () => {
+    const enUnaLinea = "export const Seg = () => applyDecorators(UseGuards(G), Roles('admin', 'platform_admin'));";
+    const sinRoles = "export const A = () => applyDecorators(ApiTags('x'));";
+    const conRoles = "export const B = () => applyDecorators(\n  Roles('risk_analyst'),\n);";
+    const constantes = roleConstantsFromSources([]);
+    expect(composedRoleDecorators([enUnaLinea], constantes).Seg).toEqual(['admin', 'platform_admin']);
+    // La declaración de al lado no le presta su `@Roles`: antes el barrido cruzaba de una a otra.
+    const dos = composedRoleDecorators([`${sinRoles}\n${conRoles}`], constantes);
+    expect(dos.A).toBeUndefined();
+    expect(dos.B).toEqual(['risk_analyst']);
+  });
 });

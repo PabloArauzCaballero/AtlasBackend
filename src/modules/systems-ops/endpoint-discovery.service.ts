@@ -99,11 +99,13 @@ export class EndpointDiscoveryService {
   }
 
   async scanControllers(): Promise<DiscoveredEndpoint[]> {
-    const root = join(process.cwd(), 'src', 'modules');
+    // Todo `src`, no sólo `src/modules`: hay controladores fuera (p. ej. `src/common/observability/metrics.controller.ts`),
+    // y el catálogo decía que no existían. Un `@Roles(...CONSTANTE)` también puede vivir fuera de los módulos.
+    const root = join(process.cwd(), 'src');
     // Sin código fuente se FALLA, no se devuelve una lista vacía: la imagen no copia `src/modules`,
     // así que en un contenedor esto reportaba `discovered: 0` como un descubrimiento correcto y el
     // operador concluía que su backend no expone endpoints.
-    if (!(await pathExists(root))) {
+    if (!(await pathExists(join(root, 'modules')))) {
       throw new ServiceUnavailableException(
         'El escaneo de código fuente necesita `src/modules`, que la imagen desplegada no incluye. Usa el modo OPENAPI_CONTRACT, que lee el contrato que este proceso genera de sus propias rutas.',
       );
