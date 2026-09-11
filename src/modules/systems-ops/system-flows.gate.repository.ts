@@ -56,9 +56,20 @@ export class SystemFlowsGateRepository {
     return (rows as unknown as Array<{ route: string }>).map((row) => row.route);
   }
 
+  /** Todas las rutas del cliente en el catálogo: sirve para distinguir una pantalla nueva de una que ya estaba. */
+  async screenRoutesOfClient(clientCode: string, tx?: Transaction): Promise<string[]> {
+    const rows = await this.screens.findAll({ attributes: ['route'], where: { clientCode }, transaction: tx, raw: true });
+    return (rows as unknown as Array<{ route: string }>).map((row) => row.route);
+  }
+
   /** Cuándo se generó el artefacto más reciente cargado para este alcance y bloque; null si ninguna carga lo dijo. */
   async lastArtifactGeneratedAt(scope: string, systemCode: string, tx?: Transaction): Promise<Date | null> {
-    const value: unknown = await this.imports.max('artifactGeneratedAt', { where: { scope, systemCode }, transaction: tx });
+    // Las filas fechadas en el futuro NO cuentan: una sola (cargada antes de que existiera el guardián, o por una
+    // máquina con el reloj adelantado) dejaba el alcance pidiendo confirmación en cada carga hasta llegar esa fecha.
+    const value: unknown = await this.imports.max('artifactGeneratedAt', {
+      where: { scope, systemCode, artifactGeneratedAt: { [Op.lte]: new Date() } },
+      transaction: tx,
+    });
     return value ? new Date(value as string | Date) : null;
   }
 

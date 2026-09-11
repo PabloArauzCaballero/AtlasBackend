@@ -5386,8 +5386,13 @@ paths:
   /customer-onboarding/{customerId}/contacts-snapshot:
     post:
       description: >-
-        Registra la dirección declarada del cliente (y evidencia
-        GPS/geolocalización cuando corresponda).
+        Recibe CUENTAS y PROPORCIONES calculadas en el dispositivo —nunca
+        nombres, teléfonos ni identificadores de contacto— más una lista
+        opcional de hashes de un solo uso que el servidor cruza contra su propia
+        lista de vigilancia y contra las referencias de otros expedientes. Los
+        hashes NO se persisten: se usan en el cruce y se descartan antes de
+        responder. Negar el permiso es una respuesta válida y se registra como
+        tal.
       operationId: CustomerPackagesController_submitContactsSnapshot
       parameters:
         - name: customerId
@@ -5400,7 +5405,6 @@ paths:
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
         - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
@@ -5468,12 +5472,6 @@ paths:
                 - referencesDeclared
               additionalProperties: false
       responses:
-        '200':
-          description: Paquete de dirección registrado.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccess'
         '202':
           description: >-
             Snapshot recibido. No devuelve análisis: el análisis lo hace el
@@ -5489,27 +5487,18 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: |-
-            El token no permite operar sobre este cliente.
-
-            El token no permite operar sobre este cliente.
+          description: El token no permite operar sobre este cliente.
         '404':
-          description: |-
-            Cliente no encontrado.
-
-            Cliente no encontrado.
+          description: Cliente no encontrado.
         '409':
           $ref: '#/components/responses/Conflict'
-        '422':
-          description: CUSTOMER_BLOCKED o REQUIRED_EVIDENCE_MISSING.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
       security:
         - access-token: []
-        - access-token: []
-      summary: Enviar paquete de dirección
+      summary: Enviar el snapshot agregado de la agenda del teléfono
       tags:
         - customer-onboarding
   /customer-onboarding/{customerId}/address-package:

@@ -49,6 +49,7 @@ export class CustomerPackagesController {
     private readonly contactsSnapshotService: CustomerContactsSnapshotService,
   ) {}
 
+  @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Entrega el paquete de identidad del cliente' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
@@ -78,20 +79,6 @@ export class CustomerPackagesController {
     });
   }
 
-  @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
-  @ApiBearerAuth('access-token')
-  @ApiOperation({
-    summary: 'Enviar paquete de dirección',
-    description: 'Registra la dirección declarada del cliente (y evidencia GPS/geolocalización cuando corresponda).',
-  })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: true })
-  @ApiParam({ name: 'customerId', schema: zodToApiSchema(onboardingCustomerIdParamsSchema.shape.customerId) })
-  @ApiBody({ schema: zodToApiSchema(addressPackageSchema) })
-  @ApiResponse({ status: 200, description: 'Paquete de dirección registrado.' })
-  @ApiResponse({ status: 403, description: 'El token no permite operar sobre este cliente.' })
-  @ApiResponse({ status: 404, description: 'Cliente no encontrado.' })
-  @ApiResponse({ status: 422, description: 'CUSTOMER_BLOCKED o REQUIRED_EVIDENCE_MISSING.' })
   /*
    * El snapshot de la AGENDA, calculado en el teléfono.
    *
@@ -140,6 +127,7 @@ export class CustomerPackagesController {
     });
   }
 
+  @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Entrega el paquete de domicilio del cliente' })
   @ApiHeader({ name: 'x-tenant-id', required: true })

@@ -45,6 +45,7 @@ import {
 export class CatalogGovernanceController {
   constructor(private readonly service: CatalogManagementService) {}
 
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')
   @ApiOperation({ summary: 'Obtener la política de riesgo activa' })
   @ApiResponse({ status: 200, description: 'Política de riesgo actual (ruleset activo).' })
   @Get('risk-policy/current')
@@ -52,6 +53,7 @@ export class CatalogGovernanceController {
     return this.service.getCurrentRiskPolicy({ currentUser });
   }
 
+  @Roles('admin', 'platform_admin')
   @ApiOperation({ summary: 'Crear una nueva versión de ruleset de riesgo (borrador)' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
@@ -97,6 +99,7 @@ export class CatalogGovernanceController {
     });
   }
 
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')
   @ApiOperation({ summary: 'Obtener las políticas de gobernanza de datos activas' })
   @ApiResponse({ status: 200, description: 'Políticas de gobernanza (propósitos, clasificaciones, retenciones).' })
   @Get('data-governance/policies')
@@ -104,6 +107,7 @@ export class CatalogGovernanceController {
     return this.service.getDataGovernancePolicies({ currentUser });
   }
 
+  @Roles('admin', 'platform_admin')
   @ApiOperation({ summary: 'Publicar un paquete de políticas de gobernanza de datos' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })

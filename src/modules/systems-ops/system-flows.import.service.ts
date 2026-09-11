@@ -184,8 +184,11 @@ export class SystemFlowsImportService {
       const sinConfirmar = pierden.filter((route) => !confirmadas.has(route));
       if (sinConfirmar.length) {
         // Una ruta nueva con la misma puerta suele ser la misma pantalla renombrada: se dice, para no confundirlo con una retirada.
+        // Contra TODAS las rutas del catálogo, no sólo contra las que tienen puerta: comparar con éstas señalaba como
+        // «nueva» cualquier pantalla que ya estaba y sólo había ganado una puerta, y la pista se llenaba de ruido.
+        const enCatalogo = new Set(await this.gate.screenRoutesOfClient(dto.clientCode, tx));
         const nuevas = rows
-          .filter((row) => !conPuerta.includes(row.route) && (row.navPermissions.length || row.navRoles.length))
+          .filter((row) => !enCatalogo.has(row.route) && (row.navPermissions.length || row.navRoles.length))
           .map((row) => row.route);
         throw new BadRequestException(
           `La carga deja sin puerta de menú ${sinConfirmar.length} pantalla(s) de ${dto.clientCode}: ${sinConfirmar.slice(0, 50).join(', ')}${sinConfirmar.length > 50 ? ', …' : ''}. Si el menú dejó de restringirlas de verdad, repítela con allowRemovingMenuGates y esas rutas. Rutas con puerta en esta carga que no estaban en el catálogo (¿un renombrado?): ${nuevas.slice(0, 20).join(', ') || 'ninguna'}.`,

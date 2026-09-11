@@ -31,6 +31,7 @@ function repositoryDouble(): RepoDouble {
     catalogSize: spy('catalogSize', () => 0),
     openFindingsOfSystem: spy('openFindingsOfSystem', () => 0),
     gatedScreensOfClient: spy('gatedScreensOfClient', () => []),
+    screenRoutesOfClient: spy('screenRoutesOfClient', () => []),
     lastArtifactGeneratedAt: spy('lastArtifactGeneratedAt', () => null),
     lockScope: spy('lockScope'),
     replaceFlows: spy('replaceFlows', (args) => ({ upserted: (args[1] as unknown[]).length, removed: 0 })),
@@ -587,5 +588,21 @@ describe('SystemFlowsImportService · cargas que borrarían evidencia', () => {
     expect(repo.calls.lockScope?.[0]?.slice(0, 2)).toEqual(['endpoints', 'ATLAS_BACKEND']);
     const orden = Object.keys(repo.calls);
     expect(orden.indexOf('lockScope')).toBeLessThan(orden.indexOf('lastArtifactGeneratedAt'));
+  });
+  it('la pista de renombrado sólo nombra rutas que NO estaban en el catálogo', async () => {
+    const repo = repositoryDouble();
+    repo.gatedScreensOfClient = () => Promise.resolve(['/con-puerta']);
+    repo.screenRoutesOfClient = () => Promise.resolve(['/con-puerta', '/ya-estaba']);
+    const carga = {
+      clientCode: 'MOTOR_PORTAL',
+      artifactGeneratedAt: '2026-09-10T12:00:00.000Z',
+      declaredCount: 3,
+      screens: [
+        { route: '/con-puerta', navPermissions: [], navRoles: [] },
+        { route: '/ya-estaba', navPermissions: [], navRoles: ['ADMIN'] },
+        { route: '/nueva', navPermissions: [], navRoles: ['ADMIN'] },
+      ],
+    } as never;
+    await expect(servicioCon(repo).importScreens(carga, null)).rejects.toThrow(/\(¿un renombrado\?\): \/nueva\./);
   });
 });
