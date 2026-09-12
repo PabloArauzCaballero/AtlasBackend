@@ -9,6 +9,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import type { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { OutboxEventModel } from '../../../../database/models/index.js';
+import { SequelizeOutboxWriter } from '../../../../platform/events/sequelize-outbox-writer.js';
 import { SequelizeUnitOfWork } from '../../../../platform/persistence/local-unit-of-work.js';
 import { CustomerEligibilityService } from '../../../customers/application/customer-eligibility.service.js';
 import { CustomerEligibilityRepository } from '../../../customers/repositories/customer-eligibility.repository.js';
@@ -39,6 +41,7 @@ export class SequelizeCreditUnitOfWork extends SequelizeUnitOfWork<CreditWorkSes
         loadFacts: (tenantId, customerId) => this.eligibilityRepository.loadFacts(tenantId, customerId, { transaction }),
         evaluateAndRecord: (input) => this.eligibilityService.evaluateAndRecord({ ...input, transaction }),
       },
+      outbox: new SequelizeOutboxWriter(OutboxEventModel, transaction),
     };
   }
 }

@@ -134,7 +134,7 @@ describe('AT-015 · unidad de trabajo local de Crédito', () => {
   it('la sesión no expone la transacción ni el ORM', async () => {
     if (!harness) return;
     await unitOfWork.run(async (session) => {
-      expect(Object.keys(session).sort()).toEqual(['applications', 'eligibility']);
+      expect(Object.keys(session).sort()).toEqual(['applications', 'eligibility', 'outbox']);
       expect('transaction' in session).toBe(false);
       expect('sequelize' in session).toBe(false);
     });

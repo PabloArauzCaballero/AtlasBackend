@@ -168,6 +168,10 @@ export class RuntimeHardeningService {
       aggregateId: input.aggregateId,
       eventCode: input.eventCode,
       eventPayloadJson: redactSensitiveObject(input.payload) as Record<string, unknown>,
+      // AT-037: telemetría HTTP, no hecho de dominio. La marca permite distinguirla en cualquier lector.
+      eventFamily: 'api_audit',
+      producer: 'http-audit',
+      schemaVersion: 1,
       status: 'pending',
       attempts: 0,
       availableAt: now,

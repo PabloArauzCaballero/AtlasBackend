@@ -10,6 +10,7 @@ concretos, comandos reales del repo y criterios de verificación.
 | [incident-response.md](incident-response.md) | Sospecha de compromiso, fuga de credenciales, abuso o caída |
 | [expiracion-y-revocacion-de-sesiones.md](expiracion-y-revocacion-de-sesiones.md) | Revocar sesiones/tokens de un actor o de toda la flota |
 | [despliegue-produccion.md](despliegue-produccion.md) | Checklist de despliegue a producción (env vars, migraciones, KMS, 2FA, observabilidad) |
+| [events-recovery-v2.md](events-recovery-v2.md) | Eventos `failed`/cuarentena en el outbox, leases vencidos, consumidores atascados, replay autorizado |
 
 > Los comandos asumen las variables de entorno del entorno objetivo ya cargadas. Verifica
 > siempre `NODE_ENV` **antes** de ejecutar nada destructivo.

@@ -5,6 +5,7 @@
  * @system Firmas sin `Transaction`: la sesión ya está ligada. `CreditRepository` sigue siendo el
  *   adaptador real; aquí sólo se recorta lo que la admisión necesita (segregación de interfaz).
  */
+import type { TransactionalOutbox } from '../../../../platform/events/transactional-outbox.port.js';
 import type { LocalUnitOfWork } from '../../../../platform/persistence/local-unit-of-work.js';
 import type { RecordedEligibility } from '../../../customers/application/customer-eligibility.service.js';
 import type { EligibilityFacts } from '../../../customers/repositories/customer-eligibility.facts.js';
@@ -40,6 +41,8 @@ export interface CreditAdmissionEligibility {
 export type CreditWorkSession = {
   applications: CreditApplicationStore;
   eligibility: CreditAdmissionEligibility;
+  /** Outbox ligado a la misma transacción (AT-033): el evento se confirma con el agregado. */
+  outbox: TransactionalOutbox;
 };
 
 export type CreditUnitOfWork = LocalUnitOfWork<CreditWorkSession>;

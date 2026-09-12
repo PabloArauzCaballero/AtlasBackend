@@ -10,11 +10,12 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
 import { EventsController } from './events.controller.js';
 import { EventsRepository } from './events.repository.js';
 import { EventsService } from './events.service.js';
+import { OutboxRelayService } from '../../platform/events/outbox-relay.service.js';
 
 @Module({
   imports: [SequelizeModule.forFeature([OutboxEventModel]), NotificationsModule],
   controllers: [EventsController],
-  providers: [EventsRepository, EventsService],
+  providers: [EventsRepository, EventsService, OutboxRelayService],
   exports: [EventsService],
 })
 export class EventsModule {}

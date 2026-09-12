@@ -3,7 +3,9 @@
  * @business Esta pieza desacopla procesos de negocio y permite reintentos auditables sin perder eventos.
  * @system registra definiciones, outbox y procesamiento idempotente de eventos de dominio.
  */
-import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, Optional } from '@nestjs/common';
+import { env } from '../../config/env.js';
+import { OutboxRelayService } from '../../platform/events/outbox-relay.service.js';
 import { decodeCursor, paginateWithCursor } from '../../common/utils/pagination/cursor-pagination.util.js';
 import { listEventDefinitions, getEventDefinition } from './event-registry.js';
 import { EventsRepository } from './events.repository.js';
@@ -54,6 +56,9 @@ export class EventsService {
   constructor(
     private readonly repository: EventsRepository,
     private readonly notificationOrchestrator: NotificationOrchestratorService,
+    // AT-034: relay durable con lease/fencing e inbox por consumidor. Sólo actúa con EVENTS_RELAY_V2_ENABLED=true;
+    // apagado, el procesamiento sigue siendo exactamente el anterior.
+    @Optional() private readonly relay?: OutboxRelayService,
   ) {}
 
   listDefinitions() {
@@ -196,6 +201,17 @@ export class EventsService {
 
   async processPendingEvents(input: ProcessEventsInput): Promise<ProcessEventsResult> {
     const workerId = input.workerId ?? `db-backed-events-worker-${process.pid}`;
+    if (this.relay && env.EVENTS_RELAY_V2_ENABLED && !input.dryRun) {
+      const outcome = await this.relay.run({ tenantId: input.tenantId ?? null, limit: input.limit, workerId });
+      return {
+        selected: outcome.claimed,
+        processed: outcome.published,
+        failed: outcome.deadLettered + outcome.quarantined,
+        skipped: outcome.retried,
+        dryRun: false,
+        eventIds: outcome.eventIds,
+      };
+    }
     const events = input.dryRun
       ? await this.repository.listPending({ tenantId: input.tenantId, limit: input.limit })
       : await this.repository.claimPending({ tenantId: input.tenantId, limit: input.limit, workerId });

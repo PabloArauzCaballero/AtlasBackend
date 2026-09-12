@@ -125,6 +125,8 @@ export class SubmitCreditApplicationUseCase {
         notes: null,
         happenedAt: now,
       });
+      // AT-033: el hecho de negocio se escribe en la MISMA transacción; si no puede escribirse, nada se confirma.
+      await this.appendSubmittedEvent(session, input, { application, product, evaluationId: evaluation.evaluationId });
       return {
         admitted: true,
         application: Object.freeze({
@@ -141,6 +143,34 @@ export class SubmitCreditApplicationUseCase {
           eligibilityEvaluationId: evaluation.evaluationId,
         }),
       };
+    });
+  }
+
+  private appendSubmittedEvent(
+    session: CreditWorkSession,
+    input: SubmitCreditApplicationInput,
+    facts: {
+      application: { id: unknown; applicationCode: string; status: string; requestedAmount: string; currencyCode: string };
+      product: { productCode: string };
+      evaluationId: string;
+    },
+  ) {
+    const { application, product } = facts;
+    return session.outbox.append({
+      type: 'credit.application.submitted',
+      scope: { kind: 'tenant', tenantId: input.tenantId },
+      aggregate: { type: 'credit_application', id: String(application.id), version: 1 },
+      producer: 'credit',
+      payload: {
+        applicationCode: application.applicationCode,
+        customerId: input.customerId,
+        productCode: product.productCode,
+        status: application.status,
+        requestedAmount: application.requestedAmount,
+        currencyCode: application.currencyCode,
+        eligibilityEvaluationId: facts.evaluationId,
+      },
+      dedupKey: `credit.application.submitted:${sha256Hex(input.idempotencyKey)}`,
     });
   }
 

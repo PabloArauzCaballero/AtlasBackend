@@ -127,6 +127,7 @@ describe('CreditApplicationService', () => {
                   createApplication: (v: unknown) => creditRepository.createApplication(v, { transaction: {} }),
                   createApplicationEvent: (v: unknown) => creditRepository.createApplicationEvent(v, { transaction: {} }),
                 },
+                outbox: { append: async () => ({ eventId: 'ev-out', outboxRowId: '1' }) },
                 eligibility: {
                   lockCustomer: (t: string, c: string) => eligibilityService.lockCustomerForDecision(t, c, {}),
                   loadFacts: (t: string, c: string) => eligibilityRepository.loadFacts(t, c, { transaction: {} }),

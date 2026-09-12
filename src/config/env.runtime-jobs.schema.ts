@@ -22,6 +22,8 @@ export const runtimeJobsEnvShape = {
   // script o una consola de mantenimiento no debe empezar a mutar datos por su cuenta. En producción
   // exige Redis para la elección de líder, salvo que se asuma lo contrario a propósito.
   RUNTIME_JOBS_SCHEDULER_ENABLED: booleanEnvSchema,
+  // AT-034: relay v2 del outbox (lease/fencing, inbox por consumidor). Apagado = procesamiento anterior.
+  EVENTS_RELAY_V2_ENABLED: booleanEnvSchema,
   RUNTIME_JOBS_ALLOW_WITHOUT_LOCK: booleanEnvSchema,
   RUNTIME_JOBS_BATCH_LIMIT: z.coerce.number().int().positive().max(500).default(100),
   RUNTIME_JOBS_LEADER_LOCK_TTL_MS: z.coerce.number().int().positive().max(3_600_000).default(900_000),

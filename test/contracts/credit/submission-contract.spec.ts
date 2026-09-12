@@ -45,6 +45,7 @@ function build(options: { eligible?: boolean; open?: boolean; product?: typeof p
         return values;
       },
     },
+    outbox: { append: async () => ({ eventId: 'ev-out', outboxRowId: '1' }) },
     eligibility: {
       lockCustomer: async () => undefined,
       loadFacts: async () => facts,

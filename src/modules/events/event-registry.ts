@@ -58,6 +58,12 @@ const eventGroups: Array<{ family: string; events: string[]; aggregateTypes: str
     priority: 20,
   },
   {
+    // AT-033: hecho de dominio escrito por el caso de uso de solicitud, en la transacción del agregado.
+    family: 'credit_admission',
+    aggregateTypes: ['credit_application', 'customer'],
+    events: ['credit.application.submitted'],
+  },
+  {
     family: 'credit_line',
     aggregateTypes: ['customer', 'credit_line', 'credit_limit_movement'],
     events: [
