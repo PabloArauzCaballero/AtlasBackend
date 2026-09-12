@@ -6,7 +6,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { env } from '../../config/env.js';
 import { toAdapterError } from '../../common/resilience/adapter-error.js';
-import { ResilientAdapterExecutorService } from '../../common/resilience/resilient-adapter-executor.service.js';
+import { parseFacilityOutcomes, parseFacilityRegistrations } from './engine-verdicts.js';
+import { EngineTransportService } from './engine-transport.service.js';
 import {
   DecisionRequest,
   DecisionResponse,
@@ -20,16 +21,11 @@ import {
 
 const PROVIDER = 'atlas_decision_engine';
 
-/** Un 422 es la política diciendo que no. No se reintenta: la respuesta sería idéntica. */
-const BUSINESS_REJECTION_STATUS = 422;
-
-type RawResult = { status: number; ok: boolean; json: Record<string, unknown> };
-
 @Injectable()
 export class DecisionEngineClient {
   private readonly logger = new Logger(DecisionEngineClient.name);
 
-  constructor(private readonly executor: ResilientAdapterExecutorService) {}
+  constructor(private readonly transport: EngineTransportService) {}
 
   /** Sin URL no hay integración, y quien llame debe poder distinguirlo de un motor que falla. */
   get isConfigured(): boolean {
@@ -49,8 +45,8 @@ export class DecisionEngineClient {
    * convertido en «motor no disponible», borrando justamente el rechazo que había que explicar.
    */
   async execute(artifactCode: string, request: DecisionRequest): Promise<DecisionResponse> {
-    const url = `${this.baseUrl()}/v1/decisions/${encodeURIComponent(artifactCode)}`;
-    const raw = await this.call(url, env.DECISION_ENGINE_API_KEY ?? '', {
+    const url = `${this.transport.baseUrl()}/v1/decisions/${encodeURIComponent(artifactCode)}`;
+    const raw = await this.transport.call(url, env.DECISION_ENGINE_API_KEY ?? '', {
       ...request,
       environmentCode: request.environmentCode ?? env.DECISION_ENGINE_ENVIRONMENT_CODE,
     });
@@ -77,8 +73,8 @@ export class DecisionEngineClient {
    */
   async recordOutcomes(observations: readonly OutcomeObservationInput[]): Promise<void> {
     if (observations.length === 0) return;
-    const url = `${this.baseUrl()}/v1/model-monitoring/outcomes`;
-    await this.call(url, env.DECISION_ENGINE_OUTCOME_API_KEY ?? '', { observations });
+    const url = `${this.transport.baseUrl()}/v1/model-monitoring/outcomes`;
+    await this.transport.call(url, env.DECISION_ENGINE_OUTCOME_API_KEY ?? '', { observations });
   }
 
   /**
@@ -105,18 +101,9 @@ export class DecisionEngineClient {
    */
   async registerFacilities(facilities: readonly FacilityRegistrationInput[]): Promise<FacilityRegistrationOutcome[]> {
     if (facilities.length === 0) return [];
-    const url = `${this.baseUrl()}/v1/outcomes/facilities`;
-    const raw = await this.call(url, env.DECISION_ENGINE_OUTCOME_API_KEY ?? '', { facilities });
-    const rows = (raw.json as { results?: unknown }).results;
-    if (!Array.isArray(rows)) return [];
-    return rows.map((row) => {
-      const entry = row as Record<string, unknown>;
-      return {
-        externalReference: String(entry.externalReference ?? ''),
-        accepted: entry.status === 'REGISTERED' || entry.accepted === true,
-        reason: entry.reason === undefined || entry.reason === null ? null : String(entry.reason),
-      };
-    });
+    const url = `${this.transport.baseUrl()}/v1/outcomes/facilities`;
+    const raw = await this.transport.call(url, env.DECISION_ENGINE_OUTCOME_API_KEY ?? '', { facilities });
+    return parseFacilityRegistrations(raw.json);
   }
 
   /**
@@ -134,19 +121,9 @@ export class DecisionEngineClient {
    */
   async recordFacilityOutcomes(outcomes: readonly FacilityOutcomeInput[]): Promise<FacilityOutcomeResult[]> {
     if (outcomes.length === 0) return [];
-    const url = `${this.baseUrl()}/v1/outcomes/batch`;
-    const raw = await this.call(url, env.DECISION_ENGINE_OUTCOME_API_KEY ?? '', { outcomes });
-    const rows = (raw.json as { results?: unknown }).results;
-    if (!Array.isArray(rows)) return [];
-    return rows.map((row) => {
-      const entry = row as Record<string, unknown>;
-      return {
-        externalReference: String(entry.externalReference ?? ''),
-        windowDays: Number(entry.windowDays ?? 0),
-        accepted: entry.status === 'RECORDED' || entry.accepted === true,
-        reason: entry.reason === undefined || entry.reason === null ? null : String(entry.reason),
-      };
-    });
+    const url = `${this.transport.baseUrl()}/v1/outcomes/batch`;
+    const raw = await this.transport.call(url, env.DECISION_ENGINE_OUTCOME_API_KEY ?? '', { outcomes });
+    return parseFacilityOutcomes(raw.json);
   }
 
   /**
@@ -175,10 +152,10 @@ export class DecisionEngineClient {
     evidenceRef?: string | null;
   }): Promise<boolean> {
     if (!this.isConfigured) return false;
-    const url = `${this.baseUrl()}/v1/risk-governance/consents`;
+    const url = `${this.transport.baseUrl()}/v1/risk-governance/consents`;
     const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_OUTCOME_API_KEY ?? '';
     try {
-      await this.call(url, apiKey, {
+      await this.transport.call(url, apiKey, {
         subjectReference: input.subjectReference,
         purpose: input.purpose,
         basis: input.basis,
@@ -196,10 +173,10 @@ export class DecisionEngineClient {
   /** Revoca el permiso en el motor. Misma tolerancia a fallo, y por el mismo motivo. */
   async revokeConsent(input: { subjectReference: string; purpose: string }): Promise<boolean> {
     if (!this.isConfigured) return false;
-    const url = `${this.baseUrl()}/v1/risk-governance/consents/revoke`;
+    const url = `${this.transport.baseUrl()}/v1/risk-governance/consents/revoke`;
     const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_OUTCOME_API_KEY ?? '';
     try {
-      await this.call(url, apiKey, { subjectReference: input.subjectReference, purpose: input.purpose });
+      await this.transport.call(url, apiKey, { subjectReference: input.subjectReference, purpose: input.purpose });
       return true;
     } catch (error) {
       this.logger.warn(`No se pudo revocar el consentimiento en el motor: ${(error as Error).message}`);
@@ -219,7 +196,7 @@ export class DecisionEngineClient {
     { artifactCode?: string; code?: string; name?: string; artifactType?: string; latestVersion?: string; latestStatus?: string }[]
   > {
     if (!this.isConfigured) return [];
-    const url = `${this.baseUrl()}/v1/artifacts`;
+    const url = `${this.transport.baseUrl()}/v1/artifacts`;
     const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_API_KEY ?? '';
     const response = await fetch(url, { headers: { 'x-api-key': apiKey, 'x-tenant-id': '1' } });
     if (!response.ok) {
@@ -259,7 +236,7 @@ export class DecisionEngineClient {
     assignedTo: string | null;
   } | null> {
     if (!this.isConfigured) return null;
-    const url = `${this.baseUrl()}/v1/manual-reviews/${encodeURIComponent(caseCode)}`;
+    const url = `${this.transport.baseUrl()}/v1/manual-reviews/${encodeURIComponent(caseCode)}`;
     const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_API_KEY ?? '';
     try {
       const response = await fetch(url, { headers: { 'x-api-key': apiKey, 'x-tenant-id': '1' } });
@@ -280,63 +257,5 @@ export class DecisionEngineClient {
       this.logger.warn(`No se pudo leer el caso ${caseCode} del motor: ${(error as Error).message}`);
       return null;
     }
-  }
-
-  private baseUrl(): string {
-    const base = env.DECISION_ENGINE_BASE_URL;
-    if (!base) throw toAdapterError({ provider: PROVIDER, message: 'DECISION_ENGINE_BASE_URL no está configurada.' });
-    return base.replace(/\/+$/, '');
-  }
-
-  private async call(url: string, apiKey: string, body: Record<string, unknown>): Promise<RawResult> {
-    const result = await this.executor.run(
-      async () => {
-        const raw = await this.fetchOnce(url, apiKey, body);
-        if (raw.status === BUSINESS_REJECTION_STATUS) return raw;
-        if (!raw.ok) {
-          throw toAdapterError({
-            provider: PROVIDER,
-            httpStatus: raw.status,
-            message: `HTTP ${raw.status}`,
-            error: raw.json,
-          });
-        }
-        return raw;
-      },
-      {
-        provider: PROVIDER,
-        maxAttempts: env.DECISION_ENGINE_RETRIES + 1,
-        baseDelayMs: env.DECISION_ENGINE_RETRY_BASE_DELAY_MS,
-      },
-    );
-    return result;
-  }
-
-  private async fetchOnce(url: string, apiKey: string, body: Record<string, unknown>): Promise<RawResult> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), env.DECISION_ENGINE_TIMEOUT_MS);
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      return { status: response.status, ok: response.ok, json: await this.parseJson(response) };
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  private async parseJson(response: Response): Promise<Record<string, unknown>> {
-    const text = await response.text().catch(() => '');
-    if (!text) return {};
-    try {
-      const parsed: unknown = JSON.parse(text);
-      if (parsed && typeof parsed === 'object') return parsed as Record<string, unknown>;
-    } catch {
-      this.logger.warn(`El motor devolvió un cuerpo no-JSON (${response.status}).`);
-    }
-    return { text };
   }
 }

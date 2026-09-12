@@ -26,6 +26,8 @@ import { BankStatementEngineClient } from './bank-statement-engine.client.js';
 import { DecisionEngineClient } from './decision-engine.client.js';
 import { FeatureProjectionService } from './feature-projection.service.js';
 import { OutcomeDispatchService } from './outcome-dispatch.service.js';
+import { FacilityRegistrationService } from './facility-registration.service.js';
+import { EngineTransportService } from './engine-transport.service.js';
 import { RiskDecisionEngineService } from './risk-decision-engine.service.js';
 import { SubjectReferenceService } from './subject-reference.service.js';
 import { UnderwritingFeaturesService } from './underwriting-features.service.js';
@@ -78,12 +80,15 @@ import { UnderwritingCreditHistoryService } from './underwriting-credit-history.
     CreditDecisionEngineService,
     RiskDecisionEngineService,
     OutcomeDispatchService,
+    FacilityRegistrationService,
+    EngineTransportService,
   ],
   exports: [
     CreditDecisionEngineService,
     UnderwritingFeaturesService,
     RiskDecisionEngineService,
     OutcomeDispatchService,
+    FacilityRegistrationService,
     SubjectReferenceService,
     DecisionEngineClient,
     // El worker de extractos del motor. Se exporta porque quien lo usa es el trabajo de fondo de

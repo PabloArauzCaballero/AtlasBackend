@@ -9,7 +9,12 @@ import { buildScheduledJobs } from '../../../src/modules/runtime-jobs/scheduled-
 describe('buildScheduledJobs · cartera y desenlaces', () => {
   function build() {
     const debtRating = { sweep: jest.fn(async (..._args: unknown[]) => ({ customers: 2, rated: 2, failed: 0, failedCustomerIds: [] })) };
-    const outcomeDispatch = { dispatchPending: jest.fn(async (..._args: unknown[]) => ({ sent: 3, failed: 0, skipped: 0 })) };
+    const outcomeDispatch = {
+      dispatchPending: jest.fn(async (..._args: unknown[]) => ({ sent: 3, failed: 0, skipped: 0 })),
+      // El alta del crédito entra por la fachada del módulo, no por un servicio propio: así el
+      // catálogo de jobs no depende de cómo está repartido `decision-engine` por dentro.
+      registrarCreditosNuevos: jest.fn(async (..._args: unknown[]) => ({ registrados: 1, rechazados: 0 })),
+    };
     const jobs = buildScheduledJobs({
       runtimeJobs: {} as never,
       maintenance: {} as never,

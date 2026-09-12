@@ -52,32 +52,14 @@ describe('OutcomeDispatchService', () => {
       loans?: Record<string, unknown>[];
       fails?: boolean;
       rechazos?: Array<{ externalReference: string; windowDays: number; accepted: boolean; reason: string | null }>;
-      altasFallan?: boolean;
     } = {},
   ) {
     const rows = options.rows ?? [report()];
     const loans = options.loans ?? [loan()];
     const client = {
       canReportOutcomes: options.canReport ?? true,
-      /*
-       * El doble devuelve un veredicto POR FILA, como el motor: con una lista vacía —que es lo que
-       * este doble hacía antes— nada se da por registrado, y eso es el comportamiento correcto del
-       * servicio (no marcar lo que no se pudo confirmar), pero convierte la prueba en una que no
-       * mide lo que dice medir.
-       */
-      registerFacilities: jest.fn(async (...args: unknown[]) => {
-        if (options.altasFallan) throw new Error('ALTA_CAIDA');
-        // `reason: string | null` explícito: inferido queda como `null` y cualquier
-        // `mockImplementationOnce` que devuelva un motivo deja de compilar —lo detecta
-        // `type-check:tests`, no la suite, que pasa igual—.
-        return (args[0] as Array<{ externalReference: string }>).map(
-          (alta): { externalReference: string; accepted: boolean; reason: string | null } => ({
-            externalReference: alta.externalReference,
-            accepted: true,
-            reason: null,
-          }),
-        );
-      }),
+      // Se dobla para comprobar que este servicio NO lo llama: el alta es de otro trabajo.
+      registerFacilities: jest.fn(async (..._args: unknown[]) => []),
       recordFacilityOutcomes: jest.fn(async (...args: unknown[]) => {
         if (options.fails) throw new Error('ECONNREFUSED');
         if (options.rechazos) return options.rechazos;
@@ -96,7 +78,13 @@ describe('OutcomeDispatchService', () => {
       (prestamo as Record<string, unknown>).decisionFacilityRegisteredAt ??= null;
     }
     return {
-      service: new OutcomeDispatchService(client as never, reportModel as never, loanModel as never),
+      service: new OutcomeDispatchService(
+        client as never,
+        reportModel as never,
+        loanModel as never,
+        // El servicio de alta se dobla: desde aquí sólo se comprueba que el despacho NO lo usa.
+        { registrarCreditosNuevos: jest.fn() } as never,
+      ),
       client,
       rows,
     };
@@ -129,38 +117,14 @@ describe('OutcomeDispatchService', () => {
   });
 
   /*
-   * El alta va ANTES del desenlace y en la misma pasada: `/v1/outcomes/batch` exige que el crédito
-   * exista, así que un alta que falló al desembolsar dejaría sus desenlaces fuera para siempre.
+   * El despacho NO registra el crédito, y esa división es la que esta prueba fija.
+   *
+   * Dar de alta antes de cada envío sería un segundo camino para lo que ya hace el trabajo
+   * `register_engine_facilities`. Un desenlace cuyo crédito aún no está registrado se rechaza con
+   * `FACILITY_NOT_FOUND`, se queda en la cola y entra en el envío siguiente.
    */
-  it('registra el crédito antes de mandar su desenlace, con la tasa en tanto por uno', async () => {
+  it('no da de alta créditos: eso es de otro trabajo', async () => {
     const { service, client } = build();
-    await service.dispatchPending({ tenantId: '1', limit: 100 });
-
-    expect(client.registerFacilities).toHaveBeenCalled();
-    const [[altas]] = client.registerFacilities.mock.calls as unknown as [[Array<Record<string, unknown>>]];
-    expect(altas).toEqual([
-      {
-        externalReference: 'LOAN-0001',
-        originationExecutionId: '88001',
-        principalAmount: 1500,
-        currencyCode: 'BOB',
-        termMonths: 12,
-        annualRate: 0.28,
-        disbursedAt: '2026-02-01T00:00:00.000Z',
-      },
-    ]);
-    const ordenAlta = client.registerFacilities.mock.invocationCallOrder[0];
-    const ordenDesenlace = client.recordFacilityOutcomes.mock.invocationCallOrder[0];
-    expect(ordenAlta).toBeLessThan(ordenDesenlace);
-  });
-
-  /*
-   * Un crédito sin decisión de origen no se puede registrar —el motor toma el sujeto de ella y la
-   * referencia viaja en HMAC de una vía—, y eso NO debe impedir el intento del desenlace: el motor
-   * lo rechazará con su motivo, que es la respuesta honesta.
-   */
-  it('omite el alta del préstamo que no originó ninguna decisión, sin dejar de intentar el desenlace', async () => {
-    const { service, client } = build({ loans: [loan({ decisionExecutionId: null })] });
     await service.dispatchPending({ tenantId: '1', limit: 100 });
 
     expect(client.registerFacilities).not.toHaveBeenCalled();
@@ -204,127 +168,6 @@ describe('OutcomeDispatchService', () => {
     expect(client.recordFacilityOutcomes).not.toHaveBeenCalled();
   });
 
-  /*
-   * Que no se pueda reconfirmar el alta no puede frenar la entrega: puede que el crédito ya
-   * estuviera registrado de una pasada anterior, y renunciar dejaría la cobertura sin moverse por un
-   * problema que quizá no existe.
-   */
-  it('si el alta falla, sigue intentando entregar el desenlace', async () => {
-    const { service, client, rows } = build({ altasFallan: true });
-    const result = await service.dispatchPending({ tenantId: '1', limit: 100 });
-
-    expect(client.recordFacilityOutcomes).toHaveBeenCalled();
-    expect(result.sent).toBe(1);
-    expect(rows[0].status).toBe('sent');
-  });
-
-  it('NO marca nada como enviado si la llamada falla: reencola con el error', async () => {
-    const { service, rows } = build({ fails: true });
-    const result = await service.dispatchPending({ tenantId: '1', limit: 100 });
-
-    expect(result).toEqual({ sent: 0, failed: 1, skipped: 0 });
-    expect(rows[0].status).toBe('failed');
-    expect(rows[0].sentAt).toBeNull();
-    expect(rows[0].attempts).toBe(1);
-    expect(rows[0].lastError).toContain('ECONNREFUSED');
-  });
-
-  it('no intenta nada sin la credencial del plano de gestión, y explica por qué', async () => {
-    const { service, client } = build({ canReport: false });
-    const result = await service.dispatchPending({ tenantId: '1', limit: 100 });
-
-    expect(result.reason).toBe('DECISION_ENGINE_OUTCOME_KEY_NOT_CONFIGURED');
-    expect(client.recordFacilityOutcomes).not.toHaveBeenCalled();
-  });
-
-  it('con la cola vacía no llama al motor', async () => {
-    const { service, client } = build({ rows: [] });
-    const result = await service.dispatchPending({ tenantId: '1', limit: 100 });
-
-    expect(result).toEqual({ sent: 0, failed: 0, skipped: 0 });
-    expect(client.recordFacilityOutcomes).not.toHaveBeenCalled();
-  });
-
-  it('deja pasar un importe ausente en vez de mandarlo como cero', async () => {
-    // Cero es un importe; «no se midió» no lo es. Colapsarlos falsearía la pérdida observada.
-    const { service, client } = build({ rows: [report({ amount: null })] });
-    await service.dispatchPending({ tenantId: '1', limit: 100 });
-
-    const [[outcomes]] = client.recordFacilityOutcomes.mock.calls as unknown as [[Array<{ amount?: number }>]];
-    expect(outcomes[0].amount).toBeUndefined();
-  });
-
-  /*
-   * El ALTA de los créditos concedidos, que es lo que permite atribuirles un desenlace.
-   *
-   * Va en su propia pasada y no dentro del despacho: registrar sólo los créditos que ya tienen
-   * desenlace pendiente dejaría fuera a los recién desembolsados, que son justamente la población de
-   * una cosecha joven. Una matriz de cosechas que sólo contiene lo que alguien ya reportó no mide una
-   * cartera.
-   */
-  describe('registrarCreditosNuevos', () => {
-    it('registra los créditos pendientes y los marca, con la tasa en tanto por uno', async () => {
-      const { service, client } = build();
-      const resultado = await service.registrarCreditosNuevos({ tenantId: '1', limit: 50 });
-
-      expect(resultado).toEqual({ registrados: 1, rechazados: 0 });
-      const [[altas]] = client.registerFacilities.mock.calls as unknown as [[Array<Record<string, unknown>>]];
-      expect(altas[0]).toMatchObject({
-        externalReference: 'LOAN-0001',
-        originationExecutionId: '88001',
-        principalAmount: 1500,
-        annualRate: 0.28,
-      });
-    });
-
-    /*
-     * Un crédito que el motor RECHAZA no se marca: se queda en la cola. Marcarlo lo esconderría, y
-     * lo que hace falta es que se VEA que hay créditos que el motor nunca podrá medir —un
-     * `EXECUTION_WITHOUT_SUBJECT` no se arregla reintentando—.
-     */
-    it('no marca el crédito que el motor rechaza: sigue visible en la cola', async () => {
-      const { service, client, rows } = build();
-      void rows;
-      client.registerFacilities.mockImplementationOnce(async () => [
-        { externalReference: 'LOAN-0001', accepted: false, reason: 'EXECUTION_WITHOUT_SUBJECT' },
-      ]);
-
-      const resultado = await service.registrarCreditosNuevos({ tenantId: '1', limit: 50 });
-
-      expect(resultado).toEqual({ registrados: 0, rechazados: 1 });
-    });
-
-    /*
-     * Si la llamada falla no se marca NADA: el motor pudo no recibir el lote, y marcar un crédito que
-     * no está registrado lo saca de la cola para siempre — sus desenlaces se rechazarían después con
-     * `FACILITY_NOT_FOUND` y nadie sabría por qué.
-     */
-    it('un fallo de red no marca ningún crédito', async () => {
-      const { service, client } = build();
-      client.registerFacilities.mockImplementationOnce(() => Promise.reject(new Error('ECONNREFUSED')));
-
-      const resultado = await service.registrarCreditosNuevos({ tenantId: '1', limit: 50 });
-
-      expect(resultado).toEqual({ registrados: 0, rechazados: 1 });
-    });
-
-    it('sin credencial del plano de gestión no intenta nada, y lo explica', async () => {
-      const { service, client } = build({ canReport: false });
-      const resultado = await service.registrarCreditosNuevos({ tenantId: '1', limit: 50 });
-
-      expect(resultado.reason).toBe('DECISION_ENGINE_OUTCOME_KEY_NOT_CONFIGURED');
-      expect(client.registerFacilities).not.toHaveBeenCalled();
-    });
-
-    it('con la cola vacía no llama al motor', async () => {
-      const { service, client } = build({ loans: [] });
-      const resultado = await service.registrarCreditosNuevos({ tenantId: '1', limit: 50 });
-
-      expect(resultado).toEqual({ registrados: 0, rechazados: 0 });
-      expect(client.registerFacilities).not.toHaveBeenCalled();
-    });
-  });
-
   it('lista los desenlaces que agotaron los reintentos', async () => {
     const { service } = build({ rows: [report({ status: 'failed', attempts: 6, lastError: 'HTTP 500' })] });
     const result = await service.listExhausted('1', 50);
@@ -355,7 +198,12 @@ describe('OutcomeDispatchService', () => {
     };
     const client = { canReportOutcomes: true, registerFacilities: jest.fn(), recordFacilityOutcomes: jest.fn() };
     const loanModel = { findAll: jest.fn(async (..._args: unknown[]) => []) };
-    const service = new OutcomeDispatchService(client as never, reportModel as never, loanModel as never);
+    const service = new OutcomeDispatchService(
+      client as never,
+      reportModel as never,
+      loanModel as never,
+      { registrarCreditosNuevos: jest.fn() } as never,
+    );
 
     const result = await service.summarize('1');
 

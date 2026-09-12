@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { DecisionEngineClient } from '../../../src/modules/decision-engine/decision-engine.client.js';
+import { EngineTransportService } from '../../../src/modules/decision-engine/engine-transport.service.js';
 import { env } from '../../../src/config/env.js';
 
 /**
@@ -73,7 +74,15 @@ describe('DecisionEngineClient', () => {
     mutable.DECISION_ENGINE_GOVERNANCE_API_KEY = original.governance;
   });
 
-  const cliente = () => new DecisionEngineClient(ejecutorDirecto as never);
+  /*
+   * El transporte se construye DE VERDAD, no se dobla.
+   *
+   * Lo que estas pruebas miden es el contrato con el motor —qué llave usa cada llamada, qué URL, y
+   * que un 422 vuelve como respuesta y no como fallo—, y esa última regla vive en el transporte.
+   * Doblarlo dejaría las pruebas verdes sin comprobar nada de eso. El ejecutor sí se dobla, porque
+   * lo que aporta es reintento y circuito, que estas pruebas no ejercitan.
+   */
+  const cliente = () => new DecisionEngineClient(new EngineTransportService(ejecutorDirecto as never));
 
   describe('estar configurado o no', () => {
     it('distingue «no hay integración» de «el motor falla»', () => {

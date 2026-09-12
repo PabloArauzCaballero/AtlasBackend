@@ -8,7 +8,8 @@ import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
 import { LoanModel, LoanOutcomeReportModel } from '../../database/models/index.js';
 import { DecisionEngineClient } from './decision-engine.client.js';
-import { FacilityOutcomeInput, FacilityRegistrationInput } from './decision-engine.types.js';
+import { FacilityRegistrationService } from './facility-registration.service.js';
+import { FacilityOutcomeInput } from './decision-engine.types.js';
 
 /** Tras varios intentos fallidos se deja de reintentar solo y se pide mirada humana. */
 const MAX_ATTEMPTS = 6;
@@ -21,7 +22,16 @@ export class OutcomeDispatchService {
     private readonly client: DecisionEngineClient,
     @InjectModel(LoanOutcomeReportModel) private readonly reportModel: typeof LoanOutcomeReportModel,
     @InjectModel(LoanModel) private readonly loanModel: typeof LoanModel,
+    private readonly facilities: FacilityRegistrationService,
   ) {}
+
+  /**
+   * Fachada para la capa de trabajos: el catálogo de jobs no tiene que conocer cómo está repartido
+   * este módulo por dentro, y así no se añade otra arista `runtime-jobs → decision-engine`.
+   */
+  registrarCreditosNuevos(input: { tenantId: string | null; limit: number }) {
+    return this.facilities.registrarCreditosNuevos(input);
+  }
 
   /**
    * Entrega al motor los desenlaces pendientes.
@@ -86,17 +96,15 @@ export class OutcomeDispatchService {
 
     try {
       /*
-       * El ALTA del crédito va antes del desenlace, y en la misma pasada.
+       * Aquí NO se registra el crédito, y esa división es deliberada.
        *
-       * `/v1/outcomes/batch` exige que el crédito exista en el motor: sin eso rechaza la fila con
-       * `FACILITY_NOT_FOUND`. El alta ocurre al desembolsar, pero puede haber fallado —el motor
-       * caído, o un préstamo anterior a la integración—, y entonces sus desenlaces no entrarían
-       * nunca y su ventana no se cerraría jamás. Reintentarla aquí es barato porque es idempotente
-       * en el motor (`upsert` por referencia, sin reasignar el sujeto), y convierte este barrido en
-       * la red que recupera lo que el desembolso no pudo dejar registrado.
+       * `/v1/outcomes/batch` exige que el crédito exista en el motor, así que la tentación es darlo
+       * de alta antes de cada envío. Pero eso son dos caminos para lo mismo: el trabajo
+       * `register_engine_facilities` ya recorre los créditos sin marca de alta cada intervalo. Un
+       * desenlace cuyo crédito todavía no está registrado se rechaza con `FACILITY_NOT_FOUND`,
+       * se queda en la cola y entra en el envío siguiente — y si su alta no es posible nunca
+       * (una decisión sin sujeto), acaba en `listExhausted`, que es la cola que una persona sí mira.
        */
-      await this.registrarCreditos(enviables, codigoPorPrestamo, loans);
-
       const resultados = await this.client.recordFacilityOutcomes(outcomes);
       const rechazos = new Map(
         resultados.filter((row) => !row.accepted).map((row) => [`${row.externalReference}#${row.windowDays}`, row.reason]),
@@ -173,150 +181,6 @@ export class OutcomeDispatchService {
       await report.save();
     }
     return { enviados, rechazadas };
-  }
-
-  /**
-   * Da de alta en el motor los créditos de este lote que aún no lo estén.
-   *
-   * No se pregunta primero si están: el alta es un `upsert` idempotente y preguntar costaría una
-   * llamada por préstamo para ahorrar una que ya es barata. Los préstamos sin `decisionExecutionId`
-   * se omiten —el motor toma el sujeto de esa decisión y no se puede añadir después—, y sus
-   * desenlaces serán rechazados con su motivo, que es la respuesta honesta: ese crédito no se puede
-   * atribuir a nadie.
-   *
-   * Un fallo aquí NO detiene el envío: el motor puede tener ya registrados los créditos de una
-   * pasada anterior, y renunciar a entregar los desenlaces por no haber podido reconfirmar el alta
-   * dejaría la cobertura sin moverse por un problema que quizá no existe.
-   */
-  private async registrarCreditos(
-    reports: readonly LoanOutcomeReportModel[],
-    codigoPorPrestamo: Map<string, string>,
-    loans: readonly LoanModel[],
-  ): Promise<void> {
-    const porId = new Map(loans.map((loan) => [String(loan.id), loan]));
-    const vistos = new Set<string>();
-    const altas: FacilityRegistrationInput[] = [];
-    for (const report of reports) {
-      const loan = porId.get(String(report.loanId));
-      const codigo = codigoPorPrestamo.get(String(report.loanId));
-      if (!loan || !codigo || vistos.has(codigo)) continue;
-      if (!loan.decisionExecutionId) continue;
-      vistos.add(codigo);
-      altas.push({
-        externalReference: codigo,
-        originationExecutionId: loan.decisionExecutionId,
-        principalAmount: Number(loan.principalAmount),
-        currencyCode: loan.currencyCode,
-        termMonths: loan.termMonths,
-        annualRate: Number(loan.annualInterestRate),
-        ...(loan.disbursedAt ? { disbursedAt: loan.disbursedAt.toISOString() } : {}),
-      });
-    }
-    if (altas.length === 0) return;
-    try {
-      const veredictos = await this.client.registerFacilities(altas);
-      const rechazados = veredictos.filter((row) => !row.accepted);
-      if (rechazados.length > 0) {
-        this.logger.warn(
-          `El motor no aceptó el alta de ${rechazados.length} créditos: ` +
-            rechazados.map((row) => `${row.externalReference} (${row.reason ?? 'sin motivo'})`).join(', '),
-        );
-      }
-    } catch (error) {
-      this.logger.warn(
-        `No se pudo reconfirmar el alta de ${altas.length} créditos en el motor: ${(error as Error).message}. ` +
-          'Se intenta entregar los desenlaces igualmente: puede que ya estuvieran registrados.',
-      );
-    }
-  }
-
-  /**
-   * Da de alta en el motor los créditos concedidos que todavía no lo están.
-   *
-   * ## Por qué es una pasada propia y no parte del desembolso
-   *
-   * El libro de préstamos no tiene permitido depender de este módulo
-   * (`config/architecture/boundaries.json`: `loans` sólo puede apoyarse en `credit`), y con razón —
-   * el libro no debería necesitar al motor para poder desembolsar—. Así que el alta la hace quien
-   * conoce el contrato del motor, que es este servicio.
-   *
-   * Se pierde inmediatez y NO se pierde exactitud: el motor fecha las ventanas de observación desde
-   * la DECISIÓN y no desde el alta, así que registrar un rato más tarde no corre ninguna ventana.
-   *
-   * ## Por qué no espera a que haya desenlaces
-   *
-   * Porque entonces un crédito recién desembolsado —que todavía no tiene desenlace— no estaría en el
-   * motor, y ésa es exactamente la población que una cosecha JOVEN necesita para existir. Una matriz
-   * de cosechas que sólo contiene créditos con desenlace ya cargado no mide una cartera: mide la
-   * parte de la cartera que alguien ya reportó.
-   *
-   * ## La marca
-   *
-   * `decision_facility_registered_at` hace la pasada incremental. Sin ella habría que reenviar la
-   * cartera entera en cada barrido —idempotente pero creciendo para siempre— y la pregunta «¿qué
-   * créditos no puede medir el motor?» no tendría respuesta en una consulta.
-   *
-   * Un crédito que el motor RECHAZA no se marca: quedará en la cola. Es correcto — un rechazo por
-   * `EXECUTION_WITHOUT_SUBJECT` no se arregla reintentando, pero marcarlo lo escondería, y lo que
-   * hace falta es que se vea que hay créditos que el motor nunca podrá medir.
-   */
-  async registrarCreditosNuevos(input: { tenantId: string | null; limit: number }) {
-    if (!this.client.canReportOutcomes) {
-      return { registrados: 0, rechazados: 0, reason: 'DECISION_ENGINE_OUTCOME_KEY_NOT_CONFIGURED' as const };
-    }
-
-    const pendientes = await this.loanModel.findAll({
-      where: {
-        decisionFacilityRegisteredAt: null,
-        decisionExecutionId: { [Op.ne]: null },
-        disbursedAt: { [Op.ne]: null },
-        ...(input.tenantId ? { tenantId: input.tenantId } : {}),
-      },
-      order: [['disbursedAt', 'ASC']],
-      limit: input.limit,
-    } as FindOptions);
-    if (pendientes.length === 0) return { registrados: 0, rechazados: 0 };
-
-    const altas: FacilityRegistrationInput[] = pendientes.map((loan) => ({
-      externalReference: loan.loanCode,
-      originationExecutionId: loan.decisionExecutionId as string,
-      principalAmount: Number(loan.principalAmount),
-      currencyCode: loan.currencyCode,
-      termMonths: loan.termMonths,
-      // Tanto por uno, no porcentaje: el libro ya guarda la tasa anual así, y mandar 28 en vez de
-      // 0,28 pasaría la validación del motor y multiplicaría por cien lo que se calcule con ella.
-      annualRate: Number(loan.annualInterestRate),
-      ...(loan.disbursedAt ? { disbursedAt: loan.disbursedAt.toISOString() } : {}),
-    }));
-
-    try {
-      const veredictos = await this.client.registerFacilities(altas);
-      const aceptados = new Set(veredictos.filter((row) => row.accepted).map((row) => row.externalReference));
-      const now = new Date();
-      let registrados = 0;
-      for (const loan of pendientes) {
-        if (!aceptados.has(loan.loanCode)) continue;
-        loan.decisionFacilityRegisteredAt = now;
-        await loan.save();
-        registrados += 1;
-      }
-      const rechazos = veredictos.filter((row) => !row.accepted);
-      if (rechazos.length > 0) {
-        this.logger.warn(
-          `El motor no aceptó ${rechazos.length} créditos: ` +
-            rechazos.map((row) => `${row.externalReference} (${row.reason ?? 'sin motivo'})`).join(', '),
-        );
-      }
-      return { registrados, rechazados: rechazos.length };
-    } catch (error) {
-      /*
-       * No se marca NADA si la llamada falla: el motor pudo no recibir el lote, y marcar un crédito
-       * como registrado sin que lo esté lo saca de la cola para siempre — sus desenlaces se
-       * rechazarían después con `FACILITY_NOT_FOUND` y nadie sabría por qué.
-       */
-      this.logger.error(`No se pudo registrar el lote de ${altas.length} créditos: ${(error as Error).message}`);
-      return { registrados: 0, rechazados: altas.length };
-    }
   }
 
   /**
