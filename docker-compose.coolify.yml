@@ -84,11 +84,21 @@ x-common: &common
 # `api` y `worker` sólo referencian el tag. Compose construye el de `migrate` y ellos reutilizan
 # la imagen ya construida — que además es lo correcto: dos builds del mismo Dockerfile son dos
 # oportunidades de divergir.
+#
+# `pull_policy: build` en los DOS anclas: Coolify 4.3.19 añadió una fase previa al corte
+# («Pulling image-based services before stopping the current deployment») que ejecuta
+# `docker compose pull` sobre todos los servicios. `atlas-backend:coolify` es un tag LOCAL que se
+# construye aquí mismo, así que ese pull terminaba en `pull access denied for atlas-backend,
+# repository does not exist` y abortaba el despliegue entero —con la imagen ya construida y el
+# contenedor anterior intacto—. Con esta política, compose sabe que esa imagen se obtiene del
+# `build` y no del registro; las imágenes de verdad externas (redis, minio) se siguen bajando.
 x-image: &image
   image: atlas-backend:coolify
+  pull_policy: build
 
 x-build: &build
   image: atlas-backend:coolify
+  pull_policy: build
   build:
     context: .
     dockerfile: Dockerfile.dev
