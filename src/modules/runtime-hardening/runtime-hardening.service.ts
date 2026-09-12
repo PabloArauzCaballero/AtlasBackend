@@ -3,42 +3,86 @@
  * @business Esta pieza evita duplicados y pérdida de efectos ante reintentos, concurrencia o fallos parciales.
  * @system centraliza idempotencia y outbox como garantías transversales del runtime HTTP.
  */
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, UniqueConstraintError } from 'sequelize';
+import { env } from '../../config/env.js';
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
-import { redactSensitiveObject, stableStringify } from '../../common/utils/privacy/redaction.util.js';
+import { redactSensitiveObject } from '../../common/utils/privacy/redaction.util.js';
 import { IdempotencyKeyModel, OutboxEventModel } from '../../database/models/index.js';
+import {
+  fingerprintMatches,
+  fingerprintRequest,
+  operationPolicy,
+  sameActor,
+  type OperationPolicy,
+  type RequestShape,
+} from './application/idempotency-policy.js';
+import {
+  IdempotencyClaimStore,
+  LEASE_DURATION_MS,
+  newOwnerToken,
+  type IdempotencyLease,
+} from './infrastructure/idempotency-claim.store.js';
 
 export type IdempotencyLookupResult =
-  { mode: 'execute'; record: IdempotencyKeyModel } | { mode: 'replay'; responseBody: unknown; responseStatus: number | null };
+  | { mode: 'execute'; lease: IdempotencyLease; policy: OperationPolicy }
+  | { mode: 'replay'; responseBody: unknown; responseStatus: number | null };
+
+/**
+ * Secreto de la huella semántica (AT-010). Si no hay uno propio se deriva del de firma de tokens,
+ * de modo que un despliegue existente no necesita configurar nada nuevo para seguir funcionando;
+ * un secreto dedicado permite rotar la huella sin rotar los tokens.
+ */
+function fingerprintSecret(): string {
+  const dedicated = env.IDEMPOTENCY_FINGERPRINT_SECRET;
+  if (dedicated) return dedicated;
+  return sha256Hex(`atlas-idempotency-fingerprint:${env.JWT_ACCESS_TOKEN_SECRET}`);
+}
 
 @Injectable()
 export class RuntimeHardeningService {
+  private readonly logger = new Logger(RuntimeHardeningService.name);
+  private readonly secret = fingerprintSecret();
+
   constructor(
     @InjectModel(IdempotencyKeyModel) private readonly idempotencyModel: typeof IdempotencyKeyModel,
     @InjectModel(OutboxEventModel) private readonly outboxModel: typeof OutboxEventModel,
+    private readonly claims: IdempotencyClaimStore,
   ) {}
 
+  /** Huella versionada de la petición. Igualdad semántica, no igualdad tras redactar. */
   requestHash(body: unknown, query: unknown, params: unknown): string {
-    return sha256Hex(stableStringify({ body: redactSensitiveObject(body), query, params }));
+    return fingerprintRequest({ body, query, params }, this.secret);
   }
 
-  private async claimExisting(existing: IdempotencyKeyModel, input: { requestHash: string; now: Date }): Promise<IdempotencyLookupResult> {
-    if (existing.requestHash !== input.requestHash) {
+  private async claimExisting(
+    existing: IdempotencyKeyModel,
+    input: { request: RequestShape; actorId: string | null; scope: string; now: Date },
+  ): Promise<IdempotencyLookupResult> {
+    if (!fingerprintMatches(existing.requestHash, input.request, this.secret)) {
       throw new ConflictException('IDEMPOTENCY_CONFLICT');
     }
+    // La colisión de OTRA persona bajo la misma clave nunca devuelve la respuesta ajena.
+    if (!sameActor(existing.actorId, input.actorId)) {
+      throw new ConflictException('IDEMPOTENCY_CONFLICT');
+    }
+    const policy = operationPolicy(input.scope);
     if (existing.status === 'completed') {
+      if (!policy.storeResponse || existing.responseBodyJson === null) {
+        // Credenciales/OTP: el resultado no se guardó a propósito; hay que volver a pedirlo.
+        throw new ConflictException('IDEMPOTENCY_REPLAY_NOT_AVAILABLE');
+      }
       return { mode: 'replay', responseBody: existing.responseBodyJson, responseStatus: existing.responseStatus };
     }
     if (existing.status === 'processing' && existing.lockedUntil && existing.lockedUntil > input.now) {
       throw new ConflictException('IDEMPOTENCY_REQUEST_IN_PROGRESS');
     }
-    existing.status = 'processing';
-    existing.lockedUntil = new Date(input.now.getTime() + 5 * 60_000);
-    existing.updatedAtValue = input.now;
-    await existing.save();
-    return { mode: 'execute', record: existing };
+    // Lease vencido o intento fallido: reclamo ATÓMICO. Si otro proceso lo recuperó un instante
+    // antes, para este llamador la clave está en curso; no hay dos dueños.
+    const lease = await this.claims.reclaimExpired(existing, input.now);
+    if (!lease) throw new ConflictException('IDEMPOTENCY_REQUEST_IN_PROGRESS');
+    return { mode: 'execute', lease, policy };
   }
 
   async claimIdempotency(input: {
@@ -47,7 +91,7 @@ export class RuntimeHardeningService {
     actorId: string | null;
     idempotencyKey: string;
     scope: string;
-    requestHash: string;
+    request: RequestShape;
     now: Date;
   }): Promise<IdempotencyLookupResult> {
     const where = { tenantScope: input.tenantScope, scope: input.scope, idempotencyKey: input.idempotencyKey };
@@ -57,6 +101,7 @@ export class RuntimeHardeningService {
       return this.claimExisting(existing, input);
     }
 
+    const ownerToken = newOwnerToken();
     try {
       const record = await this.idempotencyModel.create({
         tenantScope: input.tenantScope,
@@ -64,16 +109,17 @@ export class RuntimeHardeningService {
         actorId: input.actorId,
         idempotencyKey: input.idempotencyKey,
         scope: input.scope,
-        requestHash: input.requestHash,
+        requestHash: fingerprintRequest(input.request, this.secret),
         status: 'processing',
         responseStatus: null,
         responseBodyJson: null,
-        lockedUntil: new Date(input.now.getTime() + 5 * 60_000),
+        lockedUntil: new Date(input.now.getTime() + LEASE_DURATION_MS),
+        ownerToken,
         completedAt: null,
         createdAtValue: input.now,
         updatedAtValue: input.now,
       });
-      return { mode: 'execute', record };
+      return { mode: 'execute', lease: { record, ownerToken }, policy: operationPolicy(input.scope) };
     } catch (error) {
       // Carrera: dos requests con la misma idempotencyKey pasaron el `findOne` de arriba antes
       // de que cualquiera commiteara su `create`. El índice único (`ux_idempotency_scope_key`)
@@ -86,23 +132,25 @@ export class RuntimeHardeningService {
     }
   }
 
-  async completeIdempotency(record: IdempotencyKeyModel, responseStatus: number, responseBody: unknown): Promise<void> {
+  /**
+   * Cierra la concesión con el resultado. Si el testigo ya no es el vigente (otro proceso recuperó el
+   * lease mientras este ejecutaba), el resultado de ESTE proceso no se guarda: quien llamó recibe su
+   * respuesta —la mutación ocurrió— pero el registro sigue perteneciendo al dueño actual. Se deja
+   * rastro porque es la señal de un handler que tardó más que el lease (AT-009).
+   */
+  async completeIdempotency(lease: IdempotencyLease, responseStatus: number, responseBody: unknown): Promise<void> {
     const now = new Date();
-    record.status = 'completed';
-    record.responseStatus = responseStatus;
-    record.responseBodyJson = redactSensitiveObject(responseBody) as Record<string, unknown>;
-    record.lockedUntil = null;
-    record.completedAt = now;
-    record.updatedAtValue = now;
-    await record.save();
+    const policy = operationPolicy(lease.record.scope);
+    const responseBodyJson = policy.storeResponse ? (redactSensitiveObject(responseBody) as Record<string, unknown>) : null;
+    const owned = await this.claims.complete(lease, { responseStatus, responseBodyJson, now });
+    if (!owned)
+      this.logger.warn(`IDEMPOTENCY_LEASE_LOST scope=${lease.record.scope} id=${lease.record.id}: otro proceso recuperó la clave.`);
   }
 
-  async failIdempotency(record: IdempotencyKeyModel): Promise<void> {
-    const now = new Date();
-    record.status = 'failed';
-    record.lockedUntil = null;
-    record.updatedAtValue = now;
-    await record.save();
+  async failIdempotency(lease: IdempotencyLease): Promise<void> {
+    const owned = await this.claims.fail(lease, new Date());
+    if (!owned)
+      this.logger.warn(`IDEMPOTENCY_LEASE_LOST scope=${lease.record.scope} id=${lease.record.id}: fallo de un dueño anterior, ignorado.`);
   }
 
   async emitApiCommandCompleted(input: {

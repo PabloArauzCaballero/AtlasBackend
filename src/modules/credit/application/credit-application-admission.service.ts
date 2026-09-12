@@ -12,6 +12,7 @@ import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { createStableCode, sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { CustomerEligibilityRepository } from '../../customers/repositories/customer-eligibility.repository.js';
+import type { RecordedEligibility } from '../../customers/application/customer-eligibility.service.js';
 import { PartnerDirectoryService } from '../../partner-onboarding/application/partner-directory.service.js';
 import { PartnerProfileService } from '../../partner-onboarding/application/partner-profile.service.js';
 import { evaluateProductEligibility } from './credit-product-eligibility.js';
@@ -39,6 +40,25 @@ import { CreditRepository } from '../credit.repository.js';
  * admitirla y de qué comercio viene. Juntos pasaban del límite de `check:file-size`.
  */
 import { assertProductIsOfferable, toSubmissionResponse } from './credit-application.shared.js';
+/**
+ * Resultado de las puertas de admisión. Una denegación de negocio es un RESULTADO, no una excepción:
+ * así la transacción que escribió la evidencia puede confirmarse, y sólo los fallos técnicos (una
+ * escritura que falla, una restricción violada) siguen provocando rollback.
+ */
+export type AdmissionOutcome =
+  | { admitted: false; evaluation: RecordedEligibility }
+  | {
+      admitted: true;
+      product: NonNullable<Awaited<ReturnType<CreditRepository['findProductById']>>>;
+      evaluation: RecordedEligibility;
+      partnerProfileId: string | null;
+      posTerminalId: string | null;
+    };
+
+/** Lo que sale del callback transaccional: la denegación confirmada o la solicitud escrita. */
+type PersistOutcome =
+  { admitted: false; evaluation: RecordedEligibility } | { admitted: true; response: ReturnType<typeof toSubmissionResponse> };
+
 @Injectable()
 export class CreditApplicationAdmissionService {
   constructor(
@@ -60,66 +80,16 @@ export class CreditApplicationAdmissionService {
   }) {
     const now = new Date();
 
+    let outcome: PersistOutcome;
     try {
-      return await this.sequelize.transaction(async (transaction) => {
+      outcome = await this.sequelize.transaction(async (transaction) => {
         const admission = await this.admitApplication(input, now, transaction);
-        const { product, evaluation, latestEvaluation, partnerProfileId, posTerminalId } = admission;
-
-        const application = await this.creditRepository.createApplication(
-          {
-            tenantId: input.tenantId,
-            applicationCode: createStableCode('CRA'),
-            customerId: input.customerId,
-            creditProductId: String(product.id),
-            partnerProfileId,
-            posTerminalId,
-            requestedAmount: input.body.requestedAmount.toFixed(2),
-            requestedTermMonths: input.body.requestedTermMonths,
-            currencyCode: product.currencyCode,
-            purposeCode: input.body.purposeCode ?? null,
-            status: product.requiresManualReview ? 'under_review' : 'submitted',
-            eligibilityEvaluationId: latestEvaluation ? String(latestEvaluation.id) : null,
-            eligibilitySnapshotJson: {
-              ruleVersion: evaluation.ruleVersion,
-              evaluatedAt: evaluation.evaluatedAt,
-              lifecycleStatus: evaluation.lifecycleStatus,
-              eligible: evaluation.eligible,
-            },
-            riskAssessmentRunId: null,
-            decisionReasonCode: null,
-            decidedAt: null,
-            decidedByInternalUserId: null,
-            idempotencyKeyHash: sha256Hex(input.idempotencyKey),
-            submittedAt: now,
-            createdAtValue: now,
-            updatedAtValue: now,
-            deleted: false,
-          },
-          { transaction },
-        );
-
-        await this.creditRepository.createApplicationEvent(
-          {
-            tenantId: input.tenantId,
-            creditApplicationId: String(application.id),
-            eventType: 'submitted',
-            previousStatus: null,
-            newStatus: application.status,
-            actorType: input.currentUser.role,
-            actorInternalUserId: input.currentUser.internalUserId ?? null,
-            reasonCode: 'credit_application_submitted',
-            payloadJson: {
-              productCode: product.productCode,
-              requestedTermMonths: input.body.requestedTermMonths,
-              eligibilityEvaluationId: latestEvaluation ? String(latestEvaluation.id) : null,
-            },
-            notes: null,
-            happenedAt: now,
-          },
-          { transaction },
-        );
-
-        return toSubmissionResponse(application, product.productCode, input);
+        // Denegación prevista: se CONFIRMA la evidencia (la evaluación ya está escrita en esta
+        // transacción) y no se crea solicitud. Lanzar aquí revertía esa evidencia —el comentario
+        // que había decía «ya se escribió» y el rollback del callback gestionado lo desmentía— y
+        // dejaba sin rastro al cliente que insiste sin cumplir (AT-008).
+        if (!admission.admitted) return admission;
+        return this.persistAdmitted(input, now, transaction, admission);
       });
     } catch (error) {
       // El índice único parcial es la garantía real contra dos solicitudes vivas simultáneas: el
@@ -128,6 +98,88 @@ export class CreditApplicationAdmissionService {
       if (error instanceof UniqueConstraintError) throw new ConflictException('CREDIT_APPLICATION_ALREADY_OPEN');
       throw error;
     }
+
+    if (!outcome.admitted) {
+      throw new UnprocessableEntityException(
+        `CUSTOMER_NOT_ELIGIBLE: ${outcome.evaluation.blockers.map((blocker) => blocker.code).join(', ')}`,
+      );
+    }
+    return outcome.response;
+  }
+
+  /**
+   * Escribe la solicitud admitida y su evento. Sólo se llama con una admisión ya decidida y dentro
+   * de la transacción que escribió la evaluación: `eligibilityEvaluationId` es la fila EXACTA que
+   * autorizó esta solicitud, no «la última» leída después (AT-006).
+   */
+  private async persistAdmitted(
+    input: {
+      tenantId: string;
+      customerId: string;
+      body: CreateCreditApplicationDto;
+      currentUser: AuthenticatedUser;
+      idempotencyKey: string;
+    },
+    now: Date,
+    transaction: Transaction,
+    admission: Extract<AdmissionOutcome, { admitted: true }>,
+  ): Promise<Extract<PersistOutcome, { admitted: true }>> {
+    const { product, evaluation, partnerProfileId, posTerminalId } = admission;
+    const application = await this.creditRepository.createApplication(
+      {
+        tenantId: input.tenantId,
+        applicationCode: createStableCode('CRA'),
+        customerId: input.customerId,
+        creditProductId: String(product.id),
+        partnerProfileId,
+        posTerminalId,
+        requestedAmount: input.body.requestedAmount.toFixed(2),
+        requestedTermMonths: input.body.requestedTermMonths,
+        currencyCode: product.currencyCode,
+        purposeCode: input.body.purposeCode ?? null,
+        status: product.requiresManualReview ? 'under_review' : 'submitted',
+        eligibilityEvaluationId: evaluation.evaluationId,
+        eligibilitySnapshotJson: {
+          ruleVersion: evaluation.ruleVersion,
+          evaluatedAt: evaluation.evaluatedAt,
+          lifecycleStatus: evaluation.lifecycleStatus,
+          eligible: evaluation.eligible,
+        },
+        riskAssessmentRunId: null,
+        decisionReasonCode: null,
+        decidedAt: null,
+        decidedByInternalUserId: null,
+        idempotencyKeyHash: sha256Hex(input.idempotencyKey),
+        submittedAt: now,
+        createdAtValue: now,
+        updatedAtValue: now,
+        deleted: false,
+      },
+      { transaction },
+    );
+
+    await this.creditRepository.createApplicationEvent(
+      {
+        tenantId: input.tenantId,
+        creditApplicationId: String(application.id),
+        eventType: 'submitted',
+        previousStatus: null,
+        newStatus: application.status,
+        actorType: input.currentUser.role,
+        actorInternalUserId: input.currentUser.internalUserId ?? null,
+        reasonCode: 'credit_application_submitted',
+        payloadJson: {
+          productCode: product.productCode,
+          requestedTermMonths: input.body.requestedTermMonths,
+          eligibilityEvaluationId: evaluation.evaluationId,
+        },
+        notes: null,
+        happenedAt: now,
+      },
+      { transaction },
+    );
+
+    return { admitted: true, response: toSubmissionResponse(application, product.productCode, input) };
   }
 
   /**
@@ -142,16 +194,28 @@ export class CreditApplicationAdmissionService {
     input: { tenantId: string; customerId: string; body: CreateCreditApplicationDto; currentUser: AuthenticatedUser },
     now: Date,
     transaction: Transaction,
-  ) {
+  ): Promise<AdmissionOutcome> {
     const product = await this.creditRepository.findProductById(input.tenantId, input.body.productId, { transaction });
     if (!product) throw new NotFoundException('CREDIT_PRODUCT_NOT_FOUND');
     assertProductIsOfferable(product, now);
+
+    /*
+     * Consistencia de hechos (AT-007): la fila del cliente se bloquea (`FOR UPDATE`) durante la
+     * admisión. Las transiciones de ciclo de vida toman el mismo bloqueo, así que un bloqueo o
+     * cierre de cuenta concurrente espera a que esta admisión termine y luego ve la solicitud, o
+     * termina antes y esta admisión lee el estado nuevo; nunca se admite sobre un estado que ya no
+     * existe. Los hechos se leen UNA vez dentro de la transacción y alimentan tanto la elegibilidad
+     * por producto como la general. Lo que NO cubre el bloqueo —consentimientos, casos de fraude,
+     * resultados de riesgo escritos sin tocar la fila del cliente— queda documentado en
+     * docs/architecture/microservices/admission-consistency.md.
+     */
+    await this.eligibilityService.lockCustomerForDecision(input.tenantId, input.customerId, transaction);
 
     // Elegibilidad POR PRODUCTO: rangos de monto/plazo e ingreso mínimo declarado. Es una capa
     // distinta de la habilitación general — un cliente habilitado puede no alcanzar el umbral de
     // ESTE producto y sí el de otro. `min_monthly_income` estaba declarado en el modelo desde el
     // principio y no lo evaluaba nadie.
-    const facts = await this.eligibilityRepository.loadFacts(input.tenantId, input.customerId);
+    const facts = await this.eligibilityRepository.loadFacts(input.tenantId, input.customerId, { transaction });
     const productBlockers = evaluateProductEligibility(product, input.body, facts.financialAttributeValues);
     if (productBlockers.length > 0) {
       throw new UnprocessableEntityException(productBlockers.map((blocker) => `${blocker.code}: ${blocker.detail}`).join(' · '));
@@ -173,7 +237,8 @@ export class CreditApplicationAdmissionService {
       input.body.posTerminalId,
     );
 
-    // Reevaluación server-side. Persiste la evidencia y devuelve los bloqueadores vigentes.
+    // Reevaluación server-side sobre los MISMOS hechos. Persiste la evidencia y devuelve los
+    // bloqueadores vigentes junto con la identidad exacta de la fila escrita.
     const evaluation = await this.eligibilityService.evaluateAndRecord({
       tenantId: input.tenantId,
       customerId: input.customerId,
@@ -182,16 +247,15 @@ export class CreditApplicationAdmissionService {
       decisionSource: 'automatic',
       reasonCode: 'credit_application_requested',
       transaction,
+      facts,
     });
 
-    if (!evaluation.eligible) {
-      // Nada se persiste como solicitud: el intento queda registrado en la evaluación, que ya se
-      // escribió, de modo que un cliente que insiste sin cumplir deja rastro sin crear ruido.
-      throw new UnprocessableEntityException(`CUSTOMER_NOT_ELIGIBLE: ${evaluation.blockers.map((blocker) => blocker.code).join(', ')}`);
-    }
+    // Nada se persiste como solicitud: el intento queda registrado en la evaluación, que quien
+    // llama confirma al cerrar la transacción, de modo que un cliente que insiste sin cumplir deja
+    // rastro sin crear ruido. La traducción a error HTTP ocurre FUERA del callback transaccional.
+    if (!evaluation.eligible) return { admitted: false, evaluation };
 
-    const latestEvaluation = await this.eligibilityService.getLatestEvaluation(input.tenantId, input.customerId);
-    return { product, evaluation, latestEvaluation, partnerProfileId, posTerminalId };
+    return { admitted: true, product, evaluation, partnerProfileId, posTerminalId };
   }
 
   /**

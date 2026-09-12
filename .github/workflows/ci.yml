@@ -341,6 +341,17 @@ jobs:
       - name: Verify physical domain schema layout
         run: yarn check:domain-schema-layout
 
+      # AT-002: pruebas de integración contra el Postgres real del job (atomicidad, leases, permisos,
+      # carreras). Sin base no se saltan: `test/integration/support/database.ts` falla, salvo que se
+      # pida el salto con `ATLAS_GATES_ALLOW_SKIP=true`, que CI no pide.
+      - name: Integration tests against real Postgres
+        run: yarn test:integration
+        env:
+          # Guarda de aislamiento (test/support/isolated-database.guard.ts): la base del job se
+          # autoriza por nombre porque es desechable; sin estas dos variables la suite se niega a abrir.
+          ATLAS_TEST_DATABASE_ISOLATED: 'true'
+          ATLAS_TEST_DATABASE_NAME: atlas
+
       # Aquí se sembraba el perfil demo y se comprobaba la idempotencia de los seeders de
       # producción. Ya no: `25fb6cd` sacó los seeders del repositorio a una base aparte y borró los
       # tres guiones (`check-seed-profile.ts`, `db:seed:demo`, `verify-prod-seed-idempotency.ts`)

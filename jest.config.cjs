@@ -40,6 +40,10 @@ const config = {
     ],
   },
   testMatch: ['**/test/**/*.spec.ts', '**/test/**/*.test.ts'],
+  // Las pruebas de integración necesitan PostgreSQL real (AT-002): viven en `test/integration/` y
+  // las corre `jest.integration.config.cjs` (`yarn test:integration`), nunca este corredor. Si se
+  // pasa `--testPathIgnorePatterns` por CLI, este array se SUSTITUYE, no se amplía.
+  testPathIgnorePatterns: ['/node_modules/', '/test/integration/'],
 
   // El timeout es por prueba, no para la suite completa. La validación del 28-jul-2026 ejecutó 263
   // suites / 2.191 tests con cobertura; el proceso completo puede tardar varios minutos según I/O.

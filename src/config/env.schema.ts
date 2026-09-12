@@ -256,6 +256,7 @@ export const envBaseSchema = z.object({
   META_WHATSAPP_DEFAULT_TEMPLATE_NAME: z.string().optional(),
   META_WHATSAPP_DEFAULT_TEMPLATE_LANGUAGE: z.string().default('es'),
   NOTIFICATION_TOKEN_ENCRYPTION_KEY: z.string().min(32).default(DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY),
+  IDEMPOTENCY_FINGERPRINT_SECRET: z.string().min(32).optional().or(z.literal('')), // huella de idempotencia (AT-010); vacío = derivado
 
   // Opcionales a propósito. Si AMBOS están presentes, `main.ts` ACTIVA `KmsKeyProvider` como
   // proveedor de cifrado de envelope encryption (Fase 3.3 del plan 10/10): a partir de ahí las

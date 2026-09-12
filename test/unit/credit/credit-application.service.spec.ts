@@ -61,8 +61,11 @@ describe('CreditApplicationService', () => {
         ruleVersion: 'eligibility-v1',
         evaluatedAt: '2026-07-28T12:00:00.000Z',
         lifecycleStatus: eligible ? 'active' : 'under_review',
+        // La identidad EXACTA de la fila escrita (AT-006): la solicitud la enlaza sin releer «la última».
+        evaluationId: 'ev-9',
       })),
-      getLatestEvaluation: jest.fn(async (..._args: unknown[]) => ({ id: 'ev-9' })),
+      // La admisión bloquea la fila del cliente dentro de la transacción (AT-007).
+      lockCustomerForDecision: jest.fn(async (..._args: unknown[]) => undefined),
     };
     // Los atributos económicos alimentan la elegibilidad POR PRODUCTO (`min_monthly_income`).
     const eligibilityRepository = {
@@ -120,7 +123,16 @@ describe('CreditApplicationService', () => {
         sequelize as never,
       ),
     );
-    return { service, creditRepository, eligibilityService, eligibilityRepository, underwriting, partnerProfiles, partnerDirectory };
+    return {
+      service,
+      sequelize,
+      creditRepository,
+      eligibilityService,
+      eligibilityRepository,
+      underwriting,
+      partnerProfiles,
+      partnerDirectory,
+    };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null } as never;
@@ -183,6 +195,18 @@ describe('CreditApplicationService', () => {
     );
     expect(creditRepository.createApplication).not.toHaveBeenCalled();
     expect(creditRepository.createApplicationEvent).not.toHaveBeenCalled();
+  });
+
+  it('una denegación NO revienta la transacción: la evidencia se confirma y el error sale después (AT-008)', async () => {
+    const { service, sequelize } = build({ eligible: false, blockers: [{ code: 'RISK_NOT_APPROVED' }] });
+
+    await expect(service.createApplication(baseInput)).rejects.toThrow(/CUSTOMER_NOT_ELIGIBLE/);
+    // El callback de `sequelize.transaction` resolvió (commit); lanzar dentro habría revertido la
+    // evaluación que dice haber dejado como rastro. La prueba con PostgreSQL real está en
+    // test/integration/credit/denied-attempt-evidence.spec.ts.
+    const transaction = sequelize.transaction as jest.Mock;
+    expect(transaction).toHaveBeenCalledTimes(1);
+    await expect(transaction.mock.results[0].value).resolves.toMatchObject({ admitted: false });
   });
 
   it('crea la solicitud guardando la evaluación que la autorizó', async () => {
