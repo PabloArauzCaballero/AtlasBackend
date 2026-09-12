@@ -60,12 +60,30 @@ describe('OperationsService', () => {
     const lifecycleService = { transition: asyncMock() };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
 
+    const contactsSnapshotService = {
+      featuresFor: jest.fn(async (..._args: unknown[]) => ({
+        available: false,
+        totalContacts: 0,
+        uniqueRatio: 0,
+        bolivianRatio: 0,
+        referencesFoundInAddressBook: 0,
+        riskMatches: 0,
+      })),
+    };
     const service = new OperationsService(
       operationsRepository as never,
       customersRepository as never,
+      // Los contactos del cliente viven en `CustomerContactsRepository`; el doble ya los expone.
+      customersRepository as never,
       riskRepository as never,
       lifecycleService as never,
+      // La agenda del cliente la calcula y la guarda el módulo de alta; aquí sólo se lee. El doble
+      // devuelve «no disponible», que es el mismo camino que toma un cliente sin captura.
+      contactsSnapshotService as never,
       sequelize as never,
+      // Las cuatro consultas de la COLA salieron a `OperationsQueueRepository` al partir el
+      // repositorio por tamaño. El mismo doble las sigue exponiendo, así que este spec no cambia.
+      operationsRepository as never,
     );
     return { service, operationsRepository, customersRepository, riskRepository, lifecycleService };
   }
@@ -295,6 +313,41 @@ describe('OperationsService', () => {
       const { service, operationsRepository } = await buildService();
       (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce(null as never);
       await expect(service.decideManualReviewCase(baseInput())).rejects.toThrow(/CASE_NOT_FOUND/);
+    });
+
+    /**
+     * Dos bandejas para el mismo cliente es peor que una bandeja incómoda.
+     *
+     * Cuando el Motor resolvió la evaluación, él abrió su propio caso con su expediente y su
+     * auditoría; esta fila es sólo el ancla del flujo de alta. Si además se pudiera cerrar desde
+     * aquí habría dos decisiones para la misma persona, tomadas por gente que no se ve, y ninguna
+     * respuesta a «quién aprobó». Se corta en el servicio y no en la pantalla porque una pantalla
+     * se salta con curl.
+     */
+    it('rechaza decidir un caso DELEGADO al Motor, aunque esté abierto', async () => {
+      const { service, operationsRepository } = await buildService();
+      (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce({
+        closedAt: null,
+        status: 'open',
+        customerId: null,
+        decisionExecutionId: 'exec-9182',
+      } as never);
+
+      await expect(service.decideManualReviewCase(baseInput())).rejects.toThrow(/MANUAL_REVIEW_DELEGADA_AL_MOTOR/);
+    });
+
+    it('sí deja decidir cuando la decisión salió de la política local (sin ejecución del Motor)', async () => {
+      const { service, operationsRepository } = await buildService();
+      (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce({
+        closedAt: null,
+        status: 'open',
+        customerId: null,
+        decisionExecutionId: null,
+      } as never);
+
+      const result = await service.decideManualReviewCase(baseInput({ body: { decision: 'approved', reasonCode: 'r1' } }));
+
+      expect(result.decision).toBe('approved');
     });
 
     it('throws CASE_ALREADY_CLOSED when closedAt is set', async () => {

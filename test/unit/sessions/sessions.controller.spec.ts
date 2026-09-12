@@ -19,7 +19,7 @@ describe('sessions controllers', () => {
   };
 
   it('startSession arma el context y exige idempotency-key', async () => {
-    const service = { startSession: jest.fn(async () => ({ sessionId: 's1' })) };
+    const service = { startSession: jest.fn(async (..._args: unknown[]) => ({ sessionId: 's1' })) };
     const controller = new CustomerSessionsController(service as never);
     const body = { deviceId: 'd1' } as never;
     await controller.startSession('1', 'idem', { customerId: '9' } as never, body, user, request);
@@ -28,7 +28,7 @@ describe('sessions controllers', () => {
   });
 
   it('heartbeat exige idempotency-key y delega con sessionId', async () => {
-    const service = { heartbeat: jest.fn(async () => ({})) };
+    const service = { heartbeat: jest.fn(async (..._args: unknown[]) => ({})) };
     const controller = new CustomerSessionsController(service as never);
     await controller.heartbeat('1', 'idem', { customerId: '9', sessionId: 's1' } as never, { deviceId: 'd1' } as never, user, request);
     expect(callArg<{ sessionId: string }>(service.heartbeat, 0, 0).sessionId).toBe('s1');
@@ -36,14 +36,14 @@ describe('sessions controllers', () => {
   });
 
   it('getSessionState delega sin idempotency-key', async () => {
-    const service = { getSessionState: jest.fn(async () => ({ active: false })) };
+    const service = { getSessionState: jest.fn(async (..._args: unknown[]) => ({ active: false })) };
     const controller = new CustomerSessionsController(service as never);
     await controller.getSessionState('1', { customerId: '9' } as never, user);
     expect(service.getSessionState).toHaveBeenCalledWith({ tenantId: tenantIdFromHeader('1'), customerId: '9', currentUser: user });
   });
 
   it('OperationsSessionsController.getInvestigationSummary delega con sessionId', async () => {
-    const service = { getOperationsSessionSummary: jest.fn(async () => ({})) };
+    const service = { getOperationsSessionSummary: jest.fn(async (..._args: unknown[]) => ({})) };
     const controller = new OperationsSessionsController(service as never);
     const internal = { role: 'risk_analyst', tenantId: '1', internalUserId: 'u1' } as never;
     await controller.getInvestigationSummary('1', { sessionId: 's1' } as never, internal);

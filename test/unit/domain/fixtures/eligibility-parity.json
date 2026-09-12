@@ -1,0 +1,1323 @@
+{
+  "generatedAt": "2026-09-11",
+  "now": "2026-09-11T12:00:00.000Z",
+  "cases": {
+    "elegible": {
+      "status": "active",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "Ana",
+          "lastName": "Pérez",
+          "birthDate": "1990-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "employment_seniority_months",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": null
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-09-11T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": true,
+        "lifecycleStatus": "active",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 100,
+        "canSubmit": true,
+        "nextStep": "complete",
+        "blockers": []
+      }
+    },
+    "cuenta_en_revision_solo_estado": {
+      "status": "under_review",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "Ana",
+          "lastName": "Pérez",
+          "birthDate": "1990-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "employment_seniority_months",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": null
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-09-11T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": false,
+        "lifecycleStatus": "under_review",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 100,
+        "canSubmit": true,
+        "nextStep": "awaiting_review",
+        "blockers": [
+          {
+            "code": "ACCOUNT_NOT_ACTIVE",
+            "detail": "under_review"
+          }
+        ]
+      }
+    },
+    "documento_vence_hoy": {
+      "status": "active",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "Ana",
+          "lastName": "Pérez",
+          "birthDate": "1990-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "employment_seniority_months",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": "2026-09-11"
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-09-11T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": true,
+        "lifecycleStatus": "active",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 100,
+        "canSubmit": true,
+        "nextStep": "complete",
+        "blockers": []
+      }
+    },
+    "documento_vencio_ayer": {
+      "status": "active",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "Ana",
+          "lastName": "Pérez",
+          "birthDate": "1990-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "employment_seniority_months",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": "2026-09-10"
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-09-11T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": false,
+        "lifecycleStatus": "active",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "in_progress",
+            "missingFields": ["documentExpiry"]
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 83,
+        "canSubmit": false,
+        "nextStep": "identity_documents",
+        "blockers": [
+          {
+            "code": "IDENTITY_DOCUMENT_EXPIRED"
+          }
+        ]
+      }
+    },
+    "riesgo_en_el_limite_ttl": {
+      "status": "active",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "Ana",
+          "lastName": "Pérez",
+          "birthDate": "1990-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "employment_seniority_months",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": null
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-06-13T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": true,
+        "lifecycleStatus": "active",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 100,
+        "canSubmit": true,
+        "nextStep": "complete",
+        "blockers": []
+      }
+    },
+    "riesgo_un_dia_pasado_el_ttl": {
+      "status": "active",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "Ana",
+          "lastName": "Pérez",
+          "birthDate": "1990-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "employment_seniority_months",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": null
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-06-12T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": false,
+        "lifecycleStatus": "active",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 100,
+        "canSubmit": true,
+        "nextStep": "complete",
+        "blockers": [
+          {
+            "code": "RISK_ASSESSMENT_STALE"
+          }
+        ]
+      }
+    },
+    "riesgo_sin_evaluar": {
+      "status": "active",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "Ana",
+          "lastName": "Pérez",
+          "birthDate": "1990-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "employment_seniority_months",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": null
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": null,
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": false,
+        "lifecycleStatus": "active",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 100,
+        "canSubmit": true,
+        "nextStep": "complete",
+        "blockers": [
+          {
+            "code": "RISK_NOT_APPROVED",
+            "detail": "not_evaluated"
+          }
+        ]
+      }
+    },
+    "consentimiento_faltante": {
+      "status": "active",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "Ana",
+          "lastName": "Pérez",
+          "birthDate": "1990-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "employment_seniority_months",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": null
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": [],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-09-11T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": false,
+        "lifecycleStatus": "active",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 100,
+        "canSubmit": true,
+        "nextStep": "complete",
+        "blockers": [
+          {
+            "code": "CONSENT_MISSING",
+            "fields": ["c1"]
+          }
+        ]
+      }
+    },
+    "menor_de_edad": {
+      "status": "active",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "A",
+          "lastName": "B",
+          "birthDate": "2010-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "employment_seniority_months",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": null
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-09-11T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": false,
+        "lifecycleStatus": "active",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "in_progress",
+            "missingFields": ["birthDate"]
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 83,
+        "canSubmit": false,
+        "nextStep": "personal_data",
+        "blockers": [
+          {
+            "code": "PROFILE_INCOMPLETE",
+            "fields": ["birthDate"]
+          }
+        ]
+      }
+    },
+    "cumple_18_hoy": {
+      "status": "active",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "A",
+          "lastName": "B",
+          "birthDate": "2008-09-11"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "employment_seniority_months",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": null
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-09-11T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": true,
+        "lifecycleStatus": "active",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 100,
+        "canSubmit": true,
+        "nextStep": "complete",
+        "blockers": []
+      }
+    },
+    "empleado_sin_antiguedad": {
+      "status": "active",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "Ana",
+          "lastName": "Pérez",
+          "birthDate": "1990-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": null
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-09-11T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": false,
+        "lifecycleStatus": "active",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "in_progress",
+            "missingFields": ["employment_seniority_months"]
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 83,
+        "canSubmit": false,
+        "nextStep": "financial_profile",
+        "blockers": [
+          {
+            "code": "FINANCIAL_PROFILE_INCOMPLETE",
+            "fields": ["employment_seniority_months"]
+          }
+        ]
+      }
+    },
+    "independiente_sin_antiguedad": {
+      "status": "active",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "Ana",
+          "lastName": "Pérez",
+          "birthDate": "1990-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "self_employed"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": null
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-09-11T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": true,
+        "lifecycleStatus": "active",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 100,
+        "canSubmit": true,
+        "nextStep": "complete",
+        "blockers": []
+      }
+    },
+    "fraude_abierto": {
+      "status": "active",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "Ana",
+          "lastName": "Pérez",
+          "birthDate": "1990-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "employment_seniority_months",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": null
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-09-11T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 1
+      },
+      "expected": {
+        "eligible": false,
+        "lifecycleStatus": "active",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 100,
+        "canSubmit": true,
+        "nextStep": "complete",
+        "blockers": [
+          {
+            "code": "FRAUD_CASE_OPEN"
+          }
+        ]
+      }
+    },
+    "bloqueado": {
+      "status": "blocked",
+      "facts": {
+        "hasCredentials": true,
+        "verifiedContactCount": 1,
+        "profile": {
+          "firstName": "Ana",
+          "lastName": "Pérez",
+          "birthDate": "1990-01-01"
+        },
+        "presentFinancialAttributeCodes": [
+          "employment_status",
+          "employment_seniority_months",
+          "monthly_income_declared",
+          "monthly_expenses_declared",
+          "economic_activity_code",
+          "source_of_funds"
+        ],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": true,
+        "referenceContactCount": 5,
+        "identityDocument": {
+          "expiresAt": null
+        },
+        "identityVerificationResult": "verified",
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": {
+          "recommendedAction": "approved_for_next_step",
+          "decidedAt": "2026-09-11T12:00:00.000Z"
+        },
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": false,
+        "lifecycleStatus": "blocked",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "address",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "identity_documents",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          }
+        ],
+        "completionPercentage": 100,
+        "canSubmit": true,
+        "nextStep": "blocked",
+        "blockers": [
+          {
+            "code": "ACCOUNT_NOT_ACTIVE",
+            "detail": "blocked"
+          }
+        ]
+      }
+    },
+    "cerrado_sin_nada": {
+      "status": "closed",
+      "facts": {
+        "hasCredentials": false,
+        "verifiedContactCount": 0,
+        "profile": null,
+        "presentFinancialAttributeCodes": [],
+        "financialAttributeValues": {
+          "monthly_income_declared": 8000
+        },
+        "financialAttributeTexts": {
+          "employment_status": "employee"
+        },
+        "hasCurrentAddress": false,
+        "referenceContactCount": 0,
+        "identityDocument": null,
+        "identityVerificationResult": null,
+        "pendingEvidenceReviewCount": 0,
+        "grantedConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": ["c1"],
+        "openObservationCount": 0,
+        "unclearedWatchlistMatchCount": 0,
+        "latestRisk": null,
+        "openFraudCaseCount": 0
+      },
+      "expected": {
+        "eligible": false,
+        "lifecycleStatus": "closed",
+        "ruleVersion": "eligibility-v1",
+        "sections": [
+          {
+            "code": "contact_verification",
+            "status": "pending",
+            "missingFields": ["verifiedContact"]
+          },
+          {
+            "code": "personal_data",
+            "status": "pending",
+            "missingFields": ["firstName", "lastName", "birthDate"]
+          },
+          {
+            "code": "financial_profile",
+            "status": "pending",
+            "missingFields": [
+              "employment_status",
+              "employment_seniority_months",
+              "monthly_income_declared",
+              "monthly_expenses_declared",
+              "economic_activity_code",
+              "source_of_funds"
+            ]
+          },
+          {
+            "code": "address",
+            "status": "pending",
+            "missingFields": ["address"]
+          },
+          {
+            "code": "identity_documents",
+            "status": "pending",
+            "missingFields": ["identityDocument"]
+          },
+          {
+            "code": "reference_contacts",
+            "status": "pending",
+            "missingFields": ["referenceContacts"]
+          }
+        ],
+        "completionPercentage": 0,
+        "canSubmit": false,
+        "nextStep": "blocked",
+        "blockers": [
+          {
+            "code": "ACCOUNT_NOT_ACTIVE",
+            "detail": "closed"
+          },
+          {
+            "code": "NO_CREDENTIALS"
+          },
+          {
+            "code": "CONTACT_NOT_VERIFIED"
+          },
+          {
+            "code": "PROFILE_INCOMPLETE",
+            "fields": ["firstName", "lastName", "birthDate"]
+          },
+          {
+            "code": "FINANCIAL_PROFILE_INCOMPLETE",
+            "fields": [
+              "employment_status",
+              "employment_seniority_months",
+              "monthly_income_declared",
+              "monthly_expenses_declared",
+              "economic_activity_code",
+              "source_of_funds"
+            ]
+          },
+          {
+            "code": "ADDRESS_MISSING"
+          },
+          {
+            "code": "REFERENCES_INSUFFICIENT",
+            "detail": "required=2"
+          },
+          {
+            "code": "IDENTITY_DOCUMENT_MISSING"
+          },
+          {
+            "code": "IDENTITY_NOT_VERIFIED",
+            "detail": "not_started"
+          },
+          {
+            "code": "RISK_NOT_APPROVED",
+            "detail": "not_evaluated"
+          }
+        ]
+      }
+    }
+  }
+}

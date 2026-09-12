@@ -6,6 +6,7 @@
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { intValue, Row } from './portal-format.util.js';
+import { PortalScope, scopeReplacements, tenantPredicate } from './portal-scope.util.js';
 
 /**
  * Base común de los servicios de consulta del portal interno.
@@ -22,8 +23,28 @@ export abstract class PortalQueryBase {
     return this.sequelize.query<T>(sql, { replacements, type: QueryTypes.SELECT });
   }
 
+  /**
+   * Conteo sobre una tabla de CATÁLOGO DE PLATAFORMA (sin `_tenant_id`): endpoints, entidades de
+   * datos, reglas de calidad. `table` y `where` son literales escritos en el propio código del
+   * portal, nunca entrada del usuario — para valores dinámicos existen los `replacements`.
+   */
   protected async count(table: string, where = 'TRUE'): Promise<number> {
     const rows = await this.queryRows<{ count: string }>(`SELECT COUNT(*)::text AS count FROM ${table} WHERE ${where};`);
+    return intValue(rows[0]?.count, 0);
+  }
+
+  /**
+   * Conteo sobre una tabla CON `_tenant_id`, acotado al alcance del actor (ATLAS-SEC-009).
+   *
+   * Existe como método aparte de `count` a propósito: obliga a decidir, en cada llamada, si la
+   * tabla es catálogo compartido o dato de un tenant. Un único helper "que a veces filtra" es
+   * justamente cómo se coló la fuga original.
+   */
+  protected async countInScope(scope: PortalScope, table: string, alias: string, where = 'TRUE'): Promise<number> {
+    const rows = await this.queryRows<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM ${table} ${alias} WHERE ${tenantPredicate(scope, alias)} AND (${where});`,
+      scopeReplacements(scope),
+    );
     return intValue(rows[0]?.count, 0);
   }
 }

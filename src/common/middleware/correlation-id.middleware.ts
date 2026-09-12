@@ -31,8 +31,12 @@ export class CorrelationIdMiddleware implements NestMiddleware {
     const correlationId = candidate && CORRELATION_ID_PATTERN.test(candidate) ? candidate : randomUUID();
     req.correlationId = correlationId;
     res.setHeader('x-correlation-id', correlationId);
+    // El producto se guarda EN CRUDO y se resuelve contra una lista cerrada al usarlo
+    // (`mail-product.ts`); aquí no se valida porque este middleware no sabe para qué sirve.
+    const declaredProduct = req.headers['x-atlas-product'];
+    const product = Array.isArray(declaredProduct) ? declaredProduct[0] : declaredProduct;
     // Se entra al contexto CLS ANTES de continuar la cadena: todo el trabajo async del request
     // (guards, controller, services, loggers) hereda este correlationId sin pasarlo a mano.
-    runWithRequestContext({ correlationId }, next);
+    runWithRequestContext({ correlationId, product }, next);
   }
 }

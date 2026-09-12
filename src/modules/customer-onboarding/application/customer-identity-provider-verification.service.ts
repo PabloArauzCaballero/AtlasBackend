@@ -84,15 +84,18 @@ export class CustomerIdentityProviderVerificationService {
         firstName: profile.firstName,
         lastName: profile.lastName,
         birthDate: profile.birthDate ?? undefined,
-        // Deja que el proveedor (o el mock) decida; `random` sortea el resultado en el simulador.
-        scenario: input.body.scenario,
+        // Sin `scenario`: el veredicto lo decide el proveedor. Que el propio cliente pudiera pedirlo
+        // convertía la verificación de identidad en una declaración jurada de sí misma.
       },
       idempotencyKey: input.idempotencyKey,
       requestedByUserId: input.currentUser.internalUserId ?? input.currentUser.customerId,
     });
 
+    // El veredicto de identidad es el del PROVEEDOR (`FOUND`/`PARTIAL_MATCH`/`NOT_FOUND`), no el
+    // estado de ejecución (`COMPLETED`/`MOCKED`): con `status` un mock quedaría siempre en revisión
+    // y una llamada real también, porque ninguno es un veredicto. Ver `ExternalDataRequestResult`.
     const outcome = resolveIdentityOutcome({
-      status: providerResult.status,
+      status: providerResult.providerVerdict ?? providerResult.status,
       manualReviewRequired: providerResult.manualReviewRequired,
       reasonCode: providerResult.reasonCode,
     });
@@ -212,6 +215,9 @@ export class CustomerIdentityProviderVerificationService {
         lifecycleStatus: evaluation.lifecycleStatus,
         eligible: evaluation.eligible,
         blockers: evaluation.blockers,
+        // Del evaluador y no de un literal: tras resolver la identidad, dónde retoma el cliente lo
+        // decide el mismo cálculo que gobierna la habilitación.
+        nextStep: evaluation.nextStep,
       };
     });
   }

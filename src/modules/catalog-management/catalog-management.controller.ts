@@ -6,6 +6,7 @@
 import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,8 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { RequestWithNetwork, requireIdempotencyKey, tenantIdFromHeader, userAgentFrom } from '../../common/utils/http/headers.util.js';
+import { RequestWithNetwork, requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
+import { contextFrom } from './catalog-request-context.util.js';
 import { CatalogManagementService } from './catalog-management.service.js';
 import {
   catalogDecisionResponseSchema,
@@ -27,51 +29,27 @@ import {
   stagingDecisionResponseSchema,
 } from './catalog-management.openapi.js';
 import {
-  ActivateRiskRulesetVersionDto,
   CatalogCodeParamsDto,
   CatalogDecisionDto,
   CatalogIngestionDto,
   CatalogVersionParamsDto,
   CreateCatalogVersionDto,
-  CreateRiskRulesetVersionDto,
-  DataGovernancePolicyPackageDto,
   DefinitionsPackageDto,
   DefinitionsQueryDto,
   ListCatalogsQueryDto,
-  RulesetVersionParamsDto,
   StagingDecisionBatchDto,
   SubmitCatalogVersionDto,
-  activateRiskRulesetVersionSchema,
   catalogCodeParamsSchema,
   catalogDecisionSchema,
   catalogIngestionSchema,
   catalogVersionParamsSchema,
   createCatalogVersionSchema,
-  createRiskRulesetVersionSchema,
-  dataGovernancePolicyPackageSchema,
   definitionsPackageSchema,
   definitionsQuerySchema,
   listCatalogsQuerySchema,
-  rulesetVersionParamsSchema,
   stagingDecisionBatchSchema,
   submitCatalogVersionSchema,
 } from './catalog-management.schemas.js';
-
-type RequestContext = {
-  tenantId: string;
-  ipAddress: string | null;
-  userAgent: string | null;
-  idempotencyKey?: string;
-};
-
-function contextFrom(tenantIdHeader: string | undefined, idempotencyKey: string | undefined, request: RequestWithNetwork): RequestContext {
-  return {
-    tenantId: tenantIdFromHeader(tenantIdHeader),
-    ipAddress: request.ip ?? null,
-    userAgent: userAgentFrom(request),
-    idempotencyKey,
-  };
-}
 
 @ApiTags('catalog-management')
 @ApiBearerAuth('access-token')
@@ -124,7 +102,7 @@ export class CatalogManagementController {
   @Post('catalogs/:catalogCode/versions')
   @HttpCode(HttpStatus.CREATED)
   createCatalogVersion(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(catalogCodeParamsSchema)) params: CatalogCodeParamsDto,
     @Body(new ZodValidationPipe(createCatalogVersionSchema)) body: CreateCatalogVersionDto,
@@ -136,7 +114,7 @@ export class CatalogManagementController {
       catalogCode: params.catalogCode,
       body,
       currentUser,
-      context: contextFrom(tenantIdHeader, idempotencyKey, request),
+      context: contextFrom(tenantId, idempotencyKey, request),
     });
   }
 
@@ -152,7 +130,7 @@ export class CatalogManagementController {
   @Post('catalogs/:catalogCode/versions/:versionId/submit-for-approval')
   @HttpCode(HttpStatus.OK)
   submitCatalogVersion(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(catalogVersionParamsSchema)) params: CatalogVersionParamsDto,
     @Body(new ZodValidationPipe(submitCatalogVersionSchema)) body: SubmitCatalogVersionDto,
@@ -165,7 +143,7 @@ export class CatalogManagementController {
       versionId: params.versionId,
       body,
       currentUser,
-      context: contextFrom(tenantIdHeader, idempotencyKey, request),
+      context: contextFrom(tenantId, idempotencyKey, request),
     });
   }
 
@@ -182,7 +160,7 @@ export class CatalogManagementController {
   @HttpCode(HttpStatus.OK)
   @Roles('admin', 'platform_admin')
   decideCatalogVersion(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(catalogVersionParamsSchema)) params: CatalogVersionParamsDto,
     @Body(new ZodValidationPipe(catalogDecisionSchema)) body: CatalogDecisionDto,
@@ -195,7 +173,7 @@ export class CatalogManagementController {
       versionId: params.versionId,
       body,
       currentUser,
-      context: contextFrom(tenantIdHeader, idempotencyKey, request),
+      context: contextFrom(tenantId, idempotencyKey, request),
     });
   }
 
@@ -208,14 +186,14 @@ export class CatalogManagementController {
   @Post('catalog-ingestions')
   @HttpCode(HttpStatus.CREATED)
   ingestCatalog(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(catalogIngestionSchema)) body: CatalogIngestionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.ingestCatalog({ body, currentUser, context: contextFrom(tenantIdHeader, idempotencyKey, request) });
+    return this.service.ingestCatalog({ body, currentUser, context: contextFrom(tenantId, idempotencyKey, request) });
   }
 
   @ApiOperation({ summary: 'Decidir en lote items en staging de catálogo' })
@@ -228,14 +206,14 @@ export class CatalogManagementController {
   @Post('catalog-staging-items/decision-batch')
   @HttpCode(HttpStatus.OK)
   decideStagingItems(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(stagingDecisionBatchSchema)) body: StagingDecisionBatchDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.decideStagingItems({ body, currentUser, context: contextFrom(tenantIdHeader, idempotencyKey, request) });
+    return this.service.decideStagingItems({ body, currentUser, context: contextFrom(tenantId, idempotencyKey, request) });
   }
 
   @ApiOperation({
@@ -265,90 +243,13 @@ export class CatalogManagementController {
   @Post('definitions/package')
   @HttpCode(HttpStatus.OK)
   upsertDefinitionsPackage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(definitionsPackageSchema)) body: DefinitionsPackageDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.upsertDefinitionsPackage({ body, currentUser, context: contextFrom(tenantIdHeader, idempotencyKey, request) });
-  }
-
-  @ApiOperation({ summary: 'Obtener la política de riesgo activa' })
-  @ApiResponse({ status: 200, description: 'Política de riesgo actual (ruleset activo).' })
-  @Get('risk-policy/current')
-  getCurrentRiskPolicy(@CurrentUser() currentUser: AuthenticatedUser) {
-    return this.service.getCurrentRiskPolicy({ currentUser });
-  }
-
-  @ApiOperation({ summary: 'Crear una nueva versión de ruleset de riesgo (borrador)' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: true })
-  @ApiBody({ schema: zodToApiSchema(createRiskRulesetVersionSchema) })
-  @ApiResponse({ status: 201, description: 'Versión de ruleset creada.' })
-  @Post('risk-policy/ruleset-versions')
-  @HttpCode(HttpStatus.CREATED)
-  createRiskRulesetVersion(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(createRiskRulesetVersionSchema)) body: CreateRiskRulesetVersionDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-    @Req() request: RequestWithNetwork,
-  ) {
-    requireIdempotencyKey(idempotencyKey);
-    return this.service.createRiskRulesetVersion({ body, currentUser, context: contextFrom(tenantIdHeader, idempotencyKey, request) });
-  }
-
-  @ApiOperation({ summary: 'Activar una versión de ruleset de riesgo' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: true })
-  @ApiParam({ name: 'rulesetVersionId', schema: zodToApiSchema(rulesetVersionParamsSchema.shape.rulesetVersionId) })
-  @ApiBody({ schema: zodToApiSchema(activateRiskRulesetVersionSchema) })
-  @ApiResponse({ status: 200, description: 'Versión de ruleset activada.' })
-  @ApiResponse({ status: 404, description: 'RULESET_VERSION_NOT_FOUND.' })
-  @Post('risk-policy/ruleset-versions/:rulesetVersionId/activate')
-  @HttpCode(HttpStatus.OK)
-  @Roles('admin', 'platform_admin')
-  activateRiskRulesetVersion(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Param(new ZodValidationPipe(rulesetVersionParamsSchema)) params: RulesetVersionParamsDto,
-    @Body(new ZodValidationPipe(activateRiskRulesetVersionSchema)) body: ActivateRiskRulesetVersionDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-    @Req() request: RequestWithNetwork,
-  ) {
-    requireIdempotencyKey(idempotencyKey);
-    return this.service.activateRiskRulesetVersion({
-      rulesetVersionId: params.rulesetVersionId,
-      body,
-      currentUser,
-      context: contextFrom(tenantIdHeader, idempotencyKey, request),
-    });
-  }
-
-  @ApiOperation({ summary: 'Obtener las políticas de gobernanza de datos activas' })
-  @ApiResponse({ status: 200, description: 'Políticas de gobernanza (propósitos, clasificaciones, retenciones).' })
-  @Get('data-governance/policies')
-  getDataGovernancePolicies(@CurrentUser() currentUser: AuthenticatedUser) {
-    return this.service.getDataGovernancePolicies({ currentUser });
-  }
-
-  @ApiOperation({ summary: 'Publicar un paquete de políticas de gobernanza de datos' })
-  @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: true })
-  @ApiBody({ schema: zodToApiSchema(dataGovernancePolicyPackageSchema) })
-  @ApiResponse({ status: 200, description: 'Paquete de gobernanza de datos aplicado.' })
-  @Post('data-governance/policy-package')
-  @HttpCode(HttpStatus.OK)
-  upsertDataGovernancePackage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Body(new ZodValidationPipe(dataGovernancePolicyPackageSchema)) body: DataGovernancePolicyPackageDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-    @Req() request: RequestWithNetwork,
-  ) {
-    requireIdempotencyKey(idempotencyKey);
-    return this.service.upsertDataGovernancePackage({ body, currentUser, context: contextFrom(tenantIdHeader, idempotencyKey, request) });
+    return this.service.upsertDefinitionsPackage({ body, currentUser, context: contextFrom(tenantId, idempotencyKey, request) });
   }
 }

@@ -8,18 +8,18 @@ import { SystemsTestController } from '../../../src/modules/systems-ops/systems-
 describe('SystemsTestController', () => {
   function build() {
     const service = {
-      listTestSuites: jest.fn(async () => ({ items: [] })),
-      getTestSuite: jest.fn(async () => ({ suite: {} })),
-      runTestSuite: jest.fn(async () => ({ run: {} })),
-      listTestRuns: jest.fn(async () => ({ items: [] })),
-      getTestRun: jest.fn(async () => ({ run: {} })),
+      listTestSuites: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getTestSuite: jest.fn(async (..._args: unknown[]) => ({ suite: {} })),
+      runTestSuite: jest.fn(async (..._args: unknown[]) => ({ run: {} })),
+      listTestRuns: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getTestRun: jest.fn(async (..._args: unknown[]) => ({ run: {} })),
     };
     const suiteAdminService = {
-      createSuite: jest.fn(async () => ({ suite: {} })),
-      updateSuite: jest.fn(async () => ({ suite: {} })),
-      createStep: jest.fn(async () => ({ stepId: '1' })),
-      updateStep: jest.fn(async () => ({ stepId: '1' })),
-      reorderSteps: jest.fn(async () => ({ items: [] })),
+      createSuite: jest.fn(async (..._args: unknown[]) => ({ suite: {} })),
+      updateSuite: jest.fn(async (..._args: unknown[]) => ({ suite: {} })),
+      createStep: jest.fn(async (..._args: unknown[]) => ({ stepId: '1' })),
+      updateStep: jest.fn(async (..._args: unknown[]) => ({ stepId: '1' })),
+      reorderSteps: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
     };
     return { controller: new SystemsTestController(service as never, suiteAdminService as never), service, suiteAdminService };
   }

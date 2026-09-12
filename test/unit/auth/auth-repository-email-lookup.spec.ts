@@ -19,7 +19,6 @@ function buildRepository(findOneMock: jest.Mock) {
   return new AuthRepository(
     {} as never, // credentialModel — no usado en estos tests
     {} as never, // refreshTokenModel — no usado en estos tests
-    {} as never, // oneTimeCodeModel — no usado en estos tests
     modelMock as never, // internalUserModel
     modelMock as never, // platformUserModel
     {} as never, // authEventModel — no usado en estos tests
@@ -30,7 +29,7 @@ function buildRepository(findOneMock: jest.Mock) {
 
 describe('AuthRepository — búsqueda de email case-insensitive', () => {
   it('findInternalUserByEmail normaliza mayúsculas/minúsculas y espacios antes de comparar', async () => {
-    const findOne = jest.fn(async () => ({ id: 'internal-1', email: 'pablo.admin@atlas.test' }));
+    const findOne = jest.fn(async (..._args: unknown[]) => ({ id: 'internal-1', email: 'pablo.admin@atlas.test' }));
     const repository = buildRepository(findOne as never);
 
     await repository.findInternalUserByEmail('  Pablo.Admin@ATLAS.test ');
@@ -39,7 +38,7 @@ describe('AuthRepository — búsqueda de email case-insensitive', () => {
   });
 
   it('findPlatformUserByEmail normaliza mayúsculas/minúsculas antes de comparar', async () => {
-    const findOne = jest.fn(async () => ({ id: 'platform-1', email: 'pablo.platform@atlas.test' }));
+    const findOne = jest.fn(async (..._args: unknown[]) => ({ id: 'platform-1', email: 'pablo.platform@atlas.test' }));
     const repository = buildRepository(findOne as never);
 
     await repository.findPlatformUserByEmail('PABLO.PLATFORM@atlas.test');
@@ -48,7 +47,7 @@ describe('AuthRepository — búsqueda de email case-insensitive', () => {
   });
 
   it('devuelve null si no hay coincidencia, sin lanzar error', async () => {
-    const findOne = jest.fn(async () => null);
+    const findOne = jest.fn(async (..._args: unknown[]) => null);
     const repository = buildRepository(findOne as never);
 
     const result = await repository.findInternalUserByEmail('nadie@atlas.test');

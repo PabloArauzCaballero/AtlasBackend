@@ -9,19 +9,19 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`customer-eligibility.constants.ts`](./customer-eligibility.constants.ts) | Artefacto de soporte específico de esta carpeta. |
+| Documento o código                                                           | Responsabilidad                                                                |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [`customer-eligibility.constants.ts`](./customer-eligibility.constants.ts)   | Artefacto de soporte específico de esta carpeta.                               |
 | [`customer-eligibility.controller.ts`](./customer-eligibility.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`customer-eligibility.schemas.ts`](./customer-eligibility.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
-| [`customer-lifecycle.constants.ts`](./customer-lifecycle.constants.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`customers.controller.ts`](./customers.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`customers.dtos.ts`](./customers.dtos.ts) | DTOs: contrato estable de salida sin filtrar modelos de persistencia. |
-| [`customers.mapper.ts`](./customers.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
-| [`customers.module.ts`](./customers.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
-| [`customers.repository.ts`](./customers.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`customers.schemas.ts`](./customers.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
-| [`customers.service.ts`](./customers.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`customer-eligibility.schemas.ts`](./customer-eligibility.schemas.ts)       | Esquemas Zod: validan entradas y parámetros en el borde del sistema.           |
+| [`customer-lifecycle.constants.ts`](./customer-lifecycle.constants.ts)       | Artefacto de soporte específico de esta carpeta.                               |
+| [`customers.controller.ts`](./customers.controller.ts)                       | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`customers.dtos.ts`](./customers.dtos.ts)                                   | DTOs: contrato estable de salida sin filtrar modelos de persistencia.          |
+| [`customers.mapper.ts`](./customers.mapper.ts)                               | Mapper: transforma modelos internos a contratos de transporte.                 |
+| [`customers.module.ts`](./customers.module.ts)                               | Módulo NestJS: declara el límite de inyección y sus dependencias.              |
+| [`customers.repository.ts`](./customers.repository.ts)                       | Puerto de persistencia: encapsula consultas, locks y escrituras.               |
+| [`customers.schemas.ts`](./customers.schemas.ts)                             | Esquemas Zod: validan entradas y parámetros en el borde del sistema.           |
+| [`customers.service.ts`](./customers.service.ts)                             | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
 
 ## Subcarpetas
 

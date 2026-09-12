@@ -32,6 +32,21 @@ export class ConsentDocumentModel extends Model {
   @Column({ field: 'content_url', type: DataType.TEXT })
   declare contentUrl: string | null;
 
+  /**
+   * El texto que la persona LEE, guardado aqui y no solo detras de `content_url`.
+   *
+   * Un consentimiento se prueba con lo que se vio: una URL puede cambiar de contenido sin cambiar de
+   * direccion, y entonces la version aceptada deja de ser reconstruible.
+   */
+  @Column({ field: 'title', type: DataType.STRING(200) })
+  declare title: string | null;
+
+  @Column({ field: 'summary', type: DataType.TEXT })
+  declare summary: string | null;
+
+  @Column({ field: 'body_md', type: DataType.TEXT })
+  declare bodyMd: string | null;
+
   @Column({ field: 'content_hash', type: DataType.STRING(128) })
   declare contentHash: string | null;
 

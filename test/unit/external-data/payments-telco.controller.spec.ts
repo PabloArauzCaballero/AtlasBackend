@@ -21,7 +21,10 @@ describe('Payments/Telco external-data controllers', () => {
   });
 
   it('verifyQr y verifyBankTransfer delegan en sus métodos del servicio', async () => {
-    const service = { executeQrPayment: jest.fn(async () => ({})), executeBankTransfer: jest.fn(async () => ({})) };
+    const service = {
+      executeQrPayment: jest.fn(async (..._args: unknown[]) => ({})),
+      executeBankTransfer: jest.fn(async (..._args: unknown[]) => ({})),
+    };
     const controller = new PaymentsExternalDataController(service as never);
     const qrBody = { customerId: '9', reference: 'r1' } as never;
     const btBody = { customerId: '9', amount: 100 } as never;
@@ -32,7 +35,7 @@ describe('Payments/Telco external-data controllers', () => {
   });
 
   it('generateBankQr delega en generateBankQr del servicio con los campos del body', async () => {
-    const service = { generateBankQr: jest.fn(async () => ({ status: 'QR_GENERATED' })) };
+    const service = { generateBankQr: jest.fn(async (..._args: unknown[]) => ({ status: 'QR_GENERATED' })) };
     const controller = new PaymentsExternalDataController(service as never);
     const body = { customerId: '9', amount: 250, currency: 'BOB', reference: 'R1', scenario: undefined } as never;
     await controller.generateBankQr('1', body, user);
@@ -48,7 +51,7 @@ describe('Payments/Telco external-data controllers', () => {
   });
 
   it('verifyPhoneTrust delega en executeTelcoPhoneTrust', async () => {
-    const service = { executeTelcoPhoneTrust: jest.fn(async () => ({})) };
+    const service = { executeTelcoPhoneTrust: jest.fn(async (..._args: unknown[]) => ({})) };
     const controller = new TelcoExternalDataController(service as never);
     const body = { customerId: '9', phone: '591700' } as never;
     await controller.verifyPhoneTrust('1', 'idem', body, user);
@@ -56,7 +59,7 @@ describe('Payments/Telco external-data controllers', () => {
   });
 
   it('getPhoneTrust delega en getCustomerFeatures con tenant+customerId del param', async () => {
-    const service = { getCustomerFeatures: jest.fn(async () => ({ features: {} })) };
+    const service = { getCustomerFeatures: jest.fn(async (..._args: unknown[]) => ({ features: {} })) };
     const controller = new TelcoExternalDataController(service as never);
     await controller.getPhoneTrust('1', { customerId: '9' } as never, user);
     expect(service.getCustomerFeatures).toHaveBeenCalledWith({ tenantId: tenantIdFromHeader('1', user), customerId: '9' });

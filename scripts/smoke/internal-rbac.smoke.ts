@@ -4,7 +4,7 @@ import { requireSmokeEnv } from './required-smoke-env.js';
 
 type JsonRecord = Record<string, unknown>;
 
-const PABLO_EMAIL = process.env.INTERNAL_SMOKE_EMAIL ?? 'pablo@atlas.internal';
+const PABLO_EMAIL = process.env.INTERNAL_SMOKE_EMAIL ?? 'a2020115468@estudiantes.upsa.edu.bo';
 const PABLO_PASSWORD = requireSmokeEnv('INTERNAL_SMOKE_PASSWORD');
 const QA_PASSWORD = requireSmokeEnv('INTERNAL_SMOKE_QA_PASSWORD');
 const EXPECTED_PABLO_ROLES = ['SUPER_ADMIN', 'SYSTEMS_ADMIN', 'DATA_GOVERNANCE_MANAGER'];

@@ -85,7 +85,9 @@ describe('ExternalDataGovernanceService', () => {
         { id: 'p1', providerCode: 'SEGIP', defaultMode: 'mock_local', isActive: true },
       ] as never);
       (registry.hasAdapter as jest.Mock).mockReturnValueOnce(true as never);
-      (registry.requireAdapter as jest.Mock).mockReturnValueOnce({ checkHealth: jest.fn(async () => ({ status: 'UP' })) } as never);
+      (registry.requireAdapter as jest.Mock).mockReturnValueOnce({
+        checkHealth: jest.fn(async (..._args: unknown[]) => ({ status: 'UP' })),
+      } as never);
       (repository.listCostPolicies as jest.Mock).mockResolvedValueOnce([] as never);
       (repository.countRequests as jest.Mock).mockResolvedValueOnce(0 as never);
 
@@ -100,7 +102,9 @@ describe('ExternalDataGovernanceService', () => {
         { id: 'p1', providerCode: 'SEGIP', defaultMode: 'mock_local', isActive: true },
       ] as never);
       (registry.hasAdapter as jest.Mock).mockReturnValueOnce(true as never);
-      (registry.requireAdapter as jest.Mock).mockReturnValueOnce({ checkHealth: jest.fn(async () => ({ status: 'UP' })) } as never);
+      (registry.requireAdapter as jest.Mock).mockReturnValueOnce({
+        checkHealth: jest.fn(async (..._args: unknown[]) => ({ status: 'UP' })),
+      } as never);
       (repository.listCostPolicies as jest.Mock).mockResolvedValueOnce([{ id: 'cp1' }] as never);
       (repository.countRequests as jest.Mock).mockResolvedValueOnce(0 as never);
 
@@ -115,7 +119,9 @@ describe('ExternalDataGovernanceService', () => {
         { id: 'p1', providerCode: 'SEGIP', defaultMode: 'mock_local', isActive: true },
       ] as never);
       (registry.hasAdapter as jest.Mock).mockReturnValueOnce(true as never);
-      (registry.requireAdapter as jest.Mock).mockReturnValueOnce({ checkHealth: jest.fn(async () => ({ status: 'UP' })) } as never);
+      (registry.requireAdapter as jest.Mock).mockReturnValueOnce({
+        checkHealth: jest.fn(async (..._args: unknown[]) => ({ status: 'UP' })),
+      } as never);
       (repository.listCostPolicies as jest.Mock).mockResolvedValueOnce([] as never);
       (repository.countRequests as jest.Mock).mockResolvedValueOnce(0 as never);
 
@@ -529,7 +535,9 @@ describe('ExternalDataGovernanceService', () => {
           { id: 'p1', providerCode: 'INFOCENTER', providerCategory: 'CREDIT_BUREAU', requiresConsent: false, defaultMode: 'mock_local' },
         ] as never); // quality
       (registry.hasAdapter as jest.Mock).mockReturnValue(true as never);
-      (registry.requireAdapter as jest.Mock).mockReturnValue({ checkHealth: jest.fn(async () => ({ status: 'UP' })) } as never);
+      (registry.requireAdapter as jest.Mock).mockReturnValue({
+        checkHealth: jest.fn(async (..._args: unknown[]) => ({ status: 'UP' })),
+      } as never);
       (repository.listCostPolicies as jest.Mock).mockResolvedValue([] as never);
       (repository.countRequests as jest.Mock).mockResolvedValue(0 as never);
       (repository.listRecentProviderResponses as jest.Mock).mockResolvedValueOnce([] as never);
@@ -553,7 +561,9 @@ describe('ExternalDataGovernanceService', () => {
       };
       (repository.listProviders as jest.Mock).mockResolvedValue([providerRow] as never);
       (registry.hasAdapter as jest.Mock).mockReturnValue(true as never);
-      (registry.requireAdapter as jest.Mock).mockReturnValue({ checkHealth: jest.fn(async () => ({ status: 'UP' })) } as never);
+      (registry.requireAdapter as jest.Mock).mockReturnValue({
+        checkHealth: jest.fn(async (..._args: unknown[]) => ({ status: 'UP' })),
+      } as never);
       (repository.listCostPolicies as jest.Mock).mockResolvedValue([{ id: 'cp1' }] as never);
       (repository.countRequests as jest.Mock).mockResolvedValue(0 as never);
       (repository.listRecentProviderResponses as jest.Mock).mockResolvedValue([] as never);
@@ -577,7 +587,9 @@ describe('ExternalDataGovernanceService', () => {
       };
       (repository.listProviders as jest.Mock).mockResolvedValue([providerRow] as never);
       (registry.hasAdapter as jest.Mock).mockReturnValue(true as never);
-      (registry.requireAdapter as jest.Mock).mockReturnValue({ checkHealth: jest.fn(async () => ({ status: 'UP' })) } as never);
+      (registry.requireAdapter as jest.Mock).mockReturnValue({
+        checkHealth: jest.fn(async (..._args: unknown[]) => ({ status: 'UP' })),
+      } as never);
       (repository.listCostPolicies as jest.Mock).mockResolvedValue([{ id: 'cp1' }] as never);
       (repository.countRequests as jest.Mock).mockResolvedValue(0 as never);
       (repository.listRecentProviderResponses as jest.Mock).mockResolvedValueOnce([
@@ -701,7 +713,7 @@ describe('ExternalDataGovernanceService', () => {
   describe('ramas de defaults y blockers', () => {
     it('approveRequest aplica los defaults cuando la solicitud no trae estado/código/metadata ni admin', async () => {
       const { service, repository } = buildService();
-      const update = jest.fn(async () => undefined);
+      const update = jest.fn(async (..._args: unknown[]) => undefined);
       repository.findProviderRequestByIdAndTenant.mockResolvedValue({
         id: 7,
         responseStatus: null,
@@ -722,7 +734,7 @@ describe('ExternalDataGovernanceService', () => {
 
     it('approveRequest conserva estado/código/metadata previos y registra la razón y el admin', async () => {
       const { service, repository } = buildService();
-      const update = jest.fn(async () => undefined);
+      const update = jest.fn(async (..._args: unknown[]) => undefined);
       const respondedAt = new Date('2026-01-01T00:00:00.000Z');
       repository.findProviderRequestByIdAndTenant.mockResolvedValue({
         id: 7,
@@ -785,7 +797,13 @@ describe('ExternalDataGovernanceService', () => {
       ] as never);
       (registry.hasAdapter as jest.Mock).mockReturnValue(true as never);
       (registry.requireAdapter as jest.Mock).mockReturnValue({
-        checkHealth: jest.fn(async () => ({ providerCode: 'SEGIP', status: 'DOWN', mode: 'mock_local', latencyMs: 1, checkedAt: 'now' })),
+        checkHealth: jest.fn(async (..._args: unknown[]) => ({
+          providerCode: 'SEGIP',
+          status: 'DOWN',
+          mode: 'mock_local',
+          latencyMs: 1,
+          checkedAt: 'now',
+        })),
       } as never);
       repository.listCostPolicies.mockResolvedValue([
         { id: 1, providerId: 1, queryType: 'q', unitCostAmount: '1', currency: 'BOB', costTier: 'LOW' },

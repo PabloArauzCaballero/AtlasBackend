@@ -9,8 +9,8 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                             | Responsabilidad                                  |
+| ---------------------------------------------- | ------------------------------------------------ |
 | [`whatsapp.adapter.ts`](./whatsapp.adapter.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento

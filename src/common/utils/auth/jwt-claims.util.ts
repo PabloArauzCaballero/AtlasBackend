@@ -35,3 +35,23 @@ export function accessTokenSignOptions(base: SignOptions): SignOptions {
 export function accessTokenVerifyOptions(base: VerifyOptions = {}): VerifyOptions & { complete?: false } {
   return { ...base, complete: false, algorithms: ['HS256'], issuer: env.JWT_ISSUER, audience: env.JWT_AUDIENCE };
 }
+
+/**
+ * Claim con el id del actor según su población. Estaba escrito como cuatro ternarios repetidos
+ * dentro del emisor de tokens: una lista disfrazada de condicionales, que obligaba a tocar un
+ * archivo con deuda de tamaño congelada cada vez que aparece una población nueva.
+ *
+ * El claim redundante con `sub` existe porque el guard resuelve la población a partir de él para
+ * comprobar `tokenVersion` contra la tabla correcta.
+ */
+const ACTOR_ID_CLAIM: Readonly<Record<string, string>> = {
+  customer: 'customerId',
+  internal_user: 'internalUserId',
+  platform_user: 'platformUserId',
+  merchant_user: 'merchantUserId',
+};
+
+export function actorIdClaim(actorType: string, actorId: string): Record<string, string> {
+  const claim = ACTOR_ID_CLAIM[actorType];
+  return claim ? { [claim]: actorId } : {};
+}

@@ -40,3 +40,26 @@ export function assertOwnCustomerResourceOrInternalOperational(currentUser: Auth
     throw new ForbiddenException('El token no permite operar sobre este cliente.');
   }
 }
+
+/**
+ * Propiedad del expediente de partner, para endpoints `:partnerId`.
+ *
+ * El onboarding del comercio es autoservicio: sus endpoints admiten el rol `merchant`, y el
+ * expediente se identifica por un id de la URL. Sin esta comprobación, un comercio autenticado
+ * podía leer y modificar el expediente de CUALQUIER otro comercio del mismo tenant —sus
+ * representantes legales, sus terminales y sus QR de cobro, que dicen a qué cuenta va el dinero—.
+ * Encontrado por la revisión de seguridad del 20-ago-2026 sobre el módulo recién creado.
+ *
+ * Un expediente SIN dueño no es de todos: es de nadie. Los abrió personal interno, o existían
+ * antes de que hubiera columna de dueño, y dejarlos abiertos a cualquier comercio reproduciría el
+ * mismo agujero para el histórico. Se tratan como internos hasta que alguien los reasigne.
+ */
+export function assertOwnPartnerResource(currentUser: AuthenticatedUser, ownerMerchantUserId: string | null): void {
+  if (isInternalOperationalRole(currentUser.role)) return;
+  if (currentUser.role !== 'merchant' || !currentUser.merchantUserId) {
+    throw new ForbiddenException('El token no permite operar sobre expedientes de partner.');
+  }
+  if (ownerMerchantUserId === null || currentUser.merchantUserId !== ownerMerchantUserId) {
+    throw new ForbiddenException('El expediente de partner no pertenece a este comercio.');
+  }
+}

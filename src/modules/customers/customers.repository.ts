@@ -8,7 +8,6 @@ import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op, Transaction } from 'sequelize';
 import {
   CustomerConsentModel,
-  CustomerContactMethodModel,
   CustomerModel,
   CustomerProfileVersionModel,
   CustomerStatusEventModel,
@@ -25,8 +24,6 @@ export class CustomersRepository {
     @InjectModel(CustomerModel) private readonly customerModel: typeof CustomerModel,
     @InjectModel(CustomerProfileVersionModel)
     private readonly profileModel: typeof CustomerProfileVersionModel,
-    @InjectModel(CustomerContactMethodModel)
-    private readonly contactMethodModel: typeof CustomerContactMethodModel,
     @InjectModel(CustomerStatusEventModel)
     private readonly statusEventModel: typeof CustomerStatusEventModel,
     @InjectModel(CustomerConsentModel)
@@ -216,61 +213,12 @@ export class CustomersRepository {
     );
   }
 
-  createContactMethod(
-    values: {
-      tenantId: string;
-      customerId: string;
-      contactType: string;
-      contactValueHash: string;
-      contactValueEncrypted: string | null;
-      valueLast4: string | null;
-      emailDomain: string | null;
-      isPrimary: boolean;
-      sourceType: string;
-      createdAt: Date;
-    },
-    options: RepositoryOptions,
-  ): Promise<CustomerContactMethodModel> {
-    return this.contactMethodModel.create(
-      {
-        tenantId: values.tenantId,
-        customerId: values.customerId,
-        contactType: values.contactType,
-        contactValueHash: values.contactValueHash,
-        contactValueEncrypted: values.contactValueEncrypted,
-        normalizedValueHash: values.contactValueHash,
-        valueLast4: values.valueLast4,
-        emailDomain: values.emailDomain,
-        label: values.contactType === 'phone' ? 'primary_phone' : 'primary_email',
-        isPrimary: values.isPrimary,
-        status: 'unverified',
-        sourceType: values.sourceType,
-        firstSeenAt: values.createdAt,
-        lastSeenAt: values.createdAt,
-        createdAtValue: values.createdAt,
-        updatedAtValue: values.createdAt,
-        deleted: false,
-      },
-      { transaction: options.transaction },
-    );
-  }
-
   findCurrentProfile(tenantId: string, customerId: string): Promise<CustomerProfileVersionModel | null> {
     return this.profileModel.findOne({
       where: { tenantId, customerId, validUntil: null },
       order: [
         ['validFrom', 'DESC'],
         ['id', 'DESC'],
-      ],
-    } as FindOptions);
-  }
-
-  findContactMethods(tenantId: string, customerId: string): Promise<CustomerContactMethodModel[]> {
-    return this.contactMethodModel.findAll({
-      where: { tenantId, customerId, deleted: { [Op.ne]: true } },
-      order: [
-        ['isPrimary', 'DESC'],
-        ['id', 'ASC'],
       ],
     } as FindOptions);
   }

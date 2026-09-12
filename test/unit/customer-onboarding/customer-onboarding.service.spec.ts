@@ -9,23 +9,43 @@ import { CustomerOnboardingService } from '../../../src/modules/customer-onboard
  */
 describe('CustomerOnboardingService (facade)', () => {
   function buildService() {
-    const startService = { startOnboarding: jest.fn() };
+    // El doble devuelve una respuesta de verdad —no `undefined`— porque la fachada la usa: de ella
+    // saca el cliente y la sesión con los que abre el expediente.
+    const respuesta = { customerId: 'c1', sessionId: 's1', customerCode: 'CLI-1' };
+    const startService = { startOnboarding: jest.fn(async (..._args: unknown[]) => respuesta) };
     const contactVerificationService = { requestContactVerification: jest.fn(), submitContactVerification: jest.fn() };
     const identityPackageService = { submitIdentityPackage: jest.fn() };
     const addressPackageService = { submitAddressPackage: jest.fn() };
+    // El expediente se abre después del alta y no cambia lo que ésta devuelve; aquí basta con que
+    // no haga nada, que es justo lo que estas pruebas de delegación necesitan comprobar.
+    const expedienteHooks = { alIniciarOnboarding: jest.fn() };
     const service = new CustomerOnboardingService(
       startService as never,
       contactVerificationService as never,
       identityPackageService as never,
       addressPackageService as never,
+      expedienteHooks as never,
     );
-    return { service, startService, contactVerificationService, identityPackageService, addressPackageService };
+    return { service, startService, contactVerificationService, identityPackageService, addressPackageService, expedienteHooks, respuesta };
   }
 
   it('delegates startOnboarding to CustomerOnboardingStartService with the exact arguments', async () => {
     const { service, startService } = buildService();
     await service.startOnboarding('t1', {} as never, '10.0.0.1', 'idem-1');
     expect(startService.startOnboarding).toHaveBeenCalledWith('t1', {}, '10.0.0.1', 'idem-1');
+  });
+
+  it('abre el expediente del cliente DESPUÉS del alta, con la sesión por la que entró', async () => {
+    // Sin esto, la carpeta del cliente sólo existiría si alguien lanzara el relleno a mano, y un
+    // caso en revisión humana aparecería vacío — indistinguible de un cliente que no subió nada.
+    const { service, expedienteHooks } = buildService();
+    await service.startOnboarding('t1', {} as never, '10.0.0.1', 'idem-1');
+    expect(expedienteHooks.alIniciarOnboarding).toHaveBeenCalledWith({
+      tenantId: 't1',
+      customerId: 'c1',
+      sessionId: 's1',
+      customerCode: 'CLI-1',
+    });
   });
 
   it('delegates requestContactVerification to CustomerContactVerificationService, not to submitContactVerification', async () => {

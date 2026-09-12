@@ -1,0 +1,32 @@
+# Un túnel, hospedado para siempre. Se instancia una vez por front:
+#
+#   systemctl --user enable --now atlas-devtunnel@atlas-admin.service
+#
+# ## Por qué systemd y no un `nohup`
+#
+# La URL de un dev tunnel es constante por diseño —sale del identificador del túnel, no del
+# proceso—, pero eso sólo vale si hay alguien hospedándolo. Con procesos sueltos, un apagón dejaba
+# los tres enlaces muertos hasta que una persona se acordaba de relanzar el script, y el síntoma
+# para el tester no es «esto está caído»: es un enlace que ya no abre, indistinguible de un enlace
+# equivocado. `Restart=always` cubre además la otra mitad —que el proceso se caiga solo— sin que
+# nadie mire.
+[Unit]
+Description=Dev tunnel %i (enlace fijo para los testers)
+Documentation=file:///home/pablo/Documents/GitHub/ATLAS/AtlasBackend/tools/devtunnels/devtunnels.sh
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/home/pablo/bin/devtunnel host %i
+# El túnel vive aunque su front esté caído: hospedarlo no depende de que el puerto escuche, y así
+# el enlace responde 502 —«el front no está»— en vez de no resolver, que es mucho más difícil de
+# diagnosticar desde fuera.
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/pablo/Documents/GitHub/ATLAS/AtlasBackend/tools/devtunnels/estado/%i.host.log
+StandardError=inherit
+
+[Install]
+WantedBy=default.target

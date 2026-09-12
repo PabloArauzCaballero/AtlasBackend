@@ -1,0 +1,1636 @@
+{
+ "schemaVersion": 1,
+ "project": "AtlasBackend",
+ "generatedAt": "2026-08-06T00:00:00Z",
+ "sourceRevision": "80fc741",
+ "executionMode": "bootstrap+update",
+ "language": "es",
+ "stats": {
+  "routes": 266,
+  "models": 130,
+  "columns": 2040,
+  "foreignKeys": 244,
+  "indexes": 290,
+  "migrations": 61,
+  "envVars": 159,
+  "events": 92,
+  "tests": 304,
+  "notes": 330,
+  "words": 178979,
+  "brokenLinks": 0,
+  "orphanNotes": 0
+ },
+ "files": {
+  "src/database/models/address-gps-observations.model.ts": {
+   "hash": "82c31adf24b96b96",
+   "documentedIn": [
+    "05-data/entities/address_gps_observations.md"
+   ],
+   "symbols": [
+    "AddressGpsObservationModel"
+   ]
+  },
+  "src/database/models/attribute-definitions.model.ts": {
+   "hash": "0e3b48e74d0d252e",
+   "documentedIn": [
+    "05-data/entities/attribute_definitions.md"
+   ],
+   "symbols": [
+    "AttributeDefinitionModel"
+   ]
+  },
+  "src/database/models/auth-credentials.model.ts": {
+   "hash": "72cc2c6b2746992b",
+   "documentedIn": [
+    "05-data/entities/auth_credentials.md"
+   ],
+   "symbols": [
+    "AuthCredentialModel"
+   ]
+  },
+  "src/database/models/auth-events.model.ts": {
+   "hash": "614dd052cf51dc0d",
+   "documentedIn": [
+    "05-data/entities/auth_events.md"
+   ],
+   "symbols": [
+    "AuthEventModel"
+   ]
+  },
+  "src/database/models/auth-one-time-codes.model.ts": {
+   "hash": "f55dae1a3780adb8",
+   "documentedIn": [
+    "05-data/entities/auth_one_time_codes.md"
+   ],
+   "symbols": [
+    "AuthOneTimeCodeModel"
+   ]
+  },
+  "src/database/models/auth-refresh-tokens.model.ts": {
+   "hash": "98ff74590ae94d4f",
+   "documentedIn": [
+    "05-data/entities/auth_refresh_tokens.md"
+   ],
+   "symbols": [
+    "AuthRefreshTokenModel"
+   ]
+  },
+  "src/database/models/consent-documents.model.ts": {
+   "hash": "aad04a1be3d668c9",
+   "documentedIn": [
+    "05-data/entities/consent_documents.md"
+   ],
+   "symbols": [
+    "ConsentDocumentModel"
+   ]
+  },
+  "src/database/models/consent-events.model.ts": {
+   "hash": "e28c1013b9d58c69",
+   "documentedIn": [
+    "05-data/entities/consent_events.md"
+   ],
+   "symbols": [
+    "ConsentEventModel"
+   ]
+  },
+  "src/database/models/contact-verification-attempts.model.ts": {
+   "hash": "0fe9f0748f0249e7",
+   "documentedIn": [
+    "05-data/entities/contact_verification_attempts.md"
+   ],
+   "symbols": [
+    "ContactVerificationAttemptModel"
+   ]
+  },
+  "src/database/models/context-approval-events.model.ts": {
+   "hash": "82e4ecc76d5536f7",
+   "documentedIn": [
+    "05-data/entities/context_approval_events.md"
+   ],
+   "symbols": [
+    "ContextApprovalEventModel"
+   ]
+  },
+  "src/database/models/context-catalog-versions.model.ts": {
+   "hash": "2acb3be376ee13aa",
+   "documentedIn": [
+    "05-data/entities/context_catalog_versions.md"
+   ],
+   "symbols": [
+    "ContextCatalogVersionModel"
+   ]
+  },
+  "src/database/models/context-catalogs.model.ts": {
+   "hash": "611b3cd4c9f36940",
+   "documentedIn": [
+    "05-data/entities/context_catalogs.md"
+   ],
+   "symbols": [
+    "ContextCatalogModel"
+   ]
+  },
+  "src/database/models/context-ingestion-jobs.model.ts": {
+   "hash": "518fcca74861091f",
+   "documentedIn": [
+    "05-data/entities/context_ingestion_jobs.md"
+   ],
+   "symbols": [
+    "ContextIngestionJobModel"
+   ]
+  },
+  "src/database/models/context-item-aliases.model.ts": {
+   "hash": "9cc7217061fc5c64",
+   "documentedIn": [
+    "05-data/entities/context_item_aliases.md"
+   ],
+   "symbols": [
+    "ContextItemAliasModel"
+   ]
+  },
+  "src/database/models/context-items.model.ts": {
+   "hash": "2a9d025e0a37f83c",
+   "documentedIn": [
+    "05-data/entities/context_items.md"
+   ],
+   "symbols": [
+    "ContextItemModel"
+   ]
+  },
+  "src/database/models/context-risk-mappings.model.ts": {
+   "hash": "92cb9a2a8403565c",
+   "documentedIn": [
+    "05-data/entities/context_risk_mappings.md"
+   ],
+   "symbols": [
+    "ContextRiskMappingModel"
+   ]
+  },
+  "src/database/models/context-sources.model.ts": {
+   "hash": "824d847792b62c4f",
+   "documentedIn": [
+    "05-data/entities/context_sources.md"
+   ],
+   "symbols": [
+    "ContextSourceModel"
+   ]
+  },
+  "src/database/models/context-staging-items.model.ts": {
+   "hash": "6ba81a89db125c79",
+   "documentedIn": [
+    "05-data/entities/context_staging_items.md"
+   ],
+   "symbols": [
+    "ContextStagingItemModel"
+   ]
+  },
+  "src/database/models/credit-application-events.model.ts": {
+   "hash": "f5ba4f57e5cafec9",
+   "documentedIn": [
+    "05-data/entities/credit_application_events.md"
+   ],
+   "symbols": [
+    "CreditApplicationEventModel"
+   ]
+  },
+  "src/database/models/credit-applications.model.ts": {
+   "hash": "09bf509cabe6c2a0",
+   "documentedIn": [
+    "05-data/entities/credit_applications.md"
+   ],
+   "symbols": [
+    "CreditApplicationModel"
+   ]
+  },
+  "src/database/models/credit-products.model.ts": {
+   "hash": "b37c05bfb7ef94be",
+   "documentedIn": [
+    "05-data/entities/credit_products.md"
+   ],
+   "symbols": [
+    "CreditProductModel"
+   ]
+  },
+  "src/database/models/customer-action-logs.model.ts": {
+   "hash": "16e7209b4193246c",
+   "documentedIn": [
+    "05-data/entities/customer_action_logs.md"
+   ],
+   "symbols": [
+    "CustomerActionLogModel"
+   ]
+  },
+  "src/database/models/customer-activity-summaries.model.ts": {
+   "hash": "07cdf073c81e4330",
+   "documentedIn": [
+    "05-data/entities/customer_activity_summaries.md"
+   ],
+   "symbols": [
+    "CustomerActivitySummaryModel"
+   ]
+  },
+  "src/database/models/customer-address-versions.model.ts": {
+   "hash": "9d72c31bcfa2819d",
+   "documentedIn": [
+    "05-data/entities/customer_address_versions.md"
+   ],
+   "symbols": [
+    "CustomerAddressVersionModel"
+   ]
+  },
+  "src/database/models/customer-addresses.model.ts": {
+   "hash": "7716fe900d6930f1",
+   "documentedIn": [
+    "05-data/entities/customer_addresses.md"
+   ],
+   "symbols": [
+    "CustomerAddressModel"
+   ]
+  },
+  "src/database/models/customer-attribute-values.model.ts": {
+   "hash": "c1772055767b4c08",
+   "documentedIn": [
+    "05-data/entities/customer_attribute_values.md"
+   ],
+   "symbols": [
+    "CustomerAttributeValueModel"
+   ]
+  },
+  "src/database/models/customer-consents.model.ts": {
+   "hash": "392285b98c79f05e",
+   "documentedIn": [
+    "05-data/entities/customer_consents.md"
+   ],
+   "symbols": [
+    "CustomerConsentModel"
+   ]
+  },
+  "src/database/models/customer-contact-methods.model.ts": {
+   "hash": "ca705fcd2830ebcd",
+   "documentedIn": [
+    "05-data/entities/customer_contact_methods.md"
+   ],
+   "symbols": [
+    "CustomerContactMethodModel"
+   ]
+  },
+  "src/database/models/customer-context-enrichments.model.ts": {
+   "hash": "ab51e73d35662f78",
+   "documentedIn": [
+    "05-data/entities/customer_context_enrichments.md"
+   ],
+   "symbols": [
+    "CustomerContextEnrichmentModel"
+   ]
+  },
+  "src/database/models/customer-device-links.model.ts": {
+   "hash": "edac2371dd49c60b",
+   "documentedIn": [
+    "05-data/entities/customer_device_links.md"
+   ],
+   "symbols": [
+    "CustomerDeviceLinkModel"
+   ]
+  },
+  "src/database/models/customer-eligibility-evaluations.model.ts": {
+   "hash": "f7306a6fa2d2e113",
+   "documentedIn": [
+    "05-data/entities/customer_eligibility_evaluations.md"
+   ],
+   "symbols": [
+    "CustomerEligibilityEvaluationModel"
+   ]
+  },
+  "src/database/models/customer-identity-documents.model.ts": {
+   "hash": "ebd9037f6009e397",
+   "documentedIn": [
+    "05-data/entities/customer_identity_documents.md"
+   ],
+   "symbols": [
+    "CustomerIdentityDocumentModel"
+   ]
+  },
+  "src/database/models/customer-observations.model.ts": {
+   "hash": "e21abfcc34b695ae",
+   "documentedIn": [
+    "05-data/entities/customer_observations.md"
+   ],
+   "symbols": [
+    "CustomerObservationModel"
+   ]
+  },
+  "src/database/models/customer-profile-versions.model.ts": {
+   "hash": "e7e044aea69d1af0",
+   "documentedIn": [
+    "05-data/entities/customer_profile_versions.md"
+   ],
+   "symbols": [
+    "CustomerProfileVersionModel"
+   ]
+  },
+  "src/database/models/customer-reference-contacts.model.ts": {
+   "hash": "5abf9e51f7a38895",
+   "documentedIn": [
+    "05-data/entities/customer_reference_contacts.md"
+   ],
+   "symbols": [
+    "CustomerReferenceContactModel"
+   ]
+  },
+  "src/database/models/customer-sessions.model.ts": {
+   "hash": "fc6dbc5f8bff2756",
+   "documentedIn": [
+    "05-data/entities/customer_sessions.md"
+   ],
+   "symbols": [
+    "CustomerSessionModel"
+   ]
+  },
+  "src/database/models/customer-status-events.model.ts": {
+   "hash": "18d1a99a03134e18",
+   "documentedIn": [
+    "05-data/entities/customer_status_events.md"
+   ],
+   "symbols": [
+    "CustomerStatusEventModel"
+   ]
+  },
+  "src/database/models/customers.model.ts": {
+   "hash": "d1853b587f4ad049",
+   "documentedIn": [
+    "05-data/entities/customers.md"
+   ],
+   "symbols": [
+    "CustomerModel"
+   ]
+  },
+  "src/database/models/data-change-logs.model.ts": {
+   "hash": "765d489204e78891",
+   "documentedIn": [
+    "05-data/entities/data_change_logs.md"
+   ],
+   "symbols": [
+    "DataChangeLogModel"
+   ]
+  },
+  "src/database/models/data-classification-policies.model.ts": {
+   "hash": "50661f279bc01b5b",
+   "documentedIn": [
+    "05-data/entities/data_classification_policies.md"
+   ],
+   "symbols": [
+    "DataClassificationPolicyModel"
+   ]
+  },
+  "src/database/models/data-provider-requests.model.ts": {
+   "hash": "736b9ce40705695e",
+   "documentedIn": [
+    "05-data/entities/data_provider_requests.md"
+   ],
+   "symbols": [
+    "DataProviderRequestModel"
+   ]
+  },
+  "src/database/models/data-provider-responses.model.ts": {
+   "hash": "ae7c62dc9a0a63b6",
+   "documentedIn": [
+    "05-data/entities/data_provider_responses.md"
+   ],
+   "symbols": [
+    "DataProviderResponseModel"
+   ]
+  },
+  "src/database/models/data-providers.model.ts": {
+   "hash": "26c5452050d1657c",
+   "documentedIn": [
+    "05-data/entities/data_providers.md"
+   ],
+   "symbols": [
+    "DataProviderModel"
+   ]
+  },
+  "src/database/models/data-quality-issues.model.ts": {
+   "hash": "88c50841a7302aa0",
+   "documentedIn": [
+    "05-data/entities/data_quality_issues.md"
+   ],
+   "symbols": [
+    "DataQualityIssueModel"
+   ]
+  },
+  "src/database/models/data-quality-rules.model.ts": {
+   "hash": "67bf3ca4721f7555",
+   "documentedIn": [
+    "05-data/entities/data_quality_rules.md"
+   ],
+   "symbols": [
+    "DataQualityRuleModel"
+   ]
+  },
+  "src/database/models/data-subject-requests.model.ts": {
+   "hash": "06c6923f3a2c9c93",
+   "documentedIn": [
+    "05-data/entities/data_subject_requests.md"
+   ],
+   "symbols": [
+    "DataSubjectRequestModel"
+   ]
+  },
+  "src/database/models/device-risk-events.model.ts": {
+   "hash": "1a77fd6fbffd0828",
+   "documentedIn": [
+    "05-data/entities/device_risk_events.md"
+   ],
+   "symbols": [
+    "DeviceRiskEventModel"
+   ]
+  },
+  "src/database/models/device-snapshots.model.ts": {
+   "hash": "042b30f068420a91",
+   "documentedIn": [
+    "05-data/entities/device_snapshots.md"
+   ],
+   "symbols": [
+    "DeviceSnapshotModel"
+   ]
+  },
+  "src/database/models/device-tokens.model.ts": {
+   "hash": "ec3a130c944540ca",
+   "documentedIn": [
+    "05-data/entities/device_tokens.md"
+   ],
+   "symbols": [
+    "DeviceTokenModel"
+   ]
+  },
+  "src/database/models/devices.model.ts": {
+   "hash": "19d1967961e51edc",
+   "documentedIn": [
+    "05-data/entities/devices.md"
+   ],
+   "symbols": [
+    "DeviceModel"
+   ]
+  },
+  "src/database/models/event-definitions.model.ts": {
+   "hash": "39db3fca918951ab",
+   "documentedIn": [
+    "05-data/entities/event_definitions.md"
+   ],
+   "symbols": [
+    "EventDefinitionModel"
+   ]
+  },
+  "src/database/models/evidence-documents.model.ts": {
+   "hash": "b8f6688bdb1225aa",
+   "documentedIn": [
+    "05-data/entities/evidence_documents.md"
+   ],
+   "symbols": [
+    "EvidenceDocumentModel"
+   ]
+  },
+  "src/database/models/evidence-extractions.model.ts": {
+   "hash": "aa1e3f12f79ec575",
+   "documentedIn": [
+    "05-data/entities/evidence_extractions.md"
+   ],
+   "symbols": [
+    "EvidenceExtractionModel"
+   ]
+  },
+  "src/database/models/evidence-reviews.model.ts": {
+   "hash": "72321fe2fdca42b5",
+   "documentedIn": [
+    "05-data/entities/evidence_reviews.md"
+   ],
+   "symbols": [
+    "EvidenceReviewModel"
+   ]
+  },
+  "src/database/models/external-oauth-connections.model.ts": {
+   "hash": "69b5ee1fc12a3350",
+   "documentedIn": [
+    "05-data/entities/external_oauth_connections.md"
+   ],
+   "symbols": [
+    "ExternalOauthConnectionModel"
+   ]
+  },
+  "src/database/models/external-provider-cost-policies.model.ts": {
+   "hash": "656c2837242d07fc",
+   "documentedIn": [
+    "05-data/entities/external_provider_cost_policies.md"
+   ],
+   "symbols": [
+    "ExternalProviderCostPolicyModel"
+   ]
+  },
+  "src/database/models/feature-computation-runs.model.ts": {
+   "hash": "abb43f9c96659b14",
+   "documentedIn": [
+    "05-data/entities/feature_computation_runs.md"
+   ],
+   "symbols": [
+    "FeatureComputationRunModel"
+   ]
+  },
+  "src/database/models/feature-definitions.model.ts": {
+   "hash": "296c663f716d27df",
+   "documentedIn": [
+    "05-data/entities/feature_definitions.md"
+   ],
+   "symbols": [
+    "FeatureDefinitionModel"
+   ]
+  },
+  "src/database/models/feature-lineage-links.model.ts": {
+   "hash": "1e2dc60a586182c5",
+   "documentedIn": [
+    "05-data/entities/feature_lineage_links.md"
+   ],
+   "symbols": [
+    "FeatureLineageLinkModel"
+   ]
+  },
+  "src/database/models/feature-snapshots.model.ts": {
+   "hash": "6be05dde64e35ae0",
+   "documentedIn": [
+    "05-data/entities/feature_snapshots.md"
+   ],
+   "symbols": [
+    "FeatureSnapshotModel"
+   ]
+  },
+  "src/database/models/feature-values.model.ts": {
+   "hash": "edcb1312a056d6b3",
+   "documentedIn": [
+    "05-data/entities/feature_values.md"
+   ],
+   "symbols": [
+    "FeatureValueModel"
+   ]
+  },
+  "src/database/models/form-field-interaction-events.model.ts": {
+   "hash": "e2900474e5a0e2fa",
+   "documentedIn": [
+    "05-data/entities/form_field_interaction_events.md"
+   ],
+   "symbols": [
+    "FormFieldInteractionEventModel"
+   ]
+  },
+  "src/database/models/fraud-case-events.model.ts": {
+   "hash": "98626c1811c2f3bd",
+   "documentedIn": [
+    "05-data/entities/fraud_case_events.md"
+   ],
+   "symbols": [
+    "FraudCaseEventModel"
+   ]
+  },
+  "src/database/models/fraud-cases.model.ts": {
+   "hash": "d625a6359e68dc3d",
+   "documentedIn": [
+    "05-data/entities/fraud_cases.md"
+   ],
+   "symbols": [
+    "FraudCaseModel"
+   ]
+  },
+  "src/database/models/global-device-fingerprints.model.ts": {
+   "hash": "1edbcfb351ac313c",
+   "documentedIn": [
+    "05-data/entities/global_device_fingerprints.md"
+   ],
+   "symbols": [
+    "GlobalDeviceFingerprintModel"
+   ]
+  },
+  "src/database/models/idempotency-keys.model.ts": {
+   "hash": "edf18fa728fe5a9f",
+   "documentedIn": [
+    "05-data/entities/idempotency_keys.md"
+   ],
+   "symbols": [
+    "IdempotencyKeyModel"
+   ]
+  },
+  "src/database/models/identity-verification-attempts.model.ts": {
+   "hash": "6830a947b059326a",
+   "documentedIn": [
+    "05-data/entities/identity_verification_attempts.md"
+   ],
+   "symbols": [
+    "IdentityVerificationAttemptModel"
+   ]
+  },
+  "src/database/models/internal-permissions.model.ts": {
+   "hash": "3ca95140110788d2",
+   "documentedIn": [
+    "05-data/entities/internal_permissions.md"
+   ],
+   "symbols": [
+    "InternalPermissionModel"
+   ]
+  },
+  "src/database/models/internal-role-permissions.model.ts": {
+   "hash": "f95f09740f9a7be8",
+   "documentedIn": [
+    "05-data/entities/internal_role_permissions.md"
+   ],
+   "symbols": [
+    "InternalRolePermissionModel"
+   ]
+  },
+  "src/database/models/internal-roles.model.ts": {
+   "hash": "f10bfd146f11217f",
+   "documentedIn": [
+    "05-data/entities/internal_roles.md"
+   ],
+   "symbols": [
+    "InternalRoleModel"
+   ]
+  },
+  "src/database/models/internal-user-roles.model.ts": {
+   "hash": "3304a9f93f264441",
+   "documentedIn": [
+    "05-data/entities/internal_user_roles.md"
+   ],
+   "symbols": [
+    "InternalUserRoleModel"
+   ]
+  },
+  "src/database/models/internal-users.model.ts": {
+   "hash": "aa5ab611d3e98d91",
+   "documentedIn": [
+    "05-data/entities/internal_users.md"
+   ],
+   "symbols": [
+    "InternalUserModel"
+   ]
+  },
+  "src/database/models/ip-reputation-observations.model.ts": {
+   "hash": "aa77598c3ad62f5f",
+   "documentedIn": [
+    "05-data/entities/ip_reputation_observations.md"
+   ],
+   "symbols": [
+    "IpReputationObservationModel"
+   ]
+  },
+  "src/database/models/manual-review-cases.model.ts": {
+   "hash": "c2b8eed1d40fad2e",
+   "documentedIn": [
+    "05-data/entities/manual_review_cases.md"
+   ],
+   "symbols": [
+    "ManualReviewCaseModel"
+   ]
+  },
+  "src/database/models/manual-review-events.model.ts": {
+   "hash": "98aeb78857a6025d",
+   "documentedIn": [
+    "05-data/entities/manual_review_events.md"
+   ],
+   "symbols": [
+    "ManualReviewEventModel"
+   ]
+  },
+  "src/database/models/notification-deliveries.model.ts": {
+   "hash": "b0d7985ac804c18a",
+   "documentedIn": [
+    "05-data/entities/notification_deliveries.md"
+   ],
+   "symbols": [
+    "NotificationDeliveryModel"
+   ]
+  },
+  "src/database/models/notification-messages.model.ts": {
+   "hash": "4588759adab6b8e9",
+   "documentedIn": [
+    "05-data/entities/notification_messages.md"
+   ],
+   "symbols": [
+    "NotificationMessageModel"
+   ]
+  },
+  "src/database/models/notification-templates.model.ts": {
+   "hash": "37665297f12ecaae",
+   "documentedIn": [
+    "05-data/entities/notification_templates.md"
+   ],
+   "symbols": [
+    "NotificationTemplateModel"
+   ]
+  },
+  "src/database/models/observation-definitions.model.ts": {
+   "hash": "a070462f397803f4",
+   "documentedIn": [
+    "05-data/entities/observation_definitions.md"
+   ],
+   "symbols": [
+    "ObservationDefinitionModel"
+   ]
+  },
+  "src/database/models/on-device-computation-runs.model.ts": {
+   "hash": "12ecb7b1695887d8",
+   "documentedIn": [
+    "05-data/entities/on_device_computation_runs.md"
+   ],
+   "symbols": [
+    "OnDeviceComputationRunModel"
+   ]
+  },
+  "src/database/models/on-device-metric-values.model.ts": {
+   "hash": "449b3c90f9fcc060",
+   "documentedIn": [
+    "05-data/entities/on_device_metric_values.md"
+   ],
+   "symbols": [
+    "OnDeviceMetricValueModel"
+   ]
+  },
+  "src/database/models/onboarding-behavior-summaries.model.ts": {
+   "hash": "add342068464ae9f",
+   "documentedIn": [
+    "05-data/entities/onboarding_behavior_summaries.md"
+   ],
+   "symbols": [
+    "OnboardingBehaviorSummaryModel"
+   ]
+  },
+  "src/database/models/onboarding-flows.model.ts": {
+   "hash": "6471fa76e9ef8b62",
+   "documentedIn": [
+    "05-data/entities/onboarding_flows.md"
+   ],
+   "symbols": [
+    "OnboardingFlowModel"
+   ]
+  },
+  "src/database/models/onboarding-step-events.model.ts": {
+   "hash": "fc9b351842624019",
+   "documentedIn": [
+    "05-data/entities/onboarding_step_events.md"
+   ],
+   "symbols": [
+    "OnboardingStepEventModel"
+   ]
+  },
+  "src/database/models/operational-audit-logs.model.ts": {
+   "hash": "68bf5298515c6fe7",
+   "documentedIn": [
+    "05-data/entities/operational_audit_logs.md"
+   ],
+   "symbols": [
+    "OperationalAuditLogModel"
+   ]
+  },
+  "src/database/models/outbox-events.model.ts": {
+   "hash": "1ab499958bdba33a",
+   "documentedIn": [
+    "05-data/entities/outbox_events.md"
+   ],
+   "symbols": [
+    "OutboxEventModel"
+   ]
+  },
+  "src/database/models/permission-events.model.ts": {
+   "hash": "185089d33748af30",
+   "documentedIn": [
+    "05-data/entities/permission_events.md"
+   ],
+   "symbols": [
+    "PermissionEventModel"
+   ]
+  },
+  "src/database/models/platform-users.model.ts": {
+   "hash": "84de72b3d6ad359c",
+   "documentedIn": [
+    "05-data/entities/platform_users.md"
+   ],
+   "symbols": [
+    "PlatformUserModel"
+   ]
+  },
+  "src/database/models/privacy-processing-purposes.model.ts": {
+   "hash": "cadf4694e5ed61e3",
+   "documentedIn": [
+    "05-data/entities/privacy_processing_purposes.md"
+   ],
+   "symbols": [
+    "PrivacyProcessingPurposeModel"
+   ]
+  },
+  "src/database/models/provider-health-logs.model.ts": {
+   "hash": "e51a2d39df4f31c1",
+   "documentedIn": [
+    "05-data/entities/provider_health_logs.md"
+   ],
+   "symbols": [
+    "ProviderHealthLogModel"
+   ]
+  },
+  "src/database/models/retention-policies.model.ts": {
+   "hash": "fa3301a5289df447",
+   "documentedIn": [
+    "05-data/entities/retention_policies.md"
+   ],
+   "symbols": [
+    "RetentionPolicyModel"
+   ]
+  },
+  "src/database/models/risk-assessment-contexts.model.ts": {
+   "hash": "88359421bc449dae",
+   "documentedIn": [
+    "05-data/entities/risk_assessment_contexts.md"
+   ],
+   "symbols": [
+    "RiskAssessmentContextModel"
+   ]
+  },
+  "src/database/models/risk-assessment-results.model.ts": {
+   "hash": "ddfe47005a8040a0",
+   "documentedIn": [
+    "05-data/entities/risk_assessment_results.md"
+   ],
+   "symbols": [
+    "RiskAssessmentResultModel"
+   ]
+  },
+  "src/database/models/risk-assessment-runs.model.ts": {
+   "hash": "e116bfa68d81b159",
+   "documentedIn": [
+    "05-data/entities/risk_assessment_runs.md"
+   ],
+   "symbols": [
+    "RiskAssessmentRunModel"
+   ]
+  },
+  "src/database/models/risk-feature-contributions.model.ts": {
+   "hash": "d13c460a17943625",
+   "documentedIn": [
+    "05-data/entities/risk_feature_contributions.md"
+   ],
+   "symbols": [
+    "RiskFeatureContributionModel"
+   ]
+  },
+  "src/database/models/risk-model-versions.model.ts": {
+   "hash": "636674e687c7e8aa",
+   "documentedIn": [
+    "05-data/entities/risk_model_versions.md"
+   ],
+   "symbols": [
+    "RiskModelVersionModel"
+   ]
+  },
+  "src/database/models/risk-policy-rules.model.ts": {
+   "hash": "841b252621f24208",
+   "documentedIn": [
+    "05-data/entities/risk_policy_rules.md"
+   ],
+   "symbols": [
+    "RiskPolicyRuleModel"
+   ]
+  },
+  "src/database/models/risk-rules-fired.model.ts": {
+   "hash": "ff1faeaac78c802e",
+   "documentedIn": [
+    "05-data/entities/risk_rules_fired.md"
+   ],
+   "symbols": [
+    "RiskRuleFiredModel"
+   ]
+  },
+  "src/database/models/risk-ruleset-versions.model.ts": {
+   "hash": "97ea75f1b1f03cfd",
+   "documentedIn": [
+    "05-data/entities/risk_ruleset_versions.md"
+   ],
+   "symbols": [
+    "RiskRulesetVersionModel"
+   ]
+  },
+  "src/database/models/risk-signal-seeds.model.ts": {
+   "hash": "ea7eebbb58e4a5e1",
+   "documentedIn": [
+    "05-data/entities/risk_signal_seeds.md"
+   ],
+   "symbols": [
+    "RiskSignalSeedModel"
+   ]
+  },
+  "src/database/models/schema-constraint-notes.model.ts": {
+   "hash": "8b17d0ae2e6bd4cb",
+   "documentedIn": [
+    "05-data/entities/schema_constraint_notes.md"
+   ],
+   "symbols": [
+    "SchemaConstraintNoteModel"
+   ]
+  },
+  "src/database/models/sensitive-field-rules.model.ts": {
+   "hash": "bb0daedf83c9624d",
+   "documentedIn": [
+    "05-data/entities/sensitive_field_rules.md"
+   ],
+   "symbols": [
+    "SensitiveFieldRuleModel"
+   ]
+  },
+  "src/database/models/sim-observations.model.ts": {
+   "hash": "380fdde70238bfbc",
+   "documentedIn": [
+    "05-data/entities/sim_observations.md"
+   ],
+   "symbols": [
+    "SimObservationModel"
+   ]
+  },
+  "src/database/models/system-action-logs.model.ts": {
+   "hash": "6e279bdb6135bdb3",
+   "documentedIn": [
+    "05-data/entities/system_action_logs.md"
+   ],
+   "symbols": [
+    "SystemActionLogModel"
+   ]
+  },
+  "src/database/models/system-catalog-review-events.model.ts": {
+   "hash": "738884043862fd21",
+   "documentedIn": [
+    "05-data/entities/system_catalog_review_events.md"
+   ],
+   "symbols": [
+    "SystemCatalogReviewEventModel"
+   ]
+  },
+  "src/database/models/system-data-field-catalog.model.ts": {
+   "hash": "7ca914010f00683d",
+   "documentedIn": [
+    "05-data/entities/system_data_field_catalog.md"
+   ],
+   "symbols": [
+    "SystemDataFieldCatalogModel"
+   ]
+  },
+  "src/database/models/system-data-relationship-catalog.model.ts": {
+   "hash": "ec806a67c6000bcf",
+   "documentedIn": [
+    "05-data/entities/system_data_relationship_catalog.md"
+   ],
+   "symbols": [
+    "SystemDataRelationshipCatalogModel"
+   ]
+  },
+  "src/database/models/system-domain-catalog.model.ts": {
+   "hash": "2eb9a613b2d06bb1",
+   "documentedIn": [
+    "05-data/entities/system_domain_catalog.md"
+   ],
+   "symbols": [
+    "SystemDomainCatalogModel"
+   ]
+  },
+  "src/database/models/system-endpoint-catalog.model.ts": {
+   "hash": "b919e119e7e2e7b1",
+   "documentedIn": [
+    "05-data/entities/system_endpoint_catalog.md"
+   ],
+   "symbols": [
+    "SystemEndpointCatalogModel"
+   ]
+  },
+  "src/database/models/system-endpoint-data-entity-impacts.model.ts": {
+   "hash": "8ba65fd053995fd8",
+   "documentedIn": [
+    "05-data/entities/system_endpoint_data_entity_impacts.md"
+   ],
+   "symbols": [
+    "SystemEndpointDataEntityImpactModel"
+   ]
+  },
+  "src/database/models/system-endpoint-field-impacts.model.ts": {
+   "hash": "0b2bcfd31740acc7",
+   "documentedIn": [
+    "05-data/entities/system_endpoint_field_impacts.md"
+   ],
+   "symbols": [
+    "SystemEndpointFieldImpactModel"
+   ]
+  },
+  "src/database/models/system-endpoint-payload-contracts.model.ts": {
+   "hash": "dcee2e8d16f57c3d",
+   "documentedIn": [
+    "05-data/entities/system_endpoint_payload_contracts.md"
+   ],
+   "symbols": [
+    "SystemEndpointPayloadContractModel"
+   ]
+  },
+  "src/database/models/system-endpoint-tool-requirements.model.ts": {
+   "hash": "ebd2085c545d82c9",
+   "documentedIn": [
+    "05-data/entities/system_endpoint_tool_requirements.md"
+   ],
+   "symbols": [
+    "SystemEndpointToolRequirementModel"
+   ]
+  },
+  "src/database/models/system-job-runs.model.ts": {
+   "hash": "b2649796b2f9e395",
+   "documentedIn": [
+    "05-data/entities/system_job_runs.md"
+   ],
+   "symbols": [
+    "SystemJobRunModel"
+   ]
+  },
+  "src/database/models/system-operational-rule-catalog.model.ts": {
+   "hash": "5f0a64748b663771",
+   "documentedIn": [
+    "05-data/entities/system_operational_rule_catalog.md"
+   ],
+   "symbols": [
+    "SystemOperationalRuleCatalogModel"
+   ]
+  },
+  "src/database/models/system-stress-profiles.model.ts": {
+   "hash": "bcb1322578924f5c",
+   "documentedIn": [
+    "05-data/entities/system_stress_profiles.md"
+   ],
+   "symbols": [
+    "SystemStressProfileModel"
+   ]
+  },
+  "src/database/models/system-test-runs.model.ts": {
+   "hash": "774076429ca0bed2",
+   "documentedIn": [
+    "05-data/entities/system_test_runs.md"
+   ],
+   "symbols": [
+    "SystemTestRunModel"
+   ]
+  },
+  "src/database/models/system-test-step-runs.model.ts": {
+   "hash": "3132d7091c4ca5b5",
+   "documentedIn": [
+    "05-data/entities/system_test_step_runs.md"
+   ],
+   "symbols": [
+    "SystemTestStepRunModel"
+   ]
+  },
+  "src/database/models/system-test-steps.model.ts": {
+   "hash": "05a217c58e44ddaf",
+   "documentedIn": [
+    "05-data/entities/system_test_steps.md"
+   ],
+   "symbols": [
+    "SystemTestStepModel"
+   ]
+  },
+  "src/database/models/system-test-suites.model.ts": {
+   "hash": "cc3abe2fbef5ad58",
+   "documentedIn": [
+    "05-data/entities/system_test_suites.md"
+   ],
+   "symbols": [
+    "SystemTestSuiteModel"
+   ]
+  },
+  "src/database/models/system-tool-catalog.model.ts": {
+   "hash": "d44c404982e09e92",
+   "documentedIn": [
+    "05-data/entities/system_tool_catalog.md"
+   ],
+   "symbols": [
+    "SystemToolCatalogModel"
+   ]
+  },
+  "src/database/models/tenants.model.ts": {
+   "hash": "4450422e50ad262d",
+   "documentedIn": [
+    "05-data/entities/tenants.md"
+   ],
+   "symbols": [
+    "TenantModel"
+   ]
+  },
+  "src/database/models/user-notification-preferences.model.ts": {
+   "hash": "28135b4986338f59",
+   "documentedIn": [
+    "05-data/entities/user_notification_preferences.md"
+   ],
+   "symbols": [
+    "UserNotificationPreferenceModel"
+   ]
+  },
+  "src/database/models/watchlist-entries.model.ts": {
+   "hash": "cbc074bb00834b22",
+   "documentedIn": [
+    "05-data/entities/watchlist_entries.md"
+   ],
+   "symbols": [
+    "WatchlistEntryModel"
+   ]
+  },
+  "src/database/models/watchlist-matches.model.ts": {
+   "hash": "b535e52ca2c6c635",
+   "documentedIn": [
+    "05-data/entities/watchlist_matches.md"
+   ],
+   "symbols": [
+    "WatchlistMatchModel"
+   ]
+  },
+  "src/database/models/workflow-definitions.model.ts": {
+   "hash": "a0c96ed3ecd212ef",
+   "documentedIn": [
+    "05-data/entities/workflow_definitions.md"
+   ],
+   "symbols": [
+    "WorkflowDefinitionModel"
+   ]
+  },
+  "src/database/models/workflow-stages.model.ts": {
+   "hash": "853f818b7a1690f0",
+   "documentedIn": [
+    "05-data/entities/workflow_stages.md"
+   ],
+   "symbols": [
+    "WorkflowStageModel"
+   ]
+  },
+  "src/database/models/workflow-step-dependencies.model.ts": {
+   "hash": "455842c7857a7c58",
+   "documentedIn": [
+    "05-data/entities/workflow_step_dependencies.md"
+   ],
+   "symbols": [
+    "WorkflowStepDependencyModel"
+   ]
+  },
+  "src/database/models/workflow-steps.model.ts": {
+   "hash": "1803b3067d48e586",
+   "documentedIn": [
+    "05-data/entities/workflow_steps.md"
+   ],
+   "symbols": [
+    "WorkflowStepModel"
+   ]
+  },
+  "src/database/models/workflow-transitions.model.ts": {
+   "hash": "036f8001bc2726a8",
+   "documentedIn": [
+    "05-data/entities/workflow_transitions.md"
+   ],
+   "symbols": [
+    "WorkflowTransitionModel"
+   ]
+  },
+  "src/common/observability/metrics.controller.ts": {
+   "hash": "26652a117dc7ae45",
+   "documentedIn": [
+    "04-api/rest/sin-tag.md"
+   ],
+   "symbols": [
+    "MetricsController"
+   ]
+  },
+  "src/modules/audit/audit.controller.ts": {
+   "hash": "54cf2e543c11e949",
+   "documentedIn": [
+    "04-api/rest/audit.md"
+   ],
+   "symbols": [
+    "AuditController"
+   ]
+  },
+  "src/modules/auth/auth.controller.ts": {
+   "hash": "c5abf81336205341",
+   "documentedIn": [
+    "04-api/rest/auth.md"
+   ],
+   "symbols": [
+    "AuthController"
+   ]
+  },
+  "src/modules/catalog-management/catalog-management.controller.ts": {
+   "hash": "c6e0802d3dbe7434",
+   "documentedIn": [
+    "04-api/rest/catalog-management.md"
+   ],
+   "symbols": [
+    "CatalogManagementController"
+   ]
+  },
+  "src/modules/consents/consents.controller.ts": {
+   "hash": "74248008a614e996",
+   "documentedIn": [
+    "04-api/rest/consents.md"
+   ],
+   "symbols": [
+    "ConsentsController"
+   ]
+  },
+  "src/modules/credit/credit-operations.controller.ts": {
+   "hash": "82c4d548ea4557e1",
+   "documentedIn": [
+    "04-api/rest/credit.md"
+   ],
+   "symbols": [
+    "CreditOperationsController"
+   ]
+  },
+  "src/modules/credit/credit.controller.ts": {
+   "hash": "3b7806937decd5bd",
+   "documentedIn": [
+    "04-api/rest/credit.md"
+   ],
+   "symbols": [
+    "CreditController"
+   ]
+  },
+  "src/modules/customer-onboarding/customer-onboarding-profile.controller.ts": {
+   "hash": "dc43262455c187ae",
+   "documentedIn": [
+    "04-api/rest/customer-onboarding.md"
+   ],
+   "symbols": [
+    "CustomerOnboardingProfileController"
+   ]
+  },
+  "src/modules/customer-onboarding/customer-onboarding-status.controller.ts": {
+   "hash": "62d0cf4cf91976a3",
+   "documentedIn": [
+    "04-api/rest/customer-onboarding.md"
+   ],
+   "symbols": [
+    "CustomerOnboardingStatusController"
+   ]
+  },
+  "src/modules/customer-onboarding/customer-onboarding.controller.ts": {
+   "hash": "236b1333032ca206",
+   "documentedIn": [
+    "04-api/rest/customer-onboarding.md"
+   ],
+   "symbols": [
+    "CustomerOnboardingController"
+   ]
+  },
+  "src/modules/customer-onboarding/customer-verification.controller.ts": {
+   "hash": "40a33f194a5e7929",
+   "documentedIn": [
+    "04-api/rest/customer-onboarding.md"
+   ],
+   "symbols": [
+    "CustomerVerificationController"
+   ]
+  },
+  "src/modules/customer-privacy/customer-privacy.controller.ts": {
+   "hash": "759d4f64f1743843",
+   "documentedIn": [
+    "04-api/rest/customer-privacy.md"
+   ],
+   "symbols": [
+    "CustomerPrivacyController"
+   ]
+  },
+  "src/modules/customer-telemetry/customer-telemetry.controller.ts": {
+   "hash": "6bd9c29cba9d5c8f",
+   "documentedIn": [
+    "04-api/rest/customer-telemetry.md"
+   ],
+   "symbols": [
+    "CustomerTelemetryController"
+   ]
+  },
+  "src/modules/customers/customer-eligibility.controller.ts": {
+   "hash": "a6c78da402a33084",
+   "documentedIn": [
+    "04-api/rest/customer-eligibility.md"
+   ],
+   "symbols": [
+    "CustomerEligibilityController"
+   ]
+  },
+  "src/modules/customers/customers.controller.ts": {
+   "hash": "7cd3f1766e33778d",
+   "documentedIn": [
+    "04-api/rest/customers.md"
+   ],
+   "symbols": [
+    "CustomersController"
+   ]
+  },
+  "src/modules/data-quality/data-quality.controller.ts": {
+   "hash": "982a7113f7d95f46",
+   "documentedIn": [
+    "04-api/rest/data-quality.md"
+   ],
+   "symbols": [
+    "DataQualityController"
+   ]
+  },
+  "src/modules/events/events.controller.ts": {
+   "hash": "5717f8c02df876ef",
+   "documentedIn": [
+    "04-api/rest/events.md"
+   ],
+   "symbols": [
+    "EventsController"
+   ]
+  },
+  "src/modules/external-data/controllers/kyc-bureau.controller.ts": {
+   "hash": "d47abc5cb3548cea",
+   "documentedIn": [
+    "04-api/rest/kyc.md"
+   ],
+   "symbols": [
+    "KycExternalDataController",
+    "BureauExternalDataController"
+   ]
+  },
+  "src/modules/external-data/controllers/payments-telco.controller.ts": {
+   "hash": "aad6028f67c382bc",
+   "documentedIn": [
+    "04-api/rest/payments-external.md"
+   ],
+   "symbols": [
+    "PaymentsExternalDataController",
+    "TelcoExternalDataController"
+   ]
+  },
+  "src/modules/external-data/controllers/social-trust.controller.ts": {
+   "hash": "fd767f91531143c6",
+   "documentedIn": [
+    "04-api/rest/social.md"
+   ],
+   "symbols": [
+    "FacebookExternalDataController",
+    "WhatsappExternalDataController",
+    "DigitalTrustExternalDataController"
+   ]
+  },
+  "src/modules/external-data/external-data.controller.ts": {
+   "hash": "a0ede8510030f0c4",
+   "documentedIn": [
+    "04-api/rest/external-data.md"
+   ],
+   "symbols": [
+    "ExternalDataController",
+    "AdminExternalProvidersController"
+   ]
+  },
+  "src/modules/health/health.controller.ts": {
+   "hash": "844f8fe181dc2e0a",
+   "documentedIn": [
+    "04-api/rest/health.md"
+   ],
+   "symbols": [
+    "HealthController"
+   ]
+  },
+  "src/modules/internal-portal/admin-read.controller.ts": {
+   "hash": "e75492cb3b7fdd22",
+   "documentedIn": [
+    "04-api/rest/internal-admin-views.md"
+   ],
+   "symbols": [
+    "AdminReadController"
+   ]
+  },
+  "src/modules/internal-portal/internal-portal.controller.ts": {
+   "hash": "f9d26ef5d860915e",
+   "documentedIn": [
+    "04-api/rest/internal-portal.md"
+   ],
+   "symbols": [
+    "InternalPortalController"
+   ]
+  },
+  "src/modules/internal-users/internal-access-catalog.controller.ts": {
+   "hash": "d3cfbe1a4985789c",
+   "documentedIn": [
+    "04-api/rest/internal-access-catalog.md"
+   ],
+   "symbols": [
+    "InternalAccessCatalogController"
+   ]
+  },
+  "src/modules/internal-users/internal-auth.controller.ts": {
+   "hash": "9d02f7bfaecd1b17",
+   "documentedIn": [
+    "04-api/rest/internal-auth.md"
+   ],
+   "symbols": [
+    "InternalAuthController"
+   ]
+  },
+  "src/modules/internal-users/internal-users.controller.ts": {
+   "hash": "a943b9dfb2efb57e",
+   "documentedIn": [
+    "04-api/rest/internal-users.md"
+   ],
+   "symbols": [
+    "InternalUsersController"
+   ]
+  },
+  "src/modules/log-sync/mongo-logs.controller.ts": {
+   "hash": "7084d58cbba5a5b3",
+   "documentedIn": [
+    "04-api/rest/sin-tag.md"
+   ],
+   "symbols": [
+    "MongoLogsController"
+   ]
+  },
+  "src/modules/notifications/notifications.controller.ts": {
+   "hash": "e9ef72a220c4626d",
+   "documentedIn": [
+    "04-api/rest/notifications.md"
+   ],
+   "symbols": [
+    "NotificationsController"
+   ]
+  },
+  "src/modules/operations/operations.controller.ts": {
+   "hash": "c34ba457ddf0ba81",
+   "documentedIn": [
+    "04-api/rest/operations.md"
+   ],
+   "symbols": [
+    "OperationsController"
+   ]
+  },
+  "src/modules/risk/risk.controller.ts": {
+   "hash": "717c5a7ddc47b0b8",
+   "documentedIn": [
+    "04-api/rest/risk.md"
+   ],
+   "symbols": [
+    "RiskController"
+   ]
+  },
+  "src/modules/runtime-jobs/runtime-jobs.controller.ts": {
+   "hash": "c6aaf2169334a05e",
+   "documentedIn": [
+    "04-api/rest/runtime-jobs.md"
+   ],
+   "symbols": [
+    "RuntimeJobsController"
+   ]
+  },
+  "src/modules/schema-management/schema-management.controller.ts": {
+   "hash": "502bfb88e60c768d",
+   "documentedIn": [
+    "04-api/rest/schema-management.md"
+   ],
+   "symbols": [
+    "SchemaManagementController"
+   ]
+  },
+  "src/modules/sessions/sessions.controller.ts": {
+   "hash": "ce091411732fb235",
+   "documentedIn": [
+    "04-api/rest/sessions.md"
+   ],
+   "symbols": [
+    "CustomerSessionsController",
+    "OperationsSessionsController"
+   ]
+  },
+  "src/modules/systems-ops/systems-action-log.controller.ts": {
+   "hash": "76d94da2575fde2c",
+   "documentedIn": [
+    "04-api/rest/sin-tag.md"
+   ],
+   "symbols": [
+    "SystemsActionLogController"
+   ]
+  },
+  "src/modules/systems-ops/systems-catalog.controller.ts": {
+   "hash": "f544743ca8a31372",
+   "documentedIn": [
+    "04-api/rest/sin-tag.md"
+   ],
+   "symbols": [
+    "SystemsCatalogController"
+   ]
+  },
+  "src/modules/systems-ops/systems-review.controller.ts": {
+   "hash": "aae130382c7df6e8",
+   "documentedIn": [
+    "04-api/rest/sin-tag.md"
+   ],
+   "symbols": [
+    "SystemsReviewController"
+   ]
+  },
+  "src/modules/systems-ops/systems-stress.controller.ts": {
+   "hash": "364fe0b5647de3d8",
+   "documentedIn": [
+    "04-api/rest/sin-tag.md"
+   ],
+   "symbols": [
+    "SystemsStressController"
+   ]
+  },
+  "src/modules/systems-ops/systems-test.controller.ts": {
+   "hash": "5c92da7adc2bd37a",
+   "documentedIn": [
+    "04-api/rest/sin-tag.md"
+   ],
+   "symbols": [
+    "SystemsTestController"
+   ]
+  },
+  "src/modules/workflow-catalog/workflow-catalog.controller.ts": {
+   "hash": "22b9a8176a198709",
+   "documentedIn": [
+    "04-api/rest/workflow-catalog.md"
+   ],
+   "symbols": [
+    "WorkflowCatalogController"
+   ]
+  },
+  "src/modules/workflow-catalog/workflow-operations.controller.ts": {
+   "hash": "296e2785e97fdcc6",
+   "documentedIn": [
+    "04-api/rest/workflow-catalog.md"
+   ],
+   "symbols": [
+    "WorkflowOperationsController"
+   ]
+  },
+  "src/modules/workflow-catalog/workflow-progress.controller.ts": {
+   "hash": "b798160c2db4e57c",
+   "documentedIn": [
+    "04-api/rest/workflow-catalog.md"
+   ],
+   "symbols": [
+    "WorkflowProgressController"
+   ]
+  },
+  "src/main.ts": {
+   "hash": "88d202e602499b26",
+   "documentedIn": [],
+   "symbols": []
+  },
+  "src/worker.ts": {
+   "hash": "05cb69b7c6b94e98",
+   "documentedIn": [],
+   "symbols": []
+  },
+  "src/app.module.ts": {
+   "hash": "de9947c7e96d5123",
+   "documentedIn": [],
+   "symbols": []
+  },
+  "src/config/env.schema.ts": {
+   "hash": "302705f57d5e5130",
+   "documentedIn": [],
+   "symbols": []
+  },
+  "src/database/domain-schemas.ts": {
+   "hash": "611d91848dfd3e40",
+   "documentedIn": [],
+   "symbols": []
+  },
+  "src/modules/events/event-registry.ts": {
+   "hash": "ecbee3f96c4d6939",
+   "documentedIn": [],
+   "symbols": []
+  },
+  "src/modules/runtime-jobs/scheduled-jobs.catalog.ts": {
+   "hash": "93879cf9a0a52565",
+   "documentedIn": [],
+   "symbols": []
+  },
+  "src/common/types/auth.types.ts": {
+   "hash": "ed0120bf8a45d102",
+   "documentedIn": [],
+   "symbols": []
+  }
+ },
+ "secondPass": {
+  "date": "2026-08-06",
+  "resolved": [
+   "U-001",
+   "U-002",
+   "U-003",
+   "U-004",
+   "U-005",
+   "U-010"
+  ],
+  "stillOpen": [
+   "U-006",
+   "U-007",
+   "U-008",
+   "U-009"
+  ]
+ }
+}

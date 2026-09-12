@@ -67,7 +67,7 @@ describe('SystemsReviewRepository', () => {
 
     it('muta reviewStatus + confidence, guarda y registra el evento de revisión', async () => {
       const { repo, models } = buildRepo();
-      const save = jest.fn(async () => ({ id: 'e1', reviewStatus: 'approved' }));
+      const save = jest.fn(async (..._args: unknown[]) => ({ id: 'e1', reviewStatus: 'approved' }));
       const row = { reviewStatus: 'pending', confidenceLevel: 'low', save } as never;
       (models.endpoint.findByPk as jest.Mock).mockResolvedValue(row as never);
       (models.reviewEvent.create as jest.Mock).mockResolvedValue({} as never);
@@ -88,7 +88,7 @@ describe('SystemsReviewRepository', () => {
 
     it('sin confidenceLevel en la decisión, el evento hereda el confidence previo', async () => {
       const { repo, models } = buildRepo();
-      const save = jest.fn(async () => ({}));
+      const save = jest.fn(async (..._args: unknown[]) => ({}));
       const row = { reviewStatus: 'pending', confidenceLevel: 'medium', save } as never;
       (models.endpoint.findByPk as jest.Mock).mockResolvedValue(row as never);
       (models.reviewEvent.create as jest.Mock).mockResolvedValue({} as never);
@@ -101,7 +101,7 @@ describe('SystemsReviewRepository', () => {
   describe('updateDataColumnReview', () => {
     it('marca detectedFrom=manual, escribe operationalNotes y registra data_column', async () => {
       const { repo, models } = buildRepo();
-      const save = jest.fn(async () => ({}));
+      const save = jest.fn(async (..._args: unknown[]) => ({}));
       const row = { reviewStatus: 'pending', confidenceLevel: 'low', save } as never;
       (models.dataField.findByPk as jest.Mock).mockResolvedValue(row as never);
       (models.reviewEvent.create as jest.Mock).mockResolvedValue({} as never);
@@ -140,7 +140,7 @@ describe('SystemsReviewRepository', () => {
         expect(await repoNull[c.method]('x', { reviewStatus: 'approved' }, 'u1', 'admin', 't1')).toBeNull();
 
         const okCase = buildRepo();
-        const save = jest.fn(async () => ({ id: 'x' }));
+        const save = jest.fn(async (..._args: unknown[]) => ({ id: 'x' }));
         const row = { reviewStatus: 'pending', confidenceLevel: 'low', save } as Record<string, unknown>;
         (okCase.models as unknown as Record<string, { findByPk: jest.Mock }>)[c.model].findByPk.mockResolvedValue(row as never);
         (okCase.models.reviewEvent.create as jest.Mock).mockResolvedValue({} as never);

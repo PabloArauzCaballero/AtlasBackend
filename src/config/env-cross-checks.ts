@@ -5,6 +5,10 @@
  */
 import { z } from 'zod';
 import { DEFAULT_JWT_SECRET, DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY, type RawAppEnv } from './env.schema.js';
+import { checkNotificationProviders, type RequireWebhook, type RequireWhen } from './env.notification-providers.checks.js';
+import { checkFileStorage } from './env.files.checks.js';
+import { checkDecisionEngine } from './env.decision-engine.checks.js';
+import { checkInternalSecondFactor, checkPiiEncryptionProvider, checkSqlLogging } from './env.security.checks.js';
 
 /**
  * Validaciones CRUZADAS del entorno: las que dependen de más de una variable a la vez y por eso no
@@ -14,14 +18,46 @@ import { DEFAULT_JWT_SECRET, DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY, type Raw
  * Vive fuera de `env.schema.ts` porque son dos responsabilidades distintas: aquella declara QUÉ
  * variables existen y su forma; esta declara qué combinaciones son inválidas.
  */
-type RequireWhen = (enabled: boolean, path: keyof RawAppEnv, message: string) => void;
 
 /**
  * Secretos que no pueden ser los de ejemplo en producción, ni compartirse entre sí: comprometer uno
  * comprometería ambos usos.
  */
+/**
+ * Buzones de correo gratuitos. Sirven para desarrollar y no para escribirle a un cliente.
+ *
+ * No es una cuestion de imagen: un correo que pide teclear un codigo y llega desde una cuenta
+ * personal es indistinguible de un intento de suplantacion, y le estamos ENSEÑANDO al cliente a
+ * fiarse de ese remitente. Ademas, un dominio propio es lo unico que permite firmar con SPF, DKIM y
+ * DMARC; sin eso el correo acaba en spam justo cuando mas urge —el codigo que caduca en diez
+ * minutos—.
+ */
+const DOMINIOS_DE_CORREO_PERSONAL = [
+  'gmail.com',
+  'googlemail.com',
+  'hotmail.com',
+  'outlook.com',
+  'live.com',
+  'yahoo.com',
+  'icloud.com',
+  'proton.me',
+  'protonmail.com',
+];
+
+/** Los buzones de estudiante y similares tampoco: son cuentas personales con otro nombre. */
+function esBuzonPersonal(email: string): boolean {
+  const dominio = email.trim().toLowerCase().split('@')[1] ?? '';
+  if (!dominio) return false;
+  return DOMINIOS_DE_CORREO_PERSONAL.includes(dominio) || dominio.includes('estudiantes.') || dominio.includes('alumnos.');
+}
+
 function checkSecrets(data: RawAppEnv, ctx: z.RefinementCtx): void {
-  if (data.NODE_ENV === 'production' && data.JWT_ACCESS_TOKEN_SECRET === DEFAULT_JWT_SECRET) {
+  // El worker de Mensajería (perfil `messaging`) no verifica sesiones de usuario: no necesita ese secreto.
+  if (
+    data.NODE_ENV === 'production' &&
+    data.ATLAS_CAPABILITY_PROFILE !== 'messaging' &&
+    data.JWT_ACCESS_TOKEN_SECRET === DEFAULT_JWT_SECRET
+  ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['JWT_ACCESS_TOKEN_SECRET'],
@@ -44,12 +80,22 @@ function checkSecrets(data: RawAppEnv, ctx: z.RefinementCtx): void {
         message: 'NOTIFICATION_TOKEN_ENCRYPTION_KEY debe ser distinto de JWT_ACCESS_TOKEN_SECRET en producción.',
       });
     }
+    if (data.GMAIL_FROM_EMAIL && esBuzonPersonal(data.GMAIL_FROM_EMAIL)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['GMAIL_FROM_EMAIL'],
+        message:
+          'GMAIL_FROM_EMAIL no puede ser una cuenta personal en producción: el correo que pide un código de ' +
+          'verificación tiene que salir de un buzón de la plataforma, con dominio propio.',
+      });
+    }
   }
 }
 
 /** Dependencias de infraestructura sin las cuales producción no es segura. */
 function checkInfrastructure(data: RawAppEnv, ctx: z.RefinementCtx): void {
-  if (data.NODE_ENV === 'production' && !data.REDIS_URL) {
+  // El perfil `messaging` no sirve HTTP público (sin rate limiting) y coordina por `context_ownership`, no por Redis.
+  if (data.NODE_ENV === 'production' && data.ATLAS_CAPABILITY_PROFILE !== 'messaging' && !data.REDIS_URL) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['REDIS_URL'],
@@ -67,6 +113,23 @@ function checkInfrastructure(data: RawAppEnv, ctx: z.RefinementCtx): void {
 }
 
 /** Escape hatch de datos simulados en producción (hallazgo A-02). */
+function checkContextServiceTransport(data: RawAppEnv, ctx: z.RefinementCtx): void {
+  // Revisión independiente A, hallazgo 10: por esa URL viajan el Bearer de servicio y los contactos
+  // descifrados. En producción sólo se admite http:// hacia la red interna (nombre de servicio sin punto).
+  if (data.NODE_ENV !== 'production' || !data.CUSTOMERS_DIRECTORY_URL) return;
+  const url = new URL(data.CUSTOMERS_DIRECTORY_URL);
+  const internalHost = !url.hostname.includes('.') || url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  if (url.protocol !== 'https:' && !internalHost) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['CUSTOMERS_DIRECTORY_URL'],
+      message:
+        'CUSTOMERS_DIRECTORY_URL debe ser https:// en producción salvo que apunte a un host de la red interna: ' +
+        'por ese canal viajan el token de servicio y las direcciones de contacto en claro.',
+    });
+  }
+}
+
 function checkSimulatedDataEscapeHatch(data: RawAppEnv, ctx: z.RefinementCtx): void {
   // Hallazgo A-02: activar el escape hatch de mocks en producción es una decisión legítima solo para
   // una demo comercial, y entonces el servidor de mocks tiene que existir. Sin URL, cada proveedor en
@@ -86,6 +149,26 @@ function checkSimulatedDataEscapeHatch(data: RawAppEnv, ctx: z.RefinementCtx): v
 
 /** Coherencia entre el rol del proceso y el planificador de trabajos de fondo. */
 function checkProcessRole(data: RawAppEnv, ctx: z.RefinementCtx): void {
+  // El perfil `messaging` relaja requisitos de producción: sólo puede correrlo un worker, nunca la API.
+  // Revisión independiente A, hallazgo 2: sin identidad propia el worker caería a DB_USER (atlas_app_rw),
+  // que sí lee Crédito y Clientes; toda la frontera de privilegios del piloto se evaporaría en silencio.
+  if (data.ATLAS_CAPABILITY_PROFILE === 'messaging' && !data.MESSAGING_DB_USER) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['MESSAGING_DB_USER'],
+      message:
+        'ATLAS_CAPABILITY_PROFILE=messaging exige MESSAGING_DB_USER (el rol por contexto atlas_ctx_messaging). ' +
+        'Sin él el proceso arrancaría con la identidad del monolito, que sí puede leer Crédito y Clientes.',
+    });
+  }
+  if (data.ATLAS_CAPABILITY_PROFILE === 'messaging' && data.APP_ROLE !== 'worker') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['ATLAS_CAPABILITY_PROFILE'],
+      message:
+        'ATLAS_CAPABILITY_PROFILE=messaging exige APP_ROLE=worker: la API no puede arrancar con los requisitos relajados del piloto.',
+    });
+  }
   // Rol del proceso contra planificador. Las dos combinaciones de abajo no "funcionan a medias":
   // fallan en silencio, que es peor. Un worker con el planificador apagado arranca, se declara sano
   // y no ejecuta absolutamente nada; una API con el planificador encendido hace creer que los jobs
@@ -130,130 +213,6 @@ function checkMailSender(data: RawAppEnv, requireWhen: RequireWhen): void {
   );
 }
 
-/** Email: cada proveedor trae su propio juego de credenciales. */
-function checkEmailProvider(data: RawAppEnv, requireWhen: RequireWhen): void {
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'resend',
-    'RESEND_API_KEY',
-    'RESEND_API_KEY es requerido cuando NOTIFICATION_EMAIL_PROVIDER=resend.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'resend',
-    'RESEND_FROM_EMAIL',
-    'RESEND_FROM_EMAIL es requerido cuando NOTIFICATION_EMAIL_PROVIDER=resend.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'sendgrid',
-    'SENDGRID_API_KEY',
-    'SENDGRID_API_KEY es requerido cuando NOTIFICATION_EMAIL_PROVIDER=sendgrid.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'sendgrid',
-    'SENDGRID_FROM_EMAIL',
-    'SENDGRID_FROM_EMAIL es requerido cuando NOTIFICATION_EMAIL_PROVIDER=sendgrid.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'gmail_api',
-    'GMAIL_CLIENT_ID',
-    'GMAIL_CLIENT_ID es requerido cuando NOTIFICATION_EMAIL_PROVIDER=gmail_api.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'gmail_api',
-    'GMAIL_CLIENT_SECRET',
-    'GMAIL_CLIENT_SECRET es requerido cuando NOTIFICATION_EMAIL_PROVIDER=gmail_api.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'gmail_api',
-    'GMAIL_REFRESH_TOKEN',
-    'GMAIL_REFRESH_TOKEN es requerido cuando NOTIFICATION_EMAIL_PROVIDER=gmail_api.',
-  );
-  requireWhen(
-    data.NOTIFICATION_EMAIL_PROVIDER === 'gmail_api',
-    'GMAIL_FROM_EMAIL',
-    'GMAIL_FROM_EMAIL es requerido cuando NOTIFICATION_EMAIL_PROVIDER=gmail_api.',
-  );
-}
-
-/** Push (FCM): las tres piezas de la cuenta de servicio de Firebase. */
-function checkPushProvider(data: RawAppEnv, requireWhen: RequireWhen): void {
-  requireWhen(
-    data.NOTIFICATION_PUSH_PROVIDER === 'fcm',
-    'FCM_PROJECT_ID',
-    'FCM_PROJECT_ID es requerido cuando NOTIFICATION_PUSH_PROVIDER=fcm.',
-  );
-  requireWhen(
-    data.NOTIFICATION_PUSH_PROVIDER === 'fcm',
-    'FCM_CLIENT_EMAIL',
-    'FCM_CLIENT_EMAIL es requerido cuando NOTIFICATION_PUSH_PROVIDER=fcm.',
-  );
-  requireWhen(
-    data.NOTIFICATION_PUSH_PROVIDER === 'fcm',
-    'FCM_PRIVATE_KEY',
-    'FCM_PRIVATE_KEY es requerido cuando NOTIFICATION_PUSH_PROVIDER=fcm.',
-  );
-}
-
-/** Twilio: SMS y WhatsApp comparten credenciales de cuenta, pero cada uno exige su remitente. */
-function checkTwilioProviders(data: RawAppEnv, requireWhen: RequireWhen): void {
-  requireWhen(
-    data.NOTIFICATION_SMS_PROVIDER === 'twilio' || data.NOTIFICATION_WHATSAPP_PROVIDER === 'twilio',
-    'TWILIO_ACCOUNT_SID',
-    'TWILIO_ACCOUNT_SID es requerido cuando SMS o WhatsApp usan Twilio.',
-  );
-  requireWhen(
-    data.NOTIFICATION_SMS_PROVIDER === 'twilio' || data.NOTIFICATION_WHATSAPP_PROVIDER === 'twilio',
-    'TWILIO_AUTH_TOKEN',
-    'TWILIO_AUTH_TOKEN es requerido cuando SMS o WhatsApp usan Twilio.',
-  );
-  requireWhen(
-    data.NOTIFICATION_SMS_PROVIDER === 'twilio',
-    'TWILIO_SMS_FROM',
-    'TWILIO_SMS_FROM es requerido cuando NOTIFICATION_SMS_PROVIDER=twilio.',
-  );
-  requireWhen(
-    data.NOTIFICATION_WHATSAPP_PROVIDER === 'twilio',
-    'TWILIO_WHATSAPP_FROM',
-    'TWILIO_WHATSAPP_FROM es requerido cuando NOTIFICATION_WHATSAPP_PROVIDER=twilio.',
-  );
-}
-
-/** WhatsApp por Meta Cloud API. */
-function checkMetaWhatsAppProvider(data: RawAppEnv, requireWhen: RequireWhen): void {
-  requireWhen(
-    data.NOTIFICATION_WHATSAPP_PROVIDER === 'meta_cloud',
-    'META_WHATSAPP_TOKEN',
-    'META_WHATSAPP_TOKEN es requerido cuando NOTIFICATION_WHATSAPP_PROVIDER=meta_cloud.',
-  );
-  requireWhen(
-    data.NOTIFICATION_WHATSAPP_PROVIDER === 'meta_cloud',
-    'META_WHATSAPP_PHONE_NUMBER_ID',
-    'META_WHATSAPP_PHONE_NUMBER_ID es requerido cuando NOTIFICATION_WHATSAPP_PROVIDER=meta_cloud.',
-  );
-}
-
-/** Cualquier canal en `webhook` necesita URL: la suya o la compartida. */
-function checkWebhookUrls(data: RawAppEnv, requireWebhook: RequireWebhook): void {
-  requireWebhook(data.NOTIFICATION_EMAIL_PROVIDER, 'NOTIFICATION_EMAIL_WEBHOOK_URL', 'Email');
-  requireWebhook(data.NOTIFICATION_PUSH_PROVIDER, 'NOTIFICATION_PUSH_WEBHOOK_URL', 'Push');
-  requireWebhook(data.NOTIFICATION_SMS_PROVIDER, 'NOTIFICATION_SMS_WEBHOOK_URL', 'SMS');
-  requireWebhook(data.NOTIFICATION_WHATSAPP_PROVIDER, 'NOTIFICATION_WHATSAPP_WEBHOOK_URL', 'WhatsApp');
-  requireWebhook(data.NOTIFICATION_PHONE_PROVIDER, 'NOTIFICATION_PHONE_WEBHOOK_URL', 'Phone');
-}
-
-/**
- * Cada canal de notificación con proveedor elegido exige sus credenciales. Un canal que dice estar
- * activo y falla en cada envío es peor que uno declarado `disabled`.
- */
-function checkNotificationProviders(data: RawAppEnv, requireWhen: RequireWhen, requireWebhook: RequireWebhook): void {
-  checkEmailProvider(data, requireWhen);
-  checkPushProvider(data, requireWhen);
-  checkTwilioProviders(data, requireWhen);
-  checkMetaWhatsAppProvider(data, requireWhen);
-  checkWebhookUrls(data, requireWebhook);
-}
-
-type RequireWebhook = (channelProvider: string, channelUrl: keyof RawAppEnv, channelName: string) => void;
-
 /**
  * Validaciones CRUZADAS del entorno: las que dependen de más de una variable a la vez y por eso no
  * caben en el esquema por campo.
@@ -284,8 +243,14 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
 
   checkSecrets(data, ctx);
   checkInfrastructure(data, ctx);
+  checkContextServiceTransport(data, ctx);
   checkSimulatedDataEscapeHatch(data, ctx);
   checkProcessRole(data, ctx);
+  checkInternalSecondFactor(data, ctx);
+  checkPiiEncryptionProvider(data, ctx);
+  checkSqlLogging(data, ctx);
+  checkFileStorage(data, ctx);
   checkMailSender(data, requireWhen);
+  checkDecisionEngine(data, ctx);
   checkNotificationProviders(data, requireWhen, requireWebhook);
 }

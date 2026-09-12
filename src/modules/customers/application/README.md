@@ -9,12 +9,12 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                                                       | Responsabilidad                                                           |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | [`customer-eligibility-decision.service.ts`](./customer-eligibility-decision.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`customer-eligibility.evaluator.ts`](./customer-eligibility.evaluator.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`customer-eligibility.service.ts`](./customer-eligibility.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`customer-lifecycle.service.ts`](./customer-lifecycle.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`customer-eligibility.evaluator.ts`](./customer-eligibility.evaluator.ts)               | Artefacto de soporte específico de esta carpeta.                          |
+| [`customer-eligibility.service.ts`](./customer-eligibility.service.ts)                   | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`customer-lifecycle.service.ts`](./customer-lifecycle.service.ts)                       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento
 

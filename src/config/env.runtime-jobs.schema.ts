@@ -22,6 +22,19 @@ export const runtimeJobsEnvShape = {
   // script o una consola de mantenimiento no debe empezar a mutar datos por su cuenta. En producción
   // exige Redis para la elección de líder, salvo que se asuma lo contrario a propósito.
   RUNTIME_JOBS_SCHEDULER_ENABLED: booleanEnvSchema,
+  // AT-034: relay v2 del outbox (lease/fencing, inbox por consumidor). Apagado = procesamiento anterior.
+  EVENTS_RELAY_V2_ENABLED: booleanEnvSchema,
+  // AT-057/AT-059: cadencia del relay del worker de Mensajería; sólo actúa si `context_ownership` lo nombra dueño.
+  MESSAGING_RELAY_INTERVAL_MS: z.coerce.number().int().positive().max(600_000).default(5000),
+  // AT-046/AT-057: perfil de capacidad del proceso. `messaging` (sólo con APP_ROLE=worker) relaja lo que no
+  // usa el worker del piloto: el secreto de sesiones de usuario y Redis; todo lo demás (KMS, clave de
+  // tokens de dispositivo, mail) sigue exigido porque Mensajería sí lo usa.
+  ATLAS_CAPABILITY_PROFILE: z.enum(['monolith', 'messaging']).default('monolith'),
+  // AT-047/AT-057: identidad de servicio entre contextos (HS256, audiencia por contexto destino). Sin
+  // secreto, los endpoints internos entre contextos responden 503 y el worker del piloto no los llama.
+  CONTEXT_SERVICE_TOKEN_SECRET: z.string().min(32).optional(),
+  // Base URL de la API del monolito que sirve el directorio de destinatarios de Clientes al piloto.
+  CUSTOMERS_DIRECTORY_URL: z.string().url().optional(),
   RUNTIME_JOBS_ALLOW_WITHOUT_LOCK: booleanEnvSchema,
   RUNTIME_JOBS_BATCH_LIMIT: z.coerce.number().int().positive().max(500).default(100),
   RUNTIME_JOBS_LEADER_LOCK_TTL_MS: z.coerce.number().int().positive().max(3_600_000).default(900_000),
@@ -60,8 +73,86 @@ export const runtimeJobsEnvShape = {
   // claves de idempotencia ya resueltas (ambas colas crecían sin que nada las recogiera).
   RUNTIME_JOBS_NOTIFICATION_RETRY_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
   RUNTIME_JOBS_NOTIFICATION_STUCK_MINUTES: z.coerce.number().int().positive().max(1_440).default(15),
+  // Cierre de los onboardings abandonados. Diario porque el umbral se mide en DÍAS de inactividad:
+  // una cadencia más corta no cambiaría el resultado y solo repetiría el barrido. El default de días
+  // acompaña a `ONBOARDING_ABANDONMENT_DAYS`; se separa en env para poder acortarlo en los
+  // ambientes donde el embudo se mide en una ventana más corta.
+  RUNTIME_JOBS_ONBOARDING_ABANDONMENT_INTERVAL_MS: z.coerce.number().int().positive().default(86_400_000),
+  RUNTIME_JOBS_ONBOARDING_ABANDONMENT_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+
+  // Barrido de mora de la cartera. Estaba escrito y sólo colgaba de un endpoint HTTP que nadie
+  // llamaba: `days_past_due` se quedaba congelado en el valor del día del desembolso, así que un
+  // préstamo vencido seguía figurando al corriente y la línea de crédito nunca se enteraba. Cada
+  // hora porque la unidad del atraso es el día: una cadencia mayor retrasaría hasta un día entero el
+  // momento en que la mora se ve, y una menor recorrería la misma cartera sin que nada haya cambiado.
+  RUNTIME_JOBS_DELINQUENCY_SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
+
+  /*
+   * Entrega al Motor de los desenlaces de cosecha. El barrido de mora los ENCOLABA en
+   * `loan_outcome_reports` y nada los entregaba: se acumulaban en `pending` hasta que alguien
+   * pulsara un botón del portal, y el Motor medía su acierto sobre una muestra que no crecía. Cada
+   * 15 minutos: la ventana ya venció cuando se encola, así que lo único que importa es no dejar
+   * pasar el día; y el lote es idempotente en el Motor (ejecución + ventana), así que insistir es
+   * barato.
+   */
+  RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
+  RUNTIME_JOBS_OUTCOME_DISPATCH_LIMIT: z.coerce.number().int().min(1).max(500).default(100),
+
+  /*
+   * Calificación de la cartera (categoría de riesgo y previsión de cada deuda y de su titular).
+   * Sólo se ejecutaba desde un endpoint HTTP, así que la calificación «vigente» era la del último
+   * que se acordó de pedirla. Cada seis horas: la categoría depende de los días de atraso, que el
+   * barrido de mora mueve cada hora; recalificar cuatro veces al día basta para un cierre y no
+   * recorre la cartera entera por cada cuota que vence.
+   */
+  RUNTIME_JOBS_RATING_SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(21_600_000),
+  RUNTIME_JOBS_RATING_SWEEP_LIMIT: z.coerce.number().int().min(1).max(5_000).default(500),
+
+  /*
+   * La vuelta del circuito de la verificación de comercios: qué pasó con los casos que el Motor
+   * abrió. Cada 5 minutos porque un comercio aprobado y no habilitado no puede cobrar, y ese
+   * retraso lo paga él en ventas; leer una bandeja pequeña es barato.
+   */
+  RUNTIME_JOBS_PARTNER_KYB_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
+  RUNTIME_JOBS_PARTNER_KYB_SYNC_LIMIT: z.coerce.number().int().min(1).max(500).default(50),
+
+  // Recálculo de la capacidad de pago para quien todavía no tiene línea (recién dado de alta) y para
+  // quien la tiene vieja. Sin esto la línea sólo se movía a mano desde operaciones.
+  RUNTIME_JOBS_CREDIT_LINE_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
+  // A partir de cuántos días una línea vigente se considera vieja y se vuelve a preguntar. El
+  // expediente cambia por fuera del crédito —ingresos, contactos, verificaciones— y una línea que
+  // nadie recalcula acaba respondiendo a datos que ya no son los de la persona.
+  RUNTIME_JOBS_CREDIT_LINE_MAX_AGE_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  // Cuántos clientes recalcula como mucho cada pasada. Cada uno es una llamada al motor, así que el
+  // tope es lo que impide que un alta masiva convierta el job en una tormenta de peticiones.
+  RUNTIME_JOBS_CREDIT_LINE_REFRESH_LIMIT: z.coerce.number().int().min(1).max(1_000).default(50),
+
+  // Vigilancia del compromiso de 24 horas del extracto bancario. Cada 15 minutos: el compromiso se
+  // mide en horas, y la ventana define con cuánta antelación se puede avisar de que uno va a
+  // incumplirse todavía a tiempo de evitarlo.
+  RUNTIME_JOBS_BANK_STATEMENT_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
+  // Cuánto antes del vencimiento del compromiso se escala la revisión pendiente.
+  RUNTIME_JOBS_BANK_STATEMENT_ESCALATE_BEFORE_MINUTES: z.coerce.number().int().min(5).max(1_440).default(240),
+
+  // Vigilancia de los compromisos de atención del soporte (`support_sla_clocks`). Mismo defecto que
+  // tuvo la mora: `sweepBreaches` estaba completo y colgaba EXCLUSIVAMENTE de
+  // `POST internal/support/desk/sla/sweep`, que no llamaba nadie. Auditoría del 2026-09-05 sobre el
+  // VPS: 13 relojes en marcha, los 13 con el plazo pasado —el peor, un P1 de toma de cuenta, 190 h
+  // tarde sobre un objetivo de 5 minutos— y ni una sola marca de incumplimiento. El indicador de
+  // cumplimiento no salía malo: salía PERFECTO, que es peor, porque nadie audita un cero.
+  //
+  // Un minuto porque el objetivo más corto del catálogo es el acuse de P1, de 5 minutos: con una
+  // cadencia mayor el aviso previo al incumplimiento llegaría después del incumplimiento y no
+  // serviría para evitar nada. El barrido es una consulta por índice sobre relojes en marcha.
+  RUNTIME_JOBS_SUPPORT_SLA_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+
   RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS: z.coerce.number().int().positive().default(86_400_000),
   RUNTIME_JOBS_IDEMPOTENCY_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+
+  // Retención de los eventos de outbox ya procesados (ATLAS-DATA-003). El default coincide con el de
+  // idempotencia porque responden al mismo criterio: cuánta evidencia operativa reciente se conserva
+  // para diagnosticar un incidente. Piso de 1 día — los eventos de hoy son justo los que se miran.
+  RUNTIME_JOBS_OUTBOX_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
 
   // Entrega de los mensajes recién creados por un broadcast, cuando la entrega NO corre dentro del
   // proceso que atendió el request (NOTIFICATIONS_DELIVERY_MODE=deferred). Intervalo corto a

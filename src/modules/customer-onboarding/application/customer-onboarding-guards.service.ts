@@ -42,30 +42,39 @@ export class CustomerOnboardingGuardsService {
   /**
    * Consentimientos.
    *
-   * Antes solo se comprobaban los consentimientos ENVIADOS: que vinieran `granted: true` y que su
-   * documento existiera. Nunca se verificaba que estuvieran TODOS los obligatorios, de modo que con
-   * mandar uno solo se pasaba el control y el cliente quedaba registrado sin haber aceptado los
-   * términos que el tenant declara imprescindibles.
+   * Dos reglas distintas que antes estaban colapsadas en una:
    *
-   * Ahora se contrasta lo enviado contra los documentos con `requires_explicit_action` vigentes del
-   * tenant; si falta cualquiera, el registro se rechaza con `REQUIRED_CONSENT_MISSING`.
+   *  1. **Obligatorios**: todos los documentos con `requires_explicit_action` vigentes del tenant
+   *     tienen que venir OTORGADOS. Antes solo se comprobaban los consentimientos enviados —que
+   *     vinieran `granted: true` y que su documento existiera—, así que con mandar uno solo se
+   *     pasaba el control y el cliente quedaba registrado sin aceptar los términos imprescindibles.
+   *
+   *  2. **Opcionales**: se pueden declinar. La versión anterior rechazaba el registro completo ante
+   *     cualquier `granted: false`, incluido el de un documento no obligatorio (marketing): decir
+   *     que no a una comunicación comercial impedía abrir la cuenta, y la rama `'declined'` de
+   *     `recordConsents` era código inalcanzable. Un consentimiento que no se puede negar no es un
+   *     consentimiento.
    */
   async assertConsentDocumentsAreValid(tenantId: string, consents: StartOnboardingDto['consents']): Promise<void> {
+    const required = await this.consentsRepository.findRequiredActiveDocuments(tenantId);
+    const requiredIds = new Set(required.map((doc) => String(doc.id)));
+
     for (const consentInput of consents) {
-      if (!consentInput.granted) {
-        throw new UnprocessableEntityException('REQUIRED_CONSENT_MISSING');
-      }
       const doc = await this.consentsRepository.findActiveDocumentById(tenantId, consentInput.consentDocumentId);
       if (!doc) {
         throw new UnprocessableEntityException(
           `Consent document ${consentInput.consentDocumentId} not found, not published, or not active.`,
         );
       }
+      if (!consentInput.granted && requiredIds.has(consentInput.consentDocumentId)) {
+        throw new UnprocessableEntityException(`REQUIRED_CONSENT_MISSING: ${consentInput.consentDocumentId}`);
+      }
     }
 
-    const required = await this.consentsRepository.findRequiredActiveDocuments(tenantId);
-    const grantedIds = new Set(consents.map((consent) => consent.consentDocumentId));
-    const missing = required.map((doc) => String(doc.id)).filter((id) => !grantedIds.has(id));
+    // Solo cuentan como cubiertos los OTORGADOS: enviar un obligatorio con `granted: false` no puede
+    // satisfacerlo por el solo hecho de haberlo mencionado.
+    const grantedIds = new Set(consents.filter((consent) => consent.granted).map((consent) => consent.consentDocumentId));
+    const missing = [...requiredIds].filter((id) => !grantedIds.has(id));
     if (missing.length > 0) {
       throw new UnprocessableEntityException(`REQUIRED_CONSENT_MISSING: ${missing.join(', ')}`);
     }

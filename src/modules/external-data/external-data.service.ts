@@ -14,6 +14,7 @@ import { toProviderCode } from './application/external-data-policy.util.js';
 import { ExternalDataRepository } from './external-data.repository.js';
 import { ExternalConsentDto, ExternalDataRequestDto } from './external-data.schemas.js';
 
+import { ExternalDataPreviewService } from './application/external-data-preview.service.js';
 @Injectable()
 export class ExternalDataService {
   constructor(
@@ -24,6 +25,7 @@ export class ExternalDataService {
     private readonly evidence: ExternalDataEvidenceService,
     private readonly governance: ExternalDataGovernanceService,
     private readonly bankingQr: BankingQrService,
+    private readonly previsualizacion: ExternalDataPreviewService,
   ) {}
 
   async createConsent(input: { tenantId: string; body: ExternalConsentDto; ipAddress?: string; userAgent?: string }) {
@@ -74,7 +76,7 @@ export class ExternalDataService {
   }
 
   previewExternalDataRequest(input: { tenantId: string; body: ExternalDataRequestDto; requestedByUserId?: string }) {
-    return this.execution.previewExternalDataRequest(input);
+    return this.previsualizacion.previewExternalDataRequest(input);
   }
 
   getProviderReadiness() {

@@ -29,7 +29,7 @@ function buildContext(headers: Record<string, string | undefined>): {
   request: Partial<RequestWithAuth>;
   reflector: Reflector;
 } {
-  const reflector = { getAllAndOverride: jest.fn(() => false) } as unknown as Reflector; // isPublic = false
+  const reflector = { getAllAndOverride: jest.fn((..._args: unknown[]) => false) } as unknown as Reflector; // isPublic = false
 
   const request: Partial<RequestWithAuth> = { headers };
 
@@ -44,7 +44,7 @@ function buildContext(headers: Record<string, string | undefined>): {
 
 function buildRevocationServiceMock(currentVersion: number | null) {
   return {
-    getCurrentTokenVersion: jest.fn(async () => currentVersion),
+    getCurrentTokenVersion: jest.fn(async (..._args: unknown[]) => currentVersion),
   } as unknown as TokenRevocationService;
 }
 

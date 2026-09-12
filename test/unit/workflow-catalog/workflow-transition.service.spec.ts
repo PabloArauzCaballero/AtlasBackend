@@ -4,7 +4,7 @@ import { buildBundle } from './workflow-bundle.fixtures.js';
 import type { WorkflowBundle } from '../../../src/modules/workflow-catalog/workflow-catalog.repository.js';
 
 function buildService(bundle: WorkflowBundle = buildBundle()) {
-  const catalogService = { loadBundle: jest.fn(async () => bundle) };
+  const catalogService = { loadBundle: jest.fn(async (..._args: unknown[]) => bundle) };
   return { service: new WorkflowTransitionService(catalogService as never), bundle };
 }
 

@@ -1,0 +1,168 @@
+{
+  "$comment": "AT-062: estado por contexto tras F0–F9. Estados: not_started | modular | not_extractable | extractable | extracted. Nunca un porcentaje SOLID. Evidencia = pruebas y gates ejecutados contra el SHA integrado indicado.",
+  "integratedCommit": "37316f5",
+  "assessedOn": "2026-09-12",
+  "gatesOnIntegratedCommit": {
+    "typeCheck": "ok",
+    "typeCheckTests": "ok",
+    "lint": "0 errores / 109 avisos (tope 109)",
+    "format": "ok",
+    "gates": [
+      "env-example",
+      "migrations",
+      "domain-schemas",
+      "entity-narratives",
+      "file-size",
+      "nest-entrypoints",
+      "architecture (111 base, 0 nuevas)"
+    ],
+    "testArchitecture": 125,
+    "testContracts": 43,
+    "unitRandomized": 4987,
+    "e2e": 373,
+    "openapi": "regenerado, contrato sin cambios",
+    "integration": 104
+  },
+  "pilot": {
+    "context": "messaging",
+    "decision": "NOT_READY",
+    "detail": "docs/architecture/microservices/pilot-readiness.json"
+  },
+  "contexts": {
+    "messaging": {
+      "status": "modular",
+      "extractionPilot": "NOT_READY",
+      "evidence": [
+        "notifications/public (AT-017)",
+        "RecipientDirectoryPort/OtpDeliveryPort (AT-039/040)",
+        "atlas_ctx_messaging (AT-019/057)",
+        "context_ownership + corte/rollback ensayados (AT-059/060)",
+        "backfill + reconciliación (AT-058)"
+      ],
+      "blockers": [
+        "directorio de destinatarios por HTTP",
+        "config por capacidad en todas las dependencias",
+        "difusión interna lee iam",
+        "autorización de despliegue"
+      ],
+      "owner": "mensajería"
+    },
+    "credit-admission": {
+      "status": "modular",
+      "evidence": [
+        "SubmitCreditApplicationUseCase por puertos (AT-026)",
+        "CreditUnitOfWork + outbox transaccional (AT-015/033)",
+        "evaluationId exacto, bloqueo de fila, denegación con evidencia (AT-006/007/008)",
+        "atlas_ctx_credit (AT-019)"
+      ],
+      "blockers": [
+        "AT-025 parcial: tipos de sesión derivados del repositorio (fuga congelada)",
+        "credit_applications sin FK (inventario F1)"
+      ],
+      "owner": "crédito"
+    },
+    "customers": {
+      "status": "modular",
+      "evidence": ["customers/public (AT-024)", "CustomerStatePort", "CustomerRecipientDirectoryAdapter (AT-039)", "atlas_ctx_customer"],
+      "blockers": ["escritura del ciclo de vida sólo por el dueño; sin contrato remoto"],
+      "owner": "clientes"
+    },
+    "onboarding": {
+      "status": "not_extractable",
+      "evidence": ["LegacyOnboardingAtomicBridge declarado (AT-015/016)", "StartOnboardingUseCase por puerto (AT-031)"],
+      "blockers": ["alta atómica con auth/consents/sessions: sin estados provisionales ni compensación"],
+      "owner": "datos"
+    },
+    "risk": {
+      "status": "modular",
+      "evidence": ["RiskInputFactsPort + adaptador local (AT-027)"],
+      "blockers": ["risk-assessment-store.port deriva tipos del repositorio (fuga congelada, AT-025)"],
+      "owner": "riesgo"
+    },
+    "consent-privacy": {
+      "status": "modular",
+      "evidence": ["consents/public, PrivacyCommandPort (AT-028)"],
+      "blockers": ["borrado/exportación cruzan módulos por puente"],
+      "owner": "privacidad"
+    },
+    "cases-fraud": {
+      "status": "modular",
+      "evidence": ["fraud/public (AT-029)"],
+      "blockers": ["casos comparten schema case_management con soporte y expedientes"],
+      "owner": "riesgo"
+    },
+    "identity-access": {
+      "status": "not_started",
+      "evidence": ["fronteras de confianza documentadas y probadas (AT-047)"],
+      "blockers": ["205 de 403 FK cruzan schema hacia iam (inventario F1)"],
+      "owner": "plataforma"
+    },
+    "external-providers": {
+      "status": "modular",
+      "evidence": ["ExternalEvidencePort, proveedores por composición (AT-043/044)"],
+      "blockers": [],
+      "owner": "integraciones"
+    },
+    "platform": {
+      "status": "modular",
+      "evidence": ["src/platform (contratos, eventos, jobs, ownership)", "relay v2 detrás de bandera"],
+      "blockers": ["relay v1 sigue por defecto"],
+      "owner": "plataforma"
+    },
+    "loan-book": {
+      "status": "not_started",
+      "evidence": [],
+      "blockers": [],
+      "owner": "crédito"
+    },
+    "partners": {
+      "status": "not_started",
+      "evidence": ["PartnerResolutionPort desde Crédito (AT-026)"],
+      "blockers": [],
+      "owner": "comercios"
+    },
+    "support": {
+      "status": "not_started",
+      "evidence": ["case-ownership.md (AT-030)"],
+      "blockers": [],
+      "owner": "operaciones"
+    },
+    "dossiers": {
+      "status": "not_started",
+      "evidence": [],
+      "blockers": [],
+      "owner": "operaciones"
+    },
+    "sessions-telemetry": {
+      "status": "not_started",
+      "evidence": [],
+      "blockers": [],
+      "owner": "plataforma"
+    },
+    "decision-engine-integration": {
+      "status": "not_started",
+      "evidence": [],
+      "blockers": [],
+      "owner": "riesgo"
+    },
+    "data-governance": {
+      "status": "not_started",
+      "evidence": ["catalog-boundaries.md (AT-030)"],
+      "blockers": [],
+      "owner": "datos"
+    },
+    "governed-readers": {
+      "status": "not_started",
+      "evidence": ["operations-read-models.md (AT-030)"],
+      "blockers": [],
+      "owner": "operaciones"
+    }
+  },
+  "openItems": [
+    "AT-005 golden tests HTTP parciales",
+    "AT-025 delegación del servicio parcial",
+    "protocolo de carga (AT-054) sin ejecutar",
+    "branch protection (AT-055) sin verificar",
+    "revisiones independientes: ninguna (misma sesión)"
+  ]
+}

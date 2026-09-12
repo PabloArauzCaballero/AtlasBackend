@@ -83,6 +83,22 @@ export class OutboxEventModel extends Model {
   @Column({ field: 'source_action', type: DataType.STRING(120) })
   declare sourceAction: string | null;
 
+  /** Sobre del evento (AT-022): identidad global, productor, versión de agregado/esquema y testigo de lease. */
+  @Column({ field: 'event_id', type: DataType.UUID, allowNull: false, defaultValue: DataType.UUIDV4 })
+  declare eventId: string;
+
+  @Column({ field: 'producer', type: DataType.STRING(80) })
+  declare producer: string | null;
+
+  @Column({ field: 'aggregate_version', type: DataType.BIGINT })
+  declare aggregateVersion: string | null;
+
+  @Column({ field: 'schema_version', type: DataType.INTEGER, allowNull: false, defaultValue: 1 })
+  declare schemaVersion: number;
+
+  @Column({ field: 'owner_token', type: DataType.STRING(64) })
+  declare ownerToken: string | null;
+
   @Column({ field: '_created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 

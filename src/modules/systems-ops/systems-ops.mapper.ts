@@ -13,19 +13,23 @@ import {
   SystemEndpointCatalogModel,
   SystemEndpointDataEntityImpactModel,
   SystemEndpointFieldImpactModel,
-  SystemEndpointToolRequirementModel,
   SystemTestRunModel,
   SystemTestStepModel,
   SystemTestStepRunModel,
   SystemTestSuiteModel,
-  SystemToolCatalogModel,
 } from '../../database/models/index.js';
+
+// `mapTool` y `mapToolRequirement` viven en su propio archivo: este mapper ya estaba en la deuda
+// congelada de tamaño (383 líneas) y añadirles la metadata de gobierno lo empujaba por encima. Se
+// reexportan para que los cuatro consumidores no tengan que enterarse de dónde vive cada función.
+export { mapTool, mapToolRequirement } from './systems-ops.tool.mapper.js';
 
 export function mapEndpoint(row: SystemEndpointCatalogModel) {
   return {
     endpointId: String(row.id),
     code: row.code,
     module: row.module,
+    systemCode: row.systemCode ?? 'ATLAS_BACKEND',
     backendService: row.backendService ?? 'atlas-backend',
     backendBaseUrl: row.backendBaseUrl ?? null,
     controllerName: row.controllerName,
@@ -66,28 +70,10 @@ export function mapEndpoint(row: SystemEndpointCatalogModel) {
   };
 }
 
-export function mapTool(row: SystemToolCatalogModel) {
-  return {
-    toolId: String(row.id),
-    code: row.code,
-    name: row.name,
-    type: row.type,
-    provider: row.provider,
-    purpose: row.purpose,
-    requiredEnvVars: row.requiredEnvVars,
-    hasSandbox: row.hasSandbox,
-    healthcheckRoute: row.healthcheckRoute,
-    requiresCredentials: row.requiresCredentials,
-    isCritical: row.isCritical,
-    isWorker: row.isWorker,
-    status: row.status,
-    ownerTeam: row.ownerTeam,
-  };
-}
-
 export function mapDataEntity(row: SystemDataEntityCatalogModel) {
   return {
     entityId: String(row.id),
+    systemCode: row.systemCode ?? 'ATLAS_BACKEND',
     schemaName: row.schemaName,
     tableName: row.tableName,
     modelName: row.modelName,
@@ -194,25 +180,6 @@ export function mapDataRelationship(row: SystemDataRelationshipCatalogModel) {
     optionality: row.optionality,
     businessReason: row.businessReason,
     technicalReason: row.technicalReason,
-    confidenceLevel: row.confidenceLevel,
-    reviewStatus: row.reviewStatus,
-  };
-}
-
-export function mapToolRequirement(row: SystemEndpointToolRequirementModel, tool?: SystemToolCatalogModel) {
-  return {
-    requirementId: String(row.id),
-    endpointId: String(row.endpointId),
-    toolId: String(row.toolId),
-    tool: tool ? { code: tool.code, name: tool.name, type: tool.type } : undefined,
-    usageType: row.usageType,
-    isRequired: row.isRequired,
-    failureImpact: row.failureImpact,
-    fallbackStrategy: row.fallbackStrategy,
-    requiresMock: row.requiresMock,
-    requiresStressTest: row.requiresStressTest,
-    notes: row.notes,
-    detectedFrom: row.detectedFrom,
     confidenceLevel: row.confidenceLevel,
     reviewStatus: row.reviewStatus,
   };

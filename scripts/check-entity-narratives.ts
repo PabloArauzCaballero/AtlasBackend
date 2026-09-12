@@ -27,6 +27,10 @@ const TABLE_DECORATOR = /@Table\(\{\s*tableName:\s*'([^']+)'/;
 const NON_ORM_OBJECTS = new Set([
   'audit_event_feed',
   'catalog_entries',
+  // La asignación tipo de decisión → artefacto se creó por migración y se opera por servicio, sin
+  // modelo Sequelize. Apareció en el catálogo al introspeccionar el esquema y era la última ficha
+  // propia sin narrativa: sin declararla aquí, escribirle una hacía fallar al gate por el otro lado.
+  'decision_artifact_bindings',
   'context_seed_import_checkpoints',
   'schema_change_log',
   'schema_columns',

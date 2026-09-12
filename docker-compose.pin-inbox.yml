@@ -1,0 +1,32 @@
+# Recolector local del PIN de segundo factor. SOLO desarrollo.
+#
+# ## Para qué
+#
+# El login de un administrador exige un PIN de seis dígitos que sale por correo. Una batería
+# automatizada —la de Playwright del portal del motor, por ejemplo— no tiene buzón que leer, y la
+# salida fácil es apagar `AUTH_LOGIN_PIN_ENABLED` mientras corren las pruebas: eso deja la corrida
+# en verde habiendo ejercitado un camino de acceso que NO es el que corre en producción, y encima
+# apagando un control de seguridad para que el reloj no se agote.
+#
+# Con esta sobreescritura el correo se entrega como JSON a un recolector que la propia prueba
+# levanta, el PIN se lee por donde de verdad salió, y los DOS pasos del acceso quedan ejercitados.
+#
+# ## Uso
+#
+#   docker compose -f docker-compose.yml -f docker-compose.pin-inbox.yml up -d api
+#   PW_PIN_INBOX_PORT=8790 PW_USER=… PW_PASSWORD=… yarn playwright test …
+#   docker compose up -d api        # deja el canal de correo como estaba
+#
+# El puerto tiene que coincidir con `PW_PIN_INBOX_PORT`. `host.docker.internal` es cómo el
+# contenedor alcanza al recolector, que corre en el anfitrión dentro del proceso de Playwright.
+#
+# ## Por qué NO vale en producción
+#
+# Porque `env-cross-checks.ts` no lo admite ahí, y con razón: un webhook de correo en un despliegue
+# real desviaría los segundos factores de TODAS las cuentas de administración a un buzón cualquiera.
+# Esto es una herramienta de banco de pruebas y sólo eso.
+services:
+  api:
+    environment:
+      NOTIFICATION_EMAIL_PROVIDER: webhook
+      NOTIFICATION_EMAIL_WEBHOOK_URL: ${PIN_INBOX_URL:-http://host.docker.internal:8790/correo}

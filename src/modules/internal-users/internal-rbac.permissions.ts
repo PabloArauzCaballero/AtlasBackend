@@ -5,139 +5,11 @@
  */
 import { InternalRoleCode } from './internal-rbac.roles.js';
 
-export type InternalPermissionSeed = {
-  code: string;
-  module: string;
-  resource: string;
-  action: string;
-  description: string;
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  requiresReason: boolean;
-};
+import { INTERNAL_PERMISSION_SEEDS } from './internal-rbac.catalog.js';
+import type { InternalPermissionSeed } from './internal-rbac.permission-builder.js';
 
-function permission(
-  code: string,
-  module: string,
-  resource: string,
-  action: string,
-  description: string,
-  riskLevel: InternalPermissionSeed['riskLevel'] = 'MEDIUM',
-  requiresReason = false,
-): InternalPermissionSeed {
-  return { code, module, resource, action, description, riskLevel, requiresReason };
-}
-
-export const INTERNAL_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
-  permission('auth.internal.me.read', 'auth', 'internal_session', 'read', 'Consultar perfil, roles y permisos efectivos propios.', 'LOW'),
-  permission('systems.dashboard.read', 'systems', 'dashboard', 'read', 'Consultar dashboard técnico del portal interno.'),
-  permission('systems.endpoints.read', 'systems', 'endpoint_catalog', 'read', 'Consultar catálogo de endpoints.'),
-  permission('systems.endpoints.execute', 'systems', 'endpoint_catalog', 'execute', 'Ejecutar endpoint controlado desde QA.', 'HIGH', true),
-  permission(
-    'systems.endpoints.discover',
-    'systems',
-    'endpoint_catalog',
-    'discover',
-    'Descubrir endpoints y actualizar revisión.',
-    'HIGH',
-    true,
-  ),
-  permission(
-    'systems.endpoints.catalogSeedRefresh',
-    'systems',
-    'endpoint_catalog',
-    'seed_refresh',
-    'Refrescar catálogo técnico desde seed.',
-    'HIGH',
-    true,
-  ),
-  permission('systems.dataEntities.read', 'systems', 'data_entity', 'read', 'Consultar entidades y tablas catalogadas.'),
-  permission(
-    'systems.dataEntities.updateMetadata',
-    'systems',
-    'data_entity',
-    'update_metadata',
-    'Actualizar metadata técnica.',
-    'HIGH',
-    true,
-  ),
-  permission('systems.reviewQueue.read', 'systems', 'review_queue', 'read', 'Consultar cola de revisión.'),
-  permission('systems.reviewQueue.resolve', 'systems', 'review_queue', 'resolve', 'Resolver elementos de revisión.', 'HIGH', true),
-  permission('systems.tools.read', 'systems', 'tool_catalog', 'read', 'Consultar herramientas internas.'),
-  permission('systems.tools.health.read', 'systems', 'tool_health', 'read', 'Consultar salud de herramientas internas.'),
-  permission(
-    'systems.tools.inferRequirements',
-    'systems',
-    'tool_requirements',
-    'infer',
-    'Inferir requisitos de herramientas.',
-    'HIGH',
-    true,
-  ),
-  permission('systems.qa.read', 'systems', 'qa_suite', 'read', 'Consultar suites y corridas QA.'),
-  permission('systems.qa.execute', 'systems', 'qa_run', 'execute', 'Ejecutar suites QA controladas.', 'HIGH', true),
-  permission('systems.stress.read', 'systems', 'stress_profile', 'read', 'Consultar perfiles y corridas stress.'),
-  permission('systems.stress.execute', 'systems', 'stress_run', 'execute', 'Ejecutar stress controlado.', 'CRITICAL', true),
-  permission('internal.users.read', 'internal', 'internal_user', 'read', 'Consultar usuarios internos.'),
-  permission(
-    'internal.users.manage',
-    'internal',
-    'internal_user',
-    'manage',
-    'Crear, editar, suspender y gestionar usuarios internos.',
-    'CRITICAL',
-    true,
-  ),
-  permission('internal.roles.read', 'internal', 'internal_role', 'read', 'Consultar roles internos.'),
-  permission('internal.roles.manage', 'internal', 'internal_role', 'manage', 'Administrar roles internos.', 'CRITICAL', true),
-  permission('internal.permissions.read', 'internal', 'internal_permission', 'read', 'Consultar permisos internos.'),
-  permission('catalog.data.read', 'catalog', 'data_catalog', 'read', 'Consultar catálogo de datos.'),
-  permission('catalog.data.manage', 'catalog', 'data_catalog', 'manage', 'Administrar catálogo de datos.', 'HIGH', true),
-  permission('businessMetadata.read', 'business_metadata', 'business_term', 'read', 'Consultar metadata de negocio.'),
-  permission('businessMetadata.manage', 'business_metadata', 'business_term', 'manage', 'Administrar metadata de negocio.', 'HIGH', true),
-  permission('governance.data.read', 'governance', 'data_governance', 'read', 'Consultar gobierno de datos.'),
-  permission('governance.data.manage', 'governance', 'data_governance', 'manage', 'Administrar gobierno de datos.', 'HIGH', true),
-  permission('governance.policies.read', 'governance', 'policy', 'read', 'Consultar políticas de gobierno.'),
-  permission('governance.policies.manage', 'governance', 'policy', 'manage', 'Administrar políticas de gobierno.', 'HIGH', true),
-  permission('dataQuality.issues.read', 'data_quality', 'quality_issue', 'read', 'Consultar incidencias de calidad.'),
-  permission('dataQuality.issues.resolve', 'data_quality', 'quality_issue', 'resolve', 'Resolver incidencias de calidad.', 'HIGH', true),
-  permission('dataQuality.rules.read', 'data_quality', 'quality_rule', 'read', 'Consultar reglas de calidad.'),
-  permission('dataQuality.rules.manage', 'data_quality', 'quality_rule', 'manage', 'Administrar reglas de calidad.', 'HIGH', true),
-  permission('operations.catalogs.read', 'operations', 'catalog', 'read', 'Consultar catálogos operativos.'),
-  permission('operations.definitions.read', 'operations', 'definition', 'read', 'Consultar definiciones operativas.'),
-  permission('operations.riskPolicy.read', 'operations', 'risk_policy', 'read', 'Consultar política de riesgo vigente.'),
-  permission('reporting.read', 'reporting', 'report', 'read', 'Consultar reportes dinámicos.'),
-  permission('reporting.execute', 'reporting', 'report', 'execute', 'Ejecutar reportes dinámicos.', 'HIGH', true),
-  permission('reporting.manage', 'reporting', 'report', 'manage', 'Administrar reportes dinámicos.', 'HIGH', true),
-  permission('lineage.read', 'lineage', 'lineage_graph', 'read', 'Consultar lineage e impacto.'),
-  permission('audit.events.read', 'audit', 'audit_event', 'read', 'Consultar eventos de auditoría.', 'HIGH'),
-  permission('audit.events.detail', 'audit', 'audit_event', 'detail', 'Consultar detalle de auditoría sensible.', 'HIGH'),
-  permission(
-    'notifications.messages.read',
-    'notifications',
-    'notification_message',
-    'read',
-    'Consultar mensajes de notificación (in-app/push/email/sms/whatsapp) y su historial de entrega.',
-  ),
-  permission(
-    'notifications.messages.manage',
-    'notifications',
-    'notification_message',
-    'manage',
-    'Reintentar o cancelar mensajes de notificación pendientes/fallidos.',
-    'HIGH',
-    true,
-  ),
-  permission('notifications.templates.read', 'notifications', 'notification_template', 'read', 'Consultar plantillas de notificación.'),
-  permission(
-    'notifications.templates.manage',
-    'notifications',
-    'notification_template',
-    'manage',
-    'Crear y editar plantillas de notificación.',
-    'HIGH',
-    true,
-  ),
-];
+export { INTERNAL_PERMISSION_SEEDS };
+export type { InternalPermissionSeed };
 
 const codeStartsWith = (prefix: string): string[] =>
   INTERNAL_PERMISSION_SEEDS.filter((item) => item.code.startsWith(prefix)).map((item) => item.code);
@@ -174,6 +46,9 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   OPERATIONS_MANAGER: [
     'auth.internal.me.read',
+    'expedientes.leer',
+    'expedientes.escribir',
+    'expedientes.compartir',
     'systems.dashboard.read',
     'operations.catalogs.read',
     'operations.definitions.read',
@@ -182,24 +57,82 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'reporting.read',
     'notifications.messages.read',
     'notifications.templates.read',
+    // Encolar el alta de un usuario de comercio. Este rol es el que el ERP ve como `OPERATIONS` /
+    // `COMMERCIAL_MANAGER` (ver `role-mapping.ts` del ERP), y es justo quien registra al usuario en
+    // el CRM. Se le da PEDIR y no CONCEDER a propósito: conceder es de `MERCHANT_OPERATIONS`, y que
+    // el mismo rol hiciera las dos cosas vaciaría de sentido la cola.
+    'merchant.users.request',
+    // Y ver la cola, para saber en qué quedó lo que pidió sin tener que preguntarlo por chat.
+    'merchant.users.read',
+    // Pedir la verificación del expediente del comercio y enlazarlo con su cuenta del ERP. Mismo
+    // reparto: el ERP pide, el Motor decide y —si hay señales— una persona resuelve en su cola.
+    'partner.kyb.request',
   ],
-  OPERATIONS_ANALYST: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read', 'catalog.data.read'],
-  RISK_MANAGER: ['auth.internal.me.read', 'operations.riskPolicy.read', 'catalog.data.read', 'reporting.read', 'audit.events.read'],
-  RISK_ANALYST: ['auth.internal.me.read', 'operations.riskPolicy.read', 'catalog.data.read'],
-  FRAUD_ANALYST: ['auth.internal.me.read', 'operations.catalogs.read', 'catalog.data.read', 'audit.events.read'],
+  OPERATIONS_ANALYST: [
+    'auth.internal.me.read',
+    'expedientes.leer',
+    'expedientes.escribir',
+    'operations.catalogs.read',
+    'operations.definitions.read',
+    'catalog.data.read',
+  ],
+  RISK_MANAGER: [
+    'auth.internal.me.read',
+    'expedientes.leer',
+    'expedientes.escribir',
+    'expedientes.compartir',
+    'operations.riskPolicy.read',
+    'catalog.data.read',
+    'reporting.read',
+    'audit.events.read',
+  ],
+  RISK_ANALYST: ['auth.internal.me.read', 'expedientes.leer', 'expedientes.escribir', 'operations.riskPolicy.read', 'catalog.data.read'],
+  FRAUD_ANALYST: [
+    'auth.internal.me.read',
+    'expedientes.leer',
+    'expedientes.escribir',
+    'expedientes.pii.revelar',
+    'operations.catalogs.read',
+    'catalog.data.read',
+    'audit.events.read',
+  ],
   COMPLIANCE_MANAGER: [
     'auth.internal.me.read',
+    'expedientes.leer',
+    'expedientes.compartir',
+    'expedientes.pii.revelar',
     'governance.data.read',
     'governance.policies.read',
     'audit.events.read',
     'audit.events.detail',
     'reporting.read',
   ],
-  COMPLIANCE_ANALYST: ['auth.internal.me.read', 'governance.data.read', 'governance.policies.read', 'audit.events.read'],
-  COLLECTIONS_MANAGER: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read', 'reporting.read'],
+  COMPLIANCE_ANALYST: [
+    'auth.internal.me.read',
+    'expedientes.leer',
+    'governance.data.read',
+    'governance.policies.read',
+    'audit.events.read',
+  ],
+  COLLECTIONS_MANAGER: [
+    'auth.internal.me.read',
+    'expedientes.leer',
+    'operations.catalogs.read',
+    'operations.definitions.read',
+    'reporting.read',
+  ],
   COLLECTIONS_AGENT: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read'],
   FINANCE_MANAGER: ['auth.internal.me.read', 'reporting.read', 'reporting.execute', 'audit.events.read'],
-  MERCHANT_OPERATIONS: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read'],
+  MERCHANT_OPERATIONS: [
+    'auth.internal.me.read',
+    'operations.catalogs.read',
+    'operations.definitions.read',
+    // Alta y ciclo de vida de las identidades del comercio: es la contraparte de identidad del
+    // onboarding que este rol ya hace. Antes no existía la población, y el ERP terminaba
+    // fabricando el rol de comercio a partir de ESTE rol interno.
+    'merchant.users.read',
+    'merchant.users.manage',
+  ],
   DATA_GOVERNANCE_MANAGER: [
     'auth.internal.me.read',
     ...codeStartsWith('catalog.'),
@@ -208,6 +141,9 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     ...codeStartsWith('dataQuality.'),
     'systems.dataEntities.read',
     'systems.dataEntities.updateMetadata',
+    'systems.flows.read',
+    'systems.flows.analyze',
+    'systems.flows.review',
     'lineage.read',
     'audit.events.read',
   ],
@@ -226,6 +162,7 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'systems.qa.read',
     'systems.qa.execute',
     'systems.stress.read',
+    'systems.flows.read',
     'catalog.data.read',
   ],
   AUDITOR_READONLY: ['auth.internal.me.read', ...allReadPermissions],

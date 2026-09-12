@@ -1,3 +1,4 @@
+import { Roles } from '../../common/decorators/roles.decorator.js';
 /**
  * @file Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso.
  * @business Esta pieza preserva evidencia operativa suficiente para diagnosticar incidentes con retención limitada.
@@ -11,6 +12,8 @@ import { SystemsOpsControllerSecurity } from '../systems-ops/systems-controller.
 import { mongoLogsQuerySchema, MongoLogsQueryDto } from './mongo-logs.schemas.js';
 import { MongoLogsQueryService } from './mongo-logs-query.service.js';
 
+// AT-049: la lectura de logs exige un rol interno explícito; antes bastaba cualquier sesión autenticada.
+@Roles('internal_operator', 'admin', 'platform_admin', 'readonly_auditor')
 @Controller('systems/logs')
 @SystemsOpsControllerSecurity()
 export class MongoLogsController {

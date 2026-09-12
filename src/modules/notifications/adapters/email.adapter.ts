@@ -10,26 +10,14 @@ import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from 
 import { failedDelivery, getFirstDeliveryTarget, postJson, sentDelivery } from './http-adapter.util.js';
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
 import { NotificationProviderConfigService } from './notification-provider-config.service.js';
-import { base64Url } from '../../../common/utils/crypto/encoding.util.js';
-
-function buildRawEmail(input: { from: string; to: string; subject: string; body: string }): string {
-  const lines = [
-    `From: ${input.from}`,
-    `To: ${input.to}`,
-    `Subject: ${input.subject}`,
-    'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset="UTF-8"',
-    '',
-    input.body,
-  ];
-  return base64Url(lines.join('\r\n'));
-}
+import { GmailApiAdapter } from './gmail/gmail.adapter.js';
 
 @Injectable()
 export class EmailNotificationAdapter implements NotificationChannelAdapter {
   constructor(
     private readonly config: NotificationProviderConfigService,
     private readonly executor: ResilientAdapterExecutorService,
+    private readonly gmail: GmailApiAdapter,
   ) {}
 
   getProviderName(): string {
@@ -52,7 +40,9 @@ export class EmailNotificationAdapter implements NotificationChannelAdapter {
     if (!to) return failedDelivery(provider, 'MISSING_EMAIL_RECIPIENT', 'El payload no contiene email, toEmail ni recipientEmail.');
     if (provider === 'resend') return this.sendResend(message, to);
     if (provider === 'sendgrid') return this.sendSendGrid(message, to);
-    if (provider === 'gmail_api') return this.sendGmailApi(message, to);
+    // Gmail vive en su propio adaptador: necesita canje OAuth con cache y construcción MIME
+    // completa, no una llamada HTTP con API key como Resend/SendGrid.
+    if (provider === 'gmail_api') return this.gmail.send(message);
     if (provider === 'webhook') return this.sendWebhook(message, to, 'email');
     return failedDelivery(provider, 'UNSUPPORTED_EMAIL_PROVIDER', `Proveedor email no soportado: ${provider}`);
   }
@@ -104,38 +94,5 @@ export class EmailNotificationAdapter implements NotificationChannelAdapter {
     if (!response.ok)
       return failedDelivery('sendgrid', 'SENDGRID_SEND_FAILED', `SendGrid respondió HTTP ${response.status}.`, response.json);
     return sentDelivery('sendgrid', String(response.json.id ?? message.id), response.json);
-  }
-
-  private async sendGmailApi(message: NotificationMessagePayload, to: string): Promise<DeliveryResult> {
-    const clientId = this.config.require(env.GMAIL_CLIENT_ID, 'GMAIL_CLIENT_ID_MISSING');
-    const clientSecret = this.config.require(env.GMAIL_CLIENT_SECRET, 'GMAIL_CLIENT_SECRET_MISSING');
-    const refreshToken = this.config.require(env.GMAIL_REFRESH_TOKEN, 'GMAIL_REFRESH_TOKEN_MISSING');
-    const from = this.config.require(env.GMAIL_FROM_EMAIL, 'GMAIL_FROM_EMAIL_MISSING');
-    const tokenResponse = await postJson(
-      this.executor,
-      'gmail_api_token',
-      'https://oauth2.googleapis.com/token',
-      {},
-      {
-        client_id: clientId,
-        client_secret: clientSecret,
-        refresh_token: refreshToken,
-        grant_type: 'refresh_token',
-      },
-    );
-    if (!tokenResponse.ok || typeof tokenResponse.json.access_token !== 'string') {
-      return failedDelivery('gmail_api', 'GMAIL_TOKEN_FAILED', `Google OAuth respondió HTTP ${tokenResponse.status}.`, tokenResponse.json);
-    }
-    const raw = buildRawEmail({ from, to, subject: message.subject ?? 'ATLAS', body: message.body });
-    const sendResponse = await postJson(
-      this.executor,
-      'gmail_api',
-      'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
-      { authorization: `Bearer ${tokenResponse.json.access_token}` },
-      { raw },
-    );
-    if (!sendResponse.ok)
-      return failedDelivery('gmail_api', 'GMAIL_SEND_FAILED', `Gmail API respondió HTTP ${sendResponse.status}.`, sendResponse.json);
-    return sentDelivery('gmail_api', typeof sendResponse.json.id === 'string' ? sendResponse.json.id : null, sendResponse.json);
   }
 }

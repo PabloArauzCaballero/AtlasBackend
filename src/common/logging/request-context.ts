@@ -17,6 +17,14 @@ import { trace } from '@opentelemetry/api';
  */
 type RequestContext = {
   correlationId: string;
+  /**
+   * Portal desde el que entró la petición (`x-atlas-product`), cuando lo declara.
+   *
+   * Viaja por el contexto y no como parámetro porque el único que lo necesita —la cabecera del
+   * correo— está a cuatro capas del controlador, y hacerlo explícito obligaría a añadir un
+   * argumento a cada servicio del camino sin que ninguno lo use.
+   */
+  product?: string | undefined;
 };
 
 const storage = new AsyncLocalStorage<RequestContext>();
@@ -29,6 +37,11 @@ export function runWithRequestContext<T>(context: RequestContext, fn: () => T): 
 /** correlationId del request en curso, o `undefined` fuera de un request (arranque, jobs, tests). */
 export function getCorrelationId(): string | undefined {
   return storage.getStore()?.correlationId;
+}
+
+/** Producto declarado por la petición en curso, o `undefined` fuera de un request. */
+export function getRequestProduct(): string | undefined {
+  return storage.getStore()?.product;
 }
 
 const EMPTY_TRACE_ID = '00000000000000000000000000000000';

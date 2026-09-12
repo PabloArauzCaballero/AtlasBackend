@@ -33,6 +33,36 @@ regexes = [
   # con puntos suspensivos literales, sin material de clave. Se ancla al placeholder exacto (`\n...\n`)
   # a propósito: si alguien pegara una clave FCM real en la doc, NO haría match y el gate la atraparía.
   '''BEGIN PRIVATE KEY-----\\n\.\.\.\\n-----END PRIVATE KEY''',
+
+  # Fixtures de pruebas unitarias: valores INVENTADOS cuya única razón de existir es ejercitar el
+  # código que los consume. Se ancla cada uno a su literal exacto, no al identificador ni al fichero:
+  # si alguien pegara una credencial real en el mismo sitio, no haría match y el gate la atraparía.
+  # Revisados uno por uno el 18-ago-2026.
+  '''idem-key-secreta-1234''',
+  '''Contrasena-Muy-Segura-1''',
+  '''otra-clave-de-al-menos-32-caracteres-distinta''',
+  '''otra-clave-distinta-de-32-caracteres-o-mas''',
+  '''desde-body-0123456789''',
+
+  # Mismo caso que `observationKey:` de arriba, en la forma de comparación (`===`): es un nombre de
+  # feature del dominio de riesgo, no una credencial.
+  '''observationKey\s*===''',
+
+  # test/unit/support/message-dlp.spec.ts: bloque PEM de JUGUETE —el cuerpo son 8 bytes,
+  # `MIIEvQ==`— que existe para probar que `inspectMessageBody()` DETECTA y oculta una clave
+  # privada pegada en el chat de soporte. Marcarlo como fuga es exactamente al revés, y es el
+  # mismo caso que ya está permitido para `smoke-redaction.spec.ts` más abajo. Se ancla al
+  # literal completo y no al fichero: una clave real pegada ahí no haría match y el gate la
+  # atraparía.
+  '''BEGIN PRIVATE KEY-----\\nMIIEvQ==\\n-----END PRIVATE KEY''',
+
+  # Fixtures INVENTADOS, revisados uno por uno el 11-sep-2026. Anclados a su literal exacto, como los de arriba:
+  # - test/unit/support/support-knowledge.service.spec.ts: la clave de idempotencia que el servicio CALCULA para la
+  #   versión 5 de un artículo (`knowledge-published-<versión>`). Es el valor esperado, no una credencial.
+  # - test/unit/systems-ops-federation-client-envelope.spec.ts: la clave de catálogo del entorno de prueba del cliente
+  #   de federación; su contenido describe lo que es.
+  '''knowledge-published-5''',
+  '''clave-de-catalogo-de-mas-de-32-caracteres''',
 ]
 
 paths = [

@@ -13,7 +13,7 @@ describe('ResilientAdapterExecutorService', () => {
   it('retries a retryable failure per the provided options before succeeding', async () => {
     const service = new ResilientAdapterExecutorService();
     let calls = 0;
-    const fn = jest.fn(async () => {
+    const fn = jest.fn(async (..._args: unknown[]) => {
       calls += 1;
       if (calls < 2) throw new AdapterError({ code: 'NETWORK', provider: 'twilio', message: 'blip', retryable: true });
       return 'ok';

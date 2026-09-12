@@ -11,13 +11,11 @@ import {
   CustomerContactMethodModel,
   CustomerIdentityDocumentModel,
   DataChangeLogModel,
-  DataQualityIssueModel,
   FeatureComputationRunModel,
   FeatureLineageLinkModel,
   FeatureSnapshotModel,
   FeatureValueModel,
   FraudCaseModel,
-  ManualReviewCaseModel,
   OperationalAuditLogModel,
   RiskAssessmentContextModel,
   RiskAssessmentResultModel,
@@ -45,10 +43,8 @@ export class RiskRepository {
     @InjectModel(FeatureValueModel) private readonly featureValueModel: typeof FeatureValueModel,
     @InjectModel(FeatureLineageLinkModel) private readonly featureLineageLinkModel: typeof FeatureLineageLinkModel,
     @InjectModel(FeatureSnapshotModel) private readonly featureSnapshotModel: typeof FeatureSnapshotModel,
-    @InjectModel(ManualReviewCaseModel) private readonly manualReviewCaseModel: typeof ManualReviewCaseModel,
     @InjectModel(FraudCaseModel) private readonly fraudCaseModel: typeof FraudCaseModel,
     @InjectModel(WatchlistMatchModel) private readonly watchlistMatchModel: typeof WatchlistMatchModel,
-    @InjectModel(DataQualityIssueModel) private readonly dataQualityIssueModel: typeof DataQualityIssueModel,
     @InjectModel(DataChangeLogModel) private readonly dataChangeLogModel: typeof DataChangeLogModel,
     @InjectModel(OperationalAuditLogModel) private readonly operationalAuditLogModel: typeof OperationalAuditLogModel,
     @InjectModel(CustomerConsentModel) private readonly consentModel: typeof CustomerConsentModel,
@@ -207,6 +203,10 @@ export class RiskRepository {
       assessmentType: string;
       triggerSource: string;
       idempotencyKey: string;
+      /** De qué escalón salió la decisión. Se guarda en la fila, no sólo en la respuesta. */
+      decisionSource: string;
+      /** La ejecución del Motor, cuando decidió él. `null` en los otros dos escalones. */
+      decisionExecutionId: string | null;
       now: Date;
     },
     options: RepositoryOptions,
@@ -226,6 +226,8 @@ export class RiskRepository {
         assessmentType: values.assessmentType,
         triggerSource: values.triggerSource,
         idempotencyKey: values.idempotencyKey,
+        decisionSource: values.decisionSource,
+        decisionExecutionId: values.decisionExecutionId,
         runStatus: 'completed',
         startedAt: values.now,
         completedAt: values.now,
@@ -396,61 +398,6 @@ export class RiskRepository {
         featureSnapshotId: values.featureSnapshotId,
         integrityHash: values.integrityHash,
         decidedAt: values.now,
-        createdAtValue: values.now,
-      },
-      { transaction: options.transaction },
-    );
-  }
-
-  createManualReviewCase(
-    values: {
-      tenantId: string;
-      customerId: string;
-      riskAssessmentRunId: string;
-      priority: string;
-      caseType: string;
-      notes: string;
-      now: Date;
-    },
-    options: RepositoryOptions,
-  ): Promise<ManualReviewCaseModel> {
-    return this.manualReviewCaseModel.create(
-      {
-        tenantId: values.tenantId,
-        caseCode: `MR-${Date.now()}`,
-        customerId: values.customerId,
-        riskAssessmentRunId: values.riskAssessmentRunId,
-        fraudCaseId: null,
-        caseType: values.caseType,
-        priority: values.priority,
-        status: 'open',
-        assignedToInternalUserId: null,
-        openedAt: values.now,
-        closedAt: null,
-        resolution: null,
-        notes: values.notes,
-        createdAtValue: values.now,
-        updatedAtValue: values.now,
-        deleted: false,
-      },
-      { transaction: options.transaction },
-    );
-  }
-
-  createDataQualityIssue(
-    values: { tenantId: string; targetRecordId: string; issueCode: string; now: Date },
-    options: RepositoryOptions,
-  ): Promise<DataQualityIssueModel> {
-    return this.dataQualityIssueModel.create(
-      {
-        tenantId: values.tenantId,
-        qualityRuleId: null,
-        targetTable: 'customers',
-        targetRecordId: values.targetRecordId,
-        issueStatus: values.issueCode,
-        detectedAt: values.now,
-        resolvedAt: null,
-        resolutionNotes: null,
         createdAtValue: values.now,
       },
       { transaction: options.transaction },

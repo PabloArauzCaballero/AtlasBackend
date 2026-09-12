@@ -18,20 +18,57 @@ import {
   SystemJobRunModel,
   TenantModel,
 } from '../../database/models/index.js';
+import { CreditModule } from '../credit/credit.module.js';
+import { CreditRatingModule } from '../credit-rating/credit-rating.module.js';
+import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
+import { DebtRatingService } from '../credit-rating/application/debt-rating.service.js';
+import { OutcomeDispatchService } from '../decision-engine/outcome-dispatch.service.js';
+import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
+import { PartnerKybSyncService } from '../partner-onboarding/application/partner-kyb-sync.service.js';
+import { CustomerOnboardingModule } from '../customer-onboarding/customer-onboarding.module.js';
+import { LoansModule } from '../loans/loans.module.js';
+import { SupportModule } from '../support/support.module.js';
+import { SupportSlaService } from '../support/application/support-sla.service.js';
 import { EventsModule } from '../events/events.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { RuntimeJobsController } from './runtime-jobs.controller.js';
+import { RuntimeDecisionJobsController } from './runtime-decision-jobs.controller.js';
+import { ExpedientesJobsController } from './expedientes-jobs.controller.js';
 import { RuntimeJobsSchedulerService } from './runtime-jobs-scheduler.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
 import { JobRunRecorderService } from './job-run-recorder.service.js';
+import { BankStatementReviewWorker } from '../credit/application/bank-statement-review.worker.js';
+import { CreditLineRefreshService } from '../credit/application/credit-line-refresh.service.js';
+import { LoanDelinquencyService } from '../loans/application/loan-delinquency.service.js';
+import { OnboardingAbandonmentService } from '../customer-onboarding/application/onboarding-abandonment.service.js';
+import { buildScheduledJobs, SCHEDULED_JOBS } from './scheduled-jobs.catalog.js';
+import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 
 @Module({
   imports: [
+    ExpedientesModule,
     EventsModule,
     // El barrido de notificaciones atascadas (hallazgo A-03) reutiliza el MISMO orquestador que la
     // entrega normal, para que un reintento no pueda divergir del camino feliz.
     NotificationsModule,
+    // Aporta `OnboardingAbandonmentService`: el cierre de los onboardings abandonados es un trabajo
+    // de fondo más, y su regla de negocio vive en el módulo de onboarding, no aquí.
+    CustomerOnboardingModule,
+    // El barrido de mora y el recálculo de la línea son trabajos de fondo, pero sus reglas viven en
+    // sus dominios: aquí sólo se declara CADA CUÁNTO corren, no QUÉ hacen.
+    LoansModule,
+    CreditModule,
+    // La calificación de la cartera y la entrega de desenlaces al Motor son trabajos de fondo por la
+    // misma razón que el barrido de mora: si dependen de un botón, dependen de que alguien se acuerde.
+    CreditRatingModule,
+    DecisionEngineModule,
+    // Aporta `PartnerKybSyncService`: traer del Motor cómo quedaron los casos de verificación es un
+    // trabajo de fondo, pero qué hacer con cada veredicto es regla del onboarding y vive allí.
+    PartnerOnboardingModule,
+    // Aporta `SupportSlaService`: la vigilancia de los compromisos de atención es un trabajo de
+    // fondo, pero el plazo, el calendario hábil y la pausa son reglas del soporte y viven allí.
+    SupportModule,
     SequelizeModule.forFeature([
       SystemJobRunModel,
       OutboxEventModel,
@@ -46,7 +83,51 @@ import { JobRunRecorderService } from './job-run-recorder.service.js';
       TenantModel,
     ]),
   ],
-  controllers: [RuntimeJobsController],
-  providers: [JobRunRecorderService, RuntimeJobsService, RuntimeMaintenanceJobsService, RuntimeJobsSchedulerService],
+  controllers: [RuntimeJobsController, RuntimeDecisionJobsController, ExpedientesJobsController],
+  providers: [
+    JobRunRecorderService,
+    RuntimeJobsService,
+    RuntimeMaintenanceJobsService,
+    RuntimeJobsSchedulerService,
+    {
+      provide: SCHEDULED_JOBS,
+      useFactory: (
+        runtimeJobs: RuntimeJobsService,
+        maintenance: RuntimeMaintenanceJobsService,
+        onboardingAbandonment: OnboardingAbandonmentService,
+        delinquency: LoanDelinquencyService,
+        creditLineRefresh: CreditLineRefreshService,
+        bankStatements: BankStatementReviewWorker,
+        supportSla: SupportSlaService,
+        debtRating: DebtRatingService,
+        outcomeDispatch: OutcomeDispatchService,
+        partnerKybSync: PartnerKybSyncService,
+      ) =>
+        buildScheduledJobs({
+          runtimeJobs,
+          maintenance,
+          onboardingAbandonment,
+          delinquency,
+          creditLineRefresh,
+          bankStatements,
+          supportSla,
+          debtRating,
+          outcomeDispatch,
+          partnerKybSync,
+        }),
+      inject: [
+        RuntimeJobsService,
+        RuntimeMaintenanceJobsService,
+        OnboardingAbandonmentService,
+        LoanDelinquencyService,
+        CreditLineRefreshService,
+        BankStatementReviewWorker,
+        SupportSlaService,
+        DebtRatingService,
+        OutcomeDispatchService,
+        PartnerKybSyncService,
+      ],
+    },
+  ],
 })
 export class RuntimeJobsModule {}

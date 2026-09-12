@@ -26,6 +26,17 @@
  * evento ya gastó una oportunidad, y así un fallo que mata el proceso una y otra vez no puede
  * reintentarse infinitamente.
  */
+/**
+ * Ojo con `(:tenantId IS NULL OR _tenant_id = …)`: el `IS NULL` es del PARÁMETRO, no de la fila.
+ *
+ * - Con inquilino, excluye los eventos sin inquilino, igual que hacía `process_outbox` hasta
+ *   `f263d37`, cuando se descubrió que así 67 eventos anónimos no los tomaba nunca nadie.
+ * - Con `tenantId: null`, la condición entera es TRUE y reclama de TODOS los inquilinos a la vez.
+ *
+ * Hoy no muerde: aquí sólo entran códigos REGISTRADOS y `process_outbox` excluye exactamente esos, y
+ * ningún evento de negocio se escribe sin inquilino. El día que uno se escriba, no lo recogerá nadie.
+ * Señalado por otra sesión revisando aquel arreglo; se deja anotado en vez de cambiarse sin un caso.
+ */
 export const CLAIM_PENDING_EVENTS_SQL = `
   WITH candidates AS (
     SELECT _id
@@ -77,6 +88,8 @@ export const RECLAIM_STUCK_EVENTS_SQL = `
         ELSE 'pending'
       END,
       locked_at = NULL,
+      -- AT-054: el testigo del relay muerto se anula; su cierre tardío ya no encuentra la fila (fencing del relay v2).
+      owner_token = NULL,
       locked_by = NULL,
       available_at = CASE
         WHEN COALESCE(event.attempts, 0) >= COALESCE(event.max_attempts, 3) THEN event.available_at

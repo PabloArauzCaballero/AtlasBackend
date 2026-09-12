@@ -18,7 +18,6 @@
 | [`internal-permissions.guard.spec.ts`](./internal-permissions.guard.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`internal-rbac-repository-active-ids.spec.ts`](./internal-rbac-repository-active-ids.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`internal-rbac.repository.spec.ts`](./internal-rbac.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`internal-rbac.seed-data.spec.ts`](./internal-rbac.seed-data.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`internal-users.controller.spec.ts`](./internal-users.controller.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`internal-users.service.spec.ts`](./internal-users.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 

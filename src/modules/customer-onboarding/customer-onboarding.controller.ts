@@ -15,22 +15,24 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
+import { IdentityManualReviewOutcomeService } from './application/identity-manual-review-outcome.service.js';
+import { CustomerContactsSnapshotService } from './application/customer-contacts-snapshot.service.js';
+
 import { CustomerOnboardingService } from './customer-onboarding.service.js';
 import {
-  addressPackageSchema,
-  AddressPackageDto,
   contactVerificationRequestSchema,
   ContactVerificationRequestDto,
   contactVerificationSubmitSchema,
   ContactVerificationSubmitDto,
-  identityPackageSchema,
-  IdentityPackageDto,
+  identityManualReviewSchema,
+  IdentityManualReviewDto,
   onboardingCustomerIdParamsSchema,
   OnboardingCustomerIdParamsDto,
   startOnboardingSchema,
   StartOnboardingDto,
 } from './customer-onboarding.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 type RequestWithIp = {
   ip?: string;
@@ -40,7 +42,11 @@ type RequestWithIp = {
 @Controller('customer-onboarding')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class CustomerOnboardingController {
-  constructor(private readonly customerOnboardingService: CustomerOnboardingService) {}
+  constructor(
+    private readonly customerOnboardingService: CustomerOnboardingService,
+    private readonly identityManualReviewOutcomeService: IdentityManualReviewOutcomeService,
+    private readonly contactsSnapshotService: CustomerContactsSnapshotService,
+  ) {}
 
   // 10 onboarding attempts per minute per IP — prevents enumeration and abuse
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
@@ -62,13 +68,12 @@ export class CustomerOnboardingController {
   @Post('start')
   @HttpCode(HttpStatus.CREATED)
   startOnboarding(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Headers('x-client-channel') _channel: string | undefined,
     @Body(new ZodValidationPipe(startOnboardingSchema)) body: StartOnboardingDto,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.startOnboarding(tenantId, body, request.ip ?? null, requireIdempotencyKey(idempotencyKey));
   }
 
@@ -90,14 +95,13 @@ export class CustomerOnboardingController {
   @Post(':customerId/contact-verification/request')
   @HttpCode(HttpStatus.ACCEPTED)
   requestContactVerification(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(contactVerificationRequestSchema)) body: ContactVerificationRequestDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.requestContactVerification({
       tenantId,
       customerId: params.customerId,
@@ -126,14 +130,13 @@ export class CustomerOnboardingController {
   @Post(':customerId/contact-verification/submit')
   @HttpCode(HttpStatus.OK)
   submitContactVerification(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(contactVerificationSubmitSchema)) body: ContactVerificationSubmitDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithIp,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.customerOnboardingService.submitContactVerification({
       tenantId,
       customerId: params.customerId,
@@ -153,64 +156,37 @@ export class CustomerOnboardingController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(onboardingCustomerIdParamsSchema.shape.customerId) })
-  @ApiBody({ schema: zodToApiSchema(identityPackageSchema) })
-  @ApiResponse({ status: 202, description: 'Paquete de identidad recibido y encolado para procesamiento.' })
-  @ApiResponse({ status: 403, description: 'El token no permite operar sobre este cliente.' })
-  @ApiResponse({ status: 404, description: 'Cliente no encontrado.' })
-  @ApiResponse({ status: 422, description: 'CUSTOMER_BLOCKED, REQUIRED_EVIDENCE_MISSING, o REQUIRED_CONSENT_MISSING.' })
-  @Post(':customerId/identity-package')
-  @HttpCode(HttpStatus.ACCEPTED)
-  submitIdentityPackage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
-    @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
-    @Body(new ZodValidationPipe(identityPackageSchema)) body: IdentityPackageDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-    @Req() request: RequestWithIp,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
-    return this.customerOnboardingService.submitIdentityPackage({
-      tenantId,
-      customerId: params.customerId,
-      body,
-      currentUser,
-      ipAddress: request.ip ?? null,
-      idempotencyKey: requireIdempotencyKey(idempotencyKey),
-    });
-  }
-
-  @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
-  @ApiBearerAuth('access-token')
-  @ApiOperation({
-    summary: 'Enviar paquete de dirección',
-    description: 'Registra la dirección declarada del cliente (y evidencia GPS/geolocalización cuando corresponda).',
-  })
+  /*
+   * Aplica al expediente la decisión que tomó una PERSONA en la cola de revisión.
+   *
+   * Sin este endpoint, aprobar en el Decision Engine no cambiaba nada aquí: son dos sistemas con
+   * dos bases distintas, y el expediente se quedaba con las evidencias en `pending_review` y el
+   * bloqueador `IDENTITY_NOT_VERIFIED` puesto para siempre. Ver
+   * `identity-manual-review-outcome.service.ts`.
+   *
+   * NO lo puede llamar un cliente: quien decide sobre su propia identidad no es el titular. Por eso
+   * la lista de roles excluye `customer`, al revés que el resto de este controlador.
+   */
+  @ApiOperation({ summary: 'Aplica la resolución de una revisión manual de identidad' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiHeader({ name: 'x-idempotency-key', required: true })
-  @ApiParam({ name: 'customerId', schema: zodToApiSchema(onboardingCustomerIdParamsSchema.shape.customerId) })
-  @ApiBody({ schema: zodToApiSchema(addressPackageSchema) })
-  @ApiResponse({ status: 200, description: 'Paquete de dirección registrado.' })
-  @ApiResponse({ status: 403, description: 'El token no permite operar sobre este cliente.' })
-  @ApiResponse({ status: 404, description: 'Cliente no encontrado.' })
-  @ApiResponse({ status: 422, description: 'CUSTOMER_BLOCKED o REQUIRED_EVIDENCE_MISSING.' })
-  @Post(':customerId/address-package')
+  @ApiResponse({ status: 200, description: 'Resolución aplicada al expediente.' })
+  @ApiResponse({ status: 403, description: 'El token no tiene rol de analista.' })
+  @ApiResponse({ status: 404, description: 'Cliente o intento de identidad no encontrado.' })
+  @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @Post(':customerId/identity-manual-review')
   @HttpCode(HttpStatus.OK)
-  submitAddressPackage(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
+  applyIdentityManualReview(
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
-    @Body(new ZodValidationPipe(addressPackageSchema)) body: AddressPackageDto,
+    @Body(new ZodValidationPipe(identityManualReviewSchema)) body: IdentityManualReviewDto,
     @CurrentUser() currentUser: AuthenticatedUser,
-    @Req() request: RequestWithIp,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
-    return this.customerOnboardingService.submitAddressPackage({
+    return this.identityManualReviewOutcomeService.apply({
       tenantId,
       customerId: params.customerId,
-      body,
-      currentUser,
-      ipAddress: request.ip ?? null,
-      idempotencyKey: requireIdempotencyKey(idempotencyKey),
+      decision: body.decision,
+      reviewedByInternalUserId: body.reviewedByInternalUserId ?? String(currentUser.internalUserId ?? ''),
+      notes: body.notes,
     });
   }
 }

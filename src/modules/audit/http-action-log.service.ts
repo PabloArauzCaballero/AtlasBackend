@@ -9,7 +9,8 @@ import { FindOptions } from 'sequelize';
 import { OperationalAuditLogModel, SystemActionLogModel, SystemEndpointCatalogModel } from '../../database/models/index.js';
 import { redactSensitiveObject } from '../../common/utils/privacy/redaction.util.js';
 import { endpointPathMatches, endpointPathSpecificity } from '../systems-ops/endpoint-code.util.js';
-import { hashPayload, idempotencyLast4, sanitizeForSystemsOps } from '../systems-ops/systems-sanitizer.js';
+import { sanitizeForSystemsOps } from '../systems-ops/systems-sanitizer.js';
+import { toSystemActionLogRow } from './system-action-log-row.mapper.js';
 
 export type HttpActionLogInput = {
   tenantId: string | null;
@@ -27,6 +28,10 @@ export type HttpActionLogInput = {
   occurredAt: Date;
   requestId?: string | null;
   correlationId?: string | null;
+  /** Ruta de la pantalla que originó la petición, si el cliente la declaró. */
+  originScreen?: string | null;
+  /** Cliente que la declaró, normalizado al código del catálogo (`ADMIN_PORTAL`). */
+  originClient?: string | null;
   method?: string | null;
   routeTemplate?: string | null;
   resolvedUrlSanitized?: string | null;
@@ -79,42 +84,7 @@ export class HttpActionLogService {
 
   private async createSystemActionLog(input: HttpActionLogInput, sanitizedPayload: Record<string, unknown>): Promise<SystemActionLogModel> {
     const endpoint = input.method && input.resolvedUrlSanitized ? await this.findEndpoint(input.method, input.resolvedUrlSanitized) : null;
-    const idempotencyKeyHash = input.idempotencyKey ? hashPayload(input.idempotencyKey) : null;
-    return this.systemActionLogModel.create({
-      tenantId: input.tenantId,
-      requestId: input.requestId ?? input.correlationId ?? null,
-      correlationId: input.correlationId ?? null,
-      endpointCatalogId: endpoint?.id ?? null,
-      actorUserId: input.actorUserId ?? null,
-      actorType: input.actorType,
-      actorRole: input.actorRole ?? input.actorType,
-      actorInternalUserId: input.actorInternalUserId,
-      actorPlatformUserId: input.actorPlatformUserId,
-      method: input.method ?? 'UNKNOWN',
-      routeTemplate: input.routeTemplate ?? null,
-      resolvedUrlSanitized: input.resolvedUrlSanitized ?? String(sanitizedPayload.path ?? 'unknown'),
-      module: endpoint?.module ?? input.module ?? null,
-      actionName: input.actionName ?? input.actionCode,
-      ipAddress: input.ipAddress,
-      userAgent: input.userAgent,
-      targetType: input.targetType,
-      targetId: input.targetId,
-      merchantId: null,
-      customerId: input.payload.customerId ? String(input.payload.customerId) : null,
-      requestPayloadSanitized: sanitizedPayload,
-      requestPayloadHash: hashPayload(input.payload),
-      responseStatusCode: input.responseStatusCode ?? null,
-      responseSummarySanitized: sanitizeForSystemsOps({ statusCode: input.responseStatusCode, errorCode: input.errorCode }),
-      errorCode: input.errorCode ?? null,
-      errorMessage: input.errorMessage ?? null,
-      durationMs: input.durationMs ?? null,
-      idempotencyKeyHash,
-      idempotencyKeyLast4: idempotencyLast4(input.idempotencyKey),
-      riskLevel: endpoint?.riskLevel ?? input.riskLevel ?? 'LOW',
-      containsPii: endpoint?.containsPii ?? input.containsPii ?? false,
-      occurredAt: input.occurredAt,
-      createdAtValue: input.occurredAt,
-    } as never);
+    return this.systemActionLogModel.create(toSystemActionLogRow(input, sanitizedPayload, endpoint) as never);
   }
 
   private async findEndpoint(method: string, path: string): Promise<SystemEndpointCatalogModel | null> {

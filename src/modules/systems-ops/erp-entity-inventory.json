@@ -1,0 +1,962 @@
+{
+  "sourceSystem": "atlas-erp",
+  "schemas": [
+    "atlas_accounting",
+    "atlas_sales",
+    "atlas_audit"
+  ],
+  "tableCount": 95,
+  "tables": [
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "accounting_document",
+      "columnCount": 19,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "accounting_period",
+      "columnCount": 9,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "ap_invoice",
+      "columnCount": 12,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "ap_invoice_line",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "ar_invoice",
+      "columnCount": 14,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "ar_invoice_line",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "asset_depreciation_run",
+      "columnCount": 6,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "bank_account",
+      "columnCount": 9,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "bank_statement",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "bank_statement_line",
+      "columnCount": 11,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "billing_event",
+      "columnCount": 11,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "billing_rule",
+      "columnCount": 12,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "bp_address",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "bp_bank_account",
+      "columnCount": 6,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "branch",
+      "columnCount": 6,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "budget",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "budget_line",
+      "columnCount": 7,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "business_partner",
+      "columnCount": 11,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "business_partner_default_account",
+      "columnCount": 7,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "business_partner_role",
+      "columnCount": 7,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "chart_of_accounts",
+      "columnCount": 7,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "close_run",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "contract_header",
+      "columnCount": 13,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "contract_term",
+      "columnCount": 7,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "cost_center",
+      "columnCount": 6,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "document_attachment",
+      "columnCount": 7,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "document_audit_log",
+      "columnCount": 6,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "electronic_tax_document",
+      "columnCount": 9,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "equity_movement",
+      "columnCount": 9,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "erp_file",
+      "columnCount": 14,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "event_outbox",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "financial_statement_snapshot",
+      "columnCount": 7,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "fiscal_year",
+      "columnCount": 6,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "fixed_asset",
+      "columnCount": 15,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "gl_account",
+      "columnCount": 14,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "gl_account_entity_link",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "gl_account_group",
+      "columnCount": 12,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "intercompany_pair",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "journal_entry",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "journal_entry_entity_link",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "journal_entry_line",
+      "columnCount": 16,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "ledger",
+      "columnCount": 7,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "legal_entity",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "loan_accrual",
+      "columnCount": 6,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "loan_contract",
+      "columnCount": 13,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "loan_schedule",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "payment_order",
+      "columnCount": 11,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "posting_rule_version",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "profit_center",
+      "columnCount": 6,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "provision_case",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "provision_movement",
+      "columnCount": 6,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "receipt",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "receipt_allocation",
+      "columnCount": 5,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "reconciliation_item",
+      "columnCount": 9,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "reconciliation_run",
+      "columnCount": 7,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "supplier_payment",
+      "columnCount": 7,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "tax_code",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_accounting",
+      "tableName": "tax_rule_version",
+      "columnCount": 7,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_audit",
+      "tableName": "business_action_logs",
+      "columnCount": 19,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "account_tags",
+      "columnCount": 5,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "approval_requests",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "audit_logs",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "b2b_account_tags",
+      "columnCount": 3,
+      "primaryKey": [
+        "account_id",
+        "tag_id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "b2b_accounts",
+      "columnCount": 25,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "b2b_contacts",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "b2b_contracts",
+      "columnCount": 12,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "bnpl_installments",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "bnpl_purchases",
+      "columnCount": 12,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "commercial_activities",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "commercial_proposals",
+      "columnCount": 12,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "commercial_terms",
+      "columnCount": 13,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "consumer_payments_to_merchant",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "consumer_recovery_receivables",
+      "columnCount": 11,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "consumers_ref",
+      "columnCount": 3,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "contract_versions",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "internal_users",
+      "columnCount": 6,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "mdr_rules",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "merchant_branches",
+      "columnCount": 9,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "merchant_credit_notes",
+      "columnCount": 9,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "merchant_invoice_lines",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "merchant_invoices",
+      "columnCount": 13,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "merchant_onboarding_cases",
+      "columnCount": 6,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "merchant_payables",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "merchant_payment_allocations",
+      "columnCount": 5,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "merchant_payments",
+      "columnCount": 9,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "merchant_plans",
+      "columnCount": 12,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "merchant_receivables",
+      "columnCount": 12,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "merchant_subscriptions",
+      "columnCount": 12,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "merchant_users",
+      "columnCount": 11,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "onboarding_checklist_items",
+      "columnCount": 8,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "proposal_lines",
+      "columnCount": 10,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "reconciliation_items",
+      "columnCount": 11,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "reconciliation_runs",
+      "columnCount": 7,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "sales_opportunities",
+      "columnCount": 14,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    },
+    {
+      "schemaName": "atlas_sales",
+      "tableName": "territories",
+      "columnCount": 6,
+      "primaryKey": [
+        "id"
+      ],
+      "hasTenantColumn": false,
+      "comment": null
+    }
+  ]
+}

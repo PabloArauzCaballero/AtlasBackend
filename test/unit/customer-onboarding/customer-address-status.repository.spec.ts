@@ -54,7 +54,7 @@ describe('CustomerAddressStatusRepository', () => {
 
   it('touchAddress actualiza lastSeenAt/updatedAtValue y guarda', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const address = { save } as never;
     await repo.touchAddress(address, now, opts);
     expect((address as { lastSeenAt: Date; updatedAtValue: Date }).lastSeenAt).toBe(now);
@@ -90,7 +90,7 @@ describe('CustomerAddressStatusRepository', () => {
 
   it('updateAddressCurrentVersion fija currentVersionId y toca timestamps', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const address = { save } as never;
     await repo.updateAddressCurrentVersion(address, 'v9', now, opts);
     expect((address as { currentVersionId: string }).currentVersionId).toBe('v9');
@@ -152,7 +152,7 @@ describe('CustomerAddressStatusRepository', () => {
 
   it('updateCustomerStatus fija lifecycleStatus y guarda', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const customer = { save } as never;
     await repo.updateCustomerStatus(customer, 'active', now, opts);
     expect((customer as { lifecycleStatus: string }).lifecycleStatus).toBe('active');

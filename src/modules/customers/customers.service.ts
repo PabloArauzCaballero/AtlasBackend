@@ -8,6 +8,7 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { assertOwnCustomerResource } from '../../common/utils/auth/ownership.util.js';
 import { CustomerEligibilityService } from './application/customer-eligibility.service.js';
 import { CustomersRepository } from './customers.repository.js';
+import { CustomerContactsRepository } from './repositories/customer-contacts.repository.js';
 import { CustomerMeResponseDto } from './customers.dtos.js';
 import { toCustomerMeResponse } from './customers.mapper.js';
 import { CustomerEligibilityRepository } from './repositories/customer-eligibility.repository.js';
@@ -16,6 +17,7 @@ import { CustomerEligibilityRepository } from './repositories/customer-eligibili
 export class CustomersService {
   constructor(
     private readonly customersRepository: CustomersRepository,
+    private readonly customerContactsRepository: CustomerContactsRepository,
     private readonly eligibilityRepository: CustomerEligibilityRepository,
     private readonly eligibilityService: CustomerEligibilityService,
   ) {}
@@ -38,7 +40,7 @@ export class CustomersService {
 
     const [profile, contacts, consents, riskResult, onboardingFlow, assessment] = await Promise.all([
       this.customersRepository.findCurrentProfile(tenantId, customerId),
-      this.customersRepository.findContactMethods(tenantId, customerId),
+      this.customerContactsRepository.findContactMethods(tenantId, customerId),
       this.customersRepository.findCustomerConsents(tenantId, customerId),
       this.customersRepository.findLatestRiskResult(tenantId, customerId),
       this.eligibilityRepository.findLatestOnboardingFlow(tenantId, customerId),

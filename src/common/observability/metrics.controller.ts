@@ -6,6 +6,7 @@
 import { Controller, Get, Res } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
+import { Public } from '../decorators/public.decorator.js';
 import { MetricsService } from './metrics.service.js';
 
 type ExpressLikeResponse = {
@@ -24,7 +25,19 @@ type ExpressLikeResponse = {
  * (no exponerlo a internet). Si no se desea exponerlo, `METRICS_ENABLED=false` deja el counter/
  * histograma sin alimentar y este endpoint devuelve un registro vacío.
  */
+/*
+ * `@Public()` aquí es una DECISIÓN, no un descuido — y ahora hay que escribirla.
+ *
+ * Este endpoint nunca llevó autenticación de aplicación (lo dice la nota de arriba: se restringe
+ * por red de scrape). Antes eso no se declaraba en ninguna parte porque el backend no autenticaba
+ * por defecto: no decir nada y ser público eran lo mismo. Con `JwtAuthGuard` registrado como
+ * `APP_GUARD` ya no lo son, así que la excepción se declara donde se puede leer, entra en el
+ * contrato OpenAPI como `security: []`, y el gate `check:auth-coverage` la ve en su lista.
+ *
+ * Sigue siendo cierto que NO debe exponerse a internet: publica latencias y el mapa de rutas.
+ */
 @SkipThrottle()
+@Public()
 @ApiExcludeController()
 @Controller('metrics')
 export class MetricsController {

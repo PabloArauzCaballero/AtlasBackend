@@ -47,7 +47,7 @@ describe('FraudRepository', () => {
 
   it('closeFraudCase muta el caso y lo guarda dentro de la transacción', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({ saved: true }));
+    const save = jest.fn(async (..._args: unknown[]) => ({ saved: true }));
     const caseModel = { save } as never;
 
     await repo.closeFraudCase(

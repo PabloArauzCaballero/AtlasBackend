@@ -9,7 +9,7 @@ function instantSleep() {
 describe('withRetry', () => {
   it('returns the result immediately on first success, without sleeping', async () => {
     const sleep = jest.fn(instantSleep);
-    const fn = jest.fn(async () => 'ok');
+    const fn = jest.fn(async (..._args: unknown[]) => 'ok');
 
     const result = await withRetry(fn, { provider: 'p', maxAttempts: 3, baseDelayMs: 100, sleep });
 
@@ -21,7 +21,7 @@ describe('withRetry', () => {
   it('retries a retryable error up to maxAttempts, then succeeds', async () => {
     const sleep = jest.fn(instantSleep);
     let calls = 0;
-    const fn = jest.fn(async () => {
+    const fn = jest.fn(async (..._args: unknown[]) => {
       calls += 1;
       if (calls < 3) throw new AdapterError({ code: 'NETWORK', provider: 'p', message: 'down', retryable: true });
       return 'recovered';
@@ -36,7 +36,7 @@ describe('withRetry', () => {
 
   it('gives up after maxAttempts and throws the last AdapterError', async () => {
     const sleep = jest.fn(instantSleep);
-    const fn = jest.fn(async () => {
+    const fn = jest.fn(async (..._args: unknown[]) => {
       throw new AdapterError({ code: 'NETWORK', provider: 'p', message: 'still down', retryable: true });
     });
 
@@ -47,7 +47,7 @@ describe('withRetry', () => {
 
   it('does NOT retry a non-retryable error — fails immediately on first attempt', async () => {
     const sleep = jest.fn(instantSleep);
-    const fn = jest.fn(async () => {
+    const fn = jest.fn(async (..._args: unknown[]) => {
       throw new AdapterError({ code: 'AUTH_FAILED', provider: 'p', message: 'bad creds', retryable: false });
     });
 
@@ -60,7 +60,7 @@ describe('withRetry', () => {
     const sleep = jest.fn(instantSleep);
     const netError = Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' });
     let calls = 0;
-    const fn = jest.fn(async () => {
+    const fn = jest.fn(async (..._args: unknown[]) => {
       calls += 1;
       if (calls < 2) throw netError;
       return 'ok';
@@ -77,7 +77,7 @@ describe('withRetry', () => {
       delays.push(ms);
     });
     let calls = 0;
-    const fn = jest.fn(async () => {
+    const fn = jest.fn(async (..._args: unknown[]) => {
       calls += 1;
       if (calls < 6) throw new AdapterError({ code: 'NETWORK', provider: 'p', message: 'down', retryable: true });
       return 'ok';

@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`access-token.decorator.ts`](./access-token.decorator.ts) | Decorador: expresa metadatos o extrae contexto HTTP de forma uniforme. |
 | [`current-tenant.decorator.ts`](./current-tenant.decorator.ts) | Decorador: expresa metadatos o extrae contexto HTTP de forma uniforme. |
 | [`current-user.decorator.ts`](./current-user.decorator.ts) | Decorador: expresa metadatos o extrae contexto HTTP de forma uniforme. |
 | [`public.decorator.ts`](./public.decorator.ts) | Decorador: expresa metadatos o extrae contexto HTTP de forma uniforme. |

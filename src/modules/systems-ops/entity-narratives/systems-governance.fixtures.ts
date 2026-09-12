@@ -254,4 +254,17 @@ export const SYSTEMS_GOVERNANCE_NARRATIVES: EntityBusinessNarrative[] = [
     systemsExplanation:
       'Tabla append-only en `platform_ops` con objetivo polimórfico (`target_type`, `target_id`), transición de estado y de confianza, actor y notas. Es la contraparte de auditoría de los campos `review_status`/`confidence_level` que aparecen en todo el catálogo de sistemas. Se escribe en la misma transacción que el cambio que documenta.',
   },
+  {
+    tableName: 'system_block_federation_state',
+    whyExists:
+      'Es la bitácora de la federación del catálogo, una fila por bloque del ecosistema: cuándo se intentó traer su inventario, cuándo se logró por última vez y cuántos endpoints y tablas llegaron. Existe para que «no veo las tablas del ERP» tenga siempre una respuesta con nombre.',
+    whyNotDelete:
+      'Sin ella, cinco situaciones muy distintas —nunca se intentó, no está configurado, no contestó, contestó 401, o el manifiesto era inválido— se ven exactamente igual desde el portal: una lista vacía. Borrar la bitácora devuelve al operador a adivinar si el problema es del bloque remoto, de la red o de una variable que nadie puso.',
+    decisionContribution:
+      '`last_status` decide qué se le dice al operador y a quién se escala; la distancia entre `last_attempt_at` y `last_success_at` decide si el catálogo que se está mirando está fresco o es una foto vieja, y `endpoints_imported`/`data_entities_imported` deciden si una importación que dijo haber funcionado trajo algo de verdad.',
+    usageExample:
+      'El portal muestra el inventario del ERP con dos días de retraso. La fila del bloque tiene `last_status = UNAUTHORIZED` y un `last_message` con el detalle: el problema es una credencial caducada, no una caída, y se corrige sin tocar la red ni el despliegue.',
+    systemsExplanation:
+      'Tabla en `platform_ops` con `system_code` único y una sola fila por bloque, que se sobrescribe en cada intento. No lleva `_tenant_id` porque describe infraestructura del ecosistema, no datos de un cliente. `remote_version` y `remote_commit` identifican qué versión del bloque remoto produjo el inventario; sin ellos no se distingue un catálogo desactualizado de uno que el remoto nunca actualizó.',
+  },
 ];

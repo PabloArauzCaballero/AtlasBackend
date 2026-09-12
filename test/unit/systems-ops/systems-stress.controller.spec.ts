@@ -8,14 +8,14 @@ import { SystemsStressController } from '../../../src/modules/systems-ops/system
 describe('SystemsStressController', () => {
   function build() {
     const profileService = {
-      listStressProfiles: jest.fn(async () => ({ items: [] })),
-      getStressProfile: jest.fn(async () => ({ profileId: '5' })),
-      upsertStressProfile: jest.fn(async () => ({ profileId: '5' })),
-      getStressMatrix: jest.fn(async () => ({ items: [] })),
+      listStressProfiles: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getStressProfile: jest.fn(async (..._args: unknown[]) => ({ profileId: '5' })),
+      upsertStressProfile: jest.fn(async (..._args: unknown[]) => ({ profileId: '5' })),
+      getStressMatrix: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
     };
     const stressRunService = {
-      queueStressRun: jest.fn(async () => ({ queued: true })),
-      listStressRuns: jest.fn(async () => ({ items: [] })),
+      queueStressRun: jest.fn(async (..._args: unknown[]) => ({ queued: true })),
+      listStressRuns: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
     };
     return {
       controller: new SystemsStressController(profileService as never, stressRunService as never),

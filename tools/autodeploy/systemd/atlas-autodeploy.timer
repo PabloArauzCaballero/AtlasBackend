@@ -1,0 +1,16 @@
+# Cada minuto, como el sondeo de un proveedor de despliegue continuo.
+#
+# `Persistent=false` es deliberado: si la máquina estuvo apagada, no interesa recuperar las pasadas
+# perdidas — sólo importa el último commit de `dev`, y la siguiente pasada ya lo despliega.
+[Unit]
+Description=Vigila dev y redespliega ATLAS cuando hay commits nuevos
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=15s
+Persistent=false
+Unit=atlas-autodeploy.service
+
+[Install]
+WantedBy=timers.target

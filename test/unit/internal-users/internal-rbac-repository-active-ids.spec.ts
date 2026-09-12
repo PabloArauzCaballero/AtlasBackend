@@ -22,7 +22,7 @@ function buildRepository(internalUserModel: Record<string, jest.Mock>) {
 
 describe('InternalRbacRepository.listActiveInternalUserIds', () => {
   it('filters by tenantId, not-deleted, AND status: active', async () => {
-    const internalUserModel = { findAll: jest.fn(async () => [{ id: '10' }, { id: '11' }]) };
+    const internalUserModel = { findAll: jest.fn(async (..._args: unknown[]) => [{ id: '10' }, { id: '11' }]) };
     const repository = buildRepository(internalUserModel);
 
     const ids = await repository.listActiveInternalUserIds('t1');
@@ -33,7 +33,7 @@ describe('InternalRbacRepository.listActiveInternalUserIds', () => {
   });
 
   it('returns an empty array when there are no active users, without throwing', async () => {
-    const internalUserModel = { findAll: jest.fn(async () => []) };
+    const internalUserModel = { findAll: jest.fn(async (..._args: unknown[]) => []) };
     const repository = buildRepository(internalUserModel);
 
     await expect(repository.listActiveInternalUserIds('t1')).resolves.toEqual([]);

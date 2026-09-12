@@ -17,6 +17,7 @@
 | [`audit.repository.spec.ts`](./audit.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`audit.service.spec.ts`](./audit.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`http-action-log.service.spec.ts`](./http-action-log.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`system-action-log-row.mapper.spec.ts`](./system-action-log-row.mapper.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento
 

@@ -5,6 +5,7 @@ import { AuthController } from '../../../src/modules/auth/auth.controller.js';
 import { AuthService } from '../../../src/modules/auth/auth.service.js';
 import { JwtAuthGuard } from '../../../src/common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../../src/common/guards/roles.guard.js';
+import { AuthCredentialsService } from '../../../src/modules/auth/auth-credentials.service.js';
 
 /**
  * ATLAS-OPENAPI: valida que los decoradores Swagger agregados a `AuthController` producen un
@@ -19,6 +20,17 @@ describe('AuthController — OpenAPI document generation', () => {
       controllers: [AuthController],
       providers: [
         { provide: AuthService, useValue: { login: jest.fn(), refresh: jest.fn(), logout: jest.fn(), provisionCredentials: jest.fn() } },
+        // La credencial —provisionarla, recuperarla y elegir segundo factor— salió a
+        // `AuthCredentialsService` al partir el archivo por tamaño; el controlador la inyecta.
+        {
+          provide: AuthCredentialsService,
+          useValue: {
+            provisionCredentials: jest.fn(),
+            requestPasswordReset: jest.fn(),
+            confirmPasswordReset: jest.fn(),
+            setCustomerMfaPreference: jest.fn(),
+          },
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -48,7 +60,7 @@ describe('AuthController — OpenAPI document generation', () => {
     };
     const schema = loginBody.content['application/json'].schema;
     expect(schema.properties).toMatchObject({
-      actorType: { enum: ['customer', 'internal_user', 'platform_user'] },
+      actorType: { enum: ['customer', 'internal_user', 'platform_user', 'merchant_user'] },
       identifier: { type: 'string', minLength: 3, maxLength: 180 },
       password: { type: 'string', minLength: 1, maxLength: 128 },
     });

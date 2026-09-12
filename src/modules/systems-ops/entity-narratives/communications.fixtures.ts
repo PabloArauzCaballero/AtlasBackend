@@ -34,6 +34,32 @@ export const COMMUNICATION_NARRATIVES: EntityBusinessNarrative[] = [
       'Tabla en `messaging` que implementa el patrón transactional outbox: el evento se inserta EN LA MISMA TRANSACCIÓN que el cambio de negocio y un worker lo publica después. `available_at`, `locked_at`, `locked_by` y `max_attempts` implementan backoff y lock de trabajo, evitando que dos workers tomen el mismo evento. `correlation_id`/`causation_id` encadenan el evento con la petición que lo originó. `idempotency_key` protege contra publicación doble. Es de alto volumen: requiere índice por (`status`, `available_at`) y archivado de procesados.',
   },
   {
+    tableName: 'inbox_receipts',
+    whyExists:
+      'Un evento del outbox puede entregarse dos veces al mismo consumidor si el proceso cae entre publicar y confirmar. El inbox guarda, por consumidor, qué evento ya procesó, de modo que la segunda entrega se reconoce y no repite el efecto (un segundo SMS, una segunda transición de estado).',
+    whyNotDelete:
+      'Sin recibos, la única defensa contra duplicados sería la memoria del proceso, que se pierde en cada reinicio. Eliminarla vuelve a exponer al cliente a avisos repetidos y a la operación a efectos dobles que después hay que reconciliar a mano; su unicidad (consumer_id, event_id) es la garantía de al-menos-una-vez con procesamiento idempotente.',
+    decisionContribution:
+      'Su `status`, `attempts` y `last_error` por consumidor dicen qué consumidor está atascado con qué evento, sin mirar el outbox entero: un evento con recibo `failed` repetido en un solo consumidor es un fallo de ese consumidor, no del productor, y es lo que decide si se reintenta, se cuarentena o se reprocesa a mano.',
+    usageExample:
+      'El relay entrega el evento `CUSTOMER_BLOCKED` al consumidor de notificaciones y al de auditoría. Notificaciones lo procesa y escribe su recibo; el proceso cae antes de confirmar el ACK y el relay vuelve a entregarlo. Notificaciones encuentra su recibo y no vuelve a enviar el SMS; auditoría, que no tenía recibo, lo procesa por primera vez.',
+    systemsExplanation:
+      'Tabla en `platform_ops` con unicidad (`consumer_id`, `event_id`): el consumidor inserta el recibo en la misma transacción que su efecto local, de modo que o ambos existen o ninguno. `event_id` es la identidad global del outbox (`outbox_events.event_id`); `producer` conserva el origen para cuando cada productor tenga su propia base y el identificador necesite espacio de nombres.',
+  },
+  {
+    tableName: 'context_ownership',
+    whyExists:
+      'Durante la extracción de un contexto (primero Mensajería) hay una ventana en la que dos procesos podrían escribir lo mismo: el monolito y el servicio piloto. Esta tabla nombra al ÚNICO escritor activo de cada contexto y lleva una época que sube en cada corte, para que un proceso viejo que siga vivo no pueda seguir escribiendo ni confirmando.',
+    whyNotDelete:
+      'Sin ella el corte de escritor sería un cambio de DNS o de variable de entorno, que no impide que un proceso ya arrancado siga trabajando con la configuración anterior. Es la garantía de escritor único y el punto de reversión: volver atrás es otra transferencia con época nueva, no un borrado.',
+    decisionContribution:
+      'Dice quién es dueño de cada contexto ahora, desde cuándo y por decisión de quién; la operación la consulta antes de un despliegue del piloto y durante un incidente para saber a qué proceso pertenecen los eventos en curso.',
+    usageExample:
+      'Se transfiere `messaging` del `monolith` al `messaging-worker` con época 2. El relay del monolito sigue vivo unos segundos: al intentar reclamar ve que ya no es dueño y no toca nada. Se detecta un fallo y se transfiere de vuelta con época 3: el worker queda cercado y el monolito retoma sin perder los eventos pendientes.',
+    systemsExplanation:
+      'Tabla en `platform_ops` con una fila por contexto (`context` PK): `owner`, `epoch` (BIGINT monótono), `changed_by`, `changed_at`. La transferencia es un UPDATE condicional (época esperada) y devuelve los eventos en vuelo a `pending` anulando `owner_token` para que el cierre tardío del escritor viejo no encuentre la fila. Los procesos consultan la propiedad antes de reclamar trabajo; no hay caché: una lectura por lote.',
+  },
+  {
     tableName: 'notification_templates',
     whyExists:
       'Los mensajes al cliente deben ser consistentes, revisables por legal y traducibles. Esta tabla guarda las plantillas por canal e idioma, en lugar de tener textos incrustados en el código.',
@@ -84,5 +110,18 @@ export const COMMUNICATION_NARRATIVES: EntityBusinessNarrative[] = [
       'Un cliente desactiva push para eventos promocionales pero mantiene los de seguridad. El motor de notificaciones filtra la campaña comercial y sigue enviando la alerta de nuevo dispositivo, que está marcada como requerida.',
     systemsExplanation:
       'Tabla en `messaging` con `_tenant_id` y clave (`customer_id`, `event_code`, `channel`), enlazada al catálogo de eventos. `is_required` protege las notificaciones que el negocio no puede dejar de enviar: el motor debe respetar esa bandera por encima de la preferencia. La ausencia de fila implica el valor por defecto del evento, así que el default debe ser explícito y no accidental.',
+  },
+  {
+    tableName: 'notification_policies',
+    whyExists:
+      'Es el catálogo de qué avisos existen, por qué canal salen y cuáles puede apagar el cliente. Define, evento por evento, si una notificación es opcional o `is_mandatory`, y con qué razón escrita se le niega al cliente la posibilidad de silenciarla.',
+    whyNotDelete:
+      '`mandatory_reason` es la justificación de por qué un aviso no se puede apagar. Borrar la fila deja la preferencia guardada del cliente sin catálogo contra el que resolverse, y convierte una obligación razonada en una imposición sin explicación el día que alguien pregunta.',
+    decisionContribution:
+      '`is_mandatory` gana sobre cualquier preferencia del cliente; `default_enabled` decide el estado inicial de quien nunca tocó el ajuste, e `is_active` decide qué eventos se ofrecen hoy. `category` y `display_order` gobiernan cómo se agrupa la pantalla de notificaciones.',
+    usageExample:
+      'Un cliente apaga todos los avisos comerciales y quiere apagar también el de cuota por vencer. Ese evento está marcado como obligatorio con su razón, así que el interruptor aparece bloqueado con la explicación a la vista, en lugar de fallar en silencio o de dejar de enviarse sin que nadie lo note.',
+    systemsExplanation:
+      'Tabla en `messaging` con `_tenant_id`, clave (`event_code`, `channel`) y borrado lógico. Es la contraparte de catálogo de `user_notification_preferences`: la ausencia de preferencia se resuelve con el `default_enabled` de aquí, así que ese valor por defecto tiene que ser una decisión explícita y no un accidente. `updated_by_internal_user_id` deja autoría de cada cambio.',
   },
 ];

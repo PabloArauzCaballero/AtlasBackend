@@ -39,15 +39,15 @@ describe('CustomerEligibilityService', () => {
 
   function build(lifecycleStatus = 'under_review', facts: Record<string, unknown> = ALL_GOOD_FACTS) {
     const customer = { id: 'c1', lifecycleStatus, creditEligibilityStatus: null, eligibilityEvaluatedAt: null, updatedAtValue: null };
-    const customersRepository = { findById: jest.fn(async () => customer) };
-    const eligibilityRepository = { loadFacts: jest.fn(async () => facts) };
+    const customersRepository = { findById: jest.fn(async (..._args: unknown[]) => customer) };
+    const eligibilityRepository = { loadFacts: jest.fn(async (..._args: unknown[]) => facts) };
     const lifecycleRepository = {
-      createEvaluation: jest.fn(async () => ({ id: 'ev1' })),
+      createEvaluation: jest.fn(async (..._args: unknown[]) => ({ id: 'ev1' })),
       applyEligibilityCache: jest.fn(),
-      findLatestEvaluation: jest.fn(async () => null),
+      findLatestEvaluation: jest.fn(async (..._args: unknown[]) => null),
     };
     const lifecycleService = {
-      advance: jest.fn(async () => ({ previousStatus: lifecycleStatus, newStatus: 'active', changed: true })),
+      advance: jest.fn(async (..._args: unknown[]) => ({ previousStatus: lifecycleStatus, newStatus: 'active', changed: true })),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
     const service = new CustomerEligibilityService(

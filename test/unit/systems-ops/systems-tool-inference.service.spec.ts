@@ -16,9 +16,11 @@ describe('SystemsToolInferenceService', () => {
   async function build(tools: unknown[]) {
     const { SystemsToolInferenceService } = await import('../../../src/modules/systems-ops/systems-tool-inference.service.js');
     const repository = {
-      listActiveEndpoints: jest.fn(async () => [{ id: 1, code: 'EP', module: 'auth', fullPath: '/api/v1/x', riskLevel: 'LOW' }]),
-      listTools: jest.fn(async () => tools),
-      upsertRequirement: jest.fn(async () => ({})),
+      listActiveEndpoints: jest.fn(async (..._args: unknown[]) => [
+        { id: 1, code: 'EP', module: 'auth', fullPath: '/api/v1/x', riskLevel: 'LOW' },
+      ]),
+      listTools: jest.fn(async (..._args: unknown[]) => tools),
+      upsertRequirement: jest.fn(async (..._args: unknown[]) => ({})),
     };
     const service = new SystemsToolInferenceService(repository as never);
     return { service, repository };
@@ -44,11 +46,11 @@ describe('SystemsToolInferenceService', () => {
     mockReadSources.mockResolvedValueOnce('// código sin señales de tools' as never);
     const { SystemsToolInferenceService } = await import('../../../src/modules/systems-ops/systems-tool-inference.service.js');
     const repository = {
-      listActiveEndpoints: jest.fn(async () => [
+      listActiveEndpoints: jest.fn(async (..._args: unknown[]) => [
         { id: 2, code: 'EP2', module: 'auth', fullPath: '/auth/accessToken/refresh', riskLevel: 'LOW' },
       ]),
-      listTools: jest.fn(async () => [{ code: 'JWT', isCritical: true }]),
-      upsertRequirement: jest.fn(async () => ({})),
+      listTools: jest.fn(async (..._args: unknown[]) => [{ code: 'JWT', isCritical: true }]),
+      upsertRequirement: jest.fn(async (..._args: unknown[]) => ({})),
     };
     const service = new SystemsToolInferenceService(repository as never);
     const res = await service.infer({ persist: false });
@@ -59,9 +61,11 @@ describe('SystemsToolInferenceService', () => {
     mockReadSources.mockResolvedValueOnce('JwtAuthGuard' as never);
     const { SystemsToolInferenceService } = await import('../../../src/modules/systems-ops/systems-tool-inference.service.js');
     const repository = {
-      listActiveEndpoints: jest.fn(async () => [{ id: 3, code: 'EP3', module: 'auth', fullPath: '/x', riskLevel: 'CRITICAL' }]),
-      listTools: jest.fn(async () => [{ code: 'JWT', isCritical: true }]),
-      upsertRequirement: jest.fn(async () => ({})),
+      listActiveEndpoints: jest.fn(async (..._args: unknown[]) => [
+        { id: 3, code: 'EP3', module: 'auth', fullPath: '/x', riskLevel: 'CRITICAL' },
+      ]),
+      listTools: jest.fn(async (..._args: unknown[]) => [{ code: 'JWT', isCritical: true }]),
+      upsertRequirement: jest.fn(async (..._args: unknown[]) => ({})),
     };
     const service = new SystemsToolInferenceService(repository as never);
     const res = await service.infer({ persist: false });

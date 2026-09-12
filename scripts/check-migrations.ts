@@ -40,6 +40,18 @@ const ALLOWED_DUPLICATE_TIMESTAMPS: Record<string, string> = {
     'cambio de metadatos de systems-ops escrito dos veces. Ambas son idempotentes (ADD COLUMN/CREATE TABLE ' +
     'IF NOT EXISTS), así que el orden entre ellas no altera el esquema resultante. Ya están aplicadas en ' +
     'entornos existentes: renombrarlas rompería SequelizeMeta.',
+  '20260820120000':
+    'add-partner-profile-owner toca `partner_profiles` y add-platform-block-to-systems-catalog toca ' +
+    'el catálogo de systems-ops (`system_endpoint_catalog`, `system_data_entity_catalog` y una tabla ' +
+    'nueva en `platform_ops`). No comparten ni una tabla, así que el orden entre ellas no puede ' +
+    'cambiar el esquema resultante. Ya están aplicadas en dev y en el VPS: renombrar una la volvería ' +
+    'a ejecutar, porque SequelizeMeta guarda el NOMBRE del archivo.',
+  '20260909120000':
+    'create-partner-contract-templates y create-system-flow-catalog las escribieron dos sesiones a la ' +
+    'vez el mismo día. No comparten ni una tabla —plantillas de contrato de comercio frente al catálogo ' +
+    'de flujos de systems-ops— y ambas crean con IF NOT EXISTS, así que el orden entre ellas no puede ' +
+    'cambiar el esquema. Ya están aplicadas en dev por el autodespliegue: renombrar una la volvería a ' +
+    'ejecutar.',
 };
 
 type TableCreation = { table: string; migration: string; idempotent: boolean };
@@ -90,7 +102,11 @@ function createdTables(migration: string, source: string): TableCreation[] {
     // Una interpolación cuya constante no se pudo resolver se reporta como error propio: es peor
     // ignorarla en silencio (dejaría de cubrir esa tabla) que fallar y obligar a nombrarla.
     if (!table) {
-      creations.push({ table: `<no resuelto: ${match[2] ?? match[3]}>`, migration, idempotent: false });
+      // El marcador lleva el NOMBRE DEL ARCHIVO: dos migraciones distintas suelen llamar `TABLE` a su
+      // constante, y sin esto sus marcadores eran idénticos y se reportaban como una colisión de tabla
+      // que no existe. Pasó el 2026-09-09 entre `create-decision-artifact-bindings` y
+      // `create-partner-contract-templates`, que no comparten ninguna.
+      creations.push({ table: `<no resuelto: ${match[2] ?? match[3]} en ${migration}>`, migration, idempotent: false });
       continue;
     }
     creations.push({ table, migration, idempotent: Boolean(match[1]) });

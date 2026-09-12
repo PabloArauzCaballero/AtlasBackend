@@ -5,6 +5,7 @@
  */
 import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { RequestWithNetwork, requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { RequestWithNetwork, requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
 import { OnboardingAbandonmentService } from './application/onboarding-abandonment.service.js';
 import { CustomerOnboardingStatusService } from './application/customer-onboarding-status.service.js';
 import {
@@ -57,12 +58,12 @@ export class CustomerOnboardingStatusController {
   @ApiResponse({ status: 404, description: 'Cliente no encontrado.' })
   @Get(':customerId/status')
   getStatus(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.statusService.getStatus({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       currentUser,
     });
@@ -85,7 +86,7 @@ export class CustomerOnboardingStatusController {
   @Post(':customerId/submit')
   @HttpCode(HttpStatus.OK)
   submitForReview(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(submitOnboardingSchema)) _body: SubmitOnboardingDto,
@@ -93,7 +94,7 @@ export class CustomerOnboardingStatusController {
     @Req() request: RequestWithNetwork,
   ) {
     return this.statusService.submitForReview({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       currentUser,
       ipAddress: request.ip ?? null,
@@ -113,12 +114,12 @@ export class CustomerOnboardingStatusController {
   @ApiResponse({ status: 200, description: 'Observaciones, casos abiertos y bloqueadores vigentes.' })
   @Get(':customerId/observations')
   listObservations(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.statusService.listObservations({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       currentUser,
     });
@@ -136,12 +137,9 @@ export class CustomerOnboardingStatusController {
   @ApiResponse({ status: 200, description: 'Cantidad evaluada y marcada, con la fecha de corte aplicada.' })
   @Post('jobs/mark-abandoned')
   @HttpCode(HttpStatus.OK)
-  markAbandoned(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Body(new ZodValidationPipe(markAbandonedFlowsSchema)) body: MarkAbandonedFlowsDto,
-  ) {
+  markAbandoned(@CurrentTenant() tenantId: string, @Body(new ZodValidationPipe(markAbandonedFlowsSchema)) body: MarkAbandonedFlowsDto) {
     return this.abandonmentService.markAbandonedFlows({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       olderThanDays: body.olderThanDays,
       limit: body.limit,
     });

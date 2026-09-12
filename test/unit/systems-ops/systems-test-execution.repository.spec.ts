@@ -89,7 +89,7 @@ describe('SystemsTestExecutionRepository', () => {
 
   it('finishTestRun copia status/finishedAt/duration/summary y guarda', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const run = { save } as never;
     const finishedAt = new Date('2026-01-21');
     await repo.finishTestRun(run, { status: 'PASSED', finishedAt, durationMs: 1234, summary: { ok: true } });

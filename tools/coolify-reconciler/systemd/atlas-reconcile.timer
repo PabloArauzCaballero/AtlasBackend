@@ -1,0 +1,26 @@
+# Cada quince minutos, no cada uno.
+#
+# El viejo autodeploy sondeaba cada minuto y por eso se comio la maquina. Aqui la cadencia la fija
+# lo que tarda un build, no lo que tarda un commit: el admin portal son ~19 min y el motor mas de
+# 27, con `concurrent_builds: 1`. Sondear mas a menudo no adelantaria nada — el camino rapido es el
+# workflow de GitHub Actions, que dispara en el push. Esto es la red de debajo.
+[Unit]
+Description=Comprueba cada cuarto de hora que el VPS sigue en la punta de dev
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+AccuracySec=1min
+
+# `Persistent=false` a proposito: si la maquina estuvo apagada no interesa recuperar las pasadas
+# perdidas. Solo importa el estado de AHORA, y la siguiente pasada ya lo ve.
+Persistent=false
+
+# Reparte el disparo dentro de un minuto para no coincidir siempre con otros temporizadores de la
+# maquina (los de alovida corren cada 2 min y construyen sin tope).
+RandomizedDelaySec=60
+
+Unit=atlas-reconcile.service
+
+[Install]
+WantedBy=timers.target

@@ -33,7 +33,7 @@ describe('SmsNotificationAdapter — webhook channel routed through the resilien
 
   it('retries once on a transient 503 and then succeeds', async () => {
     let calls = 0;
-    global.fetch = jest.fn(async () => {
+    global.fetch = jest.fn(async (..._args: unknown[]) => {
       calls += 1;
       if (calls === 1) return new Response(JSON.stringify({ error: 'temporary' }), { status: 503 });
       return new Response(JSON.stringify({ id: 'webhook-msg-1' }), { status: 200 });
@@ -52,7 +52,9 @@ describe('SmsNotificationAdapter — webhook channel routed through the resilien
   });
 
   it('gives up after exhausting retries on a persistent 503 and returns a failed delivery, never throwing', async () => {
-    global.fetch = jest.fn(async () => new Response(JSON.stringify({ error: 'down' }), { status: 503 })) as unknown as typeof fetch;
+    global.fetch = jest.fn(
+      async (..._args: unknown[]) => new Response(JSON.stringify({ error: 'down' }), { status: 503 }),
+    ) as unknown as typeof fetch;
 
     const adapter = new SmsNotificationAdapter(
       buildConfig('https://hooks.example.com/sms') as never,
@@ -68,7 +70,7 @@ describe('SmsNotificationAdapter — webhook channel routed through the resilien
 
   it('does NOT retry a 401 (non-retryable) — fails on the first attempt', async () => {
     let calls = 0;
-    global.fetch = jest.fn(async () => {
+    global.fetch = jest.fn(async (..._args: unknown[]) => {
       calls += 1;
       return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });
     }) as unknown as typeof fetch;

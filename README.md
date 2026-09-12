@@ -101,9 +101,34 @@ yarn env:doctor
 # 6. Levantar el servidor local
 # Este comando fuerza NODE_ENV=development antes de cargar dist/src/main.js.
 yarn start:dev
-# La API queda en http://localhost:3000/api/v1
+# La API queda en http://localhost:3005/api/v1  (APP_PORT por defecto: 3005)
 # Swagger UI (si API_DOCS_ENABLED=true, por defecto fuera de producción): /api/v1/docs
 ```
+
+### Error común: `Nest can't resolve dependencies of … (…, ?, +, +)` al arrancar
+
+Si el arranque muere con un mensaje así:
+
+```txt
+Nest can't resolve dependencies of the RuntimeMaintenanceJobsService (IdempotencyKeyModelRepository, ?, +, +, +, OutboxEventModelRepository).
+Please make sure that the argument at index [1] is available in the current module.
+```
+
+**no busques el ciclo de imports: no existe.** El módulo señalado exporta lo que debe. Lo que falta
+es la metadata de decoradores (`design:paramtypes`), que NestJS necesita para resolver dependencias
+por tipo y que sólo emite TypeScript con `emitDecoratorMetadata`.
+
+La causa es el runtime: `tsx`, `esbuild-register` y `swc` sin `decoratorMetadata: true` borran los
+tipos y arrancan igual. Este repositorio llegó a publicar un `start:dev:tsx` que por eso no podía
+funcionar nunca; ya no existe, y `yarn check:nest-entrypoints` impide reintroducirlo. Desde el
+arranque, el guard de `src/common/bootstrap/decorator-metadata.guard.ts` corta antes con un mensaje
+que dice esto mismo.
+
+Arranca siempre con el código compilado: `yarn start:dev` en local, `yarn start` / `yarn start:prod`
+en despliegue. `tsx` sigue siendo correcto para scripts que no construyen un contexto Nest
+(migraciones, seeds, gates).
+
+El gate corre en CI (`Check Nest entrypoints keep decorator metadata`).
 
 ### Error común: Zod pide REDIS_URL o secretos de producción al usar `yarn start:dev`
 
@@ -149,6 +174,7 @@ NOTIFICATION_TOKEN_ENCRYPTION_KEY=<otro-secreto-largo-distinto>
 | `yarn test`                                | Suite de Jest.                                                                                                                      |
 | `yarn test:coverage`                       | Jest con reporte de cobertura.                                                                                                      |
 | `yarn build`                               | Compila a `dist/`.                                                                                                                  |
+| `yarn check:nest-entrypoints`              | Verifica que ningún script arranque un punto de entrada de Nest con un transpilador que borre la metadata de decoradores.           |
 | `yarn start`                               | Levanta `dist/src/main.js` como está el entorno actual (producción si `NODE_ENV=production`).                                       |
 | `yarn start:dev`                           | Compila y levanta local forzando `NODE_ENV=development` incluso si Windows tiene `NODE_ENV=production` global.                      |
 | `yarn start:prod`                          | Compila y levanta respetando configuración de producción; exige `REDIS_URL` y secretos reales.                                      |
@@ -158,7 +184,7 @@ NOTIFICATION_TOKEN_ENCRYPTION_KEY=<otro-secreto-largo-distinto>
 | `yarn docs:openapi`                        | Genera `docs/endpoints/openapi.yaml` a partir del código (requiere una base de datos real disponible para levantar el `AppModule`). |
 | `yarn docs:project`                        | Actualiza los `README.md` por carpeta y completa cabeceras JSDoc faltantes sin reemplazar documentación manual.                     |
 | `yarn docs:folders` / `yarn docs:inline`   | Ejecuta por separado el inventario por carpetas o la documentación inline.                                                          |
-| `yarn smoke`                               | Corre la suite de smoke tests contra un servidor real ya levantado (`BASE_URL` por defecto `http://localhost:3000/api/v1`).         |
+| `yarn smoke`                               | Corre la suite de smoke tests contra un servidor real ya levantado (`BASE_URL` por defecto se deriva de `APP_PORT`/`API_PREFIX`: `http://localhost:3005/api/v1`). |
 | `yarn check:no-env-file`                   | Falla si Git rastrea un `.env` real; permite el `.env` local ignorado y plantillas `.example`.                                      |
 | `yarn crypto:reencrypt-pii:dry-run`        | Cuenta (sin escribir) cuántos valores de PII/tokens siguen en formato legado `v1` (clave maestra única) contra una base real.       |
 | `yarn crypto:reencrypt-pii`                | Re-cifra en caliente, en lotes e idempotente, los valores `v1` a `v2` (envelope encryption).                                        |

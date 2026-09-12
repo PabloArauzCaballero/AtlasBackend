@@ -16,10 +16,10 @@ describe('SystemsDataImpactInferenceService', () => {
   async function build(entities: unknown[], relationships: unknown[] = []) {
     const { SystemsDataImpactInferenceService } = await import('../../../src/modules/systems-ops/systems-data-impact-inference.service.js');
     const repository = {
-      listActiveEndpoints: jest.fn(async () => [{ id: 1, code: 'EP', module: 'customers', fullPath: '/x' }]),
-      listEntitiesWithModel: jest.fn(async () => entities),
-      listRelationships: jest.fn(async () => relationships),
-      upsertImpact: jest.fn(async () => ({})),
+      listActiveEndpoints: jest.fn(async (..._args: unknown[]) => [{ id: 1, code: 'EP', module: 'customers', fullPath: '/x' }]),
+      listEntitiesWithModel: jest.fn(async (..._args: unknown[]) => entities),
+      listRelationships: jest.fn(async (..._args: unknown[]) => relationships),
+      upsertImpact: jest.fn(async (..._args: unknown[]) => ({})),
     };
     const service = new SystemsDataImpactInferenceService(repository as never);
     return { service, repository };

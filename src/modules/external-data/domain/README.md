@@ -9,10 +9,10 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`external-provider-adapter.interface.ts`](./external-provider-adapter.interface.ts) | Puerto tipado: desacopla un caso de uso de su implementación. |
-| [`external-provider.types.ts`](./external-provider.types.ts) | Tipos de dominio: hacen explícitos estados y contratos internos. |
+| Documento o código                                                                   | Responsabilidad                                                  |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| [`external-provider-adapter.interface.ts`](./external-provider-adapter.interface.ts) | Puerto tipado: desacopla un caso de uso de su implementación.    |
+| [`external-provider.types.ts`](./external-provider.types.ts)                         | Tipos de dominio: hacen explícitos estados y contratos internos. |
 
 ## Reglas de mantenimiento
 

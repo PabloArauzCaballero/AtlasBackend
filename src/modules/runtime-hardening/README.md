@@ -9,11 +9,11 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`idempotency.interceptor.ts`](./idempotency.interceptor.ts) | Interceptor: aplica una política transversal al ciclo HTTP. |
-| [`outbox.interceptor.ts`](./outbox.interceptor.ts) | Interceptor: aplica una política transversal al ciclo HTTP. |
-| [`runtime-hardening.module.ts`](./runtime-hardening.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
+| Documento o código                                               | Responsabilidad                                                           |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [`idempotency.interceptor.ts`](./idempotency.interceptor.ts)     | Interceptor: aplica una política transversal al ciclo HTTP.               |
+| [`outbox.interceptor.ts`](./outbox.interceptor.ts)               | Interceptor: aplica una política transversal al ciclo HTTP.               |
+| [`runtime-hardening.module.ts`](./runtime-hardening.module.ts)   | Módulo NestJS: declara el límite de inyección y sus dependencias.         |
 | [`runtime-hardening.service.ts`](./runtime-hardening.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento

@@ -6,6 +6,7 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { env } from '../../config/env.js';
+import { matchesFileMagicBytes } from '../files/file-content-type.util.js';
 import { MalwareScannerService } from './malware-scanner.service.js';
 import { S3Credentials, presignS3Url } from './s3-signature.util.js';
 
@@ -27,17 +28,6 @@ export type StoredObjectMetadata = {
 /** Tipos aceptados para evidencia documental, alineados con `identityEvidenceSchema`. */
 export const ALLOWED_EVIDENCE_MIME_TYPES = ['image/jpeg', 'image/png', 'application/pdf'] as const;
 export type AllowedEvidenceMimeType = (typeof ALLOWED_EVIDENCE_MIME_TYPES)[number];
-
-/**
- * Firmas mágicas por tipo. El `Content-Type` lo declara quien sube; los primeros bytes del archivo
- * no mienten. Sin esta comprobación, renombrar un ejecutable a `.jpg` bastaba para almacenarlo como
- * evidencia de identidad.
- */
-const MAGIC_BYTES: Record<AllowedEvidenceMimeType, readonly number[][]> = {
-  'image/jpeg': [[0xff, 0xd8, 0xff]],
-  'image/png': [[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
-  'application/pdf': [[0x25, 0x50, 0x44, 0x46]],
-};
 
 export const MAX_EVIDENCE_BYTES = 15 * 1024 * 1024;
 
@@ -68,6 +58,18 @@ export class DocumentStorageService {
     return env.STORAGE_S3_BUCKET ?? null;
   }
 
+  /**
+   * Las credenciales con el extremo PUBLICO, para las URLs que se entregan al telefono.
+   *
+   * Solo cambia el extremo: la firma se calcula sobre el mismo bucket, la misma clave y el mismo
+   * secreto, asi que el objeto es el mismo por los dos caminos. Si no hay extremo publico
+   * declarado, esto es exactamente `credentials()`.
+   */
+  private publicCredentials(): S3Credentials {
+    const base = this.credentials();
+    return env.STORAGE_S3_PUBLIC_ENDPOINT ? { ...base, endpoint: env.STORAGE_S3_PUBLIC_ENDPOINT } : base;
+  }
+
   private credentials(): S3Credentials {
     if (!this.isConfigured()) {
       throw new ServiceUnavailableException('DOCUMENT_STORAGE_NOT_CONFIGURED');
@@ -91,16 +93,24 @@ export class DocumentStorageService {
    */
   createUploadTicket(input: {
     tenantId: string;
-    customerId: string;
+    /**
+     * A quién pertenece la evidencia. Se llamaba `customerId` y se generalizó al aparecer el
+     * expediente del partner: la ruta del objeto es lo único que este servicio hace con él, así
+     * que atarlo al vocabulario del cliente obligaba a duplicar el servicio entero para guardar
+     * un QR. Quien llama antepone su prefijo (`partner-…`) para que dos sujetos con el mismo
+     * número no compartan carpeta.
+     */
+    subjectId: string;
     documentType: string;
     contentType: AllowedEvidenceMimeType;
     sizeBytes: number;
     now?: Date;
   }): UploadTicket {
-    const credentials = this.credentials();
+    // Publico: esta URL la usa el telefono, no este proceso.
+    const credentials = this.publicCredentials();
     const now = input.now ?? new Date();
     const extension = input.contentType === 'application/pdf' ? 'pdf' : input.contentType === 'image/png' ? 'png' : 'jpg';
-    const storageKey = `${input.tenantId}/${input.customerId}/${input.documentType}/${randomUUID()}.${extension}`;
+    const storageKey = `${input.tenantId}/${input.subjectId}/${input.documentType}/${randomUUID()}.${extension}`;
 
     const requiredHeaders = { 'content-type': input.contentType, 'content-length': String(input.sizeBytes) };
     const uploadUrl = presignS3Url({
@@ -152,7 +162,83 @@ export class DocumentStorageService {
     };
   }
 
+  /**
+   * Metadatos del objeto SIN traerse los bytes.
+   *
+   * Existe porque hay dos preguntas que no necesitan el contenido y hoy se pagaban descargándolo
+   * entero: «¿este objeto sigue ahí?» —la que hace el catálogo de expedientes por cada fila que
+   * rellena— y «¿cuánto pesa?». Sobre un carnet de 4 MB por cliente, resolverlas con `readObject`
+   * es mover gigabytes para leer una cabecera.
+   *
+   * `null` cuando el objeto no está; se distingue de un fallo del almacén, que sí lanza.
+   */
+  async headObject(storageKey: string): Promise<{ sizeBytes: number; contentType: string | null; etag: string | null } | null> {
+    if (!this.isConfigured()) return null;
+    const credentials = this.credentials();
+    const url = presignS3Url({ credentials, method: 'HEAD', objectKey: storageKey, expiresInSeconds: 60, now: new Date() });
+
+    const response = await fetch(url, { method: 'HEAD' });
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      this.logger.warn(`No se pudo consultar ${storageKey} en el almacenamiento (HTTP ${response.status}).`);
+      throw new ServiceUnavailableException('DOCUMENT_STORAGE_HEAD_FAILED');
+    }
+
+    const length = Number(response.headers.get('content-length'));
+    return {
+      sizeBytes: Number.isFinite(length) ? length : 0,
+      contentType: response.headers.get('content-type'),
+      etag: response.headers.get('etag'),
+    };
+  }
+
+  /**
+   * Borra un objeto. `true` si la orden se aceptó.
+   *
+   * Faltaba, y su ausencia no era un hueco teórico: el flujo de supresión de datos personales
+   * (`customer-privacy`) borraba las filas y **dejaba el carnet y la selfie en el bucket**. Un
+   * derecho de supresión que no alcanza a la imagen del documento de identidad no es una supresión.
+   *
+   * S3 responde 204 tanto si el objeto existía como si no —el borrado es idempotente por diseño—,
+   * así que `true` significa «ya no está», no «yo lo quité».
+   */
+  async deleteObject(storageKey: string): Promise<boolean> {
+    if (!this.isConfigured()) return false;
+    const credentials = this.credentials();
+    const url = presignS3Url({ credentials, method: 'DELETE', objectKey: storageKey, expiresInSeconds: 60, now: new Date() });
+
+    const response = await fetch(url, { method: 'DELETE' });
+    if (response.ok || response.status === 404) return true;
+
+    this.logger.warn(`No se pudo borrar ${storageKey} del almacenamiento (HTTP ${response.status}).`);
+    throw new ServiceUnavailableException('DOCUMENT_STORAGE_DELETE_FAILED');
+  }
+
   /** Contrasta lo declarado por el cliente contra el objeto realmente almacenado. */
+  /**
+   * Descarga el objeto para procesarlo dentro del backend.
+   *
+   * Existe aparte de `verifyDeclaredObject` porque responde a otra pregunta. Aquella comprueba que
+   * lo subido es lo declarado y devuelve un veredicto; ésta necesita el CONTENIDO, y la usa el
+   * trabajo que lee el extracto bancario para calcular la capacidad de pago.
+   *
+   * La URL firmada dura 60 segundos y se emite en el momento: el archivo nunca sale del almacén
+   * cifrado por una URL que alguien pudiera guardar, que es justo lo que se le promete al cliente
+   * en la pantalla de subida.
+   */
+  async readObject(storageKey: string): Promise<Buffer | null> {
+    if (!this.isConfigured()) return null;
+    const credentials = this.credentials();
+    const url = presignS3Url({ credentials, method: 'GET', objectKey: storageKey, expiresInSeconds: 60, now: new Date() });
+
+    const response = await fetch(url);
+    if (!response.ok) return null;
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.byteLength === 0 || buffer.byteLength > MAX_EVIDENCE_BYTES) return null;
+    return buffer;
+  }
+
   async verifyDeclaredObject(input: {
     storageKey: string;
     declaredSha256: string;
@@ -200,6 +286,12 @@ export class DocumentStorageService {
   }
 }
 
+/**
+ * Se conserva esta función —firma y semántica intactas— pero la TABLA de firmas pasó a
+ * `common/files/file-content-type.util.ts`, compartida con el servicio de archivos por adaptadores.
+ * Tener dos tablas habría permitido que un tipo quedara verificado en un camino y sin verificar en
+ * el otro, que es exactamente la clase de hueco que esta comprobación existe para cerrar.
+ */
 export function matchesMagicBytes(buffer: Buffer, mimeType: AllowedEvidenceMimeType): boolean {
-  return MAGIC_BYTES[mimeType].some((signature) => signature.every((byte, index) => buffer[index] === byte));
+  return matchesFileMagicBytes(buffer, mimeType);
 }

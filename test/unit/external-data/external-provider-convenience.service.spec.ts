@@ -16,7 +16,7 @@ import { ExternalProviderConvenienceService } from '../../../src/modules/externa
 describe('ExternalProviderConvenienceService', () => {
   function buildService() {
     const repository = { findProviderRequestByIdAndTenant: asyncMock(), findProviderById: asyncMock() };
-    const execution = { executeExternalDataRequest: jest.fn(async () => ({ status: 'PENDING' })) };
+    const execution = { executeExternalDataRequest: jest.fn(async (..._args: unknown[]) => ({ status: 'PENDING' })) };
     const service = new ExternalProviderConvenienceService(repository as never, execution as never);
     return { service, repository, execution };
   }

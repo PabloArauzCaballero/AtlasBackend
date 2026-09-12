@@ -19,6 +19,7 @@ import {
   RetentionPolicyModel,
 } from '../../database/models/index.js';
 import { JobRunRecorderService } from './job-run-recorder.service.js';
+import { RETENTION_POLICIES_PENDING_DECISION, RETENTION_TARGETS } from './retention-targets.js';
 import { listEventDefinitions } from '../events/event-registry.js';
 import { EventsService } from '../events/events.service.js';
 import {
@@ -28,6 +29,7 @@ import {
   ProcessOutboxDto,
   RecalculateDataQualityDto,
 } from './runtime-jobs.schemas.js';
+import { countOutboxBacklog, publishOutboxBacklog } from './outbox-backlog.js';
 
 function registeredEventCodesOrSentinel(): string[] {
   const codes = listEventDefinitions().map((event) => event.code);
@@ -37,39 +39,6 @@ function registeredEventCodesOrSentinel(): string[] {
 }
 
 type RetentionOutcome = { table: string; action: 'delete' | 'anonymize'; affected: number };
-
-/**
- * Este registro mapea `policy_code` (columna de `retention_policies`) a una acción ejecutable
- * real. A propósito, solo se registran tablas de telemetría cruda claramente no-financieras y
- * no-auditables (GPS, snapshots de dispositivo, interacción de formularios) — nunca tablas de
- * decisión/auditoría (`risk_assessment_results`, `operational_audit_logs`, etc.), que deben
- * seguir siendo append-only según `BACKEND_DEVELOPMENT_CONTEXT.md` §8 y §11.
- *
- * La única política ya sembrada en `db/seeders` (`risk-data-365d`, `applies_to:
- * risk_and_fraud_testing`) NO tiene una tabla mapeada aquí a propósito: su alcance real
- * ("datos de riesgo y fraude") es ambiguo y podría incluir tablas de decisión que no deben
- * purgarse; cerrar esa ambigüedad es una decisión de producto/legal. Para esa política, el
- * job sigue reportando `destructiveActionsExecuted: 0`, tal como antes, pero ahora por una
- * razón explícita y visible en la respuesta (`unmappedPolicies`), no por ser un stub general.
- *
- * Para activar la purga real de las 3 tablas mapeadas aquí, un operador debe crear/activar una
- * fila en `retention_policies` con uno de estos `policy_code`. Mientras no exista esa fila
- * activa, no se ejecuta ninguna acción destructiva.
- */
-const RETENTION_TARGETS: Record<string, { table: string; description: string }> = {
-  gps_observations_90d: {
-    table: 'address_gps_observations',
-    description: 'Purga GPS crudo de onboarding/direcciones tras el período de retención.',
-  },
-  device_snapshots_90d: {
-    table: 'device_snapshots',
-    description: 'Anonimiza snapshots de dispositivo (marca/modelo/versión) conservando señales de riesgo agregadas (root/emulador/VPN).',
-  },
-  form_interaction_events_60d: {
-    table: 'form_field_interaction_events',
-    description: 'Purga eventos crudos de interacción de formularios de onboarding.',
-  },
-};
 
 @Injectable()
 export class RuntimeJobsService {
@@ -136,8 +105,8 @@ export class RuntimeJobsService {
   }
 
   /**
-   * Reclama eventos con `SELECT ... FOR UPDATE SKIP LOCKED` dentro de una transacción.
-   * Dos ejecuciones concurrentes se reparten las filas sin solaparse.
+   * Reclama con `SELECT ... FOR UPDATE SKIP LOCKED` (dos corridas no se solapan) los eventos del inquilino Y los
+   * SIN inquilino: mutaciones anónimas (login, refresh, logout) que ninguna corrida tomaba nunca. Sin efecto de negocio.
    */
   async processOutbox(input: { tenantId: string; body: ProcessOutboxDto; currentUser: AuthenticatedUser }) {
     return this.jobRuns.run(
@@ -151,21 +120,19 @@ export class RuntimeJobsService {
           const [{ count }] = await this.sequelize.query<{ count: string }>(
             `SELECT COUNT(*) AS count FROM outbox_events
              WHERE status = 'pending'
-               AND _tenant_id = CAST(:tenantId AS BIGINT)
+               AND (_tenant_id = CAST(:tenantId AS BIGINT) OR _tenant_id IS NULL)
                AND COALESCE(available_at, now()) <= now()
                AND event_code NOT IN (:excludedCodes)`,
             { replacements: { tenantId: input.tenantId, excludedCodes }, type: QueryTypes.SELECT },
           );
-          const totalPending = await this.outboxModel.count({
-            where: { tenantId: input.tenantId, status: 'pending', availableAt: { [Op.lte]: new Date() } } as never,
-          });
+          const backlog = await countOutboxBacklog(this.outboxModel, input.tenantId);
           const selected = Math.min(Number(count), input.body.limit);
-          // Fase 3.4: profundidad del backlog del outbox, ya calculada aquí (sin query extra).
-          this.metrics?.setOutboxPendingEvents({ tenantId: input.tenantId, pending: totalPending });
+          publishOutboxBacklog(this.metrics, input.tenantId, backlog);
           return {
             selected,
             processed: 0,
-            skippedBusinessEvents: totalPending - Number(count),
+            // Misma población que `count` (inquilino + sin inquilino): si no, la resta puede ser negativa.
+            skippedBusinessEvents: backlog.tenant + backlog.withoutTenant - Number(count),
             dryRun: true,
             note: 'process-outbox conserva compatibilidad y no procesa eventos de negocio registrados; usa process-events para notificaciones.',
           };
@@ -173,12 +140,12 @@ export class RuntimeJobsService {
 
         const now = new Date();
         const claimed = await this.sequelize.transaction(async (transaction) => {
-          const rows = await this.sequelize.query<{ id: string }>(
+          const rows = await this.sequelize.query<{ id: string; tenant_id: string | null }>(
             `WITH candidates AS (
              SELECT _id
              FROM outbox_events
              WHERE status = 'pending'
-               AND _tenant_id = CAST(:tenantId AS BIGINT)
+               AND (_tenant_id = CAST(:tenantId AS BIGINT) OR _tenant_id IS NULL)
                AND COALESCE(available_at, now()) <= now()
                AND event_code NOT IN (:excludedCodes)
              ORDER BY COALESCE(available_at, now()) ASC, _id ASC
@@ -192,7 +159,7 @@ export class RuntimeJobsService {
                _updated_at = :now
            FROM candidates
            WHERE event._id = candidates._id
-           RETURNING event._id AS id;`,
+           RETURNING event._id AS id, event._tenant_id AS tenant_id;`,
             {
               replacements: { tenantId: input.tenantId, excludedCodes, limit: input.body.limit, now },
               type: QueryTypes.SELECT,
@@ -202,16 +169,17 @@ export class RuntimeJobsService {
           return rows;
         });
 
-        const totalPendingAfter = await this.outboxModel.count({
-          where: { tenantId: input.tenantId, status: 'pending', availableAt: { [Op.lte]: new Date() } } as never,
-        });
-        // Fase 3.4: backlog restante tras drenar — la señal que alerta si el outbox no da abasto.
-        this.metrics?.setOutboxPendingEvents({ tenantId: input.tenantId, pending: totalPendingAfter });
+        // Fase 3.4: backlog restante tras drenar, en dos series para que el nulo no quede invisible.
+        const after = await countOutboxBacklog(this.outboxModel, input.tenantId);
+        publishOutboxBacklog(this.metrics, input.tenantId, after);
 
         return {
           selected: claimed.length,
           processed: claimed.length,
-          skippedBusinessEvents: totalPendingAfter,
+          // Atribución: lo ajeno aparte, para que el `result_json` de un inquilino no se lleve lo de nadie.
+          processedWithoutTenant: claimed.filter((row) => row.tenant_id === null).length,
+          skippedBusinessEvents: after.tenant,
+          pendingWithoutTenant: after.withoutTenant,
           dryRun: false,
           note: 'process-outbox conserva compatibilidad y no procesa eventos de negocio registrados; usa process-events para notificaciones.',
         };
@@ -279,16 +247,36 @@ export class RuntimeJobsService {
 
         const destructiveActionsExecuted = input.body.dryRun ? 0 : outcomes.reduce((sum, o) => sum + o.affected, 0);
 
+        // ATLAS-DATA-004. Una política ACTIVA sin destino ejecutable es un control declarado que no
+        // se ejerce; en KYC eso es un hallazgo de cumplimiento. Antes solo aparecía dentro del JSON
+        // de resultado (`unmappedPolicies`), donde nadie lo miraba. Ahora se separan dos casos:
+        //  - decisión pendiente YA DECLARADA (con su motivo en `retention-targets.ts`): se informa;
+        //  - política sin destino y sin decisión: se registra como ERROR, porque significa que
+        //    alguien sembró una política y `check:retention-coverage` no llegó a bloquearla.
+        const undeclared = unmappedPolicies.filter((code) => !(code in RETENTION_POLICIES_PENDING_DECISION));
+        if (undeclared.length > 0) {
+          this.logger.error(
+            `Políticas de retención ACTIVAS sin destino ejecutable ni decisión declarada: ${undeclared.join(', ')}. ` +
+              'La política existe en base y no se está aplicando. Resolver en src/modules/runtime-jobs/retention-targets.ts.',
+          );
+        }
+        const pendingDecision = unmappedPolicies.filter((code) => code in RETENTION_POLICIES_PENDING_DECISION);
+        if (pendingDecision.length > 0) {
+          this.logger.warn(`Políticas de retención activas con decisión pendiente declarada: ${pendingDecision.join(', ')}.`);
+        }
+
         return {
           policiesScanned: policies.length,
           destructiveActionsExecuted,
           dryRun: input.body.dryRun,
           outcomes,
           unmappedPolicies,
+          pendingDecision: pendingDecision.map((code) => ({ policyCode: code, reason: RETENTION_POLICIES_PENDING_DECISION[code] })),
+          undeclaredPolicies: undeclared,
           note:
-            unmappedPolicies.length > 0
-              ? `Políticas activas sin tabla registrada en RETENTION_TARGETS (no se ejecutó ninguna acción para ellas): ${unmappedPolicies.join(', ')}.`
-              : 'Todas las políticas activas evaluadas tienen una tabla registrada en RETENTION_TARGETS.',
+            unmappedPolicies.length === 0
+              ? 'Todas las políticas activas evaluadas tienen una tabla registrada en RETENTION_TARGETS.'
+              : `${pendingDecision.length} política(s) con decisión pendiente declarada y ${undeclared.length} sin declarar.`,
         };
       },
     );

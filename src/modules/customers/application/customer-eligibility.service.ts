@@ -3,8 +3,9 @@
  * @business Esta pieza mantiene la identidad operativa, ciclo de vida y elegibilidad del cliente como fuente de verdad.
  * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
  */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
+import { CLOCK, systemClock, type Clock } from '../../../platform/di/clock.js';
 import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
@@ -19,6 +20,21 @@ import { CustomerLifecycleService } from './customer-lifecycle.service.js';
 import { EligibilityAssessment, assess } from './customer-eligibility.evaluator.js';
 
 export type EligibilityResponse = EligibilityAssessment & { evaluatedAt: string };
+
+/**
+ * Lo que devuelve `evaluateAndRecord`: la respuesta pública MÁS la identidad de la fila de evidencia
+ * que acaba de escribir. Quien enlaza una decisión a su evaluación (la admisión de crédito) usa ese
+ * `evaluationId`; quien responde HTTP lo omite con `toEligibilityResponse`, para que el contrato
+ * externo no cambie. Antes la admisión recuperaba «la última» evaluación con otra lectura, fuera de
+ * la transacción, y esa lectura no veía la fila recién insertada (AT-006).
+ */
+export type RecordedEligibility = EligibilityResponse & { evaluationId: string };
+
+export function toEligibilityResponse(recorded: RecordedEligibility): EligibilityResponse {
+  const { evaluationId: _omitted, ...response } = recorded;
+  void _omitted;
+  return response;
+}
 
 /**
  * Motor de habilitación crediticia.
@@ -40,27 +56,41 @@ export class CustomerEligibilityService {
     private readonly lifecycleRepository: CustomerLifecycleRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    // Reloj inyectable (AT-016): la misma regla con el mismo «ahora» da la misma decisión.
+    @Optional() @Inject(CLOCK) private readonly clock: Clock = systemClock,
   ) {}
 
   /** Lectura para el cliente y para roles internos. Persiste la evaluación como evidencia. */
   async getEligibility(input: { tenantId: string; customerId: string; currentUser: AuthenticatedUser }): Promise<EligibilityResponse> {
     assertOwnCustomerResource(input.currentUser, input.customerId);
-    const assessment = await this.evaluateAndRecord({
+    const recorded = await this.evaluateAndRecord({
       tenantId: input.tenantId,
       customerId: input.customerId,
       evaluatedByType: input.currentUser.role,
       evaluatedByInternalUserId: input.currentUser.internalUserId ?? null,
       decisionSource: 'automatic',
     });
-    return assessment;
+    return toEligibilityResponse(recorded);
+  }
+
+  /**
+   * Bloquea la fila del cliente (`FOR UPDATE`) dentro de la transacción de quien va a decidir sobre
+   * él. Es el mismo bloqueo que toman las transiciones de ciclo de vida, así que una decisión
+   * (admitir un crédito) y un cambio de estado concurrentes se ordenan en vez de cruzarse (AT-007).
+   * Vive aquí, y no en un repositorio exportado, para que Crédito no dependa de la persistencia de
+   * Clientes.
+   */
+  async lockCustomerForDecision(tenantId: string, customerId: string, transaction: Transaction): Promise<void> {
+    const customer = await this.lifecycleRepository.findForUpdate(tenantId, customerId, { transaction });
+    if (!customer) throw new NotFoundException('Cliente no encontrado.');
   }
 
   /** Evalúa sin persistir. Útil para composiciones que ya están dentro de otra transacción. */
   async evaluate(tenantId: string, customerId: string, transaction?: Transaction): Promise<EligibilityAssessment> {
     const customer = await this.customersRepository.findById(tenantId, customerId, { transaction });
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
-    const facts = await this.eligibilityRepository.loadFacts(tenantId, customerId);
-    return assess(facts, normalizeLifecycleStatus(customer.lifecycleStatus), new Date());
+    const facts = await this.eligibilityRepository.loadFacts(tenantId, customerId, { transaction });
+    return assess(facts, normalizeLifecycleStatus(customer.lifecycleStatus), this.clock.now());
   }
 
   /**
@@ -80,13 +110,21 @@ export class CustomerEligibilityService {
     reasonCode?: string | null;
     notes?: string | null;
     transaction?: Transaction;
-  }): Promise<EligibilityResponse> {
-    const run = async (transaction: Transaction): Promise<EligibilityResponse> => {
+    /**
+     * Hechos ya leídos por quien llama, dentro de la MISMA transacción. La admisión de crédito los
+     * lee una vez y los reutiliza para la elegibilidad general y la del producto (AT-007): dos
+     * lecturas separadas podían ver dos estados distintos del mismo cliente.
+     */
+    facts?: EligibilityFacts;
+  }): Promise<RecordedEligibility> {
+    const run = async (transaction: Transaction): Promise<RecordedEligibility> => {
       const customer = await this.customersRepository.findById(input.tenantId, input.customerId, { transaction });
       if (!customer) throw new NotFoundException('Cliente no encontrado.');
 
-      const facts = await this.eligibilityRepository.loadFacts(input.tenantId, input.customerId);
-      const now = new Date();
+      // CON la transacción: este método se encadena tras la verificación de identidad y tras el
+      // envío a revisión, y leerlo por fuera evaluaba el estado ANTERIOR a esas escrituras.
+      const facts = input.facts ?? (await this.eligibilityRepository.loadFacts(input.tenantId, input.customerId, { transaction }));
+      const now = this.clock.now();
       let status = normalizeLifecycleStatus(customer.lifecycleStatus);
       let assessment = assess(facts, status, now);
 
@@ -108,8 +146,8 @@ export class CustomerEligibilityService {
         }
       }
 
-      await this.persist({ input, customer: customer, facts, assessment, status, now, transaction });
-      return { ...assessment, evaluatedAt: now.toISOString() };
+      const evaluationId = await this.persist({ input, customer: customer, facts, assessment, status, now, transaction });
+      return { ...assessment, evaluatedAt: now.toISOString(), evaluationId };
     };
 
     return input.transaction ? run(input.transaction) : this.sequelize.transaction(run);
@@ -131,8 +169,8 @@ export class CustomerEligibilityService {
     status: CustomerLifecycleStatus;
     now: Date;
     transaction: Transaction;
-  }): Promise<void> {
-    await this.lifecycleRepository.createEvaluation(
+  }): Promise<string> {
+    const evaluation = await this.lifecycleRepository.createEvaluation(
       {
         tenantId: context.input.tenantId,
         customerId: context.input.customerId,
@@ -158,6 +196,7 @@ export class CustomerEligibilityService {
         { transaction: context.transaction },
       );
     }
+    return String(evaluation.id);
   }
 
   /** Última evaluación registrada, sin recalcular. Para vistas internas y auditoría. */

@@ -1,0 +1,31 @@
+<!-- Generado por scripts/generate-project-documentation.ts. No editar a mano. -->
+
+# docs/obsidian/backend/04-api
+
+## Por qué existe
+
+- **Negocio:** esta carpeta conserva decisiones y contratos para reducir dependencia de conocimiento tácito.
+- **Sistema:** esta carpeta documenta 04-api como fuente versionada para desarrollo y operación.
+
+## Contenido
+
+| Documento o código | Responsabilidad |
+|---|---|
+| [`authentication.md`](./authentication.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`authorization.md`](./authorization.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`conventions.md`](./conventions.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`error-model.md`](./error-model.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`index.md`](./index.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`pagination-filtering-sorting.md`](./pagination-filtering-sorting.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`rate-limits.md`](./rate-limits.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+| [`versioning.md`](./versioning.md) | Documento versionado: explica decisiones, contratos o procedimientos. |
+
+## Subcarpetas
+
+- [`rest/`](./rest/README.md)
+
+## Reglas de mantenimiento
+
+- Mantener las reglas de negocio fuera de controladores y adaptadores de infraestructura.
+- Validar entradas en el borde, preservar aislamiento por tenant y no registrar secretos ni PII en claro.
+- Actualizar pruebas y este inventario con `yarn docs:project` cuando cambie la estructura.

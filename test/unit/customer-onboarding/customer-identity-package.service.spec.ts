@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CustomerIdentityPackageService } from '../../../src/modules/customer-onboarding/application/customer-identity-package.service.js';
+import { IdentityEvidenceVerificationService } from '../../../src/modules/customer-onboarding/application/identity-evidence-verification.service.js';
 
 /**
  * ATLAS-P12d (extensión — `docs/testing/PLAN_RED_DE_PRUEBAS_ATLAS_P12.md` §9, punto 5):
@@ -32,9 +33,9 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
     // El backend ahora DESCARGA cada objeto y recalcula su hash antes de aceptar el paquete: hasta
     // esta versión guardaba la ruta y el hash que declaraba el propio cliente, sin ver el archivo.
     const storageService = {
-      isConfigured: jest.fn(() => true),
-      getBucket: jest.fn(() => 'atlas-evidence'),
-      verifyDeclaredObject: jest.fn(async () => ({
+      isConfigured: jest.fn((..._args: unknown[]) => true),
+      getBucket: jest.fn((..._args: unknown[]) => 'atlas-evidence'),
+      verifyDeclaredObject: jest.fn(async (..._args: unknown[]) => ({
         ok: true,
         metadata: { sizeBytes: 2048, contentType: 'image/jpeg', sha256Hex: 'v'.repeat(64) },
       })),
@@ -45,21 +46,41 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
     // pruebas fijan lo que ocurre al GUARDAR el paquete; el contrato de la verificación lo fija
     // `customer-verification.service.spec.ts`.
     const providerVerificationService = {
-      verifyWithProvider: jest.fn(async () => ({
+      verifyWithProvider: jest.fn(async (..._args: unknown[]) => ({
         providerStatus: 'verified',
         identityVerificationResult: 'verified',
         requiresManualReview: false,
+        nextStep: 'reference_contacts',
       })),
     };
+    // El paso siguiente lo calcula el evaluador de elegibilidad — el mismo que gobierna la
+    // habilitación— y no un literal de este servicio.
+    const eligibilityService = { evaluate: jest.fn(async (..._args: unknown[]) => ({ nextStep: 'reference_contacts' })) };
+    // Real, no doblado: comprobar la propiedad del objeto y su hash es parte del contrato que estas
+    // pruebas fijan, y sigue apoyándose en el `storageService` doblado de arriba.
+    const evidenceVerification = new IdentityEvidenceVerificationService(storageService as never);
     const service = new CustomerIdentityPackageService(
       customersRepository as never,
       onboardingRepository as never,
       lifecycleService as never,
       storageService as never,
       providerVerificationService as never,
+      eligibilityService as never,
+      evidenceVerification,
+      // El expediente es un gancho tolerante a fallos: corre después del commit y no cambia el
+      // resultado del envío, así que aquí basta con que no haga nada.
+      { alRegistrarEvidencia: jest.fn() } as never,
       sequelize as never,
     );
-    return { service, customersRepository, onboardingRepository, lifecycleService, storageService, providerVerificationService };
+    return {
+      service,
+      customersRepository,
+      onboardingRepository,
+      lifecycleService,
+      storageService,
+      providerVerificationService,
+      eligibilityService,
+    };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null, platformUserId: null } as never;
@@ -70,7 +91,7 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
       customerId: 'c1',
       body: {
         identity: { documentType: 'CI', documentNumberHash: 'hash1', documentLast4: '1234' },
-        evidence: [{ evidenceType: 'identity_front', storageKey: 'k1', mimeType: 'image/jpeg', sha256Hash: 'h1' }],
+        evidence: [{ evidenceType: 'identity_front', storageKey: 't1/c1/k1', mimeType: 'image/jpeg', sha256Hash: 'h1' }],
       } as never,
       currentUser: customerUser,
       ipAddress: '10.0.0.1',
@@ -101,7 +122,10 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
     await expect(
       service.submitIdentityPackage(
         baseInput({
-          body: { identity: {}, evidence: [{ evidenceType: 'identity_back', storageKey: 'k', mimeType: 'image/jpeg', sha256Hash: 'h' }] },
+          body: {
+            identity: {},
+            evidence: [{ evidenceType: 'identity_back', storageKey: 't1/c1/k', mimeType: 'image/jpeg', sha256Hash: 'h' }],
+          },
         }),
       ),
     ).rejects.toThrow(/REQUIRED_EVIDENCE_MISSING/);
@@ -133,7 +157,7 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
       baseInput({
         body: {
           identity: {},
-          evidence: [{ evidenceType: 'identity_front', storageKey: 'k', mimeType: 'image/jpeg', sha256Hash: 'h' }],
+          evidence: [{ evidenceType: 'identity_front', storageKey: 't1/c1/k', mimeType: 'image/jpeg', sha256Hash: 'h' }],
           provider: { providerCode: 'SEGIP' },
         },
       }),
@@ -162,8 +186,8 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
         body: {
           identity: {},
           evidence: [
-            { evidenceType: 'identity_front', storageKey: 'k1', mimeType: 'image/jpeg', sha256Hash: 'h1' },
-            { evidenceType: 'identity_back', storageKey: 'k2', mimeType: 'image/jpeg', sha256Hash: 'h2' },
+            { evidenceType: 'identity_front', storageKey: 't1/c1/k1', mimeType: 'image/jpeg', sha256Hash: 'h1' },
+            { evidenceType: 'identity_back', storageKey: 't1/c1/k2', mimeType: 'image/jpeg', sha256Hash: 'h2' },
           ],
         },
       }),
@@ -192,8 +216,8 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
         body: {
           identity: {},
           evidence: [
-            { evidenceType: 'identity_front', storageKey: 'k1', mimeType: 'image/jpeg', sha256Hash: 'h1' },
-            { evidenceType: 'identity_back', storageKey: 'k2', mimeType: 'image/jpeg', sha256Hash: 'h2' },
+            { evidenceType: 'identity_front', storageKey: 't1/c1/k1', mimeType: 'image/jpeg', sha256Hash: 'h1' },
+            { evidenceType: 'identity_back', storageKey: 't1/c1/k2', mimeType: 'image/jpeg', sha256Hash: 'h2' },
           ],
         },
       }),
@@ -240,6 +264,30 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
     expect(result.nextStep).toBe('reference_contacts');
   });
 
+  /**
+   * Regresión de seguridad: la ruta declarada tiene que vivir bajo el prefijo que el servidor
+   * asignó al emitir el permiso de subida. Sin esta puerta bastaba conocer la clave de la evidencia
+   * de otro cliente del mismo bucket para adjuntarla al expediente propio.
+   */
+  it('rechaza una evidencia cuya ruta no pertenece al cliente, sin descargar nada', async () => {
+    const { service, customersRepository, storageService, onboardingRepository } = buildService();
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
+
+    await expect(
+      service.submitIdentityPackage(
+        baseInput({
+          body: {
+            identity: { documentType: 'CI', documentNumberHash: 'hash1', documentLast4: '1234' },
+            evidence: [{ evidenceType: 'identity_front', storageKey: 't1/otro-cliente/k1', mimeType: 'image/jpeg', sha256Hash: 'h1' }],
+          } as never,
+        }),
+      ),
+    ).rejects.toThrow(/EVIDENCE_STORAGE_KEY_NOT_OWNED/);
+
+    expect(storageService.verifyDeclaredObject).not.toHaveBeenCalled();
+    expect(onboardingRepository.createEvidenceDocument).not.toHaveBeenCalled();
+  });
+
   describe('verificación encadenada con el proveedor', () => {
     function primed() {
       const mocks = buildService();
@@ -276,6 +324,7 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
         identityVerificationResult: 'verified',
         requiresManualReview: false,
         reasonCode: 'identity_verified_by_provider',
+        nextStep: 'reference_contacts',
       } as never);
 
       const result = await service.submitIdentityPackage(inputWithDocumentNumber());
@@ -293,6 +342,7 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
         identityVerificationResult: 'rejected',
         requiresManualReview: false,
         reasonCode: 'identity_document_not_found',
+        nextStep: 'identity_documents',
       } as never);
 
       const result = await service.submitIdentityPackage(inputWithDocumentNumber());

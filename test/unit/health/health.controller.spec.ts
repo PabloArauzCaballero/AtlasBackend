@@ -6,7 +6,7 @@ import type Redis from 'ioredis';
 // Ese dato viene de la configuración, así que se controla desde aquí para poder ejercitar las dos
 // ramas sin depender de variables de entorno reales.
 jest.mock('../../../src/config/database.config.js', () => ({
-  isDedicatedReadConnection: jest.fn(() => false),
+  isDedicatedReadConnection: jest.fn((..._args: unknown[]) => false),
 }));
 
 // ts-jest eleva `jest.mock` por encima de los imports, así que el mock de arriba ya está
@@ -94,7 +94,7 @@ describe('HealthController', () => {
     });
 
     it('is ready when both Postgres and a configured Redis respond', async () => {
-      const redis = { ping: jest.fn(async () => 'PONG') };
+      const redis = { ping: jest.fn(async (..._args: unknown[]) => 'PONG') };
       const { controller } = buildController({ authenticate: async () => undefined, redis: redis as never });
       const result = await controller.readiness();
       expect(result.status).toBe('ready');
@@ -112,7 +112,7 @@ describe('HealthController', () => {
 
     it('throws 503 when a configured Redis is unreachable', async () => {
       const redis = {
-        ping: jest.fn(async () => {
+        ping: jest.fn(async (..._args: unknown[]) => {
           throw new Error('redis down');
         }),
       };

@@ -71,6 +71,31 @@ export function readCookie(request: RequestWithCookies, name: string): string | 
  * `AUTH_COOKIE_SAMESITE=none`, que EXIGE `Secure` y deja de proteger contra CSRF por sí solo: en
  * ese escenario hay que activar además el token CSRF.
  */
+/**
+ * De dónde sale el token de sesión de una petición, definido UNA sola vez.
+ *
+ * La cookie `HttpOnly` tiene prioridad sobre `Authorization`: es la vía del panel interno y la que
+ * un XSS no puede leer. El header se mantiene como respaldo para clientes que no son navegador
+ * (smokes, scripts, integraciones), que no tienen dónde guardar una cookie.
+ *
+ * Vive aquí, junto a los nombres de cookie, porque hay más de un consumidor: el guard que valida la
+ * sesión y el decorador que la REENVÍA al motor de decisión. Dos copias de «dónde está el token» se
+ * separan con el tiempo, y el día que se separen una de las dos autenticará distinto que la otra.
+ *
+ * Devuelve `null` cuando no hay token; decidir si eso es un 401 es del guard, no de esta función.
+ */
+export function readAccessToken(request: RequestWithCookies): string | null {
+  const fromCookie = readCookie(request, ACCESS_TOKEN_COOKIE);
+  if (fromCookie) return fromCookie;
+
+  const header = request.headers.authorization;
+  const value = Array.isArray(header) ? header[0] : header;
+  if (!value) return null;
+
+  const [scheme, token] = value.split(' ');
+  return scheme === 'Bearer' && token ? token : null;
+}
+
 export function buildAuthCookieOptions(maxAgeMs?: number): CookieOptions {
   return {
     httpOnly: true,

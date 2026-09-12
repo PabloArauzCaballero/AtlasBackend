@@ -9,8 +9,8 @@ import { AuditService } from '../../../src/modules/audit/audit.service.js';
 describe('AuditService', () => {
   function build() {
     const repository = {
-      findCustomerAuditEvents: jest.fn(async () => [] as unknown[]),
-      findCustomerAuditEventsWithCursor: jest.fn(async () => ({ items: [] as unknown[], nextCursor: null })),
+      findCustomerAuditEvents: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      findCustomerAuditEventsWithCursor: jest.fn(async (..._args: unknown[]) => ({ items: [] as unknown[], nextCursor: null })),
     };
     const service = new AuditService(repository as never);
     return { service, repository };

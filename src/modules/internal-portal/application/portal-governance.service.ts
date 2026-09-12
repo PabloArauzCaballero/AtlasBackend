@@ -4,8 +4,7 @@
  * @system compone consultas read-only, reportes, glosario, linaje y búsqueda para el portal administrativo.
  */
 import { NotFoundException } from '@nestjs/common';
-import { boolValue, clean, id, intValue, iso, jsonValue, nullableText, policyId, Row, splitPolicyId } from './portal-format.util.js';
-import { NOW_SEED } from './portal-report-definitions.js';
+import { boolValue, clean, id, intValue, iso, nullableText, policyId, Row, splitPolicyId } from './portal-format.util.js';
 import { PortalQueryBase } from './portal-query.base.js';
 
 /**
@@ -23,31 +22,17 @@ export class PortalGovernanceService extends PortalQueryBase {
     return policy;
   }
 
-  async updateGovernancePolicy(policyIdValue: string, body: Row) {
-    const existing = await this.getGovernancePolicy(policyIdValue);
-    return {
-      ...existing,
-      ...this.bodyToPolicyOverlay(body),
-      metadata: {
-        ...jsonValue(existing.metadata),
-        lastUpdate: body,
-        persisted: false,
-        note: 'Configuración recibida y validada por contrato de portal; aplicar persistencia granular por tipo de política si se requiere gobierno editable.',
-      },
-      updatedAt: new Date().toISOString(),
-    };
-  }
-
-  private bodyToPolicyOverlay(body: Row): Row {
-    return {
-      name: nullableText(body.name) ?? undefined,
-      description: nullableText(body.description) ?? undefined,
-      owner: nullableText(body.owner) ?? undefined,
-      status: nullableText(body.status) ?? undefined,
-      policyType: nullableText(body.policyType) ?? undefined,
-      version: nullableText(body.version) ?? undefined,
-    };
-  }
+  /*
+   * `updateGovernancePolicy` se retiró (ATLAS-OPS-011).
+   *
+   * Devolvía 200 con la política "actualizada" y un `metadata.persisted: false` enterrado en la
+   * respuesta: nada llegaba a la base. Las políticas de gobierno viven repartidas en cuatro tablas
+   * con formas distintas (`privacy_processing_purposes`, `retention_policies`,
+   * `data_classification_policies`, `sensitive_field_rules`) y, en un backend financiero, son
+   * artefactos VERSIONADOS —se cambian por migración o seeder revisable, con su rastro en el
+   * historial— no filas que un operador edita desde un panel. Un endpoint de escritura que no
+   * escribe es peor que no tenerlo: invita a creer que el cambio quedó aplicado.
+   */
 
   private async findPolicyCandidates(rawId: string, kind: string | null) {
     const candidates: Array<Row> = [];
@@ -66,7 +51,7 @@ export class PortalGovernanceService extends PortalQueryBase {
           version: 'v1',
           owner: 'compliance',
           description: clean(row.description),
-          effectiveFrom: NOW_SEED,
+          effectiveFrom: null,
           effectiveUntil: null,
           affectedTables: ['customers', 'customer_consents'],
           affectedColumns: [],
@@ -82,7 +67,7 @@ export class PortalGovernanceService extends PortalQueryBase {
           actions: this.defaultPolicyActions(),
           approvals: [],
           metadata: { legalBasis: clean(row.legal_basis) },
-          updatedAt: iso(row._updated_at) ?? NOW_SEED,
+          updatedAt: iso(row._updated_at),
         })),
       );
     }
@@ -101,7 +86,7 @@ export class PortalGovernanceService extends PortalQueryBase {
           version: 'v1',
           owner: 'data-governance',
           description: clean(row.description),
-          effectiveFrom: NOW_SEED,
+          effectiveFrom: null,
           effectiveUntil: null,
           affectedTables: [clean(row.applies_to)],
           affectedColumns: [],
@@ -117,7 +102,7 @@ export class PortalGovernanceService extends PortalQueryBase {
           actions: this.defaultPolicyActions(),
           approvals: [],
           metadata: { legalBasis: clean(row.legal_basis) },
-          updatedAt: iso(row._updated_at) ?? NOW_SEED,
+          updatedAt: iso(row._updated_at),
         })),
       );
     }
@@ -136,7 +121,7 @@ export class PortalGovernanceService extends PortalQueryBase {
           version: 'v1',
           owner: 'security',
           description: clean(row.description),
-          effectiveFrom: NOW_SEED,
+          effectiveFrom: null,
           effectiveUntil: null,
           affectedTables: [],
           affectedColumns: [],
@@ -156,7 +141,7 @@ export class PortalGovernanceService extends PortalQueryBase {
           actions: this.defaultPolicyActions(),
           approvals: [],
           metadata: { sensitivityLevel: clean(row.sensitivity_level) },
-          updatedAt: iso(row._updated_at) ?? NOW_SEED,
+          updatedAt: iso(row._updated_at),
         })),
       );
     }
@@ -175,7 +160,7 @@ export class PortalGovernanceService extends PortalQueryBase {
           version: 'v1',
           owner: 'security',
           description: `Clasificación ${clean(row.classification_code)} con almacenamiento ${clean(row.storage_mode)} y masking ${clean(row.masking_strategy)}.`,
-          effectiveFrom: NOW_SEED,
+          effectiveFrom: null,
           effectiveUntil: null,
           affectedTables: [clean(row.table_name)],
           affectedColumns: [clean(row.field_name)],
@@ -191,7 +176,7 @@ export class PortalGovernanceService extends PortalQueryBase {
           actions: this.defaultPolicyActions(),
           approvals: [],
           metadata: { classificationCode: clean(row.classification_code) },
-          updatedAt: iso(row._updated_at) ?? NOW_SEED,
+          updatedAt: iso(row._updated_at),
         })),
       );
     }
@@ -210,7 +195,7 @@ export class PortalGovernanceService extends PortalQueryBase {
           version: 'v1',
           owner: 'data-quality',
           description: clean(row.expected_action),
-          effectiveFrom: NOW_SEED,
+          effectiveFrom: null,
           effectiveUntil: null,
           affectedTables: [clean(row.target_table)],
           affectedColumns: nullableText(row.target_field) ? [clean(row.target_field)] : [],
@@ -226,7 +211,7 @@ export class PortalGovernanceService extends PortalQueryBase {
           actions: this.defaultPolicyActions(),
           approvals: [],
           metadata: { severity: clean(row.severity) },
-          updatedAt: iso(row._updated_at) ?? NOW_SEED,
+          updatedAt: iso(row._updated_at),
         })),
       );
     }

@@ -1,0 +1,241 @@
+/**
+ * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
+ * @business Esta pieza convierte un comercio declarado en un partner verificable, con locales, cobro y terminales trazables.
+ * @system persiste el expediente del partner, sus QR de cobro y sus terminales de punto de venta.
+ */
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
+import { Op, Transaction } from 'sequelize';
+import {
+  PartnerBranchModel,
+  PartnerLegalRepresentativeModel,
+  PartnerPosTerminalModel,
+  PartnerProfileModel,
+  PartnerQrCodeModel,
+} from '../../database/models/index.js';
+
+type RepositoryOptions = { transaction?: Transaction };
+
+/** Estados en los que el expediente todavía admite cambios del comercio. */
+export const EDITABLE_PARTNER_STATUSES = ['draft', 'contact_verified', 'documents_submitted'] as const;
+
+/**
+ * Estados en los que el comercio puede cambiar su RED COMERCIAL (sucursales y terminales).
+ *
+ * Es una lista distinta de `EDITABLE_PARTNER_STATUSES` a propósito. Lo que la aprobación congela es
+ * la identidad del expediente —matrícula, representante legal, cuenta bancaria—, porque el analista
+ * firmó sobre esos datos. Abrir una sucursal o dar de alta un POS es operación del día a día y le
+ * ocurre a todo comercio vivo: si lo cerráramos con la aprobación, un comercio aprobado se quedaría
+ * para siempre sin poder abrir un local nuevo, que es justo lo contrario de lo que la aprobación
+ * significa.
+ *
+ * `under_review` sigue fuera: mientras un analista mira el expediente, la foto no se mueve.
+ */
+export const COMMERCIAL_NETWORK_EDITABLE_STATUSES = [...EDITABLE_PARTNER_STATUSES, 'approved'] as const;
+
+/**
+ * Estados en los que el comercio puede reemplazar su QR DE COBRO.
+ *
+ * Un comercio aprobado NO podía tocar sus QR: `assertEditable` sólo admite el expediente en trámite,
+ * así que cualquier intento respondía `422 PARTNER_NOT_EDITABLE_IN_STATUS: approved`. El resultado
+ * práctico era que el único comercio que de verdad cobra —el que ya está aprobado y operando— era
+ * exactamente el que no podía subir el QR al que sus clientes deben transferir. Y sin ese QR la app
+ * no tiene qué enseñar cuando el cliente pulsa «pagar».
+ *
+ * Una cuenta de cobro CAMBIA mientras el negocio opera: se cierra una cuenta, se cambia de banco, se
+ * rota el QR por fraude. Congelarla con la aprobación obligaría a reabrir una verificación de
+ * identidad para arreglar un dato que ninguna verificación de identidad comprueba.
+ *
+ * No debilita la trazabilidad, y es la razón de que se pueda abrir: un QR **no se edita, se
+ * reemplaza**. El anterior queda en `replaced` apuntando al nuevo, con su hash y su fecha, así que
+ * siempre se puede reconstruir contra qué QR se cobró un día concreto. Lo que sí sigue fuera es
+ * `under_review`: mientras un analista mira el expediente, la foto no se mueve.
+ */
+export const PAYMENT_QR_EDITABLE_STATUSES = [...EDITABLE_PARTNER_STATUSES, 'approved'] as const;
+
+@Injectable()
+export class PartnerOnboardingRepository {
+  constructor(
+    @InjectModel(PartnerProfileModel) private readonly profileModel: typeof PartnerProfileModel,
+    @InjectModel(PartnerLegalRepresentativeModel)
+    private readonly representativeModel: typeof PartnerLegalRepresentativeModel,
+    @InjectModel(PartnerBranchModel) private readonly branchModel: typeof PartnerBranchModel,
+    @InjectModel(PartnerQrCodeModel) private readonly qrModel: typeof PartnerQrCodeModel,
+    @InjectModel(PartnerPosTerminalModel) private readonly posModel: typeof PartnerPosTerminalModel,
+  ) {}
+
+  findProfileById(tenantId: string, partnerId: string, options: RepositoryOptions = {}): Promise<PartnerProfileModel | null> {
+    return this.profileModel.findOne({
+      where: { tenantId, id: partnerId, deleted: false },
+      transaction: options.transaction,
+    });
+  }
+
+  /**
+   * Varios expedientes de una vez.
+   *
+   * Existe para no preguntar uno por uno: la pantalla de pagos agrupa los créditos por comercio y
+   * el tablero los reparte por rubro, así que en ambos casos hacen falta TODOS los comercios de la
+   * lista a la vez. Resolverlos en bucle convertiría una pantalla en tantas consultas como compras
+   * tenga el cliente, y esa cuenta crece justo con los clientes que más usan el producto.
+   */
+  findProfilesByIds(tenantId: string, partnerIds: readonly string[], options: RepositoryOptions = {}): Promise<PartnerProfileModel[]> {
+    if (partnerIds.length === 0) return Promise.resolve([]);
+    return this.profileModel.findAll({
+      where: { tenantId, id: { [Op.in]: [...new Set(partnerIds)] }, deleted: false },
+      transaction: options.transaction,
+    });
+  }
+
+  /**
+   * El expediente con la fila BLOQUEADA hasta el fin de la transacción (`SELECT … FOR UPDATE`).
+   *
+   * Existe para los flujos que leen un contador, deciden con él y lo escriben. Sin el bloqueo esas
+   * tres operaciones no son una: dos peticiones simultáneas leen el mismo valor, las dos pasan el
+   * control y las dos escriben el mismo resultado, así que el contador queda como si sólo hubiera
+   * habido un intento. Es la verificación de contacto, y con ella el límite de intentos se
+   * esquivaba probando en paralelo.
+   */
+  lockProfileById(tenantId: string, partnerId: string, transaction: Transaction): Promise<PartnerProfileModel | null> {
+    return this.profileModel.findOne({
+      where: { tenantId, id: partnerId, deleted: false },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+  }
+
+  findProfileByTaxId(tenantId: string, taxId: string, options: RepositoryOptions = {}): Promise<PartnerProfileModel | null> {
+    return this.profileModel.findOne({
+      where: { tenantId, taxId, deleted: false },
+      transaction: options.transaction,
+    });
+  }
+
+  /**
+   * Los expedientes de los que este usuario de comercio es dueño.
+   *
+   * Hacía falta porque el portal no tenía forma de saber CUÁL es su expediente: sólo conocía el
+   * identificador justo después de crearlo, y al recargar la pantalla lo perdía. Sin esto, un
+   * comercio no puede volver a entrar a lo suyo salvo que alguien le pase el número a mano.
+   */
+  findProfilesByOwner(tenantId: string, ownerMerchantUserId: string, options: RepositoryOptions = {}): Promise<PartnerProfileModel[]> {
+    return this.profileModel.findAll({
+      where: { tenantId, ownerMerchantUserId, deleted: false },
+      order: [['id', 'DESC']],
+      transaction: options.transaction,
+    });
+  }
+
+  /**
+   * La cola de verificación: expedientes esperando decisión, el más antiguo primero.
+   *
+   * No existía, y su ausencia era la causa de que la pantalla de verificación pidiera TECLEAR el
+   * identificador del comercio. Eso obligaba a sacarlo de otra vista y a copiarlo a mano, así que
+   * en la práctica nadie sabía cuántos expedientes había esperando ni desde cuándo: un expediente
+   * que nadie mira se queda en `under_review` para siempre, y con él la afiliación entera.
+   *
+   * `under_review` fijo y no un parámetro: es el ÚNICO estado que admite decisión
+   * (`PartnerProfileService.decide` responde 409 en cualquier otro), y aceptar el estado desde
+   * fuera sólo serviría para llenar la cola de filas sobre las que no se puede hacer nada.
+   */
+  findProfilesAwaitingDecision(
+    tenantId: string,
+    options: { limit: number; offset: number } & RepositoryOptions,
+  ): Promise<{ rows: PartnerProfileModel[]; count: number }> {
+    return this.profileModel.findAndCountAll({
+      where: { tenantId, onboardingStatus: 'under_review', deleted: false },
+      order: [['submittedAt', 'ASC']],
+      limit: options.limit,
+      offset: options.offset,
+      transaction: options.transaction,
+    });
+  }
+
+  /**
+   * Los expedientes que corresponden a una cuenta del ERP o a un NIT.
+   *
+   * Es lo que permite al ERP saber si el comercio que acaba de dar de alta ya tiene expediente en
+   * Atlas, sin que nadie copie un identificador de una pantalla a otra. Se piden los dos criterios
+   * juntos cuando llegan los dos: con `erpAccountId` de una cuenta y `taxId` de otra, devolver
+   * cualquiera de las dos coincidencias enlazaría comercios distintos.
+   */
+  findProfilesByExternalKeys(
+    tenantId: string,
+    criteria: { erpAccountId?: string; taxId?: string },
+    options: { limit: number; offset: number } & RepositoryOptions,
+  ): Promise<{ rows: PartnerProfileModel[]; count: number }> {
+    return this.profileModel.findAndCountAll({
+      where: {
+        tenantId,
+        deleted: false,
+        ...(criteria.erpAccountId ? { erpAccountId: criteria.erpAccountId } : {}),
+        ...(criteria.taxId ? { taxId: criteria.taxId } : {}),
+      },
+      order: [['_created_at', 'DESC']],
+      limit: options.limit,
+      offset: options.offset,
+      transaction: options.transaction,
+    });
+  }
+
+  createProfile(
+    values: {
+      tenantId: string;
+      legalName: string;
+      tradeName: string | null;
+      taxId: string;
+      commercialRegistry: string | null;
+      businessCategory: string | null;
+      contactEmail: string;
+      contactPhone: string | null;
+      ownerMerchantUserId?: string | null;
+    },
+    options: RepositoryOptions = {},
+  ): Promise<PartnerProfileModel> {
+    return this.profileModel.create(
+      {
+        ...values,
+        onboardingStatus: 'draft',
+        createdAtValue: new Date(),
+        deleted: false,
+        // Explícito y no delegado al DEFAULT de la tabla: el modelo declara la columna NOT NULL,
+        // así que Sequelize la incluye en el INSERT con `null` si nadie la fija — y el valor por
+        // defecto de PostgreSQL sólo actúa cuando la columna se OMITE, no cuando llega nula.
+        contactCodeAttempts: 0,
+      },
+      { transaction: options.transaction },
+    );
+  }
+
+  updateProfile(
+    profile: PartnerProfileModel,
+    values: Partial<{
+      onboardingStatus: string;
+      submittedAt: Date | null;
+      decidedAt: Date | null;
+      decidedByInternalUserId: string | null;
+      rejectionReason: string | null;
+      erpAccountId: string | null;
+      emailVerifiedAt: Date | null;
+      phoneVerifiedAt: Date | null;
+      commercialRegistry: string | null;
+      tradeName: string | null;
+      businessCategory: string | null;
+      contactPhone: string | null;
+      mdrRatePercent: string;
+      contactCodeHash: string | null;
+      contactCodeExpiresAt: Date | null;
+      contactCodeAttempts: number;
+      contactCodeSentAt: Date | null;
+      decisionExecutionId: string | null;
+      decisionOutcome: string | null;
+      decisionReason: string | null;
+      decisionArtifactVersion: string | null;
+      manualReviewCaseCode: string | null;
+      decisionEvaluatedAt: Date | null;
+    }>,
+    options: RepositoryOptions = {},
+  ): Promise<PartnerProfileModel> {
+    return profile.update({ ...values, updatedAtValue: new Date() }, { transaction: options.transaction });
+  }
+}

@@ -1,0 +1,4525 @@
+{
+  "POST /operations/jobs/process-outbox": {
+    "operationId": "RuntimeJobsController_processOutbox",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/jobs/process-events": {
+    "operationId": "RuntimeJobsController_processEvents",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/jobs/expire-stale-sessions": {
+    "operationId": "RuntimeJobsController_expireStaleSessions",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/jobs/retry-stuck-notifications": {
+    "operationId": "RuntimeJobsController_retryStuckNotifications",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/jobs/deliver-pending-notifications": {
+    "operationId": "RuntimeJobsController_deliverPendingNotifications",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/jobs/reclaim-stuck-events": {
+    "operationId": "RuntimeJobsController_reclaimStuckEvents",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/jobs/purge-idempotency-keys": {
+    "operationId": "RuntimeJobsController_purgeIdempotencyKeys",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/jobs/purge-processed-outbox": {
+    "operationId": "RuntimeJobsController_purgeProcessedOutbox",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/jobs/apply-retention-policies": {
+    "operationId": "RuntimeJobsController_applyRetentionPolicies",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/jobs/recalculate-data-quality": {
+    "operationId": "RuntimeJobsController_recalculateDataQuality",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/jobs/dispatch-loan-outcomes": {
+    "operationId": "RuntimeDecisionJobsController_dispatchLoanOutcomes",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/jobs/sweep-debt-ratings": {
+    "operationId": "RuntimeDecisionJobsController_sweepDebtRatings",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/jobs/backfill-expedientes": {
+    "operationId": "ExpedientesJobsController_backfillExpedientes",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/jobs/limpiar-expedientes": {
+    "operationId": "ExpedientesJobsController_limpiarExpedientes",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /expedientes": {
+    "operationId": "ExpedientesController_listar",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /expedientes/por-sujeto/{subjectType}/{subjectId}": {
+    "operationId": "ExpedientesController_porSujeto",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["subjectId", "subjectType"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /expedientes/{id}": {
+    "operationId": "ExpedientesController_obtener",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /expedientes/{id}/actividad": {
+    "operationId": "ExpedientesController_actividad",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /expedientes/{id}/nodos": {
+    "operationId": "ExpedientesNodosController_listar",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /expedientes/{id}/nodos/{nodoId}/contenido": {
+    "operationId": "ExpedientesNodosController_obtenerContenido",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id", "nodoId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /expedientes/{id}/carpetas": {
+    "operationId": "ExpedientesNodosController_crearCarpeta",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /expedientes/{id}/subidas": {
+    "operationId": "ExpedientesNodosController_crearSubida",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /expedientes/{id}/subidas/{ticketId}/confirmar": {
+    "operationId": "ExpedientesNodosController_confirmarSubida",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id", "ticketId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /expedientes/{id}/nodos/{nodoId}": {
+    "operationId": "ExpedientesNodosController_actualizar",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id", "nodoId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "DELETE /expedientes/{id}/nodos/{nodoId}": {
+    "operationId": "ExpedientesNodosController_borrar",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id", "nodoId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /expedientes/{id}/nodos/{nodoId}/restaurar": {
+    "operationId": "ExpedientesNodosController_restaurar",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id", "nodoId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "DELETE /expedientes/{id}/papelera": {
+    "operationId": "ExpedientesNodosController_purgar",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /expedientes/{id}/nodos/{nodoId}/concesiones": {
+    "operationId": "ExpedientesConcesionesController_conceder",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id", "nodoId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /expedientes/{id}/nodos/{nodoId}/concesiones": {
+    "operationId": "ExpedientesConcesionesController_listarConcesiones",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id", "nodoId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "DELETE /expedientes/{id}/nodos/{nodoId}/concesiones/{grantId}": {
+    "operationId": "ExpedientesConcesionesController_revocar",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["grantId", "id", "nodoId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /expedientes/{id}/nodos/{nodoId}/concesiones/visibilidad": {
+    "operationId": "ExpedientesConcesionesController_listarVisibilidad",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id", "nodoId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /expedientes/{id}/contactos": {
+    "operationId": "ExpedientesContactosController_obtenerContactos",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customers/{customerId}/me": {
+    "operationId": "CustomersController_getCustomerMe",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customers/{customerId}/eligibility": {
+    "operationId": "CustomerEligibilityController_getEligibility",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/customers/{customerId}/eligibility/decision": {
+    "operationId": "CustomerEligibilityController_decideEligibility",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /internal/contexts/customers/recipient-directory/resolve": {
+    "operationId": "CustomerRecipientDirectoryController_resolve",
+    "responses": ["200", "400", "401", "429", "500", "503"],
+    "headers": [],
+    "query": ["channel", "customerId"],
+    "path": [],
+    "security": [],
+    "body": false
+  },
+  "GET /internal/contexts/customers/recipient-directory/addresses": {
+    "operationId": "CustomerRecipientDirectoryController_addresses",
+    "responses": ["200", "400", "401", "429", "500", "503"],
+    "headers": [],
+    "query": ["channel", "customerId", "purpose"],
+    "path": [],
+    "security": [],
+    "body": false
+  },
+  "POST /internal/auth/login": {
+    "operationId": "InternalAuthController_login",
+    "responses": ["200", "400", "401", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "POST /internal/auth/login/pin": {
+    "operationId": "InternalAuthController_verifyLoginPin",
+    "responses": ["200", "400", "401", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "POST /internal/auth/refresh": {
+    "operationId": "InternalAuthController_refresh",
+    "responses": ["200", "400", "401", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "POST /internal/auth/logout": {
+    "operationId": "InternalAuthController_logout",
+    "responses": ["200", "400", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "GET /internal/auth/me": {
+    "operationId": "InternalAuthController_me",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/auth/signup": {
+    "operationId": "InternalAuthController_signup",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /internal/users": {
+    "operationId": "InternalUsersController_list",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "page"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/users/{internalUserId}": {
+    "operationId": "InternalUsersController_get",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["internalUserId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /internal/users/{internalUserId}": {
+    "operationId": "InternalUsersController_update",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["internalUserId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /internal/users/{internalUserId}/roles": {
+    "operationId": "InternalUsersController_replaceRoles",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["internalUserId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /internal/roles": {
+    "operationId": "InternalAccessCatalogController_listRoles",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/roles/{roleId}": {
+    "operationId": "InternalAccessCatalogController_getRole",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["roleId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/permissions": {
+    "operationId": "InternalAccessCatalogController_listPermissions",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /auth/login": {
+    "operationId": "AuthController_login",
+    "responses": ["200", "400", "401", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "POST /auth/login/pin": {
+    "operationId": "AuthController_verifyLoginPin",
+    "responses": ["200", "400", "401", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "POST /auth/password-reset/request": {
+    "operationId": "AuthController_requestPasswordReset",
+    "responses": ["200", "400", "409", "429", "500", "503"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "POST /auth/password-reset/confirm": {
+    "operationId": "AuthController_confirmPasswordReset",
+    "responses": ["200", "400", "401", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "POST /auth/refresh": {
+    "operationId": "AuthController_refresh",
+    "responses": ["200", "400", "401", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "POST /auth/logout": {
+    "operationId": "AuthController_logout",
+    "responses": ["200", "400", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "GET /auth/me": {
+    "operationId": "AuthController_getMe",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /auth/mfa": {
+    "operationId": "AuthController_setMfaPreference",
+    "responses": ["200", "400", "401", "403", "409", "429", "500", "503"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /auth/provision-credentials": {
+    "operationId": "AuthController_provisionCredentials",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /auth/password/change/request": {
+    "operationId": "AuthPasswordChangeController_requestPasswordChange",
+    "responses": ["200", "400", "401", "403", "409", "429", "500", "503"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /auth/password/change/confirm": {
+    "operationId": "AuthPasswordChangeController_confirmPasswordChange",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/events/catalog": {
+    "operationId": "EventsController_listCatalog",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/events": {
+    "operationId": "EventsController_listEvents",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["aggregateType", "correlationId", "cursor", "eventCode", "limit", "page", "pagination", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/events": {
+    "operationId": "EventsController_createEvent",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/events/{eventId}": {
+    "operationId": "EventsController_getEvent",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["eventId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/events/{eventId}/retry": {
+    "operationId": "EventsController_retryEvent",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["eventId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/events/{eventId}/cancel": {
+    "operationId": "EventsController_cancelEvent",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["eventId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/notifications/messages": {
+    "operationId": "NotificationsController_listMessages",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["channel", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/notifications/messages/{messageId}": {
+    "operationId": "NotificationsController_getMessage",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["messageId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/notifications/messages/{messageId}/retry": {
+    "operationId": "NotificationsController_retryMessage",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["messageId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/notifications/messages/{messageId}/cancel": {
+    "operationId": "NotificationsController_cancelMessage",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["messageId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customers/{customerId}/notifications/read-all": {
+    "operationId": "NotificationsController_markAllRead",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customers/{customerId}/device-tokens": {
+    "operationId": "NotificationsController_upsertDeviceToken",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "DELETE /customers/{customerId}/device-tokens/{deviceTokenId}": {
+    "operationId": "NotificationsController_deactivateDeviceToken",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId", "deviceTokenId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal-users/me/notifications": {
+    "operationId": "NotificationsController_listMyNotifications",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["channel", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal-users/me/notifications/unread-count": {
+    "operationId": "NotificationsController_myUnreadNotificationsCount",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal-users/me/notifications/{notificationId}/read": {
+    "operationId": "NotificationsController_markMyNotificationRead",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["notificationId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal-users/me/notifications/read-all": {
+    "operationId": "NotificationsController_markAllMyNotificationsRead",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customers/{customerId}/notifications": {
+    "operationId": "CustomerNotificationsController_listCustomerNotifications",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": ["channel", "status"],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customers/{customerId}/notification-preferences": {
+    "operationId": "CustomerNotificationsController_getOwnPreferences",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /customers/{customerId}/notification-preferences": {
+    "operationId": "CustomerNotificationsController_updateOwnPreferences",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /customers/{customerId}/notifications/unread-count": {
+    "operationId": "CustomerNotificationsController_unreadCount",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customers/{customerId}/notifications/{notificationId}/read": {
+    "operationId": "CustomerNotificationsController_markRead",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId", "notificationId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/notifications/templates": {
+    "operationId": "NotificationTemplatesController_listTemplates",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["active", "channel", "code"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/notifications/templates": {
+    "operationId": "NotificationTemplatesController_createTemplate",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /operations/notifications/templates/{templateId}": {
+    "operationId": "NotificationTemplatesController_updateTemplate",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["templateId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/notifications/preferences/{customerId}": {
+    "operationId": "NotificationTemplatesController_getPreferences",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /operations/notifications/preferences/{customerId}": {
+    "operationId": "NotificationTemplatesController_updatePreferences",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/notifications/broadcast": {
+    "operationId": "NotificationBroadcastController_broadcastNotification",
+    "responses": ["202", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/notification-policies": {
+    "operationId": "NotificationPoliciesOperationsController_list",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PUT /operations/notification-policies": {
+    "operationId": "NotificationPoliciesOperationsController_upsert",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /customer-onboarding/identity-verifications/{attemptId}/evidence-documents": {
+    "operationId": "CustomerEvidenceViewController_byAttempt",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["attemptId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customer-onboarding/{customerId}/evidence-documents": {
+    "operationId": "CustomerEvidenceViewController_list",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customer-onboarding/{customerId}/evidence-documents/{documentId}/content": {
+    "operationId": "CustomerEvidenceViewController_content",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId", "documentId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customer-onboarding/start": {
+    "operationId": "CustomerOnboardingController_startOnboarding",
+    "responses": ["201", "400", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "POST /customer-onboarding/{customerId}/contact-verification/request": {
+    "operationId": "CustomerOnboardingController_requestContactVerification",
+    "responses": ["202", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /customer-onboarding/{customerId}/contact-verification/submit": {
+    "operationId": "CustomerOnboardingController_submitContactVerification",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /customer-onboarding/{customerId}/identity-manual-review": {
+    "operationId": "CustomerOnboardingController_applyIdentityManualReview",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customer-onboarding/{customerId}/identity-package": {
+    "operationId": "CustomerPackagesController_submitIdentityPackage",
+    "responses": ["202", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /customer-onboarding/{customerId}/contacts-snapshot": {
+    "operationId": "CustomerPackagesController_submitContactsSnapshot",
+    "responses": ["202", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /customer-onboarding/{customerId}/address-package": {
+    "operationId": "CustomerPackagesController_submitAddressPackage",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /customer-onboarding/{customerId}/profile": {
+    "operationId": "CustomerOnboardingProfileController_updateProfile",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PUT /customer-onboarding/{customerId}/financial-profile": {
+    "operationId": "CustomerOnboardingProfileController_upsertFinancialProfile",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /customer-onboarding/{customerId}/reference-contacts": {
+    "operationId": "CustomerOnboardingProfileController_listReferences",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customer-onboarding/{customerId}/reference-contacts": {
+    "operationId": "CustomerOnboardingProfileController_addReferences",
+    "responses": ["201", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "DELETE /customer-onboarding/{customerId}/reference-contacts/{referenceId}": {
+    "operationId": "CustomerOnboardingProfileController_removeReference",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId", "referenceId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customer-onboarding/{customerId}/contact-methods": {
+    "operationId": "CustomerOnboardingProfileController_addContactMethod",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /customer-onboarding/{customerId}/documents/upload-url": {
+    "operationId": "CustomerOnboardingProfileController_createUploadUrl",
+    "responses": ["201", "400", "401", "403", "404", "409", "422", "429", "500", "503"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /customer-onboarding/{customerId}/identity-verification": {
+    "operationId": "CustomerOnboardingProfileController_verifyIdentity",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /customer-onboarding/{customerId}/status": {
+    "operationId": "CustomerOnboardingStatusController_getStatus",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customer-onboarding/{customerId}/submit": {
+    "operationId": "CustomerOnboardingStatusController_submitForReview",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /customer-onboarding/{customerId}/observations": {
+    "operationId": "CustomerOnboardingStatusController_listObservations",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customer-onboarding/jobs/mark-abandoned": {
+    "operationId": "CustomerOnboardingStatusController_markAbandoned",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/customers/{customerId}/identity-verification/decision": {
+    "operationId": "CustomerVerificationController_decideIdentity",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/customers/{customerId}/compliance/screening": {
+    "operationId": "CustomerVerificationController_screen",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/customers/{customerId}/compliance/clear-matches": {
+    "operationId": "CustomerVerificationController_clearMatches",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /customers/{customerId}/sessions/start": {
+    "operationId": "CustomerSessionsController_startSession",
+    "responses": ["201", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /customers/{customerId}/sessions/{sessionId}/heartbeat": {
+    "operationId": "CustomerSessionsController_heartbeat",
+    "responses": ["202", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId", "sessionId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /customers/{customerId}/sessions/{sessionId}/end": {
+    "operationId": "CustomerSessionsController_endSession",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId", "sessionId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /customers/{customerId}/session-state": {
+    "operationId": "CustomerSessionsController_getSessionState",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/sessions/{sessionId}/investigation-summary": {
+    "operationId": "OperationsSessionsController_getInvestigationSummary",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["sessionId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /consent-documents/active": {
+    "operationId": "ConsentsController_listActiveDocuments",
+    "responses": ["200", "400", "429", "500"],
+    "headers": [],
+    "query": ["language", "purposeCode"],
+    "path": [],
+    "security": [],
+    "body": false
+  },
+  "GET /operations/consent-documents": {
+    "operationId": "ConsentOperationsController_list",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/consent-documents": {
+    "operationId": "ConsentOperationsController_create",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /operations/consent-documents/{documentId}": {
+    "operationId": "ConsentOperationsController_update",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["documentId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /external-data/consents": {
+    "operationId": "ExternalDataController_createConsent",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /external-data/consents/user/{customerId}": {
+    "operationId": "ExternalDataController_listConsents",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /external-data/consents/{consentId}/revoke": {
+    "operationId": "ExternalDataController_revokeConsent",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["consentId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /external-data/requests/preview": {
+    "operationId": "ExternalDataController_previewRequest",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /external-data/requests": {
+    "operationId": "ExternalDataController_executeRequest",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /external-data/requests/{requestId}": {
+    "operationId": "ExternalDataController_getRequest",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["requestId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /external-data/providers/health": {
+    "operationId": "ExternalDataController_getProviderHealth",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["providerCode"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /external-data/users/{customerId}/features": {
+    "operationId": "ExternalDataController_getUserFeatures",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /external-data/users/{customerId}/scoring-input": {
+    "operationId": "ExternalDataController_getUserScoringInput",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /external-data/users/{customerId}/decision-package": {
+    "operationId": "ExternalDataController_getDecisionPackage",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": ["featureMaxAgeHours", "includeRawResponses"],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /external-data/users/{customerId}/observations": {
+    "operationId": "ExternalDataController_getUserObservations",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers": {
+    "operationId": "AdminExternalProvidersController_listProviders",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/health": {
+    "operationId": "AdminExternalProvidersController_health",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/readiness": {
+    "operationId": "AdminExternalProvidersController_readiness",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/quality-audit": {
+    "operationId": "AdminExternalProvidersController_qualityAudit",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/production-gate": {
+    "operationId": "AdminExternalProvidersController_productionGate",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["providerCode", "strict"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/sla": {
+    "operationId": "AdminExternalProvidersController_sla",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["days", "providerCode"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/usage": {
+    "operationId": "AdminExternalProvidersController_usage",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["days", "providerCode"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/idempotency-audit": {
+    "operationId": "AdminExternalProvidersController_idempotencyAudit",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["days", "limit"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/retention/preview": {
+    "operationId": "AdminExternalProvidersController_retentionPreview",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["days", "limit"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/sanitization-audit": {
+    "operationId": "AdminExternalProvidersController_sanitizationAudit",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /admin/external-providers/policy/preview": {
+    "operationId": "AdminExternalProvidersController_previewPolicy",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /admin/external-providers/{providerCode}/runtime": {
+    "operationId": "AdminExternalProvidersController_patchRuntime",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["providerCode"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /admin/external-providers/{providerCode}/kill-switch": {
+    "operationId": "AdminExternalProvidersController_killSwitch",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["providerCode"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /admin/external-providers/{providerCode}/cost-policy": {
+    "operationId": "AdminExternalProvidersController_getCostPolicy",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["providerCode"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /admin/external-providers/{providerCode}/cost-policy/{queryType}": {
+    "operationId": "AdminExternalProvidersController_updateCostPolicy",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["providerCode", "queryType"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /admin/external-providers/{providerCode}/test": {
+    "operationId": "AdminExternalProvidersController_testProvider",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["providerCode"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /admin/external-providers/requests/{requestId}/approve": {
+    "operationId": "AdminExternalProvidersController_approveRequest",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["requestId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /admin/external-providers/requests/{requestId}/retry": {
+    "operationId": "AdminExternalProvidersController_retryRequest",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["requestId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /admin/external-providers/requests/{requestId}/rebuild-features": {
+    "operationId": "AdminExternalProvidersController_rebuildFeatures",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["requestId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/auth-broker/availability": {
+    "operationId": "ProviderAuthAdminController_availability",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/auth-state": {
+    "operationId": "ProviderAuthAdminController_listAuthStates",
+    "responses": ["200", "400", "401", "403", "429", "500", "503"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/credentials/pending-rotation": {
+    "operationId": "ProviderAuthAdminController_pendingRotation",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/{providerCode}/auth-state": {
+    "operationId": "ProviderAuthAdminController_authState",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["providerCode"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /admin/external-providers/{providerCode}/credentials/rotate": {
+    "operationId": "ProviderAuthAdminController_rotate",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["providerCode"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /admin/external-providers/{providerCode}/credentials/revoke": {
+    "operationId": "ProviderAuthAdminController_revoke",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["providerCode"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /admin/external-providers/{providerCode}/credentials/invalidate-token": {
+    "operationId": "ProviderAuthAdminController_invalidateToken",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["providerCode"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/dashboard": {
+    "operationId": "ExternalProvidersDashboardController_dashboard",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["days", "healthPoints"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /admin/external-providers/requests": {
+    "operationId": "ExternalProvidersDashboardController_requests",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["approvalStatus", "customerId", "days", "limit", "offset", "providerCode", "responseStatus"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /kyc/segip/verify": {
+    "operationId": "KycExternalDataController_verifySegip",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /bureau/infocenter/check": {
+    "operationId": "BureauExternalDataController_checkInfocenter",
+    "responses": ["200", "400", "401", "403", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /payments/qr/verify": {
+    "operationId": "PaymentsExternalDataController_verifyQr",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /payments/bank-transfer/verify": {
+    "operationId": "PaymentsExternalDataController_verifyBankTransfer",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /payments/bank-transfer/qr": {
+    "operationId": "PaymentsExternalDataController_generateBankQr",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /telco/phone-trust/verify": {
+    "operationId": "TelcoExternalDataController_verifyPhoneTrust",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /telco/phone-trust/{customerId}": {
+    "operationId": "TelcoExternalDataController_getPhoneTrust",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /social/facebook/connect-url": {
+    "operationId": "FacebookExternalDataController_getConnectUrl",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["customerId"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /social/facebook/callback": {
+    "operationId": "FacebookExternalDataController_callback",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /social/facebook/status/{customerId}": {
+    "operationId": "FacebookExternalDataController_status",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /whatsapp/verification/start": {
+    "operationId": "WhatsappExternalDataController_start",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /whatsapp/verification/confirm": {
+    "operationId": "WhatsappExternalDataController_confirm",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /whatsapp/status/{customerId}": {
+    "operationId": "WhatsappExternalDataController_status",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /digital-trust/check": {
+    "operationId": "DigitalTrustExternalDataController_check",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /digital-trust/profile/{customerId}": {
+    "operationId": "DigitalTrustExternalDataController_profile",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customers/{customerId}/risk-assessments": {
+    "operationId": "RiskController_createRiskAssessment",
+    "responses": ["201", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/risk-assessments/{riskAssessmentRunId}": {
+    "operationId": "RiskController_getRiskAssessmentDetail",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["riskAssessmentRunId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/risk-assessments/{riskAssessmentRunId}/explanation": {
+    "operationId": "RiskController_getRiskAssessmentExplanation",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["riskAssessmentRunId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/decision-artifacts": {
+    "operationId": "DecisionArtifactBindingController_list",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/decision-artifacts": {
+    "operationId": "DecisionArtifactBindingController_assign",
+    "responses": ["200", "400", "401", "403", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /credit-applications/{applicationId}/disbursement": {
+    "operationId": "LoansController_disburse",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["applicationId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /customers/{customerId}/loans": {
+    "operationId": "LoansController_listByCustomer",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customers/{customerId}/spending-by-category": {
+    "operationId": "LoansController_spendingByCategory",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customers/{customerId}/payment-calendar": {
+    "operationId": "LoansController_paymentCalendar",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customers/{customerId}/spending-report.pdf": {
+    "operationId": "LoansController_spendingReport",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /policies/delinquency": {
+    "operationId": "LoansController_delinquencyPolicy",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /loans/{loanId}": {
+    "operationId": "LoansController_detail",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["loanId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /loans/{loanId}/payments": {
+    "operationId": "LoanPaymentsController_registerPayment",
+    "responses": ["201", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["loanId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /loans/{loanId}/payments/{paymentId}/reversal": {
+    "operationId": "LoanPaymentsController_reversePayment",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["loanId", "paymentId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /loans/{loanId}/write-off": {
+    "operationId": "LoanPaymentsController_writeOffLoan",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["loanId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/loans/delinquency-sweep": {
+    "operationId": "LoansOperationsController_sweep",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/loans/outcome-status": {
+    "operationId": "LoansOperationsController_outcomeStatus",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/loans/outcome-backlog": {
+    "operationId": "LoansOperationsController_backlog",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customers/{customerId}/credit-line": {
+    "operationId": "CreditController_creditLine",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customers/{customerId}/bank-statements": {
+    "operationId": "CreditController_submitBankStatement",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customers/{customerId}/bank-statements/latest": {
+    "operationId": "CreditController_latestBankStatement",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customers/{customerId}/credit-line/history": {
+    "operationId": "CreditController_creditLineHistory",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customers/{customerId}/credit-products": {
+    "operationId": "CreditController_listProducts",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customers/{customerId}/credit-applications": {
+    "operationId": "CreditController_createApplication",
+    "responses": ["201", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /customers/{customerId}/credit-applications": {
+    "operationId": "CreditController_listApplications",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/credit/customers/{customerId}/credit-line/recalculate": {
+    "operationId": "CreditOperationsController_recalculateCreditLine",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500", "503"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/credit/products": {
+    "operationId": "CreditOperationsController_listProducts",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/credit/products": {
+    "operationId": "CreditOperationsController_createProduct",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /operations/credit/products/{productId}/status": {
+    "operationId": "CreditOperationsController_changeProductStatus",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["productId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/credit/applications/{applicationId}/decision": {
+    "operationId": "CreditOperationsController_decideApplication",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["applicationId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/credit/applications/{applicationId}/business-acceptance": {
+    "operationId": "CreditOperationsController_decideBusinessAcceptance",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["applicationId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/credit/applications/{applicationId}": {
+    "operationId": "CreditOperationsController_getApplicationDetail",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["applicationId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/partners/{partnerId}/credit-applications": {
+    "operationId": "MerchantCreditController_list",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": ["onlyPending"],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /merchant/partners/{partnerId}/credit-applications/{applicationId}/acceptance": {
+    "operationId": "MerchantCreditController_decide",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["applicationId", "partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /partner-onboarding/start": {
+    "operationId": "PartnerOnboardingController_start",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /partner-onboarding/mine": {
+    "operationId": "PartnerOnboardingController_mine",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /partner-onboarding/{partnerId}/status": {
+    "operationId": "PartnerOnboardingController_status",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /partner-onboarding/{partnerId}/legal-representative": {
+    "operationId": "PartnerOnboardingController_addLegalRepresentative",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /partner-onboarding/{partnerId}/documents/upload-url": {
+    "operationId": "PartnerOnboardingController_documentUploadUrl",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /partner-onboarding/{partnerId}/commercial-registry": {
+    "operationId": "PartnerOnboardingController_setCommercialRegistry",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /partner-onboarding/{partnerId}/commercial-profile": {
+    "operationId": "PartnerOnboardingController_updateCommercialProfile",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /partner-onboarding/{partnerId}/submit": {
+    "operationId": "PartnerOnboardingController_submit",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /partner-onboarding/{partnerId}/contact-verification/request": {
+    "operationId": "PartnerContactVerificationController_requestContactVerification",
+    "responses": ["202", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /partner-onboarding/{partnerId}/contact-verification/submit": {
+    "operationId": "PartnerContactVerificationController_submitContactVerification",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /partner-onboarding/{partnerId}/branches": {
+    "operationId": "PartnerCommerceController_registerBranch",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /partner-onboarding/{partnerId}/branches": {
+    "operationId": "PartnerCommerceController_listBranches",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /partner-onboarding/{partnerId}/branches/{branchId}": {
+    "operationId": "PartnerCommerceController_linkBranch",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["branchId", "partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /partner-onboarding/{partnerId}/qr-codes/upload-url": {
+    "operationId": "PartnerCommerceController_createQrUploadUrl",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500", "503"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /partner-onboarding/{partnerId}/qr-codes": {
+    "operationId": "PartnerCommerceController_registerQr",
+    "responses": ["201", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /partner-onboarding/{partnerId}/qr-codes": {
+    "operationId": "PartnerCommerceController_listQr",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /partner-onboarding/{partnerId}/qr-codes/{qrId}/content": {
+    "operationId": "PartnerCommerceController_qrContent",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId", "qrId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /partner-onboarding/{partnerId}/branches/{branchId}/pos-terminals": {
+    "operationId": "PartnerCommerceController_registerPos",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["branchId", "partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /partner-onboarding/{partnerId}/pos-terminals": {
+    "operationId": "PartnerCommerceController_listPos",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /partner-onboarding/{partnerId}/pos-terminals/{terminalId}": {
+    "operationId": "PartnerCommerceController_changePosStatus",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId", "terminalId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /merchant-qr/resolve": {
+    "operationId": "MerchantQrController_resolve",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/partners/queue": {
+    "operationId": "PartnerOperationsController_listQueue",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/partners": {
+    "operationId": "PartnerOperationsController_find",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /operations/partners/{partnerId}/erp-account": {
+    "operationId": "PartnerOperationsController_linkErpAccount",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/partners/{partnerId}/kyb-review": {
+    "operationId": "PartnerOperationsController_requestKybReview",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500", "503"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/partners/{partnerId}/decision": {
+    "operationId": "PartnerOperationsController_decide",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/partner-contract-templates/default": {
+    "operationId": "PartnerContractTemplatesController_getDefault",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/partner-contract-templates": {
+    "operationId": "PartnerContractTemplatesController_list",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/partner-contract-templates": {
+    "operationId": "PartnerContractTemplatesController_publish",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /operations/partner-contract-templates/{templateId}/default": {
+    "operationId": "PartnerContractTemplatesController_setDefault",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["templateId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/rating-scale": {
+    "operationId": "CreditRatingController_getRatingScale",
+    "responses": ["200", "400", "401", "403", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/loans/{loanId}/rating": {
+    "operationId": "CreditRatingController_getLoanRating",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["loanId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/loans/{loanId}/rating-history": {
+    "operationId": "CreditRatingController_getLoanRatingHistory",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["loanId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /customers/{customerId}/credit-rating": {
+    "operationId": "CreditRatingController_getMyRating",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/customers/{customerId}/credit-rating": {
+    "operationId": "CreditRatingController_getCustomerRating",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/customers/{customerId}/credit-rating-history": {
+    "operationId": "CreditRatingController_getCustomerRatingHistory",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/credit-rating/sweep": {
+    "operationId": "CreditRatingOperationsController_sweep",
+    "responses": ["200", "400", "401", "403", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/credit-rating/loans/{loanId}/rate": {
+    "operationId": "CreditRatingOperationsController_rateLoan",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["loanId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/credit-rating/customers/{customerId}/rate": {
+    "operationId": "CreditRatingOperationsController_rateCustomer",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/credit-rating/portfolio-summary": {
+    "operationId": "CreditRatingOperationsController_getPortfolioSummary",
+    "responses": ["200", "400", "401", "403", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /mobile/support/faq": {
+    "operationId": "MobileSupportController_faq",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /mobile/support/categories": {
+    "operationId": "MobileSupportController_categories",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /mobile/support/knowledge/search": {
+    "operationId": "MobileSupportController_search",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /mobile/support/knowledge/articles/{articleKey}": {
+    "operationId": "MobileSupportController_article",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["articleKey"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /mobile/support/knowledge/articles/{articleId}/feedback": {
+    "operationId": "MobileSupportController_articleFeedback",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["articleId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /mobile/support/cases": {
+    "operationId": "MobileSupportController_openCase",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /mobile/support/cases": {
+    "operationId": "MobileSupportController_listCases",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /mobile/support/cases/{caseId}": {
+    "operationId": "MobileSupportController_getCase",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /mobile/support/cases/{caseId}/close-request": {
+    "operationId": "MobileSupportController_closeRequest",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /mobile/support/cases/{caseId}/reopen": {
+    "operationId": "MobileSupportController_reopen",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /mobile/support/cases/{caseId}/feedback": {
+    "operationId": "MobileSupportController_feedback",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/support/faq": {
+    "operationId": "MerchantSupportController_faq",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/support/categories": {
+    "operationId": "MerchantSupportController_categories",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/support/knowledge/search": {
+    "operationId": "MerchantSupportController_search",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /merchant/support/cases": {
+    "operationId": "MerchantSupportController_openCase",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/support/partners/{partnerProfileId}/cases": {
+    "operationId": "MerchantSupportController_listCases",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerProfileId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/support/cases/{caseId}": {
+    "operationId": "MerchantSupportController_getCase",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /merchant/support/cases/{caseId}/close-request": {
+    "operationId": "MerchantSupportController_closeRequest",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /merchant/support/cases/{caseId}/feedback": {
+    "operationId": "MerchantSupportController_feedback",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /support/channels": {
+    "operationId": "SupportChatController_open",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /support/channels/{channelId}/messages": {
+    "operationId": "SupportChatController_send",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["channelId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /support/channels/{channelId}/messages": {
+    "operationId": "SupportChatController_transcript",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["channelId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /support/channels/{channelId}/messages/{messageId}/corrections": {
+    "operationId": "SupportChatController_correct",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["channelId", "messageId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /support/channels/{channelId}/close": {
+    "operationId": "SupportChatController_close",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["channelId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /support/channels/{channelId}/stream": {
+    "operationId": "SupportChatController_stream",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["channelId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /support/channels/{channelId}/read": {
+    "operationId": "SupportChatController_read",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["channelId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /support/channels/{channelId}/typing": {
+    "operationId": "SupportChatController_typing",
+    "responses": ["204", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["channelId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /support/channels/unread": {
+    "operationId": "SupportChatController_unread",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /support/channels/{channelId}/attachments/ticket": {
+    "operationId": "SupportAttachmentsController_ticket",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["channelId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /support/attachments/{attachmentId}/content": {
+    "operationId": "SupportAttachmentsController_content",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["attachmentId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/support/cases": {
+    "operationId": "InternalSupportController_workQueue",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/support/cases/{caseId}": {
+    "operationId": "InternalSupportController_detail",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/support/cases/{caseId}/timeline": {
+    "operationId": "InternalSupportController_timeline",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/support/cases/{caseId}/triage": {
+    "operationId": "InternalSupportController_triage",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/support/cases/{caseId}/claim": {
+    "operationId": "InternalSupportController_claim",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/support/cases/{caseId}/transfer": {
+    "operationId": "InternalSupportController_transfer",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/support/cases/{caseId}/escalate": {
+    "operationId": "InternalSupportController_escalate",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/support/cases/{caseId}/notes": {
+    "operationId": "InternalSupportController_note",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/support/cases/{caseId}/links": {
+    "operationId": "InternalSupportController_link",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/support/cases/{caseId}/resolve": {
+    "operationId": "InternalSupportController_resolve",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/support/cases/{caseId}/close": {
+    "operationId": "InternalSupportController_close",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/support/categories": {
+    "operationId": "InternalSupportCatalogController_categories",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/support/queues": {
+    "operationId": "InternalSupportCatalogController_queues",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/support/codes": {
+    "operationId": "InternalSupportCatalogController_codes",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/support/desk/queue": {
+    "operationId": "InternalSupportDeskController_queue",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/support/desk/presence": {
+    "operationId": "InternalSupportDeskController_presence",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/support/desk/channels/{channelId}/claim": {
+    "operationId": "InternalSupportDeskController_claim",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["channelId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/support/desk/channels/{channelId}/integrity": {
+    "operationId": "InternalSupportDeskController_integrity",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["channelId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/support/desk/agents": {
+    "operationId": "InternalSupportDeskController_agents",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/support/desk/agents": {
+    "operationId": "InternalSupportDeskController_createAgent",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "DELETE /internal/support/desk/agents/{agentProfileId}": {
+    "operationId": "InternalSupportDeskController_deactivateAgent",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["agentProfileId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/support/desk/sla/sweep": {
+    "operationId": "InternalSupportDeskController_sweep",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /admin/support/knowledge/articles": {
+    "operationId": "SupportKnowledgeAdminController_createArticle",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /admin/support/knowledge/articles/{articleId}/versions": {
+    "operationId": "SupportKnowledgeAdminController_createVersion",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["articleId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /admin/support/knowledge/versions/{versionId}/submit-review": {
+    "operationId": "SupportKnowledgeAdminController_submitReview",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["versionId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /admin/support/knowledge/versions/{versionId}/approve": {
+    "operationId": "SupportKnowledgeAdminController_approve",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["versionId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /admin/support/knowledge/versions/{versionId}/publish": {
+    "operationId": "SupportKnowledgeAdminController_publish",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["versionId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /app-content": {
+    "operationId": "AppContentController_list",
+    "responses": ["200", "400", "429", "500"],
+    "headers": [],
+    "query": ["locale", "surface"],
+    "path": [],
+    "security": [],
+    "body": false
+  },
+  "GET /operations/app-content": {
+    "operationId": "AppContentOperationsController_list",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PUT /operations/app-content": {
+    "operationId": "AppContentOperationsController_upsert",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "DELETE /operations/app-content/{contentId}": {
+    "operationId": "AppContentOperationsController_remove",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["contentId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /health": {
+    "operationId": "HealthController_check",
+    "responses": ["200", "400", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": false
+  },
+  "GET /health/liveness": {
+    "operationId": "HealthController_liveness",
+    "responses": ["200", "400", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": false
+  },
+  "GET /health/readiness": {
+    "operationId": "HealthController_readiness",
+    "responses": ["200", "400", "429", "500", "503"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": false
+  },
+  "GET /operations/catalogs": {
+    "operationId": "CatalogManagementController_listCatalogs",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["active", "domain", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/catalogs/{catalogCode}/versions/{versionId}": {
+    "operationId": "CatalogManagementController_getCatalogVersion",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["catalogCode", "versionId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/catalogs/{catalogCode}/versions": {
+    "operationId": "CatalogManagementController_createCatalogVersion",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["catalogCode"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/catalogs/{catalogCode}/versions/{versionId}/submit-for-approval": {
+    "operationId": "CatalogManagementController_submitCatalogVersion",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["catalogCode", "versionId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/catalogs/{catalogCode}/versions/{versionId}/decision": {
+    "operationId": "CatalogManagementController_decideCatalogVersion",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["catalogCode", "versionId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/catalog-ingestions": {
+    "operationId": "CatalogManagementController_ingestCatalog",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/catalog-staging-items/decision-batch": {
+    "operationId": "CatalogManagementController_decideStagingItems",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/definitions": {
+    "operationId": "CatalogManagementController_listDefinitions",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["domain", "status", "type"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/definitions/package": {
+    "operationId": "CatalogManagementController_upsertDefinitionsPackage",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/risk-policy/current": {
+    "operationId": "CatalogGovernanceController_getCurrentRiskPolicy",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/risk-policy/ruleset-versions": {
+    "operationId": "CatalogGovernanceController_createRiskRulesetVersion",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/risk-policy/ruleset-versions/{rulesetVersionId}/activate": {
+    "operationId": "CatalogGovernanceController_activateRiskRulesetVersion",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["rulesetVersionId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/data-governance/policies": {
+    "operationId": "CatalogGovernanceController_getDataGovernancePolicies",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/data-governance/policy-package": {
+    "operationId": "CatalogGovernanceController_upsertDataGovernancePackage",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /merchant/auth/login": {
+    "operationId": "MerchantAuthController_login",
+    "responses": ["200", "400", "401", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "POST /merchant/auth/refresh": {
+    "operationId": "MerchantAuthController_refresh",
+    "responses": ["200", "400", "401", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "POST /merchant/auth/logout": {
+    "operationId": "MerchantAuthController_logout",
+    "responses": ["200", "400", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": true
+  },
+  "GET /merchant/auth/me": {
+    "operationId": "MerchantAuthController_me",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /merchant/users/provisioning-requests": {
+    "operationId": "MerchantUsersController_enqueueRequest",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/users/provisioning-requests": {
+    "operationId": "MerchantUsersController_listRequests",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/users/provisioning-requests/{requestId}": {
+    "operationId": "MerchantUsersController_getRequest",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["requestId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /merchant/users/provisioning-requests/{requestId}/approve": {
+    "operationId": "MerchantUsersController_approveRequest",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["requestId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /merchant/users/provisioning-requests/{requestId}/reject": {
+    "operationId": "MerchantUsersController_rejectRequest",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["requestId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/users": {
+    "operationId": "MerchantUsersController_list",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/users/{merchantUserId}": {
+    "operationId": "MerchantUsersController_get",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["merchantUserId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /merchant/users/{merchantUserId}/status": {
+    "operationId": "MerchantUsersController_updateStatus",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["merchantUserId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /mobile/identity-verifications": {
+    "operationId": "MobileIdentityController_start",
+    "responses": ["202", "400", "401", "403", "409", "429", "500", "503"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /mobile/identity-verifications/{verificationId}": {
+    "operationId": "MobileIdentityController_get",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["verificationId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /mobile/welcome-audio": {
+    "operationId": "MobileWelcomeAudioController_start",
+    "responses": ["202", "400", "401", "403", "409", "429", "500", "503"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /mobile/welcome-audio/{requestId}": {
+    "operationId": "MobileWelcomeAudioController_get",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["requestId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /mobile/welcome-audio/{requestId}/audio": {
+    "operationId": "MobileWelcomeAudioController_audio",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["requestId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /mobile/customers/{customerId}/payment-claims/instructions/{installmentId}": {
+    "operationId": "MobilePaymentClaimsController_instruction",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId", "installmentId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /mobile/customers/{customerId}/payment-claims/proof-tickets": {
+    "operationId": "MobilePaymentClaimsController_createTicket",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /mobile/customers/{customerId}/payment-claims": {
+    "operationId": "MobilePaymentClaimsController_submit",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/partners/{partnerId}/payment-claims": {
+    "operationId": "MerchantPaymentClaimsController_list",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/partners/{partnerId}/payment-claims/portfolio": {
+    "operationId": "MerchantPaymentClaimsController_portfolio",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /merchant/partners/{partnerId}/payment-claims/{claimId}/proof": {
+    "operationId": "MerchantPaymentClaimsController_proof",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["claimId", "partnerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /merchant/partners/{partnerId}/payment-claims/{claimId}/verification": {
+    "operationId": "MerchantPaymentClaimsController_decide",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["claimId", "partnerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customers/{customerId}/address-book": {
+    "operationId": "CustomerDeviceSignalsController_syncAddressBook",
+    "responses": ["202", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "DELETE /customers/{customerId}/address-book": {
+    "operationId": "CustomerDeviceSignalsController_purgeAddressBook",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /customers/{customerId}/location-pings": {
+    "operationId": "CustomerDeviceSignalsController_ingestLocationPings",
+    "responses": ["202", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /customers/{customerId}/privacy/consent-decisions": {
+    "operationId": "CustomerPrivacyController_registerConsentDecisions",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /customers/{customerId}/privacy/data-subject-requests": {
+    "operationId": "CustomerPrivacyController_createDataSubjectRequest",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /customers/{customerId}/telemetry/batch": {
+    "operationId": "CustomerTelemetryController_ingestBatch",
+    "responses": ["202", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/work-queue": {
+    "operationId": "OperationsController_getWorkQueue",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["priority", "queue", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/manual-review-cases": {
+    "operationId": "OperationsController_getManualReviewCasesCursorPage",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["cursor", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/fraud-cases": {
+    "operationId": "OperationsController_getFraudCasesCursorPage",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["cursor", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/customers/{customerId}/investigation-summary": {
+    "operationId": "OperationsController_getInvestigationSummary",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/manual-review-cases/{caseId}/decision": {
+    "operationId": "OperationsController_decideManualReviewCase",
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/fraud-cases/{caseId}/decision": {
+    "operationId": "OperationsController_decideFraudCase",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["caseId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/data-quality/issues": {
+    "operationId": "DataQualityController_listIssues",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["customerId", "entityType", "severity", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/data-quality/issues/{issueId}/resolve": {
+    "operationId": "DataQualityController_resolveIssue",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["issueId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/audit/customer/{customerId}": {
+    "operationId": "AuditController_getCustomerAudit",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": ["eventType", "from", "to"],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/audit/customer/{customerId}/feed": {
+    "operationId": "AuditController_getCustomerAuditFeed",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": ["cursor"],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/dashboard": {
+    "operationId": "SystemsCatalogController_getDashboard",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/endpoints": {
+    "operationId": "SystemsCatalogController_listEndpoints",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["backendService", "limit", "module", "page", "q", "reviewStatus", "riskLevel", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/endpoints/{endpointId}": {
+    "operationId": "SystemsCatalogController_getEndpoint",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["endpointId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /systems/endpoints/discover": {
+    "operationId": "SystemsCatalogController_discoverEndpoints",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /systems/endpoints/catalog-seed/refresh": {
+    "operationId": "SystemsCatalogController_refreshCatalogSeed",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /systems/tools": {
+    "operationId": "SystemsCatalogController_listTools",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "module", "page", "q", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/tools/{toolId}": {
+    "operationId": "SystemsCatalogController_getTool",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["toolId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /systems/tools/infer-requirements": {
+    "operationId": "SystemsCatalogController_inferToolRequirements",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /systems/data-entities/infer-impacts": {
+    "operationId": "SystemsCatalogController_inferDataImpacts",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /systems/data-entities": {
+    "operationId": "SystemsCatalogController_listDataEntities",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "module", "page", "q", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/domains": {
+    "operationId": "SystemsCatalogController_listDomains",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "page", "q"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/domains/overview": {
+    "operationId": "SystemsCatalogController_getDomainOverview",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/domains/{domainCode}": {
+    "operationId": "SystemsCatalogController_getDomain",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["domainCode"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/data-entities/{entityId}": {
+    "operationId": "SystemsCatalogController_getDataEntity",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["entityId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /systems/data-entities/{entityId}/metadata": {
+    "operationId": "SystemsCatalogController_updateDataEntityMetadata",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["entityId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /systems/impact/by-endpoint/{endpointId}": {
+    "operationId": "SystemsCatalogController_getImpactByEndpoint",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["endpointId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/impact/by-table/{schemaName}/{tableName}": {
+    "operationId": "SystemsCatalogController_getImpactByTable",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["schemaName", "tableName"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/health/tools": {
+    "operationId": "SystemsCatalogController_getToolsHealth",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/review-queue": {
+    "operationId": "SystemsReviewController_getReviewQueue",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "module", "page", "reviewStatus", "type"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /systems/endpoints/{endpointId}/review": {
+    "operationId": "SystemsReviewController_reviewEndpoint",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["endpointId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /systems/tools/requirements/{requirementId}/review": {
+    "operationId": "SystemsReviewController_reviewToolRequirement",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["requirementId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /systems/data-entities/{entityId}/review": {
+    "operationId": "SystemsReviewController_reviewDataEntity",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["entityId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /systems/impact/data/{impactId}/review": {
+    "operationId": "SystemsReviewController_reviewDataImpact",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["impactId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /systems/impact/fields/{fieldImpactId}/review": {
+    "operationId": "SystemsReviewController_reviewFieldImpact",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["fieldImpactId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /systems/data-entities/columns/{columnId}/review": {
+    "operationId": "SystemsReviewController_reviewDataColumn",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["columnId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /systems/test-suites": {
+    "operationId": "SystemsTestController_createTestSuite",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /systems/test-suites": {
+    "operationId": "SystemsTestController_listTestSuites",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["enabled", "limit", "module", "page", "suiteType"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/test-suites/{suiteId}": {
+    "operationId": "SystemsTestController_getTestSuite",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["suiteId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /systems/test-suites/{suiteId}": {
+    "operationId": "SystemsTestController_updateTestSuite",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["suiteId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /systems/test-suites/{suiteId}/steps": {
+    "operationId": "SystemsTestController_createTestStep",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["suiteId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "PATCH /systems/test-suites/{suiteId}/steps/{stepId}": {
+    "operationId": "SystemsTestController_updateTestStep",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["stepId", "suiteId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /systems/test-suites/{suiteId}/steps/reorder": {
+    "operationId": "SystemsTestController_reorderTestSteps",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["suiteId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /systems/test-suites/{suiteId}/run": {
+    "operationId": "SystemsTestController_runTestSuite",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["suiteId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /systems/test-runs": {
+    "operationId": "SystemsTestController_listTestRuns",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["environment", "limit", "page", "status", "suiteId"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/test-runs/{runId}": {
+    "operationId": "SystemsTestController_getTestRun",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["runId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/stress-profiles": {
+    "operationId": "SystemsStressController_listStressProfiles",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["enabled", "endpointId", "limit", "page", "q", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /systems/stress-profiles": {
+    "operationId": "SystemsStressController_upsertStressProfile",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /systems/stress-profiles/{profileId}": {
+    "operationId": "SystemsStressController_getStressProfile",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["profileId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /systems/stress-profiles/{profileId}/queue-run": {
+    "operationId": "SystemsStressController_queueStressRun",
+    "responses": ["201", "400", "401", "403", "404", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["profileId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /systems/stress-matrix": {
+    "operationId": "SystemsStressController_getStressMatrix",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "module", "page", "q", "reviewStatus", "riskLevel", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/stress-runs": {
+    "operationId": "SystemsStressController_listStressRuns",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["environment", "limit", "page", "status", "suiteId"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/action-logs": {
+    "operationId": "SystemsActionLogController_listActionLogs",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [
+      "actorType",
+      "containsPii",
+      "correlationId",
+      "endpointId",
+      "from",
+      "limit",
+      "method",
+      "module",
+      "page",
+      "requestId",
+      "riskLevel",
+      "statusCode",
+      "to"
+    ],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/action-logs/filter-catalog": {
+    "operationId": "SystemsActionLogController_getActionLogFilterCatalog",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/action-logs/request/{requestId}": {
+    "operationId": "SystemsActionLogController_getActionLogsByRequestAlias",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["requestId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/action-logs/by-request/{requestId}": {
+    "operationId": "SystemsActionLogController_getActionLogsByRequest",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["requestId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/reports/traffic-latency": {
+    "operationId": "SystemsActionLogController_getTrafficLatencyReport",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["windowHours"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/reports/traffic-latency-timeseries": {
+    "operationId": "SystemsActionLogController_getTrafficLatencyTimeseries",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["windowHours"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/blocks": {
+    "operationId": "SystemsNetworkController_listBlocks",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/health/network": {
+    "operationId": "SystemsNetworkController_getNetworkHealth",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /systems/blocks/federate": {
+    "operationId": "SystemsNetworkController_federateAll",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /systems/blocks/{systemCode}/federate": {
+    "operationId": "SystemsNetworkController_federateBlock",
+    "responses": ["201", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["systemCode"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/decision-engine/artifacts": {
+    "operationId": "SystemsNetworkController_listActiveArtifacts",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/documentation-gate": {
+    "operationId": "SystemFlowsReviewController_documentationGate",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/review-queue": {
+    "operationId": "SystemFlowsReviewController_reviewQueue",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /systems/flows/{flowId}/review": {
+    "operationId": "SystemFlowsReviewController_reviewFlow",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["flowId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /systems/flows/summary": {
+    "operationId": "SystemFlowsController_summary",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/business": {
+    "operationId": "SystemFlowsController_businessFlows",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/pending-work": {
+    "operationId": "SystemFlowsController_pendingWork",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["windowDays"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/rbac-drift": {
+    "operationId": "SystemFlowsController_rbacDrift",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/modules": {
+    "operationId": "SystemFlowsController_modules",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows": {
+    "operationId": "SystemFlowsController_list",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/screens": {
+    "operationId": "SystemFlowsController_screens",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/findings": {
+    "operationId": "SystemFlowsController_findings",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/imports": {
+    "operationId": "SystemFlowsController_imports",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/import/contract": {
+    "operationId": "SystemFlowsController_importContract",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/graph": {
+    "operationId": "SystemFlowsController_moduleGraph",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/{flowId}/graph": {
+    "operationId": "SystemFlowsController_flowGraph",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["flowId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/flows/{flowId}": {
+    "operationId": "SystemFlowsController_detail",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["flowId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /systems/flows/verify": {
+    "operationId": "SystemFlowsController_verify",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /systems/flows/import/endpoints": {
+    "operationId": "SystemFlowsController_importEndpoints",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /systems/flows/import/screens": {
+    "operationId": "SystemFlowsController_importScreens",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /systems/flows/import/findings": {
+    "operationId": "SystemFlowsController_importFindings",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/schema/versions": {
+    "operationId": "SchemaManagementController_listVersions",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["includeInactive", "limit", "offset"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/schema/versions/{versionId}": {
+    "operationId": "SchemaManagementController_getVersion",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["versionId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/schema/versions/{versionId}/schemas": {
+    "operationId": "SchemaManagementController_listVersionSchemas",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["versionId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/schema/tables": {
+    "operationId": "SchemaManagementController_listTables",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "offset", "schemaName", "tableType", "versionId"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/schema/tables": {
+    "operationId": "SchemaManagementController_proposeTable",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/schema/tables/{tableId}": {
+    "operationId": "SchemaManagementController_getTable",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["tableId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/schema/change-log": {
+    "operationId": "SchemaManagementController_listChangeLog",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["approvalStatus", "changeType", "limit", "offset", "requesterUserId"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PATCH /operations/schema/change-log/{changeId}/approve": {
+    "operationId": "SchemaManagementController_approveChange",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["changeId"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /internal/business-metadata/glossary": {
+    "operationId": "InternalPortalController_listBusinessTerms",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "page", "pageSize", "q"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/business-metadata/terms/{termId}": {
+    "operationId": "InternalPortalController_getBusinessTerm",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["termId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/exports": {
+    "operationId": "InternalPortalController_listExports",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/exports/{exportId}": {
+    "operationId": "InternalPortalController_getExport",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["exportId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/data-quality/rules": {
+    "operationId": "InternalPortalController_listDataQualityRules",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "page", "pageSize", "q"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/data-quality/rules/{ruleId}": {
+    "operationId": "InternalPortalController_getDataQualityRule",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["ruleId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/governance/policies/{policyId}": {
+    "operationId": "InternalPortalController_getGovernancePolicy",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["policyId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/lineage": {
+    "operationId": "InternalPortalController_getLineage",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/lineage/nodes/{nodeId}": {
+    "operationId": "InternalPortalController_getLineageNode",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["nodeId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/lineage/impact": {
+    "operationId": "InternalPortalController_getLineageImpact",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/alerts": {
+    "operationId": "InternalPortalController_listAlerts",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "page", "pageSize", "q"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/alerts/{alertId}/acknowledge": {
+    "operationId": "InternalPortalController_acknowledgeAlert",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["alertId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/jobs": {
+    "operationId": "InternalPortalController_listJobs",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "page", "pageSize", "q"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/jobs/{jobRunId}": {
+    "operationId": "InternalPortalController_getJob",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["jobRunId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/release-readiness": {
+    "operationId": "InternalPortalController_getReleaseReadiness",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/reports": {
+    "operationId": "InternalPortalController_listReports",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/reports/{reportId}": {
+    "operationId": "InternalPortalController_getReport",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["reportId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /internal/reports/{reportId}/run": {
+    "operationId": "InternalPortalController_runReport",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["reportId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/search": {
+    "operationId": "InternalPortalController_search",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "page", "pageSize", "q"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/views/customers": {
+    "operationId": "AdminReadController_listCustomers",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["fields"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/views/risk-assessments": {
+    "operationId": "AdminReadController_listRiskAssessments",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["fields"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/views/work-queue": {
+    "operationId": "AdminReadController_listWorkQueue",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["fields"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/views/provider-health": {
+    "operationId": "AdminReadController_listProviderHealth",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["fields"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/views/notification-deliveries": {
+    "operationId": "AdminReadController_listNotificationDeliveries",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["fields"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/views/endpoint-coverage": {
+    "operationId": "AdminReadController_listEndpointCoverage",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["fields"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /internal/views/audit-events": {
+    "operationId": "AdminReadController_listAuditEvents",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["fields"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /systems/logs/mongo": {
+    "operationId": "MongoLogsController_listMongoLogs",
+    "responses": ["200", "400", "401", "403", "429", "500", "503"],
+    "headers": [],
+    "query": ["from", "limit", "page", "q", "service", "to", "type"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /workflows": {
+    "operationId": "WorkflowCatalogController_list",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["includeDeprecated", "moduleCode", "ownerDomain", "processType", "role", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /workflows/{workflowCode}/versions": {
+    "operationId": "WorkflowCatalogController_listVersions",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["workflowCode"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /workflows/{workflowCode}": {
+    "operationId": "WorkflowCatalogController_getTree",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": ["actorType", "lifecycleStatus", "moduleCode", "role", "version"],
+    "path": ["workflowCode"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /workflows/{workflowCode}/stages": {
+    "operationId": "WorkflowCatalogController_listStages",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["workflowCode"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /workflows/{workflowCode}/transitions": {
+    "operationId": "WorkflowCatalogController_listTransitions",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["workflowCode"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /workflows/{workflowCode}/graph": {
+    "operationId": "WorkflowCatalogController_getGraph",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["workflowCode"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /workflows/{workflowCode}/transitions/validate": {
+    "operationId": "WorkflowCatalogController_validateTransition",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["workflowCode"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /customers/{customerId}/workflow-progress": {
+    "operationId": "WorkflowProgressController_getProgress",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": ["version", "workflowCode"],
+    "path": ["customerId"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/workflows/{workflowCode}/consistency": {
+    "operationId": "WorkflowOperationsController_checkConsistency",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": ["version"],
+    "path": ["workflowCode"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /data-notebook/datasets": {
+    "operationId": "DataNotebookController_listDatasets",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /data-notebook/datasets/{code}/schema": {
+    "operationId": "DataNotebookController_describeDataset",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["code"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /data-notebook/history": {
+    "operationId": "DataNotebookController_recordHistory",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /data-notebook/history": {
+    "operationId": "DataNotebookController_listHistory",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": ["limit", "offset"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /data-notebook/datasets/{code}/rows": {
+    "operationId": "DataNotebookController_readRows",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": ["orderBy", "orderDirection", "page", "pageSize"],
+    "path": ["code"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /data-notebook/notebooks": {
+    "operationId": "DataNotebookController_listNotebooks",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /data-notebook/notebooks": {
+    "operationId": "DataNotebookController_createNotebook",
+    "responses": ["201", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /data-notebook/notebooks/{id}": {
+    "operationId": "DataNotebookController_readNotebook",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "PUT /data-notebook/notebooks/{id}": {
+    "operationId": "DataNotebookController_updateNotebook",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id"],
+    "security": ["access-token"],
+    "body": true
+  },
+  "DELETE /data-notebook/notebooks/{id}": {
+    "operationId": "DataNotebookController_deleteNotebook",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["id"],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /sql-console/catalog": {
+    "operationId": "SqlConsoleController_catalogo",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /sql-console/validate": {
+    "operationId": "SqlConsoleController_validar",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /sql-console/query": {
+    "operationId": "SqlConsoleController_ejecutar",
+    "responses": ["200", "400", "401", "403", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /sql-console/history": {
+    "operationId": "SqlConsoleController_historial",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  }
+}

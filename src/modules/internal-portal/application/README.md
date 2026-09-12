@@ -21,6 +21,7 @@
 | [`portal-query.base.ts`](./portal-query.base.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`portal-report-definitions.ts`](./portal-report-definitions.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`portal-reports.service.ts`](./portal-reports.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`portal-scope.util.ts`](./portal-scope.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`portal-search.service.ts`](./portal-search.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento

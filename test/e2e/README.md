@@ -16,6 +16,7 @@
 ## Subcarpetas
 
 - [`catalog-management/`](./catalog-management/README.md)
+- [`loans/`](./loans/README.md)
 - [`notifications/`](./notifications/README.md)
 - [`systems-ops/`](./systems-ops/README.md)
 - [`user-types/`](./user-types/README.md)

@@ -5,19 +5,18 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindAndCountOptions, FindOptions, Op, Transaction, WhereOptions } from 'sequelize';
-import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
-import { decodeCursor, encodeCursor } from '../../common/utils/pagination/cursor-pagination.util.js';
+import { FindOptions, Op, Transaction } from 'sequelize';
+
 import {
   CustomerObservationModel,
   CustomerStatusEventModel,
   DataChangeLogModel,
   FraudCaseModel,
+  IdentityVerificationAttemptModel,
   ManualReviewCaseModel,
   ManualReviewEventModel,
   OperationalAuditLogModel,
 } from '../../database/models/index.js';
-import { WorkQueueQueryDto } from './operations.schemas.js';
 
 /**
  * Repositorio de operaciones.
@@ -35,175 +34,34 @@ export class OperationsRepository {
     @InjectModel(OperationalAuditLogModel) private readonly operationalAuditLogModel: typeof OperationalAuditLogModel,
     @InjectModel(DataChangeLogModel) private readonly dataChangeLogModel: typeof DataChangeLogModel,
     @InjectModel(CustomerObservationModel) private readonly customerObservationModel: typeof CustomerObservationModel,
+    @InjectModel(IdentityVerificationAttemptModel)
+    private readonly identityAttemptModel: typeof IdentityVerificationAttemptModel,
   ) {}
 
-  async findManualReviewCasesForQueue(tenantId: string, query: WorkQueueQueryDto) {
-    const where: WhereOptions = {
-      tenantId,
-      deleted: { [Op.ne]: true },
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.priority ? { priority: query.priority } : {}),
-      ...(query.customerId ? { customerId: query.customerId } : {}),
-    };
-
-    const orderField = query.sortBy === 'updatedAt' ? 'updatedAtValue' : 'createdAtValue';
-    const orderDir = query.sortOrder.toUpperCase() as 'ASC' | 'DESC';
-
-    const result = await this.manualReviewCaseModel.findAndCountAll({
-      where,
-      order: [
-        [orderField, orderDir],
-        ['id', 'DESC'],
-      ],
-      limit: query.limit,
-      offset: toOffset({ page: query.page, limit: query.limit }),
-    } as FindAndCountOptions);
-
-    return {
-      rows: result.rows,
-      meta: buildPaginationMeta({ page: query.page, limit: query.limit }, result.count),
-    };
-  }
-
   /**
-   * ATLAS-P11-T10 (continúa ATLAS-PEND-102 / RC-06, siguiendo el mismo patrón ya aplicado en
-   * `data-quality.repository.ts::findIssuesWithCursor` y `events.repository.ts::listWithCursor`):
-   * variante por cursor de `findManualReviewCasesForQueue()`. Respeta el mismo campo de orden
-   * dinámico (`createdAtValue` o `updatedAtValue`, según `query.sortBy`) que la versión OFFSET,
-   * por lo que el cursor codifica el valor de *ese* campo, no siempre `createdAt` — el nombre
-   * `createdAt` dentro de `CursorKey` es solo la etiqueta del campo de ordenamiento usado, no
-   * necesariamente la columna `created_at`.
+   * El último intento de verificación de identidad del cliente, de cualquier canal.
    *
-   * `findManualReviewCasesForQueue()` (OFFSET) se mantiene sin cambios por compatibilidad. Esta
-   * es la variante recomendada para listados nuevos de alto volumen del panel de operaciones.
+   * De CUALQUIER canal a propósito: quien investiga un caso necesita el estado
+   * actual de la identidad, no el de una vía concreta. Filtrar por canal aquí
+   * escondería una verificación de sucursal a quien mira un caso que llegó por el
+   * móvil, y al revés — que es exactamente la información que hace falta para
+   * saber si el expediente ya tiene respuesta.
+   */
+  /*
+   * Sin filtro por `deleted`: esa columna NO existe en `identity_verification_attempts`.
    *
-   * Nota de alcance: `getWorkQueue()` combina esta cola con `findFraudCasesForQueueWithCursor()`
-   * en una sola vista mezclada para el operador. Fusionar dos fuentes de cursor heterogéneas en
-   * una sola página ordenada es un problema estructuralmente equivalente al fan-in de 5 tablas
-   * de `audit.repository.ts` (ver `ATLAS-PEND-102`): requiere una vista unificada, no solo un
-   * cambio de repositorio. Por eso `getWorkQueue()` sigue usando las variantes OFFSET por ahora;
-   * las variantes por cursor de este archivo quedan listas para exponerse como endpoints propios
-   * no combinados (`GET /operations/manual-review-cases`, `GET /operations/fraud-cases`) sin
-   * esperar a que se resuelva la fusión completa.
+   * El filtro estaba copiado de las consultas de `customers`, donde sí existe, y hacía que
+   * Sequelize generara `WHERE ... AND "IdentityVerificationAttemptModel"."deleted" != true`
+   * contra una columna inexistente: PostgreSQL respondía 42703 y el endpoint devolvía 500 en
+   * producción (medido el 2026-09-07 en `system_action_logs`, y detectado por Flujos al cruzar el
+   * catálogo con esas corridas). Los intentos de verificación no se borran ni lógicamente: son
+   * evidencia, y por eso la tabla no tiene la columna.
    */
-  async findManualReviewCasesForQueueWithCursor(
-    tenantId: string,
-    query: { status?: string; priority?: string; customerId?: string; sortBy: 'createdAt' | 'updatedAt'; limit: number; cursor?: string },
-  ): Promise<{ items: ManualReviewCaseModel[]; nextCursor: string | null }> {
-    const orderField = query.sortBy === 'updatedAt' ? 'updatedAtValue' : 'createdAtValue';
-
-    const where: Record<string, unknown> = {
-      tenantId,
-      deleted: { [Op.ne]: true },
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.priority ? { priority: query.priority } : {}),
-      ...(query.customerId ? { customerId: query.customerId } : {}),
-    };
-
-    const cursorKey = decodeCursor(query.cursor);
-    if (cursorKey) {
-      where[Op.and as unknown as string] = [
-        {
-          [Op.or]: [
-            { [orderField]: { [Op.lt]: new Date(cursorKey.createdAt) } },
-            { [Op.and]: [{ [orderField]: new Date(cursorKey.createdAt) }, { id: { [Op.lt]: cursorKey.id } }] },
-          ],
-        },
-      ];
-    }
-
-    const rowsPlusOne = await this.manualReviewCaseModel.findAll({
-      where: where as never,
-      order: [
-        [orderField, 'DESC'],
-        ['id', 'DESC'],
-      ],
-      limit: query.limit + 1,
+  findLatestIdentityAttempt(tenantId: string, customerId: string): Promise<IdentityVerificationAttemptModel | null> {
+    return this.identityAttemptModel.findOne({
+      where: { tenantId, customerId },
+      order: [['_id', 'DESC']],
     } as FindOptions);
-
-    const hasMore = rowsPlusOne.length > query.limit;
-    const items = hasMore ? rowsPlusOne.slice(0, query.limit) : rowsPlusOne;
-    const last = items[items.length - 1] as (ManualReviewCaseModel & Record<string, unknown>) | undefined;
-    const lastOrderValue = last ? (last[orderField] as Date | undefined) : undefined;
-    const nextCursor = hasMore && last && lastOrderValue ? encodeCursor({ createdAt: lastOrderValue.toISOString(), id: last.id }) : null;
-
-    return { items, nextCursor };
-  }
-
-  async findFraudCasesForQueue(tenantId: string, query: WorkQueueQueryDto) {
-    const where: WhereOptions = {
-      tenantId,
-      deleted: { [Op.ne]: true },
-      ...(query.status ? { caseStatus: query.status } : {}),
-      ...(query.priority ? { severity: query.priority } : {}),
-      ...(query.customerId ? { customerId: query.customerId } : {}),
-    };
-
-    const orderField = query.sortBy === 'updatedAt' ? 'updatedAtValue' : 'createdAtValue';
-    const orderDir = query.sortOrder.toUpperCase() as 'ASC' | 'DESC';
-
-    const result = await this.fraudCaseModel.findAndCountAll({
-      where,
-      order: [
-        [orderField, orderDir],
-        ['id', 'DESC'],
-      ],
-      limit: query.limit,
-      offset: toOffset({ page: query.page, limit: query.limit }),
-    } as FindAndCountOptions);
-
-    return {
-      rows: result.rows,
-      meta: buildPaginationMeta({ page: query.page, limit: query.limit }, result.count),
-    };
-  }
-
-  /**
-   * ATLAS-P11-T10: variante por cursor de `findFraudCasesForQueue()`, mismo patrón y misma nota
-   * de alcance que `findManualReviewCasesForQueueWithCursor()` — ver el comentario allí.
-   */
-  async findFraudCasesForQueueWithCursor(
-    tenantId: string,
-    query: { status?: string; priority?: string; customerId?: string; sortBy: 'createdAt' | 'updatedAt'; limit: number; cursor?: string },
-  ): Promise<{ items: FraudCaseModel[]; nextCursor: string | null }> {
-    const orderField = query.sortBy === 'updatedAt' ? 'updatedAtValue' : 'createdAtValue';
-
-    const where: Record<string, unknown> = {
-      tenantId,
-      deleted: { [Op.ne]: true },
-      ...(query.status ? { caseStatus: query.status } : {}),
-      ...(query.priority ? { severity: query.priority } : {}),
-      ...(query.customerId ? { customerId: query.customerId } : {}),
-    };
-
-    const cursorKey = decodeCursor(query.cursor);
-    if (cursorKey) {
-      where[Op.and as unknown as string] = [
-        {
-          [Op.or]: [
-            { [orderField]: { [Op.lt]: new Date(cursorKey.createdAt) } },
-            { [Op.and]: [{ [orderField]: new Date(cursorKey.createdAt) }, { id: { [Op.lt]: cursorKey.id } }] },
-          ],
-        },
-      ];
-    }
-
-    const rowsPlusOne = await this.fraudCaseModel.findAll({
-      where: where as never,
-      order: [
-        [orderField, 'DESC'],
-        ['id', 'DESC'],
-      ],
-      limit: query.limit + 1,
-    } as FindOptions);
-
-    const hasMore = rowsPlusOne.length > query.limit;
-    const items = hasMore ? rowsPlusOne.slice(0, query.limit) : rowsPlusOne;
-    const last = items[items.length - 1] as (FraudCaseModel & Record<string, unknown>) | undefined;
-    const lastOrderValue = last ? (last[orderField] as Date | undefined) : undefined;
-    const nextCursor = hasMore && last && lastOrderValue ? encodeCursor({ createdAt: lastOrderValue.toISOString(), id: last.id }) : null;
-
-    return { items, nextCursor };
   }
 
   findOpenManualReviewCasesForCustomer(tenantId: string, customerId: string): Promise<ManualReviewCaseModel[]> {

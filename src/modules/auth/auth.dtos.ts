@@ -24,6 +24,17 @@ export type PasswordResetConfirmedResponseDto = {
   passwordChanged: boolean;
 };
 
+/**
+ * Respuesta del primer paso del cambio de contraseña. Misma forma que el desafío del login
+ * (`LoginPinChallengeResponseDto`) a propósito: el front reutiliza la pantalla del PIN sin
+ * aprender un segundo contrato para lo mismo.
+ */
+export type PasswordChangeChallengeResponseDto = {
+  pinChallengeRequired: true;
+  challengeToken: string;
+  expiresInMinutes: number;
+};
+
 export type LogoutResponseDto = {
   loggedOut: boolean;
 };

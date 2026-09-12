@@ -107,7 +107,10 @@ describe('DocumentStorageService', () => {
     // El servicio recibe ahora el escáner de malware. Se dobla como "limpio" porque estas pruebas
     // fijan el contrato de ALMACENAMIENTO (configuración, verificación del objeto declarado); el
     // veredicto del escáner tiene su propio spec.
-    const malwareScanner = { isEnabled: jest.fn(() => false), scan: jest.fn(async () => ({ clean: true, verdict: 'clean' })) };
+    const malwareScanner = {
+      isEnabled: jest.fn((..._args: unknown[]) => false),
+      scan: jest.fn(async (..._args: unknown[]) => ({ clean: true, verdict: 'clean' })),
+    };
     return new DocumentStorageService(malwareScanner as never);
   }
 
@@ -134,7 +137,7 @@ describe('DocumentStorageService', () => {
     const service = await buildService(CONFIGURED);
     const ticket = service.createUploadTicket({
       tenantId: '7',
-      customerId: '42',
+      subjectId: '42',
       documentType: 'identity_front',
       contentType: 'image/jpeg',
       sizeBytes: 2048,
@@ -150,7 +153,7 @@ describe('DocumentStorageService', () => {
     const service = await buildService(CONFIGURED);
     const pdf = service.createUploadTicket({
       tenantId: '7',
-      customerId: '42',
+      subjectId: '42',
       documentType: 'proof_of_address',
       contentType: 'application/pdf',
       sizeBytes: 10,
@@ -164,7 +167,7 @@ describe('DocumentStorageService', () => {
     expect(() =>
       service.createUploadTicket({
         tenantId: '7',
-        customerId: '42',
+        subjectId: '42',
         documentType: 'selfie',
         contentType: 'image/png',
         sizeBytes: 10,

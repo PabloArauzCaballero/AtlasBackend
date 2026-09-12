@@ -7,14 +7,16 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { ConsentDocumentModel, ConsentEventModel, CustomerConsentModel } from '../../database/models/index.js';
 import { CustomersModule } from '../customers/customers.module.js';
+import { ConsentDocumentAdminService } from './consent-document-admin.service.js';
+import { ConsentOperationsController } from './consent-operations.controller.js';
 import { ConsentsController } from './consents.controller.js';
 import { ConsentsRepository } from './consents.repository.js';
 import { ConsentsService } from './consents.service.js';
 
 @Module({
   imports: [SequelizeModule.forFeature([ConsentDocumentModel, CustomerConsentModel, ConsentEventModel]), CustomersModule],
-  controllers: [ConsentsController],
-  providers: [ConsentsRepository, ConsentsService],
+  controllers: [ConsentsController, ConsentOperationsController],
+  providers: [ConsentsRepository, ConsentsService, ConsentDocumentAdminService],
   exports: [ConsentsRepository],
 })
 export class ConsentsModule {}

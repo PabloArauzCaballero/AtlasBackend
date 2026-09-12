@@ -3,18 +3,11 @@
  * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
-import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException, OnModuleInit, Optional } from '@nestjs/common';
 import { assertAllProvidersConfigured } from '../../../common/resilience/provider-config-validator.js';
+import { EXTERNAL_PROVIDER_ADAPTERS, EXTERNAL_PROVIDER_ALIASES, PROVIDER_ALIASES } from '../infrastructure/external-provider.providers.js';
 import { ExternalDataRepository } from '../external-data.repository.js';
 import { ExternalProviderAdapter } from '../domain/external-provider-adapter.interface.js';
-import { SegipAdapter } from '../infrastructure/adapters/segip/segip.adapter.js';
-import { InfoCenterAdapter } from '../infrastructure/adapters/infocenter/infocenter.adapter.js';
-import { QrGenericAdapter } from '../infrastructure/adapters/qr-generic/qr-generic.adapter.js';
-import { BankingGenericAdapter } from '../infrastructure/adapters/banking-generic/banking-generic.adapter.js';
-import { TelcoGenericAdapter } from '../infrastructure/adapters/telco-generic/telco-generic.adapter.js';
-import { FacebookMetaAdapter } from '../infrastructure/adapters/facebook-meta/facebook-meta.adapter.js';
-import { WhatsappAdapter } from '../infrastructure/adapters/whatsapp/whatsapp.adapter.js';
-import { DigitalTrustGenericAdapter } from '../infrastructure/adapters/digital-trust-generic/digital-trust-generic.adapter.js';
 import {
   externalProviderBootRequirements,
   mockBaseUrlFor,
@@ -81,54 +74,50 @@ export class ExternalProviderRegistryService implements OnModuleInit {
     return this.blockedProviders;
   }
 
+  private readonly aliases: Readonly<Record<string, string>>;
+
   constructor(
     private readonly repository: ExternalDataRepository,
-    segipAdapter: SegipAdapter,
-    infoCenterAdapter: InfoCenterAdapter,
-    qrGenericAdapter: QrGenericAdapter,
-    bankingGenericAdapter: BankingGenericAdapter,
-    telcoGenericAdapter: TelcoGenericAdapter,
-    facebookMetaAdapter: FacebookMetaAdapter,
-    whatsappAdapter: WhatsappAdapter,
-    digitalTrustGenericAdapter: DigitalTrustGenericAdapter,
+    // AT-042: la aplicación recibe la colección; las clases concretas se ensamblan en infraestructura.
+    @Inject(EXTERNAL_PROVIDER_ADAPTERS) adapters: ExternalProviderAdapter[],
+    @Optional() @Inject(EXTERNAL_PROVIDER_ALIASES) aliases: Readonly<Record<string, string>> = PROVIDER_ALIASES,
   ) {
-    this.adapters = new Map(
-      [
-        segipAdapter,
-        infoCenterAdapter,
-        qrGenericAdapter,
-        bankingGenericAdapter,
-        telcoGenericAdapter,
-        facebookMetaAdapter,
-        whatsappAdapter,
-        digitalTrustGenericAdapter,
-      ].flatMap((adapter) => {
-        const entries: [string, ExternalProviderAdapter][] = [[adapter.providerCode, adapter]];
-        if (adapter.providerCode === 'SEGIP') entries.push(['CGIP', adapter]);
-        if (adapter.providerCode === 'QR_GENERIC') entries.push(['QR_BCB_GENERIC', adapter]);
-        return entries;
-      }),
-    );
+    this.aliases = aliases;
+    this.adapters = new Map();
+    for (const adapter of adapters) {
+      if (!adapter?.providerCode) throw new Error('EXTERNAL_PROVIDER_ADAPTER_WITHOUT_CODE');
+      if (this.adapters.has(adapter.providerCode)) throw new Error(`EXTERNAL_PROVIDER_CODE_DUPLICATED: ${adapter.providerCode}`);
+      this.adapters.set(adapter.providerCode, adapter);
+    }
+    for (const [alias, canonical] of Object.entries(this.aliases)) {
+      if (this.adapters.has(alias)) throw new Error(`EXTERNAL_PROVIDER_ALIAS_CONFLICT: ${alias} es alias y código a la vez`);
+      if (alias in this.aliases && canonical in this.aliases) throw new Error(`EXTERNAL_PROVIDER_ALIAS_CHAIN: ${alias}→${canonical}`);
+    }
+  }
+
+  /** Código canónico: resuelve alias heredados sin que el resto del servicio los conozca. */
+  private canonical(providerCode: string): string {
+    return this.aliases[providerCode] ?? providerCode;
   }
 
   hasAdapter(providerCode: string): boolean {
-    return this.adapters.has(providerCode === 'CGIP' ? 'SEGIP' : providerCode);
+    return this.adapters.has(this.canonical(providerCode));
   }
 
   requireAdapter(providerCode: string): ExternalProviderAdapter {
-    const adapter = this.adapters.get(providerCode === 'CGIP' ? 'SEGIP' : providerCode);
+    const adapter = this.adapters.get(this.canonical(providerCode));
     if (!adapter) throw new NotFoundException(`Adapter externo no implementado: ${providerCode}`);
     return adapter;
   }
 
   async requireProvider(providerCode: string) {
-    const provider = await this.repository.findProviderByCode(providerCode === 'CGIP' ? 'SEGIP' : providerCode);
+    const provider = await this.repository.findProviderByCode(this.canonical(providerCode));
     if (!provider || provider.isActive === false) throw new NotFoundException(`Provider externo no configurado: ${providerCode}`);
     return provider;
   }
 
   async requireProviderAllowDisabled(providerCode: string) {
-    const provider = await this.repository.findProviderByCode(providerCode === 'CGIP' ? 'SEGIP' : providerCode);
+    const provider = await this.repository.findProviderByCode(this.canonical(providerCode));
     if (!provider) throw new NotFoundException(`Provider externo no configurado: ${providerCode}`);
     return provider;
   }

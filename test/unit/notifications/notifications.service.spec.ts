@@ -10,31 +10,40 @@ import { NotificationsService } from '../../../src/modules/notifications/notific
 describe('NotificationsService', () => {
   function build() {
     const repository = {
-      listMessages: jest.fn(async () => ({ rows: [], count: 0 })),
-      getMessage: jest.fn(async () => ({ id: 1, channel: 'in_app', status: 'sent', save: jest.fn(async () => undefined) })),
-      listDeliveries: jest.fn(async () => []),
-      cancelMessage: jest.fn(async () => ({ id: 1, status: 'cancelled' })),
-      listTemplates: jest.fn(async () => ({ rows: [], count: 0 })),
-      createTemplate: jest.fn(async () => ({ id: 2, code: 'C' })),
-      updateTemplate: jest.fn(async () => ({ id: 2, code: 'C' })),
-      getPreferences: jest.fn(async () => []),
-      upsertPreferences: jest.fn(async () => []),
-      listCustomerMessages: jest.fn(async () => ({ rows: [], count: 0 })),
-      countUnreadCustomerMessages: jest.fn(async () => 3),
-      getCustomerMessage: jest.fn(async () => ({ id: 1 })),
-      markRead: jest.fn(async () => ({ id: 1, status: 'read' })),
-      markAllCustomerRead: jest.fn(async () => 4),
-      upsertDeviceToken: jest.fn(async () => ({ id: 5, customerId: 9 })),
-      deactivateDeviceToken: jest.fn(async () => ({ id: 5, customerId: 9 })),
-      listRecipientMessages: jest.fn(async () => ({ rows: [], count: 0 })),
-      countUnreadMessages: jest.fn(async () => 2),
-      getRecipientMessage: jest.fn(async () => ({ id: 1 })),
-      markAllRecipientRead: jest.fn(async () => 6),
+      listMessages: jest.fn(async (..._args: unknown[]) => ({ rows: [], count: 0 })),
+      getMessage: jest.fn(async (..._args: unknown[]) => ({
+        id: 1,
+        channel: 'in_app',
+        status: 'sent',
+        save: jest.fn(async (..._args: unknown[]) => undefined),
+      })),
+      listDeliveries: jest.fn(async (..._args: unknown[]) => []),
+      cancelMessage: jest.fn(async (..._args: unknown[]) => ({ id: 1, status: 'cancelled' })),
+      listTemplates: jest.fn(async (..._args: unknown[]) => ({ rows: [], count: 0 })),
+      createTemplate: jest.fn(async (..._args: unknown[]) => ({ id: 2, code: 'C' })),
+      updateTemplate: jest.fn(async (..._args: unknown[]) => ({ id: 2, code: 'C' })),
+      getPreferences: jest.fn(async (..._args: unknown[]) => []),
+      upsertPreferences: jest.fn(async (..._args: unknown[]) => []),
+      listCustomerMessages: jest.fn(async (..._args: unknown[]) => ({ rows: [], count: 0 })),
+      countUnreadCustomerMessages: jest.fn(async (..._args: unknown[]) => 3),
+      getCustomerMessage: jest.fn(async (..._args: unknown[]) => ({ id: 1 })),
+      markRead: jest.fn(async (..._args: unknown[]) => ({ id: 1, status: 'read' })),
+      markAllCustomerRead: jest.fn(async (..._args: unknown[]) => 4),
+      upsertDeviceToken: jest.fn(async (..._args: unknown[]) => ({ id: 5, customerId: 9 })),
+      deactivateDeviceToken: jest.fn(async (..._args: unknown[]) => ({ id: 5, customerId: 9 })),
+      listRecipientMessages: jest.fn(async (..._args: unknown[]) => ({ rows: [], count: 0 })),
+      countUnreadMessages: jest.fn(async (..._args: unknown[]) => 2),
+      getRecipientMessage: jest.fn(async (..._args: unknown[]) => ({ id: 1 })),
+      markAllRecipientRead: jest.fn(async (..._args: unknown[]) => 6),
     };
-    const orchestrator = { deliverMessage: jest.fn(async () => undefined) };
-    const broadcastService = { broadcast: jest.fn(async () => ({ created: 3 })) };
-    const service = new NotificationsService(repository as never, orchestrator as never, broadcastService as never);
-    return { service, repository, orchestrator, broadcastService };
+    const orchestrator = { deliverMessage: jest.fn(async (..._args: unknown[]) => undefined) };
+    const broadcastService = { broadcast: jest.fn(async (..._args: unknown[]) => ({ created: 3 })) };
+    // El catalogo de politicas: es de donde salen ahora el nombre, la explicacion y la
+    // obligatoriedad de cada aviso. Antes la pantalla solo enseñaba las filas ya guardadas del
+    // cliente, asi que quien nunca la habia tocado recibia una lista vacia.
+    const policies = { listActive: jest.fn(async (..._args: unknown[]) => []) };
+    const service = new NotificationsService(repository as never, orchestrator as never, broadcastService as never, policies as never);
+    return { service, repository, orchestrator, broadcastService, policies };
   }
 
   const customer = { role: 'customer', tenantId: '1', customerId: '9' } as never;
@@ -74,7 +83,7 @@ describe('NotificationsService', () => {
 
   it('retryMessage marca retrying, guarda, dispara el orchestrator y relee', async () => {
     const { service, repository, orchestrator } = build();
-    const save = jest.fn(async () => undefined);
+    const save = jest.fn(async (..._args: unknown[]) => undefined);
     (repository.getMessage as jest.Mock).mockResolvedValue({ id: 1, channel: 'in_app', status: 'failed', save } as never);
     await service.retryMessage('1', '1');
     expect(save).toHaveBeenCalledTimes(1);
@@ -111,7 +120,7 @@ describe('NotificationsService', () => {
   });
 
   it('createTemplate/updateTemplate/getPreferences/updatePreferences/cancelMessage delegan y mapean', async () => {
-    const { service, repository } = build();
+    const { service, repository, policies } = build();
     await service.createTemplate('1', { code: 'C' } as never);
     await service.updateTemplate('1', 't1', { code: 'C' } as never);
     await service.getPreferences('1', '9');
@@ -121,5 +130,8 @@ describe('NotificationsService', () => {
     expect(repository.updateTemplate).toHaveBeenCalledTimes(1);
     expect(repository.upsertPreferences).toHaveBeenCalledTimes(1);
     expect(repository.cancelMessage).toHaveBeenCalledTimes(1);
+    // Dos lecturas del catalogo: la consulta directa y la que devuelve `updatePreferences`, que
+    // responde con la MISMA forma para que la app repinte sin quedarse en blanco tras guardar.
+    expect(policies.listActive).toHaveBeenCalledTimes(2);
   });
 });

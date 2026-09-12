@@ -10,10 +10,10 @@ import { CatalogDefinitionsRepository } from '../../../src/modules/catalog-manag
 describe('CatalogDefinitionsRepository', () => {
   function buildRepo() {
     const models = {
-      observationDefinitionModel: { findAll: jest.fn(async () => []), findOne: asyncMock(), create: asyncMock() },
-      eventDefinitionModel: { findAll: jest.fn(async () => []), findOne: asyncMock(), create: asyncMock() },
-      attributeDefinitionModel: { findAll: jest.fn(async () => []), findOne: asyncMock(), create: asyncMock() },
-      featureDefinitionModel: { findAll: jest.fn(async () => []), findOne: asyncMock(), create: asyncMock() },
+      observationDefinitionModel: { findAll: jest.fn(async (..._args: unknown[]) => []), findOne: asyncMock(), create: asyncMock() },
+      eventDefinitionModel: { findAll: jest.fn(async (..._args: unknown[]) => []), findOne: asyncMock(), create: asyncMock() },
+      attributeDefinitionModel: { findAll: jest.fn(async (..._args: unknown[]) => []), findOne: asyncMock(), create: asyncMock() },
+      featureDefinitionModel: { findAll: jest.fn(async (..._args: unknown[]) => []), findOne: asyncMock(), create: asyncMock() },
     };
     const repo = new CatalogDefinitionsRepository(
       models.observationDefinitionModel as never,
@@ -61,7 +61,7 @@ describe('CatalogDefinitionsRepository', () => {
 
     it('upsertFeatureDefinition actualiza cuando ya existe el featureCode', async () => {
       const { repo, models } = buildRepo();
-      const existing = { update: jest.fn(async () => undefined) };
+      const existing = { update: jest.fn(async (..._args: unknown[]) => undefined) };
       (models.featureDefinitionModel.findOne as jest.Mock).mockResolvedValue(existing as never);
       const result = await repo.upsertFeatureDefinition({ featureCode: 'feat.x' }, {});
       expect(result).toEqual({ record: existing, created: false });

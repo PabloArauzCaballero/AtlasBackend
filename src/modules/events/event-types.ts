@@ -5,6 +5,13 @@
  */
 export type OutboxEventStatus = 'pending' | 'processing' | 'processed' | 'failed' | 'cancelled';
 
+/**
+ * AT-032: los eventos técnicos (`api_command`, sufijo `_completed`) son telemetría HTTP; los de dominio son hechos
+ * de negocio versionados. El sobre y la clasificación viven en `src/platform/events/integration-event.ts`.
+ */
+export type { EventCategory } from '../../platform/events/integration-event.js';
+export { categoryOf as eventCategoryOf } from '../../platform/events/integration-event.js';
+
 export type EventRegistryItem = {
   code: string;
   family: string;

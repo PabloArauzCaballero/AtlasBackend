@@ -15,10 +15,13 @@ import { buildNotificationsTestApp, authHeader } from './support/notifications-t
 describe('NotificationsController — internal-users/me/notifications (e2e/supertest)', () => {
   let app: INestApplication;
   const service = {
-    listMyNotifications: jest.fn(async () => ({ data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } })),
-    myUnreadCount: jest.fn(async () => ({ unread: 0 })),
-    markMyNotificationRead: jest.fn(async () => ({ id: '1', status: 'read' })),
-    markAllMyNotificationsRead: jest.fn(async () => ({ updated: 0 })),
+    listMyNotifications: jest.fn(async (..._args: unknown[]) => ({
+      data: [],
+      pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+    })),
+    myUnreadCount: jest.fn(async (..._args: unknown[]) => ({ unread: 0 })),
+    markMyNotificationRead: jest.fn(async (..._args: unknown[]) => ({ id: '1', status: 'read' })),
+    markAllMyNotificationsRead: jest.fn(async (..._args: unknown[]) => ({ updated: 0 })),
   };
 
   beforeAll(async () => {

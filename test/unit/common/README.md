@@ -13,9 +13,11 @@
 |---|---|
 | [`id.util.spec.ts`](./id.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`number.util.spec.ts`](./number.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`qr-image-reader.spec.ts`](./qr-image-reader.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Subcarpetas
 
+- [`decorators/`](./decorators/README.md)
 - [`filters/`](./filters/README.md)
 - [`guards/`](./guards/README.md)
 - [`interceptors/`](./interceptors/README.md)

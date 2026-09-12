@@ -11,10 +11,12 @@ import { TokenRevocationService } from '../../../../src/common/services/token-re
 import type { AtlasUserRole, AuthenticatedUser } from '../../../../src/common/types/auth.types.js';
 import { accessTokenSignOptions } from '../../../../src/common/utils/auth/jwt-claims.util.js';
 import { env } from '../../../../src/config/env.js';
+import { DATA_NOTEBOOK_ROLES } from '../../../../src/modules/data-notebook/data-notebook.constants.js';
 import { InternalPermissions } from '../../../../src/modules/internal-users/internal-permissions.decorator.js';
 import { InternalPermissionsGuard } from '../../../../src/modules/internal-users/guards/internal-permissions.guard.js';
 import { InternalRbacRepository } from '../../../../src/modules/internal-users/internal-rbac.repository.js';
 import { ROLE_PERMISSION_CODES, type InternalRoleCode } from '../../../../src/modules/internal-users/internal-rbac.seed-data.js';
+import { CustomerNotificationsController } from '../../../../src/modules/notifications/customer-notifications.controller.js';
 import { NotificationsController } from '../../../../src/modules/notifications/notifications.controller.js';
 import { NotificationsService } from '../../../../src/modules/notifications/notifications.service.js';
 
@@ -67,6 +69,19 @@ class RoleProbeController {
   @Get('customer-only')
   @Roles('customer')
   customerOnly(@CurrentUser() user: AuthenticatedUser): AuthenticatedUser {
+    return user;
+  }
+
+  /**
+   * La lista REAL del cuaderno de datos, sobre el guard REAL.
+   *
+   * No duplica los roles: importa `DATA_NOTEBOOK_ROLES`, así que la sonda dice lo que dirá el
+   * controlador de verdad. Existe porque afirmar «el administrador ya puede entrar» mirando la
+   * constante no es lo mismo que verlo pasar por `RolesGuard` con un token emitido como el suyo.
+   */
+  @Get('data-notebook')
+  @Roles(...DATA_NOTEBOOK_ROLES)
+  dataNotebook(@CurrentUser() user: AuthenticatedUser): AuthenticatedUser {
     return user;
   }
 }
@@ -173,10 +188,13 @@ export type NotificationsServiceStub = {
  */
 export async function buildNotificationsSelfServiceApp(): Promise<{ app: INestApplication; service: NotificationsServiceStub }> {
   const service: NotificationsServiceStub = {
-    listMyNotifications: jest.fn(async () => ({ data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } })),
-    myUnreadCount: jest.fn(async () => ({ unread: 0 })),
-    markMyNotificationRead: jest.fn(async () => ({ id: '1', status: 'read' })),
-    markAllMyNotificationsRead: jest.fn(async () => ({ updated: 0 })),
+    listMyNotifications: jest.fn(async (..._args: unknown[]) => ({
+      data: [],
+      pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+    })),
+    myUnreadCount: jest.fn(async (..._args: unknown[]) => ({ unread: 0 })),
+    markMyNotificationRead: jest.fn(async (..._args: unknown[]) => ({ id: '1', status: 'read' })),
+    markAllMyNotificationsRead: jest.fn(async (..._args: unknown[]) => ({ updated: 0 })),
   } as unknown as NotificationsServiceStub;
 
   const providers: Provider[] = [
@@ -187,7 +205,12 @@ export async function buildNotificationsSelfServiceApp(): Promise<{ app: INestAp
     { provide: NotificationsService, useValue: service },
   ];
 
-  const moduleRef = await Test.createTestingModule({ controllers: [NotificationsController], providers }).compile();
+  // El inbox del CLIENTE vive en `CustomerNotificationsController` desde que se partió el controlador por tamaño (5f6c238):
+  // sin montarlo, `GET /customers/:id/notifications` daba 404 en vez del 403 que la prueba exige.
+  const moduleRef = await Test.createTestingModule({
+    controllers: [NotificationsController, CustomerNotificationsController],
+    providers,
+  }).compile();
   const app = moduleRef.createNestApplication();
   await app.init();
   return { app, service };
@@ -196,7 +219,8 @@ export async function buildNotificationsSelfServiceApp(): Promise<{ app: INestAp
 /**
  * Firma un token con la forma REAL de cada tipo de actor (ver `AuthService.issueTokens`):
  * el cliente lleva `customerId` y `tenantId`; el usuario interno, `internalUserId` y `tenantId`;
- * el usuario de plataforma, `platformUserId` y NINGÚN `tenantId` (opera sobre cualquier tenant).
+ * el usuario de plataforma, `platformUserId` y NINGÚN `tenantId` (opera sobre cualquier tenant);
+ * el usuario de comercio, `merchantUserId` y `tenantId`.
  */
 export function signToken(role: AtlasUserRole, overrides: Record<string, unknown> = {}): string {
   return jwt.sign(
@@ -216,6 +240,11 @@ export function internalToken(role: AtlasUserRole, overrides: Record<string, unk
 
 export function platformToken(overrides: Record<string, unknown> = {}): string {
   return signToken('platform_admin', { platformUserId: 'pu-1', ...overrides });
+}
+
+/** Cuarta población: el usuario del comercio afiliado (`/merchant/auth/*`). */
+export function merchantToken(overrides: Record<string, unknown> = {}): string {
+  return signToken('merchant', { tenantId: '1', merchantUserId: 'mu-1', ...overrides });
 }
 
 export function bearer(token: string): [string, string] {

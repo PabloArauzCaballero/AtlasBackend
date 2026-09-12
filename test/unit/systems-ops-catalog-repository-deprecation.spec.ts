@@ -10,7 +10,7 @@ import { SystemsCatalogRepository } from '../../src/modules/systems-ops/systems-
  */
 function buildModelMock(rows: Array<{ id: string; method: string; fullPath: string }>) {
   return {
-    findAll: jest.fn(async () => rows),
+    findAll: jest.fn(async (..._args: unknown[]) => rows),
     // Simula el conteo de filas afectadas que devolvería un UPDATE real, a partir de cuántos ids
     // vinieron en el WHERE id IN (...) — así el test detecta si el fix alguna vez deja de marcar
     // exactamente las filas stale.

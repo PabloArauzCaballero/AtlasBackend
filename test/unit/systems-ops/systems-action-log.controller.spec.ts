@@ -8,10 +8,10 @@ import { SystemsActionLogController } from '../../../src/modules/systems-ops/sys
 describe('SystemsActionLogController', () => {
   function build() {
     const service = {
-      listActionLogs: jest.fn(async () => ({ items: [] })),
-      getActionLogsByRequest: jest.fn(async () => ({ items: [] })),
-      getTrafficLatencyReport: jest.fn(async () => ({ routes: [] })),
-      getTrafficLatencyTimeseries: jest.fn(async () => ({ buckets: [] })),
+      listActionLogs: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getActionLogsByRequest: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getTrafficLatencyReport: jest.fn(async (..._args: unknown[]) => ({ routes: [] })),
+      getTrafficLatencyTimeseries: jest.fn(async (..._args: unknown[]) => ({ buckets: [] })),
     };
     return { controller: new SystemsActionLogController(service as never), service };
   }

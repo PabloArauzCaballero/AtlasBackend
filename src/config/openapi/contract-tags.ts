@@ -38,8 +38,27 @@ export const CONTRACT_TAGS: ReadonlyArray<{ name: string; description: string }>
   },
   { name: 'consents', description: 'Documentos de consentimiento vigentes y aceptaciones del titular.' },
   { name: 'customer-privacy', description: 'Derechos del titular: consentimientos de tratamiento, retención y solicitudes de privacidad.' },
+  { name: 'mobile-identity', description: 'Verificación de identidad desde la app: carnet, selfie y el desenlace que devuelve el Motor.' },
+  {
+    name: 'customer-device-signals',
+    description: 'Señales del dispositivo del titular (agenda, ubicación) que el riesgo usa como evidencia, con su consentimiento.',
+  },
+  { name: 'mobile-welcome-audio', description: 'Locución de bienvenida del onboarding móvil, encargada al Motor y servida por bytes.' },
+  { name: 'Mobile · Pagos', description: 'Pagos desde la app del titular: instrucción de pago, QR del comercio y comprobante.' },
+  {
+    name: 'Mobile · Soporte',
+    description: 'Soporte desde la app del titular: FAQ, base de conocimiento, apertura y seguimiento de sus casos.',
+  },
   { name: 'customer-telemetry', description: 'Señales de comportamiento y dispositivo capturadas durante el recorrido.' },
   { name: 'credit', description: 'Catálogo de productos de crédito, solicitudes y su ciclo hasta la decisión.' },
+  {
+    name: 'loans',
+    description: 'Préstamos desembolsados: cronograma de pagos, cobros aplicados e historial de cada operación viva.',
+  },
+  {
+    name: 'credit-rating',
+    description: 'Calificación de la deuda y de su titular contra la escala vigente, con el historial que sostiene cada cambio.',
+  },
 
   // --- Evaluación -----------------------------------------------------------------------------
   { name: 'risk', description: 'Evaluación de riesgo versionada y explicable, con las features y el ruleset usados en cada decisión.' },
@@ -58,6 +77,24 @@ export const CONTRACT_TAGS: ReadonlyArray<{ name: string; description: string }>
   // --- Operación interna ----------------------------------------------------------------------
   { name: 'operations', description: 'Back office: revisión de identidad, cumplimiento, observaciones, fraude y decisión de crédito.' },
   { name: 'internal-auth', description: 'Autenticación del personal interno.' },
+  {
+    name: 'merchant-auth',
+    description:
+      'Autenticación del comercio afiliado, la cuarta población autenticable. El alcance sobre cuentas concretas lo resuelve el ERP.',
+  },
+  {
+    name: 'partner-onboarding',
+    description: 'Alta del expediente del comercio: requisitos, sucursales, QR y terminales, hasta el envío que el Motor verifica.',
+  },
+  { name: 'Merchant · Cobros', description: 'Cobros del comercio: cartera de reclamos de pago y verificación del comprobante.' },
+  {
+    name: 'Merchant · Soporte',
+    description: 'Soporte del comercio: sus casos, la base de conocimiento y el árbol de motivos de su audiencia.',
+  },
+  {
+    name: 'merchant-users',
+    description: 'Alta y gobierno de las identidades de los comercios afiliados, siempre a cargo de personal interno.',
+  },
   { name: 'internal-users', description: 'Usuarios internos, roles y permisos (RBAC interno).' },
   { name: 'internal-admin-views', description: 'Vistas consolidadas para el portal administrativo.' },
   { name: 'internal-access-catalog', description: 'Catálogo de accesos: qué puede ver y hacer cada rol interno.' },
@@ -67,7 +104,34 @@ export const CONTRACT_TAGS: ReadonlyArray<{ name: string; description: string }>
     name: 'catalog-management',
     description: 'Catálogos versionados, definiciones semánticas y mapeos de riesgo que consume el motor de decisión.',
   },
+  { name: 'Interno · Soporte', description: 'La consola de soporte: cola de casos, triaje, asignación, escalado y cierre con resolución.' },
+  { name: 'Interno · Mesa de soporte', description: 'La mesa: perfiles de agente, presencia, capacidad y toma de conversaciones.' },
+  { name: 'Soporte · Conversación', description: 'El canal de conversación de un caso: mensajes, correcciones y lectura en vivo.' },
+  { name: 'Soporte · Adjuntos', description: 'Adjuntos del chat de soporte. Se sirven por bytes autenticados, nunca por URL prefirmada.' },
+  {
+    name: 'Admin · Conocimiento de soporte',
+    description: 'Gobierno de la base de conocimiento: artículos, versiones y su circuito de revisión, aprobación y publicación.',
+  },
+  {
+    name: 'Expedientes',
+    description: 'El expediente documental de un sujeto: sus carpetas, los archivos que lo componen y quién puede verlos.',
+  },
+  { name: 'app-content', description: 'Contenido que la app muestra sin desplegar: textos, avisos y su versión vigente.' },
   { name: 'internal-portal', description: 'Glosario de negocio, gobierno y trazabilidad para operadores internos.' },
+  {
+    name: 'loans-operations',
+    description: 'Operación de la cartera: recálculo de mora y entrega de los desenlaces de cosecha al motor de decisión.',
+  },
+  { name: 'credit-rating-operations', description: 'Recalificación de una deuda, de un cliente o de la cartera completa del tenant.' },
+  {
+    name: 'sql-console',
+    description: 'Consulta de solo lectura sobre `read_api`, con catálogo, validación previa y gobierno de lo que se puede leer.',
+  },
+  {
+    name: 'data-notebook',
+    description:
+      'Cuadernos de análisis sobre datasets gobernados. Registra la celda ejecutada, nunca su resultado: el dato no sale del backend.',
+  },
   {
     name: 'workflow-catalog',
     description: 'El recorrido estándar como dato versionado, y su verificación contra las rutas realmente montadas.',
@@ -82,6 +146,7 @@ export const CONTRACT_TAGS: ReadonlyArray<{ name: string; description: string }>
     name: 'schema-management',
     description: 'Gobierno del catálogo de esquema. El DDL físico sigue saliendo por migraciones revisadas en PR.',
   },
+  { name: 'decision-engine', description: 'El enlace con el Motor de decisión: artefactos vinculados, ejecuciones y desenlaces.' },
   { name: 'systems-ops', description: 'Salud, catálogo y pruebas controladas del propio backend.' },
   { name: 'health', description: 'Sondas de liveness y readiness. Públicas, sin autenticación.' },
 ];

@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { callArg } from '../../support/jest-mocks.js';
 import { CustomerOnboardingController } from '../../../src/modules/customer-onboarding/customer-onboarding.controller.js';
 import { requireIdempotencyKey, tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.js';
+import { CustomerPackagesController } from '../../../src/modules/customer-onboarding/customer-packages.controller.js';
 
 /**
  * `CustomerOnboardingController`: start público (args posicionales) + 4 pasos autenticados con input
@@ -11,13 +12,23 @@ import { requireIdempotencyKey, tenantIdFromHeader } from '../../../src/common/u
 describe('CustomerOnboardingController', () => {
   function build() {
     const service = {
-      startOnboarding: jest.fn(async () => ({ customerId: '9' })),
-      requestContactVerification: jest.fn(async () => ({ sent: true })),
-      submitContactVerification: jest.fn(async () => ({ verified: true })),
-      submitIdentityPackage: jest.fn(async () => ({ queued: true })),
-      submitAddressPackage: jest.fn(async () => ({ ok: true })),
+      startOnboarding: jest.fn(async (..._args: unknown[]) => ({ customerId: '9' })),
+      requestContactVerification: jest.fn(async (..._args: unknown[]) => ({ sent: true })),
+      submitContactVerification: jest.fn(async (..._args: unknown[]) => ({ verified: true })),
+      submitIdentityPackage: jest.fn(async (..._args: unknown[]) => ({ queued: true })),
+      submitAddressPackage: jest.fn(async (..._args: unknown[]) => ({ ok: true })),
     };
-    return { controller: new CustomerOnboardingController(service as never), service };
+    /*
+      El controlador recibe TRES colaboradores desde que la identidad cerró su circuito: el
+      servicio de alta, el desenlace de la revisión manual y la instantánea de la agenda. Esta
+      prueba sólo ejercita el primero —delegación con argumentos posicionales—, así que los otros
+      dos entran como dobles vacíos: declararlos es lo que hace que el compilador siga vigilando
+      la firma en vez de que la prueba deje de compilar y nadie la mire.
+    */
+    return {
+      controller: new CustomerOnboardingController(service as never, {} as never, {} as never),
+      service,
+    };
   }
   const user = { role: 'customer', tenantId: '1', customerId: '9' } as never;
   const req = { ip: '7.7.7.7' } as never;
@@ -47,7 +58,10 @@ describe('CustomerOnboardingController', () => {
   });
 
   it('submitIdentityPackage y submitAddressPackage delegan con input estructurado', async () => {
-    const { controller, service } = build();
+    // Los tres envíos de evidencia viven en `CustomerPackagesController` desde el corte por
+    // tamaño. Se construye con el mismo doble de servicio, así que las aserciones no cambian.
+    const { service } = build();
+    const controller = new CustomerPackagesController(service as never, service as never, service as never);
     await controller.submitIdentityPackage('1', 'idem', params, { docs: [] } as never, user, req);
     await controller.submitAddressPackage('1', 'idem', params, { address: {} } as never, user, req);
     expect(callArg<{ customerId: string }>(service.submitIdentityPackage, 0, 0).customerId).toBe('9');

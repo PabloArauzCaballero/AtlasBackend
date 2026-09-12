@@ -3,8 +3,10 @@
  * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
  * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
  */
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { LocalRecipientDirectoryAdapter } from './infrastructure/directory/local-recipient-directory.adapter.js';
+import { legacyCustomerContactTargets } from './infrastructure/directory/legacy-contact-targets.js';
 import { Op, UniqueConstraintError } from 'sequelize';
 import { lastCharacters, sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { decryptSecretEnvelope, encryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
@@ -31,13 +33,7 @@ import {
   UpsertDeviceTokenDto,
 } from './notifications.schemas.js';
 import { DeliveryResult, DeliveryTarget, NotificationChannel, NotificationMessagePayload, RecipientType } from './notification-types.js';
-import {
-  buildEncryptedDeliveryTargets,
-  channelContactType,
-  decryptDeliveryTargets,
-  encryptedValueToString,
-  mergeDeliveryTargets,
-} from './notification-delivery-targets.util.js';
+import { buildEncryptedDeliveryTargets, decryptDeliveryTargets } from './notification-delivery-targets.util.js';
 
 // Tamaño de lote para insertar mensajes de broadcast. Un único bulkCreate con decenas de miles de
 // filas produce una sentencia SQL gigante; trocear acota memoria del driver/servidor por INSERT.
@@ -54,6 +50,7 @@ export class NotificationsRepository {
     // fachada delega para conservar su API pública.
     private readonly templatesRepository: NotificationTemplatesRepository,
     private readonly preferencesRepository: NotificationPreferencesRepository,
+    @Optional() private readonly recipientDirectory?: LocalRecipientDirectoryAdapter,
   ) {}
 
   // --- Plantillas: delegado en `NotificationTemplatesRepository` (Fase 2.3) ---------------------
@@ -136,7 +133,7 @@ export class NotificationsRepository {
     }
   }
 
-  private async findByIdempotencyKey(tenantId: string | null, idempotencyKey: string): Promise<NotificationMessageModel | null> {
+  async findByIdempotencyKey(tenantId: string | null, idempotencyKey: string): Promise<NotificationMessageModel | null> {
     return this.messageModel.findOne({ where: { tenantId, idempotencyKey } });
   }
 
@@ -474,30 +471,9 @@ export class NotificationsRepository {
 
   async getCustomerContactTargets(tenantId: string | null, customerId: string, channel: NotificationChannel): Promise<DeliveryTarget[]> {
     if (!tenantId) return [];
-    const spec = channelContactType(channel);
-    if (!spec) return [];
-    const rows = await this.contactMethodModel.findAll({
-      where: {
-        tenantId,
-        customerId,
-        contactType: spec.contactType,
-        contactValueEncrypted: { [Op.ne]: null },
-        deleted: { [Op.ne]: true },
-      } as never,
-      order: [
-        ['isPrimary', 'DESC'],
-        ['lastSeenAt', 'DESC'],
-        ['id', 'ASC'],
-      ],
-    });
-    const resolvedTargets = await Promise.all(
-      rows.map(async (row) => {
-        const encrypted = encryptedValueToString(row.contactValueEncrypted as string | Buffer | null);
-        const address = await decryptSecretEnvelope(encrypted);
-        return address ? [{ kind: spec.kind, address }] : [];
-      }),
-    );
-    return mergeDeliveryTargets(resolvedTargets.flat());
+    // AT-039: con el directorio presente, las direcciones llegan por el puerto de Clientes; sin él, lectura legada.
+    if (this.recipientDirectory) return this.recipientDirectory.resolveTargets({ tenantId, customerId, channel });
+    return legacyCustomerContactTargets(this.contactMethodModel, tenantId, customerId, channel);
   }
 
   async getActiveDeviceTokenSecrets(tenantId: string | null, customerId: string): Promise<string[]> {

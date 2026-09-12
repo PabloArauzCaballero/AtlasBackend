@@ -19,6 +19,7 @@
 | [`internal-auth.controller.ts`](./internal-auth.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`internal-auth.service.ts`](./internal-auth.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`internal-permissions.decorator.ts`](./internal-permissions.decorator.ts) | Decorador: expresa metadatos o extrae contexto HTTP de forma uniforme. |
+| [`internal-profile-second-factor.ts`](./internal-profile-second-factor.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`internal-rbac.permissions.ts`](./internal-rbac.permissions.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`internal-rbac.repository.ts`](./internal-rbac.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`internal-rbac.roles.ts`](./internal-rbac.roles.ts) | Artefacto de soporte específico de esta carpeta. |

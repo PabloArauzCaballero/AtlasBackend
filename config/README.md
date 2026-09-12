@@ -11,7 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
-| — | Esta carpeta funciona como agrupador; su contenido está en subcarpetas. |
+| [`performance-budget.json`](./performance-budget.json) | Configuración o contrato serializado consumido por herramientas. |
 
 ## Subcarpetas
 

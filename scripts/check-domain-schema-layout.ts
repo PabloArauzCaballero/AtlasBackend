@@ -3,6 +3,7 @@ import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { buildMigrationSequelizeOptions } from '../src/config/database.config.js';
 import { ATLAS_DOMAIN_TABLES } from '../src/database/domain-schemas.js';
+import { handleUnreachableDatabase } from './gate-skip-policy.js';
 
 type TableRow = { table_schema: string; table_name: string };
 
@@ -11,8 +12,8 @@ async function main(): Promise<void> {
   try {
     await sequelize.authenticate();
   } catch (error) {
-    console.warn(`[skip] no se pudo conectar a PostgreSQL: ${(error as Error).message}`);
     await sequelize.close().catch(() => undefined);
+    handleUnreachableDatabase(error, 'check:domain-schema-layout');
     return;
   }
 

@@ -120,6 +120,7 @@ export class KmsKeyProvider implements DataKeyProvider {
       const reason = error instanceof Error ? error.message : String(error);
       throw new Error(
         `AWS_KMS_SDK_UNAVAILABLE: la imagen debe incluir @aws-sdk/client-kms; si KMS no se usará, elimina KMS_KEY_ID/AWS_REGION. Detalle: ${reason}`,
+        { cause: error },
       );
     }
   }

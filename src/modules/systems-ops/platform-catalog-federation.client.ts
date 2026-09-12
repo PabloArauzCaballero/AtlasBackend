@@ -1,0 +1,196 @@
+/**
+ * @file Adaptador de infraestructura: habla con un sistema externo y traduce sus fallos.
+ * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
+ * @system trae por HTTP el manifiesto que cada bloque del ecosistema publica sobre sí mismo.
+ */
+import { Injectable, Logger } from '@nestjs/common';
+import { manifestConfigFor, type BlockManifestEndpointConfig } from './platform-blocks.constants.js';
+import { catalogManifestSchema, CatalogManifest, FederationStatus } from './platform-catalog-manifest.types.js';
+
+export type ManifestFetchResult =
+  | { readonly ok: true; readonly manifest: CatalogManifest; readonly body?: unknown }
+  | { readonly ok: false; readonly status: Exclude<FederationStatus, 'OK'>; readonly message: string };
+
+/**
+ * Trae el manifiesto de un bloque y traduce cada forma de fallar a un desenlace con nombre.
+ *
+ * Los cinco desenlaces se distinguen a propósito porque exigen acciones distintas de personas
+ * distintas: sin dirección o sin llave es un hueco de DESPLIEGUE (nadie dijo dónde ni con qué);
+ * un 401/403 es una credencial equivocada o caducada; un fallo de red es el servicio sin contestar;
+ * un manifiesto con la forma cambiada es una ruptura de contrato entre repositorios. Colapsarlos
+ * todos en «no se pudo» obligaría al operador a abrir tres consolas para averiguar cuál era.
+ *
+ * No hay reintentos ni circuito: esto corre bajo demanda o cada varios minutos, nunca en el camino
+ * de una petición de negocio, y un reintento aquí sólo alargaría el tiempo hasta que el panel
+ * pueda decir la verdad sobre el bloque.
+ */
+/** Marcador para respuestas que no son un manifiesto: el consumidor mira `body`, no esto. */
+const EMPTY_MANIFEST = { systemCode: '', generatedAt: '', endpoints: [], dataEntities: [] } as unknown as CatalogManifest;
+
+@Injectable()
+export class PlatformCatalogFederationClient {
+  private readonly logger = new Logger(PlatformCatalogFederationClient.name);
+
+  fetchManifest(systemCode: string, callerToken: string | null): Promise<ManifestFetchResult> {
+    return this.fetchFromBlock(systemCode, callerToken);
+  }
+
+  /**
+   * Pide una ruta cualquiera del bloque con la misma identidad y las mismas guardas que el
+   * manifiesto. `path` la usa Flujos para pedir el resumen de accesos del Motor; sin `path` se pide
+   * el manifiesto, que es el caso original.
+   */
+  async fetchFromBlock(systemCode: string, callerToken: string | null, path?: string): Promise<ManifestFetchResult> {
+    const alcanzable = reachableConfig(systemCode, manifestConfigFor(systemCode, callerToken));
+    if ('ok' in alcanzable) return alcanzable;
+    const config = alcanzable.config;
+    const url = joinUrl(config.baseUrl, path ?? config.manifestPath);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+    const startedAt = Date.now();
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { accept: 'application/json', [config.authHeader]: config.authValue },
+        signal: controller.signal,
+      });
+      const elapsed = Date.now() - startedAt;
+
+      if (response.status === 401 || response.status === 403) {
+        return {
+          ok: false,
+          status: 'UNAUTHORIZED',
+          message:
+            `${systemCode} rechazó la credencial con HTTP ${response.status} en ${url}. Existe, pero no le vale: ` +
+            'o la identidad no tiene el rol que ese bloque exige, o la llave es de otro despliegue.',
+        };
+      }
+      if (!response.ok) {
+        return {
+          ok: false,
+          status: 'UNREACHABLE',
+          message: `${systemCode} respondió HTTP ${response.status} en ${url} (${elapsed} ms) al pedirle su manifiesto.`,
+        };
+      }
+
+      const body: unknown = await response.json().catch(() => null);
+      // Sólo el manifiesto se valida contra su esquema. Si se pidió otra ruta del bloque, el cuerpo
+      // se devuelve crudo: no todo lo que sirve un bloque es un catálogo, y forzarlo daría
+      // INVALID_MANIFEST sobre una respuesta perfectamente válida.
+      if (path) {
+        this.logger.log(`Respuesta de ${systemCode} (${path}) recibida en ${elapsed} ms.`);
+        return { ok: true, manifest: EMPTY_MANIFEST, body: unwrapSuccessEnvelope(body) };
+      }
+      const parsed = catalogManifestSchema.safeParse(unwrapEnvelope(body));
+      if (!parsed.success) {
+        const detail = parsed.error.issues
+          .slice(0, 5)
+          .map((issue) => `${issue.path.join('.') || '(raíz)'}: ${issue.message}`)
+          .join('; ');
+        return {
+          ok: false,
+          status: 'INVALID_MANIFEST',
+          message: `${systemCode} contestó con una forma que este catálogo no reconoce (${detail}).`,
+        };
+      }
+      this.logger.log(`Manifiesto de ${systemCode} recibido en ${elapsed} ms desde ${url}.`);
+      return { ok: true, manifest: parsed.data };
+    } catch (error) {
+      const elapsed = Date.now() - startedAt;
+      const motivo =
+        error instanceof Error && error.name === 'AbortError'
+          ? `no respondió en ${config.timeoutMs} ms`
+          : `no se pudo contactar (${error instanceof Error ? error.message : 'error desconocido'})`;
+      return { ok: false, status: 'UNREACHABLE', message: `${systemCode} ${motivo} en ${url} tras ${elapsed} ms.` };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+/**
+ * Saca el manifiesto del sobre de respuesta del bloque, si lo trae.
+ *
+ * El ERP envuelve TODA respuesta en `{ success, data }` con un interceptor global; el motor de
+ * decisión devuelve el cuerpo desnudo. Exigirle a uno de los dos que cambie su convención de
+ * transporte para poder publicar un manifiesto sería pedirle que rompa el contrato de sus
+ * clientes reales por comodidad de este consumidor, así que la asimetría se absorbe aquí, en el
+ * único sitio que la conoce.
+ *
+ * Se desenvuelve sólo cuando `data` parece el manifiesto —trae `block`—, para no confundir un
+ * sobre con un manifiesto que legítimamente tuviera un campo llamado `data`.
+ */
+function unwrapEnvelope(body: unknown): unknown {
+  if (!body || typeof body !== 'object') return body;
+  const envelope = body as { data?: unknown; block?: unknown };
+  if (envelope.block !== undefined) return body;
+  const inner = envelope.data;
+  if (inner && typeof inner === 'object' && 'block' in inner) return inner;
+  return body;
+}
+
+/**
+ * Abre el sobre de respuesta de un bloque del ecosistema, y sólo eso.
+ *
+ * Hay DOS sobres en circulación y ninguno es el del otro: el ERP responde `{ success, data }` y el
+ * Backend y Tableros responden `{ requestId, data, timestamp }`. `unwrapEnvelope` no sirve para una
+ * ruta cualquiera porque reconoce el sobre por una clave del MANIFIESTO (`block`), así que con el
+ * resumen de accesos devolvía el sobre entero y quien lo indexaba no encontraba nada.
+ *
+ * El resultado era el peor posible: federación `ok: true` y cero corridas, es decir «se preguntó
+ * bien y ese bloque no ha ejecutado nada», que es mentira. Por eso el sobre se reconoce por su forma
+ * —`data` acompañado de un `success` booleano o de un `requestId` de texto—: un cuerpo que traiga un
+ * `data` propio sin ninguna de las dos marcas no se toca.
+ */
+function unwrapSuccessEnvelope(body: unknown): unknown {
+  if (!body || typeof body !== 'object') return body;
+  const sobre = body as { success?: unknown; requestId?: unknown; data?: unknown };
+  if (sobre.data === undefined) return body;
+  const esSobre = typeof sobre.success === 'boolean' || typeof sobre.requestId === 'string';
+  return esSobre ? sobre.data : body;
+}
+
+function joinUrl(baseUrl: string, path: string): string {
+  return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
+}
+
+/**
+ * O el bloque es alcanzable —con dirección e identidad— o se explica por qué no. Devolver la
+ * configuración ya estrechada evita repetir las comprobaciones dentro de la petición.
+ */
+function reachableConfig(
+  systemCode: string,
+  config: BlockManifestEndpointConfig | null,
+): ManifestFetchResult | { config: BlockManifestEndpointConfig & { baseUrl: string; authValue: string } } {
+  const problema = configProblem(systemCode, config);
+  if (problema) return problema;
+  return { config: config as BlockManifestEndpointConfig & { baseUrl: string; authValue: string } };
+}
+
+/** Las tres razones por las que a un bloque no se le puede pedir nada, con su explicación. */
+function configProblem(systemCode: string, config: BlockManifestEndpointConfig | null): ManifestFetchResult | null {
+  if (!config) {
+    return { ok: false, status: 'ERROR', message: `El bloque ${systemCode} no declara cómo alcanzar su manifiesto.` };
+  }
+  if (!config!.baseUrl) {
+    return {
+      ok: false,
+      status: 'NOT_CONFIGURED',
+      message:
+        `El bloque ${systemCode} no tiene dirección configurada en este despliegue, así que no hay a quién ` +
+        'pedirle su catálogo. No es lo mismo que estar vacío: nadie ha dicho dónde buscarlo.',
+    };
+  }
+  if (!config!.authValue) {
+    return {
+      ok: false,
+      status: 'NOT_CONFIGURED',
+      message:
+        `El bloque ${systemCode} tiene dirección pero no se le puede pedir el manifiesto: ` +
+        `${config!.missingCredentialReason}. El manifiesto enumera rutas y tablas del servicio, así que se pide ` +
+        'con identidad o no se pide.',
+    };
+  }
+
+  return null;
+}

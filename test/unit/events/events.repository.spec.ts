@@ -5,7 +5,7 @@ import { Op } from 'sequelize';
 // El repositorio deriva los códigos válidos del registro de eventos; lo mockeamos para controlar
 // la rama "sin códigos registrados" y el mapeo de family/version en createEvent.
 jest.mock('../../../src/modules/events/event-registry.js', () => ({
-  listEventDefinitions: jest.fn(() => [{ code: 'customer.created' }, { code: 'customer.updated' }]),
+  listEventDefinitions: jest.fn((..._args: unknown[]) => [{ code: 'customer.created' }, { code: 'customer.updated' }]),
   getEventDefinition: jest.fn((code: string) =>
     code === 'customer.created' ? { code, family: 'customer', version: 2, defaultPriority: 5 } : undefined,
   ),

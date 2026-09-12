@@ -3,7 +3,7 @@
  * @business Esta pieza demuestra qué tratamiento de datos aceptó o rechazó cada cliente y bajo qué versión legal.
  * @system registra decisiones y eventos de consentimiento con separación entre DTO, reglas y persistencia.
  */
-import { Controller, Get, Headers, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas } from '../../common/openapi/zod-to-schema.util.js';
 import { Public } from '../../common/decorators/public.decorator.js';
@@ -11,9 +11,9 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { ConsentsService } from './consents.service.js';
 import { listActiveConsentDocumentsQuerySchema, ListActiveConsentDocumentsQueryDto } from './consents.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 @ApiTags('consents')
 @Controller()
@@ -36,10 +36,9 @@ export class ConsentsController {
   @ApiResponse({ status: 400, description: 'x-tenant-id ausente o inválido.' })
   @Get('consent-documents/active')
   listActiveDocuments(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Query(new ZodValidationPipe(listActiveConsentDocumentsQuerySchema)) query: ListActiveConsentDocumentsQueryDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.consentsService.listActiveDocuments(tenantId, query);
   }
 }

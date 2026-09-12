@@ -34,9 +34,14 @@ type JournalContext = {
 export class ContactVerificationJournalService {
   constructor(private readonly onboardingRepository: CustomerOnboardingRepository) {}
 
+  /**
+   * `delivered` ya no se registra aquí: la entrega ocurre DESPUÉS del commit (ver
+   * `ContactVerificationCodeService.deliverIssuedCode`), así que en este punto todavía no se sabe.
+   * El resultado real vive en `verification_status` del intento, que es donde se consulta.
+   */
   async recordRequested(
     context: JournalContext,
-    values: { verificationChannel: string; attemptId: string; delivered: boolean },
+    values: { verificationChannel: string; attemptId: string; contactMethodId: string },
   ): Promise<void> {
     const flow = await this.onboardingRepository.findLatestOnboardingFlow(context.tenantId, context.customerId, {
       transaction: context.transaction,
@@ -51,7 +56,7 @@ export class ContactVerificationJournalService {
         payloadJson: {
           contactType: context.contactType,
           verificationChannel: values.verificationChannel,
-          delivered: values.delivered,
+          contactMethodId: values.contactMethodId,
         },
       },
       { transaction: context.transaction },
@@ -60,7 +65,7 @@ export class ContactVerificationJournalService {
     await this.recordActionLog(context, { eventName: 'contact_verification_requested' });
     await this.recordAudit(context, {
       actionCode: 'customer_onboarding.contact_verification.request',
-      payload: { contactType: context.contactType, attemptId: values.attemptId, delivered: values.delivered },
+      payload: { contactType: context.contactType, attemptId: values.attemptId, contactMethodId: values.contactMethodId },
     });
   }
 

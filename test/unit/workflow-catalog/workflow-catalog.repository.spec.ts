@@ -6,11 +6,14 @@ import { buildDefinition, buildStage, buildStep } from './workflow-bundle.fixtur
 type FindAllMock = jest.Mock<(options?: unknown) => Promise<unknown[]>>;
 
 function buildRepository(overrides: Record<string, unknown> = {}) {
-  const definitionModel = { findAll: jest.fn(async () => []) as FindAllMock, findOne: jest.fn(async () => null) };
-  const stageModel = { findAll: jest.fn(async () => []) as FindAllMock };
-  const stepModel = { findAll: jest.fn(async () => []) as FindAllMock };
-  const dependencyModel = { findAll: jest.fn(async () => []) as FindAllMock };
-  const transitionModel = { findAll: jest.fn(async () => []) as FindAllMock };
+  const definitionModel = {
+    findAll: jest.fn(async (..._args: unknown[]) => []) as FindAllMock,
+    findOne: jest.fn(async (..._args: unknown[]) => null),
+  };
+  const stageModel = { findAll: jest.fn(async (..._args: unknown[]) => []) as FindAllMock };
+  const stepModel = { findAll: jest.fn(async (..._args: unknown[]) => []) as FindAllMock };
+  const dependencyModel = { findAll: jest.fn(async (..._args: unknown[]) => []) as FindAllMock };
+  const transitionModel = { findAll: jest.fn(async (..._args: unknown[]) => []) as FindAllMock };
   Object.assign(definitionModel, overrides.definitionModel ?? {});
   Object.assign(stageModel, overrides.stageModel ?? {});
   Object.assign(stepModel, overrides.stepModel ?? {});
@@ -73,7 +76,7 @@ describe('WorkflowCatalogRepository.findDefinition', () => {
   it('latest prefiere la versión marcada como predeterminada, no la más nueva', async () => {
     const { repository } = buildRepository({
       definitionModel: {
-        findAll: jest.fn(async () => [
+        findAll: jest.fn(async (..._args: unknown[]) => [
           buildDefinition({ version: 'v3', status: 'draft', isDefault: false }),
           buildDefinition({ version: 'v2', status: 'active', isDefault: true }),
         ]),
@@ -88,7 +91,7 @@ describe('WorkflowCatalogRepository.findDefinition', () => {
   it('latest cae en la activa más reciente si ninguna versión es la predeterminada', async () => {
     const { repository } = buildRepository({
       definitionModel: {
-        findAll: jest.fn(async () => [
+        findAll: jest.fn(async (..._args: unknown[]) => [
           buildDefinition({ version: 'v3', status: 'draft', isDefault: false }),
           buildDefinition({ version: 'v2', status: 'active', isDefault: false }),
         ]),
@@ -99,7 +102,7 @@ describe('WorkflowCatalogRepository.findDefinition', () => {
   });
 
   it('latest devuelve null cuando el código no existe', async () => {
-    const { repository } = buildRepository({ definitionModel: { findAll: jest.fn(async () => []) } });
+    const { repository } = buildRepository({ definitionModel: { findAll: jest.fn(async (..._args: unknown[]) => []) } });
 
     expect(await repository.findDefinition('inexistente', 'latest')).toBeNull();
   });
@@ -133,13 +136,15 @@ describe('WorkflowCatalogRepository.findFacetsByDefinition', () => {
   it('agrega módulos de las etapas y roles de etapas y pasos por definición', async () => {
     const { repository } = buildRepository({
       stageModel: {
-        findAll: jest.fn(async () => [
+        findAll: jest.fn(async (..._args: unknown[]) => [
           buildStage({ id: '1', stageCode: 'a', workflowDefinitionId: '7', moduleCode: 'auth', allowedRoles: ['customer'] }),
           buildStage({ id: '2', stageCode: 'b', workflowDefinitionId: '7', moduleCode: 'credit', allowedRoles: [] }),
         ]),
       },
       stepModel: {
-        findAll: jest.fn(async () => [buildStep({ id: '3', stepCode: 's', workflowDefinitionId: '7', allowedRoles: ['admin'] })]),
+        findAll: jest.fn(async (..._args: unknown[]) => [
+          buildStep({ id: '3', stepCode: 's', workflowDefinitionId: '7', allowedRoles: ['admin'] }),
+        ]),
       },
     });
 

@@ -22,7 +22,7 @@ function buildFraudRepositoryMock() {
 
 function buildCustomersRepositoryMock(overrides: Record<string, unknown> = {}) {
   return {
-    findById: jest.fn(async () => ({
+    findById: jest.fn(async (..._args: unknown[]) => ({
       id: '10',
       primaryPhoneHash: 'hash-of-real-phone',
       primaryPhoneLast4: '6789',
@@ -125,7 +125,7 @@ describe('FraudService.decideFraudCase', () => {
     const repo = buildFraudRepositoryMock();
     repo.findFraudCaseById.mockResolvedValue({ id: '1', closedAt: null, caseStatus: 'open', customerId: '10', severity: 'high' });
     const customersRepository = buildCustomersRepositoryMock({
-      findById: jest.fn(async () => ({
+      findById: jest.fn(async (..._args: unknown[]) => ({
         id: '10',
         primaryPhoneHash: 'hash-of-real-phone',
         primaryPhoneLast4: '6789',
@@ -160,7 +160,7 @@ describe('FraudService.decideFraudCase', () => {
     const repo = buildFraudRepositoryMock();
     repo.findFraudCaseById.mockResolvedValue({ id: '1', closedAt: null, caseStatus: 'open', customerId: '10', severity: 'high' });
     const customersRepository = buildCustomersRepositoryMock({
-      findById: jest.fn(async () => ({ id: '10', primaryPhoneHash: null, primaryEmailHash: null })),
+      findById: jest.fn(async (..._args: unknown[]) => ({ id: '10', primaryPhoneHash: null, primaryEmailHash: null })),
     });
     const service = new FraudService(repo as never, customersRepository as never, buildSequelizeMock() as never);
 

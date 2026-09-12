@@ -36,12 +36,12 @@ describe('RiskController (unit, real controller)', () => {
 
   beforeEach(() => {
     riskService = {
-      createRiskAssessment: jest.fn(async () => ({
+      createRiskAssessment: jest.fn(async (..._args: unknown[]) => ({
         riskAssessmentRunId: '1',
         status: 'approved',
       })),
-      getRiskAssessmentDetail: jest.fn(async () => ({ riskAssessmentRunId: '7' })),
-      getRiskAssessmentExplanation: jest.fn(async () => ({ reasons: [] })),
+      getRiskAssessmentDetail: jest.fn(async (..._args: unknown[]) => ({ riskAssessmentRunId: '7' })),
+      getRiskAssessmentExplanation: jest.fn(async (..._args: unknown[]) => ({ reasons: [] })),
     };
     controller = new RiskController(riskService as unknown as RiskService);
   });
@@ -52,11 +52,9 @@ describe('RiskController (unit, real controller)', () => {
     expect(riskService.createRiskAssessment).not.toHaveBeenCalled();
   });
 
-  it('rechaza con 400 si x-tenant-id no es un id positivo válido', () => {
-    expect(() => controller.createRiskAssessment(undefined, 'idem-key-1', params, body, currentUser)).toThrow(BadRequestException);
-    expect(() => controller.createRiskAssessment('abc', 'idem-key-1', params, body, currentUser)).toThrow(BadRequestException);
-    expect(riskService.createRiskAssessment).not.toHaveBeenCalled();
-  });
+  // El tenant lo resuelve `@CurrentTenant()`, y su 400 se prueba en
+  // `test/unit/common/decorators/current-tenant.decorator.spec.ts`: al controller llega ya
+  // validado, así que repetir el caso aquí probaría el decorador dos veces y el controller ninguna.
 
   it('happy path: delega al RiskService con tenantId parseado, customerId e idempotencyKey', async () => {
     await controller.createRiskAssessment('1', 'idem-key-001', params, body, currentUser);

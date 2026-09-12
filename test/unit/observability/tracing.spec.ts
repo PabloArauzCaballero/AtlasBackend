@@ -7,7 +7,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 // NodeSDK (tracing deshabilitado) y el otro nunca lo arranca. Se mockean los paquetes pesados para
 // probar solo la lógica de gating/shutdown sin la carga ni el handle colgado.
 jest.mock('@opentelemetry/sdk-node', () => ({ NodeSDK: jest.fn() }));
-jest.mock('@opentelemetry/auto-instrumentations-node', () => ({ getNodeAutoInstrumentations: jest.fn(() => []) }));
+jest.mock('@opentelemetry/auto-instrumentations-node', () => ({ getNodeAutoInstrumentations: jest.fn((..._args: unknown[]) => []) }));
 jest.mock('@opentelemetry/exporter-trace-otlp-http', () => ({ OTLPTraceExporter: jest.fn() }));
 
 import { shutdownTracing, startTracing } from '../../../src/observability/tracing.js';

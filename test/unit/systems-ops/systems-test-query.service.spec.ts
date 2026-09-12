@@ -10,14 +10,14 @@ import { SystemsTestQueryService } from '../../../src/modules/systems-ops/system
 describe('SystemsTestQueryService', () => {
   function build() {
     const testRepository = {
-      listTestSuites: jest.fn(async () => ({ rows: [] as unknown[], meta: {} })),
-      findTestSuiteById: jest.fn(async () => null),
-      findTestStepsBySuite: jest.fn(async () => [] as unknown[]),
-      listTestRuns: jest.fn(async () => ({ rows: [] as unknown[], meta: {} })),
-      findTestRunById: jest.fn(async () => null),
-      findStepRunsByRun: jest.fn(async () => [] as unknown[]),
+      listTestSuites: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], meta: {} })),
+      findTestSuiteById: jest.fn(async (..._args: unknown[]) => null),
+      findTestStepsBySuite: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      listTestRuns: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], meta: {} })),
+      findTestRunById: jest.fn(async (..._args: unknown[]) => null),
+      findStepRunsByRun: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
     };
-    const testRunner = { runSuite: jest.fn(async () => ({ ran: true })) };
+    const testRunner = { runSuite: jest.fn(async (..._args: unknown[]) => ({ ran: true })) };
     const service = new SystemsTestQueryService(testRepository as never, testRunner as never);
     return { service, testRepository, testRunner };
   }

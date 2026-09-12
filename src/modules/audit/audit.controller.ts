@@ -3,15 +3,15 @@
  * @business Esta pieza aporta trazabilidad verificable de acciones y cambios para investigación, cumplimiento y soporte.
  * @system consolida consultas y persistencia de eventos de auditoría sin exponer modelos ORM al transporte.
  */
-import { Controller, Get, Headers, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { AuditService } from './audit.service.js';
 import {
   auditCustomerParamsSchema,
@@ -48,11 +48,11 @@ export class AuditController {
   @ApiResponse({ status: 200, description: 'Historial de auditoría paginado.' })
   @Get('customer/:customerId')
   getCustomerAudit(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(auditCustomerParamsSchema)) params: AuditCustomerParamsDto,
     @Query(new ZodValidationPipe(auditQuerySchema)) query: AuditQueryDto,
   ) {
-    return this.service.getCustomerAudit(tenantIdFromHeader(tenantIdHeader), params, query);
+    return this.service.getCustomerAudit(tenantId, params, query);
   }
 
   /**
@@ -71,11 +71,10 @@ export class AuditController {
   @ApiResponse({ status: 200, description: 'Página del feed de auditoría.' })
   @Get('customer/:customerId/feed')
   getCustomerAuditFeed(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(auditCustomerParamsSchema)) params: AuditCustomerParamsDto,
     @Query(new ZodValidationPipe(auditFeedQuerySchema)) query: AuditFeedQueryDto,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
     return this.service.getCustomerAuditFeed(tenantId, params.customerId, query);
   }
 }

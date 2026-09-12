@@ -10,6 +10,14 @@ const optionalCsv = z.string().trim().min(1).max(200).optional();
 
 export const systemsListQuerySchema = z.object({
   module: z.string().trim().min(1).max(120).optional(),
+  /**
+   * Bloque del ecosistema: `ATLAS_BACKEND`, `DECISION_ENGINE`, `ERP_BACKEND`.
+   *
+   * Distinto de `backendService`, que identifica el PROCESO que sirve la ruta. Este identifica el
+   * PRODUCTO, y es por el que el portal agrupa el catálogo. Se valida como texto libre acotado y no
+   * como enum para que añadir un cuarto bloque no sea un cambio de contrato de la API.
+   */
+  block: z.string().trim().min(1).max(60).optional(),
   backendService: z.string().trim().min(1).max(120).optional(),
   status: z.string().trim().min(1).max(40).optional(),
   riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
@@ -19,25 +27,7 @@ export const systemsListQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
-export const systemsEndpointParamsSchema = z.object({ endpointId: positiveId });
-export const systemsToolParamsSchema = z.object({ toolId: positiveId });
-export const systemsEntityParamsSchema = z.object({ entityId: positiveId });
-export const systemsTableImpactParamsSchema = z.object({
-  schemaName: z.string().trim().min(1).max(120),
-  tableName: z.string().trim().min(1).max(180),
-});
-export const systemsSuiteParamsSchema = z.object({ suiteId: positiveId });
-export const systemsRunParamsSchema = z.object({ runId: positiveId });
-export const systemsDataImpactParamsSchema = z.object({ impactId: positiveId });
-export const systemsFieldImpactParamsSchema = z.object({ fieldImpactId: positiveId });
-export const systemsDomainParamsSchema = z.object({
-  domainCode: z.string().trim().min(1).max(120),
-});
-export const systemsToolRequirementParamsSchema = z.object({ requirementId: positiveId });
-export const systemsStressProfileParamsSchema = z.object({ profileId: positiveId });
-export const systemsRequestParamsSchema = z.object({ requestId: z.string().trim().min(1).max(120) });
-
-export const systemsTestStepParamsSchema = z.object({ suiteId: positiveId, stepId: positiveId });
+export * from './systems-ops.params.schemas.js';
 
 const httpMethodSchema = z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']);
 const suiteTypeSchema = z.enum(['INTEGRATION', 'SMOKE', 'REGRESSION', 'E2E_API', 'LOAD']);
@@ -261,8 +251,16 @@ export const runTestSuiteSchema = z.object({
   timeoutMs: z.coerce.number().int().min(100).max(60000).default(10000),
 });
 
+/**
+ * `OPENAPI_CONTRACT` es el modo por defecto y el único que funciona en un despliegue real.
+ *
+ * `SOURCE_SCAN` lee `src/modules` con expresiones regulares, y la imagen de producción sólo copia
+ * `dist/` y `src/database`: dentro de un contenedor devolvía `discovered: 0` y lo reportaba como un
+ * éxito. Se conserva porque en una máquina de desarrollo sigue aportando lo que el contrato no dice
+ * —el controlador y el handler de cada ruta—, pero ya no es lo que se ejecuta al pulsar el botón.
+ */
 export const discoverEndpointsSchema = z.object({
-  mode: z.enum(['SOURCE_SCAN']).default('SOURCE_SCAN'),
+  mode: z.enum(['OPENAPI_CONTRACT', 'SOURCE_SCAN']).default('OPENAPI_CONTRACT'),
   persist: z.coerce.boolean().default(true),
 });
 
@@ -306,7 +304,6 @@ export const systemsSuiteQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
-export type SystemsTestStepParamsDto = z.infer<typeof systemsTestStepParamsSchema>;
 export type CreateTestSuiteDto = z.infer<typeof createTestSuiteSchema>;
 export type UpdateTestSuiteDto = z.infer<typeof updateTestSuiteSchema>;
 export type CreateTestStepDto = z.infer<typeof createTestStepSchema>;
@@ -315,19 +312,7 @@ export type ReorderTestStepsDto = z.infer<typeof reorderTestStepsSchema>;
 export type InferToolRequirementsDto = z.infer<typeof inferToolRequirementsSchema>;
 export type QueueStressRunDto = z.infer<typeof queueStressRunSchema>;
 export type SystemsListQueryDto = z.infer<typeof systemsListQuerySchema>;
-export type SystemsEndpointParamsDto = z.infer<typeof systemsEndpointParamsSchema>;
-export type SystemsToolParamsDto = z.infer<typeof systemsToolParamsSchema>;
-export type SystemsEntityParamsDto = z.infer<typeof systemsEntityParamsSchema>;
-export type SystemsTableImpactParamsDto = z.infer<typeof systemsTableImpactParamsSchema>;
-export type SystemsSuiteParamsDto = z.infer<typeof systemsSuiteParamsSchema>;
-export type SystemsRunParamsDto = z.infer<typeof systemsRunParamsSchema>;
-export type SystemsDataImpactParamsDto = z.infer<typeof systemsDataImpactParamsSchema>;
-export type SystemsFieldImpactParamsDto = z.infer<typeof systemsFieldImpactParamsSchema>;
-export type SystemsDomainParamsDto = z.infer<typeof systemsDomainParamsSchema>;
 export type SystemsColumnParamsDto = z.infer<typeof systemsColumnParamsSchema>;
-export type SystemsToolRequirementParamsDto = z.infer<typeof systemsToolRequirementParamsSchema>;
-export type SystemsStressProfileParamsDto = z.infer<typeof systemsStressProfileParamsSchema>;
-export type SystemsRequestParamsDto = z.infer<typeof systemsRequestParamsSchema>;
 export type SystemsActionLogQueryDto = z.infer<typeof systemsActionLogQuerySchema>;
 export type TrafficLatencyQueryDto = z.infer<typeof trafficLatencyQuerySchema>;
 export type TrafficLatencyTimeseriesQueryDto = z.infer<typeof trafficLatencyTimeseriesQuerySchema>;

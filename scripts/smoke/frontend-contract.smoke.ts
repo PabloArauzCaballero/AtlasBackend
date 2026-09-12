@@ -1,11 +1,12 @@
-import { getArrayFromPaths, getStringFromPaths, logSmokeConfig, request, TENANT_ID } from './http.js';
+import { ACCESS_TOKEN_COOKIE } from '../../src/common/utils/http/auth-cookies.util.js';
+import { cookieValue, getArrayFromPaths, getStringFromPaths, logSmokeConfig, request, TENANT_ID } from './http.js';
 import { requireSmokeEnv } from './required-smoke-env.js';
 
 type JsonRecord = Record<string, unknown>;
 
 type AuthContext = { headers: Record<string, string> };
 
-const PABLO_EMAIL = process.env.INTERNAL_SMOKE_EMAIL ?? 'pablo@atlas.internal';
+const PABLO_EMAIL = process.env.INTERNAL_SMOKE_EMAIL ?? 'a2020115468@estudiantes.upsa.edu.bo';
 const PABLO_PASSWORD = requireSmokeEnv('INTERNAL_SMOKE_PASSWORD');
 
 function assert(condition: boolean, message: string): void {
@@ -34,8 +35,14 @@ async function login(): Promise<AuthContext> {
     body: { tenantId: TENANT_ID, email: PABLO_EMAIL, password: PABLO_PASSWORD },
     expected: [200],
   });
-  const token = getStringFromPaths(response.data, [['data', 'accessToken'], ['accessToken']]);
-  assert(token.length > 20, 'Login no devolvió accessToken útil.');
+  // `POST /internal/auth/login` entrega el access token en una cookie `HttpOnly` (`tokenType:
+  // "Cookie"`), no en el cuerpo: es la vía del panel interno y la única que un XSS no puede leer.
+  // `user-types.smoke.ts` ya se había corregido (670e9b2); este smoke se quedó atrás leyendo
+  // `data.accessToken` y fallaba en el primer paso, así que el resto del contrato del Admin Portal
+  // no llegaba a comprobarse nunca.
+  const fromCookie = cookieValue(response.setCookie, ACCESS_TOKEN_COOKIE);
+  const token = fromCookie ?? getStringFromPaths(response.data, [['data', 'accessToken'], ['accessToken']]);
+  assert(token.length > 20, 'Login no devolvió un access token útil ni por cookie ni en el cuerpo.');
   return { headers: { authorization: `Bearer ${token}` } };
 }
 
@@ -77,7 +84,10 @@ async function main(): Promise<void> {
   const rules = await expectNonEmptyGet(ctx, '/internal/data-quality/rules', 'reglas calidad');
   const ruleId = firstId(rules, ['ruleId', 'id'], 'reglas calidad');
   await expectOk(ctx, 'GET', `/internal/data-quality/rules/${ruleId}`, 'detalle regla calidad');
-  await expectOk(ctx, 'POST', `/internal/data-quality/rules/${ruleId}/run`, 'ejecutar regla calidad');
+  // `POST /internal/data-quality/rules/:id/run` se retiró: devolvía 200 con un `runId`, un
+  // `finishedAt` calculado como inicio + 220 ms y `status: 'completed'` sin haber evaluado ninguna
+  // regla. La ejecución REAL es el job `recalculate_data_quality` de runtime-jobs, que sí corre y
+  // registra su corrida; este smoke ya no puede exigir una capacidad que el backend no tiene.
 
   const governanceResponse = await expectOk(ctx, 'GET', '/operations/data-governance/policies', 'políticas gobierno');
   const governanceData = (governanceResponse.data ?? governanceResponse) as JsonRecord;
@@ -107,16 +117,25 @@ async function main(): Promise<void> {
   const jobs = await expectNonEmptyGet(ctx, '/internal/jobs', 'jobs');
   const jobId = firstId(jobs, ['jobRunId', 'id'], 'jobs');
   await expectOk(ctx, 'GET', `/internal/jobs/${jobId}`, 'detalle job');
-  await expectOk(ctx, 'POST', `/internal/jobs/${jobId}/retry`, 'retry job');
-  await expectOk(ctx, 'POST', `/internal/jobs/${jobId}/cancel`, 'cancel job');
+  // `POST /internal/jobs/:id/retry` y `/cancel` se retiraron: devolvían `QUEUED_FOR_RETRY` /
+  // `CANCEL_REQUESTED` sin tocar el job (verificado en vivo: la fila seguía en `completed`). La
+  // re-ejecución REAL son los endpoints de `runtime-jobs`, que ejecutan y registran su corrida.
+  // El portal es de lectura, y el contrato del Admin Portal ya no puede prometer lo contrario.
 
   await expectOk(ctx, 'GET', '/internal/release-readiness', 'release readiness');
 
   const reports = await expectNonEmptyGet(ctx, '/internal/reports', 'reportes');
   const reportId = firstId(reports, ['reportId'], 'reportes');
   await expectOk(ctx, 'GET', `/internal/reports/${reportId}`, 'detalle reporte');
-  await expectOk(ctx, 'POST', `/internal/reports/${reportId}/run`, 'run reporte', { filters: {} });
-  await expectNonEmptyGet(ctx, `/internal/reports/${reportId}/snapshots`, 'snapshots reporte');
+  // El reporte se computa EN VIVO y no se persiste: la respuesta lo declara con `persisted: false`.
+  // El antiguo `GET /reports/:id/snapshots` se retiró porque devolvía dos filas escritas a mano en
+  // código (`snapshot:<id>:seed`, con fecha fija 2026-01-01) como si fueran histórico real.
+  const reportRun = await expectOk(ctx, 'POST', `/internal/reports/${reportId}/run`, 'run reporte', { filters: {} });
+  const runPayload = (reportRun as { data?: Record<string, unknown> }).data ?? reportRun;
+  assert(
+    (runPayload as Record<string, unknown>).persisted === false,
+    'El cómputo de reporte debe declarar `persisted: false`: no existe almacenamiento de snapshots.',
+  );
 
   const endpoints = await expectNonEmptyGet(ctx, '/systems/endpoints', 'endpoints sistemas');
   const endpointId = firstId(endpoints, ['endpointId', 'id'], 'endpoints');
@@ -125,16 +144,28 @@ async function main(): Promise<void> {
   const entities = await expectNonEmptyGet(ctx, '/systems/data-entities', 'entidades datos');
   const entityId = firstId(entities, ['entityId', 'id'], 'entidades datos');
   await expectOk(ctx, 'GET', `/systems/data-entities/${entityId}`, 'detalle entidad datos');
+  // `updateDataEntityMetadataSchema` es `.strict()` a propósito (rechaza claves desconocidas para
+  // impedir asignación masiva). El smoke enviaba además un campo `reason` que el contrato nunca
+  // tuvo: el 400 quedaba oculto porque este smoke fallaba antes, en el login.
   await expectOk(ctx, 'PATCH', `/systems/data-entities/${entityId}/metadata`, 'patch metadata entidad', {
     businessPurpose: 'Smoke frontend contract verified',
-    reason: 'frontend-contract-smoke',
   });
 
   await expectNonEmptyGet(ctx, '/systems/action-logs', 'action logs');
   await expectOk(ctx, 'GET', '/systems/action-logs/request/seed-req-dashboard-101', 'action logs por request');
   await expectNonEmptyGet(ctx, '/systems/tools', 'tools sistemas');
   await expectNonEmptyGet(ctx, '/systems/test-suites', 'test suites');
-  await expectNonEmptyGet(ctx, '/systems/review-queue', 'review queue');
+  // `/systems/review-queue` no devuelve una lista plana sino SEIS grupos (`endpoints`,
+  // `dataEntities`, `dataEntityImpacts`, `fieldImpacts`, `dataColumnImpacts`, `toolRequirements`),
+  // cada uno con su `items`/`total`. Además, una cola de revisión vacía es un estado legítimo —el
+  // catálogo está al día—, así que exigir "no vacío" sería exigir que exista trabajo pendiente. Lo
+  // que el Admin Portal necesita garantizado es la FORMA: los seis grupos, siempre presentes.
+  const reviewQueue = await expectOk(ctx, 'GET', '/systems/review-queue', 'review queue');
+  const reviewGroups = ((reviewQueue as { data?: Record<string, unknown> }).data ?? reviewQueue) as Record<string, unknown>;
+  for (const group of ['endpoints', 'dataEntities', 'dataEntityImpacts', 'fieldImpacts', 'dataColumnImpacts', 'toolRequirements']) {
+    const value = reviewGroups[group] as { items?: unknown } | undefined;
+    assert(Array.isArray(value?.items), `review queue: el grupo ${group} debe traer un array \`items\`.`);
+  }
   await expectNonEmptyGet(ctx, '/systems/stress-profiles', 'stress profiles');
   await expectNonEmptyGet(ctx, '/systems/stress-matrix', 'stress matrix');
   await expectOk(ctx, 'GET', '/internal/search?q=customer', 'búsqueda global');

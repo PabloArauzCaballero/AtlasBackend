@@ -51,6 +51,32 @@ export class SystemsActionLogRepository {
     return { rows: result.rows, meta: buildPaginationMeta(query, result.count) };
   }
 
+  /**
+   * Los valores DISTINTOS de una columna de la bitácora, para poblar un filtro.
+   *
+   * Se consultan de la tabla y no de una constante porque no existe lista
+   * canónica: los módulos y los tipos de actor los escribe quien instrumenta
+   * cada endpoint. Una lista a mano envejece en silencio —se añade un módulo,
+   * nadie toca la constante— y el filtro deja de poder encontrarlo, que es un
+   * fallo invisible: la pantalla se ve completa.
+   *
+   * La columna NO viene del cliente: se elige de un mapa cerrado en el llamador,
+   * porque interpolar un nombre de columna que llega de fuera es una inyección
+   * SQL con otro nombre.
+   */
+  async listDistinctValues(column: 'module' | 'actor_type', tenantId: string | null): Promise<string[]> {
+    const rows = await this.sequelize.query<{ valor: string | null }>(
+      `SELECT DISTINCT ${column === 'module' ? 'module' : 'actor_type'} AS valor
+         FROM system_action_logs
+        WHERE (:tenantId IS NULL OR _tenant_id = CAST(:tenantId AS bigint))
+          AND ${column === 'module' ? 'module' : 'actor_type'} IS NOT NULL
+        ORDER BY valor ASC
+        LIMIT 200`,
+      { replacements: { tenantId }, type: QueryTypes.SELECT },
+    );
+    return rows.map((row) => row.valor).filter((valor): valor is string => valor !== null && valor.trim() !== '');
+  }
+
   findActionLogsByRequest(requestId: string, tenantId: string | null): Promise<SystemActionLogModel[]> {
     return this.actionLogModel.findAll({
       where: { requestId, ...(tenantId === null ? {} : { tenantId }) },

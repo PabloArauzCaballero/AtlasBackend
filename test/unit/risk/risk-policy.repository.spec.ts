@@ -15,8 +15,8 @@ describe('RiskPolicyRepository', () => {
   const now = new Date('2026-07-31T12:00:00Z');
 
   function build(version: unknown = null, rules: unknown[] = []) {
-    const rulesetModel = { findOne: jest.fn(async () => version) };
-    const ruleModel = { findAll: jest.fn(async () => rules) };
+    const rulesetModel = { findOne: jest.fn(async (..._args: unknown[]) => version) };
+    const ruleModel = { findAll: jest.fn(async (..._args: unknown[]) => rules) };
     return { repository: new RiskPolicyRepository(rulesetModel as never, ruleModel as never), rulesetModel, ruleModel };
   }
 

@@ -6,6 +6,7 @@
 import { BadRequestException, Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { RequestWithNetwork, tenantIdFromHeader, userAgentFrom } from '../../common/utils/http/headers.util.js';
+import { RequestWithNetwork, userAgentFrom } from '../../common/utils/http/headers.util.js';
 import { SessionsService } from './sessions.service.js';
 import {
   EndSessionDto,
@@ -56,7 +57,7 @@ export class CustomerSessionsController {
   @Post('sessions/start')
   @HttpCode(HttpStatus.CREATED)
   startSession(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(startSessionParamsSchema)) params: StartSessionParamsDto,
     @Body(new ZodValidationPipe(startSessionSchema)) body: StartSessionDto,
@@ -69,7 +70,7 @@ export class CustomerSessionsController {
       body,
       currentUser,
       context: {
-        tenantId: tenantIdFromHeader(tenantIdHeader),
+        tenantId: tenantId,
         ipAddress: request.ip ?? null,
         userAgent: userAgentFrom(request),
         idempotencyKey,
@@ -95,7 +96,7 @@ export class CustomerSessionsController {
   @Post('sessions/:sessionId/heartbeat')
   @HttpCode(HttpStatus.ACCEPTED)
   heartbeat(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(sessionParamsSchema)) params: SessionParamsDto,
     @Body(new ZodValidationPipe(sessionHeartbeatSchema)) body: SessionHeartbeatDto,
@@ -109,7 +110,7 @@ export class CustomerSessionsController {
       body,
       currentUser,
       context: {
-        tenantId: tenantIdFromHeader(tenantIdHeader),
+        tenantId: tenantId,
         ipAddress: request.ip ?? null,
         userAgent: userAgentFrom(request),
         idempotencyKey,
@@ -129,7 +130,7 @@ export class CustomerSessionsController {
   @Post('sessions/:sessionId/end')
   @HttpCode(HttpStatus.OK)
   endSession(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(sessionParamsSchema)) params: SessionParamsDto,
     @Body(new ZodValidationPipe(endSessionSchema)) body: EndSessionDto,
@@ -143,7 +144,7 @@ export class CustomerSessionsController {
       body,
       currentUser,
       context: {
-        tenantId: tenantIdFromHeader(tenantIdHeader),
+        tenantId: tenantId,
         ipAddress: request.ip ?? null,
         userAgent: userAgentFrom(request),
         idempotencyKey,
@@ -161,12 +162,12 @@ export class CustomerSessionsController {
   @ApiResponse({ status: 404, description: 'Cliente no encontrado.' })
   @Get('session-state')
   getSessionState(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(startSessionParamsSchema)) params: StartSessionParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.sessionsService.getSessionState({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       currentUser,
     });
@@ -193,12 +194,12 @@ export class OperationsSessionsController {
   @ApiResponse({ status: 404, description: 'Sesión no encontrada.' })
   @Get(':sessionId/investigation-summary')
   getInvestigationSummary(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(operationSessionParamsSchema)) params: OperationSessionParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.sessionsService.getOperationsSessionSummary({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       sessionId: params.sessionId,
       currentUser,
     });

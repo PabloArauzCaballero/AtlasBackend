@@ -9,7 +9,7 @@ import { authHeader, buildWorkflowTestApp } from './support/workflow-test-app.js
 
 describe('WorkflowProgressController (e2e/supertest)', () => {
   let app: INestApplication;
-  const progressService = { getProgress: jest.fn(async () => ({ customerId: '7', stages: [] })) };
+  const progressService = { getProgress: jest.fn(async (..._args: unknown[]) => ({ customerId: '7', stages: [] })) };
 
   beforeAll(async () => {
     app = await buildWorkflowTestApp([WorkflowProgressController], [{ provide: WorkflowProgressService, useValue: progressService }]);
@@ -81,7 +81,7 @@ describe('WorkflowProgressController (e2e/supertest)', () => {
 
 describe('WorkflowOperationsController (e2e/supertest)', () => {
   let app: INestApplication;
-  const consistencyService = { check: jest.fn(async () => ({ status: 'in_sync', issues: [] })) };
+  const consistencyService = { check: jest.fn(async (..._args: unknown[]) => ({ status: 'in_sync', issues: [] })) };
 
   beforeAll(async () => {
     app = await buildWorkflowTestApp(

@@ -20,7 +20,7 @@ function buildContext(input: { requiredRoles: AtlasUserRole[] | undefined; user:
   context: ExecutionContext;
   reflector: Reflector;
 } {
-  const reflector = { getAllAndOverride: jest.fn(() => input.requiredRoles) } as unknown as Reflector;
+  const reflector = { getAllAndOverride: jest.fn((..._args: unknown[]) => input.requiredRoles) } as unknown as Reflector;
 
   const request: Partial<RequestWithAuth> = { headers: {}, user: input.user };
 

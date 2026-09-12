@@ -9,14 +9,14 @@ import { buildSystemsOpsTestApp, authHeader } from './support/systems-ops-test-a
 describe('SystemsStressController (e2e/supertest)', () => {
   let app: INestApplication;
   const service = {
-    listStressProfiles: jest.fn(async () => ({ items: [], meta: {} })),
-    getStressProfile: jest.fn(async () => ({ id: '1' })),
-    upsertStressProfile: jest.fn(async () => ({ id: '1' })),
-    getStressMatrix: jest.fn(async () => ({ items: [], meta: {} })),
+    listStressProfiles: jest.fn(async (..._args: unknown[]) => ({ items: [], meta: {} })),
+    getStressProfile: jest.fn(async (..._args: unknown[]) => ({ id: '1' })),
+    upsertStressProfile: jest.fn(async (..._args: unknown[]) => ({ id: '1' })),
+    getStressMatrix: jest.fn(async (..._args: unknown[]) => ({ items: [], meta: {} })),
   };
   const stressRunService = {
-    queueStressRun: jest.fn(async () => ({ runId: '1', status: 'QUEUED' })),
-    listStressRuns: jest.fn(async () => ({ items: [], meta: {} })),
+    queueStressRun: jest.fn(async (..._args: unknown[]) => ({ runId: '1', status: 'QUEUED' })),
+    listStressRuns: jest.fn(async (..._args: unknown[]) => ({ items: [], meta: {} })),
   };
 
   beforeAll(async () => {

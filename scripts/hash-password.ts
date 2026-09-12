@@ -1,7 +1,7 @@
 /**
  * Genera un hash Argon2id para una contraseña, usando la MISMA capa que la app
  * (`src/common/utils/crypto/password.util.ts`). Útil para rotar la contraseña del usuario admin de
- * desarrollo (`pablo@atlas.internal`) sin escribirla en texto plano en el repo: se pega solo el HASH
+ * desarrollo (id 1) sin escribirla en texto plano en el repo: se pega solo el HASH
  * resultante en el seeder `development/20260704121500-seed-pablo-admin-user.ts`.
  *
  * Uso:

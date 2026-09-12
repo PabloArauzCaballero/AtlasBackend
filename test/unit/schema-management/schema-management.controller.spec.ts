@@ -9,13 +9,13 @@ import { SchemaManagementController } from '../../../src/modules/schema-manageme
 describe('SchemaManagementController', () => {
   function build() {
     const service = {
-      listSchemaVersions: jest.fn(async () => ({ items: [] })),
-      getSchemaVersion: jest.fn(async () => ({ id: 'v1' })),
-      listSchemaTables: jest.fn(async () => ({ items: [] })),
-      getSchemaTable: jest.fn(async () => ({ id: 't1' })),
-      proposeNewTable: jest.fn(async () => ({ changeId: 'c1' })),
-      listSchemaChangeLog: jest.fn(async () => ({ items: [] })),
-      approveSchemaChange: jest.fn(async () => ({ decided: true })),
+      listSchemaVersions: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getSchemaVersion: jest.fn(async (..._args: unknown[]) => ({ id: 'v1' })),
+      listSchemaTables: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getSchemaTable: jest.fn(async (..._args: unknown[]) => ({ id: 't1' })),
+      proposeNewTable: jest.fn(async (..._args: unknown[]) => ({ changeId: 'c1' })),
+      listSchemaChangeLog: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      approveSchemaChange: jest.fn(async (..._args: unknown[]) => ({ decided: true })),
     };
     return { controller: new SchemaManagementController(service as never), service };
   }
@@ -36,7 +36,10 @@ describe('SchemaManagementController', () => {
     } as never);
     expect(service.listSchemaVersions).toHaveBeenCalledWith(10, 0, true);
     expect(service.getSchemaVersion).toHaveBeenCalledWith('v1');
-    expect(service.listSchemaTables).toHaveBeenCalledWith('v1', 'core', 5, 2);
+    // El quinto argumento es `schemaName`: acota el inventario a un esquema de datos (`iam`,
+    // `risk`…). Sin él, «las tablas de riesgo» no se podían pedir — el catálogo guarda el nombre
+    // cualificado y el techo de página es de 100 filas sobre 152 tablas.
+    expect(service.listSchemaTables).toHaveBeenCalledWith('v1', 'core', 5, 2, undefined);
     expect(service.getSchemaTable).toHaveBeenCalledWith('t1');
     expect(service.listSchemaChangeLog).toHaveBeenCalledWith('pending', 'create', 'u9', 20, 0);
   });

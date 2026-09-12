@@ -12,6 +12,7 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`schema-management-validation.service.ts`](./schema-management-validation.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`schema-management.mapper.ts`](./schema-management.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
 | [`schema-management.service.ts`](./schema-management.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento

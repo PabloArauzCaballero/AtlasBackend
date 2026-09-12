@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op, Transaction } from 'sequelize';
+import { FindOptions, literal, Op, Transaction } from 'sequelize';
 import {
   CustomerIdentityDocumentModel,
   EvidenceDocumentModel,
@@ -35,6 +35,29 @@ export class CustomerVerificationRepository {
     @InjectModel(WatchlistEntryModel) private readonly watchlistEntryModel: typeof WatchlistEntryModel,
     @InjectModel(WatchlistMatchModel) private readonly watchlistMatchModel: typeof WatchlistMatchModel,
   ) {}
+
+  /**
+   * El intento que origino una ejecucion del motor.
+   *
+   * Es lo unico que ata las dos bases: el motor conoce su `executionId` pero no sabe de que cliente
+   * es —a proposito, no tiene por que—, y aqui el intento guarda ese identificador entre sus
+   * codigos de motivo. Sin esta busqueda, cuando el analista resuelve la revision no hay forma de
+   * saber a quien aplicarsela.
+   */
+  findAttemptByExecutionId(
+    tenantId: string,
+    executionId: string,
+    options: RepositoryOptions = {},
+  ): Promise<IdentityVerificationAttemptModel | null> {
+    return this.attemptModel.findOne({
+      where: {
+        tenantId,
+        [Op.and]: [literal(`reason_codes_json->>'executionId' = ${this.attemptModel.sequelize!.escape(executionId)}`)],
+      },
+      order: [['id', 'DESC']],
+      transaction: options.transaction,
+    });
+  }
 
   findLatestAttempt(
     tenantId: string,
@@ -87,6 +110,30 @@ export class CustomerVerificationRepository {
     document.verificationStatus = values.verificationStatus;
     document.verifiedAt = values.verificationStatus === 'verified' ? values.now : null;
     await document.save({ transaction: options.transaction });
+  }
+
+  /** De que cliente es un intento de verificacion. Lo usa la pantalla del analista del motor. */
+  async findCustomerIdByAttempt(tenantId: string, attemptId: string): Promise<string | null> {
+    const attempt = await this.attemptModel.findOne({
+      where: { tenantId, id: attemptId },
+      attributes: ['customerId'],
+    } as FindOptions);
+    return attempt?.customerId ? String(attempt.customerId) : null;
+  }
+
+  /**
+   * Los documentos de identidad que subio el cliente.
+   *
+   * Los usa el analista para VER el carnet y la selfie con las que tiene que decidir: la revision
+   * manual ocurre en el motor, que solo recibe el hash de las imagenes, asi que sin esto la decision
+   * humana se toma sin mirar nada.
+   */
+  async findEvidenceDocuments(tenantId: string, customerId: string, options: RepositoryOptions = {}): Promise<EvidenceDocumentModel[]> {
+    return this.evidenceModel.findAll({
+      where: { tenantId, customerId, deleted: { [Op.ne]: true } },
+      order: [['id', 'ASC']],
+      transaction: options.transaction,
+    } as FindOptions);
   }
 
   /** Revisiones de evidencia sin resolver del cliente. Se resuelven en bloque con la identidad. */

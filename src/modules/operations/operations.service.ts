@@ -10,8 +10,10 @@ import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { CustomerLifecycleService } from '../customers/application/customer-lifecycle.service.js';
+import { CustomerContactsSnapshotService } from '../customer-onboarding/application/customer-contacts-snapshot.service.js';
 import { CustomerLifecycleStatus } from '../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
+import { CustomerContactsRepository } from '../customers/repositories/customer-contacts.repository.js';
 import { RiskRepository } from '../risk/risk.repository.js';
 import { InvestigationSummaryResponseDto, PaginatedWorkQueueResponseDto } from './operations.dtos.js';
 import { toFraudWorkItem, toInvestigationSummaryResponse, toManualReviewWorkItem } from './operations.mapper.js';
@@ -26,14 +28,25 @@ import {
 
 // La decisión de fraude vive en FraudService; OperationsController conserva la ruta compatible.
 
+import { OperationsQueueRepository } from './operations-queue.repository.js';
 @Injectable()
 export class OperationsService {
   constructor(
     private readonly operationsRepository: OperationsRepository,
     private readonly customersRepository: CustomersRepository,
+    private readonly customerContactsRepository: CustomerContactsRepository,
     private readonly riskRepository: RiskRepository,
     private readonly lifecycleService: CustomerLifecycleService,
+    /*
+     * La agenda del cliente la calcula y la guarda el módulo de ALTA, y de ahí se
+     * lee. No se duplica la consulta aquí porque entonces habría dos definiciones
+     * de qué significa «la agenda de este cliente» —una para decidir y otra para
+     * investigar— y basta con que se separen una vez para que el analista vea unos
+     * números y el motor decida con otros.
+     */
+    private readonly contactsSnapshot: CustomerContactsSnapshotService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly cola: OperationsQueueRepository,
   ) {}
 
   /**
@@ -42,18 +55,18 @@ export class OperationsService {
    * volumen de casos crezca lo suficiente para que `OFFSET` se vuelva costoso.
    */
   async getManualReviewCasesCursorPage(tenantId: string, query: CursorWorkQueueQueryDto) {
-    const result = await this.operationsRepository.findManualReviewCasesForQueueWithCursor(tenantId, query);
+    const result = await this.cola.findManualReviewCasesForQueueWithCursor(tenantId, query);
     return { items: result.items.map(toManualReviewWorkItem), nextCursor: result.nextCursor };
   }
 
   async getFraudCasesCursorPage(tenantId: string, query: CursorWorkQueueQueryDto) {
-    const result = await this.operationsRepository.findFraudCasesForQueueWithCursor(tenantId, query);
+    const result = await this.cola.findFraudCasesForQueueWithCursor(tenantId, query);
     return { items: result.items.map(toFraudWorkItem), nextCursor: result.nextCursor };
   }
 
   async getWorkQueue(tenantId: string, query: WorkQueueQueryDto): Promise<PaginatedWorkQueueResponseDto> {
     if (query.queue === 'manual_review') {
-      const result = await this.operationsRepository.findManualReviewCasesForQueue(tenantId, query);
+      const result = await this.cola.findManualReviewCasesForQueue(tenantId, query);
       return {
         items: result.rows.map(toManualReviewWorkItem),
         meta: result.meta,
@@ -61,7 +74,7 @@ export class OperationsService {
     }
 
     if (query.queue === 'fraud') {
-      const result = await this.operationsRepository.findFraudCasesForQueue(tenantId, query);
+      const result = await this.cola.findFraudCasesForQueue(tenantId, query);
       return {
         items: result.rows.map(toFraudWorkItem),
         meta: result.meta,
@@ -78,8 +91,8 @@ export class OperationsService {
     const topK = query.page * query.limit;
     const topKQuery = { ...query, page: 1, limit: topK };
     const [manualResult, fraudResult] = await Promise.all([
-      this.operationsRepository.findManualReviewCasesForQueue(tenantId, topKQuery),
-      this.operationsRepository.findFraudCasesForQueue(tenantId, topKQuery),
+      this.cola.findManualReviewCasesForQueue(tenantId, topKQuery),
+      this.cola.findFraudCasesForQueue(tenantId, topKQuery),
     ]);
 
     const allItems = [...manualResult.rows.map(toManualReviewWorkItem), ...fraudResult.rows.map(toFraudWorkItem)].sort((a, b) => {
@@ -103,14 +116,27 @@ export class OperationsService {
       throw new NotFoundException('Cliente no encontrado.');
     }
 
-    const [profile, contacts, consents, latestRiskResult, manualReviewCases, fraudCases] = await Promise.all([
-      this.customersRepository.findCurrentProfile(tenantId, params.customerId),
-      this.customersRepository.findContactMethods(tenantId, params.customerId),
-      this.customersRepository.findCustomerConsents(tenantId, params.customerId),
-      this.riskRepository.findLatestCustomerRiskResult(tenantId, params.customerId),
-      this.operationsRepository.findOpenManualReviewCasesForCustomer(tenantId, params.customerId),
-      this.operationsRepository.findFraudCasesForCustomer(tenantId, params.customerId),
-    ]);
+    const [profile, contacts, consents, latestRiskResult, manualReviewCases, fraudCases, latestIdentityAttempt, addressBook] =
+      await Promise.all([
+        this.customersRepository.findCurrentProfile(tenantId, params.customerId),
+        this.customerContactsRepository.findContactMethods(tenantId, params.customerId),
+        this.customersRepository.findCustomerConsents(tenantId, params.customerId),
+        this.riskRepository.findLatestCustomerRiskResult(tenantId, params.customerId),
+        this.operationsRepository.findOpenManualReviewCasesForCustomer(tenantId, params.customerId),
+        this.operationsRepository.findFraudCasesForCustomer(tenantId, params.customerId),
+        this.operationsRepository.findLatestIdentityAttempt(tenantId, params.customerId),
+        // La agenda es una lectura auxiliar: si falla, el expediente entero no puede
+        // dejar de verse por ella. Degradar a «no disponible» es lo mismo que la
+        // pantalla enseña cuando la persona no dio el permiso.
+        this.contactsSnapshot.featuresFor(tenantId, params.customerId).catch(() => ({
+          available: false,
+          totalContacts: 0,
+          uniqueRatio: 0,
+          bolivianRatio: 0,
+          referencesFoundInAddressBook: 0,
+          riskMatches: 0,
+        })),
+      ]);
 
     return toInvestigationSummaryResponse({
       customer,
@@ -120,6 +146,8 @@ export class OperationsService {
       latestRiskResult,
       manualReviewCases,
       fraudCases,
+      latestIdentityAttempt,
+      addressBook,
     });
   }
 
@@ -139,6 +167,19 @@ export class OperationsService {
       const reviewCase = await this.operationsRepository.findManualReviewCaseById(input.tenantId, input.params.caseId);
       if (!reviewCase) throw new NotFoundException('CASE_NOT_FOUND');
       if (reviewCase.closedAt || reviewCase.status === 'closed') throw new ConflictException('CASE_ALREADY_CLOSED');
+      /*
+       * Un caso delegado NO se decide aquí.
+       *
+       * Cuando el Motor de Decisión resolvió la evaluación, él abrió su propio caso de revisión —con
+       * su expediente, su petición de información y su auditoría— y esta fila es sólo el ancla que el
+       * flujo de alta necesita. Dejar cerrarla desde el portal creaba dos decisiones para el mismo
+       * cliente, tomadas por dos personas que no se ven, y una pregunta sin respuesta después: quién
+       * aprobó. Se corta en el servicio y no sólo en la pantalla porque una pantalla se salta con
+       * curl, y esto es lo que hace que la bandeja del Motor sea la de verdad.
+       */
+      if (reviewCase.decisionExecutionId) {
+        throw new ConflictException('MANUAL_REVIEW_DELEGADA_AL_MOTOR');
+      }
       await this.operationsRepository.closeManualReviewCase(
         reviewCase,
         { resolution: input.body.decision, notes: input.body.notes ?? null, closedAt: now },

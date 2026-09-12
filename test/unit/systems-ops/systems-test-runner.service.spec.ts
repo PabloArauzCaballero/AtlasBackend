@@ -32,12 +32,12 @@ describe('SystemsTestRunnerService.runSuite', () => {
 
   function build(suite: unknown, steps: unknown[]) {
     const repository = {
-      findTestSuiteById: jest.fn(async () => suite),
-      findTestStepsBySuite: jest.fn(async () => steps),
-      createTestRun: jest.fn(async () => ({ id: 'run1', suiteId: 1 })),
+      findTestSuiteById: jest.fn(async (..._args: unknown[]) => suite),
+      findTestStepsBySuite: jest.fn(async (..._args: unknown[]) => steps),
+      createTestRun: jest.fn(async (..._args: unknown[]) => ({ id: 'run1', suiteId: 1 })),
       createTestStepRun: asyncMock(),
       finishTestRun: jest.fn(async (_run: unknown, patch: { status: string }) => ({ id: 'run1', suiteId: 1, status: patch.status })),
-      findStepRunsByRun: jest.fn(async () => [{ id: 1, testRunId: 'run1', stepId: '1', status: 'PASSED' }]),
+      findStepRunsByRun: jest.fn(async (..._args: unknown[]) => [{ id: 1, testRunId: 'run1', stepId: '1', status: 'PASSED' }]),
     };
     const httpClient = { execute: asyncMock() };
     const service = new SystemsTestRunnerService(

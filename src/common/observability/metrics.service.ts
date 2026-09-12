@@ -29,9 +29,11 @@ export class MetricsService {
   private readonly httpRequestDuration: Histogram<'method' | 'route' | 'status_code'>;
   private readonly providerCallsTotal: Counter<'provider' | 'outcome'>;
   private readonly circuitBreakerState: Gauge<'provider'>;
+  private readonly partnerOnboardingSteps: Counter<'step' | 'outcome'>;
   private readonly outboxPendingEvents: Gauge<'tenant_id'>;
   private readonly scheduledJobRuns: Counter<'job' | 'outcome'>;
   private readonly authAttemptsTotal: Counter<'actor_type' | 'outcome'>;
+  private readonly outboxRelayEvents: Counter<'outcome' | 'transport'>;
 
   constructor() {
     this.registry = new Registry();
@@ -73,6 +75,20 @@ export class MetricsService {
       registers: [this.registry],
     });
 
+    /*
+     * Onboarding del partner, paso a paso. Es un CONTADOR por paso y resultado y no un simple
+     * total de altas porque la pregunta que hay que poder responder no es «¿cuántos comercios
+     * entraron?» sino «¿dónde se caen?»: un embudo que pierde el 60 % en la subida del QR
+     * bancario y otro que lo pierde en el alta son el mismo número de altas y dos problemas
+     * completamente distintos.
+     */
+    this.partnerOnboardingSteps = new Counter({
+      name: 'atlas_partner_onboarding_steps_total',
+      help: 'Pasos del onboarding del partner por paso y resultado. Mide el embudo, no sólo el total de altas.',
+      labelNames: ['step', 'outcome'],
+      registers: [this.registry],
+    });
+
     this.outboxPendingEvents = new Gauge({
       name: 'atlas_outbox_pending_events',
       help: 'Eventos del outbox en estado pending (profundidad del backlog) por tenant, medido en la última corrida del job.',
@@ -93,6 +109,13 @@ export class MetricsService {
     // Hallazgo A-10: los intentos de login quedaban en `auth_events` (base), que sirve para
     // investigar UN caso pero no para ver un patrón. Un pico de `invalid_password` sobre muchos
     // identificadores es credential stuffing, y sin serie temporal nadie se entera en el momento.
+    // AT-048: resultado del relay v2 por transporte; sin tenant ni eventId (cardinalidad acotada).
+    this.outboxRelayEvents = new Counter({
+      name: 'atlas_outbox_relay_events_total',
+      help: 'Eventos tratados por el relay del outbox, por resultado (published, retried, dead_lettered, quarantined) y transporte.',
+      labelNames: ['outcome', 'transport'],
+      registers: [this.registry],
+    });
     this.authAttemptsTotal = new Counter({
       name: 'atlas_auth_attempts_total',
       help: 'Intentos de login por tipo de actor y resultado (success o código de fallo).',
@@ -122,6 +145,10 @@ export class MetricsService {
    *   dejó de correr" —el fallo más caro de un planificador, porque no produce ningún error— en
    *   algo alertable: `increase(atlas_scheduled_job_runs_total{outcome="stalled"}[15m]) > 0`.
    */
+  recordOutboxRelay(input: { outcome: 'published' | 'retried' | 'dead_lettered' | 'quarantined'; transport: string }): void {
+    this.outboxRelayEvents.inc({ outcome: input.outcome, transport: input.transport });
+  }
+
   recordScheduledJob(input: { job: string; outcome: 'success' | 'failure' | 'skipped' | 'stalled' }): void {
     this.scheduledJobRuns.inc({ job: input.job, outcome: input.outcome });
   }
@@ -136,6 +163,15 @@ export class MetricsService {
   }
 
   /** Registra una llamada saliente a un proveedor externo. `outcome`: success | failure | circuit_open. */
+  /**
+   * Un paso del onboarding del partner terminó. `outcome` distingue el paso completado del que una
+   * regla rechazó: los dos son información, y colapsarlos deja el embudo sin poder explicar por
+   * qué se estrecha.
+   */
+  recordPartnerOnboardingStep(input: { step: string; outcome: 'ok' | 'rejected' }): void {
+    this.partnerOnboardingSteps.inc({ step: input.step, outcome: input.outcome });
+  }
+
   recordProviderCall(input: { provider: string; outcome: 'success' | 'failure' | 'circuit_open' }): void {
     this.providerCallsTotal.inc({ provider: input.provider, outcome: input.outcome });
   }

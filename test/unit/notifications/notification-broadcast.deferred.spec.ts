@@ -20,10 +20,10 @@ function buildService() {
       recipients.map((recipient, index) => ({ id: `msg-${index}-${recipient.recipientId}` })),
     ),
   };
-  const orchestrator = { deliverMessage: jest.fn(async () => undefined) };
-  const customersRepository = { listActiveCustomerIds: jest.fn(async () => ['c1', 'c2']) };
-  const internalRbacRepository = { listActiveInternalUserIds: jest.fn(async () => ['iu1']) };
-  const tenantModel = { findAll: jest.fn(async () => [{ id: 't1' }]) };
+  const orchestrator = { deliverMessage: jest.fn(async (..._args: unknown[]) => undefined) };
+  const customersRepository = { listActiveCustomerIds: jest.fn(async (..._args: unknown[]) => ['c1', 'c2']) };
+  const internalRbacRepository = { listActiveInternalUserIds: jest.fn(async (..._args: unknown[]) => ['iu1']) };
+  const tenantModel = { findAll: jest.fn(async (..._args: unknown[]) => [{ id: 't1' }]) };
 
   const service = new NotificationBroadcastService(
     notificationsRepository as never,

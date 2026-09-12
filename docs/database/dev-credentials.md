@@ -6,10 +6,28 @@ El seeder `development/20260704121500-seed-pablo-admin-user` crea/actualiza el u
 
 | Campo | Valor |
 |---|---|
-| Email | `pablo@atlas.internal` |
-| Password local | *(no versionada — pedir al dueño de la cuenta o consultar el gestor de contraseñas del equipo)* |
+| Email | `DEV_ADMIN_EMAIL` si está definida; si no, `pablo@atlas.internal` |
+| Password local | `DEV_ADMIN_PASSWORD` si está definida; si no, la del hash versionado *(no versionada — pedirla al dueño de la cuenta)* |
 | Roles | `SUPER_ADMIN`, `SYSTEMS_ADMIN`, `DATA_GOVERNANCE_MANAGER` |
 | Tenant | `1` |
+
+### Apuntar la cuenta a tu correo real
+
+`@atlas.internal` no es un dominio que exista, así que con el default **el PIN del segundo factor y el
+correo de reset no se pueden probar contra un buzón de verdad**: se envían y se pierden. Para
+recibirlos, define ambas variables en tu `.env` (que está en `.gitignore`) y vuelve a sembrar:
+
+```env
+DEV_ADMIN_EMAIL=tu.correo@ejemplo.com
+DEV_ADMIN_PASSWORD=tu-contraseña-local
+```
+
+El seeder hashea `DEV_ADMIN_PASSWORD` **al sembrar**, así que ni la contraseña ni su hash entran al
+repo — es la misma lección de ATLAS-P0-002 aplicada al hash. Sin las variables el seeder se comporta
+igual que siempre (email fijo + hash versionado), que es lo que esperan CI y los smokes.
+
+Los smokes de contrato leen la misma identidad por `INTERNAL_SMOKE_EMAIL` / `INTERNAL_SMOKE_PASSWORD`;
+si cambias el admin, cámbialas también o fallarán al autenticar.
 
 Esta credencial existe para desarrollo local y pruebas iniciales. No debe usarse como secreto de producción.
 

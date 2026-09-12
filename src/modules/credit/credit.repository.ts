@@ -84,6 +84,31 @@ export class CreditRepository {
     } as FindOptions);
   }
 
+  /**
+   * Las solicitudes de UN comercio, opcionalmente sólo las que esperan su respuesta.
+   *
+   * El filtro por comercio va en la consulta y no después, en memoria: es lo que impide que una
+   * paginación devuelva las primeras cincuenta del tenant y de ahí se descarten las ajenas —el
+   * comercio vería una lista corta sin saber que le faltan las suyas—, y es lo que hace útil el
+   * índice parcial de pendientes por comercio.
+   */
+  findApplicationsByPartner(
+    tenantId: string,
+    partnerProfileId: string,
+    options: { onlyPendingAcceptance?: boolean } = {},
+  ): Promise<CreditApplicationModel[]> {
+    return this.applicationModel.findAll({
+      where: {
+        tenantId,
+        partnerProfileId,
+        deleted: false,
+        ...(options.onlyPendingAcceptance ? { businessAcceptance: 'pending' } : {}),
+      },
+      order: [['submittedAt', 'DESC']],
+      limit: 100,
+    } as FindOptions);
+  }
+
   createApplication(values: Record<string, unknown>, options: RepositoryOptions): Promise<CreditApplicationModel> {
     return this.applicationModel.create(values as never, { transaction: options.transaction });
   }

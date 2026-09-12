@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { OperationsRepository } from '../../../src/modules/operations/operations.repository.js';
 import { encodeCursor } from '../../../src/common/utils/pagination/cursor-pagination.util.js';
+import { OperationsQueueRepository } from '../../../src/modules/operations/operations-queue.repository.js';
 
 /**
  * Cobertura directa de `OperationsRepository` (Fase 1.2 del plan 10/10): finders de la cola de
@@ -19,6 +20,9 @@ describe('OperationsRepository', () => {
       operationalAudit: make(),
       dataChangeLog: make(),
       customerObservation: make(),
+      // El octavo modelo, que el repositorio recibe desde que la identidad dejó de decidirse con
+      // una sola fuente. Sin él la construcción no compila, y la prueba se quedó atrás.
+      identityAttempt: make(),
     };
     const repo = new OperationsRepository(
       models.manualReviewCase as never,
@@ -28,8 +32,32 @@ describe('OperationsRepository', () => {
       models.operationalAudit as never,
       models.dataChangeLog as never,
       models.customerObservation as never,
+      models.identityAttempt as never,
     );
-    return { repo, models };
+    /*
+     * Las cuatro consultas de la COLA salieron a `OperationsQueueRepository` al partir el archivo
+     * por tamaño. Se construye con los MISMOS dobles y en el mismo orden, así que las aserciones de
+     * este spec no cambian: sólo cambia de qué objeto cuelga el método.
+     */
+    const cola = new OperationsQueueRepository(
+      models.manualReviewCase as never,
+      models.fraudCase as never,
+      models.manualReviewEvent as never,
+      models.customerStatusEvent as never,
+      models.operationalAudit as never,
+      models.dataChangeLog as never,
+      models.customerObservation as never,
+      models.identityAttempt as never,
+    );
+    return {
+      repo: Object.assign(repo, {
+        findManualReviewCasesForQueue: cola.findManualReviewCasesForQueue.bind(cola),
+        findManualReviewCasesForQueueWithCursor: cola.findManualReviewCasesForQueueWithCursor.bind(cola),
+        findFraudCasesForQueue: cola.findFraudCasesForQueue.bind(cola),
+        findFraudCasesForQueueWithCursor: cola.findFraudCasesForQueueWithCursor.bind(cola),
+      }),
+      models,
+    };
   }
 
   const tx = { transaction: 'tx' as never };
@@ -43,6 +71,23 @@ describe('OperationsRepository', () => {
       expect(options.where).toMatchObject({ tenantId: 't1', customerId: 'c1', closedAt: null });
       expect(options.where.deleted).toBeDefined();
       expect(options.limit).toBe(10);
+    });
+
+    /**
+     * Regresión del 500 en `GET /operations/customers/:id/investigation-summary` (2026-09-07).
+     * El filtro `deleted` estaba copiado de las consultas de `customers`, pero
+     * `identity_verification_attempts` no tiene esa columna: PostgreSQL respondía 42703
+     * («column IdentityVerificationAttemptModel.deleted does not exist») y el endpoint moría.
+     * Lo encontró Flujos al cruzar el catálogo con las corridas reales de `system_action_logs`.
+     */
+    it('findLatestIdentityAttempt NO filtra por `deleted`: esa columna no existe en la tabla', async () => {
+      const { repo, models } = buildRepo();
+      (models.identityAttempt.findOne as jest.Mock).mockResolvedValue(null as never);
+      await repo.findLatestIdentityAttempt('t1', 'c1');
+      const options = (models.identityAttempt.findOne as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; order: unknown };
+      expect(options.where).toEqual({ tenantId: 't1', customerId: 'c1' });
+      expect(options.where.deleted).toBeUndefined();
+      expect(options.order).toEqual([['_id', 'DESC']]);
     });
 
     it('findFraudCasesForCustomer filtra por tenant+cliente no borrado, top 10', async () => {
@@ -67,7 +112,7 @@ describe('OperationsRepository', () => {
 
   it('closeManualReviewCase pone el caso en closed y lo guarda en la transacción', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({ saved: true }));
+    const save = jest.fn(async (..._args: unknown[]) => ({ saved: true }));
     const caseModel = { save } as never;
     await repo.closeManualReviewCase(caseModel, { resolution: 'approved', notes: 'ok', closedAt: new Date('2026-01-01') }, tx);
     expect((caseModel as { status: string }).status).toBe('closed');

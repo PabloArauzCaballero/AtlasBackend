@@ -53,7 +53,7 @@ describe('CatalogDataGovernanceRepository', () => {
   describe('upsertPrivacyPurpose (vía upsertByCode)', () => {
     it('updates the existing row when one matches the code, without creating', async () => {
       const { repo, models } = buildRepo();
-      const existing = { update: jest.fn(async () => undefined) };
+      const existing = { update: jest.fn(async (..._args: unknown[]) => undefined) };
       (models.privacyPurposeModel.findOne as jest.Mock).mockResolvedValue(existing as never);
 
       const result = await repo.upsertPrivacyPurpose({ purposeCode: 'MARKETING' }, {});
@@ -77,7 +77,7 @@ describe('CatalogDataGovernanceRepository', () => {
   describe('upsertSensitiveFieldRule (upsert por tabla+campo, no por código)', () => {
     it('matches on tableName+fieldName and updates when it exists', async () => {
       const { repo, models } = buildRepo();
-      const existing = { update: jest.fn(async () => undefined) };
+      const existing = { update: jest.fn(async (..._args: unknown[]) => undefined) };
       (models.sensitiveFieldRuleModel.findOne as jest.Mock).mockResolvedValue(existing as never);
 
       const result = await repo.upsertSensitiveFieldRule({ tableName: 'customers', fieldName: 'email' }, {});

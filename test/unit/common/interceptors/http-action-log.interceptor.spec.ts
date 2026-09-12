@@ -43,7 +43,7 @@ describe('HttpActionLogInterceptor', () => {
       resolveAuditWrite = () => resolve({ id: 'log-1' });
     });
     const actionLog = {
-      createHttpAction: jest.fn(() => {
+      createHttpAction: jest.fn((..._args: unknown[]) => {
         events.push('audit-write-started');
         return auditWritePromise;
       }),
@@ -66,7 +66,7 @@ describe('HttpActionLogInterceptor', () => {
   it('does not throw or reject the response when the audit log write fails', async () => {
     const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     const actionLog = {
-      createHttpAction: jest.fn(() => Promise.reject(new Error('db unavailable'))),
+      createHttpAction: jest.fn((..._args: unknown[]) => Promise.reject(new Error('db unavailable'))),
     };
 
     const interceptor = new HttpActionLogInterceptor(actionLog as unknown as HttpActionLogService);
@@ -83,7 +83,7 @@ describe('HttpActionLogInterceptor', () => {
     const ctx = (request: Record<string, unknown>, response: Record<string, unknown> = { statusCode: 200 }) =>
       ({ switchToHttp: () => ({ getRequest: () => request, getResponse: () => response }) }) as unknown as ExecutionContext;
     const build = () => {
-      const actionLog = { createHttpAction: jest.fn(async () => undefined) };
+      const actionLog = { createHttpAction: jest.fn(async (..._args: unknown[]) => undefined) };
       return { interceptor: new HttpActionLogInterceptor(actionLog as unknown as HttpActionLogService), actionLog };
     };
     const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -204,7 +204,7 @@ describe('HttpActionLogInterceptor', () => {
 
     it('si el registro del error también falla, el error original igual llega al cliente', async () => {
       const actionLog = {
-        createHttpAction: jest.fn(async () => {
+        createHttpAction: jest.fn(async (..._args: unknown[]) => {
           throw new Error('log down');
         }),
       };

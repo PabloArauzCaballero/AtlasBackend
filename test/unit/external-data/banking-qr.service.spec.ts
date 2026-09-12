@@ -8,9 +8,9 @@ import { BankingQrService } from '../../../src/modules/external-data/application
  */
 describe('BankingQrService', () => {
   function build(defaultMode = 'mock_local') {
-    const registry = { requireProviderAllowDisabled: jest.fn(async () => ({ defaultMode })) };
+    const registry = { requireProviderAllowDisabled: jest.fn(async (..._args: unknown[]) => ({ defaultMode })) };
     const bankingAdapter = {
-      generateQr: jest.fn(async () => ({
+      generateQr: jest.fn(async (..._args: unknown[]) => ({
         status: 'QR_GENERATED',
         qrId: 'QR-X',
         qrPayload: 'ATLAS-MOCK-QR|amount=250|currency=BOB|ref=R1',
