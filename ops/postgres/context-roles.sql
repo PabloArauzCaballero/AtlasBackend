@@ -12,7 +12,10 @@
 \if :{?ctx_password}
 \else
   \echo 'ERROR: falta -v ctx_password. Ejecuta: psql -v DBNAME=... -v ctx_password=... -f ops/postgres/context-roles.sql'
-  \quit 1
+  -- `\quit` sale con código 0 (y `\quit 1` ni siquiera acepta el argumento): un CI que ejecutara el
+  -- guion sin contraseña lo vería en VERDE sin haber creado nada. La excepción, con `ON_ERROR_STOP on`,
+  -- aborta con código distinto de cero, que es lo que exige ATLAS-CI-002.
+  DO $$ BEGIN RAISE EXCEPTION 'CTX_PASSWORD_REQUIRED: pasa -v ctx_password al ejecutar context-roles.sql'; END $$;
 \endif
 -- Las variables de psql no se interpolan dentro de un bloque DO: se pasa la contraseña por configuración de sesión.
 SELECT set_config('atlas.ctx_password', :'ctx_password', false);
