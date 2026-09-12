@@ -77,6 +77,8 @@ describe('NotificationRequestPort · adaptador local', () => {
       'NOTIFICATION_CHANNELS',
       'NOTIFICATION_RECIPIENT_TYPES',
       'NOTIFICATION_REQUEST_PORT',
+      'OTP_DELIVERY_PORT',
+      'OTP_ERRORS',
       'RECIPIENT_DIRECTORY_PORT',
     ]);
   });

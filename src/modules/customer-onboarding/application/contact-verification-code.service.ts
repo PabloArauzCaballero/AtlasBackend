@@ -3,7 +3,7 @@
  * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { Transaction } from 'sequelize';
 import { env } from '../../../config/env.js';
 import { decryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
@@ -13,6 +13,7 @@ import { AuthRepository, OneTimeCodePurpose } from '../../auth/auth.repository.j
 import { AuthOneTimeCodeRepository } from '../../auth/auth-one-time-code.repository.js';
 import { MailSenderService } from '../../mail-sender/mail-sender.service.js';
 import { NotificationChannelAdapter } from '../../notifications/adapters/notification-channel-adapter.js';
+import { OTP_DELIVERY_PORT, type OtpDeliveryPort } from '../../notifications/public/index.js';
 import { SmsNotificationAdapter } from '../../notifications/adapters/sms.adapter.js';
 import { WhatsAppNotificationAdapter } from '../../notifications/adapters/whatsapp.adapter.js';
 
@@ -63,10 +64,17 @@ export class ContactVerificationCodeService {
     private readonly mailSenderService: MailSenderService,
     private readonly smsAdapter: SmsNotificationAdapter,
     private readonly whatsappAdapter: WhatsAppNotificationAdapter,
+    // AT-040: con el puerto presente, la entrega va por contrato (vencimiento, capacidades, resultado incierto).
+    @Optional() @Inject(OTP_DELIVERY_PORT) private readonly otpDelivery?: OtpDeliveryPort,
   ) {}
 
   /** Canales realmente utilizables con la configuración vigente. */
   availableChannels(): VerificationChannel[] {
+    if (this.otpDelivery)
+      return this.otpDelivery
+        .capabilities()
+        .filter((c) => c.available)
+        .map((c) => c.channel);
     const channels: VerificationChannel[] = [];
     if (this.mailSenderService.isEnabled()) channels.push('email');
     if (this.smsAdapter.getProviderName() !== 'disabled') channels.push('sms');
@@ -200,6 +208,19 @@ export class ContactVerificationCodeService {
     customerId: string;
   }): Promise<CodeDeliveryOutcome> {
     const reference = `contact-verification:${input.customerId}`;
+    if (this.otpDelivery) {
+      const outcome = await this.otpDelivery.deliver({
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        channel: input.channel,
+        destination: input.destination,
+        code: input.code,
+        ttlMinutes: input.ttlMinutes,
+        expiresAt: new Date(Date.now() + input.ttlMinutes * 60_000),
+        reference,
+      });
+      return { delivered: outcome.delivered, provider: outcome.provider, errorCode: outcome.errorCode };
+    }
     try {
       if (input.channel === 'email') {
         await this.mailSenderService.sendContactVerificationCode({

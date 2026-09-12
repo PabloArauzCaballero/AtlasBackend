@@ -5,6 +5,8 @@
  */
 import { Module } from '@nestjs/common';
 import { LegacyOnboardingAtomicBridge } from '../../bootstrap/legacy-onboarding-atomic.bridge.js';
+import { LocalOtpDeliveryAdapter } from '../notifications/infrastructure/local-otp-delivery.adapter.js';
+import { OTP_DELIVERY_PORT } from '../notifications/public/index.js';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import {
@@ -147,6 +149,10 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
   providers: [
     // AT-015: el grupo atómico del alta tiene nombre, dueño y alcance declarados.
     LegacyOnboardingAtomicBridge,
+    // AT-040: el puerto de entrega de OTP se compone aquí, donde conviven MailSender y los canales (Mensajería no
+    // puede importar MailSenderModule sin cerrar un ciclo de módulos).
+    LocalOtpDeliveryAdapter,
+    { provide: OTP_DELIVERY_PORT, useExisting: LocalOtpDeliveryAdapter },
     IdentityManualReviewOutcomeService,
     CustomerContactsSnapshotService,
     CustomerContactsSnapshotRepository,

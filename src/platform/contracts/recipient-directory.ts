@@ -25,8 +25,25 @@ export type RecipientResolution = Readonly<{
   resolvedAt: string;
 }>;
 
+export type DeliveryAddressLookup = RecipientLookup &
+  Readonly<{ /** Propósito que autoriza usar el contacto (p. ej. `transactional`, `otp`, `marketing`). */ purpose: string }>;
+
+export type DeliveryAddress = Readonly<{
+  contactId: string;
+  kind: 'email' | 'phone' | 'whatsapp';
+  /** El valor en claro, sólo para entregar; nunca se persiste en Mensajería ni viaja en eventos. */
+  address: string;
+  resolvedAt: string;
+}>;
+
 export interface RecipientDirectoryPort {
   resolve(lookup: RecipientLookup): Promise<RecipientResolution>;
+  /**
+   * Direcciones de entrega vigentes y verificadas para el canal, autorizadas por el propósito. Vacío
+   * cuando no hay contacto válido o el propósito no está permitido: nunca una dirección arbitraria.
+   * El propósito `otp` acepta contactos aún no verificados (el OTP es precisamente cómo se verifican).
+   */
+  resolveDeliveryAddresses(lookup: DeliveryAddressLookup): Promise<readonly DeliveryAddress[]>;
 }
 
 export const RECIPIENT_DIRECTORY_PORT = 'atlas.notifications.recipient-directory-port';

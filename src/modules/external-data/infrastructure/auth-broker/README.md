@@ -9,10 +9,10 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`auth-broker.client.ts`](./auth-broker.client.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`auth-broker.types.ts`](./auth-broker.types.ts) | Tipos de dominio: hacen explícitos estados y contratos internos. |
+| Documento o código                                 | Responsabilidad                                                  |
+| -------------------------------------------------- | ---------------------------------------------------------------- |
+| [`auth-broker.client.ts`](./auth-broker.client.ts) | Artefacto de soporte específico de esta carpeta.                 |
+| [`auth-broker.types.ts`](./auth-broker.types.ts)   | Tipos de dominio: hacen explícitos estados y contratos internos. |
 
 ## Reglas de mantenimiento
 

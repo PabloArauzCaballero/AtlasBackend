@@ -19,3 +19,12 @@ export {
   type RecipientLookup,
   type RecipientResolution,
 } from '../application/ports/recipient-directory.port.js';
+export {
+  OTP_DELIVERY_PORT,
+  OTP_ERRORS,
+  type ChannelCapability,
+  type OtpChannel,
+  type OtpDeliveryOutcome,
+  type OtpDeliveryPort,
+  type OtpDeliveryRequest,
+} from '../application/ports/otp-delivery.port.js';

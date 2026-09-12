@@ -9,10 +9,10 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`banking-generic.adapter.ts`](./banking-generic.adapter.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`banking-qr.util.ts`](./banking-qr.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
+| Documento o código                                           | Responsabilidad                                         |
+| ------------------------------------------------------------ | ------------------------------------------------------- |
+| [`banking-generic.adapter.ts`](./banking-generic.adapter.ts) | Artefacto de soporte específico de esta carpeta.        |
+| [`banking-qr.util.ts`](./banking-qr.util.ts)                 | Utilidad pura o acotada reutilizable dentro de su capa. |
 
 ## Reglas de mantenimiento
 

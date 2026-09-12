@@ -9,8 +9,8 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                 | Responsabilidad                                  |
+| -------------------------------------------------- | ------------------------------------------------ |
 | [`qr-generic.adapter.ts`](./qr-generic.adapter.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento

@@ -29,6 +29,7 @@ import { CustomersModule } from '../customers/customers.module.js';
 import { CustomerRecipientDirectoryAdapter } from '../customers/infrastructure/customer-recipient-directory.adapter.js';
 import { LocalNotificationRequestAdapter } from './infrastructure/local-notification-request.adapter.js';
 import { NotificationEventConsumer } from './infrastructure/notification-event.consumer.js';
+import { LocalRecipientDirectoryAdapter } from './infrastructure/directory/local-recipient-directory.adapter.js';
 import { EVENT_CONSUMERS } from '../../platform/events/event-consumer.port.js';
 import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
 import { NotificationRulesService } from './notification-rules.service.js';
@@ -72,6 +73,8 @@ import { NotificationsService } from './notifications.service.js';
     { provide: NOTIFICATION_REQUEST_PORT, useExisting: LocalNotificationRequestAdapter },
     // AT-035: Mensajería se registra como consumidor de eventos; el relay la recibe por el token.
     NotificationEventConsumer,
+    // AT-039/AT-040: direcciones por el puerto de Clientes; OTP por contrato.
+    LocalRecipientDirectoryAdapter,
     { provide: EVENT_CONSUMERS, useFactory: (consumer: NotificationEventConsumer) => [consumer], inject: [NotificationEventConsumer] },
     { provide: RECIPIENT_DIRECTORY_PORT, useExisting: CustomerRecipientDirectoryAdapter },
     NotificationsRepository,

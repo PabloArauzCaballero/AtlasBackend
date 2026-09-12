@@ -5,6 +5,8 @@
  *   entre los dos módulos; aquí sólo se le da el nombre con el que Mensajería lo consume.
  */
 export {
+  type DeliveryAddress,
+  type DeliveryAddressLookup,
   RECIPIENT_DIRECTORY_PORT,
   type RecipientDirectoryPort,
   type RecipientLookup,

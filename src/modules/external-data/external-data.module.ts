@@ -4,6 +4,7 @@
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
 import { Module } from '@nestjs/common';
+import { externalProviderProviders } from './infrastructure/external-provider.providers.js';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
   CustomerConsentModel,
@@ -40,14 +41,6 @@ import { ExternalProviderConvenienceService } from './application/external-provi
 import { BankingQrService } from './application/banking-qr.service.js';
 import { ExternalProviderDashboardService } from './application/external-provider-dashboard.service.js';
 import { ExternalProviderDashboardRepository } from './infrastructure/external-provider-dashboard.repository.js';
-import { SegipAdapter } from './infrastructure/adapters/segip/segip.adapter.js';
-import { InfoCenterAdapter } from './infrastructure/adapters/infocenter/infocenter.adapter.js';
-import { QrGenericAdapter } from './infrastructure/adapters/qr-generic/qr-generic.adapter.js';
-import { BankingGenericAdapter } from './infrastructure/adapters/banking-generic/banking-generic.adapter.js';
-import { TelcoGenericAdapter } from './infrastructure/adapters/telco-generic/telco-generic.adapter.js';
-import { FacebookMetaAdapter } from './infrastructure/adapters/facebook-meta/facebook-meta.adapter.js';
-import { WhatsappAdapter } from './infrastructure/adapters/whatsapp/whatsapp.adapter.js';
-import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-trust-generic/digital-trust-generic.adapter.js';
 import { ExternalDataPreviewService } from './application/external-data-preview.service.js';
 
 @Module({
@@ -88,6 +81,8 @@ import { ExternalDataPreviewService } from './application/external-data-preview.
     ExternalDataRepository,
     ExternalDataService,
     AuthBrokerClient,
+    // AT-042: los adaptadores y sus alias se ensamblan en infraestructura; el registro recibe la colección.
+    ...externalProviderProviders,
     ExternalProviderRegistryService,
     ExternalDataEvidenceService,
     ExternalDataDecisionService,
@@ -97,14 +92,6 @@ import { ExternalDataPreviewService } from './application/external-data-preview.
     BankingQrService,
     ExternalProviderDashboardService,
     ExternalProviderDashboardRepository,
-    SegipAdapter,
-    InfoCenterAdapter,
-    QrGenericAdapter,
-    BankingGenericAdapter,
-    TelcoGenericAdapter,
-    FacebookMetaAdapter,
-    WhatsappAdapter,
-    DigitalTrustGenericAdapter,
   ],
   exports: [ExternalDataService],
 })
