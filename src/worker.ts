@@ -1,7 +1,7 @@
 /**
  * @file Artefacto de soporte específico de esta carpeta.
  * @business Esta pieza completa trabajo asíncrono y recuperable fuera de la latencia del request.
- * @system arranca el proceso worker: mismos módulos que la API, sin rutas de negocio.
+ * @system arranca el proceso worker con su propia raíz de composición (`WorkerModule`), sin rutas de negocio.
  */
 import 'reflect-metadata';
 // Igual que en `main.ts`: el bootstrap de OpenTelemetry debe importarse ANTES que cualquier módulo
@@ -12,7 +12,7 @@ import { NestFactory } from '@nestjs/core';
 import { getConnectionToken } from '@nestjs/sequelize';
 import type { Sequelize } from 'sequelize-typescript';
 import type Redis from 'ioredis';
-import { AppModule } from './app.module.js';
+import { WorkerModule } from './bootstrap/worker.module.js';
 import { env } from './config/env.js';
 import { appRole } from './config/app-role.js';
 import { buildInfo } from './config/build-info.js';
@@ -62,7 +62,8 @@ async function bootstrapWorker(): Promise<void> {
     logger.log('KMS activado como proveedor de cifrado de PII.');
   }
 
-  const context = await NestFactory.createApplicationContext(AppModule, {
+  // AT-045: raíz propia del worker; no monta rutas ni los módulos que sólo sirven HTTP.
+  const context = await NestFactory.createApplicationContext(WorkerModule, {
     logger: new AppFileLogger(),
     bufferLogs: env.NODE_ENV !== 'development',
   });

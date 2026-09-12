@@ -14,6 +14,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes, UniqueConstraintError } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { MetricsService } from '../../common/observability/metrics.service.js';
 import { InboxReceiptModel, OutboxEventModel } from '../../database/models/index.js';
 import { newOwnerToken } from '../../modules/runtime-hardening/infrastructure/idempotency-claim.store.js';
 import { ConsumerRegistry } from './consumer-registry.js';
@@ -138,6 +139,14 @@ export class LocalConsumerDispatchPublisher implements EventPublisher {
   }
 }
 
+type RelayCounter = 'published' | 'retried' | 'deadLettered' | 'quarantined';
+const RELAY_METRIC_OUTCOME: Record<RelayCounter, 'published' | 'retried' | 'dead_lettered' | 'quarantined'> = {
+  published: 'published',
+  retried: 'retried',
+  deadLettered: 'dead_lettered',
+  quarantined: 'quarantined',
+};
+
 @Injectable()
 export class OutboxRelayService {
   private readonly logger = new Logger(OutboxRelayService.name);
@@ -149,6 +158,7 @@ export class OutboxRelayService {
     @Optional() @Inject(EVENT_PUBLISHER) publisher?: EventPublisher,
     // Sin token, Nest intentaría resolver el parámetro y el arranque fallaría: `docs:openapi` lo cazó.
     @Optional() @Inject(RETRY_POLICY) private readonly policy: RetryPolicy = DEFAULT_RETRY_POLICY,
+    @Optional() private readonly metrics?: MetricsService,
   ) {
     this.publisher = publisher ?? new LocalConsumerDispatchPublisher(sequelize, new ConsumerRegistry(consumers));
   }
@@ -184,6 +194,36 @@ export class OutboxRelayService {
     return affected === 1;
   }
 
+  /** Cierra el evento según el acuse; devuelve el contador a incrementar o `null` si otro relay ganó la fila. */
+  private async settle(row: OutboxEventModel, ownerToken: string, ack: PublishAck, now: Date): Promise<RelayCounter | null> {
+    if (ack.accepted) {
+      return (await this.complete(row, ownerToken, { status: 'processed', processedAt: now })) ? 'published' : null;
+    }
+    const decision = decideRetry({
+      attempts: row.attempts ?? 1,
+      now,
+      error: { code: ack.reason, permanent: ack.permanent },
+      policy: this.policy,
+    });
+    if (decision.action === 'dead_letter') {
+      const closed = await this.complete(row, ownerToken, {
+        status: 'failed',
+        failedAt: now,
+        errorCode: ack.permanent ? 'EVENT_QUARANTINED' : 'EVENT_MAX_ATTEMPTS',
+        lastError: ack.reason,
+      });
+      if (!closed) return null;
+      return ack.permanent ? 'quarantined' : 'deadLettered';
+    }
+    const retried = await this.complete(row, ownerToken, {
+      status: 'pending',
+      availableAt: decision.availableAt,
+      errorCode: 'EVENT_PROCESSING_FAILED',
+      lastError: ack.reason,
+    });
+    return retried ? 'retried' : null;
+  }
+
   async run(input: { tenantId: string | null; limit: number; workerId: string; now?: Date }): Promise<RelayRunResult> {
     const now = input.now ?? new Date();
     const { ownerToken, rows } = await this.claim({ ...input, now });
@@ -202,38 +242,10 @@ export class OutboxRelayService {
       const ack: PublishAck = validation.ok
         ? await this.publisher.publish(event)
         : { accepted: false, transport: 'validation', permanent: true, reason: `EVENT_${validation.code}` };
-      if (ack.accepted) {
-        if (await this.complete(row, ownerToken, { status: 'processed', processedAt: now })) result.published += 1;
-        continue;
-      }
-      const decision = decideRetry({
-        attempts: row.attempts ?? 1,
-        now,
-        error: { code: ack.reason, permanent: ack.permanent },
-        policy: this.policy,
-      });
-      if (decision.action === 'dead_letter') {
-        if (
-          await this.complete(row, ownerToken, {
-            status: 'failed',
-            failedAt: now,
-            errorCode: ack.permanent ? 'EVENT_QUARANTINED' : 'EVENT_MAX_ATTEMPTS',
-            lastError: ack.reason,
-          })
-        ) {
-          if (ack.permanent) result.quarantined += 1;
-          else result.deadLettered += 1;
-        }
-      } else if (
-        await this.complete(row, ownerToken, {
-          status: 'pending',
-          availableAt: decision.availableAt,
-          errorCode: 'EVENT_PROCESSING_FAILED',
-          lastError: ack.reason,
-        })
-      ) {
-        result.retried += 1;
-      }
+      const outcome = await this.settle(row, ownerToken, ack, now);
+      if (!outcome) continue;
+      result[outcome] += 1;
+      this.metrics?.recordOutboxRelay({ outcome: RELAY_METRIC_OUTCOME[outcome], transport: ack.transport });
     }
     return result;
   }

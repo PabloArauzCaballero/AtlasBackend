@@ -33,6 +33,7 @@ export class MetricsService {
   private readonly outboxPendingEvents: Gauge<'tenant_id'>;
   private readonly scheduledJobRuns: Counter<'job' | 'outcome'>;
   private readonly authAttemptsTotal: Counter<'actor_type' | 'outcome'>;
+  private readonly outboxRelayEvents: Counter<'outcome' | 'transport'>;
 
   constructor() {
     this.registry = new Registry();
@@ -108,6 +109,13 @@ export class MetricsService {
     // Hallazgo A-10: los intentos de login quedaban en `auth_events` (base), que sirve para
     // investigar UN caso pero no para ver un patrón. Un pico de `invalid_password` sobre muchos
     // identificadores es credential stuffing, y sin serie temporal nadie se entera en el momento.
+    // AT-048: resultado del relay v2 por transporte; sin tenant ni eventId (cardinalidad acotada).
+    this.outboxRelayEvents = new Counter({
+      name: 'atlas_outbox_relay_events_total',
+      help: 'Eventos tratados por el relay del outbox, por resultado (published, retried, dead_lettered, quarantined) y transporte.',
+      labelNames: ['outcome', 'transport'],
+      registers: [this.registry],
+    });
     this.authAttemptsTotal = new Counter({
       name: 'atlas_auth_attempts_total',
       help: 'Intentos de login por tipo de actor y resultado (success o código de fallo).',
@@ -137,6 +145,10 @@ export class MetricsService {
    *   dejó de correr" —el fallo más caro de un planificador, porque no produce ningún error— en
    *   algo alertable: `increase(atlas_scheduled_job_runs_total{outcome="stalled"}[15m]) > 0`.
    */
+  recordOutboxRelay(input: { outcome: 'published' | 'retried' | 'dead_lettered' | 'quarantined'; transport: string }): void {
+    this.outboxRelayEvents.inc({ outcome: input.outcome, transport: input.transport });
+  }
+
   recordScheduledJob(input: { job: string; outcome: 'success' | 'failure' | 'skipped' | 'stalled' }): void {
     this.scheduledJobRuns.inc({ job: input.job, outcome: input.outcome });
   }
