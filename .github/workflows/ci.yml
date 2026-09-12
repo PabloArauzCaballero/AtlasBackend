@@ -53,6 +53,12 @@ jobs:
       - name: Format check
         run: yarn format:check
 
+      # AT-012: fronteras entre módulos (dependencias permitidas, dominio puro, contratos públicos sin ORM,
+      # ciclos). La deuda heredada está congelada en config/architecture/boundaries-baseline.json y no
+      # puede crecer; una infracción nueva rompe el build con origen y destino exactos.
+      - name: Architecture boundaries (no new violations)
+        run: yarn check:architecture
+
       # Fase 7: sin overfetching en la capa de lectura (ninguna vista/consulta read_api con SELECT *).
       - name: Check no overfetching in read_api layer
         run: yarn check:overfetching

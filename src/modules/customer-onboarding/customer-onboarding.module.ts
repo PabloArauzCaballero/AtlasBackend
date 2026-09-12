@@ -4,6 +4,7 @@
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
 import { Module } from '@nestjs/common';
+import { LegacyOnboardingAtomicBridge } from '../../bootstrap/legacy-onboarding-atomic.bridge.js';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import {
@@ -144,6 +145,8 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
     CustomerVerificationController,
   ],
   providers: [
+    // AT-015: el grupo atómico del alta tiene nombre, dueño y alcance declarados.
+    LegacyOnboardingAtomicBridge,
     IdentityManualReviewOutcomeService,
     CustomerContactsSnapshotService,
     CustomerContactsSnapshotRepository,

@@ -40,6 +40,21 @@ import { CreditRepository } from '../credit.repository.js';
  * admitirla y de qué comercio viene. Juntos pasaban del límite de `check:file-size`.
  */
 import { assertProductIsOfferable, toSubmissionResponse } from './credit-application.shared.js';
+import { ApplicationError, toHttpException } from '../../../platform/contracts/application-error.js';
+
+/**
+ * La denegación como error de aplicación (AT-013): sin transporte. Mismo mensaje público de siempre
+ * (`CUSTOMER_NOT_ELIGIBLE: A, B`); `toHttpException` lo convierte en 422 en la frontera.
+ */
+export function denialError(evaluation: RecordedEligibility): ApplicationError {
+  const codes = evaluation.blockers.map((blocker) => blocker.code);
+  return new ApplicationError({
+    kind: 'unprocessable',
+    code: 'CUSTOMER_NOT_ELIGIBLE',
+    publicDetail: codes.join(', '),
+    details: { blockers: codes },
+  });
+}
 /**
  * Resultado de las puertas de admisión. Una denegación de negocio es un RESULTADO, no una excepción:
  * así la transacción que escribió la evidencia puede confirmarse, y sólo los fallos técnicos (una
@@ -99,11 +114,7 @@ export class CreditApplicationAdmissionService {
       throw error;
     }
 
-    if (!outcome.admitted) {
-      throw new UnprocessableEntityException(
-        `CUSTOMER_NOT_ELIGIBLE: ${outcome.evaluation.blockers.map((blocker) => blocker.code).join(', ')}`,
-      );
-    }
+    if (!outcome.admitted) throw toHttpException(denialError(outcome.evaluation));
     return outcome.response;
   }
 

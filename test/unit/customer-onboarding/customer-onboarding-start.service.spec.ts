@@ -72,7 +72,8 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
     // Las validaciones previas a la transacción viven ahora en `CustomerOnboardingGuardsService`
     // (duplicados + consentimientos obligatorios), donde se pueden probar en aislamiento.
     const guardsService = { assertNoDuplicateCustomer: jest.fn(), assertConsentDocumentsAreValid: jest.fn() };
-    const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
+    // AT-015: el grupo atómico lo abre el puente heredado; el doble entrega la misma «transacción» vacía.
+    const sequelize = { run: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
 
     const service = new CustomerOnboardingStartService(
       customersRepository as never,

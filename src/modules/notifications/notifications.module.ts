@@ -24,6 +24,8 @@ import { PushNotificationAdapter } from './adapters/push.adapter.js';
 import { SmsNotificationAdapter } from './adapters/sms.adapter.js';
 import { WhatsAppNotificationAdapter } from './adapters/whatsapp.adapter.js';
 import { NotificationBroadcastService } from './notification-broadcast.service.js';
+import { NOTIFICATION_REQUEST_PORT } from './application/ports/notification-request.port.js';
+import { LocalNotificationRequestAdapter } from './infrastructure/local-notification-request.adapter.js';
 import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
 import { NotificationRulesService } from './notification-rules.service.js';
 import { NotificationTemplateRendererService } from './notification-template-renderer.service.js';
@@ -62,6 +64,8 @@ import { NotificationsService } from './notifications.service.js';
     NotificationPoliciesOperationsController,
   ],
   providers: [
+    LocalNotificationRequestAdapter,
+    { provide: NOTIFICATION_REQUEST_PORT, useExisting: LocalNotificationRequestAdapter },
     NotificationsRepository,
     NotificationTemplatesRepository,
     NotificationPoliciesRepository,
@@ -85,6 +89,8 @@ import { NotificationsService } from './notifications.service.js';
   // orquestador. Quien sólo necesite eso puede importar ese módulo directamente y ahorrarse las
   // siete tablas y los cinco canales que arrastra éste.
   exports: [
+    // AT-017: la entrada pública. El resto de exportaciones es legado hasta que sus consumidores migren.
+    NOTIFICATION_REQUEST_PORT,
     NotificationOrchestratorService,
     NotificationPoliciesRepository,
     NotificationsService,

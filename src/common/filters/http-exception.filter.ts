@@ -6,6 +6,7 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { UniqueConstraintError, ValidationError } from 'sequelize';
 import { normalizePostgresError, type NormalizedPostgresError } from '../database/postgres-error.js';
+import { isApplicationError, toHttpException } from '../../platform/contracts/application-error.js';
 
 type HttpResponse = {
   status: (statusCode: number) => HttpResponse;
@@ -201,6 +202,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost): void {
+    // AT-013: un caso de uso puede lanzar `ApplicationError` sin conocer HTTP. Se traduce aquí, en la
+    // presentación, a la excepción Nest equivalente con el mismo mensaje; el resto del filtro no cambia.
+    if (isApplicationError(exception)) exception = toHttpException(exception);
     const context = host.switchToHttp();
     const response = context.getResponse<HttpResponse>();
     const request = context.getRequest<HttpRequest>();

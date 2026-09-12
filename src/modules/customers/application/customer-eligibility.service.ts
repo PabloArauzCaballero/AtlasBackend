@@ -3,8 +3,9 @@
  * @business Esta pieza mantiene la identidad operativa, ciclo de vida y elegibilidad del cliente como fuente de verdad.
  * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
  */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
+import { CLOCK, systemClock, type Clock } from '../../../platform/di/clock.js';
 import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
@@ -55,6 +56,8 @@ export class CustomerEligibilityService {
     private readonly lifecycleRepository: CustomerLifecycleRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    // Reloj inyectable (AT-016): la misma regla con el mismo «ahora» da la misma decisión.
+    @Optional() @Inject(CLOCK) private readonly clock: Clock = systemClock,
   ) {}
 
   /** Lectura para el cliente y para roles internos. Persiste la evaluación como evidencia. */
@@ -87,7 +90,7 @@ export class CustomerEligibilityService {
     const customer = await this.customersRepository.findById(tenantId, customerId, { transaction });
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
     const facts = await this.eligibilityRepository.loadFacts(tenantId, customerId, { transaction });
-    return assess(facts, normalizeLifecycleStatus(customer.lifecycleStatus), new Date());
+    return assess(facts, normalizeLifecycleStatus(customer.lifecycleStatus), this.clock.now());
   }
 
   /**
@@ -121,7 +124,7 @@ export class CustomerEligibilityService {
       // CON la transacción: este método se encadena tras la verificación de identidad y tras el
       // envío a revisión, y leerlo por fuera evaluaba el estado ANTERIOR a esas escrituras.
       const facts = input.facts ?? (await this.eligibilityRepository.loadFacts(input.tenantId, input.customerId, { transaction }));
-      const now = new Date();
+      const now = this.clock.now();
       let status = normalizeLifecycleStatus(customer.lifecycleStatus);
       let assessment = assess(facts, status, now);
 

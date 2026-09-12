@@ -4,10 +4,9 @@
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/sequelize';
+import { LegacyOnboardingAtomicBridge } from '../../../bootstrap/legacy-onboarding-atomic.bridge.js';
 import { randomUUID } from 'node:crypto';
 import { Transaction, UniqueConstraintError } from 'sequelize';
-import { Sequelize } from 'sequelize-typescript';
 import {
   createStableCode,
   hashSensitiveText,
@@ -55,7 +54,7 @@ export class CustomerOnboardingStartService {
     // Dispositivo, sesión y su instantánea: tres pasos que solo hablan con `SessionsRepository` y
     // que no comparten nada con el resto del alta salvo el cliente recién creado.
     private readonly deviceSession: OnboardingDeviceSessionService,
-    @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly bridge: LegacyOnboardingAtomicBridge,
   ) {}
 
   /**
@@ -98,7 +97,8 @@ export class CustomerOnboardingStartService {
     const passwordHash = await hashPassword(input.password);
 
     try {
-      return await this.sequelize.transaction(async (transaction) => {
+      // AT-015: el grupo atómico del alta lo abre el puente heredado, que declara su alcance y dueño.
+      return await this.bridge.run(async (transaction) => {
         const { customer, credential } = await this.createCustomerAndCredentials({
           tenantId,
           input,

@@ -54,6 +54,8 @@ export type ImportInventory = {
   cycles: string[][];
   leaks: CrossModuleLeak[];
   unresolvedDynamic: { source: string; text: string }[];
+  /** Imports a paquetes (node_modules / builtins): quién usa qué librería. Lo lee la regla de dominio puro. */
+  externalImports: { source: string; specifier: string; kind: ImportKind }[];
   /** Por módulo: a quién importa y quién lo importa (sólo módulos). */
   modules: Record<string, { imports: string[]; importedBy: string[]; crossModuleEdges: number }>;
 };
@@ -196,10 +198,14 @@ export function inventoryImports(input: InventoryOptions): ImportInventory {
 
   const edges: ImportEdge[] = [];
   const unresolvedDynamic: ImportInventory['unresolvedDynamic'] = [];
+  const externalImports: ImportInventory['externalImports'] = [];
 
   const record = (sourceFile: ts.SourceFile, specifier: string, kind: ImportKind, symbols: string[]): void => {
     const resolved = ts.resolveModuleName(specifier, sourceFile.fileName, options, ts.sys).resolvedModule;
-    if (!resolved || resolved.isExternalLibraryImport) return;
+    if (!resolved || resolved.isExternalLibraryImport) {
+      if (!specifier.startsWith('.')) externalImports.push({ source: toPosix(relative(rootDir, sourceFile.fileName)), specifier, kind });
+      return;
+    }
     if (!resolved.resolvedFileName.startsWith(rootDir)) return;
     const sourceRel = toPosix(relative(rootDir, sourceFile.fileName));
     let targetFile = resolved.resolvedFileName;
@@ -282,6 +288,7 @@ export function inventoryImports(input: InventoryOptions): ImportInventory {
     cycles: stronglyConnectedComponents(graph),
     leaks,
     unresolvedDynamic,
+    externalImports,
     modules: Object.fromEntries(Object.entries(modules).sort(([a], [b]) => a.localeCompare(b))),
   };
 }

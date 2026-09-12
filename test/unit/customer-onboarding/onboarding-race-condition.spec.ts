@@ -28,7 +28,7 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
     };
     const authService = { issueRegistrationTokens: asyncMock() };
     const sequelize = {
-      transaction: jest.fn((callback: (t: unknown) => Promise<unknown>) => callback({})),
+      run: jest.fn((callback: (t: unknown) => Promise<unknown>) => callback({})),
     };
 
     const guardsService = { assertNoDuplicateCustomer: asyncMock(), assertConsentDocumentsAreValid: asyncMock() };
@@ -78,7 +78,7 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
 
     // La transacción efectivamente se abrió (no se evitó el intento de escritura) — la
     // protección real vino de traducir el error de base de datos, no de saltarse el intento.
-    expect(sequelize.transaction).toHaveBeenCalledTimes(1);
+    expect(sequelize.run).toHaveBeenCalledTimes(1);
   });
 
   it('re-throws non-UniqueConstraintError errors unchanged (does not mask unrelated failures)', async () => {

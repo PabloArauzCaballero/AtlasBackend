@@ -9,12 +9,12 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`gmail-mail.module.ts`](./gmail-mail.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
-| [`gmail-mime.util.ts`](./gmail-mime.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
+| Documento o código                                               | Responsabilidad                                                           |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [`gmail-mail.module.ts`](./gmail-mail.module.ts)                 | Módulo NestJS: declara el límite de inyección y sus dependencias.         |
+| [`gmail-mime.util.ts`](./gmail-mime.util.ts)                     | Utilidad pura o acotada reutilizable dentro de su capa.                   |
 | [`gmail-oauth-token.service.ts`](./gmail-oauth-token.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`gmail.adapter.ts`](./gmail.adapter.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`gmail.adapter.ts`](./gmail.adapter.ts)                         | Artefacto de soporte específico de esta carpeta.                          |
 
 ## Reglas de mantenimiento
 

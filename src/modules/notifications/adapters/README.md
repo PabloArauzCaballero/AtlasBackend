@@ -9,16 +9,16 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`email.adapter.ts`](./email.adapter.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`http-adapter.util.ts`](./http-adapter.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
-| [`in-app-notification.adapter.ts`](./in-app-notification.adapter.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`notification-channel-adapter.ts`](./notification-channel-adapter.ts) | Artefacto de soporte específico de esta carpeta. |
+| Documento o código                                                                     | Responsabilidad                                                           |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [`email.adapter.ts`](./email.adapter.ts)                                               | Artefacto de soporte específico de esta carpeta.                          |
+| [`http-adapter.util.ts`](./http-adapter.util.ts)                                       | Utilidad pura o acotada reutilizable dentro de su capa.                   |
+| [`in-app-notification.adapter.ts`](./in-app-notification.adapter.ts)                   | Artefacto de soporte específico de esta carpeta.                          |
+| [`notification-channel-adapter.ts`](./notification-channel-adapter.ts)                 | Artefacto de soporte específico de esta carpeta.                          |
 | [`notification-provider-config.service.ts`](./notification-provider-config.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`push.adapter.ts`](./push.adapter.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`sms.adapter.ts`](./sms.adapter.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`whatsapp.adapter.ts`](./whatsapp.adapter.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`push.adapter.ts`](./push.adapter.ts)                                                 | Artefacto de soporte específico de esta carpeta.                          |
+| [`sms.adapter.ts`](./sms.adapter.ts)                                                   | Artefacto de soporte específico de esta carpeta.                          |
+| [`whatsapp.adapter.ts`](./whatsapp.adapter.ts)                                         | Artefacto de soporte específico de esta carpeta.                          |
 
 ## Subcarpetas
 

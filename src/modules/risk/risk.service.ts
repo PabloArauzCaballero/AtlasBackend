@@ -3,8 +3,9 @@
  * @business Esta pieza produce una recomendación explicable para reducir pérdida crediticia y trato inconsistente.
  * @system calcula evaluaciones versionadas, contribuciones y reglas disparadas sin presentarlas como un modelo validado.
  */
-import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional, UnprocessableEntityException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
+import { CLOCK, systemClock, type Clock } from '../../platform/di/clock.js';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { assertOwnCustomerResource } from '../../common/utils/auth/ownership.util.js';
@@ -102,6 +103,7 @@ export class RiskService {
     private readonly customersRepository: CustomersRepository,
     private readonly policyDecisionService: RiskPolicyDecisionService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    @Optional() @Inject(CLOCK) private readonly clock: Clock = systemClock,
   ) {}
 
   async getLatestCustomerRiskResult(input: {
@@ -164,7 +166,7 @@ export class RiskService {
     if (!input.idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     assertOwnCustomerResource(input.currentUser, input.customerId);
 
-    const now = new Date();
+    const now = this.clock.now();
     const { hasGrantedConsent, hasIdentity, verifiedContactCount, scores } = await this.gatherRiskSignals(input);
     const { identityScore, contactScore, fraudScore, totalScore, riskLevel, missing } = scores;
 

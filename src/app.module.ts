@@ -25,6 +25,7 @@ import { LifecycleModule } from './common/lifecycle/lifecycle.module.js';
 import { HttpActionLogInterceptor } from './common/interceptors/http-action-log.interceptor.js';
 import { HttpMetricsInterceptor } from './common/observability/http-metrics.interceptor.js';
 import { ObservabilityModule } from './common/observability/observability.module.js';
+import { PlatformModule } from './platform/platform.module.js';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware.js';
 import { DatabaseModule } from './database/sequelize.module.js';
 import { ReadDatabaseModule } from './database/read-database.module.js';
@@ -77,6 +78,7 @@ import { env } from './config/env.js';
     ResilienceModule,
     FilesModule,
     ObservabilityModule,
+    PlatformModule,
     CommonAuthModule,
     // En producción, REDIS_URL mantiene el contador de rate limit compartido entre instancias.
     ThrottlerModule.forRootAsync({

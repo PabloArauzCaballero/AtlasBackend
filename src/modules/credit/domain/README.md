@@ -9,9 +9,9 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`payment-capacity.ts`](./payment-capacity.ts) | Artefacto de soporte específico de esta carpeta. |
+| Documento o código                                   | Responsabilidad                                  |
+| ---------------------------------------------------- | ------------------------------------------------ |
+| [`payment-capacity.ts`](./payment-capacity.ts)       | Artefacto de soporte específico de esta carpeta. |
 | [`statement-rejection.ts`](./statement-rejection.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento

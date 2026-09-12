@@ -39,6 +39,8 @@ import { CreditUnderwritingService } from './application/credit-underwriting.ser
 import { CreditOperationsController } from './credit-operations.controller.js';
 import { CreditController } from './credit.controller.js';
 import { CreditRepository } from './credit.repository.js';
+import { CREDIT_UNIT_OF_WORK } from './application/ports/credit-unit-of-work.port.js';
+import { SequelizeCreditUnitOfWork } from './infrastructure/persistence/sequelize-credit-unit-of-work.js';
 import { CreditLineWriterService } from './application/credit-line-writer.service.js';
 
 /**
@@ -79,6 +81,9 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
   ],
   controllers: [CreditController, CreditOperationsController, MerchantCreditController],
   providers: [
+    // AT-015: unidad de trabajo local; la admisión migra a ella en AT-026.
+    SequelizeCreditUnitOfWork,
+    { provide: CREDIT_UNIT_OF_WORK, useExisting: SequelizeCreditUnitOfWork },
     CreditLineWriterService,
     CreditRepository,
     CreditProductService,

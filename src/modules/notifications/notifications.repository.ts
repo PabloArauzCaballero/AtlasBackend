@@ -136,7 +136,7 @@ export class NotificationsRepository {
     }
   }
 
-  private async findByIdempotencyKey(tenantId: string | null, idempotencyKey: string): Promise<NotificationMessageModel | null> {
+  async findByIdempotencyKey(tenantId: string | null, idempotencyKey: string): Promise<NotificationMessageModel | null> {
     return this.messageModel.findOne({ where: { tenantId, idempotencyKey } });
   }
 
