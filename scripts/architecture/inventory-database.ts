@@ -75,8 +75,11 @@ const TABLE_REFERENCE =
 export async function readCatalog(sequelize: Sequelize): Promise<DatabaseCatalog> {
   const select = <T extends object>(sql: string): Promise<T[]> => sequelize.query<T>(sql, { type: QueryTypes.SELECT });
   const tables = await select<{ schema: string; table: string; owner: string }>(
+    // `atlas_seed` es la contabilidad del cargador de semillas (`load_log`), no una tabla de negocio:
+    // aparece sólo en las bases donde se corrió el cargador y no tiene dueño de contexto que asignar.
+    // Se excluye como `pg_catalog`, no se le inventa un propietario.
     `SELECT schemaname AS schema, tablename AS table, tableowner AS owner FROM pg_tables
-     WHERE schemaname NOT IN ('pg_catalog','information_schema') ORDER BY 1, 2`,
+     WHERE schemaname NOT IN ('pg_catalog','information_schema','atlas_seed') ORDER BY 1, 2`,
   );
   const fkRows = await select<{
     name: string;

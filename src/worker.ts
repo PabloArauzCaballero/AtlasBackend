@@ -54,6 +54,16 @@ async function bootstrapWorker(): Promise<void> {
     process.exit(1);
   }
 
+  // Revisión independiente A, hallazgo 9: el perfil `messaging` relaja requisitos de producción (secreto de
+  // sesiones de usuario, Redis) porque el worker del piloto no los usa. Este proceso SÍ los usa: arrancarlo
+  // con ese perfil lo dejaría con el secreto por defecto y sin rate limiting compartido.
+  if (env.ATLAS_CAPABILITY_PROFILE === 'messaging') {
+    logger.error(
+      'ATLAS_CAPABILITY_PROFILE=messaging pertenece al worker de Mensajería (dist/src/messaging-worker.js), no a este entrypoint.',
+    );
+    process.exit(1);
+  }
+
   // Mismo cableado de KMS que la API: el worker también escribe PII (entrega de notificaciones,
   // retención), así que necesita el mismo proveedor de cifrado activo o los valores nuevos saldrían
   // cifrados con `local` mientras los de la API salen con KMS.

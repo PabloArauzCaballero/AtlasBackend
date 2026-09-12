@@ -21,20 +21,44 @@ import { DatabaseModule } from '../database/sequelize.module.js';
 import { EventsModule } from '../modules/events/events.module.js';
 import { NotificationsModule } from '../modules/notifications/notifications.module.js';
 import { RuntimeHardeningModule } from '../modules/runtime-hardening/runtime-hardening.module.js';
+import { LogSyncModule } from '../modules/log-sync/log-sync.module.js';
 import { RuntimeJobsModule } from '../modules/runtime-jobs/runtime-jobs.module.js';
+import { SystemsOpsModule } from '../modules/systems-ops/systems-ops.module.js';
 import { PlatformModule } from '../platform/platform.module.js';
 
-/** Módulos que la API monta y el worker NO: sólo sirven HTTP o lectura operativa. */
+/**
+ * Módulos que la API alcanza y el worker NO, calculado sobre el CIERRE de `imports` (no el primer
+ * nivel). La prueba de AT-045 compara esta lista con la diferencia real y falla si alguien añade o
+ * quita uno sin decidirlo: la versión anterior era una lista de 9 nombres escrita a mano, y por eso se
+ * colaron `SystemsOpsModule` (monitor de salud) y `LogSyncModule` (tope del Archivo.log), que sí traen
+ * trabajo de fondo y dejaron de correr en TODOS los procesos (revisión independiente B, hallazgos 1-3).
+ *
+ * Lo que NO dice esta lista: el worker sí alcanza Clientes, Crédito, Auth, Sesiones y varios más
+ * transitivamente, porque `NotificationsModule` los importa. Es la deuda que documenta
+ * `docs/architecture/microservices/remaining-exceptions.md`, no un objetivo cumplido.
+ */
 export const WORKER_EXCLUDED_MODULES = Object.freeze([
-  'InternalPortalModule',
-  'SqlConsoleModule',
-  'DataNotebookModule',
-  'SchemaManagementModule',
-  'WorkflowCatalogModule',
-  'AuditModule',
-  'HealthModule',
   'AppContentModule',
+  'AuditModule',
+  'CatalogManagementModule',
+  'CustomerDeviceSignalsModule',
+  'CustomerPrivacyModule',
+  'CustomerTelemetryModule',
+  'DataNotebookModule',
+  'DataQualityModule',
+  'DiscoveryModule',
+  'FraudModule',
+  'HealthModule',
+  'InternalPortalModule',
+  'LoanPaymentClaimsModule',
+  'MerchantIdentityModule',
+  'MobileIdentityModule',
   'MobileWelcomeAudioModule',
+  'OperationsModule',
+  'SchemaManagementModule',
+  'SqlConsoleModule',
+  'ThrottlerModule',
+  'WorkflowCatalogModule',
 ]);
 
 @Module({
@@ -53,6 +77,13 @@ export const WORKER_EXCLUDED_MODULES = Object.freeze([
     EventsModule,
     NotificationsModule,
     RuntimeJobsModule,
+    // Revisión independiente B, hallazgos 1 y 2: estos DOS traen trabajo de fondo que sólo corre donde
+    // corre el worker. `SystemsOpsModule` monta el monitor de salud de herramientas críticas (se
+    // autodesactiva si `runsBackgroundWork()` es falso, o sea en la API): sin él, nadie sondea ni avisa.
+    // `LogSyncModule` acota el Archivo.log local —con Mongo o sin él— y cada proceso tiene su propio
+    // archivo: sin él, el del worker crece sin tope (ya pasó cuando el clúster de Mongo desapareció).
+    SystemsOpsModule,
+    LogSyncModule,
   ],
 })
 export class WorkerModule {}

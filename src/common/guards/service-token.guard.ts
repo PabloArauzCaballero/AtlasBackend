@@ -12,17 +12,28 @@ import { env } from '../../config/env.js';
 import { verifyServiceToken, type ServiceTokenClaims } from '../../platform/security/service-token.js';
 
 export const SERVICE_SCOPE_KEY = 'atlas.serviceScope';
-export type ServiceScopeRule = Readonly<{ scope: string; audienceContext: string; allowedServices: readonly string[] }>;
+export type ServiceScopeRule = Readonly<{
+  scope: string;
+  audienceContext: string;
+  allowedServices: readonly string[];
+  /** Si está, el token tiene que venir firmado para ESTE recurso (revisión independiente A, hallazgo 7). */
+  resourceFrom?: (query: Readonly<Record<string, unknown>>) => string;
+}>;
 
 /** Regla de autorización de servicio: contexto que sirve (audiencia), permiso exigido y servicios admitidos. */
 export const ServiceScope = (
   scope: string,
   audienceContext: string,
   allowedServices: readonly string[],
+  resourceFrom?: ServiceScopeRule['resourceFrom'],
 ): MethodDecorator & ClassDecorator =>
-  SetMetadata<string, ServiceScopeRule>(SERVICE_SCOPE_KEY, Object.freeze({ scope, audienceContext, allowedServices }));
+  SetMetadata<string, ServiceScopeRule>(SERVICE_SCOPE_KEY, Object.freeze({ scope, audienceContext, allowedServices, resourceFrom }));
 
-export type RequestWithServiceActor = { headers: Record<string, string | string[] | undefined>; serviceActor?: ServiceTokenClaims };
+export type RequestWithServiceActor = {
+  headers: Record<string, string | string[] | undefined>;
+  query?: Record<string, unknown>;
+  serviceActor?: ServiceTokenClaims;
+};
 
 @Injectable()
 export class ServiceTokenGuard implements CanActivate {
@@ -40,7 +51,8 @@ export class ServiceTokenGuard implements CanActivate {
     const value = Array.isArray(header) ? header[0] : header;
     const [scheme, token] = (value ?? '').split(' ');
     if (scheme !== 'Bearer' || !token) throw new UnauthorizedException('SERVICE_TOKEN_REQUIRED');
-    const verification = verifyServiceToken(token, rule);
+    const resource = rule.resourceFrom ? rule.resourceFrom(request.query ?? {}) : undefined;
+    const verification = verifyServiceToken(token, { ...rule, resource });
     if (!verification.ok) throw new UnauthorizedException(verification.reason.split(':')[0]);
     request.serviceActor = verification.claims;
     return true;

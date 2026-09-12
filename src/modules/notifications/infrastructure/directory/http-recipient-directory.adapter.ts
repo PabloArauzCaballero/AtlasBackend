@@ -14,7 +14,7 @@ import type {
   RecipientLookup,
   RecipientResolution,
 } from '../../../../platform/contracts/recipient-directory.js';
-import { signServiceToken } from '../../../../platform/security/service-token.js';
+import { resourceFingerprint, signServiceToken } from '../../../../platform/security/service-token.js';
 
 export const RECIPIENT_DIRECTORY_HTTP_TIMEOUT_MS = 3000;
 
@@ -59,11 +59,14 @@ export class HttpRecipientDirectoryAdapter implements RecipientDirectoryPort {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.options.timeoutMs ?? RECIPIENT_DIRECTORY_HTTP_TIMEOUT_MS);
     try {
+      // El token vale sólo para ESTA consulta: la huella lleva el mismo juego de parámetros que el
+      // controlador exige, así que capturarlo no permite enumerar otros clientes (hallazgo A7).
       const token = signServiceToken({
         service: this.options.service,
         tenantId,
         scopes: [this.options.scope],
         audienceContext: 'customers',
+        resource: resourceFingerprint(query),
         secret: this.options.secret,
       });
       const response = await (this.options.fetchImpl ?? fetch)(url, {

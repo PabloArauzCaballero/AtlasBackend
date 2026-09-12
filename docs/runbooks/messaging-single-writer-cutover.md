@@ -14,7 +14,9 @@ SELECT count(*) FROM platform_ops.outbox_events WHERE status = 'pending' AND agg
 ## Procedimiento
 
 1. **Precondiciones:** `EVENTS_RELAY_V2_ENABLED=true` en el monolito (el relay v1 no consulta la propiedad); el worker del
-   piloto arrancado con `MESSAGING_DB_USER=atlas_ctx_messaging` y latiendo cercado (`fenced: true` en su log).
+   piloto arrancado con `MESSAGING_DB_USER=atlas_ctx_messaging`, `ATLAS_CAPABILITY_PROFILE=messaging` y latiendo cercado
+   (`fenced: true` en su log); la migración `20260912160000-context-ownership-grants` aplicada (retira `UPDATE` sobre
+   `context_ownership` a los contextos que no son dueños: la transferencia la hace el dueño de la base, no un contexto).
 2. **Pausa de nuevas escrituras:** no hace falta parar la API: los productores siguen escribiendo en el outbox; lo que se
    transfiere es quién lo drena.
 3. **Drenado:** esperar a que «en vuelo» sea 0 (un lote del relay dura segundos). Si no baja, hay un relay muerto: el

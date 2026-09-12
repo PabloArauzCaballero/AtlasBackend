@@ -63,6 +63,10 @@ const config = {
     // Glue de arranque con efecto de importación (como main.ts): arranca OpenTelemetry antes que la
     // app. No tiene lógica testeable por sí mismo; `tracing.ts` sí se cubre por unit test.
     '!src/observability/tracing-bootstrap.ts',
+    // Entrypoint del worker del piloto de Mensajería: mismo caso que `main.ts` y `worker.ts` —glue de
+    // arranque sin lógica propia—. Lo que sí tiene lógica (la guarda de identidad, el bucle del relay)
+    // vive en `src/bootstrap/messaging-*.ts` y está cubierto por sus pruebas unitarias.
+    '!src/messaging-worker.ts',
     '!src/database/migrations/**',
     '!src/database/seeders/**',
   ],

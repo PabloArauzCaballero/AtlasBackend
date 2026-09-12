@@ -41,12 +41,25 @@ declarar el cambio en el reporte de la tarea. Un diff en `openapi.yaml` sin tare
 4. **Rutas de credenciales no reproducen su respuesta** (AT-010): un reintento de login/OTP/refresh con la misma clave
    recibe `409 IDEMPOTENCY_REPLAY_NOT_AVAILABLE` y debe repetir la petición con clave nueva.
 
+### Cambio de comportamiento declarado a posteriori (revisión independiente B, hallazgo 4)
+
+Con el directorio de destinatarios por puerto (AT-039, commit `aa083ce`), la entrega transaccional a clientes
+(`purpose='transactional'`: SMS, WhatsApp, correo) exige que el contacto esté **verificado**. Antes servía cualquier
+contacto no borrado con valor cifrado, verificado o no. Efecto: un cliente cuyo teléfono o correo sigue `unverified`
+deja de recibir avisos transaccionales por ese canal; `otp` sigue aceptando el contacto no verificado (es cómo se
+verifica) y las notificaciones in-app/push no dependen del directorio. Es una decisión de política de datos —no
+entregar a una dirección que nadie confirmó—, no un efecto colateral, y por eso se declara aquí.
+
 ## 3. Golden contracts (AT-005, ejecutados desde F9)
 
 - `test/contracts/http/public-compatibility.spec.ts`: proyección de la superficie pública (rutas, métodos, códigos,
   cabeceras obligatorias, parámetros, seguridad) comparada con `__golden__/public-surface.json`; rutas sin esquema de
-  seguridad fuera de los prefijos públicos congeladas en `__golden__/unprotected-routes.json` (3). Sin valores sensibles.
-  Regenerar a propósito con `UPDATE_GOLDEN=1` y revisar el diff.
+  seguridad fuera de los prefijos públicos congeladas en `__golden__/unprotected-routes.json`: **5**. Tres son públicas de
+  verdad (`GET /app-content`, `GET /consent-documents/active`, `POST /customer-onboarding/start`); las **dos** de
+  `internal/contexts/customers/recipient-directory` figuran ahí porque llevan `@Public()` —el guard de sesión no entiende
+  tokens de servicio, que son de otra audiencia— pero las protege `ServiceTokenGuard`, y lo que lo vigila es
+  `test/contracts/security/service-boundary-routes.spec.ts` (si alguien quita el guard, falla ese gate, no la golden).
+  Sin valores sensibles. Regenerar a propósito con `UPDATE_GOLDEN=1` y revisar el diff.
 - `test/contracts/http/auth-cookie-compatibility.spec.ts`: login interno contra el controlador real (guards reales,
   servicio doble): dos cookies `HttpOnly`, `Path=/`, `SameSite`/`Secure` por configuración, acceso de sesión y refresh
   persistente, body sin tokens; reto de PIN sin cookies; logout borra con los mismos atributos.

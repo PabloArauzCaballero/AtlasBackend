@@ -22,7 +22,12 @@ export class MessagingDatabaseGuardService implements OnModuleInit {
     await this.sequelize.authenticate();
     const rows = await this.sequelize.query<{ u: string }>('SELECT current_user AS u', { type: QueryTypes.SELECT });
     const actual = rows[0]?.u;
-    if (env.MESSAGING_DB_USER && actual !== env.MESSAGING_DB_USER) {
+    // Revisión independiente A, hallazgo 2: antes la comprobación se saltaba si la variable faltaba, así que
+    // el proceso arrancaba con la identidad del monolito y lo registraba como «verificado». Ahora falta = fallo.
+    if (!env.MESSAGING_DB_USER) {
+      throw new Error('MESSAGING_DB_USER_MISSING: el worker de Mensajería exige su identidad propia (atlas_ctx_messaging).');
+    }
+    if (actual !== env.MESSAGING_DB_USER) {
       throw new Error(`MESSAGING_DB_IDENTITY_MISMATCH: conectado como ${actual}, se esperaba ${env.MESSAGING_DB_USER}.`);
     }
     this.logger.log(`Base de Mensajería verificada como ${actual}.`);

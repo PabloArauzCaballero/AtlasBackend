@@ -16,6 +16,7 @@ import { QueryTypes, UniqueConstraintError } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { MetricsService } from '../../common/observability/metrics.service.js';
 import { ContextOwnershipRegistry } from '../ownership/context-ownership.registry.js';
+import { CLAIM_SQL } from './outbox-claim.sql.js';
 import { InboxReceiptModel, OutboxEventModel } from '../../database/models/index.js';
 import { newOwnerToken } from '../../modules/runtime-hardening/infrastructure/idempotency-claim.store.js';
 import { ConsumerRegistry } from './consumer-registry.js';
@@ -36,23 +37,6 @@ export type RelayRunResult = Readonly<{
 }>;
 
 export const OUTBOX_LEASE_MS = 5 * 60_000;
-
-const CLAIM_SQL = `
-  WITH candidates AS (
-    SELECT _id FROM platform_ops.outbox_events
-    WHERE status = 'pending'
-      AND aggregate_type <> 'api_command'
-      AND COALESCE(available_at, now()) <= :now
-      AND (:tenantId IS NULL OR _tenant_id = CAST(:tenantId AS BIGINT))
-    ORDER BY priority DESC NULLS LAST, available_at ASC NULLS FIRST, _id ASC
-    LIMIT :limit
-    FOR UPDATE SKIP LOCKED
-  )
-  UPDATE platform_ops.outbox_events AS event
-  SET status = 'processing', locked_at = :now, locked_by = :workerId, owner_token = :ownerToken,
-      attempts = COALESCE(event.attempts, 0) + 1, _updated_at = :now
-  FROM candidates WHERE event._id = candidates._id
-  RETURNING event._id AS id;`;
 
 /**
  * Despacho local durable: el «transporte» del monolito. Para cada consumidor suscrito abre una
@@ -173,12 +157,23 @@ export class OutboxRelayService {
     limit: number;
     workerId: string;
     now?: Date;
+    /** AT-059: propiedad y época que este relay cree tener; el claim sólo procede si siguen vigentes. */
+    ownership?: { context: string; owner: string; epoch: number };
   }): Promise<{ ownerToken: string; rows: OutboxEventModel[] }> {
     const ownerToken = newOwnerToken();
     const now = input.now ?? new Date();
     const claimed = await this.sequelize.transaction((transaction) =>
       this.sequelize.query<{ id: string }>(CLAIM_SQL, {
-        replacements: { now, tenantId: input.tenantId, limit: input.limit, workerId: input.workerId, ownerToken },
+        replacements: {
+          now,
+          tenantId: input.tenantId,
+          limit: input.limit,
+          workerId: input.workerId,
+          ownerToken,
+          ownershipContext: input.ownership?.context ?? null,
+          ownershipOwner: input.ownership?.owner ?? null,
+          ownershipEpoch: input.ownership?.epoch ?? null,
+        },
         type: QueryTypes.SELECT,
         transaction,
       }),
@@ -237,6 +232,7 @@ export class OutboxRelayService {
     ownership?: { context: string; owner: string };
   }): Promise<RelayRunResult> {
     const now = input.now ?? new Date();
+    let ownership: { context: string; owner: string; epoch: number } | undefined;
     if (input.ownership && this.ownership) {
       const current = await this.ownership.current(input.ownership.context);
       if (current && current.owner !== input.ownership.owner) {
@@ -245,8 +241,10 @@ export class OutboxRelayService {
         );
         return { fenced: true, claimed: 0, published: 0, retried: 0, deadLettered: 0, quarantined: 0, eventIds: [] };
       }
+      // La época viaja al claim: si la propiedad cambia entre esta lectura y el UPDATE, se reclaman 0 filas.
+      if (current) ownership = { context: current.context, owner: current.owner, epoch: current.epoch };
     }
-    const { ownerToken, rows } = await this.claim({ ...input, now });
+    const { ownerToken, rows } = await this.claim({ ...input, now, ownership });
     const result = {
       fenced: false,
       claimed: rows.length,

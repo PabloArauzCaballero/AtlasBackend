@@ -8,10 +8,11 @@
  *   es la regla de autorización. Delega en `CustomerRecipientDirectoryAdapter`, el mismo dueño del puerto local.
  */
 import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { ServiceScope, ServiceTokenGuard, type RequestWithServiceActor } from '../../common/guards/service-token.guard.js';
+import { resourceFingerprint } from '../../platform/security/service-token.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { RecipientChannelCode } from '../../platform/contracts/recipient-directory.js';
@@ -36,9 +37,9 @@ const addressesResponseSchema = z.object({
 });
 
 @ApiTags('customers')
+@ApiBearerAuth('access-token')
 @Public()
 @UseGuards(ServiceTokenGuard)
-@ServiceScope(RECIPIENT_DIRECTORY_SCOPE, 'customers', RECIPIENT_DIRECTORY_CONSUMERS)
 @Controller('internal/contexts/customers/recipient-directory')
 export class CustomerRecipientDirectoryController {
   constructor(private readonly directory: CustomerRecipientDirectoryAdapter) {}
@@ -53,6 +54,10 @@ export class CustomerRecipientDirectoryController {
   @ApiResponse({ status: 200, description: 'Resolución sin datos personales.', schema: zodToApiSchema(resolutionResponseSchema) })
   @ApiResponse({ status: 401, description: 'Token de servicio ausente, inválido, de otra audiencia o sin el permiso.' })
   @ApiResponse({ status: 503, description: 'Identidad de servicio no configurada en este despliegue.' })
+  // El token se firma para ESTE cliente y canal: capturarlo no permite enumerar otros (hallazgo A7).
+  @ServiceScope(RECIPIENT_DIRECTORY_SCOPE, 'customers', RECIPIENT_DIRECTORY_CONSUMERS, (query) =>
+    resourceFingerprint({ customerId: String(query.customerId ?? ''), channel: String(query.channel ?? '') }),
+  )
   @Get('resolve')
   resolve(
     @Req() request: RequestWithServiceActor,
@@ -80,6 +85,13 @@ export class CustomerRecipientDirectoryController {
   @ApiResponse({ status: 200, description: 'Direcciones autorizadas (puede ser vacío).', schema: zodToApiSchema(addressesResponseSchema) })
   @ApiResponse({ status: 401, description: 'Token de servicio ausente, inválido, de otra audiencia o sin el permiso.' })
   @ApiResponse({ status: 503, description: 'Identidad de servicio no configurada en este despliegue.' })
+  @ServiceScope(RECIPIENT_DIRECTORY_SCOPE, 'customers', RECIPIENT_DIRECTORY_CONSUMERS, (query) =>
+    resourceFingerprint({
+      customerId: String(query.customerId ?? ''),
+      channel: String(query.channel ?? ''),
+      purpose: String(query.purpose ?? ''),
+    }),
+  )
   @Get('addresses')
   async addresses(
     @Req() request: RequestWithServiceActor,

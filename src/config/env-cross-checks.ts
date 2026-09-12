@@ -113,6 +113,23 @@ function checkInfrastructure(data: RawAppEnv, ctx: z.RefinementCtx): void {
 }
 
 /** Escape hatch de datos simulados en producción (hallazgo A-02). */
+function checkContextServiceTransport(data: RawAppEnv, ctx: z.RefinementCtx): void {
+  // Revisión independiente A, hallazgo 10: por esa URL viajan el Bearer de servicio y los contactos
+  // descifrados. En producción sólo se admite http:// hacia la red interna (nombre de servicio sin punto).
+  if (data.NODE_ENV !== 'production' || !data.CUSTOMERS_DIRECTORY_URL) return;
+  const url = new URL(data.CUSTOMERS_DIRECTORY_URL);
+  const internalHost = !url.hostname.includes('.') || url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  if (url.protocol !== 'https:' && !internalHost) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['CUSTOMERS_DIRECTORY_URL'],
+      message:
+        'CUSTOMERS_DIRECTORY_URL debe ser https:// en producción salvo que apunte a un host de la red interna: ' +
+        'por ese canal viajan el token de servicio y las direcciones de contacto en claro.',
+    });
+  }
+}
+
 function checkSimulatedDataEscapeHatch(data: RawAppEnv, ctx: z.RefinementCtx): void {
   // Hallazgo A-02: activar el escape hatch de mocks en producción es una decisión legítima solo para
   // una demo comercial, y entonces el servidor de mocks tiene que existir. Sin URL, cada proveedor en
@@ -133,6 +150,17 @@ function checkSimulatedDataEscapeHatch(data: RawAppEnv, ctx: z.RefinementCtx): v
 /** Coherencia entre el rol del proceso y el planificador de trabajos de fondo. */
 function checkProcessRole(data: RawAppEnv, ctx: z.RefinementCtx): void {
   // El perfil `messaging` relaja requisitos de producción: sólo puede correrlo un worker, nunca la API.
+  // Revisión independiente A, hallazgo 2: sin identidad propia el worker caería a DB_USER (atlas_app_rw),
+  // que sí lee Crédito y Clientes; toda la frontera de privilegios del piloto se evaporaría en silencio.
+  if (data.ATLAS_CAPABILITY_PROFILE === 'messaging' && !data.MESSAGING_DB_USER) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['MESSAGING_DB_USER'],
+      message:
+        'ATLAS_CAPABILITY_PROFILE=messaging exige MESSAGING_DB_USER (el rol por contexto atlas_ctx_messaging). ' +
+        'Sin él el proceso arrancaría con la identidad del monolito, que sí puede leer Crédito y Clientes.',
+    });
+  }
   if (data.ATLAS_CAPABILITY_PROFILE === 'messaging' && data.APP_ROLE !== 'worker') {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -215,6 +243,7 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
 
   checkSecrets(data, ctx);
   checkInfrastructure(data, ctx);
+  checkContextServiceTransport(data, ctx);
   checkSimulatedDataEscapeHatch(data, ctx);
   checkProcessRole(data, ctx);
   checkInternalSecondFactor(data, ctx);

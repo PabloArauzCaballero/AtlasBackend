@@ -58,9 +58,13 @@ Si cambia cualquiera de estas precondiciones, este expediente se reemite; no se 
 
 ## Adenda 2026-09-12 (posterior al SHA evaluado)
 
-- Bloqueo «directorio de destinatarios por HTTP» **resuelto**: contrato entre contextos con identidad de servicio
-  (`pilot-readiness.json` → PASS). Siguen abiertos: configuración por capacidad, difusión interna sobre `iam`, autorización
-  de despliegue, protocolo de carga, revisiones independientes.
+- Bloqueos del piloto **resueltos**: directorio de destinatarios por HTTP con identidad de servicio, configuración por
+  capacidad (`ATLAS_CAPABILITY_PROFILE=messaging`), difusión interna (decidida: se queda en el monolito) y ensayo de
+  reversión. Sigue abierta **la autorización del despliegue**, que acuerda una persona: por eso el piloto sigue `NOT_READY`.
+- **Dos revisiones independientes ejecutadas** (2026-09-12, agentes separados sobre el diff completo): veredicto inicial
+  `NO APTO` en ambas, con un bloqueante cada una —contraseña por defecto en `context-roles.sql`; pérdida silenciosa del
+  monitor de salud y del tope de log en la raíz nueva del worker—. Todos los hallazgos bloqueantes e importantes están
+  corregidos con prueba; el detalle y lo que queda como deuda vive en `remaining-exceptions.md`.
 - Protocolo de carga: línea base LOCAL medida y registrada (`docs/testing/evidence/transition-performance-2026-09-12.json`);
   la comparación monolito/piloto en staging por HTTP sigue pendiente.
 - Protección de rama en GitHub: verificada con `gh api …/branches/dev/protection` → **no protegida** (404). Configurarla es

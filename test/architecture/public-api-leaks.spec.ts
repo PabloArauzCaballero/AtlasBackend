@@ -115,8 +115,9 @@ describe('AT-051 · superficies públicas sin fugas', () => {
     );
     for (const dir of thresholds) {
       const entries = readdirSync(join(ROOT, dir), { recursive: true }) as string[];
-      expect({ dir, sources: entries.filter((entry) => entry.endsWith('.ts')).length }).toEqual({ dir, sources: expect.any(Number) });
-      expect(entries.some((entry) => entry.endsWith('.ts'))).toBe(true);
+      const sources = entries.filter((entry) => entry.endsWith('.ts') && !entry.endsWith('.spec.ts'));
+      // Con `toEqual(expect.any(Number))` esto pasaba también con 0 fuentes (revisión independiente B, hallazgo 8).
+      expect({ dir, hasSources: sources.length > 0 }).toEqual({ dir, hasSources: true });
     }
   });
 });

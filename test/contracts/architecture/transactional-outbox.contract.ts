@@ -70,9 +70,17 @@ export function describeTransactionalOutboxContract(name: string, factory: Outbo
       withOutbox(async (outbox) => {
         const dedupKey = `dedup-${Date.now()}`;
         await outbox.append(scoped({ dedupKey }));
-        await expect(
-          outbox.append(scoped({ dedupKey, aggregate: { type: 'credit_application', id: '2', version: 1 } })),
-        ).rejects.toBeDefined();
+        // `toBeDefined()` aceptaba cualquier error, incluido uno de conexión (revisión independiente B,
+        // hallazgo 9). El rechazo tiene que venir del DUPLICADO: código de negocio en el doble, o
+        // `SequelizeUniqueConstraintError` (índice `ux_outbox_tenant_event_idempotency_key`) en PostgreSQL,
+        // cuyo `message` es el genérico «Validation error» y por eso se mira el nombre del error.
+        const duplicate = await outbox
+          .append(scoped({ dedupKey, aggregate: { type: 'credit_application', id: '2', version: 1 } }))
+          .then(() => null)
+          .catch((error: unknown) => error);
+        expect(duplicate).not.toBeNull();
+        const signature = `${(duplicate as { name?: string })?.name ?? ''}|${(duplicate as { code?: string })?.code ?? ''}`;
+        expect(signature).toMatch(/UniqueConstraint|OUTBOX_DEDUP_KEY_TAKEN/i);
       }),
     );
 

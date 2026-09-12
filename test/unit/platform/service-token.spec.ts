@@ -7,7 +7,12 @@
 import { describe, expect, it } from '@jest/globals';
 import jwt from 'jsonwebtoken';
 import { env } from '../../../src/config/env.js';
-import { contextAudience, signServiceToken, verifyServiceToken } from '../../../src/platform/security/service-token.js';
+import {
+  contextAudience,
+  resourceFingerprint,
+  signServiceToken,
+  verifyServiceToken,
+} from '../../../src/platform/security/service-token.js';
 
 const expected = { audienceContext: 'customers', scope: 'customers:recipient-directory', allowedServices: ['messaging-worker'] };
 
@@ -22,8 +27,45 @@ describe('token de servicio entre contextos', () => {
     });
     expect(verifyServiceToken(token, expected)).toEqual({
       ok: true,
-      claims: { service: 'messaging-worker', tenantId: '7', scopes: [expected.scope] },
+      claims: { service: 'messaging-worker', tenantId: '7', scopes: [expected.scope], resource: null, jti: expect.any(String) },
     });
+  });
+
+  it('el token está atado al recurso: uno firmado para otro cliente o propósito no vale (hallazgo A7)', () => {
+    const forCustomer7 = resourceFingerprint({ customerId: '7', channel: 'sms', purpose: 'transactional' });
+    const forCustomer9 = resourceFingerprint({ customerId: '9', channel: 'sms', purpose: 'transactional' });
+    const token = signServiceToken({
+      service: 'messaging-worker',
+      tenantId: '1',
+      scopes: [expected.scope],
+      audienceContext: 'customers',
+      resource: forCustomer7,
+    });
+    expect(verifyServiceToken(token, { ...expected, resource: forCustomer7 }).ok).toBe(true);
+    expect(verifyServiceToken(token, { ...expected, resource: forCustomer9 })).toEqual({ ok: false, reason: 'SERVICE_RESOURCE_MISMATCH' });
+    // Un token genérico (sin recurso) no sirve para una ruta que exige recurso.
+    const generic = signServiceToken({
+      service: 'messaging-worker',
+      tenantId: '1',
+      scopes: [expected.scope],
+      audienceContext: 'customers',
+    });
+    expect(verifyServiceToken(generic, { ...expected, resource: forCustomer7 })).toEqual({
+      ok: false,
+      reason: 'SERVICE_RESOURCE_MISMATCH',
+    });
+  });
+
+  it('cada token lleva su propio jti y la huella no depende del orden de los parámetros', () => {
+    const a = signServiceToken({ service: 'messaging-worker', tenantId: '1', scopes: [expected.scope], audienceContext: 'customers' });
+    const b = signServiceToken({ service: 'messaging-worker', tenantId: '1', scopes: [expected.scope], audienceContext: 'customers' });
+    const claims = (token: string) => {
+      const result = verifyServiceToken(token, expected);
+      if (!result.ok) throw new Error(result.reason);
+      return result.claims;
+    };
+    expect(claims(a).jti).not.toBe(claims(b).jti);
+    expect(resourceFingerprint({ b: '2', a: '1' })).toBe(resourceFingerprint({ a: '1', b: '2' }));
   });
 
   it('otra audiencia (otro contexto o la API de usuarios) → rechazado', () => {

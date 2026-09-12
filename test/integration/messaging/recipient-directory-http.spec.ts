@@ -23,7 +23,7 @@ import { CustomerRecipientDirectoryController } from '../../../src/modules/custo
 import { CustomerRecipientDirectoryAdapter } from '../../../src/modules/customers/infrastructure/customer-recipient-directory.adapter.js';
 import { CustomerContactsRepository } from '../../../src/modules/customers/repositories/customer-contacts.repository.js';
 import { HttpRecipientDirectoryAdapter } from '../../../src/modules/notifications/infrastructure/directory/http-recipient-directory.adapter.js';
-import { signServiceToken } from '../../../src/platform/security/service-token.js';
+import { resourceFingerprint, signServiceToken } from '../../../src/platform/security/service-token.js';
 import { buildAdmissionHarness, type AdmissionHarness } from '../credit/support/admission-harness.js';
 import { openIntegrationDatabase, type IntegrationDatabase } from '../support/database.js';
 
@@ -121,11 +121,29 @@ describe('AT-057 · directorio de destinatarios por HTTP', () => {
       audienceContext: 'credit',
     });
     expect((await request(server).get(path).set('Authorization', `Bearer ${otherContext}`)).status).toBe(401);
+    // Un token válido pero SIN la huella del recurso tampoco entra: la ruta la exige (hallazgo A7).
+    const withoutResource = signServiceToken({
+      service: 'messaging-worker',
+      tenantId: harness.tenantId,
+      scopes: [scope],
+      audienceContext: 'customers',
+    });
+    expect((await request(server).get(path).set('Authorization', `Bearer ${withoutResource}`)).status).toBe(401);
+    // Y uno firmado para OTRO cliente no sirve para leer este.
+    const forAnotherCustomer = signServiceToken({
+      service: 'messaging-worker',
+      tenantId: harness.tenantId,
+      scopes: [scope],
+      audienceContext: 'customers',
+      resource: resourceFingerprint({ customerId: '999999', channel: 'sms', purpose: 'transactional' }),
+    });
+    expect((await request(server).get(path).set('Authorization', `Bearer ${forAnotherCustomer}`)).status).toBe(401);
     const good = signServiceToken({
       service: 'messaging-worker',
       tenantId: harness.tenantId,
       scopes: [scope],
       audienceContext: 'customers',
+      resource: resourceFingerprint({ customerId, channel: 'sms', purpose: 'transactional' }),
     });
     const response = await request(server).get(path).set('Authorization', `Bearer ${good}`).set('x-tenant-id', '999999');
     expect(response.status).toBe(200);

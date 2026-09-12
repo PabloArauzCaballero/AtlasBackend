@@ -221,10 +221,15 @@ describe('ExpedientesRepository', () => {
     it('la papelera vencida se mide por días desde el borrado y es global: la barre un job', async () => {
       const antes = Date.now();
       await repo.findPapeleraVencida(30, 100);
+      const despues = Date.now();
 
       const corte = (where(nodos.findAll).borradoEn as Record<symbol, Date>)[Op.lt];
       expect(where(nodos.findAll)).not.toHaveProperty('tenantId');
-      expect(antes - corte.getTime()).toBeGreaterThanOrEqual(30 * 24 * 60 * 60 * 1000);
+      // El corte se calcula dentro del repositorio con su propio `Date.now()`, que puede caer 1 ms
+      // después del de la prueba: se compara contra la ventana [antes, después], no contra un instante.
+      const dias = 30 * 24 * 60 * 60 * 1000;
+      expect(corte.getTime()).toBeGreaterThanOrEqual(antes - dias);
+      expect(corte.getTime()).toBeLessThanOrEqual(despues - dias);
     });
 
     it('la papelera que se enseña sí es por tenant y trae lo borrado más reciente primero', async () => {

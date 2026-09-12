@@ -3,8 +3,9 @@
  * @business Antes de comparar monolito y piloto hace falta una línea base MEDIDA con el mismo dataset y el
  *   mismo código; este guion la produce contra la base de pruebas y la deja como evidencia con fecha, sin
  *   convertir una estimación en benchmark. Las cifras son de la máquina donde se corrió, no de producción.
- * @system `ATLAS_TEST_DATABASE_ISOLATED=true yarn tsx scripts/performance/transition-journey-bench.ts [--n 100]
- *   [--concurrency 10]`. Usa la misma fachada de admisión que la API (sin HTTP) y el relay v2 con un consumidor
+ * @system `ATLAS_TEST_DATABASE_ISOLATED=true yarn perf:transition [--n 100] [--concurrency 10]`. Vive en `test/`
+ *   —no en `scripts/`— porque reutiliza el harness de integración, y `tsconfig.json` (el build de la imagen de
+ *   producción) no compila `test/`: un guion de medición no puede romper el build. Usa la misma fachada de admisión que la API (sin HTTP) y el relay v2 con un consumidor
  *   que cuenta entregas; escribe `docs/testing/evidence/transition-performance-<fecha>.json`.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -128,8 +129,10 @@ async function main(): Promise<void> {
     mkdirSync(dir, { recursive: true });
     const file = join(dir, `transition-performance-${evidence.measuredAt.slice(0, 10)}.json`);
     writeFileSync(file, `${JSON.stringify(evidence, null, 2)}\n`);
-    console.log(JSON.stringify(evidence, null, 2));
-    console.log(`evidencia: ${file}`);
+    // `console.warn` y no `log`: el lint del repositorio sólo admite warn/error, y esto es un guion de
+    // medición cuya salida es su producto (la evidencia también queda en el archivo JSON).
+    console.warn(JSON.stringify(evidence, null, 2));
+    console.warn(`evidencia: ${file}`);
     if (delivered.length !== published || published !== n)
       throw new Error(`BENCH_INCONSISTENT: n=${n} published=${published} delivered=${delivered.length}`);
   } finally {

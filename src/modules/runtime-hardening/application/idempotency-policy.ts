@@ -44,7 +44,12 @@ export type OperationClass = 'credentials' | 'mutation';
  * se reproduce. Un reintento de login con la misma clave tiene que volver a autenticar, nunca recibir
  * el token que se le dio a la petición anterior.
  */
-const CREDENTIAL_SCOPE = /\/(auth|login|logout|refresh|otp|password|verification-code|verify-code|credentials|token)(\/|\?|$)/i;
+// Revisión independiente B, hallazgo 5: `refresh` y `token` a secas capturaban rutas que no son de
+// credenciales (p. ej. `POST /systems/endpoints/catalog-seed/refresh`), y ahí un reintento con la misma
+// clave recibía IDEMPOTENCY_REPLAY_NOT_AVAILABLE en contra de lo declarado. Los términos ambiguos sólo
+// cuentan dentro de un camino de autenticación.
+const CREDENTIAL_SCOPE =
+  /\/(auth|login|logout|otp|password|verification-code|verify-code|credentials)(\/|\?|$)|\/(auth|sessions|internal\/auth|merchant\/auth|partners\/auth)\/[^?]*\b(refresh|token)\b/i;
 
 export function classifyOperation(scope: string): OperationClass {
   return CREDENTIAL_SCOPE.test(scope) ? 'credentials' : 'mutation';

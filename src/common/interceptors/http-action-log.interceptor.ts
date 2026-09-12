@@ -23,6 +23,8 @@ type RequestLike = {
   headers: Record<string, string | string[] | undefined>;
   ip?: string;
   user?: AuthenticatedUser;
+  /** Actor de servicio entre contextos (`ServiceTokenGuard`); excluyente con `user`. */
+  serviceActor?: { service: string; tenantId: string };
   correlationId?: string;
   route?: { path?: string };
 };
@@ -85,10 +87,14 @@ export class HttpActionLogInterceptor implements NestInterceptor {
 
     const baseLog = (statusCode: number, outcome: 'success' | 'error', errorMessage?: string) =>
       this.actionLog.createHttpAction({
-        tenantId: request.user?.tenantId ?? firstHeader(request.headers['x-tenant-id']),
-        actorType: request.user?.role ?? 'public_or_unknown',
-        actorRole: request.user?.role ?? 'public_or_unknown',
-        actorUserId: request.user?.sub ?? null,
+        // Revisión independiente A, hallazgo 8: las rutas entre contextos autentican con token de
+        // servicio, no con sesión de usuario. Sin esto, el único endpoint que devuelve contactos en
+        // claro quedaba auditado como «public_or_unknown» y con el tenant tomado de una cabecera que
+        // el guard ignora a propósito (y que el llamante puede poner a cualquier valor).
+        tenantId: request.user?.tenantId ?? request.serviceActor?.tenantId ?? firstHeader(request.headers['x-tenant-id']),
+        actorType: request.user?.role ?? (request.serviceActor ? 'service' : 'public_or_unknown'),
+        actorRole: request.user?.role ?? (request.serviceActor ? `service:${request.serviceActor.service}` : 'public_or_unknown'),
+        actorUserId: request.user?.sub ?? (request.serviceActor ? `service:${request.serviceActor.service}` : null),
         actorInternalUserId: request.user?.internalUserId ?? null,
         actorPlatformUserId: request.user?.platformUserId ?? null,
         actionCode: actionCode(request.method, path),

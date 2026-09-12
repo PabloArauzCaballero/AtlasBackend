@@ -76,6 +76,27 @@ export type EnvelopeValidation = Readonly<
 /** Versiones de esquema que este proceso entiende, por tipo. Un tipo no listado admite la versión 1. */
 export type SchemaCatalog = Readonly<Record<string, readonly number[]>>;
 
+/** Profundidad máxima al buscar claves prohibidas: un payload de evento no anida más que esto. */
+const MAX_PAYLOAD_DEPTH = 6;
+
+function findForbiddenKey(value: unknown, depth: number, path = ''): string | null {
+  if (depth > MAX_PAYLOAD_DEPTH || value === null || typeof value !== 'object') return null;
+  if (Array.isArray(value)) {
+    for (const [index, entry] of value.entries()) {
+      const found = findForbiddenKey(entry, depth + 1, `${path}[${index}]`);
+      if (found) return found;
+    }
+    return null;
+  }
+  for (const [key, entry] of Object.entries(value)) {
+    const here = path ? `${path}.${key}` : key;
+    if (FORBIDDEN_PAYLOAD_KEYS.test(key)) return here;
+    const found = findForbiddenKey(entry, depth + 1, here);
+    if (found) return found;
+  }
+  return null;
+}
+
 export function validateEnvelope(event: IntegrationEvent, catalog: SchemaCatalog = {}): EnvelopeValidation {
   if (!event.eventId || !event.type) return { ok: false, code: 'MISSING_IDENTITY', detail: 'eventId y type son obligatorios' };
   const known = catalog[event.type] ?? [1];
@@ -83,7 +104,9 @@ export function validateEnvelope(event: IntegrationEvent, catalog: SchemaCatalog
     return { ok: false, code: 'UNKNOWN_SCHEMA_VERSION', detail: `${event.type} v${event.schemaVersion}; conocidas: ${known.join(',')}` };
   if (event.scope.kind === 'tenant' && !/^\d+$/.test(event.scope.tenantId))
     return { ok: false, code: 'INVALID_SCOPE', detail: `tenant «${event.scope.tenantId}»` };
-  const offending = Object.keys(event.payload).find((key) => FORBIDDEN_PAYLOAD_KEYS.test(key));
+  // Revisión independiente A, hallazgo 12: antes sólo se miraba el primer nivel, así que
+  // `{ customer: { password } }` pasaba el filtro. Ahora se recorre en profundidad, con tope.
+  const offending = findForbiddenKey(event.payload, 0);
   if (offending) return { ok: false, code: 'FORBIDDEN_PAYLOAD_KEY', detail: offending };
   return { ok: true };
 }
