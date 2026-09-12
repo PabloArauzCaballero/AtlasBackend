@@ -7,18 +7,65 @@
     "included": ["notificaciones no críticas ya existentes (estado de solicitud, recordatorios, difusiones)"],
     "excluded": ["OTP de verificación de contacto", "restablecimiento de contraseña", "mensajes con secreto o plazo legal"]
   },
-  "transport": { "chosen": "outbox PostgreSQL + relay v2 (lease/fencing/inbox)", "broker": "no introducido; comparación de carga pendiente (AT-054)" },
-  "dataOwner": { "schema": "messaging", "role": "atlas_ctx_messaging", "sharedDatabaseDuringPilot": true },
-  "singleWriter": { "registry": "platform_ops.context_ownership", "initialOwner": "monolith", "cutover": "docs/runbooks/messaging-single-writer-cutover.md" },
+  "transport": {
+    "chosen": "outbox PostgreSQL + relay v2 (lease/fencing/inbox)",
+    "broker": "no introducido; comparación de carga pendiente (AT-054)"
+  },
+  "dataOwner": {
+    "schema": "messaging",
+    "role": "atlas_ctx_messaging",
+    "sharedDatabaseDuringPilot": true
+  },
+  "singleWriter": {
+    "registry": "platform_ops.context_ownership",
+    "initialOwner": "monolith",
+    "cutover": "docs/runbooks/messaging-single-writer-cutover.md"
+  },
   "checks": [
-    { "id": "standalone-boot", "status": "PASS", "evidence": "test/integration/bootstrap/messaging-standalone.spec.ts" },
-    { "id": "no-sql-to-credit-iam-customer", "status": "PASS", "evidence": "rol atlas_ctx_messaging: permission denied probado (AT-019, AT-057)" },
-    { "id": "fenced-until-transfer", "status": "PASS", "evidence": "tick del relay con dueño=monolith → fenced" },
-    { "id": "cutover-rehearsed", "status": "PASS", "evidence": "test/integration/messaging/single-writer-cutover.spec.ts" },
-    { "id": "recipient-directory-over-http", "status": "BLOCKED", "detail": "RemoteRecipientDirectoryAdapter devuelve unsupported: sin contrato HTTP con Clientes" },
-    { "id": "config-by-capability-applied", "status": "BLOCKED", "detail": "el worker valida env.ts completo del monolito" },
-    { "id": "otp-reset-excluded", "status": "PASS", "detail": "OTP y reset siguen en el monolito (CustomerOnboardingModule compone el OTP)" },
-    { "id": "rollback-of-data", "status": "PENDING", "detail": "AT-060: ensayo de reversión tras escrituras nuevas" },
-    { "id": "deployment-authorization", "status": "PENDING", "detail": "responsables, autorización y criterio de cancelación no acordados" }
+    {
+      "id": "standalone-boot",
+      "status": "PASS",
+      "evidence": "test/integration/bootstrap/messaging-standalone.spec.ts"
+    },
+    {
+      "id": "no-sql-to-credit-iam-customer",
+      "status": "PASS",
+      "evidence": "rol atlas_ctx_messaging: permission denied probado (AT-019, AT-057)"
+    },
+    {
+      "id": "fenced-until-transfer",
+      "status": "PASS",
+      "evidence": "tick del relay con dueño=monolith → fenced"
+    },
+    {
+      "id": "cutover-rehearsed",
+      "status": "PASS",
+      "evidence": "test/integration/messaging/single-writer-cutover.spec.ts"
+    },
+    {
+      "id": "recipient-directory-over-http",
+      "status": "PASS",
+      "detail": "CustomerRecipientDirectoryController (identidad de servicio, audiencia atlas-ctx-customers) + HttpRecipientDirectoryAdapter en el worker; test/integration/messaging/recipient-directory-http.spec.ts"
+    },
+    {
+      "id": "config-by-capability-applied",
+      "status": "BLOCKED",
+      "detail": "el worker valida env.ts completo del monolito"
+    },
+    {
+      "id": "otp-reset-excluded",
+      "status": "PASS",
+      "detail": "OTP y reset siguen en el monolito (CustomerOnboardingModule compone el OTP)"
+    },
+    {
+      "id": "rollback-of-data",
+      "status": "PENDING",
+      "detail": "AT-060: ensayo de reversión tras escrituras nuevas"
+    },
+    {
+      "id": "deployment-authorization",
+      "status": "PENDING",
+      "detail": "responsables, autorización y criterio de cancelación no acordados"
+    }
   ]
 }

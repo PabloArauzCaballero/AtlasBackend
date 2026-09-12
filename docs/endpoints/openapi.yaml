@@ -1603,6 +1603,170 @@ paths:
       summary: Decidir la habilitación de un cliente (operaciones)
       tags:
         - customer-eligibility
+  /internal/contexts/customers/recipient-directory/resolve:
+    get:
+      description: >-
+        Contrato entre contextos: sólo servicios admitidos con token de servicio
+        (audiencia `atlas-ctx-customers`). El tenant viaja en el token.
+      operationId: CustomerRecipientDirectoryController_resolve
+      parameters:
+        - name: channel
+          required: true
+          in: query
+          description: Canal de entrega a resolver.
+          schema:
+            enum:
+              - sms
+              - whatsapp
+              - email
+              - push
+              - in_app
+            type: string
+        - name: customerId
+          required: true
+          in: query
+          description: Identificador del cliente dentro del tenant del token de servicio.
+          schema: {}
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Resolución sin datos personales.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum:
+                              - available
+                              - unverified
+                              - absent
+                              - unsupported
+                          contactId:
+                            anyOf:
+                              - type: string
+                              - type: 'null'
+                          resolvedAt:
+                            type: string
+                        required:
+                          - status
+                          - contactId
+                          - resolvedAt
+                        additionalProperties: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: >-
+            Token de servicio ausente, inválido, de otra audiencia o sin el
+            permiso.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: Identidad de servicio no configurada en este despliegue.
+      security: []
+      summary: >-
+        Resolver si un cliente tiene contacto para un canal (identidad de
+        servicio)
+      tags:
+        - customers
+  /internal/contexts/customers/recipient-directory/addresses:
+    get:
+      description: >-
+        Devuelve sólo direcciones vigentes autorizadas por el propósito
+        (`transactional`, `otp`, `security`); vacío en cualquier otro caso. El
+        valor en claro es para entregar, nunca para persistir.
+      operationId: CustomerRecipientDirectoryController_addresses
+      parameters:
+        - name: purpose
+          required: true
+          in: query
+          description: >-
+            Propósito que autoriza usar el contacto: transactional, otp o
+            security; otro valor devuelve vacío.
+          schema: {}
+        - name: channel
+          required: true
+          in: query
+          description: Canal de entrega.
+          schema:
+            enum:
+              - sms
+              - whatsapp
+              - email
+              - push
+              - in_app
+            type: string
+        - name: customerId
+          required: true
+          in: query
+          description: Identificador del cliente dentro del tenant del token de servicio.
+          schema: {}
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Direcciones autorizadas (puede ser vacío).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          addresses:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                contactId:
+                                  type: string
+                                kind:
+                                  type: string
+                                  enum:
+                                    - email
+                                    - phone
+                                    - whatsapp
+                                address:
+                                  type: string
+                                resolvedAt:
+                                  type: string
+                              required:
+                                - contactId
+                                - kind
+                                - address
+                                - resolvedAt
+                              additionalProperties: false
+                        required:
+                          - addresses
+                        additionalProperties: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: >-
+            Token de servicio ausente, inválido, de otra audiencia o sin el
+            permiso.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: Identidad de servicio no configurada en este despliegue.
+      security: []
+      summary: >-
+        Direcciones de entrega de un cliente para un canal y propósito
+        (identidad de servicio)
+      tags:
+        - customers
   /internal/auth/login:
     post:
       description: Autentica usuarios internos para el panel administrativo ATLAS.

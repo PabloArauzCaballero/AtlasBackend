@@ -30,8 +30,10 @@ un crédito mal concedido).
 
 ## Lo que bloquea el GO (ver `pilot-readiness.json`)
 
-- El worker aislado **no puede resolver direcciones de clientes**: `RemoteRecipientDirectoryAdapter` devuelve `unsupported`
-  porque no existe contrato HTTP con Clientes. Hasta entonces sólo in-app/push (datos propios) serían entregables.
+- ~~El worker aislado no puede resolver direcciones de clientes~~ **Resuelto el 2026-09-12:** Clientes sirve
+  `internal/contexts/customers/recipient-directory` con identidad de servicio (`CONTEXT_SERVICE_TOKEN_SECRET`, audiencia
+  `atlas-ctx-customers`, tenant en el token) y el worker lo consume con `HttpRecipientDirectoryAdapter` cuando
+  `CUSTOMERS_DIRECTORY_URL` está configurada; sin configuración, sigue el hueco declarado (`unsupported`).
 - El proceso valida la **configuración entera del monolito** (`env.ts`): no se ha aplicado la carga por capacidad (AT-046) a
   cada dependencia de Mensajería.
 - Difusiones a usuarios internos leen `iam` (`NotificationBroadcastService`): quedan en el monolito.

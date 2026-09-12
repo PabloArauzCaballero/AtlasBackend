@@ -5,6 +5,7 @@
  */
 import { Module } from '@nestjs/common';
 import { CustomerRecipientDirectoryAdapter } from './infrastructure/customer-recipient-directory.adapter.js';
+import { CustomerRecipientDirectoryController } from './customer-recipient-directory.controller.js';
 import { CustomerStateAdapter } from './infrastructure/customer-state.adapter.js';
 import { CUSTOMER_STATE_PORT } from './application/ports/customer-state.port.js';
 import { SequelizeModule } from '@nestjs/sequelize';
@@ -74,7 +75,7 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
       FraudCaseModel,
     ]),
   ],
-  controllers: [CustomersController, CustomerEligibilityController],
+  controllers: [CustomersController, CustomerEligibilityController, CustomerRecipientDirectoryController],
   providers: [
     // AT-020: Clientes implementa el directorio de destinatarios que Mensajería consume por puerto.
     CustomerRecipientDirectoryAdapter,

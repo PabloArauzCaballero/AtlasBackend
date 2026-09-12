@@ -26,6 +26,11 @@ export const runtimeJobsEnvShape = {
   EVENTS_RELAY_V2_ENABLED: booleanEnvSchema,
   // AT-057/AT-059: cadencia del relay del worker de Mensajería; sólo actúa si `context_ownership` lo nombra dueño.
   MESSAGING_RELAY_INTERVAL_MS: z.coerce.number().int().positive().max(600_000).default(5000),
+  // AT-047/AT-057: identidad de servicio entre contextos (HS256, audiencia por contexto destino). Sin
+  // secreto, los endpoints internos entre contextos responden 503 y el worker del piloto no los llama.
+  CONTEXT_SERVICE_TOKEN_SECRET: z.string().min(32).optional(),
+  // Base URL de la API del monolito que sirve el directorio de destinatarios de Clientes al piloto.
+  CUSTOMERS_DIRECTORY_URL: z.string().url().optional(),
   RUNTIME_JOBS_ALLOW_WITHOUT_LOCK: booleanEnvSchema,
   RUNTIME_JOBS_BATCH_LIMIT: z.coerce.number().int().positive().max(500).default(100),
   RUNTIME_JOBS_LEADER_LOCK_TTL_MS: z.coerce.number().int().positive().max(3_600_000).default(900_000),

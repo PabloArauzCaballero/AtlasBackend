@@ -26,7 +26,9 @@ import { SmsNotificationAdapter } from '../modules/notifications/adapters/sms.ad
 import { WhatsAppNotificationAdapter } from '../modules/notifications/adapters/whatsapp.adapter.js';
 import { RECIPIENT_DIRECTORY_PORT } from '../modules/notifications/application/ports/recipient-directory.port.js';
 import { LocalRecipientDirectoryAdapter } from '../modules/notifications/infrastructure/directory/local-recipient-directory.adapter.js';
+import { HttpRecipientDirectoryAdapter } from '../modules/notifications/infrastructure/directory/http-recipient-directory.adapter.js';
 import { RemoteRecipientDirectoryAdapter } from '../modules/notifications/infrastructure/directory/remote-recipient-directory.adapter.js';
+import { env } from '../config/env.js';
 import { NotificationEventConsumer } from '../modules/notifications/infrastructure/notification-event.consumer.js';
 import { NOTIFICATION_MODELS } from '../modules/notifications/infrastructure/persistence/notification-models.js';
 import { NotificationOrchestratorService } from '../modules/notifications/notification-orchestrator.service.js';
@@ -88,7 +90,19 @@ export const MESSAGING_FORBIDDEN_MODULES = Object.freeze([
     SmsNotificationAdapter,
     WhatsAppNotificationAdapter,
     RemoteRecipientDirectoryAdapter,
-    { provide: RECIPIENT_DIRECTORY_PORT, useExisting: RemoteRecipientDirectoryAdapter },
+    // Con URL y secreto configurados, el directorio es el contrato HTTP de Clientes; si no, el hueco declarado.
+    {
+      provide: RECIPIENT_DIRECTORY_PORT,
+      useFactory: (remote: RemoteRecipientDirectoryAdapter) =>
+        env.CUSTOMERS_DIRECTORY_URL && env.CONTEXT_SERVICE_TOKEN_SECRET
+          ? new HttpRecipientDirectoryAdapter({
+              baseUrl: env.CUSTOMERS_DIRECTORY_URL,
+              service: 'messaging-worker',
+              scope: 'customers:recipient-directory',
+            })
+          : remote,
+      inject: [RemoteRecipientDirectoryAdapter],
+    },
     LocalRecipientDirectoryAdapter,
     NotificationEventConsumer,
     { provide: EVENT_CONSUMERS, useFactory: (consumer: NotificationEventConsumer) => [consumer], inject: [NotificationEventConsumer] },

@@ -314,6 +314,24 @@
     "security": ["access-token"],
     "body": true
   },
+  "GET /internal/contexts/customers/recipient-directory/resolve": {
+    "operationId": "CustomerRecipientDirectoryController_resolve",
+    "responses": ["200", "400", "401", "429", "500", "503"],
+    "headers": [],
+    "query": ["channel", "customerId"],
+    "path": [],
+    "security": [],
+    "body": false
+  },
+  "GET /internal/contexts/customers/recipient-directory/addresses": {
+    "operationId": "CustomerRecipientDirectoryController_addresses",
+    "responses": ["200", "400", "401", "429", "500", "503"],
+    "headers": [],
+    "query": ["channel", "customerId", "purpose"],
+    "path": [],
+    "security": [],
+    "body": false
+  },
   "POST /internal/auth/login": {
     "operationId": "InternalAuthController_login",
     "responses": ["200", "400", "401", "409", "429", "500"],

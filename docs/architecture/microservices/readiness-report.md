@@ -55,3 +55,11 @@ puerto; OTP y directorio por puertos; `GET /systems/logs/mongo` con rol interno;
 3. Revisiones independientes: 0 de 2.
 
 Si cambia cualquiera de estas precondiciones, este expediente se reemite; no se edita el histórico.
+
+## Adenda 2026-09-12 (posterior al SHA evaluado)
+
+- Bloqueo «directorio de destinatarios por HTTP» **resuelto**: contrato entre contextos con identidad de servicio
+  (`pilot-readiness.json` → PASS). Siguen abiertos: configuración por capacidad, difusión interna sobre `iam`, autorización
+  de despliegue, protocolo de carga, revisiones independientes.
+- Protección de rama en GitHub: verificada con `gh api …/branches/dev/protection` → **no protegida** (404). Configurarla es
+  una decisión de quien administra el repositorio (cambia el flujo de push directo a `dev`).

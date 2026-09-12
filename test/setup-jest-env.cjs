@@ -28,5 +28,6 @@ process.env.DB_READ_SCHEMA ||= 'public';
 process.env.SEED_PROFILE ||= 'test';
 process.env.DEV_ADMIN_EMAIL ||= 'dev.admin@atlas.test';
 process.env.DECISION_ENGINE_ENVIRONMENT_CODE ||= 'TEST';
+process.env.CONTEXT_SERVICE_TOKEN_SECRET ||= 'test-only-context-service-token-secret-32chars';
 process.env.KMS_KEY_ID ||= 'test-only-kms-key-id';
 process.env.AWS_REGION ||= 'us-east-1';

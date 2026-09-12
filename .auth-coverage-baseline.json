@@ -7,6 +7,7 @@
     "src/modules/consents/consents.controller.ts": 1,
     "src/modules/customer-onboarding/customer-onboarding.controller.ts": 1,
     "src/modules/customer-onboarding/identity-review-callback.controller.ts": 2,
+    "src/modules/customers/customer-recipient-directory.controller.ts": 2,
     "src/modules/health/health.controller.ts": 3,
     "src/modules/internal-users/internal-auth.controller.ts": 4,
     "src/modules/merchant-identity/merchant-auth.controller.ts": 3

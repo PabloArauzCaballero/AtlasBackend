@@ -51,7 +51,8 @@ const ROUTE_DECORATOR = /@(Get|Post|Put|Patch|Delete)\s*\(/g;
  * `@Roles(` daría 8 falsos positivos que están perfectamente protegidos, y un gate con falsos
  * positivos se acaba desactivando.
  */
-const AUTHORIZATION_MARKERS = [/@Roles\s*\(/, /@InternalPermissions\s*\(/, /@SystemsOpsControllerSecurity\s*\(/];
+// `@ServiceScope` es la regla de autorización de las rutas entre contextos (identidad de servicio, AT-047).
+const AUTHORIZATION_MARKERS = [/@Roles\s*\(/, /@InternalPermissions\s*\(/, /@SystemsOpsControllerSecurity\s*\(/, /@ServiceScope\s*\(/];
 
 interface Baseline {
   /** archivo -> nº de rutas `@Public()` aceptadas hoy. */
