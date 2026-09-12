@@ -53,6 +53,10 @@ beforeAll(async () => {
   if (!database) return;
   migrator = createMigrationSequelizeInstance();
   umzug = buildUmzug(migrator);
+  // La base de pruebas es compartida y otras sesiones añaden migraciones mientras esta suite corre:
+  // se pone al día ANTES de medir. Lo que esta suite prueba es el ciclo down→up de la transición y la
+  // idempotencia de `up`, no que nadie más haya tocado el repositorio.
+  await umzug.up();
 });
 
 afterAll(async () => {
@@ -91,12 +95,14 @@ async function columns(sequelize: Sequelize, table: string): Promise<string[]> {
 }
 
 describe('AT-053 · actualización de una instalación existente', () => {
-  it('base al día: no hay migraciones pendientes y `up` es un no-op', async () => {
+  it('base al día: `up` es un no-op (idempotente) y no deja pendientes', async () => {
     if (!umzug) return;
-    expect(await umzug.pending()).toEqual([]);
+    // `beforeAll` ya aplicó lo que faltara; aquí se comprueba que repetir `up` no cambia nada.
     const executedBefore = (await umzug.executed()).length;
+    expect(executedBefore).toBeGreaterThan(0);
     await umzug.up();
     expect((await umzug.executed()).length).toBe(executedBefore);
+    expect(await umzug.pending()).toEqual([]);
   });
 
   it('desde la versión anterior: bajar y volver a subir la transición conserva pendientes y claves, y rellena los defectos', async () => {
@@ -106,7 +112,10 @@ describe('AT-053 · actualización de una instalación existente', () => {
 
     // Versión anterior: sin sobre, sin inbox, sin owner_token en idempotencia.
     await umzug.down({ migrations: [...TRANSITION_MIGRATIONS].reverse() });
-    expect((await umzug.pending()).map((m) => m.name)).toEqual(TRANSITION_MIGRATIONS);
+    // Las tres de la transición quedan pendientes; el resto del repositorio no se toca (puede haber
+    // migraciones nuevas de otra sesión, y no son asunto de esta prueba).
+    const pendingNames = (await umzug.pending()).map((migration) => migration.name);
+    expect(pendingNames).toEqual(expect.arrayContaining(TRANSITION_MIGRATIONS));
     expect(await columns(sequelize, 'context_ownership')).toEqual([]);
     expect(await columns(sequelize, 'outbox_events')).not.toEqual(expect.arrayContaining(['event_id', 'owner_token']));
     expect(await columns(sequelize, 'idempotency_keys')).not.toContain('owner_token');
@@ -119,7 +128,8 @@ describe('AT-053 · actualización de una instalación existente', () => {
     // Actualización: las filas siguen, con identidad global y versión de esquema por defecto; la propiedad vuelve a sembrarse.
     await umzug.up();
     expect(await columns(sequelize, 'context_ownership')).toEqual(expect.arrayContaining(['context', 'owner', 'epoch']));
-    expect(await umzug.pending()).toEqual([]);
+    const executedNames = (await umzug.executed()).map((migration) => migration.name);
+    expect(executedNames).toEqual(expect.arrayContaining(TRANSITION_MIGRATIONS));
     const rows = await sequelize.query<{ event_id: string; schema_version: number; owner_token: string | null; status: string }>(
       `SELECT event_id, schema_version, owner_token, status FROM platform_ops.outbox_events WHERE event_code = $marker ORDER BY _id`,
       { type: QueryTypes.SELECT, bind: { marker } },
@@ -138,8 +148,9 @@ describe('AT-053 · actualización de una instalación existente', () => {
     );
     expect(keys).toEqual([{ owner_token: null, status: 'completed' }]);
     // Reinicio idempotente: subir otra vez no cambia nada.
+    const executedCount = (await umzug.executed()).length;
     await umzug.up();
-    expect(await umzug.pending()).toEqual([]);
+    expect((await umzug.executed()).length).toBe(executedCount);
   });
 
   it('relleno por lotes interrumpido tras el primer lote: se reanuda desde el punto de control sin duplicar ni omitir', async () => {
