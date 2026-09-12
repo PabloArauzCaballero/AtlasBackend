@@ -58,9 +58,14 @@
       "detail": "OTP y reset siguen en el monolito (CustomerOnboardingModule compone el OTP)"
     },
     {
+      "id": "internal-broadcast-ownership",
+      "status": "PASS",
+      "detail": "La difusión a usuarios internos (lee iam y customer) se queda en el monolito: MessagingWorkerModule no compone NotificationBroadcastService y el gate AT-061 lo vigila."
+    },
+    {
       "id": "rollback-of-data",
-      "status": "PENDING",
-      "detail": "AT-060: ensayo de reversión tras escrituras nuevas"
+      "status": "PASS",
+      "detail": "AT-060 ensayado contra PostgreSQL: test/integration/messaging/rollback-after-writes.spec.ts (transferencia inversa por época; lo que el piloto escribió sobrevive, lo entregado no se repite, el piloto queda cercado). Límite declarado: con base propia del piloto haría falta sincronización inversa, no ensayada."
     },
     {
       "id": "deployment-authorization",
