@@ -202,7 +202,13 @@ export class EventsService {
   async processPendingEvents(input: ProcessEventsInput): Promise<ProcessEventsResult> {
     const workerId = input.workerId ?? `db-backed-events-worker-${process.pid}`;
     if (this.relay && env.EVENTS_RELAY_V2_ENABLED && !input.dryRun) {
-      const outcome = await this.relay.run({ tenantId: input.tenantId ?? null, limit: input.limit, workerId });
+      // AT-059: el monolito sólo reclama mientras `context_ownership` lo nombre dueño de Mensajería.
+      const outcome = await this.relay.run({
+        tenantId: input.tenantId ?? null,
+        limit: input.limit,
+        workerId,
+        ownership: { context: 'messaging', owner: 'monolith' },
+      });
       return {
         selected: outcome.claimed,
         processed: outcome.published,

@@ -1,0 +1,18 @@
+# Imagen del worker de Mensajería del piloto (AT-057).
+#
+# MISMA imagen que el monolito (misma cadena de build, mismas dependencias auditadas, mismo usuario
+# sin privilegios): lo que cambia es el entrypoint —`dist/src/messaging-worker.js`— y la identidad
+# de base con la que arranca (MESSAGING_DB_USER=atlas_ctx_messaging). No se construye una segunda
+# vez: se etiqueta a partir de la imagen ya construida por CI.
+#
+#   docker build -f ops/docker/Dockerfile.messaging --build-arg ATLAS_IMAGE=atlas-backend:ci -t atlas-messaging:ci .
+ARG ATLAS_IMAGE=atlas-backend:local
+FROM ${ATLAS_IMAGE}
+LABEL org.opencontainers.image.title="atlas-messaging-worker" \
+      org.opencontainers.image.description="Piloto de extracción de Mensajería: consume el outbox y entrega notificaciones con su propia identidad de base."
+ENV APP_ROLE=worker \
+    WORKER_PROBE_PORT=3006 \
+    RUNTIME_JOBS_SCHEDULER_ENABLED=true \
+    NOTIFICATIONS_DELIVERY_MODE=deferred
+EXPOSE 3006
+CMD ["node", "dist/src/messaging-worker.js"]

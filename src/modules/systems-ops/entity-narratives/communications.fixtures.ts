@@ -47,6 +47,19 @@ export const COMMUNICATION_NARRATIVES: EntityBusinessNarrative[] = [
       'Tabla en `platform_ops` con unicidad (`consumer_id`, `event_id`): el consumidor inserta el recibo en la misma transacción que su efecto local, de modo que o ambos existen o ninguno. `event_id` es la identidad global del outbox (`outbox_events.event_id`); `producer` conserva el origen para cuando cada productor tenga su propia base y el identificador necesite espacio de nombres.',
   },
   {
+    tableName: 'context_ownership',
+    whyExists:
+      'Durante la extracción de un contexto (primero Mensajería) hay una ventana en la que dos procesos podrían escribir lo mismo: el monolito y el servicio piloto. Esta tabla nombra al ÚNICO escritor activo de cada contexto y lleva una época que sube en cada corte, para que un proceso viejo que siga vivo no pueda seguir escribiendo ni confirmando.',
+    whyNotDelete:
+      'Sin ella el corte de escritor sería un cambio de DNS o de variable de entorno, que no impide que un proceso ya arrancado siga trabajando con la configuración anterior. Es la garantía de escritor único y el punto de reversión: volver atrás es otra transferencia con época nueva, no un borrado.',
+    decisionContribution:
+      'Dice quién es dueño de cada contexto ahora, desde cuándo y por decisión de quién; la operación la consulta antes de un despliegue del piloto y durante un incidente para saber a qué proceso pertenecen los eventos en curso.',
+    usageExample:
+      'Se transfiere `messaging` del `monolith` al `messaging-worker` con época 2. El relay del monolito sigue vivo unos segundos: al intentar reclamar ve que ya no es dueño y no toca nada. Se detecta un fallo y se transfiere de vuelta con época 3: el worker queda cercado y el monolito retoma sin perder los eventos pendientes.',
+    systemsExplanation:
+      'Tabla en `platform_ops` con una fila por contexto (`context` PK): `owner`, `epoch` (BIGINT monótono), `changed_by`, `changed_at`. La transferencia es un UPDATE condicional (época esperada) y devuelve los eventos en vuelo a `pending` anulando `owner_token` para que el cierre tardío del escritor viejo no encuentre la fila. Los procesos consultan la propiedad antes de reclamar trabajo; no hay caché: una lectura por lote.',
+  },
+  {
     tableName: 'notification_templates',
     whyExists:
       'Los mensajes al cliente deben ser consistentes, revisables por legal y traducibles. Esta tabla guarda las plantillas por canal e idioma, en lugar de tener textos incrustados en el código.',

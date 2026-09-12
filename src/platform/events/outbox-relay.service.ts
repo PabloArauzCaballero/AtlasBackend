@@ -15,6 +15,7 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes, UniqueConstraintError } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { MetricsService } from '../../common/observability/metrics.service.js';
+import { ContextOwnershipRegistry } from '../ownership/context-ownership.registry.js';
 import { InboxReceiptModel, OutboxEventModel } from '../../database/models/index.js';
 import { newOwnerToken } from '../../modules/runtime-hardening/infrastructure/idempotency-claim.store.js';
 import { ConsumerRegistry } from './consumer-registry.js';
@@ -24,6 +25,8 @@ import { fromOutboxRow, validateEnvelope, type IntegrationEvent } from './integr
 import { DEFAULT_RETRY_POLICY, RETRY_POLICY, decideOrder, decideRetry, type RetryPolicy } from './retry-policy.js';
 
 export type RelayRunResult = Readonly<{
+  /** AT-059: `true` cuando el relay no era el dueño del contexto y no reclamó nada. */
+  fenced: boolean;
   claimed: number;
   published: number;
   retried: number;
@@ -159,6 +162,7 @@ export class OutboxRelayService {
     // Sin token, Nest intentaría resolver el parámetro y el arranque fallaría: `docs:openapi` lo cazó.
     @Optional() @Inject(RETRY_POLICY) private readonly policy: RetryPolicy = DEFAULT_RETRY_POLICY,
     @Optional() private readonly metrics?: MetricsService,
+    @Optional() private readonly ownership?: ContextOwnershipRegistry,
   ) {
     this.publisher = publisher ?? new LocalConsumerDispatchPublisher(sequelize, new ConsumerRegistry(consumers));
   }
@@ -224,10 +228,27 @@ export class OutboxRelayService {
     return retried ? 'retried' : null;
   }
 
-  async run(input: { tenantId: string | null; limit: number; workerId: string; now?: Date }): Promise<RelayRunResult> {
+  async run(input: {
+    tenantId: string | null;
+    limit: number;
+    workerId: string;
+    now?: Date;
+    /** AT-059: quién cree ser este relay; si el registro nombra a otro dueño, no reclama nada. */
+    ownership?: { context: string; owner: string };
+  }): Promise<RelayRunResult> {
     const now = input.now ?? new Date();
+    if (input.ownership && this.ownership) {
+      const current = await this.ownership.current(input.ownership.context);
+      if (current && current.owner !== input.ownership.owner) {
+        this.logger.warn(
+          `OWNERSHIP_FENCED ${input.ownership.context}: dueño ${current.owner} (época ${current.epoch}); este relay (${input.ownership.owner}) no reclama.`,
+        );
+        return { fenced: true, claimed: 0, published: 0, retried: 0, deadLettered: 0, quarantined: 0, eventIds: [] };
+      }
+    }
     const { ownerToken, rows } = await this.claim({ ...input, now });
     const result = {
+      fenced: false,
       claimed: rows.length,
       published: 0,
       retried: 0,

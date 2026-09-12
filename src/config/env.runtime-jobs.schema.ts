@@ -24,6 +24,8 @@ export const runtimeJobsEnvShape = {
   RUNTIME_JOBS_SCHEDULER_ENABLED: booleanEnvSchema,
   // AT-034: relay v2 del outbox (lease/fencing, inbox por consumidor). Apagado = procesamiento anterior.
   EVENTS_RELAY_V2_ENABLED: booleanEnvSchema,
+  // AT-057/AT-059: cadencia del relay del worker de Mensajería; sólo actúa si `context_ownership` lo nombra dueño.
+  MESSAGING_RELAY_INTERVAL_MS: z.coerce.number().int().positive().max(600_000).default(5000),
   RUNTIME_JOBS_ALLOW_WITHOUT_LOCK: booleanEnvSchema,
   RUNTIME_JOBS_BATCH_LIMIT: z.coerce.number().int().positive().max(500).default(100),
   RUNTIME_JOBS_LEADER_LOCK_TTL_MS: z.coerce.number().int().positive().max(3_600_000).default(900_000),

@@ -453,6 +453,36 @@ services:
           cpus: '1.0'
           memory: 768M
 
+  # Piloto de extracción de Mensajería (AT-057). Perfil aparte: no arranca con `--profile app`. Corre con
+  # el rol por contexto (ops/postgres/context-roles.sql aplicado a la base) y queda CERCADO mientras
+  # `context_ownership` nombre al monolito: late, no reclama. El corte es el runbook
+  # docs/runbooks/messaging-single-writer-cutover.md, nunca un `up` de este servicio.
+  messaging-worker:
+    <<: *atlas-build
+    profiles: ['pilot']
+    environment:
+      <<: *atlas-env
+      APP_ROLE: worker
+      WORKER_PROBE_PORT: '3007'
+      RUNTIME_JOBS_SCHEDULER_ENABLED: 'true'
+      NOTIFICATIONS_DELIVERY_MODE: deferred
+      MESSAGING_DB_USER: atlas_ctx_messaging
+      MESSAGING_DB_PASSWORD: ${MESSAGING_DB_PASSWORD:-change-me}
+    expose:
+      - '3007'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - atlas-messaging-logs:/app/logs
+    command: ['node', 'dist/src/messaging-worker.js']
+    restart: unless-stopped
+    stop_grace_period: 30s
+
 volumes:
   atlas-postgres-data:
   atlas-redis-data:
@@ -463,3 +493,4 @@ volumes:
   # procesos competirían por el mismo offset.
   atlas-api-logs:
   atlas-worker-logs:
+  atlas-messaging-logs:

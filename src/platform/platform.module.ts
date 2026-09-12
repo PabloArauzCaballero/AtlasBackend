@@ -6,10 +6,11 @@
  */
 import { Global, Module } from '@nestjs/common';
 import { CLOCK, systemClock } from './di/clock.js';
+import { ContextOwnershipRegistry } from './ownership/context-ownership.registry.js';
 
 @Global()
 @Module({
-  providers: [{ provide: CLOCK, useValue: systemClock }],
-  exports: [CLOCK],
+  providers: [{ provide: CLOCK, useValue: systemClock }, ContextOwnershipRegistry],
+  exports: [CLOCK, ContextOwnershipRegistry],
 })
 export class PlatformModule {}

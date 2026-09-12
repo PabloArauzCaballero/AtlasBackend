@@ -62,6 +62,12 @@ export const databaseEnvShape = {
   DB_MIGRATION_USER: z.string().min(1).optional(),
   DB_MIGRATION_PASSWORD: z.string().optional(),
 
+  // MESSAGING_DB_USER/PASSWORD = identidad del worker de Mensajería del piloto (AT-057): el rol por
+  // contexto `atlas_ctx_messaging` (ops/postgres/context-roles.sql). Si se omite, cae a DB_USER —
+  // sólo válido en local; el piloto real arranca con su rol, que NO puede leer credit/customer/iam.
+  MESSAGING_DB_USER: z.string().min(1).optional(),
+  MESSAGING_DB_PASSWORD: z.string().optional(),
+
   // DB_ADMIN_USER/PASSWORD = identidad con CREATE ROLE usada SOLO por `yarn db:roles:bootstrap`
   // para crear los roles del cluster. Si se omite, cae a DB_USER. Nunca la usa el runtime.
   DB_ADMIN_USER: z.string().min(1).optional(),

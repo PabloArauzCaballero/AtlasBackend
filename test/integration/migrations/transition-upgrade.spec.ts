@@ -20,7 +20,12 @@ import { createMigrationSequelizeInstance } from '../../../src/database/sequeliz
 import { runBatchBackfill, type BackfillCheckpoint } from '../../../src/platform/persistence/batch-backfill.js';
 import { openIntegrationDatabase, runToken, type IntegrationDatabase } from '../support/database.js';
 
-const TRANSITION_MIGRATIONS = ['20260911180000-idempotency-keys-owner-token.ts', '20260911190000-outbox-envelope-and-inbox-receipts.ts'];
+/** Las migraciones de la transición, en orden de aplicación; `down` las revierte en orden inverso. */
+const TRANSITION_MIGRATIONS = [
+  '20260911180000-idempotency-keys-owner-token.ts',
+  '20260911190000-outbox-envelope-and-inbox-receipts.ts',
+  '20260912100000-context-ownership.ts',
+];
 
 let database: IntegrationDatabase | null = null;
 let migrator: Sequelize | null = null;
@@ -100,8 +105,9 @@ describe('AT-053 · actualización de una instalación existente', () => {
     await seedPreviousVersionRows(sequelize, 3);
 
     // Versión anterior: sin sobre, sin inbox, sin owner_token en idempotencia.
-    await umzug.down({ step: TRANSITION_MIGRATIONS.length });
+    await umzug.down({ migrations: [...TRANSITION_MIGRATIONS].reverse() });
     expect((await umzug.pending()).map((m) => m.name)).toEqual(TRANSITION_MIGRATIONS);
+    expect(await columns(sequelize, 'context_ownership')).toEqual([]);
     expect(await columns(sequelize, 'outbox_events')).not.toEqual(expect.arrayContaining(['event_id', 'owner_token']));
     expect(await columns(sequelize, 'idempotency_keys')).not.toContain('owner_token');
     const pendingBefore = await sequelize.query<{ n: string }>(
@@ -110,8 +116,9 @@ describe('AT-053 · actualización de una instalación existente', () => {
     );
     expect(Number(pendingBefore[0].n)).toBe(3);
 
-    // Actualización: las filas siguen, con identidad global y versión de esquema por defecto.
+    // Actualización: las filas siguen, con identidad global y versión de esquema por defecto; la propiedad vuelve a sembrarse.
     await umzug.up();
+    expect(await columns(sequelize, 'context_ownership')).toEqual(expect.arrayContaining(['context', 'owner', 'epoch']));
     expect(await umzug.pending()).toEqual([]);
     const rows = await sequelize.query<{ event_id: string; schema_version: number; owner_token: string | null; status: string }>(
       `SELECT event_id, schema_version, owner_token, status FROM platform_ops.outbox_events WHERE event_code = $marker ORDER BY _id`,

@@ -12,6 +12,9 @@ concretos, comandos reales del repo y criterios de verificación.
 | [despliegue-produccion.md](despliegue-produccion.md) | Checklist de despliegue a producción (env vars, migraciones, KMS, 2FA, observabilidad) |
 | [events-recovery-v2.md](events-recovery-v2.md) | Eventos `failed`/cuarentena en el outbox, leases vencidos, consumidores atascados, replay autorizado |
 | [transition-migration-recovery.md](transition-migration-recovery.md) | actualización de instalaciones existentes: qué revierte cada acción, ventana de compatibilidad, relleno por lotes reanudable (AT-053). |
+| [messaging-single-writer-cutover.md](messaging-single-writer-cutover.md) | corte de escritor único de Mensajería: estado, drenado, transferencia por época, comprobación y reversión (AT-059). |
+| [messaging-shadow-read.md](messaging-shadow-read.md) | copia por lotes de Mensajería al piloto (reanudable, marca de agua, reconciliación por hash) y lectura sombra sin proveedores (AT-058). |
+| [messaging-rollback-after-writes.md](messaging-rollback-after-writes.md) | reversión del piloto tras escrituras nuevas: transferencia inversa por época, nada perdido, nada repetido (AT-060). |
 
 > Los comandos asumen las variables de entorno del entorno objetivo ya cargadas. Verifica
 > siempre `NODE_ENV` **antes** de ejecutar nada destructivo.

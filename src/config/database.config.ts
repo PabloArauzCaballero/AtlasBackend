@@ -165,6 +165,27 @@ export function buildMigrationSequelizeOptions(): SequelizeModuleOptions {
   };
 }
 
+/**
+ * Conexión del worker de Mensajería del piloto (AT-057): misma base compartida mientras dure la
+ * transición, pero con SU identidad (`atlas_ctx_messaging`), `search_path` acotado a su schema y
+ * `platform_ops`, y sin reintentos largos al arrancar: si su base no responde, readiness no miente.
+ */
+export function buildMessagingSequelizeOptions(): SequelizeModuleOptions {
+  return {
+    ...buildSequelizeOptions(),
+    username: env.MESSAGING_DB_USER ?? env.DB_USER,
+    password: env.MESSAGING_DB_PASSWORD ?? env.DB_PASSWORD,
+    dialectOptions: buildDialectOptions(
+      env.DB_SSL,
+      env.DB_SSL_REJECT_UNAUTHORIZED,
+      ['messaging', 'platform_ops', 'public'],
+      runtimeSessionTimeouts(),
+    ),
+    retryAttempts: 1,
+    retryDelay: 500,
+  };
+}
+
 /** True cuando las migraciones corren con una identidad distinta a la del runtime. */
 export function usesDedicatedMigrationIdentity(): boolean {
   return Boolean(env.DB_MIGRATION_USER && env.DB_MIGRATION_USER !== env.DB_USER);

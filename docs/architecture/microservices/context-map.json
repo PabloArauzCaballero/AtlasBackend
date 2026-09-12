@@ -308,6 +308,7 @@
     "data_notebook_documents": "data-notebook",
     "data_notebook_query_history": "data-notebook",
     "inbox_receipts": "events",
+    "context_ownership": "events",
     "outbox_events": "events"
   }
 }

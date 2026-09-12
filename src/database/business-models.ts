@@ -105,6 +105,7 @@ import {
   IdempotencyKeyModel,
   OutboxEventModel,
   InboxReceiptModel,
+  ContextOwnershipModel,
 } from './models/index.js';
 
 /**
@@ -219,4 +220,5 @@ export const BUSINESS_MODELS = [
   IdempotencyKeyModel,
   OutboxEventModel,
   InboxReceiptModel,
+  ContextOwnershipModel,
 ];
