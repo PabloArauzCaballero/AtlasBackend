@@ -52,7 +52,12 @@ function esBuzonPersonal(email: string): boolean {
 }
 
 function checkSecrets(data: RawAppEnv, ctx: z.RefinementCtx): void {
-  if (data.NODE_ENV === 'production' && data.JWT_ACCESS_TOKEN_SECRET === DEFAULT_JWT_SECRET) {
+  // El worker de Mensajería (perfil `messaging`) no verifica sesiones de usuario: no necesita ese secreto.
+  if (
+    data.NODE_ENV === 'production' &&
+    data.ATLAS_CAPABILITY_PROFILE !== 'messaging' &&
+    data.JWT_ACCESS_TOKEN_SECRET === DEFAULT_JWT_SECRET
+  ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['JWT_ACCESS_TOKEN_SECRET'],
@@ -89,7 +94,8 @@ function checkSecrets(data: RawAppEnv, ctx: z.RefinementCtx): void {
 
 /** Dependencias de infraestructura sin las cuales producción no es segura. */
 function checkInfrastructure(data: RawAppEnv, ctx: z.RefinementCtx): void {
-  if (data.NODE_ENV === 'production' && !data.REDIS_URL) {
+  // El perfil `messaging` no sirve HTTP público (sin rate limiting) y coordina por `context_ownership`, no por Redis.
+  if (data.NODE_ENV === 'production' && data.ATLAS_CAPABILITY_PROFILE !== 'messaging' && !data.REDIS_URL) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['REDIS_URL'],
@@ -126,6 +132,15 @@ function checkSimulatedDataEscapeHatch(data: RawAppEnv, ctx: z.RefinementCtx): v
 
 /** Coherencia entre el rol del proceso y el planificador de trabajos de fondo. */
 function checkProcessRole(data: RawAppEnv, ctx: z.RefinementCtx): void {
+  // El perfil `messaging` relaja requisitos de producción: sólo puede correrlo un worker, nunca la API.
+  if (data.ATLAS_CAPABILITY_PROFILE === 'messaging' && data.APP_ROLE !== 'worker') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['ATLAS_CAPABILITY_PROFILE'],
+      message:
+        'ATLAS_CAPABILITY_PROFILE=messaging exige APP_ROLE=worker: la API no puede arrancar con los requisitos relajados del piloto.',
+    });
+  }
   // Rol del proceso contra planificador. Las dos combinaciones de abajo no "funcionan a medias":
   // fallan en silencio, que es peor. Un worker con el planificador apagado arranca, se declara sano
   // y no ejecuta absolutamente nada; una API con el planificador encendido hace creer que los jobs

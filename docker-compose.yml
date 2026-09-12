@@ -466,6 +466,7 @@ services:
       WORKER_PROBE_PORT: '3007'
       RUNTIME_JOBS_SCHEDULER_ENABLED: 'true'
       NOTIFICATIONS_DELIVERY_MODE: deferred
+      ATLAS_CAPABILITY_PROFILE: messaging
       MESSAGING_DB_USER: atlas_ctx_messaging
       MESSAGING_DB_PASSWORD: ${MESSAGING_DB_PASSWORD:-change-me}
     expose:

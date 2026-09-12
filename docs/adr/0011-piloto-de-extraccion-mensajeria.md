@@ -34,9 +34,9 @@ un crédito mal concedido).
   `internal/contexts/customers/recipient-directory` con identidad de servicio (`CONTEXT_SERVICE_TOKEN_SECRET`, audiencia
   `atlas-ctx-customers`, tenant en el token) y el worker lo consume con `HttpRecipientDirectoryAdapter` cuando
   `CUSTOMERS_DIRECTORY_URL` está configurada; sin configuración, sigue el hueco declarado (`unsupported`).
-- El proceso valida la **configuración entera del monolito** (`env.ts`): no se ha aplicado la carga por capacidad (AT-046) a
-  cada dependencia de Mensajería.
-- Difusiones a usuarios internos leen `iam` (`NotificationBroadcastService`): quedan en el monolito.
+- ~~El proceso valida la configuración entera del monolito~~ **Resuelto el 2026-09-12:** perfil `ATLAS_CAPABILITY_PROFILE=messaging`
+  (sólo `APP_ROLE=worker`) sin secreto de sesiones de usuario ni Redis; KMS, clave de tokens de dispositivo y mail siguen exigidos.
+- Difusiones a usuarios internos leen `iam` (`NotificationBroadcastService`): **decidido** — quedan en el monolito; el piloto no las compone.
 - Autorización de despliegue, responsables y criterio de cancelación: **no acordados en este plan**.
 
 ## Consecuencias

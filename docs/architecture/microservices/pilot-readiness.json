@@ -49,8 +49,8 @@
     },
     {
       "id": "config-by-capability-applied",
-      "status": "BLOCKED",
-      "detail": "el worker valida env.ts completo del monolito"
+      "status": "PASS",
+      "detail": "ATLAS_CAPABILITY_PROFILE=messaging (sólo APP_ROLE=worker): sin JWT de usuarios ni Redis en producción; KMS, clave de tokens de dispositivo y mail siguen exigidos porque Mensajería los usa. test/unit/config/capability-profile.spec.ts"
     },
     {
       "id": "otp-reset-excluded",

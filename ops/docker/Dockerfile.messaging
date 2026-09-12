@@ -11,6 +11,7 @@ FROM ${ATLAS_IMAGE}
 LABEL org.opencontainers.image.title="atlas-messaging-worker" \
       org.opencontainers.image.description="Piloto de extracción de Mensajería: consume el outbox y entrega notificaciones con su propia identidad de base."
 ENV APP_ROLE=worker \
+    ATLAS_CAPABILITY_PROFILE=messaging \
     WORKER_PROBE_PORT=3006 \
     RUNTIME_JOBS_SCHEDULER_ENABLED=true \
     NOTIFICATIONS_DELIVERY_MODE=deferred

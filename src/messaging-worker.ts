@@ -29,6 +29,10 @@ import { createWorkerProbeServer } from './worker/worker-probe-server.js';
 async function bootstrapMessagingWorker(): Promise<void> {
   assertDecoratorMetadataIsAvailable();
   const logger = new Logger('AtlasMessagingWorker');
+  if (env.ATLAS_CAPABILITY_PROFILE !== 'messaging') {
+    logger.error('El worker de Mensajería exige ATLAS_CAPABILITY_PROFILE=messaging (config por capacidad, AT-046).');
+    process.exit(1);
+  }
   if (appRole() !== 'worker') {
     logger.error('El worker de Mensajería exige APP_ROLE=worker: no sirve HTTP de negocio ni comparte proceso con la API.');
     process.exit(1);
