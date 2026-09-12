@@ -34,9 +34,6 @@ import {
   CustomerLocationPingModel,
   CustomerReferenceContactModel,
   CustomerEligibilityEvaluationModel,
-  CreditProductModel,
-  CreditApplicationModel,
-  CreditApplicationEventModel,
   PrivacyProcessingPurposeModel,
   ConsentDocumentModel,
   CustomerConsentModel,
@@ -107,6 +104,7 @@ import {
   SchemaConstraintNoteModel,
   IdempotencyKeyModel,
   OutboxEventModel,
+  InboxReceiptModel,
 } from './models/index.js';
 
 /**
@@ -118,6 +116,7 @@ import {
  * import y otra en el array— pasaba de las 300 líneas de `check:file-size`. El corte cae donde el
  * propio orden del archivo ya cambiaba de asunto: en el primer modelo `System*`.
  */
+// AT-018: los modelos de Crédito viven en su propio registro (credit-models.ts); no se duplican aquí.
 export const BUSINESS_MODELS = [
   TenantModel,
   PlatformUserModel,
@@ -149,9 +148,6 @@ export const BUSINESS_MODELS = [
   CustomerLocationPingModel,
   CustomerReferenceContactModel,
   CustomerEligibilityEvaluationModel,
-  CreditProductModel,
-  CreditApplicationModel,
-  CreditApplicationEventModel,
   PrivacyProcessingPurposeModel,
   ConsentDocumentModel,
   CustomerConsentModel,
@@ -222,4 +218,5 @@ export const BUSINESS_MODELS = [
   SchemaConstraintNoteModel,
   IdempotencyKeyModel,
   OutboxEventModel,
+  InboxReceiptModel,
 ];

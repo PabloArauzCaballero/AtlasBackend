@@ -4,6 +4,7 @@
  * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
  */
 import { Module } from '@nestjs/common';
+import { CustomerRecipientDirectoryAdapter } from './infrastructure/customer-recipient-directory.adapter.js';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
   AttributeDefinitionModel,
@@ -73,6 +74,8 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
   ],
   controllers: [CustomersController, CustomerEligibilityController],
   providers: [
+    // AT-020: Clientes implementa el directorio de destinatarios que Mensajería consume por puerto.
+    CustomerRecipientDirectoryAdapter,
     CustomersService,
     CustomersRepository,
     CustomerLifecycleService,
@@ -84,6 +87,7 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
     CustomerEligibilityDecisionService,
   ],
   exports: [
+    CustomerRecipientDirectoryAdapter,
     CustomersService,
     CustomersRepository,
     CustomerLifecycleService,

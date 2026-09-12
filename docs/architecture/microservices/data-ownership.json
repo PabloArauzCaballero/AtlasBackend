@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-09-12T01:48:20.613Z",
+  "generatedAt": "2026-09-12T02:32:04.651Z",
   "database": {
     "host": "localhost",
     "name": "atlas_test"
   },
   "summary": {
-    "tables": 200,
+    "tables": 201,
     "foreignKeys": 403,
     "crossSchemaForeignKeys": 205,
     "views": 18,
@@ -1684,6 +1684,21 @@
       "issues": [
         "registrada_por_6_modulos"
       ]
+    },
+    {
+      "table": "inbox_receipts",
+      "physicalSchema": "platform_ops",
+      "logicalSchema": "platform_ops",
+      "model": "InboxReceiptModel",
+      "ownerCandidate": "events",
+      "registrants": [],
+      "rawSqlModules": [],
+      "incomingForeignKeys": 0,
+      "outgoingForeignKeys": 0,
+      "crossSchemaForeignKeys": 0,
+      "triggers": 0,
+      "readByViews": [],
+      "issues": []
     },
     {
       "table": "internal_permissions",
@@ -7265,6 +7280,17 @@
     },
     {
       "schema": "platform_ops",
+      "table": "inbox_receipts",
+      "grantee": "atlas_app_rw",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "outbox_events",
       "grantee": "atlas_app_rw",
       "privileges": [
@@ -9113,7 +9139,6 @@
       "src/modules/customer-onboarding/application/customer-financial-profile.service.ts",
       "src/modules/customer-onboarding/application/customer-identity-package.service.ts",
       "src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts",
-      "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
       "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
       "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
       "src/modules/customer-onboarding/application/customer-reference-contacts.service.ts",

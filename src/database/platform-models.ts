@@ -8,13 +8,7 @@ import {
   AuthCredentialModel,
   AuthRefreshTokenModel,
   AuthOneTimeCodeModel,
-  NotificationTemplateModel,
-  NotificationPolicyModel,
   AppContentEntryModel,
-  NotificationMessageModel,
-  NotificationDeliveryModel,
-  UserNotificationPreferenceModel,
-  DeviceTokenModel,
   SystemEndpointCatalogModel,
   SystemBlockFederationStateModel,
   SystemToolCatalogModel,
@@ -57,18 +51,13 @@ import {
  * definiciones de flujo y el RBAC interno. Es lo que describe al propio sistema, frente a
  * `business-models.ts`, que describe a sus clientes.
  */
+// AT-018: los modelos de Mensajería viven en su propio registro (notification-models.ts); no se duplican aquí.
 export const PLATFORM_MODELS = [
   SystemJobRunModel,
   AuthCredentialModel,
   AuthRefreshTokenModel,
   AuthOneTimeCodeModel,
-  NotificationTemplateModel,
-  NotificationPolicyModel,
   AppContentEntryModel,
-  NotificationMessageModel,
-  NotificationDeliveryModel,
-  UserNotificationPreferenceModel,
-  DeviceTokenModel,
   SystemEndpointCatalogModel,
   SystemBlockFederationStateModel,
   SystemToolCatalogModel,

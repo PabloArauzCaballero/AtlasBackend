@@ -126,6 +126,8 @@ export function evaluateBoundaries(
     // Regla 1: dependencia entre módulos.
     if (!from || !to || from === to) continue;
     if (isCompositionRoot(edge.source, manifest)) continue;
+    // La entrada pública de un módulo (`public/**`) es, por definición, lo que otros pueden importar.
+    if (/^src\/modules\/[^/]+\/public\//.test(edge.target)) continue;
     const allowed =
       contextOfModule(from) !== undefined && contextOfModule(from) === contextOfModule(to)
         ? true

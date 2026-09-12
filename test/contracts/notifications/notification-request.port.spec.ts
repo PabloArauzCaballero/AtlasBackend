@@ -73,6 +73,11 @@ describe('NotificationRequestPort · adaptador local', () => {
 
   it('el contrato público no filtra implementación: sólo tipos, constantes y el token', async () => {
     const publicApi = await import('../../../src/modules/notifications/public/index.js');
-    expect(Object.keys(publicApi).sort()).toEqual(['NOTIFICATION_CHANNELS', 'NOTIFICATION_RECIPIENT_TYPES', 'NOTIFICATION_REQUEST_PORT']);
+    expect(Object.keys(publicApi).sort()).toEqual([
+      'NOTIFICATION_CHANNELS',
+      'NOTIFICATION_RECIPIENT_TYPES',
+      'NOTIFICATION_REQUEST_PORT',
+      'RECIPIENT_DIRECTORY_PORT',
+    ]);
   });
 });

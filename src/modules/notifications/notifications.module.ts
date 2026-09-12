@@ -15,7 +15,6 @@ import {
   TenantModel,
   UserNotificationPreferenceModel,
 } from '../../database/models/index.js';
-import { CustomersModule } from '../customers/customers.module.js';
 import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { InAppNotificationAdapter } from './adapters/in-app-notification.adapter.js';
 import { EmailNotificationAdapter } from './adapters/email.adapter.js';
@@ -25,6 +24,9 @@ import { SmsNotificationAdapter } from './adapters/sms.adapter.js';
 import { WhatsAppNotificationAdapter } from './adapters/whatsapp.adapter.js';
 import { NotificationBroadcastService } from './notification-broadcast.service.js';
 import { NOTIFICATION_REQUEST_PORT } from './application/ports/notification-request.port.js';
+import { RECIPIENT_DIRECTORY_PORT } from './application/ports/recipient-directory.port.js';
+import { CustomersModule } from '../customers/customers.module.js';
+import { CustomerRecipientDirectoryAdapter } from '../customers/infrastructure/customer-recipient-directory.adapter.js';
 import { LocalNotificationRequestAdapter } from './infrastructure/local-notification-request.adapter.js';
 import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
 import { NotificationRulesService } from './notification-rules.service.js';
@@ -66,6 +68,7 @@ import { NotificationsService } from './notifications.service.js';
   providers: [
     LocalNotificationRequestAdapter,
     { provide: NOTIFICATION_REQUEST_PORT, useExisting: LocalNotificationRequestAdapter },
+    { provide: RECIPIENT_DIRECTORY_PORT, useExisting: CustomerRecipientDirectoryAdapter },
     NotificationsRepository,
     NotificationTemplatesRepository,
     NotificationPoliciesRepository,
@@ -91,6 +94,7 @@ import { NotificationsService } from './notifications.service.js';
   exports: [
     // AT-017: la entrada pública. El resto de exportaciones es legado hasta que sus consumidores migren.
     NOTIFICATION_REQUEST_PORT,
+    RECIPIENT_DIRECTORY_PORT,
     NotificationOrchestratorService,
     NotificationPoliciesRepository,
     NotificationsService,

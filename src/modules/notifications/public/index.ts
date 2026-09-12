@@ -13,3 +13,9 @@ export type {
 } from './notification.contracts.js';
 export { NOTIFICATION_CHANNELS, NOTIFICATION_RECIPIENT_TYPES } from './notification.contracts.js';
 export { NOTIFICATION_REQUEST_PORT, type NotificationRequestPort } from '../application/ports/notification-request.port.js';
+export {
+  RECIPIENT_DIRECTORY_PORT,
+  type RecipientDirectoryPort,
+  type RecipientLookup,
+  type RecipientResolution,
+} from '../application/ports/recipient-directory.port.js';

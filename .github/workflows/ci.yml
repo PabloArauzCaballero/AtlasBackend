@@ -350,9 +350,15 @@ jobs:
       # AT-002: pruebas de integración contra el Postgres real del job (atomicidad, leases, permisos,
       # carreras). Sin base no se saltan: `test/integration/support/database.ts` falla, salvo que se
       # pida el salto con `ATLAS_GATES_ALLOW_SKIP=true`, que CI no pide.
+      # AT-019: roles runtime por contexto, aplicados con el superusuario del job; la suite de
+      # integración conecta como atlas_ctx_messaging y mide lo que PostgreSQL deniega.
+      - name: Apply per-context database roles
+        run: PGPASSWORD=atlas psql -h localhost -U atlas -d atlas -v DBNAME=atlas -v ctx_password=ci-ctx-password -f ops/postgres/context-roles.sql
+
       - name: Integration tests against real Postgres
         run: yarn test:integration
         env:
+          ATLAS_TEST_CTX_PASSWORD: ci-ctx-password
           # Guarda de aislamiento (test/support/isolated-database.guard.ts): la base del job se
           # autoriza por nombre porque es desechable; sin estas dos variables la suite se niega a abrir.
           ATLAS_TEST_DATABASE_ISOLATED: 'true'

@@ -207,6 +207,7 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
   [ATLAS_SCHEMAS.PLATFORM_OPS]: [
     'idempotency_keys',
     'outbox_events',
+    'inbox_receipts',
     'system_job_runs',
     'system_endpoint_catalog',
     'system_tool_catalog',

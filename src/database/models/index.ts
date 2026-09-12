@@ -128,6 +128,7 @@ export { DataQualityIssueModel } from './data-quality-issues.model.js';
 export { SchemaConstraintNoteModel } from './schema-constraint-notes.model.js';
 export { IdempotencyKeyModel } from './idempotency-keys.model.js';
 export { OutboxEventModel } from './outbox-events.model.js';
+export { InboxReceiptModel } from './inbox-receipts.model.js';
 export { AuthCredentialModel } from './auth-credentials.model.js';
 export { AuthRefreshTokenModel } from './auth-refresh-tokens.model.js';
 export { AuthOneTimeCodeModel } from './auth-one-time-codes.model.js';

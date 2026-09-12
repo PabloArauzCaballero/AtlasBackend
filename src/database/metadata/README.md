@@ -9,9 +9,9 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| — | Esta carpeta funciona como agrupador; su contenido está en subcarpetas. |
+| Documento o código | Responsabilidad                                                         |
+| ------------------ | ----------------------------------------------------------------------- |
+| —                  | Esta carpeta funciona como agrupador; su contenido está en subcarpetas. |
 
 ## Reglas de mantenimiento
 

@@ -34,6 +34,19 @@ export const COMMUNICATION_NARRATIVES: EntityBusinessNarrative[] = [
       'Tabla en `messaging` que implementa el patrón transactional outbox: el evento se inserta EN LA MISMA TRANSACCIÓN que el cambio de negocio y un worker lo publica después. `available_at`, `locked_at`, `locked_by` y `max_attempts` implementan backoff y lock de trabajo, evitando que dos workers tomen el mismo evento. `correlation_id`/`causation_id` encadenan el evento con la petición que lo originó. `idempotency_key` protege contra publicación doble. Es de alto volumen: requiere índice por (`status`, `available_at`) y archivado de procesados.',
   },
   {
+    tableName: 'inbox_receipts',
+    whyExists:
+      'Un evento del outbox puede entregarse dos veces al mismo consumidor si el proceso cae entre publicar y confirmar. El inbox guarda, por consumidor, qué evento ya procesó, de modo que la segunda entrega se reconoce y no repite el efecto (un segundo SMS, una segunda transición de estado).',
+    whyNotDelete:
+      'Sin recibos, la única defensa contra duplicados sería la memoria del proceso, que se pierde en cada reinicio. Eliminarla vuelve a exponer al cliente a avisos repetidos y a la operación a efectos dobles que después hay que reconciliar a mano; su unicidad (consumer_id, event_id) es la garantía de al-menos-una-vez con procesamiento idempotente.',
+    decisionContribution:
+      'Su `status`, `attempts` y `last_error` por consumidor dicen qué consumidor está atascado con qué evento, sin mirar el outbox entero: un evento con recibo `failed` repetido en un solo consumidor es un fallo de ese consumidor, no del productor, y es lo que decide si se reintenta, se cuarentena o se reprocesa a mano.',
+    usageExample:
+      'El relay entrega el evento `CUSTOMER_BLOCKED` al consumidor de notificaciones y al de auditoría. Notificaciones lo procesa y escribe su recibo; el proceso cae antes de confirmar el ACK y el relay vuelve a entregarlo. Notificaciones encuentra su recibo y no vuelve a enviar el SMS; auditoría, que no tenía recibo, lo procesa por primera vez.',
+    systemsExplanation:
+      'Tabla en `platform_ops` con unicidad (`consumer_id`, `event_id`): el consumidor inserta el recibo en la misma transacción que su efecto local, de modo que o ambos existen o ninguno. `event_id` es la identidad global del outbox (`outbox_events.event_id`); `producer` conserva el origen para cuando cada productor tenga su propia base y el identificador necesite espacio de nombres.',
+  },
+  {
     tableName: 'notification_templates',
     whyExists:
       'Los mensajes al cliente deben ser consistentes, revisables por legal y traducibles. Esta tabla guarda las plantillas por canal e idioma, en lugar de tener textos incrustados en el código.',

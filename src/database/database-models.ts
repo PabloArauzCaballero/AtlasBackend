@@ -18,5 +18,16 @@ import { LOAN_BOOK_MODELS } from './loan-book-models.js';
 import { CREDIT_RATING_MODELS } from './credit-rating-models.js';
 import { PARTNER_MODELS } from './partner-models.js';
 import { SUPPORT_MODELS } from './support-models.js';
+import { CREDIT_MODELS } from '../modules/credit/infrastructure/persistence/credit-models.js';
+import { NOTIFICATION_MODELS } from '../modules/notifications/infrastructure/persistence/notification-models.js';
 
-export const databaseModels = [...CORE_MODELS, ...LOAN_BOOK_MODELS, ...CREDIT_RATING_MODELS, ...PARTNER_MODELS, ...SUPPORT_MODELS];
+// AT-018: cada contexto publica su registro; aquí sólo se agregan mientras el monolito comparte proceso.
+export const databaseModels = [
+  ...CORE_MODELS,
+  ...CREDIT_MODELS,
+  ...NOTIFICATION_MODELS,
+  ...LOAN_BOOK_MODELS,
+  ...CREDIT_RATING_MODELS,
+  ...PARTNER_MODELS,
+  ...SUPPORT_MODELS,
+];
