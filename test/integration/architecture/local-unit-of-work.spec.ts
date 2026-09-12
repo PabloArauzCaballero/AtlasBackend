@@ -26,7 +26,12 @@ beforeAll(async () => {
   if (!database) return;
   harness = await buildAdmissionHarness(database.sequelize);
   const creditRepository = new CreditRepository(CreditProductModel, CreditApplicationModel, CreditApplicationEventModel);
-  unitOfWork = new SequelizeCreditUnitOfWork(database.sequelize, creditRepository, harness.eligibilityService);
+  unitOfWork = new SequelizeCreditUnitOfWork(
+    database.sequelize,
+    creditRepository,
+    harness.eligibilityService,
+    harness.eligibilityRepository,
+  );
 });
 
 afterEach(() => {

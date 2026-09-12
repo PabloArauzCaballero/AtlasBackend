@@ -11,6 +11,8 @@ import { QueryTypes } from 'sequelize';
 import type { Sequelize } from 'sequelize-typescript';
 import { CreditApplicationAdmissionService } from '../../../../src/modules/credit/application/credit-application-admission.service.js';
 import { CreditRepository } from '../../../../src/modules/credit/credit.repository.js';
+import { SequelizeCreditUnitOfWork } from '../../../../src/modules/credit/infrastructure/persistence/sequelize-credit-unit-of-work.js';
+import { PartnerResolutionAdapter } from '../../../../src/modules/credit/infrastructure/integrations/partner-resolution.adapter.js';
 import { CustomerEligibilityService } from '../../../../src/modules/customers/application/customer-eligibility.service.js';
 import { CustomerLifecycleService } from '../../../../src/modules/customers/application/customer-lifecycle.service.js';
 import {
@@ -62,6 +64,7 @@ export type AdmissionHarness = {
   admission: CreditApplicationAdmissionService;
   eligibilityService: CustomerEligibilityService;
   eligibilityRepository: CustomerEligibilityRepository;
+  creditRepository: CreditRepository;
   lifecycleService: CustomerLifecycleService;
   createCustomer: (lifecycleStatus?: string) => Promise<string>;
   countEvaluations: (customerId: string) => Promise<number>;
@@ -183,15 +186,13 @@ export async function buildAdmissionHarness(sequelize: Sequelize): Promise<Admis
   };
   const partnerProfiles = { requireProfile: async () => ({ id: '0', onboardingStatus: 'approved' }) };
   const partnerDirectory = { findOwnedTerminal: async () => null };
+  // AT-026: la admisión corre sobre la unidad de trabajo REAL (transacción de PostgreSQL) y el
+  // adaptador real de comercios con los dobles de sus servicios.
   const admission = new CreditApplicationAdmissionService(
-    creditRepository,
-    eligibilityService,
-    eligibilityRepository,
-    underwriting as never,
-    partnerProfiles as never,
-    partnerDirectory as never,
-    sequelize,
+    new SequelizeCreditUnitOfWork(sequelize, creditRepository, eligibilityService, eligibilityRepository),
+    new PartnerResolutionAdapter(partnerProfiles as never, partnerDirectory as never),
   );
+  void underwriting;
 
   const createCustomer = async (lifecycleStatus = 'active'): Promise<string> => {
     const created = await CustomerModel.create({
@@ -221,6 +222,7 @@ export async function buildAdmissionHarness(sequelize: Sequelize): Promise<Admis
     admission,
     eligibilityService,
     eligibilityRepository,
+    creditRepository,
     lifecycleService,
     createCustomer,
     countEvaluations: (customerId) =>

@@ -11,6 +11,7 @@ import type { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { SequelizeUnitOfWork } from '../../../../platform/persistence/local-unit-of-work.js';
 import { CustomerEligibilityService } from '../../../customers/application/customer-eligibility.service.js';
+import { CustomerEligibilityRepository } from '../../../customers/repositories/customer-eligibility.repository.js';
 import { CreditRepository } from '../../credit.repository.js';
 import type { CreditUnitOfWork, CreditWorkSession } from '../../application/ports/credit-unit-of-work.port.js';
 
@@ -20,6 +21,7 @@ export class SequelizeCreditUnitOfWork extends SequelizeUnitOfWork<CreditWorkSes
     @InjectConnection() sequelize: Sequelize,
     private readonly creditRepository: CreditRepository,
     private readonly eligibilityService: CustomerEligibilityService,
+    private readonly eligibilityRepository: CustomerEligibilityRepository,
   ) {
     super(sequelize);
   }
@@ -34,6 +36,7 @@ export class SequelizeCreditUnitOfWork extends SequelizeUnitOfWork<CreditWorkSes
       },
       eligibility: {
         lockCustomer: (tenantId, customerId) => this.eligibilityService.lockCustomerForDecision(tenantId, customerId, transaction),
+        loadFacts: (tenantId, customerId) => this.eligibilityRepository.loadFacts(tenantId, customerId, { transaction }),
         evaluateAndRecord: (input) => this.eligibilityService.evaluateAndRecord({ ...input, transaction }),
       },
     };

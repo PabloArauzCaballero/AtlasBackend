@@ -6,6 +6,8 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional, UnprocessableEntityException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { CLOCK, systemClock, type Clock } from '../../platform/di/clock.js';
+import { RISK_INPUT_FACTS_PORT, type RiskInputFactsPort } from './application/ports/risk-input-facts.port.js';
+import { LocalRiskInputFactsAdapter } from './infrastructure/local-risk-input-facts.adapter.js';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { assertOwnCustomerResource } from '../../common/utils/auth/ownership.util.js';
@@ -104,7 +106,13 @@ export class RiskService {
     private readonly policyDecisionService: RiskPolicyDecisionService,
     @InjectConnection() private readonly sequelize: Sequelize,
     @Optional() @Inject(CLOCK) private readonly clock: Clock = systemClock,
-  ) {}
+    @Optional() @Inject(RISK_INPUT_FACTS_PORT) inputFacts?: RiskInputFactsPort,
+  ) {
+    // Construcción a mano (pruebas, scripts): el adaptador local sobre los mismos repositorios.
+    this.inputFacts = inputFacts ?? new LocalRiskInputFactsAdapter(this.customersRepository, this.riskRepository);
+  }
+
+  private readonly inputFacts: RiskInputFactsPort;
 
   async getLatestCustomerRiskResult(input: {
     tenantId: string;
@@ -131,26 +139,19 @@ export class RiskService {
    * tratamiento, que es precisamente lo que el consentimiento existe para impedir.
    */
   private async gatherRiskSignals(input: { tenantId: string; customerId: string; body: CreateRiskAssessmentDto }) {
-    const customer = await this.customersRepository.findById(input.tenantId, input.customerId);
-    if (!customer) throw new NotFoundException('Cliente no encontrado.');
-    if (customer.lifecycleStatus === 'blocked') {
+    // AT-027: los hechos llegan por puerto (misma lógica de lectura, ahora detrás de un contrato).
+    const facts = await this.inputFacts.loadFacts(input.tenantId, input.customerId);
+    if (!facts.exists) throw new NotFoundException('Cliente no encontrado.');
+    if (facts.lifecycleStatus === 'blocked') {
       throw new UnprocessableEntityException('CUSTOMER_BLOCKED_FOR_RISK_ASSESSMENT');
     }
 
-    const [consents, contacts, identities] = await Promise.all([
-      this.riskRepository.findCustomerConsents(input.tenantId, input.customerId),
-      this.riskRepository.findCustomerContacts(input.tenantId, input.customerId),
-      this.riskRepository.findIdentityDocuments(input.tenantId, input.customerId),
-    ]);
-
-    const hasGrantedConsent = consents.some((consent) => consent.granted === true && !consent.revokedAt);
+    const { hasGrantedConsent, verifiedContactCount, hasIdentity } = facts;
     if (!hasGrantedConsent) throw new UnprocessableEntityException('REQUIRED_CONSENT_MISSING');
 
     // Los puntajes por dimensión siguen siendo heurísticos: alimentan el desglose explicativo y el
     // nivel de riesgo, NO la decisión. La decisión la toma el ruleset versionado en base de datos
     // cuando hay uno activo — cambiar un umbral pasó a ser configuración auditada, no un despliegue.
-    const verifiedContactCount = contacts.filter((contact) => contact.status === 'verified').length;
-    const hasIdentity = identities.length > 0;
     const scores = computeHeuristicScores({ hasIdentity, verifiedContactCount, hasDevice: Boolean(input.body.deviceId) });
 
     return { hasGrantedConsent, hasIdentity, verifiedContactCount, scores };

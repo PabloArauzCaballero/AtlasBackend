@@ -41,6 +41,8 @@ import { CreditController } from './credit.controller.js';
 import { CreditRepository } from './credit.repository.js';
 import { CREDIT_UNIT_OF_WORK } from './application/ports/credit-unit-of-work.port.js';
 import { SequelizeCreditUnitOfWork } from './infrastructure/persistence/sequelize-credit-unit-of-work.js';
+import { PARTNER_RESOLUTION_PORT } from './application/ports/partner-resolution.port.js';
+import { PartnerResolutionAdapter } from './infrastructure/integrations/partner-resolution.adapter.js';
 import { CreditLineWriterService } from './application/credit-line-writer.service.js';
 
 /**
@@ -84,6 +86,9 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     // AT-015: unidad de trabajo local; la admisión migra a ella en AT-026.
     SequelizeCreditUnitOfWork,
     { provide: CREDIT_UNIT_OF_WORK, useExisting: SequelizeCreditUnitOfWork },
+    // AT-026: el comercio se resuelve por puerto; el adaptador local envuelve los servicios de Comercios.
+    PartnerResolutionAdapter,
+    { provide: PARTNER_RESOLUTION_PORT, useExisting: PartnerResolutionAdapter },
     CreditLineWriterService,
     CreditRepository,
     CreditProductService,

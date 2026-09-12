@@ -78,10 +78,7 @@ describe('AT-008 · evidencia de denegación', () => {
     jest.spyOn(harness.eligibilityRepository, 'loadFacts').mockResolvedValue(eligibleFacts());
     // El producto se «desactiva» sólo para la escritura: forzamos un fallo de restricción en la
     // inserción de la solicitud (product id inexistente viola la FK) con la evaluación ya escrita.
-    const repository = (
-      harness.admission as unknown as { creditRepository: { createApplication: (...args: unknown[]) => Promise<unknown> } }
-    ).creditRepository;
-    jest.spyOn(repository, 'createApplication').mockRejectedValue(new Error('fallo simulado de escritura'));
+    jest.spyOn(harness.creditRepository, 'createApplication').mockRejectedValue(new Error('fallo simulado de escritura'));
 
     await expect(
       harness.admission.persistApplication({

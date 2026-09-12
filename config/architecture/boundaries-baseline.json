@@ -1,10 +1,10 @@
 {
   "$comment": "Deuda heredada de fronteras (AT-012). Generada por yarn check:architecture --update-baseline; sólo puede encoger.",
   "updatedOn": "2026-09-12",
-  "count": 118,
+  "count": 111,
   "byRule": {
     "domain-purity": 3,
-    "cross-module": 115
+    "cross-module": 108
   },
   "violations": [
     "domain-external:src/modules/support/domain/case-state-machine.ts->@nestjs/common",
@@ -20,12 +20,6 @@
     "import:src/modules/credit/application/bank-statement-review.worker.ts->src/modules/decision-engine/bank-statement-engine.client.ts",
     "import:src/modules/credit/application/bank-statement.service.ts->src/modules/decision-engine/bank-statement-engine.client.ts",
     "import:src/modules/credit/application/bank-statement.service.ts->src/modules/expedientes/application/expediente-hooks.service.ts",
-    "import:src/modules/credit/application/credit-application-admission.service.ts->src/modules/partner-onboarding/application/partner-directory.service.ts",
-    "import:src/modules/credit/application/credit-application-admission.service.ts->src/modules/partner-onboarding/application/partner-profile.service.ts",
-    "import:src/modules/credit/application/credit-application.service.ts->src/modules/partner-onboarding/application/partner-directory.service.ts",
-    "import:src/modules/credit/application/credit-application.service.ts->src/modules/partner-onboarding/application/partner-profile.service.ts",
-    "import:src/modules/credit/application/credit-business-acceptance.service.ts->src/modules/partner-onboarding/application/partner-directory.service.ts",
-    "import:src/modules/credit/application/credit-business-acceptance.service.ts->src/modules/partner-onboarding/application/partner-profile.service.ts",
     "import:src/modules/credit/application/credit-line-recalculation.service.ts->src/modules/decision-engine/decision-artifact-binding.service.ts",
     "import:src/modules/credit/application/credit-line-recalculation.service.ts->src/modules/decision-engine/decision-engine.client.ts",
     "import:src/modules/credit/application/credit-line-recalculation.service.ts->src/modules/decision-engine/subject-reference.service.ts",
@@ -95,7 +89,6 @@
     "import:src/modules/partner-onboarding/partner-operations.controller.ts->src/modules/internal-users/guards/internal-permissions.guard.ts",
     "import:src/modules/partner-onboarding/partner-operations.controller.ts->src/modules/internal-users/internal-permissions.decorator.ts",
     "import:src/modules/risk/application/risk-policy-decision.service.ts->src/modules/decision-engine/risk-decision-engine.service.ts",
-    "import:src/modules/risk/risk.service.ts->src/modules/customers/customers.repository.ts",
     "import:src/modules/runtime-jobs/expedientes-jobs.controller.ts->src/modules/expedientes/jobs/expedientes-mantenimiento.service.ts",
     "import:src/modules/runtime-jobs/runtime-decision-jobs.controller.ts->src/modules/credit-rating/application/debt-rating.service.ts",
     "import:src/modules/runtime-jobs/runtime-decision-jobs.controller.ts->src/modules/decision-engine/outcome-dispatch.service.ts",

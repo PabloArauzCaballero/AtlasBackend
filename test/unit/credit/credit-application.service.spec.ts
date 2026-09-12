@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { UniqueConstraintError } from 'sequelize';
 import { CreditApplicationService } from '../../../src/modules/credit/application/credit-application.service.js';
+import { PartnerResolutionAdapter } from '../../../src/modules/credit/infrastructure/integrations/partner-resolution.adapter.js';
 import { CreditApplicationAdmissionService } from '../../../src/modules/credit/application/credit-application-admission.service.js';
 
 /**
@@ -113,14 +114,28 @@ describe('CreditApplicationService', () => {
       // La ADMISIÓN —escribir la solicitud y decidir si entra a evaluación— salió a su propio
       // servicio al partir el archivo por tamaño. Se construye con los MISMOS dobles y en el mismo
       // orden, así que ninguna aserción de este spec cambia.
+      // AT-026: la admisión corre sobre puertos. La unidad de trabajo falsa liga los MISMOS dobles a la
+      // «transacción» vacía del doble de sequelize, y el comercio se resuelve con el mismo adaptador real.
       new CreditApplicationAdmissionService(
-        creditRepository as never,
-        eligibilityService as never,
-        eligibilityRepository as never,
-        underwriting as never,
-        partnerProfiles as never,
-        partnerDirectory as never,
-        sequelize as never,
+        {
+          run: (work: (session: unknown) => Promise<unknown>) =>
+            sequelize.transaction(() =>
+              work({
+                applications: {
+                  findProductById: (t: string, p: string) => creditRepository.findProductById(t, p, { transaction: {} }),
+                  findOpenApplication: (t: string, c: string) => creditRepository.findOpenApplication(t, c, { transaction: {} }),
+                  createApplication: (v: unknown) => creditRepository.createApplication(v, { transaction: {} }),
+                  createApplicationEvent: (v: unknown) => creditRepository.createApplicationEvent(v, { transaction: {} }),
+                },
+                eligibility: {
+                  lockCustomer: (t: string, c: string) => eligibilityService.lockCustomerForDecision(t, c, {}),
+                  loadFacts: (t: string, c: string) => eligibilityRepository.loadFacts(t, c, { transaction: {} }),
+                  evaluateAndRecord: (i: Record<string, unknown>) => eligibilityService.evaluateAndRecord({ ...i, transaction: {} }),
+                },
+              }),
+            ),
+        } as never,
+        new PartnerResolutionAdapter(partnerProfiles as never, partnerDirectory as never),
       ),
     );
     return {

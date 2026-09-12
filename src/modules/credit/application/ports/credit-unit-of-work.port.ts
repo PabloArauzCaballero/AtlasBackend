@@ -7,6 +7,7 @@
  */
 import type { LocalUnitOfWork } from '../../../../platform/persistence/local-unit-of-work.js';
 import type { RecordedEligibility } from '../../../customers/application/customer-eligibility.service.js';
+import type { EligibilityFacts } from '../../../customers/repositories/customer-eligibility.facts.js';
 import type { CreditRepository } from '../../credit.repository.js';
 
 export type NewCreditApplication = Parameters<CreditRepository['createApplication']>[0];
@@ -23,6 +24,8 @@ export interface CreditApplicationStore {
 export interface CreditAdmissionEligibility {
   /** Bloquea la fila del cliente durante la sesión (AT-007). */
   lockCustomer(tenantId: string, customerId: string): Promise<void>;
+  /** Hechos del cliente leídos UNA vez dentro de la sesión; alimentan elegibilidad general y por producto. */
+  loadFacts(tenantId: string, customerId: string): Promise<EligibilityFacts>;
   evaluateAndRecord(input: {
     tenantId: string;
     customerId: string;
@@ -30,6 +33,7 @@ export interface CreditAdmissionEligibility {
     evaluatedByInternalUserId: string | null;
     decisionSource: 'automatic' | 'manual_override' | 'manual_decision';
     reasonCode?: string | null;
+    facts?: EligibilityFacts;
   }): Promise<RecordedEligibility>;
 }
 

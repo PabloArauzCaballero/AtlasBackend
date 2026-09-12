@@ -5,67 +5,227 @@
   "compositionRoots": ["src/app.module.ts", "src/main.ts", "src/worker.ts", "src/bootstrap/**", "**/*.module.ts"],
   "legacyBaseline": "config/architecture/boundaries-baseline.json",
   "contexts": {
-    "identity-access": { "title": "Identidad y acceso" },
-    "customers": { "title": "Clientes" },
-    "onboarding": { "title": "Onboarding e identidad del cliente" },
-    "consent-privacy": { "title": "Consentimiento y privacidad" },
-    "credit-admission": { "title": "Crédito y admisión" },
-    "loan-book": { "title": "Cartera de préstamos" },
-    "partners": { "title": "Comercios afiliados" },
-    "risk": { "title": "Riesgo" },
-    "cases-fraud": { "title": "Casos y fraude" },
-    "support": { "title": "Soporte" },
-    "dossiers": { "title": "Expedientes" },
-    "sessions-telemetry": { "title": "Sesiones y telemetría" },
-    "external-providers": { "title": "Proveedores externos" },
-    "decision-engine-integration": { "title": "Motor de decisión (integración)" },
-    "messaging": { "title": "Mensajería" },
-    "data-governance": { "title": "Gobierno de datos" },
-    "platform": { "title": "Plataforma y lectura operativa" },
-    "governed-readers": { "title": "Lectores transversales gobernados" }
+    "identity-access": {
+      "title": "Identidad y acceso"
+    },
+    "customers": {
+      "title": "Clientes"
+    },
+    "onboarding": {
+      "title": "Onboarding e identidad del cliente"
+    },
+    "consent-privacy": {
+      "title": "Consentimiento y privacidad"
+    },
+    "credit-admission": {
+      "title": "Crédito y admisión"
+    },
+    "loan-book": {
+      "title": "Cartera de préstamos"
+    },
+    "partners": {
+      "title": "Comercios afiliados"
+    },
+    "risk": {
+      "title": "Riesgo"
+    },
+    "cases-fraud": {
+      "title": "Casos y fraude"
+    },
+    "support": {
+      "title": "Soporte"
+    },
+    "dossiers": {
+      "title": "Expedientes"
+    },
+    "sessions-telemetry": {
+      "title": "Sesiones y telemetría"
+    },
+    "external-providers": {
+      "title": "Proveedores externos"
+    },
+    "decision-engine-integration": {
+      "title": "Motor de decisión (integración)"
+    },
+    "messaging": {
+      "title": "Mensajería"
+    },
+    "data-governance": {
+      "title": "Gobierno de datos"
+    },
+    "platform": {
+      "title": "Plataforma y lectura operativa"
+    },
+    "governed-readers": {
+      "title": "Lectores transversales gobernados"
+    }
   },
   "modules": {
-    "auth": { "context": "identity-access", "allowedDependencies": [] },
-    "internal-users": { "context": "identity-access", "allowedDependencies": [] },
-    "merchant-identity": { "context": "partners", "allowedDependencies": [] },
-    "customers": { "context": "customers", "allowedDependencies": [] },
-    "customer-onboarding": { "context": "onboarding", "allowedDependencies": ["customers"] },
-    "mobile-identity": { "context": "onboarding", "allowedDependencies": ["customers"] },
-    "consents": { "context": "consent-privacy", "allowedDependencies": [] },
-    "customer-privacy": { "context": "consent-privacy", "allowedDependencies": ["customers"] },
-    "credit": { "context": "credit-admission", "allowedDependencies": ["customers"] },
-    "loans": { "context": "loan-book", "allowedDependencies": ["credit"] },
-    "loan-payment-claims": { "context": "loan-book", "allowedDependencies": ["credit"] },
-    "credit-rating": { "context": "loan-book", "allowedDependencies": [] },
-    "partner-onboarding": { "context": "partners", "allowedDependencies": [] },
-    "risk": { "context": "risk", "allowedDependencies": [] },
-    "fraud": { "context": "cases-fraud", "allowedDependencies": [] },
-    "operations": { "context": "cases-fraud", "allowedDependencies": [] },
-    "support": { "context": "support", "allowedDependencies": [] },
-    "expedientes": { "context": "dossiers", "allowedDependencies": [] },
-    "sessions": { "context": "sessions-telemetry", "allowedDependencies": [] },
-    "customer-telemetry": { "context": "sessions-telemetry", "allowedDependencies": [] },
-    "customer-device-signals": { "context": "sessions-telemetry", "allowedDependencies": [] },
-    "external-data": { "context": "external-providers", "allowedDependencies": [] },
-    "decision-engine": { "context": "decision-engine-integration", "allowedDependencies": [] },
-    "notifications": { "context": "messaging", "publicEntry": "src/modules/notifications/public/index.ts", "allowedDependencies": [] },
-    "mail-sender": { "context": "messaging", "allowedDependencies": [] },
-    "catalog-management": { "context": "data-governance", "allowedDependencies": [] },
-    "data-quality": { "context": "data-governance", "allowedDependencies": [] },
-    "app-content": { "context": "platform", "allowedDependencies": [] },
-    "mobile-welcome-audio": { "context": "platform", "allowedDependencies": [] },
-    "events": { "context": "platform", "allowedDependencies": [] },
-    "runtime-jobs": { "context": "platform", "allowedDependencies": [] },
-    "runtime-hardening": { "context": "platform", "allowedDependencies": [] },
-    "audit": { "context": "platform", "allowedDependencies": [] },
-    "log-sync": { "context": "platform", "allowedDependencies": [] },
-    "systems-ops": { "context": "platform", "allowedDependencies": [] },
-    "schema-management": { "context": "platform", "allowedDependencies": [] },
-    "workflow-catalog": { "context": "platform", "allowedDependencies": [] },
-    "internal-portal": { "context": "platform", "allowedDependencies": [] },
-    "health": { "context": "platform", "allowedDependencies": [] },
-    "sql-console": { "context": "governed-readers", "allowedDependencies": [] },
-    "data-notebook": { "context": "governed-readers", "allowedDependencies": [] }
+    "auth": {
+      "context": "identity-access",
+      "allowedDependencies": []
+    },
+    "internal-users": {
+      "context": "identity-access",
+      "allowedDependencies": []
+    },
+    "merchant-identity": {
+      "context": "partners",
+      "allowedDependencies": []
+    },
+    "customers": {
+      "context": "customers",
+      "allowedDependencies": []
+    },
+    "customer-onboarding": {
+      "context": "onboarding",
+      "allowedDependencies": ["customers"]
+    },
+    "mobile-identity": {
+      "context": "onboarding",
+      "allowedDependencies": ["customers"]
+    },
+    "consents": {
+      "context": "consent-privacy",
+      "allowedDependencies": []
+    },
+    "customer-privacy": {
+      "context": "consent-privacy",
+      "allowedDependencies": ["customers"]
+    },
+    "credit": {
+      "context": "credit-admission",
+      "allowedDependencies": ["customers", "partner-onboarding"]
+    },
+    "loans": {
+      "context": "loan-book",
+      "allowedDependencies": ["credit"]
+    },
+    "loan-payment-claims": {
+      "context": "loan-book",
+      "allowedDependencies": ["credit"]
+    },
+    "credit-rating": {
+      "context": "loan-book",
+      "allowedDependencies": []
+    },
+    "partner-onboarding": {
+      "context": "partners",
+      "allowedDependencies": []
+    },
+    "risk": {
+      "context": "risk",
+      "allowedDependencies": ["customers"]
+    },
+    "fraud": {
+      "context": "cases-fraud",
+      "allowedDependencies": []
+    },
+    "operations": {
+      "context": "cases-fraud",
+      "allowedDependencies": []
+    },
+    "support": {
+      "context": "support",
+      "allowedDependencies": []
+    },
+    "expedientes": {
+      "context": "dossiers",
+      "allowedDependencies": []
+    },
+    "sessions": {
+      "context": "sessions-telemetry",
+      "allowedDependencies": []
+    },
+    "customer-telemetry": {
+      "context": "sessions-telemetry",
+      "allowedDependencies": []
+    },
+    "customer-device-signals": {
+      "context": "sessions-telemetry",
+      "allowedDependencies": []
+    },
+    "external-data": {
+      "context": "external-providers",
+      "allowedDependencies": []
+    },
+    "decision-engine": {
+      "context": "decision-engine-integration",
+      "allowedDependencies": []
+    },
+    "notifications": {
+      "context": "messaging",
+      "publicEntry": "src/modules/notifications/public/index.ts",
+      "allowedDependencies": []
+    },
+    "mail-sender": {
+      "context": "messaging",
+      "allowedDependencies": []
+    },
+    "catalog-management": {
+      "context": "data-governance",
+      "allowedDependencies": []
+    },
+    "data-quality": {
+      "context": "data-governance",
+      "allowedDependencies": []
+    },
+    "app-content": {
+      "context": "platform",
+      "allowedDependencies": []
+    },
+    "mobile-welcome-audio": {
+      "context": "platform",
+      "allowedDependencies": []
+    },
+    "events": {
+      "context": "platform",
+      "allowedDependencies": []
+    },
+    "runtime-jobs": {
+      "context": "platform",
+      "allowedDependencies": []
+    },
+    "runtime-hardening": {
+      "context": "platform",
+      "allowedDependencies": []
+    },
+    "audit": {
+      "context": "platform",
+      "allowedDependencies": []
+    },
+    "log-sync": {
+      "context": "platform",
+      "allowedDependencies": []
+    },
+    "systems-ops": {
+      "context": "platform",
+      "allowedDependencies": []
+    },
+    "schema-management": {
+      "context": "platform",
+      "allowedDependencies": []
+    },
+    "workflow-catalog": {
+      "context": "platform",
+      "allowedDependencies": []
+    },
+    "internal-portal": {
+      "context": "platform",
+      "allowedDependencies": []
+    },
+    "health": {
+      "context": "platform",
+      "allowedDependencies": []
+    },
+    "sql-console": {
+      "context": "governed-readers",
+      "allowedDependencies": []
+    },
+    "data-notebook": {
+      "context": "governed-readers",
+      "allowedDependencies": []
+    }
   },
   "exceptions": [
     {

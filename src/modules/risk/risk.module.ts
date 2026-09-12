@@ -4,6 +4,8 @@
  * @system calcula evaluaciones versionadas, contribuciones y reglas disparadas sin presentarlas como un modelo validado.
  */
 import { Module } from '@nestjs/common';
+import { RISK_INPUT_FACTS_PORT } from './application/ports/risk-input-facts.port.js';
+import { LocalRiskInputFactsAdapter } from './infrastructure/local-risk-input-facts.adapter.js';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
   CustomerConsentModel,
@@ -66,7 +68,16 @@ import { RiskService } from './risk.service.js';
     DecisionEngineModule,
   ],
   controllers: [RiskController],
-  providers: [RiskRepository, RevisionManualRepository, RiskPolicyRepository, RiskPolicyDecisionService, RiskService],
+  providers: [
+    // AT-027: los hechos de entrada llegan por puerto; el adaptador local lee de la misma base.
+    LocalRiskInputFactsAdapter,
+    { provide: RISK_INPUT_FACTS_PORT, useExisting: LocalRiskInputFactsAdapter },
+    RiskRepository,
+    RevisionManualRepository,
+    RiskPolicyRepository,
+    RiskPolicyDecisionService,
+    RiskService,
+  ],
   exports: [RiskRepository, RiskService],
 })
 export class RiskModule {}
