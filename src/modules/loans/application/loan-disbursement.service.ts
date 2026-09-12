@@ -3,13 +3,12 @@
  * @business Esta pieza sostiene el ciclo del préstamo desembolsado con saldos reconstruibles.
  * @system convierte una solicitud aprobada en un préstamo con cronograma, dentro de una sola transacción.
  */
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { createStableCode, sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { CreditRepository } from '../../credit/credit.repository.js';
-import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
 import { addMonthsClamped, buildSchedule, toDateOnly } from '../domain/loan-schedule.js';
 import { fromCents, toCents } from '../domain/money.util.js';
 import { DisburseLoanDto } from '../loans.schemas.js';
@@ -20,12 +19,9 @@ const DISBURSABLE_APPLICATION_STATUS = 'approved';
 
 @Injectable()
 export class LoanDisbursementService {
-  private readonly logger = new Logger(LoanDisbursementService.name);
-
   constructor(
     private readonly loans: LoansRepository,
     private readonly credit: CreditRepository,
-    private readonly engine: DecisionEngineClient,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -154,89 +150,19 @@ export class LoanDisbursementService {
     });
 
     /*
-     * El alta del crédito en el motor va DESPUÉS de que la transacción haya cerrado, y fuera de
-     * ella: una llamada HTTP dentro de una transacción mantiene abiertos los cerrojos del préstamo y
-     * del cronograma mientras se espera a la red, y el motor tardando convierte un desembolso en una
-     * espera que bloquea a los demás.
+     * El alta del crédito en el motor NO se hace aquí, y no es por comodidad: el libro de préstamos
+     * no tiene permitido depender del módulo de integración con el motor (`config/architecture/
+     * boundaries.json`: `loans` sólo puede apoyarse en `credit`), y meter esa llamada aquí era
+     * invertir la dirección del acoplamiento — el libro pasaría a necesitar al motor para poder
+     * desembolsar.
+     *
+     * Lo hace `OutcomeDispatchService.registrarCreditosNuevos`, del lado del motor, que es quien
+     * conoce ese contrato. Se pierde inmediatez y no se pierde exactitud: el motor fecha las
+     * ventanas de observación desde la DECISIÓN, no desde el alta, así que registrar un rato después
+     * no corre ninguna ventana. Lo que queda escrito aquí es el rastro que lo hace posible
+     * —`decisionExecutionId`—, sin el cual el crédito no se podría atribuir a nadie.
      */
-    await this.registrarEnElMotor(resultado.loan, resultado.disbursedAt);
     return resultado.descripcion;
-  }
-
-  /**
-   * Cuenta al motor que este crédito se concedió, para que pueda medir si acertó al aprobarlo.
-   *
-   * ## Qué arregla
-   *
-   * El core cargaba desenlaces pero nunca daba de alta el CRÉDITO, así que el motor no tenía a qué
-   * atribuirlos: su matriz de cosechas salía vacía y la cobertura de desenlaces caía a `BREACH`. El
-   * tablero lo enseñaba como un motor que no acierta, cuando lo que pasaba es que nadie le contaba
-   * qué se había concedido.
-   *
-   * ## Por qué NO tumba el desembolso si falla
-   *
-   * Porque el dinero ya salió y la obligación ya existe: el préstamo y su cronograma están escritos
-   * y son la verdad. Que el motor no se entere hoy deja al motor sin medir, no al cliente sin
-   * crédito, y es recuperable —el alta es idempotente y el barrido de desenlaces la reintenta antes
-   * de mandar el primer desenlace de este préstamo—. Tirar aquí cambiaría un problema de
-   * sincronización por uno de servicio, y encima con la plata ya desembolsada.
-   *
-   * ## El caso sin decisión, que no es un error
-   *
-   * Un préstamo sin `decisionExecutionId` —carga manual, crédito anterior a la integración— NO se
-   * puede registrar: el motor toma el sujeto de esa decisión y la referencia del solicitante viaja
-   * en HMAC de una vía, así que no se puede añadir después. Se registra en el log como omisión
-   * explícita, no como fallo, para que no parezca una avería intermitente.
-   */
-  private async registrarEnElMotor(
-    loan: {
-      loanCode: string;
-      decisionExecutionId: string | null;
-      principalAmount: string;
-      currencyCode: string;
-      termMonths: number;
-      annualInterestRate: string;
-    },
-    disbursedAt: Date | null,
-  ): Promise<void> {
-    if (!this.engine.canReportOutcomes) return;
-    if (!loan.decisionExecutionId) {
-      this.logger.log(
-        `El préstamo ${loan.loanCode} no se registra en el motor: no lo originó ninguna decisión, ` +
-          'así que no hay solicitante al que atribuirle el desenlace.',
-      );
-      return;
-    }
-
-    try {
-      const [veredicto] = await this.engine.registerFacilities([
-        {
-          externalReference: loan.loanCode,
-          originationExecutionId: loan.decisionExecutionId,
-          principalAmount: Number(loan.principalAmount),
-          currencyCode: loan.currencyCode,
-          termMonths: loan.termMonths,
-          /*
-           * Tanto por uno, no porcentaje. La columna del libro guarda la tasa ANUAL ya en tanto por
-           * uno; mandarla como 28 en vez de 0,28 pasaría la validación del motor —no tiene techo
-           * para la tasa de un crédito— y multiplicaría por cien cualquier cálculo que la use.
-           */
-          annualRate: Number(loan.annualInterestRate),
-          ...(disbursedAt ? { disbursedAt: disbursedAt.toISOString() } : {}),
-        },
-      ]);
-      if (veredicto && !veredicto.accepted) {
-        this.logger.warn(
-          `El motor no aceptó el alta del préstamo ${loan.loanCode}: ${veredicto.reason ?? 'sin motivo declarado'}. ` +
-            'El barrido de desenlaces volverá a intentarlo.',
-        );
-      }
-    } catch (error) {
-      this.logger.warn(
-        `No se pudo registrar el préstamo ${loan.loanCode} en el motor: ${(error as Error).message}. ` +
-          'El desembolso está completo; el alta se reintenta en el barrido de desenlaces.',
-      );
-    }
   }
 
   private describe(loan: { id: string; loanCode: string; status: string; maturityDate: string | null }) {

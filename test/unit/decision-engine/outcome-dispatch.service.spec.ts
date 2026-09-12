@@ -59,9 +59,24 @@ describe('OutcomeDispatchService', () => {
     const loans = options.loans ?? [loan()];
     const client = {
       canReportOutcomes: options.canReport ?? true,
-      registerFacilities: jest.fn(async (..._args: unknown[]) => {
+      /*
+       * El doble devuelve un veredicto POR FILA, como el motor: con una lista vacía —que es lo que
+       * este doble hacía antes— nada se da por registrado, y eso es el comportamiento correcto del
+       * servicio (no marcar lo que no se pudo confirmar), pero convierte la prueba en una que no
+       * mide lo que dice medir.
+       */
+      registerFacilities: jest.fn(async (...args: unknown[]) => {
         if (options.altasFallan) throw new Error('ALTA_CAIDA');
-        return [];
+        // `reason: string | null` explícito: inferido queda como `null` y cualquier
+        // `mockImplementationOnce` que devuelva un motivo deja de compilar —lo detecta
+        // `type-check:tests`, no la suite, que pasa igual—.
+        return (args[0] as Array<{ externalReference: string }>).map(
+          (alta): { externalReference: string; accepted: boolean; reason: string | null } => ({
+            externalReference: alta.externalReference,
+            accepted: true,
+            reason: null,
+          }),
+        );
       }),
       recordFacilityOutcomes: jest.fn(async (...args: unknown[]) => {
         if (options.fails) throw new Error('ECONNREFUSED');
@@ -76,6 +91,10 @@ describe('OutcomeDispatchService', () => {
     };
     const reportModel = { findAll: jest.fn(async (..._args: unknown[]) => rows) };
     const loanModel = { findAll: jest.fn(async (..._args: unknown[]) => loans) };
+    for (const prestamo of loans) {
+      (prestamo as Record<string, unknown>).save ??= jest.fn(async () => prestamo);
+      (prestamo as Record<string, unknown>).decisionFacilityRegisteredAt ??= null;
+    }
     return {
       service: new OutcomeDispatchService(client as never, reportModel as never, loanModel as never),
       client,
@@ -233,6 +252,77 @@ describe('OutcomeDispatchService', () => {
 
     const [[outcomes]] = client.recordFacilityOutcomes.mock.calls as unknown as [[Array<{ amount?: number }>]];
     expect(outcomes[0].amount).toBeUndefined();
+  });
+
+  /*
+   * El ALTA de los créditos concedidos, que es lo que permite atribuirles un desenlace.
+   *
+   * Va en su propia pasada y no dentro del despacho: registrar sólo los créditos que ya tienen
+   * desenlace pendiente dejaría fuera a los recién desembolsados, que son justamente la población de
+   * una cosecha joven. Una matriz de cosechas que sólo contiene lo que alguien ya reportó no mide una
+   * cartera.
+   */
+  describe('registrarCreditosNuevos', () => {
+    it('registra los créditos pendientes y los marca, con la tasa en tanto por uno', async () => {
+      const { service, client } = build();
+      const resultado = await service.registrarCreditosNuevos({ tenantId: '1', limit: 50 });
+
+      expect(resultado).toEqual({ registrados: 1, rechazados: 0 });
+      const [[altas]] = client.registerFacilities.mock.calls as unknown as [[Array<Record<string, unknown>>]];
+      expect(altas[0]).toMatchObject({
+        externalReference: 'LOAN-0001',
+        originationExecutionId: '88001',
+        principalAmount: 1500,
+        annualRate: 0.28,
+      });
+    });
+
+    /*
+     * Un crédito que el motor RECHAZA no se marca: se queda en la cola. Marcarlo lo esconderría, y
+     * lo que hace falta es que se VEA que hay créditos que el motor nunca podrá medir —un
+     * `EXECUTION_WITHOUT_SUBJECT` no se arregla reintentando—.
+     */
+    it('no marca el crédito que el motor rechaza: sigue visible en la cola', async () => {
+      const { service, client, rows } = build();
+      void rows;
+      client.registerFacilities.mockImplementationOnce(async () => [
+        { externalReference: 'LOAN-0001', accepted: false, reason: 'EXECUTION_WITHOUT_SUBJECT' },
+      ]);
+
+      const resultado = await service.registrarCreditosNuevos({ tenantId: '1', limit: 50 });
+
+      expect(resultado).toEqual({ registrados: 0, rechazados: 1 });
+    });
+
+    /*
+     * Si la llamada falla no se marca NADA: el motor pudo no recibir el lote, y marcar un crédito que
+     * no está registrado lo saca de la cola para siempre — sus desenlaces se rechazarían después con
+     * `FACILITY_NOT_FOUND` y nadie sabría por qué.
+     */
+    it('un fallo de red no marca ningún crédito', async () => {
+      const { service, client } = build();
+      client.registerFacilities.mockImplementationOnce(() => Promise.reject(new Error('ECONNREFUSED')));
+
+      const resultado = await service.registrarCreditosNuevos({ tenantId: '1', limit: 50 });
+
+      expect(resultado).toEqual({ registrados: 0, rechazados: 1 });
+    });
+
+    it('sin credencial del plano de gestión no intenta nada, y lo explica', async () => {
+      const { service, client } = build({ canReport: false });
+      const resultado = await service.registrarCreditosNuevos({ tenantId: '1', limit: 50 });
+
+      expect(resultado.reason).toBe('DECISION_ENGINE_OUTCOME_KEY_NOT_CONFIGURED');
+      expect(client.registerFacilities).not.toHaveBeenCalled();
+    });
+
+    it('con la cola vacía no llama al motor', async () => {
+      const { service, client } = build({ loans: [] });
+      const resultado = await service.registrarCreditosNuevos({ tenantId: '1', limit: 50 });
+
+      expect(resultado).toEqual({ registrados: 0, rechazados: 0 });
+      expect(client.registerFacilities).not.toHaveBeenCalled();
+    });
   });
 
   it('lista los desenlaces que agotaron los reintentos', async () => {

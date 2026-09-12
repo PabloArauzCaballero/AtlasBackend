@@ -48,7 +48,6 @@ function solicitud(overrides: Record<string, unknown> = {}) {
 describe('LoanDisbursementService', () => {
   let loans: { findLoanByApplication: jest.Mock; createLoan: jest.Mock; bulkCreateInstallments: jest.Mock; createEvent: jest.Mock };
   let credit: { findApplicationById: jest.Mock; findProductById: jest.Mock };
-  let motor: { canReportOutcomes: boolean; registerFacilities: jest.Mock };
   let service: LoanDisbursementService;
 
   beforeEach(() => {
@@ -63,18 +62,7 @@ describe('LoanDisbursementService', () => {
       findProductById: jest.fn(async () => ({ id: 'pr-1', annualInterestRate: '24.0000' })),
     };
     const sequelize = { transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({})) } as unknown as Sequelize;
-    /*
-     * El motor se dobla APAGADO por omisión (`canReportOutcomes: false`): estas pruebas miden el
-     * desembolso, y un doble encendido convertiría cada una en una prueba de la integración.
-     * La prueba del alta lo enciende explícitamente.
-     */
-    motor = { canReportOutcomes: false, registerFacilities: jest.fn(async () => []) };
-    service = new LoanDisbursementService(
-      loans as unknown as LoansRepository,
-      credit as unknown as CreditRepository,
-      motor as never,
-      sequelize,
-    );
+    service = new LoanDisbursementService(loans as unknown as LoansRepository, credit as unknown as CreditRepository, sequelize);
   });
 
   function desembolsar(body: Record<string, unknown> = {}, clave = 'idem-1') {
@@ -229,6 +217,17 @@ describe('LoanDisbursementService', () => {
     });
   });
 
+  /*
+   * El ALTA del crédito en el motor no se prueba aquí porque no ocurre aquí: el libro de préstamos
+   * no puede depender del módulo del motor (`config/architecture/boundaries.json`: `loans` sólo se
+   * apoya en `credit`), así que la hace `OutcomeDispatchService.registrarCreditosNuevos` y sus
+   * pruebas viven allí.
+   *
+   * Lo que este servicio TIENE que garantizar es el rastro sin el cual esa alta es imposible: el
+   * motor toma el sujeto de la decisión de origen, y la referencia del solicitante viaja en HMAC de
+   * una vía, así que no se puede añadir después. Sin estas tres columnas, el crédito no se podría
+   * atribuir a nadie nunca.
+   */
   describe('la traza al motor', () => {
     it('el préstamo hereda qué ejecución y qué versión del artefacto lo decidieron', async () => {
       await desembolsar();
@@ -273,68 +272,6 @@ describe('LoanDisbursementService', () => {
         annualInterestRate: 18,
         decisionExecutionId: 'exe-1',
       });
-    });
-  });
-
-  /*
-   * El alta del crédito en el motor (2026-09-12).
-   *
-   * El core cargaba desenlaces pero nunca daba de alta el CRÉDITO, así que el motor no tenía a qué
-   * atribuirlos: matriz de cosechas vacía y cobertura de desenlaces en `BREACH`, que el tablero
-   * enseña como un motor que no acierta.
-   */
-  describe('alta del crédito en el motor', () => {
-    it('registra el préstamo con su decisión de origen cuando el motor está configurado', async () => {
-      motor.canReportOutcomes = true;
-      await desembolsar();
-
-      expect(motor.registerFacilities).toHaveBeenCalledTimes(1);
-      const [[altas]] = motor.registerFacilities.mock.calls as unknown as [[Array<Record<string, unknown>>]];
-      expect(altas[0]).toMatchObject({ originationExecutionId: 'exe-1', currencyCode: 'BOB', termMonths: 6 });
-      expect(typeof altas[0].externalReference).toBe('string');
-    });
-
-    it('no llama al motor si no hay credencial del plano de gestión', async () => {
-      await desembolsar();
-
-      expect(motor.registerFacilities).not.toHaveBeenCalled();
-    });
-
-    /*
-     * La propiedad que de verdad importa: el dinero ya salió. Que el motor no se entere deja al
-     * motor sin medir, no al cliente sin crédito — y el alta es idempotente, así que el barrido de
-     * desenlaces la recupera.
-     */
-    it('un motor caído NO tumba el desembolso', async () => {
-      motor.canReportOutcomes = true;
-      /*
-       * El rechazo se declara en la implementación y no con `mockRejectedValueOnce`: el doble está
-       * tipado como `jest.Mock` sin argumentos genéricos, así que `mockRejectedValueOnce(Error)`
-       * compila contra `never` y sólo lo detecta `type-check:tests` —que es un gate aparte porque
-       * `tsc -p tsconfig.json` NO mira `test/`—. La prueba pasaba en verde y el gate en rojo.
-       */
-      motor.registerFacilities.mockImplementationOnce(() => Promise.reject(new Error('ECONNREFUSED')));
-
-      const resultado = await desembolsar();
-
-      expect(resultado).toMatchObject({ status: 'active' });
-      expect(loans.createLoan).toHaveBeenCalled();
-    });
-
-    /*
-     * Un préstamo sin decisión no se puede registrar: el motor toma el sujeto de ella y la
-     * referencia del solicitante viaja en HMAC de una vía. Es una omisión declarada, no un fallo.
-     */
-    it('omite el alta del préstamo que no originó ninguna decisión', async () => {
-      motor.canReportOutcomes = true;
-      credit.findApplicationById.mockImplementationOnce(async () => ({
-        ...(await (credit.findApplicationById.getMockImplementation() as () => Promise<Record<string, unknown>>)()),
-        decisionExecutionId: null,
-      }));
-
-      await desembolsar();
-
-      expect(motor.registerFacilities).not.toHaveBeenCalled();
     });
   });
 });

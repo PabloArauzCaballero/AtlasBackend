@@ -217,6 +217,19 @@ export function buildScheduledJobs(deps: {
       run: (tenantId) => outcomeDispatch.dispatchPending({ tenantId, limit: env.RUNTIME_JOBS_OUTCOME_DISPATCH_LIMIT }),
     },
     /*
+     * El ALTA del crédito en el motor, que es lo que permite atribuirle un desenlace.
+     *
+     * Va en su propio trabajo y con su propio intervalo, no dentro del despacho de desenlaces:
+     * registrar sólo los créditos que ya tienen desenlace pendiente dejaría fuera a los recién
+     * desembolsados, que son justamente la población de una cosecha joven. Sin esta pasada, la matriz
+     * de cosechas del motor sólo contiene lo que alguien ya reportó, y su cobertura cae a `BREACH`.
+     */
+    {
+      jobCode: 'register_engine_facilities',
+      intervalMs: env.RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS,
+      run: (tenantId) => outcomeDispatch.registrarCreditosNuevos({ tenantId, limit: env.RUNTIME_JOBS_OUTCOME_DISPATCH_LIMIT }),
+    },
+    /*
      * La calificación de la cartera —categoría de riesgo y previsión— dependía de que alguien
      * pulsara «Recalificar» antes de un cierre. La categoría se deriva de los días de atraso, que
      * el barrido de mora ya mueve solo; dejar la calificación a mano era tener la mitad del

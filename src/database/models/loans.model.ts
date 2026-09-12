@@ -110,6 +110,13 @@ export class LoanModel extends Model {
   @Column({ field: 'decision_artifact_version_id', type: DataType.STRING(40) })
   declare decisionArtifactVersionId: string | null;
 
+  /**
+   * Cuándo se dio de alta este crédito en el motor. `null` = todavía no, y eso es una cola de
+   * trabajo, no un error: el motor no puede medir si acertó hasta que sabe qué se concedió.
+   */
+  @Column({ field: 'decision_facility_registered_at', type: DataType.DATE })
+  declare decisionFacilityRegisteredAt: Date | null;
+
   @Column({ field: 'decision_subject_reference', type: DataType.STRING(128) })
   declare decisionSubjectReference: string | null;
 

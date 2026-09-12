@@ -120,13 +120,15 @@ describe('RuntimeJobsSchedulerService', () => {
 
     // El arranque de cada job pasa por un `setTimeout` de desfase antes de armar su `setInterval`:
     // sin ese desfase, N réplicas que arrancan juntas disparan la misma tanda en el mismo instante.
-    it('programa los dieciséis jobs cuando está habilitado', () => {
+    it('programa los diecisiete jobs cuando está habilitado', () => {
       setEnv('RUNTIME_JOBS_SCHEDULER_ENABLED', true);
       const { service } = build();
 
       service.onApplicationBootstrap();
 
-      expect(setTimeout).toHaveBeenCalledTimes(17);
+      // 17 jobs + 1 temporizador del propio barrido. El número está escrito a propósito: un job
+      // nuevo tiene que tocar esta prueba, que es donde se ve que el catálogo creció.
+      expect(setTimeout).toHaveBeenCalledTimes(18);
       service.onModuleDestroy();
     });
 
@@ -138,7 +140,7 @@ describe('RuntimeJobsSchedulerService', () => {
       service.onApplicationBootstrap();
 
       const delays = (setTimeout as unknown as jest.Mock).mock.calls.map((call) => call[1] as number);
-      expect(delays).toHaveLength(17);
+      expect(delays).toHaveLength(18);
       for (const delay of delays) {
         expect(delay).toBeGreaterThanOrEqual(0);
         expect(delay).toBeLessThan(15_000);
@@ -177,7 +179,7 @@ describe('RuntimeJobsSchedulerService', () => {
 
       service.onApplicationBootstrap();
 
-      expect(setTimeout).toHaveBeenCalledTimes(17);
+      expect(setTimeout).toHaveBeenCalledTimes(18);
       service.onModuleDestroy();
     });
   });
