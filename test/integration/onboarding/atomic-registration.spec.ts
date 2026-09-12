@@ -15,6 +15,9 @@ import { buildAdmissionHarness, type AdmissionHarness } from '../credit/support/
 import { openIntegrationDatabase, runToken, type IntegrationDatabase } from '../support/database.js';
 
 let database: IntegrationDatabase | null = null;
+/** Cuerpo mínimo del alta y respuesta pública de mentira: sólo importan como valores serializables que atraviesan el puerto. */
+const REGISTRATION = { customer: { phone: '+591' }, password: 'secreta123', consents: [], device: {} } as never;
+const RESPONSE = { customerId: '1' } as never;
 let harness: AdmissionHarness | null = null;
 
 beforeAll(async () => {
@@ -61,7 +64,7 @@ describe('AT-025 · registro atómico del alta', () => {
     const registration = {
       register: async (command: unknown) => {
         calls.push(command);
-        return { customerId: '1', onboardingFlowId: '2', sessionId: null };
+        return { customerId: '1', onboardingFlowId: '2', sessionId: null, response: RESPONSE };
       },
     };
     const guards = { assertNoDuplicateCustomer: async () => undefined, assertConsentDocumentsAreValid: async () => undefined };
@@ -81,8 +84,9 @@ describe('AT-025 · registro atómico del alta', () => {
       consents: [],
       sourceType: 'mobile_app',
       ipAddress: null,
+      registration: REGISTRATION,
     });
-    expect(result).toEqual({ customerId: '1', onboardingFlowId: '2', sessionId: null });
+    expect(result).toEqual({ customerId: '1', onboardingFlowId: '2', sessionId: null, response: RESPONSE });
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({ passwordHash: 'argon2:10', phoneHash: 'h:+591', emailHash: null });
     expect(JSON.stringify(calls[0])).not.toContain('secreta123');
@@ -110,6 +114,7 @@ describe('AT-025 · registro atómico del alta', () => {
         consents: [],
         sourceType: 'mobile_app',
         ipAddress: null,
+        registration: REGISTRATION,
       }),
     ).rejects.toThrow(ApplicationError);
     await expect(
@@ -122,6 +127,7 @@ describe('AT-025 · registro atómico del alta', () => {
         consents: [],
         sourceType: 'mobile_app',
         ipAddress: null,
+        registration: REGISTRATION,
       }),
     ).rejects.toThrow('X-Idempotency-Key header is required.');
   });

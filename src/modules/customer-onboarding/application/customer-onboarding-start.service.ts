@@ -3,19 +3,12 @@
  * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { LegacyOnboardingAtomicBridge } from '../../../bootstrap/legacy-onboarding-atomic.bridge.js';
 import { randomUUID } from 'node:crypto';
 import { Transaction, UniqueConstraintError } from 'sequelize';
-import {
-  createStableCode,
-  hashSensitiveText,
-  lastCharacters,
-  normalizeSensitiveText,
-  sha256Hex,
-} from '../../../common/utils/crypto/hash.util.js';
+import { createStableCode, lastCharacters, sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { encryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
-import { hashPassword } from '../../../common/utils/crypto/password.util.js';
 import { AuthRepository } from '../../auth/auth.repository.js';
 import { AuthTokenIssuerService } from '../../auth/auth-token-issuer.service.js';
 import { ConsentsRepository } from '../../consents/consents.repository.js';
@@ -28,18 +21,13 @@ import { CustomerOnboardingRepository } from '../customer-onboarding.repository.
 import { CustomerOnboardingGuardsService } from './customer-onboarding-guards.service.js';
 import { OnboardingDeviceSessionService } from './onboarding-device-session.service.js';
 import { StartOnboardingDto } from '../customer-onboarding.schemas.js';
+import { emailDomain, normalizeFullName } from './customer-onboarding-start.helpers.js';
 import { INITIAL_CUSTOMER_LIFECYCLE_STATUS } from '../../customers/customer-lifecycle.constants.js';
+import { isApplicationError, toHttpException } from '../../../platform/contracts/application-error.js';
+import type { RegistrationCommand, RegistrationResult } from './ports/onboarding-registration.port.js';
+import { buildStartOnboardingUseCase } from './use-cases/start-onboarding.use-case.js';
 
-function emailDomain(email: string | undefined): string | null {
-  if (!email) return null;
-  const domain = email.split('@')[1];
-  return domain ? normalizeSensitiveText(domain) : null;
-}
-
-function normalizeFullName(firstName?: string, lastName?: string): string | null {
-  const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
-  return fullName.length === 0 ? null : fullName.toLocaleLowerCase('es-BO');
-}
+type RegistrationInput = RegistrationCommand['registration'];
 
 @Injectable()
 export class CustomerOnboardingStartService {
@@ -73,111 +61,120 @@ export class CustomerOnboardingStartService {
    * sobre la tabla `idempotency_keys`; este bloque cubre el caso distinto de dos requests
    * *diferentes* (claves de idempotencia distintas) que describen al mismo cliente.
    */
+  /** AT-025: fachada sobre `StartOnboardingUseCase`; `register` es el adaptador del puerto atómico. Mismos errores públicos. */
   async startOnboarding(
     tenantId: string,
     input: StartOnboardingDto,
     ipAddress: string | null,
     idempotencyKey: string,
   ): Promise<StartOnboardingResponseDto> {
-    if (!idempotencyKey) {
-      throw new BadRequestException('X-Idempotency-Key header is required.');
-    }
-
-    const phoneHash = input.customer.phone ? hashSensitiveText(input.customer.phone) : null;
-    const emailHash = input.customer.email ? hashSensitiveText(input.customer.email) : null;
-
-    await this.guardsService.assertNoDuplicateCustomer(tenantId, phoneHash, emailHash);
-    await this.guardsService.assertConsentDocumentsAreValid(tenantId, input.consents);
-
-    const now = new Date();
-    const sourceType = input.onboarding?.sourceType ?? 'mobile_app';
-    // Se hashea ANTES de abrir la transacción a propósito: Argon2id es una operación
-    // intencionalmente costosa en CPU/memoria; hacerla dentro de la transacción de base de
-    // datos extendería innecesariamente el tiempo que la transacción mantiene locks abiertos.
-    const passwordHash = await hashPassword(input.password);
-
+    const useCase = buildStartOnboardingUseCase(this.guardsService, (command) => this.register(command));
     try {
-      // AT-015: el grupo atómico del alta lo abre el puente heredado, que declara su alcance y dueño.
-      return await this.bridge.run(async (transaction) => {
-        const { customer, credential } = await this.createCustomerAndCredentials({
-          tenantId,
-          input,
-          phoneHash,
-          emailHash,
-          passwordHash,
-          now,
-          transaction,
-        });
-
-        await this.createProfile({ tenantId, customer, input, sourceType, now, transaction });
-        await this.createContactMethods({ tenantId, customer, input, phoneHash, emailHash, sourceType, now, transaction });
-        await this.createInitialStatusEvent({ tenantId, customer, now, transaction });
-
-        // Dispositivo, sesión e instantánea van siempre juntos: no existe un alta que resuelva el
-        // dispositivo y no abra su sesión.
-        const { device, session } = await this.deviceSession.openSessionForNewCustomer({
-          tenantId,
-          customer,
-          input,
-          ipAddress,
-          now,
-          transaction,
-        });
-
-        const onboardingFlow = await this.createOnboardingFlowAndFirstEvent({
-          tenantId,
-          customer,
-          session,
-          input,
-          sourceType,
-          phoneHash,
-          emailHash,
-          now,
-          transaction,
-        });
-
-        // Permisos, bitácora/auditoría y consentimientos: el rastro de lo que el cliente aceptó y
-        // de lo que el sistema hizo con ello, escrito en la misma transacción que lo produjo.
-        await this.recordDecisionsAndAudit({
-          tenantId,
-          customer,
-          session,
-          device,
-          onboardingFlow,
-          input,
-          ipAddress,
-          idempotencyKey,
-          sourceType,
-          now,
-          transaction,
-        });
-
-        // Los tokens se emiten DENTRO de la transacción: si el alta se deshace, el refresh token
-        // emitido se deshace con ella. Emitirlos después del commit dejaría una ventana en la que
-        // existe una credencial válida para un cliente que la base todavía no confirmó.
-        const tokens = await this.tokenIssuer.issueRegistrationTokens({
-          tenantId,
-          customerId: String(customer.id),
-          tokenVersion: credential.tokenVersion,
-          ipAddress,
-          userAgent: input.device.userAgent ?? null,
-          transaction,
-        });
-
-        return toStartOnboardingResponse({ customer, session, device, onboardingFlow, tokens });
+      const result = await useCase.execute({
+        tenantId,
+        idempotencyKey,
+        password: input.password,
+        phone: input.customer.phone ?? null,
+        email: input.customer.email ?? null,
+        consents: input.consents,
+        sourceType: input.onboarding?.sourceType ?? 'mobile_app',
+        ipAddress,
+        registration: input,
       });
+      return result.response;
     } catch (error) {
       if (error instanceof UniqueConstraintError) {
         throw new ConflictException('CUSTOMER_ALREADY_EXISTS');
       }
+      if (isApplicationError(error)) throw toHttpException(error);
       throw error;
     }
+  }
+
+  /** Adaptador del puerto atómico: TODO el alta en la transacción del puente heredado (AT-015). */
+  private async register(command: RegistrationCommand): Promise<RegistrationResult> {
+    const { tenantId, registration: input, ipAddress, idempotencyKey, sourceType, phoneHash, emailHash, passwordHash, now } = command;
+    // AT-015: el grupo atómico del alta lo abre el puente heredado, que declara su alcance y dueño.
+    return this.bridge.run(async (transaction) => {
+      const { customer, credential } = await this.createCustomerAndCredentials({
+        tenantId,
+        input,
+        phoneHash,
+        emailHash,
+        passwordHash,
+        now,
+        transaction,
+      });
+
+      await this.createProfile({ tenantId, customer, input, sourceType, now, transaction });
+      await this.createContactMethods({ tenantId, customer, input, phoneHash, emailHash, sourceType, now, transaction });
+      await this.createInitialStatusEvent({ tenantId, customer, now, transaction });
+
+      // Dispositivo, sesión e instantánea van siempre juntos: no existe un alta que resuelva el
+      // dispositivo y no abra su sesión.
+      const { device, session } = await this.deviceSession.openSessionForNewCustomer({
+        tenantId,
+        customer,
+        input,
+        ipAddress,
+        now,
+        transaction,
+      });
+
+      const onboardingFlow = await this.createOnboardingFlowAndFirstEvent({
+        tenantId,
+        customer,
+        session,
+        input,
+        sourceType,
+        phoneHash,
+        emailHash,
+        now,
+        transaction,
+      });
+
+      // Permisos, bitácora/auditoría y consentimientos: el rastro de lo que el cliente aceptó y
+      // de lo que el sistema hizo con ello, escrito en la misma transacción que lo produjo.
+      await this.recordDecisionsAndAudit({
+        tenantId,
+        customer,
+        session,
+        device,
+        onboardingFlow,
+        input,
+        ipAddress,
+        idempotencyKey,
+        sourceType,
+        now,
+        transaction,
+      });
+
+      // Los tokens se emiten DENTRO de la transacción: si el alta se deshace, el refresh token
+      // emitido se deshace con ella. Emitirlos después del commit dejaría una ventana en la que
+      // existe una credencial válida para un cliente que la base todavía no confirmó.
+      const tokens = await this.tokenIssuer.issueRegistrationTokens({
+        tenantId,
+        customerId: String(customer.id),
+        tokenVersion: credential.tokenVersion,
+        ipAddress,
+        userAgent: input.device.userAgent ?? null,
+        transaction,
+      });
+
+      const response = toStartOnboardingResponse({ customer, session, device, onboardingFlow, tokens });
+      return {
+        customerId: String(customer.id),
+        onboardingFlowId: String(onboardingFlow.id),
+        sessionId: session ? String(session.id) : null,
+        response,
+      };
+    });
   }
 
   // 1 + 1b. Create customer, then credenciales de autenticación si se envió contraseña.
   private async createCustomerAndCredentials(input: {
     tenantId: string;
-    input: StartOnboardingDto;
+    input: RegistrationInput;
     phoneHash: string | null;
     emailHash: string | null;
     passwordHash: string;
@@ -212,7 +209,7 @@ export class CustomerOnboardingStartService {
   private async createProfile(input: {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    input: StartOnboardingDto;
+    input: RegistrationInput;
     sourceType: string;
     now: Date;
     transaction: Transaction;
@@ -244,7 +241,7 @@ export class CustomerOnboardingStartService {
   private async createContactMethods(input: {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    input: StartOnboardingDto;
+    input: RegistrationInput;
     phoneHash: string | null;
     emailHash: string | null;
     sourceType: string;
@@ -320,7 +317,7 @@ export class CustomerOnboardingStartService {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
     session: Awaited<ReturnType<SessionsRepository['createSession']>>;
-    input: StartOnboardingDto;
+    input: RegistrationInput;
     sourceType: string;
     phoneHash: string | null;
     emailHash: string | null;
@@ -372,7 +369,7 @@ export class CustomerOnboardingStartService {
     session: Awaited<ReturnType<SessionsRepository['createSession']>>;
     device: Awaited<ReturnType<SessionsRepository['findDevice']>>;
     onboardingFlow: Awaited<ReturnType<CustomerOnboardingRepository['createOnboardingFlow']>>;
-    input: StartOnboardingDto;
+    input: RegistrationInput;
     ipAddress: string | null;
     idempotencyKey: string;
     sourceType: string;
@@ -389,7 +386,7 @@ export class CustomerOnboardingStartService {
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
     session: Awaited<ReturnType<SessionsRepository['createSession']>>;
     onboardingFlow: Awaited<ReturnType<CustomerOnboardingRepository['createOnboardingFlow']>>;
-    input: StartOnboardingDto;
+    input: RegistrationInput;
     now: Date;
     transaction: Transaction;
   }): Promise<void> {
@@ -417,7 +414,7 @@ export class CustomerOnboardingStartService {
     session: Awaited<ReturnType<SessionsRepository['createSession']>>;
     device: Awaited<ReturnType<SessionsRepository['findDevice']>>;
     onboardingFlow: Awaited<ReturnType<CustomerOnboardingRepository['createOnboardingFlow']>>;
-    input: StartOnboardingDto;
+    input: RegistrationInput;
     ipAddress: string | null;
     idempotencyKey: string;
     sourceType: string;
@@ -468,7 +465,7 @@ export class CustomerOnboardingStartService {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
     session: Awaited<ReturnType<SessionsRepository['createSession']>>;
-    input: StartOnboardingDto;
+    input: RegistrationInput;
     ipAddress: string | null;
     now: Date;
     transaction: Transaction;

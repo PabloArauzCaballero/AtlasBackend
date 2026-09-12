@@ -32,9 +32,16 @@ function ident(value: string): string {
   return value;
 }
 
-/** Marca de agua tomada del reloj de la BASE: el de la máquina que copia puede ir adelantado o atrasado. */
+/**
+ * Marca de agua tomada del reloj de la BASE (el de la máquina que copia puede ir adelantado o atrasado),
+ * redondeada HACIA ARRIBA al milisegundo: PostgreSQL guarda microsegundos y `Date` sólo milisegundos, así
+ * que truncar dejaría fuera una fila creada en el mismo milisegundo (se vio en la prueba: +2 en vez de +1).
+ */
 export async function databaseNow(sequelize: Sequelize): Promise<Date> {
-  const rows = await sequelize.query<{ now: Date }>('SELECT now() AS now', { type: QueryTypes.SELECT });
+  const rows = await sequelize.query<{ now: Date }>(
+    "SELECT date_trunc('milliseconds', clock_timestamp()) + interval '1 millisecond' AS now",
+    { type: QueryTypes.SELECT },
+  );
   return new Date(rows[0].now);
 }
 

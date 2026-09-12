@@ -7,9 +7,14 @@
  *   `onboarding-atomic-bridge` del manifiesto). La preparación (hash Argon2, deduplicación, validación
  *   de consentimientos) ocurre ANTES y fuera del puerto; la entrega de OTP, DESPUÉS.
  */
+import type { StartOnboardingResponseDto } from '../../customer-onboarding.dtos.js';
+import type { StartOnboardingDto } from '../../customer-onboarding.schemas.js';
+
 export type RegistrationCommand = Readonly<{
   tenantId: string;
   idempotencyKey: string;
+  /** Cuerpo validado del alta (perfil, contactos, consentimientos, dispositivo) SIN la contraseña en claro: sólo viaja su hash. */
+  registration: Omit<StartOnboardingDto, 'password'>;
   /** Ya hasheada con Argon2 fuera de la transacción. */
   passwordHash: string;
   phoneHash: string | null;
@@ -23,6 +28,8 @@ export type RegistrationResult = Readonly<{
   customerId: string;
   onboardingFlowId: string;
   sessionId: string | null;
+  /** Contrato HTTP previo del alta, sin cambios (AT-025). */
+  response: StartOnboardingResponseDto;
 }>;
 
 export interface OnboardingRegistrationPort {

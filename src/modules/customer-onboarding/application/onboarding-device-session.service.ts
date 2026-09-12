@@ -31,7 +31,7 @@ export class OnboardingDeviceSessionService {
   async openSessionForNewCustomer(input: {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    input: StartOnboardingDto;
+    input: Omit<StartOnboardingDto, 'password'>;
     ipAddress: string | null;
     now: Date;
     transaction: Transaction;
@@ -45,7 +45,7 @@ export class OnboardingDeviceSessionService {
   async resolveDeviceAndLink(input: {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    input: StartOnboardingDto;
+    input: Omit<StartOnboardingDto, 'password'>;
     now: Date;
     transaction: Transaction;
   }) {
@@ -113,7 +113,7 @@ export class OnboardingDeviceSessionService {
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
     device: Awaited<ReturnType<SessionsRepository['findDevice']>>;
     link: Awaited<ReturnType<SessionsRepository['findCustomerDeviceLink']>>;
-    input: StartOnboardingDto;
+    input: Omit<StartOnboardingDto, 'password'>;
     ipAddress: string | null;
     now: Date;
     transaction: Transaction;
@@ -147,7 +147,7 @@ export class OnboardingDeviceSessionService {
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
     device: Awaited<ReturnType<SessionsRepository['findDevice']>>;
     session: Awaited<ReturnType<SessionsRepository['createSession']>>;
-    input: StartOnboardingDto;
+    input: Omit<StartOnboardingDto, 'password'>;
     now: Date;
     transaction: Transaction;
   }): Promise<void> {

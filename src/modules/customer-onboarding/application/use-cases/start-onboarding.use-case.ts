@@ -7,8 +7,12 @@
  *   (`CustomerOnboardingStartService.startOnboarding`) conserva su contrato HTTP y podrá delegar aquí
  *   cuando sus repositorios se envuelvan en el adaptador del puerto (siguiente incremento de AT-025).
  */
+import { hashPassword } from '../../../../common/utils/crypto/password.util.js';
+import { hashSensitiveText } from '../../../../common/utils/crypto/hash.util.js';
 import { ApplicationError } from '../../../../platform/contracts/application-error.js';
+import { systemClock } from '../../../../platform/di/clock.js';
 import type { Clock } from '../../../../platform/di/clock.js';
+import type { StartOnboardingDto } from '../../customer-onboarding.schemas.js';
 import type { OnboardingRegistrationPort, RegistrationResult } from '../ports/onboarding-registration.port.js';
 
 export interface RegistrationGuards {
@@ -33,6 +37,7 @@ export type StartOnboardingCommand = Readonly<{
   consents: readonly { consentDocumentId: string }[];
   sourceType: string;
   ipAddress: string | null;
+  registration: StartOnboardingDto;
 }>;
 
 export class StartOnboardingUseCase {
@@ -54,10 +59,13 @@ export class StartOnboardingUseCase {
     await this.guards.assertConsentDocumentsAreValid(command.tenantId, command.consents);
     const passwordHash = await this.passwords.hash(command.password);
 
-    // Persistencia compuesta: UNA llamada al puerto atómico.
+    // Persistencia compuesta: UNA llamada al puerto atómico. La contraseña en claro NO cruza el puerto.
+    const { password: _plain, ...registration } = command.registration;
+    void _plain;
     return this.registration.register({
       tenantId: command.tenantId,
       idempotencyKey: command.idempotencyKey,
+      registration,
       passwordHash,
       phoneHash,
       emailHash,
@@ -66,4 +74,12 @@ export class StartOnboardingUseCase {
       now: this.clock.now(),
     });
   }
+}
+
+/** Composición por defecto de la fachada (AT-025): Argon2 y hash de contactos reales, reloj del sistema. */
+export function buildStartOnboardingUseCase(
+  guards: RegistrationGuards,
+  register: OnboardingRegistrationPort['register'],
+): StartOnboardingUseCase {
+  return new StartOnboardingUseCase(guards, { register }, { hash: hashPassword }, { hash: hashSensitiveText }, systemClock);
 }
