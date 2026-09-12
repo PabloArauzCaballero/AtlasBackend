@@ -61,5 +61,7 @@ Si cambia cualquiera de estas precondiciones, este expediente se reemite; no se 
 - Bloqueo «directorio de destinatarios por HTTP» **resuelto**: contrato entre contextos con identidad de servicio
   (`pilot-readiness.json` → PASS). Siguen abiertos: configuración por capacidad, difusión interna sobre `iam`, autorización
   de despliegue, protocolo de carga, revisiones independientes.
+- Protocolo de carga: línea base LOCAL medida y registrada (`docs/testing/evidence/transition-performance-2026-09-12.json`);
+  la comparación monolito/piloto en staging por HTTP sigue pendiente.
 - Protección de rama en GitHub: verificada con `gh api …/branches/dev/protection` → **no protegida** (404). Configurarla es
   una decisión de quien administra el repositorio (cambia el flujo de push directo a `dev`).

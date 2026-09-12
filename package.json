@@ -84,6 +84,7 @@
     "stress:notifications": "tsx scripts/stress/notifications.stress.ts",
     "start:prod": "tsc -p tsconfig.json && node dist/src/main.js",
     "start:messaging": "node dist/src/messaging-worker.js",
+    "perf:transition": "tsx scripts/performance/transition-journey-bench.ts",
     "env:doctor": "tsx scripts/env-doctor.ts",
     "deploy:local": "tools/autodeploy/autodeploy.sh",
     "crypto:reencrypt-pii": "tsx scripts/reencrypt-pii-to-envelope.ts",
