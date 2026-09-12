@@ -536,7 +536,11 @@ services:
   # -------------------------------------------------------------------------------------------
   minio:
     <<: *common
-    image: minio/minio:RELEASE.2024-09-13T20-26-02Z
+    # quay.io y no Docker Hub: MinIO retiró `minio/minio` y `minio/mc` del Hub (su API responde
+    # «object not found» para el repositorio entero), así que cualquier `docker pull` termina en
+    # «pull access denied ... may require docker login» aunque la imagen sea pública. quay.io es el
+    # registro que MinIO mantiene, con EL MISMO tag fijado: mismo artefacto, distinto origen.
+    image: quay.io/minio/minio:RELEASE.2024-09-13T20-26-02Z
     command: server /data --console-address ":9001"
     environment:
       # `:?` para que un valor ausente pare el despliegue. No basta con declararlo: la variable
@@ -616,7 +620,8 @@ services:
   # intactas: root funcionaba, el backend no, y nadie se enteraba hasta que un cliente intentaba
   # subir su carnet. Ahora el despliegue no sale si la llave que usa el backend no puede escribir.
   minio-bucket:
-    image: minio/mc:RELEASE.2024-09-16T17-43-14Z
+    # Mismo motivo que `minio`: el Hub ya no sirve este repositorio (ver el comentario de arriba).
+    image: quay.io/minio/mc:RELEASE.2024-09-16T17-43-14Z
     environment:
       MINIO_ROOT_USER: '${MINIO_ROOT_USER:?}'
       MINIO_ROOT_PASSWORD: '${MINIO_ROOT_PASSWORD:?}'
