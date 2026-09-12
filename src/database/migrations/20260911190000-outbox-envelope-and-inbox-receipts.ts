@@ -42,6 +42,19 @@ export async function up({ context: queryInterface }: MigrationContext): Promise
   // mismo consumidor choca aquí; otro consumidor sí puede recibirlo.
   await sql.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_inbox_consumer_event ON ${INBOX} (consumer_id, event_id);`);
   await sql.query(`CREATE INDEX IF NOT EXISTS ix_inbox_event ON ${INBOX} (event_id);`);
+  // AT-053: si los roles por contexto (ops/postgres/context-roles.sql) ya existen, la tabla recién creada
+  // recibe los mismos grants que les dio el guion. Sin esto, un down→up de esta migración dejaba
+  // `inbox_receipts` sin permisos para los contextos hasta reejecutar el guion a mano.
+  await sql.query(`DO $$
+    DECLARE role_name text;
+    BEGIN
+      FOREACH role_name IN ARRAY ARRAY['atlas_ctx_messaging', 'atlas_ctx_credit', 'atlas_ctx_customer'] LOOP
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
+          EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON ${INBOX} TO %I', role_name);
+          EXECUTE format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA ${atlasSchemaFor('inbox_receipts')} TO %I', role_name);
+        END IF;
+      END LOOP;
+    END $$;`);
 }
 
 export async function down({ context: queryInterface }: MigrationContext): Promise<void> {

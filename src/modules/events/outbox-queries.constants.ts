@@ -88,6 +88,8 @@ export const RECLAIM_STUCK_EVENTS_SQL = `
         ELSE 'pending'
       END,
       locked_at = NULL,
+      -- AT-054: el testigo del relay muerto se anula; su cierre tardío ya no encuentra la fila (fencing del relay v2).
+      owner_token = NULL,
       locked_by = NULL,
       available_at = CASE
         WHEN COALESCE(event.attempts, 0) >= COALESCE(event.max_attempts, 3) THEN event.available_at

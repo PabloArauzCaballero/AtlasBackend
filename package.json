@@ -55,6 +55,8 @@
     "test:unit:randomized": "jest --config jest.config.cjs --testPathPatterns=test/unit --randomize",
     "test:e2e": "jest --config jest.config.cjs --testPathPatterns=test/e2e",
     "test:integration": "jest --config jest.integration.config.cjs --runInBand",
+    "test:architecture": "jest --config jest.config.cjs --testPathPatterns=test/architecture",
+    "test:contracts": "jest --config jest.config.cjs --testPathPatterns=test/contracts",
     "check:architecture": "tsx scripts/architecture/check-boundaries.ts",
     "test:watch": "jest --config jest.config.cjs --watch",
     "test:coverage": "jest --config jest.config.cjs --coverage",

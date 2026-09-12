@@ -135,6 +135,15 @@ jobs:
       - name: Unit tests (fast feedback, randomized order)
         run: yarn test:unit:randomized
 
+      # AT-055: las pruebas de arquitectura (fronteras, fugas de ORM en puertos, mapa de contextos) y
+      # las de contrato (puertos con doble y con adaptador real, seguridad entre límites) corren como
+      # grupos propios con su propio código de salida. Cero pruebas descubiertas = fallo (AT-050).
+      - name: Architecture tests (boundaries, public API leaks, context map)
+        run: yarn test:architecture
+
+      - name: Contract tests (ports, security boundaries, read contracts)
+        run: yarn test:contracts
+
       - name: Build
         run: yarn build
 

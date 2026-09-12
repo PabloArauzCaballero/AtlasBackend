@@ -44,6 +44,10 @@ const config = {
   // las corre `jest.integration.config.cjs` (`yarn test:integration`), nunca este corredor. Si se
   // pasa `--testPathIgnorePatterns` por CLI, este array se SUSTITUYE, no se amplía.
   testPathIgnorePatterns: ['/node_modules/', '/test/integration/'],
+  // AT-050: una selección (`--testPathPatterns`) que no descubre ninguna prueba es un error de
+  // selección, no un aprobado. Es el valor por defecto de Jest; se deja explícito para que nadie lo
+  // «arregle» con `--passWithNoTests` (test/integration/testing/required-database-gate.spec.ts lo vigila).
+  passWithNoTests: false,
 
   // El timeout es por prueba, no para la suite completa. La validación del 28-jul-2026 ejecutó 263
   // suites / 2.191 tests con cobertura; el proceso completo puede tardar varios minutos según I/O.
