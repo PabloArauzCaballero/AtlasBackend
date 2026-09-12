@@ -6,9 +6,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
-import { LoanOutcomeReportModel } from '../../database/models/index.js';
+import { LoanModel, LoanOutcomeReportModel } from '../../database/models/index.js';
 import { DecisionEngineClient } from './decision-engine.client.js';
-import { OutcomeObservationInput } from './decision-engine.types.js';
+import { FacilityOutcomeInput, FacilityRegistrationInput } from './decision-engine.types.js';
 
 /** Tras varios intentos fallidos se deja de reintentar solo y se pide mirada humana. */
 const MAX_ATTEMPTS = 6;
@@ -20,6 +20,7 @@ export class OutcomeDispatchService {
   constructor(
     private readonly client: DecisionEngineClient,
     @InjectModel(LoanOutcomeReportModel) private readonly reportModel: typeof LoanOutcomeReportModel,
+    @InjectModel(LoanModel) private readonly loanModel: typeof LoanModel,
   ) {}
 
   /**
@@ -51,8 +52,31 @@ export class OutcomeDispatchService {
 
     if (pending.length === 0) return { sent: 0, failed: 0, skipped: 0 };
 
-    const observations: OutcomeObservationInput[] = pending.map((report) => ({
-      executionId: report.decisionExecutionId,
+    /*
+     * El desenlace se manda identificado por el CRÉDITO, así que primero hay que traducir de
+     * `loanId` a `loanCode` — que es lo que el motor conoce como `externalReference`—.
+     *
+     * Un informe cuyo préstamo ya no exista, o que no traiga código, se SALTA en vez de tumbar el
+     * lote: es una fila huérfana y reintentarla eternamente sólo consigue que el lote nunca avance y
+     * que los desenlaces buenos se queden detrás de ella.
+     */
+    const loans = await this.loanModel.findAll({
+      where: { id: { [Op.in]: [...new Set(pending.map((report) => report.loanId))] } },
+    } as FindOptions);
+    const codigoPorPrestamo = new Map(loans.map((loan) => [String(loan.id), loan.loanCode]));
+
+    const enviables = pending.filter((report) => codigoPorPrestamo.has(String(report.loanId)));
+    const huerfanos = pending.filter((report) => !codigoPorPrestamo.has(String(report.loanId)));
+
+    const now = new Date();
+    await this.cerrarHuerfanos(huerfanos, now);
+
+    if (enviables.length === 0) {
+      return { sent: 0, failed: huerfanos.length, skipped: 0 };
+    }
+
+    const outcomes: FacilityOutcomeInput[] = enviables.map((report) => ({
+      externalReference: codigoPorPrestamo.get(String(report.loanId)) as string,
       windowDays: report.windowDays,
       label: report.label,
       amount: report.amount === null ? undefined : Number(report.amount),
@@ -60,29 +84,152 @@ export class OutcomeDispatchService {
       notes: report.notes ?? undefined,
     }));
 
-    const now = new Date();
     try {
-      await this.client.recordOutcomes(observations);
-      for (const report of pending) {
-        report.status = 'sent';
-        report.attempts += 1;
-        report.sentAt = now;
-        report.lastError = null;
-        report.updatedAtValue = now;
-        await report.save();
+      /*
+       * El ALTA del crédito va antes del desenlace, y en la misma pasada.
+       *
+       * `/v1/outcomes/batch` exige que el crédito exista en el motor: sin eso rechaza la fila con
+       * `FACILITY_NOT_FOUND`. El alta ocurre al desembolsar, pero puede haber fallado —el motor
+       * caído, o un préstamo anterior a la integración—, y entonces sus desenlaces no entrarían
+       * nunca y su ventana no se cerraría jamás. Reintentarla aquí es barato porque es idempotente
+       * en el motor (`upsert` por referencia, sin reasignar el sujeto), y convierte este barrido en
+       * la red que recupera lo que el desembolso no pudo dejar registrado.
+       */
+      await this.registrarCreditos(enviables, codigoPorPrestamo, loans);
+
+      const resultados = await this.client.recordFacilityOutcomes(outcomes);
+      const rechazos = new Map(
+        resultados.filter((row) => !row.accepted).map((row) => [`${row.externalReference}#${row.windowDays}`, row.reason]),
+      );
+
+      const { enviados, rechazadas } = await this.marcarPorFila(enviables, codigoPorPrestamo, rechazos, now);
+      const fallidos = rechazadas + huerfanos.length;
+      if (rechazadas > 0) {
+        this.logger.warn(
+          `El motor rechazó ${rechazadas} de ${enviables.length} desenlaces del lote; ` +
+            'el motivo queda en `last_error` de cada fila.',
+        );
       }
-      return { sent: pending.length, failed: 0, skipped: 0 };
+      return { sent: enviados, failed: fallidos, skipped: 0 };
     } catch (error) {
       const message = (error as Error).message ?? 'OUTCOME_DISPATCH_FAILED';
-      this.logger.error(`No se pudo entregar el lote de ${pending.length} desenlaces: ${message}`);
-      for (const report of pending) {
+      this.logger.error(`No se pudo entregar el lote de ${enviables.length} desenlaces: ${message}`);
+      for (const report of enviables) {
         report.status = 'failed';
         report.attempts += 1;
         report.lastError = message.slice(0, 2_000);
         report.updatedAtValue = now;
         await report.save();
       }
-      return { sent: 0, failed: pending.length, skipped: 0 };
+      return { sent: 0, failed: enviables.length + huerfanos.length, skipped: 0 };
+    }
+  }
+
+  /**
+   * Cierra los informes cuyo préstamo ya no existe, agotando sus reintentos.
+   *
+   * Se agota a propósito en vez de dejarlos reintentando: una fila huérfana no se arregla sola y
+   * reintentarla eternamente hace que el lote nunca avance, así que los desenlaces buenos se quedan
+   * detrás de ella. Aparecen en `listExhausted`, que es la cola que una persona sí mira.
+   */
+  private async cerrarHuerfanos(huerfanos: readonly LoanOutcomeReportModel[], now: Date): Promise<void> {
+    for (const report of huerfanos) {
+      report.status = 'failed';
+      report.attempts = MAX_ATTEMPTS;
+      report.lastError = 'LOAN_NOT_FOUND: el préstamo del informe ya no existe, no hay crédito al que atribuirlo.';
+      report.updatedAtValue = now;
+      await report.save();
+    }
+  }
+
+  /**
+   * Marca cada informe según lo que dijo el motor de SU fila.
+   *
+   * Fila a fila y no el lote entero: el motor devuelve el veredicto de cada desenlace justamente para
+   * que quien carga no tenga que reenviar el archivo completo por dos filas malas. Dar por enviado un
+   * lote con rechazos dentro perdería esos dos para siempre, porque su ventana ya pasó y no se
+   * vuelven a generar.
+   */
+  private async marcarPorFila(
+    enviables: readonly LoanOutcomeReportModel[],
+    codigoPorPrestamo: Map<string, string>,
+    rechazos: Map<string, string | null>,
+    now: Date,
+  ): Promise<{ enviados: number; rechazadas: number }> {
+    let enviados = 0;
+    let rechazadas = 0;
+    for (const report of enviables) {
+      const clave = `${codigoPorPrestamo.get(String(report.loanId))}#${report.windowDays}`;
+      const rechazo = rechazos.get(clave);
+      report.attempts += 1;
+      report.updatedAtValue = now;
+      if (rechazo === undefined) {
+        report.status = 'sent';
+        report.sentAt = now;
+        report.lastError = null;
+        enviados += 1;
+      } else {
+        report.status = 'failed';
+        report.lastError = String(rechazo).slice(0, 2_000);
+        rechazadas += 1;
+      }
+      await report.save();
+    }
+    return { enviados, rechazadas };
+  }
+
+  /**
+   * Da de alta en el motor los créditos de este lote que aún no lo estén.
+   *
+   * No se pregunta primero si están: el alta es un `upsert` idempotente y preguntar costaría una
+   * llamada por préstamo para ahorrar una que ya es barata. Los préstamos sin `decisionExecutionId`
+   * se omiten —el motor toma el sujeto de esa decisión y no se puede añadir después—, y sus
+   * desenlaces serán rechazados con su motivo, que es la respuesta honesta: ese crédito no se puede
+   * atribuir a nadie.
+   *
+   * Un fallo aquí NO detiene el envío: el motor puede tener ya registrados los créditos de una
+   * pasada anterior, y renunciar a entregar los desenlaces por no haber podido reconfirmar el alta
+   * dejaría la cobertura sin moverse por un problema que quizá no existe.
+   */
+  private async registrarCreditos(
+    reports: readonly LoanOutcomeReportModel[],
+    codigoPorPrestamo: Map<string, string>,
+    loans: readonly LoanModel[],
+  ): Promise<void> {
+    const porId = new Map(loans.map((loan) => [String(loan.id), loan]));
+    const vistos = new Set<string>();
+    const altas: FacilityRegistrationInput[] = [];
+    for (const report of reports) {
+      const loan = porId.get(String(report.loanId));
+      const codigo = codigoPorPrestamo.get(String(report.loanId));
+      if (!loan || !codigo || vistos.has(codigo)) continue;
+      if (!loan.decisionExecutionId) continue;
+      vistos.add(codigo);
+      altas.push({
+        externalReference: codigo,
+        originationExecutionId: loan.decisionExecutionId,
+        principalAmount: Number(loan.principalAmount),
+        currencyCode: loan.currencyCode,
+        termMonths: loan.termMonths,
+        annualRate: Number(loan.annualInterestRate),
+        ...(loan.disbursedAt ? { disbursedAt: loan.disbursedAt.toISOString() } : {}),
+      });
+    }
+    if (altas.length === 0) return;
+    try {
+      const veredictos = await this.client.registerFacilities(altas);
+      const rechazados = veredictos.filter((row) => !row.accepted);
+      if (rechazados.length > 0) {
+        this.logger.warn(
+          `El motor no aceptó el alta de ${rechazados.length} créditos: ` +
+            rechazados.map((row) => `${row.externalReference} (${row.reason ?? 'sin motivo'})`).join(', '),
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo reconfirmar el alta de ${altas.length} créditos en el motor: ${(error as Error).message}. ` +
+          'Se intenta entregar los desenlaces igualmente: puede que ya estuvieran registrados.',
+      );
     }
   }
 

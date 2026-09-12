@@ -118,3 +118,56 @@ export type OutcomeObservationInput = {
   source: string;
   notes?: string;
 };
+
+/**
+ * Un crédito concedido, tal como lo espera `POST /v1/outcomes/facilities`.
+ *
+ * `originationExecutionId` no es opcional y ésa es la restricción que manda: el motor toma de esa
+ * decisión el SUJETO, y la referencia del solicitante viaja en HMAC de una vía, así que no se puede
+ * añadir después. Un préstamo desembolsado sin decisión del motor —una carga manual, un crédito
+ * anterior a la integración— no se puede registrar, y el motor lo rechaza diciéndolo.
+ */
+export type FacilityRegistrationInput = {
+  externalReference: string;
+  originationExecutionId: string;
+  principalAmount: number;
+  currencyCode: string;
+  termMonths: number;
+  /** Tasa ANUAL en tanto por uno. `0,28`, no `28`. */
+  annualRate: number;
+  disbursedAt?: string;
+};
+
+/** El veredicto del motor para UN crédito del lote. */
+export type FacilityRegistrationOutcome = {
+  externalReference: string;
+  accepted: boolean;
+  /** Código del rechazo (`EXECUTION_NOT_FOUND`, `EXECUTION_WITHOUT_SUBJECT`…) o `null`. */
+  reason: string | null;
+};
+
+/**
+ * Un desenlace identificado por el CRÉDITO, que es el camino que cierra la ventana de observación.
+ */
+export type FacilityOutcomeInput = {
+  externalReference: string;
+  windowDays: number;
+  label: string;
+  amount?: number;
+  source: string;
+  /**
+   * Cómo se supo. `null`/ausente significa OBSERVADO, y no es un detalle: un desenlace inferido
+   * sobre un rechazado, contado junto a los observados, calibra el modelo contra la población que ya
+   * se aprobó y lo hace parecer perfecto.
+   */
+  inferenceMethod?: string;
+  notes?: string;
+};
+
+/** El veredicto del motor para UNA fila de desenlace. */
+export type FacilityOutcomeResult = {
+  externalReference: string;
+  windowDays: number;
+  accepted: boolean;
+  reason: string | null;
+};

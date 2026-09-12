@@ -7,7 +7,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { env } from '../../config/env.js';
 import { toAdapterError } from '../../common/resilience/adapter-error.js';
 import { ResilientAdapterExecutorService } from '../../common/resilience/resilient-adapter-executor.service.js';
-import { DecisionRequest, DecisionResponse, decisionResponseSchema, OutcomeObservationInput } from './decision-engine.types.js';
+import {
+  DecisionRequest,
+  DecisionResponse,
+  decisionResponseSchema,
+  FacilityOutcomeInput,
+  FacilityOutcomeResult,
+  FacilityRegistrationInput,
+  FacilityRegistrationOutcome,
+  OutcomeObservationInput,
+} from './decision-engine.types.js';
 
 const PROVIDER = 'atlas_decision_engine';
 
@@ -70,6 +79,74 @@ export class DecisionEngineClient {
     if (observations.length === 0) return;
     const url = `${this.baseUrl()}/v1/model-monitoring/outcomes`;
     await this.call(url, env.DECISION_ENGINE_OUTCOME_API_KEY ?? '', { observations });
+  }
+
+  /**
+   * Da de alta en el motor los créditos CONCEDIDOS, que es lo que ata un préstamo a la decisión
+   * que lo aprobó y programa sus ventanas de observación.
+   *
+   * ## Por qué faltaba y qué rompía
+   *
+   * El core cargaba desenlaces por `executionId` contra `/v1/model-monitoring/outcomes`, pero nunca
+   * daba de alta el CRÉDITO. Sin `credit_facility` el motor no tiene a qué atribuir el desenlace,
+   * así que su matriz de cosechas sale vacía y la cobertura de desenlaces cae a `BREACH`. Y el
+   * síntoma miente: el tablero enseña un motor que «no acierta» cuando lo que pasa es que nadie le
+   * contó qué se concedió.
+   *
+   * ## Dos cosas que este método NO hace, a propósito
+   *
+   * No lanza si el motor rechaza una fila: la respuesta trae el veredicto de CADA crédito, y un
+   * lote con una referencia mal formada no puede tumbar el alta de los otros veinte. Quien llama
+   * decide qué hacer con los rechazos.
+   *
+   * Y no se reintenta aquí para siempre: el alta es idempotente en el motor —`upsert` por
+   * `(tenant, externalReference)`, y reenviarla nunca reasigna el sujeto—, así que volver a
+   * mandarla en el barrido siguiente es seguro y es preferible a bloquear un desembolso.
+   */
+  async registerFacilities(facilities: readonly FacilityRegistrationInput[]): Promise<FacilityRegistrationOutcome[]> {
+    if (facilities.length === 0) return [];
+    const url = `${this.baseUrl()}/v1/outcomes/facilities`;
+    const raw = await this.call(url, env.DECISION_ENGINE_OUTCOME_API_KEY ?? '', { facilities });
+    const rows = (raw.json as { results?: unknown }).results;
+    if (!Array.isArray(rows)) return [];
+    return rows.map((row) => {
+      const entry = row as Record<string, unknown>;
+      return {
+        externalReference: String(entry.externalReference ?? ''),
+        accepted: entry.status === 'REGISTERED' || entry.accepted === true,
+        reason: entry.reason === undefined || entry.reason === null ? null : String(entry.reason),
+      };
+    });
+  }
+
+  /**
+   * Carga desenlaces identificados por el CRÉDITO, que es el único camino que CIERRA la ventana.
+   *
+   * `/v1/model-monitoring/outcomes` guarda la observación pero no toca
+   * `outcome_window_schedule`, así que la ventana sigue en la cola de pendientes para siempre y el
+   * denominador de la cobertura no se mueve: el motor queda con observaciones cargadas y
+   * reclamándolas a la vez. `/v1/outcomes/batch` escribe la observación **y** marca la ventana como
+   * observada, y es además la clave que el sistema de cobranza conoce de verdad —el préstamo, no el
+   * identificador interno de la ejecución que lo aprobó—.
+   *
+   * Devuelve el veredicto por fila porque un 200 con «1.998 aceptadas» deja sin saber cuáles fueron
+   * las dos que no, y la reacción natural a eso es reenviar el archivo entero.
+   */
+  async recordFacilityOutcomes(outcomes: readonly FacilityOutcomeInput[]): Promise<FacilityOutcomeResult[]> {
+    if (outcomes.length === 0) return [];
+    const url = `${this.baseUrl()}/v1/outcomes/batch`;
+    const raw = await this.call(url, env.DECISION_ENGINE_OUTCOME_API_KEY ?? '', { outcomes });
+    const rows = (raw.json as { results?: unknown }).results;
+    if (!Array.isArray(rows)) return [];
+    return rows.map((row) => {
+      const entry = row as Record<string, unknown>;
+      return {
+        externalReference: String(entry.externalReference ?? ''),
+        windowDays: Number(entry.windowDays ?? 0),
+        accepted: entry.status === 'RECORDED' || entry.accepted === true,
+        reason: entry.reason === undefined || entry.reason === null ? null : String(entry.reason),
+      };
+    });
   }
 
   /**

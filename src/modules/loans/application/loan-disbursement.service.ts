@@ -3,12 +3,13 @@
  * @business Esta pieza sostiene el ciclo del préstamo desembolsado con saldos reconstruibles.
  * @system convierte una solicitud aprobada en un préstamo con cronograma, dentro de una sola transacción.
  */
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { createStableCode, sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { CreditRepository } from '../../credit/credit.repository.js';
+import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
 import { addMonthsClamped, buildSchedule, toDateOnly } from '../domain/loan-schedule.js';
 import { fromCents, toCents } from '../domain/money.util.js';
 import { DisburseLoanDto } from '../loans.schemas.js';
@@ -19,9 +20,12 @@ const DISBURSABLE_APPLICATION_STATUS = 'approved';
 
 @Injectable()
 export class LoanDisbursementService {
+  private readonly logger = new Logger(LoanDisbursementService.name);
+
   constructor(
     private readonly loans: LoansRepository,
     private readonly credit: CreditRepository,
+    private readonly engine: DecisionEngineClient,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -45,7 +49,7 @@ export class LoanDisbursementService {
   }) {
     const idempotencyKeyHash = sha256Hex(input.idempotencyKey);
 
-    return this.sequelize.transaction(async (transaction) => {
+    const resultado = await this.sequelize.transaction(async (transaction) => {
       const application = await this.credit.findApplicationById(input.tenantId, input.applicationId, { transaction });
       if (!application) throw new NotFoundException('CREDIT_APPLICATION_NOT_FOUND');
       if (application.status !== DISBURSABLE_APPLICATION_STATUS) {
@@ -55,7 +59,14 @@ export class LoanDisbursementService {
       const existing = await this.loans.findLoanByApplication(input.tenantId, input.applicationId, { transaction });
       // Reintento del mismo desembolso: se devuelve el préstamo que ya existe en vez de crear otro.
       if (existing) {
-        if (existing.idempotencyKeyHash === idempotencyKeyHash) return this.describe(existing);
+        /*
+         * El reintento del mismo desembolso devuelve el préstamo que ya existe, y de paso vuelve a
+         * intentar su alta en el motor: si la primera vez el motor no estaba, este camino es la
+         * segunda oportunidad, y el alta es idempotente allí.
+         */
+        if (existing.idempotencyKeyHash === idempotencyKeyHash) {
+          return { descripcion: this.describe(existing), loan: existing, disbursedAt: existing.disbursedAt };
+        }
         throw new ConflictException('LOAN_ALREADY_DISBURSED');
       }
 
@@ -139,8 +150,93 @@ export class LoanDisbursementService {
         { transaction },
       );
 
-      return this.describe(loan);
+      return { descripcion: this.describe(loan), loan, disbursedAt: terms.disbursedAt };
     });
+
+    /*
+     * El alta del crédito en el motor va DESPUÉS de que la transacción haya cerrado, y fuera de
+     * ella: una llamada HTTP dentro de una transacción mantiene abiertos los cerrojos del préstamo y
+     * del cronograma mientras se espera a la red, y el motor tardando convierte un desembolso en una
+     * espera que bloquea a los demás.
+     */
+    await this.registrarEnElMotor(resultado.loan, resultado.disbursedAt);
+    return resultado.descripcion;
+  }
+
+  /**
+   * Cuenta al motor que este crédito se concedió, para que pueda medir si acertó al aprobarlo.
+   *
+   * ## Qué arregla
+   *
+   * El core cargaba desenlaces pero nunca daba de alta el CRÉDITO, así que el motor no tenía a qué
+   * atribuirlos: su matriz de cosechas salía vacía y la cobertura de desenlaces caía a `BREACH`. El
+   * tablero lo enseñaba como un motor que no acierta, cuando lo que pasaba es que nadie le contaba
+   * qué se había concedido.
+   *
+   * ## Por qué NO tumba el desembolso si falla
+   *
+   * Porque el dinero ya salió y la obligación ya existe: el préstamo y su cronograma están escritos
+   * y son la verdad. Que el motor no se entere hoy deja al motor sin medir, no al cliente sin
+   * crédito, y es recuperable —el alta es idempotente y el barrido de desenlaces la reintenta antes
+   * de mandar el primer desenlace de este préstamo—. Tirar aquí cambiaría un problema de
+   * sincronización por uno de servicio, y encima con la plata ya desembolsada.
+   *
+   * ## El caso sin decisión, que no es un error
+   *
+   * Un préstamo sin `decisionExecutionId` —carga manual, crédito anterior a la integración— NO se
+   * puede registrar: el motor toma el sujeto de esa decisión y la referencia del solicitante viaja
+   * en HMAC de una vía, así que no se puede añadir después. Se registra en el log como omisión
+   * explícita, no como fallo, para que no parezca una avería intermitente.
+   */
+  private async registrarEnElMotor(
+    loan: {
+      loanCode: string;
+      decisionExecutionId: string | null;
+      principalAmount: string;
+      currencyCode: string;
+      termMonths: number;
+      annualInterestRate: string;
+    },
+    disbursedAt: Date | null,
+  ): Promise<void> {
+    if (!this.engine.canReportOutcomes) return;
+    if (!loan.decisionExecutionId) {
+      this.logger.log(
+        `El préstamo ${loan.loanCode} no se registra en el motor: no lo originó ninguna decisión, ` +
+          'así que no hay solicitante al que atribuirle el desenlace.',
+      );
+      return;
+    }
+
+    try {
+      const [veredicto] = await this.engine.registerFacilities([
+        {
+          externalReference: loan.loanCode,
+          originationExecutionId: loan.decisionExecutionId,
+          principalAmount: Number(loan.principalAmount),
+          currencyCode: loan.currencyCode,
+          termMonths: loan.termMonths,
+          /*
+           * Tanto por uno, no porcentaje. La columna del libro guarda la tasa ANUAL ya en tanto por
+           * uno; mandarla como 28 en vez de 0,28 pasaría la validación del motor —no tiene techo
+           * para la tasa de un crédito— y multiplicaría por cien cualquier cálculo que la use.
+           */
+          annualRate: Number(loan.annualInterestRate),
+          ...(disbursedAt ? { disbursedAt: disbursedAt.toISOString() } : {}),
+        },
+      ]);
+      if (veredicto && !veredicto.accepted) {
+        this.logger.warn(
+          `El motor no aceptó el alta del préstamo ${loan.loanCode}: ${veredicto.reason ?? 'sin motivo declarado'}. ` +
+            'El barrido de desenlaces volverá a intentarlo.',
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo registrar el préstamo ${loan.loanCode} en el motor: ${(error as Error).message}. ` +
+          'El desembolso está completo; el alta se reintenta en el barrido de desenlaces.',
+      );
+    }
   }
 
   private describe(loan: { id: string; loanCode: string; status: string; maturityDate: string | null }) {
