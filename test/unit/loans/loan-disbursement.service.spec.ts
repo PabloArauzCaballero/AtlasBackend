@@ -307,7 +307,13 @@ describe('LoanDisbursementService', () => {
      */
     it('un motor caído NO tumba el desembolso', async () => {
       motor.canReportOutcomes = true;
-      motor.registerFacilities.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+      /*
+       * El rechazo se declara en la implementación y no con `mockRejectedValueOnce`: el doble está
+       * tipado como `jest.Mock` sin argumentos genéricos, así que `mockRejectedValueOnce(Error)`
+       * compila contra `never` y sólo lo detecta `type-check:tests` —que es un gate aparte porque
+       * `tsc -p tsconfig.json` NO mira `test/`—. La prueba pasaba en verde y el gate en rojo.
+       */
+      motor.registerFacilities.mockImplementationOnce(() => Promise.reject(new Error('ECONNREFUSED')));
 
       const resultado = await desembolsar();
 

@@ -105,10 +105,7 @@ export class OutcomeDispatchService {
       const { enviados, rechazadas } = await this.marcarPorFila(enviables, codigoPorPrestamo, rechazos, now);
       const fallidos = rechazadas + huerfanos.length;
       if (rechazadas > 0) {
-        this.logger.warn(
-          `El motor rechazó ${rechazadas} de ${enviables.length} desenlaces del lote; ` +
-            'el motivo queda en `last_error` de cada fila.',
-        );
+        this.logger.warn(`El motor rechazó ${rechazadas} de ${enviables.length} desenlaces; el motivo de cada uno queda en su last_error.`);
       }
       return { sent: enviados, failed: fallidos, skipped: 0 };
     } catch (error) {
