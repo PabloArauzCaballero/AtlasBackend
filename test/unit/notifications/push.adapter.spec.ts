@@ -162,3 +162,31 @@ describe('PushNotificationAdapter', () => {
     });
   });
 });
+
+/**
+ * Que NEST pueda construirlo, no sólo `new`.
+ *
+ * Esta prueba existe por una caída real en producción: el transporte de APNs entró como tercer
+ * parámetro del constructor y, aunque en TypeScript era opcional, Nest intentó resolverlo —un tipo
+ * función no es un proveedor— y el contenedor entero se quedó reiniciando con
+ * «can't resolve dependencies ... argument at index [2]». Las pruebas de arriba no lo vieron porque
+ * instancian la clase a mano, que es justo lo que el arranque real NO hace.
+ */
+describe('PushNotificationAdapter · construcción por Nest', () => {
+  it('el contenedor lo resuelve sin proveedor para el transporte de APNs', async () => {
+    const { Test } = await import('@nestjs/testing');
+    const { NotificationProviderConfigService } =
+      await import('../../../src/modules/notifications/adapters/notification-provider-config.service.js');
+    const { ResilientAdapterExecutorService } = await import('../../../src/common/resilience/resilient-adapter-executor.service.js');
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        PushNotificationAdapter,
+        { provide: NotificationProviderConfigService, useValue: { getPushProvider: () => 'disabled' } },
+        { provide: ResilientAdapterExecutorService, useValue: { run: jest.fn() } },
+      ],
+    }).compile();
+
+    expect(moduleRef.get(PushNotificationAdapter)).toBeInstanceOf(PushNotificationAdapter);
+  });
+});

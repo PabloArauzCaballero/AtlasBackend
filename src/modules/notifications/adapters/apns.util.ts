@@ -19,6 +19,9 @@ export type ApnsRequest = { token: string; headers: Record<string, string>; body
 export type ApnsResponse = { token: string; status: number; body: string };
 export type ApnsTransport = (host: string, requests: ApnsRequest[]) => Promise<ApnsResponse[]>;
 
+/** Token de inyección del transporte. Nest no puede inyectar un tipo función: necesita un símbolo. */
+export const APNS_TRANSPORT = Symbol('APNS_TRANSPORT');
+
 export const APNS_HOST_PRODUCTION = 'api.push.apple.com';
 export const APNS_HOST_SANDBOX = 'api.sandbox.push.apple.com';
 

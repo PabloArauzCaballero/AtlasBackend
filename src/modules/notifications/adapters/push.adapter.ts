@@ -3,7 +3,7 @@
  * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
  * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
  */
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { createSign } from 'node:crypto';
 import { env } from '../../../config/env.js';
 import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';
@@ -12,7 +12,7 @@ import { failedDelivery, getAllDeliveryTargets, postJson, sentDelivery } from '.
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
 import { NotificationProviderConfigService } from './notification-provider-config.service.js';
 import { base64Url } from '../../../common/utils/crypto/encoding.util.js';
-import { ApnsTransport, sendApns } from './apns.util.js';
+import { APNS_TRANSPORT, ApnsTransport, sendApns } from './apns.util.js';
 
 function normalizePrivateKey(raw: string): string {
   return raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;
@@ -58,8 +58,14 @@ export class PushNotificationAdapter implements NotificationChannelAdapter {
   constructor(
     private readonly config: NotificationProviderConfigService,
     private readonly executor: ResilientAdapterExecutorService,
-    /** Puerto del transporte HTTP/2 de APNs; las pruebas inyectan uno falso. Ver `apns.util.ts`. */
-    private readonly apnsTransport?: ApnsTransport,
+    /**
+     * Puerto del transporte HTTP/2 de APNs; las pruebas inyectan uno falso. Ver `apns.util.ts`.
+     *
+     * Necesita `@Optional()` y un TOKEN: un parámetro cuyo tipo es una función no es un proveedor, y
+     * Nest intentaba resolverlo igual —`can't resolve dependencies ... argument at index [2]`— y
+     * tumbaba el arranque del contenedor entero. Que sea opcional en TypeScript no basta.
+     */
+    @Optional() @Inject(APNS_TRANSPORT) private readonly apnsTransport?: ApnsTransport,
   ) {}
 
   getProviderName(): string {
