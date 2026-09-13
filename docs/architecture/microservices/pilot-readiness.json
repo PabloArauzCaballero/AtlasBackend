@@ -68,9 +68,14 @@
       "detail": "AT-060 ensayado contra PostgreSQL: test/integration/messaging/rollback-after-writes.spec.ts (transferencia inversa por época; lo que el piloto escribió sobrevive, lo entregado no se repite, el piloto queda cercado). Límite declarado: con base propia del piloto haría falta sincronización inversa, no ensayada."
     },
     {
-      "id": "pilot-running-in-environment",
+      "id": "pilot-deployed-and-fenced",
+      "status": "PASS",
+      "detail": "Desplegado en dev el 2026-09-13: contenedor `messaging-worker` Up (healthy) con identidad `atlas_ctx_messaging` verificada al arrancar, registrando `OWNERSHIP_FENCED messaging: dueño monolith (época 1)` cada 5 s y con CERO eventos reclamados (`locked_by like 'messaging-worker%'` = 0). Requirió dos correcciones que sólo aparecieron al desplegarlo: los roles de contexto no tenían SELECT sobre `context_ownership`, y el cross-check exigía el planificador a un proceso que no lo compone."
+    },
+    {
+      "id": "relay-v2-enabled-in-monolith",
       "status": "PENDING",
-      "detail": "Comprobado en dev el 2026-09-12 y NO cumplido: (1) el worker del piloto no está desplegado —ningún contenedor `messaging-worker` y el servicio ni figura en docker-compose.coolify.yml—; (2) `EVENTS_RELAY_V2_ENABLED` no está definida en el worker del monolito, así que el relay que consulta `context_ownership` está apagado. Transferir la propiedad en este estado dejaría el registro nombrando dueño a un proceso inexistente, con el cercado inactivo. Verificar con: `docker ps | grep messaging-worker` y `printenv EVENTS_RELAY_V2_ENABLED` dentro del worker."
+      "detail": "`EVENTS_RELAY_V2_ENABLED` sigue apagada en el worker del monolito, y el relay v2 es el único que consulta `context_ownership`: sin ella el corte no tendría efecto. BLOQUEO ANTES DE ENCENDERLA: el relay v2 excluye `aggregate_type='api_command'` (outbox-claim.sql.ts) y no está aclarado quién drena hoy esos eventos técnicos —se escriben `pending` (runtime-hardening.service.ts), el reclamo v1 filtra por códigos del catálogo y los suyos son dinámicos, y `listPendingOutbox`/`markOutboxProcessed` no los llama nadie en `src`—. En dev los 4.705 existentes están `processed` y no hay ninguno pendiente, así que el camino real no se ha podido observar. Encender la bandera sin resolverlo arriesga acumular telemetría sin drenar."
     },
     {
       "id": "deployment-authorization",
