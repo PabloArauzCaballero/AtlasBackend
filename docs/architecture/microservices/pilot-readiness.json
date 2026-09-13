@@ -40,7 +40,8 @@
     {
       "id": "cutover-rehearsed",
       "status": "PASS",
-      "evidence": "test/integration/messaging/single-writer-cutover.spec.ts"
+      "evidence": "test/integration/messaging/single-writer-cutover.spec.ts",
+      "detail": "Ensayado en PRUEBAS (test/integration/messaging/single-writer-cutover.spec.ts) y, el 2026-09-13, de punta a punta EN DEV con los dos procesos vivos: el monolito entregó como dueño, la transferencia condicionada invirtió los papeles en caliente, el piloto entregó con recibo de inbox y la reversión devolvió la propiedad; una transferencia con la época vieja no hizo nada. Evidencia: docs/testing/evidence/pilot-cutover-2026-09-13.md"
     },
     {
       "id": "recipient-directory-over-http",
@@ -74,8 +75,8 @@
     },
     {
       "id": "relay-v2-enabled-in-monolith",
-      "status": "PENDING",
-      "detail": "`EVENTS_RELAY_V2_ENABLED` sigue apagada en el worker del monolito, y el relay v2 es el único que consulta `context_ownership`: sin ella el corte no tendría efecto. BLOQUEO ANTES DE ENCENDERLA: el relay v2 excluye `aggregate_type='api_command'` (outbox-claim.sql.ts) y no está aclarado quién drena hoy esos eventos técnicos —se escriben `pending` (runtime-hardening.service.ts), el reclamo v1 filtra por códigos del catálogo y los suyos son dinámicos, y `listPendingOutbox`/`markOutboxProcessed` no los llama nadie en `src`—. En dev los 4.705 existentes están `processed` y no hay ninguno pendiente, así que el camino real no se ha podido observar. Encender la bandera sin resolverlo arriesga acumular telemetría sin drenar."
+      "status": "PASS",
+      "detail": "Encendida en dev el 2026-09-13 y observada: el job `process_events` drenó un evento de dominio con el relay v2 (`selected: 1, processed: 1, failed: 0`). Reparto verificado: `process_events` se ocupa de los eventos del catálogo y `process_outbox` de los técnicos `api_command` por exclusión; ambos corren. Falta encenderla en cualquier otro entorno antes de cortar allí."
     },
     {
       "id": "deployment-authorization",
