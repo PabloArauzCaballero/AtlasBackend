@@ -85,20 +85,38 @@ x-common: &common
 # la imagen ya construida — que además es lo correcto: dos builds del mismo Dockerfile son dos
 # oportunidades de divergir.
 #
-# `pull_policy: build` en los DOS anclas: Coolify 4.3.19 añadió una fase previa al corte
-# («Pulling image-based services before stopping the current deployment») que ejecuta
-# `docker compose pull` sobre todos los servicios. `atlas-backend:coolify` es un tag LOCAL que se
-# construye aquí mismo, así que ese pull terminaba en `pull access denied for atlas-backend,
-# repository does not exist` y abortaba el despliegue entero —con la imagen ya construida y el
-# contenedor anterior intacto—. Con esta política, compose sabe que esa imagen se obtiene del
-# `build` y no del registro; las imágenes de verdad externas (redis, minio) se siguen bajando.
+# ## La política de pull: `never` en quien reutiliza, NINGUNA en quien construye
+#
+# Coolify 4.3.19 añadió una fase previa al corte («Pulling image-based services before stopping the
+# current deployment») que ejecuta `docker compose pull --ignore-buildable`. `--ignore-buildable`
+# salta a `migrate`, que declara `build:`, pero `api` y los workers sólo declaran `image:`, y Compose
+# los toma por imágenes de registro: `atlas-backend:coolify` es un tag LOCAL, el pull acababa en
+# `pull access denied` y abortaba el despliegue entero con el contenedor anterior sirviendo.
+#
+# Aquí estuvo `pull_policy: build` en los DOS anclas, y eso arreglaba el pull pero rompía otra cosa
+# sin dar ningún error: `build` significa «construye en cada `up`». Coolify ya ha construido la
+# imagen ANTES de parar nada, así que el `up -d` la construía por SEGUNDA vez — y lo hacía después de
+# haber parado el API. Medido en el despliegue del 2026-09-13 a las 03:56: 33 s de reconstrucción
+# con el API ya caído, dentro de una ventana total de 77 s en la que la app móvil y el portal
+# devolvían 500.
+#
+# La combinación correcta, comprobada en el host con un compose de prueba que repite la secuencia
+# de Coolify (`build` → `pull --ignore-buildable` → `up -d`):
+#
+#   migrate (build:)       sin política   → el pull lo salta y `up` reutiliza lo ya construido
+#   api / workers (image:) `never`        → el pull no sale al registro
+#
+#   con `build` en los dos:               pull OK · `up` RECONSTRUYE
+#   sin política en los dos:              pull FALLA (pull access denied)
+#
+# Para comprobarlo sin desplegar: `docker compose -f docker-compose.coolify.yml up -d` no debe
+# imprimir `Image atlas-backend:coolify Building` si la imagen ya existe.
 x-image: &image
   image: atlas-backend:coolify
-  pull_policy: build
+  pull_policy: never
 
 x-build: &build
   image: atlas-backend:coolify
-  pull_policy: build
   build:
     context: .
     dockerfile: Dockerfile.dev
@@ -391,11 +409,16 @@ services:
     command:
       ['redis-server', '--appendonly', 'yes', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru']
     volumes: ['redis-data:/data']
+    # `start_interval`: mientras dura `start_period`, la sonda corre cada segundo en vez de cada 10.
+    # `api` y los workers esperan a `service_healthy`, y un Redis que responde al segundo 1 se daba
+    # por sano en el 10 — medido: 10 s de API caído en cada despliegue esperando sólo esto.
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 30s
+      start_interval: 1s
 
   # Job de UN SOLO DISPARO: migra y siembra. `migrate up` es idempotente —aplica sólo lo que
   # falta— así que corre en cada despliegue sin coste.
@@ -649,11 +672,14 @@ services:
     # bucket detrás, y publicarla por el túnel la dejaría a un formulario de distancia de todo.
     ports: ['127.0.0.1:9001:9001']
     volumes: ['minio-data:/data']
+    # Mismo motivo que en `atlas-redis`: la sonda rápida sólo mientras arranca.
     healthcheck:
       test: ['CMD', 'mc', 'ready', 'local']
       interval: 10s
       timeout: 5s
       retries: 20
+      start_period: 60s
+      start_interval: 1s
 
   # Job de UN SOLO DISPARO: prepara el bucket y COMPRUEBA que el backend puede escribir en él.
   #
