@@ -378,6 +378,7 @@ jobs:
           psql -h localhost -U atlas -d atlas \
             -v core_schema=public -v read_schema=read_api \
             -f ops/postgres/grants.sql
+          psql -h localhost -U atlas -d atlas -f ops/postgres/ci-owner-default-privileges.sql
           psql -h localhost -U atlas -d atlas \
             -v core_schema=public -v read_schema=read_api \
             -f ops/postgres/verify-privileges.sql
@@ -392,8 +393,12 @@ jobs:
           # privilegios (el runtime no puede hacer DDL) y lo que se parece al despliegue real.
           DB_USER: atlas_app_rw
           DB_PASSWORD: ci_app_rw_pw
-          DB_MIGRATION_USER: atlas_migrator
-          DB_MIGRATION_PASSWORD: ci_migrator_pw
+          # El migrador de las pruebas es quien DE VERDAD es dueño de los objetos en este job: `atlas`,
+          # que aplicó las migraciones en el paso anterior. `atlas_migrator` actúa como `atlas_owner`,
+          # que aquí no posee nada: no podía leer `SequelizeMeta` ni hacer DDL, y AT-023/AT-053/AT-058
+          # fallaban en `beforeAll` dejando conexiones abiertas (el job se colgaba horas).
+          DB_MIGRATION_USER: atlas
+          DB_MIGRATION_PASSWORD: atlas
           ATLAS_TEST_CTX_PASSWORD: ci-ctx-password
           # Guarda de aislamiento (test/support/isolated-database.guard.ts): la base del job se
           # autoriza por nombre porque es desechable; sin estas dos variables la suite se niega a abrir.
