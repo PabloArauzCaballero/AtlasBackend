@@ -12,6 +12,7 @@ import { failedDelivery, getAllDeliveryTargets, postJson, sentDelivery } from '.
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
 import { NotificationProviderConfigService } from './notification-provider-config.service.js';
 import { base64Url } from '../../../common/utils/crypto/encoding.util.js';
+import { ApnsTransport, sendApns } from './apns.util.js';
 
 function normalizePrivateKey(raw: string): string {
   return raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;
@@ -57,6 +58,8 @@ export class PushNotificationAdapter implements NotificationChannelAdapter {
   constructor(
     private readonly config: NotificationProviderConfigService,
     private readonly executor: ResilientAdapterExecutorService,
+    /** Puerto del transporte HTTP/2 de APNs; las pruebas inyectan uno falso. Ver `apns.util.ts`. */
+    private readonly apnsTransport?: ApnsTransport,
   ) {}
 
   getProviderName(): string {
@@ -78,13 +81,34 @@ export class PushNotificationAdapter implements NotificationChannelAdapter {
     if (provider !== 'fcm') return failedDelivery(provider, 'UNSUPPORTED_PUSH_PROVIDER', `Proveedor push no soportado: ${provider}`);
     const tokens = getAllDeliveryTargets(message, 'fcm_token');
     if (tokens.length === 0) return failedDelivery('fcm', 'MISSING_FCM_TOKENS', 'No hay tokens FCM activos para el destinatario.');
+
+    /*
+      Los iPhone van por APNs, y no es una preferencia: un token de iOS lo emite Apple y FCM sólo
+      acepta los suyos, así que mandarlo ahí lo rechaza SIEMPRE. Hasta que la plataforma viajó en
+      `metadata` no había forma de separarlos, y los avisos a iPhone fallaban uno a uno sin que el
+      motivo dijera nada de iOS.
+    */
+    const iosTokens = tokens.filter((token) => this.isIosToken(message, token));
+    const fcmTokens = tokens.filter((token) => !iosTokens.includes(token));
+    const ios = iosTokens.length > 0 ? await this.sendToApple(message, iosTokens) : null;
+    if (fcmTokens.length === 0) return ios ?? failedDelivery('fcm', 'MISSING_FCM_TOKENS', 'No hay tokens activos.');
+    if (ios && ios.status === 'failed') return ios;
+    return this.sendToFirebase(message, fcmTokens, ios);
+  }
+
+  /** El camino de Android: OAuth con la cuenta de servicio y un envío por token. */
+  private async sendToFirebase(
+    message: NotificationMessagePayload,
+    fcmTokens: string[],
+    ios: DeliveryResult | null,
+  ): Promise<DeliveryResult> {
     const projectId = this.config.require(env.FCM_PROJECT_ID, 'FCM_PROJECT_ID_MISSING');
     const clientEmail = this.config.require(env.FCM_CLIENT_EMAIL, 'FCM_CLIENT_EMAIL_MISSING');
     const privateKey = this.config.require(env.FCM_PRIVATE_KEY, 'FCM_PRIVATE_KEY_MISSING');
     const accessToken = await getGoogleAccessToken({ clientEmail, privateKey, executor: this.executor });
     const responses: Record<string, unknown>[] = [];
     let firstMessageId: string | null = null;
-    for (const token of tokens) {
+    for (const token of fcmTokens) {
       const data: Record<string, string> = {
         notificationMessageId: message.id,
         channel: 'push',
@@ -99,15 +123,61 @@ export class PushNotificationAdapter implements NotificationChannelAdapter {
         'fcm',
         `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
         { authorization: `Bearer ${accessToken}` },
-        {
-          message: fcmMessage,
-        },
+        { message: fcmMessage },
       );
       responses.push({ ok: response.ok, status: response.status, body: response.json });
       if (!response.ok) return failedDelivery('fcm', 'FCM_SEND_FAILED', `FCM respondió HTTP ${response.status}.`, { responses });
       if (!firstMessageId && typeof response.json.name === 'string') firstMessageId = response.json.name;
     }
-    return sentDelivery('fcm', firstMessageId ?? message.id, { count: tokens.length, responses });
+    return sentDelivery('fcm', firstMessageId ?? message.id, {
+      count: fcmTokens.length,
+      responses,
+      ...(ios ? { apns: ios.response } : {}),
+    });
+  }
+
+  /** La plataforma la declara el dispositivo al registrarse y viaja en `metadata` del destinatario. */
+  private isIosToken(message: NotificationMessagePayload, token: string): boolean {
+    const target = (message.deliveryTargets ?? []).find((candidate) => candidate.kind === 'fcm_token' && candidate.address === token);
+    return String(target?.metadata?.platform ?? '').toLowerCase() === 'ios';
+  }
+
+  /**
+   * Entrega a los iPhone.
+   *
+   * Sin credenciales de Apple NO se cae al camino de FCM: ahí el token se rechazaría igual y el error
+   * hablaría de Firebase. Se dice lo que pasa —falta configuración de APNs— para que se arregle donde
+   * toca.
+   */
+  private async sendToApple(message: NotificationMessagePayload, tokens: string[]): Promise<DeliveryResult> {
+    const credentials = this.config.getApnsCredentials();
+    if (!credentials.ok) {
+      return failedDelivery('apns', 'APNS_NOT_CONFIGURED', `Falta ${credentials.missing} para entregar a iPhone.`, {
+        tokens: tokens.length,
+      });
+    }
+    const result = await sendApns({
+      credentials: credentials.value,
+      tokens,
+      title: message.title ?? 'ATLAS',
+      body: message.body,
+      data: {
+        notificationMessageId: message.id,
+        channel: 'push',
+        ...(message.correlationId ? { correlationId: message.correlationId } : {}),
+      },
+      visible: env.NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION,
+      transport: this.apnsTransport,
+    });
+    /*
+      Un 410 no se cuenta como fallo: Apple dice que ese dispositivo desinstaló la app. Queda en la
+      respuesta de la entrega —con los últimos cuatro caracteres del token, nunca el token— para que
+      se pueda dar de baja; darlo de baja aquí exigiría meterle el repositorio al adaptador.
+    */
+    const response = { count: tokens.length, unregistered: result.unregistered.length, responses: result.responses };
+    return result.ok
+      ? sentDelivery('apns', message.id, response)
+      : failedDelivery('apns', 'APNS_SEND_FAILED', 'APNs rechazó al menos un envío.', response);
   }
 
   private async sendWebhook(message: NotificationMessagePayload): Promise<DeliveryResult> {

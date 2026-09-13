@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { generateKeyPairSync } from 'node:crypto';
 import { PushNotificationAdapter } from '../../../src/modules/notifications/adapters/push.adapter.js';
+import { ApnsRequest, resetApnsTokenCache } from '../../../src/modules/notifications/adapters/apns.util.js';
 
 /**
  * `PushNotificationAdapter.send`: ramas de guarda (disabled / proveedor no soportado / webhook sin url
@@ -85,5 +86,79 @@ describe('PushNotificationAdapter', () => {
     (executor.run as jest.Mock).mockRejectedValueOnce(new Error('token boom') as never);
     const adapter = new PushNotificationAdapter(config as never, executor as never);
     await expect(adapter.send(msg())).rejects.toThrow(/FCM_TOKEN_FAILED/);
+  });
+
+  describe('iPhone (APNs)', () => {
+    const { privateKey } = generateKeyPairSync('ec', {
+      namedCurve: 'P-256',
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+
+    const { privateKey: privateKeyRsa } = generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    const credenciales = {
+      ok: true as const,
+      value: { keyId: 'KID1', teamId: 'TEAM1', privateKey, bundleId: 'bo.atlas.consumer', production: true },
+    };
+
+    const mensaje = (targets: Array<{ address: string; platform: string }>) =>
+      ({
+        id: 'm1',
+        channel: 'push',
+        title: 'T',
+        body: 'b',
+        payload: {},
+        deliveryTargets: targets.map((t) => ({ kind: 'fcm_token', address: t.address, metadata: { platform: t.platform } })),
+      }) as never;
+
+    it('sin credenciales de Apple lo dice, en vez de mandarlo a FCM y culpar a Firebase', async () => {
+      const config = {
+        getPushProvider: () => 'fcm',
+        require: () => 'val',
+        getWebhookUrl: () => null,
+        getApnsCredentials: () => ({ ok: false, missing: 'APNS_KEY_ID' }),
+      };
+      const adapter = new PushNotificationAdapter(config as never, { run: jest.fn() } as never);
+
+      const resultado = await adapter.send(mensaje([{ address: 'ios-1', platform: 'ios' }]));
+
+      expect(resultado).toMatchObject({ status: 'failed', provider: 'apns', errorCode: 'APNS_NOT_CONFIGURED' });
+    });
+
+    it('manda el iPhone por APNs y el Android por FCM en el mismo mensaje', async () => {
+      resetApnsTokenCache();
+      const capturado: ApnsRequest[] = [];
+      const transporte = async (_host: string, requests: ApnsRequest[]) => {
+        capturado.push(...requests);
+        return requests.map((r) => ({ token: r.token, status: 200, body: '' }));
+      };
+      const config = {
+        getPushProvider: () => 'fcm',
+        require: (_v: unknown, code: string) => (code === 'FCM_PRIVATE_KEY_MISSING' ? privateKeyRsa : 'val'),
+        getWebhookUrl: () => null,
+        getApnsCredentials: () => credenciales,
+      };
+      const executor = { run: jest.fn() };
+      (executor.run as jest.Mock)
+        .mockResolvedValueOnce({ status: 200, json: { access_token: 'oauth' } } as never)
+        .mockResolvedValueOnce({ status: 200, json: { name: 'projects/x/messages/1' } } as never);
+      const adapter = new PushNotificationAdapter(config as never, executor as never, transporte);
+
+      const resultado = await adapter.send(
+        mensaje([
+          { address: 'ios-1', platform: 'ios' },
+          { address: 'android-1', platform: 'android' },
+        ]),
+      );
+
+      expect(resultado.status).toBe('sent');
+      // Al iPhone sólo el suyo: un token de Apple mandado a FCM se rechaza siempre.
+      expect(capturado.map((r) => r.token)).toEqual(['ios-1']);
+      expect(resultado.response).toMatchObject({ count: 1, apns: { count: 1 } });
+    });
   });
 });

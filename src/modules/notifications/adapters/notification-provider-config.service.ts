@@ -17,6 +17,10 @@ export type GmailCredentials = { clientId: string; clientSecret: string; refresh
 /** Unión discriminada en vez de excepción: el adaptador de Gmail nunca lanza desde `send`. */
 export type GmailCredentialsResult = { ok: true; value: GmailCredentials } | { ok: false; missing: string };
 
+/** Credenciales de APNs: la llave `.p8` de App Store Connect, su identificador y el del equipo. */
+export type ApnsCredentials = { keyId: string; teamId: string; privateKey: string; bundleId: string; production: boolean };
+export type ApnsCredentialsResult = { ok: true; value: ApnsCredentials } | { ok: false; missing: string };
+
 /**
  * Nota de robustez: la validación fail-fast de "proveedor activo sin sus credenciales" para los
  * 5 canales de este servicio YA existe — vive en `src/config/env.ts` (`requireWhen`/
@@ -48,6 +52,38 @@ export class NotificationProviderConfigService {
 
   getPhoneProvider(): PhoneProvider {
     return env.NOTIFICATION_PHONE_PROVIDER;
+  }
+
+  /**
+   * Credenciales de APNs, o qué falta.
+   *
+   * Va aquí y no leyendo `env` desde el adaptador por la misma razón que las de Gmail: `env` se
+   * resuelve UNA vez al importar el módulo, así que un adaptador que lo lea directo no se puede
+   * ejercitar con otra configuración sin recargar módulos.
+   */
+  getApnsCredentials(): ApnsCredentialsResult {
+    const faltante = this.firstMissing({
+      APNS_KEY_ID: env.APNS_KEY_ID,
+      APNS_TEAM_ID: env.APNS_TEAM_ID,
+      APNS_PRIVATE_KEY: env.APNS_PRIVATE_KEY,
+      APNS_BUNDLE_ID: env.APNS_BUNDLE_ID,
+    });
+    if (faltante) return { ok: false, missing: faltante };
+    return {
+      ok: true,
+      value: {
+        keyId: env.APNS_KEY_ID as string,
+        teamId: env.APNS_TEAM_ID as string,
+        privateKey: env.APNS_PRIVATE_KEY as string,
+        bundleId: env.APNS_BUNDLE_ID as string,
+        production: env.APNS_ENVIRONMENT === 'production',
+      },
+    };
+  }
+
+  private firstMissing(values: Record<string, string | undefined>): string | null {
+    for (const [name, value] of Object.entries(values)) if (!value) return name;
+    return null;
   }
 
   getWebhookUrl(channel?: NotificationChannel): string | undefined {

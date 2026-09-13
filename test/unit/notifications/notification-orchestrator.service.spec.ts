@@ -59,7 +59,7 @@ describe('NotificationOrchestratorService', () => {
         payloadJson: {},
         correlationId: null,
       })),
-      getActiveDeviceTokenSecrets: jest.fn(async (..._args: unknown[]) => []),
+      getActivePushDevices: jest.fn(async (..._args: unknown[]) => []),
       getCustomerContactTargets: jest.fn(async (..._args: unknown[]) => []),
       getMessageDeliveryTargets: jest.fn(async (..._args: unknown[]) => []),
       markMessageSending: jest.fn(async (..._args: unknown[]) => undefined),
@@ -411,7 +411,7 @@ describe('NotificationOrchestratorService', () => {
 
       await service.deliverMessage('msg-1');
 
-      expect(repository.getActiveDeviceTokenSecrets).not.toHaveBeenCalled();
+      expect(repository.getActivePushDevices).not.toHaveBeenCalled();
     });
 
     it('fetches FCM device tokens when channel is push and recipientType is customer', async () => {
@@ -419,13 +419,21 @@ describe('NotificationOrchestratorService', () => {
       (repository.getMessageForDelivery as jest.Mock).mockResolvedValueOnce(
         fakeMessage({ channel: 'push', recipientType: 'customer' }) as never,
       );
-      (repository.getActiveDeviceTokenSecrets as jest.Mock).mockResolvedValueOnce(['token-a', 'token-b'] as never);
+      (repository.getActivePushDevices as jest.Mock).mockResolvedValueOnce([
+        { token: 'token-a', platform: 'android' },
+        { token: 'token-b', platform: 'ios' },
+      ] as never);
 
       await service.deliverMessage('msg-1');
 
-      expect(repository.getActiveDeviceTokenSecrets).toHaveBeenCalledWith('t1', 'c1');
-      const sentPayload = (adapters.pushAdapter.send as jest.Mock).mock.calls[0][0] as { deliveryTargets: Array<{ kind: string }> };
-      expect(sentPayload.deliveryTargets.filter((t) => t.kind === 'fcm_token')).toHaveLength(2);
+      expect(repository.getActivePushDevices).toHaveBeenCalledWith('t1', 'c1');
+      const sentPayload = (adapters.pushAdapter.send as jest.Mock).mock.calls[0][0] as {
+        deliveryTargets: Array<{ kind: string; metadata?: { platform?: string } }>;
+      };
+      const push = sentPayload.deliveryTargets.filter((t) => t.kind === 'fcm_token');
+      expect(push).toHaveLength(2);
+      // Sin la plataforma, el adaptador no puede separar iPhone de Android.
+      expect(push.map((t) => t.metadata?.platform)).toEqual(['android', 'ios']);
     });
 
     it('records a successful delivery result from the adapter', async () => {

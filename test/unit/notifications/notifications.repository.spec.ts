@@ -250,12 +250,22 @@ describe('NotificationsRepository — núcleo', () => {
     });
   });
 
-  it('getActiveDeviceTokenSecrets descifra y deduplica los tokens activos', async () => {
+  it('getActivePushDevices descifra, deduplica y CONSERVA la plataforma', async () => {
+    // La plataforma es lo que decide si el aviso sale por APNs o por FCM: perderla dejaba sin avisos
+    // a todos los iPhone, porque su token lo emite Apple y Firebase siempre lo rechaza.
     const { repo, deviceTokenModel } = build();
     const enc = await encryptSecretEnvelope('device-token-xyz');
-    (deviceTokenModel.findAll as jest.Mock).mockResolvedValueOnce([{ tokenEncrypted: enc }, { tokenEncrypted: enc }] as never);
-    expect(await repo.getActiveDeviceTokenSecrets('t1', 'c1')).toEqual(['device-token-xyz']);
-    expect(await repo.getActiveDeviceTokenSecrets(null, 'c1')).toEqual([]);
+    const otro = await encryptSecretEnvelope('token-de-iphone');
+    (deviceTokenModel.findAll as jest.Mock).mockResolvedValueOnce([
+      { tokenEncrypted: enc, platform: 'android' },
+      { tokenEncrypted: enc, platform: 'android' },
+      { tokenEncrypted: otro, platform: 'ios' },
+    ] as never);
+    expect(await repo.getActivePushDevices('t1', 'c1')).toEqual([
+      { token: 'device-token-xyz', platform: 'android' },
+      { token: 'token-de-iphone', platform: 'ios' },
+    ]);
+    expect(await repo.getActivePushDevices(null, 'c1')).toEqual([]);
   });
 
   it('deactivateDeviceToken lanza NotFound o desactiva y guarda', async () => {

@@ -18,6 +18,7 @@ import { erpEnvShape } from './env.erp.schema.js';
 import { observabilityEnvShape } from './env.observability.schema.js';
 import { filesEnvShape } from './env.files.schema.js';
 import { runtimeJobsEnvShape } from './env.runtime-jobs.schema.js';
+import { pushProviderEnvShape } from './env.push.schema.js';
 
 export const DEFAULT_JWT_SECRET = 'dev-only-atlas-access-token-secret-change-me';
 export const DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY = 'change-this-32-plus-character-key-for-device-tokens';
@@ -244,9 +245,7 @@ export const envBaseSchema = z.object({
    * La direccion sigue siendo la del buzon configurado; esto solo pone el nombre delante.
    */
   GMAIL_FROM_NAME: z.string().trim().max(80).default('ATLAS'),
-  FCM_PROJECT_ID: z.string().optional(),
-  FCM_CLIENT_EMAIL: z.string().optional(),
-  FCM_PRIVATE_KEY: z.string().optional(),
+  ...pushProviderEnvShape,
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_SMS_FROM: z.string().optional(),

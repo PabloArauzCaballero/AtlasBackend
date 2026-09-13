@@ -32,7 +32,14 @@ import {
   UpdateTemplateDto,
   UpsertDeviceTokenDto,
 } from './notifications.schemas.js';
-import { DeliveryResult, DeliveryTarget, NotificationChannel, NotificationMessagePayload, RecipientType } from './notification-types.js';
+import {
+  PushDevice,
+  DeliveryResult,
+  DeliveryTarget,
+  NotificationChannel,
+  NotificationMessagePayload,
+  RecipientType,
+} from './notification-types.js';
 import { buildEncryptedDeliveryTargets, decryptDeliveryTargets } from './notification-delivery-targets.util.js';
 
 // Tamaño de lote para insertar mensajes de broadcast. Un único bulkCreate con decenas de miles de
@@ -476,11 +483,25 @@ export class NotificationsRepository {
     return legacyCustomerContactTargets(this.contactMethodModel, tenantId, customerId, channel);
   }
 
-  async getActiveDeviceTokenSecrets(tenantId: string | null, customerId: string): Promise<string[]> {
+  /**
+   * Los dispositivos activos, CON su plataforma.
+   *
+   * Antes devolvía sólo los tokens, y esa pérdida hacía imposible entregar a un iPhone: un token de
+   * iOS lo emite Apple y hay que mandarlo a APNs, mientras que uno de Android lo emite Firebase. Sin
+   * la plataforma, todos acababan en FCM y los de iPhone se rechazaban siempre.
+   */
+  async getActivePushDevices(tenantId: string | null, customerId: string): Promise<PushDevice[]> {
     if (!tenantId) return [];
     const rows = await this.deviceTokenModel.findAll({ where: { tenantId, customerId, isActive: true } });
-    const decrypted = await Promise.all(rows.map((row) => decryptSecretEnvelope(row.tokenEncrypted)));
-    return Array.from(new Set(decrypted.filter((token): token is string => Boolean(token))));
+    const devices = await Promise.all(
+      rows.map(async (row) => ({ token: await decryptSecretEnvelope(row.tokenEncrypted), platform: row.platform })),
+    );
+    const seen = new Set<string>();
+    return devices.filter((device): device is PushDevice => {
+      if (!device.token || seen.has(device.token)) return false;
+      seen.add(device.token);
+      return true;
+    });
   }
 
   async deactivateDeviceToken(tenantId: string, customerId: string, deviceTokenId: string): Promise<DeviceTokenModel> {
