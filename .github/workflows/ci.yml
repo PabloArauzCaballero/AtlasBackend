@@ -455,6 +455,16 @@ jobs:
           APP_PORT: '3005'
           API_PREFIX: api/v1
           DATABASE_SEED_ON_STARTUP: 'false'
+          # El runner no tiene MinIO, y `FILE_STORAGE_ADAPTER` vale `minio` por defecto: sin estas dos
+          # variables el proceso muere en `FileAdapterRegistry.onModuleInit` —«le falta configuración»—
+          # y el paso no llega nunca a comprobar lo que vino a comprobar. Se elige `local` de forma
+          # EXPLÍCITA, que es justo lo que pide el mensaje de ese arranque fallido.
+          #
+          # Este paso no ejercita subidas de archivos; sólo resuelve el árbol y pide /health. Que en
+          # local pase sin declararlas es un espejismo del `.env` del repositorio, que sí trae las
+          # `STORAGE_S3_*`: CI no tiene `.env` y por eso es CI quien dice la verdad.
+          FILE_STORAGE_ADAPTER: local
+          FILE_STORAGE_LOCAL_ROOT: ${{ runner.temp }}/atlas-files
         run: |
           set -uo pipefail
           node dist/src/main.js > arranque.log 2>&1 &
