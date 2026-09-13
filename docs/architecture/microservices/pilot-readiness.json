@@ -68,6 +68,11 @@
       "detail": "AT-060 ensayado contra PostgreSQL: test/integration/messaging/rollback-after-writes.spec.ts (transferencia inversa por época; lo que el piloto escribió sobrevive, lo entregado no se repite, el piloto queda cercado). Límite declarado: con base propia del piloto haría falta sincronización inversa, no ensayada."
     },
     {
+      "id": "pilot-running-in-environment",
+      "status": "PENDING",
+      "detail": "Comprobado en dev el 2026-09-12 y NO cumplido: (1) el worker del piloto no está desplegado —ningún contenedor `messaging-worker` y el servicio ni figura en docker-compose.coolify.yml—; (2) `EVENTS_RELAY_V2_ENABLED` no está definida en el worker del monolito, así que el relay que consulta `context_ownership` está apagado. Transferir la propiedad en este estado dejaría el registro nombrando dueño a un proceso inexistente, con el cercado inactivo. Verificar con: `docker ps | grep messaging-worker` y `printenv EVENTS_RELAY_V2_ENABLED` dentro del worker."
+    },
+    {
       "id": "deployment-authorization",
       "status": "PENDING",
       "detail": "responsables, autorización y criterio de cancelación no acordados"
