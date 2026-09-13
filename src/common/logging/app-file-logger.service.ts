@@ -27,6 +27,9 @@ function stringifyMessage(message: unknown): string {
 
 type LogLevel = 'log' | 'error' | 'warn' | 'debug' | 'verbose' | 'fatal';
 
+/** Ventana mínima entre avisos de escritura fallida: sin freno, un fallo permanente los emite por línea. */
+const WRITE_WARNING_INTERVAL_MS = 60_000;
+
 /**
  * `ArchivoLogMongoSyncService` (`src/modules/log-sync/log-sync.service.ts`) sincroniza el
  * contenido de `LOG_SYNC_FILE_PATH` (default `Archivo.log`) hacia MongoDB, pero nada en el
@@ -58,6 +61,19 @@ export class AppFileLogger extends ConsoleLogger {
   private writeQueue: Promise<void> = Promise.resolve();
   /** Bytes escritos desde el último arranque o rotación. Evita un `stat` por línea. */
   private bytesSinceRotation: number | null = null;
+  /**
+   * Freno del aviso cuando el archivo no se puede escribir.
+   *
+   * Se SIGUE intentando escribir —un fallo puede ser transitorio (disco lleno, permisos que alguien
+   * corrige) y `ArchivoLogMongoSyncService` depende de ese archivo—, pero el aviso no se repite por
+   * cada línea. Un despliegue con `LOG_SYNC_FILE_PATH` relativo (el default `Archivo.log` cae en
+   * `/app`, propiedad de root, mientras el proceso corre como `node`) emitía un `EACCES` a stderr
+   * POR CADA LÍNEA: se encontró un contenedor con 62.848 fallos encadenados, ruido que ahoga los
+   * logs de verdad. Ahora: el primero se avisa, y luego como mucho uno por minuto, diciendo cuántos
+   * se silenciaron. Ninguna línea se pierde: la consola es el canal principal y las recibe todas.
+   */
+  private writeFailuresSinceWarning = 0;
+  private lastWriteWarningAt = 0;
 
   private buildLine(level: LogLevel, context: string | undefined, message: unknown, extra?: string): string {
     // Scrubber de PII/secretos antes de emitir: la línea acaba en stdout y en Archivo.log, y de ahí
@@ -115,8 +131,23 @@ export class AppFileLogger extends ConsoleLogger {
     this.writeQueue = this.writeQueue
       .then(() => this.rotateIfTooLarge(bytes))
       .then(() => appendFile(this.filePath, line, 'utf8'))
+      .then(() => {
+        this.writeFailuresSinceWarning = 0;
+      })
       .catch((error: unknown) => {
-        process.stderr.write(`[AppFileLogger] No se pudo escribir en ${this.filePath}: ${String(error)}\n`);
+        this.writeFailuresSinceWarning += 1;
+        const now = Date.now();
+        if (this.lastWriteWarningAt !== 0 && now - this.lastWriteWarningAt < WRITE_WARNING_INTERVAL_MS) return;
+        const silenciados = this.writeFailuresSinceWarning - 1;
+        this.lastWriteWarningAt = now;
+        this.writeFailuresSinceWarning = 0;
+        process.stderr.write(
+          `[AppFileLogger] No se pudo escribir en ${this.filePath}: ${String(error)}. ` +
+            (silenciados > 0 ? `Otros ${silenciados} fallos silenciados desde el aviso anterior. ` : '') +
+            'Se sigue intentando y la consola recibe todas las líneas. ' +
+            'Revisa LOG_SYNC_FILE_PATH: debe ser una ruta ABSOLUTA en un directorio con permiso de escritura ' +
+            '(en la imagen, /app/logs).\n',
+        );
       });
   }
 

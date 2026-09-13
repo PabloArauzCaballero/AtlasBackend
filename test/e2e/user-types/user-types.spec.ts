@@ -46,6 +46,12 @@ describe('tipos de usuario — cadena de guards real (e2e/supertest)', () => {
 
   beforeAll(async () => {
     app = await buildUserTypesTestApp();
+    // Un ÚNICO servidor escuchando para toda la suite. Sin esto, supertest levanta uno efímero por
+    // CADA petición —y aquí se hacen cientos—: con los workers de jest en paralelo, dos procesos
+    // acaban reutilizando el mismo puerto recién liberado y la respuesta llega al cliente
+    // equivocado. El síntoma es un fallo intermitente con `Parse Error: Expected HTTP/, RTSP/ o
+    // ICE/` en un rol distinto cada vez, que en serie o en aislamiento nunca aparece.
+    await app.listen(0, '127.0.0.1');
   });
 
   afterAll(async () => {

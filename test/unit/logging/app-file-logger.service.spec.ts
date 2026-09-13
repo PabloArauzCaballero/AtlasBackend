@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AppFileLogger } from '../../../src/common/logging/app-file-logger.service.js';
@@ -251,14 +251,36 @@ describe('AppFileLogger', () => {
       expect(espia).not.toHaveBeenCalled();
     });
 
-    it('el proceso sigue vivo y las líneas siguientes se siguen intentando', async () => {
+    it('el proceso sigue vivo, se sigue intentando, y el aviso NO se repite por cada línea', async () => {
       poner({ LOG_SYNC_FILE_PATH: join(carpeta, 'no', 'existe', 'Archivo.log') });
       const logger = new AppFileLogger();
 
       logger.log('una');
       logger.log('dos');
       await expect(drenar(logger)).resolves.toBeUndefined();
-      expect(errores.filter((linea) => linea.includes('No se pudo escribir'))).toHaveLength(2);
+      // Antes se emitía un aviso POR LÍNEA: un fallo permanente llenaba stderr (se vio un contenedor
+      // con 62.848). Ahora se avisa del primero y el resto se cuenta, sin dejar de intentar la escritura.
+      expect(errores.filter((linea) => linea.includes('No se pudo escribir'))).toHaveLength(1);
+      expect(errores.join('')).toContain('Se sigue intentando');
+    });
+
+    it('si el destino vuelve a ser escribible, las líneas siguientes SÍ se escriben', async () => {
+      const destino = join(carpeta, 'recuperado');
+      poner({ LOG_SYNC_FILE_PATH: join(destino, 'Archivo.log') });
+      const logger = new AppFileLogger();
+
+      logger.log('se pierde: el directorio aún no existe');
+      await drenar(logger);
+      expect(errores.join('')).toContain('No se pudo escribir');
+
+      // El fallo puede ser transitorio (permisos que alguien corrige, disco que se libera): el logger
+      // no se rinde, así que en cuanto el destino existe la siguiente línea aterriza.
+      await mkdir(destino, { recursive: true });
+      logger.log('esta sí aterriza');
+      await drenar(logger);
+
+      const contenido = await readFile(join(destino, 'Archivo.log'), 'utf8');
+      expect(contenido).toContain('esta sí aterriza');
     });
   });
 });
