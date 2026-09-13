@@ -47,6 +47,22 @@ describe('perfil de capacidad messaging', () => {
     expect(paths).toContain('NOTIFICATION_TOKEN_ENCRYPTION_KEY');
   });
 
+  it('el worker del piloto no necesita el planificador: no compone RuntimeJobsModule', () => {
+    // Sin la bandera, un worker normal falla; el del piloto arranca, porque su trabajo de fondo es el
+    // bucle del relay. Exigírsela sería declarar activo un planificador que ese proceso no tiene.
+    const sinPlanificador = { ...pilot } as Record<string, unknown>;
+    delete sinPlanificador.RUNTIME_JOBS_SCHEDULER_ENABLED;
+    expect(failedPaths(sinPlanificador)).toEqual([]);
+    // El worker del monolito, en cambio, sigue obligado a declararlo.
+    const workerNormal = {
+      ...production,
+      JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-produccion-suficientemente-largo',
+      REDIS_URL: 'redis://cache:6379',
+    } as Record<string, unknown>;
+    delete workerNormal.RUNTIME_JOBS_SCHEDULER_ENABLED;
+    expect(failedPaths(workerNormal)).toContain('RUNTIME_JOBS_SCHEDULER_ENABLED');
+  });
+
   it('la API no puede arrancar con el perfil messaging', () => {
     const paths = failedPaths({
       ...pilot,

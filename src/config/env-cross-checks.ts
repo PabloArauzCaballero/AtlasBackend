@@ -173,7 +173,12 @@ function checkProcessRole(data: RawAppEnv, ctx: z.RefinementCtx): void {
   // fallan en silencio, que es peor. Un worker con el planificador apagado arranca, se declara sano
   // y no ejecuta absolutamente nada; una API con el planificador encendido hace creer que los jobs
   // corren cuando el gate de rol los desactiva. Ver docs/architecture/background-processing.md.
-  if (data.APP_ROLE === 'worker' && !data.RUNTIME_JOBS_SCHEDULER_ENABLED) {
+  // El worker del piloto (perfil `messaging`) es la excepción y por una razón concreta: NO compone
+  // `RuntimeJobsModule`, así que el planificador no existe en ese proceso. Su trabajo de fondo es el
+  // bucle del relay (`MessagingRelayLoopService`), que arranca solo. Exigirle la bandera obligaría a
+  // declarar como activo un planificador inexistente —justo la mentira que esta regla combate— y, de
+  // hecho, dejó el contenedor del piloto en crash-loop en su primer despliegue.
+  if (data.APP_ROLE === 'worker' && data.ATLAS_CAPABILITY_PROFILE !== 'messaging' && !data.RUNTIME_JOBS_SCHEDULER_ENABLED) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['RUNTIME_JOBS_SCHEDULER_ENABLED'],
