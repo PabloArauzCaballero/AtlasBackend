@@ -55,6 +55,13 @@ BEGIN
     -- Outbox/inbox/idempotencia son infraestructura compartida mientras se comparte base (AT-022).
     EXECUTE format('GRANT USAGE ON SCHEMA platform_ops TO %I', ctx.role_name);
     EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON platform_ops.outbox_events, platform_ops.inbox_receipts, platform_ops.idempotency_keys TO %I', ctx.role_name);
+    -- `context_ownership` es de SÓLO LECTURA para los contextos: cada proceso consulta si sigue siendo
+    -- el dueño antes de reclamar trabajo (AT-059), pero la transferencia la ejecuta el dueño de la base
+    -- siguiendo el runbook de corte, nunca un contexto. Sin este SELECT el worker del piloto no puede
+    -- ni saber que está cercado: falla con «permission denied» en cada tick (visto al desplegarlo).
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'platform_ops' AND tablename = 'context_ownership') THEN
+      EXECUTE format('GRANT SELECT ON platform_ops.context_ownership TO %I', ctx.role_name);
+    END IF;
     EXECUTE format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA platform_ops TO %I', ctx.role_name);
   END LOOP;
 END $$;

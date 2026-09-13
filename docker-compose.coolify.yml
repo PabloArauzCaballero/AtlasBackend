@@ -512,6 +512,48 @@ services:
           memory: 768m
 
   # -------------------------------------------------------------------------------------------
+  # Piloto de extracción de Mensajería (AT-057). Arranca CERCADO y no toca nada.
+  #
+  # Este proceso no reparte trabajo por el hecho de existir: antes de reclamar un evento consulta
+  # `platform_ops.context_ownership`, y mientras esa fila diga `monolith` se limita a latir y a
+  # registrar `OWNERSHIP_FENCED`. Quien decide el corte es una persona siguiendo
+  # `docs/runbooks/messaging-single-writer-cutover.md`; desplegarlo no es cortar.
+  #
+  # Su identidad de base es SUYA: `atlas_ctx_messaging`, que PostgreSQL limita a los schemas
+  # `messaging` y `platform_ops` (Crédito y Clientes le responden «permission denied», probado).
+  # `ATLAS_CAPABILITY_PROFILE=messaging` relaja lo que no usa —secreto de sesiones, Redis— y el
+  # entrypoint aborta si alguien lo arranca con otro rol.
+  #
+  # Si `MESSAGING_DB_PASSWORD` no está definida en el entorno de Coolify, el servicio NO arranca y
+  # el despliegue falla: es deliberado —un piloto que corre con la identidad del monolito no es un
+  # piloto—, y por eso la variable se declara obligatoria aquí en vez de caer a un valor por defecto.
+  messaging-worker:
+    networks:
+      default: {}
+      coolify: {}
+    init: true
+    <<: [*common, *image]
+    environment:
+      <<: *atlas-env
+      APP_ROLE: worker
+      ATLAS_CAPABILITY_PROFILE: messaging
+      WORKER_PROBE_PORT: '3007'
+      NOTIFICATIONS_DELIVERY_MODE: deferred
+      MESSAGING_DB_USER: atlas_ctx_messaging
+      MESSAGING_DB_PASSWORD: ${MESSAGING_DB_PASSWORD:?Define MESSAGING_DB_PASSWORD con la credencial del rol atlas_ctx_messaging}
+      MESSAGING_RELAY_INTERVAL_MS: '5000'
+    depends_on:
+      atlas-redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    volumes: ['messaging-worker-logs:/app/logs']
+    command: ['node', 'dist/src/messaging-worker.js']
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # -------------------------------------------------------------------------------------------
   # MinIO: el ÚNICO sitio donde los archivos de Atlas sobreviven a un despliegue.
   #
   # Aquí acaban la cara del cliente, las dos caras de su carnet, los extractos y todo lo que
@@ -659,6 +701,7 @@ volumes:
   minio-data:
   api-logs:
   worker-logs:
+  messaging-worker-logs:
 
 # ---------------------------------------------------------------------------------------------
 # La red COMPARTIDA de Coolify, y por qué no se publican puertos del host.
