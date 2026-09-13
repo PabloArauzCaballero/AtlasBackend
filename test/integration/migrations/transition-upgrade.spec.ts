@@ -25,6 +25,7 @@ const TRANSITION_MIGRATIONS = [
   '20260911180000-idempotency-keys-owner-token.ts',
   '20260911190000-outbox-envelope-and-inbox-receipts.ts',
   '20260912100000-context-ownership.ts',
+  '20260912160000-context-ownership-grants.ts',
 ];
 
 let database: IntegrationDatabase | null = null;

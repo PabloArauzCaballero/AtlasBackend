@@ -361,12 +361,39 @@ jobs:
       # pida el salto con `ATLAS_GATES_ALLOW_SKIP=true`, que CI no pide.
       # AT-019: roles runtime por contexto, aplicados con el superusuario del job; la suite de
       # integración conecta como atlas_ctx_messaging y mide lo que PostgreSQL deniega.
+      # Los roles del cluster se crean ANTES de las pruebas, no después. Las suites de AT-004/AT-019/AT-023
+      # comprueban que el runtime NO puede hacer DDL: con el superusuario del contenedor (`atlas`) no hay
+      # nada que medir y fallaban. Con `atlas_app_rw` el entorno de CI se parece al real y la comprobación
+      # significa algo. `atlas_owner` también existe ya aquí, así que el guion por contexto puede declarar
+      # sus privilegios por defecto en vez de avisar de que falta.
+      - name: Bootstrap PostgreSQL roles and grants
+        env:
+          PGPASSWORD: atlas
+        run: |
+          psql -h localhost -U atlas -d atlas \
+            -v atlas_migrator_password=ci_migrator_pw \
+            -v atlas_app_rw_password=ci_app_rw_pw \
+            -v atlas_app_ro_password=ci_app_ro_pw \
+            -f ops/postgres/bootstrap-roles.sql
+          psql -h localhost -U atlas -d atlas \
+            -v core_schema=public -v read_schema=read_api \
+            -f ops/postgres/grants.sql
+          psql -h localhost -U atlas -d atlas \
+            -v core_schema=public -v read_schema=read_api \
+            -f ops/postgres/verify-privileges.sql
+
       - name: Apply per-context database roles
         run: PGPASSWORD=atlas psql -h localhost -U atlas -d atlas -v DBNAME=atlas -v ctx_password=ci-ctx-password -f ops/postgres/context-roles.sql
 
       - name: Integration tests against real Postgres
         run: yarn test:integration
         env:
+          # Identidad de RUNTIME, no el superusuario del contenedor: es lo que prueban las suites de
+          # privilegios (el runtime no puede hacer DDL) y lo que se parece al despliegue real.
+          DB_USER: atlas_app_rw
+          DB_PASSWORD: ci_app_rw_pw
+          DB_MIGRATION_USER: atlas_migrator
+          DB_MIGRATION_PASSWORD: ci_migrator_pw
           ATLAS_TEST_CTX_PASSWORD: ci-ctx-password
           # Guarda de aislamiento (test/support/isolated-database.guard.ts): la base del job se
           # autoriza por nombre porque es desechable; sin estas dos variables la suite se niega a abrir.
@@ -389,22 +416,6 @@ jobs:
 
       # Fase 2: crear la jerarquía de roles y grants contra el Postgres real, y verificar la matriz
       # de privilegios conectando como atlas_app_rw y atlas_app_ro (no destructivo).
-      - name: Bootstrap PostgreSQL roles and grants
-        env:
-          PGPASSWORD: atlas
-        run: |
-          psql -h localhost -U atlas -d atlas \
-            -v atlas_migrator_password=ci_migrator_pw \
-            -v atlas_app_rw_password=ci_app_rw_pw \
-            -v atlas_app_ro_password=ci_app_ro_pw \
-            -f ops/postgres/bootstrap-roles.sql
-          psql -h localhost -U atlas -d atlas \
-            -v core_schema=public -v read_schema=read_api \
-            -f ops/postgres/grants.sql
-          psql -h localhost -U atlas -d atlas \
-            -v core_schema=public -v read_schema=read_api \
-            -f ops/postgres/verify-privileges.sql
-
       - name: Verify DB privilege matrix (as app_rw / app_ro)
         env:
           DB_USER: atlas_app_rw

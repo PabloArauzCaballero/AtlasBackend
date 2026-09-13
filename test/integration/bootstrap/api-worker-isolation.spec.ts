@@ -10,6 +10,7 @@
  */
 import { afterAll, describe, expect, it } from '@jest/globals';
 import type { TestingModule } from '@nestjs/testing';
+import { REDIS_CLIENT } from '../../../src/common/redis/redis.module.js';
 import 'reflect-metadata';
 import { ApiModule } from '../../../src/bootstrap/api.module.js';
 import { WORKER_EXCLUDED_MODULES, WorkerModule } from '../../../src/bootstrap/worker.module.js';
@@ -17,10 +18,28 @@ import { AppModule } from '../../../src/app.module.js';
 import { integrationSkipRequested } from '../support/database.js';
 import { requireIsolatedDatabase } from '../../support/isolated-database.guard.js';
 
+/**
+ * Cierra el módulo y, además, desconecta el cliente de Redis a mano.
+ *
+ * `close()` dispara los hooks y `RedisLifecycleService` hace `quit()`, pero si el cliente nunca llegó a
+ * conectar (entorno sin Redis) ioredis se queda REINTENTANDO: el proceso no termina, jest avisa con
+ * «Jest did not exit» y en CI el job se queda colgado hasta el timeout. `disconnect()` corta esos
+ * reintentos sin esperar respuesta del servidor.
+ */
+async function closeModuleAndRedis(moduleRef: TestingModule | null): Promise<void> {
+  if (!moduleRef) return;
+  const redis = moduleRef.get<{ disconnect?: () => void } | null>(REDIS_CLIENT, { strict: false });
+  // El orden importa: PRIMERO se corta Redis. `RedisLifecycleService` hace `quit()` al cerrar, y `quit()`
+  // sobre un cliente que nunca llegó a conectar se queda encolado esperando conexión, así que el propio
+  // `close()` no resolvía nunca: jest se quedaba colgado y en CI el job moría por timeout a las horas.
+  redis?.disconnect?.();
+  await moduleRef.close().catch(() => undefined);
+}
+
 let booted: TestingModule | null = null;
 
 afterAll(async () => {
-  await booted?.close();
+  await closeModuleAndRedis(booted);
 });
 
 function moduleNames(module: unknown): string[] {
@@ -84,12 +103,14 @@ describe('raíces API y worker (AT-045)', () => {
     for (const excluded of WORKER_EXCLUDED_MODULES) expect([...appNames]).toContain(excluded);
   });
 
-  it('`WorkerModule` ARRANCA de verdad: Nest resuelve todos sus proveedores contra PostgreSQL', async () => {
+  it('Nest resuelve la raíz ENTERA del worker: ningún proveedor sin registrar', async () => {
     if (integrationSkipRequested()) return;
     requireIsolatedDatabase();
     const { Test } = await import('@nestjs/testing');
+    // `compile()` instancia todos los proveedores del grafo —que es lo que descubre un token sin
+    // registrar— sin ejecutar `init()`: arrancar los efectos (Redis, temporizadores, sondas) dejaba el
+    // proceso vivo y colgaba jest. Lo que hacen esos efectos lo cubren sus pruebas unitarias.
     booted = await Test.createTestingModule({ imports: [WorkerModule] }).compile();
-    await booted.init();
     const { SystemsHealthMonitorService } = await import('../../../src/modules/systems-ops/systems-health-monitor.service.js');
     expect(booted.get(SystemsHealthMonitorService, { strict: false })).toBeDefined();
   }, 60_000);
