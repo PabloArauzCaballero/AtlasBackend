@@ -57,8 +57,22 @@ SELECT
   (SELECT _id FROM credit.credit_products WHERE product_code LIKE 'DEMO-%' ORDER BY _id LIMIT 1 OFFSET (g % 3)),
   (1000 + ((g * 3571) % 40000))::numeric,
   12, 'BOB', 'approved', 'policy_pass',
-  (date_trunc('month', now()) - ((g % 12) || ' months')::interval)::timestamptz,
-  (date_trunc('month', now()) - ((g % 12) || ' months')::interval - interval '3 days')::timestamptz,
+  /*
+   * Las cohortes al día 15 y no al día 1.
+   *
+   * La solicitud se envía unos días ANTES de decidirse, así que con la cohorte en el día 1 el envío
+   * caía en el mes anterior: la vista de conversión agrupa por envío y la ejecutiva por desembolso,
+   * y el mes en curso salía con una sola solicitud mientras la cartera enseñaba 35 créditos. No era
+   * un error de las vistas —cada una agrupa por lo que le toca—, era un sembrado que ponía las dos
+   * fechas a caballo del corte.
+   *
+   * Y acotado con `LEAST(..., ahora)`: el día 15 del mes EN CURSO todavía no ha llegado si hoy es
+   * 12, y una cohorte fechada en el futuro no la cuenta ninguna vista — el mes actual salía vacío.
+   */
+  LEAST(date_trunc('month', now()) - ((g % 12) || ' months')::interval + interval '14 days',
+        now() - interval '1 day')::timestamptz,
+  LEAST(date_trunc('month', now()) - ((g % 12) || ' months')::interval + interval '11 days',
+        now() - interval '4 days')::timestamptz,
   ((g * 7919) % 1000),
   CASE WHEN ((g * 7919) % 1000) >= 750 THEN 'A' WHEN ((g * 7919) % 1000) >= 550 THEN 'B'
        WHEN ((g * 7919) % 1000) >= 350 THEN 'C' ELSE 'D' END
@@ -104,13 +118,71 @@ SELECT
   CASE WHEN mora > 180 THEN round(a.requested_amount * 0.6, 2) ELSE NULL END,
   CASE WHEN mora > 180 THEN 'incobrable' ELSE NULL END
 FROM (
+  SELECT b.*,
+         GREATEST(0, (
+           CASE
+             -- Castigados: los peores de las cosechas viejas. Pocos, y sólo donde el tiempo da para
+             -- llegar a 180 días — sin ellos «cartera castigada» no tendría nada que medir.
+             WHEN b.antiguedad >= 9 AND b.sorteo_cae < 3 THEN 190 + (b.sorteo_dias % 40)
+             /*
+              * Por encima del umbral, al día. El umbral sube con la ANTIGÜEDAD —un crédito recién
+              * desembolsado no ha tenido ocasión de caer— y con el score malo, que es donde esas dos
+              * variables mandan de verdad.
+              */
+             WHEN b.sorteo_cae >= (1.5 + b.antiguedad * 0.4 + ((1000 - b.decision_score) / 100.0) * 0.7)
+               THEN 0
+             /*
+              * Y la profundidad DECAE: 55 / 23 / 13 / 9. La mayoría del que se atrasa cura en el
+              * primer tramo y sólo una fracción pasa al siguiente; una cartera con más créditos en
+              * 60-89 que en 1-29 no existe.
+              */
+             WHEN b.sorteo_dias < 55 THEN 5 + (b.sorteo_dias % 25)
+             WHEN b.sorteo_dias < 78 THEN 31 + (b.sorteo_dias % 29)
+             WHEN b.sorteo_dias < 91 THEN 61 + (b.sorteo_dias % 29)
+             ELSE 91 + (b.sorteo_dias % 60)
+           END
+         ))::int AS mora
+    FROM (
   SELECT ap.*,
          substring(ap.application_code from 8)::int AS n,
          (substring(ap.application_code from 8)::int % 12) AS antiguedad,
-         GREATEST(0, (((substring(ap.application_code from 8)::int % 12) * 4)
-                      + ((1000 - ap.decision_score) / 12) - 30
-                      + ((substring(ap.application_code from 8)::int * 13) % 40) - 20))::int AS mora
+         /*
+          * La mora, y por qué NO es una fórmula que se aplica a todos.
+          *
+          * La versión anterior sumaba antigüedad y score y restaba una constante, así que el crédito
+          * TÍPICO nacía con ~35 días de atraso: PAR 30 del 54 % y mora 90 en 0 % a la vez — una
+          * cartera que ningún prestamista sobrevive y que además es internamente imposible. Un
+          * tablero de demostración con esa cartera es peor que uno vacío: el vacío se explica, la
+          * cartera rota se discute.
+          *
+          * Una cartera real tiene dos pasos, no uno: primero SI el crédito cae en mora (la mayoría
+          * no cae), y sólo después CUÁNTOS días lleva. `r` es el sorteo —determinista, para que el
+          * sembrado sea reproducible— y el umbral es la probabilidad de caer, que sube con la
+          * antigüedad (un crédito recién desembolsado no ha tenido ocasión) y con el score malo.
+          *
+          * Los días crecen con la antigüedad porque el que cayó hace un año lleva un año cayendo:
+          * así las cosechas viejas llegan a 90+ y las nuevas se quedan en el primer tramo, que es lo
+          * que la vista de cosechas existe para enseñar.
+          */
+         /*
+          * La mora, en DOS sorteos independientes, que es como se comporta una cartera.
+          *
+          * Primero SI el crédito cae —la mayoría no cae— y después CUÁNTOS días lleva. Fundirlo en
+          * una sola fórmula, como estaba, hacía que el crédito TÍPICO naciera con 35 días de atraso:
+          * PAR 30 del 54 % con mora 90 en 0 %, una cartera que ningún prestamista sobrevive y que
+          * además es imposible. Un tablero de demostración con esa cartera es peor que uno vacío: el
+          * vacío se explica solo, la cartera rota se discute.
+          *
+          * Los sorteos salen de un HASH y no de aritmética modular sobre `n`. Con `(n*7919)%100` y
+          * `(n*31)%100` los dos quedaban correlacionados —el segundo no era uniforme sobre los `n`
+          * que el primero seleccionaba— y los tramos de 30-59 y 60-89 días salían VACÍOS: el
+          * gráfico de antigüedad tenía huecos que no significaban nada. `md5` no tiene esa
+          * estructura y sigue siendo determinista, así que el sembrado es reproducible.
+          */
+         (abs(('x' || md5('cae:' || ap.application_code))::bit(32)::int) % 100) AS sorteo_cae,
+         (abs(('x' || md5('dias:' || ap.application_code))::bit(32)::int) % 100) AS sorteo_dias
     FROM credit.credit_applications ap WHERE ap.application_code LIKE 'DEMO-A-%'
+    ) b
 ) a
 WHERE a.customer_id IS NOT NULL AND a.credit_product_id IS NOT NULL;
 
@@ -128,8 +200,10 @@ SELECT
   (1000 + ((g * 2917) % 30000))::numeric,
   12, 'BOB', 'rejected',
   (ARRAY['score_bajo','ingreso_insuficiente','mora_vigente','documentacion_incompleta'])[1 + (g % 4)],
-  (date_trunc('month', now()) - ((g % 12) || ' months')::interval)::timestamptz,
-  (date_trunc('month', now()) - ((g % 12) || ' months')::interval - interval '2 days')::timestamptz,
+  LEAST(date_trunc('month', now()) - ((g % 12) || ' months')::interval + interval '14 days',
+        now() - interval '1 day')::timestamptz,
+  LEAST(date_trunc('month', now()) - ((g % 12) || ' months')::interval + interval '12 days',
+        now() - interval '3 days')::timestamptz,
   ((g * 4409) % 400),
   CASE WHEN ((g * 4409) % 400) >= 350 THEN 'C' ELSE 'D' END
 FROM generate_series(1, 180) AS g;
