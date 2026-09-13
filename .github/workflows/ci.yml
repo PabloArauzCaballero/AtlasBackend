@@ -435,6 +435,54 @@ jobs:
           DB_MIGRATION_PASSWORD: ci_migrator_pw
         run: yarn check:db-privileges --strict
 
+      # NINGUNA prueba de este repositorio levanta el árbol de Nest: los 5.000 unitarios instancian
+      # sus servicios con `new` y los e2e usan módulos recortados. Así que un proveedor que un
+      # controlador inyecta y que su módulo no provee compila, pasa los doce gates estáticos, pasa
+      # las pruebas y REVIENTA al arrancar el proceso. Pasó el 2026-09-13: el contenedor quedó en
+      # bucle de reinicio catorce minutos con todo en verde. Lo único que el job `docker-image`
+      # comprobaba era que `dist/src/main.js` EXISTE, que es otra pregunta.
+      #
+      # Se arranca como `APP_ROLE=api` a propósito: es el proceso que atiende HTTP y el que se
+      # despliega detrás del dominio. Con ese rol no corren el planificador, el monitor de salud ni
+      # la siembra, así que el paso mide el árbol de dependencias y no la infraestructura de fondo.
+      # PostgreSQL y Redis son los del propio job; MongoDB no está y no hace falta: el sincronizador
+      # de log avisa y sigue. `DATABASE_SEED_ON_STARTUP=false` porque sembrar es mutar.
+      #
+      # Medido en local antes de escribir esto: arranca en 3 s y `/api/v1/health` responde 200.
+      - name: Arranque real de la API (el árbol de Nest resuelve)
+        env:
+          APP_ROLE: api
+          APP_PORT: '3005'
+          API_PREFIX: api/v1
+          DATABASE_SEED_ON_STARTUP: 'false'
+        run: |
+          set -uo pipefail
+          node dist/src/main.js > arranque.log 2>&1 &
+          pid=$!
+          for _ in $(seq 1 60); do
+            if grep -q 'Atlas API escuchando en puerto' arranque.log; then
+              codigo=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3005/api/v1/health || echo 000)
+              kill "$pid" 2>/dev/null || true
+              if [ "$codigo" = '200' ]; then
+                echo "✅ La API arrancó y /health respondió 200."
+                exit 0
+              fi
+              echo "❌ La API arrancó pero /health respondió $codigo:"
+              tail -40 arranque.log
+              exit 1
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo '❌ El proceso murió durante el arranque:'
+              cat arranque.log
+              exit 1
+            fi
+            sleep 1
+          done
+          echo '❌ La API no llegó a escuchar en 60 s:'
+          tail -40 arranque.log
+          kill "$pid" 2>/dev/null || true
+          exit 1
+
       # Aquí se levantaba la API y se corrían los diez smokes contra ella, más los dos de contrato.
       # Se retiran de CI, y no es una rebaja del listón: es dejar de fingir.
       #
