@@ -110,8 +110,27 @@ WORKDIR /app
 RUN printf 'Acquire::ForceIPv4 "true";\nAcquire::Retries "5";\n' > /etc/apt/apt.conf.d/99-atlas \
   && (apt-get update \
       && apt-get install --no-install-recommends -y postgresql-client \
+      && apt-get install --no-install-recommends -y --only-upgrade libpcre2-8-0 \
       && rm -rf /var/lib/apt/lists/* \
       || echo 'AVISO: no se pudo instalar postgresql-client; la imagen funciona igual, sin psql')
+
+# npm FUERA de la imagen que se despliega.
+#
+# La mayoria de los CVEs que Trivy reporta en estos backends no son dependencias de Atlas: viven
+# dentro del npm que `node:22-bookworm-slim` trae de serie (18 MB y 153 modulos propios). Medido en el
+# Motor con la misma base: quitarlo hace desaparecer el CRITICO de `tar` (CVE-2026-59873) y la familia
+# `pacote`/`sigstore`/`ip-address`/`brace-expansion`. El `--only-upgrade libpcre2-8-0` de arriba cierra
+# dos altos mas que Debian ya corrigio en 10.42-1+deb12u1 y que no llegan solos porque la etiqueta de
+# la base esta fijada; se actualiza ESE paquete y nunca con `apt-get upgrade`, que cambiaria la base
+# bajo los pies entre dos builds del mismo commit.
+#
+# Aqui es seguro porque NADA lo usa: el contenedor arranca con `node dist/src/main.js`, el healthcheck
+# es un script de Node, las dependencias llegan copiadas de `prod-deps` y las migraciones corren
+# `node dist/scripts/...`. Antes de repetirlo en otra imagen hay que mirar `ENTRYPOINT`/`CMD` y las
+# migraciones: en el Motor el migrator llamaba a `npx prisma` y hubo que pasarlo al binario local.
+#
+# Va antes de `USER node` porque borrar en /usr/local exige root.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # Las dependencias de producción se resuelven en `prod-deps` —imagen completa— y se COPIAN.
 #
