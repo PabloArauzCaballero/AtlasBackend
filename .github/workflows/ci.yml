@@ -528,6 +528,11 @@ jobs:
     name: build de la imagen de producción
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # `packages: write` sólo se usa en el paso de publicación, que corre únicamente al integrar en
+    # `main`. En un pull request el token es de sólo lectura y el paso ni siquiera se evalúa.
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout
@@ -575,6 +580,28 @@ jobs:
           JWT_ACCESS_TOKEN_SECRET=s JWT_ISSUER=i JWT_AUDIENCE=a \
           NOTIFICATION_TOKEN_ENCRYPTION_KEY=k CORS_ORIGINS=https://x INTERNAL_FRONTEND_ORIGIN=https://x \
             docker compose -f docker-compose.prod.yml config --quiet
+
+      # `docker-compose.prod.yml` exige `ATLAS_IMAGE`, y hasta ahora NADIE la producía: CI construía
+      # la imagen, la verificaba y la tiraba. Desplegar exigía que alguien la construyera a mano en
+      # la máquina de destino, que es justo lo que un artefacto de despliegue viene a evitar —y deja
+      # sin respuesta la pregunta de qué build está corriendo—.
+      #
+      # Se publica SÓLO al integrar en `main`, que es la rama de release: un pull request no publica
+      # nada. Se etiqueta con el SHA (inmutable, es la que se despliega) y con `main` (móvil, para
+      # saber qué hay en cabeza). El registro es el del propio repositorio, así que no hace falta
+      # ninguna credencial nueva: `GITHUB_TOKEN` basta.
+      - name: Publish image to GHCR (sólo en main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          registro="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+          docker tag atlas-backend:ci "${registro}:${GITHUB_SHA}"
+          docker tag atlas-backend:ci "${registro}:main"
+          docker push "${registro}:${GITHUB_SHA}"
+          docker push "${registro}:main"
+          echo "✅ Imagen publicada: ${registro}:${GITHUB_SHA}"
+          echo "   Despliega con: export ATLAS_IMAGE=${registro}:${GITHUB_SHA}"
 
   # ATLAS-P10-040: escaneo de vulnerabilidades de dependencias. No existía ningún job de este
   # tipo — un CVE `high`/`critical` en una dependencia (p. ej. jsonwebtoken, argon2, pg) podía

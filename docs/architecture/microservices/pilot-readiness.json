@@ -4,8 +4,14 @@
   "assessedOn": "2026-09-12",
   "decision": "NOT_READY",
   "scope": {
-    "included": ["notificaciones no críticas ya existentes (estado de solicitud, recordatorios, difusiones)"],
-    "excluded": ["OTP de verificación de contacto", "restablecimiento de contraseña", "mensajes con secreto o plazo legal"]
+    "included": [
+      "notificaciones no críticas ya existentes (estado de solicitud, recordatorios, difusiones)"
+    ],
+    "excluded": [
+      "OTP de verificación de contacto",
+      "restablecimiento de contraseña",
+      "mensajes con secreto o plazo legal"
+    ]
   },
   "transport": {
     "chosen": "outbox PostgreSQL + relay v2 (lease/fencing/inbox)",
@@ -81,7 +87,7 @@
     {
       "id": "deployment-authorization",
       "status": "PENDING",
-      "detail": "responsables, autorización y criterio de cancelación no acordados"
+      "detail": "Sigue PENDIENTE: nadie ha firmado y ningún agente puede firmarlo. Lo que SÍ está resuelto es todo lo demás de la decisión: alcance, lo ya probado, la configuración que falta, los seis umbrales de cancelación con su medida, el procedimiento de reversión y los cuatro papeles a cubrir. Está en docs/runbooks/messaging-pilot-authorization.md, listo para acordar; al firmarlo se pasa este check a PASS citando fecha y documento, y sólo entonces `decision` pasa a READY."
     }
   ]
 }
