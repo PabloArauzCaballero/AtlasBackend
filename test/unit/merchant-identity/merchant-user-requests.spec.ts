@@ -44,8 +44,9 @@ describe('Cola de altas de identidad de comercio', () => {
       connection: { transaction: jest.fn(async (work: never) => (work as (t: unknown) => unknown)({ LOCK: { UPDATE: 'UPDATE' } })) },
     };
 
-    const service = new MerchantUserRequestsService(requestModel as never, merchantUsersService as never);
-    return { service, requestModel, merchantUsersService, fila, actualizada };
+    const mailSender = { sendInitialCredentials: jest.fn(async (..._args: unknown[]) => ({ trackingId: 'mail-1' })) };
+    const service = new MerchantUserRequestsService(requestModel as never, merchantUsersService as never, mailSender as never);
+    return { service, requestModel, merchantUsersService, mailSender, fila, actualizada };
   }
 
   const peticionPendiente = {
@@ -107,6 +108,32 @@ describe('Cola de altas de identidad de comercio', () => {
     expect(resultado.temporaryPassword).toEqual(expect.any(String));
     expect(resultado.temporaryPassword.length).toBeGreaterThanOrEqual(10);
     expect(actualizada[0]).toMatchObject({ status: 'provisioned', merchantUserId: 'm7' });
+  });
+
+  it('al aprobar, la contraseña provisional viaja por correo al responsable del comercio', async () => {
+    const { service, mailSender } = buildService(peticionPendiente);
+
+    const resultado = await service.approve('t1', 'r1', {}, { internalUserId: 'i1' });
+
+    expect(mailSender.sendInitialCredentials).toHaveBeenCalledTimes(1);
+    expect((mailSender.sendInitialCredentials as jest.Mock).mock.calls[0]?.[0]).toMatchObject({
+      to: 'encargada@ferreteria.test',
+      recipientName: 'Marisol Quiroga',
+      temporaryPassword: resultado.temporaryPassword,
+      reference: 'merchant-user:m7',
+    });
+  });
+
+  it('si el correo falla, la concesión se mantiene y la contraseña sigue en la respuesta', async () => {
+    const { service, mailSender, actualizada } = buildService(peticionPendiente);
+    (mailSender.sendInitialCredentials as jest.Mock).mockImplementation(async () => {
+      throw new Error('gmail caído');
+    });
+
+    const resultado = await service.approve('t1', 'r1', {}, { internalUserId: 'i1' });
+
+    expect(resultado.temporaryPassword).toEqual(expect.any(String));
+    expect(actualizada[0]).toMatchObject({ status: 'provisioned' });
   });
 
   it('no se decide dos veces sobre la misma petición', async () => {

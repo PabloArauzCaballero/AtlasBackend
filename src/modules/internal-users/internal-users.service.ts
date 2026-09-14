@@ -3,13 +3,14 @@
  * @business Esta pieza controla quién puede operar Atlas y deja evidencia de cada asignación de privilegios.
  * @system implementa identidad interna, RBAC, catálogo de permisos y guards de autorización granular.
  */
-import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { hashPassword, isPasswordStrongEnough } from '../../common/utils/crypto/password.util.js';
 import { parsePositiveId } from '../../common/utils/ids/id.util.js';
 import { buildPaginationMeta, PaginationInput, PaginationMeta } from '../../common/utils/pagination/pagination.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
 import { AuthSecondFactorService } from '../auth/auth-second-factor.service.js';
+import { MailSenderService } from '../mail-sender/mail-sender.service.js';
 import { withEffectiveSecondFactor } from './internal-profile-second-factor.js';
 import { INTERNAL_ROLE_CODES, legacyRoleForInternalRoles } from './internal-rbac.seed-data.js';
 import { InternalRbacRepository } from './internal-rbac.repository.js';
@@ -72,10 +73,13 @@ async function assertCanAssignRequestedRoles(
 
 @Injectable()
 export class InternalUsersService {
+  private readonly logger = new Logger(InternalUsersService.name);
+
   constructor(
     private readonly rbacRepository: InternalRbacRepository,
     private readonly tokenRevocationService: TokenRevocationService,
     private readonly secondFactor: AuthSecondFactorService,
+    private readonly mailSender: MailSenderService,
   ) {}
 
   /** Ver `internal-profile-second-factor.ts`: se informa el estado efectivo, no la columna. */
@@ -171,7 +175,31 @@ export class InternalUsersService {
       userAgent: requestContext.userAgent,
     });
 
+    await this.notifyInitialCredentials(user.id, dto.email, dto.fullName, dto.password);
+
     return this.rbacRepository.buildAccessProfile(user);
+  }
+
+  /**
+   * El correo de bienvenida con la contraseña temporal sale DESPUÉS de que el alta y su auditoría
+   * hayan quedado escritas, y un fallo del correo no deshace el alta: el usuario existe y el
+   * operador sigue viendo la contraseña en pantalla para entregarla por otra vía. Hasta el
+   * 2026-09-14 nadie llamaba a `sendInitialCredentials`: el portal generaba la contraseña, la
+   * mostraba una vez y el responsable nunca recibía nada.
+   */
+  private async notifyInitialCredentials(userId: string, email: string, fullName: string, temporaryPassword: string): Promise<void> {
+    try {
+      await this.mailSender.sendInitialCredentials({
+        to: email,
+        recipientName: fullName,
+        temporaryPassword,
+        reference: `internal-user:${userId}`,
+      });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo enviar el correo de credenciales iniciales al usuario interno ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   async updateUser(

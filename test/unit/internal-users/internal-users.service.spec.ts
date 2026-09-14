@@ -87,10 +87,20 @@ function makeAuthService(inEffect = true) {
   return { isRequired: jest.fn((..._args: unknown[]) => inEffect) };
 }
 
+/** El correo de credenciales iniciales: se comprueba QUE se manda y A QUIÉN, no el transporte. */
+function makeMailSender(overrides: Record<string, unknown> = {}) {
+  return { sendInitialCredentials: jest.fn(async (..._args: unknown[]) => ({ trackingId: 'mail-1' })), ...overrides };
+}
+
 describe('InternalUsersService security boundaries', () => {
   it('rejects privileged role assignment when actor is not SUPER_ADMIN', async () => {
     const repository = makeRepository();
-    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never, makeAuthService() as never);
+    const service = new InternalUsersService(
+      repository as never,
+      makeTokenRevocationService() as never,
+      makeAuthService() as never,
+      makeMailSender() as never,
+    );
 
     await expect(
       service.createUser(
@@ -111,7 +121,12 @@ describe('InternalUsersService security boundaries', () => {
 
   it('requires explicit disable permission for disabled-like statuses', async () => {
     const repository = makeRepository({ hasPermissions: jest.fn(async (..._args: unknown[]) => false) });
-    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never, makeAuthService() as never);
+    const service = new InternalUsersService(
+      repository as never,
+      makeTokenRevocationService() as never,
+      makeAuthService() as never,
+      makeMailSender() as never,
+    );
 
     await expect(
       service.updateUser(
@@ -125,7 +140,12 @@ describe('InternalUsersService security boundaries', () => {
 
   it('does not allow replacing your own internal roles', async () => {
     const repository = makeRepository();
-    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never, makeAuthService() as never);
+    const service = new InternalUsersService(
+      repository as never,
+      makeTokenRevocationService() as never,
+      makeAuthService() as never,
+      makeMailSender() as never,
+    );
 
     await expect(
       service.replaceRoles(
@@ -160,7 +180,12 @@ describe('InternalUsersService security boundaries', () => {
         },
       })),
     });
-    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never, makeAuthService() as never);
+    const service = new InternalUsersService(
+      repository as never,
+      makeTokenRevocationService() as never,
+      makeAuthService() as never,
+      makeMailSender() as never,
+    );
 
     await expect(
       service.replaceRoles(
@@ -178,7 +203,12 @@ describe('InternalUsersService security boundaries', () => {
       updateUser: jest.fn(async (user: { id: string }) => user),
     });
     const tokenRevocationService = makeTokenRevocationService();
-    const service = new InternalUsersService(repository as never, tokenRevocationService as never, makeAuthService() as never);
+    const service = new InternalUsersService(
+      repository as never,
+      tokenRevocationService as never,
+      makeAuthService() as never,
+      makeMailSender() as never,
+    );
 
     await service.updateUser(
       currentUser,
@@ -213,7 +243,12 @@ describe('InternalUsersService security boundaries', () => {
     }));
     const repository = makeRepository({ buildAccessProfile: nonPrivilegedProfile });
     const tokenRevocationService = makeTokenRevocationService();
-    const service = new InternalUsersService(repository as never, tokenRevocationService as never, makeAuthService() as never);
+    const service = new InternalUsersService(
+      repository as never,
+      tokenRevocationService as never,
+      makeAuthService() as never,
+      makeMailSender() as never,
+    );
 
     await service.replaceRoles(
       currentUser,
@@ -248,7 +283,12 @@ describe('InternalUsersService security boundaries', () => {
     }));
     const repository = makeRepository({ buildAccessProfile: nonPrivilegedProfile });
     const tokenRevocationService = makeTokenRevocationService({ bumpTokenVersionIfPresent: jest.fn(async (..._args: unknown[]) => null) });
-    const service = new InternalUsersService(repository as never, tokenRevocationService as never, makeAuthService() as never);
+    const service = new InternalUsersService(
+      repository as never,
+      tokenRevocationService as never,
+      makeAuthService() as never,
+      makeMailSender() as never,
+    );
 
     await expect(
       service.replaceRoles(
@@ -269,7 +309,12 @@ describe('InternalUsersService security boundaries', () => {
       { id: '22', tenantId: '1' },
     ];
     const repository = makeRepository({ listUsers: jest.fn(async (..._args: unknown[]) => ({ rows, total: 3 })) });
-    const service = new InternalUsersService(repository as never, makeTokenRevocationService() as never, makeAuthService() as never);
+    const service = new InternalUsersService(
+      repository as never,
+      makeTokenRevocationService() as never,
+      makeAuthService() as never,
+      makeMailSender() as never,
+    );
 
     const result = await service.listUsers(currentUser, { page: 1, limit: 50 });
 
@@ -280,5 +325,70 @@ describe('InternalUsersService security boundaries', () => {
     expect(repository.buildAccessProfile).not.toHaveBeenCalled();
     expect(result.items.map((item) => item.id)).toEqual(['20', '21', '22']);
     expect(result.meta).toEqual({ page: 1, limit: 50, total: 3, totalPages: 1 });
+  });
+});
+
+describe('InternalUsersService · credenciales iniciales por correo', () => {
+  const superAdmin = { ...currentUser, roles: ['SUPER_ADMIN'], role: 'admin' } as typeof currentUser;
+  const alta = {
+    email: 'nueva.analista@empresa.com',
+    fullName: 'Nueva Analista',
+    department: 'RISK',
+    password: 'Atlas_Temporal#2026!',
+    mustChangePassword: true,
+    roles: ['RISK_ANALYST'],
+    reason: 'alta controlada',
+  };
+
+  function makeRepositoryQueCrea() {
+    return makeRepository({
+      hasPermissions: jest.fn(async (..._args: unknown[]) => true),
+      createUserWithCredentials: jest.fn(async (..._args: unknown[]) => ({ id: '77', email: alta.email, fullName: alta.fullName })),
+    });
+  }
+
+  it('al crear un usuario manda la contraseña temporal al correo del responsable', async () => {
+    const repository = makeRepositoryQueCrea();
+    const mail = makeMailSender();
+    const service = new InternalUsersService(
+      repository as never,
+      makeTokenRevocationService() as never,
+      makeAuthService() as never,
+      mail as never,
+    );
+
+    await service.createUser(superAdmin, alta, { ipAddress: '127.0.0.1', userAgent: 'jest' });
+
+    expect(mail.sendInitialCredentials).toHaveBeenCalledTimes(1);
+    expect((mail.sendInitialCredentials as jest.Mock).mock.calls[0]?.[0]).toMatchObject({
+      to: alta.email,
+      recipientName: alta.fullName,
+      temporaryPassword: alta.password,
+      reference: 'internal-user:77',
+    });
+    // El correo sale DESPUÉS de auditar el alta: si el alta falla, no hay correo con una contraseña de nadie.
+    const ordenAuditoria = (repository.createAudit as jest.Mock).mock.invocationCallOrder[0] ?? Infinity;
+    const ordenCorreo = (mail.sendInitialCredentials as jest.Mock).mock.invocationCallOrder[0] ?? -1;
+    expect(ordenCorreo).toBeGreaterThan(ordenAuditoria);
+  });
+
+  it('si el correo falla, el alta NO se deshace: el usuario queda creado y la contraseña sigue en la respuesta del portal', async () => {
+    const repository = makeRepositoryQueCrea();
+    const mail = makeMailSender({
+      sendInitialCredentials: jest.fn(async (..._args: unknown[]) => {
+        throw new Error('gmail caído');
+      }),
+    });
+    const service = new InternalUsersService(
+      repository as never,
+      makeTokenRevocationService() as never,
+      makeAuthService() as never,
+      mail as never,
+    );
+
+    await expect(service.createUser(superAdmin, alta, { ipAddress: '127.0.0.1', userAgent: 'jest' })).resolves.toMatchObject({
+      user: { id: '77' },
+    });
+    expect(repository.createUserWithCredentials).toHaveBeenCalledTimes(1);
   });
 });

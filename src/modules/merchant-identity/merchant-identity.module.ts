@@ -8,6 +8,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { MerchantUserModel, MerchantUserProvisioningRequestModel } from '../../database/models/index.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { InternalUsersModule } from '../internal-users/internal-users.module.js';
+import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { MerchantAuthController } from './merchant-auth.controller.js';
 import { MerchantAuthService } from './merchant-auth.service.js';
 import { MerchantUsersController } from './merchant-users.controller.js';
@@ -22,7 +23,12 @@ import { MerchantUsersService } from './merchant-users.service.js';
  * persona: esa relación es del ERP y no se duplica aquí.
  */
 @Module({
-  imports: [SequelizeModule.forFeature([MerchantUserModel, MerchantUserProvisioningRequestModel]), AuthModule, InternalUsersModule],
+  imports: [
+    SequelizeModule.forFeature([MerchantUserModel, MerchantUserProvisioningRequestModel]),
+    AuthModule,
+    InternalUsersModule,
+    MailSenderModule,
+  ],
   controllers: [MerchantAuthController, MerchantUsersController],
   providers: [MerchantAuthService, MerchantUsersService, MerchantUserRequestsService],
   exports: [MerchantUsersService, MerchantUserRequestsService],
