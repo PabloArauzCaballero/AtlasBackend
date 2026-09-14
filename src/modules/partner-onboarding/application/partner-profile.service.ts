@@ -279,11 +279,24 @@ export class PartnerProfileService {
       throw new ConflictException(`PARTNER_DECISION_DELEGADA_AL_MOTOR: el caso ${profile.manualReviewCaseCode} se resuelve en el Motor.`);
     }
 
+    /*
+     * El veredicto se escribe en las MISMAS columnas que rellena el Motor (`decision_outcome`,
+     * `decision_reason`, `decision_evaluated_at`), con la procedencia dicha: `DECISION_MANUAL_PORTAL`.
+     * Es lo que lee el ERP para activar (`GET partner-onboarding/:id/status` → `profile.decision`) y
+     * su compuerta dura exige `APROBADO`. Sin esto, la degradación que existe justo para cuando el
+     * Motor no respondió dejaba el expediente `approved` aquí y el caso del ERP imposible de activar.
+     * `decision_execution_id` se queda como estaba: aquí no hubo ejecución, y decir que la hubo sería
+     * mentir sobre la procedencia.
+     */
+    const decidedAt = new Date();
     const updated = await this.repository.updateProfile(profile, {
       onboardingStatus: input.approved ? 'approved' : 'rejected',
-      decidedAt: new Date(),
+      decidedAt,
       decidedByInternalUserId: input.internalUserId,
       rejectionReason: input.approved ? null : (input.rejectionReason ?? null),
+      decisionOutcome: input.approved ? 'APROBADO' : 'RECHAZADO',
+      decisionReason: input.approved ? 'DECISION_MANUAL_PORTAL' : (input.rejectionReason ?? 'DECISION_MANUAL_PORTAL'),
+      decisionEvaluatedAt: decidedAt,
     });
 
     this.metrics.recordPartnerOnboardingStep({ step: 'decision', outcome: input.approved ? 'ok' : 'rejected' });

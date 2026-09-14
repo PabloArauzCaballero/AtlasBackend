@@ -275,6 +275,24 @@ describe('DecisionEngineClient', () => {
       await expect(cliente().getManualReviewCase('MRC-9')).resolves.toBeNull();
     });
 
+    /* El inquilino del MOTOR va en una variable, no clavado a '1' en cada llamada. */
+    it('las lecturas del plano de gestión llevan el tenant del motor configurado', async () => {
+      const mutable = env as unknown as Record<string, unknown>;
+      const originalTenant = mutable.DECISION_ENGINE_TENANT_ID;
+      mutable.DECISION_ENGINE_TENANT_ID = '7';
+      try {
+        const catalogo = conFetch({ status: 200, body: [] });
+        await cliente().listArtifacts();
+        expect((catalogo.llamadas[0].init?.headers as Record<string, string>)['x-tenant-id']).toBe('7');
+
+        const caso = conFetch({ status: 200, body: {} });
+        await cliente().getManualReviewCase('MRC-1');
+        expect((caso.llamadas[0].init?.headers as Record<string, string>)['x-tenant-id']).toBe('7');
+      } finally {
+        mutable.DECISION_ENGINE_TENANT_ID = originalTenant;
+      }
+    });
+
     /* El código del caso puede traer caracteres que no son seguros en una URL. */
     it('escapa el código del caso en la URL', async () => {
       const { llamadas } = conFetch({ status: 200, body: {} });

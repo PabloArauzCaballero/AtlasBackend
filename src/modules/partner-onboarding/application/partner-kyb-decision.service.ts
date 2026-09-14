@@ -160,11 +160,28 @@ export class PartnerKybDecisionService {
  * `outcome` como respaldo: son dos campos distintos y el que manda es el del contrato de salida,
  * que es el que el autor de la política eligió publicar.
  */
+const KYB_OUTCOMES_CONOCIDOS = ['APROBADO', 'RECHAZADO', 'REVISION_MANUAL'] as const;
+
 function toKybDecision(response: DecisionResponse): KybDecision {
   const output = (response.output ?? {}) as Record<string, unknown>;
+  const publicado = String(output.kyb_decision ?? response.outcome ?? '')
+    .trim()
+    .toUpperCase();
+  /*
+   * Un desenlace que no es de los tres —o vacío, si el artefacto no rellenó su salida declarada—
+   * se publica como REVISION_MANUAL con el valor original en el motivo. Antes se propagaba tal
+   * cual: aquí dejaba el expediente en revisión (bien), pero el ERP lo leía, no lo reconocía y
+   * persistía un `decision_outcome` vacío con `status: undefined`. Lo que no se conoce lo mira una
+   * persona; nunca habilita a cobrar, y ahora lo dice con un desenlace que todos entienden.
+   */
+  const conocido = (KYB_OUTCOMES_CONOCIDOS as readonly string[]).includes(publicado);
   return {
-    outcome: String(output.kyb_decision ?? response.outcome ?? '').toUpperCase(),
-    reason: output.kyb_motivo ? String(output.kyb_motivo) : (response.reasonCodes[0]?.code ?? null),
+    outcome: conocido ? publicado : 'REVISION_MANUAL',
+    reason: conocido
+      ? output.kyb_motivo
+        ? String(output.kyb_motivo)
+        : (response.reasonCodes[0]?.code ?? null)
+      : `DESENLACE_DESCONOCIDO:${publicado || 'vacio'}`,
     executionId: response.executionId,
     artifactVersionId: response.artifact?.versionId ?? null,
     manualReviewCaseCode: response.manualReview?.caseCode ?? null,

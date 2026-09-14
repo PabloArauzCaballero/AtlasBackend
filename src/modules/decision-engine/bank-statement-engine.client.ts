@@ -198,9 +198,9 @@ export class BankStatementEngineClient {
         method: options.method,
         headers: {
           'x-api-key': this.apiKey(),
-          // El motor es multi-tenant y su guardián exige la cabecera; el core habla siempre con el
-          // tenant 1 de la instalación, igual que en el listado de artefactos.
-          'x-tenant-id': '1',
+          // El motor es multi-tenant y su guardián exige la cabecera: es el inquilino DEL MOTOR,
+          // el mismo que en el catálogo de artefactos y los casos de revisión.
+          'x-tenant-id': env.DECISION_ENGINE_TENANT_ID,
           accept: 'application/json',
           ...(options.correlationId ? { 'x-request-id': options.correlationId } : {}),
         },

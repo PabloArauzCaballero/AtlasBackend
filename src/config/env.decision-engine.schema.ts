@@ -37,6 +37,13 @@ export const decisionEngineEnvShape = {
    */
   DECISION_ENGINE_GOVERNANCE_API_KEY: z.string().optional(),
   /**
+   * El inquilino DEL MOTOR con el que habla este backend por el plano de gestión (catálogo de
+   * artefactos, casos de revisión manual, worker de extractos). Es el tenant del Motor, no el de
+   * Atlas: son dos instalaciones y sus identificadores no tienen por qué coincidir. Estaba clavado
+   * a `'1'` en tres sitios; ahora es una sola variable con ese mismo valor por defecto.
+   */
+  DECISION_ENGINE_TENANT_ID: z.string().trim().min(1).max(64).default('1'),
+  /**
    * Credencial con la que se encarga la LOCUCIÓN de bienvenida al worker de audio del motor.
    *
    * Es una tercera llave y no la de gobierno reaprovechada porque lo que autoriza cuesta dinero:

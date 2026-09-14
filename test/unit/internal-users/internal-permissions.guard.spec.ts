@@ -40,6 +40,10 @@ describe('InternalPermissionsGuard', () => {
     const { guard, reflector, rbacRepository } = build();
     (reflector.getAllAndOverride as jest.Mock).mockReturnValue(['internal.users.read']);
     (rbacRepository.hasPermissions as jest.Mock).mockResolvedValueOnce(false as never);
+    // El 403 nombra el permiso: el ERP y el portal conceden botones por rol y aquí se decide por
+    // permiso; sin el código nadie sabía qué pedir.
+    await expect(guard.canActivate(ctx({ tenantId: '1', internalUserId: 'u1' }))).rejects.toThrow(/internal\.users\.read/);
+    (rbacRepository.hasPermissions as jest.Mock).mockResolvedValueOnce(false as never);
     await expect(guard.canActivate(ctx({ tenantId: '1', internalUserId: 'u1' }))).rejects.toBeInstanceOf(ForbiddenException);
     (rbacRepository.hasPermissions as jest.Mock).mockResolvedValueOnce(true as never);
     expect(await guard.canActivate(ctx({ tenantId: '1', internalUserId: 'u1' }))).toBe(true);

@@ -198,7 +198,7 @@ export class DecisionEngineClient {
     if (!this.isConfigured) return [];
     const url = `${this.transport.baseUrl()}/v1/artifacts`;
     const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_API_KEY ?? '';
-    const response = await fetch(url, { headers: { 'x-api-key': apiKey, 'x-tenant-id': '1' } });
+    const response = await fetch(url, { headers: { 'x-api-key': apiKey, 'x-tenant-id': env.DECISION_ENGINE_TENANT_ID } });
     if (!response.ok) {
       this.logger.warn(`El motor respondió ${response.status} al listar artefactos.`);
       return [];
@@ -239,7 +239,7 @@ export class DecisionEngineClient {
     const url = `${this.transport.baseUrl()}/v1/manual-reviews/${encodeURIComponent(caseCode)}`;
     const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_API_KEY ?? '';
     try {
-      const response = await fetch(url, { headers: { 'x-api-key': apiKey, 'x-tenant-id': '1' } });
+      const response = await fetch(url, { headers: { 'x-api-key': apiKey, 'x-tenant-id': env.DECISION_ENGINE_TENANT_ID } });
       if (!response.ok) {
         this.logger.warn(`El motor respondió ${response.status} al leer el caso ${caseCode}.`);
         return null;

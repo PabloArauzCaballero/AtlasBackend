@@ -140,6 +140,29 @@ describe('PartnerKybDecisionService', () => {
       expect(decision.outcome).toBe('REVISION_MANUAL');
     });
 
+    /*
+     * Lo que este código no conoce lo mira una persona, y se publica con un desenlace que TODOS los
+     * consumidores entienden: antes salía tal cual (o vacío) y el ERP lo persistía sin poder
+     * traducirlo a un estado del caso.
+     */
+    it('un desenlace desconocido —o vacío— se publica como REVISION_MANUAL con el valor original en el motivo', async () => {
+      const entrada = { tenantId: '1', profile: perfil(), gaps: [], sucursales: 1, contratoVigente: true, idempotencyKey: 'k' };
+
+      const nuevo = build({ response: { output: { kyb_decision: 'DESENLACE_NUEVO' } } });
+      const decisionNueva = await nuevo.service.evaluate(entrada);
+      expect(decisionNueva.outcome).toBe('REVISION_MANUAL');
+      expect(decisionNueva.reason).toBe('DESENLACE_DESCONOCIDO:DESENLACE_NUEVO');
+
+      const vacio = build({ response: { outcome: '', output: {} } });
+      const decisionVacia = await vacio.service.evaluate(entrada);
+      expect(decisionVacia.outcome).toBe('REVISION_MANUAL');
+      expect(decisionVacia.reason).toBe('DESENLACE_DESCONOCIDO:vacio');
+
+      // Y un desenlace conocido no se toca.
+      const aprobado = build({ response: { output: { kyb_decision: 'aprobado', kyb_motivo: 'KYB_COMPLETO' } } });
+      expect(await aprobado.service.evaluate(entrada)).toMatchObject({ outcome: 'APROBADO', reason: 'KYB_COMPLETO' });
+    });
+
     it('sin Motor configurado NO decide: responde 503', async () => {
       const { service, client } = build({ configured: false });
 
