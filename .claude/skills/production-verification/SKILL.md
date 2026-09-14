@@ -26,7 +26,7 @@ description: Verificación de preparación para producción del backend Atlas ej
 | Unit | `yarn test:unit` (o `test:unit:randomized`) |
 | Suite + cobertura | `yarn test` / `yarn test:coverage` |
 | Build | `yarn build` |
-| Gates de dominio | `yarn check:file-size`, `check:overfetching`, `check:domain-schemas`, `check:domain-schema-layout`, `check:read-api-views`, `check:seed-profiles` |
+| Gates de dominio | `yarn check:file-size`, `check:overfetching`, `check:domain-schemas`, `check:domain-schema-layout`, `check:read-api-views`, `check:read-api-honesty` |
 | Privilegios DB (CI) | `yarn check:db-privileges --strict` |
 | Migración reversible (CI) | `db:migration:up` → `down` → `up` |
 | Smokes (API arriba) | `yarn smoke:*`, `smoke:frontend-contract` |

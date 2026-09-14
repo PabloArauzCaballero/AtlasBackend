@@ -4,7 +4,8 @@
  * ATLAS-CI-002 — un gate que no pudo comprobar nada NO puede reportarse en verde.
  *
  * Cuatro gates de base de datos (`check:read-api-views`, `check:domain-schema-layout`,
- * `check:db-privileges`, `db:seed:verify-prod-idempotency`) imprimían `[skip]` y salían con código 0
+ * `check:db-privileges` y el de idempotencia de las semillas de producción) imprimían `[skip]` y
+ * salían con código 0
  * cuando Postgres no respondía. La auditoría integral del 2026-08-06 los vio pasar en VERDE sin
  * haber verificado absolutamente nada. El caso que importa no es el portátil sin base levantada: es
  * el job de CI que sí tiene Postgres y donde una credencial mal puesta convertía la comprobación de

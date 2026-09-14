@@ -42,7 +42,10 @@ yarn db:seed:demo    # + datos de demostración
 yarn db:seed:test    # fixtures de prueba
 ```
 
-`yarn check:seed-profiles` valida la separación y `yarn db:seed:verify-prod-idempotency` comprueba que el perfil de producción se puede re-ejecutar sin duplicar.
+Ninguno de los dos gates que validaban esto sigue en el repositorio: `check:seed-profiles` y
+`db:seed:verify-prod-idempotency` se fueron con los seeders cuando las semillas pasaron a una base
+aparte, y nada los sustituye todavía. Lo que hay hoy es `yarn db:seed:status` (qué se cargó) y
+`yarn db:seed:verify-graph` (integridad del conjunto cargado).
 
 > [!danger] Nunca sembrar el perfil de desarrollo en producción
 > `db:seed:dev` crea credenciales conocidas. El gate existe precisamente porque la confusión es fácil y el resultado es un acceso administrativo con contraseña pública.

@@ -76,7 +76,18 @@ export const decisionEngineEnvShape = {
    * saludar.
    */
   DECISION_ENGINE_WELCOME_FALLBACK_TEMPLATE: z.string().trim().max(160).default('onboarding.welcome.generic'),
-  DECISION_ENGINE_CREDIT_ARTIFACT: z.string().trim().min(1).max(120).default('credit_underwriting'),
+  /**
+   * Código del artefacto que resuelve una solicitud de crédito en el Motor.
+   *
+   * El defecto era `credit_underwriting`, un código que EL MOTOR NO TIENE: toda solicitud caía en
+   * 404 y se resolvía como `engine_unavailable_manual`, con el crédito esperando a una persona sin
+   * que nada dijera que el motor ni se había consultado (ver
+   * `20260824030000-create-decision-artifact-bindings.ts`). Aquello se tapó en el compose y con la
+   * tabla de asignaciones, pero el defecto del esquema seguía roto: quien arranca sin compose y sin
+   * fila de asignación —un entorno nuevo, un proceso suelto— heredaba el fallo entero. Ahora el
+   * defecto es el código real; la asignación por inquilino sigue mandando sobre él.
+   */
+  DECISION_ENGINE_CREDIT_ARTIFACT: z.string().trim().min(1).max(120).default('ATLAS_BNPL_UNDERWRITING'),
   /**
    * Artefacto que evalúa el riesgo de onboarding, el trabajo que hoy hace `risk_heuristic_v0`.
    *

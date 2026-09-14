@@ -11,6 +11,7 @@
 import { Client } from 'pg';
 import { RETENTION_POLICIES_PENDING_DECISION, RETENTION_TARGETS } from '../src/modules/runtime-jobs/retention-targets.js';
 import { requireSeedSource } from '../src/database/seed-source.js';
+import { handleUnreachableDatabase } from './gate-skip-policy.js';
 
 type SeededPolicy = { code: string; file: string };
 
@@ -27,7 +28,28 @@ async function seededPolicies(): Promise<SeededPolicy[]> {
 }
 
 async function main(): Promise<void> {
-  const seeded = await seededPolicies();
+  let seeded: SeededPolicy[];
+  try {
+    seeded = await seededPolicies();
+  } catch (error) {
+    // Mismo criterio que el resto de gates de base (ATLAS-CI-002): sin poder consultar, este gate no
+    // comprueba nada y no puede aprobar. Antes la excepción salía cruda —diez líneas de traza de `pg`—
+    // y no distinguía «no configuraste el origen» de «el origen no responde».
+    handleUnreachableDatabase(error, 'check:retention-coverage');
+    return;
+  }
+
+  // Cero políticas NO es «todo en orden». Es la respuesta que da también apuntar a la base
+  // equivocada, o a una rama de semillas todavía vacía, y con la comprobación anterior salía en
+  // verde diciendo «0 en silencio» —que se lee exactamente como el éxito—.
+  if (seeded.length === 0) {
+    console.error(
+      '❌ La fuente de semillas no publica NINGUNA política de retención.\n' +
+        '   No es un aprobado: este gate compara lo publicado contra lo ejecutable, y sin nada publicado\n' +
+        '   no hay comparación que hacer. Comprueba que SEED_SOURCE_* apunta a la rama correcta.',
+    );
+    process.exit(1);
+  }
   const executable = new Set(Object.keys(RETENTION_TARGETS));
   const declaredPending = new Set(Object.keys(RETENTION_POLICIES_PENDING_DECISION));
 
