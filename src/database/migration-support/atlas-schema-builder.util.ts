@@ -145,18 +145,33 @@ export function indexName(index: IndexSpec): string {
   return shortenName(`${prefix}_${index.table}_${raw}${usingSuffix}`);
 }
 
+/**
+ * ¿Existe ya esta restricción sobre esta tabla?
+ *
+ * Es el guardián de idempotencia de `addForeignKeys` y `addChecks`, y estaba roto: preguntaba a
+ * `information_schema.table_constraints` acotando por `table_schema = current_schema()`, y desde que
+ * las tablas de negocio viven en schemas de dominio, `current_schema()` durante una migración es
+ * `public` —el primer elemento de `ATLAS_MIGRATION_SEARCH_PATH`—, donde no hay ninguna. El guardián
+ * devolvía SIEMPRE `false`, así que la segunda pasada volvía a emitir el `ALTER TABLE ... ADD
+ * CONSTRAINT` y moría con «already exists». No se notaba porque la primera pasada no lo necesita.
+ *
+ * Se resuelve la tabla con `to_regclass`, que aplica EXACTAMENTE el mismo `search_path` que el
+ * `ALTER TABLE` de abajo —así el guardián y la sentencia hablan siempre de la misma tabla— y
+ * devuelve `NULL` si no existe. Y se consulta `pg_constraint` en vez del estándar, que además
+ * filtra por privilegios: un objeto de otro dueño desaparece de `information_schema` y volvería a
+ * dar un `false` mentiroso.
+ */
 async function constraintExists(queryInterface: QueryInterface, tableName: string, constraintName: string): Promise<boolean> {
   const [rows] = (await queryInterface.sequelize.query(
     `
     SELECT EXISTS (
       SELECT 1
-        FROM information_schema.table_constraints
-       WHERE table_schema = current_schema()
-         AND table_name = :tableName
-         AND constraint_name = :constraintName
+        FROM pg_constraint
+       WHERE conrelid = to_regclass(:tableRef)
+         AND conname = :constraintName
     ) AS "exists";
     `,
-    { replacements: { tableName, constraintName } },
+    { replacements: { tableRef: quoteIdentifier(tableName), constraintName } },
   )) as [{ exists: boolean }[], unknown];
 
   return rows[0]?.exists === true;

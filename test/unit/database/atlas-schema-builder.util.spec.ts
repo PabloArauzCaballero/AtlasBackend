@@ -150,8 +150,17 @@ describe('createIndexes', () => {
     await addChecks(qi as never, [{ table: 'cosas', name: 'ck_cosas_algo', expression: 'algo > 0' } as never]);
 
     expect(qi.addConstraint).not.toHaveBeenCalled();
-    // La comprobación sí se hizo; lo que no se hizo es el ALTER TABLE.
-    expect(qi.sequelize.query.mock.calls.every(([sql]) => String(sql).includes('information_schema'))).toBe(true);
+    // La comprobación sí se hizo; lo que no se hizo es el ALTER TABLE. Antes esta aserción exigía la
+    // palabra `information_schema`: el guardián preguntaba allí acotando por `current_schema()` y,
+    // con las tablas ya en schemas de dominio, respondía SIEMPRE «no existe» (véase
+    // test/integration/migrations/constraint-guard.spec.ts, que lo reproduce contra PostgreSQL real).
+    // Lo que este caso debe fijar es el COMPORTAMIENTO —se pregunta y no se emite DDL—, no a qué
+    // catálogo se pregunta; se comprueba además que la pregunta resuelve la tabla como lo hará el
+    // `ALTER TABLE`, que es lo que hacía falta para que el guardián dejara de mentir.
+    const consultadas = qi.sequelize.query.mock.calls.map(([sql]) => String(sql));
+    expect(consultadas).toHaveLength(2);
+    expect(consultadas.every((sql) => sql.includes('pg_constraint') && sql.includes('to_regclass'))).toBe(true);
+    expect(consultadas.some((sql) => /ALTER TABLE/i.test(sql))).toBe(false);
   });
 
   /*

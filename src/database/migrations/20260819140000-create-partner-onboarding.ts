@@ -152,10 +152,20 @@ CREATE TABLE IF NOT EXISTS ${QR_CODES} (
 
   // El QR bancario sin entidad no se puede cruzar con el padrón de ASFI, que es lo único que
   // permite frenar un cobro contra una entidad sin licencia. El del negocio no la lleva.
+  // El `DROP ... IF EXISTS` va delante porque PostgreSQL no tiene `ADD CONSTRAINT IF NOT EXISTS`:
+  // sin él, reaplicar esta migración —una reinstalación, un down→up, un reintento tras un fallo a
+  // medias— aborta en la primera restricción. Es el mismo patrón que ya usan sus hermanas de la
+  // misma época (20260819180000, 20260821060000).
+  await queryInterface.sequelize.query(`
+ALTER TABLE ${QR_CODES}
+  DROP CONSTRAINT IF EXISTS partner_qr_codes_entidad_del_qr_bancario;`);
   await queryInterface.sequelize.query(`
 ALTER TABLE ${QR_CODES}
   ADD CONSTRAINT partner_qr_codes_entidad_del_qr_bancario
   CHECK (qr_kind <> 'bank' OR bank_institution_code IS NOT NULL);`);
+  await queryInterface.sequelize.query(`
+ALTER TABLE ${QR_CODES}
+  DROP CONSTRAINT IF EXISTS partner_qr_codes_tipo_conocido;`);
   await queryInterface.sequelize.query(`
 ALTER TABLE ${QR_CODES}
   ADD CONSTRAINT partner_qr_codes_tipo_conocido
@@ -191,6 +201,9 @@ CREATE TABLE IF NOT EXISTS ${POS_TERMINALS} (
   _created_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
   _updated_at          TIMESTAMPTZ
 );`);
+  await queryInterface.sequelize.query(`
+ALTER TABLE ${POS_TERMINALS}
+  DROP CONSTRAINT IF EXISTS partner_pos_terminals_estado_conocido;`);
   await queryInterface.sequelize.query(`
 ALTER TABLE ${POS_TERMINALS}
   ADD CONSTRAINT partner_pos_terminals_estado_conocido

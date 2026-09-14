@@ -259,7 +259,13 @@ CREATE TABLE IF NOT EXISTS ${TICKETS} (
     `CREATE INDEX IF NOT EXISTS idx_tickets__pendientes ON ${TICKETS} (vence_en) WHERE consumido_en IS NULL;`,
   );
 
-  // Se declara al final: el manifiesto es un nodo, y el nodo necesita que su tabla exista.
+  // Se declara al final: el manifiesto es un nodo, y el nodo necesita que su tabla exista. El
+  // `DROP ... IF EXISTS` va delante porque PostgreSQL no tiene `ADD CONSTRAINT IF NOT EXISTS` y el
+  // resto de este archivo sí es reaplicable (`CREATE TABLE/INDEX IF NOT EXISTS`): sin él, la única
+  // sentencia que rompe una reinstalación sería justo esta.
+  await queryInterface.sequelize.query(`
+ALTER TABLE ${EXPEDIENTES}
+  DROP CONSTRAINT IF EXISTS fk_expedientes__manifest;`);
   await queryInterface.sequelize.query(`
 ALTER TABLE ${EXPEDIENTES}
   ADD CONSTRAINT fk_expedientes__manifest

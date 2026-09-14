@@ -93,6 +93,12 @@ export async function up({ context: queryInterface }: MigrationContext): Promise
        ON "${ATLAS_SCHEMAS.IAM}"."merchant_user_provisioning_requests" ("_tenant_id", "status", "requested_at");`,
   );
 
+  // PostgreSQL no tiene `ADD CONSTRAINT IF NOT EXISTS`: sin el `DROP ... IF EXISTS` previo, una
+  // reejecución de esta migración aborta aquí. El resto del archivo sí es idempotente.
+  await queryInterface.sequelize.query(
+    `ALTER TABLE "${ATLAS_SCHEMAS.IAM}"."merchant_user_provisioning_requests"
+       DROP CONSTRAINT IF EXISTS "ck_merchant_user_prov_req_status";`,
+  );
   await queryInterface.sequelize.query(
     `ALTER TABLE "${ATLAS_SCHEMAS.IAM}"."merchant_user_provisioning_requests"
        ADD CONSTRAINT "ck_merchant_user_prov_req_status"
@@ -102,6 +108,12 @@ export async function up({ context: queryInterface }: MigrationContext): Promise
   // Una petición resuelta tiene que decir CÓMO se resolvió. Sin esta comprobación, un UPDATE a
   // medias deja una fila «provisioned» sin identidad detrás: la pantalla la da por atendida y el
   // usuario del comercio nunca recibe acceso.
+  // PostgreSQL no tiene `ADD CONSTRAINT IF NOT EXISTS`: sin el `DROP ... IF EXISTS` previo, una
+  // reejecución de esta migración aborta aquí. El resto del archivo sí es idempotente.
+  await queryInterface.sequelize.query(
+    `ALTER TABLE "${ATLAS_SCHEMAS.IAM}"."merchant_user_provisioning_requests"
+       DROP CONSTRAINT IF EXISTS "ck_merchant_user_prov_req_resolution";`,
+  );
   await queryInterface.sequelize.query(
     `ALTER TABLE "${ATLAS_SCHEMAS.IAM}"."merchant_user_provisioning_requests"
        ADD CONSTRAINT "ck_merchant_user_prov_req_resolution"

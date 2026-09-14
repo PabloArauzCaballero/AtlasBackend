@@ -67,12 +67,23 @@ export async function up({ context: queryInterface }: MigrationContext): Promise
   // El rol y el estado son vocabulario cerrado: sin esto, un UPDATE manual deja una identidad en
   // un estado que el login no contempla y que, según el lado por el que se lea, significa cosas
   // distintas. `merchant` es hoy el único rol admitido a propósito.
+  // PostgreSQL no tiene `ADD CONSTRAINT IF NOT EXISTS`, así que cada una va precedida de su
+  // `DROP ... IF EXISTS`: sin eso, reaplicar esta migración —reinstalación, down→up, reintento tras
+  // un fallo a medias— aborta aquí, mientras que el resto del archivo sí es idempotente.
+  await queryInterface.sequelize.query(
+    `ALTER TABLE "${ATLAS_SCHEMAS.IAM}"."merchant_users"
+       DROP CONSTRAINT IF EXISTS "ck_merchant_users_status";`,
+  );
   await queryInterface.sequelize.query(
     `ALTER TABLE "${ATLAS_SCHEMAS.IAM}"."merchant_users"
        ADD CONSTRAINT "ck_merchant_users_status"
        CHECK (status IN ('invited', 'active', 'suspended', 'disabled'));`,
   );
 
+  await queryInterface.sequelize.query(
+    `ALTER TABLE "${ATLAS_SCHEMAS.IAM}"."merchant_users"
+       DROP CONSTRAINT IF EXISTS "ck_merchant_users_role_code";`,
+  );
   await queryInterface.sequelize.query(
     `ALTER TABLE "${ATLAS_SCHEMAS.IAM}"."merchant_users"
        ADD CONSTRAINT "ck_merchant_users_role_code"
