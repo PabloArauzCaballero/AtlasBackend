@@ -92,6 +92,40 @@ function checkSecrets(data: RawAppEnv, ctx: z.RefinementCtx): void {
   }
 }
 
+/**
+ * Marcas de «esto hay que rellenarlo»: `<algo>`, `change-me`, `TODO`, `REEMPLAZAR`.
+ *
+ * Se limita a formas INEQUÍVOCAS. Un dominio de ejemplo (`tudominio.com`) no entra: hay dominios
+ * reales que se le parecen y un falso positivo aquí impide un despliegue legítimo.
+ */
+const MARCA_DE_PLANTILLA = /^<[^>]*>$|^(change[-_]?me|changeme|reemplazar|todo|placeholder|pendiente)$/i;
+
+/**
+ * Producción no arranca con un valor de plantilla sin rellenar.
+ *
+ * `.env.production.example` trae `JWT_ACCESS_TOKEN_SECRET=<minimo-32-caracteres-aleatorio-unico>`, y
+ * ese texto MIDE 43 caracteres: pasa el mínimo de longitud, no es la constante por defecto que el
+ * esquema prohíbe, y el proceso arrancaba tan campante. Un despliegue hecho con la plantilla a medio
+ * rellenar quedaba en pie, se declaraba sano, y firmaba sesiones con un secreto que está escrito en
+ * un archivo público del repositorio.
+ *
+ * Se revisa TODO el entorno y no una lista de variables: la lista envejece con cada secreto nuevo, y
+ * el fallo que se quiere evitar es precisamente el de la variable en la que nadie pensó.
+ */
+function checkTemplatePlaceholders(data: RawAppEnv, ctx: z.RefinementCtx): void {
+  if (data.NODE_ENV !== 'production') return;
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value !== 'string' || !MARCA_DE_PLANTILLA.test(value.trim())) continue;
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [key],
+      message:
+        `${key} conserva el valor de ejemplo de la plantilla ("${value}"). En producción eso no es una ` +
+        'configuración: es un despliegue a medio hacer que arrancaría igual y se declararía sano.',
+    });
+  }
+}
+
 /** Dependencias de infraestructura sin las cuales producción no es segura. */
 function checkInfrastructure(data: RawAppEnv, ctx: z.RefinementCtx): void {
   // El perfil `messaging` no sirve HTTP público (sin rate limiting) y coordina por `context_ownership`, no por Redis.
@@ -247,6 +281,7 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
   };
 
   checkSecrets(data, ctx);
+  checkTemplatePlaceholders(data, ctx);
   checkInfrastructure(data, ctx);
   checkContextServiceTransport(data, ctx);
   checkSimulatedDataEscapeHatch(data, ctx);

@@ -4,7 +4,7 @@
  * @system declara la configuración de conexión, identidades y sembrado de PostgreSQL.
  */
 import { z } from 'zod';
-import { booleanEnvSchema, optionalBooleanEnvSchema } from './env.primitives.js';
+import { optionalNonEmptyStringEnvSchema, booleanEnvSchema, optionalBooleanEnvSchema } from './env.primitives.js';
 
 /**
  * Configuración de PostgreSQL más allá de la conexión básica: pool de lectura, identidades
@@ -45,12 +45,16 @@ export const databaseEnvShape = {
   // ausente cae al valor de la conexión de escritura equivalente. No usar el pool read en auth,
   // outbox, idempotencia, riesgo transaccional ni read-after-write.
   DB_READ_ENABLED: booleanEnvSchema,
-  DB_READ_HOST: z.string().min(1).optional(),
+  // Las opcionales de abajo usan `optionalNonEmptyStringEnvSchema` y no `.min(1).optional()`: una
+  // plataforma de despliegue que no tiene valor para una variable la entrega VACÍA, no ausente
+  // (Coolify lo hace, y `${VAR:-}` de docker compose también). Con `.min(1).optional()` eso es un
+  // error de validación y el proceso no arranca, cuando lo que quiere decir es «no configurado».
+  DB_READ_HOST: optionalNonEmptyStringEnvSchema,
   DB_READ_PORT: z.coerce.number().int().positive().optional(),
-  DB_READ_NAME: z.string().min(1).optional(),
-  DB_READ_USER: z.string().min(1).optional(),
+  DB_READ_NAME: optionalNonEmptyStringEnvSchema,
+  DB_READ_USER: optionalNonEmptyStringEnvSchema,
   DB_READ_PASSWORD: z.string().optional(),
-  DB_READ_SCHEMA: z.string().min(1).optional(),
+  DB_READ_SCHEMA: optionalNonEmptyStringEnvSchema,
   DB_READ_SSL: optionalBooleanEnvSchema,
 
   // --- Separación de identidades PostgreSQL (docs/database/postgres-roles.md) ---------------
@@ -59,18 +63,18 @@ export const databaseEnvShape = {
   // DB_MIGRATION_USER/PASSWORD = identidad que aplica migraciones y seeds (DDL). Si se omite, cae
   // a DB_USER — cómodo en local, pero en un entorno con roles diferenciados el runtime NO debe
   // poder alterar el schema, así que aquí se apunta a `atlas_migrator` (o al owner/admin).
-  DB_MIGRATION_USER: z.string().min(1).optional(),
+  DB_MIGRATION_USER: optionalNonEmptyStringEnvSchema,
   DB_MIGRATION_PASSWORD: z.string().optional(),
 
   // MESSAGING_DB_USER/PASSWORD = identidad del worker de Mensajería del piloto (AT-057): el rol por
   // contexto `atlas_ctx_messaging` (ops/postgres/context-roles.sql). Si se omite, cae a DB_USER —
   // sólo válido en local; el piloto real arranca con su rol, que NO puede leer credit/customer/iam.
-  MESSAGING_DB_USER: z.string().min(1).optional(),
+  MESSAGING_DB_USER: optionalNonEmptyStringEnvSchema,
   MESSAGING_DB_PASSWORD: z.string().optional(),
 
   // DB_ADMIN_USER/PASSWORD = identidad con CREATE ROLE usada SOLO por `yarn db:roles:bootstrap`
   // para crear los roles del cluster. Si se omite, cae a DB_USER. Nunca la usa el runtime.
-  DB_ADMIN_USER: z.string().min(1).optional(),
+  DB_ADMIN_USER: optionalNonEmptyStringEnvSchema,
   DB_ADMIN_PASSWORD: z.string().optional(),
 
   // Contraseñas que `yarn db:roles:bootstrap` asigna a cada rol. No tienen default a propósito:

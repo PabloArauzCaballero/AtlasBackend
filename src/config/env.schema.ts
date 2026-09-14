@@ -264,8 +264,8 @@ export const envBaseSchema = z.object({
   // proveedor activo. Los valores previos cifrados con `local` se siguen descifrando. Requiere
   // que `@aws-sdk/client-kms` esté instalado en la imagen. Dejar esto sin configurar es válido y
   // deja el proveedor activo en `local`, el default seguro para dev/test.
-  KMS_KEY_ID: z.string().min(1).optional(),
-  AWS_REGION: z.string().min(1).optional(),
+  KMS_KEY_ID: optionalNonEmptyStringEnvSchema,
+  AWS_REGION: optionalNonEmptyStringEnvSchema,
 
   MONGO_DB_URL_CONNECTION: optionalMongoUrlEnvSchema,
   MONGO_LOGS_DB_NAME: z.string().min(1).default('atlas_logs'),

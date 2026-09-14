@@ -4,7 +4,7 @@
  * @system declara la configuración del planificador de trabajos de fondo y de la entrega diferida.
  */
 import { z } from 'zod';
-import { booleanEnvSchema } from './env.primitives.js';
+import { optionalLongSecretEnvSchema, booleanEnvSchema, optionalUrlEnvSchema } from './env.primitives.js';
 
 /**
  * Configuración del trabajo de fondo: qué se ejecuta solo, cada cuánto y dónde se entrega.
@@ -32,9 +32,9 @@ export const runtimeJobsEnvShape = {
   ATLAS_CAPABILITY_PROFILE: z.enum(['monolith', 'messaging']).default('monolith'),
   // AT-047/AT-057: identidad de servicio entre contextos (HS256, audiencia por contexto destino). Sin
   // secreto, los endpoints internos entre contextos responden 503 y el worker del piloto no los llama.
-  CONTEXT_SERVICE_TOKEN_SECRET: z.string().min(32).optional(),
+  CONTEXT_SERVICE_TOKEN_SECRET: optionalLongSecretEnvSchema,
   // Base URL de la API del monolito que sirve el directorio de destinatarios de Clientes al piloto.
-  CUSTOMERS_DIRECTORY_URL: z.string().url().optional(),
+  CUSTOMERS_DIRECTORY_URL: optionalUrlEnvSchema,
   RUNTIME_JOBS_ALLOW_WITHOUT_LOCK: booleanEnvSchema,
   RUNTIME_JOBS_BATCH_LIMIT: z.coerce.number().int().positive().max(500).default(100),
   RUNTIME_JOBS_LEADER_LOCK_TTL_MS: z.coerce.number().int().positive().max(3_600_000).default(900_000),
