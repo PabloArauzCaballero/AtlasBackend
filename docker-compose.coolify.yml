@@ -445,6 +445,7 @@ services:
       - -c
       - >
         node dist/src/database/migrate.js up &&
+        node dist/src/database/apply-grants.js &&
         if [ -n "$${SEED_SOURCE_DATABASE_URL}$${SEED_SOURCE_HOST}" ]; then
         node dist/src/database/seed.js pull --if-empty;
         else echo 'sin SEED_SOURCE_*: se migra pero no se siembra'; fi
@@ -675,7 +676,7 @@ services:
       # los dos aceptados, cambiar de tunel no exige recompilar la app ni tocar este archivo: basta
       # apuntar el tunel nuevo a Traefik. Coolify NO interpola variables en las etiquetas, asi que van
       # escritos a mano.
-      traefik.http.routers.atlas-minio.rule: 'Host(`n2vmpw58-80.brs.devtunnels.ms`, `pablo-h310.taila8f993.ts.net`) && PathPrefix(`/atlas-evidence`)'
+      traefik.http.routers.atlas-minio.rule: '(Host(`n2vmpw58-80.brs.devtunnels.ms`) || Host(`pablo-h310.taila8f993.ts.net`)) && PathPrefix(`/atlas-evidence`)'
       traefik.http.routers.atlas-minio.entryPoints: http
       traefik.http.services.atlas-minio.loadbalancer.server.port: '9000'
       # Sin `gzip`: los objetos son JPEG y PNG, ya comprimidos. Comprimirlos otra vez gasta CPU
