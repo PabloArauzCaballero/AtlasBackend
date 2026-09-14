@@ -4,7 +4,7 @@
  * La documentación se deriva de la estructura real para que el inventario no quede obsoleto. Los
  * README escritos a mano nunca se reemplazan; solo se actualizan los que contienen GENERATED_MARKER.
  */
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join, relative, sep } from 'node:path';
 
 type Context = { business: string; system: string };
@@ -260,20 +260,44 @@ function readmeFor(path: string): string {
   return `${GENERATED_MARKER}\n\n# ${title}\n\n## Por qué existe\n\n- **Negocio:** esta carpeta ${context.business}.\n- **Sistema:** esta carpeta ${context.system}.\n\n## Contenido\n\n| Documento o código | Responsabilidad |\n|---|---|\n${files}\n${children}\n## Reglas de mantenimiento\n\n- Mantener las reglas de negocio fuera de controladores y adaptadores de infraestructura.\n- Validar entradas en el borde, preservar aislamiento por tenant y no registrar secretos ni PII en claro.\n- Actualizar pruebas y este inventario con \`yarn docs:project\` cuando cambie la estructura.\n`;
 }
 
+/**
+ * Lee un archivo y devuelve `null` si no está.
+ *
+ * Sustituye al par «`existsSync` y luego `readFileSync`», que son dos operaciones con un hueco en
+ * medio: entre la pregunta y la lectura el archivo puede aparecer o desaparecer, y el resultado no
+ * corresponde a ningún estado real del disco. Una sola llamada no tiene ese hueco.
+ */
+function readIfExists(path: string): string | null {
+  try {
+    return readFileSync(path, 'utf-8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
 /** Qué archivo hace de índice de una carpeta en el portal: `index.md` gana sobre `README.md`. */
 function indexFileFor(directory: string): string {
-  return existsSync(join(directory, 'index.md')) ? 'index.md' : 'README.md';
+  return readIfExists(join(directory, 'index.md')) !== null ? 'index.md' : 'README.md';
 }
 
 function walkDirectories(root: string): string[] {
   const result: string[] = [];
   const visit = (path: string): void => {
+    let entries;
+    try {
+      entries = readdirSync(path, { withFileTypes: true });
+    } catch (error) {
+      // Una carpeta que no está —o que desaparece mientras se recorre— no es un error del generador.
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw error;
+    }
     result.push(path);
-    for (const entry of readdirSync(path, { withFileTypes: true })) {
+    for (const entry of entries) {
       if (entry.isDirectory() && !IGNORED_PARTS.has(entry.name)) visit(join(path, entry.name));
     }
   };
-  if (existsSync(root)) visit(root);
+  visit(root);
   return result;
 }
 
@@ -281,7 +305,7 @@ function generateReadmes(): number {
   let changed = 0;
   for (const path of ROOTS.flatMap(walkDirectories)) {
     const readmePath = join(path, 'README.md');
-    const existing = existsSync(readmePath) ? readFileSync(readmePath, 'utf-8') : '';
+    const existing = readIfExists(readmePath) ?? '';
     if (existing && !existing.includes(GENERATED_MARKER)) continue;
     const next = readmeFor(path);
     if (next !== existing) {

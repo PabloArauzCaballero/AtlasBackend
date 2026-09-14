@@ -9,6 +9,7 @@ import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
+import { Throttle } from '@nestjs/throttler';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { parsePositiveId } from '../../common/utils/ids/id.util.js';
@@ -64,6 +65,9 @@ export class MerchantAuthController {
     return refreshToken;
   }
 
+  // 10 intentos por minuto por IP: mismo freno que el login de clientes y el del portal interno.
+  // Sin él, sólo aplicaba el límite global de 100/min, que para probar contraseñas no es un freno.
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Public()
   @ApiOperation({
     summary: 'Login del comercio',
@@ -91,6 +95,8 @@ export class MerchantAuthController {
     return this.issueSessionCookies(response, outcome);
   }
 
+  // 30 por minuto: rotar es legítimo y frecuente, pero sigue probando tokens contra un endpoint público.
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
   @Public()
   @ApiOperation({ summary: 'Refresh del comercio', description: 'Rota el refresh token de una sesión de comercio.' })
   @ApiBody({ schema: zodToApiSchema(merchantRefreshSchema) })

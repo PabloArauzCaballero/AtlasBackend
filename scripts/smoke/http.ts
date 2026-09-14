@@ -6,6 +6,7 @@ import { accessTokenSignOptions } from '../../src/common/utils/auth/jwt-claims.u
 import { env } from '../../src/config/env.js';
 import { AtlasUserRole } from '../../src/common/types/auth.types.js';
 import { redactSensitive } from './redact.js';
+import { randomBytes } from 'node:crypto';
 
 export const BASE_URL = process.env.BASE_URL ?? `http://localhost:${env.APP_PORT}/${env.API_PREFIX}`;
 export const TENANT_ID = process.env.TENANT_ID ?? '1';
@@ -192,7 +193,9 @@ export function cookieValue(setCookie: readonly string[], name: string): string 
 }
 
 export function uniqueKey(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  // Aleatoriedad criptográfica: estas claves de idempotencia viajan a un servidor real y dos
+  // corridas simultáneas no pueden colisionar por haber arrancado en el mismo milisegundo.
+  return `${prefix}-${Date.now()}-${randomBytes(4).toString('hex')}`;
 }
 
 export function getString(value: unknown, path: string[], fallback?: string): string {
