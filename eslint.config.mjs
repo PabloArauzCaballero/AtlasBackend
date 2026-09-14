@@ -97,7 +97,14 @@ export default [
   },
   {
     // Herramientas CLI: aquí console.log es salida esperada de usuario, no logging de app.
-    files: ['scripts/**/*.ts', 'src/database/migrate.ts', 'src/database/seed.ts', 'src/config/database.config.ts'],
+    files: [
+      'scripts/**/*.ts',
+      'src/database/migrate.ts',
+      'src/database/seed.ts',
+      // Paso del despliegue, como los dos de arriba: su salida es lo que queda en el log del job.
+      'src/database/apply-grants.ts',
+      'src/config/database.config.ts',
+    ],
     rules: {
       'no-console': 'off',
     },

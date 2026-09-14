@@ -26,6 +26,21 @@ describe('ops/postgres cubre todos los schemas de dominio', () => {
     expect(read('verify-privileges.sql')).toContain(`('${schema}')`);
   });
 
+  /**
+   * `public` no es un schema de dominio, pero sin CREATE ahí no hay despliegue: lo PRIMERO que hace
+   * `db:migration:up` es crear `public."SequelizeMeta"`, y desde PostgreSQL 15 `public` ya no
+   * concede CREATE a todo el mundo. Un aprovisionamiento nuevo que siga el guion al pie de la letra
+   * moría en la primera sentencia con «permission denied for schema public».
+   *
+   * El destinatario es `atlas_owner` y no `atlas_migrator`: `bootstrap-roles.sql` hace
+   * `ALTER ROLE atlas_migrator IN DATABASE ... SET role TO atlas_owner`, así que la sesión de
+   * migraciones opera siempre como el owner. Dárselo al migrador no cambia nada.
+   */
+  it('grants.sql concede CREATE en public a la identidad efectiva de las migraciones', () => {
+    const sql = read('grants.sql');
+    expect(sql).toMatch(/GRANT\s+[^;]*CREATE[^;]*ON\s+SCHEMA\s+public\s+TO\s+atlas_owner/i);
+  });
+
   /** Si la cobertura CRUD mira menos schemas que los que se otorgan, deja de ser una verificación. */
   it('la cobertura CRUD de verify-privileges.sql lista exactamente los schemas de dominio', () => {
     const sql = read('verify-privileges.sql');
