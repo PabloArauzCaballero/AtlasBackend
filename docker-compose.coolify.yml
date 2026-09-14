@@ -248,7 +248,13 @@ x-atlas-env: &atlas-env
   MONGO_DB_URL_CONNECTION: '${MONGO_DB_URL_CONNECTION:-}'
   MONGO_LOGS_DB_NAME: '${MONGO_LOGS_DB_NAME:-atlas_logs}'
   MONGO_LOGS_COLLECTION: '${MONGO_LOGS_COLLECTION:-archivo_log_updates}'
-  LOG_SYNC_FILE_PATH: '${LOG_SYNC_FILE_PATH:-Archivo.log}'
+  # El valor por omisión es el MISMO que fija la imagen (`ENV LOG_SYNC_FILE_PATH` en el Dockerfile),
+  # y no la ruta relativa `Archivo.log` de `.env.example`, que sirve para correr en un portátil y
+  # dentro del contenedor se resuelve contra `/app` —un directorio donde el usuario `node` NO puede
+  # escribir—. Al declararla aquí, el compose PISABA el valor correcto de la imagen y dejaba al
+  # proceso avisando «EACCES» en cada línea de log sin que nadie hubiera elegido esa ruta.
+  # El único directorio escribible de la imagen es `/app/logs`, creado y cedido a `node` en el build.
+  LOG_SYNC_FILE_PATH: '${LOG_SYNC_FILE_PATH:-/app/logs/Archivo.log}'
   LOG_SYNC_INTERVAL_MS: '${LOG_SYNC_INTERVAL_MS:-5000}'
   LOG_SYNC_MAX_CHUNK_BYTES: '${LOG_SYNC_MAX_CHUNK_BYTES:-1000000}'
   LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT: '${LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT:-false}'
@@ -662,7 +668,14 @@ services:
       # La red por la que Traefik alcanza este contenedor. Sin esto elige una cualquiera de las que
       # ocupa y el enrutado falla de forma intermitente.
       traefik.docker.network: coolify
-      traefik.http.routers.atlas-minio.rule: 'Host(`n2vmpw58-80.brs.devtunnels.ms`) && PathPrefix(`/atlas-evidence`)'
+      # DOS nombres, no uno.
+      #
+      # Las URLs firmadas que la app usa para subir el carnet salen con el host publico del momento, y
+      # ese host ha cambiado ya dos veces (el devtunnel murio en un reinicio y su sesion caduco). Con
+      # los dos aceptados, cambiar de tunel no exige recompilar la app ni tocar este archivo: basta
+      # apuntar el tunel nuevo a Traefik. Coolify NO interpola variables en las etiquetas, asi que van
+      # escritos a mano.
+      traefik.http.routers.atlas-minio.rule: 'Host(`n2vmpw58-80.brs.devtunnels.ms`, `pablo-h310.taila8f993.ts.net`) && PathPrefix(`/atlas-evidence`)'
       traefik.http.routers.atlas-minio.entryPoints: http
       traefik.http.services.atlas-minio.loadbalancer.server.port: '9000'
       # Sin `gzip`: los objetos son JPEG y PNG, ya comprimidos. Comprimirlos otra vez gasta CPU
