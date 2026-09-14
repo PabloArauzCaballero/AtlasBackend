@@ -3,7 +3,7 @@
  * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
  * @system introspecciona el esquema real de PostgreSQL y refleja columnas y relaciones en el catálogo.
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
@@ -15,6 +15,7 @@ import {
   UPDATE_RELATIONSHIP_CATALOG_SQL,
   UPSERT_FIELD_CATALOG_SQL,
 } from './systems-catalog-sql.constants.js';
+import { readCatalogVisibility, seesEverything } from './catalog-visibility.util.js';
 import { classifyColumn, humanizeIdentifier } from './column-classification.util.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
@@ -46,6 +47,8 @@ type IntrospectedColumn = IntrospectedTable & {
  */
 @Injectable()
 export class SystemsSchemaIntrospectionService {
+  private readonly logger = new Logger(SystemsSchemaIntrospectionService.name);
+
   constructor(
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly catalogRepository: SystemsCatalogRepository,
@@ -282,8 +285,17 @@ SELECT _id::text AS id
     await this.sequelize.query(INSERT_RELATIONSHIP_CATALOG_SQL, { replacements });
   }
 
+  /** Depreca lo no visto SÓLO si se vio la base entera (el porqué, en `catalog-visibility.util.ts`). */
   private async markMissingColumnsAsDeprecated(activeKeys: Set<string>): Promise<void> {
     if (activeKeys.size === 0) return;
+    const visibility = await readCatalogVisibility(this.sequelize, Object.values(ATLAS_SCHEMAS));
+    if (!seesEverything(visibility)) {
+      this.logger.warn(
+        `Refresco del catálogo SIN marcar obsoletos: esta identidad sólo alcanza ${visibility.reachable} de ` +
+          `${visibility.existing} tablas. Deprecar sobre una lectura parcial deja el catálogo mintiendo.`,
+      );
+      return;
+    }
     await this.sequelize.query(DEPRECATE_MISSING_FIELDS_SQL, { replacements: { activeKeys: [...activeKeys] } });
   }
 }

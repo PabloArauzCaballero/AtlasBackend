@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-09-12T02:32:04.651Z",
+  "generatedAt": "2026-09-14T01:24:44.124Z",
   "database": {
     "host": "localhost",
-    "name": "atlas_test"
+    "name": "atlas"
   },
   "summary": {
-    "tables": 201,
+    "tables": 202,
     "foreignKeys": 403,
     "crossSchemaForeignKeys": 205,
     "views": 18,
@@ -363,6 +363,21 @@
       "rawSqlModules": [],
       "incomingForeignKeys": 3,
       "outgoingForeignKeys": 2,
+      "crossSchemaForeignKeys": 0,
+      "triggers": 0,
+      "readByViews": [],
+      "issues": []
+    },
+    {
+      "table": "context_ownership",
+      "physicalSchema": "platform_ops",
+      "logicalSchema": "platform_ops",
+      "model": "ContextOwnershipModel",
+      "ownerCandidate": "events",
+      "registrants": [],
+      "rawSqlModules": [],
+      "incomingForeignKeys": 0,
+      "outgoingForeignKeys": 0,
       "crossSchemaForeignKeys": 0,
       "triggers": 0,
       "readByViews": [],
@@ -6213,12 +6228,51 @@
   "grants": [
     {
       "schema": "audit",
+      "table": "audit_event_feed",
+      "grantee": "atlas_app_rw",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "audit",
+      "table": "audit_event_feed",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "audit",
       "table": "data_change_logs",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "audit",
+      "table": "data_change_logs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6235,12 +6289,40 @@
     },
     {
       "schema": "audit",
+      "table": "data_quality_issues",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "audit",
       "table": "data_quality_rules",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "audit",
+      "table": "data_quality_rules",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6257,12 +6339,40 @@
     },
     {
       "schema": "audit",
+      "table": "operational_audit_logs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "audit",
       "table": "schema_constraint_notes",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "audit",
+      "table": "schema_constraint_notes",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6279,12 +6389,40 @@
     },
     {
       "schema": "case_management",
+      "table": "fraud_case_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "case_management",
       "table": "fraud_cases",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "case_management",
+      "table": "fraud_cases",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6301,12 +6439,40 @@
     },
     {
       "schema": "case_management",
+      "table": "manual_review_cases",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "case_management",
       "table": "manual_review_events",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "case_management",
+      "table": "manual_review_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6323,12 +6489,40 @@
     },
     {
       "schema": "case_management",
+      "table": "watchlist_entries",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "case_management",
       "table": "watchlist_matches",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "case_management",
+      "table": "watchlist_matches",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6345,12 +6539,40 @@
     },
     {
       "schema": "catalog",
+      "table": "app_content_entries",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
       "table": "attribute_definitions",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
+      "table": "attribute_definitions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6367,12 +6589,40 @@
     },
     {
       "schema": "catalog",
+      "table": "catalog_entries",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
       "table": "context_approval_events",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
+      "table": "context_approval_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6389,12 +6639,40 @@
     },
     {
       "schema": "catalog",
+      "table": "context_catalog_versions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
       "table": "context_catalogs",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
+      "table": "context_catalogs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6411,12 +6689,40 @@
     },
     {
       "schema": "catalog",
+      "table": "context_ingestion_jobs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
       "table": "context_item_aliases",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
+      "table": "context_item_aliases",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6433,12 +6739,40 @@
     },
     {
       "schema": "catalog",
+      "table": "context_items",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
       "table": "context_risk_mappings",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
+      "table": "context_risk_mappings",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6455,12 +6789,40 @@
     },
     {
       "schema": "catalog",
+      "table": "context_seed_import_checkpoints",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
       "table": "context_sources",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
+      "table": "context_sources",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6477,12 +6839,40 @@
     },
     {
       "schema": "catalog",
+      "table": "context_staging_items",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
       "table": "customer_attribute_values",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
+      "table": "customer_attribute_values",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6499,12 +6889,40 @@
     },
     {
       "schema": "catalog",
+      "table": "customer_context_enrichments",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
       "table": "customer_observations",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
+      "table": "customer_observations",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6521,6 +6939,20 @@
     },
     {
       "schema": "catalog",
+      "table": "decision_artifact_bindings",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
       "table": "event_definitions",
       "grantee": "atlas_app_rw",
       "privileges": [
@@ -6532,12 +6964,40 @@
     },
     {
       "schema": "catalog",
+      "table": "event_definitions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
       "table": "observation_definitions",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "catalog",
+      "table": "observation_definitions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6554,12 +7014,40 @@
     },
     {
       "schema": "credit",
+      "table": "bank_statement_reviews",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
       "table": "credit_application_events",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
+      "table": "credit_application_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6576,12 +7064,40 @@
     },
     {
       "schema": "credit",
+      "table": "credit_applications",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
       "table": "credit_lines",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
+      "table": "credit_lines",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6598,12 +7114,40 @@
     },
     {
       "schema": "credit",
+      "table": "credit_products",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
       "table": "customer_risk_ratings",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
+      "table": "customer_risk_ratings",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6620,12 +7164,40 @@
     },
     {
       "schema": "credit",
+      "table": "decision_subject_links",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
       "table": "delinquency_policies",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
+      "table": "delinquency_policies",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6642,12 +7214,40 @@
     },
     {
       "schema": "credit",
+      "table": "loan_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
       "table": "loan_installments",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
+      "table": "loan_installments",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6664,12 +7264,40 @@
     },
     {
       "schema": "credit",
+      "table": "loan_outcome_reports",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
       "table": "loan_payment_allocations",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
+      "table": "loan_payment_allocations",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6686,12 +7314,40 @@
     },
     {
       "schema": "credit",
+      "table": "loan_payment_claims",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
       "table": "loan_payments",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
+      "table": "loan_payments",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6708,12 +7364,40 @@
     },
     {
       "schema": "credit",
+      "table": "loan_risk_ratings",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
       "table": "loans",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "credit",
+      "table": "loans",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6730,12 +7414,40 @@
     },
     {
       "schema": "customer",
+      "table": "address_gps_observations",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
       "table": "contact_verification_attempts",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
+      "table": "contact_verification_attempts",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6752,12 +7464,40 @@
     },
     {
       "schema": "customer",
+      "table": "customer_address_versions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
       "table": "customer_addresses",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
+      "table": "customer_addresses",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6774,12 +7514,40 @@
     },
     {
       "schema": "customer",
+      "table": "customer_contact_methods",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
       "table": "customer_device_contacts",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
+      "table": "customer_device_contacts",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6796,12 +7564,40 @@
     },
     {
       "schema": "customer",
+      "table": "customer_eligibility_evaluations",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
       "table": "customer_identity_documents",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
+      "table": "customer_identity_documents",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6818,12 +7614,40 @@
     },
     {
       "schema": "customer",
+      "table": "customer_profile_versions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
       "table": "customer_reference_contacts",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
+      "table": "customer_reference_contacts",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6840,6 +7664,20 @@
     },
     {
       "schema": "customer",
+      "table": "customer_status_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
       "table": "customers",
       "grantee": "atlas_app_rw",
       "privileges": [
@@ -6851,12 +7689,40 @@
     },
     {
       "schema": "customer",
+      "table": "customers",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
       "table": "identity_verification_attempts",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "customer",
+      "table": "identity_verification_attempts",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6873,12 +7739,40 @@
     },
     {
       "schema": "expedientes",
+      "table": "expediente_actividad",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "expedientes",
       "table": "expediente_concesiones",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "expedientes",
+      "table": "expediente_concesiones",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6895,6 +7789,20 @@
     },
     {
       "schema": "expedientes",
+      "table": "expediente_nodos",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "expedientes",
       "table": "expediente_tickets_subida",
       "grantee": "atlas_app_rw",
       "privileges": [
@@ -6906,12 +7814,40 @@
     },
     {
       "schema": "expedientes",
+      "table": "expediente_tickets_subida",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "expedientes",
       "table": "expedientes",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "expedientes",
+      "table": "expedientes",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6928,12 +7864,40 @@
     },
     {
       "schema": "iam",
+      "table": "auth_credentials",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "iam",
       "table": "auth_one_time_codes",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "iam",
+      "table": "auth_one_time_codes",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6950,12 +7914,40 @@
     },
     {
       "schema": "iam",
+      "table": "auth_refresh_tokens",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "iam",
       "table": "internal_permissions",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "iam",
+      "table": "internal_permissions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6972,12 +7964,40 @@
     },
     {
       "schema": "iam",
+      "table": "internal_role_permissions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "iam",
       "table": "internal_roles",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "iam",
+      "table": "internal_roles",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -6994,12 +8014,40 @@
     },
     {
       "schema": "iam",
+      "table": "internal_user_roles",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "iam",
       "table": "internal_users",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "iam",
+      "table": "internal_users",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7016,12 +8064,40 @@
     },
     {
       "schema": "iam",
+      "table": "merchant_user_provisioning_requests",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "iam",
       "table": "merchant_users",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "iam",
+      "table": "merchant_users",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7038,12 +8114,40 @@
     },
     {
       "schema": "iam",
+      "table": "platform_users",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "iam",
       "table": "tenants",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "iam",
+      "table": "tenants",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7060,12 +8164,40 @@
     },
     {
       "schema": "integrations",
+      "table": "data_provider_requests",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "integrations",
       "table": "data_provider_responses",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "integrations",
+      "table": "data_provider_responses",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7082,12 +8214,40 @@
     },
     {
       "schema": "integrations",
+      "table": "data_providers",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "integrations",
       "table": "external_oauth_connections",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "integrations",
+      "table": "external_oauth_connections",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7104,12 +8264,40 @@
     },
     {
       "schema": "integrations",
+      "table": "external_provider_cost_policies",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "integrations",
       "table": "provider_health_logs",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "integrations",
+      "table": "provider_health_logs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7126,12 +8314,40 @@
     },
     {
       "schema": "messaging",
+      "table": "device_tokens",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "messaging",
       "table": "notification_deliveries",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "messaging",
+      "table": "notification_deliveries",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7148,12 +8364,40 @@
     },
     {
       "schema": "messaging",
+      "table": "notification_messages",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "messaging",
       "table": "notification_policies",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "messaging",
+      "table": "notification_policies",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7170,12 +8414,40 @@
     },
     {
       "schema": "messaging",
+      "table": "notification_templates",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "messaging",
       "table": "user_notification_preferences",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "messaging",
+      "table": "user_notification_preferences",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7192,12 +8464,40 @@
     },
     {
       "schema": "partner",
+      "table": "partner_branches",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "partner",
       "table": "partner_contract_templates",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "partner",
+      "table": "partner_contract_templates",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7214,12 +8514,40 @@
     },
     {
       "schema": "partner",
+      "table": "partner_legal_representatives",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "partner",
       "table": "partner_pos_terminals",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "partner",
+      "table": "partner_pos_terminals",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7236,12 +8564,89 @@
     },
     {
       "schema": "partner",
+      "table": "partner_profiles",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "partner",
       "table": "partner_qr_codes",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "partner",
+      "table": "partner_qr_codes",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "context_ownership",
+      "grantee": "atlas_app_rw",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "context_ownership",
+      "grantee": "atlas_ctx_credit",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "context_ownership",
+      "grantee": "atlas_ctx_customer",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "context_ownership",
+      "grantee": "atlas_ctx_messaging",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "context_ownership",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7258,12 +8663,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "data_notebook_documents",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "data_notebook_query_history",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "data_notebook_query_history",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7280,12 +8713,73 @@
     },
     {
       "schema": "platform_ops",
+      "table": "idempotency_keys",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "inbox_receipts",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "inbox_receipts",
+      "grantee": "atlas_ctx_credit",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "inbox_receipts",
+      "grantee": "atlas_ctx_customer",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "inbox_receipts",
+      "grantee": "atlas_ctx_messaging",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "inbox_receipts",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7302,12 +8796,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "outbox_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "schema_change_log",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "schema_change_log",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7324,12 +8846,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "schema_columns",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "schema_relationships",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "schema_relationships",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7346,12 +8896,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "schema_tables",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "schema_versions",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "schema_versions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7368,12 +8946,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "system_action_logs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "system_block_federation_state",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "system_block_federation_state",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7390,12 +8996,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "system_catalog_review_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "system_data_entity_catalog",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "system_data_entity_catalog",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7412,12 +9046,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "system_data_field_catalog",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "system_data_relationship_catalog",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "system_data_relationship_catalog",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7434,12 +9096,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "system_domain_catalog",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "system_endpoint_catalog",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "system_endpoint_catalog",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7456,12 +9146,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "system_endpoint_data_entity_impacts",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "system_endpoint_field_impacts",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "system_endpoint_field_impacts",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7478,12 +9196,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "system_endpoint_payload_contracts",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "system_endpoint_tool_requirements",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "system_endpoint_tool_requirements",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7500,12 +9246,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "system_flow_catalog",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "system_flow_findings",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "system_flow_findings",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7522,12 +9296,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "system_flow_imports",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "system_job_runs",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "system_job_runs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7544,12 +9346,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "system_operational_rule_catalog",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "system_screen_catalog",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "system_screen_catalog",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7566,12 +9396,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "system_stress_profiles",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "system_test_runs",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "system_test_runs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7588,12 +9446,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "system_test_step_runs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "system_test_steps",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "system_test_steps",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7610,12 +9496,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "system_test_suites",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "system_tool_catalog",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "system_tool_catalog",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7632,12 +9546,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "workflow_definitions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "workflow_stages",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "workflow_stages",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7654,6 +9596,20 @@
     },
     {
       "schema": "platform_ops",
+      "table": "workflow_step_dependencies",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "workflow_steps",
       "grantee": "atlas_app_rw",
       "privileges": [
@@ -7665,12 +9621,40 @@
     },
     {
       "schema": "platform_ops",
+      "table": "workflow_steps",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
       "table": "workflow_transitions",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "platform_ops",
+      "table": "workflow_transitions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7687,12 +9671,40 @@
     },
     {
       "schema": "privacy",
+      "table": "consent_documents",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "privacy",
       "table": "consent_events",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "privacy",
+      "table": "consent_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7709,12 +9721,40 @@
     },
     {
       "schema": "privacy",
+      "table": "customer_consents",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "privacy",
       "table": "data_classification_policies",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "privacy",
+      "table": "data_classification_policies",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7731,12 +9771,40 @@
     },
     {
       "schema": "privacy",
+      "table": "data_subject_requests",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "privacy",
       "table": "evidence_documents",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "privacy",
+      "table": "evidence_documents",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7753,12 +9821,40 @@
     },
     {
       "schema": "privacy",
+      "table": "evidence_extractions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "privacy",
       "table": "evidence_reviews",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "privacy",
+      "table": "evidence_reviews",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7775,12 +9871,40 @@
     },
     {
       "schema": "privacy",
+      "table": "privacy_processing_purposes",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "privacy",
       "table": "retention_policies",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "privacy",
+      "table": "retention_policies",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7796,9 +9920,53 @@
       ]
     },
     {
+      "schema": "privacy",
+      "table": "sensitive_field_rules",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_accounting_collections_v1",
+      "grantee": "atlas_app_ro",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
       "schema": "read_api",
       "table": "v_accounting_collections_v1",
       "grantee": "atlas_app_rw",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_accounting_collections_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_accounting_portfolio_v1",
+      "grantee": "atlas_app_ro",
       "privileges": [
         "SELECT"
       ]
@@ -7813,8 +9981,52 @@
     },
     {
       "schema": "read_api",
+      "table": "v_accounting_portfolio_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_audit_event_feed_v1",
+      "grantee": "atlas_app_ro",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
       "table": "v_audit_event_feed_v1",
       "grantee": "atlas_app_rw",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_audit_event_feed_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_commercial_conversion_v1",
+      "grantee": "atlas_app_ro",
       "privileges": [
         "SELECT"
       ]
@@ -7829,8 +10041,52 @@
     },
     {
       "schema": "read_api",
+      "table": "v_commercial_conversion_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_commercial_origination_v1",
+      "grantee": "atlas_app_ro",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
       "table": "v_commercial_origination_v1",
       "grantee": "atlas_app_rw",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_commercial_origination_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_customer_overview_v1",
+      "grantee": "atlas_app_ro",
       "privileges": [
         "SELECT"
       ]
@@ -7845,8 +10101,52 @@
     },
     {
       "schema": "read_api",
+      "table": "v_customer_overview_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_executive_summary_v1",
+      "grantee": "atlas_app_ro",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
       "table": "v_executive_summary_v1",
       "grantee": "atlas_app_rw",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_executive_summary_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_notification_delivery_summary_v1",
+      "grantee": "atlas_app_ro",
       "privileges": [
         "SELECT"
       ]
@@ -7861,8 +10161,52 @@
     },
     {
       "schema": "read_api",
+      "table": "v_notification_delivery_summary_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_operations_collections_queue_v1",
+      "grantee": "atlas_app_ro",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
       "table": "v_operations_collections_queue_v1",
       "grantee": "atlas_app_rw",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_operations_collections_queue_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_operations_work_queue_v1",
+      "grantee": "atlas_app_ro",
       "privileges": [
         "SELECT"
       ]
@@ -7877,8 +10221,52 @@
     },
     {
       "schema": "read_api",
+      "table": "v_operations_work_queue_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_provider_health_latest_v1",
+      "grantee": "atlas_app_ro",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
       "table": "v_provider_health_latest_v1",
       "grantee": "atlas_app_rw",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_provider_health_latest_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_risk_assessment_summary_v1",
+      "grantee": "atlas_app_ro",
       "privileges": [
         "SELECT"
       ]
@@ -7893,8 +10281,52 @@
     },
     {
       "schema": "read_api",
+      "table": "v_risk_assessment_summary_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_risk_decision_funnel_v1",
+      "grantee": "atlas_app_ro",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
       "table": "v_risk_decision_funnel_v1",
       "grantee": "atlas_app_rw",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_risk_decision_funnel_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_risk_delinquency_aging_v1",
+      "grantee": "atlas_app_ro",
       "privileges": [
         "SELECT"
       ]
@@ -7909,8 +10341,52 @@
     },
     {
       "schema": "read_api",
+      "table": "v_risk_delinquency_aging_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_risk_score_calibration_v1",
+      "grantee": "atlas_app_ro",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
       "table": "v_risk_score_calibration_v1",
       "grantee": "atlas_app_rw",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_risk_score_calibration_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_risk_vintage_performance_v1",
+      "grantee": "atlas_app_ro",
       "privileges": [
         "SELECT"
       ]
@@ -7925,10 +10401,46 @@
     },
     {
       "schema": "read_api",
+      "table": "v_risk_vintage_performance_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_system_endpoint_coverage_v1",
+      "grantee": "atlas_app_ro",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
       "table": "v_system_endpoint_coverage_v1",
       "grantee": "atlas_app_rw",
       "privileges": [
         "SELECT"
+      ]
+    },
+    {
+      "schema": "read_api",
+      "table": "v_system_endpoint_coverage_v1",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
       ]
     },
     {
@@ -7939,6 +10451,20 @@
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
+      "table": "feature_computation_runs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7955,12 +10481,40 @@
     },
     {
       "schema": "risk",
+      "table": "feature_definitions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
       "table": "feature_lineage_links",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
+      "table": "feature_lineage_links",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7977,12 +10531,40 @@
     },
     {
       "schema": "risk",
+      "table": "feature_snapshots",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
       "table": "feature_values",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
+      "table": "feature_values",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -7999,12 +10581,40 @@
     },
     {
       "schema": "risk",
+      "table": "rating_policy_bands",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
       "table": "rating_policy_versions",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
+      "table": "rating_policy_versions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8021,12 +10631,40 @@
     },
     {
       "schema": "risk",
+      "table": "risk_assessment_contexts",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
       "table": "risk_assessment_results",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
+      "table": "risk_assessment_results",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8043,12 +10681,40 @@
     },
     {
       "schema": "risk",
+      "table": "risk_assessment_runs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
       "table": "risk_feature_contributions",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
+      "table": "risk_feature_contributions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8065,12 +10731,40 @@
     },
     {
       "schema": "risk",
+      "table": "risk_model_versions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
       "table": "risk_policy_rules",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
+      "table": "risk_policy_rules",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8087,6 +10781,20 @@
     },
     {
       "schema": "risk",
+      "table": "risk_rules_fired",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
       "table": "risk_ruleset_versions",
       "grantee": "atlas_app_rw",
       "privileges": [
@@ -8098,12 +10806,40 @@
     },
     {
       "schema": "risk",
+      "table": "risk_ruleset_versions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
       "table": "risk_signal_seeds",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "risk",
+      "table": "risk_signal_seeds",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8120,12 +10856,40 @@
     },
     {
       "schema": "support",
+      "table": "knowledge_article_versions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
       "table": "knowledge_articles",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
+      "table": "knowledge_articles",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8142,12 +10906,40 @@
     },
     {
       "schema": "support",
+      "table": "support_agent_profiles",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
       "table": "support_agent_skills",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
+      "table": "support_agent_skills",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8164,12 +10956,40 @@
     },
     {
       "schema": "support",
+      "table": "support_assignments",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
       "table": "support_attachments",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
+      "table": "support_attachments",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8186,12 +11006,40 @@
     },
     {
       "schema": "support",
+      "table": "support_canned_responses",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
       "table": "support_case_categories",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
+      "table": "support_case_categories",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8208,12 +11056,40 @@
     },
     {
       "schema": "support",
+      "table": "support_case_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
       "table": "support_case_feedback",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
+      "table": "support_case_feedback",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8230,12 +11106,40 @@
     },
     {
       "schema": "support",
+      "table": "support_case_links",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
       "table": "support_case_references",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
+      "table": "support_case_references",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8252,12 +11156,40 @@
     },
     {
       "schema": "support",
+      "table": "support_cases",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
       "table": "support_channel_participants",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
+      "table": "support_channel_participants",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8274,12 +11206,40 @@
     },
     {
       "schema": "support",
+      "table": "support_channels",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
       "table": "support_message_relations",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
+      "table": "support_message_relations",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8296,12 +11256,40 @@
     },
     {
       "schema": "support",
+      "table": "support_messages",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
       "table": "support_queues",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
+      "table": "support_queues",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8318,6 +11306,20 @@
     },
     {
       "schema": "support",
+      "table": "support_resolutions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
       "table": "support_sla_clocks",
       "grantee": "atlas_app_rw",
       "privileges": [
@@ -8329,12 +11331,40 @@
     },
     {
       "schema": "support",
+      "table": "support_sla_clocks",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
       "table": "support_sla_policies",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "support",
+      "table": "support_sla_policies",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8351,12 +11381,40 @@
     },
     {
       "schema": "telemetry",
+      "table": "auth_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
       "table": "customer_action_logs",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
+      "table": "customer_action_logs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8373,12 +11431,40 @@
     },
     {
       "schema": "telemetry",
+      "table": "customer_activity_summaries",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
       "table": "customer_device_links",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
+      "table": "customer_device_links",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8395,12 +11481,40 @@
     },
     {
       "schema": "telemetry",
+      "table": "customer_location_pings",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
       "table": "customer_sessions",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
+      "table": "customer_sessions",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8417,12 +11531,40 @@
     },
     {
       "schema": "telemetry",
+      "table": "device_risk_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
       "table": "device_snapshots",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
+      "table": "device_snapshots",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8439,12 +11581,40 @@
     },
     {
       "schema": "telemetry",
+      "table": "devices",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
       "table": "form_field_interaction_events",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
+      "table": "form_field_interaction_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8461,12 +11631,40 @@
     },
     {
       "schema": "telemetry",
+      "table": "global_device_fingerprints",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
       "table": "ip_reputation_observations",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
+      "table": "ip_reputation_observations",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8483,12 +11681,40 @@
     },
     {
       "schema": "telemetry",
+      "table": "on_device_computation_runs",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
       "table": "on_device_metric_values",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
+      "table": "on_device_metric_values",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8505,12 +11731,40 @@
     },
     {
       "schema": "telemetry",
+      "table": "onboarding_behavior_summaries",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
       "table": "onboarding_flows",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
+      "table": "onboarding_flows",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     },
@@ -8527,6 +11781,20 @@
     },
     {
       "schema": "telemetry",
+      "table": "onboarding_step_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
       "table": "permission_events",
       "grantee": "atlas_app_rw",
       "privileges": [
@@ -8538,12 +11806,40 @@
     },
     {
       "schema": "telemetry",
+      "table": "permission_events",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
       "table": "sim_observations",
       "grantee": "atlas_app_rw",
       "privileges": [
         "DELETE",
         "INSERT",
         "SELECT",
+        "UPDATE"
+      ]
+    },
+    {
+      "schema": "telemetry",
+      "table": "sim_observations",
+      "grantee": "atlas_owner",
+      "privileges": [
+        "DELETE",
+        "INSERT",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
         "UPDATE"
       ]
     }
@@ -9117,7 +12413,6 @@
       "src/modules/catalog-management/application/catalog-version-workflow.service.ts"
     ],
     "credit": [
-      "src/modules/credit/application/credit-application-admission.service.ts",
       "src/modules/credit/application/credit-business-acceptance.service.ts",
       "src/modules/credit/application/credit-decision.service.ts",
       "src/modules/credit/application/credit-line-writer.service.ts",
@@ -9185,6 +12480,9 @@
     ],
     "merchant-identity": [
       "src/modules/merchant-identity/merchant-user-requests.service.ts"
+    ],
+    "notifications": [
+      "src/modules/notifications/infrastructure/pilot/messaging-backfill.ts"
     ],
     "operations": [
       "src/modules/operations/operations.service.ts"

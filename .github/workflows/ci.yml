@@ -419,6 +419,13 @@ jobs:
       - name: Verify read_api views
         run: yarn check:read-api-views
 
+      # El gate de HONESTIDAD de esa misma reportería (una tasa sin su denominador, una división sin
+      # NULLIF, una vista sin `tenant_id`) estaba escrito desde hacía semanas y no lo ejecutaba nadie:
+      # `package.json` declara 18 gates `check:*` y este workflow sólo invocaba 17. Un control que no
+      # corre no es un control. Va aquí porque necesita las vistas ya creadas por las migraciones.
+      - name: Verify read_api reporting honesty
+        run: yarn check:read-api-honesty
+
       # Fase 2: crear la jerarquía de roles y grants contra el Postgres real, y verificar la matriz
       # de privilegios conectando como atlas_app_rw y atlas_app_ro (no destructivo).
       - name: Verify DB privilege matrix (as app_rw / app_ro)

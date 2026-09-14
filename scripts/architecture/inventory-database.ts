@@ -121,10 +121,24 @@ export async function readCatalog(sequelize: Sequelize): Promise<DatabaseCatalog
      JOIN pg_namespace n ON n.oid = p.pronamespace
      WHERE n.nspname NOT IN ('pg_catalog','information_schema') ORDER BY 1, 2`,
   );
+  // Los permisos se leen del catálogo (`relacl` + `aclexplode`) y NO de
+  // `information_schema.role_table_grants`, que era la única de las seis consultas de esta función
+  // que usaba el estándar. Esa vista no sólo filtra por privilegios: sólo muestra concesiones cuyo
+  // otorgante o beneficiario sea un rol HABILITADO para quien consulta, así que la respuesta cambia
+  // según con qué identidad se ejecute el script. Medido sobre la misma base: `atlas` veía 2.404
+  // filas, `atlas_app_rw` 825 y `atlas_app_ro` 17, y el artefacto ya publicado sólo contenía
+  // concesiones de `atlas_app_rw` —ni una de `atlas_owner`, `atlas_app_ro` ni de los tres roles de
+  // contexto—. Un inventario que sostiene la decisión de separar la base no puede depender de quién
+  // lo ejecuta.
   const grantRows = await select<{ schema: string; table: string; grantee: string; privilege: string }>(
-    `SELECT table_schema AS schema, table_name AS table, grantee, privilege_type AS privilege
-     FROM information_schema.role_table_grants
-     WHERE table_schema NOT IN ('pg_catalog','information_schema') AND grantee LIKE 'atlas%' ORDER BY 1, 2, 3, 4`,
+    `SELECT n.nspname AS schema, c.relname AS table, pg_get_userbyid(acl.grantee) AS grantee, acl.privilege_type AS privilege
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       CROSS JOIN LATERAL aclexplode(c.relacl) AS acl
+      WHERE c.relkind IN ('r','p','v','m')
+        AND n.nspname NOT IN ('pg_catalog','information_schema')
+        AND pg_get_userbyid(acl.grantee) LIKE 'atlas%'
+      ORDER BY 1, 2, 3, 4`,
   );
 
   const references = (text: string): string[] =>

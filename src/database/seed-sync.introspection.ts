@@ -10,8 +10,12 @@ import type { ColumnRef, ForeignKeyRef, TableRef } from './seed-sync.types.js';
 /**
  * Sale de `seed-sync.ts` porque aquel archivo mezclaba dos cosas de tamaño muy distinto: la
  * ORQUESTACIÓN de la copia —que es corta y es donde se decide el orden y qué se borra— y la
- * introspección del esquema, que son tres consultas largas a `information_schema` y un reajuste de
- * secuencias. Juntas pasaban de las 300 líneas que admite `check:file-size`.
+ * introspección del esquema, que son tres consultas largas al catálogo de PostgreSQL y un reajuste
+ * de secuencias. Juntas pasaban de las 300 líneas que admite `check:file-size`.
+ *
+ * Las tres preguntan a `pg_catalog` y no a `information_schema` a propósito: las vistas del estándar
+ * sólo muestran los objetos sobre los que el rol conectado tiene privilegios, y una copia que se
+ * salta en silencio las tablas que no ve produce un destino incompleto que parece correcto.
  */
 
 export async function readColumns(client: Client, tables: readonly TableRef[]): Promise<Map<string, ColumnRef[]>> {

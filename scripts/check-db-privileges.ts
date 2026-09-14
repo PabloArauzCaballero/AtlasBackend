@@ -58,6 +58,27 @@ async function selectOne<T extends Record<string, unknown>>(
   return rows[0];
 }
 
+/**
+ * Las tablas de esos schemas sobre las que el rol conectado NO tiene el privilegio pedido.
+ *
+ * Se nombra un máximo de diez: la lista existe para que quien lea el fallo sepa por dónde empezar,
+ * no para volcar doscientos nombres. Se consulta por OID —y no por nombre— porque resolver
+ * `schema.tabla` sin USAGE en ese schema lanza «permission denied for schema» y mataría al gate.
+ */
+async function tablesWithoutPrivilege(sequelize: Sequelize, schemas: string[], privilege: 'SELECT' | 'INSERT'): Promise<string[]> {
+  const rows = (await sequelize.query(
+    `SELECT n.nspname || '.' || c.relname AS name
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE c.relkind IN ('r', 'p') AND n.nspname IN (:schemas)
+        AND NOT COALESCE(has_table_privilege(current_user, c.oid, :privilege), false)
+      ORDER BY 1
+      LIMIT 10`,
+    { replacements: { schemas, privilege }, type: QueryTypes.SELECT },
+  )) as { name: string }[];
+  return rows.map((row) => row.name);
+}
+
 async function checkReadWrite(sequelize: Sequelize): Promise<string[]> {
   const errors: string[] = [];
   const identity = await selectOne<{ current_user: string; is_super: boolean }>(
@@ -93,23 +114,46 @@ async function checkReadWrite(sequelize: Sequelize): Promise<string[]> {
     if (schema.can_create) errors.push(`atlas_app_rw tiene CREATE en el schema "${schema.schema_name}" (no debe tener DDL).`);
   }
 
+  // El recuento se hace sobre el OID de cada tabla y NO sobre su nombre: `has_table_privilege` con
+  // nombre tiene que RESOLVERLO, y resolver `expedientes.lo_que_sea` sin USAGE en ese schema lanza
+  // «permission denied for schema». Es decir: con la versión anterior, el gate se moría con una
+  // traza justo cuando encontraba lo que vino a buscar —un schema sin USAGE, que dos líneas más
+  // arriba ya se había anotado como hallazgo— y no llegaba a imprimir ni ese ni los demás. Con el
+  // OID no hay resolución de nombres, así que la pregunta se contesta siempre y el gate REPORTA.
   const crud = await selectOne<{ can_select: string; can_insert: string; total: string }>(
     sequelize,
     `SELECT
        count(*) AS total,
-       count(*) FILTER (WHERE has_table_privilege(current_user, format('%I.%I', schemaname, tablename), 'SELECT')) AS can_select,
-       count(*) FILTER (WHERE has_table_privilege(current_user, format('%I.%I', schemaname, tablename), 'INSERT')) AS can_insert
-     FROM pg_tables WHERE schemaname IN (:schemas)`,
+       count(*) FILTER (WHERE has_table_privilege(current_user, c.oid, 'SELECT')) AS can_select,
+       count(*) FILTER (WHERE has_table_privilege(current_user, c.oid, 'INSERT')) AS can_insert
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE c.relkind IN ('r', 'p') AND n.nspname IN (:schemas)`,
     { schemas },
   );
-  if (Number(crud.total) > 0 && Number(crud.can_select) === 0) {
-    errors.push('atlas_app_rw no puede hacer SELECT en ninguna tabla de los schemas de dominio.');
+  // Se exige cobertura COMPLETA, no «al menos una». La condición anterior (`=== 0`) sólo cazaba el
+  // caso extremo de un rol sin ningún permiso, y dejaba pasar en verde justo lo que este gate existe
+  // para encontrar: un schema de dominio nuevo cuyo GRANT no se aplicó. Medido: con un rol que sólo
+  // alcanza 2 de 201 tablas, la versión anterior imprimía «[ok]» y salía con código 0.
+  const total = Number(crud.total);
+  const conSelect = Number(crud.can_select);
+  const conInsert = Number(crud.can_insert);
+  if (total > 0 && conSelect < total) {
+    errors.push(
+      `atlas_app_rw sólo puede hacer SELECT en ${conSelect} de ${total} tablas de los schemas de dominio. ` +
+        `Sin privilegio: ${(await tablesWithoutPrivilege(sequelize, schemas, 'SELECT')).join(', ')}.`,
+    );
   }
-  if (Number(crud.total) > 0 && Number(crud.can_insert) === 0) {
-    errors.push('atlas_app_rw no puede hacer INSERT en ninguna tabla de los schemas de dominio.');
+  if (total > 0 && conInsert < total) {
+    errors.push(
+      `atlas_app_rw sólo puede hacer INSERT en ${conInsert} de ${total} tablas de los schemas de dominio. ` +
+        `Sin privilegio: ${(await tablesWithoutPrivilege(sequelize, schemas, 'INSERT')).join(', ')}.`,
+    );
   }
 
-  console.log(`[ok] atlas_app_rw verificado (SELECT en ${crud.can_select}/${crud.total} tablas, sin CREATE, sin superuser).`);
+  if (errors.length === 0) {
+    console.log(`[ok] atlas_app_rw verificado (SELECT e INSERT en las ${total} tablas, sin CREATE, sin superuser).`);
+  }
   return errors;
 }
 

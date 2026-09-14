@@ -95,8 +95,9 @@ describe('AT-004 · inventario de la base', () => {
     if (!catalog) return;
     const runtime = catalog.grants.filter((grant) => grant.grantee === 'atlas_app_rw');
     expect(runtime.length).toBeGreaterThan(0);
-    // information_schema sólo lista privilegios de tabla (DML + TRUNCATE/REFERENCES/TRIGGER); el DDL
-    // se mide por ownership del schema en `check:db-privileges --strict`. Aquí se fija que no sea dueño.
+    // El inventario lista privilegios de TABLA (DML + TRUNCATE/REFERENCES/TRIGGER), que es lo que
+    // guarda `relacl`; el DDL se mide por ownership del schema en `check:db-privileges --strict`.
+    // Aquí se fija que el rol de runtime no sea dueño de ninguna tabla.
     expect(catalog.tables.every((table) => table.owner !== 'atlas_app_rw')).toBe(true);
   });
 });

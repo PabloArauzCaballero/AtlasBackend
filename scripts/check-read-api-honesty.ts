@@ -55,11 +55,18 @@ async function main(): Promise<void> {
   const fallos: string[] = [];
 
   try {
+    // Las columnas se leen de `pg_catalog`, igual que las vistas de abajo, y NO de
+    // `information_schema.columns`: el estándar filtra por privilegios y `pg_views` no, así que un
+    // rol que ve la vista pero no tiene SELECT sobre ella recibía la lista de columnas VACÍA y el
+    // gate acusaba a TODAS las vistas de no publicar `tenant_id`. Un gate que cambia de veredicto
+    // según con qué usuario se conecte no está midiendo la reportería.
     const columnas = (await sequelize.query(
-      `SELECT table_name, column_name
-         FROM information_schema.columns
-        WHERE table_schema = 'read_api'
-        ORDER BY table_name, ordinal_position`,
+      `SELECT c.relname AS table_name, a.attname AS column_name
+         FROM pg_class c
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+         JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+        WHERE n.nspname = 'read_api' AND c.relkind IN ('v', 'm')
+        ORDER BY c.relname, a.attnum`,
       { type: QueryTypes.SELECT },
     )) as ColumnaRow[];
 
