@@ -162,6 +162,19 @@ export function indexName(index: IndexSpec): string {
  * dar un `false` mentiroso.
  */
 async function constraintExists(queryInterface: QueryInterface, tableName: string, constraintName: string): Promise<boolean> {
+  // Un nombre CUALIFICADO rompería la equivalencia entre esta guarda y el DDL que viene detrás:
+  // `quoteIdentifier` produce UN identificador (`"schema.tabla"`) mientras que Sequelize parte por el
+  // punto (`"schema"."tabla"`), así que estarían hablando de tablas distintas —y `to_regclass` sobre
+  // un schema sin USAGE además lanza—. Hoy ningún spec trae punto; esto impide que el día que
+  // alguien lo escriba el fallo sea silencioso.
+  if (tableName.includes('.')) {
+    throw new Error(
+      `Los constructores de esquema esperan el nombre SIMPLE de la tabla y recibieron "${tableName}". ` +
+        'El schema lo resuelve el `search_path` de las migraciones; cualificarlo desalinea la guarda de ' +
+        'idempotencia con el ALTER TABLE que ejecuta Sequelize.',
+    );
+  }
+
   const [rows] = (await queryInterface.sequelize.query(
     `
     SELECT EXISTS (

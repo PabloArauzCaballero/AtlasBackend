@@ -163,6 +163,16 @@ describe('createIndexes', () => {
     expect(consultadas.some((sql) => /ALTER TABLE/i.test(sql))).toBe(false);
   });
 
+  it('un nombre cualificado se rechaza: la guarda y el ALTER TABLE dejarían de hablar de la misma tabla', async () => {
+    const { qi } = queryInterfaceFalso(false);
+    // `quoteIdentifier` produciría UN identificador «"platform_ops.cosas"» y Sequelize partiría por el
+    // punto: el guardián miraría una tabla que no existe y el ALTER iría a la de verdad, siempre.
+    await expect(addChecks(qi as never, [{ table: 'platform_ops.cosas', name: 'ck_x', expression: '1 = 1' } as never])).rejects.toThrow(
+      /nombre SIMPLE/,
+    );
+    expect(qi.addConstraint).not.toHaveBeenCalled();
+  });
+
   /*
    * Una foránea que admite nulos se borra con SET NULL y una que no, con RESTRICT: al revés, borrar
    * un tenant dejaría filas apuntando a nada, o no se podría borrar nunca.
