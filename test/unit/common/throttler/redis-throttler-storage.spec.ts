@@ -82,12 +82,15 @@ describe('RedisThrottlerStorage', () => {
       expect(result).toMatchObject({ totalHits: 3, isBlocked: false, timeToExpire: 45 });
     });
 
-    it('si el TTL restante no es válido, cae al ttl declarado', async () => {
+    it('si el contador perdió su vencimiento (pttl=-1), lo REPONE y cae al ttl declarado', async () => {
+      // Regresión medida el 2026-09-14: un contador sin TTL nunca vuelve a cero y, pasado el
+      // límite, deja la ruta en 429 para siempre. El PEXPIRE tiene que ir siempre que falte.
       redis.incr.mockResolvedValue(2 as never);
       redis.pttl.mockResolvedValueOnce(-2 as never).mockResolvedValueOnce(-1 as never);
 
       const result = await buildStorage(redis).increment('ip:1', 30_000, 10, 0, 'default');
 
+      expect(redis.pexpire).toHaveBeenCalledWith('throttle:default:ip:1', 30_000);
       expect(result.timeToExpire).toBe(30);
     });
 
