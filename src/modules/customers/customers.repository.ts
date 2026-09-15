@@ -45,6 +45,11 @@ export class CustomersRepository {
    * sentido notificar a una cuenta bloqueada, y evita construir una lista de miles de ids solo
    * para descartarlos después caso por caso.
    */
+  async findManyByIds(tenantId: string, ids: readonly string[]): Promise<CustomerModel[]> {
+    if (ids.length === 0) return [];
+    return this.customerModel.findAll({ where: { tenantId, id: [...ids], deleted: false } });
+  }
+
   async listActiveCustomerIds(tenantId: string): Promise<string[]> {
     // Paginación keyset por PK en lotes: evita una única query sin `limit` que materializa de golpe
     // todas las filas del tenant (riesgo de memoria/tiempo con decenas de miles de clientes). Cada

@@ -88,6 +88,19 @@ export class OperationsController {
   }
 
   @ApiOperation({
+    summary: 'Contactos de clientes pendientes de verificación',
+    description:
+      'Correos y teléfonos declarados por clientes que aún no confirmaron el código. Es la cola desde la que el portal ' +
+      'reenvía la verificación (POST /customer-onboarding/:customerId/contact-verification/request).',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Lista de contactos sin verificar, del más reciente al más antiguo.' })
+  @Get('customers/pending-contact-verification')
+  listPendingContactVerification(@CurrentTenant() tenantId: string) {
+    return this.operationsService.listPendingContactVerification(tenantId);
+  }
+
+  @ApiOperation({
     summary: 'Resumen de investigación de un cliente',
     description:
       'Perfil, contactos, consentimientos, último resultado de riesgo (desglose completo) y casos abiertos, para investigación interna.',

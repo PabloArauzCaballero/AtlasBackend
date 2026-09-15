@@ -35,6 +35,20 @@ export class CustomerContactsRepository {
    * registro: cuando el cliente corregía un teléfono mal tipeado y verificaba el nuevo, estas
    * columnas seguían apuntando al número muerto.
    */
+  /**
+   * Contactos que el cliente declaró y todavía no verificó, del más reciente al más antiguo.
+   *
+   * Es lo que el portal enseña como «usuarios sin verificar» para reenviar el código: un
+   * cliente que no verifica el correo se queda a mitad del alta y nadie lo veía hasta ahora.
+   */
+  async listUnverified(tenantId: string, limit = 200): Promise<CustomerContactMethodModel[]> {
+    return this.contactMethodModel.findAll({
+      where: { tenantId, status: 'unverified', deleted: false },
+      order: [['createdAtValue', 'DESC']],
+      limit,
+    });
+  }
+
   async updatePrimaryContact(
     customer: CustomerModel,
     values: { contactType: 'phone' | 'email'; contactValueHash: string; valueLast4: string | null; emailDomain: string | null },

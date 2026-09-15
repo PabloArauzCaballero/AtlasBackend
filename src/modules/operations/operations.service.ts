@@ -15,7 +15,8 @@ import { CustomerLifecycleStatus } from '../customers/customer-lifecycle.constan
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { CustomerContactsRepository } from '../customers/repositories/customer-contacts.repository.js';
 import { RiskRepository } from '../risk/risk.repository.js';
-import { InvestigationSummaryResponseDto, PaginatedWorkQueueResponseDto } from './operations.dtos.js';
+import { CustomerModel } from '../../database/models/index.js';
+import { InvestigationSummaryResponseDto, PaginatedWorkQueueResponseDto, PendingContactVerificationItemDto } from './operations.dtos.js';
 import { toFraudWorkItem, toInvestigationSummaryResponse, toManualReviewWorkItem } from './operations.mapper.js';
 import { OperationsRepository } from './operations.repository.js';
 import {
@@ -108,6 +109,38 @@ export class OperationsService {
       items: allItems.slice(start, start + query.limit),
       meta: buildPaginationMeta({ page: query.page, limit: query.limit }, totalCount),
     };
+  }
+
+  /**
+   * Clientes con un correo o teléfono declarado y sin verificar.
+   *
+   * Sale de `customer_contact_methods.status = 'unverified'`, no del estado del cliente: una
+   * cuenta puede estar `active` y aun así tener el correo sin confirmar, y ése es justo el caso
+   * que hay que poder ver para reenviarle el código.
+   */
+  async listPendingContactVerification(tenantId: string): Promise<{ items: PendingContactVerificationItemDto[] }> {
+    const contacts = await this.customerContactsRepository.listUnverified(tenantId);
+    const customerIds = [...new Set(contacts.map((contact) => contact.customerId).filter((id): id is string => Boolean(id)))];
+    const customers = await this.customersRepository.findManyByIds(tenantId, customerIds);
+    const byId = new Map(customers.map((customer) => [customer.id, customer]));
+    const items = contacts
+      .filter((contact) => contact.customerId && byId.has(contact.customerId))
+      .map((contact) => {
+        const customer = byId.get(contact.customerId as string) as CustomerModel;
+        return {
+          customerId: customer.id,
+          customerCode: customer.customerCode ?? null,
+          lifecycleStatus: customer.lifecycleStatus ?? null,
+          customerCreatedAt: customer.createdAtValue?.toISOString() ?? null,
+          contactMethodId: contact.id,
+          contactType: contact.contactType ?? null,
+          valueLast4: contact.valueLast4 ?? null,
+          emailDomain: contact.emailDomain ?? null,
+          isPrimary: contact.isPrimary ?? null,
+          contactCreatedAt: contact.createdAtValue?.toISOString() ?? null,
+        };
+      });
+    return { items };
   }
 
   async getInvestigationSummary(tenantId: string, params: OperationsCustomerIdParamsDto): Promise<InvestigationSummaryResponseDto> {

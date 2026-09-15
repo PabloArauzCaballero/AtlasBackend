@@ -31,6 +31,20 @@ export type PaginatedWorkQueueResponseDto = {
   meta: PaginationMeta;
 };
 
+/** Una fila de la cola «contactos sin verificar»: quién, qué contacto y desde cuándo espera. */
+export type PendingContactVerificationItemDto = {
+  customerId: string;
+  customerCode: string | null;
+  lifecycleStatus: string | null;
+  customerCreatedAt: string | null;
+  contactMethodId: string;
+  contactType: string | null;
+  valueLast4: string | null;
+  emailDomain: string | null;
+  isPrimary: boolean | null;
+  contactCreatedAt: string | null;
+};
+
 export type ContactSummaryDto = {
   contactType: string | null;
   status: string | null;
