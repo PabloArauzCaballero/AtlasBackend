@@ -140,6 +140,74 @@ describe('RiskRepository', () => {
     expect(save).toHaveBeenCalledWith({ transaction: 'tx' });
   });
 
+  describe('la vuelta de la revisión manual hecha en el Motor', () => {
+    it('findManualReviewCaseByExecutionId busca el caso DELEGADO por su ejecución, el más reciente', async () => {
+      const { revision, models } = buildRepo();
+      (models.manualReviewCase.findOne as jest.Mock).mockResolvedValue({ id: 'mr-9' } as never);
+
+      await expect(revision.findManualReviewCaseByExecutionId('t1', '777', { transaction: 'tx' as never })).resolves.toEqual({
+        id: 'mr-9',
+      });
+
+      expect(models.manualReviewCase.findOne).toHaveBeenCalledWith({
+        where: { tenantId: 't1', decisionExecutionId: '777', deleted: false },
+        order: [['id', 'DESC']],
+        transaction: 'tx',
+      });
+    });
+
+    it('closeManualReviewCase cierra el caso con su resolución y guarda dentro de la transacción', async () => {
+      const { revision } = buildRepo();
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
+      const closedAt = new Date('2026-09-14T20:00:00.000Z');
+      const caso = { status: 'open', resolution: null, notes: null, closedAt: null, updatedAtValue: null, save } as never;
+
+      await revision.closeManualReviewCase(caso, { resolution: 'approved', notes: 'ok', closedAt }, { transaction: 'tx' as never });
+
+      expect(caso).toMatchObject({ status: 'closed', resolution: 'approved', notes: 'ok', closedAt, updatedAtValue: closedAt });
+      expect(save).toHaveBeenCalledWith({ transaction: 'tx' });
+    });
+
+    it('applyManualReviewOutcome corrige la acción recomendada y deja el rastro de la revisión en los motivos', async () => {
+      const { repo } = buildRepo();
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
+      const now = new Date('2026-09-14T20:00:00.000Z');
+      const result = {
+        recommendedAction: 'manual_review_required',
+        reasonCodesJson: { reasons: ['decision_engine_unavailable'] },
+        save,
+      } as never;
+
+      await repo.applyManualReviewOutcome(
+        result,
+        { recommendedAction: 'approved_for_next_step', reason: 'Todo en orden', now },
+        { transaction: 'tx' as never },
+      );
+
+      expect(result).toMatchObject({
+        recommendedAction: 'approved_for_next_step',
+        reasonCodesJson: {
+          reasons: ['decision_engine_unavailable'],
+          manualReview: { resolution: 'approved_for_next_step', reason: 'Todo en orden', resolvedAt: now.toISOString() },
+        },
+      });
+      expect(save).toHaveBeenCalledWith({ transaction: 'tx' });
+    });
+
+    it('applyManualReviewOutcome no rompe si el resultado no tenía motivos', async () => {
+      const { repo } = buildRepo();
+      const result = { recommendedAction: 'x', reasonCodesJson: null, save: jest.fn(async (..._args: unknown[]) => undefined) } as never;
+      await repo.applyManualReviewOutcome(
+        result,
+        { recommendedAction: 'rejected', reason: 'no', now: new Date() },
+        { transaction: 'tx' as never },
+      );
+      expect((result as { reasonCodesJson: { manualReview: { resolution: string } } }).reasonCodesJson.manualReview.resolution).toBe(
+        'rejected',
+      );
+    });
+  });
+
   describe('escrituras del expediente de riesgo (create*)', () => {
     const now = new Date('2026-01-01T00:00:00.000Z');
     const opts = { transaction: 'tx' as never };
