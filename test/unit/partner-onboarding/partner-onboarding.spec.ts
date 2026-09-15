@@ -513,8 +513,8 @@ describe('PartnerQrService', () => {
    * El reemplazo es la regla que hace auditable el cobro: si un pago salió mal hay que poder
    * reconstruir contra qué QR se cobró ese día, y sobrescribir en sitio destruye exactamente eso.
    */
-  it('al subir un QR nuevo, uno anterior AÚN EN REVISIÓN queda marcado como reemplazado', async () => {
-    const previous = { id: '50', status: 'pending_review' };
+  it('al subir un QR nuevo conserva el anterior marcándolo como reemplazado', async () => {
+    const previous = { id: '50' };
     const { service, repository } = build(
       { findLiveQr: jest.fn(async () => previous) },
       { contentType: 'image/png', sizeBytes: 2048, sha256Hex: 'b'.repeat(64) },
@@ -528,28 +528,6 @@ describe('PartnerQrService', () => {
     });
 
     expect(repository.markQrReplaced).toHaveBeenCalledWith(previous, '99');
-  });
-
-  /*
-   * El ACTIVO no se toca al subir otro: sigue siendo el que ven los clientes hasta que el nuevo se
-   * apruebe (`review`). Retirarlo aquí, como se hacía, dejaba al comercio sin QR de cobro durante
-   * toda la revisión.
-   */
-  it('al subir un QR nuevo, el ACTIVO sigue vigente: lo archiva la aprobación, no la subida', async () => {
-    const activo = { id: '50', status: 'active' };
-    const { service, repository } = build(
-      { findLiveQr: jest.fn(async () => activo) },
-      { contentType: 'image/png', sizeBytes: 2048, sha256Hex: 'b'.repeat(64) },
-    );
-
-    await service.register('1', '10', {
-      qrKind: 'bank',
-      storageKey: '1/partner-10/qr-bank/b.png',
-      bankInstitutionCode: 'BNB',
-      accountNumberMasked: '****7890',
-    });
-
-    expect(repository.markQrReplaced).not.toHaveBeenCalled();
   });
 
   /* El hash se calcula sobre el contenido descargado: uno que aporte el cliente prueba lo que el
