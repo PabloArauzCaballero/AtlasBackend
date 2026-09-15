@@ -22,7 +22,11 @@ import { MerchantUsersService } from './merchant-users.service.js';
  * persona: esa relación es del ERP y no se duplica aquí.
  */
 @Module({
-  imports: [SequelizeModule.forFeature([MerchantUserModel, MerchantUserProvisioningRequestModel]), AuthModule, InternalUsersModule],
+  imports: [
+    SequelizeModule.forFeature([MerchantUserModel, MerchantUserProvisioningRequestModel]),
+    AuthModule,
+    InternalUsersModule,
+  ],
   controllers: [MerchantAuthController, MerchantUsersController],
   providers: [MerchantAuthService, MerchantUsersService, MerchantUserRequestsService],
   exports: [MerchantUsersService, MerchantUserRequestsService],

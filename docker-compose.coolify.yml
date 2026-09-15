@@ -504,9 +504,27 @@ services:
     # El peso sólo actúa cuando hay contienda. Con la máquina ociosa no cambia nada.
     cpu_shares: 4096
     expose: ['3005']
+    # `required: false` en la migracion, y SOLO aqui.
+    #
+    # El 2026-09-14 una migracion de datos violo un CHECK, `migrate` salio con 1 y —por esta misma
+    # dependencia— `api` y `worker` se quedaron en «Created»: nunca arrancaron. El servicio estuvo
+    # CAIDO, no «el despliegue en rojo». Y es peor de lo que parece: Coolify retira los contenedores
+    # viejos ANTES de migrar, asi que cuando la migracion falla ya no hay a que volver.
+    #
+    # Con `required: false` Compose avisa y arranca el api igual. El despliegue SIGUE saliendo en rojo
+    # —la migracion fallida no se esconde— pero la gente que tiene la app abierta no se queda sin
+    # servicio mientras alguien lo arregla.
+    #
+    # El `worker` conserva la dependencia ESTRICTA a proposito: ahi corren los trabajos de fondo que
+    # escriben —cobros, entregas, reintentos—, y ejecutarlos contra un esquema a medio migrar es
+    # justo el riesgo que no compensa. Un API que lee y responde con una migracion de datos pendiente
+    # es un inconveniente; un worker haciendo lo mismo puede dejar datos mal.
+    #
+    # Esto es una red, no la solucion: la de verdad es que Coolify levante lo nuevo antes de apagar
+    # lo viejo (ver el plan), y entonces una migracion fallida no llega ni a tocar el servicio.
     depends_on:
       atlas-redis: { condition: service_healthy }
-      migrate: { condition: service_completed_successfully }
+      migrate: { condition: service_completed_successfully, required: false }
     volumes: ['api-logs:/app/logs']
     stop_grace_period: 20s
     deploy:

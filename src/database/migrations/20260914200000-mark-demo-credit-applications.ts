@@ -19,16 +19,6 @@ const APPLICATIONS = `${atlasSchemaFor('credit_applications')}.credit_applicatio
  * decisión; una solicitud real nunca se llama DEMO-.
  */
 export async function up({ context: queryInterface }: MigrationContext): Promise<void> {
-  /*
-   * El CHECK de `decision_mode` (20260811100000) sólo admitía los tres modos del flujo vivo. La
-   * procedencia de siembra es un cuarto valor legítimo y hay que declararlo ANTES del UPDATE: sin
-   * esto la migración reventó en el despliegue (23514) y dejó la API sin arrancar.
-   */
-  await queryInterface.sequelize.query(`
-ALTER TABLE ${APPLICATIONS} DROP CONSTRAINT IF EXISTS ck_credit_applications_decision_mode;
-ALTER TABLE ${APPLICATIONS} ADD CONSTRAINT ck_credit_applications_decision_mode
-  CHECK (decision_mode IS NULL OR decision_mode IN ('decision_engine','manual','engine_unavailable_manual','seed_demo'));
-`);
   await queryInterface.sequelize.query(`
 UPDATE ${APPLICATIONS}
    SET decision_mode = 'seed_demo'
@@ -43,10 +33,5 @@ export async function down({ context: queryInterface }: MigrationContext): Promi
 UPDATE ${APPLICATIONS}
    SET decision_mode = NULL
  WHERE decision_mode = 'seed_demo';
-`);
-  await queryInterface.sequelize.query(`
-ALTER TABLE ${APPLICATIONS} DROP CONSTRAINT IF EXISTS ck_credit_applications_decision_mode;
-ALTER TABLE ${APPLICATIONS} ADD CONSTRAINT ck_credit_applications_decision_mode
-  CHECK (decision_mode IS NULL OR decision_mode IN ('decision_engine','manual','engine_unavailable_manual'));
 `);
 }
