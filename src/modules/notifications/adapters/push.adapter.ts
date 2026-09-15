@@ -15,10 +15,10 @@ import { base64Url } from '../../../common/utils/crypto/encoding.util.js';
 import { APNS_TRANSPORT, ApnsTransport, sendApns } from './apns.util.js';
 import { DEVICE_TOKEN_REGISTRY_PORT, type DeviceTokenRegistryPort } from '../application/ports/device-token-registry.port.js';
 import { ANDROID_PUSH_CHANNEL, extraPushData, wantsVisiblePush } from './push-payload.util.js';
+import { normalizePemKey } from '../../../common/utils/crypto/pem-key.util.js';
 
-function normalizePrivateKey(raw: string): string {
-  return raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;
-}
+/** La misma normalización para FCM y APNs: ver `pem-key.util.ts` (la clave de test venía escapada dos veces). */
+const normalizePrivateKey = normalizePemKey;
 
 async function getGoogleAccessToken(input: {
   clientEmail: string;

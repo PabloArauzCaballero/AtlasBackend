@@ -5,6 +5,7 @@
  */
 import { connect, constants } from 'node:http2';
 import { createPrivateKey, sign } from 'node:crypto';
+import { normalizePemKey } from '../../../common/utils/crypto/pem-key.util.js';
 import { base64Url } from '../../../common/utils/crypto/encoding.util.js';
 
 /**
@@ -37,7 +38,7 @@ export function resetApnsTokenCache(): void {
 }
 
 function normalizePrivateKey(raw: string): string {
-  return raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;
+  return normalizePemKey(raw);
 }
 
 /**
