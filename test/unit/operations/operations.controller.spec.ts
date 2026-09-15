@@ -17,7 +17,11 @@ describe('OperationsController', () => {
       decideManualReviewCase: jest.fn(async (..._args: unknown[]) => ({ resolved: true })),
     };
     const fraudService = { decideFraudCase: jest.fn(async (..._args: unknown[]) => ({ resolved: true })) };
-    return { controller: new OperationsController(operationsService as never, fraudService as never), operationsService, fraudService };
+    return {
+      controller: new OperationsController(operationsService as never, fraudService as never, { list: jest.fn() } as never),
+      operationsService,
+      fraudService,
+    };
   }
   const user = { role: 'internal_operator', tenantId: '1', internalUserId: 'u1' } as never;
 

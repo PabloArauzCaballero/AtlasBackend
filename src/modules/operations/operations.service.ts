@@ -6,6 +6,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { buildPaginationMeta } from '../../common/utils/pagination/pagination.util.js';
 import { InjectConnection } from '@nestjs/sequelize';
+import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
@@ -15,8 +16,7 @@ import { CustomerLifecycleStatus } from '../customers/customer-lifecycle.constan
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { CustomerContactsRepository } from '../customers/repositories/customer-contacts.repository.js';
 import { RiskRepository } from '../risk/risk.repository.js';
-import { CustomerModel } from '../../database/models/index.js';
-import { InvestigationSummaryResponseDto, PaginatedWorkQueueResponseDto, PendingContactVerificationItemDto } from './operations.dtos.js';
+import { InvestigationSummaryResponseDto, PaginatedWorkQueueResponseDto } from './operations.dtos.js';
 import { toFraudWorkItem, toInvestigationSummaryResponse, toManualReviewWorkItem } from './operations.mapper.js';
 import { OperationsRepository } from './operations.repository.js';
 import {
@@ -111,38 +111,6 @@ export class OperationsService {
     };
   }
 
-  /**
-   * Clientes con un correo o teléfono declarado y sin verificar.
-   *
-   * Sale de `customer_contact_methods.status = 'unverified'`, no del estado del cliente: una
-   * cuenta puede estar `active` y aun así tener el correo sin confirmar, y ése es justo el caso
-   * que hay que poder ver para reenviarle el código.
-   */
-  async listPendingContactVerification(tenantId: string): Promise<{ items: PendingContactVerificationItemDto[] }> {
-    const contacts = await this.customerContactsRepository.listUnverified(tenantId);
-    const customerIds = [...new Set(contacts.map((contact) => contact.customerId).filter((id): id is string => Boolean(id)))];
-    const customers = await this.customersRepository.findManyByIds(tenantId, customerIds);
-    const byId = new Map(customers.map((customer) => [customer.id, customer]));
-    const items = contacts
-      .filter((contact) => contact.customerId && byId.has(contact.customerId))
-      .map((contact) => {
-        const customer = byId.get(contact.customerId as string) as CustomerModel;
-        return {
-          customerId: customer.id,
-          customerCode: customer.customerCode ?? null,
-          lifecycleStatus: customer.lifecycleStatus ?? null,
-          customerCreatedAt: customer.createdAtValue?.toISOString() ?? null,
-          contactMethodId: contact.id,
-          contactType: contact.contactType ?? null,
-          valueLast4: contact.valueLast4 ?? null,
-          emailDomain: contact.emailDomain ?? null,
-          isPrimary: contact.isPrimary ?? null,
-          contactCreatedAt: contact.createdAtValue?.toISOString() ?? null,
-        };
-      });
-    return { items };
-  }
-
   async getInvestigationSummary(tenantId: string, params: OperationsCustomerIdParamsDto): Promise<InvestigationSummaryResponseDto> {
     const customer = await this.customersRepository.findById(tenantId, params.customerId);
     if (!customer) {
@@ -218,6 +186,7 @@ export class OperationsService {
         { resolution: input.body.decision, notes: input.body.notes ?? null, closedAt: now },
         { transaction },
       );
+      await this.applyDecisionToRiskResult(input.tenantId, reviewCase.riskAssessmentRunId, input.body, now, transaction);
       await this.operationsRepository.createManualReviewEvent(
         {
           tenantId: input.tenantId,
@@ -298,5 +267,30 @@ export class OperationsService {
         nextCustomerStatus: appliedStatus,
       };
     });
+  }
+
+  /**
+   * La decisión del analista se escribe TAMBIÉN en el resultado de riesgo del que nació el caso.
+   *
+   * La elegibilidad lee `latestRisk.recommendedAction`, no el estado del caso: cerrar el caso como
+   * «approved» sin tocar el resultado dejaba al cliente en `RISK_NOT_APPROVED` para siempre —
+   * medido el 2026-09-15 en TEST con el recorrido completo, con el caso aprobado y el crédito
+   * rechazado igual. El callback del Motor ya hacía esto (`RiskManualReviewOutcomeService`); el
+   * camino humano del portal, no. Sólo «approved» y «rejected» cambian la recomendación; pedir más
+   * información, escalar a fraude o no actuar la dejan como estaba.
+   */
+  private async applyDecisionToRiskResult(
+    tenantId: string,
+    riskAssessmentRunId: string | null,
+    body: ManualReviewDecisionDto,
+    now: Date,
+    transaction: Transaction,
+  ): Promise<void> {
+    if (!riskAssessmentRunId) return;
+    const recommendedAction = body.decision === 'approved' ? 'approved_for_next_step' : body.decision === 'rejected' ? 'rejected' : null;
+    if (!recommendedAction) return;
+    const result = await this.riskRepository.findRiskResultByRun(tenantId, riskAssessmentRunId);
+    if (!result) return;
+    await this.riskRepository.applyManualReviewOutcome(result, { recommendedAction, reason: body.reasonCode, now }, { transaction });
   }
 }

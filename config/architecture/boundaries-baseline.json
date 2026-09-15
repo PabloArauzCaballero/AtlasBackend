@@ -1,10 +1,10 @@
 {
   "$comment": "Deuda heredada de fronteras (AT-012). Generada por yarn check:architecture --update-baseline; sólo puede encoger.",
-  "updatedOn": "2026-09-14",
-  "count": 102,
+  "updatedOn": "2026-09-15",
+  "count": 98,
   "byRule": {
     "domain-purity": 3,
-    "cross-module": 99
+    "cross-module": 95
   },
   "violations": [
     "domain-external:src/modules/support/domain/case-state-machine.ts->@nestjs/common",
@@ -65,10 +65,6 @@
     "import:src/modules/notifications/notification-broadcast.service.ts->src/modules/customers/customers.repository.ts",
     "import:src/modules/notifications/notification-broadcast.service.ts->src/modules/internal-users/internal-rbac.repository.ts",
     "import:src/modules/operations/operations.service.ts->src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
-    "import:src/modules/operations/operations.service.ts->src/modules/customers/application/customer-lifecycle.service.ts",
-    "import:src/modules/operations/operations.service.ts->src/modules/customers/customer-lifecycle.constants.ts",
-    "import:src/modules/operations/operations.service.ts->src/modules/customers/customers.repository.ts",
-    "import:src/modules/operations/operations.service.ts->src/modules/customers/repositories/customer-contacts.repository.ts",
     "import:src/modules/operations/operations.service.ts->src/modules/risk/risk.repository.ts",
     "import:src/modules/partner-onboarding/application/partner-contact-verification.service.ts->src/modules/mail-sender/mail-sender.service.ts",
     "import:src/modules/partner-onboarding/application/partner-kyb-decision.service.ts->src/modules/decision-engine/decision-artifact-binding.service.ts",

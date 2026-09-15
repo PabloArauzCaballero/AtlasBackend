@@ -23,6 +23,7 @@ import { OperationsController } from './operations.controller.js';
 import { OperationsRepository } from './operations.repository.js';
 import { OperationsQueueRepository } from './operations-queue.repository.js';
 import { OperationsService } from './operations.service.js';
+import { PendingContactVerificationService } from './pending-contact-verification.service.js';
 
 @Module({
   imports: [
@@ -43,6 +44,6 @@ import { OperationsService } from './operations.service.js';
     CustomerOnboardingModule,
   ],
   controllers: [OperationsController],
-  providers: [OperationsRepository, OperationsQueueRepository, OperationsService],
+  providers: [OperationsRepository, OperationsQueueRepository, OperationsService, PendingContactVerificationService],
 })
 export class OperationsModule {}

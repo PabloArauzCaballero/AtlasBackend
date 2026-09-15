@@ -17,6 +17,7 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { FraudService } from '../fraud/fraud.service.js';
 import { fraudDecisionParamsSchema, FraudDecisionParamsDto, fraudDecisionSchema, FraudDecisionDto } from '../fraud/fraud.schemas.js';
 import { OperationsService } from './operations.service.js';
+import { PendingContactVerificationService } from './pending-contact-verification.service.js';
 import {
   operationsCustomerIdParamsSchema,
   manualReviewDecisionParamsSchema,
@@ -39,6 +40,7 @@ export class OperationsController {
   constructor(
     private readonly operationsService: OperationsService,
     private readonly fraudService: FraudService,
+    private readonly pendingContacts: PendingContactVerificationService,
   ) {}
 
   @ApiOperation({
@@ -97,7 +99,7 @@ export class OperationsController {
   @ApiResponse({ status: 200, description: 'Lista de contactos sin verificar, del más reciente al más antiguo.' })
   @Get('customers/pending-contact-verification')
   listPendingContactVerification(@CurrentTenant() tenantId: string) {
-    return this.operationsService.listPendingContactVerification(tenantId);
+    return this.pendingContacts.list(tenantId);
   }
 
   @ApiOperation({
