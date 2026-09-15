@@ -124,4 +124,30 @@ export const COMMUNICATION_NARRATIVES: EntityBusinessNarrative[] = [
     systemsExplanation:
       'Tabla en `messaging` con `_tenant_id`, clave (`event_code`, `channel`) y borrado lógico. Es la contraparte de catálogo de `user_notification_preferences`: la ausencia de preferencia se resuelve con el `default_enabled` de aquí, así que ese valor por defecto tiene que ser una decisión explícita y no un accidente. `updated_by_internal_user_id` deja autoría de cada cambio.',
   },
+  {
+    tableName: 'notification_campaigns',
+    whyExists:
+      'Es la campaña de notificación que programa operaciones: qué se dice, a qué segmento de clientes, por qué canales (bandeja, push, correo) y durante qué ventana. Antes sólo existía un envío inmediato a todos, sin fecha, sin vigencia y sin rastro.',
+    whyNotDelete:
+      'Es la evidencia de quién decidió comunicar qué, a quién y cuándo. Guarda la audiencia congelada al programar: sin ella no se puede explicar por qué un cliente recibió una promoción, ni demostrar que sólo se envió a quien dio consentimiento.',
+    decisionContribution:
+      'Decide cuándo empieza y termina el envío, a qué cadencia sale y a quién alcanza. Sus métricas por canal (entregados, fallidos, leídos) sostienen decisiones de cobranza, retención y de qué canal funciona con cada segmento.',
+    usageExample:
+      'Operaciones programa para el lunes 9:00 un recordatorio a clientes de Cochabamba con una cuota vencida, por push y bandeja, con fin el viernes. El lunes empieza a salir sola a 600 avisos por minuto y el viernes deja de mostrarse en la app.',
+    systemsExplanation:
+      'Tabla en `messaging` con `_tenant_id`, `campaign_uuid`, estado (`draft`→`scheduled`→`running`→`completed`, con `paused`, `cancelled` y `failed`), `audience_definition_json` copiado al programar, `audience_cursor` para materializar por tandas tras un reinicio, y `idempotency_key`. Los avisos individuales viven en `notification_messages` con `campaign_id`. La ejecuta el job `run_notification_campaigns`.',
+  },
+  {
+    tableName: 'notification_audience_segments',
+    whyExists:
+      'Guarda segmentos de audiencia reutilizables («mora temprana en El Alto», «clientes con línea y sin préstamo») como reglas sobre atributos del cliente, para no reescribirlos en cada campaña.',
+    whyNotDelete:
+      'Es la definición que operaciones revisó y nombró. Se archiva en vez de borrarse: las campañas conservan su propia copia de las reglas, pero el segmento es la referencia de procedencia.',
+    decisionContribution:
+      'Define a quién se le puede hablar de algo. Su último tamaño estimado dice si un segmento es accionable o está vacío antes de gastar una campaña en él.',
+    usageExample:
+      'Cobranza guarda el segmento «cuota vencida + app con avisos» y lo usa cada semana; al editarlo, el portal recalcula cuántas personas lo cumplen hoy.',
+    systemsExplanation:
+      'Tabla en `messaging` con `_tenant_id`, `definition_json` (reglas atributo/operador/valor del vocabulario cerrado de `platform/contracts/campaign-audience.ts`), `last_estimate_json` y estado `active`/`archived`. No guarda miembros: la audiencia la resuelve Clientes por `CAMPAIGN_AUDIENCE_PORT` al estimar y al materializar.',
+  },
 ];

@@ -42,7 +42,8 @@ import { BankStatementReviewWorker } from '../credit/application/bank-statement-
 import { CreditLineRefreshService } from '../credit/application/credit-line-refresh.service.js';
 import { LoanDelinquencyService } from '../loans/application/loan-delinquency.service.js';
 import { OnboardingAbandonmentService } from '../customer-onboarding/application/onboarding-abandonment.service.js';
-import { buildScheduledJobs, SCHEDULED_JOBS } from './scheduled-jobs.catalog.js';
+import { buildScheduledJobs, SCHEDULED_JOBS, SCHEDULER_ACTOR } from './scheduled-jobs.catalog.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 
 @Module({
@@ -102,6 +103,8 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
         debtRating: DebtRatingService,
         outcomeDispatch: OutcomeDispatchService,
         partnerKybSync: PartnerKybSyncService,
+        notifications: NotificationsService,
+        jobRuns: JobRunRecorderService,
       ) =>
         buildScheduledJobs({
           runtimeJobs,
@@ -114,6 +117,13 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
           debtRating,
           outcomeDispatch,
           partnerKybSync,
+          // El ejecutor de campañas vive en Mensajería; aquí sólo se le da cadencia y registro en `system_job_runs`.
+          notificationCampaigns: {
+            tick: (tenantId: string) =>
+              jobRuns.run({ tenantId, jobCode: 'run_notification_campaigns', body: {}, currentUser: SCHEDULER_ACTOR }, () =>
+                notifications.runCampaignTick(tenantId),
+              ),
+          },
         }),
       inject: [
         RuntimeJobsService,
@@ -126,6 +136,8 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
         DebtRatingService,
         OutcomeDispatchService,
         PartnerKybSyncService,
+        NotificationsService,
+        JobRunRecorderService,
       ],
     },
   ],

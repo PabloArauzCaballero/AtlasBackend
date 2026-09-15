@@ -196,6 +196,10 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'notification_deliveries',
     'user_notification_preferences',
     'device_tokens',
+    // Campañas programadas por operaciones: contenido, audiencia congelada, ventana y contadores.
+    // Los mensajes que genera una campaña siguen siendo `notification_messages` (con `campaign_id`).
+    'notification_campaigns',
+    'notification_audience_segments',
   ],
   [ATLAS_SCHEMAS.EXPEDIENTES]: [
     'expedientes',

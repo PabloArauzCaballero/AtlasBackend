@@ -86,6 +86,14 @@ export class NotificationMessageModel extends Model {
   @Column({ field: 'causation_id', type: DataType.STRING(120) })
   declare causationId: string | null;
 
+  /** Campaña que generó el mensaje; `null` para avisos de eventos y difusiones sueltas. */
+  @Column({ field: 'campaign_id', type: DataType.BIGINT })
+  declare campaignId: string | null;
+
+  /** Fin de vigencia: pasado este instante la bandeja in-app deja de mostrarlo. */
+  @Column({ field: 'expires_at', type: DataType.DATE })
+  declare expiresAt: Date | null;
+
   @Column({ field: '_created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 

@@ -14,6 +14,7 @@ import { NotificationProviderConfigService } from './notification-provider-confi
 import { base64Url } from '../../../common/utils/crypto/encoding.util.js';
 import { APNS_TRANSPORT, ApnsTransport, sendApns } from './apns.util.js';
 import { DEVICE_TOKEN_REGISTRY_PORT, type DeviceTokenRegistryPort } from '../application/ports/device-token-registry.port.js';
+import { ANDROID_PUSH_CHANNEL, extraPushData, wantsVisiblePush } from './push-payload.util.js';
 
 function normalizePrivateKey(raw: string): string {
   return raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;
@@ -126,11 +127,13 @@ export class PushNotificationAdapter implements NotificationChannelAdapter {
         notificationMessageId: message.id,
         channel: 'push',
         ...(message.correlationId ? { correlationId: message.correlationId } : {}),
+        ...extraPushData(message.payload),
       };
       const fcmMessage: Record<string, unknown> = { token, data };
-      if (env.NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION) {
+      if (env.NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION || wantsVisiblePush(message.payload)) {
         fcmMessage.notification = { title: message.title ?? 'ATLAS', body: message.body };
       }
+      if (wantsVisiblePush(message.payload)) fcmMessage.android = { notification: { channel_id: ANDROID_PUSH_CHANNEL } };
       const response = await postJson(
         this.executor,
         'fcm',
@@ -178,8 +181,9 @@ export class PushNotificationAdapter implements NotificationChannelAdapter {
         notificationMessageId: message.id,
         channel: 'push',
         ...(message.correlationId ? { correlationId: message.correlationId } : {}),
+        ...extraPushData(message.payload),
       },
-      visible: env.NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION,
+      visible: env.NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION || wantsVisiblePush(message.payload),
       transport: this.apnsTransport,
     });
     /*

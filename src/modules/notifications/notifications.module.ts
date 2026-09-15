@@ -46,6 +46,16 @@ import { NotificationTemplatesController } from './notification-templates.contro
 import { NotificationBroadcastController } from './notification-broadcast.controller.js';
 import { NotificationsRepository } from './notifications.repository.js';
 import { NotificationsService } from './notifications.service.js';
+import { NotificationAudienceSegmentModel, NotificationCampaignModel } from '../../database/models/index.js';
+import { CAMPAIGN_AUDIENCE_PORT } from '../../platform/contracts/campaign-audience.js';
+import { CustomerCampaignAudienceAdapter } from '../customers/infrastructure/customer-campaign-audience.adapter.js';
+import { NotificationAudienceSegmentsController } from './campaigns/notification-audience-segments.controller.js';
+import { NotificationCampaignAudienceService } from './campaigns/notification-campaign-audience.service.js';
+import { NotificationCampaignRunnerService } from './campaigns/notification-campaign-runner.service.js';
+import { NotificationCampaignTestSendService } from './campaigns/notification-campaign-test-send.service.js';
+import { NotificationCampaignService } from './campaigns/notification-campaign.service.js';
+import { NotificationCampaignsController } from './campaigns/notification-campaigns.controller.js';
+import { NotificationCampaignsRepository } from './campaigns/notification-campaigns.repository.js';
 
 @Module({
   imports: [
@@ -58,6 +68,8 @@ import { NotificationsService } from './notifications.service.js';
       DeviceTokenModel,
       CustomerContactMethodModel,
       TenantModel,
+      NotificationCampaignModel,
+      NotificationAudienceSegmentModel,
     ]),
     CustomersModule,
     InternalUsersModule,
@@ -69,6 +81,8 @@ import { NotificationsService } from './notifications.service.js';
     NotificationTemplatesController,
     NotificationBroadcastController,
     NotificationPoliciesOperationsController,
+    NotificationCampaignsController,
+    NotificationAudienceSegmentsController,
   ],
   providers: [
     LocalNotificationRequestAdapter,
@@ -79,6 +93,13 @@ import { NotificationsService } from './notifications.service.js';
     LocalRecipientDirectoryAdapter,
     { provide: EVENT_CONSUMERS, useFactory: (consumer: NotificationEventConsumer) => [consumer], inject: [NotificationEventConsumer] },
     { provide: RECIPIENT_DIRECTORY_PORT, useExisting: CustomerRecipientDirectoryAdapter },
+    // Campañas: la audiencia la resuelve Clientes por el puerto; el resto vive en `campaigns/`.
+    { provide: CAMPAIGN_AUDIENCE_PORT, useExisting: CustomerCampaignAudienceAdapter },
+    NotificationCampaignsRepository,
+    NotificationCampaignAudienceService,
+    NotificationCampaignService,
+    NotificationCampaignRunnerService,
+    NotificationCampaignTestSendService,
     // Baja de los tokens que el proveedor declara muertos (410 de APNs).
     SequelizeDeviceTokenRegistryAdapter,
     { provide: DEVICE_TOKEN_REGISTRY_PORT, useExisting: SequelizeDeviceTokenRegistryAdapter },

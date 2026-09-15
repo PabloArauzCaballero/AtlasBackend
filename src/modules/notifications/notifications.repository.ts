@@ -42,6 +42,7 @@ import {
   RecipientType,
 } from './notification-types.js';
 import { buildEncryptedDeliveryTargets, decryptDeliveryTargets } from './notification-delivery-targets.util.js';
+import { notExpired, ownedByGenericJobs } from './campaigns/notification-visibility.util.js';
 
 // Tamaño de lote para insertar mensajes de broadcast. Un único bulkCreate con decenas de miles de
 // filas produce una sentencia SQL gigante; trocear acota memoria del driver/servidor por INSERT.
@@ -274,7 +275,7 @@ export class NotificationsRepository {
   }
 
   async listRecipientMessages(tenantId: string, recipientType: RecipientType, recipientId: string, query: CustomerNotificationsQueryDto) {
-    const where: Record<string, unknown> = { tenantId, recipientType, recipientId, channel: 'in_app' };
+    const where: Record<string | symbol, unknown> = { tenantId, recipientType, recipientId, channel: 'in_app', ...notExpired() };
     if (query.status) where.status = query.status;
     if (query.channel) where.channel = query.channel;
     if (query.from || query.to) {
@@ -307,15 +308,15 @@ export class NotificationsRepository {
         channel: 'in_app',
         readAt: null,
         status: { [Op.notIn]: ['cancelled', 'failed'] },
+        ...notExpired(),
       } as never,
     });
   }
 
   /**
-   * Mensajes que quedaron a medio entregar y nadie va a retomar (hallazgo A-03). `sending` entra
-   * junto a `pending`: es el estado intermedio que deja `markMessageSending`, donde un proceso que
-   * muere entre marcar y entregar deja el mensaje clavado. El corte por antigüedad evita competir
-   * con una entrega legítima en vuelo.
+   * Mensajes a medio entregar que nadie va a retomar (A-03). `sending` entra junto a `pending`: lo deja
+   * `markMessageSending` si el proceso muere entre marcar y entregar. El corte por antigüedad evita
+   * competir con una entrega en vuelo; los avisos de campaña y los programados a futuro no son suyos.
    */
   listStuckMessages(input: { tenantId: string; olderThanMinutes: number; limit: number }): Promise<NotificationMessageModel[]> {
     const cutoff = new Date(Date.now() - input.olderThanMinutes * 60_000);
@@ -324,6 +325,7 @@ export class NotificationsRepository {
         tenantId: input.tenantId,
         status: { [Op.in]: ['pending', 'sending'] },
         createdAtValue: { [Op.lt]: cutoff },
+        ...ownedByGenericJobs(),
       } as never,
       order: [['createdAtValue', 'ASC']],
       limit: input.limit,

@@ -136,6 +136,8 @@ export { AuthOneTimeCodeModel } from './auth-one-time-codes.model.js';
 export { SystemJobRunModel } from './system-job-runs.model.js';
 export { NotificationTemplateModel } from './notification-templates.model.js';
 export { NotificationMessageModel } from './notification-messages.model.js';
+export { NotificationCampaignModel } from './notification-campaigns.model.js';
+export { NotificationAudienceSegmentModel } from './notification-audience-segments.model.js';
 export { NotificationDeliveryModel } from './notification-deliveries.model.js';
 export { UserNotificationPreferenceModel } from './user-notification-preferences.model.js';
 export { DeviceTokenModel } from './device-tokens.model.js';

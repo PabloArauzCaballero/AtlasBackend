@@ -5,6 +5,7 @@
  */
 import { Module } from '@nestjs/common';
 import { CustomerRecipientDirectoryAdapter } from './infrastructure/customer-recipient-directory.adapter.js';
+import { CustomerCampaignAudienceAdapter } from './infrastructure/customer-campaign-audience.adapter.js';
 import { CustomerRecipientDirectoryController } from './customer-recipient-directory.controller.js';
 import { CustomerStateAdapter } from './infrastructure/customer-state.adapter.js';
 import { CUSTOMER_STATE_PORT } from './application/ports/customer-state.port.js';
@@ -79,6 +80,7 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
   providers: [
     // AT-020: Clientes implementa el directorio de destinatarios que Mensajería consume por puerto.
     CustomerRecipientDirectoryAdapter,
+    CustomerCampaignAudienceAdapter,
     CustomerStateAdapter,
     { provide: CUSTOMER_STATE_PORT, useExisting: CustomerStateAdapter },
     CustomersService,
@@ -94,6 +96,7 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
   exports: [
     CUSTOMER_STATE_PORT,
     CustomerRecipientDirectoryAdapter,
+    CustomerCampaignAudienceAdapter,
     CustomersService,
     CustomersRepository,
     CustomerLifecycleService,

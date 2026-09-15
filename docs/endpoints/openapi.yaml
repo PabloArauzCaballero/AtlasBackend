@@ -4875,6 +4875,1147 @@ paths:
       summary: Crear o reemplazar una política de aviso
       tags:
         - notifications
+  /operations/notifications/campaigns:
+    get:
+      operationId: NotificationCampaignsController_list
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Listar campañas de notificación
+      tags:
+        - notification-campaigns
+    post:
+      description: 'No envía nada: hay que programarla.'
+      operationId: NotificationCampaignsController_create
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 140
+                purpose:
+                  default: marketing
+                  type: string
+                  enum:
+                    - marketing
+                    - operational
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                category:
+                  default: campaign
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+                icon:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 60
+                    - type: 'null'
+                deepLink:
+                  anyOf:
+                    - type: string
+                      maxLength: 300
+                      pattern: ^\/[A-Za-z0-9/_\-()[\].?=&]*$
+                    - type: 'null'
+                channels:
+                  minItems: 1
+                  maxItems: 3
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - in_app
+                      - push
+                      - email
+                audienceSegmentId:
+                  anyOf:
+                    - type: string
+                      pattern: ^[1-9][0-9]*$
+                    - type: 'null'
+                audience:
+                  type: object
+                  properties:
+                    match:
+                      default: all
+                      type: string
+                      enum:
+                        - all
+                        - any
+                    rules:
+                      default: []
+                      maxItems: 10
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          attribute:
+                            type: string
+                            enum:
+                              - city
+                              - department
+                              - lifecycleStatus
+                              - hasCreditLine
+                              - hasActiveLoan
+                              - hasOverdueInstallment
+                              - daysSinceSignup
+                              - hasPushDevice
+                              - pushPlatform
+                              - hasVerifiedEmail
+                              - marketingOptIn
+                          operator:
+                            type: string
+                            enum:
+                              - eq
+                              - neq
+                              - in
+                              - not_in
+                              - gte
+                              - lte
+                              - is_true
+                              - is_false
+                          value:
+                            anyOf:
+                              - type: string
+                                minLength: 1
+                                maxLength: 120
+                              - type: integer
+                                minimum: 0
+                                maximum: 36500
+                              - minItems: 1
+                                maxItems: 50
+                                type: array
+                                items:
+                                  type: string
+                                  minLength: 1
+                                  maxLength: 120
+                        required:
+                          - attribute
+                          - operator
+                        additionalProperties: false
+                  required:
+                    - match
+                    - rules
+                  additionalProperties: false
+                startsAt:
+                  anyOf:
+                    - {}
+                    - type: 'null'
+                endsAt:
+                  anyOf:
+                    - {}
+                    - type: 'null'
+                ratePerMinute:
+                  default: 600
+                  type: integer
+                  minimum: 10
+                  maximum: 6000
+                maxRecipients:
+                  anyOf:
+                    - type: integer
+                      minimum: 1
+                      maximum: 1000000
+                    - type: 'null'
+              required:
+                - name
+                - purpose
+                - title
+                - body
+                - category
+                - channels
+                - ratePerMinute
+              additionalProperties: false
+      responses:
+        '201':
+          description: >-
+            Campaña creada en borrador (o la ya creada con esa clave de
+            idempotencia).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Crear una campaña en borrador
+      tags:
+        - notification-campaigns
+  /operations/notifications/campaigns/audience/estimate:
+    post:
+      description: Cuenta personas, con app con avisos y con correo verificado.
+      operationId: NotificationCampaignsController_estimate
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                purpose:
+                  default: marketing
+                  type: string
+                  enum:
+                    - marketing
+                    - operational
+                audienceSegmentId:
+                  anyOf:
+                    - type: string
+                      pattern: ^[1-9][0-9]*$
+                    - type: 'null'
+                audience:
+                  type: object
+                  properties:
+                    match:
+                      default: all
+                      type: string
+                      enum:
+                        - all
+                        - any
+                    rules:
+                      default: []
+                      maxItems: 10
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          attribute:
+                            type: string
+                            enum:
+                              - city
+                              - department
+                              - lifecycleStatus
+                              - hasCreditLine
+                              - hasActiveLoan
+                              - hasOverdueInstallment
+                              - daysSinceSignup
+                              - hasPushDevice
+                              - pushPlatform
+                              - hasVerifiedEmail
+                              - marketingOptIn
+                          operator:
+                            type: string
+                            enum:
+                              - eq
+                              - neq
+                              - in
+                              - not_in
+                              - gte
+                              - lte
+                              - is_true
+                              - is_false
+                          value:
+                            anyOf:
+                              - type: string
+                                minLength: 1
+                                maxLength: 120
+                              - type: integer
+                                minimum: 0
+                                maximum: 36500
+                              - minItems: 1
+                                maxItems: 50
+                                type: array
+                                items:
+                                  type: string
+                                  minLength: 1
+                                  maxLength: 120
+                        required:
+                          - attribute
+                          - operator
+                        additionalProperties: false
+                  required:
+                    - match
+                    - rules
+                  additionalProperties: false
+              required:
+                - purpose
+              additionalProperties: false
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Estimar el tamaño de una audiencia
+      tags:
+        - notification-campaigns
+  /operations/notifications/campaigns/{campaignId}:
+    get:
+      operationId: NotificationCampaignsController_get
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: campaignId
+          in: path
+          required: true
+          description: Identificador de ruta `campaignId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Detalle de una campaña con métricas por canal
+      tags:
+        - notification-campaigns
+    patch:
+      description: Editar una programada la devuelve a borrador.
+      operationId: NotificationCampaignsController_update
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: campaignId
+          in: path
+          required: true
+          description: Identificador de ruta `campaignId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 140
+                purpose:
+                  default: marketing
+                  type: string
+                  enum:
+                    - marketing
+                    - operational
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                category:
+                  default: campaign
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+                icon:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 60
+                    - type: 'null'
+                deepLink:
+                  anyOf:
+                    - type: string
+                      maxLength: 300
+                      pattern: ^\/[A-Za-z0-9/_\-()[\].?=&]*$
+                    - type: 'null'
+                channels:
+                  minItems: 1
+                  maxItems: 3
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - in_app
+                      - push
+                      - email
+                audienceSegmentId:
+                  anyOf:
+                    - type: string
+                      pattern: ^[1-9][0-9]*$
+                    - type: 'null'
+                audience:
+                  type: object
+                  properties:
+                    match:
+                      default: all
+                      type: string
+                      enum:
+                        - all
+                        - any
+                    rules:
+                      default: []
+                      maxItems: 10
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          attribute:
+                            type: string
+                            enum:
+                              - city
+                              - department
+                              - lifecycleStatus
+                              - hasCreditLine
+                              - hasActiveLoan
+                              - hasOverdueInstallment
+                              - daysSinceSignup
+                              - hasPushDevice
+                              - pushPlatform
+                              - hasVerifiedEmail
+                              - marketingOptIn
+                          operator:
+                            type: string
+                            enum:
+                              - eq
+                              - neq
+                              - in
+                              - not_in
+                              - gte
+                              - lte
+                              - is_true
+                              - is_false
+                          value:
+                            anyOf:
+                              - type: string
+                                minLength: 1
+                                maxLength: 120
+                              - type: integer
+                                minimum: 0
+                                maximum: 36500
+                              - minItems: 1
+                                maxItems: 50
+                                type: array
+                                items:
+                                  type: string
+                                  minLength: 1
+                                  maxLength: 120
+                        required:
+                          - attribute
+                          - operator
+                        additionalProperties: false
+                  required:
+                    - match
+                    - rules
+                  additionalProperties: false
+                startsAt:
+                  anyOf:
+                    - {}
+                    - type: 'null'
+                endsAt:
+                  anyOf:
+                    - {}
+                    - type: 'null'
+                ratePerMinute:
+                  default: 600
+                  type: integer
+                  minimum: 10
+                  maximum: 6000
+                maxRecipients:
+                  anyOf:
+                    - type: integer
+                      minimum: 1
+                      maximum: 1000000
+                    - type: 'null'
+              additionalProperties: false
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Editar una campaña en borrador o programada
+      tags:
+        - notification-campaigns
+  /operations/notifications/campaigns/{campaignId}/messages:
+    get:
+      operationId: NotificationCampaignsController_messages
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: campaignId
+          in: path
+          required: true
+          description: Identificador de ruta `campaignId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Avisos individuales generados por una campaña
+      tags:
+        - notification-campaigns
+  /operations/notifications/campaigns/{campaignId}/schedule:
+    post:
+      description: Congela la audiencia y exige que no esté vacía.
+      operationId: NotificationCampaignsController_schedule
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: campaignId
+          in: path
+          required: true
+          description: Identificador de ruta `campaignId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Programar la campaña
+      tags:
+        - notification-campaigns
+  /operations/notifications/campaigns/{campaignId}/unschedule:
+    post:
+      operationId: NotificationCampaignsController_unschedule
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: campaignId
+          in: path
+          required: true
+          description: Identificador de ruta `campaignId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Devolver a borrador una campaña programada que aún no empezó
+      tags:
+        - notification-campaigns
+  /operations/notifications/campaigns/{campaignId}/pause:
+    post:
+      operationId: NotificationCampaignsController_pause
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: campaignId
+          in: path
+          required: true
+          description: Identificador de ruta `campaignId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Pausar una campaña en curso
+      tags:
+        - notification-campaigns
+  /operations/notifications/campaigns/{campaignId}/resume:
+    post:
+      operationId: NotificationCampaignsController_resume
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: campaignId
+          in: path
+          required: true
+          description: Identificador de ruta `campaignId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Reanudar una campaña pausada
+      tags:
+        - notification-campaigns
+  /operations/notifications/campaigns/{campaignId}/cancel:
+    post:
+      description: Anula los avisos que aún no salieron; exige un motivo.
+      operationId: NotificationCampaignsController_cancel
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: campaignId
+          in: path
+          required: true
+          description: Identificador de ruta `campaignId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 8
+                  maxLength: 400
+              required:
+                - reason
+              additionalProperties: false
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Cancelar la campaña
+      tags:
+        - notification-campaigns
+  /operations/notifications/campaigns/{campaignId}/duplicate:
+    post:
+      operationId: NotificationCampaignsController_duplicate
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: campaignId
+          in: path
+          required: true
+          description: Identificador de ruta `campaignId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Duplicar una campaña como borrador nuevo
+      tags:
+        - notification-campaigns
+  /operations/notifications/campaigns/{campaignId}/test-send:
+    post:
+      description: Entrega en el acto y devuelve el resultado por canal.
+      operationId: NotificationCampaignsController_sendTest
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: campaignId
+          in: path
+          required: true
+          description: Identificador de ruta `campaignId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customerId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+              required:
+                - customerId
+              additionalProperties: false
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Enviar la campaña de prueba a un cliente
+      tags:
+        - notification-campaigns
+  /operations/notifications/audience-segments:
+    get:
+      operationId: NotificationAudienceSegmentsController_list
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Listar segmentos de audiencia guardados
+      tags:
+        - notification-campaigns
+    post:
+      description: Calcula su tamaño al guardarlo.
+      operationId: NotificationAudienceSegmentsController_create
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 140
+                description:
+                  anyOf:
+                    - type: string
+                      maxLength: 400
+                    - type: 'null'
+                definition:
+                  type: object
+                  properties:
+                    match:
+                      default: all
+                      type: string
+                      enum:
+                        - all
+                        - any
+                    rules:
+                      default: []
+                      maxItems: 10
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          attribute:
+                            type: string
+                            enum:
+                              - city
+                              - department
+                              - lifecycleStatus
+                              - hasCreditLine
+                              - hasActiveLoan
+                              - hasOverdueInstallment
+                              - daysSinceSignup
+                              - hasPushDevice
+                              - pushPlatform
+                              - hasVerifiedEmail
+                              - marketingOptIn
+                          operator:
+                            type: string
+                            enum:
+                              - eq
+                              - neq
+                              - in
+                              - not_in
+                              - gte
+                              - lte
+                              - is_true
+                              - is_false
+                          value:
+                            anyOf:
+                              - type: string
+                                minLength: 1
+                                maxLength: 120
+                              - type: integer
+                                minimum: 0
+                                maximum: 36500
+                              - minItems: 1
+                                maxItems: 50
+                                type: array
+                                items:
+                                  type: string
+                                  minLength: 1
+                                  maxLength: 120
+                        required:
+                          - attribute
+                          - operator
+                        additionalProperties: false
+                  required:
+                    - match
+                    - rules
+                  additionalProperties: false
+              required:
+                - name
+                - definition
+              additionalProperties: false
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Guardar un segmento de audiencia
+      tags:
+        - notification-campaigns
+  /operations/notifications/audience-segments/{segmentId}:
+    patch:
+      operationId: NotificationAudienceSegmentsController_update
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: segmentId
+          in: path
+          required: true
+          description: Identificador de ruta `segmentId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 140
+                description:
+                  anyOf:
+                    - type: string
+                      maxLength: 400
+                    - type: 'null'
+                definition:
+                  type: object
+                  properties:
+                    match:
+                      default: all
+                      type: string
+                      enum:
+                        - all
+                        - any
+                    rules:
+                      default: []
+                      maxItems: 10
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          attribute:
+                            type: string
+                            enum:
+                              - city
+                              - department
+                              - lifecycleStatus
+                              - hasCreditLine
+                              - hasActiveLoan
+                              - hasOverdueInstallment
+                              - daysSinceSignup
+                              - hasPushDevice
+                              - pushPlatform
+                              - hasVerifiedEmail
+                              - marketingOptIn
+                          operator:
+                            type: string
+                            enum:
+                              - eq
+                              - neq
+                              - in
+                              - not_in
+                              - gte
+                              - lte
+                              - is_true
+                              - is_false
+                          value:
+                            anyOf:
+                              - type: string
+                                minLength: 1
+                                maxLength: 120
+                              - type: integer
+                                minimum: 0
+                                maximum: 36500
+                              - minItems: 1
+                                maxItems: 50
+                                type: array
+                                items:
+                                  type: string
+                                  minLength: 1
+                                  maxLength: 120
+                        required:
+                          - attribute
+                          - operator
+                        additionalProperties: false
+                  required:
+                    - match
+                    - rules
+                  additionalProperties: false
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - archived
+              additionalProperties: false
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Editar o archivar un segmento de audiencia
+      tags:
+        - notification-campaigns
   /customer-onboarding/identity-verifications/{attemptId}/evidence-documents:
     get:
       operationId: CustomerEvidenceViewController_byAttempt

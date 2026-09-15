@@ -42,7 +42,13 @@ describe('NotificationsService', () => {
     // obligatoriedad de cada aviso. Antes la pantalla solo enseñaba las filas ya guardadas del
     // cliente, asi que quien nunca la habia tocado recibia una lista vacia.
     const policies = { listActive: jest.fn(async (..._args: unknown[]) => []) };
-    const service = new NotificationsService(repository as never, orchestrator as never, broadcastService as never, policies as never);
+    const service = new NotificationsService(
+      repository as never,
+      orchestrator as never,
+      broadcastService as never,
+      policies as never,
+      {} as never,
+    );
     return { service, repository, orchestrator, broadcastService, policies };
   }
 

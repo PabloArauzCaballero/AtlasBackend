@@ -20,6 +20,7 @@ import {
   UpsertDeviceTokenDto,
 } from './notifications.schemas.js';
 import { mapDelivery, mapDeviceToken, mapMessage, mapPreference, mapTemplate } from './notifications.mapper.js';
+import { NotificationCampaignRunnerService } from './campaigns/notification-campaign-runner.service.js';
 
 /**
  * Las notificaciones usan una autorización más estricta que el helper genérico de ownership:
@@ -48,7 +49,13 @@ export class NotificationsService {
     private readonly orchestrator: NotificationOrchestratorService,
     private readonly broadcastService: NotificationBroadcastService,
     private readonly policies: NotificationPoliciesRepository,
+    private readonly campaignRunner: NotificationCampaignRunnerService,
   ) {}
+
+  /** Un paso del ejecutor de campañas. Lo invoca el planificador de trabajos (entrada legada exportada). */
+  runCampaignTick(tenantId: string) {
+    return this.campaignRunner.tick(tenantId);
+  }
 
   async broadcast(tenantId: string, body: CreateBroadcastNotificationDto): Promise<BroadcastResult> {
     return this.broadcastService.broadcast(tenantId, body);

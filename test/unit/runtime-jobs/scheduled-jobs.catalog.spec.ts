@@ -26,6 +26,7 @@ describe('buildScheduledJobs · cartera y desenlaces', () => {
       debtRating: debtRating as never,
       outcomeDispatch: outcomeDispatch as never,
       partnerKybSync: { syncPendingReviews: jest.fn() } as never,
+      notificationCampaigns: { tick: async () => ({}) } as never,
     });
     return { jobs, debtRating, outcomeDispatch };
   }

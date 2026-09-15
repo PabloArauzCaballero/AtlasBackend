@@ -158,6 +158,9 @@ export const runtimeJobsEnvShape = {
   // proceso que atendió el request (NOTIFICATIONS_DELIVERY_MODE=deferred). Intervalo corto a
   // propósito: aquí la pregunta es "¿qué hay recién creado por entregar?", no "¿qué quedó varado?".
   RUNTIME_JOBS_NOTIFICATION_DELIVERY_INTERVAL_MS: z.coerce.number().int().positive().default(10_000),
+  // Ejecutor de campañas de notificación: arranca las que vencen, genera avisos por tandas y los
+  // entrega a la cadencia de cada campaña. 30 s acota el retraso de «empezar a las 9:00».
+  RUNTIME_JOBS_NOTIFICATION_CAMPAIGNS_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
 
   // Dónde se ENTREGA un broadcast de notificaciones:
   //   inline   → en el mismo proceso que atendió el POST, fuera del request (fire-and-forget). Es el

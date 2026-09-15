@@ -60,6 +60,8 @@ export function buildScheduledJobs(deps: {
   debtRating: DebtRatingService;
   outcomeDispatch: OutcomeDispatchService;
   partnerKybSync: PartnerKybSyncService;
+  /** Campañas de notificación: llega como función desde la composición para no importar internos de Mensajería. */
+  notificationCampaigns: { tick: (tenantId: string) => Promise<unknown> };
 }): ScheduledJob[] {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
   const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements, supportSla } = deps;
@@ -291,6 +293,11 @@ export function buildScheduledJobs(deps: {
           body: { olderThanMinutes: env.RUNTIME_JOBS_STUCK_EVENT_MINUTES, limit, dryRun: false },
           currentUser: SCHEDULER_ACTOR,
         }),
+    },
+    {
+      jobCode: 'run_notification_campaigns',
+      intervalMs: env.RUNTIME_JOBS_NOTIFICATION_CAMPAIGNS_INTERVAL_MS,
+      run: (tenantId) => deps.notificationCampaigns.tick(tenantId),
     },
   ];
 }
