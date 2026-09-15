@@ -51,8 +51,9 @@ export class MobileIdentityController {
     summary: 'Enviar carnet y selfie para verificar la identidad',
     description:
       'Acepta las imágenes y devuelve el identificador con el que consultar el resultado. NO espera al veredicto: la verificación ' +
-      'tarda segundos, y un caso derivado a revisión humana tarda horas. Las imágenes NO se almacenan aquí; viajan al motor de ' +
-      'decisión, que las descarta al cerrar su ejecución.',
+      'tarda segundos, y un caso derivado a revisión humana tarda horas. Las imágenes NO se almacenan en este servicio: viajan al ' +
+      'motor de decisión, que las RETIENE en su propio almacén cifrado como evidencia de la ejecución (IDENTITY_IMAGE_RETENTION_REQUIRED) ' +
+      'para que quien revise el caso pueda verlas.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true, description: 'Tenant al que pertenece la verificación.' })
   @ApiHeader({ name: 'x-idempotency-key', required: true, description: 'Evita cobrar dos veces la misma verificación ante un reintento.' })

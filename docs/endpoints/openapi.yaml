@@ -13901,6 +13901,177 @@ paths:
       summary: Marcar como predeterminada una versión ya publicada
       tags:
         - partner-onboarding
+  /operations/erp-documents/upload-url:
+    post:
+      description: >-
+        La ruta del objeto la impone el servidor bajo `<tenant>/erp-<dueño>/`;
+        se firman tipo y tamaño.
+      operationId: ErpDocumentsController_uploadUrl
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ownerType:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                  pattern: ^[A-Za-z0-9_-]+$
+                ownerId:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                  pattern: ^[A-Za-z0-9_-]+$
+                documentKind:
+                  default: documento
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                  pattern: ^[A-Za-z0-9_-]+$
+                contentType:
+                  type: string
+                  enum:
+                    - image/jpeg
+                    - image/png
+                    - application/pdf
+                sizeBytes:
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 15728640
+              required:
+                - ownerType
+                - ownerId
+                - documentKind
+                - contentType
+                - sizeBytes
+              additionalProperties: false
+      responses:
+        '201':
+          description: Permiso emitido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: DOCUMENT_STORAGE_NOT_CONFIGURED.
+      security:
+        - access-token: []
+      summary: Permiso de subida para un documento del ERP
+      tags:
+        - partner-onboarding
+  /operations/erp-documents/verify:
+    post:
+      description: >-
+        Comprueba prefijo de propiedad, existencia, hash, tamaño y tipo real del
+        objeto antes de que el ERP lo registre.
+      operationId: ErpDocumentsController_verify
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                storageKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                sha256:
+                  type: string
+                  pattern: ^[a-fA-F0-9]{64}$
+                contentType:
+                  type: string
+                  enum:
+                    - image/jpeg
+                    - image/png
+                    - application/pdf
+                sizeBytes:
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 15728640
+              required:
+                - storageKey
+                - sha256
+                - contentType
+              additionalProperties: false
+      responses:
+        '200':
+          description: Metadatos reales del objeto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          description: >-
+            ERP_DOCUMENT_KEY_NOT_OWNED, EVIDENCE_OBJECT_NOT_FOUND,
+            EVIDENCE_HASH_MISMATCH…
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Verificar un documento del ERP ya subido
+      tags:
+        - partner-onboarding
+  /operations/erp-documents/content:
+    get:
+      operationId: ErpDocumentsController_content
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: El archivo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: ERP_DOCUMENT_NOT_FOUND.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Los bytes de un documento del ERP, para verlo
+      tags:
+        - partner-onboarding
   /operations/rating-scale:
     get:
       description: >-
@@ -19912,8 +20083,10 @@ paths:
         Acepta las imágenes y devuelve el identificador con el que consultar el
         resultado. NO espera al veredicto: la verificación tarda segundos, y un
         caso derivado a revisión humana tarda horas. Las imágenes NO se
-        almacenan aquí; viajan al motor de decisión, que las descarta al cerrar
-        su ejecución.
+        almacenan en este servicio: viajan al motor de decisión, que las RETIENE
+        en su propio almacén cifrado como evidencia de la ejecución
+        (IDENTITY_IMAGE_RETENTION_REQUIRED) para que quien revise el caso pueda
+        verlas.
       operationId: MobileIdentityController_start
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'

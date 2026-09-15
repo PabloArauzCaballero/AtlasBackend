@@ -32,6 +32,8 @@ import { MerchantQrController } from './merchant-qr.controller.js';
 import { PartnerCommerceController } from './partner-commerce.controller.js';
 import { PartnerContactVerificationController } from './partner-contact-verification.controller.js';
 import { PartnerContractTemplatesController } from './partner-contract-templates.controller.js';
+import { ErpDocumentsController } from './erp-documents.controller.js';
+import { ErpDocumentsService } from './application/erp-documents.service.js';
 import { PartnerOnboardingController } from './partner-onboarding.controller.js';
 import { PartnerOperationsController } from './partner-operations.controller.js';
 import { PartnerCommercialNetworkRepository } from './partner-commercial-network.repository.js';
@@ -72,6 +74,7 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     MerchantQrController,
     PartnerOperationsController,
     PartnerContractTemplatesController,
+    ErpDocumentsController,
   ],
   providers: [
     PartnerOnboardingRepository,
@@ -90,6 +93,7 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     PartnerQrReviewService,
     PartnerContactVerificationService,
     DocumentStorageService,
+    ErpDocumentsService,
     // `DocumentStorageService` lo exige en su constructor: la evidencia se analiza antes de darse
     // por buena. Faltaba aquí y el contenedor no arrancaba — lo detectó levantar la API de verdad,
     // no el type-check.

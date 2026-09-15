@@ -3,7 +3,15 @@
  * @business Esta pieza recibe el extracto del cliente y le promete un recálculo de su capacidad de pago.
  * @system encola la revisión del extracto y aplica su resultado sobre la línea de crédito.
  */
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions } from 'sequelize';
 import { BankStatementReviewModel } from '../../../database/models/index.js';
@@ -42,6 +50,7 @@ export class BankStatementService {
     @InjectModel(BankStatementReviewModel) private readonly reviews: typeof BankStatementReviewModel,
     private readonly creditLines: CreditLineService,
     private readonly expedienteHooks: ExpedienteHooksService,
+    private readonly storage: DocumentStorageService,
   ) {}
 
   /** La última revisión del cliente, abierta o no. Es lo que la app enseña como estado. */
@@ -66,6 +75,7 @@ export class BankStatementService {
     now?: Date;
   }): Promise<BankStatementReviewModel> {
     const now = input.now ?? new Date();
+    const objeto = await this.assertOwnedPdf(input.tenantId, input.customerId, input.storageKey);
 
     const open = await this.reviews.findOne({
       where: { tenantId: input.tenantId, customerId: input.customerId, status: ['received', 'processing'], deleted: false },
@@ -96,9 +106,34 @@ export class BankStatementService {
       storageBucket: null,
       sha256: null,
       mimeType: 'application/pdf',
-      sizeBytes: null,
+      sizeBytes: String(objeto.sizeBytes),
     });
     return review;
+  }
+
+  /**
+   * El objeto declarado tiene que ser de ESTE cliente, existir y ser un PDF.
+   *
+   * Hasta el 2026-09-14 este endpoint aceptaba cualquier `storageKey`: un cliente podía colgar de su
+   * expediente el extracto de otro (el worker lo descargaba y alimentaba SU línea de crédito) o una
+   * clave inexistente que el worker reintentaba sin fin. El paquete de identidad y el poder del
+   * comercio ya hacían esta comprobación; el extracto era la excepción.
+   *
+   * El prefijo es el que el propio servidor impuso al emitir el permiso de subida
+   * (`${tenantId}/${customerId}/bank_statement/…`). Se consulta con HEAD y no descargando: aquí sólo
+   * hace falta saber que está y qué es; el contenido lo lee la revisión.
+   */
+  private async assertOwnedPdf(tenantId: string, customerId: string, storageKey: string): Promise<{ sizeBytes: number }> {
+    if (!storageKey.startsWith(`${tenantId}/${customerId}/`)) {
+      throw new UnprocessableEntityException('BANK_STATEMENT_STORAGE_KEY_NOT_OWNED');
+    }
+    if (!this.storage.isConfigured()) throw new ServiceUnavailableException('DOCUMENT_STORAGE_NOT_CONFIGURED');
+    const objeto = await this.storage.headObject(storageKey);
+    if (!objeto) throw new UnprocessableEntityException('BANK_STATEMENT_OBJECT_NOT_FOUND');
+    if ((objeto.contentType ?? '').split(';')[0].trim().toLowerCase() !== 'application/pdf') {
+      throw new UnprocessableEntityException(`BANK_STATEMENT_NOT_PDF: ${objeto.contentType ?? 'sin tipo'}`);
+    }
+    return { sizeBytes: objeto.sizeBytes };
   }
 
   /**

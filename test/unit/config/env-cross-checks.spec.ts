@@ -49,6 +49,26 @@ describe('applyEnvCrossChecks', () => {
     expect(failedPaths(validProduction)).toEqual([]);
   });
 
+  describe('endpoint público del almacén', () => {
+    it('en producción, localhost en STORAGE_S3_PUBLIC_ENDPOINT es un error: esa URL viaja al teléfono', () => {
+      expect(failedPaths({ ...validProduction, STORAGE_S3_PUBLIC_ENDPOINT: 'http://localhost:59000' })).toContain(
+        'STORAGE_S3_PUBLIC_ENDPOINT',
+      );
+      expect(failedPaths({ ...validProduction, STORAGE_S3_PUBLIC_ENDPOINT: 'http://127.0.0.1:59000' })).toContain(
+        'STORAGE_S3_PUBLIC_ENDPOINT',
+      );
+    });
+
+    it('una dirección pública pasa, y en development localhost es legítimo', () => {
+      expect(failedPaths({ ...validProduction, STORAGE_S3_PUBLIC_ENDPOINT: 'https://almacen.atlas.bo' })).not.toContain(
+        'STORAGE_S3_PUBLIC_ENDPOINT',
+      );
+      expect(failedPaths({ NODE_ENV: 'development', STORAGE_S3_PUBLIC_ENDPOINT: 'http://localhost:59000' })).not.toContain(
+        'STORAGE_S3_PUBLIC_ENDPOINT',
+      );
+    });
+  });
+
   describe('secretos', () => {
     it('rechaza el secreto JWT de ejemplo en producción', () => {
       expect(failedPaths({ ...validProduction, JWT_ACCESS_TOKEN_SECRET: DEFAULT_JWT_SECRET })).toContain('JWT_ACCESS_TOKEN_SECRET');

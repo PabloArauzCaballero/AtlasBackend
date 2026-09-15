@@ -42,11 +42,14 @@ const ESTADO_POR_DECISION: Readonly<Record<string, IdentityVerificationState>> =
  * traza, sin desplegar este repositorio. Eso es un artefacto. Aquí no hay ni un
  * umbral escrito, y es a propósito.
  *
- * ## Qué NO se guarda
+ * ## Qué NO se guarda AQUÍ
  *
- * Ninguna imagen. Viajan al motor y ahí acaban: lo que queda es el veredicto y
- * sus puntajes. Un carnet guardado «por si acaso» es exactamente el dato que una
- * fuga convierte en suplantación.
+ * Ninguna imagen en este servicio: lo que queda es el veredicto y sus puntajes.
+ * El MOTOR sí las retiene, en su propio almacén cifrado y por diseño
+ * (`IDENTITY_IMAGE_RETENTION_REQUIRED`): es la evidencia con la que un analista
+ * revisa el caso. Hasta el 2026-09-14 este comentario y el contrato del API
+ * afirmaban que el motor las descartaba, y no era verdad: el derecho de
+ * supresión tiene que alcanzar también esa copia (ver `customer-privacy`).
  */
 import { MobileIdentitySignalsService } from './mobile-identity-signals.service.js';
 import { describir } from './mobile-identity.errors.js';
