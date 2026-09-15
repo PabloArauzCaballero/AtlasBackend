@@ -845,6 +845,15 @@
     "security": ["access-token"],
     "body": false
   },
+  "GET /customer-onboarding/verification-channels": {
+    "operationId": "CustomerOnboardingController_verificationChannels",
+    "responses": ["200", "400", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": false
+  },
   "POST /customer-onboarding/start": {
     "operationId": "CustomerOnboardingController_startOnboarding",
     "responses": ["201", "400", "409", "422", "429", "500"],
@@ -2204,6 +2213,33 @@
     "security": ["access-token"],
     "body": false
   },
+  "POST /operations/erp-documents/upload-url": {
+    "operationId": "ErpDocumentsController_uploadUrl",
+    "responses": ["201", "400", "401", "403", "409", "429", "500", "503"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "POST /operations/erp-documents/verify": {
+    "operationId": "ErpDocumentsController_verify",
+    "responses": ["200", "400", "401", "403", "409", "422", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": true
+  },
+  "GET /operations/erp-documents/content": {
+    "operationId": "ErpDocumentsController_content",
+    "responses": ["200", "400", "401", "403", "404", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
   "GET /operations/rating-scale": {
     "operationId": "CreditRatingController_getRatingScale",
     "responses": ["200", "400", "401", "403", "422", "429", "500"],
@@ -3289,6 +3325,15 @@
     "responses": ["200", "400", "401", "403", "429", "500"],
     "headers": [],
     "query": ["cursor", "status"],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "GET /operations/customers/pending-contact-verification": {
+    "operationId": "OperationsController_listPendingContactVerification",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
     "path": [],
     "security": ["access-token"],
     "body": false

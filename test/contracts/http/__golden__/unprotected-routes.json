@@ -1,6 +1,7 @@
 [
   "GET /app-content",
   "GET /consent-documents/active",
+  "GET /customer-onboarding/verification-channels",
   "GET /internal/contexts/customers/recipient-directory/addresses",
   "GET /internal/contexts/customers/recipient-directory/resolve",
   "POST /customer-onboarding/start"
