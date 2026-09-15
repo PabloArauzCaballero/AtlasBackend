@@ -54,8 +54,20 @@ export class NotificationCampaignAudienceService {
     return { data: rows.map(mapSegment) };
   }
 
+  /**
+   * El tamaño guardado de un segmento es el BRUTO, sin descontar consentimiento comercial.
+   *
+   * Un segmento se reutiliza en campañas de los dos tipos, así que guardar la cifra de una campaña
+   * comercial hacía que «todos los clientes activos» figurara con 0 personas en cuanto nadie tuviera
+   * el consentimiento — una lista que sí tiene gente leyéndose como vacía. El descuento por
+   * consentimiento se hace al estimar la campaña, que es donde se sabe para qué se va a usar.
+   */
+  private estimateSegment(tenantId: string, definition: AudienceDefinition): Promise<AudienceEstimate> {
+    return this.estimateDefinition(tenantId, definition, 'operational');
+  }
+
   async createSegment(tenantId: string, actorId: string, dto: CreateSegmentDto) {
-    const estimate = await this.estimateDefinition(tenantId, dto.definition, 'marketing');
+    const estimate = await this.estimateSegment(tenantId, dto.definition);
     try {
       const segment = await this.repository.createSegment({
         tenantId,
@@ -83,7 +95,7 @@ export class NotificationCampaignAudienceService {
     if (dto.status !== undefined) patch.status = dto.status;
     if (dto.definition !== undefined) {
       patch.definitionJson = dto.definition;
-      patch.lastEstimateJson = await this.estimateDefinition(tenantId, dto.definition, 'marketing');
+      patch.lastEstimateJson = await this.estimateSegment(tenantId, dto.definition);
       patch.lastEstimatedAt = new Date();
     }
     try {

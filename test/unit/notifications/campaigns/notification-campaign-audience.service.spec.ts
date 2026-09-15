@@ -39,9 +39,12 @@ describe('NotificationCampaignAudienceService', () => {
   });
 
   it('guarda segmentos con su tamaño y traduce el nombre repetido a 409', async () => {
-    const { service, repository } = build();
+    const { service, repository, port } = build();
     const created = await service.createSegment('1', 'u1', { name: 'Seg', definition });
     expect(created).toMatchObject({ id: '5', status: 'active' });
+    // El tamaño guardado es el bruto: un segmento sirve a campañas de los dos tipos y guardar la
+    // cifra comercial dejaba «todos los clientes activos» en 0 personas.
+    expect(port.estimate).toHaveBeenCalledWith('1', definition, { requireMarketingConsent: false });
     repository.createSegment.mockRejectedValueOnce(new UniqueConstraintError({}) as never);
     await expect(service.createSegment('1', 'u1', { name: 'Seg', definition })).rejects.toBeInstanceOf(ConflictException);
     expect((await service.listSegments('1', 'active')).data).toHaveLength(1);
