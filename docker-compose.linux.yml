@@ -1,0 +1,38 @@
+# Copiar a: AtlasBackend/docker-compose.linux.yml
+#
+# Docker Engine (Linux) NO resuelve `host.docker.internal`: es un invento de Docker Desktop.
+# Sin esto, cada URL del .env que apunte al anfitrion falla con EAI_AGAIN / ENOTFOUND, y el
+# sintoma NO se parece a la causa: el panel de sistemas pinta el motor y el ERP como caidos,
+# y la verificacion de identidad del movil se resuelve como `engine_unavailable_manual`.
+#
+# `host-gateway` es una palabra reservada de Docker (>= 20.10) que resuelve a la IP del
+# anfitrion vista desde el contenedor. Asi las URLs del .env quedan IGUALES a las de la
+# documentacion y a las de la maquina de desarrollo.
+#
+# TRAMPA: este archivo NO se carga solo. Se llama `.linux.yml` y no `.override.yml` a
+# proposito —un override se aplicaria tambien donde no hace falta—, pero ademas: en cuanto
+# se pasa un `-f` explicito, Compose deja de cargar cualquier override automatico. Hay que
+# encadenarlo SIEMPRE:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.linux.yml \
+#     --profile app --profile storage up -d --build
+#
+#   # con los canales de la app movil:
+#   docker compose -f docker-compose.yml \
+#     -f ../AtlasFrontend/apps/consumer-app/tools/dev-backend/docker-compose.dev-channels.yml \
+#     -f docker-compose.linux.yml \
+#     --profile app --profile storage up -d --build
+#
+# Verificar que quedo aplicado (no suponerlo):
+#   docker compose -f docker-compose.yml -f docker-compose.linux.yml config | grep -A2 extra_hosts
+#
+# Comprobacion desde dentro del contenedor:
+#   docker compose exec api getent hosts host.docker.internal
+
+services:
+  api:
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+  worker:
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'

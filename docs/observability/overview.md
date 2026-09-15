@@ -102,3 +102,13 @@ fallos que de otro modo serían invisibles:
 
 Todas comparten un criterio: alertan sobre **ausencia de señal**, no sólo sobre errores. Un job que
 falla y un job que nadie ejecuta se ven igual desde fuera — como silencio.
+
+
+---
+
+## Los otros dos backends
+
+Este documento habla de la salud de *este* servicio. El motor de decisión y el ERP se despliegan
+aparte y se comprueban por HTTP desde el catálogo de herramientas: cómo entran al panel, qué
+significa cada desenlace y por qué el ERP no es crítico está en
+[Salud de los servicios hermanos](./servicios-hermanos.md).

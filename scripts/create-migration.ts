@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 function normalizeMigrationName(rawName: string): string {
@@ -40,10 +40,9 @@ mkdirSync(migrationsDir, { recursive: true });
 
 const filePath = join(migrationsDir, `${timestamp()}-${migrationName}.ts`);
 
-if (existsSync(filePath)) {
-  throw new Error(`La migración ya existe: ${filePath}`);
-}
-
+// Sin `existsSync` previo: comprobar y escribir por separado es una carrera (entre las dos cosas,
+// otro proceso puede crear el archivo y esta escritura lo PISA). La bandera `wx` hace las dos en una
+// sola llamada al sistema: crea, y si ya existe falla con EEXIST.
 writeFileSync(
   filePath,
   `import { QueryInterface } from 'sequelize';
@@ -58,7 +57,8 @@ export async function down({ context: queryInterface }: { context: QueryInterfac
   void queryInterface;
 }
 `,
-  'utf8',
+  // `wx`: crea o falla. Es lo que convierte «comprobar y luego escribir» en una sola operación.
+  { encoding: 'utf8', flag: 'wx' },
 );
 
 console.log(`Migración creada: ${filePath}`);

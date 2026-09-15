@@ -4,7 +4,7 @@
  * @system provee infraestructura transversal de logging sin introducir reglas de un dominio específico.
  */
 import { ConsoleLogger } from '@nestjs/common';
-import { appendFile } from 'node:fs/promises';
+import { appendFile, rename, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { env } from '../../config/env.js';
 import { redactSensitiveText } from '../utils/privacy/redact-text.util.js';
@@ -26,6 +26,9 @@ function stringifyMessage(message: unknown): string {
 }
 
 type LogLevel = 'log' | 'error' | 'warn' | 'debug' | 'verbose' | 'fatal';
+
+/** Ventana mínima entre avisos de escritura fallida: sin freno, un fallo permanente los emite por línea. */
+const WRITE_WARNING_INTERVAL_MS = 60_000;
 
 /**
  * `ArchivoLogMongoSyncService` (`src/modules/log-sync/log-sync.service.ts`) sincroniza el
@@ -53,8 +56,24 @@ type LogLevel = 'log' | 'error' | 'warn' | 'debug' | 'verbose' | 'fatal';
  */
 export class AppFileLogger extends ConsoleLogger {
   private readonly filePath = resolve(env.LOG_SYNC_FILE_PATH);
+  private readonly rotatedPath = `${resolve(env.LOG_SYNC_FILE_PATH)}.1`;
   private readonly jsonConsole = (env.LOG_FORMAT ?? (env.NODE_ENV === 'production' ? 'json' : 'pretty')) === 'json';
   private writeQueue: Promise<void> = Promise.resolve();
+  /** Bytes escritos desde el último arranque o rotación. Evita un `stat` por línea. */
+  private bytesSinceRotation: number | null = null;
+  /**
+   * Freno del aviso cuando el archivo no se puede escribir.
+   *
+   * Se SIGUE intentando escribir —un fallo puede ser transitorio (disco lleno, permisos que alguien
+   * corrige) y `ArchivoLogMongoSyncService` depende de ese archivo—, pero el aviso no se repite por
+   * cada línea. Un despliegue con `LOG_SYNC_FILE_PATH` relativo (el default `Archivo.log` cae en
+   * `/app`, propiedad de root, mientras el proceso corre como `node`) emitía un `EACCES` a stderr
+   * POR CADA LÍNEA: se encontró un contenedor con 62.848 fallos encadenados, ruido que ahoga los
+   * logs de verdad. Ahora: el primero se avisa, y luego como mucho uno por minuto, diciendo cuántos
+   * se silenciaron. Ninguna línea se pierde: la consola es el canal principal y las recibe todas.
+   */
+  private writeFailuresSinceWarning = 0;
+  private lastWriteWarningAt = 0;
 
   private buildLine(level: LogLevel, context: string | undefined, message: unknown, extra?: string): string {
     // Scrubber de PII/secretos antes de emitir: la línea acaba en stdout y en Archivo.log, y de ahí
@@ -73,11 +92,62 @@ export class AppFileLogger extends ConsoleLogger {
     return `${JSON.stringify(entry)}\n`;
   }
 
+  /**
+   * ATLAS-OPS-012 — rotación por tamaño.
+   *
+   * `ArchivoLogMongoSyncService` trunca el archivo, pero SOLO después de sincronizar su contenido a
+   * MongoDB. En un despliegue sin Mongo configurado —que es una configuración soportada— nada lo
+   * truncaba nunca: el archivo crecía hasta llenar el disco del contenedor, y con él se cae el
+   * proceso entero, no solo el logging.
+   *
+   * La rotación es de un solo relevo (`Archivo.log` -> `Archivo.log.1`) a propósito: este archivo es
+   * un búfer hacia el pipeline de logs, no el archivo histórico. Conservar más generaciones daría
+   * una falsa sensación de retención en un fichero local que nadie respalda; la retención de verdad
+   * vive en Mongo (`log_sync`) y en el agregador que recoge stdout.
+   */
+  private async rotateIfTooLarge(incomingBytes: number): Promise<void> {
+    if (this.bytesSinceRotation === null) {
+      this.bytesSinceRotation = await stat(this.filePath)
+        .then((info) => info.size)
+        .catch(() => 0);
+    }
+
+    if (this.bytesSinceRotation + incomingBytes <= env.LOG_FILE_MAX_BYTES) {
+      this.bytesSinceRotation += incomingBytes;
+      return;
+    }
+
+    // `rename` sobre el mismo sistema de archivos es atómico: no hay ventana en la que el log activo
+    // no exista. Si falla (permisos, disco lleno), se sigue escribiendo en el archivo actual — perder
+    // la rotación es preferible a perder las líneas.
+    await rename(this.filePath, this.rotatedPath).catch((error: unknown) => {
+      process.stderr.write(`[AppFileLogger] No se pudo rotar ${this.filePath}: ${String(error)}\n`);
+    });
+    this.bytesSinceRotation = incomingBytes;
+  }
+
   private enqueueWrite(line: string): void {
+    const bytes = Buffer.byteLength(line, 'utf8');
     this.writeQueue = this.writeQueue
+      .then(() => this.rotateIfTooLarge(bytes))
       .then(() => appendFile(this.filePath, line, 'utf8'))
+      .then(() => {
+        this.writeFailuresSinceWarning = 0;
+      })
       .catch((error: unknown) => {
-        process.stderr.write(`[AppFileLogger] No se pudo escribir en ${this.filePath}: ${String(error)}\n`);
+        this.writeFailuresSinceWarning += 1;
+        const now = Date.now();
+        if (this.lastWriteWarningAt !== 0 && now - this.lastWriteWarningAt < WRITE_WARNING_INTERVAL_MS) return;
+        const silenciados = this.writeFailuresSinceWarning - 1;
+        this.lastWriteWarningAt = now;
+        this.writeFailuresSinceWarning = 0;
+        process.stderr.write(
+          `[AppFileLogger] No se pudo escribir en ${this.filePath}: ${String(error)}. ` +
+            (silenciados > 0 ? `Otros ${silenciados} fallos silenciados desde el aviso anterior. ` : '') +
+            'Se sigue intentando y la consola recibe todas las líneas. ' +
+            'Revisa LOG_SYNC_FILE_PATH: debe ser una ruta ABSOLUTA en un directorio con permiso de escritura ' +
+            '(en la imagen, /app/logs).\n',
+        );
       });
   }
 

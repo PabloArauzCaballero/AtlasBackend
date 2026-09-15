@@ -10,9 +10,9 @@ import { InternalAccessCatalogService } from '../../../src/modules/internal-user
 describe('InternalAccessCatalogService', () => {
   function build() {
     const catalogRepository = {
-      listRoleRows: jest.fn(async () => [] as unknown[]),
-      findRoleRowsById: jest.fn(async () => [] as unknown[]),
-      listPermissions: jest.fn(async () => [] as unknown[]),
+      listRoleRows: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      findRoleRowsById: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      listPermissions: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
     };
     const service = new InternalAccessCatalogService(catalogRepository as never);
     return { service, catalogRepository };

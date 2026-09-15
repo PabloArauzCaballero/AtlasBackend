@@ -9,8 +9,8 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                               | Responsabilidad                                         |
+| ---------------------------------------------------------------- | ------------------------------------------------------- |
 | [`atlas-schema-builder.util.ts`](./atlas-schema-builder.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 
 ## Reglas de mantenimiento

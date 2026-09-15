@@ -35,7 +35,12 @@ export type S3Credentials = {
 
 export type PresignInput = {
   credentials: S3Credentials;
-  method: 'PUT' | 'GET' | 'HEAD';
+  /**
+   * `DELETE` se suma a los tres originales para el adaptador de archivos: SigV4 firma el verbo como
+   * un dato más de la petición canónica, así que soportarlo no cambia el algoritmo — sólo amplía
+   * qué se puede pedir con una URL prefirmada.
+   */
+  method: 'PUT' | 'GET' | 'HEAD' | 'DELETE';
   objectKey: string;
   expiresInSeconds: number;
   /** Cabeceras que el cliente DEBE enviar; van firmadas, así que alterarlas invalida la URL. */

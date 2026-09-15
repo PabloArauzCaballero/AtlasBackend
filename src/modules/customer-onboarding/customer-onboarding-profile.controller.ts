@@ -5,6 +5,7 @@
  */
 import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, Put, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { RequestWithNetwork, requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { RequestWithNetwork, requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
 import { CustomerContactMethodsService } from './application/customer-contact-methods.service.js';
 import { CustomerDocumentUploadService } from './application/customer-document-upload.service.js';
 import { CustomerIdentityProviderVerificationService } from './application/customer-identity-provider-verification.service.js';
@@ -80,14 +81,14 @@ export class CustomerOnboardingProfileController {
   @Patch(':customerId/profile')
   @HttpCode(HttpStatus.OK)
   updateProfile(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(updateProfileSchema)) body: UpdateProfileDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
     return this.profileUpdateService.updateProfile({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       body,
       currentUser,
@@ -110,14 +111,14 @@ export class CustomerOnboardingProfileController {
   @Put(':customerId/financial-profile')
   @HttpCode(HttpStatus.OK)
   upsertFinancialProfile(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(financialProfileSchema)) body: FinancialProfileDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
     return this.financialProfileService.upsertFinancialProfile({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       body,
       currentUser,
@@ -132,12 +133,12 @@ export class CustomerOnboardingProfileController {
   @ApiResponse({ status: 200, description: 'Referencias registradas (solo últimos 4 dígitos del teléfono).' })
   @Get(':customerId/reference-contacts')
   listReferences(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.referenceContactsService.listReferences({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       currentUser,
     });
@@ -159,14 +160,14 @@ export class CustomerOnboardingProfileController {
   @Post(':customerId/reference-contacts')
   @HttpCode(HttpStatus.CREATED)
   addReferences(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(referenceContactsSchema)) body: ReferenceContactsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
     return this.referenceContactsService.addReferences({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       body,
       currentUser,
@@ -182,13 +183,13 @@ export class CustomerOnboardingProfileController {
   @Delete(':customerId/reference-contacts/:referenceId')
   @HttpCode(HttpStatus.OK)
   removeReference(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(referenceContactIdParamsSchema)) params: ReferenceContactIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
     return this.referenceContactsService.removeReference({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       referenceId: params.referenceId,
       currentUser,
@@ -211,14 +212,14 @@ export class CustomerOnboardingProfileController {
   @Post(':customerId/contact-methods')
   @HttpCode(HttpStatus.CREATED)
   addContactMethod(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(addContactMethodSchema)) body: AddContactMethodDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
     return this.contactMethodsService.addContactMethod({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       body,
       currentUser,
@@ -244,14 +245,14 @@ export class CustomerOnboardingProfileController {
   @Post(':customerId/documents/upload-url')
   @HttpCode(HttpStatus.CREATED)
   createUploadUrl(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(uploadUrlRequestSchema)) body: UploadUrlRequestDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
     return this.documentUploadService.createUploadUrl({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       body,
       currentUser,
@@ -280,7 +281,7 @@ export class CustomerOnboardingProfileController {
   @Post(':customerId/identity-verification')
   @HttpCode(HttpStatus.OK)
   verifyIdentity(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(verifyIdentitySchema)) body: VerifyIdentityDto,
@@ -288,7 +289,7 @@ export class CustomerOnboardingProfileController {
     @Req() request: RequestWithNetwork,
   ) {
     return this.identityProviderVerificationService.verifyWithProvider({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       body,
       currentUser,

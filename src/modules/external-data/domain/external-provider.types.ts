@@ -128,6 +128,14 @@ export type ExternalDataRequestResult = {
   requestId: string | null;
   providerCode: string;
   status: ExternalProviderStatus;
+  /**
+   * Veredicto CRUDO del proveedor (`FOUND`, `NOT_FOUND`, `PARTIAL_MATCH`…), en el eje del negocio y
+   * NO en el de ejecución. `status` responde «¿la llamada se ejecutó?» (COMPLETED/MOCKED/FAILED) y
+   * colapsa a `MOCKED` cualquier respuesta simulada; este campo responde «¿qué dijo el proveedor?».
+   * Quien decide identidad o crédito debe leer ESTE, no `status`: con `status` un mock siempre sería
+   * `MOCKED` y una llamada real siempre `COMPLETED`, ninguno de los cuales es un veredicto.
+   */
+  providerVerdict?: string;
   reasonCode?: string;
   observations: NormalizedExternalObservation[];
   features: Record<string, unknown>;

@@ -63,8 +63,14 @@ LABEL org.opencontainers.image.title="atlas-backend" \
 # `curl` ya NO se instala: el HEALTHCHECK lo hace un script de Node (ops/docker/healthcheck.mjs).
 # Un binario menos en una imagen de producción es una superficie de CVE menos que parchear, y el
 # runtime ya trae un cliente HTTP perfectamente capaz.
+#
+# `--only-upgrade libpcre2-8-0`: la base trae 10.42-1 y Debian ya corrigio ahi dos fallos altos en
+# 10.42-1+deb12u1, pero no llegan solos porque la etiqueta de la imagen esta fijada. Se actualiza ESE
+# paquete, nunca `apt-get upgrade` —que hadolint prohibe con razon—: un upgrade general cambia la base
+# bajo los pies entre dos builds del mismo commit.
 RUN apt-get update \
   && apt-get install --no-install-recommends -y tini \
+  && apt-get install --no-install-recommends -y --only-upgrade libpcre2-8-0 \
   && rm -rf /var/lib/apt/lists/*
 
 # Dependencias de PRODUCCIÓN únicamente: las de desarrollo (typescript, jest, eslint…) no tienen por
@@ -75,6 +81,19 @@ COPY package.json yarn.lock .yarnrc ./
 # que el `rmdir` fallaba con EBUSY y tumbaba el build.
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
     yarn install --frozen-lockfile --production
+
+# npm FUERA de la imagen que se despliega.
+#
+# La mayoria de los CVEs que reporta Trivy en estos backends no son dependencias de Atlas: viven
+# dentro del npm que `node:22-bookworm-slim` trae de serie (18 MB y 153 modulos propios). Medido en el
+# Motor con la misma base: quitarlo hace desaparecer el CRITICO de `tar` (CVE-2026-59873) y toda la
+# familia `pacote`/`sigstore`/`ip-address`/`brace-expansion`.
+#
+# Aqui es seguro porque NADA lo usa: el contenedor arranca con `node dist/...`, el healthcheck es un
+# script de Node y las dependencias se instalan con yarn, que en las imagenes de Node va aparte. Antes
+# de repetir esto en otra imagen hay que comprobar `ENTRYPOINT`/`CMD` y las migraciones — en el Motor
+# el migrator llamaba a `npx prisma` y hubo que pasarlo al binario local.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 COPY --from=build /app/dist ./dist
 # Las migraciones y los seeders se ejecutan con `tsx` desde el fuente (ver src/database/migrate.ts),

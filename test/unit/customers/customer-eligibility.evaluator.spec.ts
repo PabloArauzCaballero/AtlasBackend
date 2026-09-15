@@ -36,6 +36,15 @@ function eligibleFacts(overrides: Partial<EligibilityFacts> = {}): EligibilityFa
     // perfil mira que el código exista, y la elegibilidad POR PRODUCTO mira su valor
     // (`min_monthly_income`). Por eso el helper declara ambos.
     financialAttributeValues: { monthly_income_declared: 8000 },
+    /*
+      Los TEXTOS son el tercer hecho, y faltaba: los códigos dicen qué se declaró, los valores
+      dicen cuánto, y los textos dicen QUÉ se declaró cuando la respuesta no es un número.
+      `employment_status` es el único que hoy se lee, y decide si la antigüedad sigue siendo
+      exigible: con `employee` sí lo es, que es el caso completo que este helper representa.
+      Sin este campo el helper no producía un `EligibilityFacts` — el tipo lo exige desde que se
+      cerró el circuito de la revisión manual, y la prueba se quedó atrás.
+    */
+    financialAttributeTexts: { employment_status: 'employee' },
     hasCurrentAddress: true,
     referenceContactCount: 2,
     identityDocument: { id: 9, expiresAt: '2030-01-01' } as never,
@@ -133,6 +142,15 @@ describe('buildBlockers', () => {
   it('bloquea cuando falta un consentimiento obligatorio del tenant', () => {
     const blockers = buildBlockers(eligibleFacts({ grantedConsentDocumentIds: ['1'] }), 'active', NOW);
     expect(blockers).toContainEqual({ code: 'CONSENT_MISSING', fields: ['2'] });
+  });
+
+  it('la identidad verificada por el Motor (VERIFIED, en mayúsculas) cuenta igual que la del operador', () => {
+    expect(buildBlockers(eligibleFacts({ identityVerificationResult: 'VERIFIED' }), 'active', NOW)).not.toContainEqual(
+      expect.objectContaining({ code: 'IDENTITY_NOT_VERIFIED' }),
+    );
+    expect(buildBlockers(eligibleFacts({ identityVerificationResult: 'IN_REVIEW' }), 'active', NOW)).toContainEqual(
+      expect.objectContaining({ code: 'IDENTITY_NOT_VERIFIED' }),
+    );
   });
 
   it('bloquea por riesgo no aprobado y, por separado, por riesgo obsoleto', () => {

@@ -26,6 +26,11 @@ import {
 } from '../../database/models/index.js';
 import { CustomersModule } from '../customers/customers.module.js';
 import { CustomerTelemetryController } from './customer-telemetry.controller.js';
+import { TelemetrySessionContextRepository } from './telemetry-session-context.repository.js';
+import { TelemetryBehaviorRepository } from './telemetry-behavior.repository.js';
+import { TelemetryDeviceSignalsRepository } from './telemetry-device-signals.repository.js';
+import { TelemetryOnDeviceRepository } from './telemetry-on-device.repository.js';
+import { TelemetryActivityRepository } from './telemetry-activity.repository.js';
 import { CustomerTelemetryRepository } from './customer-telemetry.repository.js';
 import { CustomerTelemetryService } from './customer-telemetry.service.js';
 
@@ -53,6 +58,14 @@ import { CustomerTelemetryService } from './customer-telemetry.service.js';
     CustomersModule,
   ],
   controllers: [CustomerTelemetryController],
-  providers: [CustomerTelemetryService, CustomerTelemetryRepository],
+  providers: [
+    CustomerTelemetryService,
+    CustomerTelemetryRepository,
+    TelemetrySessionContextRepository,
+    TelemetryBehaviorRepository,
+    TelemetryDeviceSignalsRepository,
+    TelemetryOnDeviceRepository,
+    TelemetryActivityRepository,
+  ],
 })
 export class CustomerTelemetryModule {}

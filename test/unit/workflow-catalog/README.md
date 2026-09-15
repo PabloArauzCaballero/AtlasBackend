@@ -11,7 +11,6 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
-| [`customer-credit-workflow.seed-data.spec.ts`](./customer-credit-workflow.seed-data.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`exposed-route-scanner.service.spec.ts`](./exposed-route-scanner.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`workflow-bundle-filter.util.spec.ts`](./workflow-bundle-filter.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`workflow-bundle.fixtures.ts`](./workflow-bundle.fixtures.ts) | Artefacto de soporte específico de esta carpeta. |
@@ -22,7 +21,6 @@
 | [`workflow-consistency.service.spec.ts`](./workflow-consistency.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`workflow-graph.builder.spec.ts`](./workflow-graph.builder.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`workflow-progress.service.spec.ts`](./workflow-progress.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`workflow-seeder.spec.ts`](./workflow-seeder.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`workflow-stage-order.util.spec.ts`](./workflow-stage-order.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`workflow-transition.service.spec.ts`](./workflow-transition.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 

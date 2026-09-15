@@ -58,6 +58,12 @@ const eventGroups: Array<{ family: string; events: string[]; aggregateTypes: str
     priority: 20,
   },
   {
+    // AT-033: hecho de dominio escrito por el caso de uso de solicitud, en la transacción del agregado.
+    family: 'credit_admission',
+    aggregateTypes: ['credit_application', 'customer'],
+    events: ['credit.application.submitted'],
+  },
+  {
     family: 'credit_line',
     aggregateTypes: ['customer', 'credit_line', 'credit_limit_movement'],
     events: [
@@ -134,6 +140,39 @@ const eventGroups: Array<{ family: string; events: string[]; aggregateTypes: str
       'reconciliation.started',
       'reconciliation.matched',
       'reconciliation.unmatched',
+    ],
+    priority: 20,
+  },
+  {
+    /*
+     * Soporte y gestión de servicio (ISO/IEC 20000-1). Van por outbox y no por llamada directa para
+     * que un fallo de un consumidor no impida cerrar un caso.
+     *
+     * Este comentario decía que el motor de notificaciones «avisa al cliente sin que soporte tenga
+     * que acordarse». No lo hace: ningún evento de esta familia tiene canales en
+     * `notification-rules.service.ts`, así que `process_events` los consume sin generar mensaje.
+     * Medido en el servidor el 2026-09-10: 35 eventos, 0 mensajes. Lo que sí le llega al cliente al
+     * resolver es el mensaje del chat, que no pasa por aquí. Qué avisar es decisión pendiente, y
+     * `GET systems/flows/pending-work` lo enseña por código.
+     */
+    family: 'support_service_management',
+    aggregateTypes: ['support_case', 'support_channel', 'support_message', 'knowledge_article', 'customer', 'partner'],
+    events: [
+      'support.case.created',
+      'support.case.triaged',
+      'support.case.assigned',
+      'support.case.escalated',
+      'support.case.resolved',
+      'support.case.closed',
+      'support.case.reopened',
+      'support.channel.opened',
+      'support.channel.closed',
+      'support.message.created',
+      'support.complaint.created',
+      'support.security.escalated',
+      'support.sla.warning',
+      'support.sla.breached',
+      'support.knowledge.published',
     ],
     priority: 20,
   },

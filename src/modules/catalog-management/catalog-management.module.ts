@@ -38,6 +38,7 @@ import { CatalogIngestionService } from './application/catalog-ingestion.service
 import { CatalogQueryService } from './application/catalog-query.service.js';
 import { CatalogRiskPolicyService } from './application/catalog-risk-policy.service.js';
 import { CatalogVersionWorkflowService } from './application/catalog-version-workflow.service.js';
+import { CatalogGovernanceController } from './catalog-governance.controller.js';
 import { CatalogManagementController } from './catalog-management.controller.js';
 import { CatalogDataGovernanceRepository } from './catalog-data-governance.repository.js';
 import { CatalogDefinitionsRepository } from './catalog-definitions.repository.js';
@@ -75,7 +76,7 @@ import { CatalogManagementService } from './catalog-management.service.js';
       DataChangeLogModel,
     ]),
   ],
-  controllers: [CatalogManagementController],
+  controllers: [CatalogManagementController, CatalogGovernanceController],
   providers: [
     CatalogManagementService,
     CatalogQueryService,

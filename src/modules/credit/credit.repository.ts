@@ -76,11 +76,52 @@ export class CreditRepository {
     } as FindOptions);
   }
 
+  /**
+   * La solicitud que nació de UNA ejecución del Motor. Es el puente de vuelta de la revisión manual:
+   * el Motor no sabe de qué solicitud es su caso —no tiene por qué—, sólo de qué ejecución.
+   */
+  findApplicationByExecutionId(
+    tenantId: string,
+    decisionExecutionId: string,
+    options: RepositoryOptions = {},
+  ): Promise<CreditApplicationModel | null> {
+    return this.applicationModel.findOne({
+      where: { tenantId, decisionExecutionId, deleted: false },
+      order: [['id', 'DESC']],
+      transaction: options.transaction,
+    } as FindOptions);
+  }
+
   findApplicationsByCustomer(tenantId: string, customerId: string): Promise<CreditApplicationModel[]> {
     return this.applicationModel.findAll({
       where: { tenantId, customerId, deleted: false },
       order: [['submittedAt', 'DESC']],
       limit: 50,
+    } as FindOptions);
+  }
+
+  /**
+   * Las solicitudes de UN comercio, opcionalmente sólo las que esperan su respuesta.
+   *
+   * El filtro por comercio va en la consulta y no después, en memoria: es lo que impide que una
+   * paginación devuelva las primeras cincuenta del tenant y de ahí se descarten las ajenas —el
+   * comercio vería una lista corta sin saber que le faltan las suyas—, y es lo que hace útil el
+   * índice parcial de pendientes por comercio.
+   */
+  findApplicationsByPartner(
+    tenantId: string,
+    partnerProfileId: string,
+    options: { onlyPendingAcceptance?: boolean } = {},
+  ): Promise<CreditApplicationModel[]> {
+    return this.applicationModel.findAll({
+      where: {
+        tenantId,
+        partnerProfileId,
+        deleted: false,
+        ...(options.onlyPendingAcceptance ? { businessAcceptance: 'pending' } : {}),
+      },
+      order: [['submittedAt', 'DESC']],
+      limit: 100,
     } as FindOptions);
   }
 

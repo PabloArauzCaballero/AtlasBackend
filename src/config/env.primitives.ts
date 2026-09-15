@@ -61,3 +61,16 @@ export const optionalNonEmptyStringEnvSchema = z.preprocess((value) => {
   if (typeof value === 'string' && value.trim() === '') return undefined;
   return value;
 }, z.string().min(1).optional());
+
+/**
+ * Secreto opcional de al menos 32 caracteres, con el mismo criterio: `""` es «no configurado».
+ *
+ * Un secreto no se puede declarar con `.min(32).optional()` a secas por la misma razón que la
+ * cadena de arriba —una plataforma de despliegue entrega VACÍA la variable que no tiene valor— y
+ * porque el modo de fallo es el peor de los dos mundos: el proceso no arranca y el mensaje habla
+ * de longitud, no de configuración. Sigue rechazando un secreto corto de verdad.
+ */
+export const optionalLongSecretEnvSchema = z.preprocess((value) => {
+  if (typeof value === 'string' && value.trim() === '') return undefined;
+  return value;
+}, z.string().min(32).optional());

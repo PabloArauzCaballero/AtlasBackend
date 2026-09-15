@@ -26,6 +26,27 @@ export class SystemToolCatalogModel extends Model {
   @Column({ type: DataType.TEXT, allowNull: false })
   declare purpose: string;
 
+  /**
+   * Metadata de gobierno de la herramienta. Las columnas existían en la tabla y el repositorio ya
+   * las escribía, pero el modelo no las declaraba: Sequelize descartaba esos cinco campos en
+   * silencio y toda herramienta quedaba con la metadata en NULL. El portal, que la pide, mostraba
+   * el hueco como «sin documentar» — no porque nadie la hubiera escrito, sino porque no llegaba.
+   */
+  @Column({ type: DataType.TEXT })
+  declare description: string | null;
+
+  @Column({ field: 'business_value', type: DataType.TEXT })
+  declare businessValue: string | null;
+
+  @Column({ field: 'technical_usage', type: DataType.TEXT })
+  declare technicalUsage: string | null;
+
+  @Column({ field: 'audit_notes', type: DataType.TEXT })
+  declare auditNotes: string | null;
+
+  @Column({ field: 'failure_risks', type: DataType.TEXT })
+  declare failureRisks: string | null;
+
   @Column({ field: 'required_env_vars', type: DataType.JSONB, allowNull: false })
   declare requiredEnvVars: string[];
 

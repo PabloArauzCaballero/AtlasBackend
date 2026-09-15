@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { SchemaChangeLogRepository } from '../../../src/modules/schema-management/schema-change-log.repository.js';
 import { SchemaManagementRepository } from '../../../src/modules/schema-management/schema-management.repository.js';
 
 /**
@@ -10,6 +11,16 @@ describe('SchemaManagementRepository', () => {
   function buildRepo() {
     const sequelize = { query: jest.fn(), transaction: jest.fn(async (cb: (tx: string) => unknown) => cb('tx')) };
     const repo = new SchemaManagementRepository(sequelize as never);
+    return { repo, sequelize };
+  }
+
+  /**
+   * La auditoría de propuestas se separó en su propio repositorio: leer el inventario y registrar
+   * quién propuso qué son responsabilidades distintas, y la segunda lleva su lock pesimista.
+   */
+  function buildChangeLogRepo() {
+    const sequelize = { query: jest.fn(), transaction: jest.fn(async (cb: (tx: string) => unknown) => cb('tx')) };
+    const repo = new SchemaChangeLogRepository(sequelize as never);
     return { repo, sequelize };
   }
 
@@ -130,7 +141,7 @@ describe('SchemaManagementRepository', () => {
 
   describe('change log', () => {
     it('createChangeLogEntry devuelve la fila creada y lanza si el INSERT no retorna nada', async () => {
-      const ok = buildRepo();
+      const ok = buildChangeLogRepo();
       (ok.sequelize.query as jest.Mock).mockResolvedValue([{ _id: 'c1', change_type: 'create_table' }] as never);
       const created = await ok.repo.createChangeLogEntry({
         changeType: 'create_table',
@@ -140,7 +151,7 @@ describe('SchemaManagementRepository', () => {
       });
       expect(created).toMatchObject({ _id: 'c1' });
 
-      const bad = buildRepo();
+      const bad = buildChangeLogRepo();
       (bad.sequelize.query as jest.Mock).mockResolvedValue([] as never);
       await expect(
         bad.repo.createChangeLogEntry({ changeType: 'x', affectedEntityType: 'y', changePayload: {}, requesterPlatformUserId: 'p1' }),
@@ -148,7 +159,7 @@ describe('SchemaManagementRepository', () => {
     });
 
     it('listChangeLog arma el WHERE dinámico desde los filtros presentes', async () => {
-      const all = buildRepo();
+      const all = buildChangeLogRepo();
       (all.sequelize.query as jest.Mock).mockResolvedValueOnce([{ _id: 'c1' }] as never).mockResolvedValueOnce([{ count: '1' }] as never);
       await all.repo.listChangeLog('pending', 'create_table', 'p1', 10, 0);
       const sql = (all.sequelize.query as jest.Mock).mock.calls[0][0] as string;
@@ -156,14 +167,14 @@ describe('SchemaManagementRepository', () => {
       expect(sql).toContain('change_type = :changeType');
       expect(sql).toContain('requester_platform_user_id = :requesterUserId');
 
-      const none = buildRepo();
+      const none = buildChangeLogRepo();
       (none.sequelize.query as jest.Mock).mockResolvedValueOnce([] as never).mockResolvedValueOnce([{ count: '0' }] as never);
       await none.repo.listChangeLog(undefined, undefined, undefined, 10, 0);
       expect((none.sequelize.query as jest.Mock).mock.calls[0][0] as string).not.toContain('WHERE');
     });
 
     it('resolveChangeLogEntry devuelve la fila actualizada o null', async () => {
-      const found = buildRepo();
+      const found = buildChangeLogRepo();
       (found.sequelize.query as jest.Mock).mockResolvedValue([{ _id: 'c1', approval_status: 'approved' }] as never);
       expect(
         await found.repo.resolveChangeLogEntry('c1', {
@@ -175,7 +186,7 @@ describe('SchemaManagementRepository', () => {
         }),
       ).toMatchObject({ approval_status: 'approved' });
 
-      const missing = buildRepo();
+      const missing = buildChangeLogRepo();
       (missing.sequelize.query as jest.Mock).mockResolvedValue([] as never);
       expect(
         await missing.repo.resolveChangeLogEntry('nope', {

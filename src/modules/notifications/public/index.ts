@@ -1,0 +1,30 @@
+/**
+ * @file Entrada pública de Mensajería (AT-017). Otros módulos importan de aquí y de ningún otro sitio.
+ * @business Lo que Mensajería promete al resto de Atlas: pedir un aviso y saber qué pasó con él.
+ * @system Reexporta contratos y el puerto con su token. Las exportaciones de repositorio y adaptadores
+ *   del módulo Nest son legado hasta que sus consumidores migren a este puerto (AT-039, AT-041).
+ */
+export type {
+  NotificationChannelCode,
+  NotificationRecipientType,
+  NotificationRequestContext,
+  NotificationRequestInput,
+  NotificationRequestResult,
+} from './notification.contracts.js';
+export { NOTIFICATION_CHANNELS, NOTIFICATION_RECIPIENT_TYPES } from './notification.contracts.js';
+export { NOTIFICATION_REQUEST_PORT, type NotificationRequestPort } from '../application/ports/notification-request.port.js';
+export {
+  RECIPIENT_DIRECTORY_PORT,
+  type RecipientDirectoryPort,
+  type RecipientLookup,
+  type RecipientResolution,
+} from '../application/ports/recipient-directory.port.js';
+export {
+  OTP_DELIVERY_PORT,
+  OTP_ERRORS,
+  type ChannelCapability,
+  type OtpChannel,
+  type OtpDeliveryOutcome,
+  type OtpDeliveryPort,
+  type OtpDeliveryRequest,
+} from '../application/ports/otp-delivery.port.js';

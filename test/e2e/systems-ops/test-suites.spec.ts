@@ -9,18 +9,18 @@ import { buildSystemsOpsTestApp, authHeader } from './support/systems-ops-test-a
 describe('SystemsTestController (e2e/supertest)', () => {
   let app: INestApplication;
   const service = {
-    listTestSuites: jest.fn(async () => ({ items: [], meta: {} })),
-    getTestSuite: jest.fn(async () => ({ id: '1', steps: [] })),
-    runTestSuite: jest.fn(async () => ({ runId: '1', status: 'QUEUED' })),
-    listTestRuns: jest.fn(async () => ({ items: [], meta: {} })),
-    getTestRun: jest.fn(async () => ({ id: '1', status: 'PASSED' })),
+    listTestSuites: jest.fn(async (..._args: unknown[]) => ({ items: [], meta: {} })),
+    getTestSuite: jest.fn(async (..._args: unknown[]) => ({ id: '1', steps: [] })),
+    runTestSuite: jest.fn(async (..._args: unknown[]) => ({ runId: '1', status: 'QUEUED' })),
+    listTestRuns: jest.fn(async (..._args: unknown[]) => ({ items: [], meta: {} })),
+    getTestRun: jest.fn(async (..._args: unknown[]) => ({ id: '1', status: 'PASSED' })),
   };
   const suiteAdminService = {
-    createSuite: jest.fn(async () => ({ id: '1' })),
-    updateSuite: jest.fn(async () => ({ id: '1' })),
-    createStep: jest.fn(async () => ({ id: '1' })),
-    updateStep: jest.fn(async () => ({ id: '1' })),
-    reorderSteps: jest.fn(async () => ({ reordered: true })),
+    createSuite: jest.fn(async (..._args: unknown[]) => ({ id: '1' })),
+    updateSuite: jest.fn(async (..._args: unknown[]) => ({ id: '1' })),
+    createStep: jest.fn(async (..._args: unknown[]) => ({ id: '1' })),
+    updateStep: jest.fn(async (..._args: unknown[]) => ({ id: '1' })),
+    reorderSteps: jest.fn(async (..._args: unknown[]) => ({ reordered: true })),
   };
 
   beforeAll(async () => {

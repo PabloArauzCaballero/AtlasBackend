@@ -1,0 +1,21 @@
+# Una pasada del auto-despliegue. La dispara el temporizador hermano; no se habilita sola.
+#
+# Es un servicio `oneshot` y no un demonio con `autodeploy.sh vigilar` a propósito: si la pasada se
+# cuelga —una construcción eterna, un `docker` que no responde— el temporizador la vuelve a lanzar
+# limpia en el siguiente minuto, mientras que un bucle colgado se queda colgado hasta que alguien
+# mira. `flock` dentro del script impide que dos pasadas se solapen.
+[Unit]
+Description=Auto-despliegue de ATLAS ante commits nuevos en dev
+Documentation=file:///home/pablo/Documents/GitHub/ATLAS/AtlasBackend/docs/runbooks/despliegue-produccion.md
+After=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pablo/Documents/GitHub/ATLAS/AtlasBackend
+ExecStart=/home/pablo/Documents/GitHub/ATLAS/AtlasBackend/tools/autodeploy/autodeploy.sh una-vez
+# Una construcción de las tres imágenes desde cero pasa de diez minutos; con caché son segundos.
+TimeoutStartSec=45min
+# La salida ya va a tools/autodeploy/estado/autodeploy.log; en el journal queda el resumen.
+StandardOutput=journal
+StandardError=journal

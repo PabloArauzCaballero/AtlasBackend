@@ -17,6 +17,8 @@ export type EligibilityFacts = {
   presentFinancialAttributeCodes: string[];
   /** Valores numéricos vigentes por código. Lo consume la elegibilidad POR PRODUCTO. */
   financialAttributeValues: Readonly<Record<string, number>>;
+  /** Los atributos económicos de catálogo, por código. `employment_status` y `source_of_funds`. */
+  financialAttributeTexts: Readonly<Record<string, string>>;
   hasCurrentAddress: boolean;
   referenceContactCount: number;
   identityDocument: CustomerIdentityDocumentModel | null;

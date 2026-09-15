@@ -4,6 +4,7 @@
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
 import { Module } from '@nestjs/common';
+import { externalProviderProviders } from './infrastructure/external-provider.providers.js';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
   CustomerConsentModel,
@@ -26,6 +27,9 @@ import {
   FacebookExternalDataController,
   WhatsappExternalDataController,
 } from './controllers/social-trust.controller.js';
+import { ProviderAuthAdminController } from './controllers/provider-auth.controller.js';
+import { ExternalProvidersDashboardController } from './controllers/external-providers-dashboard.controller.js';
+import { AuthBrokerClient } from './infrastructure/auth-broker/auth-broker.client.js';
 import { ExternalDataRepository } from './external-data.repository.js';
 import { ExternalDataService } from './external-data.service.js';
 import { ExternalDataDecisionService } from './application/external-data-decision.service.js';
@@ -35,14 +39,9 @@ import { ExternalDataGovernanceService } from './application/external-data-gover
 import { ExternalProviderRegistryService } from './application/external-provider-registry.service.js';
 import { ExternalProviderConvenienceService } from './application/external-provider-convenience.service.js';
 import { BankingQrService } from './application/banking-qr.service.js';
-import { SegipAdapter } from './infrastructure/adapters/segip/segip.adapter.js';
-import { InfoCenterAdapter } from './infrastructure/adapters/infocenter/infocenter.adapter.js';
-import { QrGenericAdapter } from './infrastructure/adapters/qr-generic/qr-generic.adapter.js';
-import { BankingGenericAdapter } from './infrastructure/adapters/banking-generic/banking-generic.adapter.js';
-import { TelcoGenericAdapter } from './infrastructure/adapters/telco-generic/telco-generic.adapter.js';
-import { FacebookMetaAdapter } from './infrastructure/adapters/facebook-meta/facebook-meta.adapter.js';
-import { WhatsappAdapter } from './infrastructure/adapters/whatsapp/whatsapp.adapter.js';
-import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-trust-generic/digital-trust-generic.adapter.js';
+import { ExternalProviderDashboardService } from './application/external-provider-dashboard.service.js';
+import { ExternalProviderDashboardRepository } from './infrastructure/external-provider-dashboard.repository.js';
+import { ExternalDataPreviewService } from './application/external-data-preview.service.js';
 
 @Module({
   imports: [
@@ -60,6 +59,15 @@ import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-tr
   controllers: [
     ExternalDataController,
     AdminExternalProvidersController,
+    // Se registra después del controller de administración por la misma razón que el resto: Nest
+    // resuelve rutas en orden de registro. Sus rutas (`auth-state`, `credentials/*`) no colisionan
+    // con ninguna existente — el controller de administración no declara ningún `@Get(':providerCode')`
+    // de un solo segmento que pudiera capturarlas.
+    ProviderAuthAdminController,
+    // Sus rutas (`dashboard`, `requests`) son de UN solo segmento y el controller de administración
+    // no declara ningún `@Get(':providerCode')` de un segmento, así que no las captura. Va después
+    // por coherencia con el resto y porque no hay ambigüedad que resolver por orden.
+    ExternalProvidersDashboardController,
     KycExternalDataController,
     BureauExternalDataController,
     PaymentsExternalDataController,
@@ -69,8 +77,12 @@ import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-tr
     DigitalTrustExternalDataController,
   ],
   providers: [
+    ExternalDataPreviewService,
     ExternalDataRepository,
     ExternalDataService,
+    AuthBrokerClient,
+    // AT-042: los adaptadores y sus alias se ensamblan en infraestructura; el registro recibe la colección.
+    ...externalProviderProviders,
     ExternalProviderRegistryService,
     ExternalDataEvidenceService,
     ExternalDataDecisionService,
@@ -78,14 +90,8 @@ import { DigitalTrustGenericAdapter } from './infrastructure/adapters/digital-tr
     ExternalDataGovernanceService,
     ExternalProviderConvenienceService,
     BankingQrService,
-    SegipAdapter,
-    InfoCenterAdapter,
-    QrGenericAdapter,
-    BankingGenericAdapter,
-    TelcoGenericAdapter,
-    FacebookMetaAdapter,
-    WhatsappAdapter,
-    DigitalTrustGenericAdapter,
+    ExternalProviderDashboardService,
+    ExternalProviderDashboardRepository,
   ],
   exports: [ExternalDataService],
 })

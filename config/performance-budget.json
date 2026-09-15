@@ -1,0 +1,82 @@
+{
+  "_leeme": [
+    "Presupuesto de rendimiento del backend Atlas. Lo consume `scripts/perf/load.ts` y decide si una",
+    "corrida pasa o falla.",
+    "",
+    "Los umbrales están partidos en dos bloques a propósito, y la distinción importa:",
+    "",
+    "  enforced   -> propiedades de CORRECTITUD bajo carga. No dependen de ningún objetivo comercial:",
+    "                'no devolver 5xx' y 'no perder peticiones' son ciertos con cualquier SLO. Se",
+    "                aplican desde el primer día y fallan la corrida.",
+    "",
+    "  provisional -> umbrales de LATENCIA. Un p95 sólo significa algo frente al SLO del producto o",
+    "                frente a un baseline medido en hardware representativo. Mientras",
+    "                `calibratedFrom` sea null, estos números NO son un objetivo del negocio: son",
+    "                marcadores de posición y la corrida los reporta sin fallar por ellos.",
+    "",
+    "Para calibrar: ejecuta `yarn perf:load --scenario=baseline` contra un entorno representativo,",
+    "toma los percentiles medidos, decide el margen con el dueño del producto, escribe los valores",
+    "aquí y rellena `calibratedFrom`. A partir de ese momento los umbrales de latencia fallan la",
+    "corrida igual que los de correctitud."
+  ],
+
+  "calibratedFrom": null,
+
+  "_porQueSigueSinCalibrar": [
+    "Ya EXISTE un baseline medido (ver `measuredReference` y docs/performance/backend/01-baseline.md),",
+    "pero se tomó sobre una base recién migrada y sembrada con el perfil `development`: tablas casi",
+    "vacías. Las queries salen en fracciones de milisegundo porque no hay datos que recorrer, no",
+    "porque el código sea rápido.",
+    "",
+    "Convertir esos percentiles en umbrales bloqueantes daría un gate que pasa siempre en local y",
+    "falla el día que alguien mida contra datos reales. `calibratedFrom` se rellena cuando haya un",
+    "baseline sobre un dataset representativo, no antes."
+  ],
+
+  "measuredReference": {
+    "_leeme": "Datos de referencia, NO umbrales. Sirven para comparar una corrida futura contra las mismas condiciones.",
+    "fecha": "2026-08-06",
+    "commit": "a1b898e",
+    "escenario": "baseline (10 req/s, 120 s, warm-up 30 s)",
+    "entorno": "macOS arm64, 10 núcleos, 16 GiB; PostgreSQL 16.14 local; NODE_ENV=test; API_RATE_LIMIT_MAX elevado",
+    "dataset": "migraciones completas (147 tablas) + seed `development`; volumen mínimo",
+    "corridas": 3,
+    "p50Ms": [8.97, 9.15, 9.15],
+    "p95Ms": [14.76, 15.29, 15.0],
+    "p99Ms": [16.69, 17.01, 16.87],
+    "throughputPerSecond": 10.01,
+    "errorRatePercent": 0,
+    "dispersionMaximaPct": 3.6,
+    "poolEnUso": "using=0, waiting=0, size=4 (el pool nunca se acercó a DB_POOL_MAX=20)"
+  },
+
+  "scenarios": {
+    "smoke": { "arrivalRatePerSecond": 2, "durationSeconds": 20, "warmupSeconds": 5, "maxInFlight": 20 },
+    "baseline": { "arrivalRatePerSecond": 10, "durationSeconds": 120, "warmupSeconds": 30, "maxInFlight": 100 },
+    "load": { "arrivalRatePerSecond": 40, "durationSeconds": 300, "warmupSeconds": 30, "maxInFlight": 300 },
+    "stress": { "arrivalRatePerSecond": 150, "durationSeconds": 180, "warmupSeconds": 15, "maxInFlight": 800 },
+    "spike": { "arrivalRatePerSecond": 200, "durationSeconds": 60, "warmupSeconds": 5, "maxInFlight": 1000 },
+    "soak": { "arrivalRatePerSecond": 15, "durationSeconds": 3600, "warmupSeconds": 60, "maxInFlight": 150 }
+  },
+
+  "thresholds": {
+    "enforced": {
+      "maxErrorRatePercent": 1,
+      "maxServerErrorCount": 0,
+      "maxTimeoutCount": 0,
+      "_maxHeapGrowthPercent": "Crecimiento del heap entre el fin del warm-up y el fin de la corrida. Sólo se evalúa en `soak`: en corridas cortas el ruido del GC lo hace inservible.",
+      "maxHeapGrowthPercentSoak": 25
+    },
+    "provisional": {
+      "p95Ms": 500,
+      "p99Ms": 1500,
+      "minThroughputPerSecond": 0
+    }
+  },
+
+  "scenarioOverrides": {
+    "_leeme": "`stress` y `spike` buscan a propósito el punto de degradación: exigirles la misma tasa de error que a la carga normal haría fallar la prueba por hacer su trabajo. Lo que sigue siendo inaceptable ahí es que el proceso muera o que las peticiones se cuelguen sin techo.",
+    "stress": { "maxErrorRatePercent": 25, "maxServerErrorCount": null },
+    "spike": { "maxErrorRatePercent": 40, "maxServerErrorCount": null }
+  }
+}

@@ -3,7 +3,7 @@
  * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
@@ -24,6 +24,24 @@ import { CustomerVerificationRepository } from '../repositories/customer-verific
  * La resolución se hace en bloque —identidad, documento y todas sus evidencias— porque son una sola
  * decisión de negocio: un analista aprueba o rechaza un expediente, no piezas sueltas.
  */
+/**
+ * Un intento que el Motor tiene EN SU COLA no se decide aquí.
+ *
+ * El camino móvil guarda `executionId` en el intento y deja `IN_REVIEW` cuando el artefacto derivó
+ * a una persona: el caso vive en la bandeja del Motor, con las imágenes y la petición de información,
+ * y su resolución vuelve por `identity-review-callback`. Dejar aprobar aquí también creaba dos
+ * decisiones para la misma identidad tomadas por dos personas que no se ven. Se corta en el
+ * servicio y no en la pantalla porque una pantalla se salta con curl.
+ */
+function assertNotDelegatedToEngine(attempt: { finalResult: string | null; reasonCodesJson: Record<string, unknown> | null }): void {
+  const executionId = attempt.reasonCodesJson?.executionId;
+  if (executionId && String(attempt.finalResult ?? '').toUpperCase() === 'IN_REVIEW') {
+    throw new ConflictException(
+      `IDENTITY_DECISION_DELEGADA_AL_MOTOR: la ejecución ${String(executionId)} del Motor abrió el caso; se resuelve allí.`,
+    );
+  }
+}
+
 @Injectable()
 export class CustomerVerificationService {
   constructor(
@@ -51,6 +69,7 @@ export class CustomerVerificationService {
     return this.sequelize.transaction(async (transaction) => {
       const attempt = await this.verificationRepository.findLatestAttempt(input.tenantId, input.customerId, { transaction });
       if (!attempt) throw new NotFoundException('IDENTITY_VERIFICATION_ATTEMPT_NOT_FOUND');
+      assertNotDelegatedToEngine(attempt);
 
       await this.verificationRepository.resolveAttempt(
         attempt,

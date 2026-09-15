@@ -3,8 +3,9 @@
  * @business Esta pieza mantiene la identidad operativa, ciclo de vida y elegibilidad del cliente como fuente de verdad.
  * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,8 +14,6 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { parsePositiveId } from '../../common/utils/ids/id.util.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
 import { EligibilityDecisionDto, eligibilityDecisionSchema } from './customer-eligibility.schemas.js';
 import { CustomerEligibilityDecisionService } from './application/customer-eligibility-decision.service.js';
 import { CustomerEligibilityService } from './application/customer-eligibility.service.js';
@@ -53,11 +52,10 @@ export class CustomerEligibilityController {
   @ApiResponse({ status: 404, description: 'Cliente no encontrado.' })
   @Get('customers/:customerId/eligibility')
   getEligibility(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const tenantId = parsePositiveId(String(tenantIdHeader ?? currentUser.tenantId ?? ''), 'x-tenant-id');
     return this.eligibilityService.getEligibility({ tenantId, customerId: params.customerId, currentUser });
   }
 
@@ -78,13 +76,13 @@ export class CustomerEligibilityController {
   @Post('operations/customers/:customerId/eligibility/decision')
   @HttpCode(HttpStatus.OK)
   decideEligibility(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerIdParamsSchema)) params: CustomerIdParamsDto,
     @Body(new ZodValidationPipe(eligibilityDecisionSchema)) body: EligibilityDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.decisionService.decide({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       decision: body.decision,
       reasonCode: body.reasonCode,

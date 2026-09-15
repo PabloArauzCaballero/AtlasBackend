@@ -3,6 +3,7 @@
  * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
+import { envNumber } from '../../../application/external-data-policy.util.js';
 import {
   ExternalProviderExecutionInput,
   ExternalProviderRawResult,
@@ -60,9 +61,33 @@ export async function checkMockHealth(
   if (!mockBaseUrl) {
     return { providerCode, status: 'DOWN', mode, latencyMs: 0, checkedAt: new Date().toISOString(), errorCode: 'MOCK_BASE_URL_MISSING' };
   }
+  // Plazo propio: `getProviderHealth` recorre los nueve proveedores en serie y espera a cada uno.
+  // Sin tope, un emulador que acepta la conexión y no contesta cuelga la pantalla entera del
+  // portal, no una fila. Tres segundos son de sobra para un servicio de la misma máquina.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), envNumber('EXTERNAL_PROVIDERS_HEALTH_TIMEOUT_MS', 3_000));
   try {
+    // Salud POR MÓDULO, no global. Antes se recortaba el path del proveedor y los nueve
+    // preguntaban por `/mock/health`, así que los nueve compartían veredicto: con un solo módulo
+    // caído, o se pintaban todos bien o se pintaban todos mal. El emulador expone
+    // `/mock/health/<slug>` desde su primera versión.
+    const match = /\/mock\/([a-z-]+)$/i.exec(mockBaseUrl);
     const base = mockBaseUrl.replace(/\/mock\/[a-z-]+$/i, '');
-    const response = await fetch(`${base}/mock/health`);
+    const slug = match?.[1];
+    const response = await fetch(`${base}/mock/health${slug ? `/${slug}` : ''}`, { signal: controller.signal });
+    // Un 404 aquí es el módulo que no existe en el emulador, no el emulador caído: el proveedor
+    // está configurado contra un path que nadie sirve, y eso es DEGRADED con causa, no DOWN.
+    if (response.status === 404) {
+      return {
+        providerCode,
+        status: 'DEGRADED',
+        mode,
+        latencyMs: Date.now() - started,
+        checkedAt: new Date().toISOString(),
+        errorCode: 'MOCK_MODULE_NOT_FOUND',
+        errorMessageSafe: `El emulador no expone el módulo ${slug ?? providerCode}.`,
+      };
+    }
     return {
       providerCode,
       status: response.ok ? 'UP' : 'DEGRADED',
@@ -77,9 +102,11 @@ export async function checkMockHealth(
       mode,
       latencyMs: Date.now() - started,
       checkedAt: new Date().toISOString(),
-      errorCode: 'MOCK_HEALTH_FAILED',
+      errorCode: error instanceof Error && error.name === 'AbortError' ? 'MOCK_HEALTH_TIMEOUT' : 'MOCK_HEALTH_FAILED',
       errorMessageSafe: error instanceof Error ? error.message : 'Unknown mock health error',
     };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

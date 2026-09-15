@@ -10,34 +10,25 @@ import { Sequelize } from 'sequelize-typescript';
 import {
   AuthCredentialModel,
   AuthEventModel,
-  AuthOneTimeCodeModel,
   AuthRefreshTokenModel,
   InternalUserModel,
   OperationalAuditLogModel,
   PlatformUserModel,
 } from '../../database/models/index.js';
 
-export type ActorType = 'customer' | 'internal_user' | 'platform_user';
+import type { ActorType, LoginAttemptEvent } from './auth-vocabulary.js';
 
-export type OneTimeCodePurpose = 'password_reset' | 'login_pin' | 'contact_verification_phone' | 'contact_verification_email';
-
-export type LoginAttemptEvent = {
-  tenantId: string | null;
-  actorType: ActorType;
-  actorId: string | null;
-  eventType: 'login' | 'logout' | 'login_pin_challenge' | 'password_reset_request' | 'password_reset';
-  successful: boolean;
-  failureReasonCode: string | null;
-  ipAddress: string | null;
-  userAgent: string | null;
-};
+// El vocabulario (actores, propósitos de OTP, tipos de evento) vive en `auth-vocabulary.ts` y se
+// reexporta desde aquí: es el import que ya usaban veintitantos archivos y romperlo no compraba
+// nada. Se movió porque este archivo tiene el tamaño congelado y cada término nuevo pasaba de 140
+// columnas, así que prettier partía la unión en varias líneas y el trinquete rechazaba el commit.
+export type { ActorType, AuthEventType, LoginAttemptEvent, OneTimeCodePurpose } from './auth-vocabulary.js';
 
 @Injectable()
 export class AuthRepository {
   constructor(
     @InjectModel(AuthCredentialModel) private readonly credentialModel: typeof AuthCredentialModel,
     @InjectModel(AuthRefreshTokenModel) private readonly refreshTokenModel: typeof AuthRefreshTokenModel,
-    @InjectModel(AuthOneTimeCodeModel) private readonly oneTimeCodeModel: typeof AuthOneTimeCodeModel,
     @InjectModel(InternalUserModel) private readonly internalUserModel: typeof InternalUserModel,
     @InjectModel(PlatformUserModel) private readonly platformUserModel: typeof PlatformUserModel,
     @InjectModel(AuthEventModel) private readonly authEventModel: typeof AuthEventModel,
@@ -123,68 +114,6 @@ export class AuthRepository {
     credential.mfaEnabled = enabled;
     credential.updatedAtValue = new Date();
     await credential.save();
-  }
-
-  /**
-   * Crea un código de un solo uso y consume cualquier código anterior todavía activo del mismo
-   * actor+propósito: nunca hay más de un código vigente, así reenviar un código invalida el
-   * anterior en vez de multiplicar las combinaciones válidas.
-   */
-  async createOneTimeCode(input: {
-    tenantId: string | null;
-    actorType: ActorType;
-    actorId: string;
-    purpose: OneTimeCodePurpose;
-    codeHash: string;
-    challengeHash: string | null;
-    expiresAt: Date;
-  }): Promise<AuthOneTimeCodeModel> {
-    const now = new Date();
-    await this.oneTimeCodeModel.update({ consumedAt: now } as never, {
-      where: { actorType: input.actorType, actorId: input.actorId, purpose: input.purpose, consumedAt: null } as never,
-    });
-
-    return this.oneTimeCodeModel.create({
-      tenantId: input.tenantId,
-      actorType: input.actorType,
-      actorId: input.actorId,
-      purpose: input.purpose,
-      codeHash: input.codeHash,
-      challengeHash: input.challengeHash,
-      expiresAt: input.expiresAt,
-      consumedAt: null,
-      attempts: 0,
-      createdAtValue: now,
-    } as never);
-  }
-
-  async findActiveOneTimeCodeByActor(
-    actorType: ActorType,
-    actorId: string,
-    purpose: OneTimeCodePurpose,
-  ): Promise<AuthOneTimeCodeModel | null> {
-    return this.oneTimeCodeModel.findOne({
-      where: { actorType, actorId, purpose, consumedAt: null } as never,
-      order: [['id', 'DESC']],
-    });
-  }
-
-  async findActiveOneTimeCodeByChallenge(challengeHash: string): Promise<AuthOneTimeCodeModel | null> {
-    return this.oneTimeCodeModel.findOne({ where: { challengeHash, consumedAt: null } as never });
-  }
-
-  async registerOneTimeCodeFailedAttempt(code: AuthOneTimeCodeModel, maxAttempts: number): Promise<void> {
-    code.attempts += 1;
-    if (code.attempts >= maxAttempts) {
-      // Agotó los intentos: se consume para que ni siquiera el código correcto sirva después.
-      code.consumedAt = new Date();
-    }
-    await code.save();
-  }
-
-  async consumeOneTimeCode(code: AuthOneTimeCodeModel): Promise<void> {
-    code.consumedAt = new Date();
-    await code.save();
   }
 
   async recordFailedAttempt(credential: AuthCredentialModel, input: { maxAttempts: number; lockoutMinutes: number }): Promise<void> {

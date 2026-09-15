@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { getString, getStringFromPaths, request, TENANT_ID, uniqueKey } from './http.js';
 
 /**
@@ -5,7 +6,9 @@ import { getString, getStringFromPaths, request, TENANT_ID, uniqueKey } from './
  * valida login, refresh y logout contra un servidor real.
  */
 export async function runAuthSmoke(): Promise<void> {
-  const unique = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  // `randomInt` y no `Math.random`: de aquí sale la CONTRASEÑA con la que el smoke crea un cliente
+  // real contra el servidor, y un generador previsible convierte esa credencial en adivinable.
+  const unique = `${Date.now()}${randomInt(1000)}`;
   const phone = `+5917${unique.slice(-7)}`;
   const email = `smoke-auth-${unique}@atlas.test`;
   const password = `AtlasSmokeTest-${unique}`;

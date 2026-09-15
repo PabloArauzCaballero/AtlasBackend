@@ -70,6 +70,20 @@ describe('operations.mapper', () => {
       } as never,
       manualReviewCases: [{ id: 1, caseCode: 'MR', caseType: 'kyc', priority: 'high', status: 'open', openedAt: null }] as never,
       fraudCases: [{ id: 2, caseCode: 'FR', severity: 'low', caseStatus: 'open', openedAt: null }] as never,
+      latestIdentityAttempt: null,
+      /*
+        La agenda «no disponible»: el mismo objeto degradado que arma el servicio cuando la
+        lectura falla o la persona no dio el permiso. Se escribe entero y no con un `as never`
+        porque es justo el contrato que esta prueba existe para fijar.
+      */
+      addressBook: {
+        available: false,
+        totalContacts: 0,
+        uniqueRatio: 0,
+        bolivianRatio: 0,
+        referencesFoundInAddressBook: 0,
+        riskMatches: 0,
+      },
     });
     expect(withData.latestRiskAssessment).toMatchObject({ riskAssessmentRunId: '7', fraudScore: 0.12 });
     expect(withData.profile).toMatchObject({ firstName: 'Ana' });
@@ -83,6 +97,20 @@ describe('operations.mapper', () => {
       latestRiskResult: null,
       manualReviewCases: [] as never,
       fraudCases: [] as never,
+      latestIdentityAttempt: null,
+      /*
+        La agenda «no disponible»: el mismo objeto degradado que arma el servicio cuando la
+        lectura falla o la persona no dio el permiso. Se escribe entero y no con un `as never`
+        porque es justo el contrato que esta prueba existe para fijar.
+      */
+      addressBook: {
+        available: false,
+        totalContacts: 0,
+        uniqueRatio: 0,
+        bolivianRatio: 0,
+        referencesFoundInAddressBook: 0,
+        riskMatches: 0,
+      },
     });
     expect(withoutData.profile).toBeNull();
     expect(withoutData.latestRiskAssessment).toBeNull();

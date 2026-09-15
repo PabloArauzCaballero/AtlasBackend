@@ -9,14 +9,15 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`customer-address-status.repository.ts`](./customer-address-status.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| Documento o código                                                                             | Responsabilidad                                                  |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [`customer-address-status.repository.ts`](./customer-address-status.repository.ts)             | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`customer-contact-verification.repository.ts`](./customer-contact-verification.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`customer-identity-evidence.repository.ts`](./customer-identity-evidence.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`customer-onboarding-flow.repository.ts`](./customer-onboarding-flow.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`customer-profile-data.repository.ts`](./customer-profile-data.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`customer-verification.repository.ts`](./customer-verification.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`customer-contacts-snapshot.repository.ts`](./customer-contacts-snapshot.repository.ts)       | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`customer-identity-evidence.repository.ts`](./customer-identity-evidence.repository.ts)       | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`customer-onboarding-flow.repository.ts`](./customer-onboarding-flow.repository.ts)           | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`customer-profile-data.repository.ts`](./customer-profile-data.repository.ts)                 | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`customer-verification.repository.ts`](./customer-verification.repository.ts)                 | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 
 ## Reglas de mantenimiento
 

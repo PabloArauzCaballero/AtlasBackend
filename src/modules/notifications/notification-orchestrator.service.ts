@@ -137,9 +137,9 @@ export class NotificationOrchestratorService {
     // leerlo con getDataValue('id'). Se conserva esta robustez ahora que el modelo se pasa directo.
     const messageId = resolveMessageId(message);
     const tenantId = message.tenantId === null ? null : String(message.tenantId);
-    const fcmTokens =
+    const pushDevices =
       channel === 'push' && message.recipientType === 'customer'
-        ? await this.repository.getActiveDeviceTokenSecrets(tenantId, message.recipientId)
+        ? await this.repository.getActivePushDevices(tenantId, message.recipientId)
         : [];
     const customerContactTargets =
       message.recipientType === 'customer' ? await this.repository.getCustomerContactTargets(tenantId, message.recipientId, channel) : [];
@@ -158,7 +158,8 @@ export class NotificationOrchestratorService {
       deliveryTargets: [
         ...storedTargets,
         ...customerContactTargets,
-        ...fcmTokens.map((token) => ({ kind: 'fcm_token' as const, address: token })),
+        // La plataforma viaja en `metadata`: es lo que decide si el aviso sale por APNs o por FCM.
+        ...pushDevices.map((device) => ({ kind: 'fcm_token' as const, address: device.token, metadata: { platform: device.platform } })),
       ],
     };
     if (!adapter.validatePayload(payload)) throw new Error(`INVALID_PAYLOAD_FOR_CHANNEL_${channel}`);

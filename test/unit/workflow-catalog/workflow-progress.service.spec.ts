@@ -68,8 +68,8 @@ function progressBundle(): WorkflowBundle {
 }
 
 function buildService(overrides: { bundle?: WorkflowBundle; assessment?: EligibilityAssessment } = {}) {
-  const catalogService = { loadBundle: jest.fn(async () => overrides.bundle ?? progressBundle()) };
-  const eligibilityService = { evaluate: jest.fn(async () => overrides.assessment ?? assessment()) };
+  const catalogService = { loadBundle: jest.fn(async (..._args: unknown[]) => overrides.bundle ?? progressBundle()) };
+  const eligibilityService = { evaluate: jest.fn(async (..._args: unknown[]) => overrides.assessment ?? assessment()) };
   return {
     service: new WorkflowProgressService(catalogService as never, eligibilityService as never),
     catalogService,

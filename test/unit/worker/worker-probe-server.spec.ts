@@ -17,10 +17,13 @@ describe('worker-probe-server', () => {
   let baseUrl: string;
 
   const deps = {
-    sequelize: { authenticate: jest.fn(async () => undefined) },
-    redis: { ping: jest.fn(async () => 'PONG') },
-    metrics: { render: jest.fn(async () => 'atlas_app_info{role="worker"} 1'), contentType: 'text/plain; version=0.0.4' },
-    shutdown: { isShuttingDown: jest.fn(() => false) },
+    sequelize: { authenticate: jest.fn(async (..._args: unknown[]) => undefined) },
+    redis: { ping: jest.fn(async (..._args: unknown[]) => 'PONG') },
+    metrics: {
+      render: jest.fn(async (..._args: unknown[]) => 'atlas_app_info{role="worker"} 1'),
+      contentType: 'text/plain; version=0.0.4',
+    },
+    shutdown: { isShuttingDown: jest.fn((..._args: unknown[]) => false) },
   };
 
   beforeEach(async () => {
@@ -28,7 +31,11 @@ describe('worker-probe-server', () => {
     deps.shutdown.isShuttingDown.mockReturnValue(false);
     deps.sequelize.authenticate.mockResolvedValue(undefined);
     server = createWorkerProbeServer(deps as never);
-    await new Promise<void>((resolve) => server.listen(0, resolve));
+    // Se ata a 127.0.0.1 y no a `::`: con `listen(0)` a secas el servidor escucha en todas las
+    // interfaces, y otro proceso de jest (`--randomize` corre varios) puede quedarse con
+    // `127.0.0.1:<mismo puerto>` mediante un bind más específico. Entonces este `fetch` aterrizaba en
+    // el servidor de otra suite y la sonda «respondía» 401. Mismo criterio que el spec del escáner.
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
 

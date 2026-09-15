@@ -1,0 +1,245 @@
+---
+title: "Registro de riesgos"
+type: "audit"
+status: "verified"
+owner: "@PabloArauzCaballero"
+criticality: "critical"
+last_reviewed: "2026-08-06"
+source_revision: "80fc741"
+tags:
+  - backend
+  - audit
+  - risks
+aliases: []
+related: []
+---
+
+# Registro de riesgos
+
+Hallazgos de **análisis estático** en la revisión `80fc741`. Ninguno procede de medición en un entorno vivo.
+
+> [!info] Hechos y recomendaciones van separados
+> Cada entrada distingue lo **observado** (verificable en el código) de lo **recomendado** (juicio, discutible). Un hallazgo sin evidencia citable no entra en esta tabla.
+
+## Resumen
+
+| ID | Área | Hallazgo | Severidad | Estado |
+|---|---|---|---|---|
+| [[#SEC-002]] | Seguridad | PII cifrada con clave derivada de variable de entorno si falta KMS | **Alta** | Abierto |
+| [[#PERF-001]] | Rendimiento | 168 de 244 columnas FK sin índice en el lado hijo | Media | Abierto |
+| [[#SEC-001]] | Seguridad | `TenantGuard` no exige tenant; solo detecta contradicción | Media | Abierto |
+| [[#SEC-004]] | Seguridad | `/metrics` sin autenticación de aplicación | Media | Mitigación externa |
+| [[#SEC-005]] | Seguridad | `CODEOWNERS` apuntaba a equipos inexistentes: revisión obligatoria inoperante | Media | **Corregido** |
+| [[#ARCH-001]] | Arquitectura | 153 FK cruzan esquemas de dominio | Media | Aceptado por diseño |
+| [[#ARCH-002]] | Arquitectura | `platform_ops` agrupa 4 subdominios en 25 tablas | Baja | Abierto |
+| [[#DATA-002]] | Datos | Relaciones polimórficas sin integridad referencial | Baja | Abierto |
+| [[#OPS-001]] | Operación | Los jobs se agendan solo por intervalo, sin ventana horaria | Baja | Abierto |
+| [[#DATA-003]] | Datos | `outbox_events` crece sin purga: **confirmado** | Media | Abierto |
+| [[#DATA-001]] | Datos | Ninguna FK usa `ON DELETE CASCADE` | Informativo | Por diseño |
+| [[#DOC-001]] | Documentación | 40 de 92 eventos describen dominios sin persistencia | Media | Ver [[14-audits/contradictions]] |
+| [[#SEC-006]] | Seguridad | La entrega segura de credenciales iniciales existe y no está conectada | **Alta** | Abierto |
+| [[#DEP-001]] | Dependencias | `brace-expansion` 5.0.8 con dos advisories HIGH | Alta | **Corregido** |
+
+---
+
+## SEC-002 — PII sin KMS en producción
+
+**Severidad:** Alta · **Probabilidad:** Media · **Estado:** Abierto
+
+**Observado.** `src/config/env.ts:44-50`: si `NODE_ENV === 'production'` y falta `KMS_KEY_ID` o `AWS_REGION`, se emite un `console.warn` y **el arranque continúa**. En ese modo la clave maestra de cifrado de PII se deriva por SHA-256 de una variable de entorno.
+
+**Impacto.** Comprometer esa variable descifra toda la PII almacenada: teléfonos, correos, documentos de identidad. En un backend KYC es el activo de mayor valor.
+
+**Atenuantes existentes.** El `providerId` va embebido en cada valor cifrado, así que valores `local` y KMS conviven sin romper el descifrado. `yarn crypto:reencrypt-pii` migra los existentes. El propio comentario del código reconoce el riesgo y remite al hallazgo S-M3 de la auditoría interna.
+
+**Recomendación.** Convertir el aviso en fallo de arranque en producción, o exigirlo por gate de despliegue. Es la única entrada de este registro donde el código ya sabe que hay un problema y decide no bloquear.
+
+---
+
+## PERF-001 — FK sin índice en el lado hijo
+
+**Severidad:** Media · **Probabilidad:** Alta a volumen · **Estado:** Abierto
+
+**Observado.** 168 de 244 columnas con FK no aparecen como primer campo de ningún índice —de hecho, no aparecen en **ninguno**—. Método: se cruzaron las 244 `ForeignKeySpec` de las migraciones con los 290 índices declarados, aplicando la regla de prefijo de PostgreSQL.
+
+Ejemplos: `customer_status_events.customer_id`, `data_provider_requests.provider_id`, `identity_verification_attempts.customer_id`, `customer_identity_documents.front_evidence_id`.
+
+La estrategia actual indexa `_tenant_id` en casi toda tabla y añade algunas combinaciones después, pero no las columnas FK de negocio.
+
+**Impacto.** PostgreSQL no indexa automáticamente el lado hijo de una FK. Afecta a (a) los `JOIN` por esa columna y (b) la verificación de `RESTRICT` al borrar un padre, que hace *scan* del hijo.
+
+> [!warning] Riesgo estático, no cuello confirmado
+> **No se ejecutó ninguna medición.** Sin volumetría ni plan de ejecución, no se puede afirmar que ninguna consulta sea lenta hoy. `yarn db:capture-query-baseline` y `yarn db:extract-read-workload` existen para producir esa evidencia.
+
+**Recomendación.** Capturar el baseline primero; indexar después solo lo que la carga real justifique. Añadir 168 índices a ciegas encarece toda escritura.
+
+---
+
+## SEC-001 — `TenantGuard` permisivo
+
+**Severidad:** Media · **Estado:** Abierto
+
+**Observado.** `src/common/guards/tenant.guard.ts` devuelve `true` si el token no trae `tenantId`, y también si el header `x-tenant-id` está ausente o vacío. Solo lanza `403` cuando el header existe **y difiere** del token.
+
+**Impacto.** El guard no garantiza aislamiento: lo garantiza que cada servicio filtre por `_tenant_id`. La existencia del gate `yarn check:tenant-header` con línea base (`.tenant-header-baseline.json`) confirma que la cobertura no era completa cuando se creó.
+
+**Recomendación.** En rutas por tenant, exigir el header y rechazar tokens sin `tenantId` en vez de dejar pasar.
+
+---
+
+## SEC-004 — `/metrics` de la API es alcanzable donde lo sea la API
+
+**Severidad:** Media · **Estado:** Confirmado parcialmente; mitigación fuera del código
+
+**Observado.** `/metrics` se excluye del prefijo global (`main.ts:72`) y no pasa por `JwtAuthGuard`. Expone nombres de ruta, códigos de estado y latencias.
+
+**Confirmado en `docker-compose.prod.yml`:**
+
+| Proceso | Publicación | Consecuencia |
+|---|---|---|
+| `api` | `ports: '${API_PUBLISH_PORT:-3005}:3005'` | `/metrics` **comparte puerto con la API**: es alcanzable dondequiera que lo sea la API |
+| `worker` | `expose: '3006'`, **sin `ports`** | La sonda y `/metrics` del worker **no salen** de la red interna ✅ |
+
+El compose del worker documenta la decisión: *"SIN `ports`: la sonda y `/metrics` del worker se quedan en la red interna. Prometheus hace scrape desde dentro; publicarlo expondría métricas operativas a internet sin autenticación."*
+
+**Lectura.** El worker está resuelto. El de la API **no puede aislarse por puerto** porque comparte el de negocio: la única mitigación es que el proxy inverso bloquee la ruta `/metrics` desde fuera, y eso vive en la configuración del borde, no en este repositorio.
+
+**Recomendación.** Bloquear `/metrics` en el reverse proxy y dejarlo documentado en [[10-operations/deployment]]. Añadir `@SkipThrottle` según la regla del proyecto.
+
+---
+
+## SEC-005 — `CODEOWNERS` con propietarios que no resolvían
+
+**Severidad:** Media · **Estado:** **Corregido en esta revisión**
+
+**Observado.** `.github/CODEOWNERS` asignaba todas las rutas a equipos de organización: `@atlas-backend-team`, `@atlas-security-team`, `@atlas-data-team`, `@atlas-risk-team`, `@atlas-product-team`, `@atlas-infra-team`.
+
+Los equipos de GitHub **solo existen dentro de una organización**, y `PabloArauzCaballero/AtlasBackend` es un repositorio personal. GitHub **ignora en silencio** a los propietarios que no puede resolver: no falla, no avisa, simplemente no asigna revisor.
+
+**Impacto.** El control que protegía las rutas más sensibles —`src/common/utils/crypto/`, `src/modules/auth/`, `src/common/guards/`, migraciones y motor de riesgo— **no habría solicitado revisión a nadie**. Un cambio en el cifrado de PII o en los guards podría haberse fusionado sin la revisión que el fichero declaraba exigir.
+
+Es el peor tipo de fallo de control: el que aparenta estar configurado. Un `CODEOWNERS` ausente se nota; uno que no resuelve, no.
+
+**Corrección aplicada.** Las rutas apuntan ahora a `@PabloArauzCaballero`, que sí resuelve. La partición por áreas se conserva como comentario para restaurarla cuando exista una organización con equipos reales.
+
+**Residuo abierto.** `CODEOWNERS` es solo la mitad versionable del control. La otra mitad —*Require a pull request*, *Require review from Code Owners*, *Do not allow bypassing* — se activa en GitHub y **no es verificable desde el repositorio**. El propio fichero lo documenta desde el principio.
+
+---
+
+## ARCH-001 — Acoplamiento físico entre dominios
+
+**Severidad:** Media · **Estado:** Aceptado por diseño
+
+**Observado.** 153 de 244 FK cruzan el límite de un esquema de dominio. Los 12 esquemas son un límite **lógico**: comparten base, transacciones e integridad referencial.
+
+**Impacto.** Extraer un dominio a su propio servicio exigiría sustituir esas FK por validación en aplicación y aceptar consistencia eventual. No es un defecto de un monolito modular —es su contrapartida—, pero conviene tenerlo explícito antes de prometer una extracción.
+
+**Contraste.** El grafo de **módulos** sí está limpio: acíclico y sin un solo `forwardRef`. El acoplamiento vive en los datos, no en el código.
+
+---
+
+## ARCH-002 — `platform_ops` como cajón de sastre
+
+**Severidad:** Baja · **Estado:** Abierto
+
+**Observado.** 25 tablas —el esquema mayor— mezclando cuatro responsabilidades sin ciclo de vida común: infraestructura de ejecución (`idempotency_keys`, `outbox_events`, `system_job_runs`), catálogos autodescriptivos (`system_*_catalog`), motor de flujos (`workflow_*`) y versionado de esquema (`schema_*`).
+
+**Recomendación.** Evaluar la separación en esquemas propios. Coste bajo (los `search_path` ya están centralizados), beneficio en claridad de propiedad.
+
+---
+
+## DATA-002 — Relaciones polimórficas sin integridad referencial
+
+**Severidad:** Baja · **Estado:** Abierto
+
+**Observado.** Existen punteros del tipo `target_type` + `target_id` (por ejemplo en `system_catalog_review_events`) que no pueden tener FK porque el destino varía. El catálogo de relaciones solo recoge las 244 FK declaradas: estas quedan fuera.
+
+**Impacto.** Nada impide un `target_id` huérfano. No se puede detectar sin consultar datos.
+
+**Recomendación.** Documentar los pares polimórficos y añadir validación en aplicación, o una comprobación periódica de integridad.
+
+---
+
+## OPS-001 — Jobs sin ventana horaria
+
+**Severidad:** Baja · **Estado:** Abierto
+
+**Observado.** Los 9 jobs se agendan por `intervalMs`, no por expresión cron. `apply_retention_policies` y `recalculate_data_quality` —los más pesados— pueden ejecutarse en hora punta.
+
+**Recomendación.** Revisar los intervalos configurados en producción, o introducir ventana horaria para los jobs de mantenimiento.
+
+---
+
+## DATA-003 — `outbox_events` crece sin purga
+
+**Severidad:** Media · **Probabilidad:** Alta con el tiempo · **Estado:** Abierto
+
+**Observado.** Una búsqueda de operaciones de borrado (`DELETE FROM`, `destroy`, `purge`, `prune`) sobre `outbox_events` en todo `src/` **no devuelve ninguna coincidencia**. Existen purgas para claves de idempotencia (`purge_idempotency_keys`) y un job general de retención (`apply_retention_policies`), pero **ninguna toca el outbox**.
+
+Ya no es un `NO_CONFIRMADO`: la ausencia está verificada en el código. Lo que queda abierto es si alguna fila de `privacy.retention_policies` lo cubre **por configuración**, lo cual solo se ve consultando un entorno.
+
+**Impacto.** `outbox_events` es la tabla con mayor tasa de inserción del sistema: recibe una fila por cada cambio de negocio **y** una por cada comando HTTP (vía `ApiCommandOutboxInterceptor`). Los eventos en `processed` se acumulan indefinidamente.
+
+Efecto secundario relevante: la consulta de reclamo filtra por `status = 'pending'`, así que un volumen creciente de `processed` degrada el índice y el barrido salvo que exista un índice parcial adecuado.
+
+**Recomendación.** Añadir un job de purga o archivado de `processed` con retención configurable, siguiendo el patrón ya existente de `purge_idempotency_keys`. Conservar `failed` hasta resolución manual — es la dead-letter.
+
+> [!danger] Reforzado en la auditoría del 2026-08-06: el requisito está escrito en el propio sistema
+> No es un descuido que nadie advirtió. La narrativa de entidad de `outbox_events` —el texto que el backend sirve por su propia API de catálogo— dice literalmente:
+>
+> *«Es de alto volumen: requiere índice por (`status`, `available_at`) y **archivado de procesados**.»*
+> — `src/modules/systems-ops/entity-narratives/communications.fixtures.ts:34`
+>
+> De las dos mitades de ese requisito, **una está implementada y la otra no**: `ix_outbox_status_available_at` existe desde `20260629170000-add-runtime-hardening-tables.ts:51`; el archivado no existe en ninguna parte.
+>
+> Eso sube la severidad efectiva: el sistema documenta la necesidad, la cumple a medias y no tiene ningún control que avise de la mitad que falta.
+
+---
+
+## DATA-001 — Sin `ON DELETE CASCADE`
+
+**Severidad:** Informativo · **Estado:** Por diseño
+
+**Observado.** `addForeignKeys` aplica `onDelete: allowNull ? 'SET NULL' : 'RESTRICT'` a las 244 FK. Ninguna cascada.
+
+**Lectura.** Es deliberado y coherente con un sistema auditado: perder evidencia por un `DELETE` accidental es peor que acumular filas. La contrapartida es que **el borrado real de un cliente exige un procedimiento explícito** — no basta con `DELETE FROM customers`. Ver [[05-data/retention-and-deletion]] y las solicitudes de titular en `data_subject_requests`.
+
+---
+
+---
+
+## SEC-006 — La entrega segura de credenciales iniciales está construida y desconectada
+
+**Severidad:** Alta · **Probabilidad:** Alta (cada alta de usuario interno) · **Estado:** Abierto
+
+**Observado.** Tres piezas de un mismo flujo existen, encajan entre sí y **ninguna llama a la siguiente**:
+
+| Pieza | Ubicación | Consumidores en `src/` |
+|---|---|---|
+| `generateTemporaryPassword()` | `common/utils/crypto/password.util.ts:56` | **0** |
+| `MailSenderService.sendInitialCredentials()` | `mail-sender/mail-sender.service.ts:83` | **0** (solo un spec) |
+| Plantilla `atlas-credenciales-iniciales` | referenciada por esa función | — |
+
+El generador ya está bien hecho: alfabeto sin caracteres ambiguos porque *«esta contraseña se transcribe desde un correo»*, 12 caracteres, y un bucle que reintenta hasta pasar `isPasswordStrongEnough`. Su docstring describe el flujo completo, incluido el `mustChangePassword` del primer login.
+
+**Lo que ocurre en su lugar.** `createInternalUserSchema:57` declara `password` como **obligatorio**. El administrador que da de alta a un usuario interno teclea la contraseña ajena en el cuerpo de una petición HTTP, y como no hay envío de correo, tiene que comunicarla por fuera del sistema — WhatsApp, teléfono, papel.
+
+**Impacto.** El camino inseguro es el único disponible, y el seguro está escrito a diez líneas de distancia. La contraseña inicial de un usuario interno —los que tienen acceso a PII de clientes— existe en claro en el portapapeles de un administrador, en un canal no auditado y fuera de toda política de rotación. Ninguna traza del sistema lo registra.
+
+**Por qué no se corrigió en esta auditoría.** Conectarlo cambia el contrato de `POST /internal-users`: `password` pasaría de obligatorio a opcional. Es compatible hacia atrás (quien siga enviándola conserva el comportamiento actual), pero decidir que Atlas envía contraseñas por correo es una decisión de seguridad del propietario, no de un auditor. La corrección concreta está en el plan de reconexión de la auditoría.
+
+## DEP-001 — `brace-expansion` vulnerable en el árbol transitivo
+
+**Severidad:** Alta (por CVSS) · **Explotabilidad real:** Baja · **Estado:** **Corregido en esta revisión**
+
+**Observado.** `yarn audit` **ejecutado** devolvía dos advisories HIGH, ambos del mismo paquete: `brace-expansion` 5.0.8, DoS por arrays intermedios sin cota, eludiendo la mitigación de CVE-2026-14257.
+
+Ruta: `@opentelemetry/auto-instrumentations-node > @opentelemetry/resource-detector-gcp > gcp-metadata > gaxios > rimraf > glob > minimatch > brace-expansion`. El proyecto nunca lo importa: el código vulnerable expande patrones de fichero, no entrada de usuario, así que la explotabilidad real es baja pese al CVSS.
+
+**Corrección aplicada.** Ya existía un pin en `resolutions` (`^5.0.8`) cuyo rango admitía la versión corregida, pero el lockfile la mantenía anclada. Se subió a `^5.0.9`. `yarn audit` pasa a 0 vulnerabilidades en todas las severidades.
+
+**Lectura para el futuro.** Un pin con `^` no basta: fija el rango, no la resolución. Sin `yarn audit` en CI —que sí está, y sin `continue-on-error` a propósito— este hallazgo dependía de que alguien lo ejecutara a mano.
+
+## Relaciones
+
+- [[14-audits/contradictions]] · [[14-audits/technical-debt]] · [[08-security/security-overview]] · [[01-overview/assumptions-and-gaps]]

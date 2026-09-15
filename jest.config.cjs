@@ -28,13 +28,26 @@ const config = {
       'ts-jest',
       {
         tsconfig: 'tsconfig.spec.json',
+        // ATLAS-TEST-002: antes `warnOnly: true`. Un error de tipos en un spec se imprimía como
+        // aviso y la suite seguía en verde, así que un mock que dejaba de encajar con el contrato
+        // real del servicio no rompía nada — justo el fallo que un doble de prueba debe delatar.
+        // `yarn type-check:tests` ya cubría el repositorio entero, pero solo en CI y como paso
+        // aparte: aquí el error aparece en el mismo comando que corre quien escribe la prueba.
         diagnostics: {
-          warnOnly: true,
+          warnOnly: false,
         },
       },
     ],
   },
   testMatch: ['**/test/**/*.spec.ts', '**/test/**/*.test.ts'],
+  // Las pruebas de integración necesitan PostgreSQL real (AT-002): viven en `test/integration/` y
+  // las corre `jest.integration.config.cjs` (`yarn test:integration`), nunca este corredor. Si se
+  // pasa `--testPathIgnorePatterns` por CLI, este array se SUSTITUYE, no se amplía.
+  testPathIgnorePatterns: ['/node_modules/', '/test/integration/'],
+  // AT-050: una selección (`--testPathPatterns`) que no descubre ninguna prueba es un error de
+  // selección, no un aprobado. Es el valor por defecto de Jest; se deja explícito para que nadie lo
+  // «arregle» con `--passWithNoTests` (test/integration/testing/required-database-gate.spec.ts lo vigila).
+  passWithNoTests: false,
 
   // El timeout es por prueba, no para la suite completa. La validación del 28-jul-2026 ejecutó 263
   // suites / 2.191 tests con cobertura; el proceso completo puede tardar varios minutos según I/O.
@@ -50,6 +63,10 @@ const config = {
     // Glue de arranque con efecto de importación (como main.ts): arranca OpenTelemetry antes que la
     // app. No tiene lógica testeable por sí mismo; `tracing.ts` sí se cubre por unit test.
     '!src/observability/tracing-bootstrap.ts',
+    // Entrypoint del worker del piloto de Mensajería: mismo caso que `main.ts` y `worker.ts` —glue de
+    // arranque sin lógica propia—. Lo que sí tiene lógica (la guarda de identidad, el bucle del relay)
+    // vive en `src/bootstrap/messaging-*.ts` y está cubierto por sus pruebas unitarias.
+    '!src/messaging-worker.ts',
     '!src/database/migrations/**',
     '!src/database/seeders/**',
   ],

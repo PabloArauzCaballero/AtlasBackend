@@ -9,16 +9,16 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`banking-qr.service.ts`](./banking-qr.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`external-data-decision.service.ts`](./external-data-decision.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`external-data-evidence.service.ts`](./external-data-evidence.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`external-data-execution.service.ts`](./external-data-execution.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`external-data-governance.service.ts`](./external-data-governance.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`external-data-policy.util.ts`](./external-data-policy.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
+| Documento o código                                                                       | Responsabilidad                                                           |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [`banking-qr.service.ts`](./banking-qr.service.ts)                                       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`external-data-decision.service.ts`](./external-data-decision.service.ts)               | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`external-data-evidence.service.ts`](./external-data-evidence.service.ts)               | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`external-data-execution.service.ts`](./external-data-execution.service.ts)             | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`external-data-governance.service.ts`](./external-data-governance.service.ts)           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`external-data-policy.util.ts`](./external-data-policy.util.ts)                         | Utilidad pura o acotada reutilizable dentro de su capa.                   |
 | [`external-provider-convenience.service.ts`](./external-provider-convenience.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`external-provider-registry.service.ts`](./external-provider-registry.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`external-provider-registry.service.ts`](./external-provider-registry.service.ts)       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento
 

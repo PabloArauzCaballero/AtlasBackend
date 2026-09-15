@@ -19,7 +19,7 @@ function trackedEnvFiles(): string[] {
       .map((line) => line.trim())
       .filter((name) => name.length > 0 && !isAllowedTemplate(name));
   } catch (error) {
-    throw new Error(`No se pudo verificar el índice de Git: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`No se pudo verificar el índice de Git: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
 }
 

@@ -10,15 +10,15 @@ import { SystemsTestSuiteAdminService } from '../../../src/modules/systems-ops/s
 describe('SystemsTestSuiteAdminService', () => {
   function build() {
     const repository = {
-      createSuite: jest.fn(async () => ({ id: 1, code: 'S1' })),
-      findSuiteById: jest.fn(async () => null),
-      updateSuite: jest.fn(async () => ({ id: 1, code: 'S1' })),
-      findStepsBySuite: jest.fn(async () => [] as unknown[]),
-      createStep: jest.fn(async () => ({ id: 10, suiteId: 1, name: 'step' })),
-      findStepById: jest.fn(async () => null),
-      updateStep: jest.fn(async () => ({ id: 10, suiteId: 1 })),
-      reorderSteps: jest.fn(async () => [] as unknown[]),
-      findEndpointById: jest.fn(async () => null),
+      createSuite: jest.fn(async (..._args: unknown[]) => ({ id: 1, code: 'S1' })),
+      findSuiteById: jest.fn(async (..._args: unknown[]) => null),
+      updateSuite: jest.fn(async (..._args: unknown[]) => ({ id: 1, code: 'S1' })),
+      findStepsBySuite: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      createStep: jest.fn(async (..._args: unknown[]) => ({ id: 10, suiteId: 1, name: 'step' })),
+      findStepById: jest.fn(async (..._args: unknown[]) => null),
+      updateStep: jest.fn(async (..._args: unknown[]) => ({ id: 10, suiteId: 1 })),
+      reorderSteps: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      findEndpointById: jest.fn(async (..._args: unknown[]) => null),
     };
     const service = new SystemsTestSuiteAdminService(repository as never);
     return { service, repository };

@@ -15,17 +15,17 @@ describe('ExternalDataController (ejecución)', () => {
 
   function service() {
     return {
-      createConsent: jest.fn(async () => ({ id: 'c' })),
-      listCustomerConsents: jest.fn(async () => []),
-      revokeConsent: jest.fn(async () => ({})),
-      previewExternalDataRequest: jest.fn(async () => ({ wouldExecute: true })),
-      executeExternalDataRequest: jest.fn(async () => ({ status: 'COMPLETED' })),
-      getProviderRequest: jest.fn(async () => ({})),
-      getProviderHealth: jest.fn(async () => []),
-      getCustomerFeatures: jest.fn(async () => ({})),
-      getCustomerScoringInput: jest.fn(async () => ({})),
-      getCustomerDecisionPackage: jest.fn(async () => ({})),
-      getCustomerObservations: jest.fn(async () => []),
+      createConsent: jest.fn(async (..._args: unknown[]) => ({ id: 'c' })),
+      listCustomerConsents: jest.fn(async (..._args: unknown[]) => []),
+      revokeConsent: jest.fn(async (..._args: unknown[]) => ({})),
+      previewExternalDataRequest: jest.fn(async (..._args: unknown[]) => ({ wouldExecute: true })),
+      executeExternalDataRequest: jest.fn(async (..._args: unknown[]) => ({ status: 'COMPLETED' })),
+      getProviderRequest: jest.fn(async (..._args: unknown[]) => ({})),
+      getProviderHealth: jest.fn(async (..._args: unknown[]) => []),
+      getCustomerFeatures: jest.fn(async (..._args: unknown[]) => ({})),
+      getCustomerScoringInput: jest.fn(async (..._args: unknown[]) => ({})),
+      getCustomerDecisionPackage: jest.fn(async (..._args: unknown[]) => ({})),
+      getCustomerObservations: jest.fn(async (..._args: unknown[]) => []),
     };
   }
 
@@ -64,7 +64,7 @@ describe('ExternalDataController (ejecución)', () => {
   it('lecturas por cliente y por request (features, scoring-input, decision-package, observations, getRequest, health)', async () => {
     const svc = service();
     const c = new ExternalDataController(svc as never);
-    await c.getRequest('1', { requestId: '7' } as never, user);
+    await c.getRequest('1', { requestId: '7' } as never);
     expect(svc.getProviderRequest).toHaveBeenCalledWith({ tenantId, requestId: '7' });
     await c.getProviderHealth('SEGIP');
     expect(svc.getProviderHealth).toHaveBeenCalledWith('SEGIP');
@@ -98,25 +98,25 @@ describe('AdminExternalProvidersController (administración)', () => {
 
   function service() {
     return {
-      listProviders: jest.fn(async () => []),
-      getProviderHealth: jest.fn(async () => []),
-      getProviderReadiness: jest.fn(async () => ({})),
-      auditExternalProvidersQuality: jest.fn(async () => []),
-      getProductionGate: jest.fn(async () => ({})),
-      getProviderSlaReport: jest.fn(async () => ({})),
-      getProviderUsage: jest.fn(async () => ({})),
-      auditIdempotencyKeys: jest.fn(async () => []),
-      getRetentionPreview: jest.fn(async () => ({})),
-      auditResponseSanitization: jest.fn(async () => []),
-      previewExternalDataRequest: jest.fn(async () => ({})),
-      updateProviderRuntimePolicy: jest.fn(async () => ({})),
-      activateProviderKillSwitch: jest.fn(async () => ({})),
-      getProviderCostPolicies: jest.fn(async () => []),
-      updateProviderCostPolicy: jest.fn(async () => ({})),
-      executeExternalDataRequest: jest.fn(async () => ({})),
-      approveRequest: jest.fn(async () => ({})),
-      retryProviderRequest: jest.fn(async () => ({})),
-      rebuildFeatureSnapshotFromRequest: jest.fn(async () => ({})),
+      listProviders: jest.fn(async (..._args: unknown[]) => []),
+      getProviderHealth: jest.fn(async (..._args: unknown[]) => []),
+      getProviderReadiness: jest.fn(async (..._args: unknown[]) => ({})),
+      auditExternalProvidersQuality: jest.fn(async (..._args: unknown[]) => []),
+      getProductionGate: jest.fn(async (..._args: unknown[]) => ({})),
+      getProviderSlaReport: jest.fn(async (..._args: unknown[]) => ({})),
+      getProviderUsage: jest.fn(async (..._args: unknown[]) => ({})),
+      auditIdempotencyKeys: jest.fn(async (..._args: unknown[]) => []),
+      getRetentionPreview: jest.fn(async (..._args: unknown[]) => ({})),
+      auditResponseSanitization: jest.fn(async (..._args: unknown[]) => []),
+      previewExternalDataRequest: jest.fn(async (..._args: unknown[]) => ({})),
+      updateProviderRuntimePolicy: jest.fn(async (..._args: unknown[]) => ({})),
+      activateProviderKillSwitch: jest.fn(async (..._args: unknown[]) => ({})),
+      getProviderCostPolicies: jest.fn(async (..._args: unknown[]) => []),
+      updateProviderCostPolicy: jest.fn(async (..._args: unknown[]) => ({})),
+      executeExternalDataRequest: jest.fn(async (..._args: unknown[]) => ({})),
+      approveRequest: jest.fn(async (..._args: unknown[]) => ({})),
+      retryProviderRequest: jest.fn(async (..._args: unknown[]) => ({})),
+      rebuildFeatureSnapshotFromRequest: jest.fn(async (..._args: unknown[]) => ({})),
     };
   }
 
@@ -138,11 +138,11 @@ describe('AdminExternalProvidersController (administración)', () => {
     const c = new AdminExternalProvidersController(svc as never);
     await c.productionGate({ providerCode: 'SEGIP', strict: true } as never);
     expect(svc.getProductionGate).toHaveBeenCalledWith({ providerCode: 'SEGIP', strict: true });
-    await c.sla('1', { providerCode: 'SEGIP', days: 7 } as never, user);
+    await c.sla('1', { providerCode: 'SEGIP', days: 7 } as never);
     expect(svc.getProviderSlaReport).toHaveBeenCalledWith({ tenantId, providerCode: 'SEGIP', days: 7 });
-    await c.usage('1', { providerCode: 'SEGIP', days: 30 } as never, user);
+    await c.usage('1', { providerCode: 'SEGIP', days: 30 } as never);
     expect(svc.getProviderUsage).toHaveBeenCalledWith({ tenantId, providerCode: 'SEGIP', days: 30 });
-    await c.idempotencyAudit('1', { days: 3, limit: 10 } as never, user);
+    await c.idempotencyAudit('1', { days: 3, limit: 10 } as never);
     expect(svc.auditIdempotencyKeys).toHaveBeenCalledWith({ tenantId, days: 3, limit: 10 });
     await c.retentionPreview({ days: 90, limit: 5 } as never);
     expect(svc.getRetentionPreview).toHaveBeenCalledWith({ days: 90, limit: 5 });
@@ -229,7 +229,7 @@ describe('AdminExternalProvidersController (administración)', () => {
     const retryBody = { reason: 'transient' } as never;
     await c.retryRequest('1', { requestId: '9' } as never, retryBody, user);
     expect(svc.retryProviderRequest).toHaveBeenCalledWith({ tenantId, requestId: '9', body: retryBody, requestedByUserId: actorId(user) });
-    await c.rebuildFeatures('1', { requestId: '10' } as never, user);
+    await c.rebuildFeatures('1', { requestId: '10' } as never);
     expect(svc.rebuildFeatureSnapshotFromRequest).toHaveBeenCalledWith({ tenantId, requestId: '10' });
   });
 });

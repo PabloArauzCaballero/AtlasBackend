@@ -85,6 +85,29 @@ GMAIL_REFRESH_TOKEN=...
 GMAIL_FROM_EMAIL=...
 ```
 
+A diferencia de Resend/SendGrid, Gmail no es una llamada HTTP con API key: `EmailNotificationAdapter`
+delega el canal en `GmailApiAdapter` (`src/modules/notifications/adapters/gmail/`), que aporta lo que
+la API de Google exige y los demás proveedores no:
+
+- **Canje OAuth2 cacheado** (`GmailOAuthTokenService`): el `refresh_token` se cambia por un access
+  token una vez por hora, no una vez por correo, y los envíos concurrentes en frío comparten un único
+  canje. Un `401` de Gmail —token revocado antes de expirar— invalida el cache y reintenta una sola
+  vez con token fresco.
+- **Construcción MIME propia** (`gmail-mime.util.ts`): el campo `raw` de `users.messages.send` es un
+  mensaje RFC 5322 completo. Incluye asuntos no ASCII en RFC 2047 (plegados y sin partir caracteres
+  multibyte), `multipart/alternative` cuando el payload trae `html`, cuerpos en base64 a 76 columnas
+  y saneo anti inyección de cabeceras.
+- **Direcciones validadas** antes de armar el mensaje: una coma o un salto de línea en un
+  destinatario permitiría inventar copias ocultas. El error reporta el conteo, nunca la dirección
+  (es PII y termina persistida en `notification_deliveries`).
+
+El payload de la notificación admite además `html`/`htmlBody`, `cc`, `bcc` y `replyTo`. Para envíos
+transaccionales puntuales, `GmailApiAdapter.sendEmail()` está exportado por `NotificationsModule` y
+expone esos campos de forma tipada.
+
+Prerrequisitos en Google Cloud: la Gmail API habilitada en el proyecto y el refresh token emitido
+para el scope `https://www.googleapis.com/auth/gmail.send` con la cuenta de `GMAIL_FROM_EMAIL`.
+
 ### Firebase Cloud Messaging
 
 ```env

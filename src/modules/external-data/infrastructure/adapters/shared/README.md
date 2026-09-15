@@ -9,8 +9,8 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                         | Responsabilidad                                         |
+| ------------------------------------------ | ------------------------------------------------------- |
 | [`mock-http.util.ts`](./mock-http.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
 
 ## Reglas de mantenimiento

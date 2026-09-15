@@ -12,9 +12,9 @@ describe('DataQualityService', () => {
       findIssues: jest.fn(),
       findRulesByIds: jest.fn(),
       findIssueById: jest.fn(),
-      resolveIssue: jest.fn(async () => undefined),
-      createAudit: jest.fn(async () => undefined),
-      createDataChange: jest.fn(async () => undefined),
+      resolveIssue: jest.fn(async (..._args: unknown[]) => undefined),
+      createAudit: jest.fn(async (..._args: unknown[]) => undefined),
+      createDataChange: jest.fn(async (..._args: unknown[]) => undefined),
     };
     const sequelize = { transaction: jest.fn(async (cb: (tx: string) => unknown) => cb('tx')) };
     const service = new DataQualityService(repository as never, sequelize as never);

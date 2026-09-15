@@ -23,6 +23,7 @@
 | [`index.ts`](./index.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`internal-rbac.smoke.ts`](./internal-rbac.smoke.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`notifications.smoke.ts`](./notifications.smoke.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`partner-onboarding.smoke.ts`](./partner-onboarding.smoke.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`redact.ts`](./redact.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`required-smoke-env.ts`](./required-smoke-env.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`risk-telemetry.smoke.ts`](./risk-telemetry.smoke.ts) | Artefacto de soporte específico de esta carpeta. |

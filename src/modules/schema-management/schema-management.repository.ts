@@ -105,8 +105,24 @@ interface GroupedCountRow {
   count: string;
 }
 
+interface GroupedTableCountRow {
+  schema_table_id: string;
+  count: string;
+}
+
 export interface SchemaVersionCounts {
   tablesCount: number;
+  columnsCount: number;
+  relationshipsCount: number;
+}
+
+export interface SchemaNameSummaryRow {
+  schema_name: string;
+  tables_count: string;
+  columns_count: string;
+}
+
+export interface SchemaTableCounts {
   columnsCount: number;
   relationshipsCount: number;
 }
@@ -273,28 +289,100 @@ export class SchemaManagementRepository {
     tableType: string | undefined,
     limit: number,
     offset: number,
+    schemaName?: string,
   ): Promise<{ rows: SchemaTableRow[]; total: number }> {
     // tableType proviene de un enum Zod ya validado; aun así va como replacement.
     const typeFilter = tableType ? 'AND table_type = :tableType' : '';
+    // El prefijo se compara sobre el nombre cualificado. `schemaName` ya pasó la regex de Zod, y
+    // aun así viaja como replacement: nunca se concatena entrada del cliente dentro del SQL.
+    const schemaFilter = schemaName ? 'AND table_name LIKE :schemaPrefix' : '';
+    const schemaPrefix = schemaName ? `${schemaName}.%` : undefined;
 
     const rows = await this.sequelize.query<SchemaTableRow>(
       `SELECT _id, schema_version_id, table_name, table_type, is_append_only,
               is_tenant_scoped, description, created_at, is_deleted
        FROM schema_tables
-       WHERE schema_version_id = :versionId AND is_deleted = false ${typeFilter}
+       WHERE schema_version_id = :versionId AND is_deleted = false ${typeFilter} ${schemaFilter}
        ORDER BY table_name ASC
        LIMIT :limit OFFSET :offset`,
-      { type: QueryTypes.SELECT, replacements: { versionId, tableType, limit, offset } },
+      { type: QueryTypes.SELECT, replacements: { versionId, tableType, schemaPrefix, limit, offset } },
     );
 
     const countRows = await this.sequelize.query<CountRow>(
       `SELECT COUNT(*)::text AS count
        FROM schema_tables
-       WHERE schema_version_id = :versionId AND is_deleted = false ${typeFilter}`,
-      { type: QueryTypes.SELECT, replacements: { versionId, tableType } },
+       WHERE schema_version_id = :versionId AND is_deleted = false ${typeFilter} ${schemaFilter}`,
+      { type: QueryTypes.SELECT, replacements: { versionId, tableType, schemaPrefix } },
     );
 
     return { rows, total: Number(countRows[0]?.count ?? '0') };
+  }
+
+  /**
+   * Los ESQUEMAS de datos de una versión, con lo que contiene cada uno.
+   *
+   * Es el índice por el que se navega el catálogo: trece esquemas se leen de un vistazo, ciento
+   * cincuenta tablas no. Sale de una agregación sobre el prefijo del nombre cualificado, así que no
+   * necesita ninguna tabla nueva.
+   */
+  async listSchemaNamesForVersion(versionId: string): Promise<SchemaNameSummaryRow[]> {
+    return this.sequelize.query<SchemaNameSummaryRow>(
+      `SELECT split_part(st.table_name, '.', 1) AS schema_name,
+              COUNT(DISTINCT st._id)::text AS tables_count,
+              COUNT(sc._id)::text AS columns_count
+       FROM schema_tables st
+       LEFT JOIN schema_columns sc ON sc.schema_table_id = st._id AND sc.is_deleted = false
+       WHERE st.schema_version_id = :versionId AND st.is_deleted = false
+       GROUP BY 1
+       ORDER BY 1 ASC`,
+      { type: QueryTypes.SELECT, replacements: { versionId } },
+    );
+  }
+
+  /**
+   * Columnas y relaciones por tabla, para una PÁGINA de tablas.
+   *
+   * `listSchemaTables` devolvía cada fila con `columnsCount: 0` y `relationshipsCount: 0` fijos —
+   * solo el detalle de UNA tabla los calculaba—, así que el inventario de una versión afirmaba que
+   * las 152 tablas del esquema no tenían ni una columna. Es el mismo patrón por lotes que ya usa
+   * `countTablesColumnsRelationshipsForVersions`: dos consultas agregadas para la página entera en
+   * lugar de dos `COUNT(*)` por fila.
+   */
+  async countColumnsAndRelationshipsForTables(tableIds: readonly string[]): Promise<Map<string, SchemaTableCounts>> {
+    const counts = new Map<string, SchemaTableCounts>();
+    if (tableIds.length === 0) return counts;
+    for (const tableId of tableIds) {
+      counts.set(tableId, { columnsCount: 0, relationshipsCount: 0 });
+    }
+
+    const replacements = { tableIds: [...tableIds] };
+    const [columnRows, relationshipRows] = await Promise.all([
+      this.sequelize.query<GroupedTableCountRow>(
+        `SELECT schema_table_id, COUNT(*)::text AS count
+         FROM schema_columns
+         WHERE schema_table_id IN (:tableIds) AND is_deleted = false
+         GROUP BY schema_table_id`,
+        { type: QueryTypes.SELECT, replacements },
+      ),
+      this.sequelize.query<GroupedTableCountRow>(
+        `SELECT source_table_id AS schema_table_id, COUNT(*)::text AS count
+         FROM schema_relationships
+         WHERE source_table_id IN (:tableIds)
+         GROUP BY source_table_id`,
+        { type: QueryTypes.SELECT, replacements },
+      ),
+    ]);
+
+    for (const row of columnRows) {
+      const entry = counts.get(row.schema_table_id);
+      if (entry) entry.columnsCount = Number(row.count);
+    }
+    for (const row of relationshipRows) {
+      const entry = counts.get(row.schema_table_id);
+      if (entry) entry.relationshipsCount = Number(row.count);
+    }
+
+    return counts;
   }
 
   // =========================================================================
@@ -327,147 +415,6 @@ export class SchemaManagementRepository {
        ORDER BY sr._id ASC`,
       { type: QueryTypes.SELECT, replacements: { tableId } },
     );
-  }
-
-  // =========================================================================
-  // SCHEMA CHANGE LOG (auditoría de propuestas DDL)
-  // =========================================================================
-
-  async createChangeLogEntry(input: CreateChangeLogEntryInput, transaction?: Transaction): Promise<SchemaChangeLogRow> {
-    // Columnas EXPLÍCITAS: nunca se construyen desde keys del payload.
-    const rows = await this.sequelize.query<SchemaChangeLogRow>(
-      `INSERT INTO schema_change_log
-         (change_type, affected_entity_type, change_payload,
-          requester_platform_user_id, approval_status, change_result,
-          rolled_back, created_at)
-       VALUES
-         (:changeType, :affectedEntityType, CAST(:changePayload AS JSONB),
-          :requesterPlatformUserId, 'pending', 'pending',
-          false, NOW())
-       RETURNING _id, schema_version_id, change_type, affected_entity_id, affected_entity_type,
-                 change_payload, requester_platform_user_id, approval_status,
-                 approved_by_platform_user_id, approved_at, approval_notes,
-                 rolled_back, change_result, error_message, created_at`,
-      {
-        type: QueryTypes.SELECT,
-        transaction,
-        replacements: {
-          changeType: input.changeType,
-          affectedEntityType: input.affectedEntityType,
-          changePayload: JSON.stringify(input.changePayload),
-          requesterPlatformUserId: input.requesterPlatformUserId,
-        },
-      },
-    );
-    const created = rows[0];
-    if (!created) {
-      throw new Error('Failed to insert schema_change_log entry');
-    }
-    return created;
-  }
-
-  async getChangeLogEntry(changeId: string): Promise<SchemaChangeLogRow | null> {
-    const rows = await this.sequelize.query<SchemaChangeLogRow>(
-      `SELECT _id, schema_version_id, change_type, affected_entity_id, affected_entity_type,
-              change_payload, requester_platform_user_id, approval_status,
-              approved_by_platform_user_id, approved_at, approval_notes,
-              rolled_back, change_result, error_message, created_at
-       FROM schema_change_log
-       WHERE _id = :changeId`,
-      { type: QueryTypes.SELECT, replacements: { changeId } },
-    );
-    return rows[0] ?? null;
-  }
-
-  /**
-   * Lock pesimista para evitar doble aprobación concurrente del mismo cambio.
-   * Debe usarse dentro de una transacción.
-   */
-  async getChangeLogEntryForUpdate(changeId: string, transaction: Transaction): Promise<SchemaChangeLogRow | null> {
-    const rows = await this.sequelize.query<SchemaChangeLogRow>(
-      `SELECT _id, schema_version_id, change_type, affected_entity_id, affected_entity_type,
-              change_payload, requester_platform_user_id, approval_status,
-              approved_by_platform_user_id, approved_at, approval_notes,
-              rolled_back, change_result, error_message, created_at
-       FROM schema_change_log
-       WHERE _id = :changeId
-       FOR UPDATE`,
-      { type: QueryTypes.SELECT, replacements: { changeId }, transaction },
-    );
-    return rows[0] ?? null;
-  }
-
-  async listChangeLog(
-    approvalStatus: string | undefined,
-    changeType: string | undefined,
-    requesterUserId: string | undefined,
-    limit: number,
-    offset: number,
-  ): Promise<{ rows: SchemaChangeLogRow[]; total: number }> {
-    const filters: string[] = [];
-    if (approvalStatus) filters.push('approval_status = :approvalStatus');
-    if (changeType) filters.push('change_type = :changeType');
-    if (requesterUserId) filters.push('requester_platform_user_id = :requesterUserId');
-    const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
-
-    const replacements = { approvalStatus, changeType, requesterUserId, limit, offset };
-
-    const rows = await this.sequelize.query<SchemaChangeLogRow>(
-      `SELECT _id, schema_version_id, change_type, affected_entity_id, affected_entity_type,
-              change_payload, requester_platform_user_id, approval_status,
-              approved_by_platform_user_id, approved_at, approval_notes,
-              rolled_back, change_result, error_message, created_at
-       FROM schema_change_log
-       ${whereClause}
-       ORDER BY created_at DESC, _id DESC
-       LIMIT :limit OFFSET :offset`,
-      { type: QueryTypes.SELECT, replacements },
-    );
-
-    const countRows = await this.sequelize.query<CountRow>(`SELECT COUNT(*)::text AS count FROM schema_change_log ${whereClause}`, {
-      type: QueryTypes.SELECT,
-      replacements,
-    });
-
-    return { rows, total: Number(countRows[0]?.count ?? '0') };
-  }
-
-  /**
-   * Marca un cambio como aprobado o rechazado. Solo actualiza campos explícitos.
-   * Devuelve la fila actualizada, o null si no existía.
-   */
-  async resolveChangeLogEntry(
-    changeId: string,
-    input: ResolveChangeLogEntryInput,
-    transaction?: Transaction,
-  ): Promise<SchemaChangeLogRow | null> {
-    const rows = await this.sequelize.query<SchemaChangeLogRow>(
-      `UPDATE schema_change_log
-       SET approval_status = :approvalStatus,
-           approved_by_platform_user_id = :approvedByPlatformUserId,
-           approved_at = NOW(),
-           approval_notes = :approvalNotes,
-           change_result = :changeResult,
-           error_message = :errorMessage
-       WHERE _id = :changeId
-       RETURNING _id, schema_version_id, change_type, affected_entity_id, affected_entity_type,
-                 change_payload, requester_platform_user_id, approval_status,
-                 approved_by_platform_user_id, approved_at, approval_notes,
-                 rolled_back, change_result, error_message, created_at`,
-      {
-        type: QueryTypes.SELECT,
-        transaction,
-        replacements: {
-          changeId,
-          approvalStatus: input.approvalStatus,
-          approvedByPlatformUserId: input.approvedByPlatformUserId,
-          approvalNotes: input.approvalNotes,
-          changeResult: input.changeResult,
-          errorMessage: input.errorMessage,
-        },
-      },
-    );
-    return rows[0] ?? null;
   }
 
   // =========================================================================

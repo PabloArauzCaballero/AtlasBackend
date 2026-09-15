@@ -48,7 +48,6 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     const response = context.switchToHttp().getResponse<ResponseLike>();
     const scope = `${request.method.toUpperCase()} ${request.originalUrl ?? request.path ?? 'unknown'}`;
-    const hash = this.runtime.requestHash(request.body, request.query, request.params);
 
     return from(
       this.runtime.claimIdempotency({
@@ -57,7 +56,8 @@ export class IdempotencyInterceptor implements NestInterceptor {
         actorId: actorId(request.user),
         idempotencyKey,
         scope,
-        requestHash: hash,
+        // La huella la calcula el servicio (política versionada, AT-010); aquí sólo viaja la petición.
+        request: { body: request.body, query: request.query, params: request.params },
         now: new Date(),
       }),
     ).pipe(
@@ -72,10 +72,10 @@ export class IdempotencyInterceptor implements NestInterceptor {
           // como OK aunque la persistencia de idempotencia fallara. En backend fintech, una
           // mutación con X-Idempotency-Key debe quedar registrada antes de responder.
           mergeMap((body) =>
-            from(this.runtime.completeIdempotency(claim.record, response.statusCode ?? 200, body)).pipe(mergeMap(() => of(body))),
+            from(this.runtime.completeIdempotency(claim.lease, response.statusCode ?? 200, body)).pipe(mergeMap(() => of(body))),
           ),
           catchError((error: unknown) =>
-            from(this.runtime.failIdempotency(claim.record)).pipe(
+            from(this.runtime.failIdempotency(claim.lease)).pipe(
               catchError(() => of(undefined)),
               mergeMap(() => throwError(() => error)),
             ),

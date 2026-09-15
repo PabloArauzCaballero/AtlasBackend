@@ -70,9 +70,32 @@ function missingProfileFields(facts: EligibilityFacts, now: Date): string[] {
   return missing.filter((field) => (REQUIRED_PROFILE_FIELDS as readonly string[]).includes(field));
 }
 
+/**
+ * Situaciones laborales en las que la ANTIGÜEDAD tiene respuesta posible.
+ *
+ * Fuera de estas dos, preguntar «cuánto tiempo llevas en tu trabajo» no tiene sentido: quien declara
+ * que no trabaja, que estudia o que está jubilado no tiene una antigüedad que contar, y quien trabaja
+ * por su cuenta no la tiene contra ningún empleador. La app dejó de pedirla en esos casos, y esta
+ * regla tenía que aprender lo mismo: si no, el expediente se queda en «en curso» para siempre
+ * esperando un dato que ya nadie va a introducir — y la única salida era inventárselo.
+ */
+const EMPLOYMENT_STATUSES_WITH_SENIORITY: readonly string[] = ['employee', 'business_owner'];
+
 function missingFinancialFields(facts: EligibilityFacts): string[] {
   const present = new Set(facts.presentFinancialAttributeCodes);
-  return REQUIRED_FINANCIAL_ATTRIBUTE_CODES.filter((code) => !present.has(code));
+  // Lectura defensiva: hay bancos de prueba que arman los hechos sin este mapa.
+  const employmentStatus = facts.financialAttributeTexts?.['employment_status'];
+  /*
+   * Mientras no se haya declarado la situación laboral, la antigüedad se sigue exigiendo: el hueco
+   * existe hasta que se sepa si aplica, y quitarlo antes daría por completa una sección a la que
+   * todavía le falta el dato que decide.
+   */
+  const senioritySkipped = employmentStatus !== undefined && !EMPLOYMENT_STATUSES_WITH_SENIORITY.includes(employmentStatus);
+
+  return REQUIRED_FINANCIAL_ATTRIBUTE_CODES.filter((code) => {
+    if (code === 'employment_seniority_months' && senioritySkipped) return false;
+    return !present.has(code);
+  });
 }
 
 function missingConsentDocumentIds(facts: EligibilityFacts): string[] {
@@ -149,6 +172,15 @@ export function buildSections(facts: EligibilityFacts, now: Date): OnboardingSec
 }
 
 /** Bloqueadores de la habilitación. Lista completa: nunca corta en el primero encontrado. */
+/**
+ * En minúsculas a propósito. El camino del Motor (`mobile-identity`) escribe `VERIFIED` y el del
+ * operador y el proveedor escriben `verified`; comparar en estricto dejaba a todo cliente verificado
+ * por el Motor con `IDENTITY_NOT_VERIFIED` hasta que una persona lo firmara otra vez.
+ */
+export function isIdentityVerified(result: string | null | undefined): boolean {
+  return (result ?? '').toLowerCase() === IDENTITY_VERIFIED_RESULT;
+}
+
 export function buildBlockers(facts: EligibilityFacts, lifecycleStatus: CustomerLifecycleStatus, now: Date): EligibilityBlocker[] {
   const blockers: EligibilityBlocker[] = [];
 
@@ -170,7 +202,7 @@ export function buildBlockers(facts: EligibilityFacts, lifecycleStatus: Customer
   if (!facts.identityDocument) blockers.push({ code: 'IDENTITY_DOCUMENT_MISSING' });
   else if (isDocumentExpired(facts.identityDocument.expiresAt, now)) blockers.push({ code: 'IDENTITY_DOCUMENT_EXPIRED' });
 
-  if (facts.identityVerificationResult !== IDENTITY_VERIFIED_RESULT) {
+  if (!isIdentityVerified(facts.identityVerificationResult)) {
     blockers.push({ code: 'IDENTITY_NOT_VERIFIED', detail: facts.identityVerificationResult ?? 'not_started' });
   }
   if (facts.pendingEvidenceReviewCount > 0) blockers.push({ code: 'EVIDENCE_PENDING_REVIEW' });

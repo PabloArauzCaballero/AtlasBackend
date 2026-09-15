@@ -14,6 +14,7 @@ import {
 export function buildEndpointTextWhere(query: SystemsListQueryDto): WhereOptions {
   const where: Record<string, unknown> = {
     ...(query.module ? { module: query.module } : {}),
+    ...(query.block ? { systemCode: query.block } : {}),
     ...(query.backendService ? { backendService: query.backendService } : {}),
     ...(query.status ? { status: query.status } : {}),
     ...(query.riskLevel ? { riskLevel: query.riskLevel } : {}),
@@ -47,6 +48,7 @@ export function buildToolWhere(query: SystemsListQueryDto): WhereOptions {
 export function buildDataEntityWhere(query: SystemsListQueryDto): WhereOptions {
   const where: Record<string, unknown> = {
     ...(query.module ? { module: query.module } : {}),
+    ...(query.block ? { systemCode: query.block } : {}),
     ...(query.status ? { status: query.status } : {}),
     ...(query.reviewStatus ? { reviewStatus: query.reviewStatus } : {}),
   };
@@ -56,6 +58,9 @@ export function buildDataEntityWhere(query: SystemsListQueryDto): WhereOptions {
       { tableName: { [Op.iLike]: `%${query.q}%` } },
       { entityName: { [Op.iLike]: `%${query.q}%` } },
       { modelName: { [Op.iLike]: `%${query.q}%` } },
+      // El esquema entra en la busqueda porque en un catalogo de tres bloques es lo que distingue
+      // `atlas_accounting.invoice` de una tabla homonima de otro producto.
+      { schemaName: { [Op.iLike]: `%${query.q}%` } },
     ];
   }
 
