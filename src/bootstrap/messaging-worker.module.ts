@@ -25,6 +25,8 @@ import { PushNotificationAdapter } from '../modules/notifications/adapters/push.
 import { SmsNotificationAdapter } from '../modules/notifications/adapters/sms.adapter.js';
 import { WhatsAppNotificationAdapter } from '../modules/notifications/adapters/whatsapp.adapter.js';
 import { RECIPIENT_DIRECTORY_PORT } from '../modules/notifications/application/ports/recipient-directory.port.js';
+import { DEVICE_TOKEN_REGISTRY_PORT } from '../modules/notifications/application/ports/device-token-registry.port.js';
+import { SequelizeDeviceTokenRegistryAdapter } from '../modules/notifications/infrastructure/sequelize-device-token-registry.adapter.js';
 import { LocalRecipientDirectoryAdapter } from '../modules/notifications/infrastructure/directory/local-recipient-directory.adapter.js';
 import { HttpRecipientDirectoryAdapter } from '../modules/notifications/infrastructure/directory/http-recipient-directory.adapter.js';
 import { RemoteRecipientDirectoryAdapter } from '../modules/notifications/infrastructure/directory/remote-recipient-directory.adapter.js';
@@ -77,6 +79,9 @@ export const MESSAGING_FORBIDDEN_MODULES = Object.freeze([
     GmailMailModule,
   ],
   providers: [
+    // Baja de tokens muertos: el worker entrega push igual que el API, asi que la necesita igual.
+    SequelizeDeviceTokenRegistryAdapter,
+    { provide: DEVICE_TOKEN_REGISTRY_PORT, useExisting: SequelizeDeviceTokenRegistryAdapter },
     NotificationsRepository,
     NotificationTemplatesRepository,
     NotificationPoliciesRepository,

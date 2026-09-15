@@ -13,6 +13,7 @@ import { NotificationChannelAdapter } from './notification-channel-adapter.js';
 import { NotificationProviderConfigService } from './notification-provider-config.service.js';
 import { base64Url } from '../../../common/utils/crypto/encoding.util.js';
 import { APNS_TRANSPORT, ApnsTransport, sendApns } from './apns.util.js';
+import { DEVICE_TOKEN_REGISTRY_PORT, type DeviceTokenRegistryPort } from '../application/ports/device-token-registry.port.js';
 
 function normalizePrivateKey(raw: string): string {
   return raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;
@@ -66,6 +67,12 @@ export class PushNotificationAdapter implements NotificationChannelAdapter {
      * tumbaba el arranque del contenedor entero. Que sea opcional en TypeScript no basta.
      */
     @Optional() @Inject(APNS_TRANSPORT) private readonly apnsTransport?: ApnsTransport,
+    /**
+     * Puerto de baja de tokens muertos. Opcional por la MISMA razón que el transporte: es un Symbol
+     * y no un proveedor deducible del tipo. Si no está, el envío sigue funcionando y sólo se pierde
+     * la baja — nunca al revés.
+     */
+    @Optional() @Inject(DEVICE_TOKEN_REGISTRY_PORT) private readonly deviceTokens?: DeviceTokenRegistryPort,
   ) {}
 
   getProviderName(): string {
@@ -176,14 +183,42 @@ export class PushNotificationAdapter implements NotificationChannelAdapter {
       transport: this.apnsTransport,
     });
     /*
-      Un 410 no se cuenta como fallo: Apple dice que ese dispositivo desinstaló la app. Queda en la
-      respuesta de la entrega —con los últimos cuatro caracteres del token, nunca el token— para que
-      se pueda dar de baja; darlo de baja aquí exigiría meterle el repositorio al adaptador.
+      Un 410 no se cuenta como fallo: Apple dice que ese dispositivo desinstaló la app. Se da de baja
+      por el puerto —dejar de intentarlo es lo que protege la reputación de envío— y el desenlace
+      viaja en la respuesta con los últimos cuatro caracteres del token, nunca el token.
     */
-    const response = { count: tokens.length, unregistered: result.unregistered.length, responses: result.responses };
+    const response = {
+      count: tokens.length,
+      unregistered: result.unregistered.length,
+      ...(await this.deactivate(result.unregistered)),
+      responses: result.responses,
+    };
     return result.ok
       ? sentDelivery('apns', message.id, response)
       : failedDelivery('apns', 'APNS_SEND_FAILED', 'APNs rechazó al menos un envío.', response);
+  }
+
+  /**
+   * Da de baja los tokens que Apple declaró muertos, y dice qué pasó.
+   *
+   * Tres desenlaces distintos, y ninguno puede confundirse con otro:
+   *  - `deactivated: n` — se apagaron n filas.
+   *  - `deactivationUnavailable` — no hay puerto cableado (el worker de un piloto, una prueba).
+   *  - `deactivationFailed` — la base falló.
+   *
+   * **La baja nunca tumba la entrega.** El aviso ya salió; que la base no conteste no lo deshace, y
+   * convertir un envío correcto en `failed` por eso haría reintentar un mensaje ya entregado. Si
+   * `unregistered` es mayor que cero y `deactivated` es cero, la huella dejó de coincidir con la del
+   * registro: es la avería que `deviceTokenFingerprint` y su prueba existen para impedir.
+   */
+  private async deactivate(unregistered: string[]): Promise<Record<string, unknown>> {
+    if (unregistered.length === 0) return { deactivated: 0 };
+    if (!this.deviceTokens) return { deactivationUnavailable: true };
+    try {
+      return { deactivated: await this.deviceTokens.deactivate(unregistered) };
+    } catch (error) {
+      return { deactivationFailed: error instanceof Error ? error.message : 'error desconocido' };
+    }
   }
 
   private async sendWebhook(message: NotificationMessagePayload): Promise<DeliveryResult> {

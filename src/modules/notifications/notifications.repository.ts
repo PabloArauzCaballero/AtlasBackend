@@ -8,9 +8,10 @@ import { InjectModel } from '@nestjs/sequelize';
 import { LocalRecipientDirectoryAdapter } from './infrastructure/directory/local-recipient-directory.adapter.js';
 import { legacyCustomerContactTargets } from './infrastructure/directory/legacy-contact-targets.js';
 import { Op, UniqueConstraintError } from 'sequelize';
-import { lastCharacters, sha256Hex } from '../../common/utils/crypto/hash.util.js';
+import { lastCharacters } from '../../common/utils/crypto/hash.util.js';
 import { decryptSecretEnvelope, encryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
-import { redactSensitiveObject, stableStringify } from '../../common/utils/privacy/redaction.util.js';
+import { redactSensitiveObject } from '../../common/utils/privacy/redaction.util.js';
+import { deviceTokenFingerprint } from './infrastructure/persistence/device-token-fingerprint.js';
 import {
   CustomerContactMethodModel,
   DeviceTokenModel,
@@ -444,7 +445,7 @@ export class NotificationsRepository {
   }
 
   async upsertDeviceToken(tenantId: string, customerId: string, body: UpsertDeviceTokenDto): Promise<DeviceTokenModel> {
-    const tokenHash = sha256Hex(stableStringify({ token: body.token }));
+    const tokenHash = deviceTokenFingerprint(body.token);
     const now = new Date();
     const existing = await this.deviceTokenModel.findOne({ where: { tenantId, customerId, platform: body.platform, tokenHash } });
     if (existing) {

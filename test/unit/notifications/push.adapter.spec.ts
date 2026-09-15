@@ -160,6 +160,99 @@ describe('PushNotificationAdapter', () => {
       expect(capturado.map((r) => r.token)).toEqual(['ios-1']);
       expect(resultado.response).toMatchObject({ count: 1, apns: { count: 1 } });
     });
+
+    /**
+     * El 410 de Apple es «este aparato ya no existe», no un fallo de entrega.
+     *
+     * Antes se contaba en la respuesta y nada más: el token seguía activo y se le reintentaba en cada
+     * aviso, para siempre. Apple penaliza a quien insiste contra tokens muertos, así que la baja no es
+     * limpieza cosmética sino lo que protege la reputación de envío.
+     */
+    describe('tokens que Apple declara muertos (410)', () => {
+      const configApns = {
+        getPushProvider: () => 'fcm',
+        require: () => 'val',
+        getWebhookUrl: () => null,
+        getApnsCredentials: () => credenciales,
+      };
+      /*
+        Ojo con la forma de la respuesta: un mensaje SOLO para iPhone devuelve la de APNs TAL CUAL,
+        y solo cuando el mismo envio lleva tambien Android queda anidada bajo `apns`. Escribir aqui
+        `{ apns: ... }` hace que `toMatchObject` no encuentre nada y el fallo parezca de la baja.
+      */
+      /** Devuelve 410 para los tokens indicados y 200 para el resto. */
+      const transporteCon410 = (muertos: string[]) => async (_host: string, requests: ApnsRequest[]) =>
+        requests.map((r) => ({ token: r.token, status: muertos.includes(r.token) ? 410 : 200, body: '{"reason":"Unregistered"}' }));
+
+      it('da de baja SOLO el token muerto, y la entrega sigue siendo un éxito', async () => {
+        resetApnsTokenCache();
+        const registro = { deactivate: jest.fn(async () => 1) };
+        const adapter = new PushNotificationAdapter(
+          configApns as never,
+          { run: jest.fn() } as never,
+          transporteCon410(['ios-muerto']),
+          registro as never,
+        );
+
+        const resultado = await adapter.send(
+          mensaje([
+            { address: 'ios-muerto', platform: 'ios' },
+            { address: 'ios-vivo', platform: 'ios' },
+          ]),
+        );
+
+        expect(registro.deactivate).toHaveBeenCalledWith(['ios-muerto']);
+        // Un 410 NO es fallo: el mensaje salió para el que sí existe.
+        expect(resultado.status).toBe('sent');
+        expect(resultado.response).toMatchObject({ count: 2, unregistered: 1, deactivated: 1 });
+      });
+
+      it('sin ningún 410 no toca la base', async () => {
+        resetApnsTokenCache();
+        const registro = { deactivate: jest.fn(async () => 0) };
+        const adapter = new PushNotificationAdapter(
+          configApns as never,
+          { run: jest.fn() } as never,
+          transporteCon410([]),
+          registro as never,
+        );
+
+        const resultado = await adapter.send(mensaje([{ address: 'ios-vivo', platform: 'ios' }]));
+
+        expect(registro.deactivate).not.toHaveBeenCalled();
+        expect(resultado.response).toMatchObject({ unregistered: 0, deactivated: 0 });
+      });
+
+      it('si la base falla, el aviso YA salió: no se convierte en fallido', async () => {
+        resetApnsTokenCache();
+        const registro = {
+          deactivate: jest.fn(async () => {
+            throw new Error('base caida');
+          }),
+        };
+        const adapter = new PushNotificationAdapter(
+          configApns as never,
+          { run: jest.fn() } as never,
+          transporteCon410(['ios-muerto']),
+          registro as never,
+        );
+
+        const resultado = await adapter.send(mensaje([{ address: 'ios-muerto', platform: 'ios' }]));
+
+        // Marcarlo failed haría reintentar un mensaje ya entregado.
+        expect(resultado.status).toBe('sent');
+        expect(resultado.response).toMatchObject({ unregistered: 1, deactivationFailed: 'base caida' });
+      });
+
+      it('sin puerto cableado lo DICE, en vez de aparentar que dio de baja cero', async () => {
+        resetApnsTokenCache();
+        const adapter = new PushNotificationAdapter(configApns as never, { run: jest.fn() } as never, transporteCon410(['ios-muerto']));
+
+        const resultado = await adapter.send(mensaje([{ address: 'ios-muerto', platform: 'ios' }]));
+
+        expect(resultado.response).toMatchObject({ unregistered: 1, deactivationUnavailable: true });
+      });
+    });
   });
 });
 

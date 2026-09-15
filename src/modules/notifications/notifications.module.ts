@@ -25,6 +25,8 @@ import { WhatsAppNotificationAdapter } from './adapters/whatsapp.adapter.js';
 import { NotificationBroadcastService } from './notification-broadcast.service.js';
 import { NOTIFICATION_REQUEST_PORT } from './application/ports/notification-request.port.js';
 import { RECIPIENT_DIRECTORY_PORT } from './application/ports/recipient-directory.port.js';
+import { DEVICE_TOKEN_REGISTRY_PORT } from './application/ports/device-token-registry.port.js';
+import { SequelizeDeviceTokenRegistryAdapter } from './infrastructure/sequelize-device-token-registry.adapter.js';
 import { CustomersModule } from '../customers/customers.module.js';
 import { CustomerRecipientDirectoryAdapter } from '../customers/infrastructure/customer-recipient-directory.adapter.js';
 import { LocalNotificationRequestAdapter } from './infrastructure/local-notification-request.adapter.js';
@@ -77,6 +79,9 @@ import { NotificationsService } from './notifications.service.js';
     LocalRecipientDirectoryAdapter,
     { provide: EVENT_CONSUMERS, useFactory: (consumer: NotificationEventConsumer) => [consumer], inject: [NotificationEventConsumer] },
     { provide: RECIPIENT_DIRECTORY_PORT, useExisting: CustomerRecipientDirectoryAdapter },
+    // Baja de los tokens que el proveedor declara muertos (410 de APNs).
+    SequelizeDeviceTokenRegistryAdapter,
+    { provide: DEVICE_TOKEN_REGISTRY_PORT, useExisting: SequelizeDeviceTokenRegistryAdapter },
     NotificationsRepository,
     NotificationTemplatesRepository,
     NotificationPoliciesRepository,
