@@ -101,6 +101,10 @@ export const CONTRACT_TAGS: ReadonlyArray<{ name: string; description: string }>
   { name: 'external-data-admin', description: 'Administración de proveedores externos: modos, políticas de coste, SLA y consumo.' },
   { name: 'notifications', description: 'Notificaciones multicanal, preferencias del destinatario y evidencia de entrega.' },
   {
+    name: 'notification-campaigns',
+    description: 'Campañas de notificación a clientes: contenido, segmento de audiencia, ventana de envío y resultado por canal.',
+  },
+  {
     name: 'catalog-management',
     description: 'Catálogos versionados, definiciones semánticas y mapeos de riesgo que consume el motor de decisión.',
   },

@@ -30755,6 +30755,10 @@ tags:
     description: >-
       Notificaciones multicanal, preferencias del destinatario y evidencia de
       entrega.
+  - name: notification-campaigns
+    description: >-
+      Campañas de notificación a clientes: contenido, segmento de audiencia,
+      ventana de envío y resultado por canal.
   - name: catalog-management
     description: >-
       Catálogos versionados, definiciones semánticas y mapeos de riesgo que
