@@ -5261,7 +5261,6 @@ paths:
                   minLength: 3
                   maxLength: 140
                 purpose:
-                  default: marketing
                   type: string
                   enum:
                     - marketing
@@ -5275,7 +5274,6 @@ paths:
                   minLength: 1
                   maxLength: 1000
                 category:
-                  default: campaign
                   type: string
                   minLength: 1
                   maxLength: 60
@@ -5379,7 +5377,6 @@ paths:
                     - {}
                     - type: 'null'
                 ratePerMinute:
-                  default: 600
                   type: integer
                   minimum: 10
                   maximum: 6000

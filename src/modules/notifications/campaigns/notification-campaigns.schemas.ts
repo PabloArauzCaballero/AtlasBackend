@@ -57,12 +57,21 @@ const deepLinkSchema = z
   .max(300)
   .regex(/^\/[A-Za-z0-9/_\-()[\].?=&]*$/, 'El enlace debe ser una ruta interna de la app, por ejemplo /pagos.');
 
+/**
+ * Los campos de una campaña SIN valores por omisión.
+ *
+ * Los defaults se aplican sólo al CREAR. Ponerlos aquí y reusarlos en la edición con `.optional()`
+ * era una trampa medida contra la base: en zod, `.default(x).optional()` resuelve el default antes
+ * que el opcional, así que un PATCH que sólo cambiaba el título inyectaba `purpose: 'marketing'`,
+ * `category: 'campaign'` y `ratePerMinute: 600` — y una campaña operativa se convertía en comercial,
+ * que es justo la que exige consentimiento y deja la audiencia vacía al programar.
+ */
 const campaignFields = {
   name: z.string().trim().min(3).max(140),
-  purpose: z.enum(['marketing', 'operational']).default('marketing'),
+  purpose: z.enum(['marketing', 'operational']),
   title: z.string().trim().min(1).max(120),
   body: z.string().trim().min(1).max(1_000),
-  category: z.string().trim().min(1).max(60).default('campaign'),
+  category: z.string().trim().min(1).max(60),
   icon: z.string().trim().min(1).max(60).optional().nullable(),
   deepLink: deepLinkSchema.optional().nullable(),
   channels: z
@@ -74,7 +83,7 @@ const campaignFields = {
   audience: audienceDefinitionSchema.optional(),
   startsAt: z.coerce.date().optional().nullable(),
   endsAt: z.coerce.date().optional().nullable(),
-  ratePerMinute: z.coerce.number().int().min(10).max(6_000).default(600),
+  ratePerMinute: z.coerce.number().int().min(10).max(6_000),
   maxRecipients: z.coerce.number().int().min(1).max(1_000_000).optional().nullable(),
 };
 
@@ -84,17 +93,32 @@ function windowIsCoherent(value: { startsAt?: Date | null; endsAt?: Date | null 
 
 const windowMessage = { message: 'La fecha de fin debe ser posterior a la de inicio.', path: ['endsAt'] };
 
-export const createCampaignSchema = z.object(campaignFields).refine(windowIsCoherent, windowMessage);
-export const updateCampaignSchema = z
+export const createCampaignSchema = z
   .object({
     ...campaignFields,
-    purpose: campaignFields.purpose.optional(),
-    category: campaignFields.category.optional(),
-    ratePerMinute: campaignFields.ratePerMinute.optional(),
-    channels: campaignFields.channels.optional(),
+    purpose: campaignFields.purpose.default('marketing'),
+    category: campaignFields.category.default('campaign'),
+    ratePerMinute: campaignFields.ratePerMinute.default(600),
+  })
+  .refine(windowIsCoherent, windowMessage);
+
+/** Editar cambia SÓLO lo que viaja: lo ausente se queda como está (ni se repone a un default). */
+export const updateCampaignSchema = z
+  .object({
     name: campaignFields.name.optional(),
+    purpose: campaignFields.purpose.optional(),
     title: campaignFields.title.optional(),
     body: campaignFields.body.optional(),
+    category: campaignFields.category.optional(),
+    icon: campaignFields.icon,
+    deepLink: campaignFields.deepLink,
+    channels: campaignFields.channels.optional(),
+    audienceSegmentId: campaignFields.audienceSegmentId,
+    audience: campaignFields.audience,
+    startsAt: campaignFields.startsAt,
+    endsAt: campaignFields.endsAt,
+    ratePerMinute: campaignFields.ratePerMinute.optional(),
+    maxRecipients: campaignFields.maxRecipients,
   })
   .refine(windowIsCoherent, windowMessage);
 
