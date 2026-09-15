@@ -230,6 +230,34 @@ describe('ExpedienteService', () => {
       expect(repository.registrar).toHaveBeenCalledWith(
         expect.objectContaining({ detalle: expect.objectContaining({ objetoConservadoPor: ['/extractos/enero.pdf'] }) }),
       );
+      // El nodo cuyo archivo se conserva NO pierde su fila: sin ella el objeto quedaría huérfano.
+      expect(repository.borrarNodoDefinitivo).toHaveBeenCalledTimes(1);
+      expect(repository.borrarNodoDefinitivo).toHaveBeenCalledWith('t1', 'a');
+    });
+
+    it('con el conteo del Motor incierto no se borra ni el archivo ni la fila que lo apunta', async () => {
+      const { service, repository, storage, refCounter } = construir();
+      repository.listarTodosLosNodos.mockResolvedValueOnce([
+        nodo({ id: 'c', storageKey: 'k/carnet.jpg', borradoEn: new Date('2026-09-01') }),
+      ] as never);
+      refCounter.puedeBorrarse.mockReturnValueOnce(false);
+
+      const resultado = await service.purgar({ tenantId: 't1', expedienteId: 'exp-1', actor, motivo: 'limpieza', soloPapelera: true });
+
+      expect(storage.deleteObject).not.toHaveBeenCalled();
+      expect(repository.borrarNodoDefinitivo).not.toHaveBeenCalled();
+      expect(resultado).toEqual({ nodos: 1, objetosBorrados: 0, objetosConservados: 1 });
+    });
+
+    it('un nodo sin archivo (carpeta) se borra aunque no haya nada que contar', async () => {
+      const { service, repository, refCounter } = construir();
+      repository.listarTodosLosNodos.mockResolvedValueOnce([nodo({ id: 'carpeta', storageKey: null })] as never);
+
+      const resultado = await service.purgar({ tenantId: 't1', expedienteId: 'exp-1', actor, motivo: 'limpieza', soloPapelera: false });
+
+      expect(refCounter.contar).not.toHaveBeenCalled();
+      expect(repository.borrarNodoDefinitivo).toHaveBeenCalledWith('t1', 'carpeta');
+      expect(resultado).toEqual({ nodos: 1, objetosBorrados: 0, objetosConservados: 0 });
     });
 
     it('excluye del conteo al propio nodo: si no, cada archivo se referenciaría a sí mismo y nunca se borraría', async () => {
@@ -241,7 +269,7 @@ describe('ExpedienteService', () => {
       expect(refCounter.contar).toHaveBeenCalledWith('k/a.jpg', 'n-42');
     });
 
-    it('un fallo del almacén cuenta como conservado y no aborta la purga de las filas', async () => {
+    it('un fallo del almacén cuenta como conservado, conserva su fila y no aborta el resto', async () => {
       const { service, repository, storage } = construir();
       repository.listarTodosLosNodos.mockResolvedValueOnce([
         nodo({ id: 'a', storageKey: 'k/a.jpg' }),
@@ -252,7 +280,8 @@ describe('ExpedienteService', () => {
       const resultado = await service.purgar({ tenantId: 't1', expedienteId: 'exp-1', actor, motivo: 'gdpr', soloPapelera: false });
 
       expect(resultado).toEqual({ nodos: 2, objetosBorrados: 1, objetosConservados: 1 });
-      expect(repository.borrarNodoDefinitivo).toHaveBeenCalledTimes(2);
+      expect(repository.borrarNodoDefinitivo).toHaveBeenCalledTimes(1);
+      expect(repository.borrarNodoDefinitivo).toHaveBeenCalledWith('t1', 'b');
     });
 
     it('vaciar la papelera se limita a los nodos borrados y no marca el expediente como purgado', async () => {

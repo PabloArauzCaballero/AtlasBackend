@@ -141,9 +141,14 @@ export class ExpedienteService {
   /**
    * Purga definitiva: borra filas y, cuando nadie más los referencia, los objetos.
    *
-   * Es la operación que hace real el derecho de supresión, y la única del módulo que destruye
-   * bytes. Por eso pregunta por cada clave antes de borrarla y se salta —sin fallar— las que el
-   * conteo no puede garantizar.
+   * Es la única operación del módulo que destruye bytes. Por eso pregunta por cada clave antes de
+   * borrarla y se salta —sin fallar— las que el conteo no puede garantizar.
+   *
+   * **La fila de un nodo cuyo archivo se CONSERVA no se borra.** Hasta el 2026-09-15 se borraba
+   * siempre: si el objeto no se podía borrar (referenciado, conteo del Motor incierto o almacén
+   * caído) quedaba en el bucket sin ningún puntero que lo encontrara, y «Vaciar la papelera»
+   * dejaba archivos huérfanos —carnets incluidos— que ya nadie podía purgar. Conservar la fila
+   * permite reintentar la purga más tarde; la bitácora dice cuáles se quedaron y por qué.
    */
   async purgar(input: {
     tenantId: string;
@@ -160,21 +165,13 @@ export class ExpedienteService {
     const conservadosPor: string[] = [];
 
     for (const nodo of candidatos) {
-      if (nodo.storageKey) {
-        const referencias = await this.refCounter.contar(nodo.storageKey, nodo.id);
-        if (this.refCounter.puedeBorrarse(referencias)) {
-          try {
-            await this.storage.deleteObject(nodo.storageKey);
-            objetosBorrados += 1;
-          } catch (error) {
-            this.logger.warn(`No se pudo borrar ${nodo.storageKey}: ${(error as Error).message}`);
-            objetosConservados += 1;
-          }
-        } else {
-          objetosConservados += 1;
-          conservadosPor.push(nodo.ruta);
-        }
+      const conservado = nodo.storageKey ? !(await this.borrarObjetoSiNadieLoUsa(nodo.storageKey, nodo.id)) : false;
+      if (conservado) {
+        objetosConservados += 1;
+        conservadosPor.push(nodo.ruta);
+        continue;
       }
+      if (nodo.storageKey) objetosBorrados += 1;
       await this.repository.borrarNodoDefinitivo(input.tenantId, nodo.id);
     }
 
@@ -205,12 +202,25 @@ export class ExpedienteService {
     return { nodos: candidatos.length, objetosBorrados, objetosConservados };
   }
 
+  /** `true` si el objeto se borró; `false` si se conserva (referenciado, conteo incierto o fallo del almacén). */
+  private async borrarObjetoSiNadieLoUsa(storageKey: string, nodoId: string): Promise<boolean> {
+    const referencias = await this.refCounter.contar(storageKey, nodoId);
+    if (!this.refCounter.puedeBorrarse(referencias)) return false;
+    try {
+      await this.storage.deleteObject(storageKey);
+      return true;
+    } catch (error) {
+      this.logger.warn(`No se pudo borrar ${storageKey}: ${(error as Error).message}`);
+      return false;
+    }
+  }
+
   /**
-   * Purga por sujeto. Es la puerta que usa el flujo de supresión de datos personales.
+   * Purga por sujeto: la puerta pensada para el flujo de supresión de datos personales.
    *
-   * Existía un hueco medido: `customer-privacy` borraba las filas del cliente y **no tocaba el
-   * almacén**, así que el carnet y la selfie de una persona suprimida seguían en el bucket. Sin
-   * esto, el derecho de supresión no alcanzaba a la imagen del documento de identidad.
+   * Ojo, a 2026-09-15 NINGÚN flujo la llama: `customer-privacy` sólo REGISTRA las solicitudes de
+   * supresión y nunca borró filas (un comentario anterior decía lo contrario). Conectarla espera
+   * decisiones de retención y base legal; ver `_plan-promesas-reales-2026-09-14/PLAN.md` §7.
    */
   async purgarPorSujeto(input: {
     tenantId: string;
