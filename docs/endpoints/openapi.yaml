@@ -4991,6 +4991,32 @@ paths:
       summary: Los bytes de un documento, para verlo
       tags:
         - customer-onboarding
+  /customer-onboarding/verification-channels:
+    get:
+      description: >-
+        Devuelve los tres canales en orden de preferencia, cada uno con si el
+        servidor puede entregarlo con la configuración vigente. La app debe
+        elegir por omisión el primero con `available: true`.
+      operationId: CustomerOnboardingController_verificationChannels
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Lista de canales con su disponibilidad.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security: []
+      summary: Canales de verificación disponibles
+      tags:
+        - customer-onboarding
   /customer-onboarding/start:
     post:
       description: >-
@@ -21525,6 +21551,38 @@ paths:
       security:
         - access-token: []
       summary: Cola de casos de fraude (paginada por cursor)
+      tags:
+        - operations
+  /operations/customers/pending-contact-verification:
+    get:
+      description: >-
+        Correos y teléfonos declarados por clientes que aún no confirmaron el
+        código. Es la cola desde la que el portal reenvía la verificación (POST
+        /customer-onboarding/:customerId/contact-verification/request).
+      operationId: OperationsController_listPendingContactVerification
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Lista de contactos sin verificar, del más reciente al más antiguo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Contactos de clientes pendientes de verificación
       tags:
         - operations
   /operations/customers/{customerId}/investigation-summary:

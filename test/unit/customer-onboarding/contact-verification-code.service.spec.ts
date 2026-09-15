@@ -60,6 +60,34 @@ describe('ContactVerificationCodeService', () => {
     expect(() => service.assertChannelAvailable('email')).not.toThrow();
   });
 
+  /**
+   * El catálogo publica los TRES, no sólo los encendidos.
+   *
+   * La app lo necesita para dos cosas distintas: elegir el primero disponible por omisión y poder
+   * explicar por qué los otros no se ofrecen. Si sólo viajaran los disponibles, «apagado» y «no
+   * existe» serían indistinguibles y la pantalla volvería a ofrecer un canal que responde
+   * VERIFICATION_CHANNEL_UNAVAILABLE.
+   */
+  it('el catálogo lista los tres canales, en orden de preferencia, con su disponibilidad', async () => {
+    const { service } = await build({ emailEnabled: true, smsProvider: 'disabled', whatsappProvider: 'disabled' });
+    expect(service.channelCatalog()).toEqual([
+      { channel: 'email', available: true },
+      { channel: 'sms', available: false },
+      { channel: 'whatsapp', available: false },
+    ]);
+  });
+
+  it('el catálogo sigue a la configuración: al encender SMS pasa a disponible sin tocar la app', async () => {
+    const { service } = await build({ emailEnabled: true, smsProvider: 'twilio', whatsappProvider: 'disabled' });
+    expect(service.channelCatalog()).toEqual([
+      { channel: 'email', available: true },
+      { channel: 'sms', available: true },
+      { channel: 'whatsapp', available: false },
+    ]);
+    // El orden NO depende de cuál esté encendido: lo fija el servidor y la app toma el primero válido.
+    expect(service.channelCatalog().map((c) => c.channel)).toEqual(['email', 'sms', 'whatsapp']);
+  });
+
   /** Emitir + entregar, ahora en dos pasos: el primero transaccional, el segundo tras el commit. */
   async function issueAndDeliver(
     service: { issue: (i: never) => Promise<unknown>; deliverIssuedCode: (i: never) => Promise<unknown> },

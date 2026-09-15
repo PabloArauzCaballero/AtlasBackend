@@ -29,6 +29,11 @@ export class CustomerOnboardingService {
     private readonly expedienteHooks: ExpedienteHooksService,
   ) {}
 
+  /** Delegación: la app pregunta por aquí porque es la fachada que ya usa para todo el alta. */
+  verificationChannels() {
+    return this.contactVerificationService.verificationChannels();
+  }
+
   /**
    * El alta, y después su carpeta.
    *

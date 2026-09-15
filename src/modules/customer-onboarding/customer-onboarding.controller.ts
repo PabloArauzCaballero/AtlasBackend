@@ -3,7 +3,7 @@
  * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
-import { Body, Controller, Headers, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
@@ -47,6 +47,33 @@ export class CustomerOnboardingController {
     private readonly identityManualReviewOutcomeService: IdentityManualReviewOutcomeService,
     private readonly contactsSnapshotService: CustomerContactsSnapshotService,
   ) {}
+
+  /**
+   * Qué canales de verificación puede entregar este servidor.
+   *
+   * Existe porque la app tenía la lista escrita a mano y arrancaba en «correo» por un parche: los
+   * tres canales dependen de configuración del servidor (`NOTIFICATION_EMAIL_PROVIDER`,
+   * `SMS_PROVIDER`, `WHATSAPP_PROVIDER`) y pedir un código por uno apagado responde
+   * `VERIFICATION_CHANNEL_UNAVAILABLE` DESPUÉS de que la persona ya eligió. El día que se encienda
+   * SMS, la app se entera sola y no hace falta publicar una versión nueva.
+   *
+   * Público y sin tenant a propósito: la respuesta es configuración de la plataforma —qué
+   * proveedores están montados—, no un dato de nadie. No revela contactos, ni clientes, ni permite
+   * enumerar nada, y la app la necesita en el alta, antes de tener credenciales.
+   */
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Public()
+  @ApiOperation({
+    summary: 'Canales de verificación disponibles',
+    description:
+      'Devuelve los tres canales en orden de preferencia, cada uno con si el servidor puede entregarlo ' +
+      'con la configuración vigente. La app debe elegir por omisión el primero con `available: true`.',
+  })
+  @ApiResponse({ status: 200, description: 'Lista de canales con su disponibilidad.' })
+  @Get('verification-channels')
+  verificationChannels() {
+    return { channels: this.customerOnboardingService.verificationChannels() };
+  }
 
   // 10 onboarding attempts per minute per IP — prevents enumeration and abuse
   @Throttle({ default: { ttl: 60_000, limit: 10 } })

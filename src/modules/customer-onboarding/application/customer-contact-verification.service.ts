@@ -63,6 +63,11 @@ export class CustomerContactVerificationService {
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
+  /** Qué canales puede entregar este servidor, y en qué orden ofrecerlos. */
+  verificationChannels() {
+    return this.codeService.channelCatalog();
+  }
+
   async requestContactVerification(input: FlowInput & { body: ContactVerificationRequestDto }) {
     if (!input.idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     assertOwnCustomerResourceOrInternalOperational(input.currentUser, input.customerId);

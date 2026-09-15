@@ -20,6 +20,14 @@ import { WhatsAppNotificationAdapter } from '../../notifications/adapters/whatsa
 export type ContactType = 'phone' | 'email';
 export type VerificationChannel = 'sms' | 'email' | 'whatsapp';
 
+/**
+ * Orden de preferencia con el que se ofrecen los canales. Lo decide el SERVIDOR, no la app.
+ *
+ * Aquí es donde se cambia si algún día SMS pasa a ser el canal principal: la app toma el primero
+ * disponible de esta lista, así que no hace falta publicar una versión nueva para cambiarlo.
+ */
+export const CHANNEL_PREFERENCE: readonly VerificationChannel[] = ['email', 'sms', 'whatsapp'] as const;
+
 export type CodeDeliveryOutcome = {
   delivered: boolean;
   provider: string;
@@ -80,6 +88,19 @@ export class ContactVerificationCodeService {
     if (this.smsAdapter.getProviderName() !== 'disabled') channels.push('sms');
     if (this.whatsappAdapter.getProviderName() !== 'disabled') channels.push('whatsapp');
     return channels;
+  }
+
+  /**
+   * Los TRES canales con su disponibilidad, no sólo los encendidos.
+   *
+   * La app necesita las dos cosas: cuál puede usar por omisión y por qué los otros no aparecen. Si
+   * sólo se publicaran los disponibles, una app que enseñe «SMS» seguiría ofreciéndolo —no tendría
+   * forma de distinguir «apagado» de «no existe»— y pedirlo devolvería `VERIFICATION_CHANNEL_UNAVAILABLE`
+   * después de que la persona ya eligió. El orden es el de preferencia y lo fija el servidor.
+   */
+  channelCatalog(): { channel: VerificationChannel; available: boolean }[] {
+    const disponibles = new Set(this.availableChannels());
+    return CHANNEL_PREFERENCE.map((channel) => ({ channel, available: disponibles.has(channel) }));
   }
 
   assertChannelAvailable(channel: VerificationChannel): void {

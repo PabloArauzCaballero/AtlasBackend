@@ -6,7 +6,7 @@
     "src/modules/auth/auth.controller.ts": 7,
     "src/modules/consents/consents.controller.ts": 1,
     "src/modules/credit/credit-review-callback.controller.ts": 2,
-    "src/modules/customer-onboarding/customer-onboarding.controller.ts": 1,
+    "src/modules/customer-onboarding/customer-onboarding.controller.ts": 2,
     "src/modules/customer-onboarding/identity-review-callback.controller.ts": 2,
     "src/modules/customers/customer-recipient-directory.controller.ts": 2,
     "src/modules/health/health.controller.ts": 3,
