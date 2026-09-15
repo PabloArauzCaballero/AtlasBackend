@@ -60,8 +60,21 @@ export class MerchantUsersService {
    * portal interno CONCEDE accesos, no inventa usuarios de comercio. El corte está aquí y no en la
    * pantalla porque una pantalla se salta con `curl`.
    */
+  /**
+   * `status` lo decide quien crea: la concesión de una petición del ERP nace ACTIVA porque el
+   * operador acaba de aprobarla y la persona recibe la contraseña por correo en ese momento —
+   * nacer «invited» la dejaba sin poder entrar (`auth-actor-resolver` exige `active`) y nadie más
+   * la activaba: medido el 2026-09-15 en TEST con el recorrido del comercio.
+   */
   async createIdentity(
-    input: { email: string; fullName: string; phone?: string | null; userCode?: string | null; password: string },
+    input: {
+      email: string;
+      fullName: string;
+      phone?: string | null;
+      userCode?: string | null;
+      password: string;
+      status?: 'invited' | 'active';
+    },
     actor: { tenantId: string; internalUserId: string | null },
     transaction: Transaction,
   ): Promise<MerchantUserProfile> {
@@ -87,7 +100,7 @@ export class MerchantUsersService {
         roleCode: 'merchant',
         // Nace `invited`: existe y puede iniciar sesión sólo cuando alguien lo activa
         // explícitamente. El alta y la habilitación son dos decisiones distintas.
-        status: 'invited',
+        status: input.status ?? 'invited',
         mustChangePassword: true,
         createdByInternalUserId: actor.internalUserId,
         createdAtValue: new Date(),

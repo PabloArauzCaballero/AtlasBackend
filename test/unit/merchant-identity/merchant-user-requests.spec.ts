@@ -103,6 +103,8 @@ describe('Cola de altas de identidad de comercio', () => {
     expect((merchantUsersService.createIdentity as jest.Mock).mock.calls[0]?.[0]).toMatchObject({
       email: 'encargada@ferreteria.test',
       fullName: 'Marisol Quiroga',
+      // Nace ACTIVA: el login del comercio exige `active` y nadie más la activaba.
+      status: 'active',
     });
     // La contraseña la genera el servicio: ni el ERP ni quien aprueba la eligen.
     expect(resultado.temporaryPassword).toEqual(expect.any(String));

@@ -196,6 +196,8 @@ export class MerchantUserRequestsService {
           phone: request.phone,
           userCode: dto.userCode ?? null,
           password: temporaryPassword,
+          // Conceder ES activar: la contraseña temporal viaja por correo en este mismo paso.
+          status: 'active',
         },
         { tenantId, internalUserId: actor.internalUserId },
         transaction,
