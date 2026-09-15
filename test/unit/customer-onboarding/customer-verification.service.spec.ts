@@ -52,6 +52,33 @@ describe('CustomerVerificationService', () => {
 
   const baseInput = { tenantId: 't1', customerId: 'c1', currentUser: analyst, ipAddress: '10.0.0.1' };
 
+  it('rechaza con IDENTITY_DECISION_DELEGADA_AL_MOTOR un intento que el Motor tiene en su cola', async () => {
+    const { service, verificationRepository } = build();
+    (verificationRepository.findLatestAttempt as jest.Mock).mockResolvedValueOnce({
+      id: 'attempt-2',
+      finalResult: 'IN_REVIEW',
+      reasonCodesJson: { executionId: '4242' },
+    } as never);
+    await expect(service.decideIdentity({ ...baseInput, body: { decision: 'approve', reasonCode: 'ok' } as never })).rejects.toThrow(
+      /IDENTITY_DECISION_DELEGADA_AL_MOTOR.*4242/,
+    );
+    expect(verificationRepository.resolveAttempt).not.toHaveBeenCalled();
+  });
+
+  it('un intento del Motor YA resuelto (no IN_REVIEW) sí admite la decisión humana', async () => {
+    const { service, verificationRepository } = build();
+    (verificationRepository.findLatestAttempt as jest.Mock).mockResolvedValueOnce({
+      id: 'attempt-3',
+      finalResult: 'UNAVAILABLE',
+      reasonCodesJson: { executionId: '4242' },
+    } as never);
+    await expect(service.decideIdentity({ ...baseInput, body: { decision: 'approve', reasonCode: 'ok' } as never })).resolves.toMatchObject(
+      {
+        identityVerificationResult: 'verified',
+      },
+    );
+  });
+
   it('lanza NotFoundException si no hay intento de verificación que resolver', async () => {
     const { service, verificationRepository } = build();
     (verificationRepository.findLatestAttempt as jest.Mock).mockResolvedValueOnce(null as never);

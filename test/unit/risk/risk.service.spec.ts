@@ -78,16 +78,25 @@ function buildCustomersRepositoryMock(customer: { lifecycleStatus: string } | nu
  * versionado tiene su propio spec, y doblarlo aquí con otra forma haría que estas pruebas pasaran
  * describiendo un comportamiento que el servicio real no tiene.
  */
-function buildPolicyDecisionServiceMock() {
+/**
+ * La política resuelta. Sin argumento devuelve el RESPALDO que le pasó el servicio (la heurística,
+ * que desde el 2026-09-14 nunca aprueba); con `decision` finge que el Motor o un ruleset decidió eso.
+ */
+function buildPolicyDecisionServiceMock(decision?: { decision: string; reasons: string[] }) {
   return {
     resolve: jest.fn(async (input: { fallback: { decision: string; reasons: string[] } }) => ({
-      ...input.fallback,
+      ...(decision ?? input.fallback),
       rulesetVersionCode: 'rules-v1',
       firedRules: [],
       fromRuleset: false,
+      decisionSource: decision ? 'decision_engine' : 'heuristic_v0',
+      decisionExecutionId: decision ? 'exec-1' : null,
+      motorAbrioCaso: null,
     })),
   };
 }
+
+const POLITICA_APRUEBA = { decision: 'approved_for_next_step', reasons: ['minimum_onboarding_risk_passed'] };
 
 function buildSequelizeMock() {
   return { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
@@ -238,7 +247,7 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     ).rejects.toThrow('REQUIRED_CONSENT_MISSING');
   });
 
-  it('caso feliz: identidad + contacto verificado + consentimiento → approved_for_next_step, riskLevel alto, sin caso de revisión manual', async () => {
+  it('caso feliz: identidad + contacto verificado + consentimiento y la POLÍTICA aprueba → approved_for_next_step, sin caso de revisión manual', async () => {
     const riskRepository = buildRiskRepositoryMock();
     const revisionManualRepository = buildRevisionManualRepositoryMock(); // identidad + contacto verificado por defecto
     const customersRepository = buildCustomersRepositoryMock();
@@ -246,7 +255,7 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
       riskRepository as never,
       revisionManualRepository as never,
       customersRepository as never,
-      buildPolicyDecisionServiceMock() as never,
+      buildPolicyDecisionServiceMock(POLITICA_APRUEBA) as never,
       buildSequelizeMock() as never,
     );
 
@@ -269,6 +278,35 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     expect(revisionManualRepository.createDataQualityIssue).not.toHaveBeenCalled();
     // Auditoría siempre debe registrarse, resuelva lo que resuelva la decisión.
     expect(riskRepository.createAudit).toHaveBeenCalledTimes(1);
+  });
+
+  it('con todo en orden pero SIN política (ni Motor ni ruleset) ya no se aprueba: va a revisión y abre caso', async () => {
+    const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const service = new RiskService(
+      riskRepository as never,
+      revisionManualRepository as never,
+      customersRepository as never,
+      buildPolicyDecisionServiceMock() as never,
+      buildSequelizeMock() as never,
+    );
+
+    const result = await service.createRiskAssessment({
+      tenantId: 't1',
+      customerId: 'customer-1',
+      body: buildBody({ deviceId: 'device-1' }),
+      currentUser: buildUser(),
+      idempotencyKey: 'idem-1',
+    });
+
+    expect(result.decision).toBe('manual_review_required');
+    expect(result.decisionSource).toBe('heuristic_v0');
+    expect(revisionManualRepository.createManualReviewCase).toHaveBeenCalledTimes(1);
+    expect(revisionManualRepository.createManualReviewCase).toHaveBeenCalledWith(
+      expect.objectContaining({ notes: expect.stringContaining('decision_engine_unavailable') }),
+      expect.anything(),
+    );
   });
 
   it('sin identidad ni contacto verificado → manual_review_required, crea caso de revisión y 2 issues de calidad de datos', async () => {
@@ -309,7 +347,7 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
       riskRepository as never,
       revisionManualRepository as never,
       customersRepository as never,
-      buildPolicyDecisionServiceMock() as never,
+      buildPolicyDecisionServiceMock(POLITICA_APRUEBA) as never,
       buildSequelizeMock() as never,
     );
 

@@ -96,6 +96,27 @@ describe('CreditUnderwritingService', () => {
     expect(result.decisionMode).toBe('decision_engine');
   });
 
+  it('deja escrito en el historial el caso que el Motor abrió: es lo que dice dónde se resuelve', async () => {
+    const { service, credit } = build({
+      kind: 'review',
+      response: response({
+        outcome: 'MANUAL_REVIEW',
+        manualReview: { caseCode: 'MRC-000088001', queueCode: 'CREDIT_REVIEW', priority: 50 },
+      }),
+    });
+    await service.underwrite(input);
+
+    const [[event]] = credit.createApplicationEvent.mock.calls as unknown as [[Record<string, Record<string, unknown>>]];
+    expect(event.payloadJson).toMatchObject({ manualReviewCaseCode: 'MRC-000088001', manualReviewQueueCode: 'CREDIT_REVIEW' });
+  });
+
+  it('sin caso en el Motor el historial lo dice con null, no lo omite', async () => {
+    const { service, credit } = build({ kind: 'declined', response: response({ outcome: 'DECLINE' }) });
+    await service.underwrite(input);
+    const [[event]] = credit.createApplicationEvent.mock.calls as unknown as [[Record<string, Record<string, unknown>>]];
+    expect(event.payloadJson).toMatchObject({ manualReviewCaseCode: null });
+  });
+
   it('registra en el historial las features que el catálogo prohibía usar', async () => {
     const { service, credit } = build({ kind: 'approved', response: response() });
     await service.underwrite(input);

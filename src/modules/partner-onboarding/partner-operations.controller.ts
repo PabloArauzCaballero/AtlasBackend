@@ -17,8 +17,9 @@ import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
+import { PartnerQrReviewService } from './application/partner-qr-review.service.js';
 import { PartnerVerificationService } from './application/partner-verification.service.js';
-import { partnerIdParamsSchema } from './partner-onboarding.schemas.js';
+import { partnerIdParamsSchema, qrIdParamsSchema, QrIdParamsDto, reviewQrSchema, ReviewQrDto } from './partner-onboarding.schemas.js';
 import {
   FindPartnerQueryDto,
   findPartnerQuerySchema,
@@ -31,7 +32,7 @@ import {
   RequestKybReviewDto,
   requestKybReviewSchema,
 } from './partner-operations.schemas.js';
-import { toPartnerProfileDto } from './partner-onboarding.mapper.js';
+import { toPartnerProfileDto, toPartnerQrDto } from './partner-onboarding.mapper.js';
 
 /**
  * Quien firma que un comercio es de fiar.
@@ -64,7 +65,79 @@ export class PartnerOperationsController {
   constructor(
     private readonly profiles: PartnerProfileService,
     private readonly verification: PartnerVerificationService,
+    private readonly qr: PartnerQrReviewService,
   ) {}
+
+  /**
+   * La cola de QR de cobro esperando revisión.
+   *
+   * Es una cola aparte de la de expedientes: un comercio ya APROBADO sube o cambia su QR cuando
+   * quiere, y ese QR también tiene que pasar por una persona. Sin esta lista, un QR subido después
+   * de la verificación no aparecía en ninguna bandeja y se quedaba en `pending_review` para siempre.
+   */
+  @ApiOperation({
+    summary: 'Los QR de cobro que esperan revisión',
+    description: 'Todos los QR en `pending_review` del tenant, el más antiguo primero, con el comercio al que pertenecen.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Lista de QR pendientes.' })
+  @Get('qr-codes/pending')
+  async listQrPendingReview(@CurrentTenant() tenantId: string) {
+    const pendientes = await this.qr.listPendingReview(tenantId);
+    const perfiles = new Map<string, { legalName: string | null; tradeName: string | null; onboardingStatus: string }>();
+    for (const qr of pendientes) {
+      const partnerId = String(qr.partnerProfileId);
+      if (perfiles.has(partnerId)) continue;
+      const profile = await this.profiles.requireProfile(tenantId, partnerId).catch(() => null);
+      perfiles.set(partnerId, {
+        legalName: profile?.legalName ?? null,
+        tradeName: profile?.tradeName ?? null,
+        onboardingStatus: profile?.onboardingStatus ?? 'unknown',
+      });
+    }
+    return {
+      items: pendientes.map((qr) => ({
+        ...toPartnerQrDto(qr),
+        partnerId: String(qr.partnerProfileId),
+        partner: perfiles.get(String(qr.partnerProfileId)) ?? null,
+      })),
+    };
+  }
+
+  /**
+   * Una persona aprueba o rechaza el QR de cobro de un comercio.
+   *
+   * Es el único camino por el que un QR pasa a `active` y, con ello, el único por el que un cliente
+   * llega a verlo en la app. Se corta en el servicio (409 si no está pendiente) y no en la pantalla.
+   */
+  @InternalPermissions('partner.qr.review')
+  @ApiOperation({
+    summary: 'Aprobar o rechazar un QR de cobro',
+    description:
+      'Aprobar lo activa y archiva como `replaced` el que estuviera activo en el mismo ámbito. Rechazar exige `note`: es lo que el comercio lee para corregir. ' +
+      'Sólo sobre QR en `pending_review`; en otro estado responde 409 QR_NOT_PENDING_REVIEW.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
+  @ApiParam({ name: 'qrId', schema: zodToApiSchema(qrIdParamsSchema.shape.qrId) })
+  @ApiBody({ schema: zodToApiSchema(reviewQrSchema) })
+  @ApiResponse({ status: 200, description: 'QR revisado.' })
+  @ApiResponse({ status: 404, description: 'QR_NOT_FOUND.' })
+  @ApiResponse({ status: 409, description: 'QR_NOT_PENDING_REVIEW.' })
+  @Post(':partnerId/qr-codes/:qrId/review')
+  @HttpCode(HttpStatus.OK)
+  async reviewQr(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(qrIdParamsSchema)) params: QrIdParamsDto,
+    @Body(new ZodValidationPipe(reviewQrSchema)) body: ReviewQrDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    const reviewed = await this.qr.review(tenantId, params.partnerId, params.qrId, {
+      ...body,
+      internalUserId: currentUser.internalUserId ?? null,
+    });
+    return toPartnerQrDto(reviewed);
+  }
 
   @ApiOperation({
     summary: 'La cola de expedientes esperando decisión',

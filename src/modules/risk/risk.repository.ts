@@ -439,6 +439,24 @@ export class RiskRepository {
     return this.riskAssessmentRunModel.findOne({ where: { tenantId, id: runId } } as FindOptions);
   }
 
+  /**
+   * El resultado se corrige con lo que dijo la persona. Es lo que lee la elegibilidad
+   * (`latestRisk.recommendedAction`): cerrar el caso sin tocar esto dejaba `RISK_NOT_APPROVED`
+   * puesto para siempre aunque el analista hubiera aprobado.
+   */
+  async applyManualReviewOutcome(
+    result: RiskAssessmentResultModel,
+    values: { recommendedAction: string; reason: string; now: Date },
+    options: RepositoryOptions,
+  ): Promise<RiskAssessmentResultModel> {
+    result.recommendedAction = values.recommendedAction;
+    result.reasonCodesJson = {
+      ...(result.reasonCodesJson ?? {}),
+      manualReview: { resolution: values.recommendedAction, reason: values.reason, resolvedAt: values.now.toISOString() },
+    };
+    return result.save({ transaction: options.transaction });
+  }
+
   findRiskResultByRun(tenantId: string, runId: string): Promise<RiskAssessmentResultModel | null> {
     return this.riskAssessmentResultModel.findOne({ where: { tenantId, riskAssessmentRunId: runId } } as FindOptions);
   }

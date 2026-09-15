@@ -340,6 +340,11 @@ x-atlas-env: &atlas-env
   # esperando a una persona sin que nada dijera que el motor ni se había consultado.
   DECISION_ENGINE_CREDIT_ARTIFACT: '${DECISION_ENGINE_CREDIT_ARTIFACT:-ATLAS_BNPL_UNDERWRITING}'
   DECISION_ENGINE_IDENTITY_ARTIFACT: '${DECISION_ENGINE_IDENTITY_ARTIFACT:-IDENTIDAD_CARNET_MOVIL}'
+  # Riesgo de onboarding: sin esta variable (o sin asignación en el portal) la heurística local ya
+  # no aprueba y cada alta va a revisión humana. El artefacto tiene que estar DESPLEGADO en el
+  # ambiente de DECISION_ENGINE_ENVIRONMENT_CODE; si no, el motor responde ACTIVE_DEPLOYMENT_NOT_FOUND
+  # y se degrada igual.
+  DECISION_ENGINE_RISK_ARTIFACT: '${DECISION_ENGINE_RISK_ARTIFACT:-RIESGO_ONBOARDING_CLIENTE}'
   # Rechaza la cadena vacía y exige /^[A-Z0-9_-]{2,40}$/.
   DECISION_ENGINE_ENVIRONMENT_CODE: '${DECISION_ENGINE_ENVIRONMENT_CODE:-DEV}'
 

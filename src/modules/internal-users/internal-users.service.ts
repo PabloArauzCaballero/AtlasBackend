@@ -3,83 +3,28 @@
  * @business Esta pieza controla quién puede operar Atlas y deja evidencia de cada asignación de privilegios.
  * @system implementa identidad interna, RBAC, catálogo de permisos y guards de autorización granular.
  */
-import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { hashPassword, isPasswordStrongEnough } from '../../common/utils/crypto/password.util.js';
 import { parsePositiveId } from '../../common/utils/ids/id.util.js';
 import { buildPaginationMeta, PaginationInput, PaginationMeta } from '../../common/utils/pagination/pagination.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
 import { AuthSecondFactorService } from '../auth/auth-second-factor.service.js';
-import { MailSenderService } from '../mail-sender/mail-sender.service.js';
+import { CredentialsNotifierService } from '../auth/credentials-notifier.service.js';
 import { withEffectiveSecondFactor } from './internal-profile-second-factor.js';
-import { INTERNAL_ROLE_CODES, legacyRoleForInternalRoles } from './internal-rbac.seed-data.js';
+import { legacyRoleForInternalRoles } from './internal-rbac.seed-data.js';
+import { assertCanAssignRequestedRoles, assertInternalActor, disabledLikeStatuses, uniqueRoleCodes } from './internal-users.policy.js';
 import { InternalRbacRepository } from './internal-rbac.repository.js';
 import { CreateInternalUserDto, ReplaceInternalUserRolesDto, UpdateInternalUserDto } from './internal-users.schemas.js';
 import { InternalAccessProfile, InternalUserListItem } from './internal-users.types.js';
 
-const roleCodeSet = new Set<string>(INTERNAL_ROLE_CODES);
-const privilegedRoleCodes = new Set(['SUPER_ADMIN', 'SYSTEMS_ADMIN', 'INTERNAL_IDENTITY_ADMIN']);
-const disabledLikeStatuses = new Set(['suspended', 'locked', 'disabled']);
-
-function assertInternalActor(user: AuthenticatedUser): { tenantId: string; internalUserId: string } {
-  if (!user.tenantId || !user.internalUserId) {
-    throw new ForbiddenException('Esta operación requiere una sesión de usuario interno.');
-  }
-
-  return { tenantId: parsePositiveId(user.tenantId, 'tenantId'), internalUserId: parsePositiveId(user.internalUserId, 'internalUserId') };
-}
-
-function uniqueRoleCodes(roleCodes: readonly string[]): string[] {
-  return [...new Set(roleCodes)].filter((roleCode) => roleCodeSet.has(roleCode));
-}
-
-async function getActorRoleCodes(rbacRepository: InternalRbacRepository, tenantId: string, internalUserId: string): Promise<string[]> {
-  const actorUser = await rbacRepository.findUserById(tenantId, internalUserId);
-  if (!actorUser || actorUser.status !== 'active') {
-    throw new ForbiddenException('El usuario interno actual ya no está activo.');
-  }
-
-  return (await rbacRepository.buildAccessProfile(actorUser)).user.roles;
-}
-
-/**
- * Exige SUPER_ADMIN cuando la operación TOCA un rol privilegiado — ya sea porque se está
- * asignando (`roleCodes`) o porque el usuario objetivo ya lo tenía y `replaceRoles` lo va a
- * quitar (`currentRoleCodes`, vacío en creación de usuario nuevo). Antes solo se miraba
- * `roleCodes`: un actor con `internal.users.manage` + `internal.roles.manage` pero SIN
- * SUPER_ADMIN (p. ej. el rol `INTERNAL_IDENTITY_ADMIN`) podía llamar a `replaceRoles` con una
- * lista de roles no privilegiados sobre un usuario que sí tenía SUPER_ADMIN/SYSTEMS_ADMIN, y el
- * chequeo se saltaba por completo porque la lista NUEVA no "asignaba" ningún rol crítico —
- * despojando en silencio el rol privilegiado del objetivo sin nunca haber tenido que probar ser
- * SUPER_ADMIN. Con `currentRoleCodes` en el chequeo, quitar un rol privilegiado exige lo mismo
- * que asignarlo.
- */
-async function assertCanAssignRequestedRoles(
-  rbacRepository: InternalRbacRepository,
-  actor: { tenantId: string; internalUserId: string },
-  roleCodes: readonly string[],
-  currentRoleCodes: readonly string[] = [],
-): Promise<void> {
-  const touchesPrivilegedRole =
-    roleCodes.some((roleCode) => privilegedRoleCodes.has(roleCode)) ||
-    currentRoleCodes.some((roleCode) => privilegedRoleCodes.has(roleCode));
-  if (!touchesPrivilegedRole) return;
-
-  const actorRoleCodes = await getActorRoleCodes(rbacRepository, actor.tenantId, actor.internalUserId);
-  if (!actorRoleCodes.includes('SUPER_ADMIN')) {
-    throw new ForbiddenException('Solo SUPER_ADMIN puede asignar o quitar roles administrativos críticos.');
-  }
-}
-
 @Injectable()
 export class InternalUsersService {
-  private readonly logger = new Logger(InternalUsersService.name);
-
   constructor(
     private readonly rbacRepository: InternalRbacRepository,
     private readonly tokenRevocationService: TokenRevocationService,
     private readonly secondFactor: AuthSecondFactorService,
-    private readonly mailSender: MailSenderService,
+    private readonly credentialsNotifier: CredentialsNotifierService,
   ) {}
 
   /** Ver `internal-profile-second-factor.ts`: se informa el estado efectivo, no la columna. */
@@ -175,31 +120,16 @@ export class InternalUsersService {
       userAgent: requestContext.userAgent,
     });
 
-    await this.notifyInitialCredentials(user.id, dto.email, dto.fullName, dto.password);
+    // Después de auditar el alta y sin deshacerla si el correo falla. Hasta el 2026-09-14 nadie
+    // llamaba a este envío: el portal mostraba la contraseña una vez y el responsable no recibía nada.
+    await this.credentialsNotifier.sendInitialCredentials({
+      to: dto.email,
+      recipientName: dto.fullName,
+      temporaryPassword: dto.password,
+      reference: `internal-user:${user.id}`,
+    });
 
     return this.rbacRepository.buildAccessProfile(user);
-  }
-
-  /**
-   * El correo de bienvenida con la contraseña temporal sale DESPUÉS de que el alta y su auditoría
-   * hayan quedado escritas, y un fallo del correo no deshace el alta: el usuario existe y el
-   * operador sigue viendo la contraseña en pantalla para entregarla por otra vía. Hasta el
-   * 2026-09-14 nadie llamaba a `sendInitialCredentials`: el portal generaba la contraseña, la
-   * mostraba una vez y el responsable nunca recibía nada.
-   */
-  private async notifyInitialCredentials(userId: string, email: string, fullName: string, temporaryPassword: string): Promise<void> {
-    try {
-      await this.mailSender.sendInitialCredentials({
-        to: email,
-        recipientName: fullName,
-        temporaryPassword,
-        reference: `internal-user:${userId}`,
-      });
-    } catch (error) {
-      this.logger.error(
-        `No se pudo enviar el correo de credenciales iniciales al usuario interno ${userId}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
   }
 
   async updateUser(

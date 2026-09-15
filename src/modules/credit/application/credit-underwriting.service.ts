@@ -75,15 +75,7 @@ export class CreditUnderwritingService {
           actorType: 'decision_engine',
           actorInternalUserId: null,
           reasonCode: applied.reasonCodes[0] ?? null,
-          payloadJson: {
-            decisionMode: applied.decisionMode,
-            executionId: applied.response?.executionId ?? null,
-            artifactVersionId: applied.response?.artifact?.versionId ?? null,
-            outcome: applied.response?.outcome ?? null,
-            // Las features que el catálogo prohíbe usar al decidir se informan: quien audite la
-            // decisión tiene que poder distinguir «no había dato» de «había y no se podía usar».
-            excludedFeatures: result.excludedFeatures,
-          },
+          payloadJson: decisionEventPayload(applied, result.excludedFeatures),
           notes: applied.note,
           happenedAt: now,
         },
@@ -140,6 +132,30 @@ export class CreditUnderwritingService {
       note: `El motor derivó la solicitud a revisión (${outcome.response.outcome ?? outcome.response.status}).`,
     };
   }
+}
+
+/**
+ * Lo que el historial guarda de la decisión, además del estado.
+ *
+ * `manualReviewCaseCode` es el caso que el Motor abrió, si abrió alguno: es lo que dice dónde se
+ * resuelve. Con caso, la bandeja buena es la del Motor y la decisión humana de aquí se rechaza
+ * (`CREDIT_DECISION_DELEGADA_AL_MOTOR`); sin caso —un rechazo— no hay nada que delegar. Las
+ * features que el catálogo prohíbe usar al decidir se informan: quien audite tiene que poder
+ * distinguir «no había dato» de «había y no se podía usar».
+ */
+function decisionEventPayload(
+  applied: { decisionMode: string; response: DecisionResponse | null },
+  excludedFeatures: Array<{ featureCode: string; reason: string }>,
+): Record<string, unknown> {
+  return {
+    decisionMode: applied.decisionMode,
+    executionId: applied.response?.executionId ?? null,
+    artifactVersionId: applied.response?.artifact?.versionId ?? null,
+    outcome: applied.response?.outcome ?? null,
+    manualReviewCaseCode: applied.response?.manualReview?.caseCode ?? null,
+    manualReviewQueueCode: applied.response?.manualReview?.queueCode ?? null,
+    excludedFeatures,
+  };
 }
 
 /**

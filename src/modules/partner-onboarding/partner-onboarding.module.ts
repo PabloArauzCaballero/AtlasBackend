@@ -26,6 +26,7 @@ import { PartnerVerificationService } from './application/partner-verification.s
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { PartnerQrService } from './application/partner-qr.service.js';
+import { PartnerQrReviewService } from './application/partner-qr-review.service.js';
 import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { MerchantQrController } from './merchant-qr.controller.js';
 import { PartnerCommerceController } from './partner-commerce.controller.js';
@@ -86,6 +87,7 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     PartnerKybSyncService,
     PartnerCommerceService,
     PartnerQrService,
+    PartnerQrReviewService,
     PartnerContactVerificationService,
     DocumentStorageService,
     // `DocumentStorageService` lo exige en su constructor: la evidencia se analiza antes de darse
@@ -107,6 +109,7 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     PartnerVerificationService,
     PartnerCommerceService,
     PartnerQrService,
+    PartnerQrReviewService,
     PartnerKybSyncService,
   ],
 })

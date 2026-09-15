@@ -70,6 +70,35 @@ export class RevisionManualRepository {
     );
   }
 
+  /**
+   * El caso que nació DELEGADO a una ejecución del Motor. Es el puente de vuelta: el Motor no sabe
+   * de qué cliente es su caso, sólo de qué ejecución.
+   */
+  findManualReviewCaseByExecutionId(
+    tenantId: string,
+    decisionExecutionId: string,
+    options: RepositoryOptions = {},
+  ): Promise<ManualReviewCaseModel | null> {
+    return this.manualReviewCaseModel.findOne({
+      where: { tenantId, decisionExecutionId, deleted: false },
+      order: [['id', 'DESC']],
+      transaction: options.transaction,
+    });
+  }
+
+  closeManualReviewCase(
+    caseModel: ManualReviewCaseModel,
+    values: { resolution: string; notes: string | null; closedAt: Date },
+    options: RepositoryOptions,
+  ): Promise<ManualReviewCaseModel> {
+    caseModel.status = 'closed';
+    caseModel.resolution = values.resolution;
+    caseModel.notes = values.notes;
+    caseModel.closedAt = values.closedAt;
+    caseModel.updatedAtValue = values.closedAt;
+    return caseModel.save({ transaction: options.transaction });
+  }
+
   createDataQualityIssue(
     values: { tenantId: string; targetRecordId: string; issueCode: string; now: Date },
     options: RepositoryOptions,

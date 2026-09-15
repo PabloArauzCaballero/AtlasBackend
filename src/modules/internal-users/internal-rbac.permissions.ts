@@ -132,6 +132,10 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     // fabricando el rol de comercio a partir de ESTE rol interno.
     'merchant.users.read',
     'merchant.users.manage',
+    // Revisar el QR de cobro que sube el comercio. Va con CONCEDER y no con PEDIR: es el mismo rol
+    // que da de alta las identidades del comercio, y el ERP —que pide— no tiene que poder activar la
+    // cuenta a la que van los cobros.
+    'partner.qr.review',
   ],
   DATA_GOVERNANCE_MANAGER: [
     'auth.internal.me.read',

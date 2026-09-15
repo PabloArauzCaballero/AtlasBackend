@@ -13382,6 +13382,108 @@ paths:
       summary: Resolver el QR de caja al comercio que lo emitió
       tags:
         - partner-onboarding
+  /operations/partners/qr-codes/pending:
+    get:
+      description: >-
+        Todos los QR en `pending_review` del tenant, el más antiguo primero, con
+        el comercio al que pertenecen.
+      operationId: PartnerOperationsController_listQrPendingReview
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Lista de QR pendientes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Los QR de cobro que esperan revisión
+      tags:
+        - partner-onboarding
+  /operations/partners/{partnerId}/qr-codes/{qrId}/review:
+    post:
+      description: >-
+        Aprobar lo activa y archiva como `replaced` el que estuviera activo en
+        el mismo ámbito. Rechazar exige `note`: es lo que el comercio lee para
+        corregir. Sólo sobre QR en `pending_review`; en otro estado responde 409
+        QR_NOT_PENDING_REVIEW.
+      operationId: PartnerOperationsController_reviewQr
+      parameters:
+        - name: qrId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador de ruta `qrId` del recurso direccionado por la
+            operación.
+        - name: partnerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador de ruta `partnerId` del recurso direccionado por la
+            operación.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approved:
+                  type: boolean
+                note:
+                  type: string
+                  minLength: 3
+                  maxLength: 400
+              required:
+                - approved
+              additionalProperties: false
+      responses:
+        '200':
+          description: QR revisado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: QR_NOT_FOUND.
+        '409':
+          description: QR_NOT_PENDING_REVIEW.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Aprobar o rechazar un QR de cobro
+      tags:
+        - partner-onboarding
   /operations/partners/queue:
     get:
       description: >-
@@ -20151,6 +20253,10 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: PAYMENT_CLAIM_ALREADY_PENDING o INSTALLMENT_ALREADY_PAID.
+        '422':
+          description: >-
+            EVIDENCE_OBJECT_NOT_FOUND o LOAN_WITHOUT_PARTNER (sin comercio nadie
+            verificaría el aviso).
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':

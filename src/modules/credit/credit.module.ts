@@ -37,6 +37,7 @@ import { PaymentCapacityService } from './application/payment-capacity.service.j
 import { MerchantCreditController } from './merchant-credit.controller.js';
 import { CreditUnderwritingService } from './application/credit-underwriting.service.js';
 import { CreditOperationsController } from './credit-operations.controller.js';
+import { CreditReviewCallbackController } from './credit-review-callback.controller.js';
 import { CreditController } from './credit.controller.js';
 import { CreditRepository } from './credit.repository.js';
 import { CREDIT_UNIT_OF_WORK } from './application/ports/credit-unit-of-work.port.js';
@@ -81,7 +82,7 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     // El expediente del comercio: de él sale la categoría del gasto y quién debe aceptar la operación.
     PartnerOnboardingModule,
   ],
-  controllers: [CreditController, CreditOperationsController, MerchantCreditController],
+  controllers: [CreditController, CreditOperationsController, MerchantCreditController, CreditReviewCallbackController],
   providers: [
     // AT-015: unidad de trabajo local; la admisión migra a ella en AT-026.
     SequelizeCreditUnitOfWork,

@@ -36,7 +36,20 @@ export class RiskDecisionEngineService {
   constructor(
     private readonly client: DecisionEngineClient,
     private readonly artifactBindings: DecisionArtifactBindingService,
-  ) {}
+  ) {
+    /*
+     * Se avisa al arrancar, no en la primera alta. Medido en la base desplegada el 2026-09-14: cero
+     * evaluaciones de riesgo decididas por el Motor, todas por la heurística local, porque esta
+     * variable estaba vacía en todos los entornos y nada lo decía. El aviso no impide arrancar —la
+     * asignación por inquilino desde el portal también vale— pero deja el hueco a la vista.
+     */
+    if (this.client.isConfigured && !env.DECISION_ENGINE_RISK_ARTIFACT) {
+      this.logger.warn(
+        'DECISION_ENGINE_RISK_ARTIFACT está vacío: el riesgo de onboarding sólo llegará al Motor si hay una ' +
+          'asignación `risk` por inquilino en /internal/settings/decision-artifacts; si no, cada alta va a revisión humana.',
+      );
+    }
+  }
 
   get isEnabled(): boolean {
     return this.client.isConfigured;
@@ -60,11 +73,19 @@ export class RiskDecisionEngineService {
     idempotencyKey: string;
     subjectReference?: string;
   }): Promise<RiskEngineDecision | null> {
-    if (!this.client.isConfigured || !env.DECISION_ENGINE_RISK_ARTIFACT) return null;
+    if (!this.client.isConfigured) return null;
 
     try {
+      /*
+       * La asignación del portal se consulta ANTES de mirar el entorno. Antes el `if` de arriba
+       * exigía la variable de entorno para siquiera llegar aquí, así que la pantalla
+       * `/internal/settings/decision-artifacts` dejaba elegir un artefacto de riesgo que este código
+       * nunca leía.
+       */
       const binding = await this.artifactBindings.resolve(String(input.tenantId), 'risk');
-      const response = await this.client.execute(binding.artifactCode ?? env.DECISION_ENGINE_RISK_ARTIFACT, {
+      const artifactCode = binding.artifactCode ?? env.DECISION_ENGINE_RISK_ARTIFACT;
+      if (!artifactCode) return null;
+      const response = await this.client.execute(artifactCode, {
         requestId: `risk-${input.assessmentType}-${input.idempotencyKey}`.slice(0, 120),
         idempotencyKey: input.idempotencyKey,
         correlationId: randomUUID(),

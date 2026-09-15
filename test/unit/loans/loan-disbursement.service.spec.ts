@@ -86,6 +86,21 @@ describe('LoanDisbursementService', () => {
       expect(loans.createLoan).not.toHaveBeenCalled();
     });
 
+    it('una aprobación del Motor todavía sin aceptar por el negocio NO se desembolsa', async () => {
+      credit.findApplicationById.mockResolvedValueOnce(solicitud({ businessAcceptance: 'pending' }) as never);
+      await expect(desembolsar()).rejects.toThrow('CREDIT_BUSINESS_ACCEPTANCE_PENDING');
+      credit.findApplicationById.mockResolvedValueOnce(solicitud({ businessAcceptance: 'declined' }) as never);
+      await expect(desembolsar()).rejects.toThrow('CREDIT_BUSINESS_ACCEPTANCE_DECLINED');
+      expect(loans.createLoan).not.toHaveBeenCalled();
+    });
+
+    it('aceptada por el negocio, o firmada por una persona (sin aceptación aplicable), sí se desembolsa', async () => {
+      credit.findApplicationById.mockResolvedValueOnce(solicitud({ businessAcceptance: 'accepted' }) as never);
+      await expect(desembolsar()).resolves.toMatchObject({ loanId: 'L1' });
+      credit.findApplicationById.mockResolvedValueOnce(solicitud({ businessAcceptance: null }) as never);
+      await expect(desembolsar({}, 'idem-2')).resolves.toMatchObject({ loanId: 'L1' });
+    });
+
     it('un producto que ya no existe es 404 y no un préstamo sin tasa', async () => {
       credit.findProductById.mockResolvedValueOnce(null as never);
 

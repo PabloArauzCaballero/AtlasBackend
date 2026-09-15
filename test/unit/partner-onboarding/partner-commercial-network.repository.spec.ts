@@ -158,6 +158,36 @@ describe('PartnerCommercialNetworkRepository', () => {
       expect(values.createdAtValue).toBeInstanceOf(Date);
     });
 
+    it('el ACTIVO —el que ve el cliente— se busca sólo por `active`: uno en revisión no se enseña', async () => {
+      await repo.findActiveQr('t1', 'pp-1', 'bank', null);
+      const { where } = ultima(qrs.findOne);
+      expect(where.status).toBe('active');
+      expect(where.branchId).toEqual({ [Op.is]: null });
+    });
+
+    it('la cola de revisión es del tenant entero, el más antiguo primero: es la bandeja de una persona', async () => {
+      await repo.listQrCodesPendingReview('t1');
+      const { where, order } = ultima(qrs.findAll);
+      expect(where).toEqual({ tenantId: 't1', status: 'pending_review' });
+      expect(order).toEqual([['_created_at', 'ASC']]);
+    });
+
+    it('revisar sella fecha, firma y nota, y el estado que decidió la persona', async () => {
+      const update = jest.fn(async (_valores?: unknown, _opciones?: unknown) => undefined);
+
+      await repo.markQrReviewed({ update } as unknown as PartnerQrCodeModel, {
+        status: 'rejected',
+        reviewedByInternalUserId: '42',
+        reviewNote: 'borrosa',
+      });
+
+      const [values] = update.mock.calls.at(-1) as [Record<string, unknown>];
+      expect(values.status).toBe('rejected');
+      expect(values.reviewedByInternalUserId).toBe('42');
+      expect(values.reviewNote).toBe('borrosa');
+      expect(values.verifiedAt).toBeInstanceOf(Date);
+    });
+
     it('reemplazar deja apuntando al sucesor en vez de borrar el anterior', async () => {
       const update = jest.fn(async (_valores?: unknown, _opciones?: unknown) => undefined);
 

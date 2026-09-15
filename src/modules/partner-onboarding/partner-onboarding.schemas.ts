@@ -220,6 +220,26 @@ export const registerQrSchema = z
   });
 export type RegisterQrDto = z.infer<typeof registerQrSchema>;
 
+/**
+ * La revisión de un QR de cobro. Rechazar exige nota: es lo único que le dice al comercio qué
+ * corregir, y un rechazo mudo lo deja subiendo la misma imagen otra vez.
+ */
+export const reviewQrSchema = z
+  .object({
+    approved: z.boolean(),
+    note: z.string().trim().min(3).max(400).optional(),
+  })
+  .refine((value) => value.approved || value.note !== undefined, {
+    message: 'Rechazar un QR exige una nota con lo que hay que corregir.',
+    path: ['note'],
+  });
+export type ReviewQrDto = z.infer<typeof reviewQrSchema>;
+
+export const qrIdParamsSchema = partnerIdParamsSchema.extend({
+  qrId: z.string().regex(/^[1-9][0-9]*$/, 'Identificador de QR inválido.'),
+});
+export type QrIdParamsDto = z.infer<typeof qrIdParamsSchema>;
+
 export const registerPosTerminalSchema = z.object({
   terminalSerial: z
     .string()

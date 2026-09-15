@@ -76,6 +76,22 @@ export class CreditRepository {
     } as FindOptions);
   }
 
+  /**
+   * La solicitud que nació de UNA ejecución del Motor. Es el puente de vuelta de la revisión manual:
+   * el Motor no sabe de qué solicitud es su caso —no tiene por qué—, sólo de qué ejecución.
+   */
+  findApplicationByExecutionId(
+    tenantId: string,
+    decisionExecutionId: string,
+    options: RepositoryOptions = {},
+  ): Promise<CreditApplicationModel | null> {
+    return this.applicationModel.findOne({
+      where: { tenantId, decisionExecutionId, deleted: false },
+      order: [['id', 'DESC']],
+      transaction: options.transaction,
+    } as FindOptions);
+  }
+
   findApplicationsByCustomer(tenantId: string, customerId: string): Promise<CreditApplicationModel[]> {
     return this.applicationModel.findAll({
       where: { tenantId, customerId, deleted: false },

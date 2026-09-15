@@ -144,6 +144,15 @@ describe('buildBlockers', () => {
     expect(blockers).toContainEqual({ code: 'CONSENT_MISSING', fields: ['2'] });
   });
 
+  it('la identidad verificada por el Motor (VERIFIED, en mayúsculas) cuenta igual que la del operador', () => {
+    expect(buildBlockers(eligibleFacts({ identityVerificationResult: 'VERIFIED' }), 'active', NOW)).not.toContainEqual(
+      expect.objectContaining({ code: 'IDENTITY_NOT_VERIFIED' }),
+    );
+    expect(buildBlockers(eligibleFacts({ identityVerificationResult: 'IN_REVIEW' }), 'active', NOW)).toContainEqual(
+      expect.objectContaining({ code: 'IDENTITY_NOT_VERIFIED' }),
+    );
+  });
+
   it('bloquea por riesgo no aprobado y, por separado, por riesgo obsoleto', () => {
     const notApproved = buildBlockers(
       eligibleFacts({ latestRisk: { id: 4, recommendedAction: 'manual_review_required', decidedAt: NOW } as never }),

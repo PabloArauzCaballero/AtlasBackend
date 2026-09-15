@@ -64,8 +64,17 @@ export class PartnerQrCodeModel extends Model {
   @Column({ field: 'status', type: DataType.STRING(20), allowNull: false })
   declare status: string;
 
+  /** Cuándo una persona lo revisó (aprobado o rechazado). Nulo mientras espera. */
   @Column({ field: 'verified_at', type: DataType.DATE })
   declare verifiedAt: Date | null;
+
+  /** Quién firmó la revisión. Una cuenta de cobro tiene que poder decir quién la dio por buena. */
+  @Column({ field: 'reviewed_by_internal_user_id', type: DataType.BIGINT })
+  declare reviewedByInternalUserId: string | null;
+
+  /** La nota de la revisión: en un rechazo es lo que le dice al comercio qué corregir. */
+  @Column({ field: 'review_note', type: DataType.STRING(400) })
+  declare reviewNote: string | null;
 
   @Column({ field: 'replaced_by_id', type: DataType.BIGINT })
   declare replacedById: string | null;

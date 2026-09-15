@@ -396,12 +396,19 @@ async function uploadQrOrReportGap(partnerId: string, qrKind: 'business' | 'bank
     body: { qrKind, contentType: 'image/png', sizeBytes: QR_PNG.byteLength },
   });
 
+  /*
+   * Antes esto avisaba «QR NO probado» y seguía en verde. Un smoke que se salta un paso en silencio
+   * deja creer que se probó algo que no se probó (2026-09-14): sin almacén, el smoke FALLA y dice
+   * qué falta. Para correrlo sin almacén a propósito: `SMOKE_ALLOW_NO_STORAGE=1`.
+   */
   if (ticket.status === 503) {
-    console.warn(
-      `[partner-onboarding] QR ${qrKind} NO probado: falta configurar el almacenamiento de objetos ` +
-        '(STORAGE_* en el entorno). El resto del flujo sí se ejercitó.',
-    );
-    return;
+    const mensaje =
+      `[partner-onboarding] QR ${qrKind} no se pudo probar: falta configurar el almacenamiento de objetos ` + '(STORAGE_* en el entorno).';
+    if (process.env.SMOKE_ALLOW_NO_STORAGE === '1') {
+      console.warn(`${mensaje} Se omite porque SMOKE_ALLOW_NO_STORAGE=1.`);
+      return;
+    }
+    throw new Error(mensaje);
   }
 
   const uploadUrl = getStringFromPaths(ticket.data, [['data', 'uploadUrl'], ['uploadUrl']]);
@@ -414,11 +421,10 @@ async function uploadQrOrReportGap(partnerId: string, qrKind: 'business' | 'bank
     body: QR_PNG,
   });
   if (!put.ok) {
-    console.warn(
-      `[partner-onboarding] QR ${qrKind} NO probado: el almacenamiento rechazó la subida (${put.status}). ` +
-        'Revisa credenciales y permisos del bucket.',
+    throw new Error(
+      `[partner-onboarding] QR ${qrKind}: el almacenamiento rechazó la subida (${put.status}). ` +
+        'Revisa credenciales y permisos del bucket. Antes esto se reportaba como aviso y el smoke seguía en verde.',
     );
-    return;
   }
 
   await request({

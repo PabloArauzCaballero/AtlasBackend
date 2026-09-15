@@ -88,6 +88,7 @@ export class MobilePaymentClaimsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Reclamo creado, esperando verificación del comercio.' })
   @ApiResponse({ status: 409, description: 'PAYMENT_CLAIM_ALREADY_PENDING o INSTALLMENT_ALREADY_PAID.' })
+  @ApiResponse({ status: 422, description: 'EVIDENCE_OBJECT_NOT_FOUND o LOAN_WITHOUT_PARTNER (sin comercio nadie verificaría el aviso).' })
   @Post()
   @HttpCode(HttpStatus.OK)
   submit(

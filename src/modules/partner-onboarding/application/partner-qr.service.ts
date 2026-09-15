@@ -27,6 +27,14 @@ import { assertPaymentQrEditable } from './partner-profile.guards.js';
  *
  * Se reemplaza. El anterior queda en `replaced` apuntando al nuevo. Si un cobro salió mal hay que
  * poder reconstruir contra qué QR se cobró ese día, y un UPDATE en sitio destruye exactamente eso.
+ *
+ * ## Por qué un QR lo revisa una persona antes de que lo vea un cliente
+ *
+ * Nace en `pending_review` y sólo pasa a `active` cuando alguien del portal interno lo aprueba
+ * (`PartnerQrReviewService`). Hasta el 2026-09-14 no existía esa ruta: ningún QR salía nunca de `pending_review`,
+ * el índice de «un activo por ámbito» no se ejercía y el cliente recibía en la app un QR que nadie
+ * había mirado. Un QR de cobro dice a qué cuenta va el dinero de otra persona; ésa es la razón de
+ * que se mire.
  */
 @Injectable()
 export class PartnerQrService {
@@ -92,11 +100,16 @@ export class PartnerQrService {
     await this.assertImagenContieneQr(dto.qrKind, dto.storageKey, metadata.contentType);
 
     /*
-     * El reemplazo va en la MISMA operación que el alta y en este orden: primero se crea el nuevo
-     * y después se marca el viejo apuntando a él. Al revés quedaría una ventana sin ningún QR
-     * vigente, y el índice único parcial impediría además tener dos activos a la vez.
+     * Qué reemplaza el alta, y qué no.
+     *
+     * Un QR anterior que todavía esperaba revisión queda `replaced`: el comercio lo corrigió antes
+     * de que nadie lo mirara y no hay nada que conservar vigente. Un QR ACTIVO no se toca aquí: sigue
+     * siendo el que ven los clientes hasta que el nuevo se apruebe, y es la aprobación (`PartnerQrReviewService`) la
+     * que lo archiva. Reemplazarlo ya, como se hacía antes, dejaba al comercio sin QR de cobro
+     * durante toda la revisión —una ventana en la que ningún cliente podía pagarle—.
      */
     const previous = await this.network.findLiveQr(tenantId, partnerId, dto.qrKind, branchId);
+    const previousPending = previous?.status === 'pending_review' ? previous : null;
     const created = await this.network.createQrCode({
       tenantId,
       partnerProfileId: partnerId,
@@ -111,12 +124,14 @@ export class PartnerQrService {
       bankInstitutionCode: dto.bankInstitutionCode ?? null,
       accountNumberMasked: dto.accountNumberMasked ?? null,
     });
-    if (previous) await this.network.markQrReplaced(previous, created.id);
+    if (previousPending) await this.network.markQrReplaced(previousPending, created.id);
 
     this.metrics.recordPartnerOnboardingStep({ step: `qr_${dto.qrKind}`, outcome: 'ok' });
     this.logger.log(
       `QR de partner registrado: partnerId=${partnerId} tipo=${dto.qrKind} ` +
-        `sucursal=${branchId ?? 'empresa'} reemplaza=${previous?.id ?? 'ninguno'}`,
+        `sucursal=${branchId ?? 'empresa'} reemplaza=${previousPending?.id ?? 'ninguno'} activoVigente=${
+          previous && !previousPending ? previous.id : 'ninguno'
+        }`,
     );
     return created;
   }
@@ -197,7 +212,16 @@ export class PartnerQrService {
    * el cobro en mostrador; una cuota se transfiere al comercio, no a la caja donde se compró.
    */
   findLivePaymentQr(tenantId: string, partnerId: string): Promise<PartnerQrCodeModel | null> {
-    return this.network.findLiveQr(tenantId, partnerId, 'bank', null);
+    return this.network.findActiveQr(tenantId, partnerId, 'bank', null);
+  }
+
+  /**
+   * Si hay un QR bancario esperando revisión: sirve para decirle al cliente «el comercio ya lo
+   * subió, falta que lo aprueben», que no es lo mismo que «el comercio no tiene QR».
+   */
+  async hasPaymentQrPendingReview(tenantId: string, partnerId: string): Promise<boolean> {
+    const live = await this.network.findLiveQr(tenantId, partnerId, 'bank', null);
+    return live?.status === 'pending_review';
   }
 
   /**

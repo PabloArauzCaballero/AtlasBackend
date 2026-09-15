@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { UnprocessableEntityException } from '@nestjs/common';
 import { LoanPaymentClaimsService } from '../../../src/modules/loan-payment-claims/loan-payment-claims.service.js';
 import { CARPETA_POR_TIPO } from '../../../src/modules/expedientes/expedientes.types.js';
 
@@ -44,7 +45,7 @@ function construir() {
         loan: { id: '5', currencyCode: 'BOB', creditApplicationId: null },
         installment: { id: '11', loanId: '5', status: 'pending' },
       })),
-      resolvePartner: jest.fn(async () => null),
+      resolvePartner: jest.fn(async () => '7'),
     } as never,
     expedienteHooks as never,
   );
@@ -97,6 +98,25 @@ describe('El comprobante de pago entra en el expediente', () => {
 
     expect(eventosAlLlamarAlGancho).toBe(1);
     expect(eventos[0]?.eventCode).toBe('payment.reported');
+  });
+
+  /*
+   * Sin comercio no hay aviso. Antes se guardaba el reclamo con `partner_profile_id` nulo: no
+   * aparecía en la cola de NINGÚN comercio y el cliente veía «en verificación» para siempre.
+   */
+  it('un crédito sin comercio no admite aviso: se rechaza con 422 y no se escribe nada', async () => {
+    const { service, expedienteHooks, eventos } = construir();
+    const contexto = (service as unknown as { contexto: { resolvePartner: jest.Mock } }).contexto;
+    contexto.resolvePartner.mockImplementation(async () => null);
+
+    const fallo = await service.submit(entrada).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(fallo).toBeInstanceOf(UnprocessableEntityException);
+    expect((fallo as Error).message).toMatch(/LOAN_WITHOUT_PARTNER/);
+    expect(expedienteHooks.alRegistrarEvidencia).not.toHaveBeenCalled();
+    expect(eventos).toHaveLength(0);
   });
 
   it('el comprobante tiene su propia carpeta y no cae en «otros»', () => {

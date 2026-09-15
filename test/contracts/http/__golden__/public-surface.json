@@ -2105,6 +2105,24 @@
     "security": ["access-token"],
     "body": true
   },
+  "GET /operations/partners/qr-codes/pending": {
+    "operationId": "PartnerOperationsController_listQrPendingReview",
+    "responses": ["200", "400", "401", "403", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": ["access-token"],
+    "body": false
+  },
+  "POST /operations/partners/{partnerId}/qr-codes/{qrId}/review": {
+    "operationId": "PartnerOperationsController_reviewQr",
+    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "headers": [],
+    "query": [],
+    "path": ["partnerId", "qrId"],
+    "security": ["access-token"],
+    "body": true
+  },
   "GET /operations/partners/queue": {
     "operationId": "PartnerOperationsController_listQueue",
     "responses": ["200", "400", "401", "403", "429", "500"],
@@ -3151,7 +3169,7 @@
   },
   "POST /mobile/customers/{customerId}/payment-claims": {
     "operationId": "MobilePaymentClaimsController_submit",
-    "responses": ["200", "400", "401", "403", "404", "409", "429", "500"],
+    "responses": ["200", "400", "401", "403", "404", "409", "422", "429", "500"],
     "headers": [],
     "query": [],
     "path": ["customerId"],

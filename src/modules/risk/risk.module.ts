@@ -32,6 +32,8 @@ import {
 import { CustomersModule } from '../customers/customers.module.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { RiskController } from './risk.controller.js';
+import { RiskReviewCallbackController } from './risk-review-callback.controller.js';
+import { RiskManualReviewOutcomeService } from './application/risk-manual-review-outcome.service.js';
 import { RiskPolicyDecisionService } from './application/risk-policy-decision.service.js';
 import { RiskPolicyRepository } from './repositories/risk-policy.repository.js';
 import { RiskRepository } from './risk.repository.js';
@@ -67,7 +69,7 @@ import { RiskService } from './risk.service.js';
     // pasa a ser el último recurso, que es el lugar que su propio autor le asignó.
     DecisionEngineModule,
   ],
-  controllers: [RiskController],
+  controllers: [RiskController, RiskReviewCallbackController],
   providers: [
     // AT-027: los hechos de entrada llegan por puerto; el adaptador local lee de la misma base.
     LocalRiskInputFactsAdapter,
@@ -77,6 +79,7 @@ import { RiskService } from './risk.service.js';
     RiskPolicyRepository,
     RiskPolicyDecisionService,
     RiskService,
+    RiskManualReviewOutcomeService,
   ],
   exports: [RiskRepository, RiskService],
 })

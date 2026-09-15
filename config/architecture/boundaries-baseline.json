@@ -1,10 +1,10 @@
 {
   "$comment": "Deuda heredada de fronteras (AT-012). Generada por yarn check:architecture --update-baseline; sólo puede encoger.",
-  "updatedOn": "2026-09-12",
-  "count": 111,
+  "updatedOn": "2026-09-14",
+  "count": 102,
   "byRule": {
     "domain-purity": 3,
-    "cross-module": 108
+    "cross-module": 99
   },
   "violations": [
     "domain-external:src/modules/support/domain/case-state-machine.ts->@nestjs/common",
@@ -12,11 +12,6 @@
     "domain:src/modules/support/domain/support-hash-chain.ts->src/common/utils/privacy/redaction.util.ts",
     "import:src/modules/auth/auth-actor-resolver.service.ts->src/modules/customers/customers.repository.ts",
     "import:src/modules/auth/auth-actor-resolver.service.ts->src/modules/customers/repositories/customer-contacts.repository.ts",
-    "import:src/modules/auth/auth-credentials.service.ts->src/modules/mail-sender/mail-sender.service.ts",
-    "import:src/modules/auth/auth-password-change.service.ts->src/modules/mail-sender/mail-sender.service.ts",
-    "import:src/modules/auth/auth-password-reset.service.ts->src/modules/mail-sender/mail-sender.service.ts",
-    "import:src/modules/auth/auth-second-factor.service.ts->src/modules/mail-sender/mail-sender.service.ts",
-    "import:src/modules/auth/auth.service.ts->src/modules/mail-sender/mail-sender.service.ts",
     "import:src/modules/credit/application/bank-statement-review.worker.ts->src/modules/decision-engine/bank-statement-engine.client.ts",
     "import:src/modules/credit/application/bank-statement.service.ts->src/modules/decision-engine/bank-statement-engine.client.ts",
     "import:src/modules/credit/application/bank-statement.service.ts->src/modules/expedientes/application/expediente-hooks.service.ts",
@@ -60,12 +55,8 @@
     "import:src/modules/loans/application/spending-report.layout.service.ts->src/modules/customers/customers.repository.ts",
     "import:src/modules/loans/application/spending-report.service.ts->src/modules/customers/customers.repository.ts",
     "import:src/modules/loans/loans-operations.controller.ts->src/modules/decision-engine/outcome-dispatch.service.ts",
-    "import:src/modules/merchant-identity/merchant-auth.service.ts->src/modules/auth/auth.service.ts",
-    "import:src/modules/merchant-identity/merchant-auth.service.ts->src/modules/auth/merchant-actor.repository.ts",
     "import:src/modules/merchant-identity/merchant-users.controller.ts->src/modules/internal-users/guards/internal-permissions.guard.ts",
     "import:src/modules/merchant-identity/merchant-users.controller.ts->src/modules/internal-users/internal-permissions.decorator.ts",
-    "import:src/modules/merchant-identity/merchant-users.service.ts->src/modules/auth/auth.repository.ts",
-    "import:src/modules/merchant-identity/merchant-users.service.ts->src/modules/auth/merchant-actor.repository.ts",
     "import:src/modules/mobile-identity/mobile-identity-signals.service.ts->src/modules/decision-engine/decision-artifact-binding.service.ts",
     "import:src/modules/mobile-identity/mobile-identity-signals.service.ts->src/modules/decision-engine/decision-engine.client.ts",
     "import:src/modules/mobile-identity/mobile-identity.service.ts->src/modules/decision-engine/decision-artifact-binding.service.ts",

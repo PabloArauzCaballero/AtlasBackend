@@ -15,7 +15,6 @@ import {
   OperationalAuditLogModel,
 } from '../../database/models/index.js';
 import { AuthModule } from '../auth/auth.module.js';
-import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { InternalPermissionsGuard } from './guards/internal-permissions.guard.js';
 import { InternalAccessCatalogController } from './internal-access-catalog.controller.js';
 import { InternalAccessCatalogRepository } from './internal-access-catalog.repository.js';
@@ -39,7 +38,6 @@ import { InternalUsersService } from './internal-users.service.js';
       OperationalAuditLogModel,
     ]),
     AuthModule,
-    MailSenderModule,
   ],
   controllers: [InternalAuthController, InternalUsersController, InternalAccessCatalogController],
   providers: [

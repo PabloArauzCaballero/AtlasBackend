@@ -54,6 +54,16 @@ export const PEOPLE_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
     riskLevel: 'MEDIUM',
   }),
   permission({
+    code: 'partner.qr.review',
+    module: 'merchant',
+    resource: 'partner_qr_code',
+    action: 'review',
+    description:
+      'Aprobar o rechazar el QR de cobro de un comercio. Es lo que decide a qué cuenta transfieren los clientes: hasta que alguien lo aprueba, la app no lo enseña.',
+    // Una cuenta de cobro ajena. Quien aprueba firma con su usuario y la fila conserva la nota.
+    riskLevel: 'HIGH',
+  }),
+  permission({
     code: 'internal.users.manage',
     module: 'internal',
     resource: 'internal_user',

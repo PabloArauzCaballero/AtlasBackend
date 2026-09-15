@@ -70,7 +70,7 @@ export const PARTNER_ONBOARDING_NARRATIVES: EntityBusinessNarrative[] = [
     usageExample:
       'Un comercio sube su QR bancario del BNB. Queda en `pending_review` con la cuenta enmascarada y el hash del archivo. Un analista lo aprueba y pasa a `active`. Tres meses después el comercio cambia de banco: el QR nuevo entra, el viejo pasa a `replaced` apuntando al nuevo, y los cobros de antes siguen siendo explicables.',
     systemsExplanation:
-      'Un índice único parcial garantiza **un solo QR activo por tipo y ámbito**: sin él pueden convivir dos QR bancarios vigentes apuntando a cuentas distintas y no hay forma de saber cuál cobró. Un CHECK exige la entidad en los bancarios. `branch_id` nulo significa que el QR es de toda la empresa.',
+      'Un índice único parcial garantiza **un solo QR activo por tipo y ámbito**: sin él pueden convivir dos QR bancarios vigentes apuntando a cuentas distintas y no hay forma de saber cuál cobró. Un CHECK exige la entidad en los bancarios. `branch_id` nulo significa que el QR es de toda la empresa. `reviewed_by_internal_user_id` y `review_note` son la firma de la revisión: sólo un QR `active` llega a la app del cliente, y un rechazo lleva la nota que le dice al comercio qué corregir.',
   },
   {
     tableName: 'partner_pos_terminals',

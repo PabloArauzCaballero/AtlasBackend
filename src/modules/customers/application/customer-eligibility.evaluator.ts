@@ -172,6 +172,15 @@ export function buildSections(facts: EligibilityFacts, now: Date): OnboardingSec
 }
 
 /** Bloqueadores de la habilitación. Lista completa: nunca corta en el primero encontrado. */
+/**
+ * En minúsculas a propósito. El camino del Motor (`mobile-identity`) escribe `VERIFIED` y el del
+ * operador y el proveedor escriben `verified`; comparar en estricto dejaba a todo cliente verificado
+ * por el Motor con `IDENTITY_NOT_VERIFIED` hasta que una persona lo firmara otra vez.
+ */
+export function isIdentityVerified(result: string | null | undefined): boolean {
+  return (result ?? '').toLowerCase() === IDENTITY_VERIFIED_RESULT;
+}
+
 export function buildBlockers(facts: EligibilityFacts, lifecycleStatus: CustomerLifecycleStatus, now: Date): EligibilityBlocker[] {
   const blockers: EligibilityBlocker[] = [];
 
@@ -193,7 +202,7 @@ export function buildBlockers(facts: EligibilityFacts, lifecycleStatus: Customer
   if (!facts.identityDocument) blockers.push({ code: 'IDENTITY_DOCUMENT_MISSING' });
   else if (isDocumentExpired(facts.identityDocument.expiresAt, now)) blockers.push({ code: 'IDENTITY_DOCUMENT_EXPIRED' });
 
-  if (facts.identityVerificationResult !== IDENTITY_VERIFIED_RESULT) {
+  if (!isIdentityVerified(facts.identityVerificationResult)) {
     blockers.push({ code: 'IDENTITY_NOT_VERIFIED', detail: facts.identityVerificationResult ?? 'not_started' });
   }
   if (facts.pendingEvidenceReviewCount > 0) blockers.push({ code: 'EVIDENCE_PENDING_REVIEW' });

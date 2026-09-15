@@ -69,6 +69,17 @@ export class LoanPaymentClaimsService {
 
     const contentType = assertMimeType(input.body.contentType);
     const partnerProfileId = await this.contexto.resolvePartner(input.tenantId, loan);
+    /*
+     * Sin comercio no hay aviso. Un reclamo sin `partner_profile_id` no aparece en la cola de NINGÚN
+     * comercio: el cliente ve «en verificación» para siempre y nadie lo verifica. Es mejor decirle
+     * ahora a quién reclamar (la instrucción de pago ya explica `LOAN_WITHOUT_PARTNER`) que guardar
+     * un huérfano que parece un aviso hecho.
+     */
+    if (!partnerProfileId) {
+      throw new UnprocessableEntityException(
+        'LOAN_WITHOUT_PARTNER: este crédito no tiene comercio asociado; el aviso no tendría quien lo verifique.',
+      );
+    }
 
     const resultado = await this.escribirReclamo({ input, loan, installment, metadata, contentType, partnerProfileId });
 

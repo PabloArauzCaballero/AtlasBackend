@@ -44,7 +44,7 @@ describe('Cola de altas de identidad de comercio', () => {
       connection: { transaction: jest.fn(async (work: never) => (work as (t: unknown) => unknown)({ LOCK: { UPDATE: 'UPDATE' } })) },
     };
 
-    const mailSender = { sendInitialCredentials: jest.fn(async (..._args: unknown[]) => ({ trackingId: 'mail-1' })) };
+    const mailSender = { sendInitialCredentials: jest.fn(async (..._args: unknown[]) => undefined) };
     const service = new MerchantUserRequestsService(requestModel as never, merchantUsersService as never, mailSender as never);
     return { service, requestModel, merchantUsersService, mailSender, fila, actualizada };
   }
@@ -122,18 +122,6 @@ describe('Cola de altas de identidad de comercio', () => {
       temporaryPassword: resultado.temporaryPassword,
       reference: 'merchant-user:m7',
     });
-  });
-
-  it('si el correo falla, la concesión se mantiene y la contraseña sigue en la respuesta', async () => {
-    const { service, mailSender, actualizada } = buildService(peticionPendiente);
-    (mailSender.sendInitialCredentials as jest.Mock).mockImplementation(async () => {
-      throw new Error('gmail caído');
-    });
-
-    const resultado = await service.approve('t1', 'r1', {}, { internalUserId: 'i1' });
-
-    expect(resultado.temporaryPassword).toEqual(expect.any(String));
-    expect(actualizada[0]).toMatchObject({ status: 'provisioned' });
   });
 
   it('no se decide dos veces sobre la misma petición', async () => {

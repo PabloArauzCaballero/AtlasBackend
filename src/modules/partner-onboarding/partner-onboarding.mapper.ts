@@ -84,6 +84,8 @@ export function toPartnerQrDto(model: PartnerQrCodeModel) {
     accountNumberMasked: model.accountNumberMasked,
     status: model.status,
     verifiedAt: model.verifiedAt?.toISOString() ?? null,
+    /** En un rechazo, lo que hay que corregir. Se publica porque el comercio es quien lo necesita leer. */
+    reviewNote: model.reviewNote ?? null,
     replacedById: model.replacedById,
     createdAt: model.createdAtValue.toISOString(),
   };

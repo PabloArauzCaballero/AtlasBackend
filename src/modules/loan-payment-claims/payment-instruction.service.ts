@@ -18,6 +18,17 @@ import { LoanPaymentClaimModel } from '../../database/models/index.js';
  * pagado y sólo se le dice cómo hacerlo; allí ya pagó y lo está declarando. Compartían clase, y
  * entre las dos pasaban de las 300 líneas de `check:file-size`.
  */
+/**
+ * Por qué no hay QR, dicho con precisión. «No disponible» a secas haría que el cliente llamara a
+ * Atlas por algo que sólo su comercio —o quien revisa el QR— puede resolver.
+ */
+function motivoSinQr(ctx: { partnerProfileId: string | null; qr: unknown; imagen: unknown; pendienteDeRevision: boolean }): string | null {
+  if (ctx.qr && ctx.imagen) return null;
+  if (!ctx.partnerProfileId) return 'LOAN_WITHOUT_PARTNER';
+  if (ctx.qr) return 'PAYMENT_QR_OBJECT_MISSING';
+  return ctx.pendienteDeRevision ? 'PARTNER_PAYMENT_QR_PENDING_REVIEW' : 'PARTNER_HAS_NO_PAYMENT_QR';
+}
+
 @Injectable()
 export class PaymentInstructionService {
   constructor(
@@ -74,8 +85,15 @@ export class PaymentInstructionService {
       order: [['submitted_at', 'DESC']],
     });
 
+    /*
+     * Sólo el QR ACTIVO —el que una persona aprobó— llega al cliente. Uno que espera revisión no se
+     * enseña, pero sí se dice que existe: «falta que lo aprueben» y «el comercio no subió nada» piden
+     * cosas distintas a personas distintas.
+     */
     const qr = partnerProfileId ? await this.partnerQr.findLivePaymentQr(input.tenantId, partnerProfileId) : null;
     const imagen = qr ? await this.readQrImageSafe(qr.storageKey) : null;
+    const pendienteDeRevision =
+      partnerProfileId && !qr ? await this.partnerQr.hasPaymentQrPendingReview(input.tenantId, partnerProfileId) : false;
 
     return {
       installmentId: String(installment.id),
@@ -101,12 +119,7 @@ export class PaymentInstructionService {
               imageDataUrl: `data:${qr.contentType};base64,${imagen.toString('base64')}`,
             }
           : null,
-      /*
-       * Por qué no hay QR, dicho con precisión. «No disponible» a secas haría que el cliente
-       * llamara a Atlas por algo que sólo su comercio puede resolver.
-       */
-      paymentQrUnavailableReason:
-        qr && imagen ? null : !partnerProfileId ? 'LOAN_WITHOUT_PARTNER' : !qr ? 'PARTNER_HAS_NO_PAYMENT_QR' : 'PAYMENT_QR_OBJECT_MISSING',
+      paymentQrUnavailableReason: motivoSinQr({ partnerProfileId, qr, imagen, pendienteDeRevision }),
       openClaim: claimAbierto
         ? {
             claimId: String(claimAbierto.id),

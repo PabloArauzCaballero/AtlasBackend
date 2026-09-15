@@ -87,9 +87,9 @@ function makeAuthService(inEffect = true) {
   return { isRequired: jest.fn((..._args: unknown[]) => inEffect) };
 }
 
-/** El correo de credenciales iniciales: se comprueba QUE se manda y A QUIÉN, no el transporte. */
-function makeMailSender(overrides: Record<string, unknown> = {}) {
-  return { sendInitialCredentials: jest.fn(async (..._args: unknown[]) => ({ trackingId: 'mail-1' })), ...overrides };
+/** El aviso de credenciales iniciales: se comprueba QUE se pide y A QUIÉN, no el transporte. */
+function makeMailSender() {
+  return { sendInitialCredentials: jest.fn(async (..._args: unknown[]) => undefined) };
 }
 
 describe('InternalUsersService security boundaries', () => {
@@ -333,10 +333,10 @@ describe('InternalUsersService · credenciales iniciales por correo', () => {
   const alta = {
     email: 'nueva.analista@empresa.com',
     fullName: 'Nueva Analista',
-    department: 'RISK',
+    department: 'RISK' as const,
     password: 'Atlas_Temporal#2026!',
     mustChangePassword: true,
-    roles: ['RISK_ANALYST'],
+    roles: ['RISK_ANALYST' as const],
     reason: 'alta controlada',
   };
 
@@ -370,25 +370,5 @@ describe('InternalUsersService · credenciales iniciales por correo', () => {
     const ordenAuditoria = (repository.createAudit as jest.Mock).mock.invocationCallOrder[0] ?? Infinity;
     const ordenCorreo = (mail.sendInitialCredentials as jest.Mock).mock.invocationCallOrder[0] ?? -1;
     expect(ordenCorreo).toBeGreaterThan(ordenAuditoria);
-  });
-
-  it('si el correo falla, el alta NO se deshace: el usuario queda creado y la contraseña sigue en la respuesta del portal', async () => {
-    const repository = makeRepositoryQueCrea();
-    const mail = makeMailSender({
-      sendInitialCredentials: jest.fn(async (..._args: unknown[]) => {
-        throw new Error('gmail caído');
-      }),
-    });
-    const service = new InternalUsersService(
-      repository as never,
-      makeTokenRevocationService() as never,
-      makeAuthService() as never,
-      mail as never,
-    );
-
-    await expect(service.createUser(superAdmin, alta, { ipAddress: '127.0.0.1', userAgent: 'jest' })).resolves.toMatchObject({
-      user: { id: '77' },
-    });
-    expect(repository.createUserWithCredentials).toHaveBeenCalledTimes(1);
   });
 });

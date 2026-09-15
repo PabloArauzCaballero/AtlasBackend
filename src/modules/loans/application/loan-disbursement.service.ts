@@ -17,6 +17,20 @@ import { LoansRepository } from '../loans.repository.js';
 /** Sólo una solicitud aprobada origina un préstamo. Ni una en revisión, ni una ya desembolsada. */
 const DISBURSABLE_APPLICATION_STATUS = 'approved';
 
+/**
+ * La segunda pregunta tiene que estar contestada antes de que haya dinero.
+ *
+ * El Motor responde «¿cumple el riesgo?» y deja `businessAcceptance = 'pending'`; el negocio
+ * responde «¿queremos esta operación?». Hasta el 2026-09-14 el desembolso sólo miraba
+ * `status = 'approved'`, así que una aprobación del Motor todavía sin aceptar se podía desembolsar
+ * igual — la segunda pregunta existía y no ataba nada. `null` sigue siendo desembolsable: es una
+ * aprobación firmada por una persona, que ya lleva dentro la voluntad del negocio.
+ */
+const BUSINESS_ACCEPTANCE_BLOCKERS: Readonly<Record<string, string>> = {
+  pending: 'CREDIT_BUSINESS_ACCEPTANCE_PENDING',
+  declined: 'CREDIT_BUSINESS_ACCEPTANCE_DECLINED',
+};
+
 @Injectable()
 export class LoanDisbursementService {
   constructor(
@@ -48,9 +62,7 @@ export class LoanDisbursementService {
     const resultado = await this.sequelize.transaction(async (transaction) => {
       const application = await this.credit.findApplicationById(input.tenantId, input.applicationId, { transaction });
       if (!application) throw new NotFoundException('CREDIT_APPLICATION_NOT_FOUND');
-      if (application.status !== DISBURSABLE_APPLICATION_STATUS) {
-        throw new ConflictException('CREDIT_APPLICATION_NOT_APPROVED');
-      }
+      assertDisbursable(application);
 
       const existing = await this.loans.findLoanByApplication(input.tenantId, input.applicationId, { transaction });
       // Reintento del mismo desembolso: se devuelve el préstamo que ya existe en vez de crear otro.
@@ -173,6 +185,13 @@ export class LoanDisbursementService {
       maturityDate: loan.maturityDate,
     };
   }
+}
+
+/** Sólo una solicitud aprobada Y con la segunda pregunta contestada origina un préstamo. */
+function assertDisbursable(application: { status: string; businessAcceptance: string | null }): void {
+  if (application.status !== DISBURSABLE_APPLICATION_STATUS) throw new ConflictException('CREDIT_APPLICATION_NOT_APPROVED');
+  const acceptanceBlocker = BUSINESS_ACCEPTANCE_BLOCKERS[application.businessAcceptance ?? ''];
+  if (acceptanceBlocker) throw new ConflictException(acceptanceBlocker);
 }
 
 type DisbursementTerms = {

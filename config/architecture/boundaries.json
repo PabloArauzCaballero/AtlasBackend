@@ -63,7 +63,7 @@
   "modules": {
     "auth": {
       "context": "identity-access",
-      "allowedDependencies": []
+      "allowedDependencies": ["mail-sender"]
     },
     "internal-users": {
       "context": "identity-access",
@@ -71,7 +71,7 @@
     },
     "merchant-identity": {
       "context": "partners",
-      "allowedDependencies": []
+      "allowedDependencies": ["auth"]
     },
     "customers": {
       "context": "customers",

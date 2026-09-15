@@ -3,7 +3,7 @@
  * @business Esta pieza controla quién puede operar el canal del comercio afiliado y deja evidencia de cada alta.
  * @system implementa identidad del comercio, credenciales y ciclo de vida de sus usuarios.
  */
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction, col, fn, where } from 'sequelize';
 import { MerchantUserProvisioningRequestModel } from '../../database/models/index.js';
@@ -20,7 +20,7 @@ import {
   PaginatedMerchantUserRequests,
 } from './merchant-identity.types.js';
 import { MerchantUsersService } from './merchant-users.service.js';
-import { MailSenderService } from '../mail-sender/mail-sender.service.js';
+import { CredentialsNotifierService } from '../auth/credentials-notifier.service.js';
 
 export function toProvisioningRequest(model: MerchantUserProvisioningRequestModel): MerchantUserProvisioningRequest {
   return {
@@ -66,13 +66,11 @@ export function toProvisioningRequest(model: MerchantUserProvisioningRequestMode
  */
 @Injectable()
 export class MerchantUserRequestsService {
-  private readonly logger = new Logger(MerchantUserRequestsService.name);
-
   constructor(
     @InjectModel(MerchantUserProvisioningRequestModel)
     private readonly requestModel: typeof MerchantUserProvisioningRequestModel,
     private readonly merchantUsersService: MerchantUsersService,
-    private readonly mailSender: MailSenderService,
+    private readonly credentialsNotifier: CredentialsNotifierService,
   ) {}
 
   /**
@@ -217,32 +215,16 @@ export class MerchantUserRequestsService {
       return { request: toProvisioningRequest(request), merchantUser, temporaryPassword };
     });
 
-    // El correo sale con la transacción ya confirmada: si se mandara dentro y el commit fallara,
-    // el responsable tendría una contraseña de una cuenta que no existe. Y un fallo del correo no
-    // deshace la concesión: la contraseña sigue en la respuesta para entregarla por otra vía.
-    await this.notifyInitialCredentials(result.merchantUser.id, result.merchantUser.email, result.merchantUser.fullName, temporaryPassword);
+    // Con la transacción ya confirmada: dentro, un commit fallido dejaría al responsable con una
+    // contraseña de una cuenta que no existe. Y un fallo del correo no deshace la concesión.
+    await this.credentialsNotifier.sendInitialCredentials({
+      to: result.merchantUser.email,
+      recipientName: result.merchantUser.fullName,
+      temporaryPassword,
+      reference: `merchant-user:${result.merchantUser.id}`,
+      product: 'erp',
+    });
     return result;
-  }
-
-  private async notifyInitialCredentials(
-    merchantUserId: string,
-    email: string,
-    fullName: string | null,
-    temporaryPassword: string,
-  ): Promise<void> {
-    try {
-      await this.mailSender.sendInitialCredentials({
-        to: email,
-        recipientName: fullName,
-        temporaryPassword,
-        reference: `merchant-user:${merchantUserId}`,
-        product: 'erp',
-      });
-    } catch (error) {
-      this.logger.error(
-        `No se pudo enviar el correo de credenciales iniciales al usuario de comercio ${merchantUserId}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
   }
 
   async reject(

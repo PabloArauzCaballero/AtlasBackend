@@ -17,6 +17,7 @@ import {
 } from '../../database/models/index.js';
 import { CustomersModule } from '../customers/customers.module.js';
 import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
+import { CredentialsNotifierService } from './credentials-notifier.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthPasswordChangeController } from './auth-password-change.controller.js';
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
@@ -59,6 +60,7 @@ import { AuthCredentialsService } from './auth-credentials.service.js';
     AuthRepository,
     AuthOneTimeCodeRepository,
     MerchantActorRepository,
+    CredentialsNotifierService,
   ],
   // `AuthSecondFactorService` se exporta para que el perfil de un usuario interno pueda informar si
   // su acceso lleva de verdad un segundo factor, sin duplicar esa política fuera de aquí.
@@ -71,6 +73,7 @@ import { AuthCredentialsService } from './auth-credentials.service.js';
     AuthSecondFactorService,
     AuthTokenIssuerService,
     MerchantActorRepository,
+    CredentialsNotifierService,
   ],
 })
 export class AuthModule {}

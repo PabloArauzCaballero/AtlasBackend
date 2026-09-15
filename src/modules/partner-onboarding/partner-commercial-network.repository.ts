@@ -150,6 +150,68 @@ export class PartnerCommercialNetworkRepository {
     return qr.update({ status: 'replaced', replacedById, updatedAtValue: new Date() }, { transaction: options.transaction });
   }
 
+  /**
+   * El QR ACTIVO de un ámbito: el único que se le enseña a un cliente.
+   *
+   * Es distinto de `findLiveQr` a propósito. Aquél incluye `pending_review` porque el comercio y el
+   * registro necesitan ver «lo que hay», revisado o no; éste sólo devuelve lo que una persona ya
+   * aprobó, porque es lo que decide a qué cuenta transfiere un cliente.
+   */
+  findActiveQr(
+    tenantId: string,
+    partnerProfileId: string,
+    qrKind: string,
+    branchId: string | null,
+    options: RepositoryOptions = {},
+  ): Promise<PartnerQrCodeModel | null> {
+    return this.qrModel.findOne({
+      where: {
+        tenantId,
+        partnerProfileId,
+        qrKind,
+        branchId: branchId === null ? { [Op.is]: null } : branchId,
+        status: 'active',
+      },
+      transaction: options.transaction,
+    });
+  }
+
+  findQrById(
+    tenantId: string,
+    partnerProfileId: string,
+    qrId: string,
+    options: RepositoryOptions = {},
+  ): Promise<PartnerQrCodeModel | null> {
+    return this.qrModel.findOne({ where: { tenantId, partnerProfileId, id: qrId }, transaction: options.transaction });
+  }
+
+  /** Los QR que esperan revisión en todo el tenant, el más antiguo primero: es la cola de una persona. */
+  listQrCodesPendingReview(tenantId: string, options: RepositoryOptions = {}): Promise<PartnerQrCodeModel[]> {
+    return this.qrModel.findAll({
+      where: { tenantId, status: 'pending_review' },
+      order: [['_created_at', 'ASC']],
+      transaction: options.transaction,
+    });
+  }
+
+  markQrReviewed(
+    qr: PartnerQrCodeModel,
+    review: { status: 'active' | 'rejected'; reviewedByInternalUserId: string | null; reviewNote: string | null },
+    options: RepositoryOptions = {},
+  ): Promise<PartnerQrCodeModel> {
+    const now = new Date();
+    return qr.update(
+      {
+        status: review.status,
+        verifiedAt: now,
+        reviewedByInternalUserId: review.reviewedByInternalUserId,
+        reviewNote: review.reviewNote,
+        updatedAtValue: now,
+      },
+      { transaction: options.transaction },
+    );
+  }
+
   listPosTerminals(tenantId: string, partnerProfileId: string, options: RepositoryOptions = {}): Promise<PartnerPosTerminalModel[]> {
     return this.posModel.findAll({
       where: { tenantId, partnerProfileId },
