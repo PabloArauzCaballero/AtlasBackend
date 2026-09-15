@@ -186,7 +186,7 @@ describe('PushNotificationAdapter', () => {
 
       it('da de baja SOLO el token muerto, y la entrega sigue siendo un éxito', async () => {
         resetApnsTokenCache();
-        const registro = { deactivate: jest.fn(async () => 1) };
+        const registro = { deactivate: jest.fn(async (_tokens: string[]) => 1) };
         const adapter = new PushNotificationAdapter(
           configApns as never,
           { run: jest.fn() } as never,
@@ -209,7 +209,7 @@ describe('PushNotificationAdapter', () => {
 
       it('sin ningún 410 no toca la base', async () => {
         resetApnsTokenCache();
-        const registro = { deactivate: jest.fn(async () => 0) };
+        const registro = { deactivate: jest.fn(async (_tokens: string[]) => 0) };
         const adapter = new PushNotificationAdapter(
           configApns as never,
           { run: jest.fn() } as never,
@@ -226,7 +226,7 @@ describe('PushNotificationAdapter', () => {
       it('si la base falla, el aviso YA salió: no se convierte en fallido', async () => {
         resetApnsTokenCache();
         const registro = {
-          deactivate: jest.fn(async () => {
+          deactivate: jest.fn(async (_tokens: string[]) => {
             throw new Error('base caida');
           }),
         };
