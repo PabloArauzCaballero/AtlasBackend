@@ -29,9 +29,13 @@ import type { DominioSembrado } from './tipos.js';
  */
 export const DOMINIOS: readonly DominioSembrado[] = [
   REFERENCIA,
+  // `equipo` va ANTES que `definiciones`: los artefactos de decisión registran quién los cambió, y
+  // ese usuario interno lo crea `equipo`. Con el orden al revés el despliegue murió con «violates
+  // foreign key constraint decision_artifact_bindings_changed_by_internal_user_id_fkey» — en local
+  // no se veía porque la corrida anterior ya había dejado el usuario puesto.
+  EQUIPO,
   ECOSISTEMA,
   DEFINICIONES,
-  EQUIPO,
   CLIENTES,
   COMERCIOS_DEMO,
   CARTERA,
