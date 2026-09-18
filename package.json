@@ -124,7 +124,8 @@
     "check:read-api-honesty": "tsx scripts/check-read-api-honesty.ts",
     "check:auth-coverage": "tsx scripts/check-auth-coverage.ts",
     "db:grants:apply": "tsx src/database/apply-grants.ts",
-    "db:seed:demo": "tsx scripts/seed-demo.ts"
+    "db:seed:demo": "tsx scripts/seed-demo.ts",
+    "check:seed-references": "tsx scripts/check-seed-references.ts"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1101.0",

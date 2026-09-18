@@ -1,12 +1,21 @@
 /**
- * @file Actividad observada: salud de proveedores, señales de riesgo, telemetría y expedientes.
+ * @file Actividad observada: salud de proveedores, señales de riesgo y telemetría.
  * @business Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan decisiones y cumplimiento.
  * @system define seeders para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
  */
-import { ID_INTERNOS } from './equipo.seed-data.js';
 import { refA, TENANT_DEMO, type DominioSembrado, type FilaSembrada } from './tipos.js';
 
-/** Bloque: 992001–992199 salud de proveedores · 992200–992299 señales · 992300–992499 telemetría · 992500–992599 expedientes. */
+/**
+ * Bloque: 992001–992199 salud de proveedores · 992200–992299 señales · 992300–992499 telemetría.
+ *
+ * **Los expedientes NO se siembran aquí, y es deliberado.** Las concesiones y los tickets de subida
+ * apuntan a carpetas y expedientes que este seeder no crea, así que llevaban identificadores de una
+ * base concreta: el despliegue de una base limpia murió con
+ * «violates foreign key constraint expediente_concesiones_nodo_id_fkey». Y sembrar el expediente
+ * entero tampoco vale: sus nodos de archivo apuntan a objetos de MinIO que en un entorno nuevo no
+ * existen, así que la pantalla listaría documentos que no se pueden abrir — peor que una vacía.
+ * Un expediente de demostración necesita sembrar TAMBIÉN sus bytes, y eso es un cambio propio.
+ */
 const T = TENANT_DEMO;
 
 const PROVEEDORES = [
@@ -309,69 +318,6 @@ const reputacionIp = REPUTACION_IP.map((r) => ({
   _created_at: r.cuando,
 }));
 
-const CONCESIONES = [
-  {
-    _id: 992501,
-    nodo_id: 1,
-    principal_tipo: 'rol',
-    principal_id: 'COMPLIANCE_ANALYST',
-    nivel: 'leer',
-    motivo: 'Cumplimiento puede leer la carpeta de identidad de cualquier expediente sin pedir permiso caso a caso.',
-  },
-  {
-    _id: 992502,
-    nodo_id: 2,
-    principal_tipo: 'rol',
-    principal_id: 'RISK_ANALYST',
-    nivel: 'leer',
-    motivo: 'Riesgo necesita los extractos para estimar capacidad de pago.',
-  },
-  {
-    _id: 992503,
-    nodo_id: 3,
-    principal_tipo: 'rol',
-    principal_id: 'COLLECTIONS_AGENT',
-    nivel: 'leer',
-    motivo: 'Cobranza accede al domicilio sólo mientras exista una operación en mora; la concesión vence sola.',
-  },
-  {
-    _id: 992504,
-    nodo_id: 4,
-    principal_tipo: 'usuario_interno',
-    principal_id: '930008',
-    nivel: 'leer',
-    motivo: 'Concesión nominal al auditor para la revisión del trimestre. Vence al cerrarla.',
-  },
-];
-
-const concesiones = CONCESIONES.map((c) => ({
-  ...c,
-  _tenant_id: T,
-  otorgado_por_id: ID_INTERNOS.cumplimiento,
-  vence_en: c._id === 992503 || c._id === 992504 ? '2026-12-31T23:59:59Z' : null,
-  created_at: '2026-09-01T00:00:00Z',
-}));
-
-const TICKETS = [
-  { _id: 992551, expediente: 1, nombre: 'extracto-agosto.pdf', mime: 'application/pdf', bytes: 184_320, consumido: '2026-09-10T15:22:00Z' },
-  { _id: 992552, expediente: 1, nombre: 'boleta-septiembre.pdf', mime: 'application/pdf', bytes: 96_540, consumido: null },
-  { _id: 992553, expediente: 2, nombre: 'reverso-carnet.jpg', mime: 'image/jpeg', bytes: 421_880, consumido: null },
-];
-
-const tickets = TICKETS.map((t) => ({
-  _id: t._id,
-  _tenant_id: T,
-  expediente_id: t.expediente,
-  nombre_previsto: t.nombre,
-  mime_type: t.mime,
-  size_bytes: t.bytes,
-  storage_key: `expedientes/${t.expediente}/pendiente/${t.nombre}`,
-  emitido_por_id: ID_INTERNOS.soporteL2,
-  vence_en: '2026-09-20T00:00:00Z',
-  consumido_en: t.consumido,
-  created_at: '2026-09-10T15:00:00Z',
-}));
-
 export const ACTIVIDAD: DominioSembrado = {
   nombre: 'actividad',
   descripcion:
@@ -382,7 +328,5 @@ export const ACTIVIDAD: DominioSembrado = {
     { tabla: 'telemetry.customer_location_pings', filas: ubicaciones },
     { tabla: 'telemetry.device_risk_events', filas: riesgosDispositivo },
     { tabla: 'telemetry.ip_reputation_observations', filas: reputacionIp },
-    { tabla: 'expedientes.expediente_concesiones', filas: concesiones },
-    { tabla: 'expedientes.expediente_tickets_subida', filas: tickets },
   ],
 };
