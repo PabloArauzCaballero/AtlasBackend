@@ -133,6 +133,15 @@ describe('ExpedienteService', () => {
       expect(rutas).toEqual(['/auth', '/extractos', '/domicilio', '/otros']);
     });
 
+    it('el expediente de un comercio nace con SUS carpetas, no con las de la persona', async () => {
+      const { service, nodos } = construir();
+
+      await service.abrir({ tenantId: 't1', subjectType: 'partner', subjectId: 'p9', sessionId: null, customerCode: 'Tienda', actor });
+
+      const rutas = nodos.asegurarCarpeta.mock.calls.map((llamada) => (llamada[0] as { ruta: string }).ruta);
+      expect(rutas).toEqual(['/qr', '/documentos', '/otros']);
+    });
+
     it('deja rastro de la creación con el sujeto y la sesión', async () => {
       const { service, repository } = construir();
 

@@ -3,16 +3,26 @@
  * @business Esta pieza da al ERP un almacén de documentos con las mismas garantías que la evidencia del cliente.
  * @system emite permisos de subida por dueño, verifica el objeto subido y lo sirve por bytes autenticados.
  */
-import { Injectable, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import {
   AllowedEvidenceMimeType,
   DocumentStorageService,
   StoredObjectMetadata,
   UploadTicket,
 } from '../../../common/storage/document-storage.service.js';
+import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
+import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
 
 /** El prefijo bajo el que viven TODOS los documentos que sube el ERP. Es lo que impide leer otra cosa. */
 const ERP_SUBJECT_PREFIX = 'erp-';
+
+/**
+ * El único dueño del ERP que Atlas sabe atar a un comercio: la cuenta B2B, porque
+ * `partner_profiles.erp_account_id` apunta a ella (`PATCH /operations/partners/:id/erp-account`).
+ * `ONBOARDING_CASE`, `BUSINESS_PARTNER` y `GL_ACCOUNT` son identificadores internos del ERP que
+ * aquí no existen en ninguna tabla; sus documentos no se anotan en ningún expediente.
+ */
+const ERP_OWNER_B2B_ACCOUNT = 'b2b_account';
 
 /**
  * Documentos del ERP en el almacén de evidencia de Atlas.
@@ -29,7 +39,13 @@ const ERP_SUBJECT_PREFIX = 'erp-';
  */
 @Injectable()
 export class ErpDocumentsService {
-  constructor(private readonly storage: DocumentStorageService) {}
+  private readonly logger = new Logger(ErpDocumentsService.name);
+
+  constructor(
+    private readonly storage: DocumentStorageService,
+    private readonly profiles: PartnerOnboardingRepository,
+    private readonly expedienteHooks: ExpedienteHooksService,
+  ) {}
 
   createUploadTicket(input: {
     tenantId: string;
@@ -66,7 +82,38 @@ export class ErpDocumentsService {
       declaredSizeBytes: input.sizeBytes,
     });
     if (!result.ok) throw new UnprocessableEntityException(result.reason);
+    await this.anotarEnExpedienteDelComercio(input.tenantId, input.storageKey, result.metadata);
     return result.metadata;
+  }
+
+  /**
+   * Un documento de la cuenta B2B de un comercio se ve también en su expediente.
+   *
+   * La clave dice quién es el dueño (`<tenant>/erp-<tipo>-<id>/<clase>/<uuid>`), porque el ERP no
+   * manda otra cosa al verificar. Si el dueño es una cuenta B2B enlazada a un `partner_profiles`,
+   * el archivo se anota en la carpeta «documentos» de ese comercio con el nombre de su clase (`kyb`,
+   * `adjunto`…). Nada de esto puede hacer fallar la verificación: el ERP ya tiene el objeto y lo
+   * registra por su cuenta, y el expediente es una vista.
+   */
+  private async anotarEnExpedienteDelComercio(tenantId: string, storageKey: string, metadata: StoredObjectMetadata): Promise<void> {
+    try {
+      const dueno = parseErpOwner(tenantId, storageKey);
+      if (!dueno || dueno.ownerType !== ERP_OWNER_B2B_ACCOUNT) return;
+      const { rows } = await this.profiles.findProfilesByExternalKeys(tenantId, { erpAccountId: dueno.ownerId }, { limit: 1, offset: 0 });
+      const profile = rows[0];
+      if (!profile) return;
+      await this.expedienteHooks.alRegistrarArchivoDelComercio({
+        tenantId,
+        partnerId: profile.id,
+        documentType: 'partner_document',
+        nombreBase: dueno.documentKind,
+        origen: 'portal',
+        storageKey,
+        objeto: metadata,
+      });
+    } catch (error) {
+      this.logger.warn(`No se pudo anotar ${storageKey} en el expediente del comercio: ${(error as Error).message}`);
+    }
   }
 
   async read(tenantId: string, storageKey: string): Promise<{ bytes: Buffer; contentType: string }> {
@@ -92,6 +139,17 @@ export class ErpDocumentsService {
       throw new UnprocessableEntityException('ERP_DOCUMENT_KEY_NOT_OWNED');
     }
   }
+}
+
+/** Deshace la composición de `createUploadTicket`. `null` si la clave no tiene esa forma. */
+export function parseErpOwner(tenantId: string, storageKey: string): { ownerType: string; ownerId: string; documentKind: string } | null {
+  const partes = storageKey.split('/');
+  if (partes.length !== 4 || partes[0] !== tenantId || !partes[1].startsWith(ERP_SUBJECT_PREFIX)) return null;
+  const dueno = partes[1].slice(ERP_SUBJECT_PREFIX.length);
+  // El tipo de dueño no lleva guiones (`b2b_account`); el id sí puede (un UUID). Se corta en el primero.
+  const corte = dueno.indexOf('-');
+  if (corte <= 0 || corte === dueno.length - 1) return null;
+  return { ownerType: dueno.slice(0, corte), ownerId: dueno.slice(corte + 1), documentKind: partes[2] };
 }
 
 function sanitize(value: string): string {

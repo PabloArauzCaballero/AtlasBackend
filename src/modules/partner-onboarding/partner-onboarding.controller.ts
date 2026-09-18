@@ -18,6 +18,7 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerCommerceService } from './application/partner-commerce.service.js';
 import { PartnerDirectoryService } from './application/partner-directory.service.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
+import { PartnerRepresentativeService } from './application/partner-representative.service.js';
 import { PartnerVerificationService } from './application/partner-verification.service.js';
 import { PartnerQrService } from './application/partner-qr.service.js';
 import {
@@ -57,6 +58,7 @@ import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.
 export class PartnerOnboardingController {
   constructor(
     private readonly profiles: PartnerProfileService,
+    private readonly representatives: PartnerRepresentativeService,
     private readonly commerce: PartnerCommerceService,
     private readonly qr: PartnerQrService,
     private readonly verification: PartnerVerificationService,
@@ -157,7 +159,7 @@ export class PartnerOnboardingController {
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(legalRepresentativeSchema)) body: LegalRepresentativeDto,
   ) {
-    const representative = await this.profiles.addLegalRepresentative(tenantId, params.partnerId, body);
+    const representative = await this.representatives.addLegalRepresentative(tenantId, params.partnerId, body);
     return toPartnerRepresentativeDto(representative);
   }
 
@@ -180,7 +182,7 @@ export class PartnerOnboardingController {
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(partnerDocumentUploadUrlSchema)) body: PartnerDocumentUploadUrlDto,
   ) {
-    return this.profiles.createDocumentUploadTicket(tenantId, params.partnerId, body);
+    return this.representatives.createDocumentUploadTicket(tenantId, params.partnerId, body);
   }
 
   @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')

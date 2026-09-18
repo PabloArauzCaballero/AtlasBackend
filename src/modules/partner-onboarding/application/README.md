@@ -15,6 +15,7 @@
 | [`partner-commerce.service.ts`](./partner-commerce.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`partner-contact-verification.service.ts`](./partner-contact-verification.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`partner-profile.service.ts`](./partner-profile.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`partner-representative.service.ts`](./partner-representative.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`partner-qr.service.ts`](./partner-qr.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento

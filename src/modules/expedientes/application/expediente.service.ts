@@ -9,7 +9,7 @@ import { DocumentStorageService } from '../../../common/storage/document-storage
 import { ExpedientesRepository } from '../repositories/expedientes.repository.js';
 import { NodoService } from './nodo.service.js';
 import { ObjectRefCounterService } from './object-ref-counter.service.js';
-import { CARPETAS_BASE, type ActorExpediente, type EstadoExpediente } from '../expedientes.types.js';
+import { carpetasBaseDe, type ActorExpediente, type EstadoExpediente, type SujetoExpediente } from '../expedientes.types.js';
 import type { ExpedienteModel } from '../../../database/models/index.js';
 
 @Injectable()
@@ -39,11 +39,12 @@ export class ExpedienteService {
    *
    * Las carpetas se crean vacías desde el minuto uno, antes de que exista un solo archivo. Es
    * deliberado: un expediente que enseña «auth» y «extractos» vacíos dice qué falta; uno que sólo
-   * enseña lo que ya llegó no distingue «no lo subió» de «no se pedía».
+   * enseña lo que ya llegó no distingue «no lo subió» de «no se pedía». Por lo mismo, CUÁLES son
+   * depende del sujeto: a un comercio no se le pide selfie ni extracto (`carpetasBaseDe`).
    */
   async abrir(input: {
     tenantId: string;
-    subjectType: 'customer' | 'partner' | 'claim';
+    subjectType: SujetoExpediente;
     subjectId: string;
     sessionId: string | null;
     customerCode: string | null;
@@ -62,7 +63,7 @@ export class ExpedienteService {
       creadoPorId: input.actor.id,
     });
 
-    for (const carpeta of CARPETAS_BASE) {
+    for (const carpeta of carpetasBaseDe(input.subjectType)) {
       await this.nodos.asegurarCarpeta({
         tenantId: input.tenantId,
         expedienteId: expediente.id,

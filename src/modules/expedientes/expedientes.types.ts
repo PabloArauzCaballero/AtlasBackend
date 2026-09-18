@@ -43,6 +43,9 @@ export type ClaseNodo =
   | 'bank_statement'
   | 'proof_of_address'
   | 'payment_proof'
+  | 'partner_qr_bank'
+  | 'partner_qr_business'
+  | 'partner_document'
   | 'contactos'
   | 'consentimientos'
   | 'manifest'
@@ -66,6 +69,8 @@ export type AccionActividad =
   | 'revelar_pii'
   | 'congelar';
 
+export type SujetoExpediente = 'customer' | 'partner' | 'claim';
+
 /** Carpetas que todo expediente de onboarding tiene desde el minuto uno. */
 export const CARPETAS_BASE = [
   { nombre: 'auth', etiqueta: 'Identidad (auth)' },
@@ -73,6 +78,25 @@ export const CARPETAS_BASE = [
   { nombre: 'domicilio', etiqueta: 'Domicilio' },
   { nombre: 'otros', etiqueta: 'Otros' },
 ] as const;
+
+/**
+ * Las carpetas del expediente de un COMERCIO.
+ *
+ * No son las de la persona: un negocio no tiene selfie ni extracto que revisar, y enseñarle a un
+ * operador una carpeta «Identidad (auth)» vacía en la ficha de una tienda diría que falta algo que
+ * nunca se pidió. Lo que un comercio sube son sus QR de cobro (`partner_qr_codes`) y los
+ * documentos que lo acreditan —el poder notarial, lo que el ERP guarda como KYB de su cuenta—.
+ */
+export const CARPETAS_BASE_PARTNER = [
+  { nombre: 'qr', etiqueta: 'QR de cobro' },
+  { nombre: 'documentos', etiqueta: 'Documentos del comercio' },
+  { nombre: 'otros', etiqueta: 'Otros' },
+] as const;
+
+/** Las carpetas con las que nace un expediente según de quién sea. */
+export function carpetasBaseDe(subjectType: SujetoExpediente): ReadonlyArray<{ nombre: string; etiqueta: string }> {
+  return subjectType === 'partner' ? CARPETAS_BASE_PARTNER : CARPETAS_BASE;
+}
 
 /**
  * Dónde cae cada tipo de documento de evidencia.
@@ -88,6 +112,12 @@ export const CARPETA_POR_TIPO: Readonly<Record<string, { carpeta: string; clase:
   bank_statement: { carpeta: 'extractos', clase: 'bank_statement', nombre: 'extracto' },
   proof_of_address: { carpeta: 'domicilio', clase: 'proof_of_address', nombre: 'comprobante' },
   payment_proof: { carpeta: 'pagos', clase: 'payment_proof', nombre: 'comprobante de pago' },
+  // Lo que sube un comercio. Los dos QR se distinguen por clase porque no son intercambiables: el
+  // bancario dice a qué cuenta va el dinero; el del negocio es el cartel de la tienda.
+  partner_qr_bank: { carpeta: 'qr', clase: 'partner_qr_bank', nombre: 'qr bancario' },
+  partner_qr_business: { carpeta: 'qr', clase: 'partner_qr_business', nombre: 'qr del negocio' },
+  partner_power_of_attorney: { carpeta: 'documentos', clase: 'partner_document', nombre: 'poder notarial' },
+  partner_document: { carpeta: 'documentos', clase: 'partner_document', nombre: 'documento' },
   other: { carpeta: 'otros', clase: 'otro', nombre: 'documento' },
 };
 

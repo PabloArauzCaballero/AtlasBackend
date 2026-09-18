@@ -58,9 +58,10 @@ function construir(opciones: { live?: Qr | null; active?: Qr | null; porId?: Qr 
     readObject: jest.fn(async () => PNG),
   };
   const metrics = { recordPartnerOnboardingStep: jest.fn() };
-  const service = new PartnerQrService(network as never, profiles as never, storage as never, metrics as never);
+  const hooks = { alRegistrarArchivoDelComercio: jest.fn(async (..._args: unknown[]) => undefined) };
+  const service = new PartnerQrService(network as never, profiles as never, storage as never, metrics as never, hooks as never);
   const revision = new PartnerQrReviewService(network as never, profiles as never, metrics as never);
-  return { service, revision, network, profiles, storage, metrics };
+  return { service, revision, network, profiles, storage, metrics, hooks };
 }
 
 describe('PartnerQrReviewService · revisión', () => {

@@ -11,6 +11,7 @@ import { imagenSinQr, qrJpeg, qrPng } from '../../support/qr-imagen.js';
 import { PartnerCommerceService } from '../../../src/modules/partner-onboarding/application/partner-commerce.service.js';
 import { PartnerContactVerificationService } from '../../../src/modules/partner-onboarding/application/partner-contact-verification.service.js';
 import { PartnerProfileService } from '../../../src/modules/partner-onboarding/application/partner-profile.service.js';
+import { PartnerRepresentativeService } from '../../../src/modules/partner-onboarding/application/partner-representative.service.js';
 import { PartnerVerificationService } from '../../../src/modules/partner-onboarding/application/partner-verification.service.js';
 import { assertEditable, assertPaymentQrEditable } from '../../../src/modules/partner-onboarding/application/partner-profile.guards.js';
 import { PartnerQrService } from '../../../src/modules/partner-onboarding/application/partner-qr.service.js';
@@ -45,6 +46,14 @@ function storageDouble(objetoExiste = true) {
 
 function metricsDouble() {
   return { recordPartnerOnboardingStep: jest.fn() } as never;
+}
+
+/** Los ganchos del expediente de archivos: aquí sólo se fija QUÉ se les pide, no qué hacen. */
+function hooksDouble() {
+  return {
+    alCrearComercio: jest.fn(async (..._a: unknown[]) => undefined),
+    alRegistrarArchivoDelComercio: jest.fn(async (..._a: unknown[]) => undefined),
+  };
 }
 
 /**
@@ -112,8 +121,8 @@ describe('PartnerProfileService', () => {
       repository as never,
       repository as never,
       metricsDouble(),
-      storageDouble() as never,
       verificationCon(repository, kybDouble()),
+      hooksDouble() as never,
     );
 
     await expect(
@@ -124,6 +133,37 @@ describe('PartnerProfileService', () => {
       }),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(repository.createProfile).not.toHaveBeenCalled();
+  });
+
+  /*
+   * Es el ÚNICO sitio donde nace `partner_profiles`, así que es donde nace la carpeta del
+   * comercio en Operaciones › Archivos. El rótulo es lo que un operador reconoce: la fachada, y si
+   * no la declaró, el NIT, que es lo único que siempre está.
+   */
+  it('al abrir el expediente abre también su carpeta de archivos, rotulada con el nombre comercial', async () => {
+    const repository = {
+      findProfileByTaxId: jest.fn(async () => null),
+      createProfile: jest.fn(async (values: AnyRecord) => ({ id: '31', ...values })),
+    };
+    const hooks = hooksDouble();
+    const service = new PartnerProfileService(
+      repository as never,
+      repository as never,
+      metricsDouble(),
+      verificationCon(repository, kybDouble()),
+      hooks as never,
+    );
+
+    await service.start('1', {
+      legalName: 'Comercial Andina S.R.L.',
+      tradeName: 'Andina',
+      taxId: '1023456789',
+      contactEmail: 'c@andina.bo',
+    });
+    expect(hooks.alCrearComercio).toHaveBeenCalledWith({ tenantId: '1', partnerId: '31', customerCode: 'Andina' });
+
+    await service.start('1', { legalName: 'Comercial Andina S.R.L.', taxId: '1023456789', contactEmail: 'c@andina.bo' });
+    expect(hooks.alCrearComercio).toHaveBeenLastCalledWith({ tenantId: '1', partnerId: '31', customerCode: 'NIT 1023456789' });
   });
 
   /*
@@ -173,8 +213,8 @@ describe('PartnerProfileService', () => {
       repository as never,
       repository as never,
       metricsDouble(),
-      storageDouble() as never,
       verificationCon(repository, kybDouble()),
+      hooksDouble() as never,
     );
 
     await expect(service.submit('1', '10')).rejects.toBeInstanceOf(UnprocessableEntityException);
@@ -204,8 +244,8 @@ describe('PartnerProfileService', () => {
       repository as never,
       repository as never,
       metricsDouble(),
-      storageDouble() as never,
       verificationCon(repository, kyb),
+      hooksDouble() as never,
     );
 
     const { profile: updated } = await service.submit('1', '10');
@@ -233,8 +273,8 @@ describe('PartnerProfileService', () => {
       repository as never,
       repository as never,
       metricsDouble(),
-      storageDouble() as never,
       verificationCon(repository, kyb),
+      hooksDouble() as never,
     );
 
     const { profile: updated } = await service.submit('1', '10');
@@ -264,8 +304,8 @@ describe('PartnerProfileService', () => {
       repository as never,
       repository as never,
       metricsDouble(),
-      storageDouble() as never,
       verificationCon(repository, kyb),
+      hooksDouble() as never,
     );
 
     const { profile: updated } = await service.submit('1', '10');
@@ -294,8 +334,8 @@ describe('PartnerProfileService', () => {
       repository as never,
       repository as never,
       metricsDouble(),
-      storageDouble() as never,
       verificationCon(repository, kyb),
+      hooksDouble() as never,
     );
 
     await expect(service.submit('1', '10')).rejects.toBeInstanceOf(ServiceUnavailableException);
@@ -317,8 +357,8 @@ describe('PartnerProfileService', () => {
       repository as never,
       repository as never,
       metricsDouble(),
-      storageDouble() as never,
       verificationCon(repository, kybDouble()),
+      hooksDouble() as never,
     );
 
     await expect(service.decide('1', '10', { approved: true, internalUserId: '3' })).rejects.toBeInstanceOf(ConflictException);
@@ -335,8 +375,8 @@ describe('PartnerProfileService', () => {
       repository as never,
       repository as never,
       metricsDouble(),
-      storageDouble() as never,
       verificationCon(repository, kybDouble()),
+      hooksDouble() as never,
     );
 
     const updated = await service.decide('1', '10', { approved: true, internalUserId: '3' });
@@ -365,8 +405,8 @@ describe('PartnerProfileService', () => {
       repository as never,
       repository as never,
       metricsDouble(),
-      storageDouble() as never,
       verificationCon(repository, kybDouble()),
+      hooksDouble() as never,
     );
 
     const updated = await service.decide('1', '10', { approved: false, rejectionReason: 'NIT sin vigencia', internalUserId: '3' });
@@ -393,20 +433,22 @@ describe('PartnerProfileService', () => {
   });
 });
 
-describe('PartnerProfileService · poder del representante', () => {
+describe('PartnerRepresentativeService · poder del representante', () => {
   function build(storage = storageDouble()) {
     const repository = {
       findProfileById: jest.fn(async () => profileDouble()),
       createRepresentative: jest.fn(async (input: AnyRecord) => ({ id: '7', ...input })),
     };
-    const service = new PartnerProfileService(
+    const hooks = hooksDouble();
+    const profiles = new PartnerProfileService(
       repository as never,
       repository as never,
       metricsDouble(),
-      storage as never,
       verificationCon(repository, kybDouble()),
+      hooks as never,
     );
-    return { service, repository, storage };
+    const service = new PartnerRepresentativeService(profiles, repository as never, metricsDouble(), storage as never, hooks as never);
+    return { service, repository, storage, hooks };
   }
 
   const representante = (powerOfAttorneyKey?: string) => ({
@@ -455,6 +497,29 @@ describe('PartnerProfileService · poder del representante', () => {
       expect.objectContaining({ powerOfAttorneyKey: '1/partner-10/power-of-attorney/x.pdf' }),
     );
   });
+
+  /* El poder es un archivo que subió el comercio: tiene que verse en Operaciones › Archivos. */
+  it('anota el poder en el expediente de archivos del comercio, con lo que el almacén midió', async () => {
+    const { service, hooks } = build();
+
+    await service.addLegalRepresentative('1', '10', representante('1/partner-10/power-of-attorney/x.pdf'));
+
+    expect(hooks.alRegistrarArchivoDelComercio).toHaveBeenCalledWith({
+      tenantId: '1',
+      partnerId: '10',
+      documentType: 'partner_power_of_attorney',
+      storageKey: '1/partner-10/power-of-attorney/x.pdf',
+      objeto: { contentType: 'application/pdf', sizeBytes: 1024, sha256Hex: 'a'.repeat(64) },
+    });
+  });
+
+  it('sin poder no hay nada que anotar', async () => {
+    const { service, hooks } = build();
+
+    await service.addLegalRepresentative('1', '10', representante());
+
+    expect(hooks.alRegistrarArchivoDelComercio).not.toHaveBeenCalled();
+  });
 });
 
 describe('PartnerQrService', () => {
@@ -484,8 +549,9 @@ describe('PartnerQrService', () => {
       readObjectMetadata: jest.fn(async (..._a: unknown[]) => metadata),
       readObject: jest.fn(async (..._a: unknown[]) => (metadata?.contentType === 'image/jpeg' ? qrJpeg() : qrPng())),
     };
-    const service = new PartnerQrService(repository as never, profiles as never, storage as never, metricsDouble());
-    return { service, repository, storage };
+    const hooks = hooksDouble();
+    const service = new PartnerQrService(repository as never, profiles as never, storage as never, metricsDouble(), hooks as never);
+    return { service, repository, storage, hooks };
   }
 
   /*
@@ -506,6 +572,27 @@ describe('PartnerQrService', () => {
 
     await expect(service.register('1', '10', { qrKind: 'business', storageKey: '1/partner-10/qr-business/a.pdf' })).rejects.toBeInstanceOf(
       UnprocessableEntityException,
+    );
+  });
+
+  /* El QR se ve también en Operaciones › Archivos: con lo que se midió del objeto, sin volver al almacén. */
+  it('anota el QR registrado en el expediente del comercio, con la sucursal en el nombre cuando la hay', async () => {
+    const { service, hooks } = build({}, { contentType: 'image/png', sizeBytes: 2048, sha256Hex: 'b'.repeat(64) });
+
+    await service.register('1', '10', { qrKind: 'bank', storageKey: '1/partner-10/qr-bank/b.png', branchId: '5' });
+
+    expect(hooks.alRegistrarArchivoDelComercio).toHaveBeenCalledWith({
+      tenantId: '1',
+      partnerId: '10',
+      documentType: 'partner_qr_bank',
+      nombreBase: 'qr bancario (sucursal 5)',
+      storageKey: '1/partner-10/qr-bank/b.png',
+      objeto: { contentType: 'image/png', sizeBytes: 2048, sha256Hex: 'b'.repeat(64) },
+    });
+
+    await service.register('1', '10', { qrKind: 'business', storageKey: '1/partner-10/qr-business/c.png' });
+    expect(hooks.alRegistrarArchivoDelComercio).toHaveBeenLastCalledWith(
+      expect.objectContaining({ documentType: 'partner_qr_business', nombreBase: null }),
     );
   });
 
@@ -877,8 +964,9 @@ describe('PartnerQrService · clave de objeto', () => {
       readObjectMetadata: jest.fn(async () => ({ contentType: 'image/png', sizeBytes: 100, sha256Hex: 'abc' })),
       readObject: jest.fn(async () => qrPng()),
     };
-    const service = new PartnerQrService(repository as never, profiles as never, storage as never, metricsDouble());
-    return { service, repository, storage };
+    const hooks = hooksDouble();
+    const service = new PartnerQrService(repository as never, profiles as never, storage as never, metricsDouble(), hooks as never);
+    return { service, repository, storage, hooks };
   }
 
   const dto = (storageKey: string) => ({ qrKind: 'business' as const, storageKey });

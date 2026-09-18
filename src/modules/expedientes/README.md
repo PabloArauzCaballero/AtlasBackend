@@ -60,5 +60,13 @@ identidad, los extractos, lo que deja el Motor— y aquí se organizan, se autor
 7. **Los ganchos del onboarding no pueden tumbar el onboarding.** Todos corren después del commit y
    toleran fallos: si la carpeta llega tarde, la crea el job de relleno.
 
+8. **El comercio también tiene carpeta, y no es la de la persona.** Nace con `partner_profiles`
+   (`alCrearComercio`, desde `PartnerProfileService.start`, único sitio donde se crea) con las
+   carpetas `qr`, `documentos` y `otros`; recibe cada QR de cobro, el poder del representante y los
+   documentos que el ERP verifica sobre su cuenta B2B (`alRegistrarArchivoDelComercio`). El rótulo
+   (`customerCode`) es el nombre comercial o «NIT <tax_id>». Sin manifiesto: un comercio sigue
+   subiendo QR después de aprobado y no hay un «envío» que congelar. El relleno histórico
+   (`ExpedientesMantenimientoService`) sigue siendo sólo de clientes.
+
 Decisión completa en [ADR-0010](../../../docs/adr/0010-expediente-de-archivos-por-sujeto.md);
 operación en [docs/operations/expedientes.md](../../../docs/operations/expedientes.md).

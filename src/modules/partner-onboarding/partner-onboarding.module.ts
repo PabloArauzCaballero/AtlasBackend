@@ -22,8 +22,10 @@ import { PartnerDirectoryService } from './application/partner-directory.service
 import { PartnerKybDecisionService } from './application/partner-kyb-decision.service.js';
 import { PartnerKybSyncService } from './application/partner-kyb-sync.service.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
+import { PartnerRepresentativeService } from './application/partner-representative.service.js';
 import { PartnerVerificationService } from './application/partner-verification.service.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
+import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { PartnerQrService } from './application/partner-qr.service.js';
 import { PartnerQrReviewService } from './application/partner-qr-review.service.js';
@@ -66,6 +68,8 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     // Aporta `InternalPermissionsGuard`: la puerta por la que el ERP pide la verificación
     // (`partner.kyb.request`) sin ser ninguno de los roles de aplicación de esta consola.
     InternalUsersModule,
+    // Los ganchos del expediente de archivos: el comercio también tiene carpeta en Operaciones › Archivos.
+    ExpedientesModule,
   ],
   controllers: [
     PartnerOnboardingController,
@@ -83,6 +87,7 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     // necesita el repositorio para resolver quién es el dueño del expediente.
     PartnerOwnershipGuard,
     PartnerProfileService,
+    PartnerRepresentativeService,
     PartnerDirectoryService,
     PartnerContractTemplateService,
     PartnerKybDecisionService,

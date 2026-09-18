@@ -3,30 +3,20 @@
  * @business Esta pieza convierte un comercio declarado en un partner verificable, con locales, cobro y terminales trazables.
  * @system abre el expediente del partner, comprueba lo que exige el envío y publica su estado.
  */
-import {
-  ConflictException,
-  Injectable,
-  Logger,
-  NotFoundException,
-  ServiceUnavailableException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { MetricsService } from '../../../common/observability/metrics.service.js';
-import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
 import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
-import {
-  LegalRepresentativeDto,
-  PartnerDocumentUploadUrlDto,
-  StartPartnerOnboardingDto,
-  UpdateCommercialProfileDto,
-} from '../partner-onboarding.schemas.js';
+import { StartPartnerOnboardingDto, UpdateCommercialProfileDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileModel } from '../../../database/models/index.js';
+import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { PartnerVerificationService, type SubmissionGap } from './partner-verification.service.js';
 import { assertCommercialNetworkEditable, assertEditable } from './partner-profile.guards.js';
 
-/** Lo que el expediente tiene que reunir antes de poder enviarse a revisión. */
-
+/**
+ * El perfil del comercio: abrirlo, corregir su ficha, enviarlo y decidirlo. Lo que sube (poder,
+ * QR) vive en `PartnerRepresentativeService` y `PartnerQrService`.
+ */
 @Injectable()
 export class PartnerProfileService {
   private readonly logger = new Logger(PartnerProfileService.name);
@@ -35,29 +25,9 @@ export class PartnerProfileService {
     private readonly repository: PartnerOnboardingRepository,
     private readonly network: PartnerCommercialNetworkRepository,
     private readonly metrics: MetricsService,
-    private readonly storage: DocumentStorageService,
     private readonly verification: PartnerVerificationService,
+    private readonly expedienteHooks: ExpedienteHooksService,
   ) {}
-
-  /**
-   * Permiso de subida para un documento del expediente (hoy, el poder notarial).
-   *
-   * Mismo patrón que el del QR y por el mismo motivo: la ruta la impone el servidor bajo el
-   * prefijo del tenant y del partner, y se firman tipo y tamaño. Si el cliente eligiera la ruta,
-   * podría escribir sobre la evidencia de otro expediente.
-   */
-  createDocumentUploadTicket(tenantId: string, partnerId: string, dto: PartnerDocumentUploadUrlDto) {
-    if (!this.storage.isConfigured()) {
-      throw new ServiceUnavailableException('DOCUMENT_STORAGE_NOT_CONFIGURED');
-    }
-    return this.storage.createUploadTicket({
-      tenantId,
-      subjectId: `partner-${partnerId}`,
-      documentType: dto.documentKind,
-      contentType: dto.contentType,
-      sizeBytes: dto.sizeBytes,
-    });
-  }
 
   /**
    * Abre el expediente.
@@ -109,52 +79,19 @@ export class PartnerProfileService {
     this.metrics.recordPartnerOnboardingStep({ step: 'start', outcome: 'ok' });
     // El NIT no se registra: identifica fiscalmente a un negocio y es dato sensible en un log.
     this.logger.log(`Expediente de partner abierto: partnerId=${profile.id} tenant=${tenantId}`);
-    return profile;
-  }
-
-  /**
-   * Declara al representante legal.
-   *
-   * Se AÑADE en vez de reemplazar al anterior: un negocio puede tener varios apoderados, y cuando
-   * cambia el que firma, saber quién firmaba antes es justo lo que hace auditable un contrato
-   * viejo. El poder es opcional aquí y exigido al enviar —se permite guardar a la persona antes de
-   * tener el papel escaneado, que es como ocurre de verdad—.
-   */
-  async addLegalRepresentative(tenantId: string, partnerId: string, dto: LegalRepresentativeDto) {
-    const profile = await this.requireProfile(tenantId, partnerId);
-    assertEditable(profile);
 
     /*
-     * Si viene el poder, tiene que ser un objeto de ESTE expediente y tiene que existir.
-     *
-     * Es la misma lección que dejó el QR: aceptar la clave que mande el cliente permite registrar
-     * como propio el documento de otro partner —o afirmar un poder que nadie subió—, y el
-     * expediente vale exactamente por lo que afirma.
+     * La carpeta de archivos del comercio (Operaciones › Archivos) nace aquí porque éste es el ÚNICO
+     * sitio donde se crea `partner_profiles`: el portal del negocio y el ERP pasan ambos por `start`.
+     * Rótulo: el nombre comercial —lo que un operador reconoce— o, si no lo declaró, «NIT <tax_id>»,
+     * el único dato que siempre está y es único por tenant. El gancho no puede tumbar el alta.
      */
-    if (dto.powerOfAttorneyKey) {
-      const prefijoEsperado = `${tenantId}/partner-${partnerId}/`;
-      if (!dto.powerOfAttorneyKey.startsWith(prefijoEsperado)) {
-        throw new UnprocessableEntityException('POWER_OF_ATTORNEY_OUTSIDE_PARTNER_SCOPE');
-      }
-      const objeto = await this.storage.readObjectMetadata(dto.powerOfAttorneyKey);
-      if (!objeto) {
-        throw new UnprocessableEntityException('POWER_OF_ATTORNEY_OBJECT_NOT_FOUND');
-      }
-    }
-
-    const representative = await this.network.createRepresentative({
+    await this.expedienteHooks.alCrearComercio({
       tenantId,
-      partnerProfileId: partnerId,
-      fullName: dto.fullName,
-      documentType: dto.documentType,
-      documentNumber: dto.documentNumber,
-      powerOfAttorneyKey: dto.powerOfAttorneyKey ?? null,
+      partnerId: profile.id,
+      customerCode: profile.tradeName?.trim() || `NIT ${profile.taxId}`,
     });
-
-    this.metrics.recordPartnerOnboardingStep({ step: 'legal_representative', outcome: 'ok' });
-    // Ni el nombre ni el documento se registran: son datos personales de una persona identificable.
-    this.logger.log(`Representante legal declarado: partnerId=${partnerId} representante=${representative.id}`);
-    return representative;
+    return profile;
   }
 
   /**

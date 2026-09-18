@@ -10,7 +10,7 @@ import { ActorService } from './actor.service.js';
 import { ExpedienteService } from './expediente.service.js';
 import { MaterializadorService } from './materializador.service.js';
 import { NodoService } from './nodo.service.js';
-import { CARPETA_POR_TIPO, type ClaseNodo } from '../expedientes.types.js';
+import { CARPETA_POR_TIPO, type ClaseNodo, type OrigenNodo, type SujetoExpediente } from '../expedientes.types.js';
 
 /**
  * Los ganchos del alta, en un solo sitio y todos tolerantes a fallo.
@@ -97,33 +97,118 @@ export class ExpedienteHooksService {
     mimeType: string | null;
     sizeBytes: string | null;
   }): Promise<void> {
-    await this.intentar('registro-evidencia', async () => {
-      const actor = this.actores.sistema();
-      const expediente = await this.expedientes.porSujeto(input.tenantId, 'customer', input.customerId);
-      if (!expediente) {
-        this.logger.warn(`El cliente ${input.customerId} no tiene expediente; lo repondrá el backfill.`);
-        return;
-      }
-
-      const destino = CARPETA_POR_TIPO[input.documentType] ?? CARPETA_POR_TIPO.other;
-      const medidas = await this.medir(input);
-      const extension = (medidas.mimeType ?? '').includes('pdf') ? 'pdf' : (medidas.mimeType ?? '').includes('png') ? 'png' : 'jpg';
-
-      await this.nodos.registrarArchivo({
-        tenantId: input.tenantId,
-        expedienteId: expediente.id,
-        carpeta: destino.carpeta,
-        nombre: `${destino.nombre}.${extension}`,
+    await this.intentar('registro-evidencia', () =>
+      this.registrarArchivoDe({
+        ...input,
+        subjectType: 'customer',
+        subjectId: input.customerId,
         origen: 'onboarding',
-        clase: destino.clase as ClaseNodo,
-        storageKey: input.storageKey,
-        storageBucket: medidas.storageBucket,
-        sha256: input.sha256,
-        mimeType: medidas.mimeType,
-        sizeBytes: medidas.sizeBytes,
-        evidenceDocumentId: input.evidenceDocumentId,
-        actor,
+        nombreBase: null,
+      }),
+    );
+  }
+
+  /**
+   * 7. Nace un comercio: se abre su expediente.
+   *
+   * Sin sesión —el alta de un comercio no tiene sesiones de onboarding— y sin nodo de contactos,
+   * que se compone desde la agenda de un CLIENTE y aquí no habría de dónde. `customerCode` lleva
+   * lo que un operador reconoce del negocio (ver `PartnerProfileService.start`): es la columna
+   * por la que la pantalla busca y la que enseña en la lista.
+   */
+  async alCrearComercio(input: { tenantId: string; partnerId: string; customerCode: string | null }): Promise<void> {
+    await this.intentar('alta-comercio', async () => {
+      await this.expedientes.abrir({
+        tenantId: input.tenantId,
+        subjectType: 'partner',
+        subjectId: input.partnerId,
+        sessionId: null,
+        customerCode: input.customerCode,
+        actor: this.actores.sistema(),
       });
+    });
+  }
+
+  /**
+   * 8. Un comercio sube un archivo: su QR de cobro, el poder de su representante o un documento
+   * que el ERP guardó sobre su cuenta.
+   *
+   * Es el mismo camino que la evidencia del cliente, con otro sujeto: el objeto ya está en el
+   * almacén por su propio flujo (`partner_qr_codes`, el representante, el ERP) y aquí sólo se
+   * anota en la carpeta que le toca. `objeto` es lo que ese flujo ya midió del almacén (tipo real,
+   * tamaño, hash del contenido): se recibe tal cual para no volver a preguntar. `nombreBase`
+   * permite al llamador nombrar el archivo con lo que sabe y el mapa no —«qr bancario (sucursal
+   * 3)», «kyb»— sin abrir una entrada por cada caso.
+   */
+  async alRegistrarArchivoDelComercio(input: {
+    tenantId: string;
+    partnerId: string;
+    documentType: string;
+    nombreBase?: string | null;
+    origen?: OrigenNodo;
+    storageKey: string;
+    objeto: { contentType: string | null; sizeBytes: number | null; sha256Hex: string | null } | null;
+  }): Promise<void> {
+    await this.intentar('archivo-comercio', () =>
+      this.registrarArchivoDe({
+        tenantId: input.tenantId,
+        subjectType: 'partner',
+        subjectId: input.partnerId,
+        documentType: input.documentType,
+        nombreBase: input.nombreBase ?? null,
+        origen: input.origen ?? 'onboarding',
+        evidenceDocumentId: null,
+        storageKey: input.storageKey,
+        // El permiso de subida lo emitió este mismo almacén: el objeto está en su bucket. Con eso y
+        // las medidas del origen, `medir` no tiene que ir al almacén.
+        storageBucket: input.objeto ? this.storage.getBucket() : null,
+        sha256: input.objeto?.sha256Hex ?? null,
+        mimeType: input.objeto?.contentType ?? null,
+        sizeBytes: input.objeto?.sizeBytes == null ? null : String(input.objeto.sizeBytes),
+      }),
+    );
+  }
+
+  /** El registro común: busca el expediente del sujeto, resuelve carpeta y nombre, mide y anota. */
+  private async registrarArchivoDe(input: {
+    tenantId: string;
+    subjectType: SujetoExpediente;
+    subjectId: string;
+    documentType: string;
+    nombreBase: string | null;
+    origen: OrigenNodo;
+    evidenceDocumentId: string | null;
+    storageKey: string;
+    storageBucket: string | null;
+    sha256: string | null;
+    mimeType: string | null;
+    sizeBytes: string | null;
+  }): Promise<void> {
+    const actor = this.actores.sistema();
+    const expediente = await this.expedientes.porSujeto(input.tenantId, input.subjectType, input.subjectId);
+    if (!expediente) {
+      this.logger.warn(`El sujeto ${input.subjectType}:${input.subjectId} no tiene expediente; lo repondrá el backfill.`);
+      return;
+    }
+
+    const destino = CARPETA_POR_TIPO[input.documentType] ?? CARPETA_POR_TIPO.other;
+    const medidas = await this.medir(input);
+    const extension = (medidas.mimeType ?? '').includes('pdf') ? 'pdf' : (medidas.mimeType ?? '').includes('png') ? 'png' : 'jpg';
+
+    await this.nodos.registrarArchivo({
+      tenantId: input.tenantId,
+      expedienteId: expediente.id,
+      carpeta: destino.carpeta,
+      nombre: `${input.nombreBase ?? destino.nombre}.${extension}`,
+      origen: input.origen,
+      clase: destino.clase as ClaseNodo,
+      storageKey: input.storageKey,
+      storageBucket: medidas.storageBucket,
+      sha256: input.sha256,
+      mimeType: medidas.mimeType,
+      sizeBytes: medidas.sizeBytes,
+      evidenceDocumentId: input.evidenceDocumentId,
+      actor,
     });
   }
 

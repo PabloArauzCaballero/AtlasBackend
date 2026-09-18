@@ -235,6 +235,90 @@ describe('ExpedienteHooksService', () => {
     });
   });
 
+  describe('archivos del comercio', () => {
+    const base = {
+      tenantId: 't1',
+      partnerId: 'p7',
+      storageKey: 't1/partner-7/qr-bank/x.png',
+      objeto: { contentType: 'image/png', sizeBytes: 512, sha256Hex: 'h7' },
+    };
+
+    it('el alta del comercio abre su expediente sin sesión y sin nodo de contactos: no hay agenda de dónde componerlo', async () => {
+      await service.alCrearComercio({ tenantId: 't1', partnerId: 'p7', customerCode: 'Tienda Andina' });
+
+      expect(expedientes.abrir).toHaveBeenCalledWith({
+        tenantId: 't1',
+        subjectType: 'partner',
+        subjectId: 'p7',
+        sessionId: null,
+        customerCode: 'Tienda Andina',
+        actor: ACTOR,
+      });
+      expect(materializador.asegurarNodoDeContactos).not.toHaveBeenCalled();
+    });
+
+    it('un fallo al abrir el expediente del comercio no tumba el alta', async () => {
+      expedientes.abrir.mockRejectedValueOnce(new Error('base caída') as never);
+
+      await expect(service.alCrearComercio({ tenantId: 't1', partnerId: 'p7', customerCode: null })).resolves.toBeUndefined();
+    });
+
+    it('los dos QR se buscan en el expediente del PARTNER y caen en «qr» con clases distintas', async () => {
+      await service.alRegistrarArchivoDelComercio({ ...base, documentType: 'partner_qr_bank' });
+      expect(expedientes.porSujeto).toHaveBeenLastCalledWith('t1', 'partner', 'p7');
+      expect(nodos.registrarArchivo).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          carpeta: 'qr',
+          nombre: 'qr bancario.png',
+          clase: 'partner_qr_bank',
+          origen: 'onboarding',
+          sha256: 'h7',
+          mimeType: 'image/png',
+          sizeBytes: '512',
+        }),
+      );
+      // Lo que midió el flujo de origen se usa tal cual: no se vuelve a preguntar al almacén.
+      expect(storage.headObject).not.toHaveBeenCalled();
+
+      await service.alRegistrarArchivoDelComercio({ ...base, documentType: 'partner_qr_business' });
+      expect(nodos.registrarArchivo).toHaveBeenLastCalledWith(
+        expect.objectContaining({ carpeta: 'qr', nombre: 'qr del negocio.png', clase: 'partner_qr_business' }),
+      );
+    });
+
+    it('el nombre que aporta el llamador (sucursal, clase del ERP) gana al del mapa, y el origen se respeta', async () => {
+      await service.alRegistrarArchivoDelComercio({
+        ...base,
+        documentType: 'partner_document',
+        nombreBase: 'kyb',
+        origen: 'portal',
+        objeto: { ...base.objeto, contentType: 'application/pdf' },
+      });
+
+      expect(nodos.registrarArchivo).toHaveBeenLastCalledWith(
+        expect.objectContaining({ carpeta: 'documentos', nombre: 'kyb.pdf', clase: 'partner_document', origen: 'portal' }),
+      );
+    });
+
+    it('el poder notarial va a «documentos» y, sin medidas del origen, se mide con un HEAD', async () => {
+      await service.alRegistrarArchivoDelComercio({ ...base, documentType: 'partner_power_of_attorney', objeto: null });
+
+      expect(storage.headObject).toHaveBeenCalledWith(base.storageKey);
+      expect(nodos.registrarArchivo).toHaveBeenLastCalledWith(
+        expect.objectContaining({ carpeta: 'documentos', nombre: 'poder notarial.pdf', sizeBytes: '2048', storageBucket: 'atlas' }),
+      );
+    });
+
+    it('un comercio sin expediente no deja nodos huérfanos, y un fallo al anotar no sube', async () => {
+      expedientes.porSujeto.mockResolvedValueOnce(null as never);
+      await service.alRegistrarArchivoDelComercio({ ...base, documentType: 'partner_qr_bank' });
+      expect(nodos.registrarArchivo).not.toHaveBeenCalled();
+
+      nodos.registrarArchivo.mockRejectedValueOnce(new Error('nodo duplicado') as never);
+      await expect(service.alRegistrarArchivoDelComercio({ ...base, documentType: 'partner_qr_bank' })).resolves.toBeUndefined();
+    });
+  });
+
   describe('envío del alta', () => {
     it('escribe el manifiesto ANTES de congelar: al revés no se podría crear', async () => {
       await service.alEnviarOnboarding({ tenantId: 't1', customerId: 'c1' });

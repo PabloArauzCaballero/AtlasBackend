@@ -111,7 +111,7 @@
     },
     "partner-onboarding": {
       "context": "partners",
-      "allowedDependencies": []
+      "allowedDependencies": ["expedientes"]
     },
     "risk": {
       "context": "risk",

@@ -8,6 +8,7 @@ import { leerQrDeImagen } from '../../../common/images/qr-image-reader.js';
 import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
 import { MetricsService } from '../../../common/observability/metrics.service.js';
 import { PartnerQrCodeModel } from '../../../database/models/index.js';
+import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
 import { QrUploadUrlDto, RegisterQrDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileService } from './partner-profile.service.js';
@@ -36,6 +37,12 @@ import { assertPaymentQrEditable } from './partner-profile.guards.js';
  * había mirado. Un QR de cobro dice a qué cuenta va el dinero de otra persona; ésa es la razón de
  * que se mire.
  */
+/** Sólo el QR de una sucursal lleva nombre propio; el de la empresa toma el del mapa de carpetas. */
+function nombreDelQrEnExpediente(qrKind: string, branchId: string | null): string | null {
+  if (!branchId) return null;
+  return `qr ${qrKind === 'bank' ? 'bancario' : 'del negocio'} (sucursal ${branchId})`;
+}
+
 @Injectable()
 export class PartnerQrService {
   private readonly logger = new Logger(PartnerQrService.name);
@@ -45,6 +52,7 @@ export class PartnerQrService {
     private readonly profiles: PartnerProfileService,
     private readonly storage: DocumentStorageService,
     private readonly metrics: MetricsService,
+    private readonly expedienteHooks: ExpedienteHooksService,
   ) {}
 
   /**
@@ -125,6 +133,20 @@ export class PartnerQrService {
       accountNumberMasked: dto.accountNumberMasked ?? null,
     });
     if (previousPending) await this.network.markQrReplaced(previousPending, created.id);
+
+    /*
+     * El QR también se ve en Operaciones › Archivos, en la carpeta del comercio. Se anota con lo
+     * que ya se midió del objeto (tipo real, tamaño, hash del contenido), así el expediente no tiene
+     * que volver al almacén. Un fallo aquí no deshace el registro del QR: el gancho se lo traga.
+     */
+    await this.expedienteHooks.alRegistrarArchivoDelComercio({
+      tenantId,
+      partnerId,
+      documentType: `partner_qr_${dto.qrKind}`,
+      nombreBase: nombreDelQrEnExpediente(dto.qrKind, branchId),
+      storageKey: dto.storageKey,
+      objeto: metadata,
+    });
 
     this.metrics.recordPartnerOnboardingStep({ step: `qr_${dto.qrKind}`, outcome: 'ok' });
     this.logger.log(
