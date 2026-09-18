@@ -105,35 +105,38 @@ SELECT table_schema AS "schemaName",
   private listDatabaseColumns(): Promise<IntrospectedColumn[]> {
     return this.sequelize.query<IntrospectedColumn>(
       `
+-- Claves primaria y foránea desde pg_catalog, NO information_schema: medido el 2026-09-17, como
+-- atlas_app_rw la vista constraint_column_usage devuelve 0 filas (sólo muestra restricciones cuya
+-- tabla referenciada pertenece al rol, y las crea el de migración). El refresco decía «3389
+-- columnas y 0 relaciones» sin error y el linaje dibujaba nodos sin una sola arista; pg_constraint
+-- no filtra por privilegios y devuelve las 115 declaradas.
 WITH pk_columns AS (
-  SELECT kcu.table_schema,
-         kcu.table_name,
-         kcu.column_name
-    FROM information_schema.table_constraints tc
-    JOIN information_schema.key_column_usage kcu
-      ON kcu.constraint_schema = tc.constraint_schema
-     AND kcu.constraint_name = tc.constraint_name
-     AND kcu.table_schema = tc.table_schema
-     AND kcu.table_name = tc.table_name
-   WHERE tc.constraint_type = 'PRIMARY KEY'
+  SELECT n.nspname AS table_schema,
+         t.relname AS table_name,
+         a.attname AS column_name
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    JOIN LATERAL unnest(c.conkey) AS k(attnum) ON TRUE
+    JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum
+   WHERE c.contype = 'p'
 ),
 fk_columns AS (
-  SELECT kcu.table_schema,
-         kcu.table_name,
-         kcu.column_name,
-         ccu.table_schema AS referenced_schema,
-         ccu.table_name AS referenced_table,
-         ccu.column_name AS referenced_column
-    FROM information_schema.table_constraints tc
-    JOIN information_schema.key_column_usage kcu
-      ON kcu.constraint_schema = tc.constraint_schema
-     AND kcu.constraint_name = tc.constraint_name
-     AND kcu.table_schema = tc.table_schema
-     AND kcu.table_name = tc.table_name
-    JOIN information_schema.constraint_column_usage ccu
-      ON ccu.constraint_schema = tc.constraint_schema
-     AND ccu.constraint_name = tc.constraint_name
-   WHERE tc.constraint_type = 'FOREIGN KEY'
+  SELECT n.nspname AS table_schema,
+         t.relname AS table_name,
+         a.attname AS column_name,
+         rn.nspname AS referenced_schema,
+         rt.relname AS referenced_table,
+         ra.attname AS referenced_column
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    JOIN pg_class rt ON rt.oid = c.confrelid
+    JOIN pg_namespace rn ON rn.oid = rt.relnamespace
+    JOIN LATERAL unnest(c.conkey, c.confkey) WITH ORDINALITY AS k(attnum, refattnum, ord) ON TRUE
+    JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum
+    JOIN pg_attribute ra ON ra.attrelid = rt.oid AND ra.attnum = k.refattnum
+   WHERE c.contype = 'f'
 )
 SELECT c.table_schema AS "schemaName",
        c.table_name AS "tableName",
