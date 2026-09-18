@@ -169,6 +169,29 @@ describe('calcularResumen', () => {
     expect(r.botLikelihoodScore).toBe(0.25);
   });
 
+  it('la pantalla abierta (sin leave) cuenta hasta el último reloj: la fase de identidad no llega en 0 al Motor', () => {
+    // Lo que ve el servidor al calcular el resumen DENTRO del envío del carnet: el `leave` de
+    // «identidad» todavía no ha salido de la app.
+    const r = calcularResumen({
+      pasos: [
+        paso('flujo', 'inicio', 0, { elapsedMs: 0 }),
+        paso('registro', 'enter', 500, { elapsedMs: 500 }),
+        paso('registro', 'leave', 3_000, { elapsedMs: 3_000, sinceEnterMs: 2_500 }),
+        paso('identidad', 'enter', 14_000, { elapsedMs: 14_000 }),
+        paso('captura_carnet_frente', 'toma', 16_000, { elapsedMs: 16_000 }),
+        paso('identidad', 'submit_ok', 27_800, { elapsedMs: 27_800, latencyMs: 600 }),
+      ],
+      campos: [],
+      toques: [],
+      permisos: [],
+      abandonosPrevios: 0,
+    });
+    expect(r.interScreenTimingJson.detalle.porFaseMs.contacto).toBe(2_500);
+    expect(r.interScreenTimingJson.detalle.porFaseMs.identidad).toBe(13_800);
+    expect(r.interScreenTimingJson.detalle.faseIdentidadMs).toBe(13_800);
+    expect(r.interScreenTimingJson.pantallas['identidad']?.totalMs).toBe(13_800);
+  });
+
   it('sin eventos de la app todo es null, no cero, y `disponible` es false', () => {
     const r = calcularResumen({ pasos: [], campos: [], toques: [], permisos: [{ granted: true }], abandonosPrevios: 2 });
     expect(r.disponible).toBe(false);

@@ -196,39 +196,47 @@ export class MobileIdentityService {
        * cae al entorno y todo sigue como antes.
        */
       const { artifactCode } = await this.bindings.resolve(tenantId, 'identity');
-      const respuesta = await this.engine.execute(artifactCode ?? env.DECISION_ENGINE_IDENTITY_ARTIFACT, {
-        requestId: randomUUID(),
-        correlationId: verificationId,
-        // Derivada del intento y de la clave del cliente: reintentar la misma
-        // verificación no debe cobrarse dos veces al motor.
-        idempotencyKey: createHash('sha256').update(`${tenantId}|${verificationId}|${idempotencyKey}`).digest('hex'),
-        variables: {
-          identidad_carnet_frente_base64: body.documentFront,
-          identidad_carnet_reverso_base64: body.documentBack ?? null,
-          identidad_selfie_base64: body.selfie,
-          identidad_pais_documento: body.documentCountry,
-          identidad_segip_estado: segip.estado,
-          identidad_segip_coincidencia: segip.coincidencia,
-          identidad_agenda_disponible: agenda.available,
-          identidad_agenda_total: agenda.totalContacts,
-          identidad_agenda_unicos_ratio: agenda.uniqueRatio,
-          identidad_agenda_bolivia_ratio: agenda.bolivianRatio,
-          identidad_agenda_referencias_presentes: agenda.referencesFoundInAddressBook,
-          identidad_agenda_coincidencias_riesgo: agenda.riskMatches,
-          identidad_comportamiento_disponible: comportamiento.disponible,
-          identidad_comportamiento_segundos_total: comportamiento.segundosTotal,
-          identidad_comportamiento_segundos_identidad: comportamiento.segundosIdentidad,
-          identidad_comportamiento_pegado_en_carnet: comportamiento.pegadoEnCarnet,
-          identidad_comportamiento_correcciones_ocr: comportamiento.correccionesOcr,
-          identidad_comportamiento_ratio_errores: comportamiento.ratioErrores,
-          identidad_comportamiento_segundo_plano_en_captura: comportamiento.segundoPlanoEnCaptura,
-          identidad_comportamiento_abandonos_previos: comportamiento.abandonosPrevios,
-          identidad_comportamiento_bot_score: comportamiento.botScore,
-          identidad_comportamiento_senales: comportamiento.senales,
+      const respuesta = await this.engine.execute(
+        artifactCode ?? env.DECISION_ENGINE_IDENTITY_ARTIFACT,
+        {
+          requestId: randomUUID(),
+          correlationId: verificationId,
+          // Derivada del intento y de la clave del cliente: reintentar la misma
+          // verificación no debe cobrarse dos veces al motor.
+          idempotencyKey: createHash('sha256').update(`${tenantId}|${verificationId}|${idempotencyKey}`).digest('hex'),
+          variables: {
+            identidad_carnet_frente_base64: body.documentFront,
+            identidad_carnet_reverso_base64: body.documentBack ?? null,
+            identidad_selfie_base64: body.selfie,
+            identidad_pais_documento: body.documentCountry,
+            identidad_segip_estado: segip.estado,
+            identidad_segip_coincidencia: segip.coincidencia,
+            identidad_agenda_disponible: agenda.available,
+            identidad_agenda_total: agenda.totalContacts,
+            identidad_agenda_unicos_ratio: agenda.uniqueRatio,
+            identidad_agenda_bolivia_ratio: agenda.bolivianRatio,
+            identidad_agenda_referencias_presentes: agenda.referencesFoundInAddressBook,
+            identidad_agenda_coincidencias_riesgo: agenda.riskMatches,
+            identidad_comportamiento_disponible: comportamiento.disponible,
+            identidad_comportamiento_segundos_total: comportamiento.segundosTotal,
+            identidad_comportamiento_segundos_identidad: comportamiento.segundosIdentidad,
+            identidad_comportamiento_pegado_en_carnet: comportamiento.pegadoEnCarnet,
+            identidad_comportamiento_correcciones_ocr: comportamiento.correccionesOcr,
+            identidad_comportamiento_ratio_errores: comportamiento.ratioErrores,
+            identidad_comportamiento_segundo_plano_en_captura: comportamiento.segundoPlanoEnCaptura,
+            identidad_comportamiento_abandonos_previos: comportamiento.abandonosPrevios,
+            identidad_comportamiento_bot_score: comportamiento.botScore,
+            identidad_comportamiento_senales: comportamiento.senales,
+          },
+          // `behaviorSummaryId` ata esta decisión a la fila exacta del resumen que el artefacto vio.
+          context: { channel: 'MOBILE_APP', verificationId, behaviorSummaryId: comportamiento.summaryId },
         },
-        // `behaviorSummaryId` ata esta decisión a la fila exacta del resumen que el artefacto vio.
-        context: { channel: 'MOBILE_APP', verificationId, behaviorSummaryId: comportamiento.summaryId },
-      });
+        {
+          // Plazo propio y sin reintentos: ver `DECISION_ENGINE_IDENTITY_TIMEOUT_MS`.
+          timeoutMs: env.DECISION_ENGINE_IDENTITY_TIMEOUT_MS,
+          maxAttempts: 1,
+        },
+      );
 
       const salida = respuesta.output ?? {};
       const decision = String(salida.identidad_resultado ?? '');

@@ -102,6 +102,17 @@ describe('DecisionEngineClient', () => {
   });
 
   describe('execute', () => {
+    it('las opciones por llamada llegan al ejecutor: la identidad pide un solo intento', async () => {
+      conFetch({ status: 200, body: decisionValida });
+      await cliente().execute('IDENTIDAD_CARNET_MOVIL', { subjectReference: 's1' } as never, { timeoutMs: 45_000, maxAttempts: 1 });
+      expect((ejecutorDirecto.run.mock.calls[0] as unknown[])[1]).toEqual(expect.objectContaining({ maxAttempts: 1 }));
+      // Sin opciones, el plazo y los reintentos son los del entorno.
+      await cliente().execute('IDENTIDAD_CARNET_MOVIL', { subjectReference: 's2' } as never);
+      expect((ejecutorDirecto.run.mock.calls[1] as unknown[])[1]).toEqual(
+        expect.objectContaining({ maxAttempts: env.DECISION_ENGINE_RETRIES + 1 }),
+      );
+    });
+
     it('llama al artefacto con la llave de ejecución y devuelve la decisión', async () => {
       const { llamadas } = conFetch({ status: 200, body: decisionValida });
 

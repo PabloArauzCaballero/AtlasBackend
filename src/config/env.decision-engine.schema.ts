@@ -178,6 +178,15 @@ export const decisionEngineEnvShape = {
   DECISION_ENGINE_DEPLOYMENTS_PATH: z.string().trim().min(1).max(200).default('/v1/deployments'),
   DECISION_ENGINE_HEALTH_PATH: z.string().trim().min(1).max(200).default('/health'),
   DECISION_ENGINE_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(10_000),
+  /**
+   * La verificación de identidad tiene su propio plazo y NO se reintenta.
+   *
+   * El worker lee el carnet y coteja la cara: medido en TEST el 2026-09-18, 11,4 s. Con el plazo
+   * general de 10 s el cliente abortaba y reintentaba con la misma clave de idempotencia; el motor
+   * contestaba `409 IDEMPOTENCY_IN_PROGRESS` y el intento quedaba `UNAVAILABLE` aunque la decisión
+   * se tomara y se cobrara. Un reintento aquí sólo puede producir ese 409.
+   */
+  DECISION_ENGINE_IDENTITY_TIMEOUT_MS: z.coerce.number().int().positive().max(180_000).default(60_000),
   DECISION_ENGINE_RETRIES: z.coerce.number().int().min(0).max(5).default(1),
   DECISION_ENGINE_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().max(10_000).default(250),
   /**

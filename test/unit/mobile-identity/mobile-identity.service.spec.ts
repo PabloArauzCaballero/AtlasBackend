@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { env } from '../../../src/config/env.js';
 import { MobileIdentityService } from '../../../src/modules/mobile-identity/mobile-identity.service.js';
 import { startIdentityVerificationSchema } from '../../../src/modules/mobile-identity/mobile-identity.schemas.js';
 
@@ -120,6 +121,9 @@ describe('MobileIdentityService', () => {
     expect(engine.execute).not.toHaveBeenCalled();
     await dejarResolver();
     expect(engine.execute).toHaveBeenCalledTimes(1);
+    // Plazo propio y UN solo intento: el worker tarda más que el plazo general y un reintento con
+    // la misma clave de idempotencia sólo produce `409 IDEMPOTENCY_IN_PROGRESS` (TEST, 2026-09-18).
+    expect(engine.execute.mock.calls[0]?.[2]).toEqual({ timeoutMs: env.DECISION_ENGINE_IDENTITY_TIMEOUT_MS, maxAttempts: 1 });
   });
 
   it('escribe VERIFIED cuando el artefacto verifica', async () => {

@@ -86,28 +86,67 @@ function medirTiempo(entradas: EntradasDelResumen, pasos: PasoObservado[]): { se
   return { segundosTotal, enSegundoPlanoMs };
 }
 
+type Acumulado = Record<string, TiempoPorPantalla & { tramos: number[] }>;
+
+function anotarTramo(acumulado: Acumulado, porFaseMs: Record<Fase, number>, codigo: string, fase: Fase, tramo: number): void {
+  const registro = (acumulado[codigo] ??= { entradas: 0, totalMs: 0, medianaMs: 0, atras: 0, tramos: [] });
+  registro.tramos.push(tramo);
+  registro.totalMs += tramo;
+  porFaseMs[fase] += tramo;
+}
+
+type EstadoDePantallas = {
+  acumulado: Acumulado;
+  porFaseMs: Record<Fase, number>;
+  /** Pantallas con `enter` y todavía sin `leave`, con el reloj de la app en el que entraron. */
+  abiertas: Map<string, number>;
+  ultimoReloj: number | null;
+};
+
+function observarPantalla(estado: EstadoDePantallas, paso: PasoObservado, fase: Fase): void {
+  const reloj = numero(paso.payload?.['elapsedMs']);
+  const registro = (estado.acumulado[paso.stepCode] ??= { entradas: 0, totalMs: 0, medianaMs: 0, atras: 0, tramos: [] });
+  if (paso.eventType === 'enter') {
+    registro.entradas += 1;
+    if (reloj !== null) estado.abiertas.set(paso.stepCode, reloj);
+    return;
+  }
+  if (paso.eventType !== 'leave' && paso.eventType !== 'back') return;
+  if (paso.eventType === 'back') registro.atras += 1;
+  estado.abiertas.delete(paso.stepCode);
+  const tramo = numero(paso.payload?.['sinceEnterMs']);
+  if (tramo !== null) anotarTramo(estado.acumulado, estado.porFaseMs, paso.stepCode, fase, tramo);
+}
+
 /** Entradas, tiempo y «atrás» por pantalla, y el tiempo acumulado por fase. */
 function medirPantallas(pasos: PasoObservado[]): { pantallas: Record<string, TiempoPorPantalla>; porFaseMs: Record<Fase, number> } {
-  const acumulado: Record<string, TiempoPorPantalla & { tramos: number[] }> = {};
-  const porFaseMs: Record<Fase, number> = { contacto: 0, identidad: 0, situacion: 0, habitos: 0, cierre: 0 };
+  const estado: EstadoDePantallas = {
+    acumulado: {},
+    porFaseMs: { contacto: 0, identidad: 0, situacion: 0, habitos: 0, cierre: 0 },
+    abiertas: new Map(),
+    ultimoReloj: null,
+  };
   for (const paso of pasos) {
+    const reloj = numero(paso.payload?.['elapsedMs']);
+    if (reloj !== null) estado.ultimoReloj = Math.max(estado.ultimoReloj ?? 0, reloj);
     const fase = FASE_DE_PANTALLA[paso.stepCode];
-    if (!fase) continue;
-    const registro = (acumulado[paso.stepCode] ??= { entradas: 0, totalMs: 0, medianaMs: 0, atras: 0, tramos: [] });
-    if (paso.eventType === 'enter') registro.entradas += 1;
-    if (paso.eventType === 'back') registro.atras += 1;
-    if (paso.eventType !== 'leave' && paso.eventType !== 'back') continue;
-    const tramo = numero(paso.payload?.['sinceEnterMs']);
-    if (tramo === null) continue;
-    registro.tramos.push(tramo);
-    registro.totalMs += tramo;
-    porFaseMs[fase] += tramo;
+    if (fase) observarPantalla(estado, paso, fase);
+  }
+  /*
+   * La pantalla que sigue abierta cuenta hasta el último reloj visto. El resumen de identidad se
+   * calcula DENTRO del envío del carnet, antes de que la app mande el `leave` de esa pantalla: sin
+   * esto la fase de identidad llegaba al Motor como 0 s (medido en TEST el 2026-09-18) y la regla
+   * «identidad < 40 s» se cumplía para todo el mundo.
+   */
+  for (const [codigo, entradaMs] of estado.abiertas) {
+    const tramo = (estado.ultimoReloj ?? 0) - entradaMs;
+    if (tramo > 0) anotarTramo(estado.acumulado, estado.porFaseMs, codigo, FASE_DE_PANTALLA[codigo]!, tramo);
   }
   const pantallas: Record<string, TiempoPorPantalla> = {};
-  for (const [codigo, r] of Object.entries(acumulado)) {
+  for (const [codigo, r] of Object.entries(estado.acumulado)) {
     pantallas[codigo] = { entradas: r.entradas, totalMs: r.totalMs, medianaMs: mediana(r.tramos), atras: r.atras };
   }
-  return { pantallas, porFaseMs };
+  return { pantallas, porFaseMs: estado.porFaseMs };
 }
 
 /** Cuántos campos tuvieron foco, cuántas correcciones hubo y cuántos pegados en campos de identidad. */

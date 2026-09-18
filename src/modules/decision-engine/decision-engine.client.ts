@@ -7,7 +7,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { env } from '../../config/env.js';
 import { toAdapterError } from '../../common/resilience/adapter-error.js';
 import { parseFacilityOutcomes, parseFacilityRegistrations } from './engine-verdicts.js';
-import { EngineTransportService } from './engine-transport.service.js';
+import { EngineTransportService, type OpcionesDeLlamada } from './engine-transport.service.js';
 import {
   DecisionRequest,
   DecisionResponse,
@@ -44,12 +44,14 @@ export class DecisionEngineClient {
    * motivos; tratarlo como fallo de transporte lo mandaría al camino de reintentos y acabaría
    * convertido en «motor no disponible», borrando justamente el rechazo que había que explicar.
    */
-  async execute(artifactCode: string, request: DecisionRequest): Promise<DecisionResponse> {
+  async execute(artifactCode: string, request: DecisionRequest, opciones: OpcionesDeLlamada = {}): Promise<DecisionResponse> {
     const url = `${this.transport.baseUrl()}/v1/decisions/${encodeURIComponent(artifactCode)}`;
-    const raw = await this.transport.call(url, env.DECISION_ENGINE_API_KEY ?? '', {
-      ...request,
-      environmentCode: request.environmentCode ?? env.DECISION_ENGINE_ENVIRONMENT_CODE,
-    });
+    const raw = await this.transport.call(
+      url,
+      env.DECISION_ENGINE_API_KEY ?? '',
+      { ...request, environmentCode: request.environmentCode ?? env.DECISION_ENGINE_ENVIRONMENT_CODE },
+      opciones,
+    );
 
     const parsed = decisionResponseSchema.safeParse(raw.json);
     if (!parsed.success) {

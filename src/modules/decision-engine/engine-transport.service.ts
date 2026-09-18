@@ -15,6 +15,9 @@ const BUSINESS_REJECTION_STATUS = 422;
 
 export type EngineRawResult = { status: number; ok: boolean; json: Record<string, unknown> };
 
+/** Ajustes de UNA llamada: plazo propio o menos intentos que los del entorno. */
+export type OpcionesDeLlamada = { timeoutMs?: number; maxAttempts?: number };
+
 /**
  * Todo lo que hay entre el core y el motor que NO es el contrato de un endpoint.
  *
@@ -40,10 +43,14 @@ export class EngineTransportService {
     return base.replace(/\/+$/, '');
   }
 
-  async call(url: string, apiKey: string, body: Record<string, unknown>): Promise<EngineRawResult> {
+  /**
+   * `opciones` permite a una llamada concreta pedir un plazo mayor o renunciar a los reintentos:
+   * la identidad (OCR + cara) tarda más que el plazo general y su reintento sólo produce un 409.
+   */
+  async call(url: string, apiKey: string, body: Record<string, unknown>, opciones: OpcionesDeLlamada = {}): Promise<EngineRawResult> {
     return this.executor.run(
       async () => {
-        const raw = await this.fetchOnce(url, apiKey, body);
+        const raw = await this.fetchOnce(url, apiKey, body, opciones.timeoutMs ?? env.DECISION_ENGINE_TIMEOUT_MS);
         if (raw.status === BUSINESS_REJECTION_STATUS) return raw;
         if (!raw.ok) {
           throw toAdapterError({ provider: PROVIDER, httpStatus: raw.status, message: `HTTP ${raw.status}`, error: raw.json });
@@ -52,15 +59,15 @@ export class EngineTransportService {
       },
       {
         provider: PROVIDER,
-        maxAttempts: env.DECISION_ENGINE_RETRIES + 1,
+        maxAttempts: opciones.maxAttempts ?? env.DECISION_ENGINE_RETRIES + 1,
         baseDelayMs: env.DECISION_ENGINE_RETRY_BASE_DELAY_MS,
       },
     );
   }
 
-  private async fetchOnce(url: string, apiKey: string, body: Record<string, unknown>): Promise<EngineRawResult> {
+  private async fetchOnce(url: string, apiKey: string, body: Record<string, unknown>, timeoutMs: number): Promise<EngineRawResult> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), env.DECISION_ENGINE_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(url, {
         method: 'POST',
