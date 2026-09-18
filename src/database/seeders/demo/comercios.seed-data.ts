@@ -180,6 +180,22 @@ const COMERCIOS: ComercioSemilla[] = [
 
 const FECHA = '2026-09-05T12:00:00Z';
 
+/**
+ * El primer usuario sembrado de cada comercio, que es quien figura como dueño de su expediente.
+ *
+ * Se declara aquí y no se importa de `equipo.seed-data.ts` para no cruzar los dos módulos de
+ * siembra —cada uno se puede sembrar por separado—; los identificadores son constantes fijas del
+ * bloque 930100–930199 y `equipo` los declara con su `comercio`. Si se añade un comercio con
+ * usuarios, se añade aquí su primera línea.
+ */
+const DUENO_POR_COMERCIO: Readonly<Record<number, number>> = {
+  920001: 930101,
+  920002: 930103,
+  920003: 930104,
+  920004: 930105,
+  920005: 930106,
+};
+
 const comercios = COMERCIOS.map((c) => ({
   _id: c.id,
   _tenant_id: TENANT_DEMO,
@@ -197,6 +213,20 @@ const comercios = COMERCIOS.map((c) => ({
   decided_at: ['approved', 'rejected'].includes(c.estado) ? FECHA : null,
   rejection_reason: c.estado === 'rejected' ? 'El NIT declarado no figura vigente en el padrón del SIN.' : null,
   erp_account_id: c.estado === 'approved' ? `ERP-${c.id}` : null,
+  /*
+   * DUEÑO del expediente, y sin él la siembra nace inservible.
+   *
+   * `GET /partner-onboarding/mine` —lo primero que pide cada pantalla del portal del comercio—
+   * busca por esta columna. Sembrada en `null`, un comercio sembrado entra a su portal y TODO le
+   * dice «su comercio todavía no tiene expediente en Atlas»: no ve su cartera, ni su facturación,
+   * ni sus sucursales, ni dónde subir su QR. Se descubrió en TEST el 2026-09-18, con ocho
+   * comercios en la base y el portal entero en su estado vacío.
+   *
+   * El dueño es el PRIMER usuario del comercio en `equipo.seed-data.ts`, que ya declara a qué
+   * comercio pertenece cada uno. Un comercio sin usuarios sembrados se queda sin dueño, que es
+   * correcto: no hay nadie que pudiera entrar.
+   */
+  owner_merchant_user_id: DUENO_POR_COMERCIO[c.id] ?? null,
   mdr_rate_percent: c.mdr,
   decision_outcome: c.desenlace,
   decision_reason: c.motivo,
