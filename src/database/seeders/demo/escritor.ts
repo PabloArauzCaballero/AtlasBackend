@@ -10,7 +10,12 @@ export interface ResultadoBloque {
   readonly tabla: string;
   readonly filas: number;
   readonly omitido?: string;
+  /** Filas que no entraron porque su referencia natural no existe en esta base. */
+  readonly omitidas?: number;
 }
+
+/** Una referencia natural que no existe en esta base. Se distingue para poder omitir la fila. */
+export class ReferenciaNoResuelta extends Error {}
 
 function columnasDe(filas: readonly FilaSembrada[]): string[] {
   const vistas = new Set<string>();
@@ -86,7 +91,7 @@ async function resolverReferencia(cliente: Client, referencia: ReferenciaNatural
     Object.values(condicionesResueltas),
   );
   if (rows.length === 0) {
-    throw new Error(`no existe ${tabla} con ${JSON.stringify(condicionesResueltas)}; siembra antes el dominio que la crea`);
+    throw new ReferenciaNoResuelta(`no existe ${tabla} con ${JSON.stringify(condicionesResueltas)}; siembra antes el dominio que la crea`);
   }
   const valor = (rows[0] as Record<string, unknown>).valor;
   cache.set(clave, valor);
@@ -101,20 +106,39 @@ export async function escribirBloque(
   if (bloque.filas.length === 0) return { tabla: bloque.tabla, filas: 0, omitido: 'sin filas' };
   const { sql, columnas } = sentenciaDe(bloque);
 
+  let escritas = 0;
+  let omitidas = 0;
+  let primerMotivo = '';
+
   for (const [indice, fila] of bloque.filas.entries()) {
     const parametros: unknown[] = [];
-    for (const columna of columnas) {
-      const valor = fila[columna];
-      parametros.push(aParametro(esReferencia(valor) ? await resolverReferencia(cliente, valor, cache) : valor));
+    try {
+      for (const columna of columnas) {
+        const valor = fila[columna];
+        parametros.push(aParametro(esReferencia(valor) ? await resolverReferencia(cliente, valor, cache) : valor));
+      }
+    } catch (error) {
+      if (error instanceof ReferenciaNoResuelta && bloque.omitirFilaSiNoResuelve) {
+        omitidas += 1;
+        primerMotivo ||= error.message;
+        continue;
+      }
+      const detalle = error instanceof Error ? error.message : String(error);
+      throw new Error(`${bloque.tabla}: la fila ${indice + 1} de ${bloque.filas.length} no entró (${detalle})`);
     }
     try {
       await cliente.query(sql, parametros);
+      escritas += 1;
     } catch (error) {
       const detalle = error instanceof Error ? error.message : String(error);
       throw new Error(`${bloque.tabla}: la fila ${indice + 1} de ${bloque.filas.length} no entró (${detalle})`);
     }
   }
-  return { tabla: bloque.tabla, filas: bloque.filas.length };
+  return {
+    tabla: bloque.tabla,
+    filas: escritas,
+    ...(omitidas > 0 ? { omitidas, omitido: `${omitidas} omitidas: ${primerMotivo}` } : {}),
+  };
 }
 
 export async function escribirDominio(cliente: Client, dominio: DominioSembrado): Promise<ResultadoBloque[]> {

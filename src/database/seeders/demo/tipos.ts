@@ -41,6 +41,17 @@ export interface BloqueSembrado {
   /** Columnas que NO se pisan al reconciliar (p. ej. un contador que el runtime mueve). */
   readonly noPisar?: readonly string[];
   /**
+   * `true` cuando una fila cuya referencia natural no existe se OMITE en vez de tumbar la siembra.
+   *
+   * Existe para las dependencias que este seeder no crea. Los perfiles de carga apuntan a una ruta
+   * del catálogo de endpoints, y ese catálogo lo llena un descubrimiento que necesita la API
+   * corriendo: en una base recién migrada está vacío. Antes eso mataba la siembra entera —y con
+   * ella los doce dominios que venían detrás— por un bloque accesorio. Las filas omitidas se
+   * CUENTAN y se dicen en la salida: omitir en silencio sería el mismo verde que miente que esto
+   * intenta evitar.
+   */
+  readonly omitirFilaSiNoResuelve?: boolean;
+  /**
    * `true` cuando la tabla es de SÓLO AÑADIR y un `UPDATE` la hace saltar por un disparador.
    *
    * Los mensajes y los eventos de soporte lo son: su integridad se apoya en una cadena de hashes y

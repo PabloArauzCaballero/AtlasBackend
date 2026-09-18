@@ -2264,6 +2264,10 @@ export const REFERENCIA: DominioSembrado = {
     {
       tabla: 'platform_ops.system_stress_profiles',
       conflicto: ['code'],
+      // El catálogo de endpoints lo llena un descubrimiento que necesita la API corriendo; en una
+      // base recién migrada está vacío y estos perfiles no tienen a qué apuntar. Se omiten y se
+      // dice cuántas, en vez de tumbar la siembra entera por un bloque accesorio.
+      omitirFilaSiNoResuelve: true,
       filas: [
         {
           endpoint_id: refA('platform_ops.system_endpoint_catalog', {
