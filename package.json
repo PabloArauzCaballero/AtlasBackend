@@ -123,7 +123,8 @@
     "docs:validate": "yarn docs:openapi && yarn check:openapi && yarn docs:openapi:lint && yarn docs:build",
     "check:read-api-honesty": "tsx scripts/check-read-api-honesty.ts",
     "check:auth-coverage": "tsx scripts/check-auth-coverage.ts",
-    "db:grants:apply": "tsx src/database/apply-grants.ts"
+    "db:grants:apply": "tsx src/database/apply-grants.ts",
+    "db:seed:demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1101.0",

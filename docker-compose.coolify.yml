@@ -149,8 +149,7 @@ x-build: &build
 # contenedor**, por mucho que esté puesto en Coolify: al añadir una variable al esquema hay que
 # añadirla también a esta lista.
 # ---------------------------------------------------------------------------------------------
-x-atlas-env: &atlas-env
-  # --- Aplicación --------------------------------------------------------------------------
+x-atlas-env: &atlas-env # --- Aplicación --------------------------------------------------------------------------
   NODE_ENV: '${NODE_ENV:-development}'
   API_PREFIX: '${API_PREFIX:-api/v1}'
   API_JSON_BODY_LIMIT: '${API_JSON_BODY_LIMIT:-2mb}'
@@ -417,8 +416,7 @@ services:
   atlas-redis:
     <<: *common
     image: redis:7-alpine
-    command:
-      ['redis-server', '--appendonly', 'yes', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru']
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru']
     volumes: ['redis-data:/data']
     # `start_interval`: mientras dura `start_period`, la sonda corre cada segundo en vez de cada 10.
     # `api` y los workers esperan a `service_healthy`, y un Redis que responde al segundo 1 se daba
@@ -445,6 +443,23 @@ services:
     # Migrar SIEMPRE; sembrar sólo si hay origen. El `if` es lo que separa «este despliegue no
     # siembra» —legítimo y frecuente— de «la siembra falló», que sí tiene que parar el
     # despliegue. Antes, sin origen configurado, las dos cosas se veían igual: EXITED.
+    #
+    # Después de migrar corren TRES cosas que hasta el 2026-09-17 no corría nadie, y por eso el
+    # portal salía a medias en toda instalación que no fuera la de desarrollo:
+    #
+    #   1. `apply-entity-business-narratives` — la narrativa de negocio de cada tabla.
+    #   2. `apply-curated-business-metadata`  — los 19 dominios de negocio y las relaciones lógicas.
+    #      Sin esto el mapa por dominio del linaje dice «módulo sin dominio asociado» para todo.
+    #   3. `refresh-systems-catalog-introspection` — columnas y relaciones desde el catálogo de
+    #      PostgreSQL. Sin esto el grafo de linaje dibuja nodos sueltos, sin una sola arista.
+    #
+    # Las tres son idempotentes y sólo escriben catálogo de plataforma. Van con `||` a un aviso
+    # porque son metadatos: si una falla, el despliegue NO debe caerse — la API funciona igual y el
+    # log dice qué quedó sin refrescar.
+    #
+    # `seed-demo` es la siembra del repositorio y va ÚLTIMA. Se salta sola en producción
+    # (`NODE_ENV=production`) salvo que alguien lo pida explícitamente con `DEMO_SEED_ENABLED=true`:
+    # son datos de demostración y no tienen nada que hacer en una base con personas reales.
     command:
       - sh
       - -c
@@ -453,7 +468,13 @@ services:
         node dist/src/database/apply-grants.js &&
         if [ -n "$${SEED_SOURCE_DATABASE_URL}$${SEED_SOURCE_HOST}" ]; then
         node dist/src/database/seed.js pull --if-empty;
-        else echo 'sin SEED_SOURCE_*: se migra pero no se siembra'; fi
+        else echo 'sin SEED_SOURCE_*: se migra pero no se siembra desde otra base'; fi &&
+        (node dist/scripts/apply-entity-business-narratives.js || echo 'AVISO: narrativa de entidades sin refrescar') &&
+        (node dist/scripts/apply-curated-business-metadata.js || echo 'AVISO: dominios de negocio sin refrescar') &&
+        (node dist/scripts/refresh-systems-catalog-introspection.js || echo 'AVISO: catalogo de esquema sin refrescar') &&
+        if [ "$${DEMO_SEED_ENABLED}" = "true" ] || { [ "$${NODE_ENV}" != "production" ] && [ "$${DEMO_SEED_ENABLED}" != "false" ]; }; then
+        node dist/scripts/seed-demo.js;
+        else echo 'siembra demostrativa desactivada en este entorno'; fi
     restart: 'no'
 
   api:
