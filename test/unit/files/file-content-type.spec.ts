@@ -80,7 +80,7 @@ describe('isKnownFileMimeType', () => {
 
 describe('extensionForMimeType', () => {
   it('impone una extensión propia para cada tipo conocido', () => {
-    expect(KNOWN_FILE_MIME_TYPES.map((type) => extensionForMimeType(type))).toEqual(['jpg', 'png', 'pdf', 'gif', 'webp']);
+    expect(KNOWN_FILE_MIME_TYPES.map((type) => extensionForMimeType(type))).toEqual(['jpg', 'png', 'pdf', 'gif', 'webp', 'm4a']);
   });
 });
 

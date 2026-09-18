@@ -10,6 +10,7 @@ import { DecisionEngineClient } from '../decision-engine/decision-engine.client.
 import { MobileIdentityRepository } from './mobile-identity.repository.js';
 import { CustomerContactsSnapshotService } from '../customer-onboarding/application/customer-contacts-snapshot.service.js';
 import type { ContactsSnapshotFeatures } from '../customer-onboarding/customer-contacts-snapshot.schemas.js';
+import { OnboardingBehaviorSummaryService } from '../customer-telemetry/application/onboarding-behavior-summary.service.js';
 
 /**
  * Verificación de identidad para el front móvil.
@@ -44,6 +45,22 @@ import type { ContactsSnapshotFeatures } from '../customer-onboarding/customer-c
  * encima de las 300 líneas de `check:file-size`.
  */
 import { describir } from './mobile-identity.errors.js';
+
+/** Las cifras de comportamiento que viajan al artefacto de identidad. `null` es «no medido». */
+export type ComportamientoDelAlta = {
+  disponible: boolean;
+  summaryId: string | null;
+  segundosTotal: number | null;
+  segundosIdentidad: number | null;
+  pegadoEnCarnet: boolean | null;
+  correccionesOcr: number | null;
+  ratioErrores: number | null;
+  segundoPlanoEnCaptura: boolean | null;
+  abandonosPrevios: number | null;
+  botScore: number | null;
+  senales: string[];
+};
+
 @Injectable()
 export class MobileIdentitySignalsService {
   private readonly logger = new Logger(MobileIdentitySignalsService.name);
@@ -53,7 +70,54 @@ export class MobileIdentitySignalsService {
     private readonly engine: DecisionEngineClient,
     private readonly bindings: DecisionArtifactBindingService,
     private readonly contacts: CustomerContactsSnapshotService,
+    private readonly comportamiento: OnboardingBehaviorSummaryService,
   ) {}
+
+  /**
+   * CÓMO se hizo el alta: la tercera señal que no sale de las fotos.
+   *
+   * Se calcula AQUÍ, al arrancar la verificación, para que el artefacto reciba las cifras del
+   * momento y quede una fila del resumen atada a esta decisión. Best-effort como las otras dos:
+   * sin bitácora —app vieja, cola perdida, cliente sin flujo— viaja `disponible: false`, que el
+   * artefacto pondera como MENOS evidencia y nunca como evidencia en contra.
+   */
+  async comportamientoDe(tenantId: string, customerId: string | null): Promise<ComportamientoDelAlta> {
+    const vacio: ComportamientoDelAlta = {
+      disponible: false,
+      summaryId: null,
+      segundosTotal: null,
+      segundosIdentidad: null,
+      pegadoEnCarnet: null,
+      correccionesOcr: null,
+      ratioErrores: null,
+      segundoPlanoEnCaptura: null,
+      abandonosPrevios: null,
+      botScore: null,
+      senales: [],
+    };
+    if (!customerId) return vacio;
+    try {
+      const resumen = await this.comportamiento.calcular(tenantId, customerId, 'identity_start');
+      if (!resumen.disponible) return { ...vacio, summaryId: resumen.summaryId };
+      const detalle = resumen.interScreenTimingJson.detalle;
+      return {
+        disponible: true,
+        summaryId: resumen.summaryId,
+        segundosTotal: resumen.completionTimeSeconds,
+        segundosIdentidad: Math.round(detalle.faseIdentidadMs / 1000),
+        pegadoEnCarnet: resumen.ciCopyPasteDetected,
+        correccionesOcr: detalle.correccionesSobreOcr,
+        ratioErrores: resumen.formErrorRate,
+        segundoPlanoEnCaptura: detalle.segundoPlanoDuranteCaptura,
+        abandonosPrevios: resumen.abandonmentCountPrior,
+        botScore: resumen.botLikelihoodScore,
+        senales: detalle.senales,
+      };
+    } catch (error: unknown) {
+      this.logger.warn(`No se pudo leer el comportamiento del cliente ${customerId}: ${describir(error)}`);
+      return vacio;
+    }
+  }
 
   /**
    * Qué contestó el registro estatal sobre este cliente, si contestó.

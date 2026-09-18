@@ -8,6 +8,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { IdentityVerificationAttemptModel } from '../../database/models/index.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { CustomerOnboardingModule } from '../customer-onboarding/customer-onboarding.module.js';
+import { CustomerTelemetryModule } from '../customer-telemetry/customer-telemetry.module.js';
 import { MobileIdentityController } from './mobile-identity.controller.js';
 import { MobileIdentityRepository } from './mobile-identity.repository.js';
 import { MobileIdentityService } from './mobile-identity.service.js';
@@ -31,7 +32,13 @@ import { MobileIdentitySignalsService } from './mobile-identity-signals.service.
    * agenda de este cliente», y basta con que se separen una vez para que la
    * política decida sobre números que nadie escribió.
    */
-  imports: [SequelizeModule.forFeature([IdentityVerificationAttemptModel]), DecisionEngineModule, CustomerOnboardingModule],
+  // `CustomerTelemetryModule` por UNA cosa: el resumen de comportamiento del alta, la tercera señal.
+  imports: [
+    SequelizeModule.forFeature([IdentityVerificationAttemptModel]),
+    DecisionEngineModule,
+    CustomerOnboardingModule,
+    CustomerTelemetryModule,
+  ],
   controllers: [MobileIdentityController],
   providers: [MobileIdentityRepository, MobileIdentityService, MobileIdentitySignalsService],
   exports: [MobileIdentityService],

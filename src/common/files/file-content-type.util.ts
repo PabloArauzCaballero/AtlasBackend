@@ -25,6 +25,10 @@ export const FILE_MAGIC_BYTES = {
   // WebP es un contenedor RIFF: "RIFF" + 4 bytes de tamaño + "WEBP". Los bytes 4..7 varían, así que
   // se comprueban por separado en `matchesFileMagicBytes`.
   'image/webp': [[0x52, 0x49, 0x46, 0x46]],
+  // M4A/MP4 es un contenedor ISO BMFF: los 4 primeros bytes son el TAMAÑO de la primera caja (varían)
+  // y los bytes 4..7 dicen "ftyp". No hay prefijo fijo, así que la firma es vacía y la caja se
+  // comprueba aparte en `matchesFileMagicBytes`, como el sufijo de WebP.
+  'audio/mp4': [[]],
 } as const satisfies Record<string, readonly (readonly number[])[]>;
 
 export type KnownFileMimeType = keyof typeof FILE_MAGIC_BYTES;
@@ -38,7 +42,11 @@ const FILE_EXTENSIONS: Record<KnownFileMimeType, string> = {
   'application/pdf': 'pdf',
   'image/gif': 'gif',
   'image/webp': 'webp',
+  'audio/mp4': 'm4a',
 };
+
+/** Caja "ftyp" en los bytes 4..7 de un contenedor ISO BMFF (M4A, MP4). */
+const ISO_BMFF_FTYP = [0x66, 0x74, 0x79, 0x70];
 
 /** Sufijo del contenedor RIFF que identifica a WebP frente a un WAV o un AVI. */
 const WEBP_CONTAINER_TAG = [0x57, 0x45, 0x42, 0x50];
@@ -67,6 +75,9 @@ export function matchesFileMagicBytes(buffer: Buffer, mimeType: string): boolean
 
   if (mimeType === 'image/webp') {
     return WEBP_CONTAINER_TAG.every((byte, index) => buffer[8 + index] === byte);
+  }
+  if (mimeType === 'audio/mp4') {
+    return buffer.byteLength >= 8 && ISO_BMFF_FTYP.every((byte, index) => buffer[4 + index] === byte);
   }
   return true;
 }

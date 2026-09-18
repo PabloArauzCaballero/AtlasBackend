@@ -96,6 +96,8 @@ export function eligibleFacts(): EligibilityFacts {
     unclearedWatchlistMatchCount: 0,
     latestRisk: { recommendedAction: RISK_APPROVED_ACTION, decidedAt: now() } as unknown as EligibilityFacts['latestRisk'],
     openFraudCaseCount: 0,
+    decidedDevicePermissionPurposes: ['device_address_book', 'location_tracking'],
+    answeredSurveyQuestionCodes: [],
   };
 }
 
@@ -156,6 +158,10 @@ export async function buildAdmissionHarness(sequelize: Sequelize): Promise<Admis
     ConsentDocumentModel,
     OnboardingFlowModel,
     riskRepository,
+    {
+      findDecidedDevicePermissionPurposes: async () => ['device_address_book', 'location_tracking'],
+      findAnsweredSurveyQuestionCodes: async () => [],
+    } as never,
   );
   const lifecycleRepository = new CustomerLifecycleRepository(
     CustomerModel,

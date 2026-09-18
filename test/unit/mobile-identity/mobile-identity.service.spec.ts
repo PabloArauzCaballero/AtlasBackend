@@ -73,6 +73,20 @@ describe('MobileIdentityService', () => {
     // al partir el archivo por tamaño. Este spec no las ejercita: el doble responde «sin dato».
     const senales = {
       estadoDelRegistroEstatal: jest.fn(async () => ({ estado: 'sin_dato', coincidencia: 0 })),
+      // La tercera señal, el comportamiento del alta: por defecto «no medido».
+      comportamientoDe: jest.fn(async () => ({
+        disponible: false,
+        summaryId: null,
+        segundosTotal: null,
+        segundosIdentidad: null,
+        pegadoEnCarnet: null,
+        correccionesOcr: null,
+        ratioErrores: null,
+        segundoPlanoEnCaptura: null,
+        abandonosPrevios: null,
+        botScore: null,
+        senales: [],
+      })),
       agendaDe: jest.fn(async () => ({
         available: false,
         totalContacts: 0,

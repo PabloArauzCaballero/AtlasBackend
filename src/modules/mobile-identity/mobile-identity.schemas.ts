@@ -87,11 +87,18 @@ export type IdentityVerificationState = (typeof IDENTITY_VERIFICATION_STATES)[nu
 /**
  * Lo que se le contesta al móvil.
  *
- * No lleva los campos leídos del carnet —nombre, fecha de nacimiento— y eso es
- * deliberado: el móvil pregunta si la persona quedó verificada, no quién es.
- * Devolver el expediente en la respuesta de un endpoint que se consulta en bucle
- * sería repartir datos de identidad por todos los registros del camino.
+ * Desde el 2026-09-18 SÍ lleva `extracted`: lo que el worker leyó del carnet
+ * (número, nombres, apellidos, nacimiento, caducidad), para que la app lo
+ * PRELLENE y la persona lo confirme en vez de teclearlo dos veces. Es el dato
+ * que la propia persona acaba de fotografiar y que va a ver en su pantalla; lo
+ * que sigue sin viajar es cualquier cosa que no esté impresa en la tarjeta. Sólo
+ * procedencias que sostienen «se leyó el documento» (`OCR`, `MRZ`, `BARCODE`,
+ * `PROVIDER`); un campo propuesto por un modelo (`MODEL`) no se ofrece.
  */
+export type CampoLeido = { value: string; confidence: number | null; source: string };
+export const CAMPOS_LEIDOS = ['documentNumber', 'firstNames', 'lastNames', 'dateOfBirth', 'expirationDate', 'documentComplement'] as const;
+export type LecturaDelDocumento = Partial<Record<(typeof CAMPOS_LEIDOS)[number], CampoLeido>>;
+
 export type IdentityVerificationView = {
   verificationId: string;
   status: IdentityVerificationState;
@@ -99,6 +106,8 @@ export type IdentityVerificationView = {
   reason: string | null;
   /** Parecido biométrico, cuando lo hubo. */
   similarity: number | null;
+  /** Lo leído del documento para prellenar, o `null` si no hubo lectura utilizable. */
+  extracted: LecturaDelDocumento | null;
   requestedAt: string | null;
   completedAt: string | null;
 };

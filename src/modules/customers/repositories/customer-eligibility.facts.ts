@@ -30,4 +30,8 @@ export type EligibilityFacts = {
   unclearedWatchlistMatchCount: number;
   latestRisk: RiskAssessmentResultModel | null;
   openFraudCaseCount: number;
+  /** Finalidades de permisos del teléfono con una decisión registrada (concedida o denegada). */
+  decidedDevicePermissionPurposes: string[];
+  /** Preguntas de la encuesta de hábitos contestadas en la versión vigente. */
+  answeredSurveyQuestionCodes: string[];
 };

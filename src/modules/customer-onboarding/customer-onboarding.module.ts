@@ -10,6 +10,7 @@ import { OTP_DELIVERY_PORT } from '../notifications/public/index.js';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import {
+  CustomerConsumerSurveyAnswerModel,
   AddressGpsObservationModel,
   AttributeDefinitionModel,
   AuthEventModel,
@@ -60,6 +61,11 @@ import { ExternalDataModule } from '../external-data/external-data.module.js';
 // El envío a revisión dispara la evaluación de riesgo del onboarding: sin ella la regla de
 // habilitación se queda para siempre en `RISK_NOT_APPROVED` y nadie se activa solo.
 import { RiskModule } from '../risk/risk.module.js';
+import { CustomerTelemetryModule } from '../customer-telemetry/customer-telemetry.module.js';
+import { ConsumerSurveyController } from './consumer-survey/consumer-survey.controller.js';
+import { ConsumerSurveyService } from './consumer-survey/consumer-survey.service.js';
+import { CustomerSupportingEvidenceService } from './application/customer-supporting-evidence.service.js';
+import { CustomerSupportingEvidenceController } from './customer-supporting-evidence.controller.js';
 import { ContactMethodResolutionService } from './application/contact-method-resolution.service.js';
 import { ContactVerificationCodeService } from './application/contact-verification-code.service.js';
 import { IdentityEvidenceVerificationService } from './application/identity-evidence-verification.service.js';
@@ -127,8 +133,12 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
       // el esquema inicial—; lo que faltaba era el código que las llenara.
       OnDeviceComputationRunModel,
       OnDeviceMetricValueModel,
+      // La encuesta de hábitos (fase 4 del alta).
+      CustomerConsumerSurveyAnswerModel,
     ]),
     CustomersModule,
+    // El resumen de comportamiento del alta se recalcula al enviar la solicitud.
+    CustomerTelemetryModule,
     SessionsModule,
     ConsentsModule,
     AuthModule,
@@ -145,6 +155,8 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
     CustomerOnboardingProfileController,
     CustomerOnboardingStatusController,
     CustomerVerificationController,
+    ConsumerSurveyController,
+    CustomerSupportingEvidenceController,
   ],
   providers: [
     // AT-015: el grupo atómico del alta tiene nombre, dueño y alcance declarados.
@@ -186,6 +198,8 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
     CustomerIdentityEvidenceRepository,
     CustomerAddressStatusRepository,
     CustomerOnboardingRepository,
+    ConsumerSurveyService,
+    CustomerSupportingEvidenceService,
   ],
   // El planificador de trabajos de fondo necesita el cierre de onboardings abandonados: era el único
   // job del catálogo que solo existía como POST manual por tenant.

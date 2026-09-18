@@ -6,7 +6,7 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { env } from '../../config/env.js';
-import { matchesFileMagicBytes } from '../files/file-content-type.util.js';
+import { extensionForMimeType, matchesFileMagicBytes } from '../files/file-content-type.util.js';
 import { MalwareScannerService } from './malware-scanner.service.js';
 import { S3Credentials, presignS3Url } from './s3-signature.util.js';
 
@@ -26,7 +26,8 @@ export type StoredObjectMetadata = {
 };
 
 /** Tipos aceptados para evidencia documental, alineados con `identityEvidenceSchema`. */
-export const ALLOWED_EVIDENCE_MIME_TYPES = ['image/jpeg', 'image/png', 'application/pdf'] as const;
+// `audio/mp4` (m4a) desde el 2026-09-18: el audio corto de ocupación de la fase 3 del alta.
+export const ALLOWED_EVIDENCE_MIME_TYPES = ['image/jpeg', 'image/png', 'application/pdf', 'audio/mp4'] as const;
 export type AllowedEvidenceMimeType = (typeof ALLOWED_EVIDENCE_MIME_TYPES)[number];
 
 export const MAX_EVIDENCE_BYTES = 15 * 1024 * 1024;
@@ -109,7 +110,7 @@ export class DocumentStorageService {
     // Publico: esta URL la usa el telefono, no este proceso.
     const credentials = this.publicCredentials();
     const now = input.now ?? new Date();
-    const extension = input.contentType === 'application/pdf' ? 'pdf' : input.contentType === 'image/png' ? 'png' : 'jpg';
+    const extension = extensionForMimeType(input.contentType);
     const storageKey = `${input.tenantId}/${input.subjectId}/${input.documentType}/${randomUUID()}.${extension}`;
 
     const requiredHeaders = { 'content-type': input.contentType, 'content-length': String(input.sizeBytes) };

@@ -78,6 +78,8 @@ describe('CustomerOnboardingStatusService', () => {
       riskService as never,
       // Ídem: congelar el expediente ocurre después del commit y no puede tumbar el envío.
       { alEnviarOnboarding: jest.fn() } as never,
+      // El resumen de comportamiento tras el envío: best-effort, nunca lanza.
+      { calcular: jest.fn(async (..._args: unknown[]) => ({ disponible: false })) } as never,
       sequelize as never,
     );
     return {

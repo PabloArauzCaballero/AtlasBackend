@@ -62,6 +62,7 @@ function build() {
     models.consentDocument as never,
     models.onboardingFlow as never,
     riskRepository,
+    { findDecidedDevicePermissionPurposes: async () => [], findAnsweredSurveyQuestionCodes: async () => [] } as never,
   );
   return { repository, riskRepository, models };
 }
@@ -114,6 +115,8 @@ describe('CustomerEligibilityRepository', () => {
       identityVerificationResult: 'verified',
       pendingEvidenceReviewCount: 4,
       grantedConsentDocumentIds: ['501'],
+      decidedDevicePermissionPurposes: [],
+      answeredSurveyQuestionCodes: [],
       requiredConsentDocumentIds: ['501', '502'],
       openObservationCount: 5,
       unclearedWatchlistMatchCount: 6,

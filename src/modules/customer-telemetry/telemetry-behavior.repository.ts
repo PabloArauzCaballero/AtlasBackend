@@ -117,6 +117,50 @@ export class TelemetryBehaviorRepository {
     );
   }
 
+  /**
+   * El resumen CALCULADO (`application/onboarding-behavior-summary.calculo.ts`), a diferencia del
+   * de arriba, que sólo cuenta eventos de un lote. Una fila nueva por cálculo: la anterior es la
+   * evidencia de lo que el Motor vio en su momento.
+   */
+  createComputedSummary(
+    values: {
+      tenantId: string;
+      customerId: string;
+      onboardingFlowId: string | null;
+      completionTimeSeconds: number | null;
+      interScreenTimingJson: Record<string, unknown>;
+      formErrorRate: number | null;
+      ciCopyPasteDetected: boolean | null;
+      abandonmentCountPrior: number;
+      permissionGrantScore: number | null;
+      botLikelihoodScore: number | null;
+      computationVersion: string;
+      computedAt: Date;
+      disparador: string;
+    },
+    options: RepositoryOptions,
+  ): Promise<OnboardingBehaviorSummaryModel> {
+    return this.onboardingBehaviorSummaryModel.create(
+      {
+        tenantId: values.tenantId,
+        customerId: values.customerId,
+        onboardingFlowId: values.onboardingFlowId,
+        completionTimeSeconds: values.completionTimeSeconds,
+        interScreenTimingJson: { ...values.interScreenTimingJson, disparador: values.disparador },
+        formErrorRate: values.formErrorRate === null ? null : values.formErrorRate.toFixed(4),
+        ciCopyPasteDetected: values.ciCopyPasteDetected,
+        abandonmentCountPrior: values.abandonmentCountPrior,
+        permissionGrantScore: values.permissionGrantScore === null ? null : values.permissionGrantScore.toFixed(2),
+        behaviorClusterCode: null,
+        botLikelihoodScore: values.botLikelihoodScore === null ? null : values.botLikelihoodScore.toFixed(2),
+        computationVersion: values.computationVersion,
+        computedAt: values.computedAt,
+        createdAtValue: values.computedAt,
+      },
+      { transaction: options.transaction },
+    );
+  }
+
   createBehaviorSummary(
     values: {
       tenantId: string;

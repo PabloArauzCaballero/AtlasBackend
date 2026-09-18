@@ -138,6 +138,19 @@ export const CUSTOMER_IDENTITY_NARRATIVES: EntityBusinessNarrative[] = [
       'Tabla append-only en `customer` con coordenadas, precisión y `captured_at`, ligada a `customer_addresses`, `customer_address_versions` y a la sesión que la originó. Contiene datos de ubicación, así que está marcada `contains_location_data` y su captura exige consentimiento vigente en `customer_consents`. Es de alto volumen: requiere política de retención y agregación, no conservación indefinida del detalle.',
   },
   {
+    tableName: 'customer_consumer_survey_answers',
+    whyExists:
+      'La fase 4 del alta (2026-09-18) pregunta seis hábitos de consumo declarados —gasto fijo, dependientes, ahorro, imprevisto, cuota máxima, frecuencia—. No son preguntas de personalidad: cada una tiene una respuesta contrastable con el ingreso declarado, el extracto o los dependientes del perfil económico, y mentir en ella obliga a mentir en dos sitios.',
+    whyNotDelete:
+      'Es la única fuente de lo que el cliente DECLARÓ sobre su capacidad de pago antes de que el sistema la calculara. Sin ella no se puede medir la consistencia entre lo declarado y lo observado, que es lo que la hace útil, ni auditar qué preguntó cada versión de la encuesta.',
+    decisionContribution:
+      'Cierra la sección `consumer_survey` de la elegibilidad (las seis preguntas de `habitos-v1`). Sus respuestas y `answered_in_ms` (menos de 1,5 s = no leyó la pregunta) entran al riesgo de onboarding en modo sombra hasta que exista un artefacto de riesgo con binding.',
+    usageExample:
+      'Un cliente declara ingreso de Bs 3.000, «casi todo» en gastos fijos y una cuota máxima de Bs 1.500. El cruce marca la cuota como inconsistente (más del 40 % del ingreso) y el analista lo ve junto al extracto antes de aprobar la línea.',
+    systemsExplanation:
+      'Tabla en `customer` con una fila por (`_tenant_id`, `customer_id`, `survey_version`, `question_code`), índice único sobre esa clave (el guardado es un upsert por pregunta) y `answer_code` / `answer_value` según el tipo de pregunta; nunca texto libre. `answered_in_ms` lo mide la app y se guarda tal cual. Sin PII más allá del vínculo con el cliente.',
+  },
+  {
     tableName: 'customer_reference_contacts',
     whyExists:
       'En crédito al consumo boliviano las referencias personales siguen siendo un mecanismo real de recuperación y de validación social. Esta tabla registra a esas personas de referencia declaradas por el cliente.',

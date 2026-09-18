@@ -174,7 +174,7 @@ export const contactVerificationSubmitSchema = z
   .superRefine(assertCoherentChannel);
 
 const identityEvidenceSchema = z.object({
-  evidenceType: z.enum(['identity_front', 'identity_back', 'selfie', 'proof_of_address', 'other']),
+  evidenceType: z.enum(['identity_front', 'identity_back', 'selfie', 'proof_of_address', 'bank_qr_proof', 'occupation_audio', 'other']),
   storageKey: z
     .string()
     .trim()

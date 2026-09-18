@@ -39,6 +39,7 @@ export { AddressGpsObservationModel } from './address-gps-observations.model.js'
 export { CustomerDeviceContactModel } from './customer-device-contacts.model.js';
 export { CustomerLocationPingModel } from './customer-location-pings.model.js';
 export { CustomerReferenceContactModel } from './customer-reference-contacts.model.js';
+export { CustomerConsumerSurveyAnswerModel } from './customer-consumer-survey-answers.model.js';
 export { CustomerEligibilityEvaluationModel } from './customer-eligibility-evaluations.model.js';
 export { CreditProductModel } from './credit-products.model.js';
 export { CreditApplicationModel } from './credit-applications.model.js';

@@ -23,6 +23,8 @@ function eligibleFacts(overrides: Partial<EligibilityFacts> = {}): EligibilityFa
   return {
     hasCredentials: true,
     verifiedContactCount: 1,
+    decidedDevicePermissionPurposes: ['device_address_book', 'location_tracking'],
+    answeredSurveyQuestionCodes: ['gasto_fijo', 'dependientes', 'ahorro', 'imprevisto', 'cuota_maxima', 'frecuencia'],
     profile: { id: 1, firstName: 'Ana', lastName: 'Paz', birthDate: '1990-01-01' } as never,
     presentFinancialAttributeCodes: [
       'employment_status',
@@ -228,6 +230,60 @@ describe('buildSections y assess', () => {
       'onboarding_in_progress',
       NOW,
     );
-    expect(result.completionPercentage).toBe(50); // 3 de 6 secciones
+    expect(result.completionPercentage).toBe(63); // 5 de 8 secciones (faltan economía, domicilio y carnet)
+  });
+
+  /*
+   * Las cuatro fases del alta (2026-09-18): el carnet va ANTES que los datos personales, los permisos
+   * del teléfono se cierran con una decisión —también «no»— y la encuesta de hábitos es la última.
+   */
+  it('el orden de las secciones es el de las cuatro fases: el carnet antes que los datos personales', () => {
+    const codes = buildSections(eligibleFacts(), NOW).map((section) => section.code);
+    expect(codes).toEqual([
+      'contact_verification',
+      'identity_documents',
+      'personal_data',
+      'address',
+      'financial_profile',
+      'reference_contacts',
+      'device_permissions',
+      'consumer_survey',
+    ]);
+    // Sin carnet ni perfil, lo primero que se pide es el carnet: el OCR prellena lo demás.
+    expect(assess(eligibleFacts({ identityDocument: null, profile: null }), 'onboarding_in_progress', NOW).nextStep).toBe(
+      'identity_documents',
+    );
+  });
+
+  it('decir «no» a los permisos del teléfono completa la sección; no haber decidido la deja pendiente', () => {
+    const decidido = buildSections(eligibleFacts({ decidedDevicePermissionPurposes: ['device_address_book', 'location_tracking'] }), NOW);
+    expect(decidido.find((s) => s.code === 'device_permissions')).toMatchObject({ status: 'completed', missingFields: [] });
+
+    const aMedias = buildSections(eligibleFacts({ decidedDevicePermissionPurposes: ['location_tracking'] }), NOW);
+    expect(aMedias.find((s) => s.code === 'device_permissions')).toMatchObject({
+      status: 'in_progress',
+      missingFields: ['device_address_book'],
+    });
+
+    const sinDecidir = assess(eligibleFacts({ decidedDevicePermissionPurposes: [] }), 'onboarding_in_progress', NOW);
+    expect(sinDecidir.nextStep).toBe('device_permissions');
+    expect(sinDecidir.canSubmit).toBe(false);
+  });
+
+  it('la encuesta de hábitos exige las seis preguntas; con cinco sigue en curso y es el siguiente paso', () => {
+    const cinco = assess(
+      eligibleFacts({ answeredSurveyQuestionCodes: ['gasto_fijo', 'dependientes', 'ahorro', 'imprevisto', 'cuota_maxima'] }),
+      'onboarding_in_progress',
+      NOW,
+    );
+    expect(cinco.nextStep).toBe('consumer_survey');
+    expect(cinco.sections.find((s) => s.code === 'consumer_survey')).toMatchObject({
+      status: 'in_progress',
+      missingFields: ['frecuencia'],
+    });
+    expect(cinco.canSubmit).toBe(false);
+    // Los hechos nuevos no añaden BLOQUEADORES: la encuesta y los permisos cierran secciones, no
+    // habilitaciones. Un cliente ya activo no se degrada por una versión nueva de la app.
+    expect(cinco.blockers.map((b) => b.code)).not.toContain('CONSUMER_SURVEY_INCOMPLETE');
   });
 });

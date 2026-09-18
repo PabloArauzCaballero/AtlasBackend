@@ -18,7 +18,12 @@ describe('OperationsController', () => {
     };
     const fraudService = { decideFraudCase: jest.fn(async (..._args: unknown[]) => ({ resolved: true })) };
     return {
-      controller: new OperationsController(operationsService as never, fraudService as never, { list: jest.fn() } as never),
+      controller: new OperationsController(
+        operationsService as never,
+        fraudService as never,
+        { list: jest.fn() } as never,
+        { calcular: jest.fn(), ultimo: jest.fn() } as never,
+      ),
       operationsService,
       fraudService,
     };

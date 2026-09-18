@@ -6636,6 +6636,8 @@ paths:
                           - identity_back
                           - selfie
                           - proof_of_address
+                          - bank_qr_proof
+                          - occupation_audio
                           - other
                       storageKey:
                         type: string
@@ -7406,6 +7408,8 @@ paths:
                     - selfie
                     - proof_of_address
                     - bank_statement
+                    - bank_qr_proof
+                    - occupation_audio
                     - other
                 contentType:
                   type: string
@@ -7413,6 +7417,7 @@ paths:
                     - image/jpeg
                     - image/png
                     - application/pdf
+                    - audio/mp4
                 sizeBytes:
                   type: integer
                   exclusiveMinimum: 0
@@ -7917,6 +7922,390 @@ paths:
       summary: Descartar las coincidencias de listas restrictivas
       tags:
         - customer-onboarding
+  /customer-onboarding/consumer-survey/catalog:
+    get:
+      operationId: ConsumerSurveyController_catalog
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Preguntas y opciones de `habitos-v1`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Catálogo de la encuesta de hábitos (versión vigente)
+      tags:
+        - customer-onboarding
+  /customer-onboarding/{customerId}/consumer-survey:
+    get:
+      operationId: ConsumerSurveyController_status
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Respuestas guardadas, preguntas que faltan y si está completa.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Estado de la encuesta de hábitos del cliente
+      tags:
+        - customer-onboarding
+    put:
+      operationId: ConsumerSurveyController_save
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                surveyVersion:
+                  type: string
+                  const: habitos-v1
+                answers:
+                  minItems: 1
+                  maxItems: 6
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      questionCode:
+                        type: string
+                      answerCode:
+                        type: string
+                        minLength: 1
+                        maxLength: 60
+                      answerValue:
+                        type: number
+                      answeredInMs:
+                        type: integer
+                        minimum: 0
+                        maximum: 3600000
+                    required:
+                      - questionCode
+                      - answeredInMs
+                    additionalProperties: false
+              required:
+                - surveyVersion
+                - answers
+              additionalProperties: false
+      responses:
+        '200':
+          description: Estado tras guardar.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Guardar respuestas de la encuesta de hábitos (parcial o completa)
+      tags:
+        - customer-onboarding
+  /customer-onboarding/{customerId}/supporting-evidence:
+    post:
+      operationId: CustomerSupportingEvidenceController_registerSupportingEvidence
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                evidenceType:
+                  type: string
+                  enum:
+                    - bank_qr_proof
+                    - proof_of_address
+                    - occupation_audio
+                storageKey:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+                mimeType:
+                  type: string
+                  enum:
+                    - image/jpeg
+                    - image/png
+                    - application/pdf
+                    - audio/mp4
+                sha256Hash:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+                fileSizeBytes:
+                  type: string
+                  pattern: ^[0-9]+$
+                note:
+                  type: string
+                  maxLength: 120
+              required:
+                - evidenceType
+                - storageKey
+                - mimeType
+                - sha256Hash
+              additionalProperties: false
+      responses:
+        '201':
+          description: Evidencia registrada y pendiente de revisión.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: >-
+        Registrar una evidencia de apoyo (QR de cobro, factura, audio de
+        ocupación)
+      tags:
+        - customer-onboarding
+  /customers/{customerId}/telemetry/batch:
+    post:
+      description: >-
+        Recibe hasta 100 eventos + 100 métricas on-device por batch (interacción
+        de formulario, permisos, auth, riesgo de dispositivo, SIM, reputación de
+        IP, pasos de onboarding, acciones del cliente). Rechaza el batch
+        completo si detecta indicios de volcado de agenda de contactos cruda
+        (`RAW_CONTACTS_NOT_ALLOWED`). Un `customer` solo puede reportar
+        telemetría de un dispositivo/sesión vinculados a sí mismo.
+      operationId: CustomerTelemetryController_ingestBatch
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+                deviceId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+                clientBatchId:
+                  type: string
+                  minLength: 3
+                  maxLength: 120
+                capturedFrom:
+                  type: string
+                  format: date-time
+                  pattern: >-
+                    ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                capturedUntil:
+                  type: string
+                  format: date-time
+                  pattern: >-
+                    ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                events:
+                  default: []
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      eventType:
+                        type: string
+                        enum:
+                          - form_field_interaction
+                          - permission_event
+                          - auth_event
+                          - device_risk_event
+                          - sim_observation
+                          - ip_reputation_observation
+                          - customer_observation
+                          - customer_action
+                          - onboarding_step_event
+                      eventCode:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                      occurredAt:
+                        type: string
+                        format: date-time
+                        pattern: >-
+                          ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                      metadata:
+                        type: object
+                        propertyNames:
+                          type: string
+                        additionalProperties: {}
+                    required:
+                      - eventType
+                      - eventCode
+                      - occurredAt
+                    additionalProperties: false
+                onDeviceMetrics:
+                  default: []
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      metricCode:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                      value:
+                        anyOf:
+                          - type: number
+                          - type: string
+                            maxLength: 500
+                          - type: boolean
+                          - type: object
+                            propertyNames:
+                              type: string
+                            additionalProperties: {}
+                      computedAt:
+                        type: string
+                        format: date-time
+                        pattern: >-
+                          ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                      confidenceScore:
+                        type: number
+                        minimum: 0
+                        maximum: 1
+                    required:
+                      - metricCode
+                      - value
+                    additionalProperties: false
+              required:
+                - sessionId
+                - deviceId
+                - clientBatchId
+                - capturedFrom
+                - capturedUntil
+                - events
+                - onDeviceMetrics
+              additionalProperties: false
+      responses:
+        '202':
+          description: Batch aceptado — cantidad de eventos/métricas procesados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: X-Idempotency-Key ausente, batch vacío, o payload > 250 KB.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: El dispositivo o la sesión no pertenecen al cliente.
+        '404':
+          description: Cliente no encontrado.
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          description: >-
+            RAW_CONTACTS_NOT_ALLOWED — el batch contiene indicios de agenda de
+            contactos cruda.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Ingerir batch de telemetría del cliente
+      tags:
+        - customer-telemetry
   /customers/{customerId}/sessions/start:
     post:
       description: >-
@@ -15103,6 +15492,7 @@ paths:
                     - image/jpeg
                     - image/png
                     - application/pdf
+                    - audio/mp4
                 sizeBytes:
                   type: integer
                   exclusiveMinimum: 0
@@ -15169,6 +15559,7 @@ paths:
                     - image/jpeg
                     - image/png
                     - application/pdf
+                    - audio/mp4
                 sizeBytes:
                   type: integer
                   exclusiveMinimum: 0
@@ -22371,17 +22762,17 @@ paths:
       summary: Crear solicitud de derechos ARCO/GDPR
       tags:
         - customer-privacy
-  /customers/{customerId}/telemetry/batch:
-    post:
-      description: >-
-        Recibe hasta 100 eventos + 100 métricas on-device por batch (interacción
-        de formulario, permisos, auth, riesgo de dispositivo, SIM, reputación de
-        IP, pasos de onboarding, acciones del cliente). Rechaza el batch
-        completo si detecta indicios de volcado de agenda de contactos cruda
-        (`RAW_CONTACTS_NOT_ALLOWED`). Un `customer` solo puede reportar
-        telemetría de un dispositivo/sesión vinculados a sí mismo.
-      operationId: CustomerTelemetryController_ingestBatch
+  /operations/customers/{customerId}/behavior-summary:
+    get:
+      operationId: OperationsController_getBehaviorSummary
       parameters:
+        - name: recalcular
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - '1'
         - name: customerId
           required: true
           in: path
@@ -22391,147 +22782,32 @@ paths:
           description: >-
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
-        - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                sessionId:
-                  type: string
-                  pattern: ^[1-9][0-9]*$
-                deviceId:
-                  type: string
-                  pattern: ^[1-9][0-9]*$
-                clientBatchId:
-                  type: string
-                  minLength: 3
-                  maxLength: 120
-                capturedFrom:
-                  type: string
-                  format: date-time
-                  pattern: >-
-                    ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
-                capturedUntil:
-                  type: string
-                  format: date-time
-                  pattern: >-
-                    ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
-                events:
-                  default: []
-                  maxItems: 100
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      eventType:
-                        type: string
-                        enum:
-                          - form_field_interaction
-                          - permission_event
-                          - auth_event
-                          - device_risk_event
-                          - sim_observation
-                          - ip_reputation_observation
-                          - customer_observation
-                          - customer_action
-                          - onboarding_step_event
-                      eventCode:
-                        type: string
-                        minLength: 1
-                        maxLength: 120
-                      occurredAt:
-                        type: string
-                        format: date-time
-                        pattern: >-
-                          ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
-                      metadata:
-                        type: object
-                        propertyNames:
-                          type: string
-                        additionalProperties: {}
-                    required:
-                      - eventType
-                      - eventCode
-                      - occurredAt
-                    additionalProperties: false
-                onDeviceMetrics:
-                  default: []
-                  maxItems: 100
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      metricCode:
-                        type: string
-                        minLength: 1
-                        maxLength: 120
-                      value:
-                        anyOf:
-                          - type: number
-                          - type: string
-                            maxLength: 500
-                          - type: boolean
-                          - type: object
-                            propertyNames:
-                              type: string
-                            additionalProperties: {}
-                      computedAt:
-                        type: string
-                        format: date-time
-                        pattern: >-
-                          ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
-                      confidenceScore:
-                        type: number
-                        minimum: 0
-                        maximum: 1
-                    required:
-                      - metricCode
-                      - value
-                    additionalProperties: false
-              required:
-                - sessionId
-                - deviceId
-                - clientBatchId
-                - capturedFrom
-                - capturedUntil
-                - events
-                - onDeviceMetrics
-              additionalProperties: false
       responses:
-        '202':
-          description: Batch aceptado — cantidad de eventos/métricas procesados.
+        '200':
+          description: Último resumen calculado, o `null` si nunca se calculó.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
         '400':
-          description: X-Idempotency-Key ausente, batch vacío, o payload > 250 KB.
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: El dispositivo o la sesión no pertenecen al cliente.
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Cliente no encontrado.
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          description: >-
-            RAW_CONTACTS_NOT_ALLOWED — el batch contiene indicios de agenda de
-            contactos cruda.
+          $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
       security:
         - access-token: []
-      summary: Ingerir batch de telemetría del cliente
+      summary: Resumen de comportamiento del alta de un cliente
       tags:
-        - customer-telemetry
+        - operations
   /operations/work-queue:
     get:
       description: >-

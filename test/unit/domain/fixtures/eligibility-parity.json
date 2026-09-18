@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11",
+  "generatedAt": "2026-09-18T05:56:43.161Z",
   "now": "2026-09-11T12:00:00.000Z",
   "cases": {
     "elegible": {
@@ -33,15 +33,31 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-09-11T12:00:00.000Z"
         },
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": true,
@@ -54,12 +70,12 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
           },
           {
-            "code": "financial_profile",
+            "code": "personal_data",
             "status": "completed",
             "missingFields": []
           },
@@ -69,12 +85,22 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
+            "code": "financial_profile",
             "status": "completed",
             "missingFields": []
           },
           {
             "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -116,15 +142,31 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-09-11T12:00:00.000Z"
         },
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": false,
@@ -137,12 +179,12 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
           },
           {
-            "code": "financial_profile",
+            "code": "personal_data",
             "status": "completed",
             "missingFields": []
           },
@@ -152,12 +194,22 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
+            "code": "financial_profile",
             "status": "completed",
             "missingFields": []
           },
           {
             "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -204,15 +256,31 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-09-11T12:00:00.000Z"
         },
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": true,
@@ -225,12 +293,12 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
           },
           {
-            "code": "financial_profile",
+            "code": "personal_data",
             "status": "completed",
             "missingFields": []
           },
@@ -240,12 +308,22 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
+            "code": "financial_profile",
             "status": "completed",
             "missingFields": []
           },
           {
             "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -287,15 +365,31 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-09-11T12:00:00.000Z"
         },
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": false,
@@ -308,12 +402,14 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
-            "status": "completed",
-            "missingFields": []
+            "code": "identity_documents",
+            "status": "in_progress",
+            "missingFields": [
+              "documentExpiry"
+            ]
           },
           {
-            "code": "financial_profile",
+            "code": "personal_data",
             "status": "completed",
             "missingFields": []
           },
@@ -323,17 +419,27 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
-            "status": "in_progress",
-            "missingFields": ["documentExpiry"]
+            "code": "financial_profile",
+            "status": "completed",
+            "missingFields": []
           },
           {
             "code": "reference_contacts",
             "status": "completed",
             "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
+            "status": "completed",
+            "missingFields": []
           }
         ],
-        "completionPercentage": 83,
+        "completionPercentage": 88,
         "canSubmit": false,
         "nextStep": "identity_documents",
         "blockers": [
@@ -374,15 +480,31 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-06-13T12:00:00.000Z"
         },
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": true,
@@ -395,12 +517,12 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
           },
           {
-            "code": "financial_profile",
+            "code": "personal_data",
             "status": "completed",
             "missingFields": []
           },
@@ -410,12 +532,22 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
+            "code": "financial_profile",
             "status": "completed",
             "missingFields": []
           },
           {
             "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -457,15 +589,31 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-06-12T12:00:00.000Z"
         },
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": false,
@@ -478,12 +626,12 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
           },
           {
-            "code": "financial_profile",
+            "code": "personal_data",
             "status": "completed",
             "missingFields": []
           },
@@ -493,12 +641,22 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
+            "code": "financial_profile",
             "status": "completed",
             "missingFields": []
           },
           {
             "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -544,12 +702,28 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": null,
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": false,
@@ -562,12 +736,12 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
           },
           {
-            "code": "financial_profile",
+            "code": "personal_data",
             "status": "completed",
             "missingFields": []
           },
@@ -577,12 +751,22 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
+            "code": "financial_profile",
             "status": "completed",
             "missingFields": []
           },
           {
             "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -630,14 +814,28 @@
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
         "grantedConsentDocumentIds": [],
-        "requiredConsentDocumentIds": ["c1"],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-09-11T12:00:00.000Z"
         },
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": false,
@@ -650,12 +848,12 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
           },
           {
-            "code": "financial_profile",
+            "code": "personal_data",
             "status": "completed",
             "missingFields": []
           },
@@ -665,12 +863,22 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
+            "code": "financial_profile",
             "status": "completed",
             "missingFields": []
           },
           {
             "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -681,7 +889,9 @@
         "blockers": [
           {
             "code": "CONSENT_MISSING",
-            "fields": ["c1"]
+            "fields": [
+              "c1"
+            ]
           }
         ]
       }
@@ -717,15 +927,31 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-09-11T12:00:00.000Z"
         },
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": false,
@@ -738,14 +964,16 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
-            "status": "in_progress",
-            "missingFields": ["birthDate"]
-          },
-          {
-            "code": "financial_profile",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
+          },
+          {
+            "code": "personal_data",
+            "status": "in_progress",
+            "missingFields": [
+              "birthDate"
+            ]
           },
           {
             "code": "address",
@@ -753,7 +981,7 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
+            "code": "financial_profile",
             "status": "completed",
             "missingFields": []
           },
@@ -761,15 +989,27 @@
             "code": "reference_contacts",
             "status": "completed",
             "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
+            "status": "completed",
+            "missingFields": []
           }
         ],
-        "completionPercentage": 83,
+        "completionPercentage": 88,
         "canSubmit": false,
         "nextStep": "personal_data",
         "blockers": [
           {
             "code": "PROFILE_INCOMPLETE",
-            "fields": ["birthDate"]
+            "fields": [
+              "birthDate"
+            ]
           }
         ]
       }
@@ -805,15 +1045,31 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-09-11T12:00:00.000Z"
         },
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": true,
@@ -826,12 +1082,12 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
           },
           {
-            "code": "financial_profile",
+            "code": "personal_data",
             "status": "completed",
             "missingFields": []
           },
@@ -841,12 +1097,22 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
+            "code": "financial_profile",
             "status": "completed",
             "missingFields": []
           },
           {
             "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -887,15 +1153,31 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-09-11T12:00:00.000Z"
         },
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": false,
@@ -908,14 +1190,14 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
           },
           {
-            "code": "financial_profile",
-            "status": "in_progress",
-            "missingFields": ["employment_seniority_months"]
+            "code": "personal_data",
+            "status": "completed",
+            "missingFields": []
           },
           {
             "code": "address",
@@ -923,23 +1205,37 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
-            "status": "completed",
-            "missingFields": []
+            "code": "financial_profile",
+            "status": "in_progress",
+            "missingFields": [
+              "employment_seniority_months"
+            ]
           },
           {
             "code": "reference_contacts",
             "status": "completed",
             "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
+            "status": "completed",
+            "missingFields": []
           }
         ],
-        "completionPercentage": 83,
+        "completionPercentage": 88,
         "canSubmit": false,
         "nextStep": "financial_profile",
         "blockers": [
           {
             "code": "FINANCIAL_PROFILE_INCOMPLETE",
-            "fields": ["employment_seniority_months"]
+            "fields": [
+              "employment_seniority_months"
+            ]
           }
         ]
       }
@@ -974,15 +1270,31 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-09-11T12:00:00.000Z"
         },
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": true,
@@ -995,12 +1307,12 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
           },
           {
-            "code": "financial_profile",
+            "code": "personal_data",
             "status": "completed",
             "missingFields": []
           },
@@ -1010,12 +1322,22 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
+            "code": "financial_profile",
             "status": "completed",
             "missingFields": []
           },
           {
             "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -1057,15 +1379,31 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-09-11T12:00:00.000Z"
         },
-        "openFraudCaseCount": 1
+        "openFraudCaseCount": 1,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": false,
@@ -1078,12 +1416,12 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
           },
           {
-            "code": "financial_profile",
+            "code": "personal_data",
             "status": "completed",
             "missingFields": []
           },
@@ -1093,12 +1431,22 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
+            "code": "financial_profile",
             "status": "completed",
             "missingFields": []
           },
           {
             "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -1144,15 +1492,31 @@
         },
         "identityVerificationResult": "verified",
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": {
           "recommendedAction": "approved_for_next_step",
           "decidedAt": "2026-09-11T12:00:00.000Z"
         },
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": false,
@@ -1165,12 +1529,12 @@
             "missingFields": []
           },
           {
-            "code": "personal_data",
+            "code": "identity_documents",
             "status": "completed",
             "missingFields": []
           },
           {
-            "code": "financial_profile",
+            "code": "personal_data",
             "status": "completed",
             "missingFields": []
           },
@@ -1180,12 +1544,22 @@
             "missingFields": []
           },
           {
-            "code": "identity_documents",
+            "code": "financial_profile",
             "status": "completed",
             "missingFields": []
           },
           {
             "code": "reference_contacts",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -1219,12 +1593,28 @@
         "identityDocument": null,
         "identityVerificationResult": null,
         "pendingEvidenceReviewCount": 0,
-        "grantedConsentDocumentIds": ["c1"],
-        "requiredConsentDocumentIds": ["c1"],
+        "grantedConsentDocumentIds": [
+          "c1"
+        ],
+        "requiredConsentDocumentIds": [
+          "c1"
+        ],
         "openObservationCount": 0,
         "unclearedWatchlistMatchCount": 0,
         "latestRisk": null,
-        "openFraudCaseCount": 0
+        "openFraudCaseCount": 0,
+        "decidedDevicePermissionPurposes": [
+          "device_address_book",
+          "location_tracking"
+        ],
+        "answeredSurveyQuestionCodes": [
+          "gasto_fijo",
+          "dependientes",
+          "ahorro",
+          "imprevisto",
+          "cuota_maxima",
+          "frecuencia"
+        ]
       },
       "expected": {
         "eligible": false,
@@ -1234,12 +1624,32 @@
           {
             "code": "contact_verification",
             "status": "pending",
-            "missingFields": ["verifiedContact"]
+            "missingFields": [
+              "verifiedContact"
+            ]
+          },
+          {
+            "code": "identity_documents",
+            "status": "pending",
+            "missingFields": [
+              "identityDocument"
+            ]
           },
           {
             "code": "personal_data",
             "status": "pending",
-            "missingFields": ["firstName", "lastName", "birthDate"]
+            "missingFields": [
+              "firstName",
+              "lastName",
+              "birthDate"
+            ]
+          },
+          {
+            "code": "address",
+            "status": "pending",
+            "missingFields": [
+              "address"
+            ]
           },
           {
             "code": "financial_profile",
@@ -1254,22 +1664,24 @@
             ]
           },
           {
-            "code": "address",
-            "status": "pending",
-            "missingFields": ["address"]
-          },
-          {
-            "code": "identity_documents",
-            "status": "pending",
-            "missingFields": ["identityDocument"]
-          },
-          {
             "code": "reference_contacts",
             "status": "pending",
-            "missingFields": ["referenceContacts"]
+            "missingFields": [
+              "referenceContacts"
+            ]
+          },
+          {
+            "code": "device_permissions",
+            "status": "completed",
+            "missingFields": []
+          },
+          {
+            "code": "consumer_survey",
+            "status": "completed",
+            "missingFields": []
           }
         ],
-        "completionPercentage": 0,
+        "completionPercentage": 25,
         "canSubmit": false,
         "nextStep": "blocked",
         "blockers": [
@@ -1285,7 +1697,11 @@
           },
           {
             "code": "PROFILE_INCOMPLETE",
-            "fields": ["firstName", "lastName", "birthDate"]
+            "fields": [
+              "firstName",
+              "lastName",
+              "birthDate"
+            ]
           },
           {
             "code": "FINANCIAL_PROFILE_INCOMPLETE",

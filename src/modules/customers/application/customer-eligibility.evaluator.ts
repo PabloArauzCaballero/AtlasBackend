@@ -4,6 +4,7 @@
  * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
  */
 import {
+  DEVICE_PERMISSION_PURPOSE_CODES,
   ELIGIBILITY_RULE_VERSION,
   EligibilityBlockerCode,
   IDENTITY_VERIFIED_RESULT,
@@ -19,6 +20,7 @@ import {
 } from '../customer-eligibility.constants.js';
 import { CREDIT_ELIGIBLE_STATUS, CustomerLifecycleStatus } from '../customer-lifecycle.constants.js';
 import type { EligibilityFacts } from '../repositories/customer-eligibility.facts.js';
+import { CODIGOS_DE_PREGUNTA } from '../consumer-survey.catalog.js';
 
 export type EligibilityBlocker = {
   code: EligibilityBlockerCode;
@@ -136,7 +138,16 @@ export function buildSections(facts: EligibilityFacts, now: Date): OnboardingSec
   else if (isDocumentExpired(facts.identityDocument.expiresAt, now)) identityMissing.push('documentExpiry');
 
   const referenceMissing = facts.referenceContactCount >= REQUIRED_REFERENCE_CONTACTS ? [] : ['referenceContacts'];
+  // Lectura defensiva de los dos hechos nuevos: hay bancos de prueba que arman los hechos sin ellos.
+  const decidedPurposes = new Set(facts.decidedDevicePermissionPurposes ?? []);
+  const permissionsMissing = DEVICE_PERMISSION_PURPOSE_CODES.filter((purpose) => !decidedPurposes.has(purpose));
+  const answered = new Set(facts.answeredSurveyQuestionCodes ?? []);
+  const surveyMissing = CODIGOS_DE_PREGUNTA.filter((code) => !answered.has(code));
 
+  /*
+   * En el ORDEN de `ONBOARDING_SECTION_CODES`: el `nextStep` es la primera sección sin completar, y
+   * ese orden es el de las cuatro fases del alta. El carnet va antes que los datos personales.
+   */
   return [
     {
       code: 'contact_verification',
@@ -144,14 +155,14 @@ export function buildSections(facts: EligibilityFacts, now: Date): OnboardingSec
       missingFields: facts.verifiedContactCount > 0 ? [] : ['verifiedContact'],
     },
     {
+      code: 'identity_documents',
+      status: sectionStatus(identityMissing, facts.identityDocument !== null),
+      missingFields: identityMissing,
+    },
+    {
       code: 'personal_data',
       status: sectionStatus(profileMissing, facts.profile !== null),
       missingFields: profileMissing,
-    },
-    {
-      code: 'financial_profile',
-      status: sectionStatus(financialMissing, facts.presentFinancialAttributeCodes.length > 0),
-      missingFields: financialMissing,
     },
     {
       code: 'address',
@@ -159,14 +170,25 @@ export function buildSections(facts: EligibilityFacts, now: Date): OnboardingSec
       missingFields: facts.hasCurrentAddress ? [] : ['address'],
     },
     {
-      code: 'identity_documents',
-      status: sectionStatus(identityMissing, facts.identityDocument !== null),
-      missingFields: identityMissing,
+      code: 'financial_profile',
+      status: sectionStatus(financialMissing, facts.presentFinancialAttributeCodes.length > 0),
+      missingFields: financialMissing,
     },
     {
       code: 'reference_contacts',
       status: sectionStatus(referenceMissing, facts.referenceContactCount > 0),
       missingFields: referenceMissing,
+    },
+    {
+      // Una decisión —también «no»— cierra la sección. Lo que se exige es haber decidido.
+      code: 'device_permissions',
+      status: sectionStatus(permissionsMissing, decidedPurposes.size > 0),
+      missingFields: permissionsMissing,
+    },
+    {
+      code: 'consumer_survey',
+      status: sectionStatus(surveyMissing, answered.size > 0),
+      missingFields: surveyMissing,
     },
   ];
 }

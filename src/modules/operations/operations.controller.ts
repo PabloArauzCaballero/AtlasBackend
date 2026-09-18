@@ -18,6 +18,7 @@ import { FraudService } from '../fraud/fraud.service.js';
 import { fraudDecisionParamsSchema, FraudDecisionParamsDto, fraudDecisionSchema, FraudDecisionDto } from '../fraud/fraud.schemas.js';
 import { OperationsService } from './operations.service.js';
 import { PendingContactVerificationService } from './pending-contact-verification.service.js';
+import { OnboardingBehaviorSummaryService } from '../customer-telemetry/application/onboarding-behavior-summary.service.js';
 import {
   operationsCustomerIdParamsSchema,
   manualReviewDecisionParamsSchema,
@@ -41,7 +42,29 @@ export class OperationsController {
     private readonly operationsService: OperationsService,
     private readonly fraudService: FraudService,
     private readonly pendingContacts: PendingContactVerificationService,
+    private readonly comportamiento: OnboardingBehaviorSummaryService,
   ) {}
+
+  /**
+   * CÓMO hizo el alta este cliente: tiempos por pantalla, correcciones, pegados, capturas
+   * interrumpidas y la heurística de automatización. Es lo mismo que recibió el artefacto de
+   * identidad, para que el analista vea los números con los que se decidió. Nunca se devuelve a la
+   * app: quien lo lee es una persona de operaciones.
+   */
+  @ApiOperation({ summary: 'Resumen de comportamiento del alta de un cliente' })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiParam({ name: 'customerId', schema: zodObjectPropertySchemas(operationsCustomerIdParamsSchema).customerId })
+  @ApiQuery({ name: 'recalcular', required: false, schema: { type: 'string', enum: ['1'] } })
+  @ApiResponse({ status: 200, description: 'Último resumen calculado, o `null` si nunca se calculó.' })
+  @Get('customers/:customerId/behavior-summary')
+  async getBehaviorSummary(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(operationsCustomerIdParamsSchema)) params: OperationsCustomerIdParamsDto,
+    @Query('recalcular') recalcular?: string,
+  ) {
+    if (recalcular === '1') return this.comportamiento.calcular(tenantId, params.customerId, 'operations_read');
+    return this.comportamiento.ultimo(tenantId, params.customerId);
+  }
 
   @ApiOperation({
     summary: 'Cola de trabajo combinada (revisión manual + fraude)',

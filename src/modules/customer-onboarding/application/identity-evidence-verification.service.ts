@@ -4,10 +4,22 @@
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
 import { Injectable, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
-import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
-import { IdentityPackageDto } from '../customer-onboarding.schemas.js';
+import { type AllowedEvidenceMimeType, DocumentStorageService } from '../../../common/storage/document-storage.service.js';
 
 export type VerifiedEvidence = Map<string, { sizeBytes: number; sha256Hex: string }>;
+
+/**
+ * Lo mínimo que hace falta para verificar un objeto declarado. Estructural a propósito: lo cumplen
+ * las evidencias del paquete de identidad y también las de apoyo (QR de cobro, factura, audio), que
+ * llegan por otro esquema y con otros tipos MIME.
+ */
+export type EvidenciaDeclarada = {
+  evidenceType: string;
+  storageKey: string;
+  sha256Hash: string;
+  mimeType: AllowedEvidenceMimeType;
+  fileSizeBytes?: string | null;
+};
 
 /**
  * Comprobación de los objetos de evidencia contra el almacenamiento real.
@@ -26,7 +38,7 @@ export class IdentityEvidenceVerificationService {
    * cualquier ruta del bucket, incluida la de la evidencia de otro cliente: bastaba conocerla para
    * adjuntarla al expediente propio.
    */
-  assertBelongsToCustomer(tenantId: string, customerId: string, evidence: IdentityPackageDto['evidence']): void {
+  assertBelongsToCustomer(tenantId: string, customerId: string, evidence: readonly EvidenciaDeclarada[]): void {
     const prefix = `${tenantId}/${customerId}/`;
     for (const item of evidence) {
       if (!item.storageKey.startsWith(prefix)) {
@@ -40,7 +52,7 @@ export class IdentityEvidenceVerificationService {
    * evidencia que no se pudo verificar no es evidencia, y aceptar el resto dejaría un documento de
    * identidad a medio respaldar.
    */
-  async verifyObjects(evidence: IdentityPackageDto['evidence']): Promise<VerifiedEvidence> {
+  async verifyObjects(evidence: readonly EvidenciaDeclarada[]): Promise<VerifiedEvidence> {
     if (!this.storageService.isConfigured()) {
       throw new ServiceUnavailableException('DOCUMENT_STORAGE_NOT_CONFIGURED');
     }

@@ -142,7 +142,16 @@ export const uploadUrlRequestSchema = z
   .object({
     // `bank_statement` entra en la misma custodia cifrada que el carnet: es el documento mas
     // sensible que el cliente entrega —sus movimientos— y no puede viajar por otro camino.
-    documentType: z.enum(['identity_front', 'identity_back', 'selfie', 'proof_of_address', 'bank_statement', 'other']),
+    documentType: z.enum([
+      'identity_front',
+      'identity_back',
+      'selfie',
+      'proof_of_address',
+      'bank_statement',
+      'bank_qr_proof',
+      'occupation_audio',
+      'other',
+    ]),
     contentType: z.enum(ALLOWED_EVIDENCE_MIME_TYPES),
     sizeBytes: z.number().int().positive().max(MAX_EVIDENCE_BYTES),
   })

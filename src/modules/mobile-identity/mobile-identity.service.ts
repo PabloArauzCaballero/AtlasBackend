@@ -52,6 +52,7 @@ const ESTADO_POR_DECISION: Readonly<Record<string, IdentityVerificationState>> =
  * supresión tiene que alcanzar también esa copia (ver `customer-privacy`).
  */
 import { MobileIdentitySignalsService } from './mobile-identity-signals.service.js';
+import { lecturaUtilizable } from './mobile-identity.lectura.js';
 import { describir } from './mobile-identity.errors.js';
 @Injectable()
 export class MobileIdentityService {
@@ -115,6 +116,7 @@ export class MobileIdentityService {
       status: 'PENDING',
       reason: null,
       similarity: null,
+      extracted: null,
       requestedAt: attempt.requestedAt?.toISOString() ?? null,
       completedAt: null,
     };
@@ -136,6 +138,7 @@ export class MobileIdentityService {
       verificationId,
       status: (attempt.finalResult ?? PENDING_RESULT) as IdentityVerificationState,
       reason: typeof motivos.reason === 'string' ? motivos.reason : null,
+      extracted: lecturaUtilizable(motivos.extracted),
       similarity: attempt.selfieMatchScore === null ? null : Number(attempt.selfieMatchScore),
       requestedAt: attempt.requestedAt?.toISOString() ?? null,
       completedAt: attempt.completedAt?.toISOString() ?? null,
@@ -173,9 +176,15 @@ export class MobileIdentityService {
        * confirmación explícita del registro, así que una lectura fallida no
        * puede aprobar a nadie: manda el caso a una persona.
        */
-      const [segip, agenda] = await Promise.all([
+      /*
+       * Y la TERCERA: cómo se hizo el alta (tiempos, pegados, correcciones, capturas
+       * interrumpidas). Sale de la bitácora que la app manda por telemetría; ver
+       * `MobileIdentitySignalsService.comportamientoDe`. Misma regla: ausencia = menos evidencia.
+       */
+      const [segip, agenda, comportamiento] = await Promise.all([
         this.senales.estadoDelRegistroEstatal(tenantId, customerId),
         this.senales.agendaDe(tenantId, customerId),
+        this.senales.comportamientoDe(tenantId, customerId),
       ]);
 
       /*
@@ -206,8 +215,19 @@ export class MobileIdentityService {
           identidad_agenda_bolivia_ratio: agenda.bolivianRatio,
           identidad_agenda_referencias_presentes: agenda.referencesFoundInAddressBook,
           identidad_agenda_coincidencias_riesgo: agenda.riskMatches,
+          identidad_comportamiento_disponible: comportamiento.disponible,
+          identidad_comportamiento_segundos_total: comportamiento.segundosTotal,
+          identidad_comportamiento_segundos_identidad: comportamiento.segundosIdentidad,
+          identidad_comportamiento_pegado_en_carnet: comportamiento.pegadoEnCarnet,
+          identidad_comportamiento_correcciones_ocr: comportamiento.correccionesOcr,
+          identidad_comportamiento_ratio_errores: comportamiento.ratioErrores,
+          identidad_comportamiento_segundo_plano_en_captura: comportamiento.segundoPlanoEnCaptura,
+          identidad_comportamiento_abandonos_previos: comportamiento.abandonosPrevios,
+          identidad_comportamiento_bot_score: comportamiento.botScore,
+          identidad_comportamiento_senales: comportamiento.senales,
         },
-        context: { channel: 'MOBILE_APP', verificationId },
+        // `behaviorSummaryId` ata esta decisión a la fila exacta del resumen que el artefacto vio.
+        context: { channel: 'MOBILE_APP', verificationId, behaviorSummaryId: comportamiento.summaryId },
       });
 
       const salida = respuesta.output ?? {};
@@ -223,6 +243,14 @@ export class MobileIdentityService {
           reason: motivo,
           executionId: respuesta.executionId,
           artifactVersionId: respuesta.artifact?.versionId ?? null,
+          behaviorSummaryId: comportamiento.summaryId,
+          behaviorSignals: comportamiento.senales,
+          /*
+           * Lo que el worker LEYÓ del carnet, para que la app lo prellene y la persona lo confirme
+           * en vez de teclearlo. Sólo procedencias que sostienen «se leyó el documento»: un campo
+           * propuesto por un modelo mirando la imagen (`MODEL`) no se ofrece como lectura.
+           */
+          extracted: lecturaUtilizable(salida.identidad_datos_leidos),
         },
         selfieMatchScore: decimal(salida.identidad_parecido),
         /*

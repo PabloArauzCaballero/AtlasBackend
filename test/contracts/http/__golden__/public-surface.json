@@ -2726,6 +2726,112 @@
     ],
     "body": true
   },
+  "GET /customer-onboarding/consumer-survey/catalog": {
+    "operationId": "ConsumerSurveyController_catalog",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /customer-onboarding/{customerId}/consumer-survey": {
+    "operationId": "ConsumerSurveyController_status",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "PUT /customer-onboarding/{customerId}/consumer-survey": {
+    "operationId": "ConsumerSurveyController_save",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
+  "POST /customer-onboarding/{customerId}/supporting-evidence": {
+    "operationId": "CustomerSupportingEvidenceController_registerSupportingEvidence",
+    "responses": [
+      "201",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
+  "POST /customers/{customerId}/telemetry/batch": {
+    "operationId": "CustomerTelemetryController_ingestBatch",
+    "responses": [
+      "202",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "422",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
   "POST /customers/{customerId}/sessions/start": {
     "operationId": "CustomerSessionsController_startSession",
     "responses": [
@@ -7860,28 +7966,28 @@
     ],
     "body": true
   },
-  "POST /customers/{customerId}/telemetry/batch": {
-    "operationId": "CustomerTelemetryController_ingestBatch",
+  "GET /operations/customers/{customerId}/behavior-summary": {
+    "operationId": "OperationsController_getBehaviorSummary",
     "responses": [
-      "202",
+      "200",
       "400",
       "401",
       "403",
       "404",
-      "409",
-      "422",
       "429",
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "recalcular"
+    ],
     "path": [
       "customerId"
     ],
     "security": [
       "access-token"
     ],
-    "body": true
+    "body": false
   },
   "GET /operations/work-queue": {
     "operationId": "OperationsController_getWorkQueue",

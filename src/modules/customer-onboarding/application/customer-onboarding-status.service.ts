@@ -16,6 +16,7 @@ import { CustomerEligibilityRepository } from '../../customers/repositories/cust
 import { CustomerEligibilityRiskRepository } from '../../customers/repositories/customer-eligibility-risk.repository.js';
 import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { RiskService } from '../../risk/risk.service.js';
+import { OnboardingBehaviorSummaryService } from '../../customer-telemetry/application/onboarding-behavior-summary.service.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 
@@ -48,6 +49,7 @@ export class CustomerOnboardingStatusService {
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly riskService: RiskService,
     private readonly expedienteHooks: ExpedienteHooksService,
+    private readonly comportamiento: OnboardingBehaviorSummaryService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -208,6 +210,8 @@ export class CustomerOnboardingStatusService {
     });
 
     await this.congelarExpediente(input.tenantId, input.customerId);
+    // El resumen DEFINITIVO del comportamiento (las cuatro fases); el de identidad fue a mitad del alta. Nunca lanza.
+    await this.comportamiento.calcular(input.tenantId, input.customerId, 'submit');
     return resultado;
   }
 

@@ -41,6 +41,8 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'customer_address_versions',
     'address_gps_observations',
     'customer_reference_contacts',
+    // La encuesta de hábitos de la fase 4 del alta (2026-09-18): respuestas declaradas por el cliente, vive con su expediente.
+    'customer_consumer_survey_answers',
     /**
      * La agenda del telefono, guardada como fichas y no como cuentas.
      *

@@ -24,6 +24,7 @@ import {
 } from '../../../database/models/index.js';
 import { CustomerEligibilityRiskRepository } from './customer-eligibility-risk.repository.js';
 import type { EligibilityFacts } from './customer-eligibility.facts.js';
+import { CustomerEligibilityPhasesRepository } from './customer-eligibility-phases.repository.js';
 import type { EligibilityReadOptions } from './customer-eligibility.read-options.js';
 
 export type { EligibilityReadOptions } from './customer-eligibility.read-options.js';
@@ -55,6 +56,8 @@ export class CustomerEligibilityRepository {
     @InjectModel(OnboardingFlowModel) private readonly onboardingFlowModel: typeof OnboardingFlowModel,
     // Cumplimiento y riesgo: qué encontró el banco sobre el cliente, frente a qué completó él.
     private readonly riskRepository: CustomerEligibilityRiskRepository,
+    // Las fases nuevas del alta (permisos del teléfono y encuesta de hábitos): sus lecturas viven aparte.
+    private readonly phasesRepository: CustomerEligibilityPhasesRepository,
   ) {}
 
   async loadFacts(tenantId: string, customerId: string, options: EligibilityReadOptions = {}): Promise<EligibilityFacts> {
@@ -74,6 +77,8 @@ export class CustomerEligibilityRepository {
       unclearedWatchlistMatchCount,
       latestRisk,
       openFraudCaseCount,
+      decidedDevicePermissionPurposes,
+      answeredSurveyQuestionCodes,
     ] = await Promise.all([
       this.hasCredentials(customerId, options),
       this.countVerifiedContacts(tenantId, customerId, options),
@@ -90,6 +95,8 @@ export class CustomerEligibilityRepository {
       this.riskRepository.countUnclearedWatchlistMatches(tenantId, customerId, options),
       this.riskRepository.findLatestRiskResult(tenantId, customerId, options),
       this.riskRepository.countOpenFraudCases(tenantId, customerId, options),
+      this.phasesRepository.findDecidedDevicePermissionPurposes(tenantId, customerId, options),
+      this.phasesRepository.findAnsweredSurveyQuestionCodes(tenantId, customerId, options),
     ]);
 
     return {
@@ -110,6 +117,8 @@ export class CustomerEligibilityRepository {
       unclearedWatchlistMatchCount,
       latestRisk,
       openFraudCaseCount,
+      decidedDevicePermissionPurposes,
+      answeredSurveyQuestionCodes,
     };
   }
 

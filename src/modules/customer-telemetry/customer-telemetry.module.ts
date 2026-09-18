@@ -33,6 +33,8 @@ import { TelemetryOnDeviceRepository } from './telemetry-on-device.repository.js
 import { TelemetryActivityRepository } from './telemetry-activity.repository.js';
 import { CustomerTelemetryRepository } from './customer-telemetry.repository.js';
 import { CustomerTelemetryService } from './customer-telemetry.service.js';
+import { OnboardingBehaviorReadRepository } from './onboarding-behavior-read.repository.js';
+import { OnboardingBehaviorSummaryService } from './application/onboarding-behavior-summary.service.js';
 
 @Module({
   imports: [
@@ -66,6 +68,12 @@ import { CustomerTelemetryService } from './customer-telemetry.service.js';
     TelemetryDeviceSignalsRepository,
     TelemetryOnDeviceRepository,
     TelemetryActivityRepository,
+    OnboardingBehaviorReadRepository,
+    OnboardingBehaviorSummaryService,
   ],
+  // El resumen lo piden la verificación de identidad (para el artefacto), el envío del alta y
+  // operaciones. Se exporta el servicio, no los repositorios: una sola definición de «cómo se hizo
+  // este alta».
+  exports: [OnboardingBehaviorSummaryService],
 })
 export class CustomerTelemetryModule {}

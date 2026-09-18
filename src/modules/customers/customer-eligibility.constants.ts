@@ -40,14 +40,26 @@ export type EligibilityBlockerCode = (typeof ELIGIBILITY_BLOCKER_CODES)[number];
  * primera sección no completada. Es el ÚNICO lugar donde se decide dónde retomar el proceso — antes
  * había cuatro cálculos distintos de `nextStep` en cuatro módulos, con resultados incompatibles.
  */
+/*
+ * El orden es el de las CUATRO FASES del alta (plan del 2026-09-17): contacto → identidad (el carnet
+ * ANTES que los datos personales: el OCR prellena y la persona confirma) → situación (domicilio,
+ * economía, referencias y los permisos del teléfono, que dejaron de pedirse al arrancar la app) →
+ * hábitos (la encuesta de consumo). `device_permissions` se completa con una DECISIÓN, incluida la
+ * negativa; `consumer_survey` con las seis preguntas contestadas.
+ */
 export const ONBOARDING_SECTION_CODES = [
   'contact_verification',
-  'personal_data',
-  'financial_profile',
-  'address',
   'identity_documents',
+  'personal_data',
+  'address',
+  'financial_profile',
   'reference_contacts',
+  'device_permissions',
+  'consumer_survey',
 ] as const;
+
+/** Las finalidades cuya decisión (sí o no) cierra la sección `device_permissions`. Son los códigos que siembra `privacy`. */
+export const DEVICE_PERMISSION_PURPOSE_CODES = ['device_address_book', 'location_tracking'] as const;
 
 export type OnboardingSectionCode = (typeof ONBOARDING_SECTION_CODES)[number];
 
