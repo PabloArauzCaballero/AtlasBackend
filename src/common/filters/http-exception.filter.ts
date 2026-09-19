@@ -8,10 +8,16 @@ import { UniqueConstraintError, ValidationError } from 'sequelize';
 import { normalizePostgresError, type NormalizedPostgresError } from '../database/postgres-error.js';
 import { isApplicationError, toHttpException } from '../../platform/contracts/application-error.js';
 import { recordHttpFailure } from '../observability/trace-error.js';
+import { publishTraceIdHeader } from '../observability/trace-id-header.js';
 
 type HttpResponse = {
   status: (statusCode: number) => HttpResponse;
   json: (body: unknown) => void;
+  // Lo que hace falta para publicar `x-trace-id` desde aquí. Este tipo describe el MÍNIMO que
+  // el filtro usa —para poder probarlo con un doble— y hasta ahora no incluía las cabeceras
+  // porque el filtro no las tocaba.
+  headersSent: boolean;
+  setHeader: (name: string, value: string) => unknown;
 };
 
 type HttpRequest = {
@@ -221,6 +227,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // observabilidad no cambia el contrato HTTP. Un 5xx marca el span como error; un 4xx sólo
     // deja su código. El error original sigue su camino intacto.
     recordHttpFailure(statusCode, exception);
+    // También aquí, y no sólo en el interceptor: los guards corren ANTES que los interceptores,
+    // así que un 401 del guard de sesión salta directo a este filtro y saldría sin `x-trace-id`
+    // —justo el caso en que soporte más la necesita—. Es idempotente.
+    publishTraceIdHeader(response);
 
     // Un fallo de privilegios (42501) o una escritura por la conexión read-only (25006) son bugs de
     // aprovisionamiento/enrutamiento NUESTROS: el cliente ve un 5xx opaco, pero el log debe gritar

@@ -50,7 +50,8 @@ Tres procesos, tres nombres: `atlas-api`, `atlas-worker`, `atlas-worker-messagin
 | `src/common/observability/tracing.service.ts` | Fachada para el dominio |
 | `src/common/observability/trace-context.service.ts` | Lee `trace_id` / `span_id` activos |
 | `src/common/observability/trace-error.ts` | Registro uniforme de excepciones |
-| `src/common/observability/trace-response.interceptor.ts` | Cabecera `x-trace-id` |
+| `src/common/observability/trace-response.interceptor.ts` | Cabecera `x-trace-id` (camino feliz) |
+| `src/common/observability/trace-id-header.ts` | La cabecera, compartida por el interceptor y el filtro |
 | `src/common/observability/messaging-trace.service.ts` | Inyección y extracción entre procesos |
 | `src/common/observability/messaging-attributes.ts` | Atributos de mensajería, definidos una vez |
 | `src/platform/events/local-consumer-dispatch.publisher.ts` | Extraído del relay (gate de tamaño) |
@@ -142,7 +143,7 @@ hash del identificador aparecen en ninguna parte.
 | `yarn check:file-size` | ✅ |
 | `yarn check:architecture` | ✅ (98 infracciones, línea base 98, **0 nuevas**) |
 | `yarn check:auth-coverage` · `check:migrations` · `check:openapi` · `check:env-example` · `check:no-env-file` | ✅ |
-| `yarn test:unit` | ✅ **5386 pruebas, 526 suites** |
+| `yarn test:unit` | ✅ **5406 pruebas, 528 suites** |
 | `yarn test:integration` | 123/124. **El fallo es previo**: `api-worker-isolation`, verificado en un worktree limpio en HEAD sin estos cambios (ver §14) |
 | `yarn jaeger:verify` | ✅ y **comprobado que no miente**: falla con Jaeger apagado y con el destino equivocado |
 | E2E manual contra Jaeger real | ✅ 15 spans, jerarquía correcta, sondas excluidas, sin fugas |
@@ -201,7 +202,7 @@ nunca publicada. Detalle y disparadores en `03-production-topology.md`.
 | HTTP externo | Parcial | `undici` activo y `url.full` saneado; **no ejercitado** con un proveedor real en esta puesta en marcha |
 | Errores marcados | Cumplido | `trace-error.spec.ts` + traza real |
 | Logs con `trace_id` | Cumplido | Misma petición: log y cabecera coinciden |
-| `x-trace-id` en la respuesta | Cumplido | `trace-response.interceptor.spec.ts` + E2E |
+| `x-trace-id` en la respuesta | Cumplido **incluido el 401 de un guard** | `trace-id-header.spec.ts` + E2E |
 | API y worker en la misma traza | Cumplido | `outbox-trace-continuity.spec.ts` contra PostgreSQL real |
 | Cron con traza raíz | Cumplido | `runtime-jobs-scheduler.service.ts` |
 | Health checks excluidos | Cumplido | Verificado: `/api/v1/health` no emite `x-trace-id` |
@@ -214,7 +215,18 @@ nunca publicada. Detalle y disparadores en `03-production-topology.md`.
 | Diseño de producción | Cumplido | `03-production-topology.md` |
 | **Rendimiento medido** | **NO cumplido** | `05-performance-results.md` lo declara abierto |
 
-## 16. Estado final
+## 16. Un hallazgo que sólo apareció ejecutándolo
+
+`x-trace-id` **no salía en los 401 y 403 rechazados por un guard**. En NestJS los guards corren
+**antes** que los interceptores, así que ese rechazo salta directo al filtro de excepciones y el
+interceptor no llega a ejecutarse. La cabecera faltaba justo en el caso en que más se pide —«no
+me deja entrar»— y no se ve compilando ni en una prueba del interceptor: se vio pidiendo la
+cabecera a un endpoint protegido y encontrándola vacía.
+
+Arreglado emitiéndola también desde el filtro, con `publishTraceIdHeader`, idempotente y
+compartido por los dos caminos.
+
+## 17. Estado final
 
 ```
 COMPLETO CON OBSERVACIONES

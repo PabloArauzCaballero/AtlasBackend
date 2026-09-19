@@ -191,6 +191,7 @@ inventado**, porque mandaría a soporte a buscar algo que no existe.
 | Los logs no llevan `trace_id` | Se está ejecutando fuera del contexto de la petición |
 | El worker abre trazas sueltas | La fila no llevaba portador, o se escribió antes de esta propagación |
 | Las sondas de salud llenan Jaeger | No deberían: están excluidas. Si aparecen, revisa `UNTRACED_HTTP_PATH_SUFFIXES` |
+| Un 401 sale sin `x-trace-id` | No debería: los guards corren antes que los interceptores, y por eso la cabecera se emite TAMBIÉN desde el filtro de excepciones |
 
 El diagnóstico completo, en `06-operational-runbook.md`.
 
