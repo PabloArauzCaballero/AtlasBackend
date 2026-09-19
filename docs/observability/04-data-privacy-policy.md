@@ -40,7 +40,8 @@ La política no es una promesa: cada prohibición tiene un mecanismo que la sost
 | --- | --- | --- |
 | Cabeceras con credenciales | **No** se activa `headersToSpanAttributes` | `telemetry.instrumentations.ts` |
 | Valores de parámetros SQL | `PgInstrumentation({ enhancedDatabaseReporting: false })` | ídem |
-| **Literales incrustados en el SQL** | `redactSqlLiterals` en el `requestHook` de `pg` | `sql-redaction.ts` |
+| **Literales incrustados en el SQL** | `redactSqlLiterals` dentro de `RedactingSpanProcessor`, sobre `db.query.text` **y** `db.statement` | `sql-redaction.ts` |
+| **Métricas y registros del propio SDK** | `OTEL_METRICS_EXPORTER`/`OTEL_LOGS_EXPORTER` se declaran `none`: sus atributos NO pasan por el saneador de spans | `tracing.ts` |
 | **Credencial en una URL firmada de MinIO** | `RedactingSpanProcessor` borra `url.query` y recorta `url.full` | `redacting-span-processor.ts` |
 | Valores de Redis | `dbStatementSerializer: (command) => command` | ídem |
 | Cuerpo de petición | Ninguna instrumentación de cuerpo está activa | ídem |
@@ -56,6 +57,20 @@ La fila de los literales del SQL no es teórica: se midió. Una sola petición d
 `… WHERE "identifier_hash" = '2a91be56…'` —el identificador seudonimizado de quien intentaba
 entrar— porque Sequelize no usa parámetros ligados en todas sus consultas. La regla del
 repositorio ya lo decía para los logs y no se estaba aplicando al canal nuevo.
+
+La fila de las métricas se descubrió midiendo, no leyendo. `NodeSDK` arranca un proveedor de
+métricas y otro de registros cuando sus variables de entorno no están declaradas —su valor por
+defecto es `otlp`, no `none`—, así que la aplicación exportaba una señal que nadie había pedido.
+El síntoma visible era un `OTLPExporterError: Not Found` por minuto contra Jaeger; el riesgo real
+es que las métricas de las instrumentaciones llevan sus propios atributos y **no** atraviesan
+`RedactingSpanProcessor`, que sólo actúa sobre spans. Una barrera que cubre un canal y deja otro
+abierto no es una barrera.
+
+El saneado del SQL vive en el PROCESADOR y no en el `requestHook` de `pg` por una razón medida:
+la instrumentación cambió el nombre del atributo entre minors —`db.statement` pasó a
+`db.query.text`— y durante la transición publica los dos. Acertar con un nombre deja el otro
+entero, en silencio; el procesador cubre los dos y cualquier atributo futuro que se añada a la
+lista, venga de la instrumentación que venga.
 
 Las dos últimas filas son **defensa en profundidad**: el código ya no emite esos datos, pero una
 instrumentación nueva o una actualización de biblioteca podría empezar a hacerlo sin que nadie lo

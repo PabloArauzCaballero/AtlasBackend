@@ -162,3 +162,26 @@ OTEL_ENABLED=false
 Un reinicio y el proceso deja de exportar, de parchear y de abrir conexiones. **No hace falta
 desplegar código para desactivar la observabilidad**, y esa es la propiedad que la hace segura
 de encender en producción.
+
+---
+
+## 8. «El log se llena de `OTLPExporterError: Not Found`»
+
+No es un fallo de las trazas: es otra señal.
+
+`NodeSDK` arranca un proveedor de **métricas** y otro de **registros** cuando
+`OTEL_METRICS_EXPORTER` y `OTEL_LOGS_EXPORTER` no están declaradas, porque su valor por defecto
+es `otlp` y no `none`. Si el destino es Jaeger —que sirve `/v1/traces` pero no `/v1/metrics`—
+el lector periódico falla cada minuto y deja ese error en el log de la aplicación.
+
+`startTracing` declara ahora las dos variables en `none`, así que el síntoma no debería
+aparecer. Si aparece, alguien las puso a otra cosa en el entorno del proceso: el código respeta
+esa decisión a propósito (`??=`). Compruébelo con
+
+```bash
+docker exec <contenedor> sh -lc 'env | grep OTEL_'
+```
+
+**No lo trate como ruido.** Las métricas de las instrumentaciones llevan sus propios atributos y
+**no** pasan por `RedactingSpanProcessor`, que sólo actúa sobre spans: un canal encendido sin
+querer es un canal fuera de la política de datos de la Fase 18.
