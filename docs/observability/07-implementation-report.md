@@ -154,9 +154,21 @@ condición OTTL rota: el verde significa algo.
 
 ## 11. Rendimiento
 
-**No medido bajo carga.** Lo que sí está medido, y el método para lo que falta, en
-`05-performance-results.md`. Lo verificado: el proceso no cae ni se bloquea con el destino de
-trazas inalcanzable, y el cierre vacía el lote sin lanzar.
+**Medido bajo carga el 2026-09-19.** 16 corridas válidas, 4 configuraciones, 4 rondas
+intercaladas, 10 req/s durante 120 s contra un Jaeger real. Detalle completo, condiciones y
+lo que no se midió, en `05-performance-results.md`.
+
+| Configuración | CPU del proceso | Δ | p95 |
+| --- | --- | --- | --- |
+| apagada | 20,46 s | — | 28,27 ms |
+| muestreo 0.10 (producción) | 22,89 s | +11,8 % | +3,3 % |
+| destino cerrado | 23,62 s | +15,4 % | **+1,4 %** |
+| muestreo 1.0 (depuración) | 25,46 s | +24,4 % | +12,1 % |
+
+Con muestreo de producción se cumplen todos los criterios de aceptación. **Un destino caído no
+cuesta latencia** (+1,4 % en p95 frente a una dispersión de la línea base del 14 %, con el signo
+repartido entre rondas), que es la propiedad de la que depende el diseño entero. **La memoria no
+se puede afirmar**: el RSS se muestreó una sola vez por corrida y la línea base osciló 143 MB.
 
 ## 12. Uso local
 
@@ -179,7 +191,9 @@ nunca publicada. Detalle y disparadores en `03-production-topology.md`.
 
 | Riesgo | Estado |
 | --- | --- |
-| **Sobrecarga sin medir bajo carga** | Abierto. El arnés existe (`yarn perf:load`); falta un entorno con tráfico representativo |
+| Memoria bajo carga sin medir | Abierto. El RSS se muestreó una vez por corrida y la dispersión de la línea base (143 MB) supera de largo el efecto |
+| Colector saturado y alta concurrencia sin medir | Abierto. Todo se midió a 10 req/s sobre una base con volumen mínimo |
+| HTTP saliente contra un proveedor de terceros real | Abierto **en lo que aporta la red**: TLS, DNS y el comportamiento del proveedor. El parcheo y el saneado sí están verificados con una llamada real (`scripts/verify-outbound-http.ts`) |
 | **Subir `ioredis`, `pg`, `express` o `undici`** puede dejar su instrumentación muda sin un solo error | Mitigado con procedimiento en el runbook §1; **no hay gate automático** |
 | `EventContext.traceparent` (`platform/observability/event-context.ts`) sigue siendo un campo que siempre vale `null` | Preexistente, **no tocado**: la propagación duradera va por `metadata_json` y ese campo es para eventos hijos dentro del mismo proceso, donde el contexto ya viaja solo |
 | `api-worker-isolation` en rojo | **Preexistente y ajeno.** `CustomerTelemetryModule` pasó a ser alcanzable desde el worker en el commit `654ca01` sin actualizar `WORKER_EXCLUDED_MODULES`. Verificado en worktree limpio en HEAD. **Pertenece a otra sesión** |
@@ -199,7 +213,7 @@ nunca publicada. Detalle y disparadores en `03-production-topology.md`.
 | PostgreSQL | Cumplido | 8 spans `pg.query` / `pg.connect` |
 | Sequelize instrumentado | Cumplido **por `pg`** | Decisión justificada en `01` |
 | Redis | Cumplido | `pttl`, `pexpire`, `incr` — tras corregir la incompatibilidad de versión |
-| HTTP externo | Parcial | `undici` activo y `url.full` saneado; **no ejercitado** con un proveedor real en esta puesta en marcha |
+| HTTP externo | Cumplido | `scripts/verify-outbound-http.ts`: llamada saliente REAL, span CLIENT de `instrumentation-undici` colgando del span de negocio, y la firma de la URL ausente. Con control negativo |
 | Errores marcados | Cumplido | `trace-error.spec.ts` + traza real |
 | Logs con `trace_id` | Cumplido | Misma petición: log y cabecera coinciden |
 | `x-trace-id` en la respuesta | Cumplido **incluido el 401 de un guard** | `trace-id-header.spec.ts` + E2E |
@@ -213,7 +227,8 @@ nunca publicada. Detalle y disparadores en `03-production-topology.md`.
 | Build y lint | Cumplido | Batería completa |
 | Documentación y runbook | Cumplido | Ocho documentos |
 | Diseño de producción | Cumplido | `03-production-topology.md` |
-| **Rendimiento medido** | **NO cumplido** | `05-performance-results.md` lo declara abierto |
+| Rendimiento medido | Cumplido | 16 corridas válidas; `05-performance-results.md` |
+| Sin métricas ni registros no pedidos | Cumplido | `OTEL_METRICS_EXPORTER`/`OTEL_LOGS_EXPORTER` en `none`; verificado en ejecución, de 3 errores de exportador a 0 |
 
 ## 16. Un hallazgo que sólo apareció ejecutándolo
 
@@ -226,6 +241,25 @@ cabecera a un endpoint protegido y encontrándola vacía.
 Arreglado emitiéndola también desde el filtro, con `publishTraceIdHeader`, idempotente y
 compartido por los dos caminos.
 
+## 16 bis. El segundo hallazgo que sólo apareció ejecutándolo
+
+**El SDK exportaba métricas y registros que nadie configuró.** `NodeSDK` no se limita a lo que
+se le pasa por constructor: con `OTEL_METRICS_EXPORTER` y `OTEL_LOGS_EXPORTER` sin declarar, su
+valor por defecto es `otlp`, así que además del proveedor de trazas arrancaba uno de métricas y
+otro de registros apuntados al mismo destino.
+
+Apareció **leyendo el log de una corrida de carga**, no revisando el código: con Jaeger de
+destino, el lector periódico fallaba cada minuto con `OTLPExporterError: Not Found`, porque
+Jaeger sirve `/v1/traces` y no `/v1/metrics`.
+
+El ruido era el síntoma. El defecto es que las métricas de las instrumentaciones llevan sus
+propios atributos —ruta, método, código de estado— y **no pasan por `RedactingSpanProcessor`**,
+que sólo actúa sobre spans: una señal que nadie pidió salía del proceso por fuera de la única
+barrera de saneado que hay. Una barrera que cubre un canal y deja otro abierto no es una
+barrera.
+
+Estaba en los cuatro backends de Atlas y se corrigió en los cuatro.
+
 ## 17. Estado final
 
 ```
@@ -233,6 +267,19 @@ COMPLETO CON OBSERVACIONES
 ```
 
 Todo lo instrumentado está verificado ejecutándolo, no sólo compilando. Las dos observaciones
-que impiden declararlo `COMPLETO` son explícitas y están documentadas: **la sobrecarga no se ha
-medido bajo carga representativa**, y **la instrumentación de HTTP saliente no se ha ejercitado
-contra un proveedor real**. Ninguna de las dos se afirma como resuelta.
+que impedían declararlo `COMPLETO` en la versión anterior de este informe —la sobrecarga sin
+medir y el HTTP saliente sin ejercitar— **están cerradas**, las dos con evidencia ejecutada.
+
+Sigue sin ser `COMPLETO`, y estas son las observaciones que quedan, más estrechas que las
+anteriores pero reales:
+
+1. **La memoria bajo carga no se puede afirmar.** El RSS se muestreó una sola vez por corrida y
+   la dispersión de la línea base (143 MB) supera de largo el efecto aparente (20 MB).
+2. **No se midió con el Collector saturado ni con alta concurrencia.** Todo es a 10 req/s sobre
+   una base con volumen mínimo.
+3. **El HTTP saliente se ejercitó contra un servidor local, no contra un proveedor de
+   terceros.** El parcheo, la propagación de contexto y el saneado están verificados; lo que
+   falta es lo que aporta la red real: TLS, DNS y el comportamiento del proveedor.
+4. **Los otros tres backends no tienen medición propia de sobrecarga.** Llevan la misma capa con
+   un subconjunto de las instrumentaciones, así que la cifra de aquí les sirve de cota superior
+   y así está dicho en sus documentos, pero no es una medición suya.
