@@ -71,6 +71,18 @@ describe('RedactingSpanProcessor', () => {
     expect(spanCon({ 'db.statement.parameters': "['7712345']" }).attributes['db.statement.parameters']).toBeUndefined();
   });
 
+  it('redacta el SQL en LOS DOS nombres que puede publicar la instrumentación de pg', () => {
+    // `instrumentation-pg` cambió `db.statement` por `db.query.text` al subir de minor, y
+    // durante la transición publica los dos. Cubrir sólo uno dejaría el otro con la consulta
+    // entera: el fallo silencioso que este procesador existe para evitar.
+    const exportado = spanCon({
+      'db.query.text': "SELECT * FROM clientes WHERE correo = 'ana@ejemplo.com'",
+      'db.statement': "SELECT * FROM clientes WHERE correo = 'ana@ejemplo.com'",
+    });
+    expect(exportado.attributes['db.query.text']).toBe("SELECT * FROM clientes WHERE correo = '?'");
+    expect(exportado.attributes['db.statement']).toBe("SELECT * FROM clientes WHERE correo = '?'");
+  });
+
   it('no toca los atributos legítimos', () => {
     const exportado = spanCon({ 'app.module': 'credit', 'server.address': 'minio', 'db.query.text': 'SELECT 1' });
     expect(exportado.attributes).toMatchObject({ 'app.module': 'credit', 'server.address': 'minio', 'db.query.text': 'SELECT 1' });

@@ -5,6 +5,7 @@
  */
 import type { Context } from '@opentelemetry/api';
 import type { ReadableSpan, Span, SpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { redactSqlLiterals } from './sql-redaction.js';
 
 /**
  * Por qué un procesador y no un hook por instrumentación.
@@ -32,6 +33,16 @@ const DELETED_ATTRIBUTES: readonly string[] = [
 
 /** Atributos que se conservan sin su cadena de consulta. */
 const URL_ATTRIBUTES: readonly string[] = ['url.full', 'http.url'];
+/**
+ * Atributos con el texto de una consulta SQL, de los que se borran los literales.
+ *
+ * Son DOS nombres porque la instrumentación de `pg` cambió el suyo al subir de minor
+ * —`db.statement` pasó a `db.query.text`— y durante la transición publica **los dos a la vez**.
+ * Un saneado que sólo cubriera uno dejaría el otro con la consulta entera, en silencio. Ése es
+ * el motivo de sanear aquí y no en un hook de la instrumentación: en este punto no hay que
+ * acertar con el nombre, hay que cubrirlos todos.
+ */
+const SQL_ATTRIBUTES: readonly string[] = ['db.query.text', 'db.statement'];
 
 export class RedactingSpanProcessor implements SpanProcessor {
   onStart(_span: Span, _parentContext: Context): void {
@@ -50,6 +61,10 @@ export class RedactingSpanProcessor implements SpanProcessor {
     for (const key of URL_ATTRIBUTES) {
       const value = attributes[key];
       if (typeof value === 'string') attributes[key] = stripQuery(value);
+    }
+    for (const key of SQL_ATTRIBUTES) {
+      const value = attributes[key];
+      if (typeof value === 'string') attributes[key] = redactSqlLiterals(value);
     }
   }
 
