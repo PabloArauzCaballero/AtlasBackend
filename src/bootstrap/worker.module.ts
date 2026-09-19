@@ -36,6 +36,17 @@ import { PlatformModule } from '../platform/platform.module.js';
  * Lo que NO dice esta lista: el worker sí alcanza Clientes, Crédito, Auth, Sesiones y varios más
  * transitivamente, porque `NotificationsModule` los importa. Es la deuda que documenta
  * `docs/architecture/microservices/remaining-exceptions.md`, no un objetivo cumplido.
+ *
+ * `CustomerTelemetryModule` salió de la lista el 2026-09-19 porque **dejó de ser sólo de la API**:
+ * `654ca01` lo añadió a `CustomerOnboardingModule` para el resumen de comportamiento del alta, y
+ * el worker alcanza ese módulo por `RuntimeJobsModule` —el job que marca altas abandonadas—. El
+ * camino exacto es `WorkerModule → RuntimeJobsModule → CustomerOnboardingModule →
+ * CustomerTelemetryModule`.
+ *
+ * La lista es un INVENTARIO de lo que de verdad pasa, no un deseo: dejarlo dentro sólo conseguía
+ * que la prueba de AT-045 estuviera en rojo diciendo la verdad mientras la lista mentía. Si lo
+ * correcto fuera que el worker NO lo alcanzara, lo que hay que cambiar es el import de
+ * `CustomerOnboardingModule`, no esta lista.
  */
 export const WORKER_EXCLUDED_MODULES = Object.freeze([
   'AppContentModule',
@@ -43,7 +54,6 @@ export const WORKER_EXCLUDED_MODULES = Object.freeze([
   'CatalogManagementModule',
   'CustomerDeviceSignalsModule',
   'CustomerPrivacyModule',
-  'CustomerTelemetryModule',
   'DataNotebookModule',
   'DataQualityModule',
   'DiscoveryModule',
