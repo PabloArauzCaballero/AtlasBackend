@@ -22769,6 +22769,10 @@ paths:
         - name: recalcular
           required: false
           in: query
+          description: >-
+            Con `1` rehace el resumen desde los eventos en bruto en vez de
+            devolver el último calculado. Es lo que se usa cuando el alta
+            terminó después de la última foto.
           schema:
             type: string
             enum:

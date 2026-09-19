@@ -54,7 +54,14 @@ export class OperationsController {
   @ApiOperation({ summary: 'Resumen de comportamiento del alta de un cliente' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'customerId', schema: zodObjectPropertySchemas(operationsCustomerIdParamsSchema).customerId })
-  @ApiQuery({ name: 'recalcular', required: false, schema: { type: 'string', enum: ['1'] } })
+  @ApiQuery({
+    name: 'recalcular',
+    required: false,
+    description:
+      'Con `1` rehace el resumen desde los eventos en bruto en vez de devolver el último calculado. ' +
+      'Es lo que se usa cuando el alta terminó después de la última foto.',
+    schema: { type: 'string', enum: ['1'] },
+  })
   @ApiResponse({ status: 200, description: 'Último resumen calculado, o `null` si nunca se calculó.' })
   @Get('customers/:customerId/behavior-summary')
   async getBehaviorSummary(
