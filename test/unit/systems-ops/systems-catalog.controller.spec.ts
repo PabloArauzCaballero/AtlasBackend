@@ -9,19 +9,36 @@ import { SystemsCatalogController } from '../../../src/modules/systems-ops/syste
 describe('SystemsCatalogController', () => {
   function build() {
     const service = {
-      getDashboard: jest.fn(async () => ({ counts: {} })),
-      listEndpoints: jest.fn(async () => ({ items: [] })),
-      getEndpoint: jest.fn(async () => ({ endpoint: {} })),
-      getImpactByTable: jest.fn(async () => ({ entity: {} })),
-      getToolsHealth: jest.fn(async () => []),
+      getDashboard: jest.fn(async (..._args: unknown[]) => ({ counts: {} })),
+      listEndpoints: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getEndpoint: jest.fn(async (..._args: unknown[]) => ({ endpoint: {} })),
+      getImpactByTable: jest.fn(async (..._args: unknown[]) => ({ entity: {} })),
+      getToolsHealth: jest.fn(async (..._args: unknown[]) => []),
     };
-    const toolInferenceService = { infer: jest.fn(async () => ({ inferred: 1 })) };
-    const dataImpactInferenceService = { infer: jest.fn(async () => ({ inferred: 2 })) };
+    const toolInferenceService = { infer: jest.fn(async (..._args: unknown[]) => ({ inferred: 1 })) };
+    const dataImpactInferenceService = { infer: jest.fn(async (..._args: unknown[]) => ({ inferred: 2 })) };
+    const domainOverviewService = {
+      // La forma real de `GET /systems/domains/overview`, no un `{ domains: [] }` de conveniencia:
+      // este doble se lee como referencia de la respuesta.
+      overview: jest.fn(async (..._args: unknown[]) => ({
+        generatedAt: '2026-09-09T00:00:00.000Z',
+        domainSource: 'catalog',
+        items: [],
+        unassigned: { tables: 0, endpoints: 0, modules: [] },
+        totals: { tables: 0, endpoints: 0, testSuites: 0 },
+      })),
+    };
     return {
-      controller: new SystemsCatalogController(service as never, toolInferenceService as never, dataImpactInferenceService as never),
+      controller: new SystemsCatalogController(
+        service as never,
+        toolInferenceService as never,
+        dataImpactInferenceService as never,
+        domainOverviewService as never,
+      ),
       service,
       toolInferenceService,
       dataImpactInferenceService,
+      domainOverviewService,
     };
   }
 

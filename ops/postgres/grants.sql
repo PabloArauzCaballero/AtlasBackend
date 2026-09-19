@@ -10,12 +10,49 @@
 CREATE SCHEMA IF NOT EXISTS :"read_schema" AUTHORIZATION atlas_owner;
 GRANT CONNECT ON DATABASE :"DBNAME" TO atlas_app_rw, atlas_app_ro, atlas_migrator;
 
+-- ---------------------------------------------------------------------------
+-- `public`: el corredor de migraciones escribe ahí su libro de a bordo.
+-- ---------------------------------------------------------------------------
+--
+-- Desde PostgreSQL 15, `public` ya NO concede CREATE a todo el mundo: sólo su dueño puede crear
+-- objetos. Y lo primero que hace `db:migration:up` es `CREATE TABLE IF NOT EXISTS
+-- public."SequelizeMeta"`. Sin este grant, un aprovisionamiento nuevo que siga este guion al pie de
+-- la letra —roles de mínimo privilegio, migraciones con `atlas_migrator`— muere en la PRIMERA
+-- sentencia con «permission denied for schema public», antes de aplicar una sola migración.
+--
+-- El destinatario es `atlas_owner` y NO `atlas_migrator`, aunque sea el migrador quien se conecta:
+-- `bootstrap-roles.sql` hace `ALTER ROLE atlas_migrator IN DATABASE ... SET role TO atlas_owner`, así
+-- que la sesión de migraciones opera SIEMPRE como el owner. Dárselo al migrador no cambia nada —se
+-- comprueba con `current_user`, que ya es `atlas_owner`—, y es el error que hace perder la tarde.
+--
+-- No se le da a `atlas_app_rw`: el runtime no escribe el libro de migraciones y no debe crear nada.
+-- `atlas_app_ro` sólo necesita leer `read_api`.
+GRANT USAGE, CREATE ON SCHEMA public TO atlas_owner;
+-- El runtime sí LEE `SequelizeMeta` en el arranque para avisar de migraciones pendientes.
+GRANT USAGE ON SCHEMA public TO atlas_app_rw;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO atlas_app_rw;
+ALTER DEFAULT PRIVILEGES FOR ROLE atlas_owner IN SCHEMA public GRANT SELECT ON TABLES TO atlas_app_rw;
+
 DO $$
 DECLARE
   schema_name text;
+  -- La lista tiene que ser la MISMA que `ATLAS_SCHEMAS` (src/database/domain-schemas.ts): el gate
+  -- `check:db-privileges --strict` la deriva de ahí, así que un schema de dominio ausente aquí no
+  -- es un detalle de provisión — es el rol de la aplicación sin acceso a un dominio entero.
+  -- `credit` faltaba: `atlas_app_rw` no podía leer ni escribir solicitudes, líneas ni préstamos.
   write_schemas constant text[] := ARRAY[
-    'iam', 'customer', 'privacy', 'telemetry', 'catalog', 'risk', 'case_management',
-    'audit', 'integrations', 'messaging', 'platform_ops'
+    'iam', 'credit', 'customer', 'privacy', 'telemetry', 'catalog', 'risk', 'case_management',
+    'audit', 'integrations', 'messaging', 'platform_ops',
+    -- Expediente verificable del comercio (ADR-0009). Sin este privilegio la API arranca, la
+    -- migración pasa y la primera petición responde 500 «permission denied for schema partner».
+    'partner',
+    -- Motor de soporte: expediente, canal, transcripción y conocimiento. Sin este privilegio, la
+    -- primera persona que pida ayuda recibe un 500 en el canal que existe justamente para eso.
+    'support',
+    -- El explorador de archivos del cliente: carpetas, permisos y bitácora. Sin el privilegio, el
+    -- alta se completa —los archivos siguen yendo al almacén— y quien revisa el caso abre una
+    -- carpeta que responde 500 «permission denied for schema expedientes».
+    'expedientes'
   ];
 BEGIN
   FOREACH schema_name IN ARRAY write_schemas LOOP
@@ -40,4 +77,4 @@ ALTER DEFAULT PRIVILEGES FOR ROLE atlas_owner IN SCHEMA :"read_schema"
   GRANT SELECT ON TABLES TO atlas_app_ro, atlas_app_rw;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA :"read_schema" FROM atlas_app_ro;
 
-\echo 'Grants aplicados: atlas_app_rw en 11 schemas de dominio; atlas_app_ro solo en read_api.'
+\echo 'Grants aplicados: CREATE en public para atlas_owner (identidad efectiva de las migraciones); atlas_app_rw en los schemas de dominio existentes; atlas_app_ro solo en read_api.'

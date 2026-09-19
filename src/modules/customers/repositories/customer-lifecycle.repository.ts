@@ -36,10 +36,20 @@ export class CustomerLifecycleRepository {
   /**
    * Evento de dominio de la transición, en la MISMA transacción que el cambio de estado.
    *
-   * Patrón outbox: el orquestador de notificaciones lo consume después y avisa al cliente. Escribirlo
-   * aquí —y no tras confirmar la transacción— garantiza que no exista un cambio de estado sin su
-   * evento, ni un evento de un cambio que terminó revertido. Antes, un cliente observado o rechazado
-   * por un analista no se enteraba nunca: no había ni evento ni notificación.
+   * Escribirlo aquí —y no tras confirmar la transacción— garantiza que no exista un cambio de estado sin
+   * su evento, ni un evento de un cambio que terminó revertido.
+   *
+   * **Lo que este evento NO hace todavía, aunque se escribió para eso:** avisar al cliente. Este
+   * comentario decía que «el orquestador de notificaciones lo consume después y avisa al cliente», y
+   * no era verdad. `customer.lifecycle.*` no está en `EVENT_REGISTRY` ni tiene canales en
+   * `notification-rules.service.ts`. `process_events` sólo reclama códigos registrados y `process_outbox`
+   * sólo los no registrados, así que lo marca procesado el job de compatibilidad, sin avisar a nadie.
+   * Medido en el servidor el 2026-09-10 por `notification_messages.outbox_event_id`: 23 transiciones y 0
+   * mensajes, mientras `payment.*` y `user.*`, registrados y con canales, avisaron en los 8 casos. Un
+   * cliente observado o rechazado por un analista sigue sin enterarse. Qué decirle, en qué estados y por
+   * qué canal es una decisión de producto pendiente.
+   *
+   * Si se registra, ojo: los eventos anteriores ya están marcados procesados y no se reenviarán.
    */
   createTransitionEvent(
     values: { tenantId: string; customerId: string; previousStatus: string; newStatus: string; reasonCode: string; now: Date },

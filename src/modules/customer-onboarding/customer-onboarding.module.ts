@@ -4,8 +4,13 @@
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
 import { Module } from '@nestjs/common';
+import { LegacyOnboardingAtomicBridge } from '../../bootstrap/legacy-onboarding-atomic.bridge.js';
+import { LocalOtpDeliveryAdapter } from '../notifications/infrastructure/local-otp-delivery.adapter.js';
+import { OTP_DELIVERY_PORT } from '../notifications/public/index.js';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import {
+  CustomerConsumerSurveyAnswerModel,
   AddressGpsObservationModel,
   AttributeDefinitionModel,
   AuthEventModel,
@@ -29,6 +34,8 @@ import {
   EvidenceExtractionModel,
   EvidenceReviewModel,
   IdentityVerificationAttemptModel,
+  OnDeviceComputationRunModel,
+  OnDeviceMetricValueModel,
   OnboardingFlowModel,
   OnboardingStepEventModel,
   OperationalAuditLogModel,
@@ -41,6 +48,7 @@ import { AuthModule } from '../auth/auth.module.js';
 import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { CustomerOnboardingController } from './customer-onboarding.controller.js';
+import { CustomerPackagesController } from './customer-packages.controller.js';
 import { CustomerOnboardingProfileController } from './customer-onboarding-profile.controller.js';
 import { CustomerOnboardingStatusController } from './customer-onboarding-status.controller.js';
 import { CustomerVerificationController } from './customer-verification.controller.js';
@@ -50,20 +58,35 @@ import { MalwareScannerService } from '../../common/storage/malware-scanner.serv
 import { CustomerDocumentUploadService } from './application/customer-document-upload.service.js';
 import { CustomerIdentityProviderVerificationService } from './application/customer-identity-provider-verification.service.js';
 import { ExternalDataModule } from '../external-data/external-data.module.js';
+// El envío a revisión dispara la evaluación de riesgo del onboarding: sin ella la regla de
+// habilitación se queda para siempre en `RISK_NOT_APPROVED` y nadie se activa solo.
+import { RiskModule } from '../risk/risk.module.js';
+import { CustomerTelemetryModule } from '../customer-telemetry/customer-telemetry.module.js';
+import { ConsumerSurveyController } from './consumer-survey/consumer-survey.controller.js';
+import { ConsumerSurveyService } from './consumer-survey/consumer-survey.service.js';
+import { CustomerSupportingEvidenceService } from './application/customer-supporting-evidence.service.js';
+import { CustomerSupportingEvidenceController } from './customer-supporting-evidence.controller.js';
+import { ContactMethodResolutionService } from './application/contact-method-resolution.service.js';
 import { ContactVerificationCodeService } from './application/contact-verification-code.service.js';
+import { IdentityEvidenceVerificationService } from './application/identity-evidence-verification.service.js';
 import { ContactVerificationJournalService } from './application/contact-verification-journal.service.js';
 import { CustomerContactVerificationService } from './application/customer-contact-verification.service.js';
 import { CustomerIdentityPackageService } from './application/customer-identity-package.service.js';
 import { CustomerOnboardingGuardsService } from './application/customer-onboarding-guards.service.js';
 import { CustomerOnboardingStartService } from './application/customer-onboarding-start.service.js';
 import { CustomerOnboardingStatusService } from './application/customer-onboarding-status.service.js';
+import { IdentityManualReviewOutcomeService } from './application/identity-manual-review-outcome.service.js';
+import { CustomerEvidenceViewController } from './customer-evidence-view.controller.js';
 import { CustomerProfileUpdateService } from './application/customer-profile-update.service.js';
 import { CustomerFinancialProfileService } from './application/customer-financial-profile.service.js';
 import { CustomerReferenceContactsService } from './application/customer-reference-contacts.service.js';
 import { CustomerContactMethodsService } from './application/customer-contact-methods.service.js';
+import { CustomerContactsSnapshotService } from './application/customer-contacts-snapshot.service.js';
+import { CustomerContactsSnapshotRepository } from './repositories/customer-contacts-snapshot.repository.js';
 import { CustomerProfileDataRepository } from './repositories/customer-profile-data.repository.js';
 import { CustomerVerificationRepository } from './repositories/customer-verification.repository.js';
 import { OnboardingAbandonmentService } from './application/onboarding-abandonment.service.js';
+import { OnboardingDeviceSessionService } from './application/onboarding-device-session.service.js';
 import { CustomerVerificationService } from './application/customer-verification.service.js';
 import { CustomerComplianceScreeningService } from './application/customer-compliance-screening.service.js';
 import { CustomerAddressStatusRepository } from './repositories/customer-address-status.repository.js';
@@ -72,9 +95,11 @@ import { CustomerIdentityEvidenceRepository } from './repositories/customer-iden
 import { CustomerOnboardingFlowRepository } from './repositories/customer-onboarding-flow.repository.js';
 import { CustomerOnboardingRepository } from './customer-onboarding.repository.js';
 import { CustomerOnboardingService } from './customer-onboarding.service.js';
+import { IdentityReviewCallbackController } from './identity-review-callback.controller.js';
 
 @Module({
   imports: [
+    ExpedientesModule,
     SequelizeModule.forFeature([
       OnboardingFlowModel,
       OnboardingStepEventModel,
@@ -103,29 +128,53 @@ import { CustomerOnboardingService } from './customer-onboarding.service.js';
       CustomerReferenceContactModel,
       WatchlistEntryModel,
       WatchlistMatchModel,
-      WatchlistEntryModel,
-      WatchlistMatchModel,
+      // La agenda calculada en el dispositivo: la ejecución y sus métricas
+      // agregadas. Las tablas ya existían —`raw_contacts_stored` lleva ahí desde
+      // el esquema inicial—; lo que faltaba era el código que las llenara.
+      OnDeviceComputationRunModel,
+      OnDeviceMetricValueModel,
+      // La encuesta de hábitos (fase 4 del alta).
+      CustomerConsumerSurveyAnswerModel,
     ]),
     CustomersModule,
+    // El resumen de comportamiento del alta se recalcula al enviar la solicitud.
+    CustomerTelemetryModule,
     SessionsModule,
     ConsentsModule,
     AuthModule,
     MailSenderModule,
     NotificationsModule,
     ExternalDataModule,
+    RiskModule,
   ],
   controllers: [
+    CustomerEvidenceViewController,
+    IdentityReviewCallbackController,
     CustomerOnboardingController,
+    CustomerPackagesController,
     CustomerOnboardingProfileController,
     CustomerOnboardingStatusController,
     CustomerVerificationController,
+    ConsumerSurveyController,
+    CustomerSupportingEvidenceController,
   ],
   providers: [
+    // AT-015: el grupo atómico del alta tiene nombre, dueño y alcance declarados.
+    LegacyOnboardingAtomicBridge,
+    // AT-040: el puerto de entrega de OTP se compone aquí, donde conviven MailSender y los canales (Mensajería no
+    // puede importar MailSenderModule sin cerrar un ciclo de módulos).
+    LocalOtpDeliveryAdapter,
+    { provide: OTP_DELIVERY_PORT, useExisting: LocalOtpDeliveryAdapter },
+    IdentityManualReviewOutcomeService,
+    CustomerContactsSnapshotService,
+    CustomerContactsSnapshotRepository,
     CustomerOnboardingService,
     CustomerOnboardingStartService,
     CustomerOnboardingGuardsService,
     CustomerContactVerificationService,
     ContactVerificationCodeService,
+    ContactMethodResolutionService,
+    IdentityEvidenceVerificationService,
     CustomerDocumentUploadService,
     CustomerIdentityProviderVerificationService,
     DocumentStorageService,
@@ -141,6 +190,7 @@ import { CustomerOnboardingService } from './customer-onboarding.service.js';
     CustomerProfileDataRepository,
     CustomerVerificationRepository,
     OnboardingAbandonmentService,
+    OnboardingDeviceSessionService,
     CustomerVerificationService,
     CustomerComplianceScreeningService,
     CustomerOnboardingFlowRepository,
@@ -148,6 +198,19 @@ import { CustomerOnboardingService } from './customer-onboarding.service.js';
     CustomerIdentityEvidenceRepository,
     CustomerAddressStatusRepository,
     CustomerOnboardingRepository,
+    ConsumerSurveyService,
+    CustomerSupportingEvidenceService,
   ],
+  // El planificador de trabajos de fondo necesita el cierre de onboardings abandonados: era el único
+  // job del catálogo que solo existía como POST manual por tenant.
+  /*
+   * `CustomerContactsSnapshotService` se exporta porque lo lee el flujo MÓVIL de
+   * identidad: los agregados de la agenda son una de las entradas del artefacto
+   * que decide el alta, y quien llama al motor es `MobileIdentityService`. La
+   * alternativa —duplicar la lectura allí— crearía dos definiciones de qué
+   * significa «la agenda de este cliente», y sólo hace falta que se separen una
+   * vez para que la política decida sobre números que nadie escribió.
+   */
+  exports: [OnboardingAbandonmentService, CustomerContactsSnapshotService],
 })
 export class CustomerOnboardingModule {}

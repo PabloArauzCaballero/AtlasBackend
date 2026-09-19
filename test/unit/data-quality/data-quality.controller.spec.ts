@@ -9,7 +9,10 @@ import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.
  */
 describe('DataQualityController', () => {
   function build() {
-    const service = { listIssues: jest.fn(async () => ({ items: [] })), resolveIssue: jest.fn(async () => ({ resolved: true })) };
+    const service = {
+      listIssues: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      resolveIssue: jest.fn(async (..._args: unknown[]) => ({ resolved: true })),
+    };
     return { controller: new DataQualityController(service as never), service };
   }
   const params = { issueId: '7' } as never;

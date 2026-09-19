@@ -1,11 +1,32 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { SystemsCatalogRepository } from '../../../src/modules/systems-ops/systems-catalog.repository.js';
+import { SystemsMetadataRepository } from '../../../src/modules/systems-ops/systems-metadata.repository.js';
 
 /**
  * Cobertura directa de `SystemsCatalogRepository` (Fase 1.2 del plan 10/10): los finders del catálogo
  * de endpoints, que de paso ejercitan los helpers de paginación y de construcción del `where` de
  * búsqueda. Los 11 modelos Sequelize se mockean.
  */
+/**
+ * Pega los métodos de `SystemsMetadataRepository` sobre el repositorio del catálogo.
+ *
+ * Los METADATOS salieron a su propio repositorio al partir el archivo por tamaño, pero este spec
+ * los llama por docenas a través de `repo`. Copiar los métodos del prototipo —no `Object.assign`,
+ * que sólo copia propiedades propias— deja las aserciones exactamente como estaban.
+ */
+function conMetadatos(
+  repo: SystemsCatalogRepository,
+  metadatos: SystemsMetadataRepository,
+): SystemsCatalogRepository & Omit<SystemsMetadataRepository, keyof SystemsCatalogRepository> {
+  const destino = repo as unknown as Record<string, unknown>;
+  for (const nombre of Object.getOwnPropertyNames(SystemsMetadataRepository.prototype)) {
+    if (nombre === 'constructor') continue;
+    const metodo = (metadatos as unknown as Record<string, (...args: unknown[]) => unknown>)[nombre];
+    destino[nombre] = metodo.bind(metadatos);
+  }
+  return repo as SystemsCatalogRepository & Omit<SystemsMetadataRepository, keyof SystemsCatalogRepository>;
+}
+
 describe('SystemsCatalogRepository', () => {
   function buildRepo() {
     const make = () => {
@@ -40,7 +61,19 @@ describe('SystemsCatalogRepository', () => {
     );
     // Índices del constructor: 0 endpoint, 1 tool, 2 endpointTool, 3 dataEntity, 4 dataImpact,
     // 5 fieldImpact, 6 dataField, 7 relationship, 8 operationalRule, 9 domain, 10 payloadContract.
-    return { repo, endpointModel: models[0], models };
+    /*
+     * Los METADATOS —campos, relaciones, reglas, dominios, contratos e impactos— salieron a
+     * `SystemsMetadataRepository` al partir el archivo por tamaño. Se construye con los MISMOS
+     * dobles y en el mismo orden, así que las aserciones de este spec no cambian.
+     */
+    const metadatos = new SystemsMetadataRepository(
+      ...(models.map((m) => m as never) as [never, never, never, never, never, never, never, never, never, never, never]),
+    );
+    return {
+      repo: conMetadatos(repo, metadatos),
+      endpointModel: models[0],
+      models,
+    };
   }
 
   it('listEndpoints pagina y devuelve rows + meta', async () => {
@@ -123,7 +156,7 @@ describe('SystemsCatalogRepository', () => {
       expect(await missing.repo.updateDataEntityMetadata('e1', {})).toBeNull();
 
       const found = buildRepo();
-      const save = jest.fn(async () => undefined);
+      const save = jest.fn(async (..._args: unknown[]) => undefined);
       const entity = { businessPurpose: 'old', status: 'ACTIVE', save } as Record<string, unknown>;
       (found.models[3].findByPk as jest.Mock).mockResolvedValue(entity as never);
       await found.repo.updateDataEntityMetadata('e1', { businessPurpose: 'nuevo', containsPii: true });

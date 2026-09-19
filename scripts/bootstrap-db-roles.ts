@@ -34,6 +34,8 @@ const MIGRATOR = 'atlas_migrator';
 const APP_RW = 'atlas_app_rw';
 const APP_RO = 'atlas_app_ro';
 const READ_SCHEMA = 'read_api';
+/** Contabilidad del cargador de semillas (`atlas_seed.load_log`). Ver más abajo. */
+const SEED_SCHEMA = 'atlas_seed';
 
 function adminConnection(): Sequelize {
   return new Sequelize({
@@ -142,7 +144,12 @@ async function main(): Promise<void> {
 
     // --- Grants ------------------------------------------------------------------------------
     const writeSchemas = Object.values(ATLAS_SCHEMAS);
-    const managedSchemas = [...new Set([env.DB_SCHEMA, READ_SCHEMA, ...writeSchemas])];
+    // `atlas_seed` no lo crea ninguna migración: lo crea el cargador de semillas la primera vez que
+    // trae el conjunto publicado, y lo crea con la identidad que corra en ese momento —`atlas` desde
+    // el job del compose, `atlas_migrator` desde el anfitrión—. Si no se adopta aquí, el segundo en
+    // llegar no puede escribir la marca de carga y `db:seed:pull` muere con «permission denied for
+    // schema atlas_seed», que no se parece en nada a su causa.
+    const managedSchemas = [...new Set([env.DB_SCHEMA, READ_SCHEMA, SEED_SCHEMA, ...writeSchemas])];
     const managedSchemaSql = managedSchemas.map((schema) => `'${schema}'`).join(', ');
     await sequelize.query(`GRANT CONNECT ON DATABASE "${identity.db}" TO ${APP_RW}, ${APP_RO}, ${MIGRATOR}`);
     await sequelize.query(`GRANT CREATE ON DATABASE "${identity.db}" TO ${OWNER}`);
@@ -158,6 +165,9 @@ async function main(): Promise<void> {
     // estos pasos, `CREATE TABLE` falla con "permiso denegado al esquema public" y `ALTER TABLE` con
     // "debe ser dueño de la tabla".
     for (const schema of managedSchemas) {
+      // `IF NOT EXISTS` porque `atlas_seed` puede no existir todavía en una base recién migrada:
+      // se crea la primera vez que se traen semillas, y este bootstrap suele correr antes.
+      await sequelize.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
       await sequelize.query(`GRANT USAGE, CREATE ON SCHEMA "${schema}" TO ${OWNER}`);
     }
 

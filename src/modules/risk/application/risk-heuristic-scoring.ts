@@ -72,10 +72,18 @@ function riskLevelFor(totalScore: number): 'low' | 'medium' | 'high' {
 }
 
 /**
- * Decisión de respaldo: la que se aplica cuando NO hay ruleset activo que decida.
+ * Decisión de respaldo: la que se aplica cuando NI el Motor NI un ruleset activo decidieron.
  *
- * Falta de evidencia manda sobre el puntaje: a un cliente sin documento de identidad no se le abre
- * paso porque el resto de dimensiones promedien bien. Por eso `missing` se evalúa primero.
+ * **La heurística ya no aprueba a nadie.** Hasta el 2026-09-14 devolvía `approved_for_next_step`
+ * con 65 puntos —con carnet y un contacto verificado salían 70—, y eso levantaba `RISK_NOT_APPROVED`
+ * y activaba al cliente sin que ninguna política versionada lo hubiera visto. Medido en la base
+ * desplegada: cero evaluaciones de riesgo decididas por el Motor; todas por este código. Una
+ * degradación que concede lo mismo que la política es una política sin gobierno.
+ *
+ * Ahora la degradación deriva SIEMPRE a una persona y deja escrito por qué: `decision_engine_unavailable`
+ * para que el analista sepa que no hubo política, y el puntaje como orientación (`heuristic_score_ok`
+ * o `below_minimum_risk_score`), no como veredicto. Falta de evidencia sigue mandando sobre el
+ * puntaje: a un cliente sin documento de identidad no se le abre paso porque el resto promedie bien.
  */
 export function buildHeuristicFallback(scores: Pick<HeuristicRiskScores, 'missing' | 'totalScore'>): {
   decision: string;
@@ -84,11 +92,14 @@ export function buildHeuristicFallback(scores: Pick<HeuristicRiskScores, 'missin
   if (scores.missing.length > 0) {
     return { decision: 'manual_review_required', reasons: scores.missing.map((code) => `missing_${code}`) };
   }
-  return scores.totalScore >= RISK_APPROVAL_MIN_SCORE
-    ? { decision: 'approved_for_next_step', reasons: ['minimum_onboarding_risk_passed'] }
-    : // El motivo tiene que decir la verdad: un caso que NO alcanzó el umbral no puede quedar
-      // registrado como "riesgo mínimo superado". Ese texto es lo que lee un analista al abrirlo.
-      { decision: 'manual_review_required', reasons: ['below_minimum_risk_score'] };
+  return {
+    decision: 'manual_review_required',
+    reasons: [
+      'decision_engine_unavailable',
+      // El motivo tiene que decir la verdad: es orientación para quien revisa, no un veredicto.
+      scores.totalScore >= RISK_APPROVAL_MIN_SCORE ? 'heuristic_score_ok' : 'below_minimum_risk_score',
+    ],
+  };
 }
 
 /**

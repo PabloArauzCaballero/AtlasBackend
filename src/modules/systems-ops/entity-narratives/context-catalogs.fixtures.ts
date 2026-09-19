@@ -150,4 +150,30 @@ export const CONTEXT_CATALOG_NARRATIVES: EntityBusinessNarrative[] = [
     systemsExplanation:
       'Tabla en `catalog` con clave (`catalog_code`, `catalog_version`, `entry_code`), `entry_attributes` en JSON, `usage_count` y `superseded_by_version_id` para encadenar versiones. `is_immutable_after_use` debe hacerse cumplir en el servicio: la base no puede saber sola si un valor ya influyó en una decisión. Se seedea de forma idempotente en el perfil de producción.',
   },
+  {
+    tableName: 'app_content_entries',
+    whyExists:
+      'El texto que el cliente lee en la app —títulos, subtítulos, viñetas, la etiqueta del botón y a dónde lleva— vive aquí y no dentro del binario, indexado por (`surface`, `content_key`, `locale`). Cambiar una frase de una pantalla deja de ser una publicación en las tiendas y pasa a ser una edición con autor y fecha.',
+    whyNotDelete:
+      'Borrar una fila deja la pantalla sin su texto y sin forma de saber qué decía cuando alguien la leyó: `published_at` y `updated_by_internal_user_id` son la única prueba de qué se le mostró al cliente y quién lo escribió. Por eso el retiro es `is_active = false`, que conserva el contenido histórico y su autoría.',
+    decisionContribution:
+      '`is_active` y `published_at` deciden qué se sirve hoy; `locale` decide en qué idioma; `display_order` decide el orden dentro de la pantalla, y `action_kind`/`action_value` deciden a dónde lleva el botón. Un contenido con la acción mal apuntada es un embudo roto, y aquí se corrige sin tocar código ni esperar una revisión de tienda.',
+    usageExample:
+      'Negocio reescribe la explicación de por qué la app pide los permisos del dispositivo. Se edita la fila de esa `surface` y el cliente la ve en el siguiente arranque; la versión anterior queda con su `_updated_at`, de modo que se puede responder qué leyó exactamente quien aceptó la semana pasada.',
+    systemsExplanation:
+      'Tabla en `catalog` con `_tenant_id`, borrado lógico (`_deleted`) y clave semántica (`surface`, `content_key`, `locale`). `bullets_json` y `metadata_json` son JSONB, así que admitir una viñeta más no exige desplegar la app. El backend sirve solo filas activas y con `published_at` no futuro; qué hacer cuando no existe fila para el idioma pedido lo decide el servicio, no la base.',
+  },
+  {
+    tableName: 'decision_artifact_bindings',
+    whyExists:
+      'Dice qué política del motor decide cada cosa —identidad, crédito, y las que vengan— y en qué versión fijada. Antes eso era una variable de entorno, así que cambiar la política que aprueba un crédito exigía un despliegue: una decisión de Riesgo que solo podía ejecutar quien tuviera acceso al servidor.',
+    whyNotDelete:
+      'Cada fila es la historia de qué política estuvo decidiendo, desde cuándo y quién la cambió (`changed_by_internal_user_id`). Borrarla deja las decisiones tomadas sin la política que las produjo, y con ella se pierde la respuesta a por qué dos solicitudes equivalentes salieron distintas en fechas distintas.',
+    decisionContribution:
+      '`artifact_code` decide qué política se ejecuta y `pinned_version` en qué versión: sin fijarla, publicar una versión nueva en el motor cambia lo que decide producción sin que nadie lo apruebe. `consumer_endpoints` contesta «si cambio esta política, qué se rompe», y `workflow_stage` distingue la que corre en el alta de la que corre en una renovación aunque compartan artefacto.',
+    usageExample:
+      'El valor por defecto del entorno apuntaba a `credit_underwriting` y en el motor la política se llama `ATLAS_BNPL_UNDERWRITING`. Toda solicitud daba 404 y caía en «el motor no está disponible», dejando cada crédito esperando a una persona sin que nada dijera que el motor ni siquiera fue consultado. Con la asignación elegida de la lista que el propio motor publica, apuntar a un código inexistente deja de ser posible.',
+    systemsExplanation:
+      'Tabla en `catalog` con unicidad `(_tenant_id, decision_type)` y referencia al usuario interno que hizo el cambio. Es una tabla y no una columna en `tenants` porque los tipos de decisión crecen y cada uno necesita su propia historia; una columna por tipo obligaría a migrar cada vez que aparece una decisión nueva. Sin fila para un tipo se usa la variable de entorno como respaldo, así que la fila solo existe cuando alguien eligió de verdad.',
+  },
 ];

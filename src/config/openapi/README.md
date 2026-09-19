@@ -9,15 +9,15 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                   | Responsabilidad                                  |
+| ---------------------------------------------------- | ------------------------------------------------ |
 | [`api-reference.setup.ts`](./api-reference.setup.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`contract-components.ts`](./contract-components.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`contract-parameters.ts`](./contract-parameters.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`contract-tags.ts`](./contract-tags.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`contract-types.ts`](./contract-types.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`enrich-document.ts`](./enrich-document.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`normalize-contract.ts`](./normalize-contract.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`contract-tags.ts`](./contract-tags.ts)             | Artefacto de soporte específico de esta carpeta. |
+| [`contract-types.ts`](./contract-types.ts)           | Artefacto de soporte específico de esta carpeta. |
+| [`enrich-document.ts`](./enrich-document.ts)         | Artefacto de soporte específico de esta carpeta. |
+| [`normalize-contract.ts`](./normalize-contract.ts)   | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento
 

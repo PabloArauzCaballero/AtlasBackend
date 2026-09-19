@@ -4,6 +4,10 @@
  * @system reclama, procesa y reintenta jobs/outbox con locks y métricas operativas.
  */
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy, Optional, Inject } from '@nestjs/common';
+import type { Span } from '@opentelemetry/api';
+import { recordSpanError } from '../../common/observability/trace-error.js';
+import { TracingService } from '../../common/observability/tracing.service.js';
+import { APP_ATTRIBUTES, SPAN_NAMES } from '../../observability/telemetry.constants.js';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { randomUUID } from 'node:crypto';
@@ -14,9 +18,7 @@ import { TenantModel } from '../../database/models/index.js';
 import { env } from '../../config/env.js';
 import { appRole, runsBackgroundWork } from '../../config/app-role.js';
 import { JobTickGuard } from './job-tick-guard.js';
-import { buildScheduledJobs, type ScheduledJob } from './scheduled-jobs.catalog.js';
-import { RuntimeJobsService } from './runtime-jobs.service.js';
-import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
+import { SCHEDULED_JOBS, type ScheduledJob } from './scheduled-jobs.catalog.js';
 
 /**
  * Ejecuta los trabajos de fondo por su cuenta.
@@ -75,15 +77,17 @@ export class RuntimeJobsSchedulerService implements OnApplicationBootstrap, OnMo
   });
 
   constructor(
-    private readonly runtimeJobs: RuntimeJobsService,
-    private readonly maintenance: RuntimeMaintenanceJobsService,
+    // El catálogo llega ya construido (`SCHEDULED_JOBS`): este servicio ejecuta trabajos, no decide
+    // cuáles existen ni de qué servicio salen.
+    @Inject(SCHEDULED_JOBS) private readonly scheduledJobs: ScheduledJob[],
     @InjectModel(TenantModel) private readonly tenantModel: typeof TenantModel,
     @Inject(REDIS_CLIENT) private readonly redis: Redis | null,
     @Optional() private readonly metrics?: MetricsService,
+    @Optional() private readonly tracing: TracingService = new TracingService(),
   ) {}
 
   private jobs(): ScheduledJob[] {
-    return buildScheduledJobs({ runtimeJobs: this.runtimeJobs, maintenance: this.maintenance });
+    return this.scheduledJobs;
   }
 
   onApplicationBootstrap(): void {
@@ -166,16 +170,55 @@ export class RuntimeJobsSchedulerService implements OnApplicationBootstrap, OnMo
    * activo. Los tenants se recorren en serie a propósito — son jobs de fondo, no hay prisa, y en
    * paralelo competirían por el mismo pool de conexiones que atiende el tráfico HTTP.
    */
-  private async runBatch(job: ScheduledJob): Promise<void> {
-    const leader = await this.acquireLeadership(job);
-    if (!leader) return;
+  private runBatch(job: ScheduledJob): Promise<void> {
+    /*
+     * Traza RAÍZ, una por tanda.
+     *
+     * Estas tandas no nacen de ninguna petición: heredar el contexto de lo que el proceso
+     * estuviera haciendo colgaría el trabajo de fondo de una traza ajena y arbitraria. `root: true`
+     * abre una traza nueva, que es lo que una ejecución programada es.
+     *
+     * Empieza ANTES de pedir el liderazgo, no después, por dos razones: el `SET NX` a Redis está
+     * instrumentado y sin un span padre generaría una traza huérfana por tick y por réplica; y
+     * porque «esta réplica nunca es líder» es una pregunta real de operación, que así se responde
+     * mirando `app.job.outcome`.
+     *
+     * NO se abre un span por registro procesado: el span por tenant está acotado por el número de
+     * inquilinos activos. Si algún día son miles, esto tiene que pasar a lotes — la regla es que
+     * el número de spans no dependa del volumen de datos.
+     */
+    return this.tracing.runInRootSpan(
+      SPAN_NAMES.jobRun,
+      {
+        [APP_ATTRIBUTES.module]: 'runtime-jobs',
+        [APP_ATTRIBUTES.operation]: 'run',
+        [APP_ATTRIBUTES.jobName]: job.jobCode,
+        'app.job.schedule.interval.ms': job.intervalMs,
+      },
+      (span) => this.runBatchInSpan(job, span),
+    );
+  }
 
+  private async runBatchInSpan(job: ScheduledJob, batchSpan: Span): Promise<void> {
+    const leader = await this.acquireLeadership(job);
+    if (!leader) {
+      batchSpan.setAttribute(APP_ATTRIBUTES.jobOutcome, 'not_leader');
+      return;
+    }
+
+    let processed = 0;
+    let outcome = 'completed';
     try {
       const tenantIds = await this.listActiveTenantIds();
       for (const tenantId of tenantIds) {
         if (this.stopped) return;
         try {
-          await job.run(tenantId);
+          await this.tracing.runInSpan(
+            SPAN_NAMES.jobTenantRun,
+            { [APP_ATTRIBUTES.jobName]: job.jobCode, [APP_ATTRIBUTES.tenantId]: String(tenantId) },
+            () => job.run(tenantId),
+          );
+          processed += 1;
           this.metrics?.recordScheduledJob({ job: job.jobCode, outcome: 'success' });
         } catch (error) {
           this.metrics?.recordScheduledJob({ job: job.jobCode, outcome: 'failure' });
@@ -189,10 +232,17 @@ export class RuntimeJobsSchedulerService implements OnApplicationBootstrap, OnMo
       }
     } catch (error) {
       this.metrics?.recordScheduledJob({ job: job.jobCode, outcome: 'failure' });
+      // La tanda entera cayó: el span raíz SÍ se marca, porque esto no es «un tenant falló», es
+      // que el job no corrió. Se registra aquí y no se relanza para no cambiar el comportamiento.
+      outcome = 'failed';
+      recordSpanError(batchSpan, error);
       this.logger.error(
         `No se pudo ejecutar la tanda de ${job.jobCode}: ${error instanceof Error ? error.message : String(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
+    } finally {
+      batchSpan.setAttribute(APP_ATTRIBUTES.jobProcessed, processed);
+      batchSpan.setAttribute(APP_ATTRIBUTES.jobOutcome, outcome);
     }
   }
 
@@ -222,6 +272,9 @@ export class RuntimeJobsSchedulerService implements OnApplicationBootstrap, OnMo
     const rows = await this.tenantModel.findAll({
       where: { deleted: { [Op.ne]: true }, [Op.or]: [{ status: null }, { status: { [Op.ne]: 'inactive' } }] } as never,
       attributes: ['id'],
+      // Orden estable: la primera corrida se lleva los eventos sin inquilino, y sin orden eso cambiaba de
+      // inquilino entre ticks según lo que devolviera Postgres.
+      order: [['id', 'ASC']],
     });
     return rows.map((row) => String(row.id));
   }

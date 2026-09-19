@@ -4,9 +4,15 @@
  * @system organiza el runtime NestJS en módulos con límites explícitos y dependencias dirigidas.
  */
 import 'reflect-metadata';
-// Fase 3.4: el bootstrap de OpenTelemetry debe importarse ANTES que cualquier módulo instrumentable
-// (HTTP/Express/PG) para poder envolverlos. Es no-op salvo OTEL_ENABLED=true.
-import './observability/tracing-bootstrap.js';
+// Debe preceder a TODO import instrumentable (Nest, Express, Sequelize, pg, ioredis, undici): las
+// instrumentaciones de OpenTelemetry parchean esos módulos en el instante en que se requieren, así
+// que arrancar después produce cero spans y ningún error que lo explique. Es no-op salvo
+// OTEL_ENABLED=true. El nombre por defecto es POR PROCESO: si API y workers compartieran uno, el
+// grafo de dependencias de Jaeger mostraría un solo nodo hablando consigo mismo.
+import { startTracing, shutdownTracing } from './observability/tracing.js';
+
+startTracing('atlas-api');
+
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -16,13 +22,19 @@ import { AppModule } from './app.module.js';
 import { env, getAllowedCorsOrigins } from './config/env.js';
 import { appRole, runsHttpApi } from './config/app-role.js';
 import { setupApiDocumentation } from './config/openapi/api-reference.setup.js';
+import { buildOpenApiDocument } from './config/swagger.js';
+import { OpenApiDocumentRegistry } from './modules/systems-ops/openapi-document.registry.js';
 import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encryption.util.js';
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
-import { shutdownTracing } from './observability/tracing.js';
+import { assertDecoratorMetadataIsAvailable } from './common/bootstrap/decorator-metadata.guard.js';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('AtlasBootstrap');
+
+  // Antes que nada: sin metadata de decoradores el contenedor falla con un error que culpa a un
+  // módulo sano. Ver `decorator-metadata.guard.ts`.
+  assertDecoratorMetadataIsAvailable();
 
   // Simétrico al guard de `worker.ts`. Arrancar la API completa con `APP_ROLE=worker` expondría los
   // controllers de negocio en un contenedor que el manifiesto trata como interno, así que se falla
@@ -79,6 +91,16 @@ async function bootstrap(): Promise<void> {
     origin: getAllowedCorsOrigins(),
     credentials: true,
   });
+
+  /*
+   * El contrato OpenAPI se GENERA siempre y se guarda en memoria, aunque no se publique.
+   *
+   * `setupApiDocumentation` respeta `API_DOCS_ENABLED` —publicar el mapa de rutas y roles es una
+   * decisión, no un descuido— pero el catálogo de endpoints necesita ese mismo contrato para
+   * describirse a sí mismo, y no puede quedarse ciego porque en producción la documentación esté
+   * apagada. Tenerlo en memoria no expone nada: lo que expone es la ruta HTTP.
+   */
+  app.get(OpenApiDocumentRegistry).set(buildOpenApiDocument(app));
 
   // Referencia interactiva (Scalar) + Swagger UI + contrato crudo. Ver src/config/openapi/.
   setupApiDocumentation(app);

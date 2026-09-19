@@ -3,7 +3,9 @@
  * @business Esta pieza desacopla procesos de negocio y permite reintentos auditables sin perder eventos.
  * @system registra definiciones, outbox y procesamiento idempotente de eventos de dominio.
  */
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, Optional } from '@nestjs/common';
+import { env } from '../../config/env.js';
+import { OutboxRelayService } from '../../platform/events/outbox-relay.service.js';
 import { decodeCursor, paginateWithCursor } from '../../common/utils/pagination/cursor-pagination.util.js';
 import { listEventDefinitions, getEventDefinition } from './event-registry.js';
 import { EventsRepository } from './events.repository.js';
@@ -54,6 +56,9 @@ export class EventsService {
   constructor(
     private readonly repository: EventsRepository,
     private readonly notificationOrchestrator: NotificationOrchestratorService,
+    // AT-034: relay durable con lease/fencing e inbox por consumidor. Sólo actúa con EVENTS_RELAY_V2_ENABLED=true;
+    // apagado, el procesamiento sigue siendo exactamente el anterior.
+    @Optional() private readonly relay?: OutboxRelayService,
   ) {}
 
   listDefinitions() {
@@ -128,7 +133,12 @@ export class EventsService {
 
   async retryEvent(tenantId: string, eventId: string) {
     const event = await this.repository.getById(tenantId, eventId);
-    if (event.status === 'processed') throw new BadRequestException('PROCESSED_EVENT_CANNOT_BE_RETRIED');
+    /*
+     * 409 y no 400: la petición está bien formada; es el ESTADO del evento el que la contradice.
+     * Swagger prometía 409 desde el principio y el servicio lanzaba 400, así que un cliente que
+     * distinguiera «me equivoqué en la llamada» de «llegué tarde» no acertaba nunca.
+     */
+    if (event.status === 'processed') throw new ConflictException('PROCESSED_EVENT_CANNOT_BE_RETRIED');
     const now = new Date();
     event.status = 'pending';
     event.availableAt = now;
@@ -180,7 +190,8 @@ export class EventsService {
 
   async cancelEvent(tenantId: string, eventId: string) {
     const event = await this.repository.getById(tenantId, eventId);
-    if (event.status === 'processed') throw new BadRequestException('PROCESSED_EVENT_CANNOT_BE_CANCELLED');
+    if (event.status === 'processed') throw new ConflictException('PROCESSED_EVENT_CANNOT_BE_CANCELLED');
+    if (event.status === 'cancelled') throw new ConflictException('EVENT_ALREADY_CANCELLED');
     const now = new Date();
     event.status = 'cancelled';
     event.updatedAtValue = now;
@@ -190,6 +201,23 @@ export class EventsService {
 
   async processPendingEvents(input: ProcessEventsInput): Promise<ProcessEventsResult> {
     const workerId = input.workerId ?? `db-backed-events-worker-${process.pid}`;
+    if (this.relay && env.EVENTS_RELAY_V2_ENABLED && !input.dryRun) {
+      // AT-059: el monolito sólo reclama mientras `context_ownership` lo nombre dueño de Mensajería.
+      const outcome = await this.relay.run({
+        tenantId: input.tenantId ?? null,
+        limit: input.limit,
+        workerId,
+        ownership: { context: 'messaging', owner: 'monolith' },
+      });
+      return {
+        selected: outcome.claimed,
+        processed: outcome.published,
+        failed: outcome.deadLettered + outcome.quarantined,
+        skipped: outcome.retried,
+        dryRun: false,
+        eventIds: outcome.eventIds,
+      };
+    }
     const events = input.dryRun
       ? await this.repository.listPending({ tenantId: input.tenantId, limit: input.limit })
       : await this.repository.claimPending({ tenantId: input.tenantId, limit: input.limit, workerId });

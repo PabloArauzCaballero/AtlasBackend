@@ -34,7 +34,8 @@ yarn lint                 # ESLint (incluye límites de complejidad y tamaño de
 yarn format:check         # Prettier
 yarn check:no-env-file    # ningún .env real commiteado
 yarn check:env-example    # .env.example cubre todo el esquema Zod y no duplica claves
-yarn check:seed-profiles  # seeders separados por perfil; production/ sin datos ficticios
+# `check:seed-profiles` ya NO existe: se fue con los seeders del repositorio cuando las semillas
+# pasaron a una base aparte. Lo vigente sobre semillas es `yarn db:seed:verify-graph`.
 yarn check:overfetching   # sin SELECT * en la capa read_api
 yarn check:file-size      # gate de tamaño: ningún archivo runtime NUEVO grande sin excepción
 yarn type-check           # tsc --noEmit

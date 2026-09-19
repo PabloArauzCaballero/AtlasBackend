@@ -9,8 +9,21 @@ para los proveedores externos.
 
 Las plantillas a copiar son [`.env.example`](../../.env.example) (desarrollo) y
 [`.env.production.example`](../../.env.production.example) (producción). El gate
-`yarn check:env-example` falla si alguna variable del contrato falta en ellas, así que la plantilla
-nunca se queda atrás del código.
+`yarn check:env-example` comprueba tres cosas distintas, y conviene saber cuál cubre a cuál:
+
+1. **`.env.example` nombra TODAS las variables del esquema tipado.** Es la plantilla de referencia;
+   si el código añade una variable y aquí no aparece, el gate falla.
+2. **Las 14 credenciales de proveedor externo están en LAS DOS plantillas.** Esas no viven en el
+   esquema —el código las lee por `process.env`—, así que sin esta regla no las cubría nadie.
+3. **`.env.production.example` arranca de verdad.** Se carga tal cual con `NODE_ENV=production` y se
+   exige que lo ÚNICO que falle sean los secretos por rellenar. Antes nadie comprobaba esa plantilla:
+   traía una URL de Redis inválida y una variable vacía que el esquema rechaza, de modo que quien la
+   copiaba recibía un error que hablaba de otra cosa.
+
+Lo que el gate NO exige es que la plantilla de producción nombre las ~257 variables del esquema: las
+que tienen un valor por omisión seguro no necesitan estar. Y desde el 2026-09-13, un arranque en
+producción RECHAZA cualquier valor que conserve la marca de plantilla (`<algo>`, `change-me`), así
+que una copia a medio rellenar ya no levanta.
 
 > **Qué NO hace este documento:** no lista las ~148 variables de configuración (intervalos, límites,
 > flags). Solo las **credenciales y secretos**: lo que hay que pedirle a alguien —un proveedor, un

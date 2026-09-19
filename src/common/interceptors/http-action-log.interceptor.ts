@@ -23,6 +23,8 @@ type RequestLike = {
   headers: Record<string, string | string[] | undefined>;
   ip?: string;
   user?: AuthenticatedUser;
+  /** Actor de servicio entre contextos (`ServiceTokenGuard`); excluyente con `user`. */
+  serviceActor?: { service: string; tenantId: string };
   correlationId?: string;
   route?: { path?: string };
 };
@@ -85,10 +87,14 @@ export class HttpActionLogInterceptor implements NestInterceptor {
 
     const baseLog = (statusCode: number, outcome: 'success' | 'error', errorMessage?: string) =>
       this.actionLog.createHttpAction({
-        tenantId: request.user?.tenantId ?? firstHeader(request.headers['x-tenant-id']),
-        actorType: request.user?.role ?? 'public_or_unknown',
-        actorRole: request.user?.role ?? 'public_or_unknown',
-        actorUserId: request.user?.sub ?? null,
+        // Revisión independiente A, hallazgo 8: las rutas entre contextos autentican con token de
+        // servicio, no con sesión de usuario. Sin esto, el único endpoint que devuelve contactos en
+        // claro quedaba auditado como «public_or_unknown» y con el tenant tomado de una cabecera que
+        // el guard ignora a propósito (y que el llamante puede poner a cualquier valor).
+        tenantId: request.user?.tenantId ?? request.serviceActor?.tenantId ?? firstHeader(request.headers['x-tenant-id']),
+        actorType: request.user?.role ?? (request.serviceActor ? 'service' : 'public_or_unknown'),
+        actorRole: request.user?.role ?? (request.serviceActor ? `service:${request.serviceActor.service}` : 'public_or_unknown'),
+        actorUserId: request.user?.sub ?? (request.serviceActor ? `service:${request.serviceActor.service}` : null),
         actorInternalUserId: request.user?.internalUserId ?? null,
         actorPlatformUserId: request.user?.platformUserId ?? null,
         actionCode: actionCode(request.method, path),
@@ -99,6 +105,8 @@ export class HttpActionLogInterceptor implements NestInterceptor {
         occurredAt: new Date(),
         requestId,
         correlationId: request.correlationId ?? requestId,
+        originScreen: originScreen(request),
+        originClient: originClient(request),
         method: request.method,
         routeTemplate: request.route?.path ?? null,
         resolvedUrlSanitized: path,
@@ -150,4 +158,40 @@ export class HttpActionLogInterceptor implements NestInterceptor {
       }),
     );
   }
+}
+
+/**
+ * La PANTALLA desde la que se originó la petición, tal como el cliente la declara en `x-atlas-flow`.
+ *
+ * Nulo es lo normal y no es un hueco: la app móvil, los webhooks, los trabajos de fondo y las suites
+ * de prueba no tienen pantalla que declarar. Un nulo significa «nadie dijo de dónde venía», que es
+ * distinto de «vino de ninguna parte».
+ *
+ * Se valida contra un patrón cerrado por el mismo motivo que el `x-correlation-id`: esto acaba en
+ * una tabla y en pantallas del portal, y un header arbitrario del cliente es una inyección esperando
+ * sitio. Lo que no cumple el formato se descarta —no se trunca ni se sanea—, porque una ruta a
+ * medias identificaría una pantalla equivocada, que es peor que no identificar ninguna.
+ */
+const ORIGIN_SCREEN_PATTERN = /^\/[A-Za-z0-9/_:.-]{0,199}$/;
+
+function originScreen(request: RequestLike): string | null {
+  const declarada = firstHeader(request.headers['x-atlas-flow']);
+  return declarada && ORIGIN_SCREEN_PATTERN.test(declarada) ? declarada : null;
+}
+
+/**
+ * El CLIENTE que declara el origen, normalizado al código del catálogo de pantallas.
+ *
+ * La ruta sola no basta: `/` existe como pantalla en los cinco clientes y `/login` en tres, así que
+ * cruzar sólo por ruta atribuiría una visita a las cinco a la vez. El portal ya mandaba
+ * `x-atlas-product` («admin-portal»); lo único que faltaba era guardarlo.
+ *
+ * La normalización es la traducción obvia —guiones a subrayados, mayúsculas— y no una tabla de
+ * equivalencias: una tabla habría que mantenerla al día con cada cliente nuevo, y el día que se
+ * olvide, ese cliente deja de contar sin que nada avise.
+ */
+function originClient(request: RequestLike): string | null {
+  const declarado = firstHeader(request.headers['x-atlas-product']);
+  if (!declarado || !/^[A-Za-z0-9_-]{1,60}$/.test(declarado)) return null;
+  return declarado.replace(/-/g, '_').toUpperCase();
 }

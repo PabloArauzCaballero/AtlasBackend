@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { Collection, MongoClient } from 'mongodb';
 import { env } from '../../config/env.js';
 import { redactSensitiveText } from '../../common/utils/privacy/redact-text.util.js';
-import { countLines, formatError, getFileSize, mongoSyncHint, readLogDelta } from './log-sync.reader.util.js';
+import { countLines, formatError, getFileSize, mongoSyncHint, readLogDelta, trimLogFileToTail } from './log-sync.reader.util.js';
 
 // Retención de la colección de logs en Mongo. Sin TTL la colección crece sin límite y, como el
 // archivo local se trunca tras sincronizar, Mongo pasa a ser la única copia. 30 días es un punto
@@ -18,55 +18,7 @@ import { countLines, formatError, getFileSize, mongoSyncHint, readLogDelta } fro
 // cambiarla es una decisión de gobernanza, no de configuración por entorno.
 const LOG_RETENTION_SECONDS = 30 * 24 * 60 * 60;
 
-type RemoteLogDocument =
-  | {
-      type: 'startup';
-      bootId: string;
-      idArranque: string;
-      capturedAt: Date;
-      service: string;
-      source: LogSource;
-      fileSizeAtStartup: number;
-      startOffset: number;
-      intervalMs: number;
-      maxChunkBytes: number;
-      process: {
-        pid: number;
-        cwd: string;
-        nodeEnv: string;
-      };
-    }
-  | {
-      type: 'append';
-      bootId: string;
-      idArranque: string;
-      sequence: number;
-      capturedAt: Date;
-      service: string;
-      source: LogSource;
-      offsetFrom: number;
-      offsetTo: number;
-      bytes: number;
-      chars: number;
-      lineCount: number;
-      content: string;
-    }
-  | {
-      type: 'rotation';
-      bootId: string;
-      idArranque: string;
-      capturedAt: Date;
-      service: string;
-      source: LogSource;
-      previousOffset: number;
-      fileSize: number;
-    };
-
-type LogSource = {
-  filePath: string;
-  fileName: string;
-};
-
+import type { LogSource, RemoteLogDocument } from './log-sync.documents.js';
 @Injectable()
 export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(ArchivoLogMongoSyncService.name);
@@ -89,8 +41,20 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
   private pausedUntil = 0;
 
   onApplicationBootstrap(): void {
+    // El tope local corre SIEMPRE, con destino remoto o sin él. Antes, sin
+    // `MONGO_DB_URL_CONNECTION` esto salía por la puerta de atrás sin dejar nada en marcha, y
+    // entonces NADIE acotaba el archivo: el logger seguía apilando líneas y el único código que
+    // truncaba —`maybeResetLogFileAfterFullSync`— exigía una confirmación de Mongo que no iba a
+    // llegar. Desactivar la sincronización no debería significar dejar el disco a su suerte.
     if (!env.MONGO_DB_URL_CONNECTION) {
-      this.logger.warn('MONGO_DB_URL_CONNECTION no configurado; sincronizacion remota de Archivo.log desactivada.');
+      this.logger.warn(
+        `MONGO_DB_URL_CONNECTION no configurado; sincronizacion remota de ${this.source.fileName} desactivada. ` +
+          `El archivo local se seguira acotando a ${env.LOG_SYNC_LOCAL_MAX_BYTES} bytes.`,
+      );
+      void this.enforceLocalSizeCap();
+      this.timer = setInterval(() => {
+        void this.enforceLocalSizeCap();
+      }, env.LOG_SYNC_INTERVAL_MS);
       return;
     }
 
@@ -99,6 +63,35 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
     this.timer = setInterval(() => {
       void this.flushWithLock();
     }, env.LOG_SYNC_INTERVAL_MS);
+  }
+
+  /**
+   * Válvula de seguridad: recorta el archivo local si se pasó del tope, pase lo que pase con
+   * MongoDB. No sustituye a `maybeResetLogFileAfterFullSync` —esa sigue siendo la vía normal y
+   * sólo borra lo que Mongo ya confirmó—; cubre el caso en que la vía normal no puede actuar.
+   *
+   * Tras recortar, el offset vuelve a 0: las posiciones anteriores ya no significan nada sobre el
+   * archivo nuevo, y seguir usándolas haría que el siguiente flush leyera desde un punto
+   * arbitrario en mitad de una línea.
+   */
+  private async enforceLocalSizeCap(): Promise<void> {
+    try {
+      const max = env.LOG_SYNC_LOCAL_MAX_BYTES;
+      const size = await getFileSize(this.logFilePath);
+      if (size <= max) return;
+
+      const result = await trimLogFileToTail(this.logFilePath, Math.floor(max / 2));
+      if (!result.trimmed) return;
+
+      this.currentOffset = 0;
+      this.logger.warn(
+        `${this.source.fileName} supero el tope local de ${max} bytes y se recorto a su cola: ` +
+          `${result.droppedBytes} bytes descartados, ${result.newSize} conservados. ` +
+          'Las lineas descartadas NO llegaron a MongoDB.',
+      );
+    } catch (error) {
+      this.logger.warn(`No se pudo aplicar el tope local a ${this.source.fileName}: ${formatError(error)}`);
+    }
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -181,6 +174,8 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
     } catch (error) {
       await this.resetMongoClient();
       this.registerFailure(error);
+      // Con el destino remoto caido nadie mas va a truncar: la valvula tiene que actuar aqui.
+      await this.enforceLocalSizeCap();
     }
   }
 

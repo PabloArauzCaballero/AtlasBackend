@@ -9,8 +9,8 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                         | Responsabilidad                                                  |
+| ---------------------------------------------------------- | ---------------------------------------------------------------- |
 | [`risk-policy.repository.ts`](./risk-policy.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 
 ## Reglas de mantenimiento

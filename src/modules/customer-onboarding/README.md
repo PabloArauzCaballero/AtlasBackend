@@ -9,19 +9,22 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                                                         | Responsabilidad                                                                |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| [`customer-contacts-snapshot.schemas.ts`](./customer-contacts-snapshot.schemas.ts)         | Esquemas Zod: validan entradas y parámetros en el borde del sistema.           |
+| [`customer-evidence-view.controller.ts`](./customer-evidence-view.controller.ts)           | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`customer-onboarding-profile.controller.ts`](./customer-onboarding-profile.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`customer-onboarding-profile.schemas.ts`](./customer-onboarding-profile.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
-| [`customer-onboarding-status.controller.ts`](./customer-onboarding-status.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`customer-onboarding.controller.ts`](./customer-onboarding.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`customer-onboarding.dtos.ts`](./customer-onboarding.dtos.ts) | DTOs: contrato estable de salida sin filtrar modelos de persistencia. |
-| [`customer-onboarding.mapper.ts`](./customer-onboarding.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
-| [`customer-onboarding.module.ts`](./customer-onboarding.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
-| [`customer-onboarding.repository.ts`](./customer-onboarding.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`customer-onboarding.schemas.ts`](./customer-onboarding.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
-| [`customer-onboarding.service.ts`](./customer-onboarding.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`customer-verification.controller.ts`](./customer-verification.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`customer-onboarding-profile.schemas.ts`](./customer-onboarding-profile.schemas.ts)       | Esquemas Zod: validan entradas y parámetros en el borde del sistema.           |
+| [`customer-onboarding-status.controller.ts`](./customer-onboarding-status.controller.ts)   | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`customer-onboarding.controller.ts`](./customer-onboarding.controller.ts)                 | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`customer-onboarding.dtos.ts`](./customer-onboarding.dtos.ts)                             | DTOs: contrato estable de salida sin filtrar modelos de persistencia.          |
+| [`customer-onboarding.mapper.ts`](./customer-onboarding.mapper.ts)                         | Mapper: transforma modelos internos a contratos de transporte.                 |
+| [`customer-onboarding.module.ts`](./customer-onboarding.module.ts)                         | Módulo NestJS: declara el límite de inyección y sus dependencias.              |
+| [`customer-onboarding.repository.ts`](./customer-onboarding.repository.ts)                 | Puerto de persistencia: encapsula consultas, locks y escrituras.               |
+| [`customer-onboarding.schemas.ts`](./customer-onboarding.schemas.ts)                       | Esquemas Zod: validan entradas y parámetros en el borde del sistema.           |
+| [`customer-onboarding.service.ts`](./customer-onboarding.service.ts)                       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`customer-verification.controller.ts`](./customer-verification.controller.ts)             | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`identity-review-callback.controller.ts`](./identity-review-callback.controller.ts)       | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 
 ## Subcarpetas
 

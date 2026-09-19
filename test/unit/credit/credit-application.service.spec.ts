@@ -2,6 +2,8 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { UniqueConstraintError } from 'sequelize';
 import { CreditApplicationService } from '../../../src/modules/credit/application/credit-application.service.js';
+import { PartnerResolutionAdapter } from '../../../src/modules/credit/infrastructure/integrations/partner-resolution.adapter.js';
+import { CreditApplicationAdmissionService } from '../../../src/modules/credit/application/credit-application-admission.service.js';
 
 /**
  * Creación de la solicitud de crédito.
@@ -27,12 +29,21 @@ describe('CreditApplicationService', () => {
     minMonthlyIncome: null,
   };
 
-  function build(options: { eligible?: boolean; blockers?: Array<{ code: string }>; product?: Record<string, unknown> } = {}) {
+  function build(
+    options: {
+      eligible?: boolean;
+      blockers?: Array<{ code: string }>;
+      product?: Record<string, unknown>;
+      underwritingStatus?: string;
+      partnerProfileId?: string;
+      partnerOnboardingStatus?: string;
+    } = {},
+  ) {
     const eligible = options.eligible ?? true;
     const creditRepository = {
-      findProductById: jest.fn(async () => ({ ...PRODUCT, ...(options.product ?? {}) })),
-      findOpenApplication: jest.fn(async () => null),
-      createApplication: jest.fn(async () => ({
+      findProductById: jest.fn(async (..._args: unknown[]) => ({ ...PRODUCT, ...(options.product ?? {}) })),
+      findOpenApplication: jest.fn(async (..._args: unknown[]) => null),
+      createApplication: jest.fn(async (..._args: unknown[]) => ({
         id: 'app-1',
         applicationCode: 'CRA-1',
         status: 'submitted',
@@ -42,30 +53,102 @@ describe('CreditApplicationService', () => {
         submittedAt: new Date('2026-07-28T12:00:00.000Z'),
       })),
       createApplicationEvent: jest.fn(),
-      findApplicationsByCustomer: jest.fn(async () => []),
+      findApplicationsByCustomer: jest.fn(async (..._args: unknown[]) => []),
     };
     const eligibilityService = {
-      evaluateAndRecord: jest.fn(async () => ({
+      evaluateAndRecord: jest.fn(async (..._args: unknown[]) => ({
         eligible,
         blockers: options.blockers ?? [],
         ruleVersion: 'eligibility-v1',
         evaluatedAt: '2026-07-28T12:00:00.000Z',
         lifecycleStatus: eligible ? 'active' : 'under_review',
+        // La identidad EXACTA de la fila escrita (AT-006): la solicitud la enlaza sin releer «la última».
+        evaluationId: 'ev-9',
       })),
-      getLatestEvaluation: jest.fn(async () => ({ id: 'ev-9' })),
+      // La admisión bloquea la fila del cliente dentro de la transacción (AT-007).
+      lockCustomerForDecision: jest.fn(async (..._args: unknown[]) => undefined),
     };
     // Los atributos económicos alimentan la elegibilidad POR PRODUCTO (`min_monthly_income`).
     const eligibilityRepository = {
-      loadFacts: jest.fn(async () => ({ financialAttributeValues: { monthly_income_declared: 8000 } })),
+      loadFacts: jest.fn(async (..._args: unknown[]) => ({ financialAttributeValues: { monthly_income_declared: 8000 } })),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
+    /*
+     * El motor se consulta DESPUÉS de confirmar la transacción, así que aquí basta con el doble: lo
+     * que fijan estas pruebas es la creación de la solicitud, no la decisión. El desenlace por
+     * defecto deja el expediente en `under_review`, que es justo lo que produce el servicio real
+     * cuando el motor no responde.
+     */
+    const underwriting = {
+      underwrite: jest.fn(async (..._args: unknown[]) => ({
+        status: options.underwritingStatus ?? 'under_review',
+        decisionMode: 'engine_unavailable_manual',
+        executionId: null,
+        reasonCodes: [],
+      })),
+    };
+    /*
+     * El expediente del comercio. Por defecto devuelve uno APROBADO: lo que estas pruebas fijan es
+     * la creación de la solicitud, y un comercio que no pasa el filtro es el asunto de su propia
+     * prueba. `requireProfile` sólo se llama si la solicitud declara comercio.
+     */
+    const partnerProfiles = {
+      requireProfile: jest.fn(async (..._args: unknown[]) => ({
+        id: options.partnerProfileId ?? '77',
+        onboardingStatus: options.partnerOnboardingStatus ?? 'approved',
+      })),
+    };
+    const partnerDirectory = {
+      findOwnedTerminal: jest.fn(async (..._args: unknown[]) => null),
+    };
     const service = new CreditApplicationService(
       creditRepository as never,
       eligibilityService as never,
       eligibilityRepository as never,
+      underwriting as never,
+      partnerProfiles as never,
+      // El directorio del comercio: resuelve la CAJA en la que nació la compra. Es un servicio
+      // aparte del expediente porque sólo lee, y `credit-application` usa los dos.
+      partnerDirectory as never,
       sequelize as never,
+      // La ADMISIÓN —escribir la solicitud y decidir si entra a evaluación— salió a su propio
+      // servicio al partir el archivo por tamaño. Se construye con los MISMOS dobles y en el mismo
+      // orden, así que ninguna aserción de este spec cambia.
+      // AT-026: la admisión corre sobre puertos. La unidad de trabajo falsa liga los MISMOS dobles a la
+      // «transacción» vacía del doble de sequelize, y el comercio se resuelve con el mismo adaptador real.
+      new CreditApplicationAdmissionService(
+        {
+          run: (work: (session: unknown) => Promise<unknown>) =>
+            sequelize.transaction(() =>
+              work({
+                applications: {
+                  findProductById: (t: string, p: string) => creditRepository.findProductById(t, p, { transaction: {} }),
+                  findOpenApplication: (t: string, c: string) => creditRepository.findOpenApplication(t, c, { transaction: {} }),
+                  createApplication: (v: unknown) => creditRepository.createApplication(v, { transaction: {} }),
+                  createApplicationEvent: (v: unknown) => creditRepository.createApplicationEvent(v, { transaction: {} }),
+                },
+                outbox: { append: async () => ({ eventId: 'ev-out', outboxRowId: '1' }) },
+                eligibility: {
+                  lockCustomer: (t: string, c: string) => eligibilityService.lockCustomerForDecision(t, c, {}),
+                  loadFacts: (t: string, c: string) => eligibilityRepository.loadFacts(t, c, { transaction: {} }),
+                  evaluateAndRecord: (i: Record<string, unknown>) => eligibilityService.evaluateAndRecord({ ...i, transaction: {} }),
+                },
+              }),
+            ),
+        } as never,
+        new PartnerResolutionAdapter(partnerProfiles as never, partnerDirectory as never),
+      ),
     );
-    return { service, creditRepository, eligibilityService, eligibilityRepository };
+    return {
+      service,
+      sequelize,
+      creditRepository,
+      eligibilityService,
+      eligibilityRepository,
+      underwriting,
+      partnerProfiles,
+      partnerDirectory,
+    };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null } as never;
@@ -128,6 +211,18 @@ describe('CreditApplicationService', () => {
     );
     expect(creditRepository.createApplication).not.toHaveBeenCalled();
     expect(creditRepository.createApplicationEvent).not.toHaveBeenCalled();
+  });
+
+  it('una denegación NO revienta la transacción: la evidencia se confirma y el error sale después (AT-008)', async () => {
+    const { service, sequelize } = build({ eligible: false, blockers: [{ code: 'RISK_NOT_APPROVED' }] });
+
+    await expect(service.createApplication(baseInput)).rejects.toThrow(/CUSTOMER_NOT_ELIGIBLE/);
+    // El callback de `sequelize.transaction` resolvió (commit); lanzar dentro habría revertido la
+    // evaluación que dice haber dejado como rastro. La prueba con PostgreSQL real está en
+    // test/integration/credit/denied-attempt-evidence.spec.ts.
+    const transaction = sequelize.transaction as jest.Mock;
+    expect(transaction).toHaveBeenCalledTimes(1);
+    await expect(transaction.mock.results[0].value).resolves.toMatchObject({ admitted: false });
   });
 
   it('crea la solicitud guardando la evaluación que la autorizó', async () => {

@@ -19,10 +19,10 @@ type FakeRedis = {
 function buildRedis(overrides: Partial<Record<keyof FakeRedis, unknown>> = {}): FakeRedis {
   return {
     // Por defecto: no hay bloqueo activo (pttl < 0 significa "sin TTL/clave").
-    pttl: jest.fn(async () => -2),
-    incr: jest.fn(async () => 1),
-    pexpire: jest.fn(async () => 1),
-    set: jest.fn(async () => 'OK'),
+    pttl: jest.fn(async (..._args: unknown[]) => -2),
+    incr: jest.fn(async (..._args: unknown[]) => 1),
+    pexpire: jest.fn(async (..._args: unknown[]) => 1),
+    set: jest.fn(async (..._args: unknown[]) => 'OK'),
     ...overrides,
   } as FakeRedis;
 }
@@ -51,7 +51,7 @@ describe('RedisThrottlerStorage', () => {
 
     it('si Redis está caído/inalcanzable (el comando rechaza), degrada FAIL-OPEN sin colgar ni tumbar el request', async () => {
       const brokenRedis = buildRedis({
-        pttl: jest.fn(async () => {
+        pttl: jest.fn(async (..._args: unknown[]) => {
           throw new Error('Stream isn’t writeable and enableOfflineQueue options is false');
         }),
       });
@@ -82,12 +82,15 @@ describe('RedisThrottlerStorage', () => {
       expect(result).toMatchObject({ totalHits: 3, isBlocked: false, timeToExpire: 45 });
     });
 
-    it('si el TTL restante no es válido, cae al ttl declarado', async () => {
+    it('si el contador perdió su vencimiento (pttl=-1), lo REPONE y cae al ttl declarado', async () => {
+      // Regresión medida el 2026-09-14: un contador sin TTL nunca vuelve a cero y, pasado el
+      // límite, deja la ruta en 429 para siempre. El PEXPIRE tiene que ir siempre que falte.
       redis.incr.mockResolvedValue(2 as never);
       redis.pttl.mockResolvedValueOnce(-2 as never).mockResolvedValueOnce(-1 as never);
 
       const result = await buildStorage(redis).increment('ip:1', 30_000, 10, 0, 'default');
 
+      expect(redis.pexpire).toHaveBeenCalledWith('throttle:default:ip:1', 30_000);
       expect(result.timeToExpire).toBe(30);
     });
 

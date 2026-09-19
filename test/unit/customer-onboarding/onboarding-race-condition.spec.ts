@@ -19,7 +19,6 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
       findByContactHash: asyncMock().mockResolvedValue(null), // "no encontrado" — como en una carrera real
       createCustomer: jest.fn(overrides.createCustomerImpl),
     };
-    const sessionsRepository = {};
     const consentsRepository = {
       findActiveDocumentById: asyncMock().mockResolvedValue({ id: '1' }),
     };
@@ -27,23 +26,36 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
     const authRepository = {
       createCredentials: asyncMock(),
     };
+    const authService = { issueRegistrationTokens: asyncMock() };
     const sequelize = {
-      transaction: jest.fn((callback: (t: unknown) => Promise<unknown>) => callback({})),
+      run: jest.fn((callback: (t: unknown) => Promise<unknown>) => callback({})),
     };
 
     const guardsService = { assertNoDuplicateCustomer: asyncMock(), assertConsentDocumentsAreValid: asyncMock() };
 
     const startService = new CustomerOnboardingStartService(
       customersRepository as never,
-      sessionsRepository as never,
+      customersRepository as never,
       consentsRepository as never,
       onboardingRepository as never,
       authRepository as never,
+      authService as never,
       guardsService as never,
+      { resolveDeviceAndLink: asyncMock(), createOnboardingSession: asyncMock(), captureDeviceSnapshotIfProvided: asyncMock() } as never,
+      // El expediente es un gancho tolerante a fallos: no participa en la transacción ni cambia
+      // el resultado del alta, así que en estas pruebas basta con que no haga nada.
       sequelize as never,
     );
 
-    const service = new CustomerOnboardingService(startService, {} as never, {} as never, {} as never);
+    // El expediente lo abre la FACHADA después del alta, no el servicio transaccional: es un
+    // gancho tolerante a fallos y no puede tumbar un registro ya comprometido.
+    const service = new CustomerOnboardingService(
+      startService,
+      {} as never,
+      {} as never,
+      {} as never,
+      { alIniciarOnboarding: asyncMock() } as never,
+    );
 
     return { service, customersRepository, sequelize };
   }
@@ -66,7 +78,7 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
 
     // La transacción efectivamente se abrió (no se evitó el intento de escritura) — la
     // protección real vino de traducir el error de base de datos, no de saltarse el intento.
-    expect(sequelize.transaction).toHaveBeenCalledTimes(1);
+    expect(sequelize.run).toHaveBeenCalledTimes(1);
   });
 
   it('re-throws non-UniqueConstraintError errors unchanged (does not mask unrelated failures)', async () => {

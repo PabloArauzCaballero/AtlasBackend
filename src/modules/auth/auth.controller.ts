@@ -3,7 +3,7 @@
  * @business Esta pieza protege el acceso de clientes y operadores, la recuperación de cuenta y la continuidad segura de sesiones.
  * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
  */
-import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
@@ -15,7 +15,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { RequestWithNetwork, tenantIdFromHeader, userAgentFrom } from '../../common/utils/http/headers.util.js';
+import { RequestWithNetwork, userAgentFrom } from '../../common/utils/http/headers.util.js';
 import { AuthService } from './auth.service.js';
 import {
   LoginDto,
@@ -35,6 +35,7 @@ import {
   provisionCredentialsSchema,
   refreshSchema,
 } from './auth.schemas.js';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
  * Endpoints públicos de autenticación y endpoints administrativos de provisión de credenciales.
@@ -42,11 +43,15 @@ import {
  * `login`, `refresh` y `logout` son públicos por diseño: son la puerta de entrada antes de tener
  * access token y operan sobre credenciales/refresh tokens.
  */
+import { AuthCredentialsService } from './auth-credentials.service.js';
 @ApiTags('auth')
 @Controller('auth')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly credenciales: AuthCredentialsService,
+  ) {}
 
   // 10 intentos de login por minuto por IP — frena fuerza bruta de credenciales sin estorbar uso legítimo.
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
@@ -71,12 +76,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Credenciales inválidas, o cuenta bloqueada temporalmente por intentos fallidos.' })
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
-    @Body(new ZodValidationPipe(loginSchema)) body: LoginDto,
-    @Req() request: RequestWithNetwork,
-  ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
+  login(@CurrentTenant() tenantId: string, @Body(new ZodValidationPipe(loginSchema)) body: LoginDto, @Req() request: RequestWithNetwork) {
     return this.authService.login({
       tenantId,
       dto: body,
@@ -125,12 +125,11 @@ export class AuthController {
   @Post('password-reset/request')
   @HttpCode(HttpStatus.OK)
   requestPasswordReset(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(passwordResetRequestSchema)) body: PasswordResetRequestDto,
     @Req() request: RequestWithNetwork,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
-    return this.authService.requestPasswordReset({
+    return this.credenciales.requestPasswordReset({
       tenantId,
       actorType: body.actorType,
       identifier: body.identifier,
@@ -155,12 +154,11 @@ export class AuthController {
   @Post('password-reset/confirm')
   @HttpCode(HttpStatus.OK)
   confirmPasswordReset(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(passwordResetConfirmSchema)) body: PasswordResetConfirmDto,
     @Req() request: RequestWithNetwork,
   ) {
-    const tenantId = tenantIdFromHeader(tenantIdHeader);
-    return this.authService.confirmPasswordReset({
+    return this.credenciales.confirmPasswordReset({
       tenantId,
       actorType: body.actorType,
       identifier: body.identifier,
@@ -261,13 +259,19 @@ export class AuthController {
     if (currentUser.role !== 'customer' || !currentUser.customerId) {
       throw new ForbiddenException('Solo un cliente puede configurar su MFA.');
     }
-    return this.authService.setCustomerMfaPreference({ actorId: currentUser.customerId, enabled: body.enabled });
+    return this.credenciales.setCustomerMfaPreference({ actorId: currentUser.customerId, enabled: body.enabled });
   }
 
   /**
    * No es `@Public()`: requiere un access token vigente de un actor con rol `admin` o
    * `platform_admin` (verificado también dentro de `AuthService.provisionCredentials`, en
    * defensa en profundidad — el chequeo de rol no debe vivir solo en el decorador).
+   *
+   * ATLAS-SEC-007: se propaga el `tenantId` del token, no solo el rol. `TenantGuard` no puede
+   * proteger este endpoint —el actor destino viaja en el CUERPO (`actorId`), no en `x-tenant-id`—,
+   * así que la contención por tenant tiene que decidirla el servicio con la identidad real del
+   * solicitante. Pasar solo el rol dejaba a un `admin` del tenant A fijar la contraseña inicial de
+   * un usuario interno del tenant B y luego entrar como él.
    */
   @ApiBearerAuth('access-token')
   @ApiOperation({
@@ -275,12 +279,16 @@ export class AuthController {
     description:
       'Crea la contraseña inicial de un `internal_user` o `platform_user` ya existente (creado por seed/migración, sin credenciales ' +
       'todavía). Requiere un access token vigente con rol `admin` o `platform_admin` — verificado tanto por el guard de roles como, ' +
-      'en defensa en profundidad, dentro del propio `AuthService`.',
+      'en defensa en profundidad, dentro del propio `AuthService`. Un `admin` solo puede provisionar actores de SU MISMO tenant; ' +
+      'provisionar en otro tenant, o provisionar un `platform_user` (que opera sobre toda la plataforma), exige `platform_admin`.',
   })
   @ApiBody({ schema: zodToApiSchema(provisionCredentialsSchema) })
   @ApiResponse({ status: 201, description: 'Credenciales provisionadas correctamente.' })
   @ApiResponse({ status: 401, description: 'La contraseña no cumple el mínimo de seguridad requerido, o el actor indicado no existe.' })
-  @ApiResponse({ status: 403, description: 'El actor autenticado no tiene rol admin/platform_admin.' })
+  @ApiResponse({
+    status: 403,
+    description: 'El actor autenticado no tiene rol admin/platform_admin, o intenta provisionar fuera de su tenant.',
+  })
   @ApiResponse({ status: 409, description: 'CREDENTIALS_ALREADY_PROVISIONED — el actor ya tiene contraseña configurada.' })
   @Post('provision-credentials')
   @Roles('admin', 'platform_admin')
@@ -289,6 +297,6 @@ export class AuthController {
     @Body(new ZodValidationPipe(provisionCredentialsSchema)) body: ProvisionCredentialsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.authService.provisionCredentials(body, { role: currentUser.role });
+    return this.credenciales.provisionCredentials(body, { role: currentUser.role, tenantId: currentUser.tenantId ?? null });
   }
 }

@@ -18,8 +18,10 @@
  */
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { usesDedicatedMigrationIdentity } from '../src/config/database.config.js';
 import { env } from '../src/config/env.js';
 import { ATLAS_SCHEMAS } from '../src/database/domain-schemas.js';
+import { handleUnreachableDatabase } from './gate-skip-policy.js';
 
 /** En modo estricto, un usuario conectado distinto al rol esperado es un fallo, no un skip. */
 const STRICT = process.argv.includes('--strict');
@@ -54,6 +56,27 @@ async function selectOne<T extends Record<string, unknown>>(
 ): Promise<T> {
   const rows = (await sequelize.query(sql, { type: QueryTypes.SELECT, replacements })) as T[];
   return rows[0];
+}
+
+/**
+ * Las tablas de esos schemas sobre las que el rol conectado NO tiene el privilegio pedido.
+ *
+ * Se nombra un máximo de diez: la lista existe para que quien lea el fallo sepa por dónde empezar,
+ * no para volcar doscientos nombres. Se consulta por OID —y no por nombre— porque resolver
+ * `schema.tabla` sin USAGE en ese schema lanza «permission denied for schema» y mataría al gate.
+ */
+async function tablesWithoutPrivilege(sequelize: Sequelize, schemas: string[], privilege: 'SELECT' | 'INSERT'): Promise<string[]> {
+  const rows = (await sequelize.query(
+    `SELECT n.nspname || '.' || c.relname AS name
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE c.relkind IN ('r', 'p') AND n.nspname IN (:schemas)
+        AND NOT COALESCE(has_table_privilege(current_user, c.oid, :privilege), false)
+      ORDER BY 1
+      LIMIT 10`,
+    { replacements: { schemas, privilege }, type: QueryTypes.SELECT },
+  )) as { name: string }[];
+  return rows.map((row) => row.name);
 }
 
 async function checkReadWrite(sequelize: Sequelize): Promise<string[]> {
@@ -91,23 +114,46 @@ async function checkReadWrite(sequelize: Sequelize): Promise<string[]> {
     if (schema.can_create) errors.push(`atlas_app_rw tiene CREATE en el schema "${schema.schema_name}" (no debe tener DDL).`);
   }
 
+  // El recuento se hace sobre el OID de cada tabla y NO sobre su nombre: `has_table_privilege` con
+  // nombre tiene que RESOLVERLO, y resolver `expedientes.lo_que_sea` sin USAGE en ese schema lanza
+  // «permission denied for schema». Es decir: con la versión anterior, el gate se moría con una
+  // traza justo cuando encontraba lo que vino a buscar —un schema sin USAGE, que dos líneas más
+  // arriba ya se había anotado como hallazgo— y no llegaba a imprimir ni ese ni los demás. Con el
+  // OID no hay resolución de nombres, así que la pregunta se contesta siempre y el gate REPORTA.
   const crud = await selectOne<{ can_select: string; can_insert: string; total: string }>(
     sequelize,
     `SELECT
        count(*) AS total,
-       count(*) FILTER (WHERE has_table_privilege(current_user, format('%I.%I', schemaname, tablename), 'SELECT')) AS can_select,
-       count(*) FILTER (WHERE has_table_privilege(current_user, format('%I.%I', schemaname, tablename), 'INSERT')) AS can_insert
-     FROM pg_tables WHERE schemaname IN (:schemas)`,
+       count(*) FILTER (WHERE has_table_privilege(current_user, c.oid, 'SELECT')) AS can_select,
+       count(*) FILTER (WHERE has_table_privilege(current_user, c.oid, 'INSERT')) AS can_insert
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE c.relkind IN ('r', 'p') AND n.nspname IN (:schemas)`,
     { schemas },
   );
-  if (Number(crud.total) > 0 && Number(crud.can_select) === 0) {
-    errors.push('atlas_app_rw no puede hacer SELECT en ninguna tabla de los schemas de dominio.');
+  // Se exige cobertura COMPLETA, no «al menos una». La condición anterior (`=== 0`) sólo cazaba el
+  // caso extremo de un rol sin ningún permiso, y dejaba pasar en verde justo lo que este gate existe
+  // para encontrar: un schema de dominio nuevo cuyo GRANT no se aplicó. Medido: con un rol que sólo
+  // alcanza 2 de 201 tablas, la versión anterior imprimía «[ok]» y salía con código 0.
+  const total = Number(crud.total);
+  const conSelect = Number(crud.can_select);
+  const conInsert = Number(crud.can_insert);
+  if (total > 0 && conSelect < total) {
+    errors.push(
+      `atlas_app_rw sólo puede hacer SELECT en ${conSelect} de ${total} tablas de los schemas de dominio. ` +
+        `Sin privilegio: ${(await tablesWithoutPrivilege(sequelize, schemas, 'SELECT')).join(', ')}.`,
+    );
   }
-  if (Number(crud.total) > 0 && Number(crud.can_insert) === 0) {
-    errors.push('atlas_app_rw no puede hacer INSERT en ninguna tabla de los schemas de dominio.');
+  if (total > 0 && conInsert < total) {
+    errors.push(
+      `atlas_app_rw sólo puede hacer INSERT en ${conInsert} de ${total} tablas de los schemas de dominio. ` +
+        `Sin privilegio: ${(await tablesWithoutPrivilege(sequelize, schemas, 'INSERT')).join(', ')}.`,
+    );
   }
 
-  console.log(`[ok] atlas_app_rw verificado (SELECT en ${crud.can_select}/${crud.total} tablas, sin CREATE, sin superuser).`);
+  if (errors.length === 0) {
+    console.log(`[ok] atlas_app_rw verificado (SELECT e INSERT en las ${total} tablas, sin CREATE, sin superuser).`);
+  }
   return errors;
 }
 
@@ -154,9 +200,12 @@ async function runCheck(spec: ConnectionSpec, check: (s: Sequelize) => Promise<s
   try {
     await sequelize.authenticate();
   } catch (error) {
-    console.warn(`[skip] no se pudo conectar como ${spec.label}: ${(error as Error).message}`);
+    // ATLAS-CI-002: no conectar NO es "sin errores". Antes devolvía `[]`, así que la matriz de
+    // privilegios —el gate que existe para cazar exactamente un aprovisionamiento mal hecho— se
+    // aprobaba sola cuando la credencial era incorrecta.
     await sequelize.close().catch(() => undefined);
-    return [];
+    handleUnreachableDatabase(error, `check:db-privileges (${spec.label})`);
+    return [`No se pudo conectar como ${spec.label}: la matriz de privilegios no pudo verificarse.`];
   }
   try {
     return await check(sequelize);
@@ -198,6 +247,19 @@ async function main(): Promise<void> {
     );
   } else {
     console.log('[skip] DB_READ_USER no configurado; se omite la verificación de atlas_app_ro.');
+  }
+
+  // Tercera identidad de la separación de roles: la que aplica migraciones. El gate verificaba
+  // `atlas_app_rw` y `atlas_app_ro` pero nunca esta, así que un despliegue podía migrar con el
+  // usuario del runtime — es decir, con el usuario de la aplicación teniendo permisos DDL, que es
+  // exactamente lo que la separación pretende evitar. En local el fallback a DB_USER es
+  // deliberado (ver `buildMigrationSequelizeOptions`), así que solo es violación bajo --strict.
+  if (usesDedicatedMigrationIdentity()) {
+    console.log(`[ok] las migraciones usan una identidad dedicada (${env.DB_MIGRATION_USER}), distinta de la del runtime.`);
+  } else if (STRICT) {
+    errors.push('DB_MIGRATION_USER ausente o igual a DB_USER: las migraciones correrían con la identidad del runtime.');
+  } else {
+    console.log('[skip] DB_MIGRATION_USER ausente o igual a DB_USER; las migraciones usan la identidad del runtime (aceptable en local).');
   }
 
   if (errors.length > 0) {

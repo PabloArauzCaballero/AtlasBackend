@@ -21,9 +21,18 @@ cd ../AtlasExternalProvidersMock
 npm start        # npm run dev para reinicio automático
 ```
 
-Por defecto escucha en `http://localhost:4010` — el valor que espera
-`EXTERNAL_PROVIDERS_MOCK_BASE_URL` en `.env` cuando un proveedor está en modo
-`mock_server`.
+Por defecto escucha en `http://localhost:4010`. El valor que espera
+`EXTERNAL_PROVIDERS_MOCK_BASE_URL` en `.env` lleva el **sufijo `/mock`**:
+
+```
+EXTERNAL_PROVIDERS_MOCK_BASE_URL=http://localhost:4010/mock
+```
+
+El sufijo no es opcional: `mockBaseUrlFor()` le concatena el path del proveedor
+(`/segip`, `/infocenter`, …). Sin él la llamada sale a `…:4010/segip/identity/verify`
+y el emulador devuelve un 404 que el adapter reporta como falla del PROVEEDOR, no
+como una URL mal armada. En el VPS, donde el emulador se alcanza por el alias de la
+red de Coolify, es `http://external-providers-mock:4010/mock`.
 
 ## Contrato
 
@@ -31,20 +40,22 @@ Este backend arma la URL de cada proveedor con `mockBaseUrlFor()`
 (`src/modules/external-data/application/external-data-policy.util.ts`, base
 `/mock/<slug>`) más el path de operación que fija cada adapter vía
 `callMockServer()` (`.../adapters/shared/mock-http.util.ts`). El health check usa
-`GET /mock/health`.
+`GET /mock/health/<slug>` — **por módulo**, no el global: antes preguntaba por
+`/mock/health` y los nueve proveedores compartían veredicto, así que con un solo
+módulo caído se pintaban todos igual.
 
-Ese contrato (paths, escenarios, status HTTP de fallas de transporte y campos que
-normaliza cada adapter) está fijado por `test/contract.test.mjs` en el repo del mock:
-correr `npm test` allá tras cualquier cambio. Si acá se cambia `mockBaseUrlFor`, un
-path de adapter o un campo consumido en `normalize()`, hay que actualizar ese test y
-el emulador correspondiente en `AtlasExternalProvidersMock/src/providers/`.
+Si acá se cambia `mockBaseUrlFor`, un path de adapter o un campo consumido en
+`normalize()`, hay que actualizar el emulador correspondiente en
+`AtlasExternalProvidersMock/src/providers/`. **No hay `npm test` ni
+`test/contract.test.mjs` en el repo del mock** — este documento los describía y nunca
+existieron.
 
 ## Endpoints de negocio
 
 - `POST /mock/segip/identity/verify`
 - `POST /mock/infocenter/credit-report`
 - `POST /mock/qr/payment/verify`
-- `POST /mock/banking/transfer/verify`
+- `POST /mock/banking/qr/generate` y `POST /mock/banking/transfer/verify`
 - `POST /mock/telco/phone-trust/check`
 - `POST /mock/facebook/me`
 - `POST /mock/whatsapp/verification/confirm`
@@ -60,12 +71,20 @@ curl http://localhost:4010/mock/providers       # catálogo: dominio, endpoint, 
 
 ## Latencia
 
-Por defecto cada emulador responde con latencia aleatoria dentro de un rango
-realista para su tipo de servicio (p. ej. bureau de crédito 600–2400 ms, graph API
-120–700 ms), siempre con techo de 3000 ms — lejos del abort de 8 s de
-`callMockServer`. Se puede forzar por request con el header `x-mock-latency-ms`, o
-fijar `MOCK_PROVIDERS_LATENCY_MODE=fixed` para usar siempre
-`MOCK_PROVIDERS_DEFAULT_LATENCY_MS`.
+Cada emulador responde con latencia aleatoria dentro de un rango realista para su
+tipo de servicio: INFOCENTER 900–2500 ms (el más lento, es la consulta facturada),
+SEGIP 600–1400, BANKING 400–1200, DIGITAL_TRUST 300–900, TELCO 300–800, QR 250–700,
+WHATSAPP 200–600, FACEBOOK_META 150–500. Todos por debajo del abort de 8 s de
+`callMockServer`.
+
+Se fuerza por request con el header `x-mock-latency-ms`.
+`MOCK_PROVIDERS_DEFAULT_LATENCY_MS` sólo actúa como red para un módulo que no declare
+rango propio. (`MOCK_PROVIDERS_LATENCY_MODE=fixed`, que este documento describía, no
+existe.)
+
+`MOCK_PROVIDERS_ERROR_RATE` (0 por defecto) hace fallar sola una fracción de las
+llamadas, para que una demo del tablero no sea una línea plana. No afecta a las
+llamadas que piden un escenario explícito.
 
 ## Escenarios
 

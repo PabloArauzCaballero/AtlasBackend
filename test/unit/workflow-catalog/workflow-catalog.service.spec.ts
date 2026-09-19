@@ -6,11 +6,11 @@ import { buildBundle, buildDefinition } from './workflow-bundle.fixtures.js';
 function buildService(overrides: Record<string, unknown> = {}) {
   const bundle = buildBundle();
   const repository = {
-    findDefinitions: jest.fn(async () => [bundle.definition]),
-    findVersions: jest.fn(async () => [bundle.definition]),
-    findDefinition: jest.fn(async () => bundle.definition),
-    loadBundle: jest.fn(async () => bundle),
-    findFacetsByDefinition: jest.fn(async () => new Map()),
+    findDefinitions: jest.fn(async (..._args: unknown[]) => [bundle.definition]),
+    findVersions: jest.fn(async (..._args: unknown[]) => [bundle.definition]),
+    findDefinition: jest.fn(async (..._args: unknown[]) => bundle.definition),
+    loadBundle: jest.fn(async (..._args: unknown[]) => bundle),
+    findFacetsByDefinition: jest.fn(async (..._args: unknown[]) => new Map()),
     ...overrides,
   };
   return { service: new WorkflowCatalogService(repository as never), repository, bundle };
@@ -30,7 +30,9 @@ describe('WorkflowCatalogService.listWorkflows', () => {
 
   it('descarta los flujos cuyo conjunto de módulos no incluye el pedido', async () => {
     const { service } = buildService({
-      findFacetsByDefinition: jest.fn(async () => new Map([['1', { modules: new Set(['auth']), roles: new Set(['customer']) }]])),
+      findFacetsByDefinition: jest.fn(
+        async (..._args: unknown[]) => new Map([['1', { modules: new Set(['auth']), roles: new Set(['customer']) }]]),
+      ),
     });
 
     expect(await service.listWorkflows({ moduleCode: 'credit', includeDeprecated: false } as never)).toHaveLength(0);
@@ -41,7 +43,9 @@ describe('WorkflowCatalogService.listWorkflows', () => {
     // Un flujo cuyos pasos solo exigen autenticación no debe esconderse: filtrarlo dejaría al
     // consumidor sin el recorrido entero por una ausencia de metadatos, no por una restricción.
     const { service } = buildService({
-      findFacetsByDefinition: jest.fn(async () => new Map([['1', { modules: new Set(['auth']), roles: new Set<string>() }]])),
+      findFacetsByDefinition: jest.fn(
+        async (..._args: unknown[]) => new Map([['1', { modules: new Set(['auth']), roles: new Set<string>() }]]),
+      ),
     });
 
     expect(await service.listWorkflows({ role: 'risk_analyst', includeDeprecated: false } as never)).toHaveLength(1);
@@ -49,7 +53,9 @@ describe('WorkflowCatalogService.listWorkflows', () => {
 
   it('descarta los flujos cuyos roles declarados no incluyen el pedido', async () => {
     const { service } = buildService({
-      findFacetsByDefinition: jest.fn(async () => new Map([['1', { modules: new Set(['auth']), roles: new Set(['customer']) }]])),
+      findFacetsByDefinition: jest.fn(
+        async (..._args: unknown[]) => new Map([['1', { modules: new Set(['auth']), roles: new Set(['customer']) }]]),
+      ),
     });
 
     expect(await service.listWorkflows({ role: 'devops', includeDeprecated: false } as never)).toHaveLength(0);
@@ -58,14 +64,14 @@ describe('WorkflowCatalogService.listWorkflows', () => {
 
 describe('WorkflowCatalogService.listVersions', () => {
   it('devuelve 404 cuando el código no tiene ninguna versión registrada', async () => {
-    const { service } = buildService({ findVersions: jest.fn(async () => []) });
+    const { service } = buildService({ findVersions: jest.fn(async (..._args: unknown[]) => []) });
 
     await expect(service.listVersions('inexistente')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('devuelve el resumen de cada versión registrada', async () => {
     const { service } = buildService({
-      findVersions: jest.fn(async () => [buildDefinition({ version: 'v2' }), buildDefinition({ version: 'v1' })]),
+      findVersions: jest.fn(async (..._args: unknown[]) => [buildDefinition({ version: 'v2' }), buildDefinition({ version: 'v1' })]),
     });
 
     expect((await service.listVersions('demo_flow')).map((row) => row.version)).toEqual(['v2', 'v1']);
@@ -74,7 +80,7 @@ describe('WorkflowCatalogService.listVersions', () => {
 
 describe('WorkflowCatalogService lecturas del árbol', () => {
   it('devuelve 404 cuando la versión pedida no existe, en vez de un árbol vacío', async () => {
-    const { service } = buildService({ findDefinition: jest.fn(async () => null) });
+    const { service } = buildService({ findDefinition: jest.fn(async (..._args: unknown[]) => null) });
 
     await expect(service.getTree('demo_flow', TREE_QUERY as never)).rejects.toBeInstanceOf(NotFoundException);
   });

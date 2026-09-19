@@ -13,6 +13,14 @@ export type SmsProvider = 'disabled' | 'twilio' | 'webhook';
 export type WhatsAppProvider = 'disabled' | 'meta_cloud' | 'twilio' | 'webhook';
 export type PhoneProvider = 'disabled' | 'webhook';
 
+export type GmailCredentials = { clientId: string; clientSecret: string; refreshToken: string; fromEmail: string };
+/** Unión discriminada en vez de excepción: el adaptador de Gmail nunca lanza desde `send`. */
+export type GmailCredentialsResult = { ok: true; value: GmailCredentials } | { ok: false; missing: string };
+
+/** Credenciales de APNs: la llave `.p8` de App Store Connect, su identificador y el del equipo. */
+export type ApnsCredentials = { keyId: string; teamId: string; privateKey: string; bundleId: string; production: boolean };
+export type ApnsCredentialsResult = { ok: true; value: ApnsCredentials } | { ok: false; missing: string };
+
 /**
  * Nota de robustez: la validación fail-fast de "proveedor activo sin sus credenciales" para los
  * 5 canales de este servicio YA existe — vive en `src/config/env.ts` (`requireWhen`/
@@ -46,6 +54,38 @@ export class NotificationProviderConfigService {
     return env.NOTIFICATION_PHONE_PROVIDER;
   }
 
+  /**
+   * Credenciales de APNs, o qué falta.
+   *
+   * Va aquí y no leyendo `env` desde el adaptador por la misma razón que las de Gmail: `env` se
+   * resuelve UNA vez al importar el módulo, así que un adaptador que lo lea directo no se puede
+   * ejercitar con otra configuración sin recargar módulos.
+   */
+  getApnsCredentials(): ApnsCredentialsResult {
+    const faltante = this.firstMissing({
+      APNS_KEY_ID: env.APNS_KEY_ID,
+      APNS_TEAM_ID: env.APNS_TEAM_ID,
+      APNS_PRIVATE_KEY: env.APNS_PRIVATE_KEY,
+      APNS_BUNDLE_ID: env.APNS_BUNDLE_ID,
+    });
+    if (faltante) return { ok: false, missing: faltante };
+    return {
+      ok: true,
+      value: {
+        keyId: env.APNS_KEY_ID as string,
+        teamId: env.APNS_TEAM_ID as string,
+        privateKey: env.APNS_PRIVATE_KEY as string,
+        bundleId: env.APNS_BUNDLE_ID as string,
+        production: env.APNS_ENVIRONMENT === 'production',
+      },
+    };
+  }
+
+  private firstMissing(values: Record<string, string | undefined>): string | null {
+    for (const [name, value] of Object.entries(values)) if (!value) return name;
+    return null;
+  }
+
   getWebhookUrl(channel?: NotificationChannel): string | undefined {
     if (channel === 'email') return env.NOTIFICATION_EMAIL_WEBHOOK_URL ?? env.NOTIFICATION_WEBHOOK_URL;
     if (channel === 'push') return env.NOTIFICATION_PUSH_WEBHOOK_URL ?? env.NOTIFICATION_WEBHOOK_URL;
@@ -63,6 +103,24 @@ export class NotificationProviderConfigService {
     if (channel === 'phone') return this.getPhoneProvider();
     if (channel === 'in_app') return 'atlas_in_app';
     return 'disabled';
+  }
+
+  /**
+   * Único punto donde el adaptador de Gmail toca `env`. Mantenerlo aquí —y devolver el código de la
+   * PRIMERA variable ausente en vez de lanzar— deja al adaptador libre de `env`, que es lo que
+   * permite ejercitarlo en pruebas unitarias sin recargar el módulo de configuración.
+   */
+  getGmailCredentials(): GmailCredentialsResult {
+    const present = (value: string | undefined): string | null => (value && value.trim().length > 0 ? value.trim() : null);
+    const clientId = present(env.GMAIL_CLIENT_ID);
+    const clientSecret = present(env.GMAIL_CLIENT_SECRET);
+    const refreshToken = present(env.GMAIL_REFRESH_TOKEN);
+    const fromEmail = present(env.GMAIL_FROM_EMAIL);
+    if (!clientId) return { ok: false, missing: 'GMAIL_CLIENT_ID_MISSING' };
+    if (!clientSecret) return { ok: false, missing: 'GMAIL_CLIENT_SECRET_MISSING' };
+    if (!refreshToken) return { ok: false, missing: 'GMAIL_REFRESH_TOKEN_MISSING' };
+    if (!fromEmail) return { ok: false, missing: 'GMAIL_FROM_EMAIL_MISSING' };
+    return { ok: true, value: { clientId, clientSecret, refreshToken, fromEmail } };
   }
 
   require(value: string | undefined, code: string): string {

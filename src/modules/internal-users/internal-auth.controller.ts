@@ -10,6 +10,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
+import { Throttle } from '@nestjs/throttler';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { parsePositiveId } from '../../common/utils/ids/id.util.js';
@@ -83,6 +84,10 @@ export class InternalAuthController {
     return refreshToken;
   }
 
+  // 10 intentos por minuto por IP. Este login abre el panel interno —los 20 roles y sus permisos—,
+  // así que merece al menos el mismo freno que el de clientes; hasta ahora sólo lo cubría el límite
+  // global de 100/min, que para fuerza bruta de contraseñas no es un freno.
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Public()
   @ApiOperation({ summary: 'Login interno', description: 'Autentica usuarios internos para el panel administrativo ATLAS.' })
   @ApiBody({ schema: zodToApiSchema(internalLoginSchema) })
@@ -110,6 +115,9 @@ export class InternalAuthController {
     return this.issueSessionCookies(response, outcome);
   }
 
+  // 10 por minuto: el PIN tiene 6 dígitos y es el SEGUNDO factor de los actores internos. Sin freno,
+  // un millón de combinaciones a 100/min es cuestión de días; a 10/min, de años.
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Public()
   @ApiOperation({
     summary: 'Verificar PIN de login interno',
@@ -136,6 +144,9 @@ export class InternalAuthController {
     return this.issueSessionCookies(response, tokens);
   }
 
+  // 30 por minuto: rotar es legítimo y frecuente, pero sigue siendo un endpoint público que prueba
+  // tokens; sin techo propio, es un oráculo de validez a 100/min.
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
   @Public()
   @ApiOperation({ summary: 'Refresh interno', description: 'Rota refresh token de una sesión interna.' })
   @ApiBody({ schema: zodToApiSchema(internalRefreshSchema) })

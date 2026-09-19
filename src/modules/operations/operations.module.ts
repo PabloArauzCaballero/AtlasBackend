@@ -8,6 +8,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import {
   CustomerObservationModel,
   CustomerStatusEventModel,
+  IdentityVerificationAttemptModel,
   DataChangeLogModel,
   FraudCaseModel,
   ManualReviewCaseModel,
@@ -17,9 +18,13 @@ import {
 import { CustomersModule } from '../customers/customers.module.js';
 import { RiskModule } from '../risk/risk.module.js';
 import { FraudModule } from '../fraud/fraud.module.js';
+import { CustomerOnboardingModule } from '../customer-onboarding/customer-onboarding.module.js';
+import { CustomerTelemetryModule } from '../customer-telemetry/customer-telemetry.module.js';
 import { OperationsController } from './operations.controller.js';
 import { OperationsRepository } from './operations.repository.js';
+import { OperationsQueueRepository } from './operations-queue.repository.js';
 import { OperationsService } from './operations.service.js';
+import { PendingContactVerificationService } from './pending-contact-verification.service.js';
 
 @Module({
   imports: [
@@ -31,12 +36,17 @@ import { OperationsService } from './operations.service.js';
       OperationalAuditLogModel,
       DataChangeLogModel,
       CustomerObservationModel,
+      IdentityVerificationAttemptModel,
     ]),
     CustomersModule,
     RiskModule,
     FraudModule,
+    // Por la agenda del cliente: la calcula y la guarda el módulo de alta.
+    CustomerOnboardingModule,
+    // Por el resumen de comportamiento del alta: lo calcula y lo guarda la telemetría.
+    CustomerTelemetryModule,
   ],
   controllers: [OperationsController],
-  providers: [OperationsRepository, OperationsService],
+  providers: [OperationsRepository, OperationsQueueRepository, OperationsService, PendingContactVerificationService],
 })
 export class OperationsModule {}

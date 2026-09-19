@@ -14,32 +14,32 @@ describe('NotificationsRepository — núcleo', () => {
     const messageModel = {
       findOne: jest.fn(),
       create: jest.fn(async (v: unknown) => ({ id: 'm1', ...(v as object) })),
-      findAndCountAll: jest.fn(async () => ({ rows: [], count: 0 })),
-      findAll: jest.fn(async () => []),
+      findAndCountAll: jest.fn(async (..._args: unknown[]) => ({ rows: [], count: 0 })),
+      findAll: jest.fn(async (..._args: unknown[]) => []),
       count: jest.fn(),
       update: jest.fn(),
     };
     const deliveryModel = {
-      count: jest.fn(async () => 0),
+      count: jest.fn(async (..._args: unknown[]) => 0),
       create: jest.fn(async (v: unknown) => ({ id: 'd1', ...(v as object) })),
-      findAll: jest.fn(async () => []),
+      findAll: jest.fn(async (..._args: unknown[]) => []),
     };
     const deviceTokenModel = {
       findOne: jest.fn(),
       create: jest.fn(async (v: unknown) => ({ id: 'dt1', ...(v as object) })),
-      findAll: jest.fn(async () => []),
+      findAll: jest.fn(async (..._args: unknown[]) => []),
     };
-    const contactMethodModel = { findAll: jest.fn(async () => []) };
+    const contactMethodModel = { findAll: jest.fn(async (..._args: unknown[]) => []) };
     const templatesRepository = {
-      findTemplate: jest.fn(async () => null),
-      listTemplates: jest.fn(async () => ({})),
-      createTemplate: jest.fn(async () => ({})),
-      updateTemplate: jest.fn(async () => ({})),
+      findTemplate: jest.fn(async (..._args: unknown[]) => null),
+      listTemplates: jest.fn(async (..._args: unknown[]) => ({})),
+      createTemplate: jest.fn(async (..._args: unknown[]) => ({})),
+      updateTemplate: jest.fn(async (..._args: unknown[]) => ({})),
     };
     const preferencesRepository = {
-      getPreferences: jest.fn(async () => []),
-      upsertPreferences: jest.fn(async () => []),
-      isChannelEnabled: jest.fn(async () => true),
+      getPreferences: jest.fn(async (..._args: unknown[]) => []),
+      upsertPreferences: jest.fn(async (..._args: unknown[]) => []),
+      isChannelEnabled: jest.fn(async (..._args: unknown[]) => true),
     };
     const repo = new NotificationsRepository(
       messageModel as never,
@@ -58,7 +58,7 @@ describe('NotificationsRepository — núcleo', () => {
     channel: 'email',
     status: 'pending',
     queuedAt: null,
-    save: jest.fn(async () => undefined),
+    save: jest.fn(async (..._args: unknown[]) => undefined),
     ...over,
   });
 
@@ -204,7 +204,7 @@ describe('NotificationsRepository — núcleo', () => {
   describe('upsertDeviceToken', () => {
     it('reactiva y re-cifra un token existente en vez de crear otro', async () => {
       const { repo, deviceTokenModel } = build();
-      const existing = { isActive: false, save: jest.fn(async () => undefined) };
+      const existing = { isActive: false, save: jest.fn(async (..._args: unknown[]) => undefined) };
       (deviceTokenModel.findOne as jest.Mock).mockResolvedValueOnce(existing as never);
       await repo.upsertDeviceToken('t1', 'c1', { token: 'tok-123', platform: 'ios', deviceId: 'd1' } as never);
       expect((existing as { isActive: boolean }).isActive).toBe(true);
@@ -250,19 +250,29 @@ describe('NotificationsRepository — núcleo', () => {
     });
   });
 
-  it('getActiveDeviceTokenSecrets descifra y deduplica los tokens activos', async () => {
+  it('getActivePushDevices descifra, deduplica y CONSERVA la plataforma', async () => {
+    // La plataforma es lo que decide si el aviso sale por APNs o por FCM: perderla dejaba sin avisos
+    // a todos los iPhone, porque su token lo emite Apple y Firebase siempre lo rechaza.
     const { repo, deviceTokenModel } = build();
     const enc = await encryptSecretEnvelope('device-token-xyz');
-    (deviceTokenModel.findAll as jest.Mock).mockResolvedValueOnce([{ tokenEncrypted: enc }, { tokenEncrypted: enc }] as never);
-    expect(await repo.getActiveDeviceTokenSecrets('t1', 'c1')).toEqual(['device-token-xyz']);
-    expect(await repo.getActiveDeviceTokenSecrets(null, 'c1')).toEqual([]);
+    const otro = await encryptSecretEnvelope('token-de-iphone');
+    (deviceTokenModel.findAll as jest.Mock).mockResolvedValueOnce([
+      { tokenEncrypted: enc, platform: 'android' },
+      { tokenEncrypted: enc, platform: 'android' },
+      { tokenEncrypted: otro, platform: 'ios' },
+    ] as never);
+    expect(await repo.getActivePushDevices('t1', 'c1')).toEqual([
+      { token: 'device-token-xyz', platform: 'android' },
+      { token: 'token-de-iphone', platform: 'ios' },
+    ]);
+    expect(await repo.getActivePushDevices(null, 'c1')).toEqual([]);
   });
 
   it('deactivateDeviceToken lanza NotFound o desactiva y guarda', async () => {
     const { repo, deviceTokenModel } = build();
     (deviceTokenModel.findOne as jest.Mock).mockResolvedValueOnce(null as never);
     await expect(repo.deactivateDeviceToken('t1', 'c1', 'x')).rejects.toBeInstanceOf(NotFoundException);
-    const token = { isActive: true, save: jest.fn(async () => undefined) };
+    const token = { isActive: true, save: jest.fn(async (..._args: unknown[]) => undefined) };
     (deviceTokenModel.findOne as jest.Mock).mockResolvedValueOnce(token as never);
     await repo.deactivateDeviceToken('t1', 'c1', 'dt1');
     expect((token as { isActive: boolean }).isActive).toBe(false);
@@ -393,7 +403,7 @@ describe('NotificationsRepository — núcleo', () => {
 
   it('upsertDeviceToken conserva el deviceId previo cuando el body no lo trae', async () => {
     const { repo, deviceTokenModel } = build();
-    const existing = { deviceId: 'dispositivo-previo', save: jest.fn(async () => undefined) };
+    const existing = { deviceId: 'dispositivo-previo', save: jest.fn(async (..._args: unknown[]) => undefined) };
     (deviceTokenModel.findOne as jest.Mock).mockResolvedValueOnce(existing as never);
     await repo.upsertDeviceToken('t1', 'c1', { token: 'tok', platform: 'ios' } as never);
     expect((existing as { deviceId: string }).deviceId).toBe('dispositivo-previo');

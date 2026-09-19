@@ -3,8 +3,9 @@
  * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
-import { Body, Controller, Headers, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,7 +14,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { RequestWithNetwork, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { RequestWithNetwork } from '../../common/utils/http/headers.util.js';
 import { CustomerComplianceScreeningService } from './application/customer-compliance-screening.service.js';
 import { CustomerVerificationService } from './application/customer-verification.service.js';
 import {
@@ -57,14 +58,14 @@ export class CustomerVerificationController {
   @Post(':customerId/identity-verification/decision')
   @HttpCode(HttpStatus.OK)
   decideIdentity(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(identityDecisionSchema)) body: IdentityDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
     return this.verificationService.decideIdentity({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       body,
       currentUser,
@@ -86,13 +87,13 @@ export class CustomerVerificationController {
   @Post(':customerId/compliance/screening')
   @HttpCode(HttpStatus.OK)
   screen(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
     return this.screeningService.screen({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       currentUser,
       ipAddress: request.ip ?? null,
@@ -113,14 +114,14 @@ export class CustomerVerificationController {
   @Post(':customerId/compliance/clear-matches')
   @HttpCode(HttpStatus.OK)
   clearMatches(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(onboardingCustomerIdParamsSchema)) params: OnboardingCustomerIdParamsDto,
     @Body(new ZodValidationPipe(clearWatchlistMatchesSchema)) body: ClearWatchlistMatchesDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
   ) {
     return this.screeningService.clearMatches({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       customerId: params.customerId,
       reasonCode: body.reasonCode,
       notes: body.notes,

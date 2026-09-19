@@ -17,7 +17,9 @@ function trackedFilesMatching(pattern: string): string[] {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
   } catch (error) {
-    throw new Error(`No se pudo ejecutar "git ls-files -- ${pattern}": ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`No se pudo ejecutar "git ls-files -- ${pattern}": ${error instanceof Error ? error.message : String(error)}`, {
+      cause: error,
+    });
   }
 }
 

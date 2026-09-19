@@ -23,7 +23,7 @@ function buildDatabaseError(code: string, message = 'fallo del motor'): Database
 
 function buildHost(): { host: ArgumentsHost; statusMock: jest.Mock; jsonMock: jest.Mock } {
   const jsonMock = jest.fn();
-  const statusMock = jest.fn(() => ({ json: jsonMock }));
+  const statusMock = jest.fn((..._args: unknown[]) => ({ json: jsonMock }));
   const request = { method: 'POST', url: '/api/v1/customers?identifier=0999123456', correlationId: 'cid-1' };
 
   const host = {

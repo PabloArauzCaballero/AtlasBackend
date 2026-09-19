@@ -19,10 +19,10 @@ describe('JobRunRecorderService', () => {
       completedAt: null,
       resultJson: null,
       errorMessage: null,
-      save: jest.fn(async () => undefined),
+      save: jest.fn(async (..._args: unknown[]) => undefined),
     };
-    const jobRunModel = { create: jest.fn(async () => run) };
-    const auditModel = { create: jest.fn(async () => ({})) };
+    const jobRunModel = { create: jest.fn(async (..._args: unknown[]) => run) };
+    const auditModel = { create: jest.fn(async (..._args: unknown[]) => ({})) };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
     const recorder = new JobRunRecorderService(jobRunModel as never, auditModel as never, sequelize as never);
     return { recorder, run, jobRunModel, auditModel, sequelize };

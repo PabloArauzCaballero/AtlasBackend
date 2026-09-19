@@ -10,12 +10,12 @@ import { requireIdempotencyKey, tenantIdFromHeader } from '../../../src/common/u
 describe('EventsController', () => {
   function build() {
     const service = {
-      listDefinitions: jest.fn(() => [{ code: 'X' }]),
-      listEvents: jest.fn(async () => ({ items: [] })),
-      getEvent: jest.fn(async () => ({ id: '7' })),
-      publishFromDto: jest.fn(async () => ({ id: '8' })),
-      retryEvent: jest.fn(async () => ({ retried: true })),
-      cancelEvent: jest.fn(async () => ({ cancelled: true })),
+      listDefinitions: jest.fn((..._args: unknown[]) => [{ code: 'X' }]),
+      listEvents: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getEvent: jest.fn(async (..._args: unknown[]) => ({ id: '7' })),
+      publishFromDto: jest.fn(async (..._args: unknown[]) => ({ id: '8' })),
+      retryEvent: jest.fn(async (..._args: unknown[]) => ({ retried: true })),
+      cancelEvent: jest.fn(async (..._args: unknown[]) => ({ cancelled: true })),
     };
     return { controller: new EventsController(service as never), service };
   }

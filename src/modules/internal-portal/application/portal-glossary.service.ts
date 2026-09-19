@@ -5,7 +5,6 @@
  */
 import { NotFoundException } from '@nestjs/common';
 import { clean, containsQuery, id, iso, nullableText, paginate, Query, Row } from './portal-format.util.js';
-import { NOW_SEED } from './portal-report-definitions.js';
 import { PortalQueryBase } from './portal-query.base.js';
 
 /**
@@ -88,7 +87,7 @@ export class PortalGlossaryService extends PortalQueryBase {
         relatedEndpoints: endpointsForDomain(row.domain_code),
         relatedReports: ['operations-overview', 'data-governance'],
         metadata: { dataNature: clean(row.data_nature, 'OPERACIONAL'), source: 'system_domain_catalog' },
-        updatedAt: iso(row._updated_at) ?? NOW_SEED,
+        updatedAt: iso(row._updated_at),
       })),
       ...tables.map((row) => ({
         termId: `table:${id(row._id)}`,
@@ -105,7 +104,7 @@ export class PortalGlossaryService extends PortalQueryBase {
         relatedEndpoints: endpointsByEntityId.get(id(row._id)) ?? [],
         relatedReports: ['endpoint-coverage', 'data-governance'],
         metadata: { schemaName: clean(row.schema_name), reviewStatus: clean(row.review_status), source: 'system_data_entity_catalog' },
-        updatedAt: iso(row._updated_at) ?? NOW_SEED,
+        updatedAt: iso(row._updated_at),
       })),
       ...fields.map((row) => this.mapFieldTerm(row)),
     ].filter((item) => containsQuery(item, q));
@@ -125,7 +124,7 @@ export class PortalGlossaryService extends PortalQueryBase {
       relatedColumns: [`${clean(row.table_name)}.${clean(row.column_name)}`],
       relatedReports: ['data-governance'],
       metadata: { sensitivityLevel: clean(row.sensitivity_level, 'INTERNAL'), source: 'system_data_field_catalog' },
-      updatedAt: iso(row._updated_at) ?? NOW_SEED,
+      updatedAt: iso(row._updated_at),
     };
   }
 
@@ -201,9 +200,7 @@ export class PortalGlossaryService extends PortalQueryBase {
               targetId: table,
               targetLabel: table,
             })),
-      audit: [
-        { auditId: `audit:${term.termId}`, action: 'seeded_or_detected', actor: 'atlas_backend', createdAt: term.updatedAt ?? NOW_SEED },
-      ],
+      audit: [{ auditId: `audit:${term.termId}`, action: 'seeded_or_detected', actor: 'atlas_backend', createdAt: term.updatedAt }],
     };
   }
 }

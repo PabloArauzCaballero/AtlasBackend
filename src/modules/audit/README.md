@@ -17,6 +17,7 @@
 | [`audit.schemas.ts`](./audit.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
 | [`audit.service.ts`](./audit.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`http-action-log.service.ts`](./http-action-log.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`system-action-log-row.mapper.ts`](./system-action-log-row.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
 
 ## Reglas de mantenimiento
 

@@ -45,6 +45,19 @@ export const schemaTablesListQuerySchema = z
   .object({
     versionId: numericIdString,
     tableType: z.enum(['transactional', 'catalog', 'audit', 'operational']).optional(),
+    /**
+     * Esquema de Postgres al que acotar el inventario (`iam`, `risk`, `credit`…).
+     *
+     * El catálogo guarda el nombre CUALIFICADO (`iam.internal_users`), así que sin este filtro la
+     * única forma de ver "las tablas de riesgo" era pedir las 152 y separarlas en el navegador —
+     * imposible con el techo de 100 por página. La regex es estricta a propósito: el valor entra en
+     * un `LIKE` y solo puede ser un identificador de esquema.
+     */
+    schemaName: z
+      .string()
+      .regex(/^[a-z_][a-z0-9_]*$/, 'schemaName debe ser un identificador de esquema en minúsculas.')
+      .max(63)
+      .optional(),
     limit: z.coerce.number().int().min(1).max(100).default(50),
     offset: z.coerce.number().int().min(0).default(0),
   })

@@ -50,6 +50,17 @@ export class SystemsActionLogController {
     return this.service.listActionLogs(query, user);
   }
 
+  @ApiOperation({
+    summary: 'Catálogo de filtros disponibles para la auditoría de acciones',
+    description:
+      'Campos filtrables y sus valores. Los conjuntos cerrados (método, riesgo) salen del esquema de consulta; los abiertos (módulo, tipo de actor) de la propia bitácora del tenant. La interfaz no debe fijar estas listas a mano.',
+  })
+  @ApiResponse({ status: 200, description: 'Campos filtrables con sus opciones y origen.' })
+  @Get('action-logs/filter-catalog')
+  getActionLogFilterCatalog(@CurrentUser() user: AuthenticatedUser) {
+    return this.service.getFilterCatalog(user);
+  }
+
   @ApiOperation({ summary: 'Action logs de un request (alias)' })
   @ApiParam({ name: 'requestId', schema: zodToApiSchema(systemsRequestParamsSchema.shape.requestId) })
   @ApiResponse({ status: 200, description: 'Action logs asociados al request.' })

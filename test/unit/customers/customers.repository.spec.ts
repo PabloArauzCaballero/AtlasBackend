@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
 import { Op } from 'sequelize';
+import { CustomerContactsRepository } from '../../../src/modules/customers/repositories/customer-contacts.repository.js';
 import { CustomersRepository } from '../../../src/modules/customers/customers.repository.js';
 
 /**
@@ -20,12 +21,22 @@ describe('CustomersRepository', () => {
     const repo = new CustomersRepository(
       customerModel as never,
       profileModel as never,
-      contactMethodModel as never,
       statusEventModel as never,
       customerConsentModel as never,
       riskResultModel as never,
     );
-    return { repo, customerModel, profileModel, contactMethodModel, statusEventModel, customerConsentModel, riskResultModel };
+    // Los métodos de contacto y el contacto principal viven en `CustomerContactsRepository`.
+    const contactsRepo = new CustomerContactsRepository(contactMethodModel as never);
+    return {
+      repo,
+      contactsRepo,
+      customerModel,
+      profileModel,
+      contactMethodModel,
+      statusEventModel,
+      customerConsentModel,
+      riskResultModel,
+    };
   }
 
   const opts = { transaction: 'tx' as never };
@@ -119,7 +130,7 @@ describe('CustomersRepository', () => {
 
   it('updateCurrentProfileVersion fija currentProfileVersionId y guarda', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const customer = { save } as never;
     await repo.updateCurrentProfileVersion(customer, 'p9', now, opts);
     expect((customer as { currentProfileVersionId: string }).currentProfileVersionId).toBe('p9');
@@ -146,9 +157,9 @@ describe('CustomersRepository', () => {
   });
 
   it('createContactMethod usa label primary_phone para phone', async () => {
-    const { repo, contactMethodModel } = buildRepo();
+    const { contactsRepo, contactMethodModel } = buildRepo();
     (contactMethodModel.create as jest.Mock).mockResolvedValue({ id: 'cm1' } as never);
-    await repo.createContactMethod(
+    await contactsRepo.createContactMethod(
       {
         tenantId: 't1',
         customerId: 'c1',
@@ -171,9 +182,9 @@ describe('CustomersRepository', () => {
   });
 
   it('createContactMethod usa label primary_email para email', async () => {
-    const { repo, contactMethodModel } = buildRepo();
+    const { contactsRepo, contactMethodModel } = buildRepo();
     (contactMethodModel.create as jest.Mock).mockResolvedValue({ id: 'cm1' } as never);
-    await repo.createContactMethod(
+    await contactsRepo.createContactMethod(
       {
         tenantId: 't1',
         customerId: 'c1',
@@ -204,9 +215,9 @@ describe('CustomersRepository', () => {
   });
 
   it('findContactMethods excluye borrados', async () => {
-    const { repo, contactMethodModel } = buildRepo();
+    const { contactsRepo, contactMethodModel } = buildRepo();
     (contactMethodModel.findAll as jest.Mock).mockResolvedValue([] as never);
-    await repo.findContactMethods('t1', 'c1');
+    await contactsRepo.findContactMethods('t1', 'c1');
     expect(callArg<CallArgRecord>(contactMethodModel.findAll, 0, 0).where.deleted).toBeDefined();
   });
 

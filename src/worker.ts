@@ -1,28 +1,34 @@
 /**
  * @file Artefacto de soporte específico de esta carpeta.
  * @business Esta pieza completa trabajo asíncrono y recuperable fuera de la latencia del request.
- * @system arranca el proceso worker: mismos módulos que la API, sin rutas de negocio.
+ * @system arranca el proceso worker con su propia raíz de composición (`WorkerModule`), sin rutas de negocio.
  */
 import 'reflect-metadata';
-// Igual que en `main.ts`: el bootstrap de OpenTelemetry debe importarse ANTES que cualquier módulo
-// instrumentable. Es no-op salvo OTEL_ENABLED=true.
-import './observability/tracing-bootstrap.js';
+// Debe preceder a TODO import instrumentable (Nest, Express, Sequelize, pg, ioredis, undici): las
+// instrumentaciones de OpenTelemetry parchean esos módulos en el instante en que se requieren, así
+// que arrancar después produce cero spans y ningún error que lo explique. Es no-op salvo
+// OTEL_ENABLED=true. El nombre por defecto es POR PROCESO: si API y workers compartieran uno, el
+// grafo de dependencias de Jaeger mostraría un solo nodo hablando consigo mismo.
+import { startTracing, shutdownTracing } from './observability/tracing.js';
+
+startTracing('atlas-worker');
+
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { getConnectionToken } from '@nestjs/sequelize';
 import type { Sequelize } from 'sequelize-typescript';
 import type Redis from 'ioredis';
-import { AppModule } from './app.module.js';
+import { WorkerModule } from './bootstrap/worker.module.js';
 import { env } from './config/env.js';
 import { appRole } from './config/app-role.js';
 import { buildInfo } from './config/build-info.js';
 import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encryption.util.js';
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
+import { assertDecoratorMetadataIsAvailable } from './common/bootstrap/decorator-metadata.guard.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
 import { REDIS_CLIENT } from './common/redis/redis.module.js';
 import { MetricsService } from './common/observability/metrics.service.js';
 import { GracefulShutdownService } from './common/lifecycle/graceful-shutdown.service.js';
-import { shutdownTracing } from './observability/tracing.js';
 import { createWorkerProbeServer } from './worker/worker-probe-server.js';
 
 /**
@@ -42,10 +48,24 @@ import { createWorkerProbeServer } from './worker/worker-probe-server.js';
  * Ver `docs/architecture/background-processing.md`.
  */
 async function bootstrapWorker(): Promise<void> {
+  // Mismo guard que la API: sin metadata de decoradores, el contenedor falla culpando a un
+  // módulo sano en vez de al runtime. Ver `decorator-metadata.guard.ts`.
+  assertDecoratorMetadataIsAvailable();
+
   const logger = new Logger('AtlasWorker');
 
   if (appRole() === 'api') {
     logger.error('APP_ROLE=api: este entrypoint es el del worker. Arranca la API con `node dist/src/main.js`.');
+    process.exit(1);
+  }
+
+  // Revisión independiente A, hallazgo 9: el perfil `messaging` relaja requisitos de producción (secreto de
+  // sesiones de usuario, Redis) porque el worker del piloto no los usa. Este proceso SÍ los usa: arrancarlo
+  // con ese perfil lo dejaría con el secreto por defecto y sin rate limiting compartido.
+  if (env.ATLAS_CAPABILITY_PROFILE === 'messaging') {
+    logger.error(
+      'ATLAS_CAPABILITY_PROFILE=messaging pertenece al worker de Mensajería (dist/src/messaging-worker.js), no a este entrypoint.',
+    );
     process.exit(1);
   }
 
@@ -57,7 +77,8 @@ async function bootstrapWorker(): Promise<void> {
     logger.log('KMS activado como proveedor de cifrado de PII.');
   }
 
-  const context = await NestFactory.createApplicationContext(AppModule, {
+  // AT-045: raíz propia del worker; no monta rutas ni los módulos que sólo sirven HTTP.
+  const context = await NestFactory.createApplicationContext(WorkerModule, {
     logger: new AppFileLogger(),
     bufferLogs: env.NODE_ENV !== 'development',
   });

@@ -156,6 +156,26 @@ describe('EventsService', () => {
       await expect(service.cancelEvent('t1', '1')).rejects.toThrow(/PROCESSED_EVENT_CANNOT_BE_CANCELLED/);
     });
 
+    /*
+     * El código HTTP es parte del contrato: Swagger prometía 409 y el servicio lanzaba 400. Un
+     * cliente que distinga «petición mal formada» de «llegaste tarde» sólo puede hacerlo por aquí.
+     */
+    it('retryEvent y cancelEvent sobre un evento processed responden 409, no 400', async () => {
+      const { service, repository } = buildService();
+      (repository.getById as jest.Mock).mockResolvedValueOnce(fakeOutboxEvent({ status: 'processed' }) as never);
+      await expect(service.retryEvent('t1', '1')).rejects.toMatchObject({ status: 409 });
+      (repository.getById as jest.Mock).mockResolvedValueOnce(fakeOutboxEvent({ status: 'processed' }) as never);
+      await expect(service.cancelEvent('t1', '1')).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('cancelEvent sobre un evento ya cancelado responde 409 EVENT_ALREADY_CANCELLED', async () => {
+      const { service, repository } = buildService();
+      const event = fakeOutboxEvent({ status: 'cancelled' });
+      (repository.getById as jest.Mock).mockResolvedValueOnce(event as never);
+      await expect(service.cancelEvent('t1', '1')).rejects.toMatchObject({ status: 409, message: 'EVENT_ALREADY_CANCELLED' });
+      expect(event.save).not.toHaveBeenCalled();
+    });
+
     it('cancelEvent moves a pending event to cancelled', async () => {
       const { service, repository } = buildService();
       const event = fakeOutboxEvent({ status: 'pending' });

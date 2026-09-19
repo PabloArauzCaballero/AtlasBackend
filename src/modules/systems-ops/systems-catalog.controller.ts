@@ -36,6 +36,7 @@ import {
 } from './systems-ops.schemas.js';
 import { SystemsCatalogQueryService } from './systems-catalog-query.service.js';
 import { SystemsToolInferenceService } from './systems-tool-inference.service.js';
+import { SystemsDomainOverviewService } from './systems-domain-overview.service.js';
 import { SystemsDataImpactInferenceService } from './systems-data-impact-inference.service.js';
 
 @Controller('systems')
@@ -45,6 +46,7 @@ export class SystemsCatalogController {
     private readonly service: SystemsCatalogQueryService,
     private readonly toolInferenceService: SystemsToolInferenceService,
     private readonly dataImpactInferenceService: SystemsDataImpactInferenceService,
+    private readonly domainOverviewService: SystemsDomainOverviewService,
   ) {}
 
   @ApiOperation({ summary: 'Dashboard resumen de systems-ops' })
@@ -158,6 +160,17 @@ export class SystemsCatalogController {
   @Get('domains')
   listDomains(@Query(new ZodValidationPipe(systemsListQuerySchema)) query: SystemsListQueryDto) {
     return this.service.listDomains(query);
+  }
+
+  /*
+   * Va ANTES de `domains/:domainCode`: Nest resuelve por orden de declaración y, después, «overview»
+   * sería un código de dominio que no existe (404).
+   */
+  @ApiOperation({ summary: 'Mapa de dominios de negocio con sus cifras (tablas, endpoints, suites, PII, revisión)' })
+  @ApiResponse({ status: 200, description: 'Un ítem por dominio, más lo que no tiene dominio asignado.' })
+  @Get('domains/overview')
+  getDomainOverview() {
+    return this.domainOverviewService.overview();
   }
 
   @ApiOperation({ summary: 'Obtener un dominio catalogado por código' })
