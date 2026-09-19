@@ -8,7 +8,7 @@ import { appendFile, rename, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { env } from '../../config/env.js';
 import { redactSensitiveText } from '../utils/privacy/redact-text.util.js';
-import { getCorrelationId, getTraceId } from './request-context.js';
+import { getCorrelationId, getTraceIds } from './request-context.js';
 
 function lastStringOf(params: unknown[]): string | undefined {
   const last = params.at(-1);
@@ -80,12 +80,21 @@ export class AppFileLogger extends ConsoleLogger {
     // en la colección Mongo expuesta por /systems/logs/mongo. `redactSensitiveObject` solo cubre
     // payloads estructurados; aquí el mensaje/stack ya es texto libre, así que se enmascara por
     // patrón.
+    // `trace_id` + `span_id` con los nombres de la convención de OpenTelemetry: son los que
+    // reconocen los recolectores y los que permiten saltar de una línea de log a SU span, no sólo
+    // a la traza entera. Se emiten sólo cuando hay traza real; fuera de un request —arranque,
+    // jobs— van a `null` en vez de inventar un identificador que Jaeger no conoce. `traceId` se
+    // conserva además con su nombre histórico porque el pipeline a Mongo ya lo consulta así.
+    const traces = getTraceIds();
     const entry = {
       ts: new Date().toISOString(),
       level,
       context: context ?? null,
       correlationId: getCorrelationId() ?? null,
-      traceId: getTraceId() ?? null,
+      traceId: traces.traceId ?? null,
+      trace_id: traces.traceId ?? null,
+      span_id: traces.spanId ?? null,
+      trace_flags: traces.traceFlags ?? null,
       message: redactSensitiveText(stringifyMessage(message)),
       ...(extra ? { stack: redactSensitiveText(extra) } : {}),
     };

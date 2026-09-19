@@ -2,7 +2,8 @@
  * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
  * @business Esta pieza protege el acceso de clientes y operadores, la recuperación de cuenta y la continuidad segura de sesiones.
  * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
- */
+ */ import { TracingService } from '../../common/observability/tracing.service.js';
+
 import { Injectable, UnauthorizedException, Optional } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { MetricsService } from '../../common/observability/metrics.service.js';
@@ -55,6 +56,7 @@ export class AuthService {
     @InjectConnection() private readonly sequelize: Sequelize,
     // `@Optional()` y ÚLTIMO a propósito: los specs lo construyen posicionalmente.
     @Optional() private readonly metrics?: MetricsService,
+    @Optional() private readonly tracing: TracingService = new TracingService(),
   ) {}
 
   async login(input: { tenantId: string; dto: LoginDto; ip: string | null; userAgent: string | null }): Promise<LoginOutcome> {
@@ -69,6 +71,11 @@ export class AuthService {
     // de fallo puede olvidarse de contarse, que es justo lo que pasaría instrumentando cada `throw`.
     const logAttempt = (failed: { actorId: string | null; reasonCode: string } | null) => {
       this.metrics?.recordAuthAttempt({ actorType: input.dto.actorType, outcome: failed?.reasonCode ?? 'success' });
+      // Al MISMO embudo, y como atributos del span del request en vez de un span propio: un
+      // `auth.authenticate` cubriría exactamente el mismo tramo que `POST /auth/login` y sería un
+      // span redundante. Lo que falta en la traza no es el tramo, es POR QUÉ falló el login, y el
+      // motivo pertenece a un catálogo cerrado (nunca el identificador que se intentó usar).
+      this.tracing.setAttributes({ 'auth.actor.type': input.dto.actorType, 'auth.outcome': failed?.reasonCode ?? 'success' });
       return this.authRepository.recordLoginAttemptEvent({
         tenantId: input.tenantId,
         actorType: input.dto.actorType,

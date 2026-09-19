@@ -3,7 +3,9 @@
  * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
  * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { TracingService } from '../../common/observability/tracing.service.js';
+import { APP_ATTRIBUTES, SPAN_NAMES } from '../../observability/telemetry.constants.js';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { NotificationMessageModel, OutboxEventModel } from '../../database/models/index.js';
 import { NotificationChannelAdapter } from './adapters/notification-channel-adapter.js';
 import { InAppNotificationAdapter } from './adapters/in-app-notification.adapter.js';
@@ -64,6 +66,7 @@ export class NotificationOrchestratorService {
     private readonly pushAdapter: PushNotificationAdapter,
     private readonly smsAdapter: SmsNotificationAdapter,
     private readonly whatsappAdapter: WhatsAppNotificationAdapter,
+    @Optional() private readonly tracing: TracingService = new TracingService(),
   ) {}
 
   private get adapters(): NotificationChannelAdapter[] {
@@ -126,7 +129,24 @@ export class NotificationOrchestratorService {
     }
   }
 
+  /**
+   * `notification.dispatch` es un span de negocio de pleno derecho y no un tramo redundante: esta
+   * entrega se invoca desde el despacho del outbox y desde las tandas de campaña, es decir DENTRO
+   * de operaciones mayores y nunca 1:1 con una petición HTTP. Sin él, una campaña aparece en la
+   * traza como un único bloque opaco y no se puede ver qué canal se atascó.
+   *
+   * Lo que se publica es el CANAL y el PROVEEDOR —dos catálogos cerrados— y el desenlace. Nunca el
+   * destinatario, el asunto ni el cuerpo: son, literalmente, el mensaje que se envía a una persona.
+   */
   async deliverMessage(messageOrId: string | NotificationMessageModel): Promise<void> {
+    return this.tracing.runInSpan(
+      SPAN_NAMES.notificationDispatch,
+      { [APP_ATTRIBUTES.module]: 'notifications', [APP_ATTRIBUTES.operation]: 'dispatch' },
+      () => this.dispatchMessage(messageOrId),
+    );
+  }
+
+  private async dispatchMessage(messageOrId: string | NotificationMessageModel): Promise<void> {
     const message = typeof messageOrId === 'string' ? await this.repository.getMessageForDelivery(messageOrId) : messageOrId;
     if (['sent', 'delivered', 'read', 'cancelled'].includes(message.status)) return;
     const channel = message.channel as NotificationChannel;
@@ -163,11 +183,17 @@ export class NotificationOrchestratorService {
       ],
     };
     if (!adapter.validatePayload(payload)) throw new Error(`INVALID_PAYLOAD_FOR_CHANNEL_${channel}`);
+    this.tracing.setAttributes({ 'notification.channel': channel, 'notification.provider': adapter.getProviderName() });
     await this.repository.markMessageSending(message);
     try {
       const result = await adapter.send(payload);
       await this.repository.recordDelivery(message, payload, result);
+      this.tracing.setAttribute('notification.outcome', result.status);
     } catch (error: unknown) {
+      // El error se ABSORBE para no tumbar la tanda, pero el span sí queda marcado: una entrega
+      // que falla en silencio es exactamente el fallo que nadie ve hasta que alguien reclama.
+      this.tracing.setAttribute('notification.outcome', 'failed');
+      this.tracing.recordException(error);
       // Antes el fallo de entrega solo quedaba como fila en notification_deliveries (status='failed'),
       // sin log ni métrica: para saber si las notificaciones estaban cayendo había que consultar la
       // tabla. Se registra con contexto (canal, proveedor) para que sea alertable.

@@ -6,6 +6,8 @@
 import { DecisionArtifactBindingService } from './decision-artifact-binding.service.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { TracingService } from '../../common/observability/tracing.service.js';
+import { APP_ATTRIBUTES, DECISION_ATTRIBUTES, SPAN_NAMES } from '../../observability/telemetry.constants.js';
 import { env } from '../../config/env.js';
 import { DecisionEngineClient } from './decision-engine.client.js';
 import { DecisionOutcome, DecisionResponse } from './decision-engine.types.js';
@@ -46,6 +48,7 @@ export class CreditDecisionEngineService {
   private readonly logger = new Logger(CreditDecisionEngineService.name);
 
   constructor(
+    private readonly tracing: TracingService,
     private readonly client: DecisionEngineClient,
     private readonly features: FeatureProjectionService,
     private readonly underwriting: UnderwritingFeaturesService,
@@ -67,6 +70,35 @@ export class CreditDecisionEngineService {
    * rechazos que la política nunca emitió.
    */
   async decide(request: CreditDecisionRequest): Promise<CreditDecisionResult> {
+    // `credit.evaluate` es la operación por la que pregunta soporte cuando un solicitante llama:
+    // agrupa la proyección de variables, la resolución del artefacto y la llamada al motor en un
+    // solo tramo legible. Sin datos del solicitante: ni importe, ni plazo, ni identidad. Lo que sí
+    // lleva es el DESENLACE, que es de cardinalidad cerrada y es la pregunta que se hace siempre.
+    return this.tracing.runInSpan(
+      SPAN_NAMES.creditEvaluate,
+      {
+        [APP_ATTRIBUTES.module]: 'credit',
+        [APP_ATTRIBUTES.operation]: 'evaluate',
+        [APP_ATTRIBUTES.entityType]: 'credit-application',
+        [APP_ATTRIBUTES.entityId]: request.applicationId,
+        [APP_ATTRIBUTES.tenantId]: String(request.tenantId),
+      },
+      async (span) => {
+        const result = await this.evaluate(request);
+        span.setAttribute(DECISION_ATTRIBUTES.outcome, result.outcome.kind);
+        // Un motor inalcanzable NO marca el span como error: es una degradación prevista que el
+        // dominio traduce a revisión humana. Marcarlo confundiría «la política dijo que no» con
+        // «no llegué a preguntar», que es justo la distinción que este servicio existe para
+        // preservar. Queda como evento, visible sin contaminar la tasa de error.
+        if (result.outcome.kind === 'engineUnavailable') {
+          span.addEvent('engine.unavailable', { [DECISION_ATTRIBUTES.reason]: result.outcome.reason });
+        }
+        return result;
+      },
+    );
+  }
+
+  private async evaluate(request: CreditDecisionRequest): Promise<CreditDecisionResult> {
     if (!this.client.isConfigured) {
       return {
         outcome: { kind: 'engineUnavailable', reason: 'DECISION_ENGINE_NOT_CONFIGURED' },

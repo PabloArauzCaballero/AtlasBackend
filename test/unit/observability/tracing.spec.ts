@@ -1,32 +1,34 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-// Importar `tracing.js` de verdad arrastra `@opentelemetry/auto-instrumentations-node`, que al
-// cargarse resuelve decenas de paquetes de instrumentación (≈60s en la suite) e instala hooks
-// globales de require-in-the-middle que dejaban un worker de Jest colgado ("failed to exit
-// gracefully"). Ninguno de los dos tests necesita el SDK real: uno retorna ANTES de construir el
-// NodeSDK (tracing deshabilitado) y el otro nunca lo arranca. Se mockean los paquetes pesados para
-// probar solo la lógica de gating/shutdown sin la carga ni el handle colgado.
+// Importar `tracing.js` de verdad construye el NodeSDK y las cinco instrumentaciones, que al
+// arrancar instalan hooks globales de require-in-the-middle y dejaban un worker de Jest colgado
+// ("failed to exit gracefully"). Ninguna de estas pruebas necesita el SDK real: comprueban el
+// GATING (arrancar o no) y el cierre, no la exportación. Los spans de verdad se prueban con un
+// exportador en memoria en `tracing.service.spec.ts`, que no toca la red.
 jest.mock('@opentelemetry/sdk-node', () => ({ NodeSDK: jest.fn() }));
-jest.mock('@opentelemetry/auto-instrumentations-node', () => ({ getNodeAutoInstrumentations: jest.fn((..._args: unknown[]) => []) }));
 jest.mock('@opentelemetry/exporter-trace-otlp-http', () => ({ OTLPTraceExporter: jest.fn() }));
 
-import { shutdownTracing, startTracing } from '../../../src/observability/tracing.js';
-import { ObservabilityConfig } from '../../../src/common/observability/observability.config.js';
+import { shutdownTracing, startTracing, stopTracing, activeTelemetryConfig } from '../../../src/observability/tracing.js';
 
-const disabled: ObservabilityConfig = {
-  metricsEnabled: true,
-  tracingEnabled: false,
-  serviceName: 'atlas-test',
-  otlpEndpoint: undefined,
-};
-
-describe('tracing bootstrap', () => {
-  it('startTracing es un no-op (devuelve false) cuando OTEL está deshabilitado', () => {
-    // No debe construir ni arrancar el NodeSDK — el default seguro es cero impacto.
-    expect(startTracing(disabled)).toBe(false);
+describe('arranque del SDK de trazas', () => {
+  it('es un no-op y devuelve false cuando OTEL_ENABLED no está activado', () => {
+    delete process.env.OTEL_ENABLED;
+    // El default seguro es cero impacto: ni exportador, ni parcheo, ni conexiones de fondo.
+    expect(startTracing('atlas-test')).toBe(false);
+    expect(activeTelemetryConfig()).toBeUndefined();
   });
 
-  it('shutdownTracing resuelve sin error aunque el SDK nunca se haya arrancado', async () => {
-    await expect(shutdownTracing()).resolves.toBeUndefined();
+  it('sigue apagado con un valor que no es una afirmación explícita', () => {
+    process.env.OTEL_ENABLED = 'quizá';
+    expect(startTracing('atlas-test')).toBe(false);
+    delete process.env.OTEL_ENABLED;
+  });
+
+  it('stopTracing resuelve sin error aunque el SDK nunca se haya arrancado', async () => {
+    await expect(stopTracing()).resolves.toBeUndefined();
+  });
+
+  it('shutdownTracing es el mismo cierre, conservado por los tres entrypoints', () => {
+    expect(shutdownTracing).toBe(stopTracing);
   });
 });

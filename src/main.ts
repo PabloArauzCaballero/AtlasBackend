@@ -4,9 +4,15 @@
  * @system organiza el runtime NestJS en módulos con límites explícitos y dependencias dirigidas.
  */
 import 'reflect-metadata';
-// Fase 3.4: el bootstrap de OpenTelemetry debe importarse ANTES que cualquier módulo instrumentable
-// (HTTP/Express/PG) para poder envolverlos. Es no-op salvo OTEL_ENABLED=true.
-import './observability/tracing-bootstrap.js';
+// Debe preceder a TODO import instrumentable (Nest, Express, Sequelize, pg, ioredis, undici): las
+// instrumentaciones de OpenTelemetry parchean esos módulos en el instante en que se requieren, así
+// que arrancar después produce cero spans y ningún error que lo explique. Es no-op salvo
+// OTEL_ENABLED=true. El nombre por defecto es POR PROCESO: si API y workers compartieran uno, el
+// grafo de dependencias de Jaeger mostraría un solo nodo hablando consigo mismo.
+import { startTracing, shutdownTracing } from './observability/tracing.js';
+
+startTracing('atlas-api');
+
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -22,7 +28,6 @@ import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encr
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
 import { assertDecoratorMetadataIsAvailable } from './common/bootstrap/decorator-metadata.guard.js';
-import { shutdownTracing } from './observability/tracing.js';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('AtlasBootstrap');

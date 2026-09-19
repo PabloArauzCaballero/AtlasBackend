@@ -4,7 +4,8 @@
  * @system provee infraestructura transversal de logging sin introducir reglas de un dominio específico.
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { trace } from '@opentelemetry/api';
+import { readActiveTraceIds } from '../observability/trace-context.service.js';
+import type { ActiveTraceIds } from '../../observability/telemetry.types.js';
 
 /**
  * Contexto por-request propagado con AsyncLocalStorage (CLS). Permite que CUALQUIER `logger.log()`
@@ -44,11 +45,18 @@ export function getRequestProduct(): string | undefined {
   return storage.getStore()?.product;
 }
 
-const EMPTY_TRACE_ID = '00000000000000000000000000000000';
+/**
+ * Identificadores de la traza en curso, para correlacionar una línea de log con su traza.
+ *
+ * Delega en `readActiveTraceIds`, que es el ÚNICO sitio que interpreta el contexto de
+ * OpenTelemetry: un contexto inválido —todo ceros— se devuelve vacío en vez de como si fuera
+ * real, porque un identificador que no existe en Jaeger es peor que ninguno.
+ */
+export function getTraceIds(): ActiveTraceIds {
+  return readActiveTraceIds();
+}
 
 /** trace_id del span OTel activo, o `undefined` si el tracing está deshabilitado o no hay span. */
 export function getTraceId(): string | undefined {
-  const spanContext = trace.getActiveSpan()?.spanContext();
-  if (!spanContext || spanContext.traceId === EMPTY_TRACE_ID) return undefined;
-  return spanContext.traceId;
+  return readActiveTraceIds().traceId;
 }

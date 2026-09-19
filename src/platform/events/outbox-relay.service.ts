@@ -11,19 +11,28 @@
  *   ese es un consumidor más, registrado en composición.
  */
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { outboxConsumerAttributes } from '../../common/observability/messaging-attributes.js';
+import { MessagingTraceService } from '../../common/observability/messaging-trace.service.js';
+import { recordSpanError } from '../../common/observability/trace-error.js';
+import { TracingService } from '../../common/observability/tracing.service.js';
+import { APP_ATTRIBUTES, SPAN_NAMES } from '../../observability/telemetry.constants.js';
 import { InjectConnection } from '@nestjs/sequelize';
-import { QueryTypes, UniqueConstraintError } from 'sequelize';
+import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { MetricsService } from '../../common/observability/metrics.service.js';
 import { ContextOwnershipRegistry } from '../ownership/context-ownership.registry.js';
 import { CLAIM_SQL } from './outbox-claim.sql.js';
-import { InboxReceiptModel, OutboxEventModel } from '../../database/models/index.js';
+import { OutboxEventModel } from '../../database/models/index.js';
 import { newOwnerToken } from '../../modules/runtime-hardening/infrastructure/idempotency-claim.store.js';
 import { ConsumerRegistry } from './consumer-registry.js';
 import { EVENT_CONSUMERS, type EventConsumer } from './event-consumer.port.js';
 import { EVENT_PUBLISHER, type EventPublisher, type PublishAck } from './event-publisher.port.js';
-import { fromOutboxRow, validateEnvelope, type IntegrationEvent } from './integration-event.js';
-import { DEFAULT_RETRY_POLICY, RETRY_POLICY, decideOrder, decideRetry, type RetryPolicy } from './retry-policy.js';
+import { LocalConsumerDispatchPublisher } from './local-consumer-dispatch.publisher.js';
+import { fromOutboxRow, validateEnvelope } from './integration-event.js';
+
+/** Se re-exporta para no romper a quien ya lo importaba desde aquí. */
+export { LocalConsumerDispatchPublisher };
+import { DEFAULT_RETRY_POLICY, RETRY_POLICY, decideRetry, type RetryPolicy } from './retry-policy.js';
 
 export type RelayRunResult = Readonly<{
   /** AT-059: `true` cuando el relay no era el dueño del contexto y no reclamó nada. */
@@ -37,94 +46,6 @@ export type RelayRunResult = Readonly<{
 }>;
 
 export const OUTBOX_LEASE_MS = 5 * 60_000;
-
-/**
- * Despacho local durable: el «transporte» del monolito. Para cada consumidor suscrito abre una
- * transacción, escribe el recibo e invoca `handle`. El recibo y el efecto se confirman juntos.
- */
-export class LocalConsumerDispatchPublisher implements EventPublisher {
-  constructor(
-    private readonly sequelize: Sequelize,
-    private readonly registry: ConsumerRegistry,
-    private readonly logger: Logger = new Logger(LocalConsumerDispatchPublisher.name),
-  ) {}
-
-  async publish(event: IntegrationEvent): Promise<PublishAck> {
-    const { ready, incompatible } = this.registry.consumersFor(event.type, event.schemaVersion);
-    if (incompatible.length > 0) {
-      return {
-        accepted: false,
-        transport: 'local',
-        permanent: true,
-        reason: `INCOMPATIBLE_SCHEMA_FOR:${incompatible.map((c) => c.consumerId).join(',')}`,
-      };
-    }
-    for (const consumer of ready) {
-      const outcome = await this.deliverTo(consumer, event);
-      if (!outcome.ok)
-        return { accepted: false, transport: 'local', permanent: outcome.permanent, reason: `${consumer.consumerId}:${outcome.reason}` };
-    }
-    return { accepted: true, transport: 'local' };
-  }
-
-  private async deliverTo(
-    consumer: EventConsumer,
-    event: IntegrationEvent,
-  ): Promise<{ ok: true } | { ok: false; permanent: boolean; reason: string }> {
-    const now = new Date();
-    try {
-      await this.sequelize.transaction(async (transaction) => {
-        // Orden por agregado: última versión aplicada por ESTE consumidor para ESTE agregado.
-        const lastApplied = await this.lastAppliedVersion(consumer.consumerId, event, transaction);
-        const order = decideOrder({ lastApplied, incoming: event.aggregate.version });
-        if (order.action === 'wait')
-          throw Object.assign(new Error(`ORDER_GAP:${order.missing.join(',')}`), { code: 'ORDER_GAP', permanent: false });
-        await InboxReceiptModel.create(
-          {
-            consumerId: consumer.consumerId,
-            eventId: event.eventId,
-            producer: event.producer,
-            status: order.action === 'stale' ? 'stale' : 'processed',
-            attempts: 1,
-            lastError: null,
-            processedAt: now,
-            createdAtValue: now,
-            updatedAtValue: now,
-          },
-          { transaction },
-        );
-        if (order.action === 'stale') return;
-        await consumer.handle(event, transaction);
-      });
-      return { ok: true };
-    } catch (error) {
-      // Reentrega de un evento ya recibido: el recibo existe, el efecto ya se confirmó con él. No-op.
-      if (error instanceof UniqueConstraintError) return { ok: true };
-      const typed = error as { code?: string; permanent?: boolean; message?: string };
-      this.logger.warn(`Consumidor ${consumer.consumerId} falló con ${event.type} ${event.eventId}: ${typed.message ?? String(error)}`);
-      return {
-        ok: false,
-        permanent: typed.permanent === true,
-        reason: typed.code === 'ORDER_GAP' ? (typed.message ?? 'ORDER_GAP') : (typed.code ?? typed.message ?? 'CONSUMER_ERROR'),
-      };
-    }
-  }
-
-  private async lastAppliedVersion(
-    consumerId: string,
-    event: IntegrationEvent,
-    transaction: import('sequelize').Transaction,
-  ): Promise<number | null> {
-    if (event.aggregate.version === null || !event.aggregate.id) return null;
-    const rows = await this.sequelize.query<{ v: string | null }>(
-      `SELECT max(o.aggregate_version)::text AS v FROM platform_ops.inbox_receipts r
-       JOIN platform_ops.outbox_events o ON o.event_id = r.event_id
-       WHERE r.consumer_id = $consumerId AND r.status = 'processed' AND o.aggregate_type = $type AND o.aggregate_id = $id`,
-      { type: QueryTypes.SELECT, bind: { consumerId, type: event.aggregate.type, id: event.aggregate.id }, transaction },
-    );
-    return rows[0]?.v === null || rows[0]?.v === undefined ? null : Number(rows[0].v);
-  }
-}
 
 type RelayCounter = 'published' | 'retried' | 'deadLettered' | 'quarantined';
 const RELAY_METRIC_OUTCOME: Record<RelayCounter, 'published' | 'retried' | 'dead_lettered' | 'quarantined'> = {
@@ -147,6 +68,7 @@ export class OutboxRelayService {
     @Optional() @Inject(RETRY_POLICY) private readonly policy: RetryPolicy = DEFAULT_RETRY_POLICY,
     @Optional() private readonly metrics?: MetricsService,
     @Optional() private readonly ownership?: ContextOwnershipRegistry,
+    @Optional() private readonly messaging: MessagingTraceService = new MessagingTraceService(new TracingService()),
   ) {
     this.publisher = publisher ?? new LocalConsumerDispatchPublisher(sequelize, new ConsumerRegistry(consumers));
   }
@@ -255,17 +177,48 @@ export class OutboxRelayService {
       eventIds: rows.map((row) => String(row.id)),
     };
     for (const row of rows) {
-      const event = fromOutboxRow(row);
+      const done = await this.dispatchRow(row, ownerToken, now);
+      if (!done) continue;
+      result[done.counter] += 1;
+      this.metrics?.recordOutboxRelay({ outcome: RELAY_METRIC_OUTCOME[done.counter], transport: done.transport });
+    }
+    return result;
+  }
+
+  /**
+   * Despacha UNA fila dentro de un span CONSUMIDOR enlazado con quien la publicó.
+   *
+   * Es el único punto del backend donde la traza cruza de un proceso a otro: el contexto vive en
+   * `AsyncLocalStorage` y muere en el commit de la API, así que aquí se RECONSTRUYE desde el
+   * portador que viajó en `metadata_json`. Una fila escrita antes de que esto existiera no lleva
+   * portador y abre una traza propia: se procesa igual, que es lo que importa.
+   */
+  private async dispatchRow(
+    row: OutboxEventModel,
+    ownerToken: string,
+    now: Date,
+  ): Promise<{ counter: RelayCounter; transport: string } | null> {
+    const event = fromOutboxRow(row);
+    const attributes = outboxConsumerAttributes({
+      eventType: event.type,
+      aggregateType: event.aggregate.type,
+      aggregateId: event.aggregate.id,
+      attempt: row.attempts ?? 0,
+    });
+    return this.messaging.runAsConsumer(SPAN_NAMES.outboxDispatch, row.metadataJson, attributes, async (span) => {
       const validation = validateEnvelope(event);
       // Publicación FUERA de la transacción de reclamo; el cierre es condicional al testigo.
       const ack: PublishAck = validation.ok
         ? await this.publisher.publish(event)
         : { accepted: false, transport: 'validation', permanent: true, reason: `EVENT_${validation.code}` };
-      const outcome = await this.settle(row, ownerToken, ack, now);
-      if (!outcome) continue;
-      result[outcome] += 1;
-      this.metrics?.recordOutboxRelay({ outcome: RELAY_METRIC_OUTCOME[outcome], transport: ack.transport });
-    }
-    return result;
+      const counter = await this.settle(row, ownerToken, ack, now);
+      span.setAttribute(APP_ATTRIBUTES.jobOutcome, counter ?? 'lease_lost');
+      // Un reintento no es un fallo del despacho; la DLQ sí, y tiene que poder buscarse en Jaeger
+      // como error sin depender de que alguien lea la tabla.
+      if (!ack.accepted && (counter === 'deadLettered' || counter === 'quarantined')) {
+        recordSpanError(span, new Error(ack.reason), { code: ack.reason, retryable: false });
+      }
+      return counter === null ? null : { counter, transport: ack.transport };
+    });
   }
 }

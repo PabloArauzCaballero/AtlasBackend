@@ -5,6 +5,10 @@
  *   insertar (campos prohibidos, ámbito) y devuelve sólo identificadores.
  */
 import type { Transaction } from 'sequelize';
+import { outboxProducerAttributes } from '../../common/observability/messaging-attributes.js';
+import { MessagingTraceService } from '../../common/observability/messaging-trace.service.js';
+import { TracingService } from '../../common/observability/tracing.service.js';
+import { SPAN_NAMES } from '../../observability/telemetry.constants.js';
 import { OutboxEventModel } from '../../database/models/index.js';
 import { ApplicationError } from '../contracts/application-error.js';
 import { validateEnvelope } from './integration-event.js';
@@ -15,9 +19,36 @@ export class SequelizeOutboxWriter implements TransactionalOutbox {
     private readonly model: typeof OutboxEventModel,
     private readonly transaction: Transaction,
     private readonly now: () => Date = () => new Date(),
+    /**
+     * Por defecto y último: este escritor se construye a mano en cada unidad de trabajo y en las
+     * pruebas. Sin SDK activo, el servicio abre spans no-op y el portador sale vacío.
+     */
+    private readonly messaging: MessagingTraceService = new MessagingTraceService(new TracingService()),
   ) {}
 
-  async append(event: OutboxAppend): Promise<OutboxAppended> {
+  /**
+   * `outbox.publish` es un span PRODUCTOR: marca el punto exacto en el que el trabajo deja de ser
+   * síncrono. El portador de traza se inyecta DENTRO de este span, así que el span consumidor que
+   * abra el relay —minutos después y en otro proceso— cuelga de aquí y la traza queda entera.
+   *
+   * El portador va en `metadata_json` y NO en el payload del evento: el payload tiene un contrato
+   * de dominio validado (`validateEnvelope` rechaza claves prohibidas) y la trazabilidad no puede
+   * alterarlo. La columna ya existe, de modo que esto NO necesita migración.
+   */
+  append(event: OutboxAppend): Promise<OutboxAppended> {
+    return this.messaging.runAsProducer(
+      SPAN_NAMES.outboxPublish,
+      outboxProducerAttributes({
+        eventType: event.type,
+        aggregateType: event.aggregate.type,
+        aggregateId: event.aggregate.id,
+        producer: event.producer,
+      }),
+      () => this.write(event),
+    );
+  }
+
+  private async write(event: OutboxAppend): Promise<OutboxAppended> {
     const now = this.now();
     const tenantId = event.scope.kind === 'tenant' ? event.scope.tenantId : null;
     const check = validateEnvelope({
@@ -47,7 +78,7 @@ export class SequelizeOutboxWriter implements TransactionalOutbox {
         eventVersion: event.schemaVersion ?? 1,
         schemaVersion: event.schemaVersion ?? 1,
         producer: event.producer,
-        metadataJson: {},
+        metadataJson: this.messaging.withCarrier({}),
         status: 'pending',
         priority: event.priority ?? 0,
         attempts: 0,

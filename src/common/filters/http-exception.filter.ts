@@ -7,6 +7,7 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logge
 import { UniqueConstraintError, ValidationError } from 'sequelize';
 import { normalizePostgresError, type NormalizedPostgresError } from '../database/postgres-error.js';
 import { isApplicationError, toHttpException } from '../../platform/contracts/application-error.js';
+import { recordHttpFailure } from '../observability/trace-error.js';
 
 type HttpResponse = {
   status: (statusCode: number) => HttpResponse;
@@ -215,6 +216,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const correlationId = request.correlationId;
 
     const safeUrl = sanitizeUrlForLog(request.url);
+
+    // La traza se marca ANTES de responder y sin tocar ni el estado ni el cuerpo: la
+    // observabilidad no cambia el contrato HTTP. Un 5xx marca el span como error; un 4xx sólo
+    // deja su código. El error original sigue su camino intacto.
+    recordHttpFailure(statusCode, exception);
 
     // Un fallo de privilegios (42501) o una escritura por la conexión read-only (25006) son bugs de
     // aprovisionamiento/enrutamiento NUESTROS: el cliente ve un 5xx opaco, pero el log debe gritar

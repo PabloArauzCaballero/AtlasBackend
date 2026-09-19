@@ -7,6 +7,8 @@
  *   (`CustomerOnboardingStartService.startOnboarding`) conserva su contrato HTTP y podrá delegar aquí
  *   cuando sus repositorios se envuelvan en el adaptador del puerto (siguiente incremento de AT-025).
  */
+import { TracingService } from '../../../../common/observability/tracing.service.js';
+import { APP_ATTRIBUTES, SPAN_NAMES } from '../../../../observability/telemetry.constants.js';
 import { hashPassword } from '../../../../common/utils/crypto/password.util.js';
 import { hashSensitiveText } from '../../../../common/utils/crypto/hash.util.js';
 import { ApplicationError } from '../../../../platform/contracts/application-error.js';
@@ -47,9 +49,34 @@ export class StartOnboardingUseCase {
     private readonly passwords: PasswordHasher,
     private readonly contacts: ContactHasher,
     private readonly clock: Clock,
+    private readonly tracing: TracingService = new TracingService(),
   ) {}
 
-  async execute(command: StartOnboardingCommand): Promise<RegistrationResult> {
+  /**
+   * `customer.register` se abre aquí y no en la fachada HTTP: la fachada es 1:1 con
+   * `POST /customer-onboarding`, así que un span suyo duplicaría el del servidor. Este caso de uso,
+   * en cambio, reparte el alta en tres tramos que hoy no se distinguen —comprobaciones previas,
+   * hash de contraseña y escritura atómica— y el segundo es Argon2, que es CPU cara y suele ser el
+   * grueso del tiempo de un alta sin que nada lo delate. Los hitos van como EVENTOS y no como
+   * spans hijos: marcan instantes dentro de una misma operación, no llamadas a otro componente.
+   *
+   * Ningún atributo lleva teléfono, correo, contraseña ni sus hashes.
+   */
+  execute(command: StartOnboardingCommand): Promise<RegistrationResult> {
+    return this.tracing.runInSpan(
+      SPAN_NAMES.customerRegister,
+      {
+        [APP_ATTRIBUTES.module]: 'customer-onboarding',
+        [APP_ATTRIBUTES.operation]: 'register',
+        [APP_ATTRIBUTES.entityType]: 'customer',
+        [APP_ATTRIBUTES.tenantId]: command.tenantId,
+        'onboarding.source.type': command.sourceType,
+      },
+      () => this.register(command),
+    );
+  }
+
+  private async register(command: StartOnboardingCommand): Promise<RegistrationResult> {
     if (!command.idempotencyKey) throw new ApplicationError({ kind: 'invalid', code: 'X-Idempotency-Key header is required.' });
     const phoneHash = command.phone ? this.contacts.hash(command.phone) : null;
     const emailHash = command.email ? this.contacts.hash(command.email) : null;
@@ -57,7 +84,9 @@ export class StartOnboardingUseCase {
     // Preparación: fuera de cualquier transacción.
     await this.guards.assertNoDuplicateCustomer(command.tenantId, phoneHash, emailHash);
     await this.guards.assertConsentDocumentsAreValid(command.tenantId, command.consents);
+    this.tracing.addEvent('guards.passed');
     const passwordHash = await this.passwords.hash(command.password);
+    this.tracing.addEvent('password.hashed');
 
     // Persistencia compuesta: UNA llamada al puerto atómico. La contraseña en claro NO cruza el puerto.
     const { password: _plain, ...registration } = command.registration;
@@ -81,5 +110,12 @@ export function buildStartOnboardingUseCase(
   guards: RegistrationGuards,
   register: OnboardingRegistrationPort['register'],
 ): StartOnboardingUseCase {
-  return new StartOnboardingUseCase(guards, { register }, { hash: hashPassword }, { hash: hashSensitiveText }, systemClock);
+  return new StartOnboardingUseCase(
+    guards,
+    { register },
+    { hash: hashPassword },
+    { hash: hashSensitiveText },
+    systemClock,
+    new TracingService(),
+  );
 }

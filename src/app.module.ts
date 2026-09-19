@@ -9,6 +9,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import Redis from 'ioredis';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
+import { TraceResponseInterceptor } from './common/observability/trace-response.interceptor.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { CommonAuthModule } from './common/common-auth.module.js';
@@ -136,6 +137,10 @@ import { env } from './config/env.js';
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
+    // El MÁS EXTERNO de todos: fija `x-trace-id` mientras las cabeceras siguen siendo escribibles.
+    // Si fuese más adentro, una descarga o un stream ya habrían enviado la cabecera y escribir
+    // sobre ella lanzaría. Es el puente entre un fallo que reporta un usuario y su traza.
+    { provide: APP_INTERCEPTOR, useClass: TraceResponseInterceptor },
     // Fase 3.4: el interceptor de métricas va PRIMERO (el más externo) para medir la latencia total
     // del request, incluyendo el resto de interceptores. No-op si METRICS_ENABLED=false.
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },

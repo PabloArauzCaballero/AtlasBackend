@@ -3,7 +3,9 @@
  * @business Cambiar un umbral de política pasa a ser configuración auditada, no un despliegue.
  * @system carga el ruleset activo y lo evalúa; degrada a la heurística de arranque si no hay ninguno.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { TracingService } from '../../../common/observability/tracing.service.js';
+import { APP_ATTRIBUTES, DECISION_ATTRIBUTES, SPAN_NAMES } from '../../../observability/telemetry.constants.js';
 import { RISK_RULESET_VERSION } from '../risk-heuristic-v0.constants.js';
 import { RiskDecisionEngineService } from '../../decision-engine/risk-decision-engine.service.js';
 import { RiskPolicyRepository } from '../repositories/risk-policy.repository.js';
@@ -45,6 +47,7 @@ export class RiskPolicyDecisionService {
   constructor(
     private readonly policyRepository: RiskPolicyRepository,
     private readonly engine: RiskDecisionEngineService,
+    @Optional() private readonly tracing: TracingService = new TracingService(),
   ) {}
 
   /**
@@ -61,6 +64,51 @@ export class RiskPolicyDecisionService {
    * degrada es la trazabilidad: `decisionSource` deja escrito de qué escalón salió cada caso.
    */
   async resolve(input: {
+    tenantId: string;
+    customerId: string;
+    assessmentType: string;
+    now: Date;
+    features: Record<string, number | boolean>;
+    fallback: { decision: string; reasons: string[] };
+    idempotencyKey: string;
+    subjectReference?: string;
+  }): Promise<PolicyDecision> {
+    /*
+     * `risk.assess` se abre AQUÍ y no en `RiskService.createRiskAssessment`, por dos razones.
+     *
+     * La primera es que un span en `createRiskAssessment` sería casi coextensivo con su petición
+     * HTTP —`POST …/risk-assessments` no hace otra cosa— y un span que duplica al del servidor no
+     * aporta un solo diagnóstico. La segunda es que la pregunta real que llega a soporte no es
+     * «cuánto tardó», es «¿por qué este cliente salió así?», y la respuesta es el ESCALÓN del que
+     * salió la decisión: motor gobernado, ruleset local o heurística de arranque. Eso se decide
+     * exactamente en este método.
+     *
+     * Cuando el alta llama a la evaluación desde dentro del recorrido de onboarding, este span
+     * aparece anidado y se ve qué parte del alta costó el tiempo. Los puntajes NO se publican:
+     * son la salida de un modelo sobre datos personales.
+     */
+    return this.tracing.runInSpan(
+      SPAN_NAMES.riskAssess,
+      {
+        [APP_ATTRIBUTES.module]: 'risk',
+        [APP_ATTRIBUTES.operation]: 'assess',
+        [APP_ATTRIBUTES.entityType]: 'customer',
+        [APP_ATTRIBUTES.entityId]: input.customerId,
+        [APP_ATTRIBUTES.tenantId]: input.tenantId,
+        'risk.assessment.type': input.assessmentType,
+      },
+      async (span) => {
+        const decision = await this.resolveDecision(input);
+        span.setAttributes({
+          [DECISION_ATTRIBUTES.outcome]: decision.decision,
+          'risk.decision.source': decision.decisionSource,
+        });
+        return decision;
+      },
+    );
+  }
+
+  private async resolveDecision(input: {
     tenantId: string;
     customerId: string;
     assessmentType: string;

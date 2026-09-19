@@ -6,7 +6,15 @@
  *   Mientras `context_ownership` nombre al monolito, el proceso late cercado (no reclama nada).
  */
 import 'reflect-metadata';
-import './observability/tracing-bootstrap.js';
+// Debe preceder a TODO import instrumentable (Nest, Express, Sequelize, pg, ioredis, undici): las
+// instrumentaciones de OpenTelemetry parchean esos módulos en el instante en que se requieren, así
+// que arrancar después produce cero spans y ningún error que lo explique. Es no-op salvo
+// OTEL_ENABLED=true. El nombre por defecto es POR PROCESO: si API y workers compartieran uno, el
+// grafo de dependencias de Jaeger mostraría un solo nodo hablando consigo mismo.
+import { startTracing, shutdownTracing } from './observability/tracing.js';
+
+startTracing('atlas-worker-messaging');
+
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { getConnectionToken } from '@nestjs/sequelize';
@@ -23,7 +31,6 @@ import { AppFileLogger } from './common/logging/app-file-logger.service.js';
 import { REDIS_CLIENT } from './common/redis/redis.module.js';
 import { MetricsService } from './common/observability/metrics.service.js';
 import { GracefulShutdownService } from './common/lifecycle/graceful-shutdown.service.js';
-import { shutdownTracing } from './observability/tracing.js';
 import { createWorkerProbeServer } from './worker/worker-probe-server.js';
 
 async function bootstrapMessagingWorker(): Promise<void> {
