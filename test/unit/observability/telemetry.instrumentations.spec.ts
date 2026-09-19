@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { ExpressLayerType } from '@opentelemetry/instrumentation-express';
 import { buildInstrumentations } from '../../../src/observability/telemetry.instrumentations.js';
 import { readTelemetryConfig } from '../../../src/observability/telemetry.config.js';
 
@@ -74,6 +75,11 @@ describe('instrumentaciones automáticas', () => {
   it('el serializador de Redis publica el comando y NUNCA sus argumentos', () => {
     const serializar = configuracionDe('ioredis').dbStatementSerializer as (c: string, a: unknown[]) => string;
     expect(serializar('set', ['sesion:cliente:42', 'token-secreto'])).toBe('set');
+  });
+
+  it('express no abre un span por cada middleware', () => {
+    // Siete de los dieciocho spans de una petición eran middleware, cinco de ellos de 0,0 ms.
+    expect(configuracionDe('express').ignoreLayersType).toEqual([ExpressLayerType.MIDDLEWARE]);
   });
 
   it('pg no publica los valores de los parámetros ligados', () => {
