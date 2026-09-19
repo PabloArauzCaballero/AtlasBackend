@@ -48,6 +48,7 @@ export function startTracing(defaultServiceName?: string): boolean {
 
   diag.setLogger(new DiagConsoleLogger(), toDiagLevel(config.diagLogLevel));
   warnIfInstrumentedModulesAlreadyLoaded();
+  disableSignalsWeDoNotExport();
 
   sdk = new NodeSDK({
     resource: resourceFromAttributes({
@@ -76,6 +77,30 @@ export function startTracing(defaultServiceName?: string): boolean {
   sdk.start();
   activeConfig = config;
   return true;
+}
+
+/**
+ * Apaga las señales que este backend NO exporta.
+ *
+ * `NodeSDK` no se limita a lo que se le pasa por constructor: cuando `OTEL_METRICS_EXPORTER` o
+ * `OTEL_LOGS_EXPORTER` no están declaradas, su valor por defecto es `otlp`, así que arranca
+ * ADEMÁS un proveedor de métricas y uno de registros apuntados al mismo destino. Medido el
+ * 2026-09-19 durante la corrida de carga: con Jaeger como destino, el lector periódico de
+ * métricas fallaba cada minuto con `OTLPExporterError: Not Found` —Jaeger no sirve
+ * `/v1/metrics`— y dejaba un error en el log de la aplicación por cada intento.
+ *
+ * El ruido es lo de menos. Las métricas de las instrumentaciones llevan sus propios atributos
+ * (ruta, método, código de estado) y **no pasan por `RedactingSpanProcessor`**, que sólo actúa
+ * sobre spans: una señal que nadie pidió saldría del proceso por fuera de la única barrera de
+ * saneado que hay. Las métricas de este backend ya las publica `prom-client`, que es donde
+ * están declaradas y revisadas.
+ *
+ * Se declara el valor por defecto en vez de imponerlo: si un operador pone `OTEL_METRICS_EXPORTER`
+ * a propósito, su decisión manda.
+ */
+function disableSignalsWeDoNotExport(): void {
+  process.env.OTEL_METRICS_EXPORTER ??= 'none';
+  process.env.OTEL_LOGS_EXPORTER ??= 'none';
 }
 
 /**
