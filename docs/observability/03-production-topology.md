@@ -119,3 +119,27 @@ de trazas esté disponible para atender una petición de negocio.**
   retención × volumen muestreado.
 - **Si se pasa a OpenSearch:** deja de ser bajo. Un clúster de búsqueda es el componente más
   caro de operar de esta lista, y ése es el argumento para no empezar por él.
+
+## Estado real de los despliegues (medido el 2026-09-19)
+
+Lo que está desplegado y lo que NO, para que nadie lea este documento como una descripción de lo
+que hay funcionando hoy:
+
+| Servicio en DEV (H310) | Código de trazas | `OTEL_ENABLED` | Exporta |
+| --- | --- | --- | --- |
+| AtlasBackend (api y los dos workers) | Sí | sin declarar → **apagado** | No |
+| AtlasERPBackend (api y worker de outbox) | Sí | sin declarar → **apagado** | No |
+| AtlasDashboardsBackend | Sí | sin declarar → **apagado** | No |
+| AtlasDecisionEngineBackend | Sí | `false` | No |
+
+**No hay Collector ni Jaeger en el H310.** La topología de arriba describe el destino, no lo
+instalado. Encenderlo son dos variables por aplicación en Coolify (`OTEL_ENABLED=true` y
+`OTEL_EXPORTER_OTLP_ENDPOINT`) más el par Collector+Jaeger, y eso último **no debe montarse hoy en
+el H310**: la máquina tiene 15 GiB y el 2026-09-19 a las 03:05 estaba con 8,7 GiB usados, 7,6 GiB
+de swap ocupados y dos JVM de OpenSearch de otro proyecto reteniendo 2,1 GiB. Con ese margen el
+guardián ya mata compilaciones —el despliegue del Motor de esa madrugada murió con `exit 137`
+dentro de `yarn build`—, así que añadir dos contenedores más es empeorar una avería existente.
+La decisión de dónde vive el Collector es de Pablo, no de una sesión.
+
+Que esté apagado no deja el trabajo sin comprobar: las trazas se verificaron contra un Jaeger real
+en local, proceso a proceso, y esa es la evidencia que recogen los informes de cada fase.
