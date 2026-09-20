@@ -19,8 +19,14 @@
  *
  * Uso:  yarn jaeger:up && npx tsx scripts/verify-outbound-http.ts
  *
- * Lo que NO cubre: TLS, DNS ni el comportamiento de un proveedor de terceros real. El servidor
- * es local y a propósito, para que la comprobación sea determinista y no dependa de la red.
+ * SEGUNDA FASE, opcional: con `VERIFY_OUTBOUND_HTTPS_URL` apuntando a un destino HTTPS real, se
+ * repite la comprobación sobre una llamada con TLS y resolución DNS de verdad. Es opcional a
+ * propósito: la primera fase tiene que poder correr sin red, y una comprobación que sólo funciona
+ * con conectividad se acaba desactivando. El destino por defecto sugerido es la propia API de
+ * Atlas por Tailscale, que es infraestructura nuestra y no un tercero.
+ *
+ * Lo que NO cubre ni con la segunda fase: el comportamiento de un proveedor externo concreto
+ * —sus tiempos, sus redirecciones, sus errores—, que sólo se ve integrando con él.
  */
 import { createServer } from 'node:http';
 import { setTimeout as esperar } from 'node:timers/promises';
@@ -72,23 +78,67 @@ async function main(): Promise<void> {
   await stopTracing();
 
   // El exportador es por lotes y Jaeger indexa con retardo; se reintenta en vez de dormir una vez.
-  const spans = await buscarSpans();
-  verificar(spans);
+  const spans = await buscarSpans(SERVICIO);
+  verificar(spans, RUTA, 'servidor local (HTTP, sin DNS)');
+
+  const destinoTls = process.env.VERIFY_OUTBOUND_HTTPS_URL;
+  if (destinoTls === undefined || destinoTls.trim() === '') {
+    console.log('ℹ️  Segunda fase omitida: declara VERIFY_OUTBOUND_HTTPS_URL para comprobar TLS y DNS reales.');
+    return;
+  }
+  await verificarConTls(destinoTls.trim());
 }
 
-async function buscarSpans(): Promise<SpanJaeger[]> {
+/**
+ * Misma comprobación sobre una llamada HTTPS real: TLS y resolución DNS de verdad.
+ *
+ * Se usa un servicio y una traza nuevos para no mezclar con la fase local. La URL lleva también
+ * una cadena de consulta con forma de firma: el saneado tiene que actuar igual, y en una llamada
+ * a un almacén de objetos remoto es justo donde importa.
+ */
+async function verificarConTls(base: string): Promise<void> {
+  const { context, trace } = await import('@opentelemetry/api');
+  const url = new URL(base);
+  url.searchParams.set('X-Amz-Signature', 'firma-que-no-debe-salir');
+  url.searchParams.set('X-Amz-Credential', 'credencial-que-no-debe-salir');
+
+  process.env.OTEL_SERVICE_NAME = `${SERVICIO}-tls`;
+  startTracing(`${SERVICIO}-tls`);
+  const padre = trace.getTracer('verificacion').startSpan('negocio.llamada.externa.tls');
+  let alcanzado = true;
+  await context.with(trace.setSpan(context.active(), padre), async () => {
+    try {
+      const respuesta = await fetch(url.toString(), { signal: AbortSignal.timeout(15_000) });
+      await respuesta.text();
+      console.log(`   (el destino respondió ${respuesta.status}; el código no importa, el span sí)`);
+    } catch (error) {
+      alcanzado = false;
+      console.error(`❌ No se pudo alcanzar ${url.origin}: ${error instanceof Error ? error.message : error}`);
+    }
+  });
+  padre.end();
+  await stopTracing();
+  if (!alcanzado) {
+    process.exitCode = 1;
+    return;
+  }
+  const spans = await buscarSpans(`${SERVICIO}-tls`);
+  verificar(spans, url.pathname, `${url.origin} (HTTPS, con TLS y DNS)`);
+}
+
+async function buscarSpans(servicio: string): Promise<SpanJaeger[]> {
   for (let intento = 1; intento <= 10; intento += 1) {
     await esperar(1000);
-    const respuesta = await fetch(`${consultaJaeger()}/api/traces?service=${SERVICIO}&limit=1&lookback=5m`);
+    const respuesta = await fetch(`${consultaJaeger()}/api/traces?service=${servicio}&limit=1&lookback=5m`);
     if (!respuesta.ok) continue;
     const cuerpo = (await respuesta.json()) as { data: { spans: SpanJaeger[] }[] };
     const traza = cuerpo.data[0];
     if (traza !== undefined && traza.spans.length >= 2) return traza.spans;
   }
-  throw new Error(`No llegó ninguna traza de "${SERVICIO}" a ${consultaJaeger()}. ¿Está Jaeger levantado (yarn jaeger:up)?`);
+  throw new Error(`No llegó ninguna traza de "${servicio}" a ${consultaJaeger()}. ¿Está Jaeger levantado (yarn jaeger:up)?`);
 }
 
-function verificar(spans: SpanJaeger[]): void {
+function verificar(spans: SpanJaeger[], rutaEsperada: string, descripcion: string): void {
   const fallos: string[] = [];
   const porId = new Map(spans.map((span) => [span.spanID, span]));
   const etiqueta = (span: SpanJaeger, clave: string): string | undefined =>
@@ -102,7 +152,7 @@ function verificar(spans: SpanJaeger[]): void {
 
     const idPadre = cliente.references.find((r) => r.refType === 'CHILD_OF')?.spanID;
     const padre = idPadre === undefined ? undefined : porId.get(idPadre);
-    if (padre?.operationName !== 'negocio.llamada.externa') {
+    if (!(padre?.operationName ?? '').startsWith('negocio.llamada.externa')) {
       fallos.push(`El span saliente cuelga de "${padre?.operationName ?? '(raíz)'}" y no del span de negocio: el contexto no se propagó.`);
     }
 
@@ -112,18 +162,18 @@ function verificar(spans: SpanJaeger[]): void {
     }
     if (cliente.tags.some((t) => t.key === 'url.query')) fallos.push('FUGA: el atributo `url.query` no se borró.');
     if ((etiqueta(cliente, 'url.full') ?? '').includes('?')) fallos.push('FUGA: `url.full` conserva la cadena de consulta.');
-    if (!(etiqueta(cliente, 'url.full') ?? '').endsWith(RUTA)) {
-      fallos.push(`Se recortó de más: \`url.full\` es "${etiqueta(cliente, 'url.full')}" y debería conservar la ruta ${RUTA}.`);
+    if (!(etiqueta(cliente, 'url.full') ?? '').endsWith(rutaEsperada)) {
+      fallos.push(`Se recortó de más: \`url.full\` es "${etiqueta(cliente, 'url.full')}" y debería conservar la ruta ${rutaEsperada}.`);
     }
   }
 
   if (fallos.length > 0) {
-    console.error('❌ La instrumentación de HTTP saliente NO cumple:');
+    console.error(`❌ La instrumentación de HTTP saliente NO cumple contra ${descripcion}:`);
     for (const fallo of fallos) console.error(`   · ${fallo}`);
     process.exitCode = 1;
     return;
   }
-  console.log('✅ HTTP saliente instrumentado y saneado:');
+  console.log(`✅ HTTP saliente instrumentado y saneado contra ${descripcion}:`);
   console.log(`   · span CLIENT de undici, colgando del span de negocio`);
   console.log(`   · url.full = ${etiqueta(cliente!, 'url.full')}  (sin la firma)`);
 }
