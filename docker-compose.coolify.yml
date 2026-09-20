@@ -457,9 +457,12 @@ services:
     # porque son metadatos: si una falla, el despliegue NO debe caerse — la API funciona igual y el
     # log dice qué quedó sin refrescar.
     #
-    # `seed-demo` es la siembra del repositorio y va ÚLTIMA. Se salta sola en producción
-    # (`NODE_ENV=production`) salvo que alguien lo pida explícitamente con `DEMO_SEED_ENABLED=true`:
-    # son datos de demostración y no tienen nada que hacer en una base con personas reales.
+    # `seed-demo` es la siembra del repositorio y va ÚLTIMA. **Sólo corre si alguien la pide**, con
+    # `DEMO_SEED_ENABLED=true`. Antes bastaba con que `NODE_ENV` no fuera `production`, y eso la
+    # dejaba encendida en TEST: cada despliegue reponía los 12 clientes `example.bo`, los 8 comercios
+    # y su actividad, así que retirarlos de la base no servía de nada —volvían con el siguiente
+    # push—. TEST es donde Pablo prueba con datos reales camino de pre-producción; un entorno no
+    # debería llenarse de personas inventadas por no haber dicho que no.
     command:
       - sh
       - -c
@@ -472,9 +475,9 @@ services:
         (node dist/scripts/apply-entity-business-narratives.js || echo 'AVISO: narrativa de entidades sin refrescar') &&
         (node dist/scripts/apply-curated-business-metadata.js || echo 'AVISO: dominios de negocio sin refrescar') &&
         (node dist/scripts/refresh-systems-catalog-introspection.js || echo 'AVISO: catalogo de esquema sin refrescar') &&
-        if [ "$${DEMO_SEED_ENABLED}" = "true" ] || { [ "$${NODE_ENV}" != "production" ] && [ "$${DEMO_SEED_ENABLED}" != "false" ]; }; then
+        if [ "$${DEMO_SEED_ENABLED}" = "true" ]; then
         node dist/scripts/seed-demo.js;
-        else echo 'siembra demostrativa desactivada en este entorno'; fi
+        else echo 'siembra demostrativa desactivada: se enciende con DEMO_SEED_ENABLED=true'; fi
     restart: 'no'
 
   api:
