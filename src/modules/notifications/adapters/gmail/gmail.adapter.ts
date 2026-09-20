@@ -10,6 +10,7 @@ import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from 
 import { failedDelivery, getAllDeliveryTargets, postJson, sentDelivery } from '../http-adapter.util.js';
 import { NotificationChannelAdapter } from '../notification-channel-adapter.js';
 import { NotificationProviderConfigService } from '../notification-provider-config.service.js';
+import { readAddressList, readHtmlBody, readString } from '../email-payload.util.js';
 import { buildGmailRawMessage, isValidEmailAddress } from './gmail-mime.util.js';
 import { GmailOAuthError, GmailOAuthTokenService } from './gmail-oauth-token.service.js';
 
@@ -43,22 +44,6 @@ export type GmailSendResult = {
   threadId: string | null;
   response: Record<string, unknown>;
 };
-
-function readString(payload: Record<string, unknown>, ...keys: string[]): string | null {
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === 'string' && value.trim().length > 0) return value.trim();
-  }
-  return null;
-}
-
-/** `cc`/`bcc` llegan del payload como string suelto o como lista; se normalizan a lista. */
-function readAddressList(payload: Record<string, unknown>, key: string): string[] {
-  const value = payload[key];
-  if (typeof value === 'string') return value.split(',').map((entry) => entry.trim());
-  if (Array.isArray(value)) return value.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.trim());
-  return [];
-}
 
 /**
  * Adaptador dedicado a la Gmail API (`users.messages.send`) con OAuth2 de refresh token.
@@ -118,7 +103,7 @@ export class GmailApiAdapter implements NotificationChannelAdapter {
         replyTo: readString(message.payload, 'replyTo', 'reply_to'),
         subject: message.subject ?? 'ATLAS',
         text: message.body,
-        html: readString(message.payload, 'html', 'htmlBody'),
+        html: readHtmlBody(message.payload),
         boundarySeed: message.id,
       });
       return sentDelivery(GMAIL_PROVIDER, sent.id, sent.response);

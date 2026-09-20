@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { env } from '../../../config/env.js';
 import { NotificationChannel } from '../notification-types.js';
+import { twilioSender, type TwilioSender } from './twilio/twilio-request.util.js';
 
 export type EmailProvider = 'disabled' | 'resend' | 'sendgrid' | 'gmail_api' | 'webhook';
 export type PushProvider = 'disabled' | 'fcm' | 'webhook';
@@ -20,6 +21,25 @@ export type GmailCredentialsResult = { ok: true; value: GmailCredentials } | { o
 /** Credenciales de APNs: la llave `.p8` de App Store Connect, su identificador y el del equipo. */
 export type ApnsCredentials = { keyId: string; teamId: string; privateKey: string; bundleId: string; production: boolean };
 export type ApnsCredentialsResult = { ok: true; value: ApnsCredentials } | { ok: false; missing: string };
+
+/** Lo que hace falta para poner un SMS en Twilio, ya resuelto: credenciales, remitente y callback. */
+export type TwilioSmsConfig = {
+  accountSid: string;
+  authToken: string;
+  sender: TwilioSender;
+  statusCallbackUrl: string | null;
+  defaultCountryCode: string;
+};
+export type TwilioSmsConfigResult = { ok: true; value: TwilioSmsConfig } | { ok: false; missing: string };
+
+/** Lo que hace falta para poner un correo en SendGrid, ya resuelto: clave, remitente y respuestas. */
+export type SendGridConfig = {
+  apiKey: string;
+  fromEmail: string;
+  fromName: string | null;
+  replyToEmail: string | null;
+};
+export type SendGridConfigResult = { ok: true; value: SendGridConfig } | { ok: false; missing: string };
 
 /**
  * Nota de robustez: la validación fail-fast de "proveedor activo sin sus credenciales" para los
@@ -84,6 +104,73 @@ export class NotificationProviderConfigService {
   private firstMissing(values: Record<string, string | undefined>): string | null {
     for (const [name, value] of Object.entries(values)) if (!value) return name;
     return null;
+  }
+
+  /**
+   * Configuración de Twilio para SMS, o qué falta.
+   *
+   * Devuelve la primera variable ausente en vez de lanzar, por la misma razón que Gmail y APNs: el
+   * adaptador nunca lanza desde `send`, contesta un `DeliveryResult` fallido con el código exacto.
+   *
+   * El remitente se resuelve AQUÍ (`twilioSender`) y no en el adaptador porque «número suelto o
+   * Messaging Service» es una decisión de configuración, no de envío: el adaptador sólo necesita
+   * saber qué campo mandar.
+   */
+  getTwilioSmsConfig(): TwilioSmsConfigResult {
+    const accountSid = env.TWILIO_ACCOUNT_SID?.trim();
+    if (!accountSid) return { ok: false, missing: 'TWILIO_ACCOUNT_SID_MISSING' };
+    const authToken = env.TWILIO_AUTH_TOKEN?.trim();
+    if (!authToken) return { ok: false, missing: 'TWILIO_AUTH_TOKEN_MISSING' };
+    const sender = twilioSender(env.TWILIO_SMS_FROM, env.TWILIO_MESSAGING_SERVICE_SID);
+    if (!sender) return { ok: false, missing: 'TWILIO_SMS_SENDER_MISSING' };
+    return {
+      ok: true,
+      value: {
+        accountSid,
+        authToken,
+        sender,
+        statusCallbackUrl: env.TWILIO_STATUS_CALLBACK_URL?.trim() || null,
+        defaultCountryCode: env.NOTIFICATION_DEFAULT_COUNTRY_CODE,
+      },
+    };
+  }
+
+  /** Configuración de SendGrid —el correo de Twilio— o qué falta. */
+  getSendGridConfig(): SendGridConfigResult {
+    const apiKey = env.SENDGRID_API_KEY?.trim();
+    if (!apiKey) return { ok: false, missing: 'SENDGRID_API_KEY_MISSING' };
+    const fromEmail = env.SENDGRID_FROM_EMAIL?.trim();
+    if (!fromEmail) return { ok: false, missing: 'SENDGRID_FROM_EMAIL_MISSING' };
+    return {
+      ok: true,
+      value: {
+        apiKey,
+        fromEmail,
+        fromName: env.SENDGRID_FROM_NAME?.trim() || null,
+        replyToEmail: env.SENDGRID_REPLY_TO_EMAIL?.trim() || null,
+      },
+    };
+  }
+
+  /** La llave pública con la que SendGrid firma sus eventos, o `null` si el webhook no está activo. */
+  getSendGridEventPublicKey(): string | null {
+    return env.SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY?.trim() || null;
+  }
+
+  /** El token de cuenta con el que Twilio firma sus callbacks, o `null` si no hay Twilio configurado. */
+  getTwilioAuthToken(): string | null {
+    return env.TWILIO_AUTH_TOKEN?.trim() || null;
+  }
+
+  /**
+   * La URL de callback tal y como se registró en Twilio.
+   *
+   * Es la URL que se FIRMA, así que tiene que ser la configurada y no una reconstruida a partir de
+   * la petición: detrás de un proxy que termina TLS, `req.protocol` dice `http` donde Twilio firmó
+   * `https` y la verificación fallaría siempre sin que el log dijera por qué.
+   */
+  getTwilioStatusCallbackUrl(): string | null {
+    return env.TWILIO_STATUS_CALLBACK_URL?.trim() || null;
   }
 
   getWebhookUrl(channel?: NotificationChannel): string | undefined {

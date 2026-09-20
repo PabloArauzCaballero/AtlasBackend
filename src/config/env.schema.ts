@@ -19,6 +19,7 @@ import { observabilityEnvShape } from './env.observability.schema.js';
 import { filesEnvShape } from './env.files.schema.js';
 import { runtimeJobsEnvShape } from './env.runtime-jobs.schema.js';
 import { pushProviderEnvShape } from './env.push.schema.js';
+import { twilioProviderEnvShape } from './env.twilio.schema.js';
 
 export const DEFAULT_JWT_SECRET = 'dev-only-atlas-access-token-secret-change-me';
 export const DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY = 'change-this-32-plus-character-key-for-device-tokens';
@@ -226,10 +227,13 @@ export const envBaseSchema = z.object({
   NOTIFICATION_PROVIDER_HTTP_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().max(10_000).default(250),
   NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION: booleanEnvSchema,
   NOTIFICATION_DEFAULT_LOCALE: z.string().min(2).default('es-BO'),
+  /** El país que se le supone a un teléfono sin prefijo: Twilio sólo acepta E.164 y ATLAS guarda muchos nacionales (ver `toE164`). */
+  NOTIFICATION_DEFAULT_COUNTRY_CODE: z
+    .string()
+    .regex(/^\+?[0-9]{1,4}$/u, 'Debe ser un código de país, p. ej. +591.')
+    .default('+591'),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
-  SENDGRID_API_KEY: z.string().optional(),
-  SENDGRID_FROM_EMAIL: z.string().optional(),
   GMAIL_CLIENT_ID: z.string().optional(),
   GMAIL_CLIENT_SECRET: z.string().optional(),
   GMAIL_REFRESH_TOKEN: z.string().optional(),
@@ -246,10 +250,7 @@ export const envBaseSchema = z.object({
    */
   GMAIL_FROM_NAME: z.string().trim().max(80).default('ATLAS'),
   ...pushProviderEnvShape,
-  TWILIO_ACCOUNT_SID: z.string().optional(),
-  TWILIO_AUTH_TOKEN: z.string().optional(),
-  TWILIO_SMS_FROM: z.string().optional(),
-  TWILIO_WHATSAPP_FROM: z.string().optional(),
+  ...twilioProviderEnvShape,
   META_WHATSAPP_TOKEN: z.string().optional(),
   META_WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   META_WHATSAPP_DEFAULT_TEMPLATE_NAME: z.string().optional(),

@@ -44,6 +44,9 @@ import { NotificationsController } from './notifications.controller.js';
 import { CustomerNotificationsController } from './customer-notifications.controller.js';
 import { NotificationTemplatesController } from './notification-templates.controller.js';
 import { NotificationBroadcastController } from './notification-broadcast.controller.js';
+import { NotificationProviderCallbacksController } from './notification-provider-callbacks.controller.js';
+import { NotificationProviderCallbacksService } from './notification-provider-callbacks.service.js';
+import { NotificationDeliveryStatusRepository } from './notification-delivery-status.repository.js';
 import { NotificationsRepository } from './notifications.repository.js';
 import { NotificationsService } from './notifications.service.js';
 import { NotificationAudienceSegmentModel, NotificationCampaignModel } from '../../database/models/index.js';
@@ -83,6 +86,8 @@ import { NotificationCampaignsRepository } from './campaigns/notification-campai
     NotificationPoliciesOperationsController,
     NotificationCampaignsController,
     NotificationAudienceSegmentsController,
+    // Twilio y SendGrid avisan por su cuenta cómo terminó cada envío; la firma es lo que los identifica.
+    NotificationProviderCallbacksController,
   ],
   providers: [
     LocalNotificationRequestAdapter,
@@ -104,6 +109,8 @@ import { NotificationCampaignsRepository } from './campaigns/notification-campai
     SequelizeDeviceTokenRegistryAdapter,
     { provide: DEVICE_TOKEN_REGISTRY_PORT, useExisting: SequelizeDeviceTokenRegistryAdapter },
     NotificationsRepository,
+    NotificationDeliveryStatusRepository,
+    NotificationProviderCallbacksService,
     NotificationTemplatesRepository,
     NotificationPoliciesRepository,
     NotificationPreferencesRepository,

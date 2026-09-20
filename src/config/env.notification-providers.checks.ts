@@ -95,10 +95,13 @@ function checkTwilioProviders(data: RawAppEnv, requireWhen: RequireWhen): void {
     'TWILIO_AUTH_TOKEN',
     'TWILIO_AUTH_TOKEN es requerido cuando SMS o WhatsApp usan Twilio.',
   );
+  // El remitente de SMS puede ser un número propio o un Messaging Service: se exige UNO de los dos,
+  // no los dos. Exigir `TWILIO_SMS_FROM` a secas obligaba a inventarse un número en una cuenta que
+  // envía por Messaging Service, que es justo la configuración que Twilio recomienda.
   requireWhen(
-    data.NOTIFICATION_SMS_PROVIDER === 'twilio',
+    data.NOTIFICATION_SMS_PROVIDER === 'twilio' && !data.TWILIO_MESSAGING_SERVICE_SID,
     'TWILIO_SMS_FROM',
-    'TWILIO_SMS_FROM es requerido cuando NOTIFICATION_SMS_PROVIDER=twilio.',
+    'TWILIO_SMS_FROM (o TWILIO_MESSAGING_SERVICE_SID) es requerido cuando NOTIFICATION_SMS_PROVIDER=twilio.',
   );
   requireWhen(
     data.NOTIFICATION_WHATSAPP_PROVIDER === 'twilio',

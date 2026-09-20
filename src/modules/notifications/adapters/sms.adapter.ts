@@ -4,12 +4,12 @@
  * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
  */
 import { Injectable } from '@nestjs/common';
-import { env } from '../../../config/env.js';
 import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';
 import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from '../notification-types.js';
 import { failedDelivery, getFirstDeliveryTarget, postForm, postJson, sentDelivery } from './http-adapter.util.js';
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
 import { NotificationProviderConfigService } from './notification-provider-config.service.js';
+import { toE164, twilioAuthHeader, twilioErrorDetails } from './twilio/twilio-request.util.js';
 
 @Injectable()
 export class SmsNotificationAdapter implements NotificationChannelAdapter {
@@ -37,20 +37,47 @@ export class SmsNotificationAdapter implements NotificationChannelAdapter {
     if (!to) return failedDelivery(provider, 'MISSING_SMS_RECIPIENT', 'El payload no contiene phone, toPhone, recipientPhone ni smsTo.');
     if (provider === 'webhook') return this.sendWebhook(message, to);
     if (provider !== 'twilio') return failedDelivery(provider, 'UNSUPPORTED_SMS_PROVIDER', `Proveedor SMS no soportado: ${provider}`);
-    const accountSid = this.config.require(env.TWILIO_ACCOUNT_SID, 'TWILIO_ACCOUNT_SID_MISSING');
-    const authToken = this.config.require(env.TWILIO_AUTH_TOKEN, 'TWILIO_AUTH_TOKEN_MISSING');
-    const from = this.config.require(env.TWILIO_SMS_FROM, 'TWILIO_SMS_FROM_MISSING');
-    const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+    return this.sendTwilio(message, to);
+  }
+
+  private async sendTwilio(message: NotificationMessagePayload, to: string): Promise<DeliveryResult> {
+    const config = this.config.getTwilioSmsConfig();
+    if (!config.ok) return failedDelivery('twilio_sms', config.missing, `Falta configuración de Twilio: ${config.missing}.`);
+    const destino = toE164(to, config.value.defaultCountryCode);
+    if (!destino) return failedDelivery('twilio_sms', 'INVALID_SMS_RECIPIENT', `El destinatario "${to}" no tiene forma de teléfono.`);
+
     const response = await postForm(
       this.executor,
       'twilio_sms',
-      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-      { authorization: `Basic ${credentials}` },
-      { To: to, From: from, Body: message.body },
+      `https://api.twilio.com/2010-04-01/Accounts/${config.value.accountSid}/Messages.json`,
+      twilioAuthHeader(config.value.accountSid, config.value.authToken),
+      {
+        To: destino,
+        ...config.value.sender,
+        Body: message.body,
+        // Twilio contesta `queued` y sólo después sabe si el operador entregó. Sin esta URL el
+        // estado se queda en «enviado» para siempre y un número apagado se ve igual que uno que
+        // recibió: el callback es lo único que distingue los dos.
+        ...(config.value.statusCallbackUrl ? { StatusCallback: config.value.statusCallbackUrl } : {}),
+      },
     );
-    if (!response.ok)
-      return failedDelivery('twilio_sms', 'TWILIO_SMS_SEND_FAILED', `Twilio respondió HTTP ${response.status}.`, response.json);
+    if (!response.ok) return this.twilioFailure(response.status, response.json);
     return sentDelivery('twilio_sms', typeof response.json.sid === 'string' ? response.json.sid : null, response.json);
+  }
+
+  /**
+   * Un fallo de Twilio, con su motivo REAL.
+   *
+   * El código propio se separa en dos porque las consecuencias son distintas: `RECIPIENT_REJECTED`
+   * dice que ese número no va a recibir por más que se insista —hay que corregirlo o darlo de baja—
+   * mientras que `SEND_FAILED` es un problema del envío que puede volver a intentarse.
+   */
+  private twilioFailure(status: number, body: Record<string, unknown>): DeliveryResult {
+    const detalle = twilioErrorDetails(body);
+    const sufijo = detalle.code ? ` (Twilio ${detalle.code}: ${detalle.message ?? 'sin detalle'})` : '';
+    if (detalle.permanent)
+      return failedDelivery('twilio_sms', 'TWILIO_SMS_RECIPIENT_REJECTED', `Twilio rechazó el destinatario${sufijo}.`, body);
+    return failedDelivery('twilio_sms', 'TWILIO_SMS_SEND_FAILED', `Twilio respondió HTTP ${status}.${sufijo}`, body);
   }
 
   private async sendWebhook(message: NotificationMessagePayload, to: string): Promise<DeliveryResult> {

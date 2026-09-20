@@ -141,13 +141,18 @@ elegir un proveedor sin sus credenciales impide el arranque.
 | Canal | Proveedor | Credenciales | Estado | Quién las provee |
 |---|---|---|---|---|
 | Email | `NOTIFICATION_EMAIL_PROVIDER=resend` | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | 🟠 | Resend — dominio verificado |
-| Email | `=sendgrid` | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` | 🟠 | SendGrid |
+| Email | `=sendgrid` | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` (opcionales: `SENDGRID_FROM_NAME`, `SENDGRID_REPLY_TO_EMAIL`) | 🟠 | SendGrid — el correo de Twilio; remitente verificado |
 | Email | `=gmail_api` | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_FROM_EMAIL` | 🟠 | Google Cloud — OAuth con consentimiento previo |
 | Push | `NOTIFICATION_PUSH_PROVIDER=fcm` | `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` | 🟠 | Firebase — cuenta de servicio (JSON) |
-| SMS | `NOTIFICATION_SMS_PROVIDER=twilio` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM` | 🟠 | Twilio |
+| SMS | `NOTIFICATION_SMS_PROVIDER=twilio` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, y `TWILIO_SMS_FROM` **o** `TWILIO_MESSAGING_SERVICE_SID` | 🟠 | Twilio |
 | WhatsApp | `NOTIFICATION_WHATSAPP_PROVIDER=meta_cloud` | `META_WHATSAPP_TOKEN`, `META_WHATSAPP_PHONE_NUMBER_ID` | 🟠 | Meta — WhatsApp Business, plantillas aprobadas |
 | WhatsApp | `=twilio` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` | 🟠 | Twilio |
 | Cualquiera | `=webhook` | `NOTIFICATION_WEBHOOK_URL` o la del canal (`NOTIFICATION_EMAIL_WEBHOOK_URL`, …) | 🟠 | Interno |
+| Estado de entrega | Callback de Twilio | `TWILIO_STATUS_CALLBACK_URL` (la URL pública EXACTA registrada en Twilio) | 🟠 | Twilio + red |
+| Estado de entrega | Eventos de SendGrid | `SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY` | 🟠 | SendGrid — Event Webhook firmado |
+
+Las dos últimas son opcionales para ENVIAR y obligatorias para SABER si llegó: sin ellas toda entrega
+se queda en `sent` y ningún rebote vuelve a ATLAS. Ver `docs/notifications/channel-adapters.md`.
 
 **Consecuencia que suele sorprender:** sin ningún canal de email configurado —ni por proveedor ni por
 MailSender— el **segundo factor cae a login de un solo paso**. `isSecondFactorRequired` exige 2FA a

@@ -10,6 +10,8 @@ import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from 
 import { failedDelivery, getFirstDeliveryTarget, postJson, sentDelivery } from './http-adapter.util.js';
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
 import { NotificationProviderConfigService } from './notification-provider-config.service.js';
+import { readAddressList, readHtmlBody, readString } from './email-payload.util.js';
+import { buildSendGridMail, readSendGridErrors, readSendGridMessageId } from './sendgrid/sendgrid-mail.util.js';
 import { GmailApiAdapter } from './gmail/gmail.adapter.js';
 
 @Injectable()
@@ -76,23 +78,45 @@ export class EmailNotificationAdapter implements NotificationChannelAdapter {
     return sentDelivery('resend', typeof response.json.id === 'string' ? response.json.id : null, response.json);
   }
 
+  /**
+   * SendGrid —el correo de Twilio— por su API v3.
+   *
+   * El identificador del envío sale de la CABECERA `X-Message-Id`, no del cuerpo: un envío aceptado
+   * responde `202` sin cuerpo. Antes se guardaba `message.id` (el interno de ATLAS) como
+   * `provider_message_id`, y eso dejaba la columna llena de valores que ningún evento de SendGrid
+   * menciona, así que ningún rebote se podía atribuir a su correo.
+   */
   private async sendSendGrid(message: NotificationMessagePayload, to: string): Promise<DeliveryResult> {
-    const apiKey = this.config.require(env.SENDGRID_API_KEY, 'SENDGRID_API_KEY_MISSING');
-    const from = this.config.require(env.SENDGRID_FROM_EMAIL, 'SENDGRID_FROM_EMAIL_MISSING');
+    const config = this.config.getSendGridConfig();
+    if (!config.ok) return failedDelivery('sendgrid', config.missing, `Falta configuración de SendGrid: ${config.missing}.`);
+
     const response = await postJson(
       this.executor,
       'sendgrid',
       'https://api.sendgrid.com/v3/mail/send',
-      { authorization: `Bearer ${apiKey}` },
-      {
-        personalizations: [{ to: [{ email: to }] }],
-        from: { email: from },
+      { authorization: `Bearer ${config.value.apiKey}` },
+      buildSendGridMail({
+        to,
+        cc: readAddressList(message.payload, 'cc'),
+        bcc: readAddressList(message.payload, 'bcc'),
+        from: config.value.fromEmail,
+        fromName: config.value.fromName,
+        replyTo: readString(message.payload, 'replyTo', 'reply_to') ?? config.value.replyToEmail,
         subject: message.subject ?? 'ATLAS',
-        content: [{ type: 'text/plain', value: message.body }],
-      },
+        text: message.body,
+        html: readHtmlBody(message.payload),
+        atlasMessageId: message.id,
+      }),
     );
-    if (!response.ok)
-      return failedDelivery('sendgrid', 'SENDGRID_SEND_FAILED', `SendGrid respondió HTTP ${response.status}.`, response.json);
-    return sentDelivery('sendgrid', String(response.json.id ?? message.id), response.json);
+    if (!response.ok) {
+      const detalle = readSendGridErrors(response.json);
+      return failedDelivery(
+        'sendgrid',
+        'SENDGRID_SEND_FAILED',
+        `SendGrid respondió HTTP ${response.status}.${detalle ? ` ${detalle}` : ''}`,
+        response.json,
+      );
+    }
+    return sentDelivery('sendgrid', readSendGridMessageId(response.headers), response.json);
   }
 }

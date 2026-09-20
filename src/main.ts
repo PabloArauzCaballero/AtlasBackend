@@ -13,6 +13,7 @@ import { startTracing, shutdownTracing } from './observability/tracing.js';
 
 startTracing('atlas-api');
 
+import type { IncomingMessage } from 'node:http';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -28,6 +29,9 @@ import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encr
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
 import { assertDecoratorMetadataIsAvailable } from './common/bootstrap/decorator-metadata.guard.js';
+
+/** La única ruta cuyo cuerpo crudo se conserva: el webhook de eventos de SendGrid firma esos bytes. */
+const RAW_BODY_PATH = '/internal/notifications/sendgrid-events';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('AtlasBootstrap');
@@ -65,7 +69,20 @@ async function bootstrap(): Promise<void> {
   // El contrato de ingesta de catalogos admite hasta 1.000 items por request y
   // recomienda cuerpos de 2 MB. El limite por defecto de Express (100 KB)
   // rechazaba lotes validos antes de alcanzar el ZodValidationPipe.
-  app.useBodyParser('json', { limit: env.API_JSON_BODY_LIMIT });
+  /*
+   * El cuerpo CRUDO se conserva sólo para el webhook de eventos de SendGrid.
+   *
+   * Su firma se calcula sobre los bytes tal cual llegaron: verificarla contra el JSON que devuelve
+   * el parser no cuadra nunca, porque re-serializar cambia espacios y orden de claves. Se guarda
+   * para ESA ruta y no para todas porque el cuerpo puede llegar hasta `API_JSON_BODY_LIMIT` y
+   * retener una copia de cada petición del backend es memoria regalada.
+   */
+  app.useBodyParser('json', {
+    limit: env.API_JSON_BODY_LIMIT,
+    verify: (request: IncomingMessage & { rawBody?: Buffer }, _response: unknown, buffer: Buffer) => {
+      if (request.url?.includes(RAW_BODY_PATH)) request.rawBody = Buffer.from(buffer);
+    },
+  });
   app.useBodyParser('urlencoded', { limit: env.API_JSON_BODY_LIMIT, extended: true });
 
   // Trust first proxy so req.ip resolves correctly behind a load balancer
