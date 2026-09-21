@@ -6,11 +6,20 @@
  *   ahoga los logs de verdad. La consola es el canal principal en un contenedor y sigue recibiéndolo
  *   todo, así que frenar el aviso no pierde ninguna línea; la escritura se sigue intentando.
  * @system Directorio de sólo lectura real: el `appendFile` falla de verdad, no con un doble.
+ *   Eso ata la primera prueba a POSIX: en Windows `chmod` sólo mueve el atributo de sólo lectura
+ *   del propio directorio y no quita el permiso de crear ficheros dentro, así que el `appendFile`
+ *   tiene éxito y no hay fallo que degradar. Medido: tras `chmod(dir, 0o500)` el modo queda en
+ *   `444` y la escritura entra igual. Se salta ahí en vez de simular el fallo con un doble, porque
+ *   lo que esta prueba defiende es justamente que el error venga del sistema de ficheros real.
+ *   El contenedor de producción es Linux, que es donde la prueba tiene que valer.
  */
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { chmod, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+/** En Windows el directorio no se puede volver no-escribible con `chmod`. Véase la nota de `@system`. */
+const soloDondeChmodMuerde = process.platform === 'win32' ? it.skip : it;
 
 describe('AppFileLogger — degradación cuando el archivo no se puede escribir', () => {
   let directory: string;
@@ -35,7 +44,7 @@ describe('AppFileLogger — degradación cuando el archivo no se puede escribir'
     await rm(directory, { recursive: true, force: true });
   });
 
-  it('avisa UNA vez aunque fallen 25 líneas seguidas', async () => {
+  soloDondeChmodMuerde('avisa UNA vez aunque fallen 25 líneas seguidas', async () => {
     const logPath = join(directory, 'Archivo.log');
     process.env.LOG_SYNC_FILE_PATH = logPath;
     process.env.LOG_FORMAT = 'json';
