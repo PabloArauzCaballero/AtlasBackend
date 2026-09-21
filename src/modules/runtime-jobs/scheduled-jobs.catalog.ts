@@ -15,6 +15,7 @@ import { PartnerKybSyncService } from '../partner-onboarding/application/partner
 import { SupportSlaService } from '../support/application/support-sla.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
+import { buildOptionalJobs } from './optional-jobs.catalog.js';
 
 /**
  * Actor con el que se registran las ejecuciones automáticas en `system_job_runs` y en la auditoría.
@@ -62,6 +63,8 @@ export function buildScheduledJobs(deps: {
   partnerKybSync: PartnerKybSyncService;
   /** Campañas de notificación: llega como función desde la composición para no importar internos de Mensajería. */
   notificationCampaigns: { tick: (tenantId: string) => Promise<unknown> };
+  /** Consumidor de la cola de estrés: función desde la composición, por el mismo motivo que el anterior. */
+  stressRuns: { drain: () => Promise<unknown> };
 }): ScheduledJob[] {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
   const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements, supportSla } = deps;
@@ -103,22 +106,6 @@ export function buildScheduledJobs(deps: {
           currentUser: SCHEDULER_ACTOR,
         }),
     },
-    // Sólo tiene sentido cuando la API NO entrega dentro del request: si la entrega es `inline`,
-    // este job competiría por los mismos mensajes que el proceso que acaba de crearlos.
-    ...(env.NOTIFICATIONS_DELIVERY_MODE === 'deferred'
-      ? [
-          {
-            jobCode: 'deliver_pending_notifications',
-            intervalMs: env.RUNTIME_JOBS_NOTIFICATION_DELIVERY_INTERVAL_MS,
-            run: (tenantId: string) =>
-              maintenance.deliverPendingNotifications({
-                tenantId,
-                body: { limit, dryRun: false },
-                currentUser: SCHEDULER_ACTOR,
-              }),
-          },
-        ]
-      : []),
     {
       jobCode: 'purge_idempotency_keys',
       intervalMs: env.RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS,
@@ -299,5 +286,8 @@ export function buildScheduledJobs(deps: {
       intervalMs: env.RUNTIME_JOBS_NOTIFICATION_CAMPAIGNS_INTERVAL_MS,
       run: (tenantId) => deps.notificationCampaigns.tick(tenantId),
     },
+    // Los trabajos que sólo corren bajo una bandera viven en `optional-jobs.catalog.ts`: esta lista
+    // declara lo que corre SIEMPRE, y mezclarlas hacía que dejara de leerse de un vistazo.
+    ...buildOptionalJobs({ maintenance, stressRuns: deps.stressRuns, limit }),
   ];
 }

@@ -43,6 +43,8 @@ import { SystemsSchemaIntrospectionService } from './systems-schema-introspectio
 import { SystemsHealthMonitorService } from './systems-health-monitor.service.js';
 import { SystemsHealthService } from './systems-health.service.js';
 import { SystemsStressRunService } from './systems-stress-run.service.js';
+import { SystemsStressExecutorService } from './systems-stress-executor.service.js';
+import { SystemsStressConsumerService } from './systems-stress-consumer.service.js';
 import { SystemsActionLogController } from './systems-action-log.controller.js';
 import { SystemsCatalogController } from './systems-catalog.controller.js';
 import { SystemsNetworkController } from './systems-network.controller.js';
@@ -188,11 +190,16 @@ import { SystemsMetadataRepository } from './systems-metadata.repository.js';
     SystemsDataImpactInferenceRepository,
     SystemsDataImpactInferenceService,
     SystemsStressRunService,
+    SystemsStressExecutorService,
+    SystemsStressConsumerService,
     SystemsNetworkHealthService,
     PlatformCatalogFederationClient,
     PlatformCatalogFederationRepository,
     PlatformCatalogFederationService,
     DecisionEngineArtifactsService,
   ],
+  // Lo unico que sale de aqui es el consumidor de la cola de estres, que el planificador de
+  // `runtime-jobs` necesita para darle cadencia. El resto del modulo sigue siendo interno.
+  exports: [SystemsStressConsumerService],
 })
 export class SystemsOpsModule {}

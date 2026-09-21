@@ -45,11 +45,17 @@ import { OnboardingAbandonmentService } from '../customer-onboarding/application
 import { buildScheduledJobs, SCHEDULED_JOBS, SCHEDULER_ACTOR } from './scheduled-jobs.catalog.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ExpedientesModule } from '../expedientes/expedientes.module.js';
+import { SystemsOpsModule } from '../systems-ops/systems-ops.module.js';
+import { SystemsStressConsumerService } from '../systems-ops/systems-stress-consumer.service.js';
+import { env } from '../../config/env.js';
 
 @Module({
   imports: [
     ExpedientesModule,
     EventsModule,
+    // Aporta el consumidor de la cola de estres. Va aqui, en un archivo de modulo, porque el
+    // manifiesto de fronteras reserva las dependencias entre contextos a las raices de composicion.
+    SystemsOpsModule,
     // El barrido de notificaciones atascadas (hallazgo A-03) reutiliza el MISMO orquestador que la
     // entrega normal, para que un reintento no pueda divergir del camino feliz.
     NotificationsModule,
@@ -105,6 +111,7 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
         partnerKybSync: PartnerKybSyncService,
         notifications: NotificationsService,
         jobRuns: JobRunRecorderService,
+        stressConsumer: SystemsStressConsumerService,
       ) =>
         buildScheduledJobs({
           runtimeJobs,
@@ -124,6 +131,17 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
                 notifications.runCampaignTick(tenantId),
               ),
           },
+          // El consumidor de la cola de estrés vive en `systems-ops`; aqui solo se le da cadencia y
+          // un tope de duracion propio. El `AbortController` lo crea la composicion y no el
+          // catalogo porque el tope es una decision de despliegue, no del calendario de trabajos.
+          stressRuns: {
+            drain: () => {
+              const controller = new AbortController();
+              const deadline = setTimeout(() => controller.abort(), env.RUNTIME_JOBS_STRESS_CONSUMER_MAX_RUN_MS);
+              deadline.unref();
+              return stressConsumer.drain(controller.signal).finally(() => clearTimeout(deadline));
+            },
+          },
         }),
       inject: [
         RuntimeJobsService,
@@ -138,6 +156,7 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
         PartnerKybSyncService,
         NotificationsService,
         JobRunRecorderService,
+        SystemsStressConsumerService,
       ],
     },
   ],

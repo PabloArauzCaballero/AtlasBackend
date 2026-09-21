@@ -171,4 +171,18 @@ export const runtimeJobsEnvShape = {
   //              deja de varar mensajes, y la entrega no compite con la latencia del request.
   // Ver docs/architecture/background-processing.md §2.4.
   NOTIFICATIONS_DELIVERY_MODE: z.enum(['inline', 'deferred']).default('inline'),
+
+  // Consumidor de planes de estrés encolados (`systems_stress_run`).
+  //
+  // Hasta ahora esa cola no la consumía NADIE: `SystemsStressRunService` inserta la fila con una
+  // nota que delega la ejecución en «un worker externo controlado» que no existe en ningún
+  // repositorio. La pantalla devolvía `queued: true` y el plan se quedaba ahí para siempre.
+  //
+  // Apagado por defecto y a conciencia: este job genera TRÁFICO HTTP real contra un objetivo
+  // registrado. Un entorno que lo encienda sin querer empieza a golpear su propio backend. Se
+  // enciende donde se decidió correr carga, no por omisión.
+  RUNTIME_JOBS_STRESS_CONSUMER_ENABLED: z.coerce.boolean().default(false),
+  RUNTIME_JOBS_STRESS_CONSUMER_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
+  /** Tope de duración de una tanda del consumidor. Corta la corrida aunque el plan pida más. */
+  RUNTIME_JOBS_STRESS_CONSUMER_MAX_RUN_MS: z.coerce.number().int().positive().default(600_000),
 } as const;
