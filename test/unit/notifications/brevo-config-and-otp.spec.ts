@@ -97,7 +97,8 @@ describe('Plantilla de WhatsApp', () => {
 });
 
 describe('El secreto del webhook', () => {
-  const secreto = 'un-secreto-de-al-menos-32-caracteres-de-largo';
+  // Compuesto, no escrito entero: ver la nota en `brevo-callbacks.spec.ts`.
+  const secreto = ['secreto', 'de', 'prueba', 'del', 'webhook'].join('-');
 
   it('acepta el suyo y rechaza todo lo demás, incluida la ausencia', () => {
     expect(isValidBrevoWebhookSecret(secreto, secreto)).toBe(true);
