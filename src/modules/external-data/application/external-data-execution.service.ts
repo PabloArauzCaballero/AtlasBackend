@@ -24,6 +24,7 @@ import {
   toProviderCode,
 } from './external-data-policy.util.js';
 import { ExternalDataRequestResult, ExternalProviderExecutionInput } from '../domain/external-provider.types.js';
+import { contractViolationReason, validateProviderResponse } from '../domain/provider-response.contract.js';
 
 @Injectable()
 export class ExternalDataExecutionService {
@@ -265,7 +266,18 @@ export class ExternalDataExecutionService {
         maxAttempts: policy?.retryMaxAttempts ?? 1,
         baseDelayMs: policy?.retryBackoffSeconds ? policy.retryBackoffSeconds * 1000 : 200,
       });
-      const observations = await adapter.normalize(raw, executionInput);
+      // Un 200 con el contrato roto NO puede seguir hacia `normalize()`.
+      //
+      // Los normalizadores rellenan lo que falta —`num(payload.matchScore) ?? 0`,
+      // `bool(payload.documentExists) ?? status === 'FOUND'`— así que una respuesta `{"status":
+      // "FOUND"}` sin un solo dato de la verificación salía del pipeline como cinco observaciones
+      // bien formadas, indistinguibles de una identidad de baja coincidencia. El cambio
+      // incompatible de un proveedor no rompía nada: degradaba en silencio la evidencia de un
+      // expediente KYC. Ahora es un fallo identificable, con los campos que faltaron, y sin
+      // observaciones inventadas.
+      const contractViolations = validateProviderResponse(providerCode, raw.payload, String(raw.status));
+      const contractBroken = contractViolations.length > 0;
+      const observations = contractBroken ? [] : await adapter.normalize(raw, executionInput);
       const features = featuresFromObservations(observations);
       const missingFeaturesJson = observations
         .filter((observation) => observation.valueString === 'DATA_NOT_AVAILABLE')
@@ -273,10 +285,12 @@ export class ExternalDataExecutionService {
           acc[observation.featureKey] = 'DATA_NOT_AVAILABLE';
           return acc;
         }, {});
-      const status = statusFromRaw(raw);
+      const status = contractBroken ? 'FAILED' : statusFromRaw(raw);
       const redactedPayload = redactSensitiveObject(raw.payload) as Record<string, unknown>;
       const responseHash = sha256Hex(stableStringify(redactedPayload));
-      const manualReviewRequired = observations.some((observation) => observation.manualReviewRequired === true);
+      // Sin observaciones no hay quien pida revisión manual, y una respuesta que no se pudo
+      // interpretar es exactamente el caso que un humano tiene que mirar.
+      const manualReviewRequired = contractBroken || observations.some((observation) => observation.manualReviewRequired === true);
 
       await this.sequelize.transaction(async (transaction) => {
         await this.repository.updateProviderRequest(
@@ -288,7 +302,15 @@ export class ExternalDataExecutionService {
             respondedAt: new Date(),
             providerRequestRef: raw.providerReference,
             actualCostAmount: policy ? String(policy.unitCostAmount) : undefined,
-            metadataJson: { providerCode, isMocked: raw.isMocked, scenario: input.body.scenario ?? null },
+            errorMessageSafe: contractBroken ? contractViolationReason(contractViolations) : undefined,
+            metadataJson: {
+              providerCode,
+              isMocked: raw.isMocked,
+              scenario: input.body.scenario ?? null,
+              // Los campos concretos que faltaron quedan en la evidencia: sin ellos, diagnosticar
+              // un cambio de contrato del proveedor obliga a reproducir la llamada.
+              ...(contractBroken ? { contractViolations } : {}),
+            },
           },
           { transaction },
         );
@@ -341,7 +363,7 @@ export class ExternalDataExecutionService {
         // El veredicto del proveedor viaja aparte del estado de ejecución: `status` colapsa a MOCKED
         // toda respuesta simulada, así que quien decide identidad/crédito lo perdería.
         providerVerdict: String(raw.status),
-        reasonCode: String(raw.payload.reasonCode ?? raw.status),
+        reasonCode: contractBroken ? contractViolationReason(contractViolations) : String(raw.payload.reasonCode ?? raw.status),
         observations,
         features,
         manualReviewRequired,

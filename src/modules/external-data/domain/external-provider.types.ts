@@ -3,6 +3,8 @@
  * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
+import type { QaRunContext } from './qa-run-context.js';
+
 export type ExternalProviderMode = 'mock_local' | 'mock_server' | 'sandbox' | 'production' | 'disabled';
 
 export type ExternalProviderCode =
@@ -97,6 +99,12 @@ export type ExternalProviderExecutionInput = {
   requestedByUserId?: string;
   approvedByAdminId?: string;
   mockBaseUrl?: string;
+  /**
+   * Contexto de una corrida del motor QA, cuando esta ejecución viene de una. Es metadata de
+   * CONTROL: no entra en `input`, no cambia el hash del cuerpo y por tanto no altera idempotencia
+   * ni caché. Ver `qa-run-context.ts` para por qué ninguna de esas tres cosas es negociable.
+   */
+  qaContext?: QaRunContext;
 };
 
 export type ExternalProviderRawResult = {
