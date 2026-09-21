@@ -5,9 +5,16 @@
 # pipeline rojo esperando una acción manual.
 version: 2
 
+# `target-branch: dev` en los dos ecosistemas. Sin declararlo, Dependabot propone contra la rama por
+# defecto (`main`), que aquí va 174 commits por detrás: el trabajo vive en `dev`. El efecto no era un
+# PR de más, sino el gate al revés — los cinco PRs abiertos el 24-ago proponían versiones que `dev` ya
+# tenía (`pg` 8.23, `js-yaml` 5.3, `jest` 30, las actions en `@v7`), y con `open-pull-requests-limit: 5`
+# ocupaban TODO el cupo. Es decir: la automatización que existe para adelantarse a un CVE se había
+# quedado sin sitio donde abrir el PR de ese CVE. Se cerraron y esta línea evita que vuelva a pasar.
 updates:
   - package-ecosystem: npm
     directory: '/'
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -52,6 +59,7 @@ updates:
   # El propio pipeline también se versiona: las actions con tag flotante son un vector de supply chain.
   - package-ecosystem: github-actions
     directory: '/'
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
