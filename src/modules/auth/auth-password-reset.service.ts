@@ -3,7 +3,7 @@
  * @business Esta pieza protege el acceso de clientes y operadores, la recuperación de cuenta y la continuidad segura de sesiones.
  * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
  */
-import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { env } from '../../config/env.js';
 import { hashPassword, isSecretValidFor } from '../../common/utils/crypto/password.util.js';
 import { generateNumericCode, hashOneTimeCode, verifyOneTimeCode } from '../../common/utils/crypto/one-time-code.util.js';
@@ -21,6 +21,17 @@ import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
 const PASSWORD_RESET_RESEND_COOLDOWN_MS = 60_000;
 
 /**
+ * Dominio del identificador, para poder nombrar el caso en el log sin escribir el buzón.
+ *
+ * Un correo es dato personal y este texto acaba en el registro del servidor; el dominio basta para
+ * distinguir «escribió una dirección de semilla» de «escribió su correo real».
+ */
+function dominioDe(identifier: string): string {
+  const at = identifier.lastIndexOf('@');
+  return at > 0 ? identifier.slice(at + 1).toLowerCase() : 'sin-dominio';
+}
+
+/**
  * Flujo de "olvidé mi contraseña" en dos pasos (solicitud de código por correo + confirmación con
  * contraseña nueva), extraído de `AuthService` (Fase 2.2 del plan 10/10). Comparte la resolución de
  * actor con `AuthService` a través de `AuthActorResolverService`, así que ambos ven exactamente la
@@ -28,6 +39,8 @@ const PASSWORD_RESET_RESEND_COOLDOWN_MS = 60_000;
  */
 @Injectable()
 export class AuthPasswordResetService {
+  private readonly logger = new Logger(AuthPasswordResetService.name);
+
   constructor(
     private readonly authRepository: AuthRepository,
     private readonly oneTimeCodeRepository: AuthOneTimeCodeRepository,
@@ -53,12 +66,18 @@ export class AuthPasswordResetService {
       throw new ServiceUnavailableException('El servicio de correo no está configurado; no es posible enviar códigos de recuperación.');
     }
 
-    const genericResponse = { requested: true };
     const actor = await this.actorResolver.resolveActorForLogin(input.tenantId, input.actorType, input.identifier);
-    if (!actor || !actor.email) return genericResponse;
+    if (!actor) {
+      return this.sinEnvio(input, 'no hay ningún actor activo de ese tipo con ese identificador en el tenant');
+    }
+    if (!actor.email) {
+      return this.sinEnvio(input, `el actor ${actor.id} existe pero no tiene correo de contacto registrado`);
+    }
 
     const credential = await this.authRepository.findCredentialsByActor(input.actorType, actor.id);
-    if (!credential) return genericResponse;
+    if (!credential) {
+      return this.sinEnvio(input, `el actor ${actor.id} no tiene credencial: nunca fijó una contraseña que restablecer`);
+    }
 
     // Cooldown por destino (mismo patrón que la verificación de contacto en onboarding: se consulta
     // el último código emitido en DB). Si el último código activo se creó hace menos del cooldown,
@@ -66,7 +85,7 @@ export class AuthPasswordResetService {
     // aplicó confirmaría que la cuenta existe (enumeración).
     const activeCode = await this.oneTimeCodeRepository.findActiveOneTimeCodeByActor(input.actorType, actor.id, 'password_reset');
     if (activeCode?.createdAtValue && Date.now() - activeCode.createdAtValue.getTime() < PASSWORD_RESET_RESEND_COOLDOWN_MS) {
-      return genericResponse;
+      return this.sinEnvio(input, `ya se envió un código al actor ${actor.id} hace menos de ${PASSWORD_RESET_RESEND_COOLDOWN_MS / 1000} s`);
     }
 
     const code = generateNumericCode();
@@ -100,7 +119,28 @@ export class AuthPasswordResetService {
       userAgent: input.userAgent,
     });
 
-    return genericResponse;
+    return { requested: true };
+  }
+
+  /**
+   * Respuesta genérica, pero con rastro en el log de POR QUÉ no salió ningún correo.
+   *
+   * La respuesta tiene que ser idéntica exista o no la cuenta —si no, la pantalla pública sirve
+   * para averiguar qué correos están registrados—, y eso deja al operador sin nada: cuatro caminos
+   * distintos (actor inexistente, sin correo, sin credencial, en enfriamiento) contestan lo mismo
+   * que un envío correcto. Medido el 2026-09-21: en DEV y en TEST no se había creado JAMÁS un
+   * código de recuperación, y desde fuera era indistinguible de «el correo se envió y no llegó»;
+   * en TEST la causa era que no existe ni un solo comercio ni cliente al que enviárselo.
+   *
+   * El registro va al servidor, no a la respuesta, así que no filtra nada a quien pregunta, y
+   * nombra el dominio del identificador —nunca el buzón—, que es dato personal.
+   */
+  private sinEnvio(input: { actorType: ActorType; identifier: string; tenantId: string }, motivo: string): { requested: boolean } {
+    this.logger.warn(
+      `Recuperación de contraseña sin envío (actor '${input.actorType}', tenant ${input.tenantId}, ` +
+        `dominio '${dominioDe(input.identifier)}'): ${motivo}.`,
+    );
+    return { requested: true };
   }
 
   /** Segundo paso del reset: código recibido por correo + contraseña nueva. */

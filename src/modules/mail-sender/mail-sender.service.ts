@@ -3,7 +3,7 @@
  * @business Esta pieza entrega comunicaciones transaccionales indispensables para verificación y recuperación de acceso.
  * @system encapsula el cliente HTTP de correo y sus plantillas, timeouts y errores tipados.
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { getRequestProduct } from '../../common/logging/request-context.js';
 import { resolveProductName } from './mail-product.js';
 import { isDeliverableAddress, logUndeliverable } from './mail-recipient.js';
@@ -27,6 +27,8 @@ const FALLBACK_RECIPIENT_NAME = 'Usuario ATLAS';
  */
 @Injectable()
 export class MailSenderService {
+  private readonly logger = new Logger(MailSenderService.name);
+
   constructor(
     private readonly client: MailSenderClient,
     private readonly gmail: GmailMailTransport,
@@ -64,9 +66,30 @@ export class MailSenderService {
       logUndeliverable(input.to, input.template);
       return Promise.resolve({ trackingId: input.reference });
     }
-    if (this.client.isConfigured()) return this.client.sendTemplateEmail(input);
-    if (this.gmail.isConfigured()) return this.gmail.sendTemplateEmail(input);
-    return this.webhook.sendTemplateEmail(input);
+    if (this.client.isConfigured()) return this.despachar('mailsender', input, this.client.sendTemplateEmail(input));
+    if (this.gmail.isConfigured()) return this.despachar('gmail_api', input, this.gmail.sendTemplateEmail(input));
+    return this.despachar('webhook', input, this.webhook.sendTemplateEmail(input));
+  }
+
+  /**
+   * Deja constancia de POR DÓNDE salió cada correo transaccional.
+   *
+   * Los tres transportes contestan igual y la operación que lo pidió no sabe cuál actuó, así que
+   * «el código se envió» y «el código se entregó a un webhook de desarrollo» eran indistinguibles
+   * en el log. Con un despliegue apuntando a `webhook`, todos los códigos de recuperación de un
+   * entorno se van a un recolector y nadie recibe nada, sin un solo error.
+   *
+   * El dominio, nunca el buzón: el destinatario es dato personal.
+   */
+  private async despachar(
+    transporte: string,
+    input: SendTemplateEmailInput,
+    envio: Promise<{ trackingId: string }>,
+  ): Promise<{ trackingId: string }> {
+    const dominio = input.to.slice(input.to.lastIndexOf('@') + 1);
+    const enviado = await envio;
+    this.logger.log(`Correo '${input.template}' entregado a '${transporte}' (dominio '${dominio}', referencia ${input.reference}).`);
+    return enviado;
   }
 
   async sendPasswordResetCode(input: {

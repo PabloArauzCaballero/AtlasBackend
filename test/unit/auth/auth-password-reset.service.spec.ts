@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { hashOneTimeCode } from '../../../src/common/utils/crypto/one-time-code.util.js';
 import { AuthPasswordResetService } from '../../../src/modules/auth/auth-password-reset.service.js';
 
@@ -73,6 +73,52 @@ describe('AuthPasswordResetService', () => {
     expect(res).toEqual({ requested: true });
     expect(authRepository.createOneTimeCode).not.toHaveBeenCalled();
     expect(mailSenderService.sendPasswordResetCode).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Los cuatro caminos que no envían nada contestan lo mismo que un envío correcto —tiene que ser
+   * así o la pantalla pública delata qué correos están registrados—, y hasta el 2026-09-21 no
+   * dejaban ningún rastro: «el comercio no recibe el código» era indistinguible de «ese comercio no
+   * existe en este entorno», que era la causa real en TEST. El motivo va al log del servidor, que
+   * no lo ve quien pregunta, y nombra el DOMINIO y nunca el buzón, que es PII.
+   */
+  it('requestPasswordReset deja en el log por qué no envió nada, sin escribir el buzón', async () => {
+    const avisos: string[] = [];
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(((mensaje: unknown) => {
+      avisos.push(String(mensaje));
+    }) as never);
+    try {
+      const sinActor = build();
+      await sinActor.service.requestPasswordReset(baseInput);
+
+      const sinCorreo = build();
+      (sinCorreo.actorResolver.resolveActorForLogin as jest.Mock).mockResolvedValueOnce({ ...actorWithEmail, email: null } as never);
+      await sinCorreo.service.requestPasswordReset(baseInput);
+
+      const sinCredencial = build();
+      (sinCredencial.actorResolver.resolveActorForLogin as jest.Mock).mockResolvedValueOnce(actorWithEmail as never);
+      (sinCredencial.authRepository.findCredentialsByActor as jest.Mock).mockResolvedValueOnce(null as never);
+      await sinCredencial.service.requestPasswordReset(baseInput);
+
+      const enEnfriamiento = build();
+      (enEnfriamiento.actorResolver.resolveActorForLogin as jest.Mock).mockResolvedValueOnce(actorWithEmail as never);
+      (enEnfriamiento.authRepository.findActiveOneTimeCodeByActor as jest.Mock).mockResolvedValueOnce({
+        createdAtValue: new Date(),
+      } as never);
+      await enEnfriamiento.service.requestPasswordReset(baseInput);
+    } finally {
+      warn.mockRestore();
+    }
+
+    expect(avisos).toHaveLength(4);
+    expect(avisos[0]).toContain('no hay ningún actor activo');
+    expect(avisos[1]).toContain('no tiene correo de contacto');
+    expect(avisos[2]).toContain('no tiene credencial');
+    expect(avisos[3]).toContain('hace menos de 60 s');
+    for (const aviso of avisos) {
+      expect(aviso).toContain("dominio 'mail.com'");
+      expect(aviso).not.toContain('ana@');
+    }
   });
 
   it('requestPasswordReset (feliz) crea el código, envía el correo y registra el evento', async () => {
