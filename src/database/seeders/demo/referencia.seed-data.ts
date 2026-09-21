@@ -4,6 +4,9 @@
  * @system define seeders para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
  */
 import { refA, type DominioSembrado } from './tipos.js';
+import { bloquesDeFlujos } from './workflow-catalog-flujos.js';
+import { FLUJO_CLIENTE_COMPLETO } from './flujo-cliente-completo.seed-data.js';
+import { FLUJO_CLIENTE_PARTNER } from './flujo-cliente-partner.seed-data.js';
 
 /**
  * Estas 340 filas NO son datos de demostración: son el CATÁLOGO con el que el backend funciona.
@@ -8529,5 +8532,16 @@ export const REFERENCIA: DominioSembrado = {
         },
       ],
     },
+    /*
+     * Los recorridos COMPLETOS: el del cliente y el que lo cruza con el comercio.
+     *
+     * Van al final del arreglo, y no es cosmético: las referencias naturales se resuelven en orden,
+     * y estos bloques apuntan a las etapas y pasos que ellos mismos crean unas líneas antes.
+     *
+     * Se declaran como ÁRBOL y `bloquesDeFlujos` deriva las cuatro tablas. Escritos a mano serían
+     * unas cuatro mil líneas donde el noventa por ciento es la misma referencia al padre copiada, y
+     * un `stage_code` mal tecleado tumba la siembra con un mensaje que no dice cuál.
+     */
+    ...bloquesDeFlujos([FLUJO_CLIENTE_COMPLETO, FLUJO_CLIENTE_PARTNER]),
   ],
 };

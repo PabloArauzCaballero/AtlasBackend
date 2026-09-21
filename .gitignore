@@ -44,3 +44,9 @@ var/
 # ninguna y quedaba listo para commitear. Se invierte: se ignora todo y se readmiten los ejemplos.
 .env*
 !.env*.example
+
+# Evidencia de corridas del motor QA: se conserva la ULTIMA, no el historial.
+# Una corrida intermedia documenta una iteracion del motor, no un hecho del producto.
+evidencia/qa-personas/*
+!evidencia/qa-personas/README.md
+!evidencia/qa-personas/qa-run-*.json
