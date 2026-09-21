@@ -20,6 +20,8 @@ import { filesEnvShape } from './env.files.schema.js';
 import { runtimeJobsEnvShape } from './env.runtime-jobs.schema.js';
 import { pushProviderEnvShape } from './env.push.schema.js';
 import { twilioProviderEnvShape } from './env.twilio.schema.js';
+import { brevoProviderEnvShape } from './env.brevo.schema.js';
+import { metaWhatsAppProviderEnvShape } from './env.meta-whatsapp.schema.js';
 
 export const DEFAULT_JWT_SECRET = 'dev-only-atlas-access-token-secret-change-me';
 export const DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY = 'change-this-32-plus-character-key-for-device-tokens';
@@ -213,8 +215,8 @@ export const envBaseSchema = z.object({
 
   NOTIFICATION_EMAIL_PROVIDER: z.enum(['disabled', 'resend', 'sendgrid', 'gmail_api', 'webhook']).default('disabled'),
   NOTIFICATION_PUSH_PROVIDER: z.enum(['disabled', 'fcm', 'webhook']).default('disabled'),
-  NOTIFICATION_SMS_PROVIDER: z.enum(['disabled', 'twilio', 'webhook']).default('disabled'),
-  NOTIFICATION_WHATSAPP_PROVIDER: z.enum(['disabled', 'meta_cloud', 'twilio', 'webhook']).default('disabled'),
+  NOTIFICATION_SMS_PROVIDER: z.enum(['disabled', 'twilio', 'brevo', 'webhook']).default('disabled'),
+  NOTIFICATION_WHATSAPP_PROVIDER: z.enum(['disabled', 'meta_cloud', 'twilio', 'brevo', 'webhook']).default('disabled'),
   NOTIFICATION_PHONE_PROVIDER: z.enum(['disabled', 'webhook']).default('disabled'),
   NOTIFICATION_WEBHOOK_URL: optionalUrlEnvSchema,
   NOTIFICATION_EMAIL_WEBHOOK_URL: optionalUrlEnvSchema,
@@ -251,10 +253,8 @@ export const envBaseSchema = z.object({
   GMAIL_FROM_NAME: z.string().trim().max(80).default('ATLAS'),
   ...pushProviderEnvShape,
   ...twilioProviderEnvShape,
-  META_WHATSAPP_TOKEN: z.string().optional(),
-  META_WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
-  META_WHATSAPP_DEFAULT_TEMPLATE_NAME: z.string().optional(),
-  META_WHATSAPP_DEFAULT_TEMPLATE_LANGUAGE: z.string().default('es'),
+  ...brevoProviderEnvShape,
+  ...metaWhatsAppProviderEnvShape,
   NOTIFICATION_TOKEN_ENCRYPTION_KEY: z.string().min(32).default(DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY),
   IDEMPOTENCY_FINGERPRINT_SECRET: z.string().min(32).optional().or(z.literal('')), // huella de idempotencia (AT-010); vacío = derivado
 

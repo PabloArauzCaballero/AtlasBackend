@@ -10,6 +10,7 @@ import { failedDelivery, getFirstDeliveryTarget, postForm, postJson, sentDeliver
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
 import { NotificationProviderConfigService } from './notification-provider-config.service.js';
 import { toE164, twilioAuthHeader, twilioErrorDetails } from './twilio/twilio-request.util.js';
+import { BREVO_API_BASE, brevoAuthHeader, brevoErrorDetails, brevoMessageId, toBrevoNumber } from './brevo/brevo-request.util.js';
 
 @Injectable()
 export class SmsNotificationAdapter implements NotificationChannelAdapter {
@@ -36,6 +37,7 @@ export class SmsNotificationAdapter implements NotificationChannelAdapter {
     const to = getFirstDeliveryTarget(message, 'phone');
     if (!to) return failedDelivery(provider, 'MISSING_SMS_RECIPIENT', 'El payload no contiene phone, toPhone, recipientPhone ni smsTo.');
     if (provider === 'webhook') return this.sendWebhook(message, to);
+    if (provider === 'brevo') return this.sendBrevo(message, to);
     if (provider !== 'twilio') return failedDelivery(provider, 'UNSUPPORTED_SMS_PROVIDER', `Proveedor SMS no soportado: ${provider}`);
     return this.sendTwilio(message, to);
   }
@@ -78,6 +80,47 @@ export class SmsNotificationAdapter implements NotificationChannelAdapter {
     if (detalle.permanent)
       return failedDelivery('twilio_sms', 'TWILIO_SMS_RECIPIENT_REJECTED', `Twilio rechazó el destinatario${sufijo}.`, body);
     return failedDelivery('twilio_sms', 'TWILIO_SMS_SEND_FAILED', `Twilio respondió HTTP ${status}.${sufijo}`, body);
+  }
+
+  /**
+   * Un SMS por Brevo.
+   *
+   * Dos diferencias con Twilio que no se ven en la firma y cuestan una tarde cada una: el
+   * destinatario va SIN `+` (`59170000000`) y la URL de estado viaja en el propio envío (`webUrl`)
+   * en vez de registrarse en el panel. Lo segundo es deliberado: así cada despliegue apunta a su
+   * entorno sin que dev pise los avisos de test, que es justo lo que pasa con un webhook por cuenta.
+   */
+  private async sendBrevo(message: NotificationMessagePayload, to: string): Promise<DeliveryResult> {
+    const config = this.config.getBrevoSmsConfig();
+    if (!config.ok) return failedDelivery('brevo_sms', config.missing, `Falta configuración de Brevo: ${config.missing}.`);
+    const destino = toBrevoNumber(to, config.value.defaultCountryCode);
+    if (!destino) return failedDelivery('brevo_sms', 'INVALID_SMS_RECIPIENT', `El destinatario "${to}" no tiene forma de teléfono.`);
+
+    const response = await postJson(
+      this.executor,
+      'brevo_sms',
+      `${BREVO_API_BASE}/transactionalSMS/send`,
+      brevoAuthHeader(config.value.apiKey),
+      {
+        sender: config.value.sender,
+        recipient: destino,
+        content: message.body,
+        // `transactional` y no `marketing`: un código de verificación no se manda a la cola de
+        // marketing, que respeta horarios y listas de baja. Brevo cobra y enruta distinto los dos.
+        type: 'transactional',
+        ...(config.value.statusCallbackUrl ? { webUrl: config.value.statusCallbackUrl } : {}),
+      },
+    );
+    if (!response.ok) return this.brevoFailure(response.status, response.json);
+    return sentDelivery('brevo_sms', brevoMessageId(response.json.messageId), response.json);
+  }
+
+  /** Un fallo de Brevo, separando «ese número no va a recibir» de «vuelve a intentarlo». */
+  private brevoFailure(status: number, body: Record<string, unknown>): DeliveryResult {
+    const detalle = brevoErrorDetails(body);
+    const sufijo = detalle.code ? ` (Brevo ${detalle.code}: ${detalle.message ?? 'sin detalle'})` : '';
+    if (detalle.permanent) return failedDelivery('brevo_sms', 'BREVO_SMS_RECIPIENT_REJECTED', `Brevo rechazó el envío${sufijo}.`, body);
+    return failedDelivery('brevo_sms', 'BREVO_SMS_SEND_FAILED', `Brevo respondió HTTP ${status}.${sufijo}`, body);
   }
 
   private async sendWebhook(message: NotificationMessagePayload, to: string): Promise<DeliveryResult> {

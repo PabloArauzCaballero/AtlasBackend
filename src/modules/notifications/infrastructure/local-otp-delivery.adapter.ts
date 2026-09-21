@@ -8,6 +8,7 @@
 import { Injectable } from '@nestjs/common';
 import { MailSenderService } from '../../mail-sender/mail-sender.service.js';
 import type { NotificationChannelAdapter } from '../adapters/notification-channel-adapter.js';
+import { otpMessageBody, otpMessagePayload } from '../otp-message.util.js';
 import { SmsNotificationAdapter } from '../adapters/sms.adapter.js';
 import { WhatsAppNotificationAdapter } from '../adapters/whatsapp.adapter.js';
 import {
@@ -79,8 +80,9 @@ export class LocalOtpDeliveryAdapter implements OtpDeliveryPort {
         channel: request.channel,
         subject: null,
         title: 'ATLAS',
-        body: `Tu código de verificación ATLAS es ${request.code}. Vence en ${request.ttlMinutes} minutos.`,
-        payload: { reference: request.reference },
+        body: otpMessageBody(request.code, request.ttlMinutes),
+        // El código va TAMBIÉN como hueco de plantilla: por WhatsApp el texto libre no sale.
+        payload: otpMessagePayload(request.reference, request.code, request.ttlMinutes),
         correlationId: null,
         deliveryTargets: [{ address: request.destination, kind: request.channel === 'sms' ? 'phone' : 'whatsapp' }],
       });

@@ -1,9 +1,9 @@
 /**
  * @file Controlador HTTP: expone endpoints y delega la lógica a servicios.
- * @business Esta pieza recibe de Twilio y de SendGrid el desenlace de cada envío y lo deja registrado.
+ * @business Esta pieza recibe de Twilio, SendGrid y Brevo el desenlace de cada envío y lo deja registrado.
  * @system verifica la firma del proveedor antes de tocar nada y contesta 2xx aunque el aviso no aplique.
  */
-import { Body, Controller, Headers, HttpCode, HttpStatus, Post, Req, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, HttpStatus, Param, Post, Req, UnauthorizedException } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiExcludeController } from '@nestjs/swagger';
 import type { Request } from 'express';
@@ -15,6 +15,7 @@ import {
   SENDGRID_SIGNATURE_HEADER,
   SENDGRID_TIMESTAMP_HEADER,
 } from './adapters/sendgrid/sendgrid-signature.util.js';
+import { isValidBrevoWebhookSecret } from './adapters/brevo/brevo-webhook-secret.util.js';
 import { NotificationProviderCallbacksService } from './notification-provider-callbacks.service.js';
 
 /**
@@ -65,6 +66,29 @@ export class NotificationProviderCallbacksController {
       throw new UnauthorizedException('FIRMA_TWILIO_INVALIDA');
     }
     return this.callbacks.applyTwilioStatus(body ?? {});
+  }
+
+  /**
+   * `POST /internal/notifications/brevo-sms-events/:secreto`: Brevo avisa cómo terminó un SMS.
+   *
+   * El secreto va en la RUTA y no en una cabecera porque Brevo no deja añadir cabeceras al `webUrl`
+   * de un mensaje —ni firma el cuerpo—, así que la URL entera es la credencial. De ahí que sea la
+   * única ruta de este controlador con parámetro: no es un identificador, es el secreto.
+   *
+   * Un aviso con secreto que no cuadra es 401 y no se mira el cuerpo. Sin secreto configurado,
+   * también 401: cerrado, nunca abierto.
+   */
+  @Post('brevo-sms-events/:secreto')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(WEBHOOK_RATE_LIMIT)
+  async brevoSmsEvents(
+    @Param('secreto') secreto: string,
+    @Body() body: Record<string, unknown>,
+  ): Promise<{ applied: boolean; reason: string }> {
+    if (!isValidBrevoWebhookSecret(this.config.getBrevoWebhookSecret(), secreto)) {
+      throw new UnauthorizedException('CALLBACK_BREVO_NO_AUTORIZADO');
+    }
+    return this.callbacks.applyBrevoSmsEvent(body ?? {});
   }
 
   /**

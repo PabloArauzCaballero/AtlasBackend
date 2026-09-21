@@ -110,6 +110,42 @@ function checkTwilioProviders(data: RawAppEnv, requireWhen: RequireWhen): void {
   );
 }
 
+/**
+ * Brevo: una sola clave para los dos canales, y cada canal con lo suyo.
+ *
+ * `BREVO_WHATSAPP_DEFAULT_TEMPLATE_ID` se exige aunque la API lo acepte vacío: WhatsApp sólo admite
+ * texto libre dentro de las 24 h siguientes a que la persona escriba primero, y ATLAS no recibe
+ * WhatsApp entrante. Sin plantilla, TODO lo que saliera por ese canal lo rechazaría Meta de uno en
+ * uno, que es exactamente el estado que estas comprobaciones existen para evitar.
+ */
+function checkBrevoProviders(data: RawAppEnv, requireWhen: RequireWhen): void {
+  const usaBrevo = data.NOTIFICATION_SMS_PROVIDER === 'brevo' || data.NOTIFICATION_WHATSAPP_PROVIDER === 'brevo';
+  requireWhen(usaBrevo, 'BREVO_API_KEY', 'BREVO_API_KEY es requerido cuando SMS o WhatsApp usan Brevo.');
+  requireWhen(
+    data.NOTIFICATION_SMS_PROVIDER === 'brevo',
+    'BREVO_SMS_SENDER',
+    'BREVO_SMS_SENDER es requerido cuando NOTIFICATION_SMS_PROVIDER=brevo.',
+  );
+  requireWhen(
+    data.NOTIFICATION_WHATSAPP_PROVIDER === 'brevo',
+    'BREVO_WHATSAPP_SENDER_NUMBER',
+    'BREVO_WHATSAPP_SENDER_NUMBER es requerido cuando NOTIFICATION_WHATSAPP_PROVIDER=brevo.',
+  );
+  requireWhen(
+    data.NOTIFICATION_WHATSAPP_PROVIDER === 'brevo',
+    'BREVO_WHATSAPP_DEFAULT_TEMPLATE_ID',
+    'BREVO_WHATSAPP_DEFAULT_TEMPLATE_ID es requerido cuando NOTIFICATION_WHATSAPP_PROVIDER=brevo: ' +
+      'un mensaje iniciado por la empresa siempre va por plantilla aprobada.',
+  );
+  // El callback es opcional (sin él el estado se queda en «enviado»), pero pedirlo SIN secreto es
+  // pedir que el endpoint conteste 401 a cada aviso: se quedaría igual de mudo y encima con ruido.
+  requireWhen(
+    Boolean(data.BREVO_SMS_STATUS_CALLBACK_URL),
+    'BREVO_WEBHOOK_SECRET',
+    'BREVO_WEBHOOK_SECRET es requerido cuando se configura BREVO_SMS_STATUS_CALLBACK_URL: Brevo no firma sus webhooks.',
+  );
+}
+
 /** WhatsApp por Meta Cloud API. */
 function checkMetaWhatsAppProvider(data: RawAppEnv, requireWhen: RequireWhen): void {
   requireWhen(
@@ -141,6 +177,7 @@ export function checkNotificationProviders(data: RawAppEnv, requireWhen: Require
   checkEmailProvider(data, requireWhen);
   checkPushProvider(data, requireWhen);
   checkTwilioProviders(data, requireWhen);
+  checkBrevoProviders(data, requireWhen);
   checkMetaWhatsAppProvider(data, requireWhen);
   checkWebhookUrls(data, requireWebhook);
 }

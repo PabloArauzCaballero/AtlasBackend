@@ -55,3 +55,26 @@ export function sendGridBaseMessageId(sgMessageId: unknown): string | null {
   if (typeof sgMessageId !== 'string' || sgMessageId.trim().length === 0) return null;
   return sgMessageId.trim().split('.')[0] ?? null;
 }
+
+/**
+ * Qué significa cada `msg_status` del webhook de SMS de Brevo.
+ *
+ * Brevo no manda un campo `event`: el desenlace viaja en `msg_status`, y sus valores no son los de
+ * nadie más (`bl` es «lista negra», `rej` es «rechazado», y el guion bajo de `hard_bounce` no está
+ * en la versión de correo). Confundirlos no da error: da un estado que nunca se escribe.
+ *
+ * `soft_bounce` devuelve `null` a propósito, por la misma razón que `deferred` en SendGrid: es un
+ * «ahora no» del operador —teléfono apagado, fuera de cobertura— y el mensaje todavía puede llegar.
+ * Marcarlo como fallo daría por perdido un SMS que aún está en camino, y como gana el PRIMER estado
+ * terminal, el `delivered` posterior ya no podría corregirlo.
+ *
+ * `unsubscribed` tampoco es un fallo de entrega: ESE mensaje llegó. Es un motivo para dejar de
+ * escribir a ese número, que es una decisión de otra pieza, no el desenlace de esta entrega.
+ */
+export function brevoSmsOutcome(msgStatus: string | undefined, errorCode?: string | null): ProviderOutcome | null {
+  const normalizado = msgStatus?.trim().toLowerCase();
+  if (normalizado === 'delivered') return { status: 'delivered', errorCode: null };
+  if (normalizado === 'hard_bounce' || normalizado === 'bl' || normalizado === 'rej' || normalizado === 'skip')
+    return { status: 'failed', errorCode: errorCode ? `BREVO_${errorCode}` : `BREVO_${normalizado.toUpperCase()}` };
+  return null;
+}

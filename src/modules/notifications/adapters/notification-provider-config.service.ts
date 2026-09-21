@@ -7,11 +7,18 @@ import { Injectable } from '@nestjs/common';
 import { env } from '../../../config/env.js';
 import { NotificationChannel } from '../notification-types.js';
 import { twilioSender, type TwilioSender } from './twilio/twilio-request.util.js';
+import {
+  resolveBrevoSmsConfig,
+  resolveBrevoWhatsAppConfig,
+  type BrevoEnvSource,
+  type BrevoSmsConfigResult,
+  type BrevoWhatsAppConfigResult,
+} from './brevo/brevo-config.util.js';
 
 export type EmailProvider = 'disabled' | 'resend' | 'sendgrid' | 'gmail_api' | 'webhook';
 export type PushProvider = 'disabled' | 'fcm' | 'webhook';
-export type SmsProvider = 'disabled' | 'twilio' | 'webhook';
-export type WhatsAppProvider = 'disabled' | 'meta_cloud' | 'twilio' | 'webhook';
+export type SmsProvider = 'disabled' | 'twilio' | 'brevo' | 'webhook';
+export type WhatsAppProvider = 'disabled' | 'meta_cloud' | 'twilio' | 'brevo' | 'webhook';
 export type PhoneProvider = 'disabled' | 'webhook';
 
 export type GmailCredentials = { clientId: string; clientSecret: string; refreshToken: string; fromEmail: string };
@@ -150,6 +157,45 @@ export class NotificationProviderConfigService {
         replyToEmail: env.SENDGRID_REPLY_TO_EMAIL?.trim() || null,
       },
     };
+  }
+
+  /**
+   * Las variables de Brevo, en un solo sitio.
+   *
+   * La resolución vive en `brevo-config.util.ts` y esto sólo le acerca los valores: así se puede
+   * ejercitar «falta la clave» o «falta el remitente» sin recargar el módulo de configuración, que
+   * resuelve `env` UNA vez al importarse.
+   */
+  private brevoSource(): BrevoEnvSource {
+    return {
+      apiKey: env.BREVO_API_KEY,
+      smsSender: env.BREVO_SMS_SENDER,
+      statusCallbackUrl: env.BREVO_SMS_STATUS_CALLBACK_URL,
+      whatsappSenderNumber: env.BREVO_WHATSAPP_SENDER_NUMBER,
+      whatsappDefaultTemplateId: env.BREVO_WHATSAPP_DEFAULT_TEMPLATE_ID,
+      defaultCountryCode: env.NOTIFICATION_DEFAULT_COUNTRY_CODE,
+    };
+  }
+
+  /** Configuración de Brevo para SMS, o qué falta. */
+  getBrevoSmsConfig(): BrevoSmsConfigResult {
+    return resolveBrevoSmsConfig(this.brevoSource());
+  }
+
+  /** Configuración de Brevo para WhatsApp, o qué falta. */
+  getBrevoWhatsAppConfig(): BrevoWhatsAppConfigResult {
+    return resolveBrevoWhatsAppConfig(this.brevoSource());
+  }
+
+  /**
+   * El secreto que ATLAS espera en la URL del callback de Brevo, o `null`.
+   *
+   * Brevo no firma nada —ni HMAC, ni JWT, ni cabecera—, así que lo único que distingue su aviso del
+   * de cualquiera es que conozca una URL que nadie más conoce. Sin secreto configurado el endpoint
+   * contesta 401: cerrado, no abierto.
+   */
+  getBrevoWebhookSecret(): string | null {
+    return env.BREVO_WEBHOOK_SECRET?.trim() || null;
   }
 
   /** La llave pública con la que SendGrid firma sus eventos, o `null` si el webhook no está activo. */

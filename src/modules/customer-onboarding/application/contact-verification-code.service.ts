@@ -256,6 +256,12 @@ export class ContactVerificationCodeService {
       const adapter: NotificationChannelAdapter = input.channel === 'sms' ? this.smsAdapter : this.whatsappAdapter;
       // Mensaje efímero: no se persiste en `notification_messages` porque su cuerpo contiene el
       // código en claro, y esa tabla es consultable desde el portal interno.
+      //
+      // Este camino es el PREVIO al puerto y en la aplicación no corre: `customer-onboarding.module`
+      // provee `OTP_DELIVERY_PORT` siempre, así que la entrega real la compone Mensajería
+      // (`otp-message.util.ts`), que es quien sabe que un WhatsApp por plantilla necesita el código
+      // como parámetro y no como texto. Aquí no se replica: duplicar los nombres de esos huecos es
+      // exactamente cómo los dos caminos dejarían de coincidir sin que nadie lo note.
       const result = await adapter.send({
         id: reference,
         tenantId: input.tenantId,

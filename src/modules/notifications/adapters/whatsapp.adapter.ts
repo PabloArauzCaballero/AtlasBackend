@@ -10,6 +10,8 @@ import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from 
 import { failedDelivery, getFirstDeliveryTarget, postForm, postJson, sentDelivery } from './http-adapter.util.js';
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
 import { NotificationProviderConfigService } from './notification-provider-config.service.js';
+import { BREVO_API_BASE, brevoAuthHeader, brevoErrorDetails, brevoMessageId, toBrevoNumber } from './brevo/brevo-request.util.js';
+import { brevoTemplateId, brevoTemplateParams } from './brevo/brevo-whatsapp.util.js';
 
 function normalizeWhatsAppNumber(value: string): string {
   return value.replace(/^whatsapp:/, '');
@@ -56,6 +58,7 @@ export class WhatsAppNotificationAdapter implements NotificationChannelAdapter {
       );
     if (provider === 'webhook') return this.sendWebhook(message, to);
     if (provider === 'meta_cloud') return this.sendMetaCloud(message, to);
+    if (provider === 'brevo') return this.sendBrevo(message, to);
     if (provider === 'twilio') return this.sendTwilio(message, to);
     return failedDelivery(provider, 'UNSUPPORTED_WHATSAPP_PROVIDER', `Proveedor WhatsApp no soportado: ${provider}`);
   }
@@ -108,6 +111,55 @@ export class WhatsAppNotificationAdapter implements NotificationChannelAdapter {
     const messages = Array.isArray(response.json.messages) ? response.json.messages : [];
     const first = messages[0] as Record<string, unknown> | undefined;
     return sentDelivery('meta_whatsapp_cloud', typeof first?.id === 'string' ? first.id : null, response.json);
+  }
+
+  /**
+   * Un WhatsApp por Brevo.
+   *
+   * SIEMPRE por plantilla, y no por comodidad: WhatsApp sólo deja escribir texto libre dentro de las
+   * 24 h siguientes a que la persona escriba PRIMERO, y ATLAS no recibe WhatsApp entrante. Todo lo
+   * que sale de aquí —el código de verificación, un aviso, una campaña— lo inicia la empresa, así
+   * que Meta lo rechaza si no viene de una plantilla que ya aprobó. Un despliegue que mandara texto
+   * libre «funcionaría» en las pruebas y fallaría en el primer cliente real.
+   *
+   * El texto del `message.body` viaja igual como respaldo: si un día hay conversación abierta —o
+   * Brevo relaja la regla— el mensaje se entrega igual en vez de no salir.
+   */
+  private async sendBrevo(message: NotificationMessagePayload, to: string): Promise<DeliveryResult> {
+    const config = this.config.getBrevoWhatsAppConfig();
+    if (!config.ok) return failedDelivery('brevo_whatsapp', config.missing, `Falta configuración de Brevo: ${config.missing}.`);
+    const destino = toBrevoNumber(normalizeWhatsAppNumber(to), config.value.defaultCountryCode);
+    if (!destino)
+      return failedDelivery('brevo_whatsapp', 'INVALID_WHATSAPP_RECIPIENT', `El destinatario "${to}" no tiene forma de teléfono.`);
+    const templateId = brevoTemplateId(message.payload.whatsappTemplateId) ?? config.value.defaultTemplateId;
+    if (templateId === null)
+      return failedDelivery(
+        'brevo_whatsapp',
+        'BREVO_WHATSAPP_TEMPLATE_MISSING',
+        'Sin plantilla no hay WhatsApp iniciado por la empresa: configura BREVO_WHATSAPP_DEFAULT_TEMPLATE_ID o manda payload.whatsappTemplateId.',
+      );
+
+    const params = brevoTemplateParams(message.payload);
+    const response = await postJson(
+      this.executor,
+      'brevo_whatsapp',
+      `${BREVO_API_BASE}/whatsapp/sendMessage`,
+      brevoAuthHeader(config.value.apiKey),
+      {
+        senderNumber: toBrevoNumber(config.value.senderNumber, config.value.defaultCountryCode) ?? config.value.senderNumber,
+        contactNumbers: [destino],
+        templateId,
+        ...(Object.keys(params).length > 0 ? { params } : {}),
+        ...(message.body ? { text: message.body } : {}),
+      },
+    );
+    if (!response.ok) {
+      const detalle = brevoErrorDetails(response.json);
+      const sufijo = detalle.code ? ` (Brevo ${detalle.code}: ${detalle.message ?? 'sin detalle'})` : '';
+      const codigo = detalle.permanent ? 'BREVO_WHATSAPP_RECIPIENT_REJECTED' : 'BREVO_WHATSAPP_SEND_FAILED';
+      return failedDelivery('brevo_whatsapp', codigo, `Brevo respondió HTTP ${response.status}.${sufijo}`, response.json);
+    }
+    return sentDelivery('brevo_whatsapp', brevoMessageId(response.json.messageId), response.json);
   }
 
   private async sendTwilio(message: NotificationMessagePayload, to: string): Promise<DeliveryResult> {

@@ -6,11 +6,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NotificationDeliveryStatusRepository } from './notification-delivery-status.repository.js';
 import { SENDGRID_ATLAS_MESSAGE_ARG } from './adapters/sendgrid/sendgrid-mail.util.js';
-import { sendGridBaseMessageId, sendGridOutcome, twilioOutcome } from './adapters/provider-delivery-status.util.js';
+import { brevoSmsOutcome, sendGridBaseMessageId, sendGridOutcome, twilioOutcome } from './adapters/provider-delivery-status.util.js';
 
 /** Los dos canales que salen por Twilio comparten el mismo callback de estado. */
 const TWILIO_PROVIDERS = ['twilio_sms', 'twilio_whatsapp'] as const;
 const SENDGRID_PROVIDER = 'sendgrid';
+/** Los dos canales de Brevo llegan por el MISMO webhook de SMS; WhatsApp no tiene uno propio. */
+const BREVO_PROVIDERS = ['brevo_sms', 'brevo_whatsapp'] as const;
 
 export type CallbackOutcome = { applied: boolean; reason: string };
 
@@ -47,6 +49,29 @@ export class NotificationProviderCallbacksService {
       const delivery = await this.deliveries.findByProviderMessageId(provider, sid);
       if (!delivery) continue;
       const applied = await this.deliveries.applyOutcome(delivery, outcome, readString(params, 'ErrorMessage'), new Date());
+      return { applied, reason: applied ? outcome.status : 'YA_TENIA_ESTADO_FINAL' };
+    }
+    return { applied: false, reason: 'ENTREGA_NO_ENCONTRADA' };
+  }
+
+  /**
+   * Un aviso de estado de Brevo (SMS).
+   *
+   * Llega UNO por evento —no un lote, a diferencia de SendGrid— y Brevo manda varios por mensaje
+   * (`sent`, `accepted`, `delivered`), así que la mayoría de las llamadas no cambian nada: eso es lo
+   * normal. Como con Twilio, ninguna salida es una excepción: un 5xx aquí sólo consigue que Brevo
+   * reintente en bucle un aviso que nunca vamos a poder aplicar.
+   */
+  async applyBrevoSmsEvent(body: Record<string, unknown>): Promise<CallbackOutcome> {
+    const messageId = readString(body, 'messageId', 'message_id');
+    if (!messageId) return { applied: false, reason: 'FALTA_MESSAGE_ID' };
+    const outcome = brevoSmsOutcome(readString(body, 'msg_status') ?? undefined, readString(body, 'error_code'));
+    if (!outcome) return { applied: false, reason: 'ESTADO_NO_TERMINAL' };
+
+    for (const provider of BREVO_PROVIDERS) {
+      const delivery = await this.deliveries.findByProviderMessageId(provider, messageId);
+      if (!delivery) continue;
+      const applied = await this.deliveries.applyOutcome(delivery, outcome, readString(body, 'description', 'reason'), new Date());
       return { applied, reason: applied ? outcome.status : 'YA_TENIA_ESTADO_FINAL' };
     }
     return { applied: false, reason: 'ENTREGA_NO_ENCONTRADA' };

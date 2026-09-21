@@ -87,6 +87,7 @@
     "perf:transition": "tsx test/performance/transition-journey-bench.ts",
     "env:doctor": "tsx scripts/env-doctor.ts",
     "verify:twilio": "tsx scripts/verify-twilio.ts",
+    "verify:brevo": "tsx scripts/verify-brevo.ts",
     "deploy:local": "tools/autodeploy/autodeploy.sh",
     "crypto:reencrypt-pii": "tsx scripts/reencrypt-pii-to-envelope.ts",
     "crypto:reencrypt-pii:dry-run": "tsx scripts/reencrypt-pii-to-envelope.ts --dry-run",
