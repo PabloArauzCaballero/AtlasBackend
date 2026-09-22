@@ -25,6 +25,7 @@ import { ContactVerificationRequestDto, ContactVerificationSubmitDto } from '../
 import { ContactVerificationCodeService } from './contact-verification-code.service.js';
 import { ContactVerificationJournalService } from './contact-verification-journal.service.js';
 import { ContactMethodResolutionService } from './contact-method-resolution.service.js';
+import { resolveOtpFallbackEmail } from './otp-fallback-email.util.js';
 
 /** Vigencia del código, alineada con la del emisor (`AUTH_ONE_TIME_CODE_TTL_MINUTES`). */
 const TTL_MS = env.AUTH_ONE_TIME_CODE_TTL_MINUTES * 60_000;
@@ -140,6 +141,13 @@ export class CustomerContactVerificationService {
       customerId: input.customerId,
       channel: input.body.verificationChannel,
       issued: issuedContext.issued,
+      // Sólo se resuelve si el despliegue la tiene encendida; ver `otp-fallback-email.util.ts`.
+      fallbackEmail: await resolveOtpFallbackEmail(this.onboardingRepository, {
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        contactType: input.body.contactType,
+        habilitada: env.OTP_SMS_FALLBACK_TO_EMAIL,
+      }),
     });
 
     if (!delivery.delivered) {
@@ -160,6 +168,9 @@ export class CustomerContactVerificationService {
       contactMethodId: issuedContext.contactMethodId,
       // Refleja lo que realmente pasó con el proveedor, no un optimismo fijo.
       deliveryStatus: delivery.delivered ? 'sent' : 'delivery_failed',
+      // Por dónde salió DE VERDAD: con la reserva encendida, un código de teléfono puede haber
+      // salido por correo, y la pantalla tiene que poder decirlo en vez de mandar a mirar el móvil.
+      deliveredChannel: delivery.channel ?? input.body.verificationChannel,
       expiresAt: new Date(now.getTime() + TTL_MS).toISOString(),
     };
   }

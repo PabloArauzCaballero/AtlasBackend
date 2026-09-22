@@ -54,13 +54,46 @@ export class LocalOtpDeliveryAdapter implements OtpDeliveryPort {
     ]);
   }
 
+  /**
+   * La reserva por correo: sólo cuando el canal pedido FALLÓ y hay un correo autorizado.
+   *
+   * Tres condiciones, y las tres importan. No se usa si el envío salió (obvio). No se usa si el
+   * resultado es INCIERTO —el proveedor pudo haber aceptado y mandar dos códigos por dos canales
+   * deja a la persona sin saber cuál escribir—. Y no se usa para el propio correo: si el correo es
+   * el canal que falló, repetirlo es repetir el mismo fallo.
+   *
+   * Si la reserva tampoco sale, gana el fallo ORIGINAL: es el que explica por qué no llegó nada.
+   */
+  private async conReserva(request: OtpDeliveryRequest, outcome: OtpDeliveryOutcome): Promise<OtpDeliveryOutcome> {
+    const correo = request.fallbackEmail?.trim();
+    if (outcome.delivered || outcome.uncertain || request.channel === 'email' || !correo) return outcome;
+    if (!this.mail.isEnabled()) return outcome;
+    try {
+      await this.mail.sendContactVerificationCode({
+        to: correo,
+        code: request.code,
+        ttlMinutes: request.ttlMinutes,
+        reference: request.reference,
+      });
+      return { delivered: true, provider: 'mailsender', errorCode: null, uncertain: false, channel: 'email' };
+    } catch {
+      return outcome;
+    }
+  }
+
   async deliver(request: OtpDeliveryRequest): Promise<OtpDeliveryOutcome> {
     const now = request.now ?? new Date();
     if (request.expiresAt.getTime() <= now.getTime())
       return { delivered: false, provider: 'none', errorCode: OTP_ERRORS.expired, uncertain: false };
     const capability = this.capabilities().find((entry) => entry.channel === request.channel);
     if (!capability || !capability.available)
-      return { delivered: false, provider: capability?.provider ?? 'none', errorCode: OTP_ERRORS.unsupported, uncertain: false };
+      return this.conReserva(request, {
+        delivered: false,
+        provider: capability?.provider ?? 'none',
+        errorCode: OTP_ERRORS.unsupported,
+        uncertain: false,
+        channel: request.channel,
+      });
     try {
       if (request.channel === 'email') {
         await this.mail.sendContactVerificationCode({
@@ -69,7 +102,7 @@ export class LocalOtpDeliveryAdapter implements OtpDeliveryPort {
           ttlMinutes: request.ttlMinutes,
           reference: request.reference,
         });
-        return { delivered: true, provider: 'mailsender', errorCode: null, uncertain: false };
+        return { delivered: true, provider: 'mailsender', errorCode: null, uncertain: false, channel: 'email' };
       }
       const adapter: NotificationChannelAdapter = request.channel === 'sms' ? this.sms : this.whatsapp;
       const result = await adapter.send({
@@ -87,15 +120,22 @@ export class LocalOtpDeliveryAdapter implements OtpDeliveryPort {
         deliveryTargets: [{ address: request.destination, kind: request.channel === 'sms' ? 'phone' : 'whatsapp' }],
       });
       const delivered = result.status === 'sent' || result.status === 'delivered';
-      return {
+      return this.conReserva(request, {
         delivered,
         provider: result.provider,
         errorCode: delivered ? null : (result.errorCode ?? OTP_ERRORS.failed),
         uncertain: false,
-      };
+        channel: request.channel,
+      });
     } catch (error) {
       const classified = classifyDeliveryError(error);
-      return { delivered: false, provider: capability.provider, errorCode: classified.errorCode, uncertain: classified.uncertain };
+      return this.conReserva(request, {
+        delivered: false,
+        provider: capability.provider,
+        errorCode: classified.errorCode,
+        uncertain: classified.uncertain,
+        channel: request.channel,
+      });
     }
   }
 }

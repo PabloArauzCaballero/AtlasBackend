@@ -32,6 +32,8 @@ export type CodeDeliveryOutcome = {
   delivered: boolean;
   provider: string;
   errorCode: string | null;
+  /** Canal por el que salió de verdad: puede no ser el pedido si actuó la reserva por correo. */
+  channel?: VerificationChannel;
 };
 
 /** Código ya persistido (solo su hash) más lo que hace falta para entregarlo tras el commit. */
@@ -157,12 +159,15 @@ export class ContactVerificationCodeService {
     customerId: string;
     channel: VerificationChannel;
     issued: IssuedCode;
+    /** Correo del mismo cliente al que llevar el código si el canal pedido no entrega. */
+    fallbackEmail?: string | null;
   }): Promise<CodeDeliveryOutcome> {
     if (!input.issued.destination) {
       return { delivered: false, provider: 'none', errorCode: 'CONTACT_VALUE_UNREADABLE' };
     }
 
     return this.deliver({
+      fallbackEmail: input.fallbackEmail ?? null,
       channel: input.channel,
       destination: input.issued.destination,
       code: input.issued.code,
@@ -227,6 +232,7 @@ export class ContactVerificationCodeService {
     ttlMinutes: number;
     tenantId: string;
     customerId: string;
+    fallbackEmail?: string | null;
   }): Promise<CodeDeliveryOutcome> {
     const reference = `contact-verification:${input.customerId}`;
     if (this.otpDelivery) {
@@ -238,9 +244,15 @@ export class ContactVerificationCodeService {
         code: input.code,
         ttlMinutes: input.ttlMinutes,
         expiresAt: new Date(Date.now() + input.ttlMinutes * 60_000),
+        fallbackEmail: input.fallbackEmail ?? null,
         reference,
       });
-      return { delivered: outcome.delivered, provider: outcome.provider, errorCode: outcome.errorCode };
+      return {
+        delivered: outcome.delivered,
+        provider: outcome.provider,
+        errorCode: outcome.errorCode,
+        channel: outcome.channel ?? input.channel,
+      };
     }
     try {
       if (input.channel === 'email') {

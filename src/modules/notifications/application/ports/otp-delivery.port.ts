@@ -21,6 +21,14 @@ export type OtpDeliveryRequest = Readonly<{
   ttlMinutes: number;
   /** Referencia estable del intento (idempotencia del proveedor cuando la soporta). */
   reference: string;
+  /**
+   * Correo del MISMO cliente al que llevar el código si el canal pedido no puede entregarlo.
+   *
+   * Lo resuelve y lo autoriza el propietario del contacto (Onboarding), que es quien sabe que ese
+   * correo es de esta persona; Mensajería no lo busca por su cuenta. Sin valor no hay reserva y un
+   * canal caído sigue siendo un fallo, que es el comportamiento de siempre.
+   */
+  fallbackEmail?: string | null;
   now?: Date;
 }>;
 
@@ -28,6 +36,13 @@ export type OtpDeliveryOutcome = Readonly<{
   delivered: boolean;
   provider: string;
   errorCode: string | null;
+  /**
+   * Canal por el que SALIÓ de verdad, que no siempre es el que se pidió.
+   *
+   * Se devuelve para que quien llama no tenga que deducirlo del `provider`: un código de teléfono
+   * entregado por correo tiene que poder decirse en la pantalla y quedar escrito en el intento.
+   */
+  channel?: OtpChannel;
   /**
    * `true` cuando el proveedor pudo haber enviado (timeout tras aceptar): el llamador reconcilia por
    * `reference` o espera; NO emite un código nuevo ni reenvía con otra clave.

@@ -6,14 +6,17 @@
 import { Injectable } from '@nestjs/common';
 import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';
 import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from '../notification-types.js';
-import { failedDelivery, getFirstDeliveryTarget, postForm, postJson, sentDelivery } from './http-adapter.util.js';
+import { failedDelivery, getFirstDeliveryTarget, getJson, postForm, postJson, sentDelivery } from './http-adapter.util.js';
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
 import { NotificationProviderConfigService } from './notification-provider-config.service.js';
 import { toE164, twilioAuthHeader, twilioErrorDetails } from './twilio/twilio-request.util.js';
 import { BREVO_API_BASE, brevoAuthHeader, brevoErrorDetails, brevoMessageId, toBrevoNumber } from './brevo/brevo-request.util.js';
+import { BrevoSmsCreditCache, smsCreditFromAccount, type BrevoSmsCredit } from './brevo/brevo-sms-credit.util.js';
 
 @Injectable()
 export class SmsNotificationAdapter implements NotificationChannelAdapter {
+  private readonly brevoCredit = new BrevoSmsCreditCache();
+
   constructor(
     private readonly config: NotificationProviderConfigService,
     private readonly executor: ResilientAdapterExecutorService,
@@ -96,6 +99,16 @@ export class SmsNotificationAdapter implements NotificationChannelAdapter {
     const destino = toBrevoNumber(to, config.value.defaultCountryCode);
     if (!destino) return failedDelivery('brevo_sms', 'INVALID_SMS_RECIPIENT', `El destinatario "${to}" no tiene forma de teléfono.`);
 
+    // Sin saldo SMS, Brevo contesta 201 y tira el mensaje: hay que parar ANTES de creerle (ver
+    // `brevo-sms-credit.util.ts`). Sólo se bloquea cuando el saldo se pudo leer y es cero.
+    const saldo = await this.brevoSmsCredit(config.value.apiKey);
+    if (!saldo.canSend)
+      return failedDelivery(
+        'brevo_sms',
+        'BREVO_SMS_NO_CREDITS',
+        'La cuenta de Brevo no tiene crédito de SMS: aceptaría el envío y descartaría el mensaje.',
+      );
+
     const response = await postJson(
       this.executor,
       'brevo_sms',
@@ -113,6 +126,21 @@ export class SmsNotificationAdapter implements NotificationChannelAdapter {
     );
     if (!response.ok) return this.brevoFailure(response.status, response.json);
     return sentDelivery('brevo_sms', brevoMessageId(response.json.messageId), response.json);
+  }
+
+  /**
+   * El saldo SMS de la cuenta, preguntado como mucho una vez cada diez minutos.
+   *
+   * Un fallo al preguntarlo NO bloquea el envío: se cachea como «no se pudo saber» y el mensaje
+   * sigue su curso. Perder códigos porque Brevo tardó en contestar a una consulta de saldo sería
+   * cambiar un problema silencioso por otro peor.
+   */
+  private async brevoSmsCredit(apiKey: string): Promise<BrevoSmsCredit> {
+    const cacheado = this.brevoCredit.read();
+    if (cacheado) return cacheado;
+    const response = await getJson(this.executor, 'brevo_sms', `${BREVO_API_BASE}/account`, brevoAuthHeader(apiKey));
+    if (!response.ok) return this.brevoCredit.write({ canSend: true, credits: null });
+    return this.brevoCredit.write(smsCreditFromAccount(response.json));
   }
 
   /** Un fallo de Brevo, separando «ese número no va a recibir» de «vuelve a intentarlo». */
