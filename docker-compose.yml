@@ -241,6 +241,33 @@ x-atlas-env: &atlas-env
   # define y conserva el default.
   API_RATE_LIMIT_MAX: ${API_RATE_LIMIT_MAX:-2000}
 
+  # Adaptador de archivos. El default del esquema es `minio`; en esta máquina el contenedor minio
+  # no está levantado, así que sin esto la API/worker no arrancan («falta configuración de minio»).
+  # Se toma del `.env` del anfitrión, con el mismo patrón que el resto de este bloque — antes esta
+  # variable no llegaba al contenedor (este archivo no tiene `env_file`) y sólo un override externo
+  # a este repositorio la fijaba.
+  FILE_STORAGE_ADAPTER: ${FILE_STORAGE_ADAPTER:-minio}
+
+  # QA Lab: worker que ejecuta de verdad los planes de stress encolados (`systems_stress_run`).
+  # Sólo tiene efecto en el rol `worker` (el único con `RUNTIME_JOBS_SCHEDULER_ENABLED: 'true'`
+  # más abajo); se pasa también a `api`/`migrate` sin efecto porque ahí el planificador está
+  # apagado, igual que el resto de las variables de trabajos de fondo de este bloque.
+  RUNTIME_JOBS_STRESS_CONSUMER_ENABLED: ${RUNTIME_JOBS_STRESS_CONSUMER_ENABLED:-false}
+  RUNTIME_JOBS_STRESS_CONSUMER_INTERVAL_MS: ${RUNTIME_JOBS_STRESS_CONSUMER_INTERVAL_MS:-30000}
+
+  # Dónde vive el emulador de proveedores externos (AtlasExternalProvidersMock) cuando un proveedor
+  # está en modo `mock_server`. Vacío por defecto = cada adaptador cae a su propio default de
+  # desarrollo (ver `mockBaseUrlFor` en `external-data-policy.util.ts`).
+  EXTERNAL_PROVIDERS_MOCK_BASE_URL: ${EXTERNAL_PROVIDERS_MOCK_BASE_URL:-}
+  SEGIP_MODE: ${SEGIP_MODE:-}
+  INFOCENTER_MODE: ${INFOCENTER_MODE:-}
+  QR_GENERIC_MODE: ${QR_GENERIC_MODE:-}
+  BANKING_GENERIC_MODE: ${BANKING_GENERIC_MODE:-}
+  TELCO_GENERIC_MODE: ${TELCO_GENERIC_MODE:-}
+  FACEBOOK_META_MODE: ${FACEBOOK_META_MODE:-}
+  WHATSAPP_GENERIC_MODE: ${WHATSAPP_GENERIC_MODE:-}
+  DIGITAL_TRUST_GENERIC_MODE: ${DIGITAL_TRUST_GENERIC_MODE:-}
+
 # Sin `container_name`: Compose nombra los contenedores `<proyecto>-<servicio>-<n>`. Un nombre fijo
 # impide levantar dos stacks a la vez, choca con cualquier contenedor homónimo que ya exista en la
 # máquina y —lo decisivo— hace imposible `--scale api=4`, que es justo la razón de separar los roles.
