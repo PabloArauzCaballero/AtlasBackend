@@ -51,6 +51,7 @@ describe('AdminPortal E2E identity seed', () => {
     expect(calls.at(-1)?.sql).toBe('COMMIT');
     const credential = calls.find((call) => call.sql.includes('INSERT INTO iam.auth_credentials'));
     expect(credential).toBeDefined();
+    expect(credential?.sql).toContain('_created_at');
     expect(credential?.values).not.toContain(password);
     expect(await argon2.verify(String(credential?.values?.[0]), password)).toBe(true);
     expect(calls.some((call) => call.sql.includes('INSERT INTO iam.internal_user_roles'))).toBe(true);

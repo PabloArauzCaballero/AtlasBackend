@@ -91,8 +91,8 @@ export async function seedQaIdentity(client: Client, password: string, target: Q
     if (user.rowCount !== 1) throw new Error('Falta el actor QA sintético 930007; ejecute primero db:seed:demo.');
 
     await client.query(
-      `INSERT INTO iam.auth_credentials (_tenant_id, actor_type, actor_id, password_hash, mfa_enabled)
-       VALUES ($2, 'internal_user', $3, $1, true)
+      `INSERT INTO iam.auth_credentials (_tenant_id, actor_type, actor_id, password_hash, mfa_enabled, _created_at)
+       VALUES ($2, 'internal_user', $3, $1, true, now())
        ON CONFLICT (actor_type, actor_id) WHERE _deleted = false
        DO UPDATE SET password_hash = EXCLUDED.password_hash,
                      token_version = iam.auth_credentials.token_version + 1,
