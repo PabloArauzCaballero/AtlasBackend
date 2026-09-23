@@ -2,7 +2,7 @@
 
 ## Decisión
 
-El runner de GitHub crea PostgreSQL y Redis vacíos, migra y ejecuta `db:seed:demo`. Ese seed trae el tenant 1 y datos **sintéticos**, incluidos el actor QA 930007 sin credencial. Este trabajo añade una credencial temporal y el rol `QA_ENGINEER` sólo en la base efímera `atlas_e2e_admin`. El PIN se entrega mediante el transporte webhook existente, con `NODE_ENV=development` y MFA activado. La contraseña la genera el runner en cada corrida y no se versiona ni se imprime.
+El runner de GitHub crea PostgreSQL y Redis vacíos, migra, instala el tenant sintético 1 y ejecuta `db:seed:demo`. Ese seed trae datos **sintéticos**, incluido el actor QA 930007 sin credencial. Este trabajo añade una credencial temporal, crea el rol `QA_ENGINEER` desde el catálogo canónico cuando falta y le asigna sus permisos sólo en la base efímera `atlas_e2e_admin`. El PIN se entrega mediante el transporte webhook existente, con `NODE_ENV=development` y MFA activado. La contraseña la genera el runner en cada corrida y no se versiona ni se imprime.
 
 ## Alcance
 

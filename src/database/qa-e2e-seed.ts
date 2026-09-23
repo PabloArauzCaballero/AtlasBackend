@@ -1,11 +1,22 @@
 /** Identidad sintética usada sólo por el stack efímero de AdminPortal en CI. */
 import type { Client } from 'pg';
 import { hashPassword, isPasswordStrongEnough } from '../common/utils/crypto/password.util.js';
+import { ROLE_PERMISSION_CODES } from '../modules/internal-users/internal-rbac.permissions.js';
+import { INTERNAL_ROLE_SEEDS } from '../modules/internal-users/internal-rbac.roles.js';
 
 export const QA_E2E_EMAIL = 'qa-admin-e2e@atlas-qa.example.com';
 const DEMO_EMAIL = 'paola.iriarte@atlas.demo';
 const QA_USER_ID = 930007;
 const QA_TENANT_ID = 1;
+const QA_PERMISSIONS = ROLE_PERMISSION_CODES.QA_ENGINEER;
+
+function canonicalQaRole(): (typeof INTERNAL_ROLE_SEEDS)[number] {
+  const role = INTERNAL_ROLE_SEEDS.find((candidate) => candidate.code === 'QA_ENGINEER');
+  if (!role) throw new Error('Falta QA_ENGINEER en el catálogo canónico de roles.');
+  return role;
+}
+
+const QA_ROLE = canonicalQaRole();
 
 export interface QaSeedTarget {
   NODE_ENV?: string | undefined;
@@ -35,10 +46,40 @@ export async function seedQaIdentity(client: Client, password: string, target: Q
 
   await client.query('BEGIN');
   try {
-    const role = await client.query<{ _id: string }>(
+    const existingRole = await client.query<{ _id: string }>(
       `SELECT _id FROM iam.internal_roles WHERE role_code = 'QA_ENGINEER' AND status = 'active' AND _deleted = false`,
     );
-    if (role.rows.length !== 1) throw new Error('Falta el rol QA_ENGINEER tras aplicar migraciones.');
+    let roleId = existingRole.rows[0]?._id;
+    if (!roleId) {
+      // Las migraciones sincronizan permisos, pero un cluster vacío no trae roles de la base de
+      // semillas externa. Crear sólo el rol que necesita este actor, desde el catálogo canónico.
+      const createdRole = await client.query<{ _id: string }>(
+        `INSERT INTO iam.internal_roles
+           (role_code, role_name, description, department, legacy_role_code, is_system_role, status, _created_at, _deleted)
+         VALUES ($1, $2, $3, $4, $5, $6, 'active', now(), false)
+         ON CONFLICT (role_code) WHERE _deleted = false
+         DO UPDATE SET status = 'active', _updated_at = now()
+         RETURNING _id`,
+        [QA_ROLE.code, QA_ROLE.name, QA_ROLE.description, QA_ROLE.department, QA_ROLE.legacyRoleCode, QA_ROLE.isSystemRole],
+      );
+      roleId = createdRole.rows[0]?._id;
+      if (!roleId) throw new Error('No se pudo crear el rol QA_ENGINEER sintético.');
+    }
+
+    const permissions = await client.query<{ total: string }>(
+      `SELECT count(*)::text AS total FROM iam.internal_permissions
+        WHERE permission_code = ANY($1::text[]) AND status = 'active' AND _deleted = false`,
+      [QA_PERMISSIONS],
+    );
+    if (Number(permissions.rows[0]?.total) !== QA_PERMISSIONS.length) {
+      throw new Error('El catálogo de permisos QA está incompleto tras las migraciones.');
+    }
+    await client.query(
+      `INSERT INTO iam.internal_role_permissions (role_id, permission_id, _created_at)
+       SELECT $1, _id, now() FROM iam.internal_permissions WHERE permission_code = ANY($2::text[])
+       ON CONFLICT (role_id, permission_id) DO NOTHING`,
+      [roleId, QA_PERMISSIONS],
+    );
 
     const user = await client.query(
       `UPDATE iam.internal_users
@@ -63,7 +104,7 @@ export async function seedQaIdentity(client: Client, password: string, target: Q
       `INSERT INTO iam.internal_user_roles (_tenant_id, internal_user_id, role_id)
        VALUES ($1, $2, $3)
        ON CONFLICT (_tenant_id, internal_user_id, role_id) WHERE revoked_at IS NULL DO NOTHING`,
-      [QA_TENANT_ID, QA_USER_ID, role.rows[0]?._id],
+      [QA_TENANT_ID, QA_USER_ID, roleId],
     );
     await client.query('COMMIT');
   } catch (error) {

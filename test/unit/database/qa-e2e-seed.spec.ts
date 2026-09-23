@@ -1,6 +1,7 @@
 import argon2 from 'argon2';
 import type { Client } from 'pg';
 import { assertQaSeedTarget, QA_E2E_EMAIL, resetQaIdentity, seedQaIdentity } from '../../../src/database/qa-e2e-seed.js';
+import { ROLE_PERMISSION_CODES } from '../../../src/modules/internal-users/internal-rbac.permissions.js';
 
 const safeTarget = {
   NODE_ENV: 'development',
@@ -38,6 +39,8 @@ describe('AdminPortal E2E identity seed', () => {
     const query = jest.fn(async (sql: string, values?: unknown[]) => {
       calls.push({ sql, values });
       if (sql.includes('SELECT _id FROM iam.internal_roles')) return { rows: [{ _id: '17' }], rowCount: 1 };
+      if (sql.includes('SELECT count(*)::text AS total'))
+        return { rows: [{ total: String(ROLE_PERMISSION_CODES.QA_ENGINEER.length) }], rowCount: 1 };
       return { rows: [], rowCount: 1 };
     });
     const password = 'run-generated-password-123!';
@@ -51,6 +54,24 @@ describe('AdminPortal E2E identity seed', () => {
     expect(credential?.values).not.toContain(password);
     expect(await argon2.verify(String(credential?.values?.[0]), password)).toBe(true);
     expect(calls.some((call) => call.sql.includes('INSERT INTO iam.internal_user_roles'))).toBe(true);
+    expect(calls.some((call) => call.sql.includes('INSERT INTO iam.internal_role_permissions'))).toBe(true);
+  });
+
+  it('creates the canonical QA role when a fresh database has no role rows', async () => {
+    const calls: string[] = [];
+    const query = jest.fn(async (sql: string) => {
+      calls.push(sql);
+      if (sql.includes('SELECT _id FROM iam.internal_roles')) return { rows: [], rowCount: 0 };
+      if (sql.includes('INSERT INTO iam.internal_roles')) return { rows: [{ _id: '17' }], rowCount: 1 };
+      if (sql.includes('SELECT count(*)::text AS total'))
+        return { rows: [{ total: String(ROLE_PERMISSION_CODES.QA_ENGINEER.length) }], rowCount: 1 };
+      return { rows: [], rowCount: 1 };
+    });
+
+    await seedQaIdentity({ query } as unknown as Client, 'run-generated-password-123!', safeTarget);
+
+    expect(calls.some((sql) => sql.includes('INSERT INTO iam.internal_roles'))).toBe(true);
+    expect(calls.at(-1)).toBe('COMMIT');
   });
 
   it('resets only the synthetic QA actor within a transaction', async () => {
