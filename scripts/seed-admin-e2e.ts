@@ -1,6 +1,6 @@
 /** Alta y reset explícitos de la identidad QA sintética de AdminPortal. */
 import { Client } from 'pg';
-import { assertQaSeedTarget, resetQaIdentity, seedQaIdentity } from '../src/database/qa-e2e-seed.js';
+import { assertQaSeedTarget, resetQaIdentity, seedQaIdentity, seedQaSchemaCatalog } from '../src/database/qa-e2e-seed.js';
 
 async function main(): Promise<void> {
   const command = process.argv[2];
@@ -25,8 +25,10 @@ async function main(): Promise<void> {
   });
   await client.connect();
   try {
-    if (command === 'up') await seedQaIdentity(client, password as string, target);
-    else await resetQaIdentity(client, target);
+    if (command === 'up') {
+      await seedQaIdentity(client, password as string, target);
+      await seedQaSchemaCatalog(client, target);
+    } else await resetQaIdentity(client, target);
     console.log(`Identidad QA E2E ${command === 'up' ? 'preparada' : 'restaurada'} en la base efímera.`);
   } finally {
     await client.end();

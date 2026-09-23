@@ -1,6 +1,12 @@
 import argon2 from 'argon2';
 import type { Client } from 'pg';
-import { assertQaSeedTarget, QA_E2E_EMAIL, resetQaIdentity, seedQaIdentity } from '../../../src/database/qa-e2e-seed.js';
+import {
+  assertQaSeedTarget,
+  QA_E2E_EMAIL,
+  resetQaIdentity,
+  seedQaIdentity,
+  seedQaSchemaCatalog,
+} from '../../../src/database/qa-e2e-seed.js';
 
 const safeTarget = {
   NODE_ENV: 'development',
@@ -30,7 +36,18 @@ describe('AdminPortal E2E identity seed', () => {
       seedQaIdentity({ query } as unknown as Client, 'run-generated-password-123!', { ...safeTarget, DB_NAME: 'atlas' }),
     ).rejects.toThrow();
     await expect(resetQaIdentity({ query } as unknown as Client, { ...safeTarget, NODE_ENV: 'production' })).rejects.toThrow();
+    await expect(seedQaSchemaCatalog({ query } as unknown as Client, { ...safeTarget, DB_HOST: 'postgres.example.com' })).rejects.toThrow();
     expect(query).not.toHaveBeenCalled();
+  });
+
+  it('rolls back catalog changes when the required version is missing', async () => {
+    const calls: string[] = [];
+    const query = jest.fn(async (sql: string) => {
+      calls.push(sql);
+      return { rows: [], rowCount: 0 };
+    });
+    await expect(seedQaSchemaCatalog({ query } as unknown as Client, safeTarget)).rejects.toThrow(/v1\.0/);
+    expect(calls).toEqual(['BEGIN', expect.stringContaining('SELECT _id FROM schema_versions'), 'ROLLBACK']);
   });
 
   it('stores an Argon2id hash and assigns QA and admin roles in one transaction', async () => {
