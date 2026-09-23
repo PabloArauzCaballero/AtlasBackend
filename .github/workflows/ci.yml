@@ -6,9 +6,9 @@ name: Backend CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   backend:
@@ -207,6 +207,9 @@ jobs:
       # mkdocs-material es ruido, no señal.
       - name: Install documentation toolchain
         run: yarn docs:install
+
+      - name: Verify DEV deployment fails closed on stale SHA, missing read permission and wrong commit
+        run: python .github/tests/test_deploy_gate.py
 
       - name: Regenerate OpenAPI contract from the running application
         run: yarn docs:openapi
@@ -776,3 +779,20 @@ jobs:
             exit 1
           fi
           echo "✅ Todas las migraciones nuevas están dentro del límite de tamaño recomendado."
+
+  deploy-dev:
+    name: Desplegar DEV sólo después de todos los quality gates
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    needs:
+      - backend
+      - contract-and-docs
+      - coverage
+      - db-and-cache-integration
+      - docker-image
+      - dependency-audit
+      - codeql
+      - secret-scan
+      - sbom
+      - migration-check
+    uses: ./.github/workflows/deploy-dev.yml
+    secrets: inherit
