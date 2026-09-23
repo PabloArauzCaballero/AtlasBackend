@@ -416,6 +416,10 @@ TWILIO_AUTH_TOKEN=...
 TWILIO_SMS_FROM=+10000000000
 ```
 
+`OTP_SMS_FALLBACK_TO_EMAIL=false` mantiene apagada la reserva del código OTP por correo cuando
+falla la entrega del SMS. Activarla requiere una decisión explícita por entorno: confirmar el
+correo del cliente no acredita la posesión de su número telefónico.
+
 ## WhatsApp
 
 ### Meta WhatsApp Cloud API
