@@ -181,7 +181,7 @@ export const runtimeJobsEnvShape = {
   // Apagado por defecto y a conciencia: este job genera TRÁFICO HTTP real contra un objetivo
   // registrado. Un entorno que lo encienda sin querer empieza a golpear su propio backend. Se
   // enciende donde se decidió correr carga, no por omisión.
-  RUNTIME_JOBS_STRESS_CONSUMER_ENABLED: z.coerce.boolean().default(false),
+  RUNTIME_JOBS_STRESS_CONSUMER_ENABLED: booleanEnvSchema,
   RUNTIME_JOBS_STRESS_CONSUMER_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
   /** Tope de duración de una tanda del consumidor. Corta la corrida aunque el plan pida más. */
   RUNTIME_JOBS_STRESS_CONSUMER_MAX_RUN_MS: z.coerce.number().int().positive().default(600_000),

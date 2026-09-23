@@ -10,6 +10,7 @@ import { NestFactory } from '@nestjs/core';
 import * as yaml from 'js-yaml';
 import { AppModule } from '../src/app.module.js';
 import { buildOpenApiDocument } from '../src/config/swagger.js';
+import { stableSortOpenApiDocument } from '../src/config/openapi/stable-sort.js';
 
 async function main(): Promise<void> {
   // Este script debe ejecutarse desde JavaScript compilado: tsx/esbuild no emite
@@ -21,7 +22,7 @@ async function main(): Promise<void> {
     abortOnError: false,
     preview: true,
   });
-  const document = buildOpenApiDocument(app);
+  const document = stableSortOpenApiDocument(buildOpenApiDocument(app));
 
   const outputPath = join(process.cwd(), 'docs', 'endpoints', 'openapi.yaml');
   mkdirSync(dirname(outputPath), { recursive: true });
