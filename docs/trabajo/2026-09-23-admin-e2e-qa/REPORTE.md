@@ -6,6 +6,8 @@ Se añadió un comando que crea y revierte la credencial del actor sintético QA
 
 El mismo comando refleja tablas y columnas físicas en la versión `v1.0` del catálogo de esquema dentro de esa base QA. La migración crea la versión, pero deja el inventario vacío; el recorrido E2E de versión, esquema y tabla necesita datos reales. El seed es idempotente y conserva la misma guarda de destino local.
 
+La ejecución real encontró que el refresco del catálogo técnico chocaba al descubrir endpoints ya presentes por el seed curado. `upsertEndpoint` ahora usa la clave física `(system_code, method, full_path)` para conservar una sola fila por ruta y bloque.
+
 ## Evidencia local
 
 - 10 pruebas unitarias del seed: verdes.
