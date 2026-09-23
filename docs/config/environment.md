@@ -231,6 +231,11 @@ RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS=86400000
 RUNTIME_JOBS_IDEMPOTENCY_RETENTION_DAYS=30
 ```
 
+El consumidor de planes de stress genera tráfico HTTP real. Permanece apagado en ambas plantillas;
+sólo debe activarse en un entorno de carga autorizado. Su intervalo y tope por tanda se expresan en
+milisegundos (`RUNTIME_JOBS_STRESS_CONSUMER_INTERVAL_MS=30000` y
+`RUNTIME_JOBS_STRESS_CONSUMER_MAX_RUN_MS=600000`).
+
 `RUNTIME_JOBS_IDEMPOTENCY_RETENTION_DAYS` no baja de 1 a propósito: la ventana de reintento de un
 cliente es de minutos u horas, pero borrar una clave que todavía podría replayearse convertiría un
 reintento en una segunda ejecución del comando. Las claves en `processing` no se tocan nunca.
