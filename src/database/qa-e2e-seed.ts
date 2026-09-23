@@ -131,12 +131,14 @@ export async function seedQaSchemaCatalog(client: Client, target: QaSeedTarget):
   assertQaSeedTarget(target);
   await client.query('BEGIN');
   try {
-    const version = await client.query<{ _id: string }>(`SELECT _id FROM schema_versions WHERE version_code = 'v1.0' AND is_active = true`);
+    const version = await client.query<{ _id: string }>(
+      `SELECT _id FROM platform_ops.schema_versions WHERE version_code = 'v1.0' AND is_active = true`,
+    );
     const versionId = version.rows[0]?._id;
     if (!versionId) throw new Error('Falta la versión v1.0 del catálogo de esquema.');
 
     await client.query(
-      `INSERT INTO schema_tables (schema_version_id, table_name, table_type, is_tenant_scoped)
+      `INSERT INTO platform_ops.schema_tables (schema_version_id, table_name, table_type, is_tenant_scoped)
        SELECT $1, t.table_schema || '.' || t.table_name,
               CASE WHEN t.table_name LIKE '%audit%' OR t.table_name LIKE '%log%' THEN 'audit'
                    ELSE 'transactional' END,
@@ -151,12 +153,12 @@ export async function seedQaSchemaCatalog(client: Client, target: QaSeedTarget):
       [versionId],
     );
     await client.query(
-      `INSERT INTO schema_columns
+      `INSERT INTO platform_ops.schema_columns
          (schema_table_id, column_name, column_type, is_nullable, default_value)
        SELECT st._id, c.column_name, left(c.data_type, 60),
               c.is_nullable = 'YES', c.column_default
          FROM information_schema.columns c
-         JOIN schema_tables st ON st.schema_version_id = $1
+         JOIN platform_ops.schema_tables st ON st.schema_version_id = $1
            AND st.table_name = c.table_schema || '.' || c.table_name
            AND st.is_deleted = false
         WHERE c.table_schema NOT IN ('pg_catalog', 'information_schema')

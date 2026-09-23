@@ -47,7 +47,7 @@ describe('AdminPortal E2E identity seed', () => {
       return { rows: [], rowCount: 0 };
     });
     await expect(seedQaSchemaCatalog({ query } as unknown as Client, safeTarget)).rejects.toThrow(/v1\.0/);
-    expect(calls).toEqual(['BEGIN', expect.stringContaining('SELECT _id FROM schema_versions'), 'ROLLBACK']);
+    expect(calls).toEqual(['BEGIN', expect.stringContaining('SELECT _id FROM platform_ops.schema_versions'), 'ROLLBACK']);
   });
 
   it('stores an Argon2id hash and assigns QA and admin roles in one transaction', async () => {
