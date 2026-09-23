@@ -182,6 +182,11 @@ export class PlatformCatalogFederationService {
         },
         {
           businessPurpose: entity.businessPurpose?.trim() || `Tabla ${entity.schemaName}.${entity.tableName} del bloque ${systemCode}.`,
+          // El modelo Sequelize valida estos NOT NULL antes de que apliquen los defaults de PostgreSQL.
+          whoUses: [],
+          dataNature: 'OPERACIONAL',
+          operationalRulesJson: [],
+          qualityRulesJson: [],
           dataOwner: `${systemCode.toLowerCase()}-team`,
           containsPii: entity.containsPii,
           containsFinancialData: entity.containsFinancialData,
