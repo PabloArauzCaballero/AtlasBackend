@@ -93,24 +93,27 @@ export class SystemsTestExecutionRepository {
 
   async upsertTestStep(values: UpsertTestStepInput): Promise<void> {
     const now = new Date();
-    await this.stepModel.upsert({
-      suiteId: values.suiteId,
-      endpointId: values.endpointId,
-      stepOrder: values.stepOrder,
-      name: values.name,
-      inputMode: values.inputMode ?? 'DEFAULT',
-      method: values.method,
-      pathTemplate: values.pathTemplate,
-      defaultHeaders: values.defaultHeaders ?? {},
-      defaultPayload: values.defaultPayload ?? {},
-      configSchema: values.configSchema ?? {},
-      extractors: values.extractors ?? {},
-      assertions: values.assertions ?? { expectedStatusCodes: [200, 201] },
-      continueOnFailure: values.continueOnFailure ?? false,
-      cleanupRequired: values.cleanupRequired ?? false,
-      createdAtValue: now,
-      updatedAtValue: now,
-    } as never);
+    await this.stepModel.upsert(
+      {
+        suiteId: values.suiteId,
+        endpointId: values.endpointId,
+        stepOrder: values.stepOrder,
+        name: values.name,
+        inputMode: values.inputMode ?? 'DEFAULT',
+        method: values.method,
+        pathTemplate: values.pathTemplate,
+        defaultHeaders: values.defaultHeaders ?? {},
+        defaultPayload: values.defaultPayload ?? {},
+        configSchema: values.configSchema ?? {},
+        extractors: values.extractors ?? {},
+        assertions: values.assertions ?? { expectedStatusCodes: [200, 201] },
+        continueOnFailure: values.continueOnFailure ?? false,
+        cleanupRequired: values.cleanupRequired ?? false,
+        createdAtValue: now,
+        updatedAtValue: now,
+      } as never,
+      { conflictFields: ['suite_id', 'step_order'] },
+    );
   }
 
   async listTestSuites(query: SystemsSuiteQueryDto) {
