@@ -2,7 +2,7 @@
 
 ## Decisión
 
-El runner de GitHub crea PostgreSQL y Redis vacíos, migra, instala el tenant sintético 1 y ejecuta `db:seed:demo`. Ese seed trae datos **sintéticos**, incluido el actor QA 930007 sin credencial. Este trabajo añade una credencial temporal, crea el rol `QA_ENGINEER` desde el catálogo canónico cuando falta y le asigna sus permisos sólo en la base efímera `atlas_e2e_admin`. El PIN se entrega mediante el transporte webhook existente, con `NODE_ENV=development` y MFA activado. La contraseña la genera el runner en cada corrida y no se versiona ni se imprime.
+El runner de GitHub crea PostgreSQL y Redis vacíos, migra, instala el tenant sintético 1 y ejecuta `db:seed:demo`. Ese seed trae datos **sintéticos**, incluido el actor QA 930007 sin credencial. Este trabajo añade una credencial temporal y los roles `QA_ENGINEER` y `SUPER_ADMIN` desde el catálogo canónico cuando faltan. El segundo rol permite que el mismo actor recorra todas las vistas administrativas en la suite; existe sólo dentro de la base efímera `atlas_e2e_admin`, que se destruye tras el job. El PIN se entrega mediante el transporte webhook existente, con `NODE_ENV=development` y MFA activado. La contraseña la genera el runner en cada corrida y no se versiona ni se imprime.
 
 ## Alcance
 
@@ -10,7 +10,7 @@ El runner de GitHub crea PostgreSQL y Redis vacíos, migra, instala el tenant si
 
 ## H1 — Identidad QA reproducible y limitada
 
-CA: en `atlas_e2e_admin`, tras migraciones y demo seed, el actor QA puede iniciar sesión con MFA y un rol propio; repetir la siembra deja una sola credencial y una sola asignación activa. Fuera de esa base o en producción, el comando aborta antes de escribir.
+CA: en `atlas_e2e_admin`, tras migraciones y demo seed, el actor QA puede iniciar sesión con MFA y recorrer todas las vistas del portal; repetir la siembra deja una sola credencial y una asignación activa por rol. Fuera de esa base o en producción, el comando aborta antes de escribir.
 
 DoD: pruebas del comando, tipos, lint, formato y CI remota verdes; prueba de login/PIN real desde AdminPortal.
 
