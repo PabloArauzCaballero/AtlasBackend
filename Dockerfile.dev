@@ -143,6 +143,7 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 # `dist/` ENTERO, no sólo `dist/src`: `dist/scripts` es lo que hace innecesarias las dependencias de
 # desarrollo. Ahí están `migrate.js`, `seed.js` y `bootstrap-db-roles.js` ya compilados.
 COPY --from=build /app/dist ./dist
+COPY package.json ./package.json
 COPY ops/docker/healthcheck.mjs ./ops/docker/healthcheck.mjs
 
 # `node` es el usuario sin privilegios de la imagen oficial. Sólo necesita escribir en `logs/`.
