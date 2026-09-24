@@ -298,12 +298,6 @@ export function buildScheduledJobs(deps: {
     },
     // Los trabajos que sólo corren bajo una bandera viven en `optional-jobs.catalog.ts`: esta lista
     // declara lo que corre SIEMPRE, y mezclarlas hacía que dejara de leerse de un vistazo.
-    ...buildOptionalJobs({
-      maintenance,
-      stressRuns: deps.stressRuns,
-      erpEvents: deps.erpEvents,
-      limit,
-      creditUnderwriting: deps.creditUnderwriting,
-    }),
+    ...buildOptionalJobs({ ...deps, limit }),
   ];
 }
