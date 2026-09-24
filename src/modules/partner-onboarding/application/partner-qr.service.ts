@@ -10,7 +10,7 @@ import { MetricsService } from '../../../common/observability/metrics.service.js
 import { PartnerQrCodeModel } from '../../../database/models/index.js';
 import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
-import { QrUploadUrlDto, RegisterQrDto } from '../partner-onboarding.schemas.js';
+import { PaymentQrForPosResponse, QrUploadUrlDto, RegisterQrDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileService } from './partner-profile.service.js';
 import { assertPaymentQrEditable } from './partner-profile.guards.js';
 
@@ -238,16 +238,7 @@ export class PartnerQrService {
   }
 
   /** Imagen bancaria aprobada del comercio al que pertenece una caja activa. */
-  async paymentQrForPos(
-    tenantId: string,
-    partnerId: string,
-    posTerminalId: string,
-  ): Promise<{
-    qrId: string;
-    imageDataUrl: string;
-    bankInstitutionCode: string | null;
-    accountNumberMasked: string | null;
-  } | null> {
+  async paymentQrForPos(tenantId: string, partnerId: string, posTerminalId: string): Promise<PaymentQrForPosResponse | null> {
     const terminal = await this.network.findPosById(tenantId, partnerId, posTerminalId);
     if (!terminal) throw new NotFoundException('QR_NOT_RECOGNIZED');
     if (terminal.status !== 'active') throw new UnprocessableEntityException('QR_EXPIRED');

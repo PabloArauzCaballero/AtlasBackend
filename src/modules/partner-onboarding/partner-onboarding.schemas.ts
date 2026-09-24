@@ -280,3 +280,10 @@ export const paymentQrForPosSchema = z
   })
   .strict();
 export type PaymentQrForPosDto = z.infer<typeof paymentQrForPosSchema>;
+
+export type PaymentQrForPosResponse = {
+  qrId: string;
+  imageDataUrl: string;
+  bankInstitutionCode: string | null;
+  accountNumberMasked: string | null;
+};
