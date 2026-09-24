@@ -93,8 +93,11 @@
       "priority": "P0",
       "ownerRole": "I",
       "status": "BLOCKED",
-      "evidence": { "requirementsFile": "docs/compliance/requirements/P-08.json" },
-      "blockedBy": "El lado Core está implementado y probado (P-08.json). El ciclo conjunto exige la entrega Core→ERP y el consumidor ERP de payment.confirmed (P-03, P-14) y la jornada sintética de P-18."
+      "evidence": {
+        "requirementsFile": "docs/compliance/requirements/P-08.json",
+        "relatedRequirementsFile": "docs/compliance/requirements/P-14.json"
+      },
+      "blockedBy": "Core↔ERP implementado y probado en ambos sentidos (P-14.json aquí y en AtlasERPBackend; E2E local con los dos servicios compilados). Falta la integración productiva: secretos y URL en Coolify (ERP_EVENTS_*, OUTBOX_DELIVERY_*, CORE_EVENTS_SIGNING_SECRET), desplegar worker-outbox del ERP y la jornada sintética conjunta con el Motor (P-18)."
     }
   ]
 }

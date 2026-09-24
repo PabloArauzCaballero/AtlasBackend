@@ -87,9 +87,12 @@
     "title": "Pago tardío concurrente con cobertura del ERP: sin doble beneficio ni doble cobro",
     "releaseIncluded": true,
     "ownerRole": "I",
-    "acceptance": "El ERP consume payment.confirmed (versión de agregado, idempotencia) y detiene o compensa la cobertura improcedente de esa cuota.",
-    "tests": [],
+    "acceptance": "El ERP consume payment.confirmed (versión de agregado, idempotencia) y detiene o compensa la cobertura improcedente de esa cuota. Lado Core (aquí): la confirmación se encola y se entrega al ERP en orden y firmada. Lado ERP: AtlasERPBackend docs/compliance/requirements/P-14.json («pago tardío con cobertura viva: NO confirma…»).",
+    "tests": [
+      { "file": "test/integration/erp-integration/erp-events.spec.ts", "name": "reportar y confirmar encolan su entrega al ERP en la misma transacción, con un sobre que cumple el contrato" },
+      { "file": "test/integration/erp-integration/erp-events.spec.ts", "name": "respeta el orden por cuota: la versión 2 no sale mientras la 1 falla" }
+    ],
     "requiresDatabase": true,
-    "blockedBy": "Core publica el hecho con versión e idempotencia (probado arriba), pero hoy los eventos del outbox de Core sólo los consume el orquestador de notificaciones: no existe entrega Core→ERP ni consumidor ERP de payment.confirmed. Requiere P-03 (outbox ERP) y P-14 (contrato productor/consumidor) y la jornada conjunta de P-18."
+    "blockedBy": null
   }
 ]
