@@ -15,6 +15,13 @@ import { PartnerRepresentativeService } from '../../../src/modules/partner-onboa
 import { PartnerVerificationService } from '../../../src/modules/partner-onboarding/application/partner-verification.service.js';
 import { assertEditable, assertPaymentQrEditable } from '../../../src/modules/partner-onboarding/application/partner-profile.guards.js';
 import { PartnerQrService } from '../../../src/modules/partner-onboarding/application/partner-qr.service.js';
+import { registerPosTerminalSchema, resolveMerchantQrSchema } from '../../../src/modules/partner-onboarding/partner-onboarding.schemas.js';
+
+it('un serial válido para registrar una caja también se puede resolver al escanearla', () => {
+  const serial = 'SN-1';
+  expect(registerPosTerminalSchema.safeParse({ terminalSerial: serial }).success).toBe(true);
+  expect(resolveMerchantQrSchema.safeParse({ token: serial }).success).toBe(true);
+});
 
 /**
  * El expediente del partner: lo que acepta, lo que rechaza y lo que conserva.
@@ -182,7 +189,7 @@ describe('PartnerProfileService', () => {
       profileDouble({ commercialRegistry: null }) as never,
     );
 
-    expect(gaps.map((gap) => gap.requirement)).toEqual(['commercial_registry', 'legal_representative', 'branch', 'business_qr', 'bank_qr']);
+    expect(gaps.map((gap) => gap.requirement)).toEqual(['commercial_registry', 'legal_representative', 'branch', 'bank_qr']);
   });
 
   /* Declarar al representante no es acreditarlo: sin el poder, la representación es una

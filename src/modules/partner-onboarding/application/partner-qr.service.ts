@@ -10,7 +10,7 @@ import { MetricsService } from '../../../common/observability/metrics.service.js
 import { PartnerQrCodeModel } from '../../../database/models/index.js';
 import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
-import { QrUploadUrlDto, RegisterQrDto } from '../partner-onboarding.schemas.js';
+import { PaymentQrForPosResponse, QrUploadUrlDto, RegisterQrDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileService } from './partner-profile.service.js';
 import { assertPaymentQrEditable } from './partner-profile.guards.js';
 
@@ -235,6 +235,26 @@ export class PartnerQrService {
    */
   findLivePaymentQr(tenantId: string, partnerId: string): Promise<PartnerQrCodeModel | null> {
     return this.network.findActiveQr(tenantId, partnerId, 'bank', null);
+  }
+
+  /** Imagen bancaria aprobada del comercio al que pertenece una caja activa. */
+  async paymentQrForPos(tenantId: string, partnerId: string, posTerminalId: string): Promise<PaymentQrForPosResponse | null> {
+    const terminal = await this.network.findPosById(tenantId, partnerId, posTerminalId);
+    if (!terminal) throw new NotFoundException('QR_NOT_RECOGNIZED');
+    if (terminal.status !== 'active') throw new UnprocessableEntityException('QR_EXPIRED');
+    const profile = await this.profiles.requireProfile(tenantId, partnerId);
+    if (profile.onboardingStatus !== 'approved') throw new NotFoundException('QR_NOT_RECOGNIZED');
+
+    const qr = await this.findLivePaymentQr(tenantId, partnerId);
+    if (!qr) return null;
+    const bytes = await this.storage.readObject(qr.storageKey);
+    if (!bytes) return null;
+    return {
+      qrId: String(qr.id),
+      imageDataUrl: `data:${qr.contentType};base64,${bytes.toString('base64')}`,
+      bankInstitutionCode: qr.bankInstitutionCode,
+      accountNumberMasked: qr.accountNumberMasked,
+    };
   }
 
   /**

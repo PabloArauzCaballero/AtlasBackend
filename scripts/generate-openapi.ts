@@ -4,7 +4,7 @@
  * Usa el modo preview de Nest: descubre módulos y controladores sin instanciar providers ni abrir
  * conexiones a PostgreSQL, Redis o proveedores externos.
  */
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import * as yaml from 'js-yaml';
@@ -25,6 +25,21 @@ async function main(): Promise<void> {
 
   const outputPath = join(process.cwd(), 'docs', 'endpoints', 'openapi.yaml');
   mkdirSync(dirname(outputPath), { recursive: true });
+  // Nest enumera los módulos en orden de descubrimiento. Al agregar un controller, ese orden puede
+  // mover miles de líneas aunque el contrato solo haya ganado una ruta. Se preserva el orden ya
+  // publicado y se añaden las rutas nuevas al final para que el diff muestre el cambio real.
+  let previous: { paths?: Record<string, unknown> } | null = null;
+  try {
+    previous = yaml.load(readFileSync(outputPath, 'utf8')) as { paths?: Record<string, unknown> } | null;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+  if (previous) {
+    const paths = document.paths ?? {};
+    const previousKeys = Object.keys(previous.paths ?? {});
+    const keys = [...previousKeys.filter((key) => key in paths), ...Object.keys(paths).filter((key) => !previousKeys.includes(key))];
+    document.paths = Object.fromEntries(keys.map((key) => [key, paths[key]]));
+  }
   writeFileSync(outputPath, yaml.dump(document, { noRefs: true }), 'utf8');
 
   console.log(`✅ OpenAPI exportado a ${outputPath}`);

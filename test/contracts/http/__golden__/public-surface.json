@@ -10946,5 +10946,24 @@
       "access-token"
     ],
     "body": false
+  },
+  "POST /merchant-qr/payment": {
+    "operationId": "MerchantQrController_payment",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": true
   }
 }

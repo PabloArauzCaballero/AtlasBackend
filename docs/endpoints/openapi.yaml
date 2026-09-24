@@ -14902,8 +14902,8 @@ paths:
               properties:
                 token:
                   type: string
-                  minLength: 8
-                  maxLength: 120
+                  minLength: 3
+                  maxLength: 80
               required:
                 - token
               additionalProperties: false
@@ -30887,6 +30887,53 @@ paths:
       summary: Historial PROPIO de consultas, sin resultados
       tags:
         - sql-console
+  /merchant-qr/payment:
+    post:
+      operationId: MerchantQrController_payment
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                partnerProfileId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+                posTerminalId:
+                  type: string
+                  pattern: ^[1-9][0-9]*$
+              required:
+                - partnerProfileId
+                - posTerminalId
+              additionalProperties: false
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Obtener el QR bancario aprobado del comercio de una caja activa
+      tags:
+        - partner-onboarding
 info:
   title: Atlas API
   description: >-
