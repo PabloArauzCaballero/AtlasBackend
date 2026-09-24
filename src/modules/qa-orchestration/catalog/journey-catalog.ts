@@ -10,6 +10,7 @@ import { CUSTOMER_CREDIT_JOURNEY, CUSTOMER_ONBOARDING_INCOMPLETE } from './custo
 import { CUSTOMER_PROFILE_LIFECYCLE } from './customer-profile.recipes.js';
 import { CUSTOMER_ONBOARDING_SUBMISSION } from './customer-submission.recipes.js';
 import { CUSTOMER_FULL_LIFECYCLE_NORMAL } from './customer-lifecycle.recipes.js';
+import { MERCHANT_SUPPORT_AND_ACCESS } from './merchant-support.recipes.js';
 import { PARTNER_FULL_ONBOARDING } from './partner-onboarding.recipes.js';
 import { COVERAGE_GAPS, type GapReason } from './coverage-gaps.js';
 
@@ -22,6 +23,7 @@ export const JOURNEY_TEMPLATES: readonly JourneyTemplate[] = [
   CUSTOMER_ONBOARDING_SUBMISSION,
   CUSTOMER_FULL_LIFECYCLE_NORMAL,
   PARTNER_FULL_ONBOARDING,
+  MERCHANT_SUPPORT_AND_ACCESS,
 ];
 
 export type JourneyCampaign = {

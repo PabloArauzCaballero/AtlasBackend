@@ -33,7 +33,6 @@ export const COVERAGE_GAPS: Record<string, GapReason> = {
   'lifecycle.payment_proof': 'NEEDS_LOAN_FIXTURE',
   'lifecycle.notification_read': 'RECIPE_PENDING',
   // customer_partner_commerce
-  'merchant.user_status': 'NEEDS_MERCHANT_ACTOR',
   'pos.qr_resolve': 'NEEDS_MERCHANT_ACTOR',
   'pos.credit_products': 'NEEDS_MERCHANT_ACTOR',
   'pos.credit_apply': 'NEEDS_MERCHANT_ACTOR',
@@ -46,10 +45,4 @@ export const COVERAGE_GAPS: Record<string, GapReason> = {
   'settlement.partner_proof': 'NEEDS_LOAN_FIXTURE',
   'settlement.partner_verification': 'NEEDS_LOAN_FIXTURE',
   'portfolio.summary': 'NEEDS_MERCHANT_ACTOR',
-  'support.faq': 'NEEDS_MERCHANT_ACTOR',
-  'support.categories': 'NEEDS_MERCHANT_ACTOR',
-  'support.case_create': 'NEEDS_MERCHANT_ACTOR',
-  'support.case_detail': 'NEEDS_MERCHANT_ACTOR',
-  'support.case_close_request': 'NEEDS_MERCHANT_ACTOR',
-  'support.case_feedback': 'NEEDS_MERCHANT_ACTOR',
 };

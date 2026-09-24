@@ -12,7 +12,7 @@ import { PARTNER_DOSSIER_STEPS } from './partner-dossier.recipes.js';
 const p = (suffix: string) => `/partner-onboarding/{{resources.partnerId}}${suffix}`;
 const opsP = (suffix: string) => `/operations/partners/{{resources.partnerId}}${suffix}`;
 
-const PROVISIONING: RecipeStep[] = [
+export const MERCHANT_PROVISIONING_STEPS: RecipeStep[] = [
   {
     stepKey: 'merchant.provisioning_request',
     workflowStepCode: 'merchant.provisioning_request',
@@ -213,5 +213,5 @@ export const PARTNER_FULL_ONBOARDING: JourneyTemplate = {
   fixtures: ['internalActor'],
   // El envío del expediente lo verifica el Motor; sin Motor el alta no pasa de «borrador».
   platformServices: ['DECISION_ENGINE'],
-  steps: [...PROVISIONING, ...PARTNER_DOSSIER_STEPS, ...REVIEW],
+  steps: [...MERCHANT_PROVISIONING_STEPS, ...PARTNER_DOSSIER_STEPS, ...REVIEW],
 };
