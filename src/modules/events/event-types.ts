@@ -26,6 +26,12 @@ export type PublishEventInput = {
   eventCode: string;
   aggregateType: string;
   aggregateId?: string | null;
+  /**
+   * Versión monótona del agregado (P-08). Un consumidor que ya aplicó la versión N descarta la N-1
+   * que llegue tarde: sin ella, un evento reintentado o desordenado podría reabrir un estado ya
+   * superado (una cuota pagada que vuelve a «reportada»).
+   */
+  aggregateVersion?: number | null;
   payload?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   priority?: number;

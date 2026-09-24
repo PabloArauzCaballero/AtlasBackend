@@ -19,6 +19,48 @@ function registeredEventCodes(): string[] {
   return listEventDefinitions().map((event) => event.code);
 }
 
+/** La fila del outbox para un evento publicado; los valores por defecto salen del registro de eventos. */
+function outboxRowValues(input: PublishEventInput, now: Date): Record<string, unknown> {
+  const definition = getEventDefinition(input.eventCode);
+  return {
+    ...envelopeValues(input),
+    eventPayloadJson: redactSensitiveObject(input.payload ?? {}) as Record<string, unknown>,
+    eventFamily: definition?.family ?? 'uncatalogued',
+    eventVersion: definition?.version ?? 1,
+    metadataJson: redactSensitiveObject(input.metadata ?? {}) as Record<string, unknown>,
+    status: 'pending',
+    priority: input.priority ?? definition?.defaultPriority ?? 0,
+    attempts: 0,
+    maxAttempts: input.maxAttempts ?? 3,
+    lockedAt: null,
+    lockedBy: null,
+    availableAt: input.availableAt ?? now,
+    processedAt: null,
+    failedAt: null,
+    errorCode: null,
+    lastError: null,
+    createdAtValue: now,
+    updatedAtValue: now,
+  };
+}
+
+/** Identidad y trazabilidad del evento: agregado (con su versión), idempotencia, correlación y origen. */
+function envelopeValues(input: PublishEventInput): Record<string, unknown> {
+  const version = input.aggregateVersion;
+  return {
+    tenantId: input.tenantId,
+    aggregateType: input.aggregateType,
+    aggregateId: input.aggregateId ?? null,
+    aggregateVersion: version === undefined || version === null ? null : String(version),
+    eventCode: input.eventCode,
+    idempotencyKey: input.idempotencyKey ?? null,
+    correlationId: input.correlationId ?? null,
+    causationId: input.causationId ?? null,
+    sourceModule: input.sourceModule ?? null,
+    sourceAction: input.sourceAction ?? null,
+  };
+}
+
 @Injectable()
 export class EventsRepository {
   constructor(
@@ -26,54 +68,42 @@ export class EventsRepository {
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
+  /**
+   * Escribe el evento en el outbox. Con `transaction`, DENTRO de la transacción de quien llama.
+   *
+   * Hasta P-08 (2026-09-24) `EventsService.publish` no la pasaba nunca: un caso de uso que
+   * «publicaba dentro de su transacción» en realidad escribía el evento por otra conexión, en
+   * autocommit. Si la transacción del negocio se revertía después, el evento quedaba confirmado y
+   * describía un hecho que no existió — un aviso de pago sin reclamo, una confirmación sin cobro.
+   *
+   * La inserción va en un SAVEPOINT cuando hay transacción externa: en PostgreSQL una violación de
+   * la unicidad por idempotencia aborta la transacción entera, y el rescate de abajo (leer la fila
+   * que ganó) no podría ni ejecutarse. Con el savepoint sólo se deshace la inserción fallida.
+   */
   async createEvent(input: PublishEventInput, options: { transaction?: Transaction } = {}): Promise<OutboxEventModel> {
-    const definition = getEventDefinition(input.eventCode);
     const now = new Date();
+    const transaction = options.transaction;
+    const findExisting = () =>
+      this.outboxModel.findOne({
+        where: { tenantId: input.tenantId, eventCode: input.eventCode, idempotencyKey: input.idempotencyKey },
+        transaction,
+      });
 
     if (input.idempotencyKey) {
-      const existing = await this.outboxModel.findOne({
-        where: { tenantId: input.tenantId, eventCode: input.eventCode, idempotencyKey: input.idempotencyKey },
-      });
+      const existing = await findExisting();
       if (existing) return existing;
     }
 
+    const values = outboxRowValues(input, now);
+
     try {
-      return await this.outboxModel.create(
-        {
-          tenantId: input.tenantId,
-          aggregateType: input.aggregateType,
-          aggregateId: input.aggregateId ?? null,
-          eventCode: input.eventCode,
-          eventPayloadJson: redactSensitiveObject(input.payload ?? {}) as Record<string, unknown>,
-          eventFamily: definition?.family ?? 'uncatalogued',
-          eventVersion: definition?.version ?? 1,
-          metadataJson: redactSensitiveObject(input.metadata ?? {}) as Record<string, unknown>,
-          status: 'pending',
-          priority: input.priority ?? definition?.defaultPriority ?? 0,
-          attempts: 0,
-          maxAttempts: input.maxAttempts ?? 3,
-          lockedAt: null,
-          lockedBy: null,
-          availableAt: input.availableAt ?? now,
-          processedAt: null,
-          failedAt: null,
-          errorCode: null,
-          lastError: null,
-          idempotencyKey: input.idempotencyKey ?? null,
-          correlationId: input.correlationId ?? null,
-          causationId: input.causationId ?? null,
-          sourceModule: input.sourceModule ?? null,
-          sourceAction: input.sourceAction ?? null,
-          createdAtValue: now,
-          updatedAtValue: now,
-        },
-        { transaction: options.transaction },
+      if (!transaction) return await this.outboxModel.create(values as never);
+      return await this.sequelize.transaction({ transaction }, (savepoint) =>
+        this.outboxModel.create(values as never, { transaction: savepoint }),
       );
     } catch (error) {
       if (!input.idempotencyKey) throw error;
-      const existing = await this.outboxModel.findOne({
-        where: { tenantId: input.tenantId, eventCode: input.eventCode, idempotencyKey: input.idempotencyKey },
-      });
+      const existing = await findExisting();
       if (existing) return existing;
       throw error;
     }
