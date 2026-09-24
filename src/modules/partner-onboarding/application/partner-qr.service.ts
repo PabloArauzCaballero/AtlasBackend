@@ -238,7 +238,11 @@ export class PartnerQrService {
   }
 
   /** Imagen bancaria aprobada del comercio al que pertenece una caja activa. */
-  async paymentQrForPos(tenantId: string, partnerId: string, posTerminalId: string): Promise<{
+  async paymentQrForPos(
+    tenantId: string,
+    partnerId: string,
+    posTerminalId: string,
+  ): Promise<{
     qrId: string;
     imageDataUrl: string;
     bankInstitutionCode: string | null;

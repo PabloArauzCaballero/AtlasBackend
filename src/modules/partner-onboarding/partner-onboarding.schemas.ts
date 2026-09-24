@@ -273,8 +273,10 @@ export const resolveMerchantQrSchema = z
   .strict();
 export type ResolveMerchantQrDto = z.infer<typeof resolveMerchantQrSchema>;
 
-export const paymentQrForPosSchema = z.object({
-  partnerProfileId: z.string().regex(/^[1-9][0-9]*$/),
-  posTerminalId: z.string().regex(/^[1-9][0-9]*$/),
-}).strict();
+export const paymentQrForPosSchema = z
+  .object({
+    partnerProfileId: z.string().regex(/^[1-9][0-9]*$/),
+    posTerminalId: z.string().regex(/^[1-9][0-9]*$/),
+  })
+  .strict();
 export type PaymentQrForPosDto = z.infer<typeof paymentQrForPosSchema>;

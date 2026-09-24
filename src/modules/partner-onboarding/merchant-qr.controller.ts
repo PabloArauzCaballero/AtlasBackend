@@ -34,7 +34,10 @@ import { PaymentQrForPosDto, paymentQrForPosSchema, ResolveMerchantQrDto, resolv
 @Controller('merchant-qr')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class MerchantQrController {
-  constructor(private readonly commerce: PartnerCommerceService, private readonly qr: PartnerQrService) {}
+  constructor(
+    private readonly commerce: PartnerCommerceService,
+    private readonly qr: PartnerQrService,
+  ) {}
 
   @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
   @ApiOperation({ summary: 'Resolver el QR de caja al comercio que lo emitió' })
