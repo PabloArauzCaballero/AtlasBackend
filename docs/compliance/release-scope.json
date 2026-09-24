@@ -42,6 +42,17 @@
       "blockedBy": null
     },
     {
+      "requirementId": "B11",
+      "packageId": "P-09",
+      "title": "Core registra la base habilitante en el motor antes de decidir (lado Core de la guardia del motor)",
+      "releaseIncluded": true,
+      "priority": "P0",
+      "ownerRole": "C",
+      "status": "IMPLEMENTED",
+      "evidence": { "requirementsFile": "docs/compliance/requirements/P-09.json" },
+      "blockedBy": null
+    },
+    {
       "requirementId": "B12",
       "packageId": "P-09",
       "title": "Réplica/revocación de consentimiento al motor duradera y bloqueo local en Core",
@@ -58,6 +69,17 @@
       "title": "Core no concede con resultados técnicos, desconocidos o pendientes de revisión (lado Core)",
       "releaseIncluded": true,
       "priority": "P0",
+      "ownerRole": "C",
+      "status": "IMPLEMENTED",
+      "evidence": { "requirementsFile": "docs/compliance/requirements/P-10.json" },
+      "blockedBy": null
+    },
+    {
+      "requirementId": "B14",
+      "packageId": "P-10",
+      "title": "Core no concede con frescura desconocida o entradas degradadas y envía variableMetadata",
+      "releaseIncluded": true,
+      "priority": "P1",
       "ownerRole": "C",
       "status": "IMPLEMENTED",
       "evidence": { "requirementsFile": "docs/compliance/requirements/P-10.json" },

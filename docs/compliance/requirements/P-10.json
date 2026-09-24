@@ -51,5 +51,51 @@
     ],
     "requiresDatabase": true,
     "blockedBy": null
+  },
+  {
+    "requirementId": "B13",
+    "packageId": "P-10",
+    "repository": "AtlasBackend",
+    "title": "422 NO_DECISION del motor = revisión técnica con bandeja en Atlas (Core ↔ Motor)",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "VARIABLE_MISSING_OR_INVALID, ENABLING_BASIS_MISSING y ECONOMIC_OUTPUT_INVALID (422) se leen como respuesta, no se reintentan, y dejan la solicitud under_review en la cola de Atlas (engine_unavailable_manual) marcada técnica: nunca rechazo crediticio del cliente ni aprobación.",
+    "tests": [
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "VARIABLE_MISSING_OR_INVALID → revisión técnica" },
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "ENABLING_BASIS_MISSING → revisión técnica" },
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "ECONOMIC_OUTPUT_INVALID → revisión técnica" },
+      { "file": "test/unit/credit/credit-underwriting-engine-contract.spec.ts", "name": "NO_DECISION técnico → under_review en la cola de Atlas, ni rechazo ni aprobación" }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B14",
+    "packageId": "P-10",
+    "repository": "AtlasBackend",
+    "title": "No se concede con frescura desconocida ni entradas degradadas; Core envía variableMetadata",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Una aprobación con freshnessUnknown no vacío o degradedInputs=true va a revisión. Core envía observedAt de lo que conoce (petición y libro en vivo = ahora; expediente económico = su captura; identidad = cierre de la verificación; feature store = validFrom) y omite lo que no conoce, sin fetchedAt para datos declarados.",
+    "tests": [
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "una aprobación con frescura desconocida de una variable crítica NO concede" },
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "una aprobación con entradas degradadas NO concede" },
+      { "file": "test/unit/decision-engine/engine-contract-alignment.spec.ts", "name": "pedido y libro en vivo con fecha de ahora; declarado con su captura; ausente sin fecha" },
+      { "file": "test/unit/decision-engine/engine-contract-alignment.spec.ts", "name": "recálculo de línea: capacidad por extracto SIN fecha, por declarado con la captura económica" }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B14",
+    "packageId": "P-10",
+    "repository": "AtlasBackend",
+    "title": "Fecha de las variables que Core todavía no conoce",
+    "releaseIncluded": true,
+    "ownerRole": "R",
+    "acceptance": "Si el artefacto declara crítica una variable que Core manda sin fecha (capacidad medida con extracto, bank_statement_nsf_count, valores 'ausente'), esas decisiones irán a revisión hasta que Core propague la fecha del extracto o R ratifique la política.",
+    "tests": [],
+    "requiresDatabase": false,
+    "blockedBy": "Depende de qué variables marque críticas el artefacto desplegado (dato del motor, no de Core) y de propagar la fecha del extracto desde bank-statement; decisions.md D-CM-4."
   }
 ]

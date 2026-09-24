@@ -76,5 +76,40 @@
     "tests": [],
     "requiresDatabase": true,
     "blockedBy": "Se verifica en AtlasDecisionEngineBackend (outcome-ingestion); Core sólo reenvía de forma idempotente, cubierto arriba."
+  },
+  {
+    "requirementId": "B15",
+    "packageId": "P-11",
+    "repository": "AtlasBackend",
+    "title": "La concesión respeta la vigencia que el motor publica (decisionValidUntil) y su exposición",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Core persiste decisionValidUntil en credit_applications y no acepta ni desembolsa después de min(decisionValidUntil, decidedAt + CREDIT_DECISION_VALIDITY_HOURS); una aprobación con exposure.remainingAfterDecision < 0 va a revisión; una decisión humana no hereda la vigencia del motor.",
+    "tests": [
+      { "file": "test/integration/credit/enabling-basis-and-validity.spec.ts", "name": "una aprobación caducada en el motor no se desembolsa aunque la del core siga abierta" },
+      { "file": "test/integration/credit/enabling-basis-and-validity.spec.ts", "name": "dentro de las dos vigencias se desembolsa" },
+      { "file": "test/unit/credit/credit-underwriting-engine-contract.spec.ts", "name": "guarda decisionValidUntil del motor en la aprobación" },
+      { "file": "test/unit/credit/credit-underwriting-engine-contract.spec.ts", "name": "no concede después de min(decisionValidUntil, decidedAt + horas del core)" },
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "una aprobación con exposición superada tras la decisión NO concede" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B15",
+    "packageId": "P-11",
+    "repository": "AtlasBackend",
+    "title": "Facilities/outcomes por fila: duplicado = éxito, conflicto terminal con alerta, fallo reintentable",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Core lee `rows`/`code`/`duplicate` del motor (antes leía `results`/`reason`, que el motor no emite). Alta: aceptada o duplicate → registrada; FACILITY_REFERENCE_CONFLICT/EXECUTION_NOT_DECIDED/EXECUTION_NOT_FOUND/EXECUTION_WITHOUT_SUBJECT → terminal con código y alerta; FACILITY_REGISTRATION_FAILED → reintento. Desenlaces: duplicate → enviado; OUTCOME_CONFLICT → agotado con alerta; otro rechazo o fila sin veredicto → reintento.",
+    "tests": [
+      { "file": "test/contracts/decision-engine/outcome-ingestion.contract.spec.ts", "name": "duplicado = registrado; conflicto y decisión no terminada = terminales; fallo de escritura = reintento" },
+      { "file": "test/contracts/decision-engine/outcome-ingestion.contract.spec.ts", "name": "duplicado = enviado; OUTCOME_CONFLICT = terminal con alerta; FACILITY_NOT_FOUND = reintento" },
+      { "file": "test/contracts/decision-engine/outcome-ingestion.contract.spec.ts", "name": "una fila sin veredicto en la respuesta NO se da por enviada" },
+      { "file": "test/unit/decision-engine/engine-contract-alignment.spec.ts", "name": "altas: accepted, duplicate y code" }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": null
   }
 ]

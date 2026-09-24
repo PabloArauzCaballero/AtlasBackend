@@ -1,0 +1,21 @@
+[
+  {
+    "requirementId": "B20",
+    "packageId": "P-14",
+    "repository": "AtlasBackend",
+    "title": "Conformidad de Core como consumidor del motor con dobles 200/422/401/403/409/429/5xx, timeout, cuerpo malformado y campo desconocido",
+    "releaseIncluded": true,
+    "ownerRole": "I",
+    "acceptance": "Con transporte, reintentos y plazo reales contra un motor doble HTTP (fixture OpenAPI con su commit): 4xx no se reintenta, 429/5xx/timeout sí; ningún error concede ni rechaza; un campo aditivo desconocido no rompe; un campo conocido con otro tipo se rechaza en el borde; los cuerpos enviados cumplen los DTO del motor.",
+    "tests": [
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "HTTP 401 (UNAUTHORIZED)" },
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "HTTP 429 (RATE_LIMITED)" },
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "un motor que no contesta a tiempo es TIMEOUT, no una respuesta" },
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "un cuerpo malformado (HTML de un proxy) no se toma por una decisión" },
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "un campo desconocido que el motor añada no rompe la lectura ni cambia el veredicto" },
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "una aprobación limpia se lee entera y concede; el cuerpo enviado cumple ExecuteDecisionDto" }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": "Contrato contra dobles: habilita desarrollo. La misma batería contra el motor real de staging (P-14, segundo paso) no se ha ejecutado."
+  }
+]
