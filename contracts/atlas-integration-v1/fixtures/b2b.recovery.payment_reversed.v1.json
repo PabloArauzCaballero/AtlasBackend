@@ -1,0 +1,41 @@
+{
+  "topic": "b2b.recovery.payment_reversed",
+  "valid": [
+    {
+      "name": "reverso de un pago de recuperación",
+      "envelope": {
+        "spec": "atlas.erp.outbox/1",
+        "eventKey": "recovery-movement-00000000-0000-4000-8000-000000000141",
+        "topic": "b2b.recovery.payment_reversed",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "consumer_recovery",
+          "id": "00000000-0000-4000-8000-000000000107",
+          "version": 4
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-erp",
+        "payload": {
+          "recoveryId": "00000000-0000-4000-8000-000000000107",
+          "installmentId": "00000000-0000-4000-8000-000000000102",
+          "consumerId": "00000000-0000-4000-8000-000000000105",
+          "movementId": "00000000-0000-4000-8000-000000000141",
+          "movementType": "REVERSAL",
+          "paymentReference": "REC-FIXTURE-0001",
+          "amount": "100.00",
+          "currency": "BOB",
+          "amountRecovered": "0.00",
+          "recoveryStatus": "OPEN",
+          "coreRef": {
+            "tenantId": "900001",
+            "loanId": "910001",
+            "installmentId": "920001",
+            "partnerProfileId": "930001"
+          }
+        }
+      }
+    }
+  ],
+  "boundary": [],
+  "invalid": []
+}

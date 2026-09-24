@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.atlas.internal/atlas-integration-v1/payment.confirmed.v1.schema.json",
+  "title": "payment.confirmed v1 — el comercio autorizado confirmó en Core el pago de la cuota",
+  "description": "Core registró el cobro (loanPaymentId). Productor: Core. Consumidor: ERP (confirma el aviso con la transición de la cola de revisión; si la cuota tiene cobertura viva no la confirma y abre revisión).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["claimId", "claimCode", "loanId", "installmentId", "customerId", "partnerProfileId", "amount", "currencyCode", "decidedAt", "aggregateVersion", "loanPaymentId"],
+  "properties": {
+    "claimId": { "$ref": "common.schema.json#/$defs/coreId" },
+    "claimCode": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "loanId": { "$ref": "common.schema.json#/$defs/coreId" },
+    "installmentId": { "$ref": "common.schema.json#/$defs/coreId" },
+    "customerId": { "$ref": "common.schema.json#/$defs/coreId" },
+    "partnerProfileId": { "oneOf": [{ "$ref": "common.schema.json#/$defs/coreId" }, { "type": "null" }] },
+    "amount": { "$ref": "common.schema.json#/$defs/positiveDecimalAmount" },
+    "currencyCode": { "$ref": "common.schema.json#/$defs/currency" },
+    "decidedAt": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "aggregateVersion": { "type": "integer", "minimum": 1 },
+    "loanPaymentId": { "$ref": "common.schema.json#/$defs/coreId" }
+  }
+}

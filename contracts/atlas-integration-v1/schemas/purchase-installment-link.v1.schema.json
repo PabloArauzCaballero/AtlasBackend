@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.atlas.internal/atlas-integration-v1/purchase-installment-link.v1.schema.json",
+  "title": "Compra-cuota v1 — identidad común de la compra BNPL del ERP y el préstamo de Core",
+  "description": "Viaja en el alta de compra del ERP (POST /b2b/bnpl/purchases, campo opcional coreLoanRef + installments[].coreInstallmentId). Core es la fuente de cuotas y pagos; el ERP guarda el mapeo explícito en atlas_sales.core_installment_links y con él traduce payment.* a su cuota y añade coreRef a sus eventos.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["coreLoanRef", "installments"],
+  "properties": {
+    "coreLoanRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenantId", "loanId"],
+      "properties": {
+        "tenantId": { "$ref": "common.schema.json#/$defs/coreId" },
+        "loanId": { "$ref": "common.schema.json#/$defs/coreId" },
+        "partnerProfileId": { "$ref": "common.schema.json#/$defs/coreId" }
+      }
+    },
+    "installments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["installmentNumber", "coreInstallmentId"],
+        "properties": {
+          "installmentNumber": { "type": "integer", "minimum": 1 },
+          "coreInstallmentId": { "$ref": "common.schema.json#/$defs/coreId" }
+        }
+      }
+    }
+  }
+}
