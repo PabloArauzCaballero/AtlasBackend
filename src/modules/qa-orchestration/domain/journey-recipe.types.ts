@@ -42,6 +42,8 @@ export type ValueType = 'string' | 'number' | 'boolean' | 'array' | 'object';
 /** Catálogo cerrado y versionado. Añadir un tipo aquí es un cambio de contrato. */
 export type Assertion =
   | { kind: 'exists'; path: JourneyPath }
+  /** El campo NO viene (distinto de venir con `null`): p. ej. un veredicto que el proveedor no dio. */
+  | { kind: 'absent'; path: JourneyPath }
   | { kind: 'type'; path: JourneyPath; type: ValueType }
   | { kind: 'equals'; path: JourneyPath; expected: Binding }
   | { kind: 'oneOf'; path: JourneyPath; values: JsonValue[] }
@@ -57,6 +59,7 @@ export type Assertion =
 
 export const ASSERTION_KINDS = [
   'exists',
+  'absent',
   'type',
   'equals',
   'oneOf',

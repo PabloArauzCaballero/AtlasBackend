@@ -40,6 +40,7 @@ import {
   qaWorkflowQuerySchema,
   QaWorkflowQueryDto,
 } from './qa-orchestration.schemas.js';
+import { qaError } from './application/qa-errors.js';
 
 @Controller('systems/qa')
 @UseGuards(InternalPermissionsGuard)
@@ -133,7 +134,7 @@ export class QaRunsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const key = qaIdempotencyKeySchema.safeParse(idempotencyKey ?? legacyKey);
-    if (!key.success) throw new BadRequestException('IDEMPOTENCY_KEY_REQUIRED');
+    if (!key.success) throw new BadRequestException(qaError('IDEMPOTENCY_KEY_REQUIRED'));
     return this.orchestrator.launch(user, { ...body, idempotencyKey: key.data });
   }
 

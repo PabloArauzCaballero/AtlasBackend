@@ -115,3 +115,13 @@ describe('bindings tipados (A06)', () => {
     expect(referencedPaths({ a: { $ref: 'persona.email' }, b: ['{{resources.id}}'] })).toEqual(['persona.email', 'resources.id']);
   });
 });
+
+describe('aserción absent', () => {
+  it('distingue un campo ausente de uno que vino con null', () => {
+    const expected = { status: [200], assertions: [{ kind: 'absent' as const, path: 'data.providerVerdict' }] };
+    expect(evaluateQaStep({ expected, response: { status: 200, body: { data: {} } } }).status).toBe('PASSED');
+    expect(evaluateQaStep({ expected, response: { status: 200, body: { data: { providerVerdict: 'FOUND' } } } }).failures[0].code).toBe(
+      'ASSERTION_ABSENT_FAILED',
+    );
+  });
+});

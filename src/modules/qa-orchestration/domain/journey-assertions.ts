@@ -16,6 +16,7 @@ export type AssertionFailure = {
     | 'TRANSPORT_ERROR'
     | 'STATUS_UNEXPECTED'
     | 'ASSERTION_EXISTS_FAILED'
+    | 'ASSERTION_ABSENT_FAILED'
     | 'ASSERTION_TYPE_FAILED'
     | 'ASSERTION_EQUALS_FAILED'
     | 'ASSERTION_ONE_OF_FAILED'
@@ -99,6 +100,8 @@ function hasFieldEqual(entry: unknown, field: string, expected: unknown): boolea
 const CHECKS: { [K in Exclude<Assertion['kind'], 'errorCode'>]: Checked<K> } = {
   exists: (assertion, actual, _scope, path) =>
     actual === undefined ? fail('ASSERTION_EXISTS_FAILED', `falta ${assertion.path}`, path) : null,
+  absent: (assertion, actual, _scope, path) =>
+    actual === undefined ? null : fail('ASSERTION_ABSENT_FAILED', `${assertion.path} no debía venir y vino ${show(actual)}`, path),
   type: (assertion, actual, _scope, path) =>
     typeOf(actual) === assertion.type
       ? null

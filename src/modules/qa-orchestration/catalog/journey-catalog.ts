@@ -32,7 +32,7 @@ export const JOURNEY_CAMPAIGNS: readonly JourneyCampaign[] = [
     templates: [
       { code: 'account_signup_to_login', version: '1.0.0', share: 1 },
       { code: 'post_login_first_screen', version: '1.0.0', share: 1 },
-      { code: 'customer_credit_decision', version: '1.0.0', share: 2 },
+      { code: 'customer_credit_decision', version: '1.1.0', share: 2 },
     ],
   },
   {

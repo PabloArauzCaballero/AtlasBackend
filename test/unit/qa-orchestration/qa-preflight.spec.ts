@@ -82,12 +82,12 @@ describe('preflight de una corrida QA', () => {
   });
 
   it('un escenario que el proveedor no admite bloquea en vez de volver al happy path', () => {
-    const result = compile({ templateCode: 'customer_credit_decision', scenarioCode: 'timeout' });
+    const result = compile({ templateCode: 'customer_credit_decision', templateVersion: '1.1.0', scenarioCode: 'timeout' });
     expect(result.blockers).toContainEqual(expect.objectContaining({ code: 'SCENARIO_UNSUPPORTED', subject: 'SEGIP' }));
   });
 
   it('mock caído bloquea una plantilla que exige evidencia de proveedor (A10)', () => {
-    const result = compile({ templateCode: 'customer_credit_decision' }, { ...ready, mockReachable: false });
+    const result = compile({ templateCode: 'customer_credit_decision', templateVersion: '1.1.0' }, { ...ready, mockReachable: false });
     expect(result.blockers).toContainEqual(expect.objectContaining({ code: 'MOCK_UNAVAILABLE' }));
   });
 

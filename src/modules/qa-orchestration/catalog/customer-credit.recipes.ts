@@ -47,8 +47,38 @@ export const CREDIT_STEPS: RecipeStep[] = [
     actor: 'customer',
     idempotency: 'per_operation',
     body: segipBody,
-    // Se exige que exista un veredicto, no que sea favorable.
-    expect: { status: [200, 201], assertions: [{ kind: 'type', path: 'data.status', type: 'string' }] },
+    // El desenlace del proveedor depende del escenario de la corrida, y se exige el que corresponde:
+    // un `provider_down` que devolviera «FOUND» sería el falso positivo que esta receta existe para
+    // atrapar. Valores medidos contra el mock real (corridas 6, 7 y 8 del 24-sep-2026).
+    expect: {
+      status: [200, 201],
+      assertions: [
+        { kind: 'equals', path: 'data.status', expected: 'MOCKED' },
+        { kind: 'equals', path: 'data.providerVerdict', expected: 'FOUND' },
+        { kind: 'equals', path: 'data.modeUsed', expected: 'mock_server' },
+      ],
+    },
+    branches: [
+      {
+        label: 'proveedor caído: indisponible y a revisión manual',
+        when: { kind: 'equals', path: 'run.scenarioCode', value: 'provider_down' },
+        status: [200, 201],
+        assertions: [
+          { kind: 'equals', path: 'data.status', expected: 'PROVIDER_UNAVAILABLE' },
+          { kind: 'equals', path: 'data.manualReviewRequired', expected: true },
+        ],
+      },
+      {
+        label: 'proveedor sin respuesta: fallo con revisión manual, sin veredicto inventado',
+        when: { kind: 'equals', path: 'run.scenarioCode', value: 'timeout' },
+        status: [200, 201],
+        assertions: [
+          { kind: 'equals', path: 'data.status', expected: 'FAILED' },
+          { kind: 'equals', path: 'data.manualReviewRequired', expected: true },
+          { kind: 'absent', path: 'data.providerVerdict' },
+        ],
+      },
+    ],
     extract: [
       { to: 'resources.externalRequestId', from: 'response.data.requestId' },
       { to: 'resources.externalModeUsed', from: 'response.data.modeUsed' },
@@ -134,7 +164,8 @@ export const CREDIT_STEPS: RecipeStep[] = [
 
 export const CUSTOMER_CREDIT_JOURNEY: JourneyTemplate = {
   code: 'customer_credit_decision',
-  version: '1.0.0',
+  // 1.1.0: el desenlace del proveedor se exige por escenario (1.0.0 aceptaba cualquier estado).
+  version: '1.1.0',
   name: 'Del alta a la decisión de crédito',
   description:
     'Alta propia, consentimiento, previa sin llamada al proveedor, consulta SEGIP por el mock, elegibilidad y solicitud: ' +

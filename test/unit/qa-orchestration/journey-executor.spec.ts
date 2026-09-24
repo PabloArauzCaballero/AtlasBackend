@@ -212,3 +212,27 @@ describe('ejecutor del recorrido de una persona', () => {
     expect(transport.calls.map((call) => call.path)).toEqual(['/auth/me']);
   });
 });
+
+describe('cancelación con un paso en vuelo', () => {
+  it('un 429 que llega tras cancelar es CANCELLED, no FAILED', async () => {
+    const controller = new AbortController();
+    const transport = fakeTransport((request) => {
+      if (request.path === '/customer-onboarding/start') {
+        controller.abort();
+        return { status: 429, body: { error: { code: 'RATE_LIMIT_EXCEEDED' } }, latencyMs: 1 };
+      }
+      return fakeBackend()(request);
+    });
+    const steps = await executor(transport).run({
+      tenantId: '1',
+      runId: 'run-1',
+      personaKey: 'p-0001',
+      template: SIGNUP_ONLY,
+      scope: scope('p-0001'),
+      signal: controller.signal,
+      defaultTimeoutMs: 1000,
+    });
+    expect(steps[1].status).toBe('CANCELLED');
+    expect(steps.slice(2).every((step) => step.status === 'CANCELLED')).toBe(true);
+  });
+});

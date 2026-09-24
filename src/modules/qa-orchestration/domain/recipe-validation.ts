@@ -37,7 +37,7 @@ export const FIXTURE_OUTPUTS: Record<JourneyTemplate['fixtures'][number], string
   merchantActor: ['merchantActor'],
 };
 
-const RUN_FIELDS = ['runId', 'namespace', 'seed', 'referenceDate'];
+const RUN_FIELDS = ['runId', 'namespace', 'seed', 'referenceDate', 'scenarioCode'];
 
 export function dependenciesOf(steps: RecipeStep[], index: number): string[] {
   const step = steps[index];

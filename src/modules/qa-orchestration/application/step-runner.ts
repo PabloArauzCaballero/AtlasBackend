@@ -200,6 +200,11 @@ export class StepRunner {
     }
     const body = response.status === null ? null : response.body;
     this.evidence.responseSummary = summarize(body);
+    // Cancelada con la petición sin respuesta o frenada por el límite de tasa: no es un fallo del
+    // producto, es trabajo que se dejó de hacer. Una respuesta completa sí se juzga: ya tuvo efecto.
+    if (this.input.signal.aborted && (response.status === null || response.status === 429)) {
+      return this.result('CANCELLED', { reason: 'corrida cancelada con este paso en vuelo' });
+    }
     const verdict = evaluateQaStep({
       expected: prepared.expected,
       response:

@@ -14,13 +14,14 @@ import { QaRunAdmissionRepository } from '../infrastructure/qa-run-admission.rep
 import { QaRunQueryRepository } from '../infrastructure/qa-run-query.repository.js';
 import { QaEnvironmentService } from './qa-environment.js';
 import { QaWorkflowMatcher } from './qa-workflow-matcher.js';
+import { qaError } from './qa-errors.js';
 
 const PLAN_TTL_MS = 15 * 60_000;
 /** Rollout inicial: una corrida activa por tenant; las siguientes esperan a que termine. */
 const MAX_ACTIVE_RUNS_PER_TENANT = 1;
 
 export function actorOf(user: AuthenticatedUser): { tenantId: string; operatorId: string } {
-  if (!user.tenantId) throw new ForbiddenException('QA_TENANT_REQUIRED');
+  if (!user.tenantId) throw new ForbiddenException(qaError('QA_TENANT_REQUIRED'));
   return { tenantId: String(user.tenantId), operatorId: String(user.internalUserId ?? user.platformUserId ?? user.sub) };
 }
 
@@ -101,21 +102,21 @@ export class QaRunOrchestratorService {
   async launch(user: AuthenticatedUser, input: { planId: string; planHash: string; idempotencyKey: string }) {
     const { tenantId, operatorId } = actorOf(user);
     const stored = await this.admission.findPlan(input.planId, tenantId);
-    if (!stored || stored.operatorId !== operatorId) throw new NotFoundException('QA_PLAN_NOT_FOUND');
-    if (stored.planHash !== input.planHash) throw new ConflictException('PLAN_CHANGED');
-    if (stored.expiresAt.getTime() < Date.now()) throw new ConflictException('PLAN_EXPIRED');
+    if (!stored || stored.operatorId !== operatorId) throw new NotFoundException(qaError('QA_PLAN_NOT_FOUND'));
+    if (stored.planHash !== input.planHash) throw new ConflictException(qaError('PLAN_CHANGED'));
+    if (stored.expiresAt.getTime() < Date.now()) throw new ConflictException(qaError('PLAN_EXPIRED'));
     const plan: EffectivePlan = stored.plan;
     const template = findTemplate(plan.templateCode, plan.templateVersion);
-    if (!template || recipeHash(template) !== plan.recipeHash) throw new ConflictException('PLAN_CHANGED');
+    if (!template || recipeHash(template) !== plan.recipeHash) throw new ConflictException(qaError('PLAN_CHANGED'));
     const disabled = this.environments.disabledReason();
-    if (disabled) throw new ServiceUnavailableException(`QA_DISABLED:${disabled}`);
+    if (disabled) throw new ServiceUnavailableException(qaError('QA_DISABLED', disabled));
     const readiness = await this.environments.readiness();
-    if (!readiness.workerReady) throw new ServiceUnavailableException('WORKER_UNAVAILABLE');
+    if (!readiness.workerReady) throw new ServiceUnavailableException(qaError('WORKER_UNAVAILABLE'));
 
     // El reintento de un lanzamiento ya aceptado (misma clave) no es una segunda corrida activa.
     const previous = await this.admission.findByIdempotencyKey({ tenantId, operatorId, idempotencyKey: input.idempotencyKey });
     if (!previous && (await this.query.activeRunsForTenant(tenantId)) >= MAX_ACTIVE_RUNS_PER_TENANT) {
-      throw new ConflictException('QA_RUN_ALREADY_ACTIVE');
+      throw new ConflictException(qaError('QA_RUN_ALREADY_ACTIVE'));
     }
     const runNonce =
       input.idempotencyKey
@@ -135,15 +136,15 @@ export class QaRunOrchestratorService {
       namespace: `qa-${Date.now().toString(36)}-${runNonce}`,
       referenceDate: new Date().toISOString().slice(0, 10),
     });
-    if ('conflict' in result) throw new ConflictException(result.conflict);
+    if ('conflict' in result) throw new ConflictException(qaError(result.conflict));
     return { runId: result.runId, status: result.status };
   }
 
   async cancel(user: AuthenticatedUser, runId: string) {
     const { tenantId } = actorOf(user);
-    if (!/^\d+$/.test(runId)) throw new NotFoundException('QA_RUN_NOT_FOUND');
+    if (!/^\d+$/.test(runId)) throw new NotFoundException(qaError('QA_RUN_NOT_FOUND'));
     const result = await this.admission.requestCancel(tenantId, runId);
-    if (!result) throw new NotFoundException('QA_RUN_NOT_FOUND');
+    if (!result) throw new NotFoundException(qaError('QA_RUN_NOT_FOUND'));
     return { runId, status: result.status };
   }
 }

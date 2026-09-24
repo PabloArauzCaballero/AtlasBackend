@@ -38,6 +38,18 @@ export class QaRunExecutionService {
     private readonly support: QaRunSupportRepository,
   ) {}
 
+  /** Cierre por un fallo inesperado del worker: personas en vuelo bloqueadas y la corrida terminal. */
+  async failInfrastructure(runId: string, fence: Fence, message: string): Promise<void> {
+    const run = await this.runs.loadRun(runId);
+    if (!run || TERMINAL_RUN.includes(run.status)) return;
+    await this.runs.closePendingPersonas(runId, 'BLOCKED', `fallo del worker: ${message}`, fence);
+    const plan = run.plan_snapshot as unknown as RunContext['plan'];
+    await this.closing.finish(
+      { runId, fence, plan },
+      { status: 'FAILED_INFRASTRUCTURE', verdict: null, evidence: {}, errorMessage: message },
+    );
+  }
+
   /** Carga la corrida y comprueba que la receta congelada sigue siendo la publicada. */
   private async load(runId: string, fence: Fence): Promise<RunContext | ExecutionOutcome> {
     const run = await this.runs.loadRun(runId);
@@ -127,7 +139,6 @@ export class QaRunExecutionService {
 
   private async conclude(ctx: RunContext, runtime: Runtime, namespaceOpened: boolean): Promise<ExecutionOutcome> {
     const { controller, budget } = runtime;
-    await this.runs.addRequests(ctx.runId, budget.requestsIssued);
     const reason = controller.signal.aborted ? String(controller.signal.reason) : null;
     if (reason === 'SHUTDOWN' || reason === 'LOST_LEASE') return { kind: 'ABANDONED', reason };
     const pendingReason = this.pendingReason(reason, budget);
@@ -135,13 +146,14 @@ export class QaRunExecutionService {
       await this.runs.closePendingPersonas(ctx.runId, reason === 'CANCELLED' ? 'CANCELLED' : 'BLOCKED', pendingReason, ctx.fence);
 
     const evidence = await this.closing.reconcile(ctx, namespaceOpened);
-    const counters = await this.closing.counters(ctx.runId, ctx.plan.persons, budget.requestsIssued);
+    const requestsIssued = await this.runs.requestsIssued(ctx.runId);
+    const counters = await this.closing.counters(ctx.runId, ctx.plan.persons, requestsIssued);
     const externalEvidenceMissing = ctx.plan.mode === 'INTEGRATED_QA' && ctx.plan.providers.length > 0 && evidence.mockConfirmed !== true;
     const status: QaRunStatus = reason === 'CANCELLED' ? 'CANCELLED' : reason === 'TIMED_OUT' ? 'TIMED_OUT' : 'COMPLETED';
     const verdict =
       status === 'COMPLETED' ? runVerdict(counters, { externalEvidenceMissing }) : counters.personsFailed > 0 ? 'FAILED' : 'INCONCLUSIVE';
     const errorMessage = budget.exhausted === 'BUDGET_EXHAUSTED' ? 'BUDGET_EXHAUSTED' : undefined;
-    return this.closing.finish(ctx, { status, verdict, evidence, errorMessage, requestsIssued: budget.requestsIssued });
+    return this.closing.finish(ctx, { status, verdict, evidence, errorMessage, requestsIssued });
   }
 
   /** Personas pendientes en carriles: `concurrency` a la vez, cada una con su ejecutor y su sink. */
@@ -182,6 +194,9 @@ export class QaRunExecutionService {
       sink: {
         record: async (step) => {
           await this.runs.upsertStep(ctx.runId, personaRunId, step, ctx.fence);
+          // Las solicitudes se cuentan al cerrar cada paso y quedan en la base: si el worker muere, el
+          // que retoma suma las suyas a las del anterior en vez de empezar de cero.
+          if (step.status !== 'RUNNING' && step.attempts.length > 0) await this.runs.addRequests(ctx.runId, step.attempts.length);
           const extracted = Object.entries(step.evidence.extracted ?? {}).filter(([key]) => key.startsWith('resources.'));
           if (step.status !== 'PASSED' || extracted.length === 0) return;
           const resources = Object.fromEntries(extracted.map(([key, value]) => [key.slice('resources.'.length), value]));
@@ -200,7 +215,13 @@ export class QaRunExecutionService {
       scope: {
         persona: { ...persona, requestedAmount: requestedAmountFor(persona.monthlyIncome, product) },
         fixtures: runtime.fixtures,
-        run: { runId: ctx.runId, namespace: ctx.namespace, seed: ctx.seed, referenceDate: ctx.referenceDate },
+        run: {
+          runId: ctx.runId,
+          namespace: ctx.namespace,
+          seed: ctx.seed,
+          referenceDate: ctx.referenceDate,
+          scenarioCode: ctx.plan.scenarioCode,
+        },
         resources: { ...checkpoint.resources } as Record<string, unknown>,
         session: {} as Record<string, Record<string, unknown>>,
       },

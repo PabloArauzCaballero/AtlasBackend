@@ -205,20 +205,20 @@ export class QaRunWorkerRepository {
     );
   }
 
-  /** Secuencia monótona por corrida; el índice único la protege de dos escritores. */
+  /**
+   * Secuencia monótona por corrida. Varias personas terminan a la vez y cada una añade su evento:
+   * se serializan con el bloqueo de la fila de la corrida, en vez de competir por `MAX(sequence)+1`
+   * y perder contra el índice único (medido con 5 personas: un choque tumbó el job entero).
+   */
   async appendEvent(runId: string, type: string, payload: Record<string, unknown>): Promise<void> {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        await this.sequelize.query(
-          `INSERT INTO ${S}.qa_run_events (run_id, sequence, event_type, payload_json)
-           SELECT $runId, COALESCE(MAX(sequence), 0) + 1, $type, $payload FROM ${S}.qa_run_events WHERE run_id = $runId;`,
-          { bind: { runId, type, payload: JSON.stringify(payload) } },
-        );
-        return;
-      } catch (error) {
-        if (attempt === 2 || !/ux_qa_run_events_sequence|unique/i.test(String((error as Error).message))) throw error;
-      }
-    }
+    await this.sequelize.transaction(async (transaction) => {
+      await this.sequelize.query(`SELECT _id FROM ${S}.qa_runs WHERE _id = $runId FOR UPDATE;`, { bind: { runId }, transaction });
+      await this.sequelize.query(
+        `INSERT INTO ${S}.qa_run_events (run_id, sequence, event_type, payload_json)
+         SELECT $runId, COALESCE(MAX(sequence), 0) + 1, $type, $payload FROM ${S}.qa_run_events WHERE run_id = $runId;`,
+        { bind: { runId, type, payload: JSON.stringify(payload) }, transaction },
+      );
+    });
   }
 
   async addRequests(runId: string, count: number): Promise<void> {
@@ -255,6 +255,14 @@ export class QaRunWorkerRepository {
         fence,
       )) === 1
     );
+  }
+
+  async requestsIssued(runId: string): Promise<number> {
+    const rows = await this.sequelize.query<{ n: number }>(`SELECT requests_issued AS n FROM ${S}.qa_runs WHERE _id = $runId;`, {
+      type: QueryTypes.SELECT,
+      bind: { runId },
+    });
+    return Number(rows[0]?.n ?? 0);
   }
 
   async saveProgress(runId: string, counters: Record<string, unknown>): Promise<void> {

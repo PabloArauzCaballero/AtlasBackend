@@ -96,6 +96,8 @@ export class QaJourneyConsumerService implements OnModuleDestroy {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'QA_RUN_FAILED';
       this.logger.error(`Corrida QA del job ${job.jobRunId} falló por infraestructura: ${message}`);
+      // La corrida no puede quedarse en RUNNING para siempre: se cierra con el motivo, cercada.
+      await this.execution.failInfrastructure(String((job.inputJson ?? {}).qaRunId ?? ''), fence, message).catch(() => undefined);
       await this.queue.complete(job, { status: 'failed', errorMessage: message }).catch(() => false);
       return 'FAILED_INFRASTRUCTURE';
     } finally {

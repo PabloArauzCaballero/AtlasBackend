@@ -17,6 +17,7 @@ import { QaRunQueryRepository, type RunRow } from '../infrastructure/qa-run-quer
 import { actorOf } from './qa-run-orchestrator.service.js';
 import { summary, tallySteps } from './qa-run-read.mappers.js';
 import { QaWorkflowMatcher } from './qa-workflow-matcher.js';
+import { qaError } from './qa-errors.js';
 
 /** Lo que el plan congelado guarda y la API repite en cada cabecera de corrida. */
 type PlanSnapshot = { mode?: string; persons?: number; concurrency?: number; scenarioCode?: string; datasetMode?: string };
@@ -40,7 +41,8 @@ export class QaRunReadService {
    * endpoint (los códigos de paso difieren entre flujos; la ruta que llaman, no).
    */
   async templates(workflowCode?: string) {
-    if (!workflowCode) return { items: JOURNEY_TEMPLATES.map((template) => ({ ...summary(template), matchedStepCodes: [] as string[] })) };
+    // Sin flujo no hay «pasos de este flujo» que contar: el campo se omite en vez de decir 0.
+    if (!workflowCode) return { items: JOURNEY_TEMPLATES.map(summary) };
     const items = [];
     for (const template of JOURNEY_TEMPLATES) {
       const matchedStepCodes = await this.matcher.matchedSteps(template, workflowCode);
@@ -51,7 +53,7 @@ export class QaRunReadService {
 
   template(code: string, version: string) {
     const template = findTemplate(code, version);
-    if (!template) throw new NotFoundException('QA_TEMPLATE_NOT_FOUND');
+    if (!template) throw new NotFoundException(qaError('QA_TEMPLATE_NOT_FOUND'));
     return {
       ...summary(template),
       steps: template.steps.map((step, index) => ({
@@ -76,7 +78,7 @@ export class QaRunReadService {
 
   coverage(workflowCode?: string) {
     const codes = workflowCode ? INVENTORIES[workflowCode] : Object.values(INVENTORIES).flat();
-    if (!codes) throw new NotFoundException('QA_WORKFLOW_NOT_FOUND');
+    if (!codes) throw new NotFoundException(qaError('QA_WORKFLOW_NOT_FOUND'));
     const rows = coverageMatrix(codes);
     const byReason: Record<string, number> = {};
     for (const row of rows) if (row.gapReason) byReason[row.gapReason] = (byReason[row.gapReason] ?? 0) + 1;
@@ -87,9 +89,9 @@ export class QaRunReadService {
   /** Datos de muestra: NO crea usuarios, no escribe nada y no contacta a nadie. El PIN no sale. */
   sampleInputs(code: string, version: string, input: { seed: string; count: number; datasetMode: string }) {
     const template = findTemplate(code, version);
-    if (!template) throw new NotFoundException('QA_TEMPLATE_NOT_FOUND');
+    if (!template) throw new NotFoundException(qaError('QA_TEMPLATE_NOT_FOUND'));
     if (!template.datasetModes.includes(input.datasetMode as JourneyTemplate['datasetModes'][number]))
-      throw new BadRequestException('QA_DATASET_MODE_UNSUPPORTED');
+      throw new BadRequestException(qaError('QA_DATASET_MODE_UNSUPPORTED'));
     const refDate = new Date();
     const personas = Array.from({ length: input.count }, (_, index) => {
       const persona = buildPersona({ masterSeed: input.seed, ordinal: index + 1, refDate, runNamespace: 'preview' });
@@ -103,7 +105,7 @@ export class QaRunReadService {
     const { tenantId } = actorOf(user);
     // Otro tenant recibe el mismo 404 que un id inexistente: no se confirma que la corrida exista.
     const run = await this.query.findRun(tenantId, runId);
-    if (!run) throw new NotFoundException('QA_RUN_NOT_FOUND');
+    if (!run) throw new NotFoundException(qaError('QA_RUN_NOT_FOUND'));
     return run;
   }
 
