@@ -142,6 +142,17 @@ describe('SupportChannelRepository', () => {
       expect(ultima(participants.findOne).where).toEqual({ channelId: 'ch-1', actorType: 'internal_user', actorId: '7', leftAt: null });
     });
 
+    it('un supervisor que tomó el caso entró como AGENT: para el personal interno cuenta cualquiera de los dos', async () => {
+      await repo.findLiveParticipant('ch-1', 'SUPERVISOR', '7');
+
+      expect(ultima(participants.findOne).where).toEqual({
+        channelId: 'ch-1',
+        actorType: { [Op.in]: ['AGENT', 'SUPERVISOR'] },
+        actorId: '7',
+        leftAt: null,
+      });
+    });
+
     it('salir escribe el motivo y sólo alcanza a la participación viva', async () => {
       await repo.removeParticipant('ch-1', 'internal_user', '7', 'TRANSFER', { transaction: tx });
 
