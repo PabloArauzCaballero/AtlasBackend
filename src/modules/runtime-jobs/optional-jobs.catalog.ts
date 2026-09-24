@@ -12,8 +12,15 @@ import { env } from '../../config/env.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
 import { SCHEDULER_ACTOR, type ScheduledJob } from './scheduled-jobs.catalog.js';
 
+/** Lo que el reintento de solicitudes diferidas necesita del crédito, sin importar su servicio. */
+export type DeferredUnderwriting = {
+  retryDeferred: (input: { tenantId: string; limit: number; maxAgeHours: number }) => Promise<unknown>;
+};
+
 export function buildOptionalJobs(deps: {
   maintenance: RuntimeMaintenanceJobsService;
+  /** P-09: presente cuando la composición cablea el crédito (siempre en la API). */
+  creditUnderwriting?: DeferredUnderwriting;
   /** Consumidor de la cola de estrés: función desde la composición, no el servicio. */
   stressRuns: { drain: () => Promise<unknown> };
   limit: number;
@@ -51,6 +58,25 @@ export function buildOptionalJobs(deps: {
    * No recibe `tenantId`: la cola se reclama por `job_code` y cada fila lleva el suyo. Recorrer
    * tenants aquí reclamaría el mismo trabajo una vez por tenant.
    */
+  /*
+   * P-09: la solicitud que no se decidió porque la base habilitante no llegó al motor se vuelve a
+   * pedir sola. Sólo las presentadas dentro de la vigencia de una decisión
+   * (`CREDIT_DECISION_VALIDITY_HOURS`); más viejas quedan `submitted` a la vista de operaciones.
+   */
+  if (deps.creditUnderwriting) {
+    const underwriting = deps.creditUnderwriting;
+    jobs.push({
+      jobCode: 'retry_deferred_underwriting',
+      intervalMs: env.RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS,
+      run: (tenantId: string) =>
+        underwriting.retryDeferred({
+          tenantId,
+          limit: env.RUNTIME_JOBS_OUTCOME_DISPATCH_LIMIT,
+          maxAgeHours: env.CREDIT_DECISION_VALIDITY_HOURS,
+        }),
+    });
+  }
+
   if (env.RUNTIME_JOBS_STRESS_CONSUMER_ENABLED) {
     jobs.push({
       jobCode: 'consume_systems_stress_runs',

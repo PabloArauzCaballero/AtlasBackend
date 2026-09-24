@@ -93,7 +93,9 @@ describe('CreditUnderwritingService', () => {
     const result = await service.underwrite(input);
 
     expect(result.status).toBe('under_review');
-    expect(result.decisionMode).toBe('decision_engine');
+    // Sin caso abierto en el motor no hay bandeja allí: la revisión es de Atlas. Con
+    // `decision_engine` la solicitud quedaba sin nadie que pudiera resolverla (P-10).
+    expect(result.decisionMode).toBe('engine_unavailable_manual');
   });
 
   it('deja escrito en el historial el caso que el Motor abrió: es lo que dice dónde se resuelve', async () => {

@@ -195,11 +195,18 @@ export class LoanDisbursementService {
    */
   private async revalidateAndReserve(
     tenantId: string,
-    application: { id: string; customerId: string; requestedAmount: string; currencyCode: string; decidedAt: Date | null },
+    application: {
+      id: string;
+      customerId: string;
+      requestedAmount: string;
+      currencyCode: string;
+      decidedAt: Date | null;
+      decisionValidUntil?: Date | null;
+    },
     now: Date,
     transaction: Transaction,
   ): Promise<void> {
-    const expiresAt = decisionExpiresAt(application.decidedAt, env.CREDIT_DECISION_VALIDITY_HOURS);
+    const expiresAt = decisionExpiresAt(application.decidedAt, env.CREDIT_DECISION_VALIDITY_HOURS, application.decisionValidUntil);
     if (expiresAt.getTime() <= now.getTime()) throw new ConflictException('CREDIT_DECISION_EXPIRED');
     await this.consents.assertMayOriginate(
       { tenantId, customerId: String(application.customerId), decidedAt: application.decidedAt },

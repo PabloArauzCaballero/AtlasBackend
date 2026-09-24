@@ -46,7 +46,7 @@ export class DecisionConsentReplicationModel extends Model {
   declare sourceConsentId: string | null;
 
   @Column({ field: 'status', type: DataType.STRING(20), allowNull: false })
-  declare status: 'pending' | 'synced';
+  declare status: 'pending' | 'synced' | 'superseded';
 
   @Column({ field: 'attempts', type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
   declare attempts: number;
@@ -59,6 +59,14 @@ export class DecisionConsentReplicationModel extends Model {
 
   @Column({ field: 'requested_at', type: DataType.DATE, allowNull: false })
   declare requestedAt: Date;
+
+  /** Por qué quedó `superseded` (p. ej. `CONSENT_GRANT_REPLAYED`). */
+  @Column({ field: 'resolution_code', type: DataType.STRING(60) })
+  declare resolutionCode: string | null;
+
+  /** Versión del texto bajo la que se otorgó, si Core la conoce. */
+  @Column({ field: 'consent_version', type: DataType.STRING(40) })
+  declare consentVersion: string | null;
 
   @Column({ field: 'synced_at', type: DataType.DATE })
   declare syncedAt: Date | null;

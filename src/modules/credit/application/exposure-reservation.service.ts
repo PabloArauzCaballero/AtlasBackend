@@ -25,9 +25,12 @@ type ExposureSnapshot = {
  * Hasta cuándo sirve una decisión para conceder. Sin fecha de decisión no hay vigencia que
  * demostrar: se trata como ya vencida (fallar cerrado), nunca como eterna.
  */
-export function decisionExpiresAt(decidedAt: Date | null | undefined, validityHours: number): Date {
+export function decisionExpiresAt(decidedAt: Date | null | undefined, validityHours: number, engineValidUntil?: Date | null): Date {
   if (!decidedAt) return new Date(0);
-  return new Date(decidedAt.getTime() + validityHours * 3_600_000);
+  const own = decidedAt.getTime() + validityHours * 3_600_000;
+  // Lo PRIMERO que venza: la vigencia que el motor puso a su decisión nunca se alarga con la del core.
+  const engine = engineValidUntil ? new Date(engineValidUntil).getTime() : Number.NaN;
+  return new Date(Number.isFinite(engine) ? Math.min(own, engine) : own);
 }
 
 export type ReserveExposureInput = {

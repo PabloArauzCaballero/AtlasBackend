@@ -21,6 +21,7 @@ export type ConsentReplicationRequest = {
   grantedAt?: Date | null;
   expiresAt?: Date | null;
   sourceConsentId?: string | null;
+  consentVersion?: string | null;
   now: Date;
 };
 
@@ -52,14 +53,15 @@ export class ConsentReplicationStore {
     const rows = await this.sequelize.query<{ id: string; requested_at: Date }>(
       `INSERT INTO ${this.table}
          (_tenant_id, customer_id, subject_reference, purpose_code, action, basis, granted_at, expires_at, source_consent_id,
-          status, attempts, next_attempt_at, last_error, requested_at, synced_at, _created_at, _updated_at)
+          consent_version, status, attempts, next_attempt_at, last_error, requested_at, synced_at, _created_at, _updated_at)
        VALUES ($tenantId, $customerId, $subjectReference, $purposeCode, $action, $basis, $grantedAt, $expiresAt, $sourceConsentId,
-          'pending', 0, $now, NULL, $now, NULL, $now, $now)
+          $consentVersion, 'pending', 0, $now, NULL, $now, NULL, $now, $now)
        ON CONFLICT (_tenant_id, subject_reference, purpose_code) DO UPDATE SET
           customer_id = EXCLUDED.customer_id, action = EXCLUDED.action, basis = EXCLUDED.basis,
           granted_at = EXCLUDED.granted_at, expires_at = EXCLUDED.expires_at, source_consent_id = EXCLUDED.source_consent_id,
-          status = 'pending', attempts = 0, next_attempt_at = EXCLUDED.next_attempt_at, last_error = NULL,
-          requested_at = EXCLUDED.requested_at, synced_at = NULL, _updated_at = EXCLUDED._updated_at
+          consent_version = EXCLUDED.consent_version, status = 'pending', attempts = 0, next_attempt_at = EXCLUDED.next_attempt_at,
+          last_error = NULL, resolution_code = NULL, requested_at = EXCLUDED.requested_at, synced_at = NULL,
+          _updated_at = EXCLUDED._updated_at
         WHERE NOT (${this.table}.action = 'revoke' AND EXCLUDED.action = 'grant'
                    AND ${this.table}.requested_at > COALESCE(EXCLUDED.granted_at, EXCLUDED.requested_at))
        RETURNING _id::text AS id, requested_at`,
@@ -75,6 +77,7 @@ export class ConsentReplicationStore {
           grantedAt: input.grantedAt ?? null,
           expiresAt: input.expiresAt ?? null,
           sourceConsentId: input.sourceConsentId ?? null,
+          consentVersion: input.consentVersion ?? null,
           now: input.now,
         },
         transaction,
@@ -94,6 +97,26 @@ export class ConsentReplicationStore {
       { where: { id, requestedAt, status: 'pending' } },
     );
     return updated === 1;
+  }
+
+  /**
+   * El motor respondió que esta réplica ya está superada (409 `CONSENT_GRANT_REPLAYED` /
+   * `CONSENT_REVOCATION_STALE`): conoce un estado más nuevo. Es terminal: no se reintenta, y el motivo
+   * queda escrito. Igual que el acuse, sólo si nadie pidió algo más nuevo mientras tanto.
+   */
+  async markSuperseded(row: { id: string; requestedAt: Date }, code: string, now: Date): Promise<boolean> {
+    const [updated] = await this.model.update(
+      { status: 'superseded', resolutionCode: code.slice(0, 60), lastError: null, syncedAt: now, updatedAtValue: now },
+      { where: { id: row.id, requestedAt: row.requestedAt, status: 'pending' } },
+    );
+    return updated === 1;
+  }
+
+  /** La réplica vigente de un sujeto y finalidad, si existe. */
+  findCurrent(input: { tenantId: string; subjectReference: string; purposeCode: string }): Promise<DecisionConsentReplicationModel | null> {
+    return this.model.findOne({
+      where: { tenantId: input.tenantId, subjectReference: input.subjectReference, purposeCode: input.purposeCode },
+    });
   }
 
   async markFailed(row: { id: string; attempts: number; requestedAt: Date }, error: string, now: Date): Promise<void> {
@@ -145,7 +168,7 @@ export class ConsentReplicationStore {
         LIMIT $limit
        ON CONFLICT (_tenant_id, subject_reference, purpose_code) DO UPDATE SET
           action = 'revoke', source_consent_id = EXCLUDED.source_consent_id, status = 'pending', attempts = 0,
-          next_attempt_at = EXCLUDED.next_attempt_at, last_error = NULL, requested_at = EXCLUDED.requested_at,
+          next_attempt_at = EXCLUDED.next_attempt_at, last_error = NULL, resolution_code = NULL, requested_at = EXCLUDED.requested_at,
           synced_at = NULL, _updated_at = EXCLUDED._updated_at
        RETURNING _id::text AS id`,
       {

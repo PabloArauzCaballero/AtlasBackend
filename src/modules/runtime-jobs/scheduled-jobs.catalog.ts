@@ -15,7 +15,7 @@ import { PartnerKybSyncService } from '../partner-onboarding/application/partner
 import { SupportSlaService } from '../support/application/support-sla.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
-import { buildOptionalJobs } from './optional-jobs.catalog.js';
+import { buildOptionalJobs, type DeferredUnderwriting } from './optional-jobs.catalog.js';
 
 /**
  * Actor con el que se registran las ejecuciones automáticas en `system_job_runs` y en la auditoría.
@@ -61,6 +61,8 @@ export function buildScheduledJobs(deps: {
   debtRating: DebtRatingService;
   outcomeDispatch: OutcomeDispatchService;
   partnerKybSync: PartnerKybSyncService;
+  /** P-09: reintento de las solicitudes diferidas por falta de base habilitante (ver optional-jobs). */
+  creditUnderwriting?: DeferredUnderwriting;
   /** Campañas de notificación: llega como función desde la composición para no importar internos de Mensajería. */
   notificationCampaigns: { tick: (tenantId: string) => Promise<unknown> };
   /** Consumidor de la cola de estrés: función desde la composición, por el mismo motivo que el anterior. */
@@ -294,6 +296,6 @@ export function buildScheduledJobs(deps: {
     },
     // Los trabajos que sólo corren bajo una bandera viven en `optional-jobs.catalog.ts`: esta lista
     // declara lo que corre SIEMPRE, y mezclarlas hacía que dejara de leerse de un vistazo.
-    ...buildOptionalJobs({ maintenance, stressRuns: deps.stressRuns, limit }),
+    ...buildOptionalJobs({ maintenance, stressRuns: deps.stressRuns, limit, creditUnderwriting: deps.creditUnderwriting }),
   ];
 }

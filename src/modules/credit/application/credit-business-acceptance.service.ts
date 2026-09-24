@@ -137,7 +137,14 @@ export class CreditBusinessAcceptanceService {
    */
   private async applyExposure(
     tenantId: string,
-    application: { id: string; customerId: string; requestedAmount: string; currencyCode: string; decidedAt: Date | null },
+    application: {
+      id: string;
+      customerId: string;
+      requestedAmount: string;
+      currencyCode: string;
+      decidedAt: Date | null;
+      decisionValidUntil?: Date | null;
+    },
     accepted: boolean,
     now: Date,
     transaction: Transaction,
@@ -153,7 +160,7 @@ export class CreditBusinessAcceptanceService {
         applicationId: String(application.id),
         amount: application.requestedAmount,
         currencyCode: application.currencyCode,
-        expiresAt: decisionExpiresAt(application.decidedAt, env.CREDIT_DECISION_VALIDITY_HOURS),
+        expiresAt: decisionExpiresAt(application.decidedAt, env.CREDIT_DECISION_VALIDITY_HOURS, application.decisionValidUntil),
         now,
       },
       transaction,

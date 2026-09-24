@@ -11,8 +11,8 @@ import { Sequelize } from 'sequelize-typescript';
 import { env } from '../../../config/env.js';
 import { CreditLineModel } from '../../../database/models/index.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
-import { CREDIT_DECISION_PURPOSE, SubjectReferenceService } from '../../decision-engine/subject-reference.service.js';
-import { UnderwritingFeaturesService } from '../../decision-engine/underwriting-features.service.js';
+import { SubjectReferenceService } from '../../decision-engine/subject-reference.service.js';
+import { lineVariableMetadata, UnderwritingFeaturesService } from '../../decision-engine/underwriting-features.service.js';
 import { PaymentCapacityService } from './payment-capacity.service.js';
 import { capacityProvenance, capacityVariables } from './credit-line.service.js';
 
@@ -130,7 +130,7 @@ export class CreditLineRecalculationService {
     const requestedTermMonths = input.requestedTermMonths ?? PROBE_TERM_MONTHS;
 
     const current = await this.escritor.lineaVigente(input.tenantId, input.customerId);
-    const { variables, provenance } = await this.features.build({
+    const features = await this.features.build({
       tenantId: input.tenantId,
       customerId: input.customerId,
       requestedAmount,
@@ -138,6 +138,7 @@ export class CreditLineRecalculationService {
       bankStatementNsfCount: input.bankStatementNsfCount ?? null,
       now,
     });
+    const { variables, provenance } = features;
 
     /*
      * La PROPUESTA de límite, calculada antes de preguntar y enviada como una variable más.
@@ -163,6 +164,25 @@ export class CreditLineRecalculationService {
 
     const subjectReference = await this.subjects.register({ tenantId: input.tenantId, customerId: input.customerId });
 
+    /*
+     * La base habilitante, en el motor ANTES de preguntar (P-09). Antes se registraba DESPUÉS de la
+     * decisión porque el motor no conocía al titular hasta su primera decisión; ahora el alta de la
+     * base lo materializa, y el motor sin base no decide (422 `ENABLING_BASIS_MISSING`). Si no llega,
+     * la línea vigente no se toca y el próximo recálculo lo vuelve a intentar: la réplica queda en la
+     * cola duradera. La base es `CREDIT_PROTECTION` y no `CONSENT`: ver `underwriting-basis.ts`.
+     */
+    const basis = await this.client.ensureUnderwritingBasis({
+      tenantId: input.tenantId,
+      customerId: input.customerId,
+      subjectReference,
+      now,
+    });
+    const blocked = DecisionEngineClient.basisBlocker(basis);
+    if (blocked) {
+      this.logger.warn(`No se recalcula la línea del cliente ${input.customerId}: ${blocked.reason} (${basis.error ?? basis.status}).`);
+      return null;
+    }
+
     let response;
     try {
       // El artefacto sale de la asignacion del portal; el entorno queda como respaldo.
@@ -179,48 +199,13 @@ export class CreditLineRecalculationService {
         correlationId: input.correlationId ?? randomUUID(),
         subjectReference,
         variables,
+        variableMetadata: lineVariableMetadata(features, capacity.evidence),
         context: { source: 'atlas-backend', purpose: 'credit_line', trigger: input.trigger, provenance },
       });
     } catch (error) {
       this.logger.error(`El motor no pudo recalcular la línea del cliente ${input.customerId}: ${(error as Error).message}`);
       return null;
     }
-
-    /*
-     * El permiso del titular, replicado en el motor DESPUÉS de la decisión.
-     *
-     * ## Por qué hacía falta
-     *
-     * El motor comprueba, antes de cada decisión, que ningún permiso registrado del sujeto esté
-     * vencido o revocado. Pero el backend —que es quien RECOGE el consentimiento en el alta— nunca
-     * se lo contaba. Resultado: el motor no tenía permisos que comprobar, así que la comprobación
-     * siempre pasaba. El control se ejercía sobre un conjunto vacío.
-     *
-     * ## Por qué DESPUÉS y no antes
-     *
-     * Porque el motor sólo conoce a un titular por sus decisiones: registrar el permiso antes de la
-     * primera devuelve `SUBJECT_NOT_FOUND`. No es un orden caprichoso, es la consecuencia de que el
-     * motor no guarde identidades — sólo referencias opacas que aparecen al decidir. La primera
-     * decisión de cada cliente corre, por tanto, sin permiso registrado; y está bien, porque la
-     * ausencia de permiso nunca bloquea: lo que bloquea es un permiso que EXISTE y ya no vale.
-     *
-     * ## La base legal, y por qué no es `CONSENT`
-     *
-     * Evaluar la capacidad de pago de quien pide un crédito no depende de que consienta cada
-     * evaluación —depende de que haya pedido el crédito—. Tratarlo como consentimiento revocable
-     * dejaría al motor sin poder decidir sobre un préstamo ya vivo, que es justo cuando más falta
-     * hace. El consentimiento propiamente dicho cubre lo que SÍ es opcional (extracto bancario,
-     * consultas al buró) y se registra con su propio propósito.
-     *
-     * No bloquea: si el motor no acepta la réplica, la línea se guarda igual. El permiso ya es
-     * válido en el sistema donde vive el dato personal; lo que falta es que el motor se entere.
-     */
-    await this.client.recordConsent({
-      subjectReference,
-      purpose: CREDIT_DECISION_PURPOSE,
-      basis: 'CREDIT_PROTECTION',
-      grantedAt: now,
-    });
 
     const output = (response.output ?? {}) as Record<string, unknown>;
 

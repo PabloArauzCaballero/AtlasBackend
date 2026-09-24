@@ -11,6 +11,7 @@ import { classifyDecision, type DecisionVerdict } from './decision-verdict.js';
 import { ConsentReplicationStore } from './consent-replication.store.js';
 import { EngineConsentGateway, type ConsentBasis, type ConsentReplicationInput } from './engine-consent.gateway.js';
 import { EngineTransportService, type OpcionesDeLlamada } from './engine-transport.service.js';
+import { basisBlocker, ensureUnderwritingBasis } from './underwriting-basis.js';
 import {
   DecisionRequest,
   DecisionResponse,
@@ -48,6 +49,17 @@ export class DecisionEngineClient {
   static verdictOf(response: DecisionResponse): DecisionVerdict {
     return classifyDecision(response);
   }
+
+  /**
+   * P-09: la base habilitante de la evaluación crediticia, registrada en el motor ANTES de decidir, y
+   * qué hacer si no llegó. Se exponen aquí para que quien ya habla con el motor (el recálculo de línea)
+   * no abra otra dependencia hacia este módulo. La regla vive en `underwriting-basis.ts`.
+   */
+  ensureUnderwritingBasis(input: { tenantId: string; customerId: string; subjectReference: string; now: Date }) {
+    return ensureUnderwritingBasis(this.consents, input);
+  }
+
+  static readonly basisBlocker = basisBlocker;
 
   /** Sin URL no hay integración, y quien llame debe poder distinguirlo de un motor que falla. */
   get isConfigured(): boolean {

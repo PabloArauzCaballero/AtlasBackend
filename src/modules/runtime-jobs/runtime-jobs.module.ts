@@ -40,6 +40,7 @@ import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.servic
 import { JobRunRecorderService } from './job-run-recorder.service.js';
 import { BankStatementReviewWorker } from '../credit/application/bank-statement-review.worker.js';
 import { CreditLineRefreshService } from '../credit/application/credit-line-refresh.service.js';
+import { CreditUnderwritingService } from '../credit/application/credit-underwriting.service.js';
 import { LoanDelinquencyService } from '../loans/application/loan-delinquency.service.js';
 import { OnboardingAbandonmentService } from '../customer-onboarding/application/onboarding-abandonment.service.js';
 import { buildScheduledJobs, SCHEDULED_JOBS, SCHEDULER_ACTOR } from './scheduled-jobs.catalog.js';
@@ -112,6 +113,7 @@ import { env } from '../../config/env.js';
         notifications: NotificationsService,
         jobRuns: JobRunRecorderService,
         stressConsumer: SystemsStressConsumerService,
+        creditUnderwriting: CreditUnderwritingService,
       ) =>
         buildScheduledJobs({
           runtimeJobs,
@@ -124,6 +126,7 @@ import { env } from '../../config/env.js';
           debtRating,
           outcomeDispatch,
           partnerKybSync,
+          creditUnderwriting,
           // El ejecutor de campañas vive en Mensajería; aquí sólo se le da cadencia y registro en `system_job_runs`.
           notificationCampaigns: {
             tick: (tenantId: string) =>
@@ -157,6 +160,7 @@ import { env } from '../../config/env.js';
         NotificationsService,
         JobRunRecorderService,
         SystemsStressConsumerService,
+        CreditUnderwritingService,
       ],
     },
   ],

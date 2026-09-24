@@ -112,8 +112,13 @@ describe('P-09 · revocación con el motor caído (PostgreSQL real)', () => {
     motor.state.up = true;
     const up = await motor.sync.sync({ tenantId: harness.tenantId, limit: 50, now: new Date(Date.now() + 2 * 3_600_000) });
     expect(up).toMatchObject({ synced: 1, failed: 0, pendingRevocations: 0 });
+    // La revocación viaja con la fecha en que el titular revocó (P-09), no con la de la entrega.
+    const [revocation] = await CustomerConsentModel.findAll({ where: { id: consentId } });
     expect(motor.state.calls).toEqual([
-      { url: 'http://motor.invalid/v1/risk-governance/consents/revoke', body: { subjectReference, purpose: 'bank_statement_analysis' } },
+      {
+        url: 'http://motor.invalid/v1/risk-governance/consents/revoke',
+        body: { subjectReference, purpose: 'bank_statement_analysis', revokedAt: (revocation.revokedAt as Date).toISOString() },
+      },
     ]);
     // Ya replicada, la decisión sigue sin servir: se tomó ANTES de la revocación.
     await expect(harness.disburse(app)).rejects.toThrow('CONSENT_REVOKED_AFTER_DECISION');

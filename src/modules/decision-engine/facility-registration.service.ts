@@ -17,6 +17,18 @@ import { FacilityRegistrationInput } from './decision-engine.types.js';
 export const GRANTED_LOAN_STATUSES = ['active', 'paid_off', 'written_off'] as const;
 
 /**
+ * Rechazos del alta que reintentar no arregla: la referencia ya está atada a OTRA decisión u otro
+ * titular, la decisión citada no terminó (`NO_DECISION`/`FAILED`), no existe o no identificó a nadie.
+ * `FACILITY_REGISTRATION_FAILED` (fallo de escritura en el motor) NO está: ése se reintenta.
+ */
+export const TERMINAL_FACILITY_CODES: ReadonlySet<string> = new Set([
+  'FACILITY_REFERENCE_CONFLICT',
+  'EXECUTION_NOT_DECIDED',
+  'EXECUTION_NOT_FOUND',
+  'EXECUTION_WITHOUT_SUBJECT',
+]);
+
+/**
  * El alta del crédito en el motor, en su propio servicio y con su propio job.
  *
  * ## Por qué no la hace el desembolso
@@ -51,9 +63,10 @@ export class FacilityRegistrationService {
    * la cartera entera en cada barrido —idempotente, pero creciendo para siempre— y la pregunta «¿qué
    * créditos no puede medir el motor?» no tendría respuesta en una consulta.
    *
-   * Un crédito que el motor RECHAZA no se marca: se queda en la cola. Es deliberado — un
-   * `EXECUTION_WITHOUT_SUBJECT` no se arregla reintentando, pero marcarlo lo esconderría, y lo que
-   * hace falta es que se vea que hay créditos que el motor nunca podrá medir.
+   * Un crédito que el motor RECHAZA nunca se marca como registrado. Si el rechazo es terminal
+   * (`TERMINAL_FACILITY_CODES`) sale de la cola con su código en `decision_facility_rejection_code`
+   * y una alerta —reenviarlo en cada pasada no lo arreglaría—; sigue sin alta, así que la
+   * conciliación lo sigue contando. Un fallo transitorio por fila se reintenta en la pasada siguiente.
    */
   async registrarCreditosNuevos(input: { tenantId: string | null; limit: number }) {
     if (!this.client.canReportOutcomes) {
@@ -63,6 +76,7 @@ export class FacilityRegistrationService {
     const pendientes = await this.loanModel.findAll({
       where: {
         decisionFacilityRegisteredAt: null,
+        decisionFacilityRejectedAt: null,
         decisionExecutionId: { [Op.ne]: null },
         disbursedAt: { [Op.ne]: null },
         status: { [Op.in]: [...GRANTED_LOAN_STATUSES] },
@@ -87,24 +101,42 @@ export class FacilityRegistrationService {
     }));
 
     try {
-      const veredictos = await this.client.registerFacilities(altas);
-      const aceptados = new Set(veredictos.filter((row) => row.accepted).map((row) => row.externalReference));
+      const veredictos = new Map((await this.client.registerFacilities(altas)).map((row) => [row.externalReference, row]));
       const now = new Date();
-      let registrados = 0;
+      const cuenta = { registrados: 0, rechazados: 0, terminales: 0 };
       for (const loan of pendientes) {
-        if (!aceptados.has(loan.loanCode)) continue;
-        loan.decisionFacilityRegisteredAt = now;
-        await loan.save();
-        registrados += 1;
+        const veredicto = veredictos.get(loan.loanCode);
+        // Aceptado o `duplicate` (reenvío idempotente con la misma decisión): registrado.
+        if (veredicto?.accepted) {
+          loan.decisionFacilityRegisteredAt = now;
+          await loan.save();
+          cuenta.registrados += 1;
+          continue;
+        }
+        cuenta.rechazados += 1;
+        if (veredicto?.reason && TERMINAL_FACILITY_CODES.has(veredicto.reason)) {
+          // Terminal: reintentar da el mismo rechazo. Sale de la cola CON su código y sigue visible.
+          loan.decisionFacilityRejectedAt = now;
+          loan.decisionFacilityRejectionCode = veredicto.reason;
+          await loan.save();
+          cuenta.terminales += 1;
+        }
       }
-      const rechazos = veredictos.filter((row) => !row.accepted);
+      const rechazos = [...veredictos.values()].filter((row) => !row.accepted);
       if (rechazos.length > 0) {
         this.logger.warn(
           `El motor no aceptó ${rechazos.length} créditos: ` +
             rechazos.map((row) => `${row.externalReference} (${row.reason ?? 'sin motivo'})`).join(', '),
         );
       }
-      return { registrados, rechazados: rechazos.length };
+      if (cuenta.terminales > 0) {
+        this.logger.error(`ALERTA: ${cuenta.terminales} créditos no se podrán medir en el motor (rechazo terminal); requieren corrección.`);
+      }
+      return {
+        registrados: cuenta.registrados,
+        rechazados: cuenta.rechazados,
+        ...(cuenta.terminales > 0 ? { terminales: cuenta.terminales } : {}),
+      };
     } catch (error) {
       /*
        * No se marca NADA si la llamada falla: el motor pudo no recibir el lote, y marcar un crédito

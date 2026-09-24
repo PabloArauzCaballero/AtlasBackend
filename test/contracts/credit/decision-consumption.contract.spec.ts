@@ -49,7 +49,12 @@ describe('P-10 · classifyDecision falla cerrado', () => {
 
 describe('P-10 · CreditDecisionEngineService sólo aprueba lo que classifyDecision aprueba', () => {
   function service(engineResponse: DecisionResponse) {
-    const client = { isConfigured: true, execute: jest.fn(async () => engineResponse) };
+    const client = {
+      isConfigured: true,
+      execute: jest.fn(async () => engineResponse),
+      // La base habilitante ya está en el motor (P-09): lo que se prueba aquí es el veredicto.
+      consents: { ensureGranted: jest.fn(async () => ({ status: 'ready', marker: '1' })) },
+    };
     const span = { setAttribute: () => undefined, addEvent: () => undefined };
     return new CreditDecisionEngineService(
       { runInSpan: (_name: string, _attrs: unknown, fn: (s: unknown) => unknown) => fn(span) } as never,
