@@ -264,11 +264,26 @@ export type PosTerminalStatusDto = z.infer<typeof posTerminalStatusSchema>;
  * Es el serial del terminal, y viaja opaco a propósito: el QR no lleva ni el nombre del comercio ni
  * la cuenta donde cobra, así que fotografiarlo no revela nada y cambiarlo por el de otro comercio
  * sólo consigue que el servidor resuelva ese otro comercio —que es lo que el cliente vería en
- * pantalla antes de confirmar—. El mínimo de 8 coincide con el que la app exige al dictarlo a mano.
+ * pantalla antes de confirmar—. El mínimo coincide con el de alta de terminales.
  */
 export const resolveMerchantQrSchema = z
   .object({
-    token: z.string().trim().min(8).max(120),
+    token: z.string().trim().min(3).max(80),
   })
   .strict();
 export type ResolveMerchantQrDto = z.infer<typeof resolveMerchantQrSchema>;
+
+export const paymentQrForPosSchema = z
+  .object({
+    partnerProfileId: z.string().regex(/^[1-9][0-9]*$/),
+    posTerminalId: z.string().regex(/^[1-9][0-9]*$/),
+  })
+  .strict();
+export type PaymentQrForPosDto = z.infer<typeof paymentQrForPosSchema>;
+
+export type PaymentQrForPosResponse = {
+  qrId: string;
+  imageDataUrl: string;
+  bankInstitutionCode: string | null;
+  accountNumberMasked: string | null;
+};
