@@ -82,13 +82,18 @@ export class QaRunExecutionService {
       const errorMessage = this.environments.disabledReason() ?? 'Entorno no apto para QA.';
       return this.closing.finish(ctx, { status: 'BLOCKED', verdict: null, evidence: {}, errorMessage });
     }
+    // Un apagado o un lease perdido ANTES de empezar: `addEventListener` no avisa de una señal ya
+    // abortada, así que sin esta comprobación la corrida entera se ejecutaría ignorando el apagado.
+    if (signal.aborted) return { kind: 'ABANDONED', reason: String(signal.reason ?? 'SHUTDOWN') };
     if (!(await this.runs.markRunning(runId, fence))) return { kind: 'ABANDONED', reason: 'LOST_LEASE' };
     await this.runs.appendEvent(runId, 'RUN_STARTED', { persons: ctx.plan.persons, concurrency: ctx.plan.concurrency });
 
     // Una sola señal para cancelar, vencer el plazo o apagar; el motivo decide cómo se cierra.
     const controller = new AbortController();
     const stop = (reason: string) => !controller.signal.aborted && controller.abort(reason);
-    signal.addEventListener('abort', () => stop(String(signal.reason ?? 'SHUTDOWN')), { once: true });
+    const onAbort = () => stop(String(signal.reason ?? 'SHUTDOWN'));
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
     const deadlineAt = Date.now() + ctx.plan.limits.maxDurationMs;
     const watcher = setInterval(() => {
       if (Date.now() >= deadlineAt) stop('TIMED_OUT');
@@ -118,14 +123,18 @@ export class QaRunExecutionService {
       signal: controller.signal,
       creditProduct: () => (env.QA_TARGET_SHARES_DATABASE ? this.support.findActiveCreditProduct(ctx.tenantId) : Promise.resolve(null)),
     });
+    const { maxRequests, maxInFlightRequests } = ctx.plan.limits;
+    const budget = new RunBudget({ maxRequests, maxInFlightRequests, deadlineAt }, controller.signal);
+    controller.signal.addEventListener('abort', () => budget.wakeAll(), { once: true });
+    // Fixture «faltante» porque la corrida se abortó mientras se resolvía: no es un bloqueo, se
+    // cierra (o se abandona) por el motivo del aborto.
+    if (!fixtures.ok && controller.signal.aborted)
+      return this.conclude(ctx, { controller, budget, transport, fixtures: {} }, namespaceOpened);
     if (!fixtures.ok) {
       await this.runs.closePendingPersonas(ctx.runId, 'BLOCKED', fixtures.message, ctx.fence);
       const evidence = { mockNamespace: namespaceOpened };
       return this.closing.finish(ctx, { status: 'BLOCKED', verdict: null, evidence, errorMessage: `FIXTURE_MISSING: ${fixtures.message}` });
     }
-    const { maxRequests, maxInFlightRequests } = ctx.plan.limits;
-    const budget = new RunBudget({ maxRequests, maxInFlightRequests, deadlineAt }, controller.signal);
-    controller.signal.addEventListener('abort', () => budget.wakeAll(), { once: true });
     const runtime: Runtime = { controller, budget, transport, fixtures: fixtures.fixtures };
     await this.runPersonas(ctx, runtime);
     return this.conclude(ctx, runtime, namespaceOpened);
