@@ -1,0 +1,55 @@
+[
+  {
+    "requirementId": "B13",
+    "packageId": "P-10",
+    "repository": "AtlasBackend",
+    "title": "Core no origina con estado técnico inválido, dato crítico desconocido o resultado pendiente de revisión",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Sólo SUCCEEDED/COMPLETED + desenlace de aprobación reconocido, sin caso de revisión, sin motivo técnico y sin bandera de revisión, aprueba; cualquier otro valor —incluido uno nuevo o desconocido del motor— va a revisión (falla cerrado).",
+    "tests": [
+      { "file": "test/contracts/credit/decision-consumption.contract.spec.ts", "name": "NO_DECISION aunque diga APPROVE → review" },
+      { "file": "test/contracts/credit/decision-consumption.contract.spec.ts", "name": "estado técnico aditivo desconocido → review" },
+      { "file": "test/contracts/credit/decision-consumption.contract.spec.ts", "name": "desenlace desconocido (APPROVE_WITH_CONDITIONS) → review" },
+      { "file": "test/contracts/credit/decision-consumption.contract.spec.ts", "name": "aprobación con caso de revisión abierto → review" },
+      { "file": "test/contracts/credit/decision-consumption.contract.spec.ts", "name": "aprobación con motivo técnico (salida económica inválida) → review" },
+      { "file": "test/contracts/credit/decision-consumption.contract.spec.ts", "name": "aprobación con dato crítico desconocido → review" },
+      { "file": "test/contracts/credit/decision-consumption.contract.spec.ts", "name": "una ejecución NO_DECISION con APPROVE no concede" },
+      { "file": "test/contracts/credit/decision-consumption.contract.spec.ts", "name": "un APPROVE con motivo técnico no concede" }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B13",
+    "packageId": "P-10",
+    "repository": "AtlasBackend",
+    "title": "Una salida económica inválida o técnica no se convierte en línea de crédito ni en recorte",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "El recálculo de línea sólo escribe el límite de una aprobación limpia y finita no negativa; un rechazo escribe 0; una respuesta técnica no toca la línea vigente.",
+    "tests": [
+      { "file": "test/contracts/credit/decision-consumption.contract.spec.ts", "name": "aprobación limpia → escribe el límite emitido" },
+      { "file": "test/contracts/credit/decision-consumption.contract.spec.ts", "name": "límite negativo → NO toca la línea vigente" },
+      { "file": "test/contracts/credit/decision-consumption.contract.spec.ts", "name": "revisión técnica → NO toca la línea vigente" }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B14",
+    "packageId": "P-10",
+    "repository": "AtlasBackend",
+    "title": "La concesión exige una decisión aprobada y VIGENTE",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "El desembolso rechaza una solicitud no aprobada y una decisión vencida (CREDIT_DECISION_VALIDITY_HOURS) o sin fecha, sin reservar cupo ni crear préstamo.",
+    "tests": [
+      { "file": "test/unit/loans/loan-disbursement.service.spec.ts", "name": "una decisión vencida no se desembolsa" },
+      { "file": "test/unit/loans/loan-disbursement.service.spec.ts", "name": "sin fecha de decisión no hay vigencia que demostrar" },
+      { "file": "test/integration/credit/exposure-reservation.spec.ts", "name": "una decisión vencida no concede" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  }
+]

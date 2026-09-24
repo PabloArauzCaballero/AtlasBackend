@@ -273,6 +273,7 @@ nav:
       - Brechas documentales: reports/documentation-gap-analysis.md
       - Preparación para producción: reports/production-readiness.md
       - Validación final: reports/final-validation.md
+      - Decisiones de cumplimiento 2026-09-24: compliance/decisions.md
       - Auditoría integral 2026-07-30: audit/auditoria-integral-2026-07-30.md
       - Hardening de resiliencia 2026-08-05: audit/hardening-resiliencia-2026-08-05.md
       - Auditoría integral 2026-08-06: audit/auditoria-integral-2026-08-06.md

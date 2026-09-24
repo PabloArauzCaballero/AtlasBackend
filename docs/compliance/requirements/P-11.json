@@ -1,0 +1,80 @@
+[
+  {
+    "requirementId": "B15",
+    "packageId": "P-11",
+    "repository": "AtlasBackend",
+    "title": "Reserva de exposición: dos concesiones concurrentes no exceden el límite",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Exposición 900, límite 1.000 y dos solicitudes concurrentes de 80 dejan como máximo una concesión válida (cerrojo de la fila del cliente + reserva escrita).",
+    "tests": [
+      { "file": "test/integration/credit/exposure-reservation.spec.ts", "name": "exposición 900, límite 1.000, dos desembolsos concurrentes de 80" },
+      { "file": "test/integration/credit/exposure-reservation.spec.ts", "name": "dos aceptaciones concurrentes que juntas exceden el límite" },
+      { "file": "test/integration/credit/exposure-reservation.spec.ts", "name": "sin línea vigente no se concede" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B15",
+    "packageId": "P-11",
+    "repository": "AtlasBackend",
+    "title": "La decisión vence, la concesión revalida y la cancelación libera la reserva una sola vez",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Una reserva vencida no cuenta ni se consume; el reintento del mismo desembolso no aparta el cupo dos veces; dos cancelaciones simultáneas liberan una vez.",
+    "tests": [
+      { "file": "test/integration/credit/exposure-reservation.spec.ts", "name": "una decisión vencida no concede y su reserva vencida no cuenta" },
+      { "file": "test/integration/credit/exposure-reservation.spec.ts", "name": "cancelar libera la reserva UNA sola vez" },
+      { "file": "test/integration/credit/exposure-reservation.spec.ts", "name": "reintentar el mismo desembolso no aparta el cupo dos veces" },
+      { "file": "test/unit/credit/credit-business-acceptance.spec.ts", "name": "declinar libera la reserva y no reserva nada" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B15",
+    "packageId": "P-11",
+    "repository": "AtlasBackend",
+    "title": "Facilities sólo para créditos concedidos, con referencia estable y la ejecución correcta; reenvíos y errores por fila",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "El alta recorre sólo préstamos active/paid_off/written_off con ejecución; referencia externa = loanCode, ejecución = la que aprobó la solicitud; un rechazo por fila no marca ni tumba el lote.",
+    "tests": [
+      { "file": "test/unit/decision-engine/portfolio-reconciliation.spec.ts", "name": "el alta sólo recorre préstamos realmente concedidos" },
+      { "file": "test/unit/decision-engine/facility-registration.service.spec.ts", "name": "registra los créditos pendientes y los marca" },
+      { "file": "test/unit/decision-engine/facility-registration.service.spec.ts", "name": "no marca el crédito que el motor rechaza" },
+      { "file": "test/unit/decision-engine/outcome-dispatch.service.spec.ts", "name": "marca enviada la fila aceptada y reencola la rechazada" }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B15",
+    "packageId": "P-11",
+    "repository": "AtlasBackend",
+    "title": "Conciliación Core↔Motor que alerta ausencia de datos en vez de declarar cartera sana",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Cartera vacía = NO_DATA; créditos sin alta, sin ejecución, desenlaces agotados o motor sin credencial = ALERT; RECONCILED sólo con cartera registrada y sin agotados.",
+    "tests": [
+      { "file": "test/unit/decision-engine/portfolio-reconciliation.spec.ts", "name": "cartera vacía NO es cartera sana" },
+      { "file": "test/unit/decision-engine/portfolio-reconciliation.spec.ts", "name": "créditos concedidos sin alta → ALERT" },
+      { "file": "test/unit/decision-engine/portfolio-reconciliation.spec.ts", "name": "sólo con cartera, todo registrado y nada agotado" }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B15",
+    "packageId": "P-11",
+    "repository": "AtlasBackend",
+    "title": "Un crédito reenviado no cambia de sujeto; un outcome duplicado no incrementa numeradores ni deja la ventana pendiente",
+    "releaseIncluded": true,
+    "ownerRole": "M",
+    "acceptance": "Propiedad del receptor (motor): upsert por (tenant, externalReference) y deduplicación por (executionId, windowDays).",
+    "tests": [],
+    "requiresDatabase": true,
+    "blockedBy": "Se verifica en AtlasDecisionEngineBackend (outcome-ingestion); Core sólo reenvía de forma idempotente, cubierto arriba."
+  }
+]

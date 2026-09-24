@@ -1,0 +1,100 @@
+{
+  "repository": "AtlasBackend",
+  "reviewedOn": "2026-09-24",
+  "baseline": { "branch": "dev", "commit": "8147130955474c62a5f11cd792851d9cb28600a2" },
+  "statusVocabulary": ["DECLARED", "IMPLEMENTED", "VERIFIED", "BLOCKED", "DEFERRED"],
+  "note": "VERIFIED sólo lo declara el evaluador tras correr las pruebas en el SHA exacto del candidato. Aquí se registra el alcance y dónde está la evidencia; los requisitos por paquete viven en docs/compliance/requirements/*.json.",
+  "requirements": [
+    {
+      "requirementId": "B01",
+      "packageId": "P-01",
+      "title": "Plantilla de entorno completa y contrato OpenAPI estable en CI",
+      "releaseIncluded": true,
+      "priority": "P0",
+      "ownerRole": "C",
+      "status": "IMPLEMENTED",
+      "evidence": {
+        "jest": [
+          { "file": "test/unit/config/openapi-stable-sort.spec.ts", "name": "produce el mismo orden para rutas, métodos y esquemas sin alterar arrays semánticos" },
+          { "file": "test/unit/config/stress-consumer-env.spec.ts", "name": "mantiene el consumidor apagado cuando el entorno contiene false" },
+          { "file": "test/unit/config/stress-consumer-env.spec.ts", "name": "rechaza valores desconocidos para no activar una carga por error de escritura" }
+        ],
+        "commands": ["yarn check:env-example", "yarn check:openapi", "yarn docs:openapi && git diff --exit-code -- docs/endpoints/openapi.yaml"]
+      },
+      "blockedBy": null
+    },
+    {
+      "requirementId": "B02",
+      "packageId": "P-01",
+      "title": "El despliegue DEV depende de los gates de CI del SHA exacto y verifica el SHA servido",
+      "releaseIncluded": true,
+      "priority": "P0",
+      "ownerRole": "S",
+      "status": "IMPLEMENTED",
+      "evidence": {
+        "jest": [],
+        "commands": [
+          "python3 .github/tests/test_deploy_gate.py",
+          "python3 .github/tests/test_smoke_workflow.py",
+          "node --test .github/tests/post-deploy-smoke.test.mjs"
+        ]
+      },
+      "blockedBy": null
+    },
+    {
+      "requirementId": "B12",
+      "packageId": "P-09",
+      "title": "Réplica/revocación de consentimiento al motor duradera y bloqueo local en Core",
+      "releaseIncluded": true,
+      "priority": "P0",
+      "ownerRole": "C",
+      "status": "IMPLEMENTED",
+      "evidence": { "requirementsFile": "docs/compliance/requirements/P-09.json" },
+      "blockedBy": null
+    },
+    {
+      "requirementId": "B13",
+      "packageId": "P-10",
+      "title": "Core no concede con resultados técnicos, desconocidos o pendientes de revisión (lado Core)",
+      "releaseIncluded": true,
+      "priority": "P0",
+      "ownerRole": "C",
+      "status": "IMPLEMENTED",
+      "evidence": { "requirementsFile": "docs/compliance/requirements/P-10.json" },
+      "blockedBy": null
+    },
+    {
+      "requirementId": "B15",
+      "packageId": "P-11",
+      "title": "Reserva de exposición en la concesión, facilities y conciliación Core↔Motor",
+      "releaseIncluded": true,
+      "priority": "P0",
+      "ownerRole": "C",
+      "status": "IMPLEMENTED",
+      "evidence": { "requirementsFile": "docs/compliance/requirements/P-11.json" },
+      "blockedBy": null
+    },
+    {
+      "requirementId": "B19",
+      "packageId": "P-17",
+      "title": "Restore, rollback integral, credenciales efectivas, entrega de alertas e integraciones reales",
+      "releaseIncluded": true,
+      "priority": "P1",
+      "ownerRole": "S",
+      "status": "BLOCKED",
+      "evidence": {},
+      "blockedBy": "No verificado: requiere el PostgreSQL gestionado y dos versiones publicadas para ensayar restore y rollback en staging (docs/reports/production-readiness.md §6 y §8)."
+    },
+    {
+      "requirementId": "B20",
+      "packageId": "P-08",
+      "title": "Ciclo S2S completo con duplicados y fallos parciales (pago consumidor–comercio–Core–ERP)",
+      "releaseIncluded": true,
+      "priority": "P0",
+      "ownerRole": "I",
+      "status": "BLOCKED",
+      "evidence": { "requirementsFile": "docs/compliance/requirements/P-08.json" },
+      "blockedBy": "El lado Core está implementado y probado (P-08.json). El ciclo conjunto exige la entrega Core→ERP y el consumidor ERP de payment.confirmed (P-03, P-14) y la jornada sintética de P-18."
+    }
+  ]
+}

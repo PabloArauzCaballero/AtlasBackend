@@ -1,0 +1,62 @@
+[
+  {
+    "requirementId": "B12",
+    "packageId": "P-09",
+    "repository": "AtlasBackend",
+    "title": "Réplica de consentimiento al motor duradera y reparable",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Una réplica (permiso o revocación) que falla queda pendiente en decision_consent_replications y el trabajo sync_engine_consents la reintenta hasta el acuse; un permiso más viejo no pisa una revocación.",
+    "tests": [
+      { "file": "test/integration/credit/consent-enforcement.spec.ts", "name": "una réplica de permiso con el motor caído no se pierde" },
+      { "file": "test/integration/credit/consent-enforcement.spec.ts", "name": "un permiso más viejo que una revocación pendiente no la pisa" },
+      { "file": "test/unit/decision-engine/consent-replication.spec.ts", "name": "con el motor caído devuelve false, NO pierde la petición y la reprograma" },
+      { "file": "test/unit/decision-engine/consent-replication.spec.ts", "name": "un fallo por fila no tumba la pasada" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B12",
+    "packageId": "P-09",
+    "repository": "AtlasBackend",
+    "title": "Una revocación impide originar en Core aunque el motor esté caído",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Con una revocación pendiente de replicar el desembolso responde CONSENT_REVOCATION_PENDING_SYNC; replicada, una decisión anterior a la revocación responde CONSENT_REVOKED_AFTER_DECISION; una decisión posterior sí desembolsa.",
+    "tests": [
+      { "file": "test/integration/credit/consent-enforcement.spec.ts", "name": "revocación con el motor caído" },
+      { "file": "test/unit/credit/exposure-reservation.service.spec.ts", "name": "bloquea la originación: revocación pendiente de réplica" },
+      { "file": "test/unit/credit/exposure-reservation.service.spec.ts", "name": "bloquea la originación: revocación posterior a la decisión" },
+      { "file": "test/unit/loans/loan-disbursement.service.spec.ts", "name": "un consentimiento revocado bloquea antes de reservar cupo" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B12",
+    "packageId": "P-09",
+    "repository": "AtlasBackend",
+    "title": "Credenciales de ejecución y de gobierno separadas; la réplica no usa la llave de runtime",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "La réplica de consentimiento viaja con DECISION_ENGINE_GOVERNANCE_API_KEY (o la de desenlaces), nunca con DECISION_ENGINE_API_KEY.",
+    "tests": [
+      { "file": "test/unit/decision-engine/decision-engine.client.spec.ts", "name": "replica con la llave de gestión y devuelve true al lograrlo" }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B12",
+    "packageId": "P-09",
+    "repository": "AtlasBackend",
+    "title": "Qué finalidades condicionan qué originación (base habilitante por finalidad)",
+    "releaseIncluded": true,
+    "ownerRole": "J",
+    "acceptance": "Legal/Privacidad ratifica la regla conservadora implementada (cualquier revocación posterior a la decisión bloquea el desembolso).",
+    "tests": [],
+    "requiresDatabase": false,
+    "blockedBy": "Decisión jurídica pendiente de ratificar (docs/compliance/decisions.md, P-09). El control técnico existe y está probado arriba."
+  }
+]
