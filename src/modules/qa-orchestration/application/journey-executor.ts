@@ -16,7 +16,7 @@ import { logicalOperationId } from '../domain/run-accounting.js';
 import type { QaStepStatus } from '../domain/qa-run.types.js';
 import { evaluateCondition, type BindingScope } from '../domain/typed-bindings.js';
 import { dependenciesOf } from '../domain/recipe-validation.js';
-import type { AdmissionPort, BudgetPort, QaCredentialPort, QaTransport, StepRecord, StepSink } from './executor.ports.js';
+import type { AdmissionPort, BudgetPort, InboxPort, QaCredentialPort, QaTransport, StepRecord, StepSink } from './executor.ports.js';
 import { StepRunner, type StepBase, type StepResult } from './step-runner.js';
 
 export type PersonaExecutionInput = {
@@ -40,6 +40,8 @@ export type PersonaExecutionDeps = {
   budget: BudgetPort;
   credential: QaCredentialPort;
   sink: StepSink;
+  /** Buzón QA para los pasos `otp`; sin él, esos pasos fallan con motivo. */
+  inbox?: InboxPort;
   sleep: (ms: number, signal: AbortSignal) => Promise<void>;
   now?: () => Date;
 };

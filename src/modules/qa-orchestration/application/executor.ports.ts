@@ -10,6 +10,10 @@ import type { AssertionFailure } from '../domain/journey-assertions.js';
 export type TransportRequest = {
   method: string;
   path: string;
+  /** URL completa firmada por el backend (subidas al almacenamiento QA); reemplaza a la base de la API. */
+  absoluteUrl?: string;
+  /** Cuerpo binario tal cual (subidas); excluye `body`. */
+  rawBody?: Uint8Array;
   query?: Record<string, string>;
   headers: Record<string, string>;
   body?: unknown;
@@ -35,6 +39,11 @@ export interface AdmissionPort {
  */
 export interface BudgetPort {
   acquire(): Promise<{ ok: true; release: () => void } | { ok: false; reason: 'BUDGET_EXHAUSTED' | 'DEADLINE_EXCEEDED' | 'CANCELLED' }>;
+}
+
+/** Buzón QA: el último código enviado a una dirección desde `sinceIso`, o `null` si aún no llegó. */
+export interface InboxPort {
+  latestCode(input: { to: string; channel: string; sinceIso: string }): Promise<string | null>;
 }
 
 /** Credencial QA de vida corta para esta operación; no sustituye al token del actor de negocio. */

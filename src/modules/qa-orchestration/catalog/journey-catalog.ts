@@ -7,6 +7,8 @@ import { createHash } from 'node:crypto';
 import type { JourneyTemplate } from '../domain/journey-recipe.types.js';
 import { ACCOUNT_SIGNUP_TO_LOGIN, POST_LOGIN_FIRST_SCREEN } from './customer-account.recipes.js';
 import { CUSTOMER_CREDIT_JOURNEY, CUSTOMER_ONBOARDING_INCOMPLETE } from './customer-credit.recipes.js';
+import { CUSTOMER_PROFILE_LIFECYCLE } from './customer-profile.recipes.js';
+import { CUSTOMER_ONBOARDING_SUBMISSION } from './customer-submission.recipes.js';
 import { COVERAGE_GAPS, type GapReason } from './coverage-gaps.js';
 
 export const JOURNEY_TEMPLATES: readonly JourneyTemplate[] = [
@@ -14,6 +16,8 @@ export const JOURNEY_TEMPLATES: readonly JourneyTemplate[] = [
   POST_LOGIN_FIRST_SCREEN,
   CUSTOMER_CREDIT_JOURNEY,
   CUSTOMER_ONBOARDING_INCOMPLETE,
+  CUSTOMER_PROFILE_LIFECYCLE,
+  CUSTOMER_ONBOARDING_SUBMISSION,
 ];
 
 export type JourneyCampaign = {
@@ -33,6 +37,7 @@ export const JOURNEY_CAMPAIGNS: readonly JourneyCampaign[] = [
       { code: 'account_signup_to_login', version: '1.0.0', share: 1 },
       { code: 'post_login_first_screen', version: '1.0.0', share: 1 },
       { code: 'customer_credit_decision', version: '1.1.0', share: 2 },
+      { code: 'customer_profile_lifecycle', version: '1.0.0', share: 1 },
     ],
   },
   {

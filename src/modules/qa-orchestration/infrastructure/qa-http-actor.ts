@@ -26,13 +26,14 @@ export class QaHttpTransport implements QaTransport {
     const started = performance.now();
     const query = request.query ? `?${new URLSearchParams(request.query).toString()}` : '';
     try {
-      const response = await fetch(`${this.baseUrl.replace(/\/+$/, '')}${request.path}${query}`, {
-        method: request.method,
-        headers: { 'content-type': 'application/json', 'x-tenant-id': this.tenantId, ...request.headers },
-        body:
-          request.method === 'GET' || request.method === 'DELETE' || request.body === undefined ? undefined : JSON.stringify(request.body),
-        signal: controller.signal,
-      });
+      // Una subida va a la URL firmada con sus propias cabeceras: ni tenant, ni sesión, ni credencial QA.
+      const url = request.absoluteUrl ?? `${this.baseUrl.replace(/\/+$/, '')}${request.path}${query}`;
+      const headers = request.absoluteUrl
+        ? request.headers
+        : { 'content-type': 'application/json', 'x-tenant-id': this.tenantId, ...request.headers };
+      const jsonBody =
+        request.method === 'GET' || request.method === 'DELETE' || request.body === undefined ? undefined : JSON.stringify(request.body);
+      const response = await fetch(url, { method: request.method, headers, body: request.rawBody ?? jsonBody, signal: controller.signal });
       const text = await response.text();
       let body: unknown = null;
       try {

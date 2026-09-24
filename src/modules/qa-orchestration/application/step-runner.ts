@@ -12,6 +12,7 @@ import { idempotencyKeyFor } from '../domain/run-accounting.js';
 import { BindingUnresolvedError, interpolate, readOptional, resolveBinding, type BindingScope } from '../domain/typed-bindings.js';
 import type { AttemptRecord, StepRecord, TransportResponse } from './executor.ports.js';
 import type { PersonaExecutionDeps, PersonaExecutionInput } from './journey-executor.js';
+import { syntheticImage } from '../fixtures/synthetic-upload.js';
 
 const RATE_LIMIT_WAIT_MS = 61_000;
 const MAX_RATE_LIMIT_RETRIES = 3;
@@ -187,7 +188,81 @@ export class StepRunner {
     return this.result('PASSED', { branch: verdict.branch });
   }
 
+  /**
+   * Subida de bytes sintéticos a la URL firmada del paso anterior. La URL no se guarda en la
+   * evidencia (lleva firma); sí el tamaño y el sha256 de lo subido, que el backend recalcula.
+   */
+  private async runUpload(upload: NonNullable<RecipeStep['upload']>): Promise<StepResult> {
+    const url = readOptional(this.input.scope, upload.urlFrom);
+    Object.assign(this.evidence, { path: '(URL firmada del almacenamiento QA)' });
+    if (typeof url !== 'string') {
+      return this.result('FAILED', {
+        reason: `falta ${upload.urlFrom}`,
+        failures: [{ code: 'BINDING_UNRESOLVED', message: upload.urlFrom }],
+      });
+    }
+    const { bytes, sha256 } = syntheticImage(upload.image, this.input.personaKey);
+    const slot = await this.deps.budget.acquire();
+    if (!slot.ok) return this.result(slot.reason === 'CANCELLED' ? 'CANCELLED' : 'INDETERMINATE', { reason: slot.reason });
+    let response: TransportResponse;
+    try {
+      response = await this.deps.transport.send({
+        method: 'PUT',
+        path: '',
+        absoluteUrl: url,
+        rawBody: bytes,
+        headers: { 'content-type': 'image/jpeg' },
+        timeoutMs: this.step.timeoutMs ?? this.input.defaultTimeoutMs,
+        signal: this.input.signal,
+      });
+    } finally {
+      slot.release();
+    }
+    this.attempts.push(attemptOf(1, response, 0));
+    const verdict = evaluateQaStep({
+      expected: { ...this.step.expect, label: 'subida' },
+      response: response.status === null ? { status: null, transportError: response.error } : { status: response.status, body: null },
+    });
+    if (verdict.status !== 'PASSED')
+      return this.result(verdict.status, { failures: verdict.failures, reason: verdict.failures[0]?.message });
+    setPath(this.input.scope as Record<string, unknown>, upload.extractSha256To, sha256);
+    this.evidence.extracted = { [upload.extractSha256To]: sha256, bytes: bytes.length };
+    return this.result('PASSED');
+  }
+
+  /** Espera el código en el buzón QA hasta el plazo; nunca lo escribe en la evidencia. */
+  private async runOtp(otp: NonNullable<RecipeStep['otp']>): Promise<StepResult> {
+    const to = readOptional(this.input.scope, otp.toFrom);
+    Object.assign(this.evidence, { path: `(buzón QA · ${otp.channel})` });
+    if (!this.deps.inbox)
+      return this.result('FAILED', {
+        reason: 'no hay buzón QA en este entorno',
+        failures: [{ code: 'BINDING_UNRESOLVED', message: 'inbox' }],
+      });
+    if (typeof to !== 'string')
+      return this.result('FAILED', { reason: `falta ${otp.toFrom}`, failures: [{ code: 'BINDING_UNRESOLVED', message: otp.toFrom }] });
+    const since = new Date(Date.now() - 5 * 60_000).toISOString();
+    const deadline = Date.now() + (otp.deadlineMs ?? 20_000);
+    while (!this.input.signal.aborted) {
+      const code = await this.deps.inbox.latestCode({ to, channel: otp.channel, sinceIso: since });
+      if (code) {
+        setPath(this.input.scope as Record<string, unknown>, otp.extractTo, code);
+        this.evidence.extracted = { [otp.extractTo]: '[recibido en el buzón QA]' };
+        return this.result('PASSED');
+      }
+      if (Date.now() >= deadline) break;
+      await this.deps.sleep(1_000, this.input.signal);
+    }
+    if (this.input.signal.aborted) return this.result('CANCELLED', { reason: 'corrida cancelada esperando el código' });
+    return this.result('FAILED', {
+      reason: `no llegó ningún código por ${otp.channel} al buzón QA`,
+      failures: [{ code: 'ASSERTION_EXISTS_FAILED', message: 'código ausente en el buzón' }],
+    });
+  }
+
   async run(): Promise<StepResult> {
+    if (this.step.otp) return this.runOtp(this.step.otp);
+    if (this.step.upload) return this.runUpload(this.step.upload);
     const prepared = this.prepare();
     if ('status' in prepared) return prepared;
     const deadline = this.step.poll ? Date.now() + this.step.poll.deadlineMs : 0;

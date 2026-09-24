@@ -17,6 +17,8 @@ export const PERSONA_FIELDS = [
   'birthDate',
   'age',
   'documentNumber',
+  'documentNumberHash',
+  'documentLast4',
   'email',
   'phone',
   'city',
@@ -37,7 +39,7 @@ export const FIXTURE_OUTPUTS: Record<JourneyTemplate['fixtures'][number], string
   merchantActor: ['merchantActor'],
 };
 
-const RUN_FIELDS = ['runId', 'namespace', 'seed', 'referenceDate', 'scenarioCode'];
+const RUN_FIELDS = ['runId', 'namespace', 'seed', 'referenceDate', 'scenarioCode', 'nowIso', 'nonce'];
 
 export function dependenciesOf(steps: RecipeStep[], index: number): string[] {
   const step = steps[index];
@@ -65,6 +67,8 @@ function neededPaths(step: RecipeStep): string[] {
     ...(step.applicability ? conditionPaths(step.applicability.when) : []),
     ...(step.branches ?? []).flatMap((branch) => conditionPaths(branch.when)),
     ...allAssertions(step).flatMap(assertionPaths),
+    ...(step.upload ? [step.upload.urlFrom] : []),
+    ...(step.otp ? [step.otp.toFrom] : []),
   ];
 }
 
@@ -74,7 +78,7 @@ function resolvable(path: string, available: Set<string>): boolean {
   if (root === 'run') return RUN_FIELDS.includes(field);
   if (root === 'response') return true;
   // Condicionar sobre un recurso opcional es legítimo si ALGÚN ancestro lo intenta extraer.
-  return available.has(path) || [...available].some((candidate) => path.startsWith(`${candidate}.`));
+  return available.has(path) || [...available].some((candidate) => path.startsWith(`${candidate}.`) || path.startsWith(`${candidate}[`));
 }
 
 type Graph = { steps: RecipeStep[]; index: Map<string, number>; produces: Map<string, Set<string>>; fixtures: Set<string> };
@@ -146,7 +150,14 @@ export function validateRecipe(template: JourneyTemplate): QaBlocker[] {
     if (graph.index.has(step.stepKey))
       blockers.push({ code: 'GRAPH_INVALID', message: `stepKey duplicado: ${step.stepKey}`, subject: step.stepKey });
     graph.index.set(step.stepKey, position);
-    graph.produces.set(step.stepKey, new Set((step.extract ?? []).map((extraction) => extraction.to)));
+    graph.produces.set(
+      step.stepKey,
+      new Set([
+        ...(step.extract ?? []).map((extraction) => extraction.to),
+        ...(step.upload ? [step.upload.extractSha256To] : []),
+        ...(step.otp ? [step.otp.extractTo] : []),
+      ]),
+    );
   });
   template.steps.forEach((step, position) => {
     blockers.push(...dependencyBlockers(graph, step, position), ...stepShapeBlockers(step), ...bindingBlockers(graph, step, position));

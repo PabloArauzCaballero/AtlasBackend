@@ -61,13 +61,21 @@ export class MailSenderService {
    * envío normal —quien llama pidió avisar, no garantizar entrega, y ninguno de los caminos que
    * llegan aquí debe romperse porque una cuenta de semilla no tenga correo de verdad—.
    */
+  /** Un proveedor real con una dirección reservada sólo produciría un rebote al remitente. */
+  private guarded(input: SendTemplateEmailInput, send: () => Promise<{ trackingId: string }>): Promise<{ trackingId: string }> {
+    if (isDeliverableAddress(input.to)) return send();
+    logUndeliverable(input.to, input.template);
+    return Promise.resolve({ trackingId: input.reference });
+  }
+
   private deliver(input: SendTemplateEmailInput): Promise<{ trackingId: string }> {
-    if (!isDeliverableAddress(input.to)) {
-      logUndeliverable(input.to, input.template);
-      return Promise.resolve({ trackingId: input.reference });
-    }
-    if (this.client.isConfigured()) return this.despachar('mailsender', input, this.client.sendTemplateEmail(input));
-    if (this.gmail.isConfigured()) return this.despachar('gmail_api', input, this.gmail.sendTemplateEmail(input));
+    if (this.client.isConfigured())
+      return this.guarded(input, () => this.despachar('mailsender', input, this.client.sendTemplateEmail(input)));
+    if (this.gmail.isConfigured())
+      return this.guarded(input, () => this.despachar('gmail_api', input, this.gmail.sendTemplateEmail(input)));
+    // El webhook es un buzón de desarrollo/QA (producción no lo admite, ver `env-cross-checks.ts`): no
+    // hay proveedor que rebote, así que SÍ recibe las direcciones reservadas. Es lo que deja a una
+    // persona sintética `@example.test` leer su código en el buzón QA en vez de saltarse el paso.
     return this.despachar('webhook', input, this.webhook.sendTemplateEmail(input));
   }
 

@@ -11,7 +11,7 @@
  * despliegue, y PROD bloquea QA aunque un cliente mande el `environmentId` de TEST.
  */
 import { z } from 'zod';
-import { booleanEnvSchema, optionalLongSecretEnvSchema, optionalUrlEnvSchema } from './env.primitives.js';
+import { booleanEnvSchema, optionalLongSecretEnvSchema, optionalNonEmptyStringEnvSchema, optionalUrlEnvSchema } from './env.primitives.js';
 
 export const qaEnvShape = {
   // LOCAL | TEST | STAGING | PROD. Sin valor, se deduce de NODE_ENV como antes (production ⇒ PROD),
@@ -34,6 +34,11 @@ export const qaEnvShape = {
   QA_MAX_REQUESTS: z.coerce.number().int().positive().max(1_000_000).default(3_000),
   QA_MAX_DURATION_MS: z.coerce.number().int().positive().max(86_400_000).default(1_800_000),
   QA_MAX_IN_FLIGHT_REQUESTS: z.coerce.number().int().positive().max(500).default(10),
+  // Operador interno QA provisionado con el rol mínimo que exigen los pasos del operador. El worker
+  // inicia sesión con él; nunca se usa la sesión de quien pulsa el botón. Sin él, las plantillas que
+  // necesitan un operador se bloquean con ACTOR_UNAVAILABLE.
+  QA_INTERNAL_ACTOR_EMAIL: optionalNonEmptyStringEnvSchema,
+  QA_INTERNAL_ACTOR_PASSWORD: optionalNonEmptyStringEnvSchema,
   // Plano de control del emulador de proveedores (repo AtlasExternalProvidersMock).
   MOCK_PROVIDERS_CONTROL_URL: optionalUrlEnvSchema,
   MOCK_PROVIDERS_CONTROL_TOKEN: optionalLongSecretEnvSchema,

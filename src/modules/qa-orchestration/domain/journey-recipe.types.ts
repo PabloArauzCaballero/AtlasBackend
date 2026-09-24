@@ -127,6 +127,17 @@ export type RecipeStep = {
   poll?: { intervalMs: number; deadlineMs: number; until: Assertion[] };
   providers?: ProviderExpectation[];
   /**
+   * Subida de bytes sintéticos reales a la URL firmada que devolvió un paso anterior (no a la API).
+   * El paso guarda el sha256 de lo subido en `extractSha256To` para declararlo después.
+   */
+  /**
+   * Lee del buzón QA el código que el backend acaba de ENVIAR a esta persona (no hay atajo): el
+   * más reciente para su dirección única. Se guarda en `extractTo`, que tiene que ser `session.*`
+   * para no acabar nunca en la evidencia.
+   */
+  otp?: { channel: 'email' | 'sms' | 'whatsapp'; toFrom: JourneyPath; extractTo: string; deadlineMs?: number };
+  upload?: { urlFrom: JourneyPath; image: 'identity_front' | 'identity_back' | 'selfie'; extractSha256To: string };
+  /**
    * Repetible al retomar tras un reinicio para recuperar la sesión (el login). Los tokens no se
    * persisten, así que la persona vuelve a entrar con sus credenciales deterministas.
    */

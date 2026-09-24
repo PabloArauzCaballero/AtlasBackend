@@ -137,6 +137,24 @@ export class MockControlClient {
     return { entries, totalAppended, droppedByRetention: dropped, complete: false };
   }
 
+  /**
+   * El código más reciente enviado a `to` por `channel` desde `sinceIso`, leído del buzón QA con el
+   * token de control. Busca el primer número de 4 a 8 cifras del cuerpo: así es como lo recibe la
+   * persona, y no se depende del formato interno de cada plantilla.
+   */
+  async latestInboxCode(input: { to: string; channel: string; sinceIso: string }): Promise<string | null> {
+    const query = new URLSearchParams({ to: input.to, channel: input.channel, limit: '20' });
+    const response = await this.call('GET', `/mock/control/inbox?${query.toString()}`, null);
+    if (response.status !== 200) return null;
+    const messages = (Array.isArray(response.body.messages) ? response.body.messages : []) as Array<{ body?: string; receivedAt?: string }>;
+    for (const message of [...messages].reverse()) {
+      if ((message.receivedAt ?? '') < input.sinceIso) continue;
+      const code = /\b(\d{4,8})\b/.exec(message.body ?? '')?.[1];
+      if (code) return code;
+    }
+    return null;
+  }
+
   async closeRun(tenantId: string, runId: string): Promise<void> {
     await this.call('DELETE', `/mock/control/runs/${encodeURIComponent(runId)}`, tenantId).catch(() => undefined);
   }

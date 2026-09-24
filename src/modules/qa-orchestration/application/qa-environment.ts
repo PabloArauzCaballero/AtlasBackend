@@ -70,9 +70,9 @@ export class QaEnvironmentService {
       // Sin token de control no hay namespace por corrida ni journal: la evidencia no se podría cruzar.
       mockReachable: mock.reachable && this.mock.configured,
       mockScenarios: mock.scenarios,
-      // Aún no hay actores internos ni de comercio provisionados para QA: las plantillas que los
-      // necesitan se bloquean con ACTOR_UNAVAILABLE en vez de usar la sesión del operador.
-      availableActors: [],
+      // El operador interno QA existe si el despliegue lo provisionó; el de comercio todavía no: las
+      // plantillas que lo necesitan se bloquean con ACTOR_UNAVAILABLE en vez de usar otra sesión.
+      availableActors: env.QA_INTERNAL_ACTOR_EMAIL && env.QA_INTERNAL_ACTOR_PASSWORD ? ['internal_user'] : [],
     };
   }
 }

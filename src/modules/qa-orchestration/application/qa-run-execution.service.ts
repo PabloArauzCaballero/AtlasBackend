@@ -9,12 +9,13 @@ import { env } from '../../../config/env.js';
 import { encryptSecret } from '../../../common/utils/crypto/secret-box.util.js';
 import { deploymentEnvironment, QA_EXECUTION_HEADER, signQaCredential } from '../../../platform/security/qa-execution-context.js';
 import { findTemplate, recipeHash } from '../catalog/journey-catalog.js';
-import { buildPersona } from '../domain/persona-factory.js';
 import { personaOutcome, runVerdict } from '../domain/run-accounting.js';
 import type { QaRunStatus } from '../domain/qa-run.types.js';
 import { QaEnvironmentService } from './qa-environment.js';
 import { JourneyExecutor } from './journey-executor.js';
-import { requestedAmountFor, resolveFixtures } from './qa-run-fixtures.js';
+import { resolveFixtures } from './qa-run-fixtures.js';
+import { personaScope } from './qa-persona-scope.js';
+import { loginInternalActor } from '../infrastructure/qa-internal-actor.js';
 import { QaRunClosing, type ExecutionOutcome, type RunContext } from './qa-run-closing.js';
 import { abortableSleep, BucketAdmission, QaHttpTransport, RunBudget } from '../infrastructure/qa-http-actor.js';
 import { QaRunSupportRepository } from '../infrastructure/qa-run-support.repository.js';
@@ -25,7 +26,14 @@ export type { ExecutionOutcome } from './qa-run-closing.js';
 const TERMINAL_RUN: readonly string[] = ['COMPLETED', 'CANCELLED', 'BLOCKED', 'FAILED_INFRASTRUCTURE', 'TIMED_OUT'];
 const TERMINAL_PERSONA: readonly string[] = ['PASSED', 'FAILED', 'BLOCKED', 'INDETERMINATE', 'CANCELLED'];
 
-type Runtime = { controller: AbortController; budget: RunBudget; transport: QaHttpTransport; fixtures: Record<string, unknown> };
+export type Runtime = {
+  controller: AbortController;
+  budget: RunBudget;
+  transport: QaHttpTransport;
+  fixtures: Record<string, unknown>;
+  /** Sesiones de actores compartidos (operador QA). Se copian a cada persona; nunca se persisten. */
+  sessions: Record<string, Record<string, unknown>>;
+};
 
 @Injectable()
 export class QaRunExecutionService {
@@ -122,6 +130,15 @@ export class QaRunExecutionService {
       transport,
       signal: controller.signal,
       creditProduct: () => (env.QA_TARGET_SHARES_DATABASE ? this.support.findActiveCreditProduct(ctx.tenantId) : Promise.resolve(null)),
+      internalActor: () =>
+        env.QA_INTERNAL_ACTOR_EMAIL && env.QA_INTERNAL_ACTOR_PASSWORD
+          ? loginInternalActor({
+              baseUrl: env.QA_TARGET_BASE_URL as string,
+              tenantId: ctx.tenantId,
+              email: env.QA_INTERNAL_ACTOR_EMAIL,
+              password: env.QA_INTERNAL_ACTOR_PASSWORD,
+            })
+          : Promise.resolve(null),
     });
     const { maxRequests, maxInFlightRequests } = ctx.plan.limits;
     const budget = new RunBudget({ maxRequests, maxInFlightRequests, deadlineAt }, controller.signal);
@@ -129,13 +146,13 @@ export class QaRunExecutionService {
     // Fixture «faltante» porque la corrida se abortó mientras se resolvía: no es un bloqueo, se
     // cierra (o se abandona) por el motivo del aborto.
     if (!fixtures.ok && controller.signal.aborted)
-      return this.conclude(ctx, { controller, budget, transport, fixtures: {} }, namespaceOpened);
+      return this.conclude(ctx, { controller, budget, transport, fixtures: {}, sessions: {} }, namespaceOpened);
     if (!fixtures.ok) {
       await this.runs.closePendingPersonas(ctx.runId, 'BLOCKED', fixtures.message, ctx.fence);
       const evidence = { mockNamespace: namespaceOpened };
       return this.closing.finish(ctx, { status: 'BLOCKED', verdict: null, evidence, errorMessage: `FIXTURE_MISSING: ${fixtures.message}` });
     }
-    const runtime: Runtime = { controller, budget, transport, fixtures: fixtures.fixtures };
+    const runtime: Runtime = { controller, budget, transport, fixtures: fixtures.fixtures, sessions: fixtures.sessions };
     await this.runPersonas(ctx, runtime);
     return this.conclude(ctx, runtime, namespaceOpened);
   }
@@ -192,6 +209,7 @@ export class QaRunExecutionService {
       admission,
       budget: runtime.budget,
       sleep: abortableSleep,
+      inbox: this.environments.mock.configured ? { latestCode: (input) => this.environments.mock.latestInboxCode(input) } : undefined,
       credential: {
         headerFor: ({ personaKey, logicalOperationId, attempt }) => ({
           [QA_EXECUTION_HEADER]: signQaCredential(
@@ -215,30 +233,8 @@ export class QaRunExecutionService {
     });
   }
 
-  private personaScope(ctx: RunContext, runtime: Runtime, checkpoint: PersonaCheckpoint) {
-    const refDate = new Date(`${ctx.referenceDate}T12:00:00Z`);
-    const persona = buildPersona({ masterSeed: ctx.seed, ordinal: checkpoint.ordinal, refDate, runNamespace: ctx.namespace });
-    const product = runtime.fixtures.creditProduct as { minAmount: number; maxAmount: number } | undefined;
-    return {
-      persona,
-      scope: {
-        persona: { ...persona, requestedAmount: requestedAmountFor(persona.monthlyIncome, product) },
-        fixtures: runtime.fixtures,
-        run: {
-          runId: ctx.runId,
-          namespace: ctx.namespace,
-          seed: ctx.seed,
-          referenceDate: ctx.referenceDate,
-          scenarioCode: ctx.plan.scenarioCode,
-        },
-        resources: { ...checkpoint.resources } as Record<string, unknown>,
-        session: {} as Record<string, Record<string, unknown>>,
-      },
-    };
-  }
-
   private async runPersona(ctx: RunContext, runtime: Runtime, checkpoint: PersonaCheckpoint, executor: JourneyExecutor): Promise<void> {
-    const { persona, scope } = this.personaScope(ctx, runtime, checkpoint);
+    const { persona, scope } = personaScope(ctx, runtime, checkpoint);
     const personaRunId = checkpoint.personaRunId;
     await this.runs.updatePersona(
       { personaRunId, status: 'RUNNING', start: true, caseCategory: persona.caseCategory, archetype: persona.archetype },
