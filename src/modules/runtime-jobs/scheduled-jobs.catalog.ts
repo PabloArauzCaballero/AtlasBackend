@@ -65,6 +65,8 @@ export function buildScheduledJobs(deps: {
   notificationCampaigns: { tick: (tenantId: string) => Promise<unknown> };
   /** Consumidor de la cola de estrés: función desde la composición, por el mismo motivo que el anterior. */
   stressRuns: { drain: () => Promise<unknown> };
+  /** Consumidor de las corridas QA de N personas (`systems_qa_journey_run`). */
+  qaRuns: { drain: () => Promise<unknown> };
 }): ScheduledJob[] {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
   const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements, supportSla } = deps;
@@ -288,6 +290,6 @@ export function buildScheduledJobs(deps: {
     },
     // Los trabajos que sólo corren bajo una bandera viven en `optional-jobs.catalog.ts`: esta lista
     // declara lo que corre SIEMPRE, y mezclarlas hacía que dejara de leerse de un vistazo.
-    ...buildOptionalJobs({ maintenance, stressRuns: deps.stressRuns, limit }),
+    ...buildOptionalJobs({ maintenance, stressRuns: deps.stressRuns, qaRuns: deps.qaRuns, limit }),
   ];
 }

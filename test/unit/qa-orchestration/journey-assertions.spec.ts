@@ -4,7 +4,10 @@ import { BindingUnresolvedError, referencedPaths, resolveBinding } from '../../.
 describe('oráculo de un paso QA', () => {
   it('no aprueba un HTTP 200 de otra persona (A02)', () => {
     const verdict = evaluateQaStep({
-      expected: { status: [200], assertions: [{ kind: 'resourceOwner', path: 'data.customerId', expected: { $ref: 'resources.customerId' } }] },
+      expected: {
+        status: [200],
+        assertions: [{ kind: 'resourceOwner', path: 'data.customerId', expected: { $ref: 'resources.customerId' } }],
+      },
       response: { status: 200, body: { data: { customerId: 'customer-B' } } },
       scope: { resources: { customerId: 'customer-A' } },
     });
@@ -69,7 +72,10 @@ describe('oráculo de un paso QA', () => {
 
   it('arrayContainsWhere encuentra el recurso persistido', () => {
     const ok = evaluateQaStep({
-      expected: { status: [200], assertions: [{ kind: 'arrayContainsWhere', path: 'data.applications', field: 'id', expected: { $ref: 'resources.applicationId' } }] },
+      expected: {
+        status: [200],
+        assertions: [{ kind: 'arrayContainsWhere', path: 'data.applications', field: 'id', expected: { $ref: 'resources.applicationId' } }],
+      },
       response: { status: 200, body: { data: { applications: [{ id: '7' }] } } },
       scope: { resources: { applicationId: '7' } },
     });
@@ -78,10 +84,17 @@ describe('oráculo de un paso QA', () => {
 });
 
 describe('bindings tipados (A06)', () => {
-  const scope = { persona: { monthlyIncome: 4500, email: 'a@example.test' }, fixtures: { consents: [{ id: '1', granted: true }] }, resources: { flag: false } };
+  const scope = {
+    persona: { monthlyIncome: 4500, email: 'a@example.test' },
+    fixtures: { consents: [{ id: '1', granted: true }] },
+    resources: { flag: false },
+  };
 
   it('conserva números, arrays y booleanos', () => {
-    const body = resolveBinding({ income: { $ref: 'persona.monthlyIncome' }, consents: { $ref: 'fixtures.consents' }, flag: { $ref: 'resources.flag' } }, scope);
+    const body = resolveBinding(
+      { income: { $ref: 'persona.monthlyIncome' }, consents: { $ref: 'fixtures.consents' }, flag: { $ref: 'resources.flag' } },
+      scope,
+    );
     expect(body).toEqual({ income: 4500, consents: [{ id: '1', granted: true }], flag: false });
   });
 

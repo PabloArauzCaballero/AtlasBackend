@@ -87,6 +87,8 @@ export type QaRunLimits = {
 export type QaRunRequest = {
   templateCode: string;
   templateVersion: string;
+  /** Flujo del árbol desde el que se lanza; por defecto, el de la plantilla. */
+  workflowCode?: string;
   environmentId: string;
   mode: QaRunMode;
   persons: number;

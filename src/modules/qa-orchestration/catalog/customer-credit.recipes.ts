@@ -145,7 +145,8 @@ export const CUSTOMER_CREDIT_JOURNEY: JourneyTemplate = {
   scenarios: ['happy_path', 'provider_down', 'timeout'],
   defaultScenario: 'happy_path',
   datasetModes: ['NORMAL_SYNTHETIC'],
-  expectedTerminal: 'Solicitud creada y persistida si era elegible; rechazo sin solicitud si no lo era. Proveedor llamado sólo en la consulta real.',
+  expectedTerminal:
+    'Solicitud creada y persistida si era elegible; rechazo sin solicitud si no lo era. Proveedor llamado sólo en la consulta real.',
   status: 'READY',
   fixtures: ['consents', 'creditProduct'],
   steps: [...SIGNUP_STEPS, ...CREDIT_STEPS],

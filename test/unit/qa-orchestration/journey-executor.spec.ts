@@ -1,5 +1,10 @@
 import { JourneyExecutor } from '../../../src/modules/qa-orchestration/application/journey-executor';
-import type { QaTransport, StepRecord, TransportRequest, TransportResponse } from '../../../src/modules/qa-orchestration/application/executor.ports';
+import type {
+  QaTransport,
+  StepRecord,
+  TransportRequest,
+  TransportResponse,
+} from '../../../src/modules/qa-orchestration/application/executor.ports';
 import type { JourneyTemplate } from '../../../src/modules/qa-orchestration/domain/journey-recipe.types';
 import { POST_LOGIN_FIRST_SCREEN } from '../../../src/modules/qa-orchestration/catalog/customer-account.recipes';
 
@@ -29,7 +34,16 @@ function executor(transport: QaTransport, sink: StepRecord[] = []) {
 
 function scope(personaKey: string) {
   return {
-    persona: { personaKey, email: `${personaKey}@example.test`, phone: '70000000', firstName: 'Ana', lastName: 'Q', birthDate: '1990-01-01', pin: '7391', deviceFingerprintHash: 'f'.repeat(64) },
+    persona: {
+      personaKey,
+      email: `${personaKey}@example.test`,
+      phone: '70000000',
+      firstName: 'Ana',
+      lastName: 'Q',
+      birthDate: '1990-01-01',
+      pin: '7391',
+      deviceFingerprintHash: 'f'.repeat(64),
+    },
     fixtures: { signupConsents: [{ consentDocumentId: '1', purposeCode: 'terms', granted: true }] },
     run: { runId: 'run-1' },
     resources: {} as Record<string, unknown>,
@@ -45,7 +59,7 @@ function fakeBackend(options: { leakSessionOf?: string } = {}): Handler {
   const byEmail = new Map<string, string>();
   return (request) => {
     const token = request.headers.authorization?.slice(7);
-    const bodyOf = request.body as Record<string, any> | undefined;
+    const bodyOf = request.body as { customer: { email: string }; identifier: string } | undefined;
     if (request.path === '/consent-documents/active') return ok([{ id: '1' }]);
     if (request.path === '/customer-onboarding/start') {
       const id = String(next++);
@@ -64,7 +78,15 @@ describe('ejecutor del recorrido de una persona', () => {
   it('dos personas simultáneas mantienen sesiones propias (A05)', async () => {
     const transport = fakeTransport(fakeBackend());
     const run = (key: string) =>
-      executor(transport).run({ tenantId: '1', runId: 'run-1', personaKey: key, template: SIGNUP_ONLY, scope: scope(key), signal: new AbortController().signal, defaultTimeoutMs: 1000 });
+      executor(transport).run({
+        tenantId: '1',
+        runId: 'run-1',
+        personaKey: key,
+        template: SIGNUP_ONLY,
+        scope: scope(key),
+        signal: new AbortController().signal,
+        defaultTimeoutMs: 1000,
+      });
     const [a, b] = await Promise.all([run('p-0001'), run('p-0002')]);
     expect(a.map((step) => step.status)).toEqual(['PASSED', 'PASSED', 'PASSED', 'PASSED']);
     expect(b.map((step) => step.status)).toEqual(['PASSED', 'PASSED', 'PASSED', 'PASSED']);
@@ -74,16 +96,30 @@ describe('ejecutor del recorrido de una persona', () => {
 
   it('una sesión de otra persona hace fallar /auth/me aunque responda 200 (A02)', async () => {
     const steps = await executor(fakeTransport(fakeBackend({ leakSessionOf: '999' }))).run({
-      tenantId: '1', runId: 'run-1', personaKey: 'p-0001', template: SIGNUP_ONLY, scope: scope('p-0001'), signal: new AbortController().signal, defaultTimeoutMs: 1000,
+      tenantId: '1',
+      runId: 'run-1',
+      personaKey: 'p-0001',
+      template: SIGNUP_ONLY,
+      scope: scope('p-0001'),
+      signal: new AbortController().signal,
+      defaultTimeoutMs: 1000,
     });
     expect(steps[3].status).toBe('FAILED');
     expect(steps[3].failures[0].code).toBe('OWNERSHIP_MISMATCH');
   });
 
   it('un paso obligatorio que falla omite a los dependientes con su causa raíz y sin enviarlos (A07)', async () => {
-    const transport = fakeTransport((request) => (request.path === '/customer-onboarding/start' ? { status: 500, body: {}, latencyMs: 1 } : fakeBackend()(request)));
+    const transport = fakeTransport((request) =>
+      request.path === '/customer-onboarding/start' ? { status: 500, body: {}, latencyMs: 1 } : fakeBackend()(request),
+    );
     const steps = await executor(transport).run({
-      tenantId: '1', runId: 'run-1', personaKey: 'p-0001', template: POST_LOGIN_FIRST_SCREEN, scope: scope('p-0001'), signal: new AbortController().signal, defaultTimeoutMs: 1000,
+      tenantId: '1',
+      runId: 'run-1',
+      personaKey: 'p-0001',
+      template: POST_LOGIN_FIRST_SCREEN,
+      scope: scope('p-0001'),
+      signal: new AbortController().signal,
+      defaultTimeoutMs: 1000,
     });
     expect(steps[1].status).toBe('FAILED');
     const rest = steps.slice(2);
@@ -96,7 +132,13 @@ describe('ejecutor del recorrido de una persona', () => {
       request.path === '/auth/login' ? { status: null, error: 'TIMEOUT', latencyMs: 1000 } : fakeBackend()(request),
     );
     const steps = await executor(transport).run({
-      tenantId: '1', runId: 'run-1', personaKey: 'p-0001', template: SIGNUP_ONLY, scope: scope('p-0001'), signal: new AbortController().signal, defaultTimeoutMs: 1000,
+      tenantId: '1',
+      runId: 'run-1',
+      personaKey: 'p-0001',
+      template: SIGNUP_ONLY,
+      scope: scope('p-0001'),
+      signal: new AbortController().signal,
+      defaultTimeoutMs: 1000,
     });
     expect(steps[2].status).toBe('INDETERMINATE');
     expect(steps[3].status).toBe('SKIPPED_DEPENDENCY');
@@ -107,7 +149,13 @@ describe('ejecutor del recorrido de una persona', () => {
     const sink: StepRecord[] = [];
     const transport = fakeTransport(fakeBackend());
     await executor(transport, sink).run({
-      tenantId: '1', runId: 'run-1', personaKey: 'p-0001', template: SIGNUP_ONLY, scope: scope('p-0001'), signal: new AbortController().signal, defaultTimeoutMs: 1000,
+      tenantId: '1',
+      runId: 'run-1',
+      personaKey: 'p-0001',
+      template: SIGNUP_ONLY,
+      scope: scope('p-0001'),
+      signal: new AbortController().signal,
+      defaultTimeoutMs: 1000,
     });
     const start = transport.calls.find((call) => call.path === '/customer-onboarding/start')!;
     expect(start.headers['x-idempotency-key']).toMatch(/^qa-[0-9a-f]{32}$/);
@@ -120,7 +168,13 @@ describe('ejecutor del recorrido de una persona', () => {
     controller.abort();
     const transport = fakeTransport(fakeBackend());
     const steps = await executor(transport).run({
-      tenantId: '1', runId: 'run-1', personaKey: 'p-0001', template: SIGNUP_ONLY, scope: scope('p-0001'), signal: controller.signal, defaultTimeoutMs: 1000,
+      tenantId: '1',
+      runId: 'run-1',
+      personaKey: 'p-0001',
+      template: SIGNUP_ONLY,
+      scope: scope('p-0001'),
+      signal: controller.signal,
+      defaultTimeoutMs: 1000,
     });
     expect(steps.every((step) => step.status === 'CANCELLED')).toBe(true);
     expect(transport.calls).toHaveLength(0);
@@ -133,12 +187,27 @@ describe('ejecutor del recorrido de una persona', () => {
     personaScope.session.customer = { accessToken: 'tok-100' };
     const done = (stepKey: string): [string, StepRecord] => [
       stepKey,
-      { stepKey, visitIndex: 0, logicalOperationId: 'x', status: 'PASSED', failures: [], attempts: [], evidence: { method: 'POST', path: '/' }, startedAt: '', finishedAt: '' },
+      {
+        stepKey,
+        visitIndex: 0,
+        logicalOperationId: 'x',
+        status: 'PASSED',
+        failures: [],
+        attempts: [],
+        evidence: { method: 'POST', path: '/' },
+        startedAt: '',
+        finishedAt: '',
+      },
     ];
     await executor(transport).run({
-      tenantId: '1', runId: 'run-1', personaKey: 'p-0001', template: SIGNUP_ONLY, scope: personaScope,
+      tenantId: '1',
+      runId: 'run-1',
+      personaKey: 'p-0001',
+      template: SIGNUP_ONLY,
+      scope: personaScope,
       completed: new Map([done('signup.consent_documents'), done('signup.start'), done('signup.login')]),
-      signal: new AbortController().signal, defaultTimeoutMs: 1000,
+      signal: new AbortController().signal,
+      defaultTimeoutMs: 1000,
     });
     expect(transport.calls.map((call) => call.path)).toEqual(['/auth/me']);
   });

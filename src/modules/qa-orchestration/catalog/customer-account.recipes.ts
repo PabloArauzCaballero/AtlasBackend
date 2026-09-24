@@ -68,6 +68,8 @@ export const SIGNUP_STEPS: RecipeStep[] = [
     method: 'POST',
     path: '/auth/login',
     actor: 'anonymous',
+    // Tras un reinicio del worker la sesión no existe (los tokens no se persisten): se vuelve a entrar.
+    replayOnResume: true,
     rateLimit: { bucket: 'auth_login', perMinute: 10 },
     body: { actorType: 'customer', identifier: { $ref: 'persona.email' }, password: { $ref: 'persona.pin' } },
     expect: { status: [200, 201], assertions: [{ kind: 'type', path: 'data.accessToken', type: 'string' }] },

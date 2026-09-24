@@ -25,6 +25,7 @@ import {
 } from './external-data-policy.util.js';
 import { ExternalDataRequestResult, ExternalProviderExecutionInput } from '../domain/external-provider.types.js';
 import { contractViolationReason, validateProviderResponse } from '../domain/provider-response.contract.js';
+import { currentQaContext } from '../../../platform/security/qa-execution-context.js';
 
 @Injectable()
 export class ExternalDataExecutionService {
@@ -249,6 +250,10 @@ export class ExternalDataExecutionService {
       requestedByUserId: input.requestedByUserId,
       approvedByAdminId: input.body.approvedByAdminId,
       mockBaseUrl: mockBaseUrlFor(providerCode),
+      // Contexto de corrida QA (H09): sólo existe si la petición trae una credencial firmada por el
+      // worker y la corrida sigue viva; lo resuelve el middleware de `qa-orchestration`, nunca una
+      // cabecera del cliente. Va aparte de `input`: no cambia el hash ni la idempotencia del negocio.
+      qaContext: currentQaContext(),
     };
 
     try {

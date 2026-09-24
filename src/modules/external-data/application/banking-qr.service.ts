@@ -9,6 +9,7 @@ import { BankingGenericAdapter } from '../infrastructure/adapters/banking-generi
 import { BankQrResult } from '../infrastructure/adapters/banking-generic/banking-qr.util.js';
 import { mockBaseUrlFor, productionIntegrationBlockers, providerModeFromEnv } from './external-data-policy.util.js';
 import { ExternalProviderRegistryService } from './external-provider-registry.service.js';
+import { currentQaContext } from '../../../platform/security/qa-execution-context.js';
 
 const PROVIDER_CODE = 'BANKING_GENERIC';
 
@@ -67,6 +68,8 @@ export class BankingQrService {
       scenario: input.scenario as ExternalProviderExecutionInput['scenario'],
       requestedByUserId: input.requestedByUserId,
       mockBaseUrl: mockBaseUrlFor(PROVIDER_CODE),
+      // Mismo contexto QA que la ejecución de evidencia: ver `external-data-execution.service.ts`.
+      qaContext: currentQaContext(),
     };
 
     const qr = await this.bankingAdapter.generateQr(executionInput);

@@ -123,6 +123,11 @@ export type RecipeStep = {
   /** Espera de un proceso asíncrono: repite la lectura hasta cumplir `until` o vencer el plazo. */
   poll?: { intervalMs: number; deadlineMs: number; until: Assertion[] };
   providers?: ProviderExpectation[];
+  /**
+   * Repetible al retomar tras un reinicio para recuperar la sesión (el login). Los tokens no se
+   * persisten, así que la persona vuelve a entrar con sus credenciales deterministas.
+   */
+  replayOnResume?: boolean;
 };
 
 export type TemplateStatus = 'READY' | 'BLOCKED' | 'DRAFT';

@@ -24,7 +24,10 @@ const TEMPLATE = /\{\{\s*([a-zA-Z0-9_.[\]-]+)\s*\}\}/g;
 
 /** `a.b[0].c` o `a.b.0.c` → valor, o `MISSING`. Un `null` presente NO es ausencia. */
 export function lookup(scope: BindingScope, path: JourneyPath): unknown {
-  const segments = path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
+  const segments = path
+    .replace(/\[(\d+)\]/g, '.$1')
+    .split('.')
+    .filter(Boolean);
   let current: unknown = scope;
   for (const segment of segments) {
     if (current === null || typeof current !== 'object') return MISSING;

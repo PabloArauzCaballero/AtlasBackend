@@ -14,7 +14,13 @@ import type { QaPersonaStatus, QaRunCounters, QaRunVerdict, QaStepStatus } from 
  * clave de idempotencia. Una acción nueva legítima incrementa `visitIndex`; una corrida nueva trae
  * otro `runId`.
  */
-export function logicalOperationId(input: { tenantId: string; runId: string; personaKey: string; stepKey: string; visitIndex: number }): string {
+export function logicalOperationId(input: {
+  tenantId: string;
+  runId: string;
+  personaKey: string;
+  stepKey: string;
+  visitIndex: number;
+}): string {
   return createHash('sha256')
     .update([input.tenantId, input.runId, input.personaKey, input.stepKey, String(input.visitIndex)].join('|'))
     .digest('hex')
@@ -43,7 +49,12 @@ export function passRate(passed: number, failed: number): number | null {
   return denominator === 0 ? null : passed / denominator;
 }
 
-export function countersFrom(input: { personas: PersonaTally; steps: StepTally; requestsIssued: number; personsRequested: number }): QaRunCounters {
+export function countersFrom(input: {
+  personas: PersonaTally;
+  steps: StepTally;
+  requestsIssued: number;
+  personsRequested: number;
+}): QaRunCounters {
   const { personas, steps } = input;
   return {
     personsRequested: input.personsRequested,
@@ -88,7 +99,14 @@ export function personasBalance(counters: QaRunCounters): boolean {
 export function runVerdict(counters: QaRunCounters, evidence: { externalEvidenceMissing: boolean }): QaRunVerdict {
   if (counters.personsFailed > 0) return 'FAILED';
   if (counters.personsPassed === 0) return 'INCONCLUSIVE';
-  if (counters.personsIndeterminate + counters.personsBlocked + counters.personsCancelled + counters.personsPending + counters.personsRunning > 0) {
+  if (
+    counters.personsIndeterminate +
+      counters.personsBlocked +
+      counters.personsCancelled +
+      counters.personsPending +
+      counters.personsRunning >
+    0
+  ) {
     return 'INCONCLUSIVE';
   }
   if (evidence.externalEvidenceMissing) return 'INCONCLUSIVE';

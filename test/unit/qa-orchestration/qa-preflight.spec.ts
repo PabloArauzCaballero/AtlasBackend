@@ -11,7 +11,12 @@ const environment: QaEnvironmentPolicy = {
   maxConcurrency: 10,
   limits: { maxRequests: 3000, maxDurationMs: 1_800_000, maxInFlightRequests: 10 },
 };
-const ready: RuntimeReadiness = { workerReady: true, mockReachable: true, mockScenarios: { SEGIP: ['happy_path', 'provider_down'] }, availableActors: [] };
+const ready: RuntimeReadiness = {
+  workerReady: true,
+  mockReachable: true,
+  mockScenarios: { SEGIP: ['happy_path', 'provider_down'] },
+  availableActors: [],
+};
 const request = (overrides: Partial<QaRunRequest> = {}): QaRunRequest => ({
   templateCode: 'account_signup_to_login',
   templateVersion: '1.0.0',
@@ -27,7 +32,14 @@ const request = (overrides: Partial<QaRunRequest> = {}): QaRunRequest => ({
 const compile = (overrides: Partial<QaRunRequest> = {}, readiness = ready, env: QaEnvironmentPolicy | undefined = environment) => {
   const req = request(overrides);
   const template = findTemplate(req.templateCode, req.templateVersion);
-  return compilePlan({ request: req, template, recipeHash: template ? recipeHash(template) : null, environment: env, readiness, generatorVersion: 'persona-factory@1' });
+  return compilePlan({
+    request: req,
+    template,
+    recipeHash: template ? recipeHash(template) : null,
+    environment: env,
+    readiness,
+    generatorVersion: 'persona-factory@1',
+  });
 };
 
 describe('preflight de una corrida QA', () => {

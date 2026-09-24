@@ -16,7 +16,12 @@ export const JOURNEY_TEMPLATES: readonly JourneyTemplate[] = [
   CUSTOMER_ONBOARDING_INCOMPLETE,
 ];
 
-export type JourneyCampaign = { code: string; name: string; description: string; templates: Array<{ code: string; version: string; share: number }> };
+export type JourneyCampaign = {
+  code: string;
+  name: string;
+  description: string;
+  templates: Array<{ code: string; version: string; share: number }>;
+};
 
 /** Una campaña reparte N personas entre plantillas; el total se enseña antes de ejecutar. */
 export const JOURNEY_CAMPAIGNS: readonly JourneyCampaign[] = [
@@ -52,6 +57,24 @@ function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   const keys = Object.keys(value).sort();
   return `{${keys.map((key) => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(',')}}`;
+}
+
+/**
+ * Clave de endpoint de un paso: `POST /customers/:customerId/credit-applications`. Las recetas
+ * escriben `{{resources.customerId}}` y el catálogo de flujos `:customerId`; los dos se normalizan a
+ * la misma forma para que una receta cubra el nodo de CUALQUIER flujo que llame a ese endpoint.
+ */
+export function endpointKey(method: string, path: string): string {
+  const normalized = path
+    .replace(/\{\{\s*[a-zA-Z]+\.([a-zA-Z0-9_]+)\s*\}\}/g, ':$1')
+    .replace(/:[a-zA-Z0-9_]+/g, ':param')
+    .replace(/\/+$/, '');
+  return `${method.toUpperCase()} ${normalized}`;
+}
+
+/** Endpoints que la plantilla ejecuta. */
+export function templateEndpoints(template: JourneyTemplate): Set<string> {
+  return new Set(template.steps.map((step) => endpointKey(step.method, step.path)));
 }
 
 export type CoverageRow = {

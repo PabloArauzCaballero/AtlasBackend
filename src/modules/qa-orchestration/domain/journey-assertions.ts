@@ -67,76 +67,95 @@ export function errorCodeOf(body: unknown): string | null {
   return typeof code === 'string' ? code : null;
 }
 
+type Checked<K extends Assertion['kind']> = (
+  assertion: Extract<Assertion, { kind: K }>,
+  actual: unknown,
+  scope: BindingScope,
+  path: string,
+) => AssertionFailure | null;
+
+const fail = (code: AssertionFailure['code'], message: string, path?: string): AssertionFailure => ({ code, message, path });
+
+function arrayLengthFailure(
+  assertion: Extract<Assertion, { kind: 'arrayLength' }>,
+  actual: unknown,
+  path: string,
+): AssertionFailure | null {
+  if (!Array.isArray(actual)) return fail('ASSERTION_ARRAY_FAILED', `${assertion.path} no es una lista`, path);
+  if (assertion.equals !== undefined && actual.length !== assertion.equals) {
+    return fail('ASSERTION_ARRAY_FAILED', `${assertion.path} tiene ${actual.length} elementos; se esperaban ${assertion.equals}`, path);
+  }
+  if (assertion.min !== undefined && actual.length < assertion.min) {
+    return fail('ASSERTION_ARRAY_FAILED', `${assertion.path} tiene ${actual.length} elementos; mínimo ${assertion.min}`, path);
+  }
+  return null;
+}
+
+function hasFieldEqual(entry: unknown, field: string, expected: unknown): boolean {
+  return entry !== null && typeof entry === 'object' && deepEqual((entry as Record<string, JsonValue>)[field], expected);
+}
+
+/** Un evaluador por tipo del catálogo: añadir un tipo obliga a añadir aquí su evaluador. */
+const CHECKS: { [K in Exclude<Assertion['kind'], 'errorCode'>]: Checked<K> } = {
+  exists: (assertion, actual, _scope, path) =>
+    actual === undefined ? fail('ASSERTION_EXISTS_FAILED', `falta ${assertion.path}`, path) : null,
+  type: (assertion, actual, _scope, path) =>
+    typeOf(actual) === assertion.type
+      ? null
+      : fail('ASSERTION_TYPE_FAILED', `${assertion.path} es ${typeOf(actual)} y debía ser ${assertion.type}`, path),
+  equals: (assertion, actual, scope, path) => {
+    const expected = resolveBinding(assertion.expected, scope);
+    return deepEqual(actual, expected)
+      ? null
+      : fail('ASSERTION_EQUALS_FAILED', `${assertion.path} = ${show(actual)}; se esperaba ${show(expected)}`, path);
+  },
+  resourceOwner: (assertion, actual, scope, path) => {
+    const expected = resolveBinding(assertion.expected, scope);
+    return deepEqual(actual, expected)
+      ? null
+      : fail(
+          'OWNERSHIP_MISMATCH',
+          `${assertion.path} pertenece a ${show(actual)} y no a ${show(expected)}: sesión o recurso de otra persona`,
+          path,
+        );
+  },
+  sameAs: (assertion, actual, scope, path) => {
+    const expected = readOptional(scope, assertion.ref);
+    return deepEqual(actual, expected)
+      ? null
+      : fail('CONSISTENCY_MISMATCH', `${assertion.path} = ${show(actual)} contradice ${assertion.ref} = ${show(expected)}`, path);
+  },
+  oneOf: (assertion, actual, _scope, path) =>
+    assertion.values.some((value) => deepEqual(actual, value))
+      ? null
+      : fail('ASSERTION_ONE_OF_FAILED', `${assertion.path} = ${show(actual)} no está en ${show(assertion.values)}`, path),
+  contains: (assertion, actual, _scope, path) =>
+    Array.isArray(actual) && actual.some((entry) => deepEqual(entry, assertion.value))
+      ? null
+      : fail('ASSERTION_CONTAINS_FAILED', `${assertion.path} no contiene ${show(assertion.value)}`, path),
+  arrayNonEmpty: (assertion, actual, _scope, path) =>
+    Array.isArray(actual) && actual.length > 0
+      ? null
+      : fail('ASSERTION_ARRAY_FAILED', `${assertion.path} debía ser una lista no vacía`, path),
+  arrayLength: (assertion, actual, _scope, path) => arrayLengthFailure(assertion, actual, path),
+  arrayContainsWhere: (assertion, actual, scope, path) => {
+    const expected = resolveBinding(assertion.expected, scope);
+    return Array.isArray(actual) && actual.some((entry) => hasFieldEqual(entry, assertion.field, expected))
+      ? null
+      : fail('ASSERTION_CONTAINS_FAILED', `${assertion.path} no tiene un elemento con ${assertion.field} = ${show(expected)}`, path);
+  },
+};
+
 function check(assertion: Assertion, scope: BindingScope): AssertionFailure | null {
   if (assertion.kind === 'errorCode') {
     const actual = errorCodeOf(scope.response);
     return actual === assertion.code
       ? null
-      : { code: 'ERROR_CODE_MISMATCH', message: `se esperaba el error ${assertion.code} y llegó ${actual ?? 'ninguno'}` };
+      : fail('ERROR_CODE_MISMATCH', `se esperaba el error ${assertion.code} y llegó ${actual ?? 'ninguno'}`);
   }
   const path = rooted(assertion.path);
-  const actual = readOptional(scope, path);
-  switch (assertion.kind) {
-    case 'exists':
-      return actual === undefined ? { code: 'ASSERTION_EXISTS_FAILED', message: `falta ${assertion.path}`, path } : null;
-    case 'type':
-      return typeOf(actual) === assertion.type
-        ? null
-        : { code: 'ASSERTION_TYPE_FAILED', message: `${assertion.path} es ${typeOf(actual)} y debía ser ${assertion.type}`, path };
-    case 'equals': {
-      const expected = resolveBinding(assertion.expected, scope);
-      return deepEqual(actual, expected)
-        ? null
-        : { code: 'ASSERTION_EQUALS_FAILED', message: `${assertion.path} = ${show(actual)}; se esperaba ${show(expected)}`, path };
-    }
-    case 'resourceOwner': {
-      const expected = resolveBinding(assertion.expected, scope);
-      return deepEqual(actual, expected)
-        ? null
-        : {
-            code: 'OWNERSHIP_MISMATCH',
-            message: `${assertion.path} pertenece a ${show(actual)} y no a ${show(expected)}: sesión o recurso de otra persona`,
-            path,
-          };
-    }
-    case 'sameAs': {
-      const expected = readOptional(scope, assertion.ref);
-      return deepEqual(actual, expected)
-        ? null
-        : { code: 'CONSISTENCY_MISMATCH', message: `${assertion.path} = ${show(actual)} contradice ${assertion.ref} = ${show(expected)}`, path };
-    }
-    case 'oneOf':
-      return assertion.values.some((value) => deepEqual(actual, value))
-        ? null
-        : { code: 'ASSERTION_ONE_OF_FAILED', message: `${assertion.path} = ${show(actual)} no está en ${show(assertion.values)}`, path };
-    case 'contains':
-      return Array.isArray(actual) && actual.some((entry) => deepEqual(entry, assertion.value))
-        ? null
-        : { code: 'ASSERTION_CONTAINS_FAILED', message: `${assertion.path} no contiene ${show(assertion.value)}`, path };
-    case 'arrayNonEmpty':
-      return Array.isArray(actual) && actual.length > 0
-        ? null
-        : { code: 'ASSERTION_ARRAY_FAILED', message: `${assertion.path} debía ser una lista no vacía`, path };
-    case 'arrayLength': {
-      if (!Array.isArray(actual)) return { code: 'ASSERTION_ARRAY_FAILED', message: `${assertion.path} no es una lista`, path };
-      if (assertion.equals !== undefined && actual.length !== assertion.equals) {
-        return { code: 'ASSERTION_ARRAY_FAILED', message: `${assertion.path} tiene ${actual.length} elementos; se esperaban ${assertion.equals}`, path };
-      }
-      if (assertion.min !== undefined && actual.length < assertion.min) {
-        return { code: 'ASSERTION_ARRAY_FAILED', message: `${assertion.path} tiene ${actual.length} elementos; mínimo ${assertion.min}`, path };
-      }
-      return null;
-    }
-    case 'arrayContainsWhere': {
-      const expected = resolveBinding(assertion.expected, scope);
-      const found =
-        Array.isArray(actual) &&
-        actual.some((entry) => entry !== null && typeof entry === 'object' && deepEqual((entry as Record<string, JsonValue>)[assertion.field], expected));
-      return found
-        ? null
-        : { code: 'ASSERTION_CONTAINS_FAILED', message: `${assertion.path} no tiene un elemento con ${assertion.field} = ${show(expected)}`, path };
-    }
-  }
+  const evaluate = CHECKS[assertion.kind] as Checked<typeof assertion.kind>;
+  return evaluate(assertion as never, readOptional(scope, path), scope, path);
 }
 
 /** Elige la rama cuya condición se cumple con el estado previo al envío; si ninguna, la base. */
@@ -151,7 +170,11 @@ export function selectExpectation(
   return { ...base, label: 'default' };
 }
 
-export function evaluateQaStep(input: { expected: Expectation & { label?: string }; response: ObservedResponse; scope?: BindingScope }): StepVerdict {
+export function evaluateQaStep(input: {
+  expected: Expectation & { label?: string };
+  response: ObservedResponse;
+  scope?: BindingScope;
+}): StepVerdict {
   const branch = input.expected.label ?? 'default';
   if (input.response.status === null) {
     // Sin respuesta no se sabe si el efecto ocurrió: INDETERMINATE, nunca FAILED ni PASSED.
@@ -162,7 +185,9 @@ export function evaluateQaStep(input: { expected: Expectation & { label?: string
     const code = errorCodeOf(body);
     return {
       status: 'FAILED',
-      failures: [{ code: 'STATUS_UNEXPECTED', message: `HTTP ${status}${code ? ` ${code}` : ''}; se esperaba ${input.expected.status.join('|')}` }],
+      failures: [
+        { code: 'STATUS_UNEXPECTED', message: `HTTP ${status}${code ? ` ${code}` : ''}; se esperaba ${input.expected.status.join('|')}` },
+      ],
       branch,
     };
   }
