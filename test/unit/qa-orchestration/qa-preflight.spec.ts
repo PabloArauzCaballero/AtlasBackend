@@ -91,6 +91,15 @@ describe('preflight de una corrida QA', () => {
     expect(result.blockers).toContainEqual(expect.objectContaining({ code: 'MOCK_UNAVAILABLE' }));
   });
 
+  it('sin Motor el alta del comercio se bloquea en la preparación, no a medio camino', () => {
+    const partner = { templateCode: 'partner_full_onboarding', templateVersion: '1.0.0', persons: 1, concurrency: 1 };
+    const actors: RuntimeReadiness = { ...ready, availableActors: ['internal_user', 'merchant_user'] };
+    const down = compile(partner, { ...actors, platformServices: { DECISION_ENGINE: false } });
+    expect(down.blockers).toContainEqual(expect.objectContaining({ code: 'PLATFORM_SERVICE_UNAVAILABLE', subject: 'DECISION_ENGINE' }));
+    expect(compile(partner, actors).blockers).toContainEqual(expect.objectContaining({ code: 'PLATFORM_SERVICE_UNAVAILABLE' }));
+    expect(compile(partner, { ...actors, platformServices: { DECISION_ENGINE: true } }).status).toBe('READY');
+  });
+
   it('la admisión limitada por tasa cuenta en el presupuesto de duración', () => {
     const result = compile({ persons: 100, concurrency: 10, limits: { maxDurationMs: 60_000 } });
     expect(result.blockers).toContainEqual(expect.objectContaining({ code: 'BUDGET_EXCEEDED', subject: 'maxDurationMs' }));

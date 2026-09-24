@@ -136,7 +136,7 @@ export type RecipeStep = {
    * para no acabar nunca en la evidencia.
    */
   otp?: { channel: 'email' | 'sms' | 'whatsapp'; toFrom: JourneyPath; extractTo: string; deadlineMs?: number };
-  upload?: { urlFrom: JourneyPath; image: 'identity_front' | 'identity_back' | 'selfie'; extractSha256To: string };
+  upload?: { urlFrom: JourneyPath; image: 'identity_front' | 'identity_back' | 'selfie' | 'payment_qr'; extractSha256To: string };
   /**
    * Repetible al retomar tras un reinicio para recuperar la sesión (el login). Los tokens no se
    * persisten, así que la persona vuelve a entrar con sus credenciales deterministas.
@@ -164,5 +164,11 @@ export type JourneyTemplate = {
   blockedReasons?: string[];
   /** Fixtures que el setup debe resolver antes de la primera persona. */
   fixtures: Array<'consents' | 'creditProduct' | 'internalActor' | 'merchantActor'>;
+  /**
+   * Servicios internos sin los que el recorrido no puede terminar (p. ej. el envío del expediente
+   * del comercio lo decide el Motor). No son proveedores externos: no hay mock que los sustituya, así
+   * que si no responden la corrida se bloquea en la preparación en vez de fallar a medio camino.
+   */
+  platformServices?: Array<'DECISION_ENGINE'>;
   steps: RecipeStep[];
 };

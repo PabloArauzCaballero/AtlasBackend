@@ -76,7 +76,7 @@ function resolvable(path: string, available: Set<string>): boolean {
   const [root, field] = path.split('.');
   if (root === 'persona') return (PERSONA_FIELDS as readonly string[]).includes(field);
   if (root === 'run') return RUN_FIELDS.includes(field);
-  if (root === 'response') return true;
+  if (root === 'response' || root === 'cookies') return true;
   // Condicionar sobre un recurso opcional es legítimo si ALGÚN ancestro lo intenta extraer.
   return available.has(path) || [...available].some((candidate) => path.startsWith(`${candidate}.`) || path.startsWith(`${candidate}[`));
 }

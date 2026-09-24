@@ -61,6 +61,22 @@ describe('transporte HTTP del worker QA', () => {
     expect((response as { body: { nonJsonBody: string } }).body.nonJsonBody).toHaveLength(200);
   });
 
+  it('las Set-Cookie de la respuesta llegan como cookies (sesión de comercio en cookie)', async () => {
+    mockFetch(
+      () =>
+        new Response('{}', {
+          status: 200,
+          headers: [
+            ['set-cookie', 'atlas_internal_access=tok=con=igual; Path=/; HttpOnly'],
+            ['set-cookie', 'otra=1'],
+            ['set-cookie', 'rota'],
+          ],
+        }),
+    );
+    const response = await new QaHttpTransport('http://qa.local', '7').send(request({ method: 'POST', body: {} }));
+    expect(response).toMatchObject({ cookies: { atlas_internal_access: 'tok=con=igual', otra: '1' } });
+  });
+
   it('un cuerpo vacío es null y DELETE tampoco lleva cuerpo', async () => {
     const http = mockFetch(() => new Response('', { status: 200 }));
     const response = await new QaHttpTransport('http://qa.local', '7').send(request({ method: 'DELETE', body: { a: 1 } }));

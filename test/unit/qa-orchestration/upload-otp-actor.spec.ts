@@ -4,11 +4,13 @@ import type { QaTransport, TransportRequest, TransportResponse } from '../../../
 import type { JourneyTemplate } from '../../../src/modules/qa-orchestration/domain/journey-recipe.types';
 import { SYNTHETIC_UPLOAD_BYTES, syntheticImage } from '../../../src/modules/qa-orchestration/fixtures/synthetic-upload';
 import { SYNTHETIC_IDENTITY_IMAGES } from '../../../src/modules/qa-orchestration/fixtures/synthetic-identity-images';
+import { SYNTHETIC_QR_IMAGE } from '../../../src/modules/qa-orchestration/fixtures/synthetic-qr-image';
+import { leerQrDeImagen } from '../../../src/common/images/qr-image-reader';
 import { loginInternalActor } from '../../../src/modules/qa-orchestration/infrastructure/qa-internal-actor';
 
 describe('imágenes sintéticas de identidad', () => {
   it('las fixtures versionadas coinciden con su checksum', () => {
-    for (const image of Object.values(SYNTHETIC_IDENTITY_IMAGES)) {
+    for (const image of [...Object.values(SYNTHETIC_IDENTITY_IMAGES), ...Object.values(SYNTHETIC_QR_IMAGE)]) {
       const bytes = Buffer.from(image.base64, 'base64');
       expect(createHash('sha256').update(bytes).digest('hex')).toBe(image.sha256);
       expect(bytes.length).toBe(image.bytes);
@@ -23,6 +25,11 @@ describe('imágenes sintéticas de identidad', () => {
     expect(a.bytes[a.bytes.length - 2]).toBe(0xff);
     expect(a.bytes[a.bytes.length - 1]).toBe(0xd9);
     expect(a.sha256).not.toBe(b.sha256);
+  });
+
+  it('el QR sintético sigue legible tras el comentario de la persona, y no es un QR de cobro real', () => {
+    const { bytes } = syntheticImage('payment_qr', 'p-0001');
+    expect(leerQrDeImagen(Buffer.from(bytes), 'image/jpeg')).toEqual({ ok: true, contenido: 'ATLAS-QA SINTETICO - NO ES UN QR DE COBRO' });
   });
 
   it('un tamaño que no cabe se rechaza en vez de truncar la imagen', () => {
@@ -170,6 +177,41 @@ describe('paso de código desde el buzón QA', () => {
       defaultTimeoutMs: 1000,
     });
     expect(none.reason).toMatch(/buzón/);
+  });
+});
+
+describe('sesión tomada de una cookie', () => {
+  it('la cookie va a la sesión del actor y nunca a recursos ni a la evidencia', async () => {
+    const transport: QaTransport = {
+      send: async () => ({ status: 200, body: { data: {} }, latencyMs: 1, cookies: { atlas_internal_access: 'tok-comercio' } }),
+    };
+    const personaScope = scope();
+    const [step] = await executor(transport).run({
+      tenantId: '1',
+      runId: 'r',
+      personaKey: 'p-0001',
+      template: template([
+        {
+          stepKey: 'login',
+          method: 'POST',
+          path: '/merchant/auth/login',
+          actor: 'anonymous',
+          body: {},
+          expect: { status: [200] },
+          extract: [
+            { to: 'session.merchant_user.accessToken', from: 'cookies.atlas_internal_access', required: true },
+            { to: 'resources.leak', from: 'cookies.atlas_internal_access' },
+          ],
+        },
+      ]),
+      scope: personaScope,
+      signal: new AbortController().signal,
+      defaultTimeoutMs: 1000,
+    });
+    expect(step.status).toBe('PASSED');
+    expect(personaScope.session.merchant_user.accessToken).toBe('tok-comercio');
+    expect(personaScope.resources.leak).toBeUndefined();
+    expect(JSON.stringify(step)).not.toContain('tok-comercio');
   });
 });
 

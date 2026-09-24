@@ -21,7 +21,10 @@ export type TransportRequest = {
   signal: AbortSignal;
 };
 
-export type TransportResponse = { status: number; body: unknown; latencyMs: number } | { status: null; error: string; latencyMs: number };
+/** `cookies` lleva las `Set-Cookie` de la respuesta (sesiones en cookie); nunca van a la evidencia. */
+export type TransportResponse =
+  | { status: number; body: unknown; latencyMs: number; cookies?: Record<string, string> }
+  | { status: null; error: string; latencyMs: number };
 
 export interface QaTransport {
   send(request: TransportRequest): Promise<TransportResponse>;

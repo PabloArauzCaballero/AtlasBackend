@@ -167,11 +167,13 @@ export class StepRunner {
     return !input.signal.aborted;
   }
 
-  private extract(verdict: StepVerdict, body: unknown): StepResult {
+  private extract(verdict: StepVerdict, body: unknown, cookies: Record<string, string> = {}): StepResult {
     const scope = this.input.scope as BindingScope & Record<string, unknown>;
     const extracted: Record<string, unknown> = {};
     for (const extraction of this.step.extract ?? []) {
-      const value = readOptional({ ...scope, response: body }, extraction.from);
+      // Una cookie sólo puede ir a la sesión: un token nunca se extrae a `resources.*`.
+      if (extraction.from.startsWith('cookies.') && !extraction.to.startsWith('session.')) continue;
+      const value = readOptional({ ...scope, response: body, cookies }, extraction.from);
       if (value === undefined && extraction.required) {
         return this.result('FAILED', {
           branch: verdict.branch,
@@ -273,6 +275,10 @@ export class StepRunner {
       response = sent.response;
       if (!(await this.shouldRepeat(response, prepared.expected, deadline))) break;
     }
+    return this.judge(response, prepared.expected);
+  }
+
+  private judge(response: TransportResponse, expected: Parameters<typeof evaluateQaStep>[0]['expected']): Promise<StepResult> | StepResult {
     const body = response.status === null ? null : response.body;
     this.evidence.responseSummary = summarize(body);
     // Cancelada con la petición sin respuesta o frenada por el límite de tasa: no es un fallo del
@@ -281,13 +287,13 @@ export class StepRunner {
       return this.result('CANCELLED', { reason: 'corrida cancelada con este paso en vuelo' });
     }
     const verdict = evaluateQaStep({
-      expected: prepared.expected,
+      expected,
       response:
         response.status === null ? { status: null, transportError: response.error } : { status: response.status, body: response.body },
       scope: this.input.scope,
     });
     if (verdict.status !== 'PASSED')
       return this.result(verdict.status, { branch: verdict.branch, failures: verdict.failures, reason: verdict.failures[0]?.message });
-    return this.extract(verdict, body);
+    return this.extract(verdict, body, response.status === null ? {} : response.cookies);
   }
 }

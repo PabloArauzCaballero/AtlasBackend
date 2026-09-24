@@ -18,6 +18,8 @@ export type RuntimeReadiness = {
   /** Escenarios que el mock declara por proveedor; `null` = no se pudo consultar. */
   mockScenarios: Record<string, string[]> | null;
   availableActors: Array<'internal_user' | 'merchant_user'>;
+  /** Servicios internos que respondieron a su healthcheck; ausente = no se sondeó ninguno. */
+  platformServices?: Partial<Record<'DECISION_ENGINE', boolean>>;
 };
 
 export type EffectivePlan = {
@@ -140,6 +142,20 @@ export function templateProviders(template: JourneyTemplate): string[] {
   return [...new Set(template.steps.flatMap((step) => (step.providers ?? []).map((provider) => provider.provider)))].sort();
 }
 
+function serviceBlockers(template: JourneyTemplate, readiness: RuntimeReadiness): QaBlocker[] {
+  const blockers: QaBlocker[] = [];
+  for (const service of template.platformServices ?? []) {
+    if (readiness.platformServices?.[service] !== true) {
+      blockers.push({
+        code: 'PLATFORM_SERVICE_UNAVAILABLE',
+        message: `El recorrido necesita ${service === 'DECISION_ENGINE' ? 'el Motor de decisiones' : service} y no responde en este entorno.`,
+        subject: service,
+      });
+    }
+  }
+  return blockers;
+}
+
 function readinessBlockers(request: QaRunRequest, template: JourneyTemplate, readiness: RuntimeReadiness): QaBlocker[] {
   const blockers: QaBlocker[] = [];
   for (const actor of template.actors) {
@@ -153,6 +169,7 @@ function readinessBlockers(request: QaRunRequest, template: JourneyTemplate, rea
   }
   if (!readiness.workerReady)
     blockers.push({ code: 'WORKER_UNAVAILABLE', message: 'No hay un worker QA disponible. No se ha iniciado ninguna persona.' });
+  blockers.push(...serviceBlockers(template, readiness));
   const providers = templateProviders(template);
   if (providers.length === 0 || request.mode !== 'INTEGRATED_QA') return blockers;
   if (!readiness.mockReachable)

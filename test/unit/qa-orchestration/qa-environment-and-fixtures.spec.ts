@@ -5,6 +5,11 @@ import { requestedAmountFor, resolveFixtures } from '../../../src/modules/qa-orc
 import { ACCOUNT_SIGNUP_TO_LOGIN } from '../../../src/modules/qa-orchestration/catalog/customer-account.recipes';
 import type { JourneyTemplate } from '../../../src/modules/qa-orchestration/domain/journey-recipe.types';
 import type { QaRunQueryRepository } from '../../../src/modules/qa-orchestration/infrastructure/qa-run-query.repository';
+import { probePlatformService } from '../../../src/modules/systems-ops/platform-service-health.probe';
+
+jest.mock('../../../src/modules/systems-ops/platform-service-health.probe', () => ({
+  probePlatformService: jest.fn(async () => ({ checkType: 'http', isHealthy: false, healthMessage: 'sin dirección' })),
+}));
 
 type Mutable = Record<string, unknown>;
 
@@ -101,8 +106,21 @@ describe('entorno QA administrado en el servidor', () => {
       mockReachable: true,
       mockScenarios: { SEGIP: ['happy_path'] },
       availableActors: [],
+      platformServices: { DECISION_ENGINE: false },
     });
     expect(query.liveWorkers).toHaveBeenCalledWith(30);
+  });
+
+  it('el Motor cuenta sólo si su healthcheck lo da por sano, y el sondeo se cachea', async () => {
+    const probe = probePlatformService as jest.Mock;
+    probe.mockClear();
+    probe.mockResolvedValueOnce({ checkType: 'http', isHealthy: true, healthMessage: 'ok' });
+    const { service } = environmentService();
+    expect(await service.decisionEngineReachable()).toBe(true);
+    expect(await service.decisionEngineReachable()).toBe(true);
+    expect(probe).toHaveBeenCalledTimes(1);
+    probe.mockResolvedValueOnce(null);
+    expect(await environmentService().service.decisionEngineReachable()).toBe(false);
   });
 
   it('readiness: un worker que late en un entorno apagado no está listo; sin token de control el mock no cuenta', async () => {

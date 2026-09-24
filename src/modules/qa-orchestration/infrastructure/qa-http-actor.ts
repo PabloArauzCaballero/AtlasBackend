@@ -12,6 +12,17 @@
 import { AdmissionGate } from './admission-gate.js';
 import type { AdmissionPort, BudgetPort, QaTransport, TransportRequest, TransportResponse } from '../application/executor.ports.js';
 
+/** `Set-Cookie` → nombre/valor. Sólo para extraer sesiones a `session.*`; no se persisten. */
+function cookiesOf(response: Response): Record<string, string> {
+  const cookies: Record<string, string> = {};
+  for (const cookie of response.headers.getSetCookie?.() ?? []) {
+    const [pair] = cookie.split(';');
+    const index = pair.indexOf('=');
+    if (index > 0) cookies[pair.slice(0, index).trim()] = pair.slice(index + 1);
+  }
+  return cookies;
+}
+
 export class QaHttpTransport implements QaTransport {
   constructor(
     private readonly baseUrl: string,
@@ -41,7 +52,7 @@ export class QaHttpTransport implements QaTransport {
       } catch {
         body = { nonJsonBody: text.slice(0, 200) };
       }
-      return { status: response.status, body, latencyMs: performance.now() - started };
+      return { status: response.status, body, latencyMs: performance.now() - started, cookies: cookiesOf(response) };
     } catch (error) {
       const name = error instanceof Error ? error.name : '';
       return {

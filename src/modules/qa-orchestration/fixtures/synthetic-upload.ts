@@ -6,7 +6,11 @@
  *   comentario lleva la persona, así que dos personas nunca suben el mismo hash.
  */
 import { createHash } from 'node:crypto';
-import { SYNTHETIC_IDENTITY_IMAGES, type SyntheticImageKind } from './synthetic-identity-images.js';
+import { SYNTHETIC_IDENTITY_IMAGES } from './synthetic-identity-images.js';
+import { SYNTHETIC_QR_IMAGE } from './synthetic-qr-image.js';
+
+const BASE_IMAGES = { ...SYNTHETIC_IDENTITY_IMAGES, ...SYNTHETIC_QR_IMAGE };
+export type SyntheticImageKind = keyof typeof BASE_IMAGES;
 
 /** Tamaño que declaran las recetas al pedir la URL: holgado sobre las imágenes base (~6 KB). */
 export const SYNTHETIC_UPLOAD_BYTES = 8192;
@@ -16,7 +20,7 @@ export function syntheticImage(
   personaKey: string,
   size = SYNTHETIC_UPLOAD_BYTES,
 ): { bytes: Uint8Array; sha256: string } {
-  const base = Buffer.from(SYNTHETIC_IDENTITY_IMAGES[kind].base64, 'base64');
+  const base = Buffer.from(BASE_IMAGES[kind].base64, 'base64');
   const payloadLength = size - base.length - 4;
   if (payloadLength < 0 || payloadLength > 65_533) throw new Error(`SYNTHETIC_UPLOAD_SIZE_INVALID:${size}`);
   const label = Buffer.from(`atlas-qa ${kind} ${personaKey} `, 'utf8');
