@@ -64,3 +64,17 @@ ventana todo solicitante nuevo sale `NO_DECISION` y va a la cola de Atlas. Antes
 R debe fijar `DECISION_VALIDITY_SECONDS` (1 h por defecto, ver D-CM-7). La migración
 `20260924120000-engine-contract-alignment` es aditiva (columnas nulas y CHECK ampliado); su `down` se
 niega si ya hay réplicas `superseded`.
+## P-14 · Eventos Core ↔ ERP y contratos atlas-integration-v1 (B20)
+
+| Decisión | Alternativa descartada | Ratifica |
+|---|---|---|
+| Un solo esquema de firma en los dos sentidos: el del outbox del ERP (`x-atlas-signature: t=…,v1=HMAC-SHA256("<t>.<cuerpo crudo>")`, ventana 300 s), con **un secreto por sentido** (`ERP_EVENTS_SIGNING_SECRET` para ERP→Core, `ERP_EVENTS_DELIVERY_SECRET` para Core→ERP). Sin secreto el receptor responde 503 (cerrado). | Token de servicio JWT de Core (`CONTEXT_SERVICE_TOKEN_SECRET`): el ERP no lo emite hoy y daría a quien lo tenga acceso a otras rutas internas. | I |
+| El receptor ERP→Core es una ruta pública respecto a la SESIÓN cuya regla de autorización es `@SignedEventSource('atlas-erp')`; `check:auth-coverage` la reconoce como marcador de autorización y el baseline sube en una ruta documentada. | Excluirla del gate. | I + seguridad |
+| Core **no** modifica la cuota ni su saldo cuando el ERP liquida una cobertura: guarda la proyección `installment_coverage_projections` (cubierto, fecha, recuperado, estado). La cuota sigue en mora en Core hasta que el consumidor paga; la obligación de recuperación es del ERP. | Marcar la cuota como pagada en Core (duplicaría estado económico y ocultaría la mora real del consumidor). | R (finanzas/riesgo) |
+| Una cobertura cuyo `coreRef` no resuelve a una cuota existente del mismo tenant y préstamo queda `UNLINKED` (proyección sin ids de Core, visible) en vez de atribuirse por importe o fecha. | Buscar la cuota por aproximación. | I |
+| Los `accounting.*` del ERP se acusan con 2xx y quedan `IGNORED` en la inbox: el libro mayor es del ERP (§2.1). | Rechazarlos (bloquearían la cola del agregado en el ERP). | E |
+| `payment.*` se encola en `outbound_event_deliveries` dentro de la transacción del aviso (con el sobre ya construido, sin la referencia bancaria del cliente) y se entrega con el trabajo `deliver_erp_events` (sólo con URL y secreto), 12 intentos con 5 s·2^(n−1) y tope 1 h, orden estricto por cuota (la versión N+1 espera a la N; un `dead` bloquea la cuota hasta revisión). Sin URL no se entrega nada y quedan `pending` visibles. No se hace backfill de avisos anteriores a la migración. | Reutilizar el estado `processed` del outbox (lo consumen las notificaciones: un ERP caído detendría los avisos al cliente) o reenviar el histórico sin decisión humana. | I + operación |
+| El contrato vive en Core (`contracts/atlas-integration-v1/`); el ERP guarda una copia byte a byte con `ORIGIN.json`. Como una prueba no puede leer otro repositorio, la sincronía se comprueba con `yarn contracts:check-sync <ruta-al-ERP>`. Las familias Decisión, Facility/outcome y Consentimiento **referencian** el OpenAPI del Motor; Comercio/contrato queda sin congelar. | Paquete npm compartido (no hay registro privado operable hoy). | I |
+
+Pendiente de ratificar fuera de este paquete: SLO de edad máxima de una entrega `pending` hacia el ERP y la
+alerta que lo vigile; quién revisa las entregas `dead` y las proyecciones `UNLINKED`.

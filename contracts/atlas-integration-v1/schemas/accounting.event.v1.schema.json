@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.atlas.internal/atlas-integration-v1/accounting.event.v1.schema.json",
+  "title": "accounting.* v1 — hechos del libro mayor del ERP (asiento-conciliación)",
+  "description": "Productor: ERP. Core NO los consume: los acusa (2xx) sin efecto y deja el recibo con desenlace IGNORED. El libro mayor es del ERP (tabla §2.1 del plan).",
+  "type": "object"
+}

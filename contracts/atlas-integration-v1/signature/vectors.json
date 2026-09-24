@@ -1,0 +1,27 @@
+{
+  "scheme": "x-atlas-signature: t=<unix>,v1=<hex(HMAC-SHA256(secret, \"<t>.<cuerpo crudo>\"))>",
+  "toleranceSeconds": 300,
+  "vectors": [
+    {
+      "name": "sobre de Core",
+      "timestamp": 1790251200,
+      "body": "{\"spec\":\"atlas.core.outbox/1\",\"eventKey\":\"00000000-0000-4000-8000-000000000021\",\"topic\":\"payment.confirmed\",\"schemaVersion\":1,\"aggregate\":{\"type\":\"installment\",\"id\":\"920001\",\"version\":2},\"occurredAt\":\"2026-09-24T12:00:00.000Z\",\"producer\":\"atlas-core\",\"tenantId\":\"900001\",\"payload\":{\"claimId\":\"940001\",\"claimCode\":\"PAY-FIXTURE-0001\",\"loanId\":\"910001\",\"installmentId\":\"920001\",\"customerId\":\"950001\",\"partnerProfileId\":\"930001\",\"amount\":\"333.33\",\"currencyCode\":\"BOB\",\"decidedAt\":\"2026-09-24T12:00:00.000Z\",\"aggregateVersion\":2,\"loanPaymentId\":\"960001\"}}",
+      "secret": "atlas-contract-fixture-secret-0000000000000000",
+      "header": "t=1790251200,v1=e30a80203475fa27544453f17cc278be574da07270a818bca5cc9ce11022625e"
+    },
+    {
+      "name": "sobre del ERP",
+      "timestamp": 1790251200,
+      "body": "{\"spec\":\"atlas.erp.outbox/1\",\"eventKey\":\"coverage-settled-00000000-0000-4000-8000-000000000101\",\"topic\":\"b2b.coverage.settled\",\"schemaVersion\":1,\"aggregate\":{\"type\":\"merchant_payable\",\"id\":\"00000000-0000-4000-8000-000000000101\",\"version\":2},\"occurredAt\":\"2026-09-24T12:00:00.000Z\",\"producer\":\"atlas-erp\",\"payload\":{\"payableId\":\"00000000-0000-4000-8000-000000000101\",\"installmentId\":\"00000000-0000-4000-8000-000000000102\",\"purchaseId\":\"00000000-0000-4000-8000-000000000103\",\"merchantAccountId\":\"00000000-0000-4000-8000-000000000104\",\"consumerId\":\"00000000-0000-4000-8000-000000000105\",\"settlementId\":\"00000000-0000-4000-8000-000000000106\",\"settlementReference\":\"LIQ-FIXTURE-0001\",\"amount\":\"300.00\",\"currency\":\"BOB\",\"paidAt\":\"2026-09-24T12:00:00.000Z\",\"recoveryId\":\"00000000-0000-4000-8000-000000000107\",\"coreRef\":{\"tenantId\":\"900001\",\"loanId\":\"910001\",\"installmentId\":\"920001\",\"partnerProfileId\":\"930001\"}}}",
+      "secret": "atlas-contract-fixture-secret-0000000000000000",
+      "header": "t=1790251200,v1=afd64567ca5d05f42e2190953e51ce48ba815a87801f14bb3bbc204a2c12b943"
+    },
+    {
+      "name": "cuerpo vacío",
+      "timestamp": 1,
+      "body": "",
+      "secret": "atlas-contract-fixture-secret-0000000000000000",
+      "header": "t=1,v1=01557f4d385c3b9d6ed152b0f434c285dce1b57c882787e61d98cb876e834e27"
+    }
+  ]
+}

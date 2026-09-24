@@ -23,6 +23,8 @@ export function buildOptionalJobs(deps: {
   creditUnderwriting?: DeferredUnderwriting;
   /** Consumidor de la cola de estrés: función desde la composición, no el servicio. */
   stressRuns: { drain: () => Promise<unknown> };
+  /** Entrega firmada de `payment.*` al ERP (P-14): función desde la composición, como las anteriores. */
+  erpEvents?: { deliver: (tenantId: string) => Promise<unknown> };
   limit: number;
 }): ScheduledJob[] {
   const jobs: ScheduledJob[] = [];
@@ -82,6 +84,21 @@ export function buildOptionalJobs(deps: {
       jobCode: 'consume_systems_stress_runs',
       intervalMs: env.RUNTIME_JOBS_STRESS_CONSUMER_INTERVAL_MS,
       run: () => deps.stressRuns.drain(),
+    });
+  }
+
+  /*
+   * P-14: el aviso de pago que el comercio confirma o rechaza en Core tiene que llegar al ERP, que
+   * decide si detiene una cobertura. Sólo donde hay receptor configurado: sin URL las entregas quedan
+   * `pending` (visibles en `outbound_event_deliveries`) y este trabajo no existe, en vez de fallar cada
+   * cinco segundos contra nadie.
+   */
+  if (env.ERP_EVENTS_DELIVERY_URL && env.ERP_EVENTS_DELIVERY_SECRET && deps.erpEvents) {
+    const erpEvents = deps.erpEvents;
+    jobs.push({
+      jobCode: 'deliver_erp_events',
+      intervalMs: env.RUNTIME_JOBS_ERP_EVENTS_INTERVAL_MS,
+      run: (tenantId: string) => erpEvents.deliver(tenantId),
     });
   }
 

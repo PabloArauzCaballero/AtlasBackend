@@ -110,6 +110,13 @@
     "governed-readers": {
       "title": "Lectores transversales gobernados",
       "schemas": []
+    },
+    "erp-integration": {
+      "title": "Integración de eventos con el ERP",
+      "schemas": [
+        "platform_ops",
+        "credit"
+      ]
     }
   },
   "modules": {
@@ -284,6 +291,11 @@
       "context": "governed-readers",
       "role": "owner",
       "note": "Propietario sólo de su historial y documentos; lector gobernado del resto (V44)."
+    },
+    "erp-integration": {
+      "context": "erp-integration",
+      "role": "owner",
+      "note": "P-14: inbox de eventos del ERP, entregas salientes de payment.* y proyección de cobertura; SQL propio, sin forFeature."
     }
   },
   "tableOwners": {
@@ -309,6 +321,10 @@
     "data_notebook_query_history": "data-notebook",
     "inbox_receipts": "events",
     "context_ownership": "events",
-    "outbox_events": "events"
+    "outbox_events": "events",
+    "external_event_inbox": "erp-integration",
+    "external_aggregate_versions": "erp-integration",
+    "outbound_event_deliveries": "erp-integration",
+    "installment_coverage_projections": "erp-integration"
   }
 }

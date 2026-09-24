@@ -1,6 +1,6 @@
 [
   {
-    "requirementId": "B20",
+    "requirementId": "B20-CONSUMIDOR-MOTOR",
     "packageId": "P-14",
     "repository": "AtlasBackend",
     "title": "Conformidad de Core como consumidor del motor con dobles 200/422/401/403/409/429/5xx, timeout, cuerpo malformado y campo desconocido",
@@ -8,14 +8,278 @@
     "ownerRole": "I",
     "acceptance": "Con transporte, reintentos y plazo reales contra un motor doble HTTP (fixture OpenAPI con su commit): 4xx no se reintenta, 429/5xx/timeout sí; ningún error concede ni rechaza; un campo aditivo desconocido no rompe; un campo conocido con otro tipo se rechaza en el borde; los cuerpos enviados cumplen los DTO del motor.",
     "tests": [
-      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "HTTP 401 (UNAUTHORIZED)" },
-      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "HTTP 429 (RATE_LIMITED)" },
-      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "un motor que no contesta a tiempo es TIMEOUT, no una respuesta" },
-      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "un cuerpo malformado (HTML de un proxy) no se toma por una decisión" },
-      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "un campo desconocido que el motor añada no rompe la lectura ni cambia el veredicto" },
-      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "una aprobación limpia se lee entera y concede; el cuerpo enviado cumple ExecuteDecisionDto" }
+      {
+        "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts",
+        "name": "HTTP 401 (UNAUTHORIZED)"
+      },
+      {
+        "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts",
+        "name": "HTTP 429 (RATE_LIMITED)"
+      },
+      {
+        "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts",
+        "name": "un motor que no contesta a tiempo es TIMEOUT, no una respuesta"
+      },
+      {
+        "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts",
+        "name": "un cuerpo malformado (HTML de un proxy) no se toma por una decisión"
+      },
+      {
+        "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts",
+        "name": "un campo desconocido que el motor añada no rompe la lectura ni cambia el veredicto"
+      },
+      {
+        "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts",
+        "name": "una aprobación limpia se lee entera y concede; el cuerpo enviado cumple ExecuteDecisionDto"
+      }
     ],
     "requiresDatabase": false,
     "blockedBy": "Contrato contra dobles: habilita desarrollo. La misma batería contra el motor real de staging (P-14, segundo paso) no se ha ejecutado."
+  },
+  {
+    "requirementId": "B20",
+    "packageId": "P-14",
+    "repository": "AtlasBackend",
+    "title": "Receptor S2S de eventos del ERP: firma HMAC por sentido, ventana anti-replay y cerrado sin secreto",
+    "releaseIncluded": true,
+    "ownerRole": "I",
+    "acceptance": "Sólo el ERP con el secreto de ese sentido y una firma reciente sobre el cuerpo crudo entrega eventos; sin secreto la ruta responde 503; la ruta es pública sólo respecto a la sesión.",
+    "tests": [
+      {
+        "file": "test/unit/erp-integration/signed-event.guard.spec.ts",
+        "name": "acepta una firma válida y reciente sobre el cuerpo crudo"
+      },
+      {
+        "file": "test/unit/erp-integration/signed-event.guard.spec.ts",
+        "name": "rechaza firma ausente, de otro secreto, sobre otro cuerpo o fuera de ventana (401)"
+      },
+      {
+        "file": "test/unit/erp-integration/signed-event.guard.spec.ts",
+        "name": "sin secreto configurado responde 503: la ruta está cerrada, no abierta"
+      },
+      {
+        "file": "test/unit/erp-integration/signed-event.guard.spec.ts",
+        "name": "el receptor es público para la SESIÓN pero declara al ERP como único firmante"
+      }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B20",
+    "packageId": "P-14",
+    "repository": "AtlasBackend",
+    "title": "ERP→Core: inbox con unicidad por clave en la misma transacción que el efecto y orden por versión de agregado",
+    "releaseIncluded": true,
+    "ownerRole": "I",
+    "acceptance": "Diez entregas (secuenciales y simultáneas) de la misma cobertura liquidada dejan un recibo y una proyección; una versión vieja no revierte la nueva; si el efecto falla se revierte el recibo y el reintento aplica una vez; un payload fuera de contrato es 422 sin recibo.",
+    "tests": [
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "diez entregas de la misma cobertura liquidada dejan UNA proyección y un recibo"
+      },
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "una versión vieja del agregado llega tarde y NO revierte la recuperación (STALE)"
+      },
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "si el efecto falla se revierte también el recibo y el reintento lo aplica una vez"
+      },
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "un payload fuera de contrato es 422 y no deja recibo (el ERP lo manda a DEAD)"
+      },
+      {
+        "file": "test/unit/erp-integration/erp-event-inbox.service.spec.ts",
+        "name": "rechaza con 422 un sobre de otro productor, una versión de esquema desconocida o un payload fuera de contrato"
+      }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B20",
+    "packageId": "P-14",
+    "repository": "AtlasBackend",
+    "title": "Cobertura liquidada en Core: proyección consultable sin duplicar estado económico; tópicos sin uso acusados y registrados",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "b2b.coverage.settled queda en installment_coverage_projections ligada a la cuota de Core sin cambiar su estado ni su saldo; un coreRef que no resuelve queda UNLINKED sin atribuirse a otra cuota; accounting.* se acusa IGNORED.",
+    "tests": [
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "Core no cambia la cuota ni su saldo al recibir la cobertura: sólo proyecta el hecho"
+      },
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "una cobertura cuya cuota no existe en Core, o sin mapeo, queda UNLINKED y sin atribuirse a otra cuota"
+      },
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "un tópico que Core no usa (accounting.*) se acusa sin efecto y queda IGNORED"
+      }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B20",
+    "packageId": "P-14",
+    "repository": "AtlasBackend",
+    "title": "Core→ERP: payment.* encolados en la transacción del aviso y entregados firmados, en orden por cuota, con reintentos y DLQ visible",
+    "releaseIncluded": true,
+    "ownerRole": "I",
+    "acceptance": "Reportar/confirmar crea la entrega en la misma transacción (si cae, no queda ni evento ni entrega); el sobre cumple el contrato y no lleva la referencia bancaria; la versión N+1 no sale mientras la N falla; 422 → dead; agotado → dead con error redactado; dos workers no entregan dos veces; sin URL no reserva nada.",
+    "tests": [
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "reportar y confirmar encolan su entrega al ERP en la misma transacción, con un sobre que cumple el contrato"
+      },
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "si la confirmación cae después de escribir el evento, no queda ni evento ni entrega al ERP"
+      },
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "respeta el orden por cuota: la versión 2 no sale mientras la 1 falla"
+      },
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "un rechazo de contrato (422) va a dead, visible, y bloquea las versiones siguientes de esa cuota"
+      },
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "dos workers a la vez no entregan dos veces la misma fila (lease + SKIP LOCKED)"
+      },
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "sin receptor configurado no reserva nada: las entregas quedan pending"
+      },
+      {
+        "file": "test/integration/erp-integration/erp-events.spec.ts",
+        "name": "agotados los intentos por fallos transitorios, la entrega queda dead con el error redactado"
+      },
+      {
+        "file": "test/unit/erp-integration/erp-event-delivery.service.spec.ts",
+        "name": "ACK → delivered; transitorio → pending con backoff; rechazo o intentos agotados → dead"
+      }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B20",
+    "packageId": "P-14",
+    "repository": "AtlasBackend",
+    "title": "Dobles del proveedor en el cliente de entrega: 200/401/409/422/429/5xx/timeout/red/cuerpo malformado",
+    "releaseIncluded": true,
+    "ownerRole": "Q",
+    "acceptance": "Sólo 2xx es ACK (aunque el cuerpo sea malformado); 400/410/413/415/422 son rechazo definitivo; 401/403/404/409/429/5xx, timeout y red caída son transitorios; el error guardado no filtra secreto ni credenciales.",
+    "tests": [
+      {
+        "file": "test/unit/erp-integration/signed-event-publisher.spec.ts",
+        "name": "200 es ACK y la petición va firmada sobre el cuerpo crudo con clave y tópico en cabeceras"
+      },
+      {
+        "file": "test/unit/erp-integration/signed-event-publisher.spec.ts",
+        "name": "un 2xx con cuerpo malformado sigue siendo ACK"
+      },
+      {
+        "file": "test/unit/erp-integration/signed-event-publisher.spec.ts",
+        "name": "401 es transitorio: RETRY"
+      },
+      {
+        "file": "test/unit/erp-integration/signed-event-publisher.spec.ts",
+        "name": "409 es transitorio: RETRY"
+      },
+      {
+        "file": "test/unit/erp-integration/signed-event-publisher.spec.ts",
+        "name": "429 es transitorio: RETRY"
+      },
+      {
+        "file": "test/unit/erp-integration/signed-event-publisher.spec.ts",
+        "name": "503 es transitorio: RETRY"
+      },
+      {
+        "file": "test/unit/erp-integration/signed-event-publisher.spec.ts",
+        "name": "422 es rechazo de contrato: REJECTED (va a dead)"
+      },
+      {
+        "file": "test/unit/erp-integration/signed-event-publisher.spec.ts",
+        "name": "un timeout es RETRY y no ACK"
+      },
+      {
+        "file": "test/unit/erp-integration/signed-event-publisher.spec.ts",
+        "name": "una red caída es RETRY y el error no filtra el secreto ni las credenciales de la URL"
+      }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "P-14",
+    "packageId": "P-14",
+    "repository": "AtlasBackend",
+    "title": "Contratos atlas-integration-v1: esquemas por familia, fixtures deterministas y conformidad de productor y consumidor",
+    "releaseIncluded": true,
+    "ownerRole": "I",
+    "acceptance": "Cada familia declara productor, consumidor, autenticación, idempotencia, reintentos, orden, versión y dueño; fixtures válidos/frontera/inválidos con importes decimales en texto; el receptor acepta exactamente los válidos; el productor de Core cumple el esquema; los vectores de firma coinciden; CHECKSUMS describe el contrato.",
+    "tests": [
+      {
+        "file": "test/contracts/atlas-integration/atlas-integration-v1.contract.spec.ts",
+        "name": "los fixtures válidos y de frontera cumplen el esquema del sobre y del tópico"
+      },
+      {
+        "file": "test/contracts/atlas-integration/atlas-integration-v1.contract.spec.ts",
+        "name": "los fixtures inválidos fallan el esquema"
+      },
+      {
+        "file": "test/contracts/atlas-integration/atlas-integration-v1.contract.spec.ts",
+        "name": "el receptor acepta exactamente los fixtures válidos del ERP y rechaza los inválidos"
+      },
+      {
+        "file": "test/contracts/atlas-integration/atlas-integration-v1.contract.spec.ts",
+        "name": "el sobre que Core entrega al ERP cumple el esquema para los tres tópicos suscritos"
+      },
+      {
+        "file": "test/contracts/atlas-integration/atlas-integration-v1.contract.spec.ts",
+        "name": "una salida incompatible del productor falla el esquema"
+      },
+      {
+        "file": "test/contracts/atlas-integration/atlas-integration-v1.contract.spec.ts",
+        "name": "los vectores de firma dan el mismo encabezado y verifican"
+      },
+      {
+        "file": "test/contracts/atlas-integration/atlas-integration-v1.contract.spec.ts",
+        "name": "CHECKSUMS.sha256 describe exactamente los archivos del contrato"
+      }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "P-14",
+    "packageId": "P-14",
+    "repository": "AtlasBackend",
+    "title": "Familia comercio/contrato congelada en atlas-integration-v1",
+    "releaseIncluded": true,
+    "ownerRole": "I",
+    "acceptance": "El intercambio de alta de comercio ERP↔Core tiene esquema, fixtures y pruebas de conformidad.",
+    "tests": [],
+    "requiresDatabase": false,
+    "blockedBy": "Intercambio real existente (cola de alta ERP pide → Motor decide → Core concede → ERP acusa) pero con varios contratos HTTP propios de cada lado; congelarlo exige revisar esa cadena con sus dueños (E + C). Queda listado en el README del contrato como pendiente."
+  },
+  {
+    "requirementId": "B20",
+    "packageId": "P-14",
+    "repository": "AtlasBackend",
+    "title": "Integración productiva Core↔ERP desplegada (secretos, URL y worker-outbox del ERP)",
+    "releaseIncluded": true,
+    "ownerRole": "S",
+    "acceptance": "En DEV/TEST el worker-outbox del ERP entrega a Core y deliver_erp_events entrega al ERP, con los secretos de cada sentido configurados; se verifica por el cuerpo de las respuestas y las tablas de inbox.",
+    "tests": [],
+    "requiresDatabase": true,
+    "blockedBy": "Configuración de Coolify y despliegue fuera del alcance del agente: ERP_EVENTS_SIGNING_SECRET / ERP_EVENTS_DELIVERY_URL / ERP_EVENTS_DELIVERY_SECRET en AtlasBackend; OUTBOX_DELIVERY_URL / OUTBOX_DELIVERY_SIGNING_SECRET / CORE_EVENTS_SIGNING_SECRET en el ERP; servicio worker-outbox nuevo en docker-compose.coolify.yml del ERP. Verificado sólo en E2E local."
   }
 ]
