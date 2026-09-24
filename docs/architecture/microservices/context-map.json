@@ -5,107 +5,71 @@
   "contexts": {
     "identity-access": {
       "title": "Identidad y acceso",
-      "schemas": [
-        "iam"
-      ]
+      "schemas": ["iam"]
     },
     "customers": {
       "title": "Clientes",
-      "schemas": [
-        "customer"
-      ]
+      "schemas": ["customer"]
     },
     "onboarding": {
       "title": "Onboarding e identidad del cliente",
-      "schemas": [
-        "customer"
-      ]
+      "schemas": ["customer"]
     },
     "consent-privacy": {
       "title": "Consentimiento y privacidad",
-      "schemas": [
-        "privacy"
-      ]
+      "schemas": ["privacy"]
     },
     "credit-admission": {
       "title": "Crédito y admisión",
-      "schemas": [
-        "credit"
-      ]
+      "schemas": ["credit"]
     },
     "loan-book": {
       "title": "Cartera de préstamos",
-      "schemas": [
-        "credit"
-      ]
+      "schemas": ["credit"]
     },
     "partners": {
       "title": "Comercios afiliados",
-      "schemas": [
-        "credit",
-        "iam"
-      ]
+      "schemas": ["credit", "iam"]
     },
     "risk": {
       "title": "Riesgo",
-      "schemas": [
-        "risk"
-      ]
+      "schemas": ["risk"]
     },
     "cases-fraud": {
       "title": "Casos y fraude",
-      "schemas": [
-        "case_management"
-      ]
+      "schemas": ["case_management"]
     },
     "support": {
       "title": "Soporte",
-      "schemas": [
-        "case_management"
-      ]
+      "schemas": ["case_management"]
     },
     "dossiers": {
       "title": "Expedientes",
-      "schemas": [
-        "case_management"
-      ]
+      "schemas": ["case_management"]
     },
     "sessions-telemetry": {
       "title": "Sesiones y telemetría",
-      "schemas": [
-        "telemetry"
-      ]
+      "schemas": ["telemetry"]
     },
     "external-providers": {
       "title": "Proveedores externos",
-      "schemas": [
-        "integrations"
-      ]
+      "schemas": ["integrations"]
     },
     "decision-engine-integration": {
       "title": "Motor de decisión (integración)",
-      "schemas": [
-        "integrations"
-      ]
+      "schemas": ["integrations"]
     },
     "messaging": {
       "title": "Mensajería",
-      "schemas": [
-        "messaging"
-      ]
+      "schemas": ["messaging"]
     },
     "data-governance": {
       "title": "Gobierno de datos",
-      "schemas": [
-        "catalog"
-      ]
+      "schemas": ["catalog"]
     },
     "platform": {
       "title": "Plataforma y lectura operativa",
-      "schemas": [
-        "platform_ops",
-        "audit"
-      ]
+      "schemas": ["platform_ops", "audit"]
     },
     "governed-readers": {
       "title": "Lectores transversales gobernados",
@@ -255,6 +219,10 @@
       "role": "owner"
     },
     "systems-ops": {
+      "context": "platform",
+      "role": "owner"
+    },
+    "qa-orchestration": {
       "context": "platform",
       "role": "owner"
     },
