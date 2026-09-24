@@ -144,6 +144,10 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     // El extracto que el cliente sube para que le recalculen la linea: vive con el credito porque es
     // entrada de la politica de suscripcion, no un documento mas de su expediente.
     'bank_statement_reviews',
+    // P-11 (2026-09-24): el cupo de la línea que una concesión reserva y consume, bajo cerrojo del cliente.
+    'credit_exposure_reservations',
+    // P-09 (2026-09-24): lo que el motor debe saber del consentimiento de cada sujeto, con reintento.
+    'decision_consent_replications',
   ],
   [ATLAS_SCHEMAS.RISK]: [
     'feature_definitions',

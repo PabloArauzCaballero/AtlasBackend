@@ -218,6 +218,12 @@ export function buildScheduledJobs(deps: {
       intervalMs: env.RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS,
       run: (tenantId) => outcomeDispatch.registrarCreditosNuevos({ tenantId, limit: env.RUNTIME_JOBS_OUTCOME_DISPATCH_LIMIT }),
     },
+    // P-09: réplica duradera del consentimiento al motor; una revocación sin acusar bloquea el desembolso.
+    {
+      jobCode: 'sync_engine_consents',
+      intervalMs: env.RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS,
+      run: (tenantId) => outcomeDispatch.sincronizarConsentimientos({ tenantId, limit: env.RUNTIME_JOBS_OUTCOME_DISPATCH_LIMIT }),
+    },
     /*
      * La calificación de la cartera —categoría de riesgo y previsión— dependía de que alguien
      * pulsara «Recalificar» antes de un cierre. La categoría se deriva de los días de atraso, que

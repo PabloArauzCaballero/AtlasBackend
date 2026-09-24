@@ -7,6 +7,7 @@ import type { EntityBusinessNarrative } from './entity-narrative.types.js';
 import { AUDIT_QUALITY_NARRATIVES } from './audit-quality.fixtures.js';
 import { COMMUNICATION_NARRATIVES } from './communications.fixtures.js';
 import { CONTEXT_CATALOG_NARRATIVES } from './context-catalogs.fixtures.js';
+import { CREDIT_CONTROL_NARRATIVES } from './credit-controls.fixtures.js';
 import { CREDIT_LIFECYCLE_NARRATIVES } from './credit-lifecycle.fixtures.js';
 import { CREDIT_RATING_NARRATIVES } from './credit-rating.fixtures.js';
 import { DATA_NOTEBOOK_NARRATIVES } from './data-notebook.fixtures.js';
@@ -33,6 +34,7 @@ export type { EntityBusinessNarrative } from './entity-narrative.types.js';
 export const ENTITY_BUSINESS_NARRATIVES: readonly EntityBusinessNarrative[] = [
   ...PLATFORM_ACCESS_NARRATIVES,
   ...CUSTOMER_IDENTITY_NARRATIVES,
+  ...CREDIT_CONTROL_NARRATIVES,
   ...PRIVACY_CONSENT_NARRATIVES,
   ...EVIDENCE_NARRATIVES,
   ...EXPEDIENTE_NARRATIVES,

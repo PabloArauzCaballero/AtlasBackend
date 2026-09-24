@@ -3,12 +3,13 @@
  * @business Esta pieza cierra el bucle: el motor llega a saber si acertó al decidir.
  * @system entrega al motor los desenlaces encolados por el libro de préstamos, con reintento.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
 import { LoanModel, LoanOutcomeReportModel } from '../../database/models/index.js';
 import { DecisionEngineClient } from './decision-engine.client.js';
 import { FacilityRegistrationService } from './facility-registration.service.js';
+import { ConsentReplicationService } from './consent-replication.service.js';
 import { FacilityOutcomeInput } from './decision-engine.types.js';
 
 /** Tras varios intentos fallidos se deja de reintentar solo y se pide mirada humana. */
@@ -23,6 +24,7 @@ export class OutcomeDispatchService {
     @InjectModel(LoanOutcomeReportModel) private readonly reportModel: typeof LoanOutcomeReportModel,
     @InjectModel(LoanModel) private readonly loanModel: typeof LoanModel,
     private readonly facilities: FacilityRegistrationService,
+    @Optional() private readonly consents?: ConsentReplicationService,
   ) {}
 
   /**
@@ -31,6 +33,15 @@ export class OutcomeDispatchService {
    */
   registrarCreditosNuevos(input: { tenantId: string | null; limit: number }) {
     return this.facilities.registrarCreditosNuevos(input);
+  }
+
+  /**
+   * P-09: la réplica duradera de consentimientos, por la misma fachada (trabajo `sync_engine_consents`).
+   * Sin la cola cableada no se finge nada: se devuelve el motivo.
+   */
+  async sincronizarConsentimientos(input: { tenantId: string | null; limit: number }) {
+    if (!this.consents) return { enqueued: 0, synced: 0, failed: 0, reason: 'CONSENT_REPLICATION_NOT_WIRED' as const };
+    return this.consents.sync(input);
   }
 
   /**

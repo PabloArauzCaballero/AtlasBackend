@@ -35,6 +35,28 @@ function num(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/** La respuesta del motor, tal como la devuelve el cliente (sin abrir otra dependencia a su módulo). */
+type EngineDecision = Awaited<ReturnType<DecisionEngineClient['execute']>>;
+
+/**
+ * Qué límite puede escribirse con esta respuesta, o por qué ninguno (P-10).
+ *
+ * Aprobación limpia → el límite emitido, que debe ser finito y no negativo. Rechazo → 0, que es lo
+ * que la política dijo. Cualquier otra cosa → no se escribe: la línea vigente sigue valiendo.
+ */
+export function usableLimit(
+  response: EngineDecision,
+  output: Record<string, unknown>,
+): { write: true; approvedLimit: number } | { write: false; reason: string } {
+  const verdict = DecisionEngineClient.verdictOf(response);
+  if (verdict.kind === 'declined') return { write: true, approvedLimit: 0 };
+  if (verdict.kind === 'review') return { write: false, reason: verdict.reason };
+  const raw = output.approved_credit_limit ?? response.limit;
+  const limit = raw === null || raw === undefined ? null : num(raw);
+  if (limit === null || limit < 0) return { write: false, reason: `INVALID_ECONOMIC_OUTPUT:approved_credit_limit=${String(raw)}` };
+  return { write: true, approvedLimit: limit };
+}
+
 function str(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
@@ -203,12 +225,18 @@ export class CreditLineRecalculationService {
     const output = (response.output ?? {}) as Record<string, unknown>;
 
     /*
-     * El límite se lee del artefacto y no se corrige aquí. Si la política devuelve algo que el core
-     * no sabe leer, se guarda CERO y el desenlace real: es visible y se puede investigar, mientras
-     * que rellenarlo con un número «razonable» escribiría en el expediente del cliente una cifra que
-     * ninguna política emitió.
+     * El límite se lee del artefacto y no se corrige aquí (P-10). Sólo una aprobación LIMPIA escribe
+     * el límite que emitió; un rechazo escribe cero; y una respuesta técnica —ejecución sin terminar,
+     * motivo técnico, caso de revisión abierto o un límite negativo o no finito— NO toca la línea
+     * vigente: un bug del artefacto no puede convertirse en un recorte de crédito del cliente, ni en
+     * un cupo inventado.
      */
-    const approvedLimit = num(output.approved_credit_limit ?? response.limit) ?? 0;
+    const usable = usableLimit(response, output);
+    if (usable.write === false) {
+      this.logger.warn(`La línea del cliente ${input.customerId} no se toca: ${usable.reason} (ejecución ${response.executionId}).`);
+      return null;
+    }
+    const approvedLimit = usable.approvedLimit;
 
     return this.escritor.persist({
       tenantId: input.tenantId,

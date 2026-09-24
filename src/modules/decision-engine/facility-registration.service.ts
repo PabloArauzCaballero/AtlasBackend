@@ -11,6 +11,12 @@ import { DecisionEngineClient } from './decision-engine.client.js';
 import { FacilityRegistrationInput } from './decision-engine.types.js';
 
 /**
+ * Estados de un préstamo REALMENTE concedido (P-11). `pending_disbursement` todavía no es dinero
+ * entregado y `cancelled` nunca lo fue: darlos de alta metería en la cosecha créditos que no existen.
+ */
+export const GRANTED_LOAN_STATUSES = ['active', 'paid_off', 'written_off'] as const;
+
+/**
  * El alta del crédito en el motor, en su propio servicio y con su propio job.
  *
  * ## Por qué no la hace el desembolso
@@ -59,6 +65,8 @@ export class FacilityRegistrationService {
         decisionFacilityRegisteredAt: null,
         decisionExecutionId: { [Op.ne]: null },
         disbursedAt: { [Op.ne]: null },
+        status: { [Op.in]: [...GRANTED_LOAN_STATUSES] },
+        deleted: false,
         ...(input.tenantId ? { tenantId: input.tenantId } : {}),
       },
       order: [['disbursedAt', 'ASC']],

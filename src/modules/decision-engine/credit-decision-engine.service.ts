@@ -11,18 +11,10 @@ import { APP_ATTRIBUTES, DECISION_ATTRIBUTES, SPAN_NAMES } from '../../observabi
 import { env } from '../../config/env.js';
 import { DecisionEngineClient } from './decision-engine.client.js';
 import { DecisionOutcome, DecisionResponse } from './decision-engine.types.js';
+import { classifyDecision } from './decision-verdict.js';
 import { FeatureProjectionService } from './feature-projection.service.js';
 import { SubjectReferenceService } from './subject-reference.service.js';
 import { UnderwritingFeaturesService } from './underwriting-features.service.js';
-
-/** Desenlaces del motor que el core interpreta como «no se concede». */
-const DECLINE_OUTCOMES = new Set(['DECLINE', 'DECLINED', 'REJECT', 'REJECTED', 'DENY', 'DENIED']);
-
-/** Desenlaces que conceden sin intervención. */
-const APPROVE_OUTCOMES = new Set(['APPROVE', 'APPROVED', 'ACCEPT', 'ACCEPTED', 'GRANT', 'GRANTED']);
-
-/** Estados de ejecución que significan que el grafo llegó al final. */
-const COMPLETED_STATUSES = new Set(['COMPLETED', 'SUCCESS', 'SUCCEEDED']);
 
 export type CreditDecisionRequest = {
   tenantId: string;
@@ -173,22 +165,15 @@ export class CreditDecisionEngineService {
   }
 
   /**
-   * Traduce la respuesta del motor al vocabulario del dominio de crédito.
-   *
-   * Sólo se aprueba con una lista CERRADA de desenlaces. Todo lo demás va a revisión humana, y eso
-   * incluye los desenlaces que el core aún no sabe leer: un artefacto puede publicar mañana un
-   * `APPROVE_WITH_CONDITIONS` o un `COUNTER_OFFER`, y tratarlos como aprobación por no reconocerlos
-   * concedería un crédito en condiciones que nadie ha implementado. La lista blanca convierte ese
-   * caso en una cola de revisión, que es visible, en vez de en dinero entregado, que no lo es.
-   *
-   * Una ejecución que no llegó al final tampoco aprueba ni rechaza: no hay decisión que aplicar.
+   * Traduce la respuesta del motor al vocabulario del dominio de crédito con `classifyDecision`
+   * (P-10): lista blanca de estados y desenlaces, y una aprobación sólo si llega limpia —sin caso de
+   * revisión abierto, sin motivo técnico, sin bandera de revisión—. Todo lo demás, incluido lo que el
+   * core aún no sabe leer, va a revisión humana: falla cerrado.
    */
   private interpret(response: DecisionResponse): DecisionOutcome {
-    const outcome = (response.outcome ?? '').toUpperCase();
-    if (!COMPLETED_STATUSES.has(response.status.toUpperCase())) return { kind: 'review', response };
-    if (DECLINE_OUTCOMES.has(outcome)) return { kind: 'declined', response };
-    if (APPROVE_OUTCOMES.has(outcome)) return { kind: 'approved', response };
-    return { kind: 'review', response };
+    const verdict = classifyDecision(response);
+    if (verdict.kind === 'review') this.logger.warn(`Decisión ${response.executionId} derivada a revisión: ${verdict.reason}`);
+    return { kind: verdict.kind, response };
   }
 
   /** Los motivos que la normativa obliga a comunicar cuando se rechaza. */
