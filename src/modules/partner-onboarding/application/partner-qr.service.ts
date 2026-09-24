@@ -237,6 +237,31 @@ export class PartnerQrService {
     return this.network.findActiveQr(tenantId, partnerId, 'bank', null);
   }
 
+  /** Imagen bancaria aprobada del comercio al que pertenece una caja activa. */
+  async paymentQrForPos(tenantId: string, partnerId: string, posTerminalId: string): Promise<{
+    qrId: string;
+    imageDataUrl: string;
+    bankInstitutionCode: string | null;
+    accountNumberMasked: string | null;
+  } | null> {
+    const terminal = await this.network.findPosById(tenantId, partnerId, posTerminalId);
+    if (!terminal) throw new NotFoundException('QR_NOT_RECOGNIZED');
+    if (terminal.status !== 'active') throw new UnprocessableEntityException('QR_EXPIRED');
+    const profile = await this.profiles.requireProfile(tenantId, partnerId);
+    if (profile.onboardingStatus !== 'approved') throw new NotFoundException('QR_NOT_RECOGNIZED');
+
+    const qr = await this.findLivePaymentQr(tenantId, partnerId);
+    if (!qr) return null;
+    const bytes = await this.storage.readObject(qr.storageKey);
+    if (!bytes) return null;
+    return {
+      qrId: String(qr.id),
+      imageDataUrl: `data:${qr.contentType};base64,${bytes.toString('base64')}`,
+      bankInstitutionCode: qr.bankInstitutionCode,
+      accountNumberMasked: qr.accountNumberMasked,
+    };
+  }
+
   /**
    * Si hay un QR bancario esperando revisión: sirve para decirle al cliente «el comercio ya lo
    * subió, falta que lo aprueben», que no es lo mismo que «el comercio no tiene QR».

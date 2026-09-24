@@ -20,6 +20,8 @@ type Qr = {
   status: string;
   storageKey: string;
   contentType: string;
+  bankInstitutionCode: string | null;
+  accountNumberMasked: string | null;
   sha256: string;
   update?: jest.Mock;
 };
@@ -32,6 +34,8 @@ function qr(partial: Partial<Qr>): Qr {
     status: 'pending_review',
     storageKey: '1/partner-7/qr-bank/x.png',
     contentType: 'image/png',
+    bankInstitutionCode: 'BNB',
+    accountNumberMasked: '****1234',
     sha256: 'a'.repeat(64),
     ...partial,
   };
@@ -50,6 +54,7 @@ function construir(opciones: { live?: Qr | null; active?: Qr | null; porId?: Qr 
     listQrCodesPendingReview: jest.fn(async () => []),
     findBranchById: jest.fn(async () => null),
     listQrCodes: jest.fn(async () => []),
+    findPosById: jest.fn(async () => ({ id: '9', status: 'active', partnerProfileId: '7', branchId: '3' })),
   };
   const profiles = { requireProfile: jest.fn(async () => ({ id: '7', onboardingStatus: 'approved' })) };
   const storage = {
@@ -116,6 +121,34 @@ describe('PartnerQrReviewService · revisión', () => {
 });
 
 describe('PartnerQrService · lo que ve el cliente', () => {
+  it('entrega la imagen bancaria aprobada para una caja activa del mismo comercio', async () => {
+    const { service } = construir({ active: qr({ id: '8', status: 'active' }) });
+    const result = await service.paymentQrForPos('1', '7', '9');
+    expect(result?.imageDataUrl).toBe(`data:image/png;base64,${PNG.toString('base64')}`);
+    expect(result?.qrId).toBe('8');
+    expect(result?.bankInstitutionCode).toBe('BNB');
+    expect(result?.accountNumberMasked).toBe('****1234');
+  });
+
+  it('rechaza una caja que ya no está activa', async () => {
+    const { service, network } = construir({ active: qr({ status: 'active' }) });
+    network.findPosById.mockResolvedValueOnce({ id: '9', status: 'suspended', partnerProfileId: '7', branchId: '3' });
+    await expect(service.paymentQrForPos('1', '7', '9')).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+
+  it('no entrega el QR bancario al pedir una caja ajena al comercio', async () => {
+    const { service, network, storage } = construir({ active: qr({ status: 'active' }) });
+    network.findPosById.mockResolvedValueOnce(null as never);
+    await expect(service.paymentQrForPos('1', '7', '99')).rejects.toBeInstanceOf(NotFoundException);
+    expect(storage.readObject).not.toHaveBeenCalled();
+  });
+
+  it('no entrega una imagen que falta en el almacenamiento', async () => {
+    const { service, storage } = construir({ active: qr({ status: 'active' }) });
+    storage.readObject.mockResolvedValueOnce(null as never);
+    await expect(service.paymentQrForPos('1', '7', '9')).resolves.toBeNull();
+  });
+
   it('el QR de cobro que se enseña es SÓLO el activo, nunca el que espera revisión', async () => {
     const { service, network } = construir({ active: null, live: qr({ status: 'pending_review' }) });
     expect(await service.findLivePaymentQr('1', '7')).toBeNull();
