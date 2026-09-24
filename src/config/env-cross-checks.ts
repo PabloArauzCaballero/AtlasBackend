@@ -9,6 +9,7 @@ import { checkNotificationProviders, type RequireWebhook, type RequireWhen } fro
 import { checkFileStorage } from './env.files.checks.js';
 import { checkStoragePublicEndpoint } from './env.storage.checks.js';
 import { checkDecisionEngine } from './env.decision-engine.checks.js';
+import { checkErpEvents } from './env.erp.checks.js';
 import { checkInternalSecondFactor, checkPiiEncryptionProvider, checkSqlLogging } from './env.security.checks.js';
 
 /**
@@ -294,5 +295,6 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
   checkFileStorage(data, ctx);
   checkMailSender(data, requireWhen);
   checkDecisionEngine(data, ctx);
+  checkErpEvents(data, ctx);
   checkNotificationProviders(data, requireWhen, requireWebhook);
 }

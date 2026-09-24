@@ -18,6 +18,7 @@ import { LOAN_BOOK_MODELS } from './loan-book-models.js';
 import { CREDIT_RATING_MODELS } from './credit-rating-models.js';
 import { PARTNER_MODELS } from './partner-models.js';
 import { SUPPORT_MODELS } from './support-models.js';
+import { ERP_INTEGRATION_MODELS } from './erp-integration-models.js';
 import { CREDIT_MODELS } from '../modules/credit/infrastructure/persistence/credit-models.js';
 import { NOTIFICATION_MODELS } from '../modules/notifications/infrastructure/persistence/notification-models.js';
 
@@ -30,4 +31,5 @@ export const databaseModels = [
   ...CREDIT_RATING_MODELS,
   ...PARTNER_MODELS,
   ...SUPPORT_MODELS,
+  ...ERP_INTEGRATION_MODELS,
 ];

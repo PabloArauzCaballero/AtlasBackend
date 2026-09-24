@@ -357,6 +357,13 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   ERP_BACKEND_CATALOG_PATH: '${ERP_BACKEND_CATALOG_PATH:-/api/v1/platform/catalog-manifest}'
   ERP_BACKEND_CATALOG_API_KEY: '${ERP_BACKEND_CATALOG_API_KEY:-}'
   ERP_BACKEND_CATALOG_TIMEOUT_MS: '${ERP_BACKEND_CATALOG_TIMEOUT_MS:-30000}'
+  # Eventos Core <-> ERP (P-14). Un secreto por sentido, >= 32. Vacíos = el receptor responde 503 y
+  # los payment.* quedan pendientes en outbound_event_deliveries (el trabajo deliver_erp_events no corre).
+  ERP_EVENTS_SIGNING_SECRET: '${ERP_EVENTS_SIGNING_SECRET:-}'
+  ERP_EVENTS_SIGNATURE_TOLERANCE_SECONDS: '${ERP_EVENTS_SIGNATURE_TOLERANCE_SECONDS:-300}'
+  ERP_EVENTS_DELIVERY_URL: '${ERP_EVENTS_DELIVERY_URL:-}'
+  ERP_EVENTS_DELIVERY_SECRET: '${ERP_EVENTS_DELIVERY_SECRET:-}'
+  ERP_EVENTS_DELIVERY_TIMEOUT_MS: '${ERP_EVENTS_DELIVERY_TIMEOUT_MS:-10000}'
 
   # --- Proveedores externos (SEGIP, INFOCENTER, telco, QR, banca…) ---------------------------
   #

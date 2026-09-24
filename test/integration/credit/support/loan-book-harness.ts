@@ -223,6 +223,9 @@ export async function buildLoanBookHarness(sequelize: Sequelize) {
     cleanup: async () => {
       for (const table of [
         'platform_ops.outbox_events',
+        // P-14: las entregas al ERP nacen con cada payment.* y la proyección de cobertura lleva el tenant.
+        'platform_ops.outbound_event_deliveries',
+        'credit.installment_coverage_projections',
         'credit.loan_payment_claims',
         'credit.loan_payment_allocations',
         'credit.loan_payments',

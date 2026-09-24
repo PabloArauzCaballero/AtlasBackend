@@ -52,7 +52,15 @@ const ROUTE_DECORATOR = /@(Get|Post|Put|Patch|Delete)\s*\(/g;
  * positivos se acaba desactivando.
  */
 // `@ServiceScope` es la regla de autorización de las rutas entre contextos (identidad de servicio, AT-047).
-const AUTHORIZATION_MARKERS = [/@Roles\s*\(/, /@InternalPermissions\s*\(/, /@SystemsOpsControllerSecurity\s*\(/, /@ServiceScope\s*\(/];
+// `@SignedEventSource` es la de los receptores de eventos firmados entre servicios (HMAC por sentido, P-14):
+// el guard exige la firma del productor declarado y, sin secreto configurado, responde 503.
+const AUTHORIZATION_MARKERS = [
+  /@Roles\s*\(/,
+  /@InternalPermissions\s*\(/,
+  /@SystemsOpsControllerSecurity\s*\(/,
+  /@ServiceScope\s*\(/,
+  /@SignedEventSource\s*\(/,
+];
 
 interface Baseline {
   /** archivo -> nº de rutas `@Public()` aceptadas hoy. */

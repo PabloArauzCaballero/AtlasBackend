@@ -72,6 +72,9 @@
     },
     "governed-readers": {
       "title": "Lectores transversales gobernados"
+    },
+    "erp-integration": {
+      "title": "Integración de eventos con el ERP"
     }
   },
   "modules": {
@@ -264,6 +267,10 @@
     },
     "data-notebook": {
       "context": "governed-readers",
+      "allowedDependencies": []
+    },
+    "erp-integration": {
+      "context": "erp-integration",
       "allowedDependencies": []
     }
   },

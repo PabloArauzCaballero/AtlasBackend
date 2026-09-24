@@ -14,6 +14,7 @@ import { getEventDefinition, listEventDefinitions } from './event-registry.js';
 import { CLAIM_PENDING_EVENTS_SQL, EVENT_LOCK_EXPIRED_MESSAGE, RECLAIM_STUCK_EVENTS_SQL } from './outbox-queries.constants.js';
 import { ListEventsQueryDto } from './events.schemas.js';
 import { PublishEventInput } from './event-types.js';
+import { destinationsFor, enqueueOutboundDeliveries } from '../../platform/events/outbound-subscriptions.js';
 
 function registeredEventCodes(): string[] {
   return listEventDefinitions().map((event) => event.code);
@@ -96,11 +97,18 @@ export class EventsRepository {
 
     const values = outboxRowValues(input, now);
 
+    // P-14: el evento y su entrega a cada servicio suscrito (hoy el ERP para `payment.*`) nacen juntos.
+    const persist = async (tx?: Transaction): Promise<OutboxEventModel> => {
+      const row = await this.outboxModel.create(values as never, { transaction: tx });
+      await enqueueOutboundDeliveries(this.sequelize, row, tx);
+      return row;
+    };
+
     try {
-      if (!transaction) return await this.outboxModel.create(values as never);
-      return await this.sequelize.transaction({ transaction }, (savepoint) =>
-        this.outboxModel.create(values as never, { transaction: savepoint }),
-      );
+      if (!transaction) {
+        return destinationsFor(input.eventCode).length > 0 ? await this.sequelize.transaction((tx) => persist(tx)) : await persist();
+      }
+      return await this.sequelize.transaction({ transaction }, (savepoint) => persist(savepoint));
     } catch (error) {
       if (!input.idempotencyKey) throw error;
       const existing = await findExisting();
