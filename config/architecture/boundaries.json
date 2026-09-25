@@ -169,6 +169,10 @@
       "context": "support",
       "allowedDependencies": []
     },
+    "assist": {
+      "context": "support",
+      "allowedDependencies": []
+    },
     "expedientes": {
       "context": "dossiers",
       "allowedDependencies": []
