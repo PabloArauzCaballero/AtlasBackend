@@ -6,6 +6,7 @@
  * @system cuerpos tomados de los Zod publicados en el OpenAPI y respuestas medidas contra la pila
  *   aislada el 24-sep-2026; cada escritura se comprueba después con una lectura.
  */
+import { CUSTOMER_CHANNEL_STEPS } from './customer-channels.recipes.js';
 import type { JourneyTemplate, RecipeStep } from '../domain/journey-recipe.types.js';
 import { SIGNUP_STEPS } from './customer-account.recipes.js';
 import { PROFILE_DOSSIER, PROFILE_SESSION_AND_CONTACT } from './customer-profile-dossier.recipes.js';
@@ -243,7 +244,8 @@ const EXIT: RecipeStep[] = [
 
 export const CUSTOMER_PROFILE_LIFECYCLE: JourneyTemplate = {
   code: 'customer_profile_lifecycle',
-  version: '1.0.0',
+  // 1.1.0: la agenda del dispositivo.
+  version: '1.1.0',
   name: 'Expediente y día a día del cliente',
   description:
     'Alta propia y, con esa sesión: canales, sesión de app, contacto, domicilio, ubicación, perfil financiero, referencias, ' +
@@ -257,5 +259,13 @@ export const CUSTOMER_PROFILE_LIFECYCLE: JourneyTemplate = {
   expectedTerminal: 'Expediente con domicilio, perfil, referencias y encuesta completos; sesión cerrada y refresh revocado.',
   status: 'READY',
   fixtures: ['consents'],
-  steps: [...SIGNUP_STEPS, ...PROFILE_SESSION_AND_CONTACT, ...PROFILE_DOSSIER, ...SURVEY_AND_CONSENTS, ...MONEY_AND_ENGAGEMENT, ...EXIT],
+  steps: [
+    ...SIGNUP_STEPS,
+    ...PROFILE_SESSION_AND_CONTACT,
+    ...PROFILE_DOSSIER,
+    ...SURVEY_AND_CONSENTS,
+    ...MONEY_AND_ENGAGEMENT,
+    ...CUSTOMER_CHANNEL_STEPS,
+    ...EXIT,
+  ],
 };

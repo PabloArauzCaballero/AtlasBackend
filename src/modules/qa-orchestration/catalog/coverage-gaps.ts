@@ -22,9 +22,6 @@ export type GapReason =
 
 export const COVERAGE_GAPS: Record<string, GapReason> = {
   // customer_full_lifecycle
-  'lifecycle.whatsapp_start': 'RECIPE_PENDING',
-  'lifecycle.whatsapp_confirm': 'NEEDS_OTP_SINK',
-  'lifecycle.address_book': 'RECIPE_PENDING',
   'lifecycle.bank_statement': 'NEEDS_SYNTHETIC_UPLOAD',
   'lifecycle.bank_statement_latest': 'NEEDS_SYNTHETIC_UPLOAD',
   'lifecycle.identity_decision': 'NEEDS_INTERNAL_ACTOR',

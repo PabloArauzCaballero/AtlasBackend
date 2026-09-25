@@ -9,6 +9,7 @@ import { ACCOUNT_SIGNUP_TO_LOGIN, POST_LOGIN_FIRST_SCREEN } from './customer-acc
 import { CUSTOMER_CREDIT_JOURNEY, CUSTOMER_ONBOARDING_INCOMPLETE } from './customer-credit.recipes.js';
 import { CUSTOMER_PROFILE_LIFECYCLE } from './customer-profile.recipes.js';
 import { CUSTOMER_ONBOARDING_SUBMISSION } from './customer-submission.recipes.js';
+import { CUSTOMER_WHATSAPP_VERIFICATION } from './customer-channels.recipes.js';
 import { CUSTOMER_FULL_LIFECYCLE_NORMAL } from './customer-lifecycle.recipes.js';
 import { MERCHANT_SUPPORT_AND_ACCESS } from './merchant-support.recipes.js';
 import { PARTNER_FULL_ONBOARDING } from './partner-onboarding.recipes.js';
@@ -24,6 +25,7 @@ export const JOURNEY_TEMPLATES: readonly JourneyTemplate[] = [
   CUSTOMER_FULL_LIFECYCLE_NORMAL,
   PARTNER_FULL_ONBOARDING,
   MERCHANT_SUPPORT_AND_ACCESS,
+  CUSTOMER_WHATSAPP_VERIFICATION,
 ];
 
 export type JourneyCampaign = {
@@ -43,7 +45,7 @@ export const JOURNEY_CAMPAIGNS: readonly JourneyCampaign[] = [
       { code: 'account_signup_to_login', version: '1.0.0', share: 1 },
       { code: 'post_login_first_screen', version: '1.0.0', share: 1 },
       { code: 'customer_credit_decision', version: '1.1.0', share: 2 },
-      { code: 'customer_profile_lifecycle', version: '1.0.0', share: 1 },
+      { code: 'customer_profile_lifecycle', version: '1.1.0', share: 1 },
     ],
   },
   {
