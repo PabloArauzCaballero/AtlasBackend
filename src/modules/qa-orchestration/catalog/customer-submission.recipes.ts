@@ -81,7 +81,7 @@ const CONTACT: RecipeStep[] = [
   },
 ];
 
-const IDENTITY: RecipeStep[] = [
+export const IDENTITY_STEPS: RecipeStep[] = [
   ...evidenceSteps('identity_front', 'lifecycle.documents_upload_url'),
   ...evidenceSteps('identity_back'),
   ...evidenceSteps('selfie'),
@@ -279,5 +279,5 @@ export const CUSTOMER_ONBOARDING_SUBMISSION: JourneyTemplate = {
   expectedTerminal: 'Expediente enviado a revisión con contacto verificado, identidad presentada y todos los bloques completos.',
   status: 'READY',
   fixtures: ['consents'],
-  steps: [...SIGNUP_STEPS, ...CONTACT, ...IDENTITY, ...DOSSIER, ...SUBMIT],
+  steps: [...SIGNUP_STEPS, ...CONTACT, ...IDENTITY_STEPS, ...DOSSIER, ...SUBMIT],
 };

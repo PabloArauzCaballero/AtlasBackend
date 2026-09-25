@@ -10,6 +10,7 @@ import { CUSTOMER_CREDIT_JOURNEY, CUSTOMER_ONBOARDING_INCOMPLETE } from './custo
 import { CUSTOMER_PROFILE_LIFECYCLE } from './customer-profile.recipes.js';
 import { CUSTOMER_ONBOARDING_SUBMISSION } from './customer-submission.recipes.js';
 import { CUSTOMER_WHATSAPP_VERIFICATION } from './customer-channels.recipes.js';
+import { CUSTOMER_IDENTITY_MANUAL_REVIEW } from './customer-identity-review.recipes.js';
 import { CUSTOMER_FULL_LIFECYCLE_NORMAL } from './customer-lifecycle.recipes.js';
 import { MERCHANT_SUPPORT_AND_ACCESS } from './merchant-support.recipes.js';
 import { PARTNER_FULL_ONBOARDING } from './partner-onboarding.recipes.js';
@@ -26,6 +27,7 @@ export const JOURNEY_TEMPLATES: readonly JourneyTemplate[] = [
   PARTNER_FULL_ONBOARDING,
   MERCHANT_SUPPORT_AND_ACCESS,
   CUSTOMER_WHATSAPP_VERIFICATION,
+  CUSTOMER_IDENTITY_MANUAL_REVIEW,
 ];
 
 export type JourneyCampaign = {
