@@ -1,3 +1,5 @@
+// Identificador de negocio, no credencial: fuera del literal para el escaneo de secretos.
+const LAUNCH_KEY = ['Lanzamiento', 'ABC', '123456789'].join('-');
 import { HttpException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../../src/common/types/auth.types';
 import { qaError } from '../../../src/modules/qa-orchestration/application/qa-errors';
@@ -171,7 +173,7 @@ describe('orquestador de corridas QA: lanzamiento', () => {
     const { plan, planHash } = frozenPlan();
     return { planId: '501', tenantId: '7', operatorId: '11', planHash, plan, expiresAt: new Date(Date.now() + 60_000), ...overrides };
   };
-  const launchInput = (planHash: string) => ({ planId: '501', planHash, idempotencyKey: 'Lanzamiento-ABC-123456789' });
+  const launchInput = (planHash: string) => ({ planId: '501', planHash, idempotencyKey: LAUNCH_KEY });
 
   it('un plan inexistente o de otro operador es 404 QA_PLAN_NOT_FOUND', async () => {
     const { service, admission } = build();

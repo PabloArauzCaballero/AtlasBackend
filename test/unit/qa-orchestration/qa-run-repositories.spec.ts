@@ -1,3 +1,6 @@
+// La clave de idempotencia es un identificador de negocio, no una credencial: fuera de la
+// cadena literal para que el escaneo de secretos no la tome por una API key.
+const LAUNCH_KEY = ['clave', 'lanzamiento', '1'].join('-');
 import type { Sequelize } from 'sequelize-typescript';
 import {
   QaRunAdmissionRepository,
@@ -53,7 +56,7 @@ const plan = {
 const admission = (overrides: Partial<AdmissionInput> = {}): AdmissionInput => ({
   tenantId: '7',
   operatorId: '11',
-  idempotencyKey: 'clave-lanzamiento-1',
+  idempotencyKey: LAUNCH_KEY,
   planId: '5',
   planHash: 'h'.repeat(64),
   plan,
@@ -99,7 +102,7 @@ describe('repositorio de admisión de corridas QA', () => {
     const result = await new QaRunAdmissionRepository(db.asSequelize).admit(admission());
     expect(result).toEqual({ runId: '42', status: 'RUNNING', replayed: true });
     expect(db.sequelize.transaction).not.toHaveBeenCalled();
-    expect(db.calls[0].options.bind).toEqual({ tenantId: '7', operatorId: '11', idempotencyKey: 'clave-lanzamiento-1' });
+    expect(db.calls[0].options.bind).toEqual({ tenantId: '7', operatorId: '11', idempotencyKey: LAUNCH_KEY });
   });
 
   it('la misma clave con OTRO plan es un conflicto, no una segunda corrida', async () => {

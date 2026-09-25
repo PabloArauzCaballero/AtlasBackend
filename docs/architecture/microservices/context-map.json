@@ -255,6 +255,14 @@
     }
   },
   "tableOwners": {
+    "qa_runs": "qa-orchestration",
+    "qa_run_plans": "qa-orchestration",
+    "qa_run_secrets": "qa-orchestration",
+    "qa_run_events": "qa-orchestration",
+    "qa_run_resources": "qa-orchestration",
+    "qa_persona_runs": "qa-orchestration",
+    "qa_step_runs": "qa-orchestration",
+    "qa_worker_heartbeats": "qa-orchestration",
     "operational_audit_logs": "audit",
     "data_change_logs": "audit",
     "customer_consents": "consents",
