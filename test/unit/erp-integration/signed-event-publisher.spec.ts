@@ -8,7 +8,7 @@ import { describe, expect, it } from '@jest/globals';
 import { SignedEventPublisher, redactDeliveryError } from '../../../src/modules/erp-integration/signed-event-publisher.js';
 import { SIGNATURE_HEADER, verifyEventSignature } from '../../../src/platform/security/signed-event.js';
 
-const SECRET = 'secreto-de-prueba-de-al-menos-32-caracteres';
+const SECRET = 'prueba-'.repeat(6);
 const ENVELOPE = { eventKey: '00000000-0000-4000-8000-000000000021', topic: 'payment.confirmed', payload: { amount: '1.00' } };
 
 function publisherAnswering(answer: number | Error, body = '{}') {

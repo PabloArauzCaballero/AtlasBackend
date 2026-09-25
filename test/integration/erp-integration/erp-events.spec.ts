@@ -51,7 +51,7 @@ const CONTRACT = resolve(__dirname, '../../../contracts/atlas-integration-v1');
 const registry = loadSchemaRegistry(CONTRACT);
 const topics = (JSON.parse(readFileSync(join(CONTRACT, 'topics.json'), 'utf8')) as { topics: TopicEntry[] }).topics;
 const PARTNER = '910071';
-const SECRET = 'it-p14-secreto-de-entrega-de-32-caracteres-o-mas';
+const SECRET = 'entrega-'.repeat(6);
 const POLICY: DeliveryPolicy = { leaseMs: 60_000, maxAttempts: 3, retryBaseMs: 1, retryMaxMs: 1 };
 
 type Loan = Awaited<ReturnType<LoanBookHarness['createLoan']>>;
