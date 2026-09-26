@@ -57,9 +57,12 @@ describe('OpenApiCatalogService', () => {
     const seeds = service.buildSeeds(DOCUMENT);
 
     expect(seeds).toHaveLength(3);
+    // OpenAPI describe el parámetro como `{customerId}`; se normaliza a `:customerId` (la sintaxis
+    // que SOURCE_SCAN produce y la única que endpointTemplateToRegex reconoce como comodín) para
+    // que ambos modos de descubrimiento cataloguen la misma ruta como una sola fila.
     expect(seeds.map((seed) => `${seed.method} ${seed.fullPath}`).sort()).toEqual([
-      'DELETE /api/v1/customers/{customerId}',
-      'GET /api/v1/customers/{customerId}',
+      'DELETE /api/v1/customers/:customerId',
+      'GET /api/v1/customers/:customerId',
       'POST /api/v1/auth/login',
     ]);
   });
