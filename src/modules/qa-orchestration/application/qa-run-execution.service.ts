@@ -15,6 +15,8 @@ import { QaEnvironmentService } from './qa-environment.js';
 import { JourneyExecutor } from './journey-executor.js';
 import { resolveFixtures } from './qa-run-fixtures.js';
 import { personaScope } from './qa-persona-scope.js';
+import { PersonaUploadImages } from './qa-upload-images.js';
+import { uploadKindsOf } from '../domain/recipe-validation.js';
 import { loginInternalActor } from '../infrastructure/qa-internal-actor.js';
 import { QaRunClosing, type ExecutionOutcome, type RunContext } from './qa-run-closing.js';
 import { abortableSleep, BucketAdmission, QaHttpTransport, RunBudget } from '../infrastructure/qa-http-actor.js';
@@ -33,6 +35,8 @@ export type Runtime = {
   fixtures: Record<string, unknown>;
   /** Sesiones de actores compartidos (operador QA). Se copian a cada persona; nunca se persisten. */
   sessions: Record<string, Record<string, unknown>>;
+  /** Imágenes por persona (mock o genéricas), pedidas una vez por corrida. */
+  images: PersonaUploadImages;
 };
 
 @Injectable()
@@ -140,19 +144,26 @@ export class QaRunExecutionService {
             })
           : Promise.resolve(null),
     });
+    const images = new PersonaUploadImages({
+      tenantId: ctx.tenantId,
+      kinds: uploadKindsOf(ctx.template),
+      source: this.environments.mock.configured ? this.environments.mock : null,
+      // Sin imágenes del mock la corrida sigue con las genéricas, pero queda escrito por qué.
+      onFallback: (input) => this.runs.appendEvent(ctx.runId, 'IDENTITY_IMAGES_FALLBACK', input),
+    });
     const { maxRequests, maxInFlightRequests } = ctx.plan.limits;
     const budget = new RunBudget({ maxRequests, maxInFlightRequests, deadlineAt }, controller.signal);
     controller.signal.addEventListener('abort', () => budget.wakeAll(), { once: true });
     // Fixture «faltante» porque la corrida se abortó mientras se resolvía: no es un bloqueo, se
     // cierra (o se abandona) por el motivo del aborto.
     if (!fixtures.ok && controller.signal.aborted)
-      return this.conclude(ctx, { controller, budget, transport, fixtures: {}, sessions: {} }, namespaceOpened);
+      return this.conclude(ctx, { controller, budget, transport, fixtures: {}, sessions: {}, images }, namespaceOpened);
     if (!fixtures.ok) {
       await this.runs.closePendingPersonas(ctx.runId, 'BLOCKED', fixtures.message, ctx.fence);
       const evidence = { mockNamespace: namespaceOpened };
       return this.closing.finish(ctx, { status: 'BLOCKED', verdict: null, evidence, errorMessage: `FIXTURE_MISSING: ${fixtures.message}` });
     }
-    const runtime: Runtime = { controller, budget, transport, fixtures: fixtures.fixtures, sessions: fixtures.sessions };
+    const runtime: Runtime = { controller, budget, transport, fixtures: fixtures.fixtures, sessions: fixtures.sessions, images };
     await this.runPersonas(ctx, runtime);
     return this.conclude(ctx, runtime, namespaceOpened);
   }
@@ -171,7 +182,8 @@ export class QaRunExecutionService {
     if (pendingReason)
       await this.runs.closePendingPersonas(ctx.runId, reason === 'CANCELLED' ? 'CANCELLED' : 'BLOCKED', pendingReason, ctx.fence);
 
-    const evidence = await this.closing.reconcile(ctx, namespaceOpened);
+    const identityImages = runtime.images.summary();
+    const evidence = { ...(await this.closing.reconcile(ctx, namespaceOpened)), ...(identityImages ? { identityImages } : {}) };
     const requestsIssued = await this.runs.requestsIssued(ctx.runId);
     const counters = await this.closing.counters(ctx.runId, ctx.plan.persons, requestsIssued);
     const externalEvidenceMissing = ctx.plan.mode === 'INTEGRATED_QA' && ctx.plan.providers.length > 0 && evidence.mockConfirmed !== true;
@@ -235,6 +247,7 @@ export class QaRunExecutionService {
 
   private async runPersona(ctx: RunContext, runtime: Runtime, checkpoint: PersonaCheckpoint, executor: JourneyExecutor): Promise<void> {
     const { persona, scope } = personaScope(ctx, runtime, checkpoint);
+    Object.assign(scope, { uploads: await runtime.images.forPersona(persona) });
     const personaRunId = checkpoint.personaRunId;
     await this.runs.updatePersona(
       { personaRunId, status: 'RUNNING', start: true, caseCategory: persona.caseCategory, archetype: persona.archetype },
