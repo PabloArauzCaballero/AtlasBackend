@@ -31,6 +31,9 @@ export type CreditDecisionRequest = {
   correlationId?: string;
 };
 
+/** Qué estaba haciendo `evaluate` cuando algo falló. Sólo `ENGINE_CALL` es una avería del motor. */
+type FailureStage = 'SUBJECT_REGISTRATION' | 'ENABLING_BASIS' | 'FEATURE_PROJECTION' | 'UNDERWRITING_INPUTS' | 'ENGINE_CALL';
+
 export type CreditDecisionResult = {
   outcome: DecisionOutcome;
   subjectReference: string | null;
@@ -102,49 +105,71 @@ export class CreditDecisionEngineService {
     }
 
     const now = new Date();
-    const subjectReference = await this.subjects.register({ tenantId: request.tenantId, customerId: request.customerId });
 
     /*
-     * La base habilitante ANTES de preguntar (P-09). El motor, sin base, responde 422
-     * `ENABLING_BASIS_MISSING` y guarda esa respuesta en la clave de idempotencia; antes la base se
-     * registraba después de la primera decisión y todo solicitante nuevo salía a revisión. Si la base
-     * no llega, NO se pregunta: la solicitud queda diferida para reintentar, nunca rechazada.
-     */
-    const basis = await ensureUnderwritingBasis(this.client.consents, {
-      tenantId: request.tenantId,
-      customerId: request.customerId,
-      subjectReference,
-      now,
-    });
-    const blocked = basisBlocker(basis);
-    if (blocked) {
-      this.logger.warn(`La solicitud ${request.applicationCode} no se decide todavía: ${blocked.reason} (${basis.error ?? basis.status}).`);
-      return { outcome: blocked, subjectReference, excludedFeatures: [] };
-    }
-
-    const projected = await this.features.projectForCustomer(request.tenantId, request.customerId, now);
-
-    /*
-     * El expediente del cliente, además del feature store.
+     * TODO lo que puede fallar va DENTRO del try (C-2).
      *
-     * Hasta ahora esta llamada mandaba cinco variables —importe, plazo, moneda, producto y
-     * propósito— y ni una sola del cliente, porque el feature store todavía no tiene valores
-     * cargados para nadie. El artefacto declara cincuenta y siete entradas, así que la política
-     * decidía sobre el vacío: el mismo veredicto para todo el mundo.
-     *
-     * Se compone del expediente REAL —ingreso, gastos, empleo, identidad, historial de pago— y el
-     * feature store se superpone encima cuando tenga valores, porque ese sí pasa por el gobierno del
-     * catálogo y debe poder corregir lo que aquí se deriva.
+     * Hasta el 2026-09-25 el registro del sujeto, la base habilitante, la proyección de features y
+     * la composición del expediente corrían FUERA: si cualquiera lanzaba —una sal sin configurar,
+     * una consulta que expira, un modelo que cambió—, la excepción cruzaba este servicio, el submit
+     * respondía 500 DESPUÉS del commit de la solicitud y ésta quedaba `submitted` para siempre,
+     * bloqueando al cliente por el índice único de solicitud abierta. Aquí el contrato es el que el
+     * JSDoc de `decide` promete: nunca lanza; un fallo se devuelve como `engineUnavailable`, y quien
+     * llama lo traduce a revisión humana con su motivo. `stage` dice QUÉ se estaba haciendo cuando
+     * falló: una caída del motor y un expediente que no se pudo componer no se arreglan igual.
      */
-    const underwriting = await this.underwriting.build({
-      tenantId: request.tenantId,
-      customerId: request.customerId,
-      requestedAmount: Number(request.requestedAmount),
-      requestedTermMonths: request.requestedTermMonths,
-      now,
-    });
-
+    let stage: FailureStage = 'SUBJECT_REGISTRATION';
+    let subjectReference: string | null = null;
+    let excludedFeatures: CreditDecisionResult['excludedFeatures'] = [];
     try {
+      subjectReference = await this.subjects.register({ tenantId: request.tenantId, customerId: request.customerId });
+
+      /*
+       * La base habilitante ANTES de preguntar (P-09). El motor, sin base, responde 422
+       * `ENABLING_BASIS_MISSING` y guarda esa respuesta en la clave de idempotencia; antes la base
+       * se registraba después de la primera decisión y todo solicitante nuevo salía a revisión. Si
+       * la base no llega, NO se pregunta: la solicitud queda diferida para reintentar, nunca
+       * rechazada — y ese `return` es un desenlace normal, no un fallo: no toca el `catch`.
+       */
+      stage = 'ENABLING_BASIS';
+      const basis = await ensureUnderwritingBasis(this.client.consents, {
+        tenantId: request.tenantId,
+        customerId: request.customerId,
+        subjectReference,
+        now,
+      });
+      const blocked = basisBlocker(basis);
+      if (blocked) {
+        this.logger.warn(`La solicitud ${request.applicationCode} no se decide todavía: ${blocked.reason} (${basis.error ?? basis.status}).`);
+        return { outcome: blocked, subjectReference, excludedFeatures: [] };
+      }
+
+      stage = 'FEATURE_PROJECTION';
+      const projected = await this.features.projectForCustomer(request.tenantId, request.customerId, now);
+      excludedFeatures = projected.excluded;
+
+      /*
+       * El expediente del cliente, además del feature store.
+       *
+       * Hasta ahora esta llamada mandaba cinco variables —importe, plazo, moneda, producto y
+       * propósito— y ni una sola del cliente, porque el feature store todavía no tiene valores
+       * cargados para nadie. El artefacto declara cincuenta y siete entradas, así que la política
+       * decidía sobre el vacío: el mismo veredicto para todo el mundo.
+       *
+       * Se compone del expediente REAL —ingreso, gastos, empleo, identidad, historial de pago— y el
+       * feature store se superpone encima cuando tenga valores, porque ese sí pasa por el gobierno del
+       * catálogo y debe poder corregir lo que aquí se deriva.
+       */
+      stage = 'UNDERWRITING_INPUTS';
+      const underwriting = await this.underwriting.build({
+        tenantId: request.tenantId,
+        customerId: request.customerId,
+        requestedAmount: Number(request.requestedAmount),
+        requestedTermMonths: request.requestedTermMonths,
+        now,
+      });
+
+      stage = 'ENGINE_CALL';
       // Ver `decision-artifact-binding.service.ts`: quien decide un credito se elige en el portal.
       const binding = await this.artifactBindings.resolve(String(request.tenantId), 'credit');
       const response = await this.client.execute(binding.artifactCode ?? env.DECISION_ENGINE_CREDIT_ARTIFACT, {
@@ -182,12 +207,15 @@ export class CreditDecisionEngineService {
       return {
         outcome: this.interpret(response),
         subjectReference,
-        excludedFeatures: projected.excluded,
+        excludedFeatures,
       };
     } catch (error) {
-      const reason = (error as Error).message ?? 'DECISION_ENGINE_CALL_FAILED';
+      const message = (error as Error).message ?? 'DECISION_ENGINE_CALL_FAILED';
+      // La llamada al motor conserva su motivo tal cual (es lo que ya leían el historial y el
+      // monitoreo); un fallo de ANTES de llamarle se rotula con la etapa para no parecer una caída.
+      const reason = stage === 'ENGINE_CALL' ? message : `${stage}_FAILED: ${message}`;
       this.logger.error(`El motor no pudo decidir la solicitud ${request.applicationCode}: ${reason}`);
-      return { outcome: { kind: 'engineUnavailable', reason }, subjectReference, excludedFeatures: projected.excluded };
+      return { outcome: { kind: 'engineUnavailable', reason }, subjectReference, excludedFeatures };
     }
   }
 

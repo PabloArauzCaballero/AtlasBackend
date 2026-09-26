@@ -29,6 +29,19 @@ export type UnderwritingFeatures = {
 };
 
 const MISSING = 'ausente' as const;
+
+/**
+ * Lo que se manda cuando Atlas NO sabe algo de cumplimiento (C-6).
+ *
+ * Las variables categóricas viajan con este centinela y las booleanas con `null`: ninguna con el
+ * valor «limpio» (`CLEAR`, `false`, `NONE`), que la política leería como «se cotejó y salió bien».
+ * Mandar «limpio» por no saber es decidir a favor del solicitante sobre una pregunta que nadie
+ * contestó. La política decide qué hacer con la ausencia —normalmente, revisión humana—; el core no
+ * le miente para conseguir una aprobación. Ojo: un artefacto cuyo contrato no admita el centinela
+ * (enum cerrado, variable obligatoria) responderá `NO_DECISION` y la solicitud irá a revisión con su
+ * caso, no a aprobación: es el fallo seguro.
+ */
+export const NOT_ASSESSED = 'MISSING' as const;
 const FILE = 'expediente' as const;
 const DERIVED = 'derivado' as const;
 
@@ -69,7 +82,9 @@ function clamp(value: number, low: number, high: number): number {
  * Se manda lo que Atlas SABE. Lo que no sabe viaja con un valor neutro declarado y queda marcado
  * como `ausente`, nunca inventado como si fuera un dato: la diferencia entre «no tiene historial» y
  * «tiene mal historial» es la diferencia entre un cliente nuevo y uno que ya falló, y confundirlas
- * al alza le niega crédito a quien nunca lo pidió.
+ * al alza le niega crédito a quien nunca lo pidió. La excepción es cumplimiento y fraude, donde el
+ * valor «neutro» sería «limpio»: ahí lo que no se sabe viaja como ausente (`NOT_ASSESSED`, o `null`
+ * en las booleanas), porque un «limpio» inventado aprueba a quien nadie ha cotejado (C-6).
  *
  * En Bolivia no hay buró de crédito conectado todavía, así que `bureau_score` no se rellena: se
  * declara `no_hit_flag` y `thin_file_flag`, que es exactamente lo que ocurre. La política decide qué
@@ -100,13 +115,13 @@ export class UnderwritingFeaturesService {
       return value;
     };
 
-    const [economy, profile, contactState, hasAddress, identity, history] = await Promise.all([
+    const [economy, contactState, hasAddress, identity, history, complianceSignals] = await Promise.all([
       this.signals.economicAttributes(input.tenantId, input.customerId),
-      this.signals.currentProfile(input.tenantId, input.customerId),
       this.signals.contactVerification(input.tenantId, input.customerId),
       this.signals.hasVerifiedAddress(input.tenantId, input.customerId),
       this.signals.identitySignals(input.tenantId, input.customerId),
       this.historial.creditHistory(input.tenantId, input.customerId, now),
+      this.signals.complianceSignals(input.tenantId, input.customerId),
     ]);
 
     const income = economy[INCOME] ?? 0;
@@ -186,7 +201,15 @@ export class UnderwritingFeaturesService {
       payment_history_score: put('payment_history_score', history.paymentHistoryScore, DERIVED),
 
       // ---------------------------------------------------------------- identidad y contacto
-      age: put('age', profile.age, profile.age > 0 ? FILE : MISSING),
+      /*
+       * `age` YA NO viaja desde aquí (C-6). El catálogo la declara prohibida para decidir crédito
+       * (`edad`: `allowed_for_credit_decision = false`, motivo `SOLO_ELEGIBILIDAD_LEGAL`, revisión
+       * legal `restricted`), y este servicio la mandaba saltándose el gobierno que
+       * `FeatureProjectionService` sí aplica al feature store: la política recibía una variable que
+       * nadie había autorizado usar. La mayoría de edad se comprueba en la elegibilidad, antes de
+       * poder pedir crédito. Si una política necesita la edad, entra por el feature store
+       * (`age`, con su revisión legal aprobada) y `projected.variables` la superpone.
+       */
       kyc_status: put('kyc_status', identity.verified ? 'VERIFIED' : 'PENDING', FILE),
       national_id_verified: put('national_id_verified', identity.verified, FILE),
       address_verified: put('address_verified', hasAddress, FILE),
@@ -207,10 +230,20 @@ export class UnderwritingFeaturesService {
       consent_active: put('consent_active', true, FILE),
 
       // ---------------------------------------------------------------- cumplimiento
-      pep_status: put('pep_status', false, MISSING),
-      pep_relationship_type: put('pep_relationship_type', 'NONE', MISSING),
-      sanctions_screening_result: put('sanctions_screening_result', 'CLEAR', MISSING),
-      ofac_screening_result: put('ofac_screening_result', 'CLEAR', MISSING),
+      /*
+       * Ninguno de estos valores es «limpio» salvo que Atlas lo sepa (C-6). No hay fuente de PEP, ni
+       * un cotejo OFAC, y el cotejo de listas restrictivas es una acción manual cuya ausencia de
+       * resultado no distingue «salió limpio» de «nunca se hizo»: ver `UnderwritingSignalsService.complianceSignals`.
+       * Sólo una coincidencia ACTIVA es un hecho, y ése es el único valor que se afirma.
+       */
+      pep_status: put('pep_status', null, MISSING),
+      pep_relationship_type: put('pep_relationship_type', NOT_ASSESSED, MISSING),
+      sanctions_screening_result: put(
+        'sanctions_screening_result',
+        complianceSignals.activeWatchlistMatch ? 'POTENTIAL_MATCH' : NOT_ASSESSED,
+        complianceSignals.activeWatchlistMatch ? FILE : MISSING,
+      ),
+      ofac_screening_result: put('ofac_screening_result', NOT_ASSESSED, MISSING),
       adverse_media_hit: put('adverse_media_hit', false, MISSING),
       high_risk_jurisdiction_flag: put('high_risk_jurisdiction_flag', false, MISSING),
 
@@ -232,7 +265,9 @@ export class UnderwritingFeaturesService {
       known_fraud_email_flag: put('known_fraud_email_flag', false, MISSING),
       known_fraud_phone_flag: put('known_fraud_phone_flag', false, MISSING),
       previous_fraud_case_flag: put('previous_fraud_case_flag', false, MISSING),
-      fraud_signal: put('fraud_signal', false, MISSING),
+      // Un caso de fraude ABIERTO es un hecho; su ausencia sólo dice que nadie abrió caso, no que no
+      // haya señal (C-6), así que sin caso la variable viaja ausente y no `false`.
+      fraud_signal: put('fraud_signal', complianceSignals.openFraudCase ? true : null, complianceSignals.openFraudCase ? FILE : MISSING),
       account_takeover_risk_score: put('account_takeover_risk_score', 0, MISSING),
       velocity_applications_24h: put('velocity_applications_24h', history.applications24h, FILE),
 

@@ -5,10 +5,19 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
+import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { CreditDecisionEngineService } from '../../decision-engine/credit-decision-engine.service.js';
 import { DecisionOutcome, DecisionResponse } from '../../decision-engine/decision-engine.types.js';
 import { CreditRepository } from '../credit.repository.js';
+import { CreditReviewCaseRepository } from '../credit-review-case.repository.js';
+import { REVIEW_CASE_SOURCE, type ReviewCaseSource } from '../credit-review-case.constants.js';
+
+/** Motivo con el que queda una solicitud que fue a revisión porque el motor no llegó a decidirla. */
+export const ENGINE_UNAVAILABLE_REASON = 'engine_unavailable';
+
+/** Dónde quedó la revisión de una solicitud: el caso que la sostiene y de quién es su bandeja. */
+type PlacedReviewCase = { code: string | null; source: ReviewCaseSource | null };
 
 /** El motivo con el que se marca una solicitud diferida por falta de base en el motor. */
 export const DEFERRED_BASIS_REASON = 'ENABLING_BASIS_NOT_REPLICATED';
@@ -28,6 +37,7 @@ export class CreditUnderwritingService {
     private readonly engine: CreditDecisionEngineService,
     private readonly credit: CreditRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly reviewCases: CreditReviewCaseRepository,
   ) {}
 
   /**
@@ -40,7 +50,10 @@ export class CreditUnderwritingService {
    *
    * La consecuencia es que existe una ventana en la que la solicitud está creada y sin decidir. Es
    * el estado correcto —`submitted` significa exactamente eso— y es recuperable: quien no llegue a
-   * decidirse aquí queda en la cola y se resuelve en el siguiente intento o a mano.
+   * decidirse aquí lo recoge `CreditSubmittedReconciliationService`, que vuelve a llamar a este
+   * método (el motor deduplica por la clave de idempotencia de la solicitud). Por eso una solicitud
+   * que YA no está `submitted` no se toca: dos caminos pueden llegar aquí y el segundo no puede
+   * pisar la decisión del primero.
    */
   async underwrite(input: {
     tenantId: string;
@@ -60,14 +73,24 @@ export class CreditUnderwritingService {
       const application = await this.credit.findApplicationById(input.tenantId, input.applicationId, { transaction });
       if (!application) return { status: 'unknown', decisionMode: null, executionId: null, reasonCodes: [] };
 
+      if (application.status !== 'submitted') {
+        return {
+          status: application.status,
+          decisionMode: application.decisionMode,
+          executionId: application.decisionExecutionId,
+          reasonCodes: [],
+        };
+      }
+
       const previousStatus = application.status;
       // Mientras se preguntaba al motor pudo decidirla una persona: una respuesta tardía no pisa eso.
       if (previousStatus !== 'submitted') {
         return { status: previousStatus, decisionMode: application.decisionMode ?? null, executionId: null, reasonCodes: [] };
       }
       const applied = this.resolve(result.outcome);
+      const reviewCase = await this.placeReviewCase(applied, input, now, transaction);
 
-      Object.assign(application, decisionColumns(applied, result.subjectReference, now), {
+      Object.assign(application, decisionColumns(applied, result.subjectReference, now, reviewCase), {
         decisionReasonCode: applied.reasonCodes[0] ?? application.decisionReasonCode,
       });
       await application.save({ transaction });
@@ -82,7 +105,7 @@ export class CreditUnderwritingService {
           actorType: 'decision_engine',
           actorInternalUserId: null,
           reasonCode: applied.reasonCodes[0] ?? null,
-          payloadJson: decisionEventPayload(applied, result.excludedFeatures),
+          payloadJson: decisionEventPayload(applied, result.excludedFeatures, reviewCase),
           notes: applied.note,
           happenedAt: now,
         },
@@ -140,6 +163,41 @@ export class CreditUnderwritingService {
   }
 
   /**
+   * Deja la revisión en una bandeja que exista (C-1).
+   *
+   * Una solicitud que pasa a `under_review` tiene que tener quién la mire. Si el Motor abrió su
+   * caso (`manualReview.caseCode`), esa es la bandeja y se registra su código. Si NO lo abrió —un
+   * `review` sin caso, o un motor que no respondió— Atlas abre el suyo en `manual_review_cases`:
+   * antes la solicitud quedaba sin bandeja en ningún sitio, y la decisión humana la rechazaba
+   * además con «delegada al Motor» por el mero hecho de que el Motor la hubiera ejecutado. Es la
+   * misma paridad que riesgo tiene con `motorAbrioCaso`. Lo que no espera a nadie (aprobada o
+   * rechazada) no lleva caso.
+   */
+  private async placeReviewCase(
+    applied: { status: string; note: string | null; response: DecisionResponse | null },
+    input: { tenantId: string; customerId: string; applicationCode: string },
+    now: Date,
+    transaction: Transaction,
+  ): Promise<PlacedReviewCase> {
+    if (applied.status !== 'under_review') return { code: null, source: null };
+
+    const engineCaseCode = applied.response?.manualReview?.caseCode;
+    if (engineCaseCode) return { code: engineCaseCode, source: REVIEW_CASE_SOURCE.engine };
+
+    const own = await this.reviewCases.open(
+      {
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        applicationCode: input.applicationCode,
+        notes: applied.note ?? 'Solicitud de crédito pendiente de revisión humana.',
+        now,
+      },
+      { transaction },
+    );
+    return { code: own.caseCode, source: REVIEW_CASE_SOURCE.atlas };
+  }
+
+  /**
    * Cómo se traduce cada desenlace del motor al estado del expediente.
    *
    * El caso que importa es `engineUnavailable`: la solicitud va a REVISIÓN, nunca a rechazo. Un
@@ -172,7 +230,9 @@ export class CreditUnderwritingService {
         status: 'under_review',
         decisionMode: 'engine_unavailable_manual',
         response: null,
-        reasonCodes: [],
+        // El motivo queda escrito en la fila y en el historial: una solicitud en revisión sin
+        // motivo no dice si esperaba a una persona por política o por una avería (C-2).
+        reasonCodes: [ENGINE_UNAVAILABLE_REASON],
         note: `El motor de decisión no respondió (${outcome.reason}). Requiere revisión humana.`,
       };
     }
@@ -207,22 +267,25 @@ export class CreditUnderwritingService {
 /**
  * Lo que el historial guarda de la decisión, además del estado.
  *
- * `manualReviewCaseCode` es el caso que el Motor abrió, si abrió alguno: es lo que dice dónde se
- * resuelve. Con caso, la bandeja buena es la del Motor y la decisión humana de aquí se rechaza
- * (`CREDIT_DECISION_DELEGADA_AL_MOTOR`); sin caso —un rechazo— no hay nada que delegar. Las
- * features que el catálogo prohíbe usar al decidir se informan: quien audite tiene que poder
- * distinguir «no había dato» de «había y no se podía usar».
+ * `manualReviewCaseCode` es el caso que sostiene la revisión —el del Motor si abrió alguno, o el
+ * propio de Atlas—, y `manualReviewCaseSource` dice de quién es esa bandeja: con caso del Motor, la
+ * decisión humana de aquí se rechaza (`CREDIT_DECISION_DELEGADA_AL_MOTOR`); con caso propio, se
+ * decide aquí. Sin caso —un rechazo o una aprobación— no hay nada que delegar. Las features que el
+ * catálogo prohíbe usar al decidir se informan: quien audite tiene que poder distinguir «no había
+ * dato» de «había y no se podía usar».
  */
 function decisionEventPayload(
   applied: { decisionMode: string; response: DecisionResponse | null },
   excludedFeatures: Array<{ featureCode: string; reason: string }>,
+  reviewCase: PlacedReviewCase,
 ): Record<string, unknown> {
   return {
     decisionMode: applied.decisionMode,
     executionId: applied.response?.executionId ?? null,
     artifactVersionId: applied.response?.artifact?.versionId ?? null,
     outcome: applied.response?.outcome ?? null,
-    manualReviewCaseCode: applied.response?.manualReview?.caseCode ?? null,
+    manualReviewCaseCode: reviewCase.code,
+    manualReviewCaseSource: reviewCase.source,
     manualReviewQueueCode: applied.response?.manualReview?.queueCode ?? null,
     excludedFeatures,
   };
@@ -242,6 +305,7 @@ function decisionColumns(
   applied: { status: string; decisionMode: string; response: DecisionResponse | null },
   subjectReference: string | null,
   now: Date,
+  reviewCase: PlacedReviewCase,
 ) {
   const response = applied.response;
   return {
@@ -253,6 +317,8 @@ function decisionColumns(
     decisionScore: response?.score === null || response?.score === undefined ? null : String(response.score),
     decisionRiskBand: response?.riskBand ?? null,
     decisionReasonsJson: response?.reasonCodes ?? null,
+    manualReviewCaseCode: reviewCase.code,
+    manualReviewCaseSource: reviewCase.source,
     decidedAt: applied.status === 'submitted' ? null : now,
     decisionValidUntil: engineValidUntil(applied),
     businessAcceptance: pendingBusinessAcceptance(applied),

@@ -13,6 +13,7 @@ import { CustomersRepository } from '../../customers/customers.repository.js';
 import { IdentityDecisionDto } from '../customer-onboarding-profile.schemas.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerVerificationRepository } from '../repositories/customer-verification.repository.js';
+import { identityResultForRow } from '../../../common/utils/identity/identity-result.util.js';
 
 /**
  * Resolución de la verificación de identidad y de la revisión documental (C9 y C10).
@@ -67,14 +68,20 @@ export class CustomerVerificationService {
     const now = new Date();
 
     return this.sequelize.transaction(async (transaction) => {
-      const attempt = await this.verificationRepository.findLatestAttempt(input.tenantId, input.customerId, { transaction });
+      // El más reciente A SECAS puede ser un `verified`/`rejected` TERMINAL de otro canal, con un
+      // intento sin resolver más viejo esperando detrás: resolverlo escribiría el veredicto sobre
+      // la fila equivocada y dejaría el pendiente esperando para siempre (I-2/I-3 del plan del
+      // Motor, 2026-09-25 — el mismo defecto que ya se cerró en el callback del Motor y en
+      // `applyForCustomer`, aquí en un tercer camino que usaba `findLatestAttempt`).
+      const attempt = await this.verificationRepository.findAttemptAwaitingReview(input.tenantId, input.customerId, { transaction });
       if (!attempt) throw new NotFoundException('IDENTITY_VERIFICATION_ATTEMPT_NOT_FOUND');
       assertNotDelegatedToEngine(attempt);
 
       await this.verificationRepository.resolveAttempt(
         attempt,
         {
-          finalResult: approved ? 'verified' : 'rejected',
+          // En el vocabulario de la fila: si es del móvil se escribe en mayúsculas, como la app la lee.
+          finalResult: identityResultForRow(approved ? 'verified' : 'rejected', attempt.finalResult),
           reviewedBy: input.currentUser.internalUserId ?? null,
           notes: input.body.notes ?? null,
           now,
