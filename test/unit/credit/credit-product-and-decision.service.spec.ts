@@ -201,10 +201,11 @@ function buildDecisionService(application: Record<string, unknown> | null = { id
   const sequelize = {
     transaction: jest.fn(async (callback: (value: unknown) => Promise<unknown>) => callback(transaction)),
   };
+  const reviewCases = { close: jest.fn(async (..._args: unknown[]) => true) };
   return {
     transaction,
     creditRepository,
-    service: new CreditDecisionService(creditRepository as never, sequelize as never),
+    service: new CreditDecisionService(creditRepository as never, sequelize as never, reviewCases as never),
   };
 }
 

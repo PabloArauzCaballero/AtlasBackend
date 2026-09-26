@@ -92,6 +92,22 @@ export class CreditRepository {
     } as FindOptions);
   }
 
+  /**
+   * Las solicitudes que llevan más de `olderThan` en `submitted`: creadas, y nunca decididas.
+   *
+   * `submitted` es un estado de PASO —la ventana entre el commit de la solicitud y la respuesta del
+   * motor—, y una fila que se queda ahí es un fallo que nadie vio: bloquea al cliente por el índice
+   * único de solicitud abierta. Las más viejas primero, porque son las que llevan más tiempo
+   * esperando.
+   */
+  findStaleSubmittedApplications(tenantId: string, olderThan: Date, limit: number): Promise<CreditApplicationModel[]> {
+    return this.applicationModel.findAll({
+      where: { tenantId, deleted: false, status: 'submitted', submittedAt: { [Op.lt]: olderThan } },
+      order: [['submittedAt', 'ASC']],
+      limit,
+    } as FindOptions);
+  }
+
   findApplicationsByCustomer(tenantId: string, customerId: string): Promise<CreditApplicationModel[]> {
     return this.applicationModel.findAll({
       where: { tenantId, customerId, deleted: false },
@@ -131,10 +147,22 @@ export class CreditRepository {
 
   async updateApplicationStatus(
     application: CreditApplicationModel,
-    values: { status: string; reasonCode: string; decidedByInternalUserId: string | null; now: Date },
+    values: {
+      status: string;
+      reasonCode: string;
+      decidedByInternalUserId: string | null;
+      now: Date;
+      /**
+       * Cómo se resolvió, cuando quien llama lo sabe. Sin él la fila conserva el modo que tuviera:
+       * la decisión humana de un producto `requiresManualReview` lo dejaba en NULL (C-3), que es
+       * exactamente lo que la migración `20260914200000` quería evitar.
+       */
+      decisionMode?: string | null;
+    },
     options: RepositoryOptions,
   ): Promise<CreditApplicationModel> {
     application.status = values.status;
+    if (values.decisionMode !== undefined) application.decisionMode = values.decisionMode;
     application.decisionReasonCode = values.reasonCode;
     application.decidedByInternalUserId = values.decidedByInternalUserId;
     application.decidedAt = values.now;

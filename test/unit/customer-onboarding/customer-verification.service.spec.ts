@@ -33,7 +33,7 @@ describe('CustomerVerificationService', () => {
   function build() {
     const common = commonMocks();
     const verificationRepository = {
-      findLatestAttempt: jest.fn(async (..._args: unknown[]) => ({ id: 'attempt-1' })),
+      findAttemptAwaitingReview: jest.fn(async (..._args: unknown[]) => ({ id: 'attempt-1' })),
       resolveAttempt: jest.fn(),
       resolveIdentityDocument: jest.fn(),
       findPendingReviews: jest.fn(async (..._args: unknown[]) => [{ id: 'rev-1' }, { id: 'rev-2' }]),
@@ -54,7 +54,7 @@ describe('CustomerVerificationService', () => {
 
   it('rechaza con IDENTITY_DECISION_DELEGADA_AL_MOTOR un intento que el Motor tiene en su cola', async () => {
     const { service, verificationRepository } = build();
-    (verificationRepository.findLatestAttempt as jest.Mock).mockResolvedValueOnce({
+    (verificationRepository.findAttemptAwaitingReview as jest.Mock).mockResolvedValueOnce({
       id: 'attempt-2',
       finalResult: 'IN_REVIEW',
       reasonCodesJson: { executionId: '4242' },
@@ -67,7 +67,7 @@ describe('CustomerVerificationService', () => {
 
   it('un intento del Motor YA resuelto (no IN_REVIEW) sí admite la decisión humana', async () => {
     const { service, verificationRepository } = build();
-    (verificationRepository.findLatestAttempt as jest.Mock).mockResolvedValueOnce({
+    (verificationRepository.findAttemptAwaitingReview as jest.Mock).mockResolvedValueOnce({
       id: 'attempt-3',
       finalResult: 'UNAVAILABLE',
       reasonCodesJson: { executionId: '4242' },
@@ -79,9 +79,36 @@ describe('CustomerVerificationService', () => {
     );
   });
 
+  it('FALLA sin el fix: la decisión humana sobre una fila del móvil se escribe en MAYÚSCULAS, que es lo que la app lee (I-3)', async () => {
+    // Antes escribía `verified` en minúsculas sobre `UNAVAILABLE`/`IN_REVIEW`: el GET de la
+    // verificación móvil devuelve la columna tal cual y esa palabra no es un estado que la app conozca.
+    const { service, verificationRepository } = build();
+    (verificationRepository.findAttemptAwaitingReview as jest.Mock).mockResolvedValueOnce({
+      id: 'attempt-4',
+      finalResult: 'UNAVAILABLE',
+      reasonCodesJson: null,
+    } as never);
+
+    await service.decideIdentity({ ...baseInput, body: { decision: 'approve', reasonCode: 'ok' } as never });
+    expect((verificationRepository.resolveAttempt as jest.Mock).mock.calls[0][1]).toMatchObject({ finalResult: 'VERIFIED' });
+  });
+
+  it('FALLA sin el fix: resuelve el intento que ESPERA revisión, no el más reciente a secas (mismo defecto de I-2/I-3 en un tercer camino)', async () => {
+    // Escenario real señalado por los dos escépticos del Frente 1: un intento VERIFIED del canal
+    // móvil llega DESPUÉS de uno del canal directo que sigue pending_review. El más reciente a
+    // secas (findLatestAttempt) devolvería el VERIFIED ajeno y lo pisaría con el veredicto del
+    // analista; el pending_review se quedaría esperando para siempre. decideIdentity debe pedirle
+    // al repositorio el que ESPERA revisión, no el último de cualquier canal.
+    const { service, verificationRepository } = build();
+
+    await service.decideIdentity({ ...baseInput, body: { decision: 'approve', reasonCode: 'ok' } as never });
+
+    expect(verificationRepository.findAttemptAwaitingReview).toHaveBeenCalledWith('t1', 'c1', expect.anything());
+  });
+
   it('lanza NotFoundException si no hay intento de verificación que resolver', async () => {
     const { service, verificationRepository } = build();
-    (verificationRepository.findLatestAttempt as jest.Mock).mockResolvedValueOnce(null as never);
+    (verificationRepository.findAttemptAwaitingReview as jest.Mock).mockResolvedValueOnce(null as never);
     await expect(service.decideIdentity({ ...baseInput, body: { decision: 'approve', reasonCode: 'ok' } as never })).rejects.toThrow(
       NotFoundException,
     );

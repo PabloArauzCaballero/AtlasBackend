@@ -95,6 +95,18 @@ export class CreditApplicationModel extends Model {
   declare decisionReasonCode: string | null;
 
   /**
+   * El caso de revisión que sostiene la solicitud mientras espera a una persona, y de QUIÉN es la
+   * bandeja (`manualReviewCaseSource`): `engine` = el Motor abrió el suyo y allí se resuelve;
+   * `atlas` = lo abrió Atlas en `manual_review_cases` porque el Motor no abrió ninguno. Nulos en
+   * solicitudes anteriores a C-1 y en las que no esperan a nadie.
+   */
+  @Column({ field: 'manual_review_case_code', type: DataType.STRING(80) })
+  declare manualReviewCaseCode: string | null;
+
+  @Column({ field: 'manual_review_case_source', type: DataType.STRING(10) })
+  declare manualReviewCaseSource: string | null;
+
+  /**
    * Qué dijo el NEGOCIO sobre una solicitud que el motor ya aprobó: `pending`, `accepted` o
    * `declined`. Nulo cuando no aplica —la aprobó una persona, o no llegó a aprobarse—.
    *

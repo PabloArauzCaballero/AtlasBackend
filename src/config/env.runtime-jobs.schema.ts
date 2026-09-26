@@ -135,6 +135,14 @@ export const runtimeJobsEnvShape = {
   // Cuánto antes del vencimiento del compromiso se escala la revisión pendiente.
   RUNTIME_JOBS_BANK_STATEMENT_ESCALATE_BEFORE_MINUTES: z.coerce.number().int().min(5).max(1_440).default(240),
 
+  // Solicitudes de crédito atascadas en `submitted` (C-2): el submit confirma la solicitud y DESPUÉS
+  // pregunta al motor, y si el proceso muere en medio la fila bloquea al cliente para siempre por el
+  // índice único de solicitud abierta. Cada 5 minutos; la gracia (15 por defecto) evita pisar a un
+  // submit que todavía espera al motor, y el tope acota las llamadas al motor por pasada.
+  RUNTIME_JOBS_CREDIT_RECONCILE_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
+  RUNTIME_JOBS_CREDIT_SUBMITTED_GRACE_MINUTES: z.coerce.number().int().min(5).max(1_440).default(15),
+  RUNTIME_JOBS_CREDIT_RECONCILE_LIMIT: z.coerce.number().int().min(1).max(200).default(20),
+
   // Vigilancia de los compromisos de atención del soporte (`support_sla_clocks`). Mismo defecto que
   // tuvo la mora: `sweepBreaches` estaba completo y colgaba EXCLUSIVAMENTE de
   // `POST internal/support/desk/sla/sweep`, que no llamaba nadie. Auditoría del 2026-09-05 sobre el
