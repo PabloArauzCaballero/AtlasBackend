@@ -337,6 +337,15 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   DECISION_ENGINE_TIMEOUT_MS: '${DECISION_ENGINE_TIMEOUT_MS:-10000}'
   DECISION_ENGINE_RETRIES: '${DECISION_ENGINE_RETRIES:-1}'
   DECISION_ENGINE_RETRY_BASE_DELAY_MS: '${DECISION_ENGINE_RETRY_BASE_DELAY_MS:-250}'
+
+  # --- Atlas Assist (AtlasAIService, el asistente de la app del cliente) ---------------------
+  # Apagado por defecto: 404 en /mobile/assist/* y la app esconde el botón. Encenderlo exige URL
+  # y clave (env.assist.checks.ts corta el arranque a medias). La clave es la MISMA que el
+  # servicio de IA tiene en SU variable ATLAS_AI_SERVICE_KEY.
+  ASSIST_ENABLED: '${ASSIST_ENABLED:-false}'
+  ATLAS_AI_SERVICE_URL: '${ATLAS_AI_SERVICE_URL:-}'
+  ATLAS_AI_SERVICE_KEY: '${ATLAS_AI_SERVICE_KEY:-}'
+  ATLAS_AI_SERVICE_TIMEOUT_MS: '${ATLAS_AI_SERVICE_TIMEOUT_MS:-28000}'
   # **No es `credit_underwriting`.** Ese es el defecto del esquema y NO existe en el motor: toda
   # solicitud caía en 404 y se resolvía como `engine_unavailable_manual`, con el crédito
   # esperando a una persona sin que nada dijera que el motor ni se había consultado.
