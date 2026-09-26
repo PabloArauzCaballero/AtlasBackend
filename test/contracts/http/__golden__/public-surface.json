@@ -10965,5 +10965,45 @@
       "access-token"
     ],
     "body": true
+  },
+  "POST /mobile/assist/chat": {
+    "operationId": "AssistController_chat",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500",
+      "503"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /mobile/assist/conversation": {
+    "operationId": "AssistController_conversation",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
   }
 }

@@ -183,6 +183,11 @@
       "context": "support",
       "role": "owner"
     },
+    "assist": {
+      "context": "support",
+      "role": "owner",
+      "note": "Proxy del asistente de IA de la app (AtlasAIService). Sin tablas propias: el historial vive en el otro servicio, por actor opaco."
+    },
     "expedientes": {
       "context": "dossiers",
       "role": "owner"
