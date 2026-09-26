@@ -26,6 +26,8 @@ describe('RuntimeJobsService', () => {
     const gpsObservationModel = { count: asyncMock(), destroy: asyncMock() };
     const deviceSnapshotModel = { count: asyncMock(), update: jest.fn(async (..._args: unknown[]) => [0]) };
     const formInteractionModel = { count: asyncMock(), destroy: asyncMock() };
+    const systemJobRunModel = { count: asyncMock(), destroy: asyncMock() };
+    const systemActionLogModel = { count: asyncMock(), destroy: asyncMock() };
     const sequelize = {
       transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})),
       query: asyncMock(),
@@ -50,6 +52,8 @@ describe('RuntimeJobsService', () => {
       gpsObservationModel as never,
       deviceSnapshotModel as never,
       formInteractionModel as never,
+      systemJobRunModel as never,
+      systemActionLogModel as never,
       sequelize as never,
       eventsService as never,
       jobRuns as never,
@@ -63,6 +67,8 @@ describe('RuntimeJobsService', () => {
       gpsObservationModel,
       deviceSnapshotModel,
       formInteractionModel,
+      systemJobRunModel,
+      systemActionLogModel,
       sessionModel,
       auditModel,
       outboxModel,
@@ -154,6 +160,40 @@ describe('RuntimeJobsService', () => {
       const result = response.result as { policiesScanned: number; outcomes: unknown[] };
       expect(result.policiesScanned).toBe(2);
       expect(result.outcomes).toEqual([]);
+    });
+
+    it('system-job-runs-30d in dryRun mode only counts — never calls destroy', async () => {
+      const { service, retentionPolicyModel, systemJobRunModel } = buildService();
+      (retentionPolicyModel.findAll as jest.Mock).mockResolvedValueOnce([
+        { policyCode: 'system-job-runs-30d', retentionDays: 30, isActive: true },
+      ] as never);
+      (systemJobRunModel.count as jest.Mock).mockResolvedValueOnce(107_000 as never);
+
+      const response = await service.applyRetentionPolicies({ tenantId: 't1', body: { dryRun: true } as never, currentUser: internalUser });
+
+      expect(systemJobRunModel.destroy).not.toHaveBeenCalled();
+      const result = response.result as { destructiveActionsExecuted: number; outcomes: unknown[] };
+      expect(result.destructiveActionsExecuted).toBe(0);
+      expect(result.outcomes).toEqual([{ table: 'system_job_runs', action: 'delete', affected: 107_000 }]);
+    });
+
+    it('system-action-logs-30d with dryRun: false actually calls destroy and reports it as a destructive action', async () => {
+      const { service, retentionPolicyModel, systemActionLogModel } = buildService();
+      (retentionPolicyModel.findAll as jest.Mock).mockResolvedValueOnce([
+        { policyCode: 'system-action-logs-30d', retentionDays: 30, isActive: true },
+      ] as never);
+      (systemActionLogModel.destroy as jest.Mock).mockResolvedValueOnce(66_000 as never);
+
+      const response = await service.applyRetentionPolicies({
+        tenantId: 't1',
+        body: { dryRun: false } as never,
+        currentUser: internalUser,
+      });
+
+      expect(systemActionLogModel.count).not.toHaveBeenCalled();
+      const result = response.result as { destructiveActionsExecuted: number; outcomes: unknown[] };
+      expect(result.destructiveActionsExecuted).toBe(66_000);
+      expect(result.outcomes).toEqual([{ table: 'system_action_logs', action: 'delete', affected: 66_000 }]);
     });
 
     it('only scans active policies matching policyCode filter when one is given', async () => {
@@ -407,6 +447,8 @@ describe('RuntimeJobsService', () => {
       const gpsObservationModel = { count: asyncMock(), destroy: asyncMock() };
       const deviceSnapshotModel = { count: asyncMock(), update: jest.fn(async (..._args: unknown[]) => [0]) };
       const formInteractionModel = { count: asyncMock(), destroy: asyncMock() };
+      const systemJobRunModel = { count: asyncMock(), destroy: asyncMock() };
+      const systemActionLogModel = { count: asyncMock(), destroy: asyncMock() };
       const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})), query: asyncMock() };
       const eventsService = { processPendingEvents: asyncMock() };
       const jobRuns = {
@@ -424,6 +466,8 @@ describe('RuntimeJobsService', () => {
         gpsObservationModel as never,
         deviceSnapshotModel as never,
         formInteractionModel as never,
+        systemJobRunModel as never,
+        systemActionLogModel as never,
         sequelize as never,
         eventsService as never,
         jobRuns as never,

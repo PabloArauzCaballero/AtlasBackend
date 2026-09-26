@@ -28,6 +28,18 @@ export const RETENTION_TARGETS: Record<string, { table: string; description: str
     table: 'form_field_interaction_events',
     description: 'Purga eventos crudos de interacción de formularios de onboarding.',
   },
+  'system-job-runs-30d': {
+    table: 'system_job_runs',
+    description:
+      'Purga el registro de ejecuciones de jobs de fondo. Es telemetría operativa de "corrió/no corrió", ' +
+      'no auditoría de decisión: distinto de operational_audit_logs, que es append-only y no se mapea aquí.',
+  },
+  'system-action-logs-30d': {
+    table: 'system_action_logs',
+    description:
+      'Purga el log HTTP genérico (método, ruta, actor) de las cinco fachadas. Es traza operativa de tráfico, ' +
+      'no evidencia de una decisión de negocio: esa vive en operational_audit_logs y no se toca aquí.',
+  },
 };
 
 /**
