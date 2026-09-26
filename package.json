@@ -186,7 +186,7 @@
     "@eslint/js": "^10.0.1",
     "@nestjs/testing": "^11.2.1",
     "@opentelemetry/context-async-hooks": "^2.9.0",
-    "@redocly/cli": "^2.43.2",
+    "@redocly/cli": "^2.54.2",
     "@types/compression": "^1.7.5",
     "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",
