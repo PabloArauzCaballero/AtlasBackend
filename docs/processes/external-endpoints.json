@@ -1,0 +1,7393 @@
+{
+ "generatedFrom": "AtlasFlowIntelligence flow-model (derive.mjs) — regenerar con yarn processes:vendor-endpoints --model <ruta a flow-model>",
+ "systems": {
+  "DECISION_ENGINE": [
+   "DELETE /pdf/admin/templates/:p/:p",
+   "DELETE /v1/artifact-versions/:p/references/:p",
+   "DELETE /v1/workers/bank-statement/institutions/:p",
+   "DELETE /v1/workers/bank-statement/institutions/:p/logo",
+   "DELETE /v1/workers/semantic-analysis/categories/:p",
+   "DELETE /v1/workers/semantic-analysis/model-settings",
+   "GET /health",
+   "GET /health/data-sources",
+   "GET /health/live",
+   "GET /health/ready",
+   "GET /metrics",
+   "GET /pdf/admin/templates",
+   "GET /pdf/admin/templates/:p/:p/source",
+   "GET /pdf/artifacts",
+   "GET /pdf/errors",
+   "GET /pdf/health",
+   "GET /pdf/template-format/example",
+   "GET /pdf/template-format/schema",
+   "GET /pdf/templates",
+   "GET /pdf/templates/:p",
+   "GET /pdf/templates/:p/compatibility",
+   "GET /pdf/templates/:p/sample",
+   "GET /pdf/templates/:p/schema",
+   "GET /pdf/templates/:p/versions",
+   "GET /ready",
+   "GET /v1/approval-requests",
+   "GET /v1/approval-requests/:p",
+   "GET /v1/artifact-versions/:p",
+   "GET /v1/artifact-versions/:p/diff/:p",
+   "GET /v1/artifact-versions/:p/graph",
+   "GET /v1/artifact-versions/:p/references",
+   "GET /v1/artifact-versions/:p/test-suites",
+   "GET /v1/artifacts",
+   "GET /v1/artifacts/:p",
+   "GET /v1/artifacts/:p/dependency-graph",
+   "GET /v1/audit/access-runs",
+   "GET /v1/audit/chain/verify",
+   "GET /v1/audit/events",
+   "GET /v1/audit/events/cursor",
+   "GET /v1/audit/executions",
+   "GET /v1/audit/executions/:p",
+   "GET /v1/audit/metrics",
+   "GET /v1/calculated-fields",
+   "GET /v1/calculated-fields/:p",
+   "GET /v1/calculated-fields/operations",
+   "GET /v1/code-imports",
+   "GET /v1/code-imports/:p",
+   "GET /v1/deployments",
+   "GET /v1/environments",
+   "GET /v1/libraries",
+   "GET /v1/libraries/preludes",
+   "GET /v1/live-executions/stream",
+   "GET /v1/manual-reviews",
+   "GET /v1/manual-reviews/:p",
+   "GET /v1/model-monitoring/ab",
+   "GET /v1/model-monitoring/coverage",
+   "GET /v1/model-monitoring/cutoff-analysis",
+   "GET /v1/notifications",
+   "GET /v1/notifications/unread-count",
+   "GET /v1/outcomes/pending",
+   "GET /v1/outcomes/vintage",
+   "GET /v1/platform/catalog-manifest",
+   "GET /v1/qa-lab/properties",
+   "GET /v1/qa-lab/runs",
+   "GET /v1/qa-lab/runs/:p",
+   "GET /v1/qa-lab/versions/:p/outcomes",
+   "GET /v1/reason-codes",
+   "GET /v1/risk-governance/calibration",
+   "GET /v1/risk-governance/limits",
+   "GET /v1/risk-governance/reidentifications",
+   "GET /v1/security-review/versions/:p",
+   "GET /v1/security-review/versions/:p/export",
+   "GET /v1/sql-console/catalog",
+   "GET /v1/sql-console/history",
+   "GET /v1/test-runs/:p",
+   "GET /v1/test-suites/:p/cases",
+   "GET /v1/traceability/coverage-matrix",
+   "GET /v1/traceability/objectives",
+   "GET /v1/traceability/objectives/:p",
+   "GET /v1/tutorial-progress",
+   "GET /v1/variables",
+   "GET /v1/variables/:p",
+   "GET /v1/variables/:p/dependencies",
+   "GET /v1/views/artifact-inputs",
+   "GET /v1/views/options",
+   "GET /v1/views/pickers/artifact-versions",
+   "GET /v1/views/pickers/artifacts",
+   "GET /v1/views/pickers/test-runs",
+   "GET /v1/views/pickers/test-suites",
+   "GET /v1/views/pickers/variables",
+   "GET /v1/views/scripts",
+   "GET /v1/views/search",
+   "GET /v1/workers",
+   "GET /v1/workers/:p/metrics",
+   "GET /v1/workers/audio-tts/fixtures",
+   "GET /v1/workers/audio-tts/runs",
+   "GET /v1/workers/audio-tts/runs/:p",
+   "GET /v1/workers/audio-tts/runs/:p/audio",
+   "GET /v1/workers/audio-tts/templates",
+   "GET /v1/workers/bank-statement/fixtures",
+   "GET /v1/workers/bank-statement/institutions",
+   "GET /v1/workers/bank-statement/institutions/:p/logo",
+   "GET /v1/workers/bank-statement/institutions/summary",
+   "GET /v1/workers/bank-statement/reviews",
+   "GET /v1/workers/bank-statement/reviews/:p",
+   "GET /v1/workers/bank-statement/reviews/categories",
+   "GET /v1/workers/bank-statement/runs",
+   "GET /v1/workers/bank-statement/runs/:p",
+   "GET /v1/workers/bank-statement/runs/:p/download",
+   "GET /v1/workers/identity-verification/fixtures",
+   "GET /v1/workers/identity-verification/reviews",
+   "GET /v1/workers/identity-verification/reviews/:p",
+   "GET /v1/workers/identity-verification/reviews/categories",
+   "GET /v1/workers/identity-verification/runs",
+   "GET /v1/workers/identity-verification/runs/:p",
+   "GET /v1/workers/identity-verification/runs/:p/images/:p",
+   "GET /v1/workers/semantic-analysis/categories",
+   "GET /v1/workers/semantic-analysis/fixtures",
+   "GET /v1/workers/semantic-analysis/model-settings",
+   "GET /v1/workers/semantic-analysis/model-settings/catalog",
+   "GET /v1/workers/semantic-analysis/runs",
+   "GET /v1/workers/semantic-analysis/runs/:p",
+   "GET /v1/workers/semantic-analysis/unresolved",
+   "GET /v1/workers/semantic-analysis/unresolved/count",
+   "GET /v1/workers/semantic-analysis/unresolved/reevaluate/status",
+   "GET /v1/workers/storage/references",
+   "PATCH /v1/artifact-versions/:p/notes",
+   "PATCH /v1/artifact-versions/:p/processing-basis",
+   "POST /pdf/admin/templates",
+   "POST /pdf/admin/templates/:p/:p/deprecate",
+   "POST /pdf/admin/templates/:p/:p/republish",
+   "POST /pdf/generate",
+   "POST /pdf/generate/async",
+   "POST /pdf/preview",
+   "POST /pdf/templates/:p/validate",
+   "POST /v1/approval-steps/:p/decisions",
+   "POST /v1/artifact-versions/:p/clone",
+   "POST /v1/artifact-versions/:p/compile",
+   "POST /v1/artifact-versions/:p/deployments",
+   "POST /v1/artifact-versions/:p/references",
+   "POST /v1/artifact-versions/:p/submit-for-review",
+   "POST /v1/artifact-versions/:p/test-suites",
+   "POST /v1/artifact-versions/:p/validate",
+   "POST /v1/artifact-versions/:p/validate-and-compile",
+   "POST /v1/artifacts",
+   "POST /v1/calculated-fields",
+   "POST /v1/calculated-fields/:p/versions",
+   "POST /v1/calculated-fields/preview/outcomes",
+   "POST /v1/calculated-fields/preview/sample-inputs",
+   "POST /v1/calculated-fields/preview/test",
+   "POST /v1/calculated-fields/preview/try",
+   "POST /v1/calculated-fields/versions/:p/outcomes",
+   "POST /v1/calculated-fields/versions/:p/promote",
+   "POST /v1/calculated-fields/versions/:p/sample-inputs",
+   "POST /v1/calculated-fields/versions/:p/test",
+   "POST /v1/calculated-fields/versions/:p/try",
+   "POST /v1/code-imports",
+   "POST /v1/code-imports/:p/cancel",
+   "POST /v1/code-imports/:p/confirm",
+   "POST /v1/code-imports/:p/save-draft",
+   "POST /v1/data-subject-requests",
+   "POST /v1/data-subject-requests/history",
+   "POST /v1/decisions/:p",
+   "POST /v1/deployments/:p/rollback",
+   "POST /v1/deployments/:p/suspend",
+   "POST /v1/libraries",
+   "POST /v1/manual-reviews/:p/assign",
+   "POST /v1/manual-reviews/:p/resolve",
+   "POST /v1/model-monitoring/adverse-impact",
+   "POST /v1/model-monitoring/attributes",
+   "POST /v1/model-monitoring/outcomes",
+   "POST /v1/model-monitoring/performance",
+   "POST /v1/model-monitoring/stability",
+   "POST /v1/notifications/:p/read",
+   "POST /v1/notifications/read-all",
+   "POST /v1/outcomes/batch",
+   "POST /v1/outcomes/facilities",
+   "POST /v1/qa-lab/counterexamples/:p/replay",
+   "POST /v1/qa-lab/versions/:p/runs",
+   "POST /v1/qa-lab/versions/:p/sample-inputs",
+   "POST /v1/reason-codes",
+   "POST /v1/risk-governance/calibration",
+   "POST /v1/risk-governance/consents",
+   "POST /v1/risk-governance/consents/lookup",
+   "POST /v1/risk-governance/consents/revoke",
+   "POST /v1/risk-governance/limits",
+   "POST /v1/risk-governance/model-dossier",
+   "POST /v1/risk-governance/portfolio-state",
+   "POST /v1/risk-governance/reidentifications",
+   "POST /v1/risk-governance/reidentifications/decide",
+   "POST /v1/session/login",
+   "POST /v1/session/login/pin",
+   "POST /v1/session/logout",
+   "POST /v1/session/password/change/confirm",
+   "POST /v1/session/password/change/request",
+   "POST /v1/session/refresh",
+   "POST /v1/simulations/:p",
+   "POST /v1/simulations/:p/sample-inputs",
+   "POST /v1/sql-console/query",
+   "POST /v1/sql-console/validate",
+   "POST /v1/test-suites/:p/cases",
+   "POST /v1/test-suites/:p/cases/import",
+   "POST /v1/test-suites/:p/runs",
+   "POST /v1/traceability/objectives",
+   "POST /v1/traceability/policies/:p/artifacts",
+   "POST /v1/traceability/policies/:p/test-suites",
+   "POST /v1/variables",
+   "POST /v1/variables/:p/compatibility",
+   "POST /v1/variables/:p/versions",
+   "POST /v1/variables/validate-contract",
+   "POST /v1/workers/audio-tts/runs",
+   "POST /v1/workers/audio-tts/runs/:p/cancel",
+   "POST /v1/workers/bank-statement/institutions",
+   "POST /v1/workers/bank-statement/institutions/:p/reactivate",
+   "POST /v1/workers/bank-statement/institutions/logos/sync",
+   "POST /v1/workers/bank-statement/institutions/seed",
+   "POST /v1/workers/bank-statement/reviews/:p/claim",
+   "POST /v1/workers/bank-statement/reviews/:p/reprocess",
+   "POST /v1/workers/bank-statement/reviews/:p/resolve",
+   "POST /v1/workers/bank-statement/runs",
+   "POST /v1/workers/bank-statement/runs/:p/cancel",
+   "POST /v1/workers/identity-verification/reviews/:p/claim",
+   "POST /v1/workers/identity-verification/reviews/:p/resolve",
+   "POST /v1/workers/identity-verification/runs",
+   "POST /v1/workers/identity-verification/runs/:p/cancel",
+   "POST /v1/workers/semantic-analysis/categories",
+   "POST /v1/workers/semantic-analysis/categories/import",
+   "POST /v1/workers/semantic-analysis/model-settings/test",
+   "POST /v1/workers/semantic-analysis/runs",
+   "POST /v1/workers/semantic-analysis/runs/:p/cancel",
+   "POST /v1/workers/semantic-analysis/runs/batch",
+   "POST /v1/workers/semantic-analysis/runs/status",
+   "POST /v1/workers/semantic-analysis/unresolved/:p/resolve",
+   "POST /v1/workers/semantic-analysis/unresolved/reevaluate",
+   "PUT /v1/artifact-versions/:p/graph",
+   "PUT /v1/artifact-versions/:p/references/:p",
+   "PUT /v1/tutorial-progress/:p",
+   "PUT /v1/workers/bank-statement/institutions/:p",
+   "PUT /v1/workers/bank-statement/institutions/:p/logo",
+   "PUT /v1/workers/semantic-analysis/categories/:p",
+   "PUT /v1/workers/semantic-analysis/model-settings"
+  ],
+  "ERP_BACKEND": [
+   "DELETE /accounting/billing/ar-invoices/:p",
+   "DELETE /accounting/contracts/:p",
+   "DELETE /accounting/gl-account-links/:p",
+   "DELETE /accounting/receipts/:p",
+   "DELETE /b2b/activities/:p",
+   "DELETE /b2b/proposals/:p",
+   "DELETE /b2b/segments/:p",
+   "DELETE /b2b/tags/:p",
+   "DELETE /files/:p",
+   "GET /accounting/account-groups",
+   "GET /accounting/account-groups/:p",
+   "GET /accounting/account-groups/tree",
+   "GET /accounting/billing/ar-invoices",
+   "GET /accounting/billing/ar-invoices/:p",
+   "GET /accounting/billing/events",
+   "GET /accounting/business-partners",
+   "GET /accounting/business-partners/:p",
+   "GET /accounting/business-partners/:p/default-accounts",
+   "GET /accounting/contracts",
+   "GET /accounting/documents",
+   "GET /accounting/documents/:p",
+   "GET /accounting/financial-structure/bank-accounts",
+   "GET /accounting/financial-structure/branches",
+   "GET /accounting/financial-structure/charts-of-accounts",
+   "GET /accounting/financial-structure/cost-centers",
+   "GET /accounting/financial-structure/fiscal-years",
+   "GET /accounting/financial-structure/gl-accounts",
+   "GET /accounting/financial-structure/gl-accounts/:p",
+   "GET /accounting/financial-structure/ledgers",
+   "GET /accounting/financial-structure/legal-entities",
+   "GET /accounting/financial-structure/periods",
+   "GET /accounting/financial-structure/profit-centers",
+   "GET /accounting/financial-structure/tax-codes",
+   "GET /accounting/gl-accounts/:p/links",
+   "GET /accounting/journal-entries/:p/links",
+   "GET /accounting/outbox/events/dead",
+   "GET /accounting/outbox/status",
+   "GET /accounting/receipts",
+   "GET /accounting/supplier-payment-terms",
+   "GET /accounting/supplier-payment-terms/:p",
+   "GET /accounting/supplier-payment-terms/catalog",
+   "GET /admin/ads/ad-sets",
+   "GET /admin/ads/advertisers",
+   "GET /admin/ads/advertisers/:p",
+   "GET /admin/ads/audit",
+   "GET /admin/ads/campaigns",
+   "GET /admin/ads/campaigns/:p",
+   "GET /admin/ads/campaigns/:p/performance",
+   "GET /admin/ads/creatives",
+   "GET /admin/ads/dashboard",
+   "GET /admin/ads/delivery-monitor",
+   "GET /admin/ads/email/suppressions",
+   "GET /admin/ads/email/tracking/:p",
+   "GET /admin/ads/inventory",
+   "GET /admin/ads/moderation/queue",
+   "GET /admin/ads/placements",
+   "GET /admin/ads/policies",
+   "GET /admin/ads/segments",
+   "GET /admin/notification-campaigns",
+   "GET /admin/notification-campaigns/:p",
+   "GET /admin/notification-campaigns/:p/messages",
+   "GET /admin/notification-campaigns/segments",
+   "GET /audit/business-actions",
+   "GET /auth/me",
+   "GET /auth/merchant/me",
+   "GET /auth/permissions",
+   "GET /auth/roles",
+   "GET /auth/roles/:p",
+   "GET /auth/users",
+   "GET /auth/users/:p",
+   "GET /b2b/accounts",
+   "GET /b2b/accounts/:p",
+   "GET /b2b/activities",
+   "GET /b2b/billing/invoices",
+   "GET /b2b/billing/invoices/:p",
+   "GET /b2b/contracts",
+   "GET /b2b/contracts-catalog",
+   "GET /b2b/contracts/mdr-rules",
+   "GET /b2b/coverage/installments",
+   "GET /b2b/coverage/payables",
+   "GET /b2b/coverage/recoveries",
+   "GET /b2b/coverage/recoveries/:p/movements",
+   "GET /b2b/coverage/review-queue",
+   "GET /b2b/credit-rating/accounts/:p",
+   "GET /b2b/credit-rating/accounts/:p/history",
+   "GET /b2b/credit-rating/portfolio-summary",
+   "GET /b2b/internal-users",
+   "GET /b2b/onboarding/branches",
+   "GET /b2b/onboarding/cases",
+   "GET /b2b/onboarding/cases/:p",
+   "GET /b2b/onboarding/cases/:p/checklist/:p/evidence/content",
+   "GET /b2b/onboarding/cases/:p/contract-options",
+   "GET /b2b/onboarding/cases/summary",
+   "GET /b2b/onboarding/legal-contract-template",
+   "GET /b2b/opportunities",
+   "GET /b2b/proposals",
+   "GET /b2b/proposals/approvals",
+   "GET /b2b/receivables",
+   "GET /b2b/segments",
+   "GET /b2b/segments/:p",
+   "GET /b2b/segments/vocabulary",
+   "GET /b2b/tags",
+   "GET /catalog/domains",
+   "GET /catalog/domains/:p",
+   "GET /documents/health",
+   "GET /files",
+   "GET /files/:p",
+   "GET /files/:p/content",
+   "GET /health",
+   "GET /health/live",
+   "GET /health/ready",
+   "GET /merchant-credit/:p/applications",
+   "GET /merchant-credit/:p/payment-claims",
+   "GET /merchant-credit/:p/payment-claims/:p/proof",
+   "GET /merchant-credit/:p/portfolio",
+   "GET /merchant/support/cases/:p",
+   "GET /merchant/support/categories",
+   "GET /merchant/support/faq",
+   "GET /merchant/support/knowledge/search",
+   "GET /merchant/support/partners/:p/cases",
+   "GET /partner-onboarding/:p/branches",
+   "GET /partner-onboarding/:p/pos-terminals",
+   "GET /partner-onboarding/:p/qr-codes",
+   "GET /partner-onboarding/:p/qr-codes/:p/content",
+   "GET /partner-onboarding/:p/status",
+   "GET /partner-onboarding/mine",
+   "GET /platform/access-runs",
+   "GET /platform/catalog-manifest",
+   "GET /portal/advertisers",
+   "GET /portal/billing",
+   "GET /portal/billing-products",
+   "GET /portal/billing/invoices/:p",
+   "GET /portal/branches",
+   "GET /portal/campaigns",
+   "GET /portal/commissions",
+   "GET /portal/plans",
+   "GET /portal/scope",
+   "GET /portal/subscription",
+   "GET /ready",
+   "GET /support/attachments/:p/content",
+   "GET /support/channels/:p/messages",
+   "GET /support/channels/:p/stream",
+   "GET /support/channels/unread",
+   "GET /version",
+   "PATCH /accounting/account-groups/:p",
+   "PATCH /accounting/billing/ar-invoices/:p",
+   "PATCH /accounting/business-partners/:p",
+   "PATCH /accounting/closings/periods/reopen",
+   "PATCH /accounting/contracts/:p",
+   "PATCH /accounting/documents/:p/approve",
+   "PATCH /accounting/documents/:p/post",
+   "PATCH /accounting/documents/:p/reject",
+   "PATCH /accounting/financial-structure/gl-accounts/:p",
+   "PATCH /accounting/receipts/:p",
+   "PATCH /accounting/supplier-payment-terms/:p",
+   "PATCH /admin/ads/advertisers/:p/status",
+   "PATCH /admin/ads/campaigns/:p/status",
+   "PATCH /admin/ads/events/:p/billable-status",
+   "PATCH /admin/notification-campaigns/:p",
+   "PATCH /admin/notification-campaigns/segments/:p",
+   "PATCH /auth/users/:p",
+   "PATCH /auth/users/:p/roles",
+   "PATCH /b2b/accounts/:p/archive",
+   "PATCH /b2b/accounts/:p/restore",
+   "PATCH /b2b/activities/:p",
+   "PATCH /b2b/activities/:p/complete",
+   "PATCH /b2b/billing/invoices/:p/post-to-gl",
+   "PATCH /b2b/contracts/:p/sign-and-activate",
+   "PATCH /b2b/contracts/mdr-rules/:p",
+   "PATCH /b2b/coverage/payables/:p/cancel",
+   "PATCH /b2b/coverage/payables/:p/paid",
+   "PATCH /b2b/coverage/payables/:p/settlement/approve",
+   "PATCH /b2b/coverage/payables/:p/settlement/reject",
+   "PATCH /b2b/coverage/recoveries/:p/apply-payment",
+   "PATCH /b2b/onboarding/branches/:p",
+   "PATCH /b2b/onboarding/branches/:p/status",
+   "PATCH /b2b/onboarding/cases/:p/activate",
+   "PATCH /b2b/onboarding/cases/:p/checklist",
+   "PATCH /b2b/onboarding/cases/:p/contract",
+   "PATCH /b2b/onboarding/merchant-users/:p/identity",
+   "PATCH /b2b/opportunities/:p/stage",
+   "PATCH /b2b/proposals/:p",
+   "PATCH /b2b/proposals/:p/accept",
+   "PATCH /b2b/proposals/:p/reject",
+   "PATCH /b2b/proposals/:p/send",
+   "PATCH /b2b/proposals/approvals/:p/decision",
+   "PATCH /b2b/segments/:p",
+   "PATCH /b2b/tags/:p",
+   "PATCH /partner-onboarding/:p/branches/:p",
+   "PATCH /partner-onboarding/:p/commercial-profile",
+   "PATCH /partner-onboarding/:p/pos-terminals/:p",
+   "PATCH /portal/branches/:p",
+   "PATCH /portal/branches/:p/status",
+   "PATCH /portal/campaigns/:p/status",
+   "PATCH /portal/plans/:p",
+   "POST /accounting/account-groups",
+   "POST /accounting/billing/ar-invoices",
+   "POST /accounting/billing/events",
+   "POST /accounting/business-partners",
+   "POST /accounting/business-partners/roles",
+   "POST /accounting/closings/periods/close",
+   "POST /accounting/contracts",
+   "POST /accounting/contracts/terms",
+   "POST /accounting/documents",
+   "POST /accounting/documents/:p/reverse",
+   "POST /accounting/documents/bulk",
+   "POST /accounting/financial-structure/branches",
+   "POST /accounting/financial-structure/charts-of-accounts",
+   "POST /accounting/financial-structure/fiscal-years",
+   "POST /accounting/financial-structure/gl-accounts",
+   "POST /accounting/financial-structure/ledgers",
+   "POST /accounting/financial-structure/legal-entities",
+   "POST /accounting/financial-structure/periods",
+   "POST /accounting/financial-structure/tax-codes",
+   "POST /accounting/gl-accounts/:p/links",
+   "POST /accounting/journal-entries/:p/links",
+   "POST /accounting/outbox/events/:p/replay",
+   "POST /accounting/receipts",
+   "POST /accounting/supplier-payment-terms",
+   "POST /accounting/supplier-payment-terms/:p/simulate",
+   "POST /admin/ads/ad-sets/:p/ads",
+   "POST /admin/ads/advertisers",
+   "POST /admin/ads/advertisers/:p/billing-profiles",
+   "POST /admin/ads/advertisers/bulk",
+   "POST /admin/ads/billing/period-close",
+   "POST /admin/ads/campaigns",
+   "POST /admin/ads/campaigns/:p/ad-sets",
+   "POST /admin/ads/campaigns/:p/submit",
+   "POST /admin/ads/creatives",
+   "POST /admin/ads/email/send",
+   "POST /admin/ads/email/suppressions",
+   "POST /admin/ads/inventory",
+   "POST /admin/ads/invoices/:p/payments",
+   "POST /admin/ads/moderation/:p/decision",
+   "POST /admin/ads/policies",
+   "POST /admin/ads/segments",
+   "POST /admin/notification-campaigns",
+   "POST /admin/notification-campaigns/:p/:p",
+   "POST /admin/notification-campaigns/audience/estimate",
+   "POST /admin/notification-campaigns/segments",
+   "POST /ads/delivery/select",
+   "POST /ads/events",
+   "POST /ads/events/bulk",
+   "POST /auth/login",
+   "POST /auth/login/pin",
+   "POST /auth/logout",
+   "POST /auth/merchant/login",
+   "POST /auth/merchant/logout",
+   "POST /auth/merchant/password-reset/confirm",
+   "POST /auth/merchant/password-reset/request",
+   "POST /auth/merchant/refresh",
+   "POST /auth/password-reset/confirm",
+   "POST /auth/password-reset/request",
+   "POST /auth/password/change/confirm",
+   "POST /auth/password/change/request",
+   "POST /auth/refresh",
+   "POST /b2b/accounts",
+   "POST /b2b/accounts/:p/contacts",
+   "POST /b2b/accounts/:p/qualify",
+   "POST /b2b/accounts/bulk",
+   "POST /b2b/activities",
+   "POST /b2b/billing/invoices",
+   "POST /b2b/billing/merchant-payments",
+   "POST /b2b/bnpl/purchases",
+   "POST /b2b/contracts/from-proposal",
+   "POST /b2b/contracts/mdr-rules",
+   "POST /b2b/coverage/installments/sweep-overdue",
+   "POST /b2b/coverage/payables",
+   "POST /b2b/coverage/recoveries/:p/movements/:p/reverse",
+   "POST /b2b/coverage/review-queue/:p/resolve",
+   "POST /b2b/credit-rating/accounts/:p/rate",
+   "POST /b2b/credit-rating/sweep",
+   "POST /b2b/onboarding/branches",
+   "POST /b2b/onboarding/cases",
+   "POST /b2b/onboarding/cases/:p/checklist/:p/evidence",
+   "POST /b2b/onboarding/cases/:p/checklist/:p/evidence/upload-url",
+   "POST /b2b/onboarding/cases/:p/identity/reconcile",
+   "POST /b2b/onboarding/cases/:p/kyb-review",
+   "POST /b2b/onboarding/cases/:p/kyb-review/sync",
+   "POST /b2b/onboarding/cases/:p/mdr-rules",
+   "POST /b2b/onboarding/cases/:p/partner-link",
+   "POST /b2b/onboarding/cases/reconcile-pending",
+   "POST /b2b/onboarding/merchant-users",
+   "POST /b2b/opportunities",
+   "POST /b2b/proposals",
+   "POST /b2b/reconciliation/runs",
+   "POST /b2b/segments",
+   "POST /b2b/tags",
+   "POST /documents/generate",
+   "POST /files",
+   "POST /files/upload-signature",
+   "POST /integration/core/events",
+   "POST /merchant-credit/:p/applications/:p/acceptance",
+   "POST /merchant-credit/:p/payment-claims/:p/verification",
+   "POST /merchant/support/cases",
+   "POST /merchant/support/cases/:p/close-request",
+   "POST /merchant/support/cases/:p/feedback",
+   "POST /partner-onboarding/:p/branches",
+   "POST /partner-onboarding/:p/branches/:p/pos-terminals",
+   "POST /partner-onboarding/:p/commercial-registry",
+   "POST /partner-onboarding/:p/documents/upload-url",
+   "POST /partner-onboarding/:p/legal-representative",
+   "POST /partner-onboarding/:p/qr-codes",
+   "POST /partner-onboarding/:p/qr-codes/upload-url",
+   "POST /partner-onboarding/:p/submit",
+   "POST /partner-onboarding/start",
+   "POST /portal/branches",
+   "POST /portal/plans",
+   "POST /portal/subscription",
+   "POST /support/channels",
+   "POST /support/channels/:p/attachments/ticket",
+   "POST /support/channels/:p/close",
+   "POST /support/channels/:p/messages",
+   "POST /support/channels/:p/read",
+   "POST /support/channels/:p/typing",
+   "PUT /accounting/business-partners/:p/default-accounts"
+  ],
+  "DASHBOARDS": [
+   "GET /auth/me",
+   "GET /contabilidad/balance",
+   "GET /contabilidad/diario",
+   "GET /contabilidad/flujo",
+   "GET /contabilidad/mayor",
+   "GET /contabilidad/resultados",
+   "GET /dashboards",
+   "GET /dashboards/:p/reading",
+   "GET /finanzas/cartera",
+   "GET /finanzas/ingresos",
+   "GET /finanzas/liquidez",
+   "GET /finanzas/por-cobrar",
+   "GET /finanzas/por-pagar",
+   "GET /finanzas/provisiones",
+   "GET /finanzas/rentabilidad",
+   "GET /health",
+   "GET /kpis",
+   "GET /kpis/:p",
+   "GET /kpis/:p/breakdown",
+   "GET /kpis/:p/latest",
+   "GET /kpis/:p/series",
+   "GET /manual-inputs",
+   "GET /metrics",
+   "GET /platform/access-runs",
+   "GET /ready",
+   "GET /snapshots/runs",
+   "POST /auth/login",
+   "POST /auth/login/pin",
+   "POST /auth/logout",
+   "POST /auth/refresh",
+   "POST /manual-inputs",
+   "POST /snapshots/run/:p"
+  ]
+ },
+ "roles": {
+  "ATLAS_BACKEND": {
+   "DELETE /customer-onboarding/:p/reference-contacts/:p": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "DELETE /customers/:p/address-book": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "DELETE /customers/:p/device-tokens/:p": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "DELETE /data-notebook/notebooks/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "DELETE /expedientes/:p/nodos/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "DELETE /expedientes/:p/nodos/:p/concesiones/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "DELETE /expedientes/:p/papelera": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "DELETE /internal/support/desk/agents/:p": [
+    "admin",
+    "platform_admin"
+   ],
+   "DELETE /operations/app-content/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /admin/external-providers": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/:p/auth-state": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/:p/cost-policy": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/auth-broker/availability": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/auth-state": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/credentials/pending-rotation": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/dashboard": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/health": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/idempotency-audit": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/production-gate": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/quality-audit": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/readiness": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/requests": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/retention/preview": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/sanitization-audit": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/sla": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /admin/external-providers/usage": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /customer-onboarding/:p/consumer-survey": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customer-onboarding/:p/evidence-documents": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customer-onboarding/:p/evidence-documents/:p/content": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customer-onboarding/:p/observations": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customer-onboarding/:p/reference-contacts": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customer-onboarding/:p/status": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customer-onboarding/consumer-survey/catalog": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customer-onboarding/identity-verifications/:p/evidence-documents": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/bank-statements/latest": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/credit-applications": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/credit-line": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/credit-line/history": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/credit-products": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/credit-rating": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/eligibility": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/loans": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/me": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/notification-preferences": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /customers/:p/notifications": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /customers/:p/notifications/unread-count": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /customers/:p/payment-calendar": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/session-state": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /customers/:p/spending-by-category": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/spending-report.pdf": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /customers/:p/workflow-progress": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /data-notebook/datasets": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /data-notebook/datasets/:p/rows": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /data-notebook/datasets/:p/schema": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /data-notebook/history": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /data-notebook/notebooks": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /data-notebook/notebooks/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /digital-trust/profile/:p": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /expedientes": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /expedientes/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /expedientes/:p/actividad": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /expedientes/:p/contactos": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /expedientes/:p/nodos": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /expedientes/:p/nodos/:p/concesiones": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /expedientes/:p/nodos/:p/concesiones/visibilidad": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /expedientes/:p/nodos/:p/contenido": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /expedientes/por-sujeto/:p/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /external-data/consents/user/:p": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /external-data/providers/health": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /external-data/requests/:p": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /external-data/users/:p/decision-package": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /external-data/users/:p/features": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /external-data/users/:p/observations": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /external-data/users/:p/scoring-input": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /internal-users/me/notifications": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "qa_engineer",
+    "readonly_auditor",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /internal-users/me/notifications/unread-count": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "qa_engineer",
+    "readonly_auditor",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /internal/alerts": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/business-metadata/glossary": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/business-metadata/terms/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/data-quality/rules": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/data-quality/rules/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/decision-artifacts": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /internal/exports": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/exports/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/governance/policies/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/jobs": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/jobs/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/lineage": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/lineage/impact": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/lineage/nodes/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/release-readiness": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/reports": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/reports/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/search": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/support/cases": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /internal/support/cases/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /internal/support/cases/:p/timeline": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /internal/support/categories": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /internal/support/codes": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /internal/support/desk/agents": [
+    "admin",
+    "platform_admin"
+   ],
+   "GET /internal/support/desk/channels/:p/integrity": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /internal/support/desk/queue": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /internal/support/queues": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /internal/views/audit-events": [
+    "internal_operator",
+    "risk_analyst",
+    "fraud_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/views/customers": [
+    "internal_operator",
+    "risk_analyst",
+    "fraud_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/views/endpoint-coverage": [
+    "internal_operator",
+    "risk_analyst",
+    "fraud_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/views/notification-deliveries": [
+    "internal_operator",
+    "risk_analyst",
+    "fraud_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/views/provider-health": [
+    "internal_operator",
+    "risk_analyst",
+    "fraud_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/views/risk-assessments": [
+    "internal_operator",
+    "risk_analyst",
+    "fraud_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /internal/views/work-queue": [
+    "internal_operator",
+    "risk_analyst",
+    "fraud_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "GET /loans/:p": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /merchant/partners/:p/credit-applications": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /merchant/partners/:p/payment-claims": [
+    "merchant",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /merchant/partners/:p/payment-claims/:p/proof": [
+    "merchant",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /merchant/partners/:p/payment-claims/portfolio": [
+    "merchant",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /merchant/support/cases/:p": [
+    "merchant",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /merchant/support/categories": [
+    "merchant",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /merchant/support/faq": [
+    "merchant",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /merchant/support/knowledge/search": [
+    "merchant",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /merchant/support/partners/:p/cases": [
+    "merchant",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /mobile/assist/conversation": [
+    "customer"
+   ],
+   "GET /mobile/customers/:p/payment-claims/instructions/:p": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /mobile/identity-verifications/:p": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /mobile/support/cases": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /mobile/support/cases/:p": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /mobile/support/categories": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /mobile/support/faq": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /mobile/support/knowledge/articles/:p": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /mobile/support/knowledge/search": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /mobile/welcome-audio/:p": [
+    "customer"
+   ],
+   "GET /mobile/welcome-audio/:p/audio": [
+    "customer"
+   ],
+   "GET /operations/app-content": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/audit/customer/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/audit/customer/:p/feed": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/catalogs": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/catalogs/:p/versions/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/consent-documents": [
+    "internal_operator",
+    "compliance_analyst",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/credit-rating/portfolio-summary": [
+    "risk_analyst",
+    "internal_operator",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/credit/applications/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/credit/products": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/customers/:p/behavior-summary": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/customers/:p/credit-rating": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/customers/:p/credit-rating-history": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/customers/:p/investigation-summary": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/customers/pending-contact-verification": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/data-governance/policies": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/data-quality/issues": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/definitions": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/erp-documents/content": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/events": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/events/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/events/catalog": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/fraud-cases": [
+    "fraud_analyst",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/loans/:p/rating": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/loans/:p/rating-history": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/loans/outcome-backlog": [
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/loans/outcome-status": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/manual-review-cases": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/notification-policies": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/notifications/audience-segments": [
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/notifications/campaigns": [
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/notifications/campaigns/:p": [
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/notifications/campaigns/:p/messages": [
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/notifications/messages": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/notifications/messages/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/notifications/preferences/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/notifications/templates": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/partner-contract-templates": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/partner-contract-templates/default": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/partners": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/partners/qr-codes/pending": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/partners/queue": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/rating-scale": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/risk-assessments/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/risk-assessments/:p/explanation": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/risk-policy/current": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/schema/change-log": [
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "readonly_auditor"
+   ],
+   "GET /operations/schema/tables": [
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "readonly_auditor"
+   ],
+   "GET /operations/schema/tables/:p": [
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "readonly_auditor"
+   ],
+   "GET /operations/schema/versions": [
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "readonly_auditor"
+   ],
+   "GET /operations/schema/versions/:p": [
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "readonly_auditor"
+   ],
+   "GET /operations/schema/versions/:p/schemas": [
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "readonly_auditor"
+   ],
+   "GET /operations/sessions/:p/investigation-summary": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /operations/work-queue": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /operations/workflows/:p/consistency": [
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /partner-onboarding/:p/branches": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /partner-onboarding/:p/pos-terminals": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /partner-onboarding/:p/qr-codes": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /partner-onboarding/:p/qr-codes/:p/content": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /partner-onboarding/mine": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /policies/delinquency": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /social/facebook/connect-url": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /social/facebook/status/:p": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /sql-console/catalog": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /sql-console/history": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "GET /support/attachments/:p/content": [
+    "customer",
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /support/channels/:p/messages": [
+    "customer",
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /support/channels/:p/stream": [
+    "customer",
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /support/channels/unread": [
+    "customer",
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /systems/action-logs": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/action-logs/by-request/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/action-logs/filter-catalog": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/action-logs/request/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/blocks": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/dashboard": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/data-entities": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/data-entities/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/decision-engine/artifacts": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/domains": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/domains/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/domains/overview": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/endpoints": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/endpoints/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/flows": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/:p/graph": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/business": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/documentation-gate": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/findings": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/graph": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/import/contract": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/imports": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/modules": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/pending-work": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/rbac-drift": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/review-queue": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/screens": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/flows/summary": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/health/network": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/health/tools": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/impact/by-endpoint/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/impact/by-table/:p/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/logs/mongo": [
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "readonly_auditor"
+   ],
+   "GET /systems/qa/campaigns": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/qa/capabilities": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/qa/coverage": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/qa/journey-templates": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/qa/journey-templates/:p/versions/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/qa/runs": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/qa/runs/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/qa/runs/:p/events": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/qa/runs/:p/evidence": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/qa/runs/:p/personas": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/qa/runs/:p/personas/:p/steps": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "GET /systems/reports/traffic-latency": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/reports/traffic-latency-timeseries": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/review-queue": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/stress-matrix": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/stress-profiles": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/stress-profiles/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/stress-runs": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/test-runs": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/test-runs/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/test-suites": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/test-suites/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/tools": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /systems/tools/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor"
+   ],
+   "GET /telco/phone-trust/:p": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /whatsapp/status/:p": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "GET /workflows": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /workflows/:p": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /workflows/:p/graph": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /workflows/:p/stages": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /workflows/:p/transitions": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor",
+    "admin",
+    "platform_admin"
+   ],
+   "GET /workflows/:p/versions": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor",
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /admin/external-providers/:p/cost-policy/:p": [
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /admin/external-providers/:p/runtime": [
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /customer-onboarding/:p/profile": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /customers/:p/notification-preferences": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "PATCH /expedientes/:p/nodos/:p": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /operations/consent-documents/:p": [
+    "internal_operator",
+    "compliance_analyst",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /operations/credit/products/:p/status": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /operations/notifications/audience-segments/:p": [
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /operations/notifications/campaigns/:p": [
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /operations/notifications/preferences/:p": [
+    "admin",
+    "platform_admin",
+    "system",
+    "internal_operator"
+   ],
+   "PATCH /operations/notifications/templates/:p": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "PATCH /operations/partner-contract-templates/:p/default": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /operations/partners/:p/erp-account": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /operations/schema/change-log/:p/approve": [
+    "platform_admin"
+   ],
+   "PATCH /partner-onboarding/:p/branches/:p": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /partner-onboarding/:p/commercial-profile": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /partner-onboarding/:p/pos-terminals/:p": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "PATCH /systems/data-entities/:p/metadata": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "PATCH /systems/data-entities/:p/review": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "PATCH /systems/data-entities/columns/:p/review": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "PATCH /systems/endpoints/:p/review": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "PATCH /systems/flows/:p/review": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "PATCH /systems/impact/data/:p/review": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "PATCH /systems/impact/fields/:p/review": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "PATCH /systems/test-suites/:p": [
+    "system_admin",
+    "platform_admin",
+    "qa_engineer"
+   ],
+   "PATCH /systems/test-suites/:p/steps/:p": [
+    "system_admin",
+    "platform_admin",
+    "qa_engineer"
+   ],
+   "PATCH /systems/tools/requirements/:p/review": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "POST /admin/external-providers/:p/credentials/invalidate-token": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /admin/external-providers/:p/credentials/revoke": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /admin/external-providers/:p/credentials/rotate": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /admin/external-providers/:p/kill-switch": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "POST /admin/external-providers/:p/test": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "POST /admin/external-providers/policy/preview": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "POST /admin/external-providers/requests/:p/approve": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /admin/external-providers/requests/:p/rebuild-features": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "POST /admin/external-providers/requests/:p/retry": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "POST /admin/support/knowledge/articles": [
+    "internal_operator",
+    "compliance_analyst",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /admin/support/knowledge/articles/:p/versions": [
+    "internal_operator",
+    "compliance_analyst",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /admin/support/knowledge/versions/:p/approve": [
+    "internal_operator",
+    "compliance_analyst",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /admin/support/knowledge/versions/:p/publish": [
+    "internal_operator",
+    "compliance_analyst",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /admin/support/knowledge/versions/:p/submit-review": [
+    "internal_operator",
+    "compliance_analyst",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /auth/provision-credentials": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /bureau/infocenter/check": [
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "POST /credit-applications/:p/disbursement": [
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customer-onboarding/:p/address-package": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customer-onboarding/:p/contact-methods": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customer-onboarding/:p/contact-verification/request": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customer-onboarding/:p/contact-verification/submit": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customer-onboarding/:p/contacts-snapshot": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customer-onboarding/:p/documents/upload-url": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customer-onboarding/:p/identity-manual-review": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customer-onboarding/:p/identity-package": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customer-onboarding/:p/identity-verification": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customer-onboarding/:p/reference-contacts": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customer-onboarding/:p/submit": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customer-onboarding/:p/supporting-evidence": [
+    "customer"
+   ],
+   "POST /customer-onboarding/jobs/mark-abandoned": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /customers/:p/address-book": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customers/:p/bank-statements": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customers/:p/credit-applications": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customers/:p/device-tokens": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /customers/:p/location-pings": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customers/:p/notifications/:p/read": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /customers/:p/notifications/read-all": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /customers/:p/privacy/consent-decisions": [
+    "customer",
+    "internal_operator",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customers/:p/privacy/data-subject-requests": [
+    "customer",
+    "internal_operator",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customers/:p/risk-assessments": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "system",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /customers/:p/sessions/:p/end": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /customers/:p/sessions/:p/heartbeat": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /customers/:p/sessions/start": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /customers/:p/telemetry/batch": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /data-notebook/history": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "POST /data-notebook/notebooks": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "POST /digital-trust/check": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /expedientes/:p/carpetas": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /expedientes/:p/nodos/:p/concesiones": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /expedientes/:p/nodos/:p/restaurar": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /expedientes/:p/subidas": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /expedientes/:p/subidas/:p/confirmar": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /external-data/consents": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /external-data/consents/:p/revoke": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /external-data/requests": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /external-data/requests/preview": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /internal-users/me/notifications/:p/read": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "qa_engineer",
+    "readonly_auditor",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /internal-users/me/notifications/read-all": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "qa_engineer",
+    "readonly_auditor",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /internal/alerts/:p/acknowledge": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "POST /internal/decision-artifacts": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /internal/reports/:p/run": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor"
+   ],
+   "POST /internal/support/cases/:p/claim": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /internal/support/cases/:p/close": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /internal/support/cases/:p/escalate": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /internal/support/cases/:p/links": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /internal/support/cases/:p/notes": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /internal/support/cases/:p/resolve": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /internal/support/cases/:p/transfer": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /internal/support/cases/:p/triage": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /internal/support/desk/agents": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /internal/support/desk/channels/:p/claim": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /internal/support/desk/presence": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /internal/support/desk/sla/sweep": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /kyc/segip/verify": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /loans/:p/payments": [
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /loans/:p/payments/:p/reversal": [
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /loans/:p/write-off": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /merchant-qr/payment": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /merchant-qr/resolve": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /merchant/partners/:p/credit-applications/:p/acceptance": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /merchant/partners/:p/payment-claims/:p/verification": [
+    "merchant",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /merchant/support/cases": [
+    "merchant",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /merchant/support/cases/:p/close-request": [
+    "merchant",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /merchant/support/cases/:p/feedback": [
+    "merchant",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /mobile/assist/chat": [
+    "customer"
+   ],
+   "POST /mobile/customers/:p/payment-claims": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /mobile/customers/:p/payment-claims/proof-tickets": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /mobile/identity-verifications": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /mobile/support/cases": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /mobile/support/cases/:p/close-request": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /mobile/support/cases/:p/feedback": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /mobile/support/cases/:p/reopen": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /mobile/support/knowledge/articles/:p/feedback": [
+    "customer",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /mobile/welcome-audio": [
+    "customer"
+   ],
+   "POST /operations/catalog-ingestions": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/catalog-staging-items/decision-batch": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/catalogs/:p/versions": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/catalogs/:p/versions/:p/decision": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/catalogs/:p/versions/:p/submit-for-approval": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/consent-documents": [
+    "internal_operator",
+    "compliance_analyst",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/credit-rating/customers/:p/rate": [
+    "risk_analyst",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/credit-rating/loans/:p/rate": [
+    "risk_analyst",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/credit-rating/sweep": [
+    "risk_analyst",
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/credit/applications/:p/business-acceptance": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/credit/applications/:p/decision": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/credit/customers/:p/credit-line/recalculate": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/credit/products": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/customers/:p/compliance/clear-matches": [
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/customers/:p/compliance/screening": [
+    "compliance_analyst",
+    "risk_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/customers/:p/eligibility/decision": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/customers/:p/identity-verification/decision": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/data-governance/policy-package": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/data-quality/issues/:p/resolve": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/definitions/package": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/erp-documents/upload-url": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/erp-documents/verify": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/events": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/events/:p/cancel": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/events/:p/retry": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/fraud-cases/:p/decision": [
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/jobs/apply-retention-policies": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/backfill-expedientes": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/deliver-pending-notifications": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/dispatch-loan-outcomes": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/expire-stale-sessions": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/limpiar-expedientes": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/process-events": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/process-outbox": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/purge-idempotency-keys": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/purge-processed-outbox": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/recalculate-data-quality": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/reclaim-stuck-events": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/retry-stuck-notifications": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/jobs/sweep-debt-ratings": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/loans/delinquency-sweep": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/manual-review-cases/:p/decision": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/notifications/audience-segments": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/notifications/broadcast": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/notifications/campaigns": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/notifications/campaigns/:p/cancel": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/notifications/campaigns/:p/duplicate": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/notifications/campaigns/:p/pause": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/notifications/campaigns/:p/resume": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/notifications/campaigns/:p/schedule": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/notifications/campaigns/:p/test-send": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/notifications/campaigns/:p/unschedule": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/notifications/campaigns/audience/estimate": [
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/notifications/messages/:p/cancel": [
+    "admin",
+    "platform_admin",
+    "system",
+    "internal_operator"
+   ],
+   "POST /operations/notifications/messages/:p/retry": [
+    "admin",
+    "platform_admin",
+    "system",
+    "internal_operator"
+   ],
+   "POST /operations/notifications/templates": [
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /operations/partner-contract-templates": [
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/partners/:p/decision": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/partners/:p/kyb-review": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/partners/:p/qr-codes/:p/review": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/risk-policy/ruleset-versions": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/risk-policy/ruleset-versions/:p/activate": [
+    "admin",
+    "platform_admin"
+   ],
+   "POST /operations/schema/tables": [
+    "internal_operator",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /partner-onboarding/:p/branches": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /partner-onboarding/:p/branches/:p/pos-terminals": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /partner-onboarding/:p/commercial-registry": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /partner-onboarding/:p/contact-verification/request": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /partner-onboarding/:p/contact-verification/submit": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /partner-onboarding/:p/documents/upload-url": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /partner-onboarding/:p/legal-representative": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /partner-onboarding/:p/qr-codes": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /partner-onboarding/:p/qr-codes/upload-url": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /partner-onboarding/:p/submit": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /partner-onboarding/start": [
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /payments/bank-transfer/qr": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /payments/bank-transfer/verify": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /payments/qr/verify": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /social/facebook/callback": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /sql-console/query": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "POST /sql-console/validate": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "POST /support/channels": [
+    "customer",
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /support/channels/:p/attachments/ticket": [
+    "customer",
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /support/channels/:p/close": [
+    "customer",
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /support/channels/:p/messages": [
+    "customer",
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /support/channels/:p/messages/:p/corrections": [
+    "customer",
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /support/channels/:p/read": [
+    "customer",
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /support/channels/:p/typing": [
+    "customer",
+    "merchant",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "POST /systems/blocks/:p/federate": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "POST /systems/blocks/federate": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "POST /systems/data-entities/infer-impacts": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "POST /systems/endpoints/catalog-seed/refresh": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "POST /systems/endpoints/discover": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "POST /systems/flows/import/endpoints": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "POST /systems/flows/import/findings": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "POST /systems/flows/import/screens": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "POST /systems/flows/verify": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "POST /systems/qa/journey-templates/:p/versions/:p/sample-inputs": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "POST /systems/qa/runs": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "POST /systems/qa/runs/:p/cancel": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "POST /systems/qa/runs/preflight": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "qa_engineer",
+    "devops",
+    "risk_analyst",
+    "compliance_analyst",
+    "readonly_auditor",
+    "internal_operator"
+   ],
+   "POST /systems/stress-profiles": [
+    "system_admin",
+    "platform_admin",
+    "qa_engineer",
+    "devops"
+   ],
+   "POST /systems/stress-profiles/:p/queue-run": [
+    "system_admin",
+    "platform_admin",
+    "qa_engineer",
+    "devops"
+   ],
+   "POST /systems/test-suites": [
+    "system_admin",
+    "platform_admin",
+    "qa_engineer"
+   ],
+   "POST /systems/test-suites/:p/run": [
+    "system_admin",
+    "platform_admin",
+    "qa_engineer"
+   ],
+   "POST /systems/test-suites/:p/steps": [
+    "system_admin",
+    "platform_admin",
+    "qa_engineer"
+   ],
+   "POST /systems/test-suites/:p/steps/reorder": [
+    "system_admin",
+    "platform_admin",
+    "qa_engineer"
+   ],
+   "POST /systems/tools/infer-requirements": [
+    "system_admin",
+    "platform_admin",
+    "admin"
+   ],
+   "POST /telco/phone-trust/verify": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "fraud_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /whatsapp/verification/confirm": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /whatsapp/verification/start": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin",
+    "system"
+   ],
+   "POST /workflows/:p/transitions/validate": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "compliance_analyst",
+    "fraud_analyst",
+    "system_admin",
+    "qa_engineer",
+    "devops",
+    "readonly_auditor",
+    "admin",
+    "platform_admin"
+   ],
+   "PUT /customer-onboarding/:p/consumer-survey": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "PUT /customer-onboarding/:p/financial-profile": [
+    "customer",
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "PUT /data-notebook/notebooks/:p": [
+    "system_admin",
+    "platform_admin",
+    "admin",
+    "readonly_auditor",
+    "risk_analyst",
+    "compliance_analyst"
+   ],
+   "PUT /operations/app-content": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ],
+   "PUT /operations/notification-policies": [
+    "internal_operator",
+    "risk_analyst",
+    "admin",
+    "platform_admin"
+   ]
+  },
+  "DECISION_ENGINE": {
+   "DELETE /pdf/admin/templates/:p/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "DELETE /v1/artifact-versions/:p/references/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "DELETE /v1/workers/bank-statement/institutions/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "DELETE /v1/workers/bank-statement/institutions/:p/logo": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "DELETE /v1/workers/semantic-analysis/categories/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "DELETE /v1/workers/semantic-analysis/model-settings": [
+    "RISK_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /pdf/admin/templates": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /pdf/admin/templates/:p/:p/source": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /pdf/artifacts": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /pdf/errors": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /pdf/health": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /pdf/template-format/example": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /pdf/template-format/schema": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /pdf/templates": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /pdf/templates/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /pdf/templates/:p/compatibility": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /pdf/templates/:p/sample": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /pdf/templates/:p/schema": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /pdf/templates/:p/versions": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/approval-requests": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/approval-requests/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/artifact-versions/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/artifact-versions/:p/diff/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/artifact-versions/:p/graph": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/artifact-versions/:p/references": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/artifact-versions/:p/test-suites": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/artifacts": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/artifacts/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/artifacts/:p/dependency-graph": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/audit/access-runs": [
+    "AUDITOR",
+    "COMPLIANCE",
+    "RISK_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/audit/chain/verify": [
+    "AUDITOR",
+    "COMPLIANCE",
+    "RISK_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/audit/events": [
+    "AUDITOR",
+    "COMPLIANCE",
+    "RISK_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/audit/events/cursor": [
+    "AUDITOR",
+    "COMPLIANCE",
+    "RISK_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/audit/executions": [
+    "AUDITOR",
+    "COMPLIANCE",
+    "RISK_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/audit/executions/:p": [
+    "AUDITOR",
+    "COMPLIANCE",
+    "RISK_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/audit/metrics": [
+    "AUDITOR",
+    "COMPLIANCE",
+    "RISK_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/calculated-fields": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/calculated-fields/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/calculated-fields/operations": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "PLATFORM_ADMIN"
+   ],
+   "GET /v1/code-imports": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "AUDITOR"
+   ],
+   "GET /v1/code-imports/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "AUDITOR"
+   ],
+   "GET /v1/deployments": [
+    "PLATFORM_ADMIN",
+    "RISK_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/environments": [
+    "PLATFORM_ADMIN",
+    "RISK_ANALYST",
+    "QA_ANALYST",
+    "AUDITOR"
+   ],
+   "GET /v1/libraries": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "PLATFORM_ADMIN"
+   ],
+   "GET /v1/libraries/preludes": [
+    "PLATFORM_ADMIN",
+    "COMPLIANCE",
+    "RISK_ANALYST"
+   ],
+   "GET /v1/live-executions/stream": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST"
+   ],
+   "GET /v1/manual-reviews": [
+    "OPERATIONS",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "GET /v1/manual-reviews/:p": [
+    "OPERATIONS",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "GET /v1/model-monitoring/ab": [
+    "RISK_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "RISK_APPROVER"
+   ],
+   "GET /v1/model-monitoring/coverage": [
+    "RISK_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "RISK_APPROVER",
+    "OPERATIONS"
+   ],
+   "GET /v1/model-monitoring/cutoff-analysis": [
+    "RISK_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "RISK_APPROVER"
+   ],
+   "GET /v1/notifications": [
+    "PLATFORM_ADMIN",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/notifications/unread-count": [
+    "PLATFORM_ADMIN",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/outcomes/pending": [
+    "OPERATIONS",
+    "RISK_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "RISK_APPROVER"
+   ],
+   "GET /v1/outcomes/vintage": [
+    "RISK_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "RISK_APPROVER"
+   ],
+   "GET /v1/platform/catalog-manifest": [
+    "OPERATIONS",
+    "PLATFORM_ADMIN",
+    "AUDITOR",
+    "COMPLIANCE"
+   ],
+   "GET /v1/qa-lab/properties": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "PLATFORM_ADMIN"
+   ],
+   "GET /v1/qa-lab/runs": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/qa-lab/runs/:p": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/qa-lab/versions/:p/outcomes": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "PLATFORM_ADMIN"
+   ],
+   "GET /v1/reason-codes": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/risk-governance/calibration": [
+    "RISK_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "RISK_APPROVER"
+   ],
+   "GET /v1/risk-governance/limits": [
+    "RISK_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/risk-governance/reidentifications": [
+    "COMPLIANCE",
+    "AUDITOR",
+    "RISK_APPROVER"
+   ],
+   "GET /v1/sql-console/catalog": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/sql-console/history": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/test-runs/:p": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/test-suites/:p/cases": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/traceability/coverage-matrix": [
+    "RISK_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/traceability/objectives": [
+    "RISK_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/traceability/objectives/:p": [
+    "RISK_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/tutorial-progress": [
+    "PLATFORM_ADMIN",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/variables": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/variables/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/variables/:p/dependencies": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/views/artifact-inputs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/views/options": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/views/pickers/artifact-versions": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/views/pickers/artifacts": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/views/pickers/test-runs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/views/pickers/test-suites": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/views/pickers/variables": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/views/scripts": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/views/search": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "GET /v1/workers": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/:p/metrics": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/audio-tts/fixtures": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST"
+   ],
+   "GET /v1/workers/audio-tts/runs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/audio-tts/runs/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/audio-tts/runs/:p/audio": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/audio-tts/templates": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/bank-statement/fixtures": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST"
+   ],
+   "GET /v1/workers/bank-statement/institutions": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/workers/bank-statement/institutions/:p/logo": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/workers/bank-statement/institutions/summary": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/workers/bank-statement/reviews": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/bank-statement/reviews/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/bank-statement/reviews/categories": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/bank-statement/runs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/bank-statement/runs/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/bank-statement/runs/:p/download": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/identity-verification/fixtures": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST"
+   ],
+   "GET /v1/workers/identity-verification/reviews": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/identity-verification/reviews/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/identity-verification/reviews/categories": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/identity-verification/runs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/identity-verification/runs/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/identity-verification/runs/:p/images/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/semantic-analysis/categories": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/workers/semantic-analysis/fixtures": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST"
+   ],
+   "GET /v1/workers/semantic-analysis/model-settings": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/workers/semantic-analysis/model-settings/catalog": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/workers/semantic-analysis/runs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/semantic-analysis/runs/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "GET /v1/workers/semantic-analysis/unresolved": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/workers/semantic-analysis/unresolved/count": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/workers/semantic-analysis/unresolved/reevaluate/status": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS"
+   ],
+   "GET /v1/workers/storage/references": [
+    "DECISION_RUNTIME"
+   ],
+   "PATCH /v1/artifact-versions/:p/notes": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "PATCH /v1/artifact-versions/:p/processing-basis": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "COMPLIANCE"
+   ],
+   "POST /pdf/admin/templates": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "POST /pdf/admin/templates/:p/:p/deprecate": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "POST /pdf/admin/templates/:p/:p/republish": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "POST /pdf/generate": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "POST /pdf/generate/async": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "POST /pdf/preview": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "POST /pdf/templates/:p/validate": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "POST /v1/approval-steps/:p/decisions": [
+    "QA_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE"
+   ],
+   "POST /v1/artifact-versions/:p/clone": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/artifact-versions/:p/compile": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST"
+   ],
+   "POST /v1/artifact-versions/:p/deployments": [
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/artifact-versions/:p/references": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/artifact-versions/:p/submit-for-review": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/artifact-versions/:p/test-suites": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/artifact-versions/:p/validate": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST"
+   ],
+   "POST /v1/artifact-versions/:p/validate-and-compile": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST"
+   ],
+   "POST /v1/artifacts": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/calculated-fields": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/calculated-fields/:p/versions": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/calculated-fields/preview/outcomes": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/calculated-fields/preview/sample-inputs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/calculated-fields/preview/test": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/calculated-fields/preview/try": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/calculated-fields/versions/:p/outcomes": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/calculated-fields/versions/:p/promote": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "COMPLIANCE",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/calculated-fields/versions/:p/sample-inputs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/calculated-fields/versions/:p/test": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/calculated-fields/versions/:p/try": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/code-imports": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/code-imports/:p/cancel": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/code-imports/:p/confirm": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/code-imports/:p/save-draft": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/data-subject-requests": [
+    "COMPLIANCE",
+    "OPERATIONS",
+    "AUDITOR"
+   ],
+   "POST /v1/data-subject-requests/history": [
+    "COMPLIANCE",
+    "OPERATIONS",
+    "AUDITOR"
+   ],
+   "POST /v1/decisions/:p": [
+    "DECISION_RUNTIME"
+   ],
+   "POST /v1/deployments/:p/rollback": [
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/deployments/:p/suspend": [
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/libraries": [
+    "PLATFORM_ADMIN",
+    "COMPLIANCE"
+   ],
+   "POST /v1/manual-reviews/:p/assign": [
+    "OPERATIONS",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/manual-reviews/:p/resolve": [
+    "OPERATIONS",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/model-monitoring/adverse-impact": [
+    "COMPLIANCE",
+    "AUDITOR",
+    "RISK_APPROVER"
+   ],
+   "POST /v1/model-monitoring/attributes": [
+    "COMPLIANCE"
+   ],
+   "POST /v1/model-monitoring/outcomes": [
+    "OPERATIONS",
+    "RISK_ANALYST",
+    "COMPLIANCE"
+   ],
+   "POST /v1/model-monitoring/performance": [
+    "RISK_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "RISK_APPROVER"
+   ],
+   "POST /v1/model-monitoring/stability": [
+    "RISK_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "RISK_APPROVER"
+   ],
+   "POST /v1/notifications/:p/read": [
+    "PLATFORM_ADMIN",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "POST /v1/notifications/read-all": [
+    "PLATFORM_ADMIN",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "POST /v1/outcomes/batch": [
+    "OPERATIONS",
+    "RISK_ANALYST",
+    "COMPLIANCE"
+   ],
+   "POST /v1/outcomes/facilities": [
+    "OPERATIONS",
+    "RISK_ANALYST"
+   ],
+   "POST /v1/qa-lab/counterexamples/:p/replay": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/qa-lab/versions/:p/runs": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/qa-lab/versions/:p/sample-inputs": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/reason-codes": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "COMPLIANCE"
+   ],
+   "POST /v1/risk-governance/calibration": [
+    "RISK_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR",
+    "RISK_APPROVER"
+   ],
+   "POST /v1/risk-governance/consents": [
+    "COMPLIANCE",
+    "OPERATIONS"
+   ],
+   "POST /v1/risk-governance/consents/lookup": [
+    "COMPLIANCE",
+    "OPERATIONS",
+    "AUDITOR"
+   ],
+   "POST /v1/risk-governance/consents/revoke": [
+    "COMPLIANCE",
+    "OPERATIONS"
+   ],
+   "POST /v1/risk-governance/limits": [
+    "RISK_APPROVER"
+   ],
+   "POST /v1/risk-governance/model-dossier": [
+    "RISK_APPROVER",
+    "COMPLIANCE"
+   ],
+   "POST /v1/risk-governance/portfolio-state": [
+    "OPERATIONS",
+    "RISK_ANALYST"
+   ],
+   "POST /v1/risk-governance/reidentifications": [
+    "COMPLIANCE",
+    "OPERATIONS"
+   ],
+   "POST /v1/risk-governance/reidentifications/decide": [
+    "COMPLIANCE",
+    "RISK_APPROVER"
+   ],
+   "POST /v1/simulations/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST"
+   ],
+   "POST /v1/simulations/:p/sample-inputs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST"
+   ],
+   "POST /v1/sql-console/query": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "POST /v1/sql-console/validate": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "POST /v1/test-suites/:p/cases": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/test-suites/:p/cases/import": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/test-suites/:p/runs": [
+    "QA_ANALYST",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/traceability/objectives": [
+    "RISK_ANALYST",
+    "COMPLIANCE"
+   ],
+   "POST /v1/traceability/policies/:p/artifacts": [
+    "RISK_ANALYST",
+    "COMPLIANCE"
+   ],
+   "POST /v1/traceability/policies/:p/test-suites": [
+    "RISK_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE"
+   ],
+   "POST /v1/variables": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/variables/:p/compatibility": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "POST /v1/variables/:p/versions": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/variables/validate-contract": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "PLATFORM_ADMIN"
+   ],
+   "POST /v1/workers/audio-tts/runs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/audio-tts/runs/:p/cancel": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/bank-statement/institutions": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/workers/bank-statement/institutions/:p/reactivate": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/workers/bank-statement/institutions/logos/sync": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/workers/bank-statement/institutions/seed": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/workers/bank-statement/reviews/:p/claim": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/bank-statement/reviews/:p/reprocess": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/bank-statement/reviews/:p/resolve": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/bank-statement/runs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/bank-statement/runs/:p/cancel": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/identity-verification/reviews/:p/claim": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/identity-verification/reviews/:p/resolve": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/identity-verification/runs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/identity-verification/runs/:p/cancel": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/semantic-analysis/categories": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/workers/semantic-analysis/categories/import": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/workers/semantic-analysis/model-settings/test": [
+    "RISK_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/semantic-analysis/runs": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/semantic-analysis/runs/:p/cancel": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/semantic-analysis/runs/batch": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "OPERATIONS"
+   ],
+   "POST /v1/workers/semantic-analysis/runs/status": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "OPERATIONS",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "POST /v1/workers/semantic-analysis/unresolved/:p/resolve": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "POST /v1/workers/semantic-analysis/unresolved/reevaluate": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "PUT /v1/artifact-versions/:p/graph": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "PUT /v1/artifact-versions/:p/references/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "PUT /v1/tutorial-progress/:p": [
+    "PLATFORM_ADMIN",
+    "RISK_ANALYST",
+    "FRAUD_ANALYST",
+    "QA_ANALYST",
+    "RISK_APPROVER",
+    "COMPLIANCE",
+    "AUDITOR",
+    "OPERATIONS"
+   ],
+   "PUT /v1/workers/bank-statement/institutions/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "PUT /v1/workers/bank-statement/institutions/:p/logo": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "PUT /v1/workers/semantic-analysis/categories/:p": [
+    "RISK_ANALYST",
+    "FRAUD_ANALYST"
+   ],
+   "PUT /v1/workers/semantic-analysis/model-settings": [
+    "RISK_ANALYST",
+    "OPERATIONS"
+   ]
+  },
+  "ERP_BACKEND": {
+   "DELETE /accounting/billing/ar-invoices/:p": [
+    "admin",
+    "accountant"
+   ],
+   "DELETE /accounting/contracts/:p": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "DELETE /accounting/gl-account-links/:p": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "DELETE /accounting/receipts/:p": [
+    "admin",
+    "accountant",
+    "treasury"
+   ],
+   "DELETE /b2b/activities/:p": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "DELETE /b2b/proposals/:p": [
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "DELETE /b2b/segments/:p": [
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "DELETE /b2b/tags/:p": [
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "DELETE /files/:p": [
+    "admin",
+    "accountant",
+    "cfo",
+    "treasury",
+    "finance",
+    "operations",
+    "legal",
+    "collections",
+    "commercial_manager",
+    "commercial_executive",
+    "merchant_admin"
+   ],
+   "GET /accounting/account-groups": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/account-groups/:p": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/account-groups/tree": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/billing/ar-invoices": [
+    "admin",
+    "accountant"
+   ],
+   "GET /accounting/billing/ar-invoices/:p": [
+    "admin",
+    "accountant"
+   ],
+   "GET /accounting/billing/events": [
+    "admin",
+    "accountant"
+   ],
+   "GET /accounting/business-partners": [
+    "admin",
+    "accountant",
+    "treasury",
+    "cfo"
+   ],
+   "GET /accounting/business-partners/:p": [
+    "admin",
+    "accountant",
+    "treasury",
+    "cfo"
+   ],
+   "GET /accounting/business-partners/:p/default-accounts": [
+    "admin",
+    "accountant",
+    "treasury",
+    "cfo"
+   ],
+   "GET /accounting/contracts": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/documents": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/documents/:p": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/financial-structure/bank-accounts": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/financial-structure/branches": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/financial-structure/charts-of-accounts": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/financial-structure/cost-centers": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/financial-structure/fiscal-years": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/financial-structure/gl-accounts": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/financial-structure/gl-accounts/:p": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/financial-structure/ledgers": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/financial-structure/legal-entities": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/financial-structure/periods": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/financial-structure/profit-centers": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/financial-structure/tax-codes": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/gl-accounts/:p/links": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/journal-entries/:p/links": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "GET /accounting/outbox/events/dead": [
+    "ADMIN",
+    "CFO",
+    "FINANCE"
+   ],
+   "GET /accounting/outbox/status": [
+    "ADMIN",
+    "CFO",
+    "FINANCE"
+   ],
+   "GET /accounting/receipts": [
+    "admin",
+    "accountant",
+    "treasury"
+   ],
+   "GET /accounting/supplier-payment-terms": [
+    "admin",
+    "accountant",
+    "treasury",
+    "cfo"
+   ],
+   "GET /accounting/supplier-payment-terms/:p": [
+    "admin",
+    "accountant",
+    "treasury",
+    "cfo"
+   ],
+   "GET /accounting/supplier-payment-terms/catalog": [
+    "admin",
+    "accountant",
+    "treasury",
+    "cfo"
+   ],
+   "GET /admin/ads/ad-sets": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/advertisers": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_FINANCE",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/advertisers/:p": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_FINANCE",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/audit": [
+    "ADS_AUDITOR",
+    "ADS_ADMIN_MANAGER",
+    "ADS_FINANCE"
+   ],
+   "GET /admin/ads/campaigns": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR",
+    "ADS_MODERATOR",
+    "ADS_FINANCE",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/campaigns/:p": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR",
+    "ADS_MODERATOR",
+    "ADS_FINANCE",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/campaigns/:p/performance": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/creatives": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/dashboard": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR",
+    "ADS_FINANCE",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/delivery-monitor": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_OPERATOR",
+    "ADS_OPS_MONITOR",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/email/suppressions": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_COMPLIANCE_ADMIN",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/email/tracking/:p": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/inventory": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR",
+    "ADS_INVENTORY_MANAGER",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/moderation/queue": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_MODERATOR",
+    "ADS_COMPLIANCE_ADMIN",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/placements": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/policies": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_MODERATOR",
+    "ADS_COMPLIANCE_ADMIN",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/ads/segments": [
+    "ADS_ADMIN_VIEWER",
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR",
+    "ADS_COMPLIANCE_ADMIN",
+    "ADS_AUDITOR"
+   ],
+   "GET /admin/notification-campaigns": [
+    "ADMIN",
+    "OPERATIONS",
+    "COMMERCIAL_MANAGER",
+    "AUDITOR"
+   ],
+   "GET /admin/notification-campaigns/:p": [
+    "ADMIN",
+    "OPERATIONS",
+    "COMMERCIAL_MANAGER",
+    "AUDITOR"
+   ],
+   "GET /admin/notification-campaigns/:p/messages": [
+    "ADMIN",
+    "OPERATIONS",
+    "COMMERCIAL_MANAGER",
+    "AUDITOR"
+   ],
+   "GET /admin/notification-campaigns/segments": [
+    "ADMIN",
+    "OPERATIONS",
+    "COMMERCIAL_MANAGER",
+    "AUDITOR"
+   ],
+   "GET /audit/business-actions": [
+    "ADMIN",
+    "AUDITOR",
+    "ADS_AUDITOR",
+    "ADS_ADMIN_MANAGER",
+    "FINANCE",
+    "accountant"
+   ],
+   "GET /auth/merchant/me": [
+    "MERCHANT_ADMIN"
+   ],
+   "GET /auth/permissions": [
+    "ADMIN",
+    "AUDITOR"
+   ],
+   "GET /auth/roles": [
+    "ADMIN",
+    "AUDITOR"
+   ],
+   "GET /auth/roles/:p": [
+    "ADMIN",
+    "AUDITOR"
+   ],
+   "GET /auth/users": [
+    "ADMIN",
+    "AUDITOR"
+   ],
+   "GET /auth/users/:p": [
+    "ADMIN",
+    "AUDITOR"
+   ],
+   "GET /b2b/accounts": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "LEGAL",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /b2b/accounts/:p": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "LEGAL",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /b2b/activities": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "GET /b2b/billing/invoices": [
+    "FINANCE",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /b2b/billing/invoices/:p": [
+    "FINANCE",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /b2b/contracts": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "LEGAL",
+    "FINANCE",
+    "ADMIN"
+   ],
+   "GET /b2b/contracts-catalog": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN",
+    "FINANCE",
+    "ACCOUNTANT"
+   ],
+   "GET /b2b/contracts/mdr-rules": [
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "ADMIN"
+   ],
+   "GET /b2b/coverage/installments": [
+    "FINANCE",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /b2b/coverage/payables": [
+    "FINANCE",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /b2b/coverage/recoveries": [
+    "FINANCE",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /b2b/coverage/recoveries/:p/movements": [
+    "FINANCE",
+    "COLLECTIONS",
+    "ADMIN"
+   ],
+   "GET /b2b/coverage/review-queue": [
+    "FINANCE",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /b2b/credit-rating/accounts/:p": [
+    "FINANCE",
+    "COLLECTIONS",
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ACCOUNTANT",
+    "ADMIN"
+   ],
+   "GET /b2b/credit-rating/accounts/:p/history": [
+    "FINANCE",
+    "COLLECTIONS",
+    "COMMERCIAL_MANAGER",
+    "ACCOUNTANT",
+    "ADMIN"
+   ],
+   "GET /b2b/credit-rating/portfolio-summary": [
+    "FINANCE",
+    "COLLECTIONS",
+    "ACCOUNTANT",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "GET /b2b/internal-users": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN",
+    "FINANCE",
+    "ACCOUNTANT"
+   ],
+   "GET /b2b/onboarding/branches": [
+    "OPERATIONS",
+    "ADMIN",
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "FINANCE"
+   ],
+   "GET /b2b/onboarding/cases": [
+    "OPERATIONS",
+    "LEGAL",
+    "ADMIN",
+    "COMMERCIAL_EXECUTIVE"
+   ],
+   "GET /b2b/onboarding/cases/:p": [
+    "OPERATIONS",
+    "LEGAL",
+    "ADMIN",
+    "COMMERCIAL_EXECUTIVE"
+   ],
+   "GET /b2b/onboarding/cases/:p/checklist/:p/evidence/content": [
+    "OPERATIONS",
+    "LEGAL",
+    "ADMIN",
+    "COMMERCIAL_MANAGER"
+   ],
+   "GET /b2b/onboarding/cases/:p/contract-options": [
+    "OPERATIONS",
+    "LEGAL",
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE"
+   ],
+   "GET /b2b/onboarding/cases/summary": [
+    "OPERATIONS",
+    "LEGAL",
+    "ADMIN",
+    "COMMERCIAL_EXECUTIVE"
+   ],
+   "GET /b2b/onboarding/legal-contract-template": [
+    "OPERATIONS",
+    "LEGAL",
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE"
+   ],
+   "GET /b2b/opportunities": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "GET /b2b/proposals": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "LEGAL",
+    "ADMIN"
+   ],
+   "GET /b2b/proposals/approvals": [
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "LEGAL",
+    "ADMIN"
+   ],
+   "GET /b2b/receivables": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN",
+    "FINANCE",
+    "ACCOUNTANT"
+   ],
+   "GET /b2b/segments": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "COLLECTIONS",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /b2b/segments/:p": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "COLLECTIONS",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /b2b/segments/vocabulary": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "COLLECTIONS",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /b2b/tags": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /documents/health": [
+    "ADMIN",
+    "AUDITOR",
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "LEGAL",
+    "OPERATIONS",
+    "COLLECTIONS",
+    "ACCOUNTANT",
+    "CFO",
+    "TREASURY",
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATOR",
+    "BRANCH_MANAGER",
+    "FINANCIAL_AUDITOR"
+   ],
+   "GET /files": [
+    "admin",
+    "accountant",
+    "cfo",
+    "treasury",
+    "finance",
+    "operations",
+    "legal",
+    "collections",
+    "commercial_manager",
+    "commercial_executive",
+    "merchant_admin"
+   ],
+   "GET /files/:p": [
+    "admin",
+    "accountant",
+    "cfo",
+    "treasury",
+    "finance",
+    "operations",
+    "legal",
+    "collections",
+    "commercial_manager",
+    "commercial_executive",
+    "merchant_admin"
+   ],
+   "GET /files/:p/content": [
+    "admin",
+    "accountant",
+    "cfo",
+    "treasury",
+    "finance",
+    "operations",
+    "legal",
+    "collections",
+    "commercial_manager",
+    "commercial_executive",
+    "merchant_admin"
+   ],
+   "GET /merchant-credit/:p/applications": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /merchant-credit/:p/payment-claims": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /merchant-credit/:p/payment-claims/:p/proof": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /merchant-credit/:p/portfolio": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /merchant/support/cases/:p": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /merchant/support/categories": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /merchant/support/faq": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /merchant/support/knowledge/search": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /merchant/support/partners/:p/cases": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /partner-onboarding/:p/branches": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /partner-onboarding/:p/pos-terminals": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /partner-onboarding/:p/qr-codes": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /partner-onboarding/:p/qr-codes/:p/content": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /partner-onboarding/:p/status": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /partner-onboarding/mine": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /portal/advertisers": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "GET /portal/billing": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "GET /portal/billing-products": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "GET /portal/billing/invoices/:p": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "GET /portal/branches": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "GET /portal/campaigns": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "GET /portal/commissions": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "GET /portal/plans": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "GET /portal/scope": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "GET /portal/subscription": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "GET /support/attachments/:p/content": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /support/channels/:p/messages": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /support/channels/:p/stream": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "GET /support/channels/unread": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "PATCH /accounting/account-groups/:p": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "PATCH /accounting/billing/ar-invoices/:p": [
+    "admin",
+    "accountant"
+   ],
+   "PATCH /accounting/business-partners/:p": [
+    "admin",
+    "accountant",
+    "treasury",
+    "cfo"
+   ],
+   "PATCH /accounting/closings/periods/reopen": [
+    "admin",
+    "cfo"
+   ],
+   "PATCH /accounting/contracts/:p": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "PATCH /accounting/documents/:p/approve": [
+    "admin",
+    "cfo"
+   ],
+   "PATCH /accounting/documents/:p/post": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "PATCH /accounting/documents/:p/reject": [
+    "admin",
+    "cfo"
+   ],
+   "PATCH /accounting/financial-structure/gl-accounts/:p": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "PATCH /accounting/receipts/:p": [
+    "admin",
+    "accountant",
+    "treasury"
+   ],
+   "PATCH /accounting/supplier-payment-terms/:p": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "PATCH /admin/ads/advertisers/:p/status": [
+    "ADS_ADMIN_MANAGER"
+   ],
+   "PATCH /admin/ads/campaigns/:p/status": [
+    "ADS_ADMIN_OPERATOR",
+    "ADS_ADMIN_MANAGER"
+   ],
+   "PATCH /admin/ads/events/:p/billable-status": [
+    "ADS_ADMIN_OPERATOR",
+    "ADS_OPS_MONITOR"
+   ],
+   "PATCH /admin/notification-campaigns/:p": [
+    "ADMIN"
+   ],
+   "PATCH /admin/notification-campaigns/segments/:p": [
+    "ADMIN"
+   ],
+   "PATCH /auth/users/:p": [
+    "ADMIN"
+   ],
+   "PATCH /auth/users/:p/roles": [
+    "ADMIN"
+   ],
+   "PATCH /b2b/accounts/:p/archive": [
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "PATCH /b2b/accounts/:p/restore": [
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "PATCH /b2b/activities/:p": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "PATCH /b2b/activities/:p/complete": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "PATCH /b2b/billing/invoices/:p/post-to-gl": [
+    "FINANCE",
+    "ADMIN",
+    "ACCOUNTANT"
+   ],
+   "PATCH /b2b/contracts/:p/sign-and-activate": [
+    "LEGAL",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "PATCH /b2b/contracts/mdr-rules/:p": [
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "ADMIN"
+   ],
+   "PATCH /b2b/coverage/payables/:p/cancel": [
+    "FINANCE",
+    "ADMIN"
+   ],
+   "PATCH /b2b/coverage/payables/:p/paid": [
+    "FINANCE",
+    "ADMIN"
+   ],
+   "PATCH /b2b/coverage/payables/:p/settlement/approve": [
+    "FINANCE",
+    "ADMIN"
+   ],
+   "PATCH /b2b/coverage/payables/:p/settlement/reject": [
+    "FINANCE",
+    "ADMIN"
+   ],
+   "PATCH /b2b/coverage/recoveries/:p/apply-payment": [
+    "FINANCE",
+    "COLLECTIONS",
+    "ADMIN"
+   ],
+   "PATCH /b2b/onboarding/branches/:p": [
+    "OPERATIONS",
+    "ADMIN",
+    "MERCHANT_ADMIN"
+   ],
+   "PATCH /b2b/onboarding/branches/:p/status": [
+    "OPERATIONS",
+    "ADMIN",
+    "MERCHANT_ADMIN"
+   ],
+   "PATCH /b2b/onboarding/cases/:p/activate": [
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "PATCH /b2b/onboarding/cases/:p/checklist": [
+    "OPERATIONS",
+    "LEGAL",
+    "ADMIN"
+   ],
+   "PATCH /b2b/onboarding/cases/:p/contract": [
+    "OPERATIONS",
+    "LEGAL",
+    "ADMIN",
+    "COMMERCIAL_MANAGER"
+   ],
+   "PATCH /b2b/onboarding/merchant-users/:p/identity": [
+    "OPERATIONS",
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE"
+   ],
+   "PATCH /b2b/opportunities/:p/stage": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "PATCH /b2b/proposals/:p": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "PATCH /b2b/proposals/:p/accept": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "PATCH /b2b/proposals/:p/reject": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "PATCH /b2b/proposals/:p/send": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "PATCH /b2b/proposals/approvals/:p/decision": [
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "ADMIN"
+   ],
+   "PATCH /b2b/segments/:p": [
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "ADMIN"
+   ],
+   "PATCH /b2b/tags/:p": [
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "PATCH /partner-onboarding/:p/branches/:p": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "PATCH /partner-onboarding/:p/commercial-profile": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "PATCH /partner-onboarding/:p/pos-terminals/:p": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "PATCH /portal/branches/:p": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "PATCH /portal/branches/:p/status": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "PATCH /portal/campaigns/:p/status": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "PATCH /portal/plans/:p": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER"
+   ],
+   "POST /accounting/account-groups": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/billing/ar-invoices": [
+    "admin",
+    "accountant"
+   ],
+   "POST /accounting/billing/events": [
+    "admin",
+    "accountant"
+   ],
+   "POST /accounting/business-partners": [
+    "admin",
+    "accountant",
+    "treasury",
+    "cfo"
+   ],
+   "POST /accounting/business-partners/roles": [
+    "admin",
+    "accountant",
+    "treasury",
+    "cfo"
+   ],
+   "POST /accounting/closings/periods/close": [
+    "admin",
+    "cfo"
+   ],
+   "POST /accounting/contracts": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/contracts/terms": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/documents": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/documents/:p/reverse": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/documents/bulk": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/financial-structure/branches": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/financial-structure/charts-of-accounts": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/financial-structure/fiscal-years": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/financial-structure/gl-accounts": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/financial-structure/ledgers": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/financial-structure/legal-entities": [
+    "admin"
+   ],
+   "POST /accounting/financial-structure/periods": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/financial-structure/tax-codes": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/gl-accounts/:p/links": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/journal-entries/:p/links": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/outbox/events/:p/replay": [
+    "ADMIN",
+    "CFO",
+    "FINANCE"
+   ],
+   "POST /accounting/receipts": [
+    "admin",
+    "accountant",
+    "treasury"
+   ],
+   "POST /accounting/supplier-payment-terms": [
+    "admin",
+    "accountant",
+    "cfo"
+   ],
+   "POST /accounting/supplier-payment-terms/:p/simulate": [
+    "admin",
+    "accountant",
+    "treasury",
+    "cfo"
+   ],
+   "POST /admin/ads/ad-sets/:p/ads": [
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR"
+   ],
+   "POST /admin/ads/advertisers": [
+    "ADS_ADMIN_MANAGER"
+   ],
+   "POST /admin/ads/advertisers/:p/billing-profiles": [
+    "ADS_ADMIN_MANAGER",
+    "ADS_FINANCE"
+   ],
+   "POST /admin/ads/advertisers/bulk": [
+    "ADS_ADMIN_MANAGER"
+   ],
+   "POST /admin/ads/billing/period-close": [
+    "ADS_FINANCE"
+   ],
+   "POST /admin/ads/campaigns": [
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR"
+   ],
+   "POST /admin/ads/campaigns/:p/ad-sets": [
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR"
+   ],
+   "POST /admin/ads/campaigns/:p/submit": [
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR"
+   ],
+   "POST /admin/ads/creatives": [
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR"
+   ],
+   "POST /admin/ads/email/send": [
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR"
+   ],
+   "POST /admin/ads/email/suppressions": [
+    "ADS_ADMIN_MANAGER",
+    "ADS_COMPLIANCE_ADMIN"
+   ],
+   "POST /admin/ads/inventory": [
+    "ADS_INVENTORY_MANAGER"
+   ],
+   "POST /admin/ads/invoices/:p/payments": [
+    "ADS_FINANCE"
+   ],
+   "POST /admin/ads/moderation/:p/decision": [
+    "ADS_MODERATOR",
+    "ADS_COMPLIANCE_ADMIN"
+   ],
+   "POST /admin/ads/policies": [
+    "ADS_COMPLIANCE_ADMIN"
+   ],
+   "POST /admin/ads/segments": [
+    "ADS_ADMIN_MANAGER",
+    "ADS_ADMIN_OPERATOR",
+    "ADS_COMPLIANCE_ADMIN"
+   ],
+   "POST /admin/notification-campaigns": [
+    "ADMIN"
+   ],
+   "POST /admin/notification-campaigns/:p/:p": [
+    "ADMIN"
+   ],
+   "POST /admin/notification-campaigns/audience/estimate": [
+    "ADMIN",
+    "OPERATIONS",
+    "COMMERCIAL_MANAGER",
+    "AUDITOR"
+   ],
+   "POST /admin/notification-campaigns/segments": [
+    "ADMIN"
+   ],
+   "POST /ads/delivery/select": [
+    "ADS_AD_SERVER"
+   ],
+   "POST /ads/events": [
+    "ADS_EVENT_TRACKER",
+    "ADS_AD_SERVER"
+   ],
+   "POST /ads/events/bulk": [
+    "ADS_EVENT_TRACKER",
+    "ADS_AD_SERVER"
+   ],
+   "POST /b2b/accounts": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "POST /b2b/accounts/:p/contacts": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "POST /b2b/accounts/:p/qualify": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "POST /b2b/accounts/bulk": [
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "POST /b2b/activities": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "POST /b2b/billing/invoices": [
+    "FINANCE",
+    "ADMIN"
+   ],
+   "POST /b2b/billing/merchant-payments": [
+    "FINANCE",
+    "ADMIN"
+   ],
+   "POST /b2b/bnpl/purchases": [
+    "MERCHANT_ADMIN",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /b2b/contracts/from-proposal": [
+    "LEGAL",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "POST /b2b/contracts/mdr-rules": [
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "ADMIN"
+   ],
+   "POST /b2b/coverage/installments/sweep-overdue": [
+    "FINANCE",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /b2b/coverage/payables": [
+    "FINANCE",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /b2b/coverage/recoveries/:p/movements/:p/reverse": [
+    "FINANCE",
+    "ADMIN"
+   ],
+   "POST /b2b/coverage/review-queue/:p/resolve": [
+    "FINANCE",
+    "ADMIN"
+   ],
+   "POST /b2b/credit-rating/accounts/:p/rate": [
+    "FINANCE",
+    "COLLECTIONS",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "POST /b2b/credit-rating/sweep": [
+    "FINANCE",
+    "ADMIN"
+   ],
+   "POST /b2b/onboarding/branches": [
+    "OPERATIONS",
+    "ADMIN",
+    "MERCHANT_ADMIN"
+   ],
+   "POST /b2b/onboarding/cases": [
+    "OPERATIONS",
+    "LEGAL",
+    "ADMIN"
+   ],
+   "POST /b2b/onboarding/cases/:p/checklist/:p/evidence": [
+    "OPERATIONS",
+    "LEGAL",
+    "ADMIN"
+   ],
+   "POST /b2b/onboarding/cases/:p/checklist/:p/evidence/upload-url": [
+    "OPERATIONS",
+    "LEGAL",
+    "ADMIN"
+   ],
+   "POST /b2b/onboarding/cases/:p/identity/reconcile": [
+    "OPERATIONS",
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE"
+   ],
+   "POST /b2b/onboarding/cases/:p/kyb-review": [
+    "OPERATIONS",
+    "ADMIN",
+    "COMMERCIAL_MANAGER"
+   ],
+   "POST /b2b/onboarding/cases/:p/kyb-review/sync": [
+    "OPERATIONS",
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE"
+   ],
+   "POST /b2b/onboarding/cases/:p/mdr-rules": [
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "ADMIN"
+   ],
+   "POST /b2b/onboarding/cases/:p/partner-link": [
+    "OPERATIONS",
+    "ADMIN",
+    "COMMERCIAL_MANAGER"
+   ],
+   "POST /b2b/onboarding/cases/reconcile-pending": [
+    "OPERATIONS",
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE"
+   ],
+   "POST /b2b/onboarding/merchant-users": [
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /b2b/opportunities": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "POST /b2b/proposals": [
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "POST /b2b/reconciliation/runs": [
+    "FINANCE",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /b2b/segments": [
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "ADMIN"
+   ],
+   "POST /b2b/tags": [
+    "COMMERCIAL_MANAGER",
+    "ADMIN"
+   ],
+   "POST /documents/generate": [
+    "ADMIN",
+    "AUDITOR",
+    "COMMERCIAL_EXECUTIVE",
+    "COMMERCIAL_MANAGER",
+    "FINANCE",
+    "LEGAL",
+    "OPERATIONS",
+    "COLLECTIONS",
+    "ACCOUNTANT",
+    "CFO",
+    "TREASURY",
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATOR",
+    "BRANCH_MANAGER",
+    "FINANCIAL_AUDITOR"
+   ],
+   "POST /files": [
+    "admin",
+    "accountant",
+    "cfo",
+    "treasury",
+    "finance",
+    "operations",
+    "legal",
+    "collections",
+    "commercial_manager",
+    "commercial_executive",
+    "merchant_admin"
+   ],
+   "POST /files/upload-signature": [
+    "admin",
+    "accountant",
+    "cfo",
+    "treasury",
+    "finance",
+    "operations",
+    "legal",
+    "collections",
+    "commercial_manager",
+    "commercial_executive",
+    "merchant_admin"
+   ],
+   "POST /merchant-credit/:p/applications/:p/acceptance": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /merchant-credit/:p/payment-claims/:p/verification": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /merchant/support/cases": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /merchant/support/cases/:p/close-request": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /merchant/support/cases/:p/feedback": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /partner-onboarding/:p/branches": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /partner-onboarding/:p/branches/:p/pos-terminals": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /partner-onboarding/:p/commercial-registry": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /partner-onboarding/:p/documents/upload-url": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /partner-onboarding/:p/legal-representative": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /partner-onboarding/:p/qr-codes": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /partner-onboarding/:p/qr-codes/upload-url": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /partner-onboarding/:p/submit": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /partner-onboarding/start": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /portal/branches": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "POST /portal/plans": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER"
+   ],
+   "POST /portal/subscription": [
+    "ADMIN",
+    "COMMERCIAL_MANAGER",
+    "COMMERCIAL_EXECUTIVE",
+    "MERCHANT_ADMIN"
+   ],
+   "POST /support/channels": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /support/channels/:p/attachments/ticket": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /support/channels/:p/close": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /support/channels/:p/messages": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /support/channels/:p/read": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "POST /support/channels/:p/typing": [
+    "merchant",
+    "MERCHANT_ADMIN",
+    "MERCHANT_OPERATIONS",
+    "ADMIN"
+   ],
+   "PUT /accounting/business-partners/:p/default-accounts": [
+    "admin",
+    "accountant",
+    "treasury",
+    "cfo"
+   ]
+  },
+  "DASHBOARDS": {}
+ }
+}

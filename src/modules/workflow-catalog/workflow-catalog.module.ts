@@ -15,6 +15,10 @@ import {
   WorkflowTransitionModel,
 } from '../../database/models/index.js';
 import { CustomersModule } from '../customers/customers.module.js';
+import { InternalUsersModule } from '../internal-users/internal-users.module.js';
+import { ProcessCatalogService } from './application/process-catalog.service.js';
+import { ProcessCatalogController } from './process-catalog.controller.js';
+import { ProcessCatalogRepository } from './process-catalog.repository.js';
 import { ExposedRouteScannerService } from './application/exposed-route-scanner.service.js';
 import { WorkflowConsistencyService } from './application/workflow-consistency.service.js';
 import { WorkflowProgressService } from './application/workflow-progress.service.js';
@@ -42,8 +46,9 @@ import { WorkflowProgressController } from './workflow-progress.controller.js';
     ]),
     DiscoveryModule,
     CustomersModule,
+    InternalUsersModule,
   ],
-  controllers: [WorkflowCatalogController, WorkflowProgressController, WorkflowOperationsController],
+  controllers: [WorkflowCatalogController, WorkflowProgressController, WorkflowOperationsController, ProcessCatalogController],
   providers: [
     WorkflowCatalogRepository,
     WorkflowCatalogService,
@@ -51,6 +56,8 @@ import { WorkflowProgressController } from './workflow-progress.controller.js';
     WorkflowProgressService,
     WorkflowConsistencyService,
     ExposedRouteScannerService,
+    ProcessCatalogRepository,
+    ProcessCatalogService,
   ],
   exports: [WorkflowCatalogService],
 })

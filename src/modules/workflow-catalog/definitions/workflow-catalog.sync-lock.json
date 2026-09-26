@@ -1,0 +1,53 @@
+{
+  "processes": {
+    "migration": "20260926170500-sync-workflow-catalog-1",
+    "hashes": {
+      "customer_credit_journey": "762bae2443f031e9",
+      "post_login_first_screen": "77f2aba3c9b9e0c9",
+      "customer_full_lifecycle": "040f45f9a89b3336",
+      "customer_partner_commerce": "57999d0bb0af253c",
+      "account_signup_to_login": "47dd8c8454c109a2",
+      "customer_onboarding_kyc": "9aaabe142f727d49",
+      "identity_verification": "ccb5446ba91f42ac",
+      "onboarding_risk_assessment": "249833550c27b456",
+      "customer_eligibility_lifecycle": "08a2de8fd19bf5bb",
+      "credit_line_and_application": "7b2993e99577802a",
+      "bank_statement_capacity": "818652b6668bde66",
+      "purchase_and_disbursement": "6fd22807f4177e45",
+      "installment_payment_claims": "54f9898a850f6526",
+      "loan_servicing_collections": "d39561113ed6ec13",
+      "customer_privacy_dsr": "8e8ca377c61ae9ac",
+      "customer_support_case": "77bcef6cc461d898",
+      "notifications_and_campaigns": "374c91fc4cf4cdd4",
+      "atlas_assist_help": "739bca0ece3307b7",
+      "device_signals_and_sessions": "cb062eb72a455ce6",
+      "merchant_onboarding_chain": "d53ed57ab2990bb0",
+      "merchant_qr_pos_and_file": "d56d590190da9c64",
+      "merchant_users_and_access": "3b0b77584a27368b",
+      "merchant_contract_and_pricing": "bd738db00fb56c48",
+      "bnpl_sale_mdr_billing": "35a74394257af6ab",
+      "coverage_and_recovery": "849402bf7fb90b56",
+      "merchant_support": "82307b368464c102",
+      "accounting_documents_cycle": "0020d8c1c11e463f",
+      "dashboards_kpi_and_manual_inputs": "0c8b9ebb76fd0f93",
+      "ads_advertisers": "5e5ad492be48d407",
+      "decision_artifact_governance": "b2db4646f1b6e820",
+      "decision_execution_and_manual_review": "0684621303c2c18a",
+      "decision_quality_and_monitoring": "702620d7d4d61b18",
+      "motor_workers": "37838aa4ff55ca8c",
+      "systems_catalog_governance": "8bdf724a05440d66",
+      "flow_intelligence_cycle": "7826dd3c217fd82f",
+      "domain_events_outbox": "2d07e99fb6d767a7",
+      "runtime_jobs": "848d1ce6eed299a7",
+      "internal_users_rbac": "aed211438018b5a5",
+      "schema_change_management": "34d0d7bc4b4abd2c",
+      "external_providers_operations": "a873c3bfb6dbaa1e",
+      "data_governance_quality_reports": "0dd340d8bb86069f",
+      "deploy_and_release": "df61d8d0f765dc9b"
+    }
+  },
+  "rbac": {
+    "migration": "20260926171000-sync-internal-rbac-catalog-4",
+    "hash": "7463bb5ad12b32c9"
+  }
+}
