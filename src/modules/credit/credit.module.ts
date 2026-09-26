@@ -38,6 +38,7 @@ import { CreditLineService } from './application/credit-line.service.js';
 import { CreditLineRecalculationService } from './application/credit-line-recalculation.service.js';
 import { CreditApplicationAdmissionService } from './application/credit-application-admission.service.js';
 import { CreditProductService } from './application/credit-product.service.js';
+import { CreditProductUsuryCheckService } from './application/credit-product-usury-check.service.js';
 import { PaymentCapacityService } from './application/payment-capacity.service.js';
 import { MerchantCreditController } from './merchant-credit.controller.js';
 import { CreditUnderwritingService } from './application/credit-underwriting.service.js';
@@ -126,6 +127,8 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     OriginationConsentCheck,
     // C-2: recoge las solicitudes que se quedaron en `submitted`. Lo dispara el planificador.
     CreditSubmittedReconciliationService,
+    // Frente 3A, punto 5: avisa al arrancar si un producto activo viola el tope de usura.
+    CreditProductUsuryCheckService,
   ],
   exports: [
     CreditRepository,

@@ -14,6 +14,7 @@ import { env } from '../../../config/env.js';
 import { CreditRepository } from '../../credit/credit.repository.js';
 import { decisionExpiresAt, ExposureReservationService } from '../../credit/application/exposure-reservation.service.js';
 import { OriginationConsentCheck } from '../../credit/application/origination-consent-check.service.js';
+import { InternalRbacRepository } from '../../internal-users/internal-rbac.repository.js';
 import { fromCents } from '../domain/money.util.js';
 import { installmentRows, loanAmountColumns, resolveDisbursementTerms, toDateOnly } from './loan-disbursement-terms.js';
 import { DisburseLoanDto } from '../loans.schemas.js';
@@ -44,6 +45,7 @@ export class LoanDisbursementService {
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly exposure: ExposureReservationService,
     private readonly consents: OriginationConsentCheck,
+    private readonly rbac: InternalRbacRepository,
   ) {}
 
   /**
@@ -78,7 +80,8 @@ export class LoanDisbursementService {
       const product = await this.credit.findProductById(input.tenantId, application.creditProductId, { transaction });
       if (!product) throw new NotFoundException('CREDIT_PRODUCT_NOT_FOUND');
 
-      const terms = resolveDisbursementTerms(application, product, input.body);
+      const { body, currentUser, tenantId } = input;
+      const terms = await resolveDisbursementTerms({ application, product, body, currentUser, tenantId, rbac: this.rbac });
       const now = new Date();
       await this.revalidateAndReserve(input.tenantId, application, now, transaction);
 
@@ -153,6 +156,9 @@ export class LoanDisbursementService {
             termMonths: terms.termMonths,
             annualInterestRate: terms.annualRate,
             decisionExecutionId: application.decisionExecutionId ?? null,
+            // Frente 3A: si un operador anuló la tasa decidida, el motivo queda en el historial —
+            // el permiso autoriza a PEDIR la excepción, esto es la evidencia de que se pidió.
+            rateOverrideReasonCode: input.body.overrideReasonCode ?? null,
           },
           happenedAt: terms.disbursedAt,
           // `_created_at` es obligatorio en el modelo y no lo pone la base porque Sequelize valida

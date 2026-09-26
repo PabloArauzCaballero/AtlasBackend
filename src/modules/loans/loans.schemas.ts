@@ -38,19 +38,27 @@ export type LoanCustomerParamsDto = z.infer<typeof loanCustomerParamsSchema>;
 /**
  * Desembolso de una solicitud aprobada.
  *
- * La tasa se puede fijar aquí porque la del producto es la de catálogo y la pactada puede diferir
- * —una campaña, una renegociación—; si no viene, manda el producto. Lo que no se puede cambiar es
- * el monto ni el plazo: los aprobó la decisión, y alterarlos al desembolsar convertiría la
- * aprobación en un trámite.
+ * La tasa NO se acepta libre del operador (Frente 3A, T-1): la decide el Motor
+ * (`application.decisionPricedRate`) o, si no hay decisión, el producto — las dos, clampeadas al
+ * rango del producto y al tope de usura en `loan-disbursement.service.ts`. `overrideAnnualInterestRate`
+ * es la única forma de apartarse, y exige `overrideReasonCode` (los dos o ninguno) y un permiso
+ * propio (`credit.loan_disbursement.override_rate`) que el servicio comprueba; su valor sigue
+ * clampeado igual. Lo que no se puede cambiar es el monto ni el plazo: los aprobó la decisión, y
+ * alterarlos al desembolsar convertiría la aprobación en un trámite.
  */
 export const disburseLoanSchema = z
   .object({
-    annualInterestRate: z.number().finite().nonnegative().max(999).optional(),
+    overrideAnnualInterestRate: z.number().finite().nonnegative().max(100).optional(),
+    overrideReasonCode: z.string().trim().min(1).max(120).optional(),
     disbursedAt: z.string().datetime().optional(),
     firstDueDate: isoDate.optional(),
     notes: z.string().trim().max(2000).optional(),
   })
-  .strict();
+  .strict()
+  .refine((body) => (body.overrideAnnualInterestRate === undefined) === (body.overrideReasonCode === undefined), {
+    message: 'overrideAnnualInterestRate y overrideReasonCode se mandan juntos, o ninguno de los dos.',
+    path: ['overrideReasonCode'],
+  });
 
 export type DisburseLoanDto = z.infer<typeof disburseLoanSchema>;
 

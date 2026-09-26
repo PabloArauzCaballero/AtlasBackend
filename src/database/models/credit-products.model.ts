@@ -47,6 +47,18 @@ export class CreditProductModel extends Model {
   @Column({ field: 'annual_interest_rate', type: DataType.DECIMAL(7, 4) })
   declare annualInterestRate: string | null;
 
+  /**
+   * El rango de tasa que este producto puede cobrar (porcentaje), NULLABLE.
+   *
+   * Frente 3A (2026-09-25/26): sin rango, el desembolso sólo clampea al tope de usura; con rango,
+   * clampea también aquí. Un producto sin `min`/`max` declarado no rompe nada al migrar.
+   */
+  @Column({ field: 'min_annual_interest_rate', type: DataType.DECIMAL(7, 4) })
+  declare minAnnualInterestRate: string | null;
+
+  @Column({ field: 'max_annual_interest_rate', type: DataType.DECIMAL(7, 4) })
+  declare maxAnnualInterestRate: string | null;
+
   /** Umbral de ingreso declarado; se contrasta contra `customer_attribute_values`. */
   @Column({ field: 'min_monthly_income', type: DataType.DECIMAL(18, 2) })
   declare minMonthlyIncome: string | null;

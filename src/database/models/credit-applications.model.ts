@@ -91,6 +91,19 @@ export class CreditApplicationModel extends Model {
   @Column({ field: 'decision_reasons_json', type: DataType.JSONB })
   declare decisionReasonsJson: unknown;
 
+  /**
+   * La tasa (porcentaje) y el tramo de precio que decidió el Motor para ESTA solicitud (Frente 3A,
+   * `ATLAS_BNPL_UNDERWRITING v2`). `decisionPricedRate` ya viene convertida de tanto por uno a
+   * porcentaje (`rate-units.ts`); NULL si el Motor no publicó `annual_percentage_rate` o si la
+   * solicitud es anterior a esta integración. El desembolso la clampea igual al rango del producto
+   * y al tope de usura: nunca se cobra tal cual.
+   */
+  @Column({ field: 'decision_priced_rate', type: DataType.DECIMAL(7, 4) })
+  declare decisionPricedRate: string | null;
+
+  @Column({ field: 'decision_pricing_tier', type: DataType.STRING(40) })
+  declare decisionPricingTier: string | null;
+
   @Column({ field: 'decision_reason_code', type: DataType.STRING(120) })
   declare decisionReasonCode: string | null;
 

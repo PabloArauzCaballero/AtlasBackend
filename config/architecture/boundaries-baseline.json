@@ -1,10 +1,10 @@
 {
   "$comment": "Deuda heredada de fronteras (AT-012). Generada por yarn check:architecture --update-baseline; sólo puede encoger.",
   "updatedOn": "2026-09-26",
-  "count": 101,
+  "count": 87,
   "byRule": {
     "domain-purity": 3,
-    "cross-module": 98
+    "cross-module": 84
   },
   "violations": [
     "domain-external:src/modules/support/domain/case-state-machine.ts->@nestjs/common",
@@ -12,22 +12,8 @@
     "domain:src/modules/support/domain/support-hash-chain.ts->src/common/utils/privacy/redaction.util.ts",
     "import:src/modules/auth/auth-actor-resolver.service.ts->src/modules/customers/customers.repository.ts",
     "import:src/modules/auth/auth-actor-resolver.service.ts->src/modules/customers/repositories/customer-contacts.repository.ts",
-    "import:src/modules/credit/application/bank-statement-review.worker.ts->src/modules/decision-engine/bank-statement-engine.client.ts",
-    "import:src/modules/credit/application/bank-statement.service.ts->src/modules/decision-engine/bank-statement-engine.client.ts",
     "import:src/modules/credit/application/bank-statement.service.ts->src/modules/expedientes/application/expediente-hooks.service.ts",
     "import:src/modules/credit/application/credit-decision-event-publisher.ts->src/modules/events/events.service.ts",
-    "import:src/modules/credit/application/credit-decision-mapping.ts->src/modules/decision-engine/decision-engine.types.ts",
-    "import:src/modules/credit/application/credit-line-recalculation.service.ts->src/modules/decision-engine/decision-artifact-binding.service.ts",
-    "import:src/modules/credit/application/credit-line-recalculation.service.ts->src/modules/decision-engine/decision-engine.client.ts",
-    "import:src/modules/credit/application/credit-line-recalculation.service.ts->src/modules/decision-engine/subject-reference.service.ts",
-    "import:src/modules/credit/application/credit-line-recalculation.service.ts->src/modules/decision-engine/underwriting-features-line-metadata.ts",
-    "import:src/modules/credit/application/credit-line-recalculation.service.ts->src/modules/decision-engine/underwriting-features.service.ts",
-    "import:src/modules/credit/application/credit-line-writer.service.ts->src/modules/decision-engine/decision-artifact-binding.service.ts",
-    "import:src/modules/credit/application/credit-line-writer.service.ts->src/modules/decision-engine/decision-engine.client.ts",
-    "import:src/modules/credit/application/credit-line-writer.service.ts->src/modules/decision-engine/subject-reference.service.ts",
-    "import:src/modules/credit/application/credit-line-writer.service.ts->src/modules/decision-engine/underwriting-features.service.ts",
-    "import:src/modules/credit/application/credit-underwriting.service.ts->src/modules/decision-engine/credit-decision-engine.service.ts",
-    "import:src/modules/credit/application/credit-underwriting.service.ts->src/modules/decision-engine/decision-engine.types.ts",
     "import:src/modules/credit/application/credit-underwriting.service.ts->src/modules/events/events.service.ts",
     "import:src/modules/customer-device-signals/application/customer-address-book.service.ts->src/modules/customers/customers.repository.ts",
     "import:src/modules/customer-device-signals/application/device-signals-access.service.ts->src/modules/customers/customers.repository.ts",

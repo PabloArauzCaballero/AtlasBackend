@@ -14,6 +14,7 @@ import { DecisionEngineClient } from '../../decision-engine/decision-engine.clie
 import { SubjectReferenceService } from '../../decision-engine/subject-reference.service.js';
 import { UnderwritingFeaturesService } from '../../decision-engine/underwriting-features.service.js';
 import { lineVariableMetadata } from '../../decision-engine/underwriting-features-line-metadata.js';
+import { pricedRateUnitToPercentNumber } from './credit-decision-pricing.mapper.js';
 import { PaymentCapacityService } from './payment-capacity.service.js';
 import { capacityProvenance, capacityVariables } from './credit-line.service.js';
 
@@ -237,7 +238,16 @@ export class CreditLineRecalculationService {
         creditRiskScore: num(output.credit_risk_score),
         riskBand: str(output.risk_band ?? response.riskBand),
         pricingTier: str(output.pricing_tier),
-        annualPercentageRate: num(output.annual_percentage_rate),
+        /*
+         * Frente 3A (plan `_plan-motor-decisiones-tasa-2026-09-25`, T-2/T-3): `annual_percentage_rate`
+         * llega del Motor en TANTO POR UNO. Sin convertir, la línea guardaba —y le mostraba al
+         * cliente— 0,24 donde el resto del sistema (el producto, la solicitud, el préstamo) habla en
+         * PORCENTAJE (24). `pricedRateUnitToPercentNumber` es el MISMO camino que usa
+         * `credit-underwriting.service.ts` para `credit_applications.decision_priced_rate`: que las
+         * dos lean este campo por un solo sitio es lo que hace posible que lo que el cliente VE en su
+         * línea y lo que se le COBRA en el préstamo puedan, alguna vez, ser el mismo número.
+         */
+        annualPercentageRate: pricedRateUnitToPercentNumber(output.annual_percentage_rate),
         affordabilityScore: num(output.affordability_score),
         affordabilityDecision: str(output.affordability_decision),
         probabilityOfDefault: num(output.probability_of_default),

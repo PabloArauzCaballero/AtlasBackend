@@ -120,6 +120,32 @@ describe('CreditDecisionEngineService · nunca lanza por un fallo previo a la ll
   });
 });
 
+/**
+ * Frente 3A (plan `_plan-motor-decisiones-tasa-2026-09-25`, punto 3): `product_base_annual_rate`
+ * viaja al Motor en TANTO POR UNO, nunca en porcentaje. Prueba EN NEGATIVO: sin la conversión, un
+ * producto al 18 % mandaría `18` —que el rol semántico `PRICED_RATE` del Motor (techo 10) rechaza
+ * como si fuera un 1800 %— en vez de `0,18`.
+ */
+describe('CreditDecisionEngineService · product_base_annual_rate viaja en tanto por uno (Frente 3A)', () => {
+  it('un producto al 18 % se manda como 0,18, no como 18', async () => {
+    const { service, client } = build();
+
+    await service.decide({ ...request, productBaseAnnualRatePercent: 18 });
+
+    const [, sentRequest] = client.execute.mock.calls[0] as [string, { variables: Record<string, unknown> }];
+    expect(sentRequest.variables.product_base_annual_rate).toBe(0.18);
+  });
+
+  it('sin tasa base (undefined/null) se manda 0, nunca se bloquea la consulta al Motor', async () => {
+    const { service, client } = build();
+
+    await service.decide({ ...request, productBaseAnnualRatePercent: null });
+
+    const [, sentRequest] = client.execute.mock.calls[0] as [string, { variables: Record<string, unknown> }];
+    expect(sentRequest.variables.product_base_annual_rate).toBe(0);
+  });
+});
+
 describe('C-2 de punta a punta · la solicitud NO queda submitted si el registro del sujeto falla', () => {
   function buildUnderwriting(engine: CreditDecisionEngineService) {
     const application: Record<string, unknown> = {
@@ -131,6 +157,8 @@ describe('C-2 de punta a punta · la solicitud NO queda submitted si el registro
     const credit = {
       findApplicationById: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown> | null> => application),
       createApplicationEvent: jest.fn(async (..._args: unknown[]) => ({})),
+      // Frente 3A: `decideWithProduct` lo consulta ANTES de llamar al motor.
+      findProductByCode: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown> | null> => ({ annualInterestRate: null })),
     };
     const reviewCases = { open: jest.fn(async (..._args: unknown[]) => ({ caseCode: 'CR-CRA-1' })) };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };

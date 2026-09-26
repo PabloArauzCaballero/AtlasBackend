@@ -7,6 +7,7 @@
  */
 import { DecisionResponse } from '../../decision-engine/decision-engine.types.js';
 import type { ReviewCaseSource } from '../credit-review-case.constants.js';
+import { pricedRateAndTier } from './credit-decision-pricing.mapper.js';
 
 /** Dónde quedó la revisión de una solicitud: el caso que la sostiene y de quién es su bandeja. */
 export type PlacedReviewCase = { code: string | null; source: ReviewCaseSource | null };
@@ -26,6 +27,7 @@ export function decisionEventPayload(
   excludedFeatures: Array<{ featureCode: string; reason: string }>,
   reviewCase: PlacedReviewCase,
 ): Record<string, unknown> {
+  const pricing = pricedRateAndTier(applied.response);
   return {
     decisionMode: applied.decisionMode,
     executionId: applied.response?.executionId ?? null,
@@ -35,6 +37,10 @@ export function decisionEventPayload(
     manualReviewCaseSource: reviewCase.source,
     manualReviewQueueCode: applied.response?.manualReview?.queueCode ?? null,
     excludedFeatures,
+    // Frente 3A: lo que el Motor tarificó para esta ejecución, para poder auditar el precio sin
+    // reconstruirlo desde la respuesta cruda del motor.
+    decisionPricedRate: pricing.pricedRate,
+    decisionPricingTier: pricing.pricingTier,
   };
 }
 
@@ -55,6 +61,7 @@ export function decisionColumns(
   reviewCase: PlacedReviewCase,
 ) {
   const response = applied.response;
+  const pricing = pricedRateAndTier(response);
   return {
     status: applied.status,
     decisionMode: applied.decisionMode,
@@ -64,6 +71,10 @@ export function decisionColumns(
     decisionScore: response?.score === null || response?.score === undefined ? null : String(response.score),
     decisionRiskBand: response?.riskBand ?? null,
     decisionReasonsJson: response?.reasonCodes ?? null,
+    // Frente 3A: la tasa (porcentaje) y el tramo que decidió el Motor. `null` si no vino — el
+    // desembolso cae entonces a la tasa del producto, clampeada igual (loan-disbursement.service.ts).
+    decisionPricedRate: pricing.pricedRate,
+    decisionPricingTier: pricing.pricingTier,
     manualReviewCaseCode: reviewCase.code,
     manualReviewCaseSource: reviewCase.source,
     decidedAt: applied.status === 'submitted' ? null : now,

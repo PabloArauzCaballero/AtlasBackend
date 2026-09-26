@@ -2429,10 +2429,14 @@ paths:
             schema:
               type: object
               properties:
-                annualInterestRate:
+                overrideAnnualInterestRate:
                   type: number
                   minimum: 0
-                  maximum: 999
+                  maximum: 100
+                overrideReasonCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
                 disbursedAt:
                   type: string
                   format: date-time

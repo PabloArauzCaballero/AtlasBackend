@@ -15,6 +15,7 @@ import { CreditReviewCaseRepository } from '../credit-review-case.repository.js'
 import { REVIEW_CASE_SOURCE } from '../credit-review-case.constants.js';
 import { decisionColumns, decisionEventPayload, type PlacedReviewCase } from './credit-decision-mapping.js';
 import { publishCreditDecisionRecorded } from './credit-decision-event-publisher.js';
+import { decideWithProduct } from './credit-decision-product-resolution.js';
 
 /** Motivo con el que queda una solicitud que fue a revisión porque el motor no llegó a decidirla. */
 export const ENGINE_UNAVAILABLE_REASON = 'engine_unavailable';
@@ -67,7 +68,7 @@ export class CreditUnderwritingService {
     productCode: string | null;
     purposeCode: string | null;
   }): Promise<UnderwritingResult> {
-    const result = await this.engine.decide(input);
+    const result = await decideWithProduct(this.engine, this.credit, this.logger, input);
     const now = new Date();
 
     return this.sequelize.transaction(async (transaction) => {

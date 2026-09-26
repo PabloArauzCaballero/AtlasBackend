@@ -30,6 +30,7 @@ import {
 } from '../../../../src/database/models/index.js';
 import { CreditRepository } from '../../../../src/modules/credit/credit.repository.js';
 import { ExposureReservationService } from '../../../../src/modules/credit/application/exposure-reservation.service.js';
+import type { InternalRbacRepository } from '../../../../src/modules/internal-users/internal-rbac.repository.js';
 import { OriginationConsentCheck } from '../../../../src/modules/credit/application/origination-consent-check.service.js';
 import { EventsRepository } from '../../../../src/modules/events/events.repository.js';
 import { EventsService } from '../../../../src/modules/events/events.service.js';
@@ -98,7 +99,11 @@ export async function buildLoanBookHarness(sequelize: Sequelize) {
   const payments = new LoanPaymentService(loansRepository, sequelize);
   const exposure = new ExposureReservationService(CreditExposureReservationModel, sequelize);
   const consentCheck = new OriginationConsentCheck(sequelize);
-  const disbursement = new LoanDisbursementService(loansRepository, creditRepository, sequelize, exposure, consentCheck);
+  // El override de tasa (T-5) es de un permiso RBAC que este harness de integración no ejercita:
+  // ninguna prueba aquí pide desembolsar fuera del rango del producto, así que un stub que siempre
+  // niega es correcto — la ruta con permiso real ya la cubre loan-disbursement.service.spec.ts.
+  const rbacStub = { hasPermissions: async () => false } as unknown as InternalRbacRepository;
+  const disbursement = new LoanDisbursementService(loansRepository, creditRepository, sequelize, exposure, consentCheck, rbacStub);
   const events = new EventsService(new EventsRepository(OutboxEventModel, sequelize), {} as never);
   const contexto = new PaymentClaimsContextService(loansRepository, creditRepository);
   const storage = {

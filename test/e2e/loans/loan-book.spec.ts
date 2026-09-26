@@ -276,7 +276,10 @@ describe('LoansController (e2e/supertest)', () => {
         .set(...authHeader('internal_operator'))
         .set(...TENANT)
         .set(...IDEMPOTENCY)
-        .send({ annualInterestRate: 24 })
+        // La tasa ya no se acepta libre del cuerpo (Frente 3A): sin override, se usa la decidida
+        // o la del producto. Este camino feliz no ejercita el override — eso lo cubre
+        // loan-disbursement.service.spec.ts — así que el cuerpo va vacío.
+        .send({})
         .expect(201);
 
       expect(response.body).toMatchObject({ loanId: '10', status: 'active' });

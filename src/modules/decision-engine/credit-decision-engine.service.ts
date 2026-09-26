@@ -13,6 +13,7 @@ import { DecisionEngineClient } from './decision-engine.client.js';
 import { DecisionOutcome, DecisionResponse } from './decision-engine.types.js';
 import { classifyDecision } from './decision-verdict.js';
 import { FeatureProjectionService } from './feature-projection.service.js';
+import { percentToUnitRate } from './rate-units.js';
 import { SubjectReferenceService } from './subject-reference.service.js';
 import { UnderwritingFeaturesService } from './underwriting-features.service.js';
 import { basisBlocker, ensureUnderwritingBasis } from './underwriting-basis.js';
@@ -29,6 +30,14 @@ export type CreditDecisionRequest = {
   productCode: string | null;
   purposeCode: string | null;
   correlationId?: string;
+  /**
+   * La tasa base del producto (PORCENTAJE, `18`, no `0,18`), ya resuelta por quien arma esta
+   * petición — `CreditUnderwritingService`, que es quien tiene `CreditRepository` sin cruzar la
+   * frontera de módulos que separa `decision-engine` de `credit`. `undefined`/`null` se manda como
+   * `0`: un producto sin tasa base no bloquea la consulta al Motor, el clamp de Core en el
+   * desembolso es la red de seguridad real (Frente 3A, punto 5).
+   */
+  productBaseAnnualRatePercent?: number | null;
 };
 
 /** Qué estaba haciendo `evaluate` cuando algo falló. Sólo `ENGINE_CALL` es una avería del motor. */
@@ -190,6 +199,13 @@ export class CreditDecisionEngineService {
           currency_code: request.currencyCode,
           product_code: request.productCode,
           purpose_code: request.purposeCode,
+          /*
+           * La tasa base del producto, en TANTO POR UNO (Frente 3A, punto 2 y 3 del plan): la
+           * fórmula de precio del artefacto v2 es `base_producto + prima(banda)`, y sin esta
+           * variable el Motor no tiene con qué sumar la prima — tarificaría desde cero, no desde
+           * el precio de catálogo. `rate-units.ts` es el único punto de conversión de este lado.
+           */
+          product_base_annual_rate: percentToUnitRate(request.productBaseAnnualRatePercent ?? 0),
         },
         // De cuándo es cada dato (P-10); lo del feature store, desde que vale en el catálogo.
         variableMetadata: {

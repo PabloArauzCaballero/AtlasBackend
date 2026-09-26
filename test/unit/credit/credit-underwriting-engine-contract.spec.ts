@@ -41,6 +41,7 @@ function build(outcomes: DecisionOutcome[], application: Record<string, unknown>
     createApplicationEvent: jest.fn(async (..._args: unknown[]) => ({})),
     findDeferredApplications: jest.fn(async (..._args: unknown[]) => [row]),
     findProductById: jest.fn(async (..._args: unknown[]) => ({ productCode: 'BNPL' })),
+    findProductByCode: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown> | null> => ({ annualInterestRate: null })),
   };
   const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
   const reviewCases = {
