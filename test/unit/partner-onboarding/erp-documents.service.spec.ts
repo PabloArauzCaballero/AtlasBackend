@@ -24,7 +24,10 @@ function build(overrides: Record<string, unknown> = {}, perfil: { id: string } |
   const profiles = {
     findProfilesByExternalKeys: jest.fn(async (..._args: unknown[]) => ({ rows: perfil ? [perfil] : [], count: perfil ? 1 : 0 })),
   };
-  const hooks = { alRegistrarArchivoDelComercio: jest.fn(async (..._args: unknown[]) => undefined) };
+  const hooks = {
+    alCrearComercio: jest.fn(async (..._args: unknown[]) => undefined),
+    alRegistrarArchivoDelComercio: jest.fn(async (..._args: unknown[]) => undefined),
+  };
   return { storage, profiles, hooks, service: new ErpDocumentsService(storage as never, profiles as never, hooks as never) };
 }
 
@@ -92,6 +95,8 @@ describe('ErpDocumentsService', () => {
     await service.verify({ ...VERIFICACION, storageKey: '1/erp-b2b_account-acc-77/kyb/a.pdf' });
 
     expect(profiles.findProfilesByExternalKeys).toHaveBeenCalledWith('1', { erpAccountId: 'acc-77' }, { limit: 1, offset: 0 });
+    // La carpeta se asegura antes de anotar: un comercio anterior al 17-sep no la tenía.
+    expect(hooks.alCrearComercio).toHaveBeenCalledWith({ tenantId: '1', partnerId: '31', customerCode: expect.any(String) });
     expect(hooks.alRegistrarArchivoDelComercio).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: '1',
