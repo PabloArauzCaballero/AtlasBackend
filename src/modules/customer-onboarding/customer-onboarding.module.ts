@@ -20,6 +20,7 @@ import {
   CustomerAddressVersionModel,
   CustomerAttributeValueModel,
   CustomerContactMethodModel,
+  CustomerDeviceLinkModel,
   CustomerIdentityDocumentModel,
   CustomerModel,
   CustomerObservationModel,
@@ -61,6 +62,7 @@ import { ExternalDataModule } from '../external-data/external-data.module.js';
 // El envío a revisión dispara la evaluación de riesgo del onboarding: sin ella la regla de
 // habilitación se queda para siempre en `RISK_NOT_APPROVED` y nadie se activa solo.
 import { RiskModule } from '../risk/risk.module.js';
+import { RiskService } from '../risk/risk.service.js';
 import { CustomerTelemetryModule } from '../customer-telemetry/customer-telemetry.module.js';
 import { ConsumerSurveyController } from './consumer-survey/consumer-survey.controller.js';
 import { ConsumerSurveyService } from './consumer-survey/consumer-survey.service.js';
@@ -75,6 +77,7 @@ import { CustomerIdentityPackageService } from './application/customer-identity-
 import { CustomerOnboardingGuardsService } from './application/customer-onboarding-guards.service.js';
 import { CustomerOnboardingStartService } from './application/customer-onboarding-start.service.js';
 import { CustomerOnboardingStatusService } from './application/customer-onboarding-status.service.js';
+import { ONBOARDING_RISK_PORT, OnboardingRiskTriggerService } from './application/onboarding-risk-trigger.service.js';
 import { IdentityManualReviewOutcomeService } from './application/identity-manual-review-outcome.service.js';
 import { CustomerEvidenceViewController } from './customer-evidence-view.controller.js';
 import { CustomerProfileUpdateService } from './application/customer-profile-update.service.js';
@@ -107,6 +110,8 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
       CustomerActionLogModel,
       OperationalAuditLogModel,
       CustomerContactMethodModel,
+      // Sólo lectura: el dispositivo con el que el cliente hizo el alta, para la evaluación de riesgo del envío.
+      CustomerDeviceLinkModel,
       ContactVerificationAttemptModel,
       AuthEventModel,
       CustomerIdentityDocumentModel,
@@ -183,6 +188,9 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
     CustomerIdentityPackageService,
     CustomerAddressPackageService,
     CustomerOnboardingStatusService,
+    OnboardingRiskTriggerService,
+    // El onboarding pide la evaluación de riesgo por puerto; `RiskService` (de `RiskModule`) la implementa.
+    { provide: ONBOARDING_RISK_PORT, useExisting: RiskService },
     CustomerProfileUpdateService,
     CustomerFinancialProfileService,
     CustomerReferenceContactsService,

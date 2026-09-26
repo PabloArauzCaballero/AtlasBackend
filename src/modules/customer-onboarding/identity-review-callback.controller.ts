@@ -112,9 +112,14 @@ export class IdentityReviewCallbackController {
      */
     const revisadoPor = /^[1-9][0-9]*$/u.test(body.resolvedByInternalUserId ?? '') ? (body.resolvedByInternalUserId as string) : null;
 
+    /*
+     * Se resuelve EXACTAMENTE el intento que encontramos por `executionId`, no «el último del cliente».
+     * Con dos intentos abiertos, volver a buscar por cliente podía caer en el otro y escribir en él
+     * el veredicto de una revisión que era de éste.
+     */
     return this.outcome.apply({
       tenantId,
-      customerId: String(attempt.customerId),
+      attemptId: String(attempt.id),
       decision: body.decision === 'APPROVE' ? 'approved' : 'rejected',
       reviewedByInternalUserId: revisadoPor,
       notes: body.reason ?? 'Resuelto en el motor de decision.',
