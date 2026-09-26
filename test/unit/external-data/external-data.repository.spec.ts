@@ -1,6 +1,8 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
+import { Op } from 'sequelize';
 import { ExternalDataRepository } from '../../../src/modules/external-data/external-data.repository.js';
+import { POLICY_BLOCK_CODE_PATTERNS } from '../../../src/modules/external-data/provider-request-count.filter.js';
 
 /**
  * Cobertura directa de `ExternalDataRepository` (Fase 1.2 del plan 10/10): finders de proveedores,
@@ -109,6 +111,15 @@ describe('ExternalDataRepository', () => {
       const where = callArg<CallArgRecord>(models.dataProviderRequest.count, 0, 0).where as Record<string, unknown>;
       expect(where).toMatchObject({ providerId: 'p1', customerId: 'c1' });
       expect(where.responseStatus).toBeDefined();
+    });
+
+    it('para el disyuntor deja fuera los rechazos de Atlas (cuota, disyuntor, portón), no los del proveedor', async () => {
+      const { repo, models } = buildRepo();
+      (models.dataProviderRequest.count as jest.Mock).mockResolvedValue(1 as never);
+      await repo.countRequests({ providerId: 'p1', from: new Date('2026-01-01'), statuses: ['FAILED'], onlyProviderOutcomes: true });
+      const where = callArg<CallArgRecord>(models.dataProviderRequest.count, 0, 0).where as Record<string | symbol, unknown>;
+      expect(where[Op.or]).toEqual([{ responseCode: null }, { responseCode: { [Op.notLike]: { [Op.all]: POLICY_BLOCK_CODE_PATTERNS } } }]);
+      expect(POLICY_BLOCK_CODE_PATTERNS).toEqual(expect.arrayContaining(['%\\_CIRCUIT\\_BREAKER\\_OPEN', '%\\_QUOTA\\_EXCEEDED']));
     });
 
     it('sin statuses ni customerId, solo filtra por proveedor y fecha', async () => {

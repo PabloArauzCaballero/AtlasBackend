@@ -58,4 +58,35 @@ export const erpEnvShape = {
    * — el peor tipo de falso negativo, porque manda a investigar al servicio equivocado.
    */
   ERP_BACKEND_CATALOG_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(30_000),
+
+  /*
+   * Eventos Core ↔ ERP (P-14 · B20). Un solo esquema de firma en los dos sentidos:
+   * `x-atlas-signature: t=<unix>,v1=<hex HMAC-SHA256(secreto, "<t>.<cuerpo crudo>")>`
+   * (contracts/atlas-integration-v1). Un secreto por SENTIDO: quien filtre uno no puede fabricar
+   * eventos del otro.
+   *
+   * ERP → Core: el receptor `POST /internal/integration/erp/events` verifica con
+   * `ERP_EVENTS_SIGNING_SECRET` (el `OUTBOX_DELIVERY_SIGNING_SECRET` del ERP). Sin él la ruta
+   * responde 503 y el ERP reintenta: cerrada, nunca abierta.
+   */
+  ERP_EVENTS_SIGNING_SECRET: z.preprocess(emptyAsUndefined, z.string().min(32).optional()),
+  ERP_EVENTS_SIGNATURE_TOLERANCE_SECONDS: z.coerce.number().int().min(30).max(3_600).default(300),
+  /*
+   * Core → ERP: `payment.reported/confirmed/rejected` se encolan en `outbound_event_deliveries` en la
+   * transacción del aviso y el trabajo `deliver_erp_events` los entrega firmados con
+   * `ERP_EVENTS_DELIVERY_SECRET` (el `CORE_EVENTS_SIGNING_SECRET` del ERP). Sin URL no se entrega ni
+   * se marca nada: quedan `pending` y visibles.
+   */
+  ERP_EVENTS_DELIVERY_URL: z.preprocess(emptyAsUndefined, z.string().trim().url().optional()),
+  ERP_EVENTS_DELIVERY_SECRET: z.preprocess(emptyAsUndefined, z.string().min(32).optional()),
+  ERP_EVENTS_DELIVERY_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(10_000),
+  ERP_EVENTS_DELIVERY_LEASE_MS: z.coerce.number().int().positive().default(60_000),
+  ERP_EVENTS_DELIVERY_MAX_ATTEMPTS: z.coerce.number().int().positive().max(100).default(12),
+  ERP_EVENTS_DELIVERY_RETRY_BASE_MS: z.coerce.number().int().positive().default(5_000),
+  ERP_EVENTS_DELIVERY_RETRY_MAX_MS: z.coerce.number().int().positive().default(3_600_000),
+  RUNTIME_JOBS_ERP_EVENTS_INTERVAL_MS: z.coerce.number().int().min(1_000).default(5_000),
 };
+
+function emptyAsUndefined(value: unknown): unknown {
+  return typeof value === 'string' && value.trim() === '' ? undefined : value;
+}

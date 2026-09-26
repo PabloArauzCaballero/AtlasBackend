@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.atlas.internal/atlas-integration-v1/b2b.recovery.movement.v1.schema.json",
+  "title": "b2b.recovery.payment_applied / b2b.recovery.payment_reversed v1 — movimiento de la CxC de recuperación",
+  "description": "Productor: ERP. Consumidor: Core (proyección: importe recuperado y estado de la recuperación, última versión gana por agregado consumer_recovery).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["recoveryId", "installmentId", "consumerId", "movementId", "movementType", "paymentReference", "amount", "currency", "amountRecovered", "recoveryStatus", "coreRef"],
+  "properties": {
+    "recoveryId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "installmentId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "consumerId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "movementId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "movementType": { "enum": ["PAYMENT", "REVERSAL"] },
+    "paymentReference": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "amount": { "$ref": "common.schema.json#/$defs/positiveDecimalAmount" },
+    "currency": { "$ref": "common.schema.json#/$defs/currency" },
+    "amountRecovered": { "$ref": "common.schema.json#/$defs/decimalAmount" },
+    "recoveryStatus": { "enum": ["OPEN", "IN_COLLECTION", "PARTIALLY_RECOVERED", "RECOVERED", "WRITTEN_OFF"] },
+    "coreRef": { "oneOf": [{ "$ref": "common.schema.json#/$defs/coreRef" }, { "type": "null" }] }
+  }
+}

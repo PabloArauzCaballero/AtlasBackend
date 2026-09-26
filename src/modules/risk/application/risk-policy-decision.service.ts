@@ -17,7 +17,13 @@ import { FiredRule, evaluateRuleset } from './risk-ruleset-evaluator.js';
  * comportamiento propio, y confundirlo con uno automatizado hace que cualquier comparación entre
  * meses compare cosas que no son comparables.
  */
-export type RiskDecisionSource = 'decision_engine' | 'ruleset' | 'heuristic_v0';
+/**
+ * `engine_no_decision` (C-4/C-5, 2026-09-25): el Motor respondió con `NO_DECISION` — completó la
+ * ejecución y declinó pronunciarse. Antes esto caía en `heuristic_v0` con el motivo
+ * `decision_engine_unavailable`, que es falso: el Motor SÍ contestó. Sin este valor, un analista
+ * no puede distinguir «el Motor nunca vio esto» de «el Motor lo vio y no decidió».
+ */
+export type RiskDecisionSource = 'decision_engine' | 'engine_no_decision' | 'ruleset' | 'heuristic_v0';
 
 export type PolicyDecision = {
   decision: string;
@@ -134,7 +140,10 @@ export class RiskPolicyDecisionService {
         rulesetVersionCode: fromEngine.artifactVersionId ?? 'decision-engine',
         firedRules: [],
         fromRuleset: false,
-        decisionSource: 'decision_engine',
+        // `engine_no_decision` cuando el Motor respondió sin veredicto (C-5): sigue siendo una
+        // respuesta REAL del Motor, y decirlo `decision_engine` sin más ocultaría que no hubo
+        // política aplicada; decirlo `heuristic_v0` mentiría sobre que nunca respondió.
+        decisionSource: fromEngine.noDecision ? 'engine_no_decision' : 'decision_engine',
         decisionExecutionId: fromEngine.executionId,
         motorAbrioCaso: fromEngine.manualReviewCaseCode,
       };

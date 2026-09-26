@@ -11,13 +11,16 @@ import {
   CustomerAttributeValueModel,
   CustomerContactMethodModel,
   CustomerProfileVersionModel,
+  DecisionConsentReplicationModel,
   DecisionSubjectLinkModel,
   FeatureDefinitionModel,
   FeatureValueModel,
+  FraudCaseModel,
   IdentityVerificationAttemptModel,
   LoanInstallmentModel,
   LoanModel,
   LoanOutcomeReportModel,
+  WatchlistMatchModel,
 } from '../../database/models/index.js';
 import { CreditDecisionEngineService } from './credit-decision-engine.service.js';
 import { DecisionArtifactBindingController } from './decision-artifact-binding.controller.js';
@@ -27,6 +30,9 @@ import { DecisionEngineClient } from './decision-engine.client.js';
 import { FeatureProjectionService } from './feature-projection.service.js';
 import { OutcomeDispatchService } from './outcome-dispatch.service.js';
 import { FacilityRegistrationService } from './facility-registration.service.js';
+import { ConsentReplicationStore } from './consent-replication.store.js';
+import { ConsentReplicationService } from './consent-replication.service.js';
+import { PortfolioReconciliationService } from './portfolio-reconciliation.service.js';
 import { EngineTransportService } from './engine-transport.service.js';
 import { RiskDecisionEngineService } from './risk-decision-engine.service.js';
 import { SubjectReferenceService } from './subject-reference.service.js';
@@ -54,6 +60,8 @@ import { UnderwritingCreditHistoryService } from './underwriting-credit-history.
      */
     SequelizeModule.forFeature([
       DecisionSubjectLinkModel,
+      // P-09: la cola duradera de réplica de consentimientos al motor.
+      DecisionConsentReplicationModel,
       FeatureDefinitionModel,
       FeatureValueModel,
       LoanOutcomeReportModel,
@@ -65,6 +73,10 @@ import { UnderwritingCreditHistoryService } from './underwriting-credit-history.
       IdentityVerificationAttemptModel,
       LoanModel,
       LoanInstallmentModel,
+      // Cumplimiento y fraude REALES (C-6), leídos por `UnderwritingSignalsService.complianceSignals` en vez de
+      // mandar `CLEAR`/`false` fijos: las coincidencias con listas restrictivas y los casos de fraude.
+      WatchlistMatchModel,
+      FraudCaseModel,
     ]),
   ],
   controllers: [DecisionArtifactBindingController],
@@ -82,6 +94,9 @@ import { UnderwritingCreditHistoryService } from './underwriting-credit-history.
     OutcomeDispatchService,
     FacilityRegistrationService,
     EngineTransportService,
+    ConsentReplicationStore,
+    ConsentReplicationService,
+    PortfolioReconciliationService,
   ],
   exports: [
     CreditDecisionEngineService,
@@ -89,6 +104,7 @@ import { UnderwritingCreditHistoryService } from './underwriting-credit-history.
     RiskDecisionEngineService,
     OutcomeDispatchService,
     FacilityRegistrationService,
+    PortfolioReconciliationService,
     SubjectReferenceService,
     DecisionEngineClient,
     // El worker de extractos del motor. Se exporta porque quien lo usa es el trabajo de fondo de

@@ -1,0 +1,98 @@
+{
+  "topic": "payment.rejected",
+  "valid": [
+    {
+      "name": "rechazo con motivo",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000031",
+        "topic": "payment.rejected",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 2
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "333.33",
+          "currencyCode": "BOB",
+          "decidedAt": "2026-09-24T12:00:00.000Z",
+          "aggregateVersion": 2,
+          "reason": "No veo la transferencia"
+        }
+      }
+    }
+  ],
+  "boundary": [
+    {
+      "name": "rechazo sin motivo (null)",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000032",
+        "topic": "payment.rejected",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 2
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "333.33",
+          "currencyCode": "BOB",
+          "decidedAt": "2026-09-24T12:00:00.000Z",
+          "aggregateVersion": 2,
+          "reason": null
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "sin reason",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000033",
+        "topic": "payment.rejected",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 2
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "333.33",
+          "currencyCode": "BOB",
+          "decidedAt": "2026-09-24T12:00:00.000Z",
+          "aggregateVersion": 2
+        }
+      }
+    }
+  ]
+}

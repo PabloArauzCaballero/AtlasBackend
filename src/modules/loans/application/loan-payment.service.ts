@@ -55,102 +55,114 @@ export class LoanPaymentService {
     body: RegisterPaymentDto;
     currentUser: AuthenticatedUser;
     idempotencyKey: string;
+    /**
+     * La transacción de quien llama, si el cobro es parte de un cambio mayor (P-08: confirmar un
+     * aviso de pago). Sin ella el cobro y el cambio de estado del aviso se confirmaban por
+     * separado, y una caída entre ambos dejaba el dinero aplicado con el aviso todavía «pendiente».
+     */
+    transaction?: Transaction;
   }) {
     const idempotencyKeyHash = sha256Hex(input.idempotencyKey);
+    if (input.transaction) return this.applyPayment(input, idempotencyKeyHash, input.transaction);
+    return this.sequelize.transaction((transaction) => this.applyPayment(input, idempotencyKeyHash, transaction));
+  }
 
-    return this.sequelize.transaction(async (transaction) => {
-      const duplicate = await this.loans.findPaymentByIdempotency(input.tenantId, idempotencyKeyHash, { transaction });
-      // La pasarela reintenta; el cobro no puede aplicarse dos veces por eso.
-      if (duplicate) return { paymentId: duplicate.id, paymentCode: duplicate.paymentCode, duplicated: true };
+  private async applyPayment(
+    input: { tenantId: string; loanId: string; body: RegisterPaymentDto; currentUser: AuthenticatedUser },
+    idempotencyKeyHash: string,
+    transaction: Transaction,
+  ) {
+    const duplicate = await this.loans.findPaymentByIdempotency(input.tenantId, idempotencyKeyHash, { transaction });
+    // La pasarela reintenta; el cobro no puede aplicarse dos veces por eso.
+    if (duplicate) return { paymentId: duplicate.id, paymentCode: duplicate.paymentCode, duplicated: true };
 
-      const loan = await this.loans.findLoanForUpdate(input.tenantId, input.loanId, transaction);
-      if (!loan) throw new NotFoundException('LOAN_NOT_FOUND');
-      if (loan.status !== 'active') throw new ConflictException('LOAN_NOT_COLLECTABLE');
-      if (loan.currencyCode !== input.body.currencyCode) throw new UnprocessableEntityException('CURRENCY_MISMATCH');
+    const loan = await this.loans.findLoanForUpdate(input.tenantId, input.loanId, transaction);
+    if (!loan) throw new NotFoundException('LOAN_NOT_FOUND');
+    if (loan.status !== 'active') throw new ConflictException('LOAN_NOT_COLLECTABLE');
+    if (loan.currencyCode !== input.body.currencyCode) throw new UnprocessableEntityException('CURRENCY_MISMATCH');
 
-      const installments = await this.loans.findCollectableInstallments(input.tenantId, loan.id, transaction);
-      const amountCents = toCents(input.body.amount);
-      const result = allocatePayment(amountCents, installments.map(outstandingOf));
-      if (result.unappliedCents > 0) throw new UnprocessableEntityException('PAYMENT_EXCEEDS_OUTSTANDING');
+    const installments = await this.loans.findCollectableInstallments(input.tenantId, loan.id, transaction);
+    const amountCents = toCents(input.body.amount);
+    const result = allocatePayment(amountCents, installments.map(outstandingOf));
+    if (result.unappliedCents > 0) throw new UnprocessableEntityException('PAYMENT_EXCEEDS_OUTSTANDING');
 
-      const receivedAt = input.body.receivedAt ? new Date(input.body.receivedAt) : new Date();
-      const payment = await this.loans.createPayment(
-        {
-          tenantId: input.tenantId,
-          loanId: loan.id,
-          paymentCode: createStableCode('PAY'),
-          amount: fromCents(amountCents),
-          currencyCode: input.body.currencyCode,
-          paymentMethod: input.body.paymentMethod,
-          externalReference: input.body.externalReference ?? null,
-          receivedAt,
-          status: 'applied',
-          registeredByInternalUserId: input.currentUser.internalUserId ?? null,
-          idempotencyKeyHash,
-          /*
-           * `_created_at` y `_deleted` son NOT NULL sin defecto en la tabla, y aquí no se asignaban:
-           * registrar un pago fallaba con «cannot be null» ANTES de tocar la base. El desembolso ya
-           * los ponía —`loan-disbursement.service.ts`—, así que el pago era el único camino roto:
-           * se podía prestar el dinero y no se podía cobrar.
-           *
-           * `createdAtValue` toma `receivedAt` y no `new Date()`: la fila debe fecharse cuando el
-           * dinero entró, no cuando el sistema lo anotó. En un pago retroactivo las dos fechas no
-           * coinciden, y la que importa para la mora es la primera.
-           */
-          createdAtValue: receivedAt,
-          deleted: false,
-        },
-        { transaction },
-      );
+    const receivedAt = input.body.receivedAt ? new Date(input.body.receivedAt) : new Date();
+    const payment = await this.loans.createPayment(
+      {
+        tenantId: input.tenantId,
+        loanId: loan.id,
+        paymentCode: createStableCode('PAY'),
+        amount: fromCents(amountCents),
+        currencyCode: input.body.currencyCode,
+        paymentMethod: input.body.paymentMethod,
+        externalReference: input.body.externalReference ?? null,
+        receivedAt,
+        status: 'applied',
+        registeredByInternalUserId: input.currentUser.internalUserId ?? null,
+        idempotencyKeyHash,
+        /*
+         * `_created_at` y `_deleted` son NOT NULL sin defecto en la tabla, y aquí no se asignaban:
+         * registrar un pago fallaba con «cannot be null» ANTES de tocar la base. El desembolso ya
+         * los ponía —`loan-disbursement.service.ts`—, así que el pago era el único camino roto:
+         * se podía prestar el dinero y no se podía cobrar.
+         *
+         * `createdAtValue` toma `receivedAt` y no `new Date()`: la fila debe fecharse cuando el
+         * dinero entró, no cuando el sistema lo anotó. En un pago retroactivo las dos fechas no
+         * coinciden, y la que importa para la mora es la primera.
+         */
+        createdAtValue: receivedAt,
+        deleted: false,
+      },
+      { transaction },
+    );
 
-      await this.loans.bulkCreateAllocations(
-        result.allocations.map((allocation) => ({
-          tenantId: input.tenantId,
-          loanPaymentId: payment.id,
-          loanInstallmentId: allocation.installmentId,
-          principalApplied: fromCents(allocation.principalCents),
-          interestApplied: fromCents(allocation.interestCents),
-          lateFeeApplied: fromCents(allocation.lateFeeCents),
-        })),
-        { transaction },
-      );
+    await this.loans.bulkCreateAllocations(
+      result.allocations.map((allocation) => ({
+        tenantId: input.tenantId,
+        loanPaymentId: payment.id,
+        loanInstallmentId: allocation.installmentId,
+        principalApplied: fromCents(allocation.principalCents),
+        interestApplied: fromCents(allocation.interestCents),
+        lateFeeApplied: fromCents(allocation.lateFeeCents),
+      })),
+      { transaction },
+    );
 
-      const byId = new Map(installments.map((installment) => [installment.id, installment]));
-      for (const allocation of result.allocations) {
-        const installment = byId.get(allocation.installmentId);
-        if (!installment) continue;
-        installment.paidPrincipal = fromCents(toCents(installment.paidPrincipal) + allocation.principalCents);
-        installment.paidInterest = fromCents(toCents(installment.paidInterest) + allocation.interestCents);
-        installment.paidLateFee = fromCents(toCents(installment.paidLateFee) + allocation.lateFeeCents);
-        const settled = isFullyPaid(installment);
-        installment.status = settled ? 'paid' : 'partially_paid';
-        installment.settledAt = settled ? receivedAt : null;
-        installment.updatedAtValue = receivedAt;
-        await installment.save({ transaction });
-      }
+    const byId = new Map(installments.map((installment) => [installment.id, installment]));
+    for (const allocation of result.allocations) {
+      const installment = byId.get(allocation.installmentId);
+      if (!installment) continue;
+      installment.paidPrincipal = fromCents(toCents(installment.paidPrincipal) + allocation.principalCents);
+      installment.paidInterest = fromCents(toCents(installment.paidInterest) + allocation.interestCents);
+      installment.paidLateFee = fromCents(toCents(installment.paidLateFee) + allocation.lateFeeCents);
+      const settled = isFullyPaid(installment);
+      installment.status = settled ? 'paid' : 'partially_paid';
+      installment.settledAt = settled ? receivedAt : null;
+      installment.updatedAtValue = receivedAt;
+      await installment.save({ transaction });
+    }
 
-      await this.applyTotalsToLoan(loan, transaction, receivedAt);
+    await this.applyTotalsToLoan(loan, transaction, receivedAt);
 
-      await this.loans.createEvent(
-        {
-          tenantId: input.tenantId,
-          loanId: loan.id,
-          eventType: 'payment_applied',
-          previousStatus: 'active',
-          newStatus: loan.status,
-          actorType: input.currentUser.role,
-          actorInternalUserId: input.currentUser.internalUserId ?? null,
-          payloadJson: { paymentCode: payment.paymentCode, amount: fromCents(amountCents) },
-          happenedAt: receivedAt,
-          // NOT NULL sin defecto, igual que en el pago: sin esto el evento revienta y con el se
-          // cae la transaccion entera, asi que el pago valido no llegaba a registrarse.
-          createdAtValue: receivedAt,
-        },
-        { transaction },
-      );
+    await this.loans.createEvent(
+      {
+        tenantId: input.tenantId,
+        loanId: loan.id,
+        eventType: 'payment_applied',
+        previousStatus: 'active',
+        newStatus: loan.status,
+        actorType: input.currentUser.role,
+        actorInternalUserId: input.currentUser.internalUserId ?? null,
+        payloadJson: { paymentCode: payment.paymentCode, amount: fromCents(amountCents) },
+        happenedAt: receivedAt,
+        // NOT NULL sin defecto, igual que en el pago: sin esto el evento revienta y con el se
+        // cae la transaccion entera, asi que el pago valido no llegaba a registrarse.
+        createdAtValue: receivedAt,
+      },
+      { transaction },
+    );
 
-      return { paymentId: payment.id, paymentCode: payment.paymentCode, duplicated: false, loanStatus: loan.status };
-    });
+    return { paymentId: payment.id, paymentCode: payment.paymentCode, duplicated: false, loanStatus: loan.status };
   }
 
   /**

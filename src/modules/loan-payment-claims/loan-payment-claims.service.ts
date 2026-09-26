@@ -6,6 +6,7 @@
 import { ConflictException, Injectable, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { InjectConnection } from '@nestjs/sequelize';
+import type { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { randomUUID } from 'node:crypto';
 import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
@@ -16,7 +17,14 @@ import { ExpedienteHooksService } from '../expedientes/application/expediente-ho
 import { EventsService } from '../events/events.service.js';
 
 import type { PaymentProofTicketDto, SubmitPaymentClaimDto } from './loan-payment-claims.schemas.js';
-import { assertMimeType, assertOwnCustomer, PaymentClaimsContextService, PENDIENTE } from './payment-claims.shared.js';
+import {
+  assertMimeType,
+  assertOwnCustomer,
+  INSTALLMENT_AGGREGATE,
+  nextInstallmentVersion,
+  PaymentClaimsContextService,
+  PENDIENTE,
+} from './payment-claims.shared.js';
 import type { AllowedEvidenceMimeType } from '../../common/storage/document-storage.service.js';
 
 @Injectable()
@@ -129,6 +137,12 @@ export class LoanPaymentClaimsService {
     const { input, loan, installment, metadata, contentType, partnerProfileId } = ctx;
     return this.sequelize.transaction(async (transaction) => {
       /*
+       * El préstamo se bloquea antes de escribir nada (P-08): la cuota se relee bajo el mismo
+       * cerrojo que toma el cobro, y la versión del evento sale de ahí, sin carreras.
+       */
+      await this.contexto.lockOpenInstallment(input.tenantId, String(loan.id), String(installment.id), transaction);
+
+      /*
        * Una cuota no puede tener DOS reclamos esperando. Lo impide tambien un indice unico, pero
        * comprobarlo aqui deja un error que se entiende en vez de una violacion de constraint.
        */
@@ -192,30 +206,7 @@ export class LoanPaymentClaimsService {
         { transaction },
       );
 
-      /*
-       * El aviso al comercio. Va por el outbox y no por una llamada directa: si la entrega falla
-       * —correo caido, comercio sin canal— el evento se reintenta, mientras que una llamada dentro
-       * de la transaccion la habria hecho fallar entera y el cliente habria perdido su aviso por un
-       * problema que no es suyo.
-       */
-      await this.events.publish({
-        tenantId: input.tenantId,
-        eventCode: 'payment.reported',
-        aggregateType: 'installment',
-        aggregateId: String(installment.id),
-        payload: {
-          claimId: String(claim.id),
-          claimCode: claim.claimCode,
-          partnerProfileId,
-          customerId: String(input.customerId),
-          amount: input.body.amount,
-          currencyCode: loan.currencyCode,
-          payerReference: input.body.payerReference ?? null,
-        },
-        idempotencyKey: claim.claimCode,
-        sourceModule: 'loan-payment-claims',
-        sourceAction: 'submit',
-      });
+      await this.publicarAviso({ input, loan, installmentId: String(installment.id), claim, partnerProfileId, transaction });
 
       return {
         claimId: String(claim.id),
@@ -228,5 +219,51 @@ export class LoanPaymentClaimsService {
     });
   }
 
-  /** El comercio al que hay que avisar: el que originó la operación. */
+  /**
+   * El aviso al comercio. Va por el outbox y no por una llamada directa: si la entrega falla
+   * —correo caido, comercio sin canal— el evento se reintenta, mientras que una llamada dentro de la
+   * transaccion la habria hecho fallar entera y el cliente habria perdido su aviso por un problema
+   * que no es suyo.
+   *
+   * Y va CON la transacción (P-08). Antes se llamaba dentro del callback pero sin pasarla, así que
+   * el evento se escribía por otra conexión en autocommit: si algo revertía el aviso después, el
+   * comercio recibía la notificación de un pago que no existía. La versión del agregado se lee bajo
+   * el cerrojo del préstamo que la transacción ya tiene.
+   */
+  private async publicarAviso(ctx: {
+    input: { tenantId: string; customerId: string; body: SubmitPaymentClaimDto };
+    loan: { id: unknown; currencyCode: string };
+    installmentId: string;
+    claim: LoanPaymentClaimModel;
+    partnerProfileId: string | null;
+    transaction: Transaction;
+  }): Promise<void> {
+    const { input, loan, installmentId, claim, partnerProfileId, transaction } = ctx;
+    const aggregateVersion = await nextInstallmentVersion(this.sequelize, { tenantId: input.tenantId, installmentId }, transaction);
+    await this.events.publish(
+      {
+        tenantId: input.tenantId,
+        eventCode: 'payment.reported',
+        aggregateType: INSTALLMENT_AGGREGATE,
+        aggregateId: installmentId,
+        aggregateVersion,
+        payload: {
+          claimId: String(claim.id),
+          claimCode: claim.claimCode,
+          loanId: String(loan.id),
+          installmentId,
+          partnerProfileId,
+          customerId: String(input.customerId),
+          amount: input.body.amount,
+          currencyCode: loan.currencyCode,
+          payerReference: input.body.payerReference ?? null,
+          aggregateVersion,
+        },
+        idempotencyKey: claim.claimCode,
+        sourceModule: 'loan-payment-claims',
+        sourceAction: 'submit',
+      },
+      { transaction },
+    );
+  }
 }

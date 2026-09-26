@@ -100,6 +100,31 @@ describe('RiskPolicyDecisionService', () => {
       expect(decision.fromRuleset).toBe(false);
     });
 
+    /**
+     * C-5: el Motor RESPONDIÓ pero sin veredicto (`NO_DECISION`). No es «el Motor no respondió», y
+     * escribir `heuristic_v0` mentiría sobre el origen: dos poblaciones distintas quedarían mezcladas.
+     */
+    it('un NO_DECISION del Motor queda como engine_no_decision, con su ejecución, no como heuristic_v0', async () => {
+      const { service } = build(null, {
+        decision: 'manual_review_required',
+        reasons: ['VARIABLE_MISSING_OR_INVALID'],
+        artifactVersionId: '4001',
+        executionId: '88002',
+        manualReviewCaseCode: null,
+        noDecision: true,
+        engineOutcome: null,
+      });
+
+      const decision = await service.resolve(input);
+
+      expect(decision.decisionSource).toBe('engine_no_decision');
+      expect(decision.decisionSource).not.toBe('heuristic_v0');
+      expect(decision.decisionExecutionId).toBe('88002');
+      expect(decision.fromRuleset).toBe(false);
+      // No hay caso del Motor: Atlas abre el suyo, como siempre que el Motor no lo abrió.
+      expect(decision.motorAbrioCaso).toBeNull();
+    });
+
     it('si el motor no responde, baja al escalón local y lo deja escrito', async () => {
       const { service } = build(null, null);
 

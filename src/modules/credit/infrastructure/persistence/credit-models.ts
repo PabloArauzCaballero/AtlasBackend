@@ -9,6 +9,7 @@ import {
   BankStatementReviewModel,
   CreditApplicationEventModel,
   CreditApplicationModel,
+  CreditExposureReservationModel,
   CreditLineModel,
   CreditProductModel,
 } from '../../../../database/models/index.js';
@@ -19,4 +20,6 @@ export const CREDIT_MODELS = [
   CreditApplicationEventModel,
   CreditLineModel,
   BankStatementReviewModel,
+  // P-11: la reserva del cupo de la línea es de Crédito, igual que la línea que limita.
+  CreditExposureReservationModel,
 ] as const;

@@ -4,6 +4,7 @@
  * @system registra definiciones, outbox y procesamiento idempotente de eventos de dominio.
  */
 import { BadRequestException, ConflictException, Injectable, Logger, Optional } from '@nestjs/common';
+import type { Transaction } from 'sequelize';
 import { env } from '../../config/env.js';
 import { OutboxRelayService } from '../../platform/events/outbox-relay.service.js';
 import { decodeCursor, paginateWithCursor } from '../../common/utils/pagination/cursor-pagination.util.js';
@@ -65,13 +66,17 @@ export class EventsService {
     return listEventDefinitions();
   }
 
-  async publish(input: PublishEventInput) {
+  /**
+   * Publica en el outbox. Quien llama desde una transacción de negocio DEBE pasarla: sólo así el
+   * evento existe si y sólo si el cambio que describe se confirma (P-08).
+   */
+  async publish(input: PublishEventInput, options: { transaction?: Transaction } = {}) {
     const definition = getEventDefinition(input.eventCode);
     if (!definition) throw new BadRequestException(`EVENT_NOT_REGISTERED: ${input.eventCode}`);
     if (!definition.allowedAggregateTypes.includes(input.aggregateType)) {
       throw new BadRequestException(`EVENT_AGGREGATE_NOT_ALLOWED: ${input.eventCode} cannot use ${input.aggregateType}`);
     }
-    const event = await this.repository.createEvent(input);
+    const event = await this.repository.createEvent(input, options);
     return eventToResponse(event);
   }
 

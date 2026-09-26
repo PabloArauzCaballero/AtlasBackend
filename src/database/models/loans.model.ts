@@ -117,6 +117,13 @@ export class LoanModel extends Model {
   @Column({ field: 'decision_facility_registered_at', type: DataType.DATE })
   declare decisionFacilityRegisteredAt: Date | null;
 
+  /** El motor rechazó el alta por una causa que reintentar no arregla; sale de la cola con su código. */
+  @Column({ field: 'decision_facility_rejected_at', type: DataType.DATE })
+  declare decisionFacilityRejectedAt: Date | null;
+
+  @Column({ field: 'decision_facility_rejection_code', type: DataType.STRING(60) })
+  declare decisionFacilityRejectionCode: string | null;
+
   @Column({ field: 'decision_subject_reference', type: DataType.STRING(128) })
   declare decisionSubjectReference: string | null;
 

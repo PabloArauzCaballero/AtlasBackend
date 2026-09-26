@@ -1,0 +1,111 @@
+{
+  "topic": "b2b.recovery.payment_applied",
+  "valid": [
+    {
+      "name": "pago de recuperación parcial",
+      "envelope": {
+        "spec": "atlas.erp.outbox/1",
+        "eventKey": "recovery-movement-00000000-0000-4000-8000-000000000108",
+        "topic": "b2b.recovery.payment_applied",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "consumer_recovery",
+          "id": "00000000-0000-4000-8000-000000000107",
+          "version": 2
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-erp",
+        "payload": {
+          "recoveryId": "00000000-0000-4000-8000-000000000107",
+          "installmentId": "00000000-0000-4000-8000-000000000102",
+          "consumerId": "00000000-0000-4000-8000-000000000105",
+          "movementId": "00000000-0000-4000-8000-000000000108",
+          "movementType": "PAYMENT",
+          "paymentReference": "REC-FIXTURE-0001",
+          "amount": "100.00",
+          "currency": "BOB",
+          "amountRecovered": "100.00",
+          "recoveryStatus": "PARTIALLY_RECOVERED",
+          "coreRef": {
+            "tenantId": "900001",
+            "loanId": "910001",
+            "installmentId": "920001",
+            "partnerProfileId": "930001"
+          }
+        }
+      }
+    }
+  ],
+  "boundary": [
+    {
+      "name": "recuperación total",
+      "envelope": {
+        "spec": "atlas.erp.outbox/1",
+        "eventKey": "recovery-movement-00000000-0000-4000-8000-000000000109",
+        "topic": "b2b.recovery.payment_applied",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "consumer_recovery",
+          "id": "00000000-0000-4000-8000-000000000107",
+          "version": 3
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-erp",
+        "payload": {
+          "recoveryId": "00000000-0000-4000-8000-000000000107",
+          "installmentId": "00000000-0000-4000-8000-000000000102",
+          "consumerId": "00000000-0000-4000-8000-000000000105",
+          "movementId": "00000000-0000-4000-8000-000000000109",
+          "movementType": "PAYMENT",
+          "paymentReference": "REC-FIXTURE-0001",
+          "amount": "200.00",
+          "currency": "BOB",
+          "amountRecovered": "300.00",
+          "recoveryStatus": "RECOVERED",
+          "coreRef": {
+            "tenantId": "900001",
+            "loanId": "910001",
+            "installmentId": "920001",
+            "partnerProfileId": "930001"
+          }
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "estado de recuperación desconocido",
+      "envelope": {
+        "spec": "atlas.erp.outbox/1",
+        "eventKey": "recovery-movement-00000000-0000-4000-8000-000000000131",
+        "topic": "b2b.recovery.payment_applied",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "consumer_recovery",
+          "id": "00000000-0000-4000-8000-000000000107",
+          "version": 4
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-erp",
+        "payload": {
+          "recoveryId": "00000000-0000-4000-8000-000000000107",
+          "installmentId": "00000000-0000-4000-8000-000000000102",
+          "consumerId": "00000000-0000-4000-8000-000000000105",
+          "movementId": "00000000-0000-4000-8000-000000000131",
+          "movementType": "PAYMENT",
+          "paymentReference": "REC-FIXTURE-0001",
+          "amount": "100.00",
+          "currency": "BOB",
+          "amountRecovered": "100.00",
+          "recoveryStatus": "CLOSED",
+          "coreRef": {
+            "tenantId": "900001",
+            "loanId": "910001",
+            "installmentId": "920001",
+            "partnerProfileId": "930001"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -28,6 +28,21 @@ Una sola imagen, tres roles. Ver [ADR-0006](../adr/0006-separacion-de-roles-api-
 Readiness responde **503 durante el drenado** por SIGTERM. Es lo que retira la instancia del
 balanceador antes de que se cierre, y por eso `SHUTDOWN_DRAIN_MS` debe superar el intervalo del probe.
 
+## Validación de DEV después de desplegar
+
+El workflow espera a que Coolify termine con el SHA validado por CI. Después consulta el dominio
+`api` registrado en Coolify y exige respuestas sanas de liveness, readiness y `/api/v1/health`.
+El campo `commit` de esa última respuesta debe coincidir exactamente con el SHA de CI. Coolify
+proporciona `SOURCE_COMMIT` al contenedor y la imagen incluye `package.json` para publicar la
+versión real. Si el dominio de `api` no está registrado en Coolify, configure la variable de
+repositorio `DEV_SMOKE_BASE_URL` con su URL HTTP(S) pública; sin dominio verificable el job falla.
+
+La misma comprobación puede ejecutarse contra un entorno ya publicado:
+
+```bash
+SMOKE_BASE_URL=https://api.atlas.local TARGET_SHA=<sha-completo> node scripts/post-deploy-smoke.mjs
+```
+
 ## Comprobaciones rápidas
 
 ```bash

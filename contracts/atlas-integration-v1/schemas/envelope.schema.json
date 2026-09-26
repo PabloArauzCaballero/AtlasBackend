@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.atlas.internal/atlas-integration-v1/envelope.schema.json",
+  "title": "Sobre de evento entre servicios (ERP ↔ Core)",
+  "description": "Cuerpo del POST firmado. Estable entre reintentos: el mismo evento produce byte a byte el mismo sobre salvo la firma y la cabecera de intento.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["spec", "eventKey", "topic", "schemaVersion", "aggregate", "occurredAt", "producer", "payload"],
+  "properties": {
+    "spec": { "enum": ["atlas.erp.outbox/1", "atlas.core.outbox/1"] },
+    "eventKey": {
+      "description": "Clave de idempotencia: el consumidor la guarda con unicidad junto al efecto.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "topic": { "type": "string", "maxLength": 120, "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)+$" },
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "version"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "id": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "occurredAt": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "producer": { "enum": ["atlas-erp", "atlas-core"] },
+    "tenantId": {
+      "description": "Sólo en sobres de Core: el tenant de Core al que pertenece el agregado.",
+      "$ref": "common.schema.json#/$defs/coreId"
+    },
+    "payload": { "type": "object" }
+  }
+}

@@ -47,8 +47,15 @@ export class AdapterError extends Error {
 
 const RETRYABLE_HTTP_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 
+/**
+ * Por forma y no por `instanceof Error`: el `DOMException` que lanza `fetch` al abortar viene de otro
+ * «realm» en algunos entornos (el de pruebas, por ejemplo) y ahí `instanceof Error` es falso, así que
+ * un plazo vencido se clasificaba `UNKNOWN` —no reintentable— en vez de `TIMEOUT`.
+ */
 function isAbortError(error: unknown): boolean {
-  return error instanceof Error && (error.name === 'AbortError' || /aborted/i.test(error.message));
+  const candidate = error as { name?: unknown; message?: unknown } | null;
+  if (!candidate || typeof candidate !== 'object') return false;
+  return candidate.name === 'AbortError' || (typeof candidate.message === 'string' && /aborted/i.test(candidate.message));
 }
 
 function isNetworkError(error: unknown): boolean {

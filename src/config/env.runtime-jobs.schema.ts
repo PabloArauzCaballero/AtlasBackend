@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import { optionalLongSecretEnvSchema, booleanEnvSchema, optionalUrlEnvSchema } from './env.primitives.js';
+import { qaEnvShape } from './env.qa.schema.js';
 
 /**
  * Configuración del trabajo de fondo: qué se ejecuta solo, cada cuánto y dónde se entrega.
@@ -134,6 +135,14 @@ export const runtimeJobsEnvShape = {
   // Cuánto antes del vencimiento del compromiso se escala la revisión pendiente.
   RUNTIME_JOBS_BANK_STATEMENT_ESCALATE_BEFORE_MINUTES: z.coerce.number().int().min(5).max(1_440).default(240),
 
+  // Solicitudes de crédito atascadas en `submitted` (C-2): el submit confirma la solicitud y DESPUÉS
+  // pregunta al motor, y si el proceso muere en medio la fila bloquea al cliente para siempre por el
+  // índice único de solicitud abierta. Cada 5 minutos; la gracia (15 por defecto) evita pisar a un
+  // submit que todavía espera al motor, y el tope acota las llamadas al motor por pasada.
+  RUNTIME_JOBS_CREDIT_RECONCILE_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
+  RUNTIME_JOBS_CREDIT_SUBMITTED_GRACE_MINUTES: z.coerce.number().int().min(5).max(1_440).default(15),
+  RUNTIME_JOBS_CREDIT_RECONCILE_LIMIT: z.coerce.number().int().min(1).max(200).default(20),
+
   // Vigilancia de los compromisos de atención del soporte (`support_sla_clocks`). Mismo defecto que
   // tuvo la mora: `sweepBreaches` estaba completo y colgaba EXCLUSIVAMENTE de
   // `POST internal/support/desk/sla/sweep`, que no llamaba nadie. Auditoría del 2026-09-05 sobre el
@@ -181,8 +190,15 @@ export const runtimeJobsEnvShape = {
   // Apagado por defecto y a conciencia: este job genera TRÁFICO HTTP real contra un objetivo
   // registrado. Un entorno que lo encienda sin querer empieza a golpear su propio backend. Se
   // enciende donde se decidió correr carga, no por omisión.
+  // `booleanEnvSchema` y no `z.coerce.boolean()`: éste convierte la CADENA "false" en `true`
+  // (`Boolean("false")`), así que el `${RUNTIME_JOBS_STRESS_CONSUMER_ENABLED:-false}` del compose
+  // encendía el consumidor en todo entorno que lo declarara apagado.
   RUNTIME_JOBS_STRESS_CONSUMER_ENABLED: booleanEnvSchema,
   RUNTIME_JOBS_STRESS_CONSUMER_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
   /** Tope de duración de una tanda del consumidor. Corta la corrida aunque el plan pida más. */
   RUNTIME_JOBS_STRESS_CONSUMER_MAX_RUN_MS: z.coerce.number().int().positive().default(600_000),
+
+  // Corridas QA de N personas: su consumidor es otro trabajo de fondo que genera tráfico, y viaja
+  // con la identidad del entorno y los topes que lo gobiernan. Ver `env.qa.schema.ts`.
+  ...qaEnvShape,
 } as const;

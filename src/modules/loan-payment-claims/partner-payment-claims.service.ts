@@ -4,7 +4,9 @@
  * @system resuelve la cola de avisos, sirve el comprobante y, al verificarse, registra el pago real.
  */
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/sequelize';
+import { InjectConnection, InjectModel } from '@nestjs/sequelize';
+import type { Transaction } from 'sequelize';
+import { Sequelize } from 'sequelize-typescript';
 
 import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
@@ -15,7 +17,7 @@ import { PartnerProfileService } from '../partner-onboarding/application/partner
 import { EventsService } from '../events/events.service.js';
 import { assertOwnPartnerResource } from '../../common/utils/auth/ownership.util.js';
 import type { DecidePaymentClaimDto } from './loan-payment-claims.schemas.js';
-import { PENDIENTE } from './payment-claims.shared.js';
+import { INSTALLMENT_AGGREGATE, nextInstallmentVersion, PaymentClaimsContextService, PENDIENTE } from './payment-claims.shared.js';
 
 /**
  * El lado del COMERCIO, separado del lado del cliente.
@@ -34,6 +36,8 @@ export class PartnerPaymentClaimsService {
     private readonly payments: LoanPaymentService,
     private readonly partners: PartnerProfileService,
     private readonly events: EventsService,
+    @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly contexto: PaymentClaimsContextService,
   ) {}
 
   /** Lo que este comercio tiene esperando que confirme. */
@@ -116,6 +120,20 @@ export class PartnerPaymentClaimsService {
    * Verificar registra el pago de verdad reutilizando `LoanPaymentService`, que es quien sabe
    * repartirlo entre capital, interés y mora y quien controla la idempotencia. Duplicar ese reparto
    * aquí habría creado una segunda forma de cobrar que se desincroniza de la primera.
+   *
+   * ## Una sola transacción (P-08, 2026-09-24)
+   *
+   * Antes eran tres escrituras sueltas: el cobro en su propia transacción, el cambio de estado del
+   * aviso en otra y el evento —por `EventsService`, que no recibía transacción— en una tercera. Una
+   * caída entre ellas dejaba el dinero aplicado con el aviso «pendiente» o, al revés, el cliente
+   * avisado de una confirmación cuyo cobro no existía. Ahora aviso, cobro, cuota y evento se
+   * confirman juntos o no se confirma ninguno.
+   *
+   * El aviso se lee con `FOR UPDATE` y después se bloquea el préstamo: dos confirmaciones
+   * simultáneas se ORDENAN, y la segunda encuentra el aviso ya decidido (409) en vez de cobrar otra
+   * vez. Una confirmación sobre una cuota que otro cobro ya saldó se rechaza con
+   * `INSTALLMENT_ALREADY_PAID` sin tocar nada: el comercio decide si devuelve ese dinero o lo
+   * rechaza con motivo; aplicarlo solo a la cuota siguiente sería decidir un prepago por el cliente.
    */
   async decide(input: {
     tenantId: string;
@@ -127,78 +145,107 @@ export class PartnerPaymentClaimsService {
     const profile = await this.partners.requireProfile(input.tenantId, input.partnerProfileId);
     assertOwnPartnerResource(input.currentUser, profile.ownerMerchantUserId);
 
-    const claim = await this.claims.findOne({
-      where: { tenantId: input.tenantId, id: input.claimId, deleted: false },
-    });
-    if (!claim) throw new NotFoundException('PAYMENT_CLAIM_NOT_FOUND');
-    if (String(claim.partnerProfileId) !== String(input.partnerProfileId)) {
-      throw new ForbiddenException('El comprobante no llegó a este comercio.');
-    }
-    if (claim.status !== PENDIENTE) throw new ConflictException('PAYMENT_CLAIM_NOT_PENDING');
-
-    const now = new Date();
-
-    if (!input.body.verified) {
-      await claim.update({
-        status: 'rejected',
-        decidedAt: now,
-        decidedByMerchantUserId: input.currentUser.merchantUserId ?? null,
-        rejectionReason: input.body.reason ?? null,
+    return this.sequelize.transaction(async (transaction) => {
+      const claim = await this.claims.findOne({
+        where: { tenantId: input.tenantId, id: input.claimId, deleted: false },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
       });
-      await this.publicarDecision(input.tenantId, claim, 'payment.rejected', { reason: input.body.reason ?? null });
-      return { claimId: String(claim.id), status: claim.status, loanPaymentId: null };
-    }
+      if (!claim) throw new NotFoundException('PAYMENT_CLAIM_NOT_FOUND');
+      if (String(claim.partnerProfileId) !== String(input.partnerProfileId)) {
+        throw new ForbiddenException('El comprobante no llegó a este comercio.');
+      }
+      if (claim.status !== PENDIENTE) throw new ConflictException('PAYMENT_CLAIM_NOT_PENDING');
 
-    const registrado = await this.payments.registerPayment({
-      tenantId: input.tenantId,
-      loanId: String(claim.loanId),
-      body: {
-        amount: claim.claimedAmount,
-        currencyCode: claim.currencyCode,
-        paymentMethod: 'bank_transfer',
-        externalReference: claim.payerReference ?? claim.claimCode,
-      } as never,
-      currentUser: input.currentUser,
-      /* El codigo del reclamo ES la clave de idempotencia: verificar dos veces no cobra dos veces. */
-      idempotencyKey: claim.claimCode,
-    });
+      const now = new Date();
+      const decidedBy = input.currentUser.merchantUserId ?? null;
 
-    await claim.update({
-      status: 'verified',
-      decidedAt: now,
-      decidedByMerchantUserId: input.currentUser.merchantUserId ?? null,
-      loanPaymentId: String(registrado.paymentId),
-    });
+      if (!input.body.verified) {
+        await this.contexto.lockLoan(input.tenantId, String(claim.loanId), transaction);
+        await claim.update(
+          { status: 'rejected', decidedAt: now, decidedByMerchantUserId: decidedBy, rejectionReason: input.body.reason ?? null },
+          { transaction },
+        );
+        await this.publicarDecision({
+          tenantId: input.tenantId,
+          claim,
+          eventCode: 'payment.rejected',
+          extra: { reason: input.body.reason ?? null },
+          transaction,
+        });
+        return { claimId: String(claim.id), status: claim.status, loanPaymentId: null };
+      }
 
-    await this.publicarDecision(input.tenantId, claim, 'payment.confirmed', {
-      loanPaymentId: String(registrado.paymentId),
+      await this.contexto.lockOpenInstallment(input.tenantId, String(claim.loanId), String(claim.installmentId), transaction);
+      const registrado = await this.payments.registerPayment({
+        tenantId: input.tenantId,
+        loanId: String(claim.loanId),
+        body: {
+          amount: claim.claimedAmount,
+          currencyCode: claim.currencyCode,
+          paymentMethod: 'bank_transfer',
+          externalReference: claim.payerReference ?? claim.claimCode,
+        } as never,
+        currentUser: input.currentUser,
+        /* El codigo del reclamo ES la clave de idempotencia: verificar dos veces no cobra dos veces. */
+        idempotencyKey: claim.claimCode,
+        transaction,
+      });
+
+      await claim.update(
+        { status: 'verified', decidedAt: now, decidedByMerchantUserId: decidedBy, loanPaymentId: String(registrado.paymentId) },
+        { transaction },
+      );
+      await this.publicarDecision({
+        tenantId: input.tenantId,
+        claim,
+        eventCode: 'payment.confirmed',
+        extra: { loanPaymentId: String(registrado.paymentId) },
+        transaction,
+      });
+      return { claimId: String(claim.id), status: claim.status, loanPaymentId: String(registrado.paymentId) };
     });
-    return { claimId: String(claim.id), status: claim.status, loanPaymentId: String(registrado.paymentId) };
   }
 
-  /** La decisión del comercio, avisada al cliente por el mismo camino que su aviso llegó aquí. */
-  private async publicarDecision(
-    tenantId: string,
-    claim: LoanPaymentClaimModel,
-    eventCode: 'payment.confirmed' | 'payment.rejected',
-    extra: Record<string, unknown>,
-  ): Promise<void> {
-    await this.events.publish({
-      tenantId,
-      eventCode,
-      aggregateType: 'installment',
-      aggregateId: String(claim.installmentId),
-      payload: {
-        claimId: String(claim.id),
-        claimCode: claim.claimCode,
-        customerId: String(claim.customerId),
-        amount: claim.claimedAmount,
-        currencyCode: claim.currencyCode,
-        ...extra,
+  /**
+   * La decisión del comercio, avisada al cliente por el mismo camino que su aviso llegó aquí, y
+   * hacia quien concilia la cuota: con su versión de agregado y DENTRO de la transacción.
+   */
+  private async publicarDecision(ctx: {
+    tenantId: string;
+    claim: LoanPaymentClaimModel;
+    eventCode: 'payment.confirmed' | 'payment.rejected';
+    extra: Record<string, unknown>;
+    transaction: Transaction;
+  }): Promise<void> {
+    const { tenantId, claim, eventCode, extra, transaction } = ctx;
+    const installmentId = String(claim.installmentId);
+    const aggregateVersion = await nextInstallmentVersion(this.sequelize, { tenantId, installmentId }, transaction);
+    await this.events.publish(
+      {
+        tenantId,
+        eventCode,
+        aggregateType: INSTALLMENT_AGGREGATE,
+        aggregateId: installmentId,
+        aggregateVersion,
+        payload: {
+          claimId: String(claim.id),
+          claimCode: claim.claimCode,
+          loanId: String(claim.loanId),
+          installmentId,
+          customerId: String(claim.customerId),
+          partnerProfileId: claim.partnerProfileId ? String(claim.partnerProfileId) : null,
+          amount: claim.claimedAmount,
+          currencyCode: claim.currencyCode,
+          decidedAt: claim.decidedAt,
+          aggregateVersion,
+          ...extra,
+        },
+        idempotencyKey: `${claim.claimCode}-${eventCode}`,
+        sourceModule: 'loan-payment-claims',
+        sourceAction: 'decide',
       },
-      idempotencyKey: `${claim.claimCode}-${eventCode}`,
-      sourceModule: 'loan-payment-claims',
-      sourceAction: 'decide',
-    });
+      { transaction },
+    );
   }
 }

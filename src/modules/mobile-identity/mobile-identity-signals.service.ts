@@ -8,6 +8,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DecisionArtifactBindingService } from '../decision-engine/decision-artifact-binding.service.js';
 import { DecisionEngineClient } from '../decision-engine/decision-engine.client.js';
 import { MobileIdentityRepository } from './mobile-identity.repository.js';
+import { normalizeIdentityResult } from '../../common/utils/identity/identity-result.util.js';
 import { CustomerContactsSnapshotService } from '../customer-onboarding/application/customer-contacts-snapshot.service.js';
 import type { ContactsSnapshotFeatures } from '../customer-onboarding/customer-contacts-snapshot.schemas.js';
 import { OnboardingBehaviorSummaryService } from '../customer-telemetry/application/onboarding-behavior-summary.service.js';
@@ -141,7 +142,7 @@ export class MobileIdentitySignalsService {
     try {
       const intento = await this.repository.findLatestOnboardingAttempt(tenantId, customerId);
       if (!intento) return { estado: 'NO_CONSULTADO', coincidencia: 0 };
-      const resultado = String(intento.finalResult ?? '').toLowerCase();
+      const resultado = normalizeIdentityResult(intento.finalResult);
       if (resultado === 'verified') return { estado: 'FOUND', coincidencia: 1 };
       if (resultado === 'rejected') return { estado: 'NOT_FOUND', coincidencia: 0 };
       return { estado: 'PENDING', coincidencia: 0 };

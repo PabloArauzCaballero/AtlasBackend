@@ -7,6 +7,7 @@ import type { EntityBusinessNarrative } from './entity-narrative.types.js';
 import { AUDIT_QUALITY_NARRATIVES } from './audit-quality.fixtures.js';
 import { COMMUNICATION_NARRATIVES } from './communications.fixtures.js';
 import { CONTEXT_CATALOG_NARRATIVES } from './context-catalogs.fixtures.js';
+import { CREDIT_CONTROL_NARRATIVES } from './credit-controls.fixtures.js';
 import { CREDIT_LIFECYCLE_NARRATIVES } from './credit-lifecycle.fixtures.js';
 import { CREDIT_RATING_NARRATIVES } from './credit-rating.fixtures.js';
 import { DATA_NOTEBOOK_NARRATIVES } from './data-notebook.fixtures.js';
@@ -14,6 +15,7 @@ import { CUSTOMER_IDENTITY_NARRATIVES } from './customer-identity.fixtures.js';
 import { DEVICE_INTELLIGENCE_NARRATIVES } from './device-intelligence.fixtures.js';
 import { EVIDENCE_NARRATIVES } from './evidence.fixtures.js';
 import { EXPEDIENTE_NARRATIVES } from './expedientes.fixtures.js';
+import { ERP_INTEGRATION_NARRATIVES } from './erp-integration.fixtures.js';
 import { EXTERNAL_PROVIDER_NARRATIVES } from './external-providers.fixtures.js';
 import { FRAUD_REVIEW_NARRATIVES } from './fraud-review.fixtures.js';
 import { LOAN_BOOK_NARRATIVES } from './loan-book.fixtures.js';
@@ -25,6 +27,7 @@ import { SYSTEMS_GOVERNANCE_NARRATIVES } from './systems-governance.fixtures.js'
 import { PARTNER_ONBOARDING_NARRATIVES } from './partner-onboarding.fixtures.js';
 import { SUPPORT_SERVICE_MANAGEMENT_NARRATIVES } from './support-service-management.fixtures.js';
 import { FLOW_INTELLIGENCE_NARRATIVES } from './flow-intelligence.fixtures.js';
+import { QA_ORCHESTRATION_NARRATIVES } from './qa-orchestration.fixtures.js';
 import { WORKFLOW_CATALOG_NARRATIVES } from './workflow-catalog.fixtures.js';
 
 export type { EntityBusinessNarrative } from './entity-narrative.types.js';
@@ -33,6 +36,8 @@ export type { EntityBusinessNarrative } from './entity-narrative.types.js';
 export const ENTITY_BUSINESS_NARRATIVES: readonly EntityBusinessNarrative[] = [
   ...PLATFORM_ACCESS_NARRATIVES,
   ...CUSTOMER_IDENTITY_NARRATIVES,
+  ...CREDIT_CONTROL_NARRATIVES,
+  ...ERP_INTEGRATION_NARRATIVES,
   ...PRIVACY_CONSENT_NARRATIVES,
   ...EVIDENCE_NARRATIVES,
   ...EXPEDIENTE_NARRATIVES,
@@ -53,6 +58,7 @@ export const ENTITY_BUSINESS_NARRATIVES: readonly EntityBusinessNarrative[] = [
   ...PARTNER_ONBOARDING_NARRATIVES,
   ...SUPPORT_SERVICE_MANAGEMENT_NARRATIVES,
   ...FLOW_INTELLIGENCE_NARRATIVES,
+  ...QA_ORCHESTRATION_NARRATIVES,
 ];
 
 /**

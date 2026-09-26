@@ -18,6 +18,7 @@ import { CustomerOnboardingRepository } from '../customer-onboarding.repository.
 import { CustomerProfileDataRepository } from '../repositories/customer-profile-data.repository.js';
 import { CustomerVerificationRepository } from '../repositories/customer-verification.repository.js';
 import { resolveIdentityOutcome } from './identity-verification-outcome.js';
+import { isIdentityVerified } from '../../../common/utils/identity/identity-result.util.js';
 
 /**
  * Verificación automática de identidad contra el proveedor externo (SEGIP).
@@ -61,7 +62,10 @@ export class CustomerIdentityProviderVerificationService {
 
     const attempt = await this.verificationRepository.findLatestAttempt(input.tenantId, input.customerId);
     if (!attempt) throw new UnprocessableEntityException('IDENTITY_PACKAGE_REQUIRED');
-    if (attempt.finalResult === 'verified') throw new UnprocessableEntityException('IDENTITY_ALREADY_VERIFIED');
+    // `finalResult` puede llegar en mayúsculas si el último intento fue del canal móvil (I-1): sin
+    // normalizar, esta guarda no detectaba que ya estaba verificado y dejaba pasar una verificación
+    // duplicada contra el proveedor.
+    if (isIdentityVerified(attempt.finalResult)) throw new UnprocessableEntityException('IDENTITY_ALREADY_VERIFIED');
 
     const document = await this.verificationRepository.findLatestIdentityDocument(input.tenantId, input.customerId);
     if (!document) throw new UnprocessableEntityException('IDENTITY_PACKAGE_REQUIRED');
