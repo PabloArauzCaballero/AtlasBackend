@@ -15,12 +15,14 @@ import {
   percentile,
   policyNumber,
   productionIntegrationBlockers,
+  executionModeFor,
   providerModeFromEnv,
   round2,
   statusFromRaw,
   toMode,
   toProviderCode,
 } from '../../../src/modules/external-data/application/external-data-policy.util.js';
+import { runWithQaContext } from '../../../src/platform/security/qa-execution-context.js';
 
 /**
  * `external-data-policy.util` (Fase 1.2 — branch coverage): util puro y muy denso en ramas
@@ -83,6 +85,15 @@ describe('external-data-policy.util', () => {
     expect(providerModeFromEnv('SEGIP', 'sandbox')).toBe('sandbox');
     setEnv('SEGIP_MODE', 'production');
     expect(providerModeFromEnv('SEGIP', 'sandbox')).toBe('production');
+  });
+
+  it('executionModeFor: dentro de una corrida QA el mock en proceso pasa al servidor de mocks; fuera, nada cambia', () => {
+    const qa = { tenantId: '1', runId: '9', runToken: 't', personaKey: 'p-0001', logicalOperationId: 'op', attempt: 1 };
+    expect(executionModeFor('WHATSAPP_GENERIC', 'mock_local')).toBe('mock_local');
+    expect(runWithQaContext(qa, () => executionModeFor('WHATSAPP_GENERIC', 'mock_local'))).toBe('mock_server');
+    expect(runWithQaContext(qa, () => executionModeFor('WHATSAPP_GENERIC', 'disabled'))).toBe('disabled');
+    setEnv('SEGIP_MODE', 'production');
+    expect(runWithQaContext(qa, () => executionModeFor('SEGIP', 'mock_local'))).toBe('production');
   });
 
   it('mockBaseUrlFor: url explícita > base+path conocido > base+path derivado', () => {

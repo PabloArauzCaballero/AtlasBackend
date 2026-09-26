@@ -4,6 +4,7 @@
  * @system enumera, por schema, las tablas que componen el esquema físico del backend.
  */
 import { ATLAS_SCHEMAS, type AtlasSchema } from './atlas-schemas.js';
+import { QA_ORCHESTRATION_TABLES } from './qa-orchestration-tables.js';
 
 /**
  * Sale de `domain-schemas.ts` porque es una LISTA que crece con cada dominio y no tiene techo
@@ -231,6 +232,7 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'system_test_runs',
     'system_test_step_runs',
     'system_action_logs',
+    ...QA_ORCHESTRATION_TABLES,
     // Flujos (Flow Intelligence): catálogo derivado del código, regenerable desde el artefacto.
     'system_flow_catalog',
     'system_screen_catalog',

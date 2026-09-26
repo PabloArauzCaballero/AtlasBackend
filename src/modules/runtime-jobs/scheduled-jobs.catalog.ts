@@ -69,6 +69,8 @@ export function buildScheduledJobs(deps: {
   stressRuns: { drain: () => Promise<unknown> };
   /** P-14: entrega de `payment.*` al ERP; opcional (sólo corre con receptor configurado). */
   erpEvents?: { deliver: (tenantId: string) => Promise<unknown> };
+  /** Consumidor de las corridas QA de N personas (`systems_qa_journey_run`). */
+  qaRuns: { drain: () => Promise<unknown> };
 }): ScheduledJob[] {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
   const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements, supportSla } = deps;

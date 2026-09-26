@@ -28664,6 +28664,639 @@ paths:
       summary: Listar logs sincronizados a MongoDB (Archivo.log remoto)
       tags:
         - systems-ops
+  /systems/qa/campaigns:
+    get:
+      operationId: QaRunsController_campaigns
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Agrupaciones de plantillas con su reparto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Campañas precargadas
+      tags:
+        - systems-ops
+  /systems/qa/capabilities:
+    get:
+      operationId: QaRunsController_capabilities
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Si se puede ejecutar aquí, con qué límites y si el worker late.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: 'Capacidad QA del entorno: topes publicados, worker y mock'
+      tags:
+        - systems-ops
+  /systems/qa/coverage:
+    get:
+      operationId: QaRunsController_coverage
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Filas COVERED/GAP con el motivo del hueco.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: 'Matriz de cobertura: cada paso del inventario con su receta o su hueco'
+      tags:
+        - systems-ops
+  /systems/qa/journey-templates:
+    get:
+      operationId: QaRunsController_templates
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Plantillas con su preparación READY/BLOCKED y sus motivos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Catálogo de journeys precargados
+      tags:
+        - systems-ops
+  /systems/qa/journey-templates/{code}/versions/{version}:
+    get:
+      operationId: QaRunsController_template
+      parameters:
+        - name: version
+          required: true
+          in: path
+          schema: {}
+          description: >-
+            Identificador de ruta `version` del recurso direccionado por la
+            operación.
+        - name: code
+          required: true
+          in: path
+          schema: {}
+          description: >-
+            Identificador de ruta `code` del recurso direccionado por la
+            operación.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Receta inmutable de esa versión.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: QA_TEMPLATE_NOT_FOUND.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: 'Receta de un journey: pasos, actores y expectativas'
+      tags:
+        - systems-ops
+  /systems/qa/journey-templates/{code}/versions/{version}/sample-inputs:
+    post:
+      operationId: QaRunsController_sampleInputs
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: Identificador de ruta `code`.
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          description: Identificador de ruta `version`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seed:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                count:
+                  default: 5
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                datasetMode:
+                  default: NORMAL_SYNTHETIC
+                  type: string
+                  enum:
+                    - NORMAL_SYNTHETIC
+                    - INVALID
+                    - BOUNDARY
+                    - OUTCOMES
+                    - MIXED
+              required:
+                - seed
+                - count
+                - datasetMode
+              additionalProperties: false
+      responses:
+        '200':
+          description: >-
+            Hasta cinco personas de muestra; no crea usuarios ni llama a
+            proveedores.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Datos sintéticos de muestra de un journey, sin ejecutar nada
+      tags:
+        - systems-ops
+  /systems/qa/runs:
+    get:
+      operationId: QaRunsController_runs
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Lista, la más reciente primero.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Corridas recientes del tenant
+      tags:
+        - systems-ops
+    post:
+      operationId: QaRunsController_launch
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: Misma clave + mismo plan = misma corrida.
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                planId:
+                  type: string
+                  pattern: ^\d+$
+                planHash:
+                  type: string
+                  pattern: ^[0-9a-f]{64}$
+              required:
+                - planId
+                - planHash
+              additionalProperties: false
+      responses:
+        '202':
+          description: 'Corrida encolada: runId consultable.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: >-
+            PLAN_EXPIRED | PLAN_CHANGED | IDEMPOTENCY_KEY_REUSED |
+            QA_RUN_ALREADY_ACTIVE.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: WORKER_UNAVAILABLE o QA deshabilitado en el entorno.
+      security:
+        - access-token: []
+      summary: Lanzar una corrida a partir de un plan READY
+      tags:
+        - systems-ops
+  /systems/qa/runs/preflight:
+    post:
+      operationId: QaRunsController_preflight
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateCode:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
+                templateVersion:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                workflowCode:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
+                environmentId:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                mode:
+                  default: INTEGRATED_QA
+                  type: string
+                  enum:
+                    - INTEGRATED_QA
+                    - MOCK_DIAGNOSTIC
+                persons:
+                  type: number
+                concurrency:
+                  type: number
+                seed:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                datasetMode:
+                  default: NORMAL_SYNTHETIC
+                  type: string
+                  enum:
+                    - NORMAL_SYNTHETIC
+                    - INVALID
+                    - BOUNDARY
+                    - OUTCOMES
+                    - MIXED
+                scenarioCode:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                limits:
+                  type: object
+                  properties:
+                    maxRequests:
+                      type: integer
+                      exclusiveMinimum: 0
+                      maximum: 9007199254740991
+                    maxDurationMs:
+                      type: integer
+                      exclusiveMinimum: 0
+                      maximum: 9007199254740991
+                    maxInFlightRequests:
+                      type: integer
+                      exclusiveMinimum: 0
+                      maximum: 9007199254740991
+                  additionalProperties: false
+              required:
+                - templateCode
+                - templateVersion
+                - environmentId
+                - mode
+                - persons
+                - concurrency
+                - seed
+                - datasetMode
+                - scenarioCode
+              additionalProperties: false
+      responses:
+        '200':
+          description: >-
+            READY con planId/planHash y límites efectivos, o BLOCKED con motivos
+            accionables.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: 'Preflight: resuelve y congela el plan sin generar tráfico'
+      tags:
+        - systems-ops
+  /systems/qa/runs/{runId}:
+    get:
+      operationId: QaRunsController_run
+      parameters:
+        - name: runId
+          required: true
+          in: path
+          schema: {}
+          description: Identificador de la ejecución de pruebas.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: 'Resumen de la corrida; COMPLETED no significa aprobada: ver verdict.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: QA_RUN_NOT_FOUND.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Estado, contadores, causa raíz y evidencia de una corrida
+      tags:
+        - systems-ops
+  /systems/qa/runs/{runId}/cancel:
+    post:
+      operationId: QaRunsController_cancel
+      parameters:
+        - name: runId
+          required: true
+          in: path
+          schema: {}
+          description: Identificador de la ejecución de pruebas.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '202':
+          description: >-
+            CANCELLING hasta reconciliar lo aceptado, o terminal si no había
+            empezado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Cancelar una corrida (idempotente)
+      tags:
+        - systems-ops
+  /systems/qa/runs/{runId}/events:
+    get:
+      operationId: QaRunsController_events
+      parameters:
+        - name: runId
+          required: true
+          in: path
+          schema: {}
+          description: Identificador de la ejecución de pruebas.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Eventos posteriores al cursor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Eventos incrementales de una corrida para el sondeo del portal
+      tags:
+        - systems-ops
+  /systems/qa/runs/{runId}/evidence:
+    get:
+      operationId: QaRunsController_evidence
+      parameters:
+        - name: runId
+          required: true
+          in: path
+          schema: {}
+          description: Identificador de la ejecución de pruebas.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: >-
+            Hashes, versiones, contadores, veredicto y resumen del journal del
+            mock.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Manifiesto de evidencia de una corrida
+      tags:
+        - systems-ops
+  /systems/qa/runs/{runId}/personas:
+    get:
+      operationId: QaRunsController_personas
+      parameters:
+        - name: runId
+          required: true
+          in: path
+          schema: {}
+          description: Identificador de la ejecución de pruebas.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Página de personas con su estado y paso fallido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Personas de una corrida, paginadas y sin tokens
+      tags:
+        - systems-ops
+  /systems/qa/runs/{runId}/personas/{personaKey}/steps:
+    get:
+      operationId: QaRunsController_steps
+      parameters:
+        - name: personaKey
+          required: true
+          in: path
+          schema: {}
+          description: >-
+            Identificador de ruta `personaKey` del recurso direccionado por la
+            operación.
+        - name: runId
+          required: true
+          in: path
+          schema: {}
+          description: Identificador de la ejecución de pruebas.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Pasos con aserciones, intentos y evidencia saneada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Pasos e intentos saneados de una persona
+      tags:
+        - systems-ops
   /systems/reports/traffic-latency:
     get:
       operationId: SystemsActionLogController_getTrafficLatencyReport

@@ -128,6 +128,11 @@ export class SupportChannelRepository {
    *
    * Se mira la participación viva y no el rol del token: un agente con permiso de soporte no debe
    * poder leer cualquier conversación por el hecho de ser agente, sino la que le fue asignada.
+   *
+   * Para el personal interno AGENT y SUPERVISOR son la misma persona con dos sombreros: tomar un
+   * caso o una conversación la une como `AGENT` aunque su rol sea de supervisor, y buscarla después
+   * sólo como `SUPERVISOR` le negaba escribir en el caso que acababa de tomar (403
+   * `SUPPORT_CHANNEL_NOT_PARTICIPANT`). Sigue haciendo falta estar dentro: sólo se unifica el tipo.
    */
   findLiveParticipant(
     channelId: string,
@@ -135,8 +140,9 @@ export class SupportChannelRepository {
     actorId: string,
     options: RepositoryOptions = {},
   ): Promise<SupportChannelParticipantModel | null> {
+    const internal = actorType === 'AGENT' || actorType === 'SUPERVISOR';
     return this.participants.findOne({
-      where: { channelId, actorType, actorId, leftAt: null },
+      where: { channelId, actorType: internal ? { [Op.in]: ['AGENT', 'SUPERVISOR'] } : actorType, actorId, leftAt: null },
       transaction: options.transaction,
     });
   }

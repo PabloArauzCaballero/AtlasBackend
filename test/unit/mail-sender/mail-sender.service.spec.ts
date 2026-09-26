@@ -47,6 +47,28 @@ describe('MailSenderService', () => {
     expect(res).toEqual({ trackingId: 'webhook-1' });
   });
 
+  /*
+   * Una dirección reservada (`@example.test`) no sale a un proveedor real —sólo produciría un rebote
+   * al remitente—, pero el buzón webhook de QA SÍ la recibe: es por donde la persona sintética lee
+   * el código del alta en vez de saltarse la verificación.
+   */
+  it('las direcciones reservadas no salen a proveedores reales pero sí llegan al buzón webhook', async () => {
+    const real = build({ mailSender: true, webhook: true });
+    await real.service.sendLoginPin({ to: 'qa.p-0001@example.test', recipientName: null, pin: '1', ttlMinutes: 5, reference: 'r' });
+    expect(real.client.sendTemplateEmail).not.toHaveBeenCalled();
+
+    const buzon = build({ mailSender: false, gmail: false, webhook: true });
+    const res = await buzon.service.sendLoginPin({
+      to: 'qa.p-0001@example.test',
+      recipientName: null,
+      pin: '1',
+      ttlMinutes: 5,
+      reference: 'r',
+    });
+    expect(res).toEqual({ trackingId: 'webhook-1' });
+    expect(buzon.webhook.sendTemplateEmail).toHaveBeenCalledTimes(1);
+  });
+
   it('MailSender manda cuando está configurado, y Gmail no se toca', async () => {
     const { service, client, gmail } = build({ mailSender: true, gmail: true });
     const res = await service.sendLoginPin({ to: 'a@x.com', recipientName: 'Ana', pin: '123456', ttlMinutes: 5, reference: 'r' });

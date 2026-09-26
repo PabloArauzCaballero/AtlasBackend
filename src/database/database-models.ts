@@ -21,6 +21,7 @@ import { SUPPORT_MODELS } from './support-models.js';
 import { ERP_INTEGRATION_MODELS } from './erp-integration-models.js';
 import { CREDIT_MODELS } from '../modules/credit/infrastructure/persistence/credit-models.js';
 import { NOTIFICATION_MODELS } from '../modules/notifications/infrastructure/persistence/notification-models.js';
+import { QA_MODELS } from '../modules/qa-orchestration/infrastructure/persistence/qa-models.js';
 
 // AT-018: cada contexto publica su registro; aquí sólo se agregan mientras el monolito comparte proceso.
 export const databaseModels = [
@@ -32,4 +33,5 @@ export const databaseModels = [
   ...PARTNER_MODELS,
   ...SUPPORT_MODELS,
   ...ERP_INTEGRATION_MODELS,
+  ...QA_MODELS,
 ];

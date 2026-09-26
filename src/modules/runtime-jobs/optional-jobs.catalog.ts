@@ -25,6 +25,8 @@ export function buildOptionalJobs(deps: {
   stressRuns: { drain: () => Promise<unknown> };
   /** Entrega firmada de `payment.*` al ERP (P-14): función desde la composición, como las anteriores. */
   erpEvents?: { deliver: (tenantId: string) => Promise<unknown> };
+  /** Consumidor de las corridas QA: función desde la composición, no el servicio. */
+  qaRuns: { drain: () => Promise<unknown> };
   limit: number;
 }): ScheduledJob[] {
   const jobs: ScheduledJob[] = [];
@@ -99,6 +101,20 @@ export function buildOptionalJobs(deps: {
       jobCode: 'deliver_erp_events',
       intervalMs: env.RUNTIME_JOBS_ERP_EVENTS_INTERVAL_MS,
       run: (tenantId: string) => erpEvents.deliver(tenantId),
+    });
+  }
+
+  /*
+   * El worker de las corridas QA de N personas. Mismo criterio que el de estrés: genera tráfico
+   * HTTP real contra el backend QA de destino, así que se enciende sólo donde se decidió. Cada
+   * vuelta late (readiness real que `capabilities` exige) y, si el proceso está libre, reclama una
+   * corrida; la corrida se ejecuta FUERA de la tanda para no chocar con su tope de duración.
+   */
+  if (env.RUNTIME_JOBS_QA_CONSUMER_ENABLED) {
+    jobs.push({
+      jobCode: 'consume_qa_journey_runs',
+      intervalMs: env.RUNTIME_JOBS_QA_CONSUMER_INTERVAL_MS,
+      run: () => deps.qaRuns.drain(),
     });
   }
 

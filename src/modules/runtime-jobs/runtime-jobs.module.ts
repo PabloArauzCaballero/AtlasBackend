@@ -47,6 +47,8 @@ import { buildScheduledJobs, SCHEDULED_JOBS, SCHEDULER_ACTOR } from './scheduled
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import { SystemsOpsModule } from '../systems-ops/systems-ops.module.js';
+import { QaOrchestrationModule } from '../qa-orchestration/qa-orchestration.module.js';
+import { QaJourneyConsumerService } from '../qa-orchestration/application/qa-journey-consumer.service.js';
 import { SystemsStressConsumerService } from '../systems-ops/systems-stress-consumer.service.js';
 import { env } from '../../config/env.js';
 import { ErpIntegrationModule } from '../erp-integration/erp-integration.module.js';
@@ -60,6 +62,8 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
     // manifiesto de fronteras reserva las dependencias entre contextos a las raices de composicion.
     SystemsOpsModule,
     ErpIntegrationModule,
+    // Aporta el consumidor de las corridas QA de N personas (motor de journeys).
+    QaOrchestrationModule,
     // El barrido de notificaciones atascadas (hallazgo A-03) reutiliza el MISMO orquestador que la
     // entrega normal, para que un reintento no pueda divergir del camino feliz.
     NotificationsModule,
@@ -118,6 +122,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         stressConsumer: SystemsStressConsumerService,
         creditUnderwriting: CreditUnderwritingService,
         erpDelivery: ErpEventDeliveryService,
+        qaConsumer: QaJourneyConsumerService,
       ) =>
         buildScheduledJobs({
           runtimeJobs,
@@ -156,6 +161,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
                 erpDelivery.deliverPending({ tenantId, limit: env.RUNTIME_JOBS_BATCH_LIMIT }),
               ),
           },
+          qaRuns: { drain: () => qaConsumer.drain() },
         }),
       inject: [
         RuntimeJobsService,
@@ -173,6 +179,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         SystemsStressConsumerService,
         CreditUnderwritingService,
         ErpEventDeliveryService,
+        QaJourneyConsumerService,
       ],
     },
   ],

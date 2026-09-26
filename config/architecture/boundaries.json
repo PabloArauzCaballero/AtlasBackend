@@ -1,22 +1,8 @@
 {
   "$comment": "AT-011 — Manifiesto de fronteras. Lo valida test/architecture/boundary-manifest.spec.ts y lo aplica scripts/architecture/check-boundaries.ts (yarn check:architecture). Dos módulos del mismo contexto pueden importarse; entre contextos hace falta allowedDependencies o una excepción con dueño, tarea y vencimiento. Lo que hoy se salta esto está congelado en boundaries-baseline.json y NO puede crecer. Ninguna excepción se regenera desde los imports: se escribe a mano y se retira con su tarea.",
   "version": 1,
-  "shared": [
-    "common",
-    "config",
-    "database",
-    "observability",
-    "platform",
-    "bootstrap",
-    "worker"
-  ],
-  "compositionRoots": [
-    "src/app.module.ts",
-    "src/main.ts",
-    "src/worker.ts",
-    "src/bootstrap/**",
-    "**/*.module.ts"
-  ],
+  "shared": ["common", "config", "database", "observability", "platform", "bootstrap", "worker"],
+  "compositionRoots": ["src/app.module.ts", "src/main.ts", "src/worker.ts", "src/bootstrap/**", "**/*.module.ts"],
   "legacyBaseline": "config/architecture/boundaries-baseline.json",
   "contexts": {
     "identity-access": {
@@ -80,9 +66,7 @@
   "modules": {
     "auth": {
       "context": "identity-access",
-      "allowedDependencies": [
-        "mail-sender"
-      ]
+      "allowedDependencies": ["mail-sender"]
     },
     "internal-users": {
       "context": "identity-access",
@@ -90,9 +74,7 @@
     },
     "merchant-identity": {
       "context": "partners",
-      "allowedDependencies": [
-        "auth"
-      ]
+      "allowedDependencies": ["auth"]
     },
     "customers": {
       "context": "customers",
@@ -100,17 +82,11 @@
     },
     "customer-onboarding": {
       "context": "onboarding",
-      "allowedDependencies": [
-        "customers",
-        "customer-telemetry"
-      ]
+      "allowedDependencies": ["customers", "customer-telemetry"]
     },
     "mobile-identity": {
       "context": "onboarding",
-      "allowedDependencies": [
-        "customers",
-        "customer-telemetry"
-      ]
+      "allowedDependencies": ["customers", "customer-telemetry"]
     },
     "consents": {
       "context": "consent-privacy",
@@ -118,28 +94,19 @@
     },
     "customer-privacy": {
       "context": "consent-privacy",
-      "allowedDependencies": [
-        "customers"
-      ]
+      "allowedDependencies": ["customers"]
     },
     "credit": {
       "context": "credit-admission",
-      "allowedDependencies": [
-        "customers",
-        "partner-onboarding"
-      ]
+      "allowedDependencies": ["customers", "partner-onboarding"]
     },
     "loans": {
       "context": "loan-book",
-      "allowedDependencies": [
-        "credit"
-      ]
+      "allowedDependencies": ["credit"]
     },
     "loan-payment-claims": {
       "context": "loan-book",
-      "allowedDependencies": [
-        "credit"
-      ]
+      "allowedDependencies": ["credit"]
     },
     "credit-rating": {
       "context": "loan-book",
@@ -147,15 +114,15 @@
     },
     "partner-onboarding": {
       "context": "partners",
-      "allowedDependencies": [
-        "expedientes"
-      ]
+      "allowedDependencies": ["expedientes"]
+    },
+    "qa-orchestration": {
+      "context": "platform",
+      "allowedDependencies": ["internal-users", "systems-ops"]
     },
     "risk": {
       "context": "risk",
-      "allowedDependencies": [
-        "customers"
-      ]
+      "allowedDependencies": ["customers"]
     },
     "fraud": {
       "context": "cases-fraud",
@@ -163,10 +130,7 @@
     },
     "operations": {
       "context": "cases-fraud",
-      "allowedDependencies": [
-        "customers",
-        "customer-telemetry"
-      ]
+      "allowedDependencies": ["customers", "customer-telemetry"]
     },
     "support": {
       "context": "support",
@@ -283,11 +247,7 @@
       "id": "onboarding-atomic-bridge",
       "kind": "transactional-bridge",
       "from": "customer-onboarding",
-      "to": [
-        "auth",
-        "consents",
-        "sessions"
-      ],
+      "to": ["auth", "consents", "sessions"],
       "owner": "datos",
       "task": "AT-015",
       "expires": "2027-03-31",
@@ -297,11 +257,7 @@
       "id": "auth-mail-cycle",
       "kind": "cycle",
       "from": "auth",
-      "to": [
-        "internal-users",
-        "mail-sender",
-        "notifications"
-      ],
+      "to": ["internal-users", "mail-sender", "notifications"],
       "owner": "mensajeria",
       "task": "AT-040",
       "expires": "2027-03-31",

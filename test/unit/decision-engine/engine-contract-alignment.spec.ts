@@ -310,6 +310,7 @@ describe('P-09 · el reintento de las diferidas corre solo', () => {
       creditUnderwriting: { retryDeferred } as never,
       notificationCampaigns: { tick: async () => undefined },
       stressRuns: { drain: async () => undefined },
+      qaRuns: { drain: async () => undefined },
     });
     const job = jobs.find((entry) => entry.jobCode === 'retry_deferred_underwriting');
     expect(job).toBeDefined();
