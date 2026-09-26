@@ -140,7 +140,9 @@ export class CreditDecisionEngineService {
       });
       const blocked = basisBlocker(basis);
       if (blocked) {
-        this.logger.warn(`La solicitud ${request.applicationCode} no se decide todavía: ${blocked.reason} (${basis.error ?? basis.status}).`);
+        this.logger.warn(
+          `La solicitud ${request.applicationCode} no se decide todavía: ${blocked.reason} (${basis.error ?? basis.status}).`,
+        );
         return { outcome: blocked, subjectReference, excludedFeatures: [] };
       }
 

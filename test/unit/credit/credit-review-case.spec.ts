@@ -306,7 +306,11 @@ describe('C-1 de punta a punta · el Motor dice review sin caso → hay caso pro
     await expect(
       decisions.decide({ tenantId: '7', applicationId: '51', currentUser: operador, body: { decision: 'approve', reasonCode: 'ok' } }),
     ).resolves.toMatchObject({ status: 'approved', previousStatus: 'under_review' });
-    expect(application).toMatchObject({ status: 'approved', decisionMode: 'manual' });
+    // Un `review` SIN bandeja del Motor queda `decisionMode: 'engine_unavailable_manual'` (PR #55,
+    // 82781bb: "revisión técnica con bandeja en Atlas"), y C-3 lo PRESERVA a propósito —está en
+    // PRESERVED_DECISION_MODES— incluso después de que una persona decida: la etiqueta no dice que
+    // el motor esté caído hoy, dice por qué hizo falta una persona, y eso no deja de ser cierto.
+    expect(application).toMatchObject({ status: 'approved', decisionMode: 'engine_unavailable_manual' });
     expect(cases[0].status).toBe('closed');
   });
 });

@@ -35,6 +35,11 @@ function build(overrides: { failAt?: 'subjects' | 'features' | 'underwriting' | 
   };
   const client = {
     isConfigured: true,
+    // La base habilitante (P-09) se comprueba ANTES de proyectar features; por defecto está lista,
+    // para que estos casos sigan probando lo suyo (una avería EN una etapa posterior) y no la base.
+    consents: {
+      ensureGranted: jest.fn(async (..._args: unknown[]) => ({ status: 'ready' as const })),
+    },
     execute: jest.fn(async (..._args: unknown[]): Promise<unknown> => {
       if (overrides.failAt === 'client') throw new Error('ECONNREFUSED');
       return engineResponse;
