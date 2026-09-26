@@ -4,6 +4,7 @@
  * @system valida en el borde lo que llega del móvil y describe lo que se le contesta.
  */
 import { z } from 'zod';
+import { captureSourceSchema } from '../../common/storage/capture-source.js';
 
 /**
  * Tope de cada imagen, en caracteres de base64.
@@ -58,6 +59,24 @@ export const startIdentityVerificationSchema = z.object({
    * comprobado, que es justo el orden que este flujo evita.
    */
   customerId: z.string().trim().max(40).optional(),
+  /**
+   * Con qué se capturó el ANVERSO (`camera` | `system_scanner`). Opcional: sin él, cámara.
+   *
+   * Es el origen del ANVERSO y no de «el documento» porque es la cara que el Motor recorta, lee y
+   * analiza; el reverso solo aporta la MRZ. Con el anverso hecho con la cámara y el reverso escaneado
+   * (o al revés, porque el escáner falló en una de las dos), decir «escáner» por una sola cara haría
+   * que el Motor se saltara el recorte de una foto con fondo. El origen de CADA cara sigue viajando
+   * en su evidencia (`captureSource` del paquete de identidad).
+   *
+   * Es una DECLARACIÓN del cliente que nadie contrasta: el Motor nunca puede relajar por ella una
+   * comprobación de fraude, sólo añadir avisos. Se guarda en `reason_codes_json` del intento para
+   * que la decisión se pueda reconstruir desde aquí.
+   *
+   * Viaja al Motor en el `context` de la ejecución, NO como variable del artefacto: añadir una
+   * variable exige una versión nueva del artefacto firmada por dos personas. La selfie no entra:
+   * siempre sale de la cámara.
+   */
+  documentCaptureSource: captureSourceSchema.optional(),
 });
 
 export type StartIdentityVerificationDto = z.infer<typeof startIdentityVerificationSchema>;

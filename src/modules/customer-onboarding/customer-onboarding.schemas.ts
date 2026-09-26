@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import { birthDateSchema } from './customer-onboarding-profile.schemas.js';
+import { captureSourceSchema, sinEscanerEnLaSelfie } from '../../common/storage/capture-source.js';
 import { isCustomerPinValid } from '../../common/utils/crypto/password.util.js';
 
 const ALLOWED_PERMISSION_CODES = ['location', 'camera', 'contacts', 'notifications', 'storage'] as const;
@@ -173,23 +174,27 @@ export const contactVerificationSubmitSchema = z
   })
   .superRefine(assertCoherentChannel);
 
-const identityEvidenceSchema = z.object({
-  evidenceType: z.enum(['identity_front', 'identity_back', 'selfie', 'proof_of_address', 'bank_qr_proof', 'occupation_audio', 'other']),
-  storageKey: z
-    .string()
-    .trim()
-    .min(8)
-    .max(500)
-    .refine((value) => !value.startsWith('data:'), {
-      message: 'No se permite enviar evidencia en base64 dentro del body.',
-    }),
-  mimeType: z.enum(['image/jpeg', 'image/png', 'application/pdf']),
-  sha256Hash: z.string().trim().min(32).max(128),
-  fileSizeBytes: z
-    .string()
-    .regex(/^[1-9][0-9]*$/)
-    .optional(),
-});
+const identityEvidenceSchema = z
+  .object({
+    evidenceType: z.enum(['identity_front', 'identity_back', 'selfie', 'proof_of_address', 'bank_qr_proof', 'occupation_audio', 'other']),
+    storageKey: z
+      .string()
+      .trim()
+      .min(8)
+      .max(500)
+      .refine((value) => !value.startsWith('data:'), {
+        message: 'No se permite enviar evidencia en base64 dentro del body.',
+      }),
+    mimeType: z.enum(['image/jpeg', 'image/png', 'application/pdf']),
+    sha256Hash: z.string().trim().min(32).max(128),
+    fileSizeBytes: z
+      .string()
+      .regex(/^[1-9][0-9]*$/)
+      .optional(),
+    /** Origen de la imagen; se persiste en `evidence_documents.capture_source`. Sin él, cámara. */
+    captureSource: captureSourceSchema.optional(),
+  })
+  .superRefine(sinEscanerEnLaSelfie);
 
 export const identityPackageSchema = z.object({
   identity: z.object({

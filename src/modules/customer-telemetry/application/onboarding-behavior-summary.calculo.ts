@@ -22,6 +22,7 @@ import {
   type TiempoPorPantalla,
   type ToqueObservado,
 } from './onboarding-behavior-summary.tipos.js';
+import { medirCapturas, segundoPlanoMs } from './onboarding-behavior-summary.capturas.js';
 
 export * from './onboarding-behavior-summary.tipos.js';
 
@@ -61,21 +62,6 @@ function desviacion(valores: number[]): number {
   if (valores.length === 0) return 0;
   const media = valores.reduce((a, b) => a + b, 0) / valores.length;
   return Math.sqrt(valores.reduce((a, b) => a + (b - media) ** 2, 0) / valores.length);
-}
-
-/** Milisegundos en segundo plano: cada `segundo_plano` cerrado por el siguiente `primer_plano`. */
-function segundoPlanoMs(pasos: PasoObservado[]): number {
-  let total = 0;
-  let abierto: number | null = null;
-  for (const paso of pasos) {
-    if (paso.stepCode !== 'flujo') continue;
-    if (paso.eventType === 'segundo_plano') abierto = paso.occurredAt.getTime();
-    else if (paso.eventType === 'primer_plano' && abierto !== null) {
-      total += Math.max(0, paso.occurredAt.getTime() - abierto);
-      abierto = null;
-    }
-  }
-  return total;
 }
 
 /** Tiempo total del alta (descontando el segundo plano) y el detalle de esa resta. */
@@ -257,13 +243,12 @@ export function calcularResumen(entradas: EntradasDelResumen): ResumenCalculado 
   const { pantallas, porFaseMs } = medirPantallas(pasos);
   const campos = medirCampos(entradas.campos);
   const envios = medirEnvios(pasos);
-  const esCaptura = (p: PasoObservado) => p.stepCode.startsWith('captura_');
-  const segundoPlanoDuranteCaptura = pasos.some((p) => esCaptura(p) && p.eventType === 'segundo_plano');
+  const capturas = medirCapturas(pasos);
   const sinVariacion = toquesSinVariacion(entradas.toques);
   const { bot, senales } = heuristica({
     ...campos,
     toquesSinVariacion: sinVariacion,
-    segundoPlanoDuranteCaptura,
+    segundoPlanoDuranteCaptura: capturas.segundoPlanoDuranteCaptura,
     segundosTotal: tiempo.segundosTotal,
   });
 
@@ -273,8 +258,7 @@ export function calcularResumen(entradas: EntradasDelResumen): ResumenCalculado 
     porFaseMs,
     faseIdentidadMs: porFaseMs.identidad,
     ...campos,
-    segundoPlanoDuranteCaptura,
-    capturasRepetidas: pasos.filter((p) => esCaptura(p) && p.eventType === 'repite').length,
+    ...capturas,
     enviosOk: envios.enviosOk,
     enviosError: envios.enviosError,
     erroresDeValidacion: envios.erroresDeValidacion,

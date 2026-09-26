@@ -62,6 +62,29 @@ describe('CustomerIdentityEvidenceRepository', () => {
     });
   });
 
+  it('createEvidenceDocument sin origen de captura deja capture_source en NULL (cámara), como las filas de antes', async () => {
+    const { repo, models } = buildRepo();
+    (models.evidenceDocument.create as jest.Mock).mockResolvedValue({ id: 'e1' } as never);
+    const values = {
+      tenantId: 't1',
+      customerId: 'c1',
+      documentType: 'identity_front',
+      storageKey: 'k',
+      bucket: 'atlas-evidence',
+      mimeType: 'image/jpeg',
+      sha256Hash: 'h',
+      fileSizeBytes: '100',
+      sessionId: null,
+      ipAddress: null,
+      uploadedAt: now,
+    };
+    await repo.createEvidenceDocument(values, opts);
+    await repo.createEvidenceDocument({ ...values, captureSource: 'system_scanner' }, opts);
+    const llamadas = (models.evidenceDocument.create as jest.Mock).mock.calls as Array<[Record<string, unknown>]>;
+    expect(llamadas[0]![0].captureSource).toBeNull();
+    expect(llamadas[1]![0].captureSource).toBe('system_scanner');
+  });
+
   it('createEvidenceExtraction usa method not_executed y espeja extractedDataJson en el campo redactado', async () => {
     const { repo, models } = buildRepo();
     (models.evidenceExtraction.create as jest.Mock).mockResolvedValue({ id: 'x1' } as never);

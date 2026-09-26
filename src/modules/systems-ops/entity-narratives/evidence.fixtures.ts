@@ -18,7 +18,7 @@ export const EVIDENCE_NARRATIVES: EntityBusinessNarrative[] = [
     usageExample:
       'Dos solicitudes de clientes diferentes suben una boleta de pago con el mismo `file_hash_sha256`. La coincidencia abre un caso de fraude y ambas quedan retenidas hasta revisión, sin necesidad de que un humano lo notara.',
     systemsExplanation:
-      'Tabla en `privacy` que guarda metadatos y puntero al objeto (`s3_bucket`, `s3_key`), nunca el binario en la base. Registra el contexto de subida (`uploaded_from_ip`, `uploaded_from_session_id`, `uploaded_from_device_fingerprint`) y la retención (`retention_policy_id`, `expires_at`, `retention_until`). Tiene borrado lógico: la baja real es la eliminación del objeto en almacenamiento más la anonimización de la fila, ejecutada por el proceso de retención. El acceso al archivo se sirve con URLs firmadas de corta vida y queda auditado.',
+      'Tabla en `privacy` que guarda metadatos y puntero al objeto (`s3_bucket`, `s3_key`), nunca el binario en la base. Registra el contexto de subida (`uploaded_from_ip`, `uploaded_from_session_id`, `uploaded_from_device_fingerprint`), con qué se capturó la imagen (`capture_source`: `camera` o `system_scanner`, con CHECK; NULL se lee como cámara) y la retención (`retention_policy_id`, `expires_at`, `retention_until`). Tiene borrado lógico: la baja real es la eliminación del objeto en almacenamiento más la anonimización de la fila, ejecutada por el proceso de retención. El acceso al archivo se sirve con URLs firmadas de corta vida y queda auditado.',
   },
   {
     tableName: 'evidence_extractions',

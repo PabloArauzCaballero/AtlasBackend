@@ -4,6 +4,7 @@
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
 import { z } from 'zod';
+import { captureSourceSchema } from '../../common/storage/capture-source.js';
 import { ALLOWED_EVIDENCE_MIME_TYPES, MAX_EVIDENCE_BYTES } from '../../common/storage/document-storage.service.js';
 import {
   EMPLOYMENT_STATUS_VALUES,
@@ -154,6 +155,14 @@ export const uploadUrlRequestSchema = z
     ]),
     contentType: z.enum(ALLOWED_EVIDENCE_MIME_TYPES),
     sizeBytes: z.number().int().positive().max(MAX_EVIDENCE_BYTES),
+    /**
+     * Con qué se capturó la imagen (`camera` | `system_scanner`). Opcional: sin él se entiende la
+     * cámara, que es lo que hacía toda app anterior. Aquí sólo se audita —el permiso de subida no
+     * crea fila—; lo que queda en `evidence_documents.capture_source` es lo que declara el paquete
+     * de identidad para cada evidencia. El esquema es `.strict()`: sin este campo declarado, la app
+     * que lo mande recibiría 400.
+     */
+    captureSource: captureSourceSchema.optional(),
   })
   .strict();
 

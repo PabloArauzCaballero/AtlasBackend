@@ -4,6 +4,7 @@
  * @system define models para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
  */
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import type { CaptureSource } from '../../common/storage/capture-source.js';
 import { atlasSchemaFor } from '../domain-schemas.js';
 
 @Table({ tableName: 'evidence_documents', schema: atlasSchemaFor('evidence_documents'), timestamps: false })
@@ -49,6 +50,10 @@ export class EvidenceDocumentModel extends Model {
 
   @Column({ field: 'uploaded_from_device_fingerprint', type: DataType.STRING(180) })
   declare uploadedFromDeviceFingerprint: string | null;
+
+  /** `camera` | `system_scanner` (CHECK en la base). NULL = cámara: filas anteriores a la etiqueta. */
+  @Column({ field: 'capture_source', type: DataType.STRING(20) })
+  declare captureSource: CaptureSource | null;
 
   @Column({ field: 'retention_policy_id', type: DataType.BIGINT })
   declare retentionPolicyId: string | null;

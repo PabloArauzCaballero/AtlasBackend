@@ -53,6 +53,18 @@ export type DetalleDelResumen = {
   pegadosEnIdentidad: number;
   segundoPlanoDuranteCaptura: boolean;
   capturasRepetidas: number;
+  /*
+   * Las tres cifras del escáner del sistema (2026-09-26) son OPCIONALES a propósito: el cálculo
+   * siempre las pone, pero una fila guardada antes no las tiene, y `ultimo()` devuelve el JSONB tal
+   * cual. Ausente = «no se midió», nunca cero. Son aditivas: no mueven ninguna cifra ni señal de la
+   * v1, por eso `VERSION_DEL_CALCULO` no cambia (el E2E de la app y el artefacto del Motor la citan).
+   */
+  /** Imágenes obtenidas (`toma` + `repite`), de cámara o de escáner, incluida la selfie. */
+  capturasTomadas?: number;
+  /** De ellas, las que devolvió el escáner del sistema (la acción anterior de esa captura fue `escanea`). */
+  capturasEscaneadas?: number;
+  /** Veces que el escáner no estaba y la app cayó a su cámara. */
+  respaldosDeCamara?: number;
   enviosOk: number;
   enviosError: number;
   erroresDeValidacion: number;
@@ -135,6 +147,9 @@ export function detalleVacio(): DetalleDelResumen {
     pegadosEnIdentidad: 0,
     segundoPlanoDuranteCaptura: false,
     capturasRepetidas: 0,
+    capturasTomadas: 0,
+    capturasEscaneadas: 0,
+    respaldosDeCamara: 0,
     enviosOk: 0,
     enviosError: 0,
     erroresDeValidacion: 0,
