@@ -284,6 +284,9 @@ jobs:
   # job usa "services" de GitHub Actions (contenedores efímeros, no infraestructura persistente)
   # para correr migraciones, seeders y los smoke tests del proyecto contra un motor real en cada
   # PR, no solo una vez de forma manual.
+  # El nombre debe coincidir EXACTO con el check requerido por la proteccion de `main`
+  # ("migraciones + privilegios contra Postgres/Redis reales", el mismo que emite `dev`).
+  # Con el nombre viejo el check requerido nunca llegaba y todo PR a main quedaba BLOCKED.
   db-and-cache-integration:
     name: migraciones + privilegios contra Postgres/Redis reales
     runs-on: ubuntu-latest
