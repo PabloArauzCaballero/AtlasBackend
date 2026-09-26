@@ -1,16 +1,122 @@
 {
   "version": "atlas-integration-v1",
   "topics": [
-    { "topic": "payment.reported", "schemaVersion": 1, "schema": "schemas/payment.reported.v1.schema.json", "family": "pago-cobertura", "producer": "atlas-core", "consumer": "atlas-erp", "consumerEffect": "Crea el aviso REPORTED de la cuota mapeada (una vez por claimId)." },
-    { "topic": "payment.confirmed", "schemaVersion": 1, "schema": "schemas/payment.confirmed.v1.schema.json", "family": "pago-cobertura", "producer": "atlas-core", "consumer": "atlas-erp", "consumerEffect": "Confirma el aviso con la transición de la cola de revisión; con cobertura viva abre revisión LATE_PAYMENT_WITH_COVERAGE sin confirmar." },
-    { "topic": "payment.rejected", "schemaVersion": 1, "schema": "schemas/payment.rejected.v1.schema.json", "family": "pago-cobertura", "producer": "atlas-core", "consumer": "atlas-erp", "consumerEffect": "El aviso pasa a REJECTED con la transición de la cola de revisión." },
-    { "topic": "b2b.coverage.settled", "schemaVersion": 1, "schema": "schemas/b2b.coverage.settled.v1.schema.json", "family": "pago-cobertura", "producer": "atlas-erp", "consumer": "atlas-core", "consumerEffect": "Proyección installment_coverage_projections (cubierta por ATLAS, recuperación abierta)." },
-    { "topic": "b2b.recovery.payment_applied", "schemaVersion": 1, "schema": "schemas/b2b.recovery.movement.v1.schema.json", "family": "pago-cobertura", "producer": "atlas-erp", "consumer": "atlas-core", "consumerEffect": "Actualiza importe recuperado y estado en la proyección (última versión del agregado gana)." },
-    { "topic": "b2b.recovery.payment_reversed", "schemaVersion": 1, "schema": "schemas/b2b.recovery.movement.v1.schema.json", "family": "pago-cobertura", "producer": "atlas-erp", "consumer": "atlas-core", "consumerEffect": "Igual que payment_applied." },
-    { "topic": "accounting.document.draft_created", "schemaVersion": 1, "schema": "schemas/accounting.event.v1.schema.json", "family": "asiento-conciliacion", "producer": "atlas-erp", "consumer": null, "consumerEffect": "Core acusa sin efecto (IGNORED)." },
-    { "topic": "accounting.document.posted", "schemaVersion": 1, "schema": "schemas/accounting.event.v1.schema.json", "family": "asiento-conciliacion", "producer": "atlas-erp", "consumer": null, "consumerEffect": "Core acusa sin efecto (IGNORED)." },
-    { "topic": "accounting.document.reversed", "schemaVersion": 1, "schema": "schemas/accounting.event.v1.schema.json", "family": "asiento-conciliacion", "producer": "atlas-erp", "consumer": null, "consumerEffect": "Core acusa sin efecto (IGNORED)." },
-    { "topic": "accounting.period.closed", "schemaVersion": 1, "schema": "schemas/accounting.event.v1.schema.json", "family": "asiento-conciliacion", "producer": "atlas-erp", "consumer": null, "consumerEffect": "Core acusa sin efecto (IGNORED)." },
-    { "topic": "accounting.period.reopened", "schemaVersion": 1, "schema": "schemas/accounting.event.v1.schema.json", "family": "asiento-conciliacion", "producer": "atlas-erp", "consumer": null, "consumerEffect": "Core acusa sin efecto (IGNORED)." }
+    {
+      "topic": "payment.reported",
+      "schemaVersion": 1,
+      "schema": "schemas/payment.reported.v1.schema.json",
+      "family": "pago-cobertura",
+      "producer": "atlas-core",
+      "consumer": "atlas-erp",
+      "consumerEffect": "Crea el aviso REPORTED de la cuota mapeada (una vez por claimId)."
+    },
+    {
+      "topic": "payment.confirmed",
+      "schemaVersion": 1,
+      "schema": "schemas/payment.confirmed.v1.schema.json",
+      "family": "pago-cobertura",
+      "producer": "atlas-core",
+      "consumer": "atlas-erp",
+      "consumerEffect": "Confirma el aviso con la transición de la cola de revisión; con cobertura viva abre revisión LATE_PAYMENT_WITH_COVERAGE sin confirmar."
+    },
+    {
+      "topic": "payment.rejected",
+      "schemaVersion": 1,
+      "schema": "schemas/payment.rejected.v1.schema.json",
+      "family": "pago-cobertura",
+      "producer": "atlas-core",
+      "consumer": "atlas-erp",
+      "consumerEffect": "El aviso pasa a REJECTED con la transición de la cola de revisión."
+    },
+    {
+      "topic": "b2b.coverage.settled",
+      "schemaVersion": 1,
+      "schema": "schemas/b2b.coverage.settled.v1.schema.json",
+      "family": "pago-cobertura",
+      "producer": "atlas-erp",
+      "consumer": "atlas-core",
+      "consumerEffect": "Proyección installment_coverage_projections (cubierta por ATLAS, recuperación abierta)."
+    },
+    {
+      "topic": "b2b.recovery.payment_applied",
+      "schemaVersion": 1,
+      "schema": "schemas/b2b.recovery.movement.v1.schema.json",
+      "family": "pago-cobertura",
+      "producer": "atlas-erp",
+      "consumer": "atlas-core",
+      "consumerEffect": "Actualiza importe recuperado y estado en la proyección (última versión del agregado gana)."
+    },
+    {
+      "topic": "b2b.recovery.payment_reversed",
+      "schemaVersion": 1,
+      "schema": "schemas/b2b.recovery.movement.v1.schema.json",
+      "family": "pago-cobertura",
+      "producer": "atlas-erp",
+      "consumer": "atlas-core",
+      "consumerEffect": "Igual que payment_applied."
+    },
+    {
+      "topic": "credit.decision.recorded",
+      "schemaVersion": 1,
+      "schema": "schemas/credit.decision.recorded.v1.schema.json",
+      "family": "mdr-banda-riesgo",
+      "producer": "atlas-core",
+      "consumer": "atlas-erp",
+      "consumerEffect": "T-11: la banda de riesgo con la que se aprobó el crédito casa la regla de MDR por banda en el registro de la compra."
+    },
+    {
+      "topic": "merchant.mdr.updated",
+      "schemaVersion": 1,
+      "schema": "schemas/merchant.mdr.updated.v1.schema.json",
+      "family": "mdr-banda-riesgo",
+      "producer": "atlas-erp",
+      "consumer": "atlas-core",
+      "consumerEffect": "T-10: proyecta partner_profiles.mdr_rate_percent condicionado a mdr_rate_effective_at."
+    },
+    {
+      "topic": "accounting.document.draft_created",
+      "schemaVersion": 1,
+      "schema": "schemas/accounting.event.v1.schema.json",
+      "family": "asiento-conciliacion",
+      "producer": "atlas-erp",
+      "consumer": null,
+      "consumerEffect": "Core acusa sin efecto (IGNORED)."
+    },
+    {
+      "topic": "accounting.document.posted",
+      "schemaVersion": 1,
+      "schema": "schemas/accounting.event.v1.schema.json",
+      "family": "asiento-conciliacion",
+      "producer": "atlas-erp",
+      "consumer": null,
+      "consumerEffect": "Core acusa sin efecto (IGNORED)."
+    },
+    {
+      "topic": "accounting.document.reversed",
+      "schemaVersion": 1,
+      "schema": "schemas/accounting.event.v1.schema.json",
+      "family": "asiento-conciliacion",
+      "producer": "atlas-erp",
+      "consumer": null,
+      "consumerEffect": "Core acusa sin efecto (IGNORED)."
+    },
+    {
+      "topic": "accounting.period.closed",
+      "schemaVersion": 1,
+      "schema": "schemas/accounting.event.v1.schema.json",
+      "family": "asiento-conciliacion",
+      "producer": "atlas-erp",
+      "consumer": null,
+      "consumerEffect": "Core acusa sin efecto (IGNORED)."
+    },
+    {
+      "topic": "accounting.period.reopened",
+      "schemaVersion": 1,
+      "schema": "schemas/accounting.event.v1.schema.json",
+      "family": "asiento-conciliacion",
+      "producer": "atlas-erp",
+      "consumer": null,
+      "consumerEffect": "Core acusa sin efecto (IGNORED)."
+    }
   ]
 }

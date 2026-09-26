@@ -13,7 +13,9 @@ import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { buildCoreEnvelope } from './outbound-envelope.js';
 
 export const OUTBOUND_SUBSCRIPTIONS: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  'atlas-erp': Object.freeze(['payment.reported', 'payment.confirmed', 'payment.rejected']),
+  // T-11 (2026-09-26): `credit.decision.recorded` avisa al ERP la banda de riesgo con la que se
+  // aprobó un crédito, para que la regla de MDR por banda (§1.2 del plan) pueda casar de verdad.
+  'atlas-erp': Object.freeze(['payment.reported', 'payment.confirmed', 'payment.rejected', 'credit.decision.recorded']),
 });
 
 const DELIVERIES = `${atlasSchemaFor('outbound_event_deliveries')}.outbound_event_deliveries`;

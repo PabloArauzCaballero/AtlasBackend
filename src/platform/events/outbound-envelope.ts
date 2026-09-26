@@ -19,11 +19,17 @@ const CLAIM_FIELDS = [
   'aggregateVersion',
 ];
 
+// T-11: la banda de riesgo con la que se aprobó un crédito, para que el ERP pueda casar su regla de
+// MDR por banda (§1.2 del plan) en el registro de la compra. Sólo estos cuatro campos — el contrato
+// del ERP (`atlas.core.outbox/1`) es la lista blanca; nada del expediente que no esté aquí sale.
+const CREDIT_DECISION_FIELDS = ['customerId', 'riskBand', 'decidedAt', 'applicationCode'];
+
 /** Campos del contrato por tópico. Un tópico sin entrada no se puede entregar (falla al encolar). */
 export const OUTBOUND_PAYLOAD_FIELDS: Readonly<Record<string, readonly string[]>> = Object.freeze({
   'payment.reported': CLAIM_FIELDS,
   'payment.confirmed': [...CLAIM_FIELDS, 'decidedAt', 'loanPaymentId'],
   'payment.rejected': [...CLAIM_FIELDS, 'decidedAt', 'reason'],
+  'credit.decision.recorded': CREDIT_DECISION_FIELDS,
 });
 
 export type CoreOutboundEnvelope = Readonly<{

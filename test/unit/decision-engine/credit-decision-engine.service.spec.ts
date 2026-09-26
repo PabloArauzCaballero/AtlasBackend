@@ -134,7 +134,13 @@ describe('C-2 de punta a punta · la solicitud NO queda submitted si el registro
     };
     const reviewCases = { open: jest.fn(async (..._args: unknown[]) => ({ caseCode: 'CR-CRA-1' })) };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-    const underwritingService = new CreditUnderwritingService(engine as never, credit as never, sequelize as never, reviewCases as never);
+    const underwritingService = new CreditUnderwritingService(
+      engine as never,
+      credit as never,
+      sequelize as never,
+      reviewCases as never,
+      {} as never,
+    );
     return { underwritingService, application, credit, reviewCases };
   }
 
