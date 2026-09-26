@@ -153,7 +153,7 @@
     "@opentelemetry/instrumentation-ioredis": "^0.70.0",
     "@opentelemetry/instrumentation-pg": "^0.74.0",
     "@opentelemetry/instrumentation-undici": "^0.32.0",
-    "@opentelemetry/resources": "^2.9.0",
+    "@opentelemetry/resources": "^2.11.0",
     "@opentelemetry/sdk-node": "^0.222.0",
     "@opentelemetry/sdk-trace-base": "^2.9.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
