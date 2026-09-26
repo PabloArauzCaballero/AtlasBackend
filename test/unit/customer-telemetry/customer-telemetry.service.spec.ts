@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock, callArg } from '../../support/jest-mocks.js';
 import { BadRequestException, ForbiddenException, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
 import { CustomerTelemetryService } from '../../../src/modules/customer-telemetry/customer-telemetry.service.js';
+import { telemetryBatchSchema } from '../../../src/modules/customer-telemetry/customer-telemetry.schemas.js';
 
 /**
  * ATLAS-P12 (plan `PLAN_RED_DE_PRUEBAS_ATLAS_P12.md`, Fase 2): primer test real de
@@ -402,6 +403,36 @@ describe('CustomerTelemetryService.ingestBatch', () => {
       expect((telemetryRepository.createCustomerAction as jest.Mock).mock.calls[0][0]).toMatchObject({ screenName: null });
       const metrics = (telemetryRepository.createOnDeviceMetrics as jest.Mock).mock.calls[0][0] as Array<Record<string, unknown>>;
       expect(metrics[0]).toMatchObject({ confidenceScore: null });
+    });
+
+    /*
+     * El escáner del carnet (plan 2026-09-26): la app gana dos acciones de `captura`, `escanea` y
+     * `respaldo_camara`. Viajan igual que las de siempre —`onboarding_step_event` con `captura_<que>`
+     * y la acción en `metadata.eventType`— y la ingesta no tiene lista cerrada de acciones: se guardan
+     * tal cual, y el resumen de comportamiento es quien las cuenta.
+     */
+    it('acepta y guarda las acciones de captura nuevas (escanea, respaldo_camara) como pasos del alta', async () => {
+      const { service, telemetryRepository } = arrange({ id: 'flow-1' });
+      const events = [
+        ev('onboarding_step_event', 'captura_carnet_frente', { eventType: 'escanea', elapsedMs: 10 }),
+        ev('onboarding_step_event', 'captura_carnet_reverso', { eventType: 'respaldo_camara', elapsedMs: 20 }),
+      ];
+      const lote = {
+        ...baseBody({ events }),
+        sessionId: '11',
+        deviceId: '12',
+        capturedFrom: '2026-01-01T00:00:00.000Z',
+      };
+      expect(telemetryBatchSchema.safeParse(lote).success).toBe(true);
+
+      const result = await service.ingestBatch(baseInput({ body: baseBody({ events }) }));
+
+      expect(result.acceptedEvents).toBe(2);
+      const guardados = (telemetryRepository.createOnboardingStepEvent as jest.Mock).mock.calls.map((c) => c[0]);
+      expect(guardados).toEqual([
+        expect.objectContaining({ stepCode: 'captura_carnet_frente', eventType: 'escanea', onboardingFlowId: 'flow-1' }),
+        expect.objectContaining({ stepCode: 'captura_carnet_reverso', eventType: 'respaldo_camara', onboardingFlowId: 'flow-1' }),
+      ]);
     });
   });
 });

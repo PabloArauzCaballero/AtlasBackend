@@ -169,6 +169,62 @@ describe('calcularResumen', () => {
     expect(r.botLikelihoodScore).toBe(0.25);
   });
 
+  /*
+   * El escáner de documentos del sistema (plan 2026-09-26). La app gana dos acciones de captura:
+   * `escanea` (la imagen vino del escáner) y `respaldo_camara` (no había escáner y cayó a la cámara).
+   * Cuentan en cifras NUEVAS del detalle; ninguna señal ni cifra existente puede moverse por ellas.
+   */
+  it('escanea cuenta como captura tomada y respaldo_camara se cuenta aparte, sin tocar las señales', () => {
+    const pasos = [
+      paso('flujo', 'inicio', 0),
+      paso('identidad', 'enter', 1_000),
+      paso('captura_carnet_frente', 'escanea', 20_000),
+      paso('captura_carnet_reverso', 'respaldo_camara', 30_000),
+      paso('captura_carnet_reverso', 'abre', 30_500),
+      paso('captura_carnet_reverso', 'toma', 40_000),
+      paso('captura_selfie', 'abre', 50_000),
+      paso('captura_selfie', 'toma', 60_000),
+      paso('identidad', 'submit_ok', 90_000),
+    ];
+    const r = calcularResumen({ pasos, campos: [], toques: [], permisos: [], abandonosPrevios: 0 });
+    const d = r.interScreenTimingJson.detalle;
+    expect(d.capturasTomadas).toBe(3);
+    expect(d.capturasEscaneadas).toBe(1);
+    expect(d.respaldosDeCamara).toBe(1);
+    expect(d.capturasRepetidas).toBe(0);
+    expect(d.segundoPlanoDuranteCaptura).toBe(false);
+    expect(d.senales).not.toContain('CAPTURA_INTERRUMPIDA');
+  });
+
+  it('cambiar la cámara por el escáner no mueve ninguna cifra existente: sólo las tres nuevas', () => {
+    const conCamara = humano();
+    const conEscaner = humano();
+    conEscaner.pasos = conEscaner.pasos.map((p) =>
+      p.stepCode === 'captura_carnet_frente' && p.eventType === 'toma' ? { ...p, eventType: 'escanea' } : p,
+    );
+    const a = calcularResumen(conCamara);
+    const b = calcularResumen(conEscaner);
+    const { capturasEscaneadas: escA, ...restoA } = a.interScreenTimingJson.detalle;
+    const { capturasEscaneadas: escB, ...restoB } = b.interScreenTimingJson.detalle;
+    expect(escA).toBe(0);
+    expect(escB).toBe(1);
+    expect(restoB).toEqual(restoA);
+    expect(restoA.capturasTomadas).toBe(1);
+    expect({ ...b, interScreenTimingJson: { ...b.interScreenTimingJson, detalle: restoB } }).toEqual({
+      ...a,
+      interScreenTimingJson: { ...a.interScreenTimingJson, detalle: restoA },
+    });
+  });
+
+  it('las acciones de siempre dan las mismas cifras de siempre, y las nuevas en cero', () => {
+    const d = calcularResumen(humano()).interScreenTimingJson.detalle;
+    expect(d.capturasRepetidas).toBe(0);
+    expect(d.segundoPlanoDuranteCaptura).toBe(false);
+    expect(d.capturasTomadas).toBe(1);
+    expect(d.capturasEscaneadas).toBe(0);
+    expect(d.respaldosDeCamara).toBe(0);
+  });
+
   it('la pantalla abierta (sin leave) cuenta hasta el último reloj: la fase de identidad no llega en 0 al Motor', () => {
     // Lo que ve el servidor al calcular el resumen DENTRO del envío del carnet: el `leave` de
     // «identidad» todavía no ha salido de la app.

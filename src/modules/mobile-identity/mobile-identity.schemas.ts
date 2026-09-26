@@ -4,6 +4,7 @@
  * @system valida en el borde lo que llega del móvil y describe lo que se le contesta.
  */
 import { z } from 'zod';
+import { captureSourceSchema } from '../../common/storage/capture-source.js';
 
 /**
  * Tope de cada imagen, en caracteres de base64.
@@ -58,6 +59,13 @@ export const startIdentityVerificationSchema = z.object({
    * comprobado, que es justo el orden que este flujo evita.
    */
   customerId: z.string().trim().max(40).optional(),
+  /**
+   * Con qué se capturaron anverso y reverso (`camera` | `system_scanner`). Opcional: sin él, cámara.
+   * Viaja al Motor en el `context` de la ejecución, NO como variable del artefacto: añadir una
+   * variable exige una versión nueva del artefacto firmada por dos personas. La selfie no entra:
+   * siempre sale de la cámara.
+   */
+  documentCaptureSource: captureSourceSchema.optional(),
 });
 
 export type StartIdentityVerificationDto = z.infer<typeof startIdentityVerificationSchema>;

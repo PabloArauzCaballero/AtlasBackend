@@ -22,6 +22,7 @@ import {
   type TiempoPorPantalla,
   type ToqueObservado,
 } from './onboarding-behavior-summary.tipos.js';
+import { medirCapturas } from './onboarding-behavior-summary.capturas.js';
 
 export * from './onboarding-behavior-summary.tipos.js';
 
@@ -257,13 +258,12 @@ export function calcularResumen(entradas: EntradasDelResumen): ResumenCalculado 
   const { pantallas, porFaseMs } = medirPantallas(pasos);
   const campos = medirCampos(entradas.campos);
   const envios = medirEnvios(pasos);
-  const esCaptura = (p: PasoObservado) => p.stepCode.startsWith('captura_');
-  const segundoPlanoDuranteCaptura = pasos.some((p) => esCaptura(p) && p.eventType === 'segundo_plano');
+  const capturas = medirCapturas(pasos);
   const sinVariacion = toquesSinVariacion(entradas.toques);
   const { bot, senales } = heuristica({
     ...campos,
     toquesSinVariacion: sinVariacion,
-    segundoPlanoDuranteCaptura,
+    segundoPlanoDuranteCaptura: capturas.segundoPlanoDuranteCaptura,
     segundosTotal: tiempo.segundosTotal,
   });
 
@@ -273,8 +273,7 @@ export function calcularResumen(entradas: EntradasDelResumen): ResumenCalculado 
     porFaseMs,
     faseIdentidadMs: porFaseMs.identidad,
     ...campos,
-    segundoPlanoDuranteCaptura,
-    capturasRepetidas: pasos.filter((p) => esCaptura(p) && p.eventType === 'repite').length,
+    ...capturas,
     enviosOk: envios.enviosOk,
     enviosError: envios.enviosError,
     erroresDeValidacion: envios.erroresDeValidacion,

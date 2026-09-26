@@ -53,6 +53,7 @@ const ESTADO_POR_DECISION: Readonly<Record<string, IdentityVerificationState>> =
  */
 import { MobileIdentitySignalsService } from './mobile-identity-signals.service.js';
 import { lecturaUtilizable } from './mobile-identity.lectura.js';
+import { contextoDeLaEjecucion } from './mobile-identity.contexto.js';
 import { describir } from './mobile-identity.errors.js';
 @Injectable()
 export class MobileIdentityService {
@@ -228,8 +229,7 @@ export class MobileIdentityService {
             identidad_comportamiento_bot_score: comportamiento.botScore,
             identidad_comportamiento_senales: comportamiento.senales,
           },
-          // `behaviorSummaryId` ata esta decisión a la fila exacta del resumen que el artefacto vio.
-          context: { channel: 'MOBILE_APP', verificationId, behaviorSummaryId: comportamiento.summaryId },
+          context: contextoDeLaEjecucion(verificationId, comportamiento.summaryId, body.documentCaptureSource),
         },
         {
           // Plazo propio y sin reintentos: ver `DECISION_ENGINE_IDENTITY_TIMEOUT_MS`.

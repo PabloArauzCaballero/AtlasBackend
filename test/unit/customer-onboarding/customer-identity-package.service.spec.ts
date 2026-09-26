@@ -228,6 +228,42 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
     expect(onboardingRepository.createEvidenceReview).toHaveBeenCalledTimes(2);
   });
 
+  it('persiste el origen de captura de cada evidencia y deja NULL (cámara) la que no lo declara', async () => {
+    const { service, customersRepository, onboardingRepository } = buildService();
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
+    (onboardingRepository.createEvidenceDocument as jest.Mock)
+      .mockResolvedValueOnce({ id: 'e1' } as never)
+      .mockResolvedValueOnce({ id: 'e2' } as never)
+      .mockResolvedValueOnce({ id: 'e3' } as never);
+    (onboardingRepository.createIdentityDocument as jest.Mock).mockResolvedValueOnce({ id: 'identity-doc-1' } as never);
+    (onboardingRepository.createIdentityVerificationAttempt as jest.Mock).mockResolvedValueOnce({ id: 'attempt-1' } as never);
+    (onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
+
+    await service.submitIdentityPackage(
+      baseInput({
+        body: {
+          identity: {},
+          evidence: [
+            {
+              evidenceType: 'identity_front',
+              storageKey: 't1/c1/k1',
+              mimeType: 'image/jpeg',
+              sha256Hash: 'h1',
+              captureSource: 'system_scanner',
+            },
+            { evidenceType: 'identity_back', storageKey: 't1/c1/k2', mimeType: 'image/jpeg', sha256Hash: 'h2', captureSource: 'camera' },
+            { evidenceType: 'selfie', storageKey: 't1/c1/k3', mimeType: 'image/jpeg', sha256Hash: 'h3' },
+          ],
+        },
+      }),
+    );
+
+    const origenes = (onboardingRepository.createEvidenceDocument as jest.Mock).mock.calls.map(
+      (llamada) => (llamada[0] as { captureSource: unknown }).captureSource,
+    );
+    expect(origenes).toEqual(['system_scanner', 'camera', null]);
+  });
+
   it('every evidence extraction is created with requiresReview: true — nothing is auto-approved', async () => {
     const { service, customersRepository, onboardingRepository } = buildService();
     (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);

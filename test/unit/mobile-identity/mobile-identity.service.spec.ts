@@ -196,6 +196,38 @@ describe('MobileIdentityService', () => {
     });
     expect(repository.createPending).not.toHaveBeenCalled();
   });
+
+  /*
+   * El origen de la captura (escáner del sistema frente a cámara) viaja en el CONTEXTO de la
+   * ejecución, nunca como variable: una variable nueva del artefacto exige una versión firmada por
+   * dos personas. Y sin el campo, la llamada al Motor tiene que ser idéntica a la de antes.
+   */
+  it('reenvía documentCaptureSource en el contexto y no en las variables', async () => {
+    const { service, engine } = montar({ output: { identidad_resultado: 'VERIFICADO' } });
+
+    await service.start('1', cuerpo({ documentCaptureSource: 'system_scanner' }), 'idem-escaner');
+    await dejarResolver();
+
+    const peticion = engine.execute.mock.calls[0]?.[1] as { variables: Record<string, unknown>; context: Record<string, unknown> };
+    expect(peticion.context).toEqual({
+      channel: 'MOBILE_APP',
+      verificationId: '5501',
+      behaviorSummaryId: null,
+      documentCaptureSource: 'system_scanner',
+    });
+    expect(Object.keys(peticion.variables).some((clave) => clave.toLowerCase().includes('capture'))).toBe(false);
+    expect(Object.values(peticion.variables)).not.toContain('system_scanner');
+  });
+
+  it('sin documentCaptureSource el contexto queda exactamente como antes', async () => {
+    const { service, engine } = montar({ output: { identidad_resultado: 'VERIFICADO' } });
+
+    await service.start('1', cuerpo(), 'idem-camara');
+    await dejarResolver();
+
+    const peticion = engine.execute.mock.calls[0]?.[1] as { context: Record<string, unknown> };
+    expect(peticion.context).toEqual({ channel: 'MOBILE_APP', verificationId: '5501', behaviorSummaryId: null });
+  });
 });
 
 describe('el contrato de entrada del móvil', () => {
@@ -218,6 +250,21 @@ describe('el contrato de entrada del móvil', () => {
     });
 
     expect(resultado.success).toBe(true);
+  });
+
+  it('documentCaptureSource es opcional y sólo admite camera o system_scanner', () => {
+    const base = { documentFront: 'A'.repeat(120), selfie: 'A'.repeat(120) };
+
+    expect(startIdentityVerificationSchema.parse(base).documentCaptureSource).toBeUndefined();
+    expect(startIdentityVerificationSchema.parse({ ...base, documentCaptureSource: 'camera' }).documentCaptureSource).toBe('camera');
+    expect(startIdentityVerificationSchema.parse({ ...base, documentCaptureSource: 'system_scanner' }).documentCaptureSource).toBe(
+      'system_scanner',
+    );
+    expect(startIdentityVerificationSchema.safeParse({ ...base, documentCaptureSource: 'gallery' }).success).toBe(false);
+    expect(startIdentityVerificationSchema.safeParse({ ...base, documentCaptureSource: '' }).success).toBe(false);
+    // El esquema no es `.strict()`: una clave desconocida se descarta sin 400. Un backend anterior a
+    // `documentCaptureSource` lo habría tirado en silencio, no rechazado.
+    expect(startIdentityVerificationSchema.parse({ ...base, captureSource: 'system_scanner' })).not.toHaveProperty('captureSource');
   });
 
   it('normaliza el país a mayúsculas y cae a BO', () => {

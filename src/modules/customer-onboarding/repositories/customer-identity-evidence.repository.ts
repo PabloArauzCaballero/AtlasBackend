@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Transaction } from 'sequelize';
+import type { CaptureSource } from '../../../common/storage/capture-source.js';
 import {
   CustomerIdentityDocumentModel,
   DataProviderRequestModel,
@@ -18,6 +19,23 @@ import {
 
 export type RepositoryOptions = {
   transaction?: Transaction;
+};
+
+/** Lo que hace falta para registrar una evidencia. Lo comparten este puerto y la fachada. */
+export type NewEvidenceDocumentValues = {
+  tenantId: string;
+  customerId: string;
+  documentType: string;
+  storageKey: string;
+  bucket: string | null;
+  mimeType: string;
+  sha256Hash: string;
+  fileSizeBytes: string | null;
+  sessionId: string | null;
+  ipAddress: string | null;
+  uploadedAt: Date;
+  /** Sin él (o `null`), la fila queda sin origen, que se lee como cámara. */
+  captureSource?: CaptureSource | null;
 };
 
 /**
@@ -40,22 +58,7 @@ export class CustomerIdentityEvidenceRepository {
     @InjectModel(DataProviderResponseModel) private readonly dataProviderResponseModel: typeof DataProviderResponseModel,
   ) {}
 
-  createEvidenceDocument(
-    values: {
-      tenantId: string;
-      customerId: string;
-      documentType: string;
-      storageKey: string;
-      bucket: string | null;
-      mimeType: string;
-      sha256Hash: string;
-      fileSizeBytes: string | null;
-      sessionId: string | null;
-      ipAddress: string | null;
-      uploadedAt: Date;
-    },
-    options: RepositoryOptions,
-  ): Promise<EvidenceDocumentModel> {
+  createEvidenceDocument(values: NewEvidenceDocumentValues, options: RepositoryOptions): Promise<EvidenceDocumentModel> {
     return this.evidenceDocumentModel.create(
       {
         tenantId: values.tenantId,
@@ -73,6 +76,7 @@ export class CustomerIdentityEvidenceRepository {
         uploadedFromIp: values.ipAddress,
         uploadedFromSessionId: values.sessionId,
         uploadedFromDeviceFingerprint: null,
+        captureSource: values.captureSource ?? null,
         retentionPolicyId: null,
         expiresAt: null,
         retentionUntil: null,

@@ -82,8 +82,14 @@ export class CustomerDocumentUploadService {
         targetId: input.customerId,
         ipAddress: input.ipAddress,
         userAgent: null,
-        // La URL firmada NO se audita: es una credencial temporal de escritura.
-        payloadJson: { storageKey: ticket.storageKey, documentType: input.body.documentType, contentType: input.body.contentType },
+        // La URL firmada NO se audita: es una credencial temporal de escritura. El origen de la
+        // captura sólo se anota si la app lo declaró: sin él, el registro queda igual que antes.
+        payloadJson: {
+          storageKey: ticket.storageKey,
+          documentType: input.body.documentType,
+          contentType: input.body.contentType,
+          ...(input.body.captureSource ? { captureSource: input.body.captureSource } : {}),
+        },
         occurredAt: new Date(),
       },
       {},

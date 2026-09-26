@@ -53,6 +53,12 @@ export type DetalleDelResumen = {
   pegadosEnIdentidad: number;
   segundoPlanoDuranteCaptura: boolean;
   capturasRepetidas: number;
+  /** Imágenes obtenidas: `toma` (cámara) + `escanea` (escáner del sistema). */
+  capturasTomadas: number;
+  /** De ellas, las que vinieron del escáner del sistema. */
+  capturasEscaneadas: number;
+  /** Veces que el escáner no estaba y la app cayó a la cámara. */
+  respaldosDeCamara: number;
   enviosOk: number;
   enviosError: number;
   erroresDeValidacion: number;
@@ -135,6 +141,9 @@ export function detalleVacio(): DetalleDelResumen {
     pegadosEnIdentidad: 0,
     segundoPlanoDuranteCaptura: false,
     capturasRepetidas: 0,
+    capturasTomadas: 0,
+    capturasEscaneadas: 0,
+    respaldosDeCamara: 0,
     enviosOk: 0,
     enviosError: 0,
     erroresDeValidacion: 0,

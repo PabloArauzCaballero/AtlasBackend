@@ -3436,6 +3436,11 @@ paths:
                   type: integer
                   exclusiveMinimum: 0
                   maximum: 15728640
+                captureSource:
+                  type: string
+                  enum:
+                    - camera
+                    - system_scanner
               required:
                 - documentType
                 - contentType
@@ -3793,6 +3798,11 @@ paths:
                       fileSizeBytes:
                         type: string
                         pattern: ^[1-9][0-9]*$
+                      captureSource:
+                        type: string
+                        enum:
+                          - camera
+                          - system_scanner
                     required:
                       - evidenceType
                       - storageKey
@@ -14088,6 +14098,11 @@ paths:
                 customerId:
                   type: string
                   maxLength: 40
+                documentCaptureSource:
+                  type: string
+                  enum:
+                    - camera
+                    - system_scanner
               required:
                 - documentFront
                 - selfie

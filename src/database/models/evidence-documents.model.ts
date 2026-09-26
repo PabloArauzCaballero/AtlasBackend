@@ -50,6 +50,10 @@ export class EvidenceDocumentModel extends Model {
   @Column({ field: 'uploaded_from_device_fingerprint', type: DataType.STRING(180) })
   declare uploadedFromDeviceFingerprint: string | null;
 
+  /** `camera` | `system_scanner` (CHECK en la base). NULL = cámara: filas anteriores a la etiqueta. */
+  @Column({ field: 'capture_source', type: DataType.STRING(20) })
+  declare captureSource: string | null;
+
   @Column({ field: 'retention_policy_id', type: DataType.BIGINT })
   declare retentionPolicyId: string | null;
 

@@ -62,6 +62,7 @@ Esta pieza preserva la fuente de verdad y la evidencia histórica que soportan d
 | `uploadedFromIp` | `uploaded_from_ip` | string \| null | INET | No | — | — |
 | `uploadedFromSessionId` | `uploaded_from_session_id` | string \| null | BIGINT | No | FK | — |
 | `uploadedFromDeviceFingerprint` | `uploaded_from_device_fingerprint` | string \| null | STRING(180) | No | — | — |
+| `captureSource` | `capture_source` | string \| null | STRING(20) | No | — | — |
 | `retentionPolicyId` | `retention_policy_id` | string \| null | BIGINT | No | FK | — |
 | `expiresAt` | `expires_at` | string \| null | DATEONLY | No | — | — |
 | `retentionUntil` | `retention_until` | string \| null | DATEONLY | No | — | — |

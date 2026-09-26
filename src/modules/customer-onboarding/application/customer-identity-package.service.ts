@@ -114,6 +114,7 @@ export class CustomerIdentityPackageService {
             sessionId: input.body.sessionId ?? null,
             ipAddress: input.ipAddress,
             uploadedAt: now,
+            captureSource: evidenceInput.captureSource ?? null,
           },
           { transaction },
         );

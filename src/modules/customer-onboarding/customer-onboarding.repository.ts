@@ -28,7 +28,7 @@ import {
 } from '../../database/models/index.js';
 import { CustomerAddressStatusRepository } from './repositories/customer-address-status.repository.js';
 import { CustomerContactVerificationRepository } from './repositories/customer-contact-verification.repository.js';
-import { CustomerIdentityEvidenceRepository } from './repositories/customer-identity-evidence.repository.js';
+import { CustomerIdentityEvidenceRepository, NewEvidenceDocumentValues } from './repositories/customer-identity-evidence.repository.js';
 import { CustomerOnboardingFlowRepository, RepositoryOptions } from './repositories/customer-onboarding-flow.repository.js';
 
 export type { RepositoryOptions } from './repositories/customer-onboarding-flow.repository.js';
@@ -198,22 +198,7 @@ export class CustomerOnboardingRepository {
 
   // ---- Identidad y evidencia (delega en CustomerIdentityEvidenceRepository) ----
 
-  createEvidenceDocument(
-    values: {
-      tenantId: string;
-      customerId: string;
-      documentType: string;
-      storageKey: string;
-      bucket: string | null;
-      mimeType: string;
-      sha256Hash: string;
-      fileSizeBytes: string | null;
-      sessionId: string | null;
-      ipAddress: string | null;
-      uploadedAt: Date;
-    },
-    options: RepositoryOptions,
-  ): Promise<EvidenceDocumentModel> {
+  createEvidenceDocument(values: NewEvidenceDocumentValues, options: RepositoryOptions): Promise<EvidenceDocumentModel> {
     return this.identityEvidenceRepository.createEvidenceDocument(values, options);
   }
 

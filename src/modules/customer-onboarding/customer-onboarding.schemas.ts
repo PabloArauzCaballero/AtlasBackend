@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import { birthDateSchema } from './customer-onboarding-profile.schemas.js';
+import { captureSourceSchema } from '../../common/storage/capture-source.js';
 import { isCustomerPinValid } from '../../common/utils/crypto/password.util.js';
 
 const ALLOWED_PERMISSION_CODES = ['location', 'camera', 'contacts', 'notifications', 'storage'] as const;
@@ -189,6 +190,8 @@ const identityEvidenceSchema = z.object({
     .string()
     .regex(/^[1-9][0-9]*$/)
     .optional(),
+  /** Origen de la imagen; se persiste en `evidence_documents.capture_source`. Sin él, cámara. */
+  captureSource: captureSourceSchema.optional(),
 });
 
 export const identityPackageSchema = z.object({
