@@ -118,10 +118,25 @@ describe('atlas-integration-v1 · Core como PRODUCTOR de payment.*', () => {
     reason: 'No veo la transferencia',
   };
 
-  it('el sobre que Core entrega al ERP cumple el esquema para los tres tópicos suscritos', () => {
+  // T-11: credit.decision.recorded no tiene forma de "claim" (no hay cuota ni préstamo); su propio
+  // fixture, distinto de outboxPayload, es justo lo que hace real la prueba de conformidad por tópico.
+  const creditDecisionPayload = {
+    customerId: '950001',
+    riskBand: 'B',
+    decidedAt: new Date('2026-09-24T12:00:00.000Z'),
+    applicationCode: 'CRA-FIXTURE-0001',
+  };
+  const payloadByEventCode: Record<string, Record<string, unknown>> = {
+    'payment.reported': outboxPayload,
+    'payment.confirmed': outboxPayload,
+    'payment.rejected': outboxPayload,
+    'credit.decision.recorded': creditDecisionPayload,
+  };
+
+  it('el sobre que Core entrega al ERP cumple el esquema para cada tópico suscrito', () => {
     expect([...OUTBOUND_SUBSCRIPTIONS['atlas-erp']!].sort()).toEqual(Object.keys(OUTBOUND_PAYLOAD_FIELDS).sort());
     for (const eventCode of OUTBOUND_SUBSCRIPTIONS['atlas-erp']!) {
-      const envelope = buildCoreEnvelope({ ...baseRow, eventCode, eventPayloadJson: outboxPayload });
+      const envelope = buildCoreEnvelope({ ...baseRow, eventCode, eventPayloadJson: payloadByEventCode[eventCode] });
       expect({ eventCode, errores: validateEnvelope(registry, topics, JSON.parse(JSON.stringify(envelope))) }).toEqual({
         eventCode,
         errores: [],

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.atlas.internal/atlas-integration-v1/merchant.mdr.updated.v1.schema.json",
+  "title": "merchant.mdr.updated v1 — el MDR efectivo que el ERP acaba de aplicar",
+  "description": "Productor: ERP (autoridad del término comercial pactado). Consumidor: Core (T-10 — proyecta partner_profiles.mdr_rate_percent, condicionado a que effectiveAt sea más nuevo que el ya aplicado).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["partnerProfileId", "mdrRatePercent", "effectiveAt"],
+  "properties": {
+    "partnerProfileId": { "$ref": "common.schema.json#/$defs/coreId" },
+    "mdrRatePercent": {
+      "description": "Tasa en por ciento, hasta dos decimales, 0-100 (columna NUMERIC(5,2) de partner_profiles).",
+      "type": "string",
+      "pattern": "^(?:100(?:\\.0{1,2})?|[0-9]{1,2}(?:\\.[0-9]{1,2})?)$"
+    },
+    "effectiveAt": { "$ref": "common.schema.json#/$defs/isoDateTime" }
+  }
+}

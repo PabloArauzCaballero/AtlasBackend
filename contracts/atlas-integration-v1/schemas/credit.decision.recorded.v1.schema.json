@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.atlas.internal/atlas-integration-v1/credit.decision.recorded.v1.schema.json",
+  "title": "credit.decision.recorded v1 — el crédito se aprobó con una banda de riesgo real",
+  "description": "Productor: Core. Consumidor: ERP (T-11 — la regla de MDR por banda casa con esto en el registro de la compra). Sólo se emite en una APROBACIÓN con banda; una revisión o un rechazo no fijan tarifa.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["customerId", "riskBand", "decidedAt", "applicationCode"],
+  "properties": {
+    "customerId": { "$ref": "common.schema.json#/$defs/coreId" },
+    "riskBand": { "enum": ["A", "B", "C", "D"] },
+    "decidedAt": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "applicationCode": { "type": "string", "minLength": 1, "maxLength": 80 }
+  }
+}
