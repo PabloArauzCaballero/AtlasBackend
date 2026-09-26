@@ -6,10 +6,18 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { UniqueConstraintError, ValidationError } from 'sequelize';
 import { normalizePostgresError, type NormalizedPostgresError } from '../database/postgres-error.js';
+import { isApplicationError, toHttpException } from '../../platform/contracts/application-error.js';
+import { recordHttpFailure } from '../observability/trace-error.js';
+import { publishTraceIdHeader } from '../observability/trace-id-header.js';
 
 type HttpResponse = {
   status: (statusCode: number) => HttpResponse;
   json: (body: unknown) => void;
+  // Lo que hace falta para publicar `x-trace-id` desde aquí. Este tipo describe el MÍNIMO que
+  // el filtro usa —para poder probarlo con un doble— y hasta ahora no incluía las cabeceras
+  // porque el filtro no las tocaba.
+  headersSent: boolean;
+  setHeader: (name: string, value: string) => unknown;
 };
 
 type HttpRequest = {
@@ -136,6 +144,48 @@ function buildStatusCode(exception: unknown, postgres: NormalizedPostgresError |
   return HttpStatus.INTERNAL_SERVER_ERROR;
 }
 
+/**
+ * El código de negocio que la excepción declaró, si declaró alguno.
+ *
+ * Hasta ahora `error.code` se derivaba SOLO del estado HTTP, así que todo 401 salía como
+ * `UNAUTHORIZED` y todo 409 como `CONFLICT`. El dominio sí distingue —«contraseña incorrecta» no es
+ * «cuenta bloqueada»— y la app tiene una tabla de mensajes por código de negocio que en esos casos
+ * nunca acertaba: caía siempre en el texto genérico por estado.
+ *
+ * El truco que sostenía esto era escribir el código DENTRO del mensaje (`ONBOARDING_INCOMPLETE: …`)
+ * y que el cliente lo recortara. Funciona, pero obliga a que el mensaje no sea una frase, y no deja
+ * sitio para el dato que acompaña al código —hasta cuándo dura un bloqueo, por ejemplo—.
+ *
+ * Se sigue admitiendo la forma antigua: quien lance `new ConflictException('CODIGO')` no cambia.
+ */
+function businessCodeOf(exception: unknown): string | null {
+  if (!(exception instanceof HttpException)) return null;
+  const response = exception.getResponse();
+  if (typeof response !== 'object' || response === null || !('code' in response)) return null;
+  const code = (response as { code: unknown }).code;
+  return typeof code === 'string' && /^[A-Z][A-Z0-9_]*$/.test(code) ? code : null;
+}
+
+/**
+ * Lo que el código de negocio necesita para ser accionable.
+ *
+ * Un `ACCOUNT_LOCKED` sin `lockedUntil` obliga a la app a decir «intenta más tarde», que es la
+ * respuesta que garantiza que la persona lo intente o nunca o cada diez segundos.
+ *
+ * Se excluyen las claves que pone Nest en sus propias excepciones (`statusCode`, `message`, `error`)
+ * y las `issues` de validación, que ya viajan en su propio campo.
+ */
+const RESERVED_ERROR_KEYS = new Set(['code', 'message', 'statusCode', 'error', 'issues']);
+
+function buildErrorDetails(exception: unknown): Record<string, unknown> | undefined {
+  if (!(exception instanceof HttpException)) return undefined;
+  const response = exception.getResponse();
+  if (typeof response !== 'object' || response === null) return undefined;
+
+  const details = Object.fromEntries(Object.entries(response).filter(([key]) => !RESERVED_ERROR_KEYS.has(key)));
+  return Object.keys(details).length > 0 ? details : undefined;
+}
+
 function buildErrorCode(statusCode: number): string {
   const codes: Record<number, string> = {
     400: 'VALIDATION_ERROR',
@@ -159,6 +209,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost): void {
+    // AT-013: un caso de uso puede lanzar `ApplicationError` sin conocer HTTP. Se traduce aquí, en la
+    // presentación, a la excepción Nest equivalente con el mismo mensaje; el resto del filtro no cambia.
+    if (isApplicationError(exception)) exception = toHttpException(exception);
     const context = host.switchToHttp();
     const response = context.getResponse<HttpResponse>();
     const request = context.getRequest<HttpRequest>();
@@ -169,6 +222,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const correlationId = request.correlationId;
 
     const safeUrl = sanitizeUrlForLog(request.url);
+
+    // La traza se marca ANTES de responder y sin tocar ni el estado ni el cuerpo: la
+    // observabilidad no cambia el contrato HTTP. Un 5xx marca el span como error; un 4xx sólo
+    // deja su código. El error original sigue su camino intacto.
+    recordHttpFailure(statusCode, exception);
+    // También aquí, y no sólo en el interceptor: los guards corren ANTES que los interceptores,
+    // así que un 401 del guard de sesión salta directo a este filtro y saldría sin `x-trace-id`
+    // —justo el caso en que soporte más la necesita—. Es idempotente.
+    publishTraceIdHeader(response);
 
     // Un fallo de privilegios (42501) o una escritura por la conexión read-only (25006) son bugs de
     // aprovisionamiento/enrutamiento NUESTROS: el cliente ve un 5xx opaco, pero el log debe gritar
@@ -190,12 +252,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     const issues = statusCode === HttpStatus.BAD_REQUEST ? extractValidationIssues(exception) : undefined;
 
+    // Los detalles solo acompañan a un código de negocio: sin él no hay nada que interpretarlos, y
+    // volcar el cuerpo de cualquier excepción sería una vía silenciosa de fuga.
+    const businessCode = businessCodeOf(exception);
+    const details = businessCode ? buildErrorDetails(exception) : undefined;
+
     response.status(statusCode).json({
       requestId: correlationId,
       error: {
-        code: buildErrorCode(statusCode),
+        code: businessCode ?? buildErrorCode(statusCode),
         message,
         ...(issues && issues.length > 0 ? { issues } : {}),
+        ...(details ? { details } : {}),
       },
       timestamp: new Date().toISOString(),
     });

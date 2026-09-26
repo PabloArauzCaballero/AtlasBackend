@@ -3,8 +3,9 @@
  * @business Esta pieza materializa la oferta y solicitud de crédito solo para clientes habilitados y con decisiones explicables.
  * @system coordina productos, solicitudes, transiciones y eventos inmutables del ciclo de crédito.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, ServiceUnavailableException, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -13,16 +14,20 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { CreditBusinessAcceptanceService } from './application/credit-business-acceptance.service.js';
 import { CreditDecisionService } from './application/credit-decision.service.js';
+import { CreditLineService } from './application/credit-line.service.js';
+import { toCreditLineResponse } from './credit-line.mapper.js';
 import { CreditProductService } from './application/credit-product.service.js';
 import {
   CreateCreditProductDto,
   CreditApplicationDecisionDto,
+  CreditBusinessAcceptanceDto,
   CreditProductIdParamsDto,
   CreditProductStatusDto,
   createCreditProductSchema,
   creditApplicationDecisionSchema,
+  creditBusinessAcceptanceSchema,
   creditProductIdParamsSchema,
   creditProductStatusSchema,
 } from './credit.schemas.js';
@@ -43,14 +48,36 @@ export class CreditOperationsController {
   constructor(
     private readonly productService: CreditProductService,
     private readonly decisionService: CreditDecisionService,
+    private readonly businessAcceptance: CreditBusinessAcceptanceService,
+    private readonly creditLines: CreditLineService,
   ) {}
+
+  @ApiOperation({
+    summary: 'Recalcular la línea de crédito de un cliente',
+    description:
+      'Vuelve a preguntarle al motor cuánto puede gastar, con el expediente que hay HOY. Abre una versión ' +
+      'nueva de la línea y cierra la anterior, dejando escrito qué la movió. Si el motor no responde, la ' +
+      'línea vigente NO se toca: un motor caído no es una política que rebaja.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Línea recalculada.' })
+  @ApiResponse({ status: 503, description: 'DECISION_ENGINE_UNAVAILABLE — no se cambió nada.' })
+  @Post('customers/:customerId/credit-line/recalculate')
+  @HttpCode(HttpStatus.OK)
+  async recalculateCreditLine(@CurrentTenant() tenantId: string, @Param('customerId') customerId: string) {
+    const line = await this.creditLines.recalculate({ tenantId, customerId, trigger: 'manual' });
+    if (!line) {
+      throw new ServiceUnavailableException('DECISION_ENGINE_UNAVAILABLE');
+    }
+    return toCreditLineResponse(line);
+  }
 
   @ApiOperation({ summary: 'Listar los productos vigentes (operaciones)' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Productos del tenant.' })
   @Get('products')
-  listProducts(@Headers('x-tenant-id') tenantIdHeader: string | undefined) {
-    return this.productService.listForOperations(tenantIdFromHeader(tenantIdHeader));
+  listProducts(@CurrentTenant() tenantId: string) {
+    return this.productService.listForOperations(tenantId);
   }
 
   @ApiOperation({
@@ -64,11 +91,11 @@ export class CreditOperationsController {
   @Post('products')
   @HttpCode(HttpStatus.CREATED)
   createProduct(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(createCreditProductSchema)) body: CreateCreditProductDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.productService.createProduct({ tenantId: tenantIdFromHeader(tenantIdHeader), body, currentUser });
+    return this.productService.createProduct({ tenantId: tenantId, body, currentUser });
   }
 
   @ApiOperation({ summary: 'Cambiar el estado de un producto (activar, suspender, retirar)' })
@@ -80,13 +107,13 @@ export class CreditOperationsController {
   @Patch('products/:productId/status')
   @HttpCode(HttpStatus.OK)
   changeProductStatus(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(creditProductIdParamsSchema)) params: CreditProductIdParamsDto,
     @Body(new ZodValidationPipe(creditProductStatusSchema)) body: CreditProductStatusDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.productService.changeStatus({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       productId: params.productId,
       status: body.status,
       currentUser,
@@ -107,24 +134,50 @@ export class CreditOperationsController {
   @Post('applications/:applicationId/decision')
   @HttpCode(HttpStatus.OK)
   decideApplication(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Param('applicationId') applicationId: string,
     @Body(new ZodValidationPipe(creditApplicationDecisionSchema)) body: CreditApplicationDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.decisionService.decide({
-      tenantId: tenantIdFromHeader(tenantIdHeader),
+      tenantId: tenantId,
       applicationId,
       body,
       currentUser,
     });
   }
 
+  /**
+   * La segunda pregunta: el motor dijo que el riesgo encaja, el negocio dice si quiere la operación.
+   */
+  @ApiOperation({
+    summary: 'Aceptar o declinar una solicitud que el motor aprobó',
+    description:
+      'Sólo aplica a solicitudes aprobadas por el MOTOR y todavía pendientes. Declinar exige motivo ' +
+      'y deja la solicitud en `rejected`; lo que la distingue de un rechazo del motor queda en la ' +
+      'columna de aceptación, para no contaminar la medición del modelo.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiBody({ schema: zodToApiSchema(creditBusinessAcceptanceSchema) })
+  @ApiResponse({ status: 200, description: 'Aceptación registrada.' })
+  @ApiResponse({ status: 404, description: 'CREDIT_APPLICATION_NOT_FOUND.' })
+  @ApiResponse({ status: 409, description: 'CREDIT_BUSINESS_ACCEPTANCE_NOT_PENDING.' })
+  @Post('applications/:applicationId/business-acceptance')
+  @HttpCode(HttpStatus.OK)
+  decideBusinessAcceptance(
+    @CurrentTenant() tenantId: string,
+    @Param('applicationId') applicationId: string,
+    @Body(new ZodValidationPipe(creditBusinessAcceptanceSchema)) body: CreditBusinessAcceptanceDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.businessAcceptance.decide({ tenantId, applicationId, body, currentUser });
+  }
+
   @ApiOperation({ summary: 'Detalle de una solicitud, con su historial completo' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Solicitud + eventos, más recientes primero.' })
   @Get('applications/:applicationId')
-  getApplicationDetail(@Headers('x-tenant-id') tenantIdHeader: string | undefined, @Param('applicationId') applicationId: string) {
-    return this.decisionService.getApplicationDetail(tenantIdFromHeader(tenantIdHeader), applicationId);
+  getApplicationDetail(@CurrentTenant() tenantId: string, @Param('applicationId') applicationId: string) {
+    return this.decisionService.getApplicationDetail(tenantId, applicationId);
   }
 }

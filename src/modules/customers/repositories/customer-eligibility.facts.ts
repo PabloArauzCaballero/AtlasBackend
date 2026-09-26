@@ -17,6 +17,8 @@ export type EligibilityFacts = {
   presentFinancialAttributeCodes: string[];
   /** Valores numéricos vigentes por código. Lo consume la elegibilidad POR PRODUCTO. */
   financialAttributeValues: Readonly<Record<string, number>>;
+  /** Los atributos económicos de catálogo, por código. `employment_status` y `source_of_funds`. */
+  financialAttributeTexts: Readonly<Record<string, string>>;
   hasCurrentAddress: boolean;
   referenceContactCount: number;
   identityDocument: CustomerIdentityDocumentModel | null;
@@ -28,4 +30,8 @@ export type EligibilityFacts = {
   unclearedWatchlistMatchCount: number;
   latestRisk: RiskAssessmentResultModel | null;
   openFraudCaseCount: number;
+  /** Finalidades de permisos del teléfono con una decisión registrada (concedida o denegada). */
+  decidedDevicePermissionPurposes: string[];
+  /** Preguntas de la encuesta de hábitos contestadas en la versión vigente. */
+  answeredSurveyQuestionCodes: string[];
 };

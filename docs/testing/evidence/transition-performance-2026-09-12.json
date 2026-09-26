@@ -1,0 +1,40 @@
+{
+  "$comment": "AT-054: medición LOCAL (máquina de desarrollo, PostgreSQL en docker). No es una línea base de producción ni un objetivo.",
+  "measuredAt": "2026-09-12T14:49:17.653Z",
+  "node": "v22.23.2",
+  "platform": "darwin/arm64",
+  "dataset": {
+    "customers": 100,
+    "product": "IT (harness)",
+    "tenant": "aislado por corrida"
+  },
+  "submitSequential": {
+    "samples": 50,
+    "latencyMs": {
+      "p50": 17.44,
+      "p95": 30.7,
+      "p99": 42.02,
+      "max": 42.02,
+      "mean": 18.67
+    },
+    "throughputPerSecond": 53.55
+  },
+  "submitConcurrent": {
+    "samples": 50,
+    "concurrency": 10,
+    "latencyMs": {
+      "p50": 55.74,
+      "p95": 95.16,
+      "p99": 98.36,
+      "max": 98.36,
+      "mean": 64.88
+    },
+    "throughputPerSecond": 138.78
+  },
+  "relayV2": {
+    "published": 100,
+    "delivered": 100,
+    "throughputPerSecond": 99.68,
+    "totalMs": 1003.19
+  }
+}

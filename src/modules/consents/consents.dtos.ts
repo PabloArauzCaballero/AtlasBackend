@@ -11,6 +11,10 @@ export type ConsentDocumentResponseDto = {
   language: string | null;
   contentUrl: string | null;
   contentHash: string | null;
+  /** Titulo y cuerpo del documento. Sin ellos la casilla del registro pide una firma en blanco. */
+  title: string | null;
+  summary: string | null;
+  bodyMarkdown: string | null;
   requiresExplicitAction: boolean | null;
   effectiveFrom: string | null;
   effectiveUntil: string | null;

@@ -21,7 +21,7 @@ describe('CatalogQueryService', () => {
     const repository = {
       listCatalogs: asyncMock(),
       findLatestVersion: asyncMock(),
-      findLatestVersionsByCatalogIds: jest.fn(async () => new Map()),
+      findLatestVersionsByCatalogIds: jest.fn(async (..._args: unknown[]) => new Map()),
       findCatalogByCode: asyncMock(),
       findCatalogVersion: asyncMock(),
       findItemsByVersion: asyncMock(),

@@ -43,6 +43,25 @@ describe('external-data-policy.util', () => {
     expect(toProviderCode('INFOCENTER')).toBe('INFOCENTER');
   });
 
+  describe('consentPurposeCodes', () => {
+    it('la verificación de identidad (SEGIP/KYC_ONBOARDING) admite los consentimientos obligatorios del alta', () => {
+      const codes = consentPurposeCodes('SEGIP', 'KYC_ONBOARDING');
+      expect(codes).toContain('terms_of_service');
+      expect(codes).toContain('privacy_policy');
+      // La regla es por identidad, no por el string exacto del proveedor: el alias también cuenta.
+      expect(consentPurposeCodes('SEGIP', 'kyc_onboarding')).toContain('privacy_policy');
+    });
+
+    it('el buró de crédito (INFOCENTER/CREDIT_EVALUATION) NO hereda los consentimientos del alta', () => {
+      const codes = consentPurposeCodes('INFOCENTER', 'CREDIT_EVALUATION');
+      expect(codes).not.toContain('terms_of_service');
+      expect(codes).not.toContain('privacy_policy');
+      // Sigue exigiendo su propio propósito y los alias genéricos.
+      expect(codes).toContain('CREDIT_EVALUATION');
+      expect(codes).toContain('risk_fraud_assessment');
+    });
+  });
+
   it('toMode acepta los modos válidos y cae a mock_local ante nulo/desconocido', () => {
     for (const mode of ['mock_local', 'mock_server', 'sandbox', 'production', 'disabled']) {
       expect(toMode(mode.toUpperCase())).toBe(mode);

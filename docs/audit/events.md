@@ -25,8 +25,9 @@
   `ux_outbox_tenant_event_idempotency_key` a nivel de base de datos (migración
   `20260630183000-patch-2-event-messaging-core.ts`).
 - `retryEvent`/`cancelEvent` rechazan explícitamente operar sobre un evento ya `processed`
-  (`PROCESSED_EVENT_CANNOT_BE_RETRIED`/`_CANCELLED`) — no se puede reintentar o cancelar un
-  evento que ya se procesó con éxito.
+  (`PROCESSED_EVENT_CANNOT_BE_RETRIED`/`_CANCELLED`, HTTP 409) — no se puede reintentar o
+  cancelar un evento que ya se procesó con éxito; cancelar dos veces responde
+  `EVENT_ALREADY_CANCELLED` (409). El filtro `status` del listado acepta cualquier caja.
 - `payload`/`metadata` pasan por `redactSensitiveObject` antes de persistirse en
   `eventPayloadJson`/`metadataJson`.
 - `processPendingEvents` (el worker de procesamiento) usa `claimPending` con lock

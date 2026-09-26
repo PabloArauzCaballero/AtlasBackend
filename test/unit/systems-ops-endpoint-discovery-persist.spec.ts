@@ -13,7 +13,9 @@ function buildItem(index: number): DiscoveredEndpoint {
 
 function buildService(repository: { upsertEndpoint: jest.Mock; markDeprecatedCandidates: jest.Mock }) {
   const classifier = { riskLevelForEndpoint: () => 'LOW', containsPiiForEndpoint: () => false };
-  return new EndpointDiscoveryService(repository as never, classifier as never);
+  // El tercer colaborador (catálogo por contrato) no participa en el escaneo de código: sólo
+  // interviene al elegir estrategia en `discover`.
+  return new EndpointDiscoveryService(repository as never, classifier as never, {} as never);
 }
 
 describe('EndpointDiscoveryService.discoverAndMaybePersist', () => {
@@ -30,7 +32,10 @@ describe('EndpointDiscoveryService.discoverAndMaybePersist', () => {
   });
 
   it('upserts every discovered item exactly once, even across a batch boundary (25 items, chunks of 10)', async () => {
-    const repository = { upsertEndpoint: jest.fn(async () => undefined), markDeprecatedCandidates: jest.fn(async () => 3) };
+    const repository = {
+      upsertEndpoint: jest.fn(async (..._args: unknown[]) => undefined),
+      markDeprecatedCandidates: jest.fn(async (..._args: unknown[]) => 3),
+    };
     const service = buildService(repository);
     const items = Array.from({ length: 25 }, (_, i) => buildItem(i));
     jest.spyOn(service, 'scanControllers').mockResolvedValue(items);
@@ -45,7 +50,10 @@ describe('EndpointDiscoveryService.discoverAndMaybePersist', () => {
   });
 
   it('still runs markDeprecatedCandidates with the full set of active method+path keys after chunked persistence', async () => {
-    const repository = { upsertEndpoint: jest.fn(async () => undefined), markDeprecatedCandidates: jest.fn(async () => 0) };
+    const repository = {
+      upsertEndpoint: jest.fn(async (..._args: unknown[]) => undefined),
+      markDeprecatedCandidates: jest.fn(async (..._args: unknown[]) => 0),
+    };
     const service = buildService(repository);
     const items = [buildItem(1), buildItem(2)];
     jest.spyOn(service, 'scanControllers').mockResolvedValue(items);

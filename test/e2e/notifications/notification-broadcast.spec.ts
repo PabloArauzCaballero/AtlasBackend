@@ -13,7 +13,7 @@ import { buildNotificationsTestApp, authHeader } from './support/notifications-t
 describe('NotificationsController — POST /operations/notifications/broadcast (e2e/supertest)', () => {
   let app: INestApplication;
   const service = {
-    broadcast: jest.fn(async () => ({ broadcastId: 'bcast-1', targeted: 2, created: 2, status: 'queued' })),
+    broadcast: jest.fn(async (..._args: unknown[]) => ({ broadcastId: 'bcast-1', targeted: 2, created: 2, status: 'queued' })),
   };
 
   beforeAll(async () => {
@@ -107,5 +107,92 @@ describe('NotificationsController — POST /operations/notifications/broadcast (
       .send({ ...validBody, audience: 'internal_users' })
       .expect(202);
     expect(service.broadcast).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * Plantillas y preferencias de operación: el mismo corte por tamaño que dejó el broadcast fuera de las pruebas dejó
+ * también estas cinco rutas sin una sola afirmación. Lo que se fija aquí es quién entra, que es lo que su `@Roles` promete.
+ */
+describe('NotificationTemplatesController — plantillas y preferencias (e2e/supertest)', () => {
+  let app: INestApplication;
+  const service = {
+    listTemplates: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+    createTemplate: jest.fn(async (..._args: unknown[]) => ({ templateId: 'tpl-1' })),
+    updateTemplate: jest.fn(async (..._args: unknown[]) => ({ templateId: 'tpl-1' })),
+    getPreferences: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+    updatePreferences: jest.fn(async (..._args: unknown[]) => ({ updated: 1 })),
+  };
+
+  beforeAll(async () => {
+    app = await buildNotificationsTestApp([{ provide: NotificationsService, useValue: service }]);
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const TENANT: [string, string] = ['x-tenant-id', '1'];
+
+  it('sin token no se listan las plantillas', async () => {
+    await request(app.getHttpServer())
+      .get('/operations/notifications/templates')
+      .set(...TENANT)
+      .expect(401);
+    expect(service.listTemplates).not.toHaveBeenCalled();
+  });
+
+  it('un cliente no entra a las plantillas, y un analista de riesgo sí las lee', async () => {
+    await request(app.getHttpServer())
+      .get('/operations/notifications/templates')
+      .set(...TENANT)
+      .set(...authHeader('customer'))
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/operations/notifications/templates')
+      .set(...TENANT)
+      .set(...authHeader('risk_analyst'))
+      .expect(200);
+  });
+
+  it('crear una plantilla es de administración: el analista que la lee no la escribe', async () => {
+    const cuerpo = { code: 'welcome-e2e', channel: 'email', locale: 'es-BO', subjectTemplate: 'Hola', bodyTemplate: 'Bienvenido' };
+    const IDEM: [string, string] = ['x-idempotency-key', 'idem-plantilla-1'];
+    await request(app.getHttpServer())
+      .post('/operations/notifications/templates')
+      .set(...TENANT)
+      .set(...authHeader('risk_analyst'))
+      .set(...IDEM)
+      .send(cuerpo)
+      .expect(403);
+    expect(service.createTemplate).not.toHaveBeenCalled();
+    await request(app.getHttpServer())
+      .post('/operations/notifications/templates')
+      .set(...TENANT)
+      .set(...authHeader('admin'))
+      .set(...IDEM)
+      .send(cuerpo)
+      .expect(201);
+    expect(service.createTemplate).toHaveBeenCalled();
+    // Sin clave de idempotencia se rechaza en el borde, y el administrador ya había pasado la puerta de rol.
+    await request(app.getHttpServer())
+      .post('/operations/notifications/templates')
+      .set(...TENANT)
+      .set(...authHeader('admin'))
+      .send(cuerpo)
+      .expect(400);
+  });
+
+  it('las preferencias de un cliente no las lee otro cliente', async () => {
+    await request(app.getHttpServer())
+      .get('/operations/notifications/preferences/77')
+      .set(...TENANT)
+      .set(...authHeader('customer'))
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/operations/notifications/preferences/77')
+      .set(...TENANT)
+      .set(...authHeader('compliance_analyst'))
+      .expect(200);
   });
 });

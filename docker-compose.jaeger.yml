@@ -1,0 +1,50 @@
+# Jaeger para DESARROLLO. Un solo contenedor, almacenamiento en memoria.
+#
+# Va en un archivo aparte y no dentro de `docker-compose.yml` a propósito: las trazas son opt-in
+# (`OTEL_ENABLED=false` por defecto) y quien no las mira no debería pagar un contenedor más en cada
+# `docker compose up`. Se levanta con `yarn jaeger:up`.
+#
+# Se usa como CAPA sobre el compose principal, no como proyecto aparte:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.jaeger.yml up -d jaeger
+#
+# Así comparte el proyecto —y por tanto la red `default`— con `api`, `worker` y
+# `messaging-worker`, que pueden exportar a `http://jaeger:4318/v1/traces` por nombre de servicio
+# sin declarar ninguna red externa que haya que crear a mano. Los dos modos de trabajo quedan
+# cubiertos:
+#
+#   - `yarn start:dev` (Node en el host):  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
+#   - `--profile app`  (Node en Docker):   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://jaeger:4318/v1/traces
+#
+# **Esta topología NO vale para producción.** El modo all-in-one guarda las trazas en memoria: se
+# pierden en cada reinicio y la memoria crece hasta el límite del contenedor. La topología de
+# producción —Collector, Jaeger Collector/Query y almacenamiento persistente— está en
+# `docs/observability/03-production-topology.md`.
+
+services:
+  jaeger:
+    # Versión explícita, NUNCA `latest`: la etiqueta móvil convierte cada `docker pull` en un
+    # cambio de versión no solicitado, y una UI que cambia sola es un incidente de operación.
+    image: jaegertracing/all-in-one:1.62.0
+    container_name: atlas-jaeger
+    # Sin perfil: este archivo sólo se carga cuando se pide explícitamente, así que un perfil
+    # encima sólo añadiría una palabra más que recordar.
+    environment:
+      # Recibe OTLP nativo. No se usa ningún cliente ni protocolo propietario de Jaeger.
+      COLLECTOR_OTLP_ENABLED: "true"
+      # Cota superior de la memoria: sin ella el contenedor crece hasta que el demonio lo mata a
+      # mitad de una sesión de depuración. Con ella se descartan las trazas más antiguas.
+      MEMORY_MAX_TRACES: ${JAEGER_MAX_TRACES:-20000}
+    ports:
+      # Sólo en loopback, igual que el resto de servicios de este repositorio: un Jaeger publicado
+      # en todas las interfaces es una consola SIN AUTENTICACIÓN abierta a la red.
+      - "127.0.0.1:${JAEGER_UI_PORT:-16686}:16686"        # UI
+      - "127.0.0.1:${JAEGER_OTLP_HTTP_PORT:-4318}:4318"   # OTLP/HTTP — el que usa este backend
+      - "127.0.0.1:${JAEGER_OTLP_GRPC_PORT:-4317}:4317"   # OTLP/gRPC — para un Collector local
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:16686/"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: ${JAEGER_MEMORY:-1g}
+    restart: unless-stopped

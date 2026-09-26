@@ -219,7 +219,7 @@ export function isConsentRequiredError(error: unknown): boolean {
 export function consentPurposeCodes(providerCode: string, purpose: string): string[] {
   const normalizedProvider = providerCode.toLowerCase();
   const normalizedPurpose = purpose.toLowerCase();
-  return [
+  const codes = [
     purpose,
     normalizedPurpose,
     'risk_fraud_assessment',
@@ -227,6 +227,16 @@ export function consentPurposeCodes(providerCode: string, purpose: string): stri
     `external_${normalizedPurpose}`,
     `${normalizedProvider}_${normalizedPurpose}`,
   ];
+  // La verificación de identidad contra el registro estatal (SEGIP) es intrínseca a la apertura de
+  // la cuenta y no tiene un consentimiento propio en el catálogo: la autorizan los consentimientos
+  // obligatorios del alta —términos y política de privacidad—, que declaran con quién se comparten
+  // los datos. Sin este mapeo, `SEGIP/KYC_ONBOARDING` exigía un consentimiento que nadie recoge y la
+  // verificación automática quedaba en `CONSENT_REQUIRED` para todos los clientes. El acotado a la
+  // identidad deja intactos los proveedores con costo (INFOCENTER usa `CREDIT_EVALUATION`).
+  if (normalizedProvider === 'segip' || normalizedPurpose === 'kyc_onboarding') {
+    codes.push('terms_of_service', 'privacy_policy');
+  }
+  return codes;
 }
 
 export function statusFromRaw(raw: ExternalProviderRawResult): ExternalProviderStatus {

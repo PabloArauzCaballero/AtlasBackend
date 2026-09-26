@@ -54,10 +54,10 @@ function buildResponseSpy() {
 
 function buildController(overrides: Partial<InternalAuthService> = {}) {
   const authService = {
-    login: jest.fn(async () => authResponse),
-    verifyLoginPin: jest.fn(async () => authResponse),
-    refresh: jest.fn(async () => authResponse),
-    logout: jest.fn(async () => ({ loggedOut: true })),
+    login: jest.fn(async (..._args: unknown[]) => authResponse),
+    verifyLoginPin: jest.fn(async (..._args: unknown[]) => authResponse),
+    refresh: jest.fn(async (..._args: unknown[]) => authResponse),
+    logout: jest.fn(async (..._args: unknown[]) => ({ loggedOut: true })),
     ...overrides,
   } as unknown as InternalAuthService;
   const usersService = {} as unknown as InternalUsersService;
@@ -132,7 +132,7 @@ describe('InternalAuthController · login', () => {
     // `pinChallengeRequired` es el discriminante real de `isLoginPinChallenge`.
     const challenge = { pinChallengeRequired: true as const, challengeToken: 'challenge-1', expiresInMinutes: 10 };
     const { controller } = buildController({
-      login: jest.fn(async () => challenge),
+      login: jest.fn(async (..._args: unknown[]) => challenge),
     } as unknown as Partial<InternalAuthService>);
     const { set, response } = buildResponseSpy();
 

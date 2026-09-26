@@ -11,29 +11,51 @@
 #
 # Esta configuración de GitHub no se puede versionar como archivo — debe activarse manualmente
 # una vez en el repositorio real. Este archivo CODEOWNERS es la mitad "versionable" del control.
+#
+# ---------------------------------------------------------------------------------------------
+# PROPIETARIO ÚNICO
+#
+# Las rutas de abajo apuntaban a equipos (@atlas-backend-team, @atlas-security-team, …). Los
+# equipos solo existen dentro de una organización de GitHub: en un repositorio personal no
+# resuelven, y GitHub **ignora en silencio** a los propietarios que no puede resolver. El efecto
+# era que "Require review from Code Owners" no habría solicitado revisión a nadie — un control
+# que parecía configurado y no lo estaba.
+#
+# Mientras el repositorio sea personal, el propietario es una sola persona. La partición por
+# áreas se conserva como comentario: documenta qué zonas exigen una revisión más cuidadosa y
+# vuelve a ser accionable el día que exista una organización con equipos reales.
+# ---------------------------------------------------------------------------------------------
 
 # Dueño por defecto de todo el repo si no hay una regla más específica abajo.
-* @atlas-backend-team
+* @PabloArauzCaballero
 
 # Seguridad, cifrado y autenticación — requieren revisión de seguridad explícita.
-/src/common/utils/crypto/ @atlas-security-team @atlas-backend-team
-/src/modules/auth/ @atlas-security-team @atlas-backend-team
-/src/common/guards/ @atlas-security-team @atlas-backend-team
-/src/common/services/token-revocation.service.ts @atlas-security-team @atlas-backend-team
+# (futuro: @atlas-security-team)
+/src/common/utils/crypto/ @PabloArauzCaballero
+/src/modules/auth/ @PabloArauzCaballero
+/src/common/guards/ @PabloArauzCaballero
+/src/common/services/token-revocation.service.ts @PabloArauzCaballero
 
 # Esquema de datos — cualquier migración nueva debe pasar por alguien que entienda el
 # historial completo del esquema (ver docs/database/schema-snapshot.md).
-/src/database/migrations/ @atlas-backend-team @atlas-data-team
-/src/database/models/ @atlas-backend-team @atlas-data-team
+# (futuro: @atlas-data-team)
+/src/database/migrations/ @PabloArauzCaballero
+/src/database/models/ @PabloArauzCaballero
 
 # Motor de riesgo/fraude — cambios aquí afectan directamente decisiones de crédito.
-/src/modules/risk/ @atlas-risk-team @atlas-backend-team
-/src/modules/fraud/ @atlas-risk-team @atlas-backend-team
+# (futuro: @atlas-risk-team)
+/src/modules/risk/ @PabloArauzCaballero
+/src/modules/fraud/ @PabloArauzCaballero
 
-# Gobernanza de pendientes y documentación de producto — cualquiera puede proponer, pero el
-# cierre de pendientes bloqueantes requiere el visto bueno del equipo de producto.
-/docs/pending/ @atlas-product-team @atlas-backend-team
-/PENDIENTES_ATLAS.md @atlas-product-team
+# Gobernanza de pendientes y documentación de producto.
+# (futuro: @atlas-product-team)
+/docs/pending/ @PabloArauzCaballero
+/PENDIENTES_ATLAS.md @PabloArauzCaballero
 
 # Infraestructura y CI/CD.
-/.github/ @atlas-infra-team @atlas-backend-team
+# (futuro: @atlas-infra-team)
+/.github/ @PabloArauzCaballero
+
+# Documentación de arquitectura y bóveda Obsidian.
+/docs/obsidian/ @PabloArauzCaballero
+/docs/adr/ @PabloArauzCaballero

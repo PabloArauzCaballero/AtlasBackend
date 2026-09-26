@@ -36,7 +36,7 @@ describe('SystemsTestSuiteAdminRepository', () => {
 
   it('updateSuite solo toca los campos definidos y deriva destructivePermission de isSafeForProduction', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const suite = { code: 'old', name: 'old', save } as never;
     await repo.updateSuite(suite, { name: 'new', isSafeForProduction: true } as never);
     expect((suite as { name: string }).name).toBe('new');
@@ -47,7 +47,7 @@ describe('SystemsTestSuiteAdminRepository', () => {
 
   it('updateSuite respeta requiresDestructivePermission explícito sobre isSafeForProduction', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const suite = { save } as never;
     await repo.updateSuite(suite, { isSafeForProduction: true, requiresDestructivePermission: true } as never);
     expect((suite as { requiresDestructivePermission: boolean }).requiresDestructivePermission).toBe(true);
@@ -83,8 +83,8 @@ describe('SystemsTestSuiteAdminRepository', () => {
 
   it('reorderSteps aplica el nuevo stepOrder y guarda cada step', async () => {
     const { repo, stepModel } = buildRepo();
-    const save1 = jest.fn(async () => ({}));
-    const save2 = jest.fn(async () => ({}));
+    const save1 = jest.fn(async (..._args: unknown[]) => ({}));
+    const save2 = jest.fn(async (..._args: unknown[]) => ({}));
     const steps = [
       { id: 1, save: save1 },
       { id: 2, save: save2 },
@@ -117,7 +117,7 @@ describe('SystemsTestSuiteAdminRepository', () => {
 
   it('updateSuite NO toca requiresDestructivePermission cuando no se pasan ni el flag ni isSafeForProduction', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const suite = { requiresDestructivePermission: 'unchanged', save } as never;
     await repo.updateSuite(suite, { name: 'n' } as never);
     expect((suite as { requiresDestructivePermission: unknown }).requiresDestructivePermission).toBe('unchanged');
@@ -125,7 +125,7 @@ describe('SystemsTestSuiteAdminRepository', () => {
 
   it('updateStep asigna solo los campos definidos (endpointId ?? null) y guarda', async () => {
     const { repo } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const step = { name: 'old', method: 'GET', save } as never;
     await repo.updateStep(step, {
       endpointId: null,

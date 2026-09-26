@@ -13,18 +13,18 @@ import { RuntimeJobsService } from '../../../src/modules/runtime-jobs/runtime-jo
  */
 describe('RuntimeJobsService', () => {
   function buildRun() {
-    return { id: 'run-1', status: 'running', save: jest.fn(async () => undefined) };
+    return { id: 'run-1', status: 'running', save: jest.fn(async (..._args: unknown[]) => undefined) };
   }
 
   function buildService() {
-    const jobRunModel = { create: jest.fn(async () => buildRun()) };
+    const jobRunModel = { create: jest.fn(async (..._args: unknown[]) => buildRun()) };
     const outboxModel = { count: asyncMock() };
     const sessionModel = { count: asyncMock(), update: asyncMock() };
     const retentionPolicyModel = { findAll: asyncMock() };
     const dataQualityIssueModel = { count: asyncMock() };
     const auditModel = { create: asyncMock() };
     const gpsObservationModel = { count: asyncMock(), destroy: asyncMock() };
-    const deviceSnapshotModel = { count: asyncMock(), update: jest.fn(async () => [0]) };
+    const deviceSnapshotModel = { count: asyncMock(), update: jest.fn(async (..._args: unknown[]) => [0]) };
     const formInteractionModel = { count: asyncMock(), destroy: asyncMock() };
     const sequelize = {
       transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})),
@@ -266,7 +266,8 @@ describe('RuntimeJobsService', () => {
     it('dryRun: cuenta candidatos vía SQL y reporta el backlog sin reclamar filas', async () => {
       const { service, sequelize, outboxModel } = buildService();
       (sequelize.query as jest.Mock).mockResolvedValueOnce([{ count: '5' }] as never);
-      (outboxModel.count as jest.Mock).mockResolvedValueOnce(8 as never);
+      // Dos cuentas: pendientes del inquilino y pendientes sin inquilino, en ese orden.
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(8 as never).mockResolvedValueOnce(0 as never);
 
       const response = await service.processOutbox({
         tenantId: 't1',
@@ -279,8 +280,11 @@ describe('RuntimeJobsService', () => {
 
     it('real: reclama filas con SELECT..FOR UPDATE SKIP LOCKED dentro de una transacción', async () => {
       const { service, sequelize, outboxModel } = buildService();
-      (sequelize.query as jest.Mock).mockResolvedValueOnce([{ id: '1' }, { id: '2' }] as never);
-      (outboxModel.count as jest.Mock).mockResolvedValueOnce(4 as never);
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([
+        { id: '1', tenant_id: '1' },
+        { id: '2', tenant_id: '1' },
+      ] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(4 as never).mockResolvedValueOnce(0 as never);
 
       const response = await service.processOutbox({
         tenantId: 't1',
@@ -290,6 +294,85 @@ describe('RuntimeJobsService', () => {
       const result = response.result as { selected: number; processed: number; skippedBusinessEvents: number; dryRun: boolean };
       expect(result).toMatchObject({ selected: 2, processed: 2, skippedBusinessEvents: 4, dryRun: false });
       expect(sequelize.transaction).toHaveBeenCalled();
+    });
+
+    /**
+     * Las mutaciones anónimas —login, `auth/refresh`, `logout`— escriben su evento con `_tenant_id`
+     * nulo, y cada corrida reclamaba `_tenant_id = :tenantId`: un evento nulo no lo recogía NUNCA
+     * nadie. En el servidor, el 2026-09-10, los 67 pendientes eran todos nulos y llevaban desde el 23
+     * de agosto. Estas pruebas fijan que tanto la reclamación como el recuento en seco los incluyen:
+     * si sólo uno lo hiciera, el modo en seco diría «nada que hacer» sobre filas que el real sí toma.
+     */
+    it('real: reclama también los eventos SIN inquilino, que nadie más va a recoger', async () => {
+      const { service, sequelize, outboxModel } = buildService();
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(0 as never).mockResolvedValueOnce(0 as never);
+
+      await service.processOutbox({ tenantId: 't1', body: { dryRun: false, limit: 100 } as never, currentUser: internalUser });
+
+      const sql = String((sequelize.query as jest.Mock).mock.calls[0]?.[0]);
+      expect(sql).toContain('FOR UPDATE SKIP LOCKED');
+      // Con los PARÉNTESIS y seguido de las demás condiciones. Sin paréntesis Postgres agrupa
+      // `(pending AND inquilino) OR (nulo AND disponible AND no registrado)`: la rama del inquilino pierde
+      // `event_code NOT IN`, así que se marcarían procesados eventos de negocio registrados —notificaciones
+      // perdidas sin aviso— y la de los nulos pierde `status`. Comprobado con EXPLAIN en local.
+      expect(sql).toMatch(
+        /AND \(_tenant_id = CAST\(:tenantId AS BIGINT\) OR _tenant_id IS NULL\)\s+AND COALESCE\(available_at, now\(\)\) <= now\(\)\s+AND event_code NOT IN/,
+      );
+    });
+
+    it('dryRun: el recuento de candidatos incluye los mismos nulos que reclamaría el modo real', async () => {
+      const { service, sequelize, outboxModel } = buildService();
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([{ count: '0' }] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(0 as never).mockResolvedValueOnce(0 as never);
+
+      await service.processOutbox({ tenantId: 't1', body: { dryRun: true, limit: 100 } as never, currentUser: internalUser });
+
+      expect(String((sequelize.query as jest.Mock).mock.calls[0]?.[0])).toMatch(
+        /AND \(_tenant_id = CAST\(:tenantId AS BIGINT\) OR _tenant_id IS NULL\)\s+AND COALESCE\(available_at, now\(\)\) <= now\(\)\s+AND event_code NOT IN/,
+      );
+    });
+
+    /**
+     * Señalado por otra sesión revisando el arreglo: se reclamaban los nulos pero se CONTABAN sin
+     * ellos. En seco, `skippedBusinessEvents` restaba dos poblaciones distintas y podía salir negativo,
+     * y la corrida de un inquilino se llevaba en su resultado eventos que no eran suyos.
+     */
+    it('dryRun: con eventos sin inquilino, lo saltado no sale negativo', async () => {
+      const { service, sequelize, outboxModel } = buildService();
+      // 5 candidatos: 2 del inquilino y 3 sin inquilino. Con la cuenta vieja: 2 - 5 = -3.
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([{ count: '5' }] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(2 as never).mockResolvedValueOnce(3 as never);
+
+      const response = await service.processOutbox({
+        tenantId: 't1',
+        body: { dryRun: true, limit: 100 } as never,
+        currentUser: internalUser,
+      });
+
+      expect((response.result as { skippedBusinessEvents: number }).skippedBusinessEvents).toBe(0);
+    });
+
+    it('real: dice cuántos de los procesados NO eran de este inquilino', async () => {
+      const { service, sequelize, outboxModel } = buildService();
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([
+        { id: '1', tenant_id: null },
+        { id: '2', tenant_id: '1' },
+        { id: '3', tenant_id: null },
+      ] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValueOnce(0 as never).mockResolvedValueOnce(0 as never);
+
+      const response = await service.processOutbox({
+        tenantId: 't1',
+        body: { dryRun: false, limit: 100 } as never,
+        currentUser: internalUser,
+      });
+
+      // El portal enseña `result_json` acotado por inquilino: sin esto, el primero en correr se
+      // llevaba como suyos eventos ajenos.
+      expect(response.result).toMatchObject({ processed: 3, processedWithoutTenant: 2 });
+      // Y lo pendiente sin inquilino va aparte: sumarlo a lo de cada inquilino lo repetía N veces.
+      expect(response.result).toHaveProperty('pendingWithoutTenant');
     });
   });
 
@@ -315,14 +398,14 @@ describe('RuntimeJobsService', () => {
 
   describe('recalculateDataQuality', () => {
     function buildServiceWithDataQuality() {
-      const jobRunModel = { create: jest.fn(async () => buildRun()) };
+      const jobRunModel = { create: jest.fn(async (..._args: unknown[]) => buildRun()) };
       const outboxModel = { count: asyncMock() };
       const sessionModel = { count: asyncMock(), update: asyncMock() };
       const retentionPolicyModel = { findAll: asyncMock() };
       const dataQualityIssueModel = { count: asyncMock() };
       const auditModel = { create: asyncMock() };
       const gpsObservationModel = { count: asyncMock(), destroy: asyncMock() };
-      const deviceSnapshotModel = { count: asyncMock(), update: jest.fn(async () => [0]) };
+      const deviceSnapshotModel = { count: asyncMock(), update: jest.fn(async (..._args: unknown[]) => [0]) };
       const formInteractionModel = { count: asyncMock(), destroy: asyncMock() };
       const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})), query: asyncMock() };
       const eventsService = { processPendingEvents: asyncMock() };

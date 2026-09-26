@@ -23,19 +23,19 @@ function buildService(
     ...overrides.notificationsRepository,
   };
   const orchestrator = {
-    deliverMessage: jest.fn(async () => undefined),
+    deliverMessage: jest.fn(async (..._args: unknown[]) => undefined),
     ...overrides.orchestrator,
   };
   const customersRepository = {
-    listActiveCustomerIds: jest.fn(async () => ['c1', 'c2']),
+    listActiveCustomerIds: jest.fn(async (..._args: unknown[]) => ['c1', 'c2']),
     ...overrides.customersRepository,
   };
   const internalRbacRepository = {
-    listActiveInternalUserIds: jest.fn(async () => ['iu1', 'iu2']),
+    listActiveInternalUserIds: jest.fn(async (..._args: unknown[]) => ['iu1', 'iu2']),
     ...overrides.internalRbacRepository,
   };
   const tenantModel = {
-    findAll: jest.fn(async () => [{ id: 't1' }, { id: 't2' }]),
+    findAll: jest.fn(async (..._args: unknown[]) => [{ id: 't1' }, { id: 't2' }]),
     ...overrides.tenantModel,
   };
 
@@ -137,7 +137,7 @@ describe('NotificationBroadcastService.broadcast', () => {
   });
 
   it('returns targeted: 0, created: 0 without touching the repository when there are no recipients (empty customerIds handled upstream)', async () => {
-    const customersRepository = { listActiveCustomerIds: jest.fn(async () => [] as string[]) };
+    const customersRepository = { listActiveCustomerIds: jest.fn(async (..._args: unknown[]) => [] as string[]) };
     const { service, notificationsRepository } = buildService({ customersRepository });
 
     const result = await service.broadcast('t1', { ...baseInput, category: 'custom_broadcast', audience: 'customers' } as never);

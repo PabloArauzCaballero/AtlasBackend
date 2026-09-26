@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { hashOneTimeCode } from '../../../src/common/utils/crypto/one-time-code.util.js';
 import { AuthPasswordResetService } from '../../../src/modules/auth/auth-password-reset.service.js';
 
@@ -13,19 +13,25 @@ describe('AuthPasswordResetService', () => {
 
   function build() {
     const authRepository = {
-      findCredentialsByActor: jest.fn(async () => ({ id: 'cred1' })),
-      createOneTimeCode: jest.fn(async () => ({})),
-      recordLoginAttemptEvent: jest.fn(async () => ({})),
-      findActiveOneTimeCodeByActor: jest.fn(async () => null),
-      registerOneTimeCodeFailedAttempt: jest.fn(async () => ({})),
-      consumeOneTimeCode: jest.fn(async () => ({})),
-      updatePasswordHash: jest.fn(async () => ({})),
-      revokeAllRefreshTokensForActor: jest.fn(async () => 0),
+      findCredentialsByActor: jest.fn(async (..._args: unknown[]) => ({ id: 'cred1' })),
+      createOneTimeCode: jest.fn(async (..._args: unknown[]) => ({})),
+      recordLoginAttemptEvent: jest.fn(async (..._args: unknown[]) => ({})),
+      findActiveOneTimeCodeByActor: jest.fn(async (..._args: unknown[]) => null),
+      registerOneTimeCodeFailedAttempt: jest.fn(async (..._args: unknown[]) => ({})),
+      consumeOneTimeCode: jest.fn(async (..._args: unknown[]) => ({})),
+      updatePasswordHash: jest.fn(async (..._args: unknown[]) => ({})),
+      revokeAllRefreshTokensForActor: jest.fn(async (..._args: unknown[]) => 0),
     };
-    const tokenRevocationService = { bumpTokenVersion: jest.fn(async () => undefined) };
-    const mailSenderService = { isEnabled: jest.fn(() => true), sendPasswordResetCode: jest.fn(async () => undefined) };
-    const actorResolver = { resolveActorForLogin: jest.fn(async () => null) };
+    const tokenRevocationService = { bumpTokenVersion: jest.fn(async (..._args: unknown[]) => undefined) };
+    const mailSenderService = {
+      isEnabled: jest.fn((..._args: unknown[]) => true),
+      sendPasswordResetCode: jest.fn(async (..._args: unknown[]) => undefined),
+    };
+    const actorResolver = { resolveActorForLogin: jest.fn(async (..._args: unknown[]) => null) };
     const service = new AuthPasswordResetService(
+      authRepository as never,
+      // Mismo doble: los códigos de un solo uso viven ahora en su propio repositorio, pero el mock
+      // ya expone esos métodos y las aserciones siguen mirando el mismo objeto.
       authRepository as never,
       tokenRevocationService as never,
       mailSenderService as never,
@@ -69,6 +75,52 @@ describe('AuthPasswordResetService', () => {
     expect(mailSenderService.sendPasswordResetCode).not.toHaveBeenCalled();
   });
 
+  /**
+   * Los cuatro caminos que no envían nada contestan lo mismo que un envío correcto —tiene que ser
+   * así o la pantalla pública delata qué correos están registrados—, y hasta el 2026-09-21 no
+   * dejaban ningún rastro: «el comercio no recibe el código» era indistinguible de «ese comercio no
+   * existe en este entorno», que era la causa real en TEST. El motivo va al log del servidor, que
+   * no lo ve quien pregunta, y nombra el DOMINIO y nunca el buzón, que es PII.
+   */
+  it('requestPasswordReset deja en el log por qué no envió nada, sin escribir el buzón', async () => {
+    const avisos: string[] = [];
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(((mensaje: unknown) => {
+      avisos.push(String(mensaje));
+    }) as never);
+    try {
+      const sinActor = build();
+      await sinActor.service.requestPasswordReset(baseInput);
+
+      const sinCorreo = build();
+      (sinCorreo.actorResolver.resolveActorForLogin as jest.Mock).mockResolvedValueOnce({ ...actorWithEmail, email: null } as never);
+      await sinCorreo.service.requestPasswordReset(baseInput);
+
+      const sinCredencial = build();
+      (sinCredencial.actorResolver.resolveActorForLogin as jest.Mock).mockResolvedValueOnce(actorWithEmail as never);
+      (sinCredencial.authRepository.findCredentialsByActor as jest.Mock).mockResolvedValueOnce(null as never);
+      await sinCredencial.service.requestPasswordReset(baseInput);
+
+      const enEnfriamiento = build();
+      (enEnfriamiento.actorResolver.resolveActorForLogin as jest.Mock).mockResolvedValueOnce(actorWithEmail as never);
+      (enEnfriamiento.authRepository.findActiveOneTimeCodeByActor as jest.Mock).mockResolvedValueOnce({
+        createdAtValue: new Date(),
+      } as never);
+      await enEnfriamiento.service.requestPasswordReset(baseInput);
+    } finally {
+      warn.mockRestore();
+    }
+
+    expect(avisos).toHaveLength(4);
+    expect(avisos[0]).toContain('no hay ningún actor activo');
+    expect(avisos[1]).toContain('no tiene correo de contacto');
+    expect(avisos[2]).toContain('no tiene credencial');
+    expect(avisos[3]).toContain('hace menos de 60 s');
+    for (const aviso of avisos) {
+      expect(aviso).toContain("dominio 'mail.com'");
+      expect(aviso).not.toContain('ana@');
+    }
+  });
+
   it('requestPasswordReset (feliz) crea el código, envía el correo y registra el evento', async () => {
     const { service, authRepository, mailSenderService, actorResolver } = build();
     (actorResolver.resolveActorForLogin as jest.Mock).mockResolvedValueOnce(actorWithEmail as never);
@@ -84,11 +136,29 @@ describe('AuthPasswordResetService', () => {
 
   // --- confirmPasswordReset --------------------------------------------------------------------
 
-  const confirmInput = { ...baseInput, code: '123456', newPassword: 'NewPassw0rd!' };
+  /*
+   * El CLIENTE restablece con un PIN de cuatro digitos, no con una contrasena larga: es la misma
+   * regla con la que se dio de alta. Si el restablecimiento exigiera contrasena, la cuenta quedaria
+   * con un secreto que su propio login no sabe pedir.
+   */
+  const confirmInput = { ...baseInput, code: '123456', newPassword: '5183' };
 
-  it('confirmPasswordReset rechaza una contraseña débil', async () => {
+  it('confirmPasswordReset rechaza un PIN que no tiene cuatro digitos', async () => {
     const { service, actorResolver } = build();
     await expect(service.confirmPasswordReset({ ...confirmInput, newPassword: 'abc' })).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(actorResolver.resolveActorForLogin).not.toHaveBeenCalled();
+  });
+
+  it('confirmPasswordReset rechaza un PIN adivinable aunque tenga cuatro digitos', async () => {
+    const { service, actorResolver } = build();
+    await expect(service.confirmPasswordReset({ ...confirmInput, newPassword: '1234' })).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(actorResolver.resolveActorForLogin).not.toHaveBeenCalled();
+  });
+
+  it('confirmPasswordReset exige contrasena larga a un usuario interno, no un PIN', async () => {
+    const { service, actorResolver } = build();
+    const internal = { ...confirmInput, actorType: 'internal_user' as const };
+    await expect(service.confirmPasswordReset({ ...internal, newPassword: '5183' })).rejects.toBeInstanceOf(UnauthorizedException);
     expect(actorResolver.resolveActorForLogin).not.toHaveBeenCalled();
   });
 

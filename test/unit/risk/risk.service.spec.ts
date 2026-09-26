@@ -29,31 +29,40 @@ function nextId(): string {
 function buildRiskRepositoryMock() {
   return {
     findLatestCustomerRiskResult: asyncMock(),
-    findCustomerConsents: jest.fn(async (): Promise<Record<string, unknown>[]> => [{ granted: true, revokedAt: null }]),
-    findCustomerContacts: jest.fn(async () => [{ status: 'verified' }]),
-    findIdentityDocuments: jest.fn(async () => [{ id: 'doc-1' }]),
-    createFeatureComputationRun: jest.fn(async () => ({ id: nextId() })),
-    createFeatureValue: jest.fn(async () => ({ id: nextId() })),
-    createFeatureSnapshot: jest.fn(async () => ({ id: nextId() })),
-    createRiskAssessmentRun: jest.fn(async () => ({ id: nextId() })),
-    attachSnapshotToRun: jest.fn(async () => undefined),
-    createRiskAssessmentContext: jest.fn(async () => ({ id: nextId() })),
-    createRuleFired: jest.fn(async () => ({ id: nextId() })),
-    createContribution: jest.fn(async () => ({ id: nextId() })),
-    createRiskResult: jest.fn(async () => ({ id: nextId() })),
-    createManualReviewCase: jest.fn(async () => ({ id: nextId() })),
-    createDataQualityIssue: jest.fn(async () => ({ id: nextId() })),
-    createAudit: jest.fn(async () => ({ id: nextId() })),
+    findCustomerConsents: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown>[]> => [{ granted: true, revokedAt: null }]),
+    findCustomerContacts: jest.fn(async (..._args: unknown[]) => [{ status: 'verified' }]),
+    findIdentityDocuments: jest.fn(async (..._args: unknown[]) => [{ id: 'doc-1' }]),
+    createFeatureComputationRun: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createFeatureValue: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createFeatureSnapshot: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createRiskAssessmentRun: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    attachSnapshotToRun: jest.fn(async (..._args: unknown[]) => undefined),
+    createRiskAssessmentContext: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createRuleFired: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createContribution: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createRiskResult: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createAudit: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
     findRiskRun: asyncMock(),
     findRiskResultByRun: asyncMock(),
-    findRulesByRun: jest.fn(async (): Promise<Record<string, unknown>[]> => []),
-    findContributionsByRun: jest.fn(async (): Promise<Record<string, unknown>[]> => []),
+    findRulesByRun: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown>[]> => []),
+    findContributionsByRun: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown>[]> => []),
     findSnapshotByRun: asyncMock(),
   };
 }
 
+/**
+ * El puerto que abre el trabajo humano pendiente. Vive aparte del de riesgo porque no lee nada del
+ * modelo de riesgo: sólo escribe el caso de revisión y la incidencia del dato que faltó.
+ */
+function buildRevisionManualRepositoryMock() {
+  return {
+    createManualReviewCase: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    createDataQualityIssue: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+  };
+}
+
 function buildCustomersRepositoryMock(customer: { lifecycleStatus: string } | null = { lifecycleStatus: 'active' }) {
-  return { findById: jest.fn(async () => customer) };
+  return { findById: jest.fn(async (..._args: unknown[]) => customer) };
 }
 
 /**
@@ -69,16 +78,25 @@ function buildCustomersRepositoryMock(customer: { lifecycleStatus: string } | nu
  * versionado tiene su propio spec, y doblarlo aquí con otra forma haría que estas pruebas pasaran
  * describiendo un comportamiento que el servicio real no tiene.
  */
-function buildPolicyDecisionServiceMock() {
+/**
+ * La política resuelta. Sin argumento devuelve el RESPALDO que le pasó el servicio (la heurística,
+ * que desde el 2026-09-14 nunca aprueba); con `decision` finge que el Motor o un ruleset decidió eso.
+ */
+function buildPolicyDecisionServiceMock(decision?: { decision: string; reasons: string[] }) {
   return {
     resolve: jest.fn(async (input: { fallback: { decision: string; reasons: string[] } }) => ({
-      ...input.fallback,
+      ...(decision ?? input.fallback),
       rulesetVersionCode: 'rules-v1',
       firedRules: [],
       fromRuleset: false,
+      decisionSource: decision ? 'decision_engine' : 'heuristic_v0',
+      decisionExecutionId: decision ? 'exec-1' : null,
+      motorAbrioCaso: null,
     })),
   };
 }
+
+const POLITICA_APRUEBA = { decision: 'approved_for_next_step', reasons: ['minimum_onboarding_risk_passed'] };
 
 function buildSequelizeMock() {
   return { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
@@ -102,9 +120,11 @@ function buildBody(overrides: Partial<CreateRiskAssessmentDto> = {}): CreateRisk
 describe('RiskService.getLatestCustomerRiskResult', () => {
   it('rechaza con ForbiddenException si un cliente pide datos de otro cliente', async () => {
     const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
       buildSequelizeMock() as never,
@@ -117,9 +137,11 @@ describe('RiskService.getLatestCustomerRiskResult', () => {
 
   it('lanza NotFoundException si el cliente no existe', async () => {
     const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock(null);
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
       buildSequelizeMock() as never,
@@ -132,10 +154,12 @@ describe('RiskService.getLatestCustomerRiskResult', () => {
 
   it('devuelve null si el cliente existe pero no tiene evaluación de riesgo previa', async () => {
     const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
     riskRepository.findLatestCustomerRiskResult.mockResolvedValueOnce(null);
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
       buildSequelizeMock() as never,
@@ -154,9 +178,11 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
 
   it('exige X-Idempotency-Key: sin él, lanza BadRequestException antes de tocar ningún repositorio', async () => {
     const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
       buildSequelizeMock() as never,
@@ -176,9 +202,11 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
 
   it('bloquea la evaluación si el cliente está en estado blocked', async () => {
     const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock({ lifecycleStatus: 'blocked' });
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
       buildSequelizeMock() as never,
@@ -197,10 +225,12 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
 
   it('exige consentimiento vigente: sin consentimiento otorgado (o revocado), rechaza con REQUIRED_CONSENT_MISSING', async () => {
     const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
     riskRepository.findCustomerConsents.mockResolvedValueOnce([{ granted: true, revokedAt: new Date() }]); // revocado
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
       buildSequelizeMock() as never,
@@ -217,13 +247,15 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     ).rejects.toThrow('REQUIRED_CONSENT_MISSING');
   });
 
-  it('caso feliz: identidad + contacto verificado + consentimiento → approved_for_next_step, riskLevel alto, sin caso de revisión manual', async () => {
-    const riskRepository = buildRiskRepositoryMock(); // identidad + contacto verificado por defecto
+  it('caso feliz: identidad + contacto verificado + consentimiento y la POLÍTICA aprueba → approved_for_next_step, sin caso de revisión manual', async () => {
+    const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock(); // identidad + contacto verificado por defecto
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
-      buildPolicyDecisionServiceMock() as never,
+      buildPolicyDecisionServiceMock(POLITICA_APRUEBA) as never,
       buildSequelizeMock() as never,
     );
 
@@ -242,19 +274,50 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     expect(result.manualReviewCaseId).toBeNull();
     expect(result.nextStep).toBe('continue_onboarding');
     expect(result.fraudRiskLevel).toBe('low'); // fraudScore=20 < 40
-    expect(riskRepository.createManualReviewCase).not.toHaveBeenCalled();
-    expect(riskRepository.createDataQualityIssue).not.toHaveBeenCalled();
+    expect(revisionManualRepository.createManualReviewCase).not.toHaveBeenCalled();
+    expect(revisionManualRepository.createDataQualityIssue).not.toHaveBeenCalled();
     // Auditoría siempre debe registrarse, resuelva lo que resuelva la decisión.
     expect(riskRepository.createAudit).toHaveBeenCalledTimes(1);
   });
 
+  it('con todo en orden pero SIN política (ni Motor ni ruleset) ya no se aprueba: va a revisión y abre caso', async () => {
+    const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const service = new RiskService(
+      riskRepository as never,
+      revisionManualRepository as never,
+      customersRepository as never,
+      buildPolicyDecisionServiceMock() as never,
+      buildSequelizeMock() as never,
+    );
+
+    const result = await service.createRiskAssessment({
+      tenantId: 't1',
+      customerId: 'customer-1',
+      body: buildBody({ deviceId: 'device-1' }),
+      currentUser: buildUser(),
+      idempotencyKey: 'idem-1',
+    });
+
+    expect(result.decision).toBe('manual_review_required');
+    expect(result.decisionSource).toBe('heuristic_v0');
+    expect(revisionManualRepository.createManualReviewCase).toHaveBeenCalledTimes(1);
+    expect(revisionManualRepository.createManualReviewCase).toHaveBeenCalledWith(
+      expect.objectContaining({ notes: expect.stringContaining('decision_engine_unavailable') }),
+      expect.anything(),
+    );
+  });
+
   it('sin identidad ni contacto verificado → manual_review_required, crea caso de revisión y 2 issues de calidad de datos', async () => {
     const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
     riskRepository.findIdentityDocuments.mockResolvedValueOnce([]); // sin identidad
     riskRepository.findCustomerContacts.mockResolvedValueOnce([{ status: 'pending' }]); // sin contacto verificado
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
       buildSequelizeMock() as never,
@@ -272,17 +335,19 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     expect(result.nextStep).toBe('manual_review');
     expect(result.manualReviewCaseId).not.toBeNull();
     expect(result.reasons.map((r) => r.code)).toEqual(['missing_identity_document', 'missing_verified_contact']);
-    expect(riskRepository.createManualReviewCase).toHaveBeenCalledTimes(1);
-    expect(riskRepository.createDataQualityIssue).toHaveBeenCalledTimes(2); // uno por cada dato faltante
+    expect(revisionManualRepository.createManualReviewCase).toHaveBeenCalledTimes(1);
+    expect(revisionManualRepository.createDataQualityIssue).toHaveBeenCalledTimes(2); // uno por cada dato faltante
   });
 
   it('permite que un rol interno (no customer) evalúe el riesgo de cualquier cliente', async () => {
     const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
-      buildPolicyDecisionServiceMock() as never,
+      buildPolicyDecisionServiceMock(POLITICA_APRUEBA) as never,
       buildSequelizeMock() as never,
     );
 
@@ -299,9 +364,11 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
 
   it('un cliente no puede disparar una evaluación de riesgo para otro cliente', async () => {
     const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
       buildSequelizeMock() as never,
@@ -320,9 +387,11 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
 
   it('la integrityHash del resultado depende de runId+decision+totalScore (determinístico y auditable)', async () => {
     const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
       buildSequelizeMock() as never,
@@ -346,10 +415,12 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
 describe('RiskService.getRiskAssessmentExplanation', () => {
   it('lanza NotFoundException si la corrida de riesgo no existe', async () => {
     const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
     riskRepository.findRiskRun.mockResolvedValueOnce(null);
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
       buildSequelizeMock() as never,
@@ -360,6 +431,7 @@ describe('RiskService.getRiskAssessmentExplanation', () => {
 
   it('separa factores positivos (score>=60) de negativos (score<60) y arma el resumen con las reglas disparadas', async () => {
     const riskRepository = buildRiskRepositoryMock();
+    const revisionManualRepository = buildRevisionManualRepositoryMock();
     riskRepository.findRiskRun.mockResolvedValueOnce({ id: 'run-1' });
     riskRepository.findRiskResultByRun.mockResolvedValueOnce({ recommendedAction: 'approved_for_next_step' });
     riskRepository.findRulesByRun.mockResolvedValueOnce([{ reasonCode: 'minimum_onboarding_risk_passed' }]);
@@ -370,6 +442,7 @@ describe('RiskService.getRiskAssessmentExplanation', () => {
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
       riskRepository as never,
+      revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
       buildSequelizeMock() as never,

@@ -56,14 +56,28 @@ export function evaluatePredicate(predicate: RulePredicate, features: FeatureMap
   // Las comparaciones son estrictamente numéricas: comparar un booleano o un string con `>=`
   // produciría coerciones silenciosas y decisiones de riesgo inexplicables.
   if (typeof value !== 'number') return false;
-  if (predicate.gte !== undefined && !(value >= predicate.gte)) return false;
-  if (predicate.gt !== undefined && !(value > predicate.gt)) return false;
-  if (predicate.lte !== undefined && !(value <= predicate.lte)) return false;
-  if (predicate.lt !== undefined && !(value < predicate.lt)) return false;
+  return evaluateNumericBounds(predicate, value);
+}
 
-  const hasComparison =
-    predicate.gte !== undefined || predicate.gt !== undefined || predicate.lte !== undefined || predicate.lt !== undefined;
-  return hasComparison;
+/** Los cuatro límites numéricos del vocabulario, en una tabla en vez de en cuatro ramas. */
+const NUMERIC_BOUNDS = [
+  { key: 'gte', holds: (value: number, bound: number) => value >= bound },
+  { key: 'gt', holds: (value: number, bound: number) => value > bound },
+  { key: 'lte', holds: (value: number, bound: number) => value <= bound },
+  { key: 'lt', holds: (value: number, bound: number) => value < bound },
+] as const;
+
+/**
+ * Aplica los límites numéricos declarados en el predicado.
+ *
+ * Un predicado SIN ningún límite devuelve `false`, no `true`. La diferencia importa: un predicado que
+ * sólo nombra un campo no expresa ninguna condición, y tratarlo como cumplido haría que una regla
+ * escrita a medias —o con el operador mal tecleado— se disparara siempre contra todos los clientes.
+ */
+function evaluateNumericBounds(predicate: RulePredicate, value: number): boolean {
+  const declared = NUMERIC_BOUNDS.filter((bound) => predicate[bound.key] !== undefined);
+  if (declared.length === 0) return false;
+  return declared.every((bound) => bound.holds(value, predicate[bound.key] as number));
 }
 
 /**

@@ -3,24 +3,44 @@
  * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional, ServiceUnavailableException } from '@nestjs/common';
+import { Transaction } from 'sequelize';
 import { env } from '../../../config/env.js';
 import { decryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
 import { generateNumericCode, hashOneTimeCode, verifyOneTimeCode } from '../../../common/utils/crypto/one-time-code.util.js';
 import { CustomerContactMethodModel } from '../../../database/models/index.js';
 import { AuthRepository, OneTimeCodePurpose } from '../../auth/auth.repository.js';
+import { AuthOneTimeCodeRepository } from '../../auth/auth-one-time-code.repository.js';
 import { MailSenderService } from '../../mail-sender/mail-sender.service.js';
 import { NotificationChannelAdapter } from '../../notifications/adapters/notification-channel-adapter.js';
+import { OTP_DELIVERY_PORT, type OtpDeliveryPort } from '../../notifications/public/index.js';
 import { SmsNotificationAdapter } from '../../notifications/adapters/sms.adapter.js';
 import { WhatsAppNotificationAdapter } from '../../notifications/adapters/whatsapp.adapter.js';
 
 export type ContactType = 'phone' | 'email';
 export type VerificationChannel = 'sms' | 'email' | 'whatsapp';
 
+/**
+ * Orden de preferencia con el que se ofrecen los canales. Lo decide el SERVIDOR, no la app.
+ *
+ * Aquí es donde se cambia si algún día SMS pasa a ser el canal principal: la app toma el primero
+ * disponible de esta lista, así que no hace falta publicar una versión nueva para cambiarlo.
+ */
+export const CHANNEL_PREFERENCE: readonly VerificationChannel[] = ['email', 'sms', 'whatsapp'] as const;
+
 export type CodeDeliveryOutcome = {
   delivered: boolean;
   provider: string;
   errorCode: string | null;
+  /** Canal por el que salió de verdad: puede no ser el pedido si actuó la reserva por correo. */
+  channel?: VerificationChannel;
+};
+
+/** Código ya persistido (solo su hash) más lo que hace falta para entregarlo tras el commit. */
+export type IssuedCode = {
+  code: string;
+  ttlMinutes: number;
+  destination: string | null;
 };
 
 /** Un propósito por tipo de contacto: pedir el código del correo no debe invalidar el del teléfono. */
@@ -50,18 +70,39 @@ export class ContactVerificationCodeService {
 
   constructor(
     private readonly authRepository: AuthRepository,
+    private readonly oneTimeCodeRepository: AuthOneTimeCodeRepository,
     private readonly mailSenderService: MailSenderService,
     private readonly smsAdapter: SmsNotificationAdapter,
     private readonly whatsappAdapter: WhatsAppNotificationAdapter,
+    // AT-040: con el puerto presente, la entrega va por contrato (vencimiento, capacidades, resultado incierto).
+    @Optional() @Inject(OTP_DELIVERY_PORT) private readonly otpDelivery?: OtpDeliveryPort,
   ) {}
 
   /** Canales realmente utilizables con la configuración vigente. */
   availableChannels(): VerificationChannel[] {
+    if (this.otpDelivery)
+      return this.otpDelivery
+        .capabilities()
+        .filter((c) => c.available)
+        .map((c) => c.channel);
     const channels: VerificationChannel[] = [];
     if (this.mailSenderService.isEnabled()) channels.push('email');
     if (this.smsAdapter.getProviderName() !== 'disabled') channels.push('sms');
     if (this.whatsappAdapter.getProviderName() !== 'disabled') channels.push('whatsapp');
     return channels;
+  }
+
+  /**
+   * Los TRES canales con su disponibilidad, no sólo los encendidos.
+   *
+   * La app necesita las dos cosas: cuál puede usar por omisión y por qué los otros no aparecen. Si
+   * sólo se publicaran los disponibles, una app que enseñe «SMS» seguiría ofreciéndolo —no tendría
+   * forma de distinguir «apagado» de «no existe»— y pedirlo devolvería `VERIFICATION_CHANNEL_UNAVAILABLE`
+   * después de que la persona ya eligió. El orden es el de preferencia y lo fija el servidor.
+   */
+  channelCatalog(): { channel: VerificationChannel; available: boolean }[] {
+    const disponibles = new Set(this.availableChannels());
+    return CHANNEL_PREFERENCE.map((channel) => ({ channel, available: disponibles.has(channel) }));
   }
 
   assertChannelAvailable(channel: VerificationChannel): void {
@@ -73,40 +114,64 @@ export class ContactVerificationCodeService {
   }
 
   /**
-   * Emite y entrega un código nuevo. Devuelve el resultado de la entrega para que el llamador
-   * decida si registra el intento; NO lanza si el proveedor falla, porque el intento igual debe
-   * quedar registrado para el rate limiting y la auditoría.
+   * Emite el código DENTRO de la transacción del llamador y devuelve lo necesario para entregarlo
+   * después del commit.
+   *
+   * La emisión y la entrega están separadas a propósito. Antes iban juntas y el código se creaba
+   * fuera de la transacción del flujo: si el resto hacía rollback quedaba un código vigente sin
+   * intento asociado, y el `submit` posterior respondía `VERIFICATION_ATTEMPT_NOT_FOUND` sobre un
+   * código que el cliente sí tenía en la mano. Al revés tampoco vale: entregar dentro de la
+   * transacción mantiene locks abiertos durante toda la latencia del proveedor, y un mensaje ya
+   * enviado no se puede deshacer si la transacción falla después.
    */
-  async issueAndDeliver(input: {
+  async issue(input: {
     tenantId: string;
     customerId: string;
     contactMethod: CustomerContactMethodModel;
     contactType: ContactType;
-    channel: VerificationChannel;
-  }): Promise<CodeDeliveryOutcome> {
+    transaction?: Transaction;
+  }): Promise<IssuedCode> {
     const code = generateNumericCode();
     const ttlMinutes = env.AUTH_ONE_TIME_CODE_TTL_MINUTES;
 
-    await this.authRepository.createOneTimeCode({
-      tenantId: input.tenantId,
-      actorType: 'customer',
-      actorId: input.customerId,
-      purpose: purposeFor(input.contactType),
-      codeHash: hashOneTimeCode(code),
-      challengeHash: null,
-      expiresAt: new Date(Date.now() + ttlMinutes * 60_000),
-    });
+    await this.oneTimeCodeRepository.createOneTimeCode(
+      {
+        tenantId: input.tenantId,
+        actorType: 'customer',
+        actorId: input.customerId,
+        purpose: purposeFor(input.contactType),
+        codeHash: hashOneTimeCode(code),
+        challengeHash: null,
+        expiresAt: new Date(Date.now() + ttlMinutes * 60_000),
+      },
+      { transaction: input.transaction },
+    );
 
-    const destination = await this.resolveDestination(input.contactMethod);
-    if (!destination) {
+    return { code, ttlMinutes, destination: await this.resolveDestination(input.contactMethod) };
+  }
+
+  /**
+   * Entrega un código ya emitido. Se llama DESPUÉS del commit. NO lanza si el proveedor falla: el
+   * intento ya quedó registrado y el resultado se refleja en su estado.
+   */
+  async deliverIssuedCode(input: {
+    tenantId: string;
+    customerId: string;
+    channel: VerificationChannel;
+    issued: IssuedCode;
+    /** Correo del mismo cliente al que llevar el código si el canal pedido no entrega. */
+    fallbackEmail?: string | null;
+  }): Promise<CodeDeliveryOutcome> {
+    if (!input.issued.destination) {
       return { delivered: false, provider: 'none', errorCode: 'CONTACT_VALUE_UNREADABLE' };
     }
 
     return this.deliver({
+      fallbackEmail: input.fallbackEmail ?? null,
       channel: input.channel,
-      destination,
-      code,
-      ttlMinutes,
+      destination: input.issued.destination,
+      code: input.issued.code,
+      ttlMinutes: input.issued.ttlMinutes,
       tenantId: input.tenantId,
       customerId: input.customerId,
     });
@@ -123,20 +188,24 @@ export class ContactVerificationCodeService {
     contactType: ContactType;
     candidate: string;
   }): Promise<{ ok: true } | { ok: false; reason: 'not_found' | 'expired' | 'invalid' }> {
-    const record = await this.authRepository.findActiveOneTimeCodeByActor('customer', input.customerId, purposeFor(input.contactType));
+    const record = await this.oneTimeCodeRepository.findActiveOneTimeCodeByActor(
+      'customer',
+      input.customerId,
+      purposeFor(input.contactType),
+    );
     if (!record) return { ok: false, reason: 'not_found' };
 
     if (record.expiresAt.getTime() < Date.now()) {
-      await this.authRepository.consumeOneTimeCode(record);
+      await this.oneTimeCodeRepository.consumeOneTimeCode(record);
       return { ok: false, reason: 'expired' };
     }
 
     if (!verifyOneTimeCode(input.candidate, record.codeHash)) {
-      await this.authRepository.registerOneTimeCodeFailedAttempt(record, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
+      await this.oneTimeCodeRepository.registerOneTimeCodeFailedAttempt(record, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
       return { ok: false, reason: 'invalid' };
     }
 
-    await this.authRepository.consumeOneTimeCode(record);
+    await this.oneTimeCodeRepository.consumeOneTimeCode(record);
     return { ok: true };
   }
 
@@ -163,8 +232,28 @@ export class ContactVerificationCodeService {
     ttlMinutes: number;
     tenantId: string;
     customerId: string;
+    fallbackEmail?: string | null;
   }): Promise<CodeDeliveryOutcome> {
     const reference = `contact-verification:${input.customerId}`;
+    if (this.otpDelivery) {
+      const outcome = await this.otpDelivery.deliver({
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        channel: input.channel,
+        destination: input.destination,
+        code: input.code,
+        ttlMinutes: input.ttlMinutes,
+        expiresAt: new Date(Date.now() + input.ttlMinutes * 60_000),
+        fallbackEmail: input.fallbackEmail ?? null,
+        reference,
+      });
+      return {
+        delivered: outcome.delivered,
+        provider: outcome.provider,
+        errorCode: outcome.errorCode,
+        channel: outcome.channel ?? input.channel,
+      };
+    }
     try {
       if (input.channel === 'email') {
         await this.mailSenderService.sendContactVerificationCode({
@@ -179,6 +268,12 @@ export class ContactVerificationCodeService {
       const adapter: NotificationChannelAdapter = input.channel === 'sms' ? this.smsAdapter : this.whatsappAdapter;
       // Mensaje efímero: no se persiste en `notification_messages` porque su cuerpo contiene el
       // código en claro, y esa tabla es consultable desde el portal interno.
+      //
+      // Este camino es el PREVIO al puerto y en la aplicación no corre: `customer-onboarding.module`
+      // provee `OTP_DELIVERY_PORT` siempre, así que la entrega real la compone Mensajería
+      // (`otp-message.util.ts`), que es quien sabe que un WhatsApp por plantilla necesita el código
+      // como parámetro y no como texto. Aquí no se replica: duplicar los nombres de esos huecos es
+      // exactamente cómo los dos caminos dejarían de coincidir sin que nadie lo note.
       const result = await adapter.send({
         id: reference,
         tenantId: input.tenantId,

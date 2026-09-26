@@ -32,7 +32,11 @@ export class InternalPermissionsGuard implements CanActivate {
 
     const hasAccess = await this.rbacRepository.hasPermissions(user.tenantId, user.internalUserId, requiredPermissions);
     if (!hasAccess) {
-      throw new ForbiddenException('El usuario interno no tiene los permisos requeridos para esta operación.');
+      // Se nombra el permiso: el ERP y el portal conceden sus botones por ROL y aquí se decide por
+      // PERMISO; sin el código nadie sabía qué pedir ni a quién (ver `ROLE_PERMISSION_CODES`).
+      throw new ForbiddenException(
+        `El usuario interno no tiene los permisos requeridos para esta operación: ${requiredPermissions.join(', ')}.`,
+      );
     }
 
     return true;

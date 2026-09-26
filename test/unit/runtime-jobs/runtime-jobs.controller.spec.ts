@@ -10,17 +10,17 @@ import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.
 describe('RuntimeJobsController', () => {
   function build() {
     const service = {
-      processOutbox: jest.fn(async () => ({ processed: 1 })),
-      processEvents: jest.fn(async () => ({ processed: 2 })),
-      expireStaleSessions: jest.fn(async () => ({ expired: 3 })),
-      applyRetentionPolicies: jest.fn(async () => ({ applied: 4 })),
-      recalculateDataQuality: jest.fn(async () => ({ recalculated: 5 })),
+      processOutbox: jest.fn(async (..._args: unknown[]) => ({ processed: 1 })),
+      processEvents: jest.fn(async (..._args: unknown[]) => ({ processed: 2 })),
+      expireStaleSessions: jest.fn(async (..._args: unknown[]) => ({ expired: 3 })),
+      applyRetentionPolicies: jest.fn(async (..._args: unknown[]) => ({ applied: 4 })),
+      recalculateDataQuality: jest.fn(async (..._args: unknown[]) => ({ recalculated: 5 })),
     };
     // Los dos jobs de saneamiento viven en `RuntimeMaintenanceJobsService` (extraídos para no seguir
     // engordando `runtime-jobs.service.ts`, que ya estaba muy por encima del límite de tamaño).
     const maintenance = {
-      retryStuckNotifications: jest.fn(async () => ({ retried: 6 })),
-      purgeIdempotencyKeys: jest.fn(async () => ({ deleted: 7 })),
+      retryStuckNotifications: jest.fn(async (..._args: unknown[]) => ({ retried: 6 })),
+      purgeIdempotencyKeys: jest.fn(async (..._args: unknown[]) => ({ deleted: 7 })),
     };
     return { controller: new RuntimeJobsController(service as never, maintenance as never), service, maintenance };
   }

@@ -1,0 +1,141 @@
+/**
+ * @file Adaptador local del puerto de entrega de OTP (AT-040).
+ * @business Misma entrega que hacía el servicio de verificación de contactos, ahora detrás del contrato:
+ *   vencido → no se entrega; canal apagado → error explícito; timeout del proveedor → incierto.
+ * @system Envuelve `MailSenderService` y los adaptadores SMS/WhatsApp. Un error cuyo mensaje delate
+ *   timeout/abort se clasifica como incierto (el proveedor pudo haber aceptado).
+ */
+import { Injectable } from '@nestjs/common';
+import { MailSenderService } from '../../mail-sender/mail-sender.service.js';
+import type { NotificationChannelAdapter } from '../adapters/notification-channel-adapter.js';
+import { otpMessageBody, otpMessagePayload } from '../otp-message.util.js';
+import { SmsNotificationAdapter } from '../adapters/sms.adapter.js';
+import { WhatsAppNotificationAdapter } from '../adapters/whatsapp.adapter.js';
+import {
+  OTP_ERRORS,
+  type ChannelCapability,
+  type OtpDeliveryOutcome,
+  type OtpDeliveryPort,
+  type OtpDeliveryRequest,
+} from '../application/ports/otp-delivery.port.js';
+
+const UNCERTAIN_PATTERN = /timeout|timed out|abort|ETIMEDOUT|ECONNRESET|socket hang up/i;
+
+export function classifyDeliveryError(error: unknown): { errorCode: string; uncertain: boolean } {
+  const message = error instanceof Error ? error.message : String(error);
+  return UNCERTAIN_PATTERN.test(message)
+    ? { errorCode: OTP_ERRORS.uncertain, uncertain: true }
+    : { errorCode: OTP_ERRORS.failed, uncertain: false };
+}
+
+@Injectable()
+export class LocalOtpDeliveryAdapter implements OtpDeliveryPort {
+  constructor(
+    private readonly mail: MailSenderService,
+    private readonly sms: SmsNotificationAdapter,
+    private readonly whatsapp: WhatsAppNotificationAdapter,
+  ) {}
+
+  capabilities(): readonly ChannelCapability[] {
+    return Object.freeze([
+      { channel: 'email', available: this.mail.isEnabled(), idempotentByReference: false, provider: 'mailsender' },
+      {
+        channel: 'sms',
+        available: this.sms.getProviderName() !== 'disabled',
+        idempotentByReference: true,
+        provider: this.sms.getProviderName(),
+      },
+      {
+        channel: 'whatsapp',
+        available: this.whatsapp.getProviderName() !== 'disabled',
+        idempotentByReference: true,
+        provider: this.whatsapp.getProviderName(),
+      },
+    ]);
+  }
+
+  /**
+   * La reserva por correo: sólo cuando el canal pedido FALLÓ y hay un correo autorizado.
+   *
+   * Tres condiciones, y las tres importan. No se usa si el envío salió (obvio). No se usa si el
+   * resultado es INCIERTO —el proveedor pudo haber aceptado y mandar dos códigos por dos canales
+   * deja a la persona sin saber cuál escribir—. Y no se usa para el propio correo: si el correo es
+   * el canal que falló, repetirlo es repetir el mismo fallo.
+   *
+   * Si la reserva tampoco sale, gana el fallo ORIGINAL: es el que explica por qué no llegó nada.
+   */
+  private async conReserva(request: OtpDeliveryRequest, outcome: OtpDeliveryOutcome): Promise<OtpDeliveryOutcome> {
+    const correo = request.fallbackEmail?.trim();
+    if (outcome.delivered || outcome.uncertain || request.channel === 'email' || !correo) return outcome;
+    if (!this.mail.isEnabled()) return outcome;
+    try {
+      await this.mail.sendContactVerificationCode({
+        to: correo,
+        code: request.code,
+        ttlMinutes: request.ttlMinutes,
+        reference: request.reference,
+      });
+      return { delivered: true, provider: 'mailsender', errorCode: null, uncertain: false, channel: 'email' };
+    } catch {
+      return outcome;
+    }
+  }
+
+  async deliver(request: OtpDeliveryRequest): Promise<OtpDeliveryOutcome> {
+    const now = request.now ?? new Date();
+    if (request.expiresAt.getTime() <= now.getTime())
+      return { delivered: false, provider: 'none', errorCode: OTP_ERRORS.expired, uncertain: false };
+    const capability = this.capabilities().find((entry) => entry.channel === request.channel);
+    if (!capability || !capability.available)
+      return this.conReserva(request, {
+        delivered: false,
+        provider: capability?.provider ?? 'none',
+        errorCode: OTP_ERRORS.unsupported,
+        uncertain: false,
+        channel: request.channel,
+      });
+    try {
+      if (request.channel === 'email') {
+        await this.mail.sendContactVerificationCode({
+          to: request.destination,
+          code: request.code,
+          ttlMinutes: request.ttlMinutes,
+          reference: request.reference,
+        });
+        return { delivered: true, provider: 'mailsender', errorCode: null, uncertain: false, channel: 'email' };
+      }
+      const adapter: NotificationChannelAdapter = request.channel === 'sms' ? this.sms : this.whatsapp;
+      const result = await adapter.send({
+        id: request.reference,
+        tenantId: request.tenantId,
+        recipientType: 'customer',
+        recipientId: request.customerId,
+        channel: request.channel,
+        subject: null,
+        title: 'ATLAS',
+        body: otpMessageBody(request.code, request.ttlMinutes),
+        // El código va TAMBIÉN como hueco de plantilla: por WhatsApp el texto libre no sale.
+        payload: otpMessagePayload(request.reference, request.code, request.ttlMinutes),
+        correlationId: null,
+        deliveryTargets: [{ address: request.destination, kind: request.channel === 'sms' ? 'phone' : 'whatsapp' }],
+      });
+      const delivered = result.status === 'sent' || result.status === 'delivered';
+      return this.conReserva(request, {
+        delivered,
+        provider: result.provider,
+        errorCode: delivered ? null : (result.errorCode ?? OTP_ERRORS.failed),
+        uncertain: false,
+        channel: request.channel,
+      });
+    } catch (error) {
+      const classified = classifyDeliveryError(error);
+      return this.conReserva(request, {
+        delivered: false,
+        provider: capability.provider,
+        errorCode: classified.errorCode,
+        uncertain: classified.uncertain,
+        channel: request.channel,
+      });
+    }
+  }
+}

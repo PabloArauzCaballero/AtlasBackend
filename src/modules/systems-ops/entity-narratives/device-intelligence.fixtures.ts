@@ -163,4 +163,30 @@ export const DEVICE_INTELLIGENCE_NARRATIVES: EntityBusinessNarrative[] = [
     systemsExplanation:
       'Tabla append-only en `telemetry`, hija de `on_device_computation_runs`, con valor tipado (`value_text`/`value_number`/`value_boolean`/`value_json`) y `metric_code` como clave semántica. Una métrica solo es válida si su corrida padre está en estado exitoso y su hash de integridad verificó; el consumidor de features debe comprobarlo en lugar de leer la métrica suelta.',
   },
+  {
+    tableName: 'customer_device_contacts',
+    whyExists:
+      'Guarda la agenda del dispositivo que el cliente autorizó a compartir, con cada contacto cifrado campo a campo y acompañado de hashes que sí se pueden comparar. Existe para responder si quien solicita está conectado con personas que ya son clientes, sin que Atlas pueda leer la agenda de nadie por curiosidad.',
+    whyNotDelete:
+      'Es la evidencia del consentimiento ejercido (`consent_id`) y del estado de la red del cliente en el momento de decidir. Borrarla rompe la trazabilidad entre una señal de red que influyó en un crédito y el permiso que la habilitó, que es exactamente lo que una revisión de privacidad pide poder ver.',
+    decisionContribution:
+      'Los hashes (`phone_hashes`, `email_hashes`, `primary_phone_hash`) permiten cruzar la agenda contra la base sin descifrar nada: de ahí salen las señales de red que alimentan el riesgo. `contact_type`, `is_favorite` y los conteos aportan densidad de relación, y `source` distingue lo que entregó el sistema operativo de lo que escribió el propio cliente.',
+    usageExample:
+      'Un solicitante comparte su agenda con acceso limitado en iOS. De cuarenta contactos, tres coinciden por `primary_phone_hash` con clientes al día. La señal entra en el modelo de red sin que ninguna persona de Atlas vea un solo nombre ni un solo número.',
+    systemsExplanation:
+      'Tabla en `customer`. Los campos `*_encrypted` son BLOB de sobre cifrado y nunca se consultan por dentro; las consultas van por los `*_hash` y por los arrays `phone_hashes`/`email_hashes`. `contact_external_id_hash` identifica al contacto dentro del dispositivo sin exponer su identificador nativo. Se escribe por lote asociada a una corrida de `on_device_computation_runs`, y una fila sin consentimiento vigente no debe usarse como señal.',
+  },
+  {
+    tableName: 'customer_location_pings',
+    whyExists:
+      'Es la traza de ubicación que el cliente autorizó: una fila por lectura de GPS, con su precisión, su modo de captura y si el sistema operativo la marcó como simulada. Sirve para saber si quien pide crédito está donde dice estar.',
+    whyNotDelete:
+      '`distance_to_declared_meters` es la única forma de sostener, meses después, que el domicilio declarado coincidía con dónde estaba realmente el cliente cuando se decidió. Borrar la traza convierte esa verificación en una afirmación sin respaldo, y con ella cae la parte de la decisión que se apoyaba en ella.',
+    decisionContribution:
+      '`is_mocked` descarta de plano una ubicación falsificada; `gps_accuracy_meters` decide cuánto pesa la lectura; `capture_mode` separa lo tomado en primer plano de lo que llegó de fondo, y `distance_to_declared_meters` convierte dos coordenadas en la señal que el riesgo sabe leer.',
+    usageExample:
+      'Un cliente declara vivir en una ciudad y la app envía lecturas de fondo desde cientos de kilómetros. La distancia queda calculada en cada fila y el caso entra a revisión manual por domicilio inconsistente, con un número que se puede discutir en vez de una sospecha.',
+    systemsExplanation:
+      'Tabla append-only en `telemetry`, sin `_updated_at` ni borrado lógico: una lectura no se corrige, se sustituye con otra posterior. La distancia al domicilio declarado la calcula el SERVIDOR al recibir, no el dispositivo, porque una app comprometida podría enviar la distancia que le conviniera. `captured_at` y `received_at` son distintos a propósito: el desfase delata una traza acumulada sin conexión.',
+  },
 ];

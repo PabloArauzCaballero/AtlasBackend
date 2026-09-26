@@ -19,11 +19,22 @@ async function addColumnIfMissing(
   }
 }
 
+/**
+ * ¿Existe ya esta tabla, la vea quien la vea?
+ *
+ * `to_regclass` la busca por el MISMO `search_path` con el que después la crea `createTable`, y
+ * devuelve NULL si no está. La versión anterior preguntaba a `information_schema` acotando por
+ * `table_schema = current_schema()`: durante una migración eso es `public`, mientras que estas tres
+ * tablas viven en `integrations`, así que la guarda respondía siempre «no existe». Reejecutar esta
+ * migración habría creado COPIAS VACÍAS en `public` —`createTable` no califica el schema—, que el
+ * runtime no usa y que `check:domain-schema-layout` denunciaría señalando al sitio equivocado.
+ * Además, `information_schema` filtra por privilegios: un segundo modo de contestar que no existe
+ * algo que sí está.
+ */
 async function tableExists(queryInterface: QueryInterface, tableName: string): Promise<boolean> {
-  const [rows] = (await queryInterface.sequelize.query(
-    `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = :tableName) AS exists;`,
-    { replacements: { tableName } },
-  )) as [{ exists: boolean }[], unknown];
+  const [rows] = (await queryInterface.sequelize.query(`SELECT to_regclass(:tableName) IS NOT NULL AS exists;`, {
+    replacements: { tableName },
+  })) as [{ exists: boolean }[], unknown];
   return rows[0]?.exists === true;
 }
 

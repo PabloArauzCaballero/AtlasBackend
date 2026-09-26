@@ -28,6 +28,18 @@ El arranque **falla con un mensaje claro** si alguna de estas no está bien conf
       default `false` — no afecta a credenciales existentes).
 - [ ] Bootstrap de roles de mínimo privilegio: `ops/postgres/bootstrap-roles.sql` + `grants.sql`,
       verificado con `yarn check:db-privileges`.
+- [ ] **El orden importa y el job lo resuelve solo.** `grants.sql` concede sobre lo que EXISTE y fija
+      privilegios por omisión para los schemas que existían al ejecutarlo. En una base nueva no
+      existe ninguno todavía, así que las tablas que crean las migraciones después nacerían sin un
+      solo permiso para `atlas_app_rw`. Por eso el job `migrate` corre
+      `node dist/src/database/apply-grants.js` DESPUÉS de migrar, en cada despliegue: reaplica los
+      privilegios sobre lo recién creado y es idempotente. Medido en el ensayo del 2026-09-13: sin
+      ese paso quedaban 30 tablas de 202 ilegibles para el runtime, entre ellas `credit.credit_lines`
+      y `iam.merchant_users`.
+- [ ] La identidad que aplica las migraciones es `atlas_migrator`, pero opera como `atlas_owner`
+      (`bootstrap-roles.sql` hace `SET role TO atlas_owner` al conectar). Los privilegios sobre
+      `public` —donde vive `SequelizeMeta`— hay que dárselos al OWNER; desde PostgreSQL 15 `public`
+      ya no los concede solo, y sin ellos el despliegue muere en la primera sentencia.
 
 ## 3. Cifrado de PII con KMS (Fase 3.3)
 
@@ -128,7 +140,14 @@ despliega con dos comandos y dos valores de `APP_ROLE`; lo que cambia es qué ar
 
 ## 6-bis. Artefacto e imagen
 
-- [ ] Construir con el `Dockerfile` del repositorio:
+- [ ] **La imagen la publica CI, no una persona.** Al integrar en `main`, el job
+      `build de la imagen de producción` la sube a `ghcr.io/<owner>/atlasbackend` con dos etiquetas:
+      el SHA del commit (inmutable — es la que se despliega) y `main` (móvil, para saber qué hay en
+      cabeza). Así `ATLAS_IMAGE` tiene productor y siempre se sabe qué build está corriendo:
+      ```
+      export ATLAS_IMAGE=ghcr.io/<owner>/atlasbackend:<sha>
+      ```
+      Construirla a mano sigue siendo posible para un entorno aislado:
       `docker build --build-arg NODE_VERSION=$(cat .nvmrc) --build-arg APP_VERSION=... -t atlas-backend:<tag> .`
 - [ ] Desplegar con [docker-compose.prod.yml](../../docker-compose.prod.yml), que orquesta los tres
       roles: `migrate` (one-shot, con la identidad DDL `DB_MIGRATION_USER`) → `api` → `worker`.
@@ -152,6 +171,93 @@ despliega con dos comandos y dos valores de `APP_ROLE`; lo que cambia es qué ar
 - [ ] `terminationGracePeriodSeconds` del orquestador mayor que `SHUTDOWN_DRAIN_MS` + el tiempo de
       cierre, o el drenado se corta a la mitad.
 
+## 6-ter. Auto-despliegue en el servidor de pruebas (`tools/autodeploy/`)
+
+Esta máquina hace de servidor para los testers, que entran por los dev tunnels. `autodeploy.sh`
+imita lo que hace Render, pero aquí: vigila `dev`, y ante un commit nuevo construye la imagen del
+commit, la comprueba y la pone a servir — o deja servir a la anterior si la nueva no responde.
+
+Cubre **seis servicios**: los tres fronts (que son los que ve el tester a través del túnel) y los
+tres backends (que no se tunelizan nunca, pero sin los cuales el tester ve la interfaz y cada llamada
+falla).
+
+| Servicio | Puerto | Repositorio |
+|---|---|---|
+| `front-admin` | 5273 | AtlasAdminPortal |
+| `front-decision` | 5173 | AtlasDecisionEngineFrontend |
+| `front-erp` | 3010 | AtlasERPFrontend |
+| `atlas` | 3005 | AtlasBackend |
+| `erp` | 3020 | AtlasERPBackend |
+| `decision` | 3100 | AtlasDecisionEngineBackend |
+
+```bash
+tools/autodeploy/autodeploy.sh estado      # qué está desplegado y qué commit espera
+tools/autodeploy/autodeploy.sh una-vez     # una pasada (es lo que corre el temporizador)
+tools/autodeploy/autodeploy.sh canario erp # construye y comprueba SIN tocar el puerto bueno
+tools/autodeploy/autodeploy.sh historial   # los despliegues, como el panel de Render
+```
+
+### La regla que manda: el enlace del tester no cambia
+
+El hostname de un dev tunnel lo fija el **nombre** del túnel, y el túnel apunta a un **puerto**, no a
+un contenedor (ver [devtunnels](../../tools/devtunnels/)). De ahí las tres reglas que el script
+respeta y que hay que conservar en cualquier cambio:
+
+1. **No toca ningún proceso `devtunnel`.** Durante el despliegue los túneles siguen arriba; lo único
+   que ven es que su puerto deja de responder unos segundos.
+2. **Cada servicio vuelve a su mismo puerto** (3005 / 3020 / 3100). Cambiar uno rompe el enlace que
+   ya tienen los testers, y además los fronts hacen de proxy contra esos puertos exactos.
+3. **El canario se comprueba en un puerto aparte.** Una imagen que no arranca se descarta sin haber
+   tocado el puerto que sirve. Es lo que separa «el despliegue falló» de «el servicio se cayó».
+
+### Cómo despliega, paso a paso
+
+| Paso | Qué hace | Por qué |
+|---|---|---|
+| 1 | `git fetch` y compara con el SHA desplegado | Sin cambios no hace nada; el commit desplegado se guarda en `estado/<slug>.sha`. |
+| 2 | `git worktree` desprendido en el commit, en `/tmp` | **No toca tu copia de trabajo.** Un desplegador que te mueve la rama bajo los pies es peor que no tener desplegador. Y construye lo que está en `dev`, no lo que tengas sin guardar. |
+| 2-bis | Copia al contexto lo que no está versionado: `.env`, `.env.local` y `public/` | Un front de Next incrusta sus `NEXT_PUBLIC_*` **al construir**: sin el `.env.local` de la máquina, el portal saldría apuntando a los valores por defecto. Y en `public/` viven los intérpretes del cuaderno de datos, que pesan cientos de megas y no caben en git. |
+| 3 | `docker build` (con `--target` si el Dockerfile es multi-etapa) | La última etapa no siempre es el servicio: la del motor de decisiones es el `pdf-worker`. |
+| 4 | Canario en `AUTODEPLOY_PUERTO_CANARIO` (39100) | Comprueba que la imagen **responde**, no sólo que el proceso vive. |
+| 5 | Cambio de contenedor en el puerto real y nueva comprobación | Aquí está la única interrupción, de unos segundos. |
+| 6 | Si no responde, vuelve a la imagen anterior | Es la otra mitad del valor: un despliegue malo no deja el servicio caído. |
+
+### Detalles del anfitrión que no son opcionales
+
+- **`--network host`.** Esta máquina *es* el servidor y los `.env` ya apuntan a `localhost`
+  (postgres 5432, redis 6381, …). Con red puente habría que reescribir cada `.env` a
+  `host.docker.internal` para no ganar nada.
+- **Sin `no-new-privileges`.** En este anfitrión esa opción mata cualquier contenedor con
+  `operation not permitted`; es un fallo del anfitrión, no de los repositorios.
+- **No se apropia de un puerto ajeno.** Si en el puerto hay un `yarn start:dev` tuyo, se niega y te
+  dice el pid; `AUTODEPLOY_TOMAR_PUERTO=1` releva al proceso, a sabiendas.
+
+### Dejarlo corriendo
+
+```bash
+ln -sf "$PWD/tools/autodeploy/systemd"/atlas-autodeploy.{service,timer} ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now atlas-autodeploy.timer
+loginctl enable-linger pablo   # o el temporizador muere al cerrar sesión
+```
+
+El temporizador corre `una-vez` cada minuto. `flock` impide que dos pasadas se solapen, así que una
+construcción larga simplemente se salta el siguiente disparo. Los contenedores llevan
+`--restart unless-stopped`, así que un reinicio de la máquina los devuelve solos.
+
+### La primera vez: relevar a los servidores de desarrollo
+
+Los seis puertos los tenía un `yarn dev` / `yarn start:dev` a mano. El desplegador **no** se apropia
+de un puerto ajeno por su cuenta; para que pase a mandar él hay que relevarlos una vez:
+
+```bash
+AUTODEPLOY_TOMAR_PUERTO=1 tools/autodeploy/autodeploy.sh desplegar <slug>
+```
+
+A partir de ahí el puerto es suyo y las pasadas siguientes ya no necesitan la variable. El efecto
+secundario es deliberado: **se pierde la recarga en caliente**. Lo que sirve el túnel pasa a ser un
+commit de `dev`, no la copia de trabajo de quien arrancó el servidor — que es justo el objetivo.
+Para volver a desarrollar sobre un servicio: `autodeploy.sh parar <slug>` y arrancarlo a mano.
+
 ## 7. Gates que deben estar verdes antes de desplegar
 
 `lint`, `format:check`, `type-check`, `type-check:tests`, `test:unit`, `test:coverage` (gate por
@@ -159,6 +265,56 @@ trinquete), `build`, `check:file-size`, **`check:migrations`**, `check:env-examp
 `check:domain-schemas`, `check:overfetching`, `codeql`, `secret-scan`, `yarn audit --level high`,
 **el build de la imagen** y el job de integración (migraciones + seeders + smoke contra
 Postgres/Redis reales). Ver `.github/workflows/ci.yml`.
+
+## 6-quater. Copias de seguridad
+
+Hasta el 2026-09-13 el repositorio no tenía NINGÚN procedimiento: ni guion, ni retención, ni forma
+de saber si lo copiado servía. Ahora hay dos, y los dos se probaron contra una base real:
+
+```bash
+# Copia verificada, con huella y retención. La contraseña va por PGPASSWORD, nunca por argumento.
+PGHOST=… PGUSER=… PGPASSWORD=… PGDATABASE=atlas ops/postgres/backup.sh
+
+# Vuelta. La base destino es obligatoria: restaurar encima de la que sirve no puede ser el defecto.
+PGPASSWORD=… ops/postgres/restore.sh backups/atlas-<marca>.dump atlas_restaurada
+```
+
+`backup.sh` no se limita a volcar: **lee el volcado con `pg_restore --list` y lo descarta si está
+truncado o si tiene menos de 50 objetos**, porque un `pg_dump` que se queda a medias por un disco
+lleno termina con código 0 igual. Escribe un `.sha256` al lado y poda lo más viejo que
+`ATLAS_BACKUP_RETENTION_DAYS` (14 por omisión).
+
+Medido el 2026-09-13 contra la base local: volcado de 14 MB con 2.400 objetos, restaurado en una
+base nueva con **203 tablas, las mismas que el origen**, y conteos de filas idénticos en las tablas
+comprobadas. Los privilegios NO viajan en el volcado (se hace con `--no-owner --no-privileges`), así
+que tras restaurar hay que reaplicarlos — el propio guion lo recuerda al terminar.
+
+- [ ] **Lo que sigue siendo una decisión de personas y no la toma ningún guion:** cada cuánto corre,
+      a qué destino REMOTO se copia (un volcado en el mismo disco que la base no sobrevive al
+      incidente que importa), cuánto se tolera perder (RPO), en cuánto hay que estar de vuelta (RTO)
+      y **cuándo se hace el primer simulacro completo**. Sin eso, hay guiones pero no hay plan.
+
+## 7-bis. Lo que se ensayó de verdad (2026-09-13)
+
+El manifiesto de producción se levantó ENTERO en local con la imagen del repositorio, PostgreSQL 16
+y Redis, la jerarquía de roles de mínimo privilegio y `NODE_ENV=production`. Lo que encontró ese
+ensayo —y que ningún gate veía— está corregido:
+
+| Qué fallaba | Efecto |
+|---|---|
+| `migrate` llamaba a `seed.js up --profile=production` | Ese comando NO existe desde que los seeders salieron del repositorio: el job moría y, como `api` y `worker` esperan su `service_completed_successfully`, no arrancaba ninguno. El síntoma era todo EXITED sin mención a las semillas |
+| El servicio `worker` no declaraba `command` | Arrancaba el entrypoint de la API, `AtlasBootstrap` lo mataba y `restart: unless-stopped` lo devolvía al bucle. El trabajo de fondo —outbox, notificaciones, retención, expiración de sesiones— no corría NUNCA |
+| Faltaban cuatro familias de variables en el manifiesto | Correo, cifrado de PII, almacén de archivos y Motor: el proceso se niega a arrancar sin ellas y el manifiesto ni siquiera las pasaba |
+| `grants.sql` no daba CREATE en `public` al owner | Las migraciones no podían crear su propio libro de a bordo |
+| Las tablas creadas por migraciones quedaban sin permisos | 30 de 202 ilegibles para el runtime: 500 en la primera petición que las tocara |
+
+Lo verificado tras corregir: el job de migraciones termina en 0 y aplica los privilegios sobre los
+16 schemas; `atlas_app_rw` alcanza las 202 tablas y no tiene CREATE en ninguna; la API responde
+`/health` con su versión y `/api/v1/docs` devuelve 404 (la documentación se apaga sola en
+producción); el worker queda sano, publica `atlas_app_info{role="worker"}` en su puerto interno —que
+no se publica al exterior— y ejecuta las tandas del planificador; y al recibir `SIGTERM` la API pasa
+a responder 503 en readiness de inmediato y se apaga a los 15 segundos (`SHUTDOWN_DRAIN_MS`), que es
+lo que permite al balanceador retirarla sin tirar peticiones.
 
 ## 8. Post-despliegue
 

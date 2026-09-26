@@ -35,6 +35,7 @@ export type AuthenticatedUser = {
   customerId?: string;
   internalUserId?: string;
   platformUserId?: string;
+  merchantUserId?: string;
   role: AtlasUserRole;
   tokenVersion?: number;
 };

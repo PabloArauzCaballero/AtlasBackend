@@ -19,6 +19,15 @@ export type NotificationRule = {
 
 export type DeliveryTarget = { address: string; kind: 'email' | 'phone' | 'fcm_token' | 'whatsapp'; metadata?: Record<string, unknown> };
 
+/**
+ * Un dispositivo registrado para avisos, con la plataforma que emitió su token.
+ *
+ * `kind: 'fcm_token'` conserva su nombre —es contrato ya guardado en `notification_delivery_targets`—
+ * pero significa «token de dispositivo», no «token de Firebase»: la plataforma viaja en `metadata` y
+ * es la que decide si el aviso sale por APNs o por FCM.
+ */
+export type PushDevice = { token: string; platform: string };
+
 export type NotificationMessagePayload = {
   id: string;
   tenantId: string | null;

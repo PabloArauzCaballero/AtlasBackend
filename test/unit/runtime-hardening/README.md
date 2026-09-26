@@ -9,10 +9,10 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`idempotency.interceptor.spec.ts`](./idempotency.interceptor.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`outbox.interceptor.spec.ts`](./outbox.interceptor.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| Documento o código                                                         | Responsabilidad                                               |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [`idempotency.interceptor.spec.ts`](./idempotency.interceptor.spec.ts)     | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`outbox.interceptor.spec.ts`](./outbox.interceptor.spec.ts)               | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`runtime-hardening.service.spec.ts`](./runtime-hardening.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento

@@ -12,6 +12,7 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`catalog-data-governance.service.ts`](./catalog-data-governance.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`catalog-definition-rows.mapper.ts`](./catalog-definition-rows.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
 | [`catalog-definitions.service.ts`](./catalog-definitions.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`catalog-ingestion.service.ts`](./catalog-ingestion.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`catalog-management.shared.ts`](./catalog-management.shared.ts) | Artefacto de soporte específico de esta carpeta. |

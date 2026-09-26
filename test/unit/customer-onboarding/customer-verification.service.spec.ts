@@ -12,11 +12,16 @@ import { CustomerVerificationService } from '../../../src/modules/customer-onboa
  * su expediente.
  */
 function commonMocks() {
-  const customersRepository = { findById: jest.fn(async () => ({ id: 'c1', lifecycleStatus: 'under_review' })) };
+  const customersRepository = { findById: jest.fn(async (..._args: unknown[]) => ({ id: 'c1', lifecycleStatus: 'under_review' })) };
   const onboardingRepository = { createOperationalAuditLog: jest.fn() };
   const lifecycleService = { advance: jest.fn(), transition: jest.fn() };
   const eligibilityService = {
-    evaluateAndRecord: jest.fn(async () => ({ eligible: true, blockers: [], lifecycleStatus: 'active', evaluatedAt: 'now' })),
+    evaluateAndRecord: jest.fn(async (..._args: unknown[]) => ({
+      eligible: true,
+      blockers: [],
+      lifecycleStatus: 'active',
+      evaluatedAt: 'now',
+    })),
   };
   const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
   return { customersRepository, onboardingRepository, lifecycleService, eligibilityService, sequelize };
@@ -28,10 +33,10 @@ describe('CustomerVerificationService', () => {
   function build() {
     const common = commonMocks();
     const verificationRepository = {
-      findLatestAttempt: jest.fn(async () => ({ id: 'attempt-1' })),
+      findLatestAttempt: jest.fn(async (..._args: unknown[]) => ({ id: 'attempt-1' })),
       resolveAttempt: jest.fn(),
       resolveIdentityDocument: jest.fn(),
-      findPendingReviews: jest.fn(async () => [{ id: 'rev-1' }, { id: 'rev-2' }]),
+      findPendingReviews: jest.fn(async (..._args: unknown[]) => [{ id: 'rev-1' }, { id: 'rev-2' }]),
       resolveReview: jest.fn(),
     };
     const service = new CustomerVerificationService(
@@ -46,6 +51,33 @@ describe('CustomerVerificationService', () => {
   }
 
   const baseInput = { tenantId: 't1', customerId: 'c1', currentUser: analyst, ipAddress: '10.0.0.1' };
+
+  it('rechaza con IDENTITY_DECISION_DELEGADA_AL_MOTOR un intento que el Motor tiene en su cola', async () => {
+    const { service, verificationRepository } = build();
+    (verificationRepository.findLatestAttempt as jest.Mock).mockResolvedValueOnce({
+      id: 'attempt-2',
+      finalResult: 'IN_REVIEW',
+      reasonCodesJson: { executionId: '4242' },
+    } as never);
+    await expect(service.decideIdentity({ ...baseInput, body: { decision: 'approve', reasonCode: 'ok' } as never })).rejects.toThrow(
+      /IDENTITY_DECISION_DELEGADA_AL_MOTOR.*4242/,
+    );
+    expect(verificationRepository.resolveAttempt).not.toHaveBeenCalled();
+  });
+
+  it('un intento del Motor YA resuelto (no IN_REVIEW) sí admite la decisión humana', async () => {
+    const { service, verificationRepository } = build();
+    (verificationRepository.findLatestAttempt as jest.Mock).mockResolvedValueOnce({
+      id: 'attempt-3',
+      finalResult: 'UNAVAILABLE',
+      reasonCodesJson: { executionId: '4242' },
+    } as never);
+    await expect(service.decideIdentity({ ...baseInput, body: { decision: 'approve', reasonCode: 'ok' } as never })).resolves.toMatchObject(
+      {
+        identityVerificationResult: 'verified',
+      },
+    );
+  });
 
   it('lanza NotFoundException si no hay intento de verificación que resolver', async () => {
     const { service, verificationRepository } = build();
@@ -103,14 +135,16 @@ describe('CustomerVerificationService', () => {
 describe('CustomerComplianceScreeningService', () => {
   function build(entries: Array<Record<string, unknown>> = [], existingMatches: Array<Record<string, unknown>> = []) {
     const common = commonMocks();
-    const profileDataRepository = { findCurrentProfile: jest.fn(async () => ({ id: 'p1', fullNameNormalized: 'ana paz' })) };
+    const profileDataRepository = {
+      findCurrentProfile: jest.fn(async (..._args: unknown[]) => ({ id: 'p1', fullNameNormalized: 'ana paz' })),
+    };
     const verificationRepository = {
-      findActiveEntriesByHashes: jest.fn(async () => entries),
-      findMatches: jest.fn(async () => existingMatches),
-      createMatch: jest.fn(async () => ({ id: 'match-1' })),
+      findActiveEntriesByHashes: jest.fn(async (..._args: unknown[]) => entries),
+      findMatches: jest.fn(async (..._args: unknown[]) => existingMatches),
+      createMatch: jest.fn(async (..._args: unknown[]) => ({ id: 'match-1' })),
       clearMatch: jest.fn(),
     };
-    common.customersRepository.findById = jest.fn(async () => ({
+    common.customersRepository.findById = jest.fn(async (..._args: unknown[]) => ({
       id: 'c1',
       lifecycleStatus: 'under_review',
       primaryPhoneHash: 'phone-hash',

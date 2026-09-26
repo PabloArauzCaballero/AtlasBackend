@@ -12,6 +12,8 @@
 | Documento o código | Responsabilidad |
 |---|---|
 | [`email.adapter.spec.ts`](./email.adapter.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`gmail-mime.util.spec.ts`](./gmail-mime.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`gmail.adapter.spec.ts`](./gmail.adapter.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`in-app-notification.adapter.spec.ts`](./in-app-notification.adapter.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`notification-broadcast.deferred.spec.ts`](./notification-broadcast.deferred.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`notification-broadcast.service.spec.ts`](./notification-broadcast.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |

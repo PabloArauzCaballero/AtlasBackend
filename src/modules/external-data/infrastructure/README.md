@@ -9,13 +9,14 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| — | Esta carpeta funciona como agrupador; su contenido está en subcarpetas. |
+| Documento o código | Responsabilidad                                                         |
+| ------------------ | ----------------------------------------------------------------------- |
+| —                  | Esta carpeta funciona como agrupador; su contenido está en subcarpetas. |
 
 ## Subcarpetas
 
 - [`adapters/`](./adapters/README.md)
+- [`auth-broker/`](./auth-broker/README.md)
 
 ## Reglas de mantenimiento
 

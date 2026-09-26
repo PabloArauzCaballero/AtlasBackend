@@ -12,12 +12,12 @@ import { escapeRegex } from '../../../src/common/utils/strings/regex.util.js';
 describe('MongoLogsQueryService', () => {
   function build(items: unknown[] = [], total = 0) {
     const chain: Record<string, unknown> = {
-      sort: jest.fn(() => chain),
-      skip: jest.fn(() => chain),
-      limit: jest.fn(() => chain),
-      toArray: jest.fn(async () => items),
+      sort: jest.fn((..._args: unknown[]) => chain),
+      skip: jest.fn((..._args: unknown[]) => chain),
+      limit: jest.fn((..._args: unknown[]) => chain),
+      toArray: jest.fn(async (..._args: unknown[]) => items),
     };
-    const collection = { find: jest.fn(() => chain), countDocuments: jest.fn(async () => total) };
+    const collection = { find: jest.fn((..._args: unknown[]) => chain), countDocuments: jest.fn(async (..._args: unknown[]) => total) };
     const service = new MongoLogsQueryService();
     jest.spyOn(service as unknown as { getCollection: () => Promise<unknown> }, 'getCollection').mockResolvedValue(collection as never);
     return { service, collection, chain };
@@ -58,7 +58,7 @@ describe('MongoLogsQueryService', () => {
   it('onModuleDestroy cierra el cliente si existe y no falla si no', async () => {
     const service = new MongoLogsQueryService();
     await expect(service.onModuleDestroy()).resolves.toBeUndefined(); // sin cliente
-    const close = jest.fn(async () => undefined);
+    const close = jest.fn(async (..._args: unknown[]) => undefined);
     (service as unknown as { client: unknown }).client = { close };
     await service.onModuleDestroy();
     expect(close).toHaveBeenCalled();

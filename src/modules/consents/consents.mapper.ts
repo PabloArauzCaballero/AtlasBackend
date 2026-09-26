@@ -15,6 +15,10 @@ export function toConsentDocumentResponse(document: ConsentDocumentModel): Conse
     versionCode: document.versionCode,
     language: document.language,
     contentUrl: document.contentUrl,
+    // El texto viaja con el documento: sin el, la casilla del registro pide una firma en blanco.
+    title: document.title,
+    summary: document.summary,
+    bodyMarkdown: document.bodyMd,
     contentHash: document.contentHash,
     requiresExplicitAction: document.requiresExplicitAction,
     effectiveFrom: toIsoOrNull(document.effectiveFrom),

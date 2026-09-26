@@ -16,6 +16,7 @@ import { NotificationOrchestratorService } from './notification-orchestrator.ser
 import { NotificationsRepository } from './notifications.repository.js';
 import { CreateBroadcastNotificationDto } from './notifications.schemas.js';
 import { RecipientType } from './notification-types.js';
+import { env } from '../../config/env.js';
 
 type BroadcastRecipient = { recipientType: RecipientType; recipientId: string };
 
@@ -28,11 +29,19 @@ export type BroadcastResult = {
   status: 'queued' | 'completed';
 };
 
-// Cuántos deliverMessage() corren en paralelo por tanda. in_app no hace ninguna llamada externa
-// (adapters/in-app-notification.adapter.ts solo marca la fila), así que el costo real es
-// puramente de base de datos — se acota igual para no abrir cientos de queries simultáneas
-// contra el pool en un broadcast grande.
-const DELIVERY_CONCURRENCY = 25;
+/**
+ * Cuántos `deliverMessage()` corren en paralelo por tanda.
+ *
+ * `in_app` no hace ninguna llamada externa —el adaptador sólo marca la fila—, así que el coste real
+ * es puramente de base de datos. Por eso el techo SALE del pool y no de un número escrito a mano:
+ * estaba fijo en 25 mientras `DB_POOL_MAX` vale 20 por defecto, de modo que una difusión grande
+ * pedía más conexiones de las que hay y las peticiones HTTP de los clientes se quedaban esperando
+ * turno detrás de un envío masivo. Se deja la MITAD del pool libre a propósito: una tanda de fondo
+ * no puede quedarse con todas las conexiones del proceso.
+ */
+function deliveryConcurrency(): number {
+  return Math.max(1, Math.floor(env.DB_POOL_MAX / 2));
+}
 
 @Injectable()
 export class NotificationBroadcastService {
@@ -175,7 +184,7 @@ export class NotificationBroadcastService {
   }
 
   private async deliverBroadcastMessages(messages: Array<{ id: string | number }>, broadcastId: string): Promise<void> {
-    await mapWithConcurrency(messages, DELIVERY_CONCURRENCY, (message) =>
+    await mapWithConcurrency(messages, deliveryConcurrency(), (message) =>
       this.orchestrator.deliverMessage(String(message.id)).catch((error: unknown) => {
         this.logger.warn(
           `Fallo entregando mensaje ${String(message.id)} del broadcast ${broadcastId}: ${error instanceof Error ? error.message : error}`,
