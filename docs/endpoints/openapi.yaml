@@ -29316,6 +29316,49 @@ paths:
       summary: Pasos e intentos saneados de una persona
       tags:
         - systems-ops
+  /systems/qa/runs/{runId}/timeline:
+    get:
+      operationId: QaRunsController_timeline
+      parameters:
+        - name: bucketSeconds
+          required: false
+          in: query
+          description: Tramo en segundos (1–60). Sin él, el que da ≤ 120 tramos.
+          schema:
+            type: number
+        - name: runId
+          required: true
+          in: path
+          schema: {}
+          description: Identificador de la ejecución de pruebas.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: >-
+            Tramos { t, requests, errors, p50Ms, p95Ms, maxMs, personasActive }
+            y totales { requests, errors, p50Ms, p95Ms, rps }; agregados en la
+            base.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: QA_RUN_NOT_FOUND.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Línea de tiempo de latencia y carga de una corrida, en tramos
+      tags:
+        - systems-ops
   /systems/reports/traffic-latency:
     get:
       operationId: SystemsActionLogController_getTrafficLatencyReport

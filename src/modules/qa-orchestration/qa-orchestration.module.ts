@@ -12,10 +12,12 @@ import { QaRunClosing } from './application/qa-run-closing.js';
 import { QaRunExecutionService } from './application/qa-run-execution.service.js';
 import { QaRunOrchestratorService } from './application/qa-run-orchestrator.service.js';
 import { QaRunReadService } from './application/qa-run-read.service.js';
+import { QaRunTimelineService } from './application/qa-run-timeline.service.js';
 import { QaWorkflowMatcher } from './application/qa-workflow-matcher.js';
 import { QaContextMiddleware } from './infrastructure/qa-context.middleware.js';
 import { QaRunAdmissionRepository } from './infrastructure/qa-run-admission.repository.js';
 import { QaRunQueryRepository } from './infrastructure/qa-run-query.repository.js';
+import { QaRunTimelineRepository } from './infrastructure/qa-run-timeline.repository.js';
 import { QaRunSupportRepository } from './infrastructure/qa-run-support.repository.js';
 import { QaRunWorkerRepository } from './infrastructure/qa-run-worker.repository.js';
 import { QaRunsController } from './qa-runs.controller.js';
@@ -28,6 +30,8 @@ import { QaRunsController } from './qa-runs.controller.js';
     QaEnvironmentService,
     QaRunOrchestratorService,
     QaRunReadService,
+    QaRunTimelineService,
+    QaRunTimelineRepository,
     QaWorkflowMatcher,
     QaRunExecutionService,
     QaRunClosing,

@@ -5,7 +5,7 @@
  * @system sesión interna + permiso fino por ruta; tenant y operador salen de la sesión.
  */
 import { BadRequestException, Body, Controller, Get, Headers, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -17,6 +17,7 @@ import { SystemsOpsControllerSecurity } from '../systems-ops/systems-controller.
 import { SYSTEMS_OPS_FINE_PERMISSION_ROLES } from '../systems-ops/systems-ops.constants.js';
 import { QaRunOrchestratorService } from './application/qa-run-orchestrator.service.js';
 import { QaRunReadService } from './application/qa-run-read.service.js';
+import { QaRunTimelineService } from './application/qa-run-timeline.service.js';
 import {
   qaEventsQuerySchema,
   QaEventsQueryDto,
@@ -37,6 +38,8 @@ import {
   QaSampleInputsDto,
   qaTemplateParamsSchema,
   QaTemplateParamsDto,
+  qaTimelineQuerySchema,
+  QaTimelineQueryDto,
   qaWorkflowQuerySchema,
   QaWorkflowQueryDto,
 } from './qa-orchestration.schemas.js';
@@ -50,6 +53,7 @@ export class QaRunsController {
   constructor(
     private readonly orchestrator: QaRunOrchestratorService,
     private readonly reads: QaRunReadService,
+    private readonly timelines: QaRunTimelineService,
   ) {}
 
   @ApiOperation({ summary: 'Capacidad QA del entorno: topes publicados, worker y mock' })
@@ -154,6 +158,30 @@ export class QaRunsController {
   @Get('runs/:runId')
   run(@Param(new ZodValidationPipe(qaRunParamsSchema)) params: QaRunParamsDto, @CurrentUser() user: AuthenticatedUser) {
     return this.reads.run(user, params.runId);
+  }
+
+  @ApiOperation({ summary: 'Línea de tiempo de latencia y carga de una corrida, en tramos' })
+  @ApiParam({ name: 'runId' })
+  @ApiQuery({
+    name: 'bucketSeconds',
+    required: false,
+    type: Number,
+    description: 'Tramo en segundos (1–60). Sin él, el que da ≤ 120 tramos.',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Tramos { t, requests, errors, p50Ms, p95Ms, maxMs, personasActive } y totales { requests, errors, p50Ms, p95Ms, rps }; agregados en la base.',
+  })
+  @ApiResponse({ status: 404, description: 'QA_RUN_NOT_FOUND.' })
+  @InternalPermissions('systems.qa.read')
+  @Get('runs/:runId/timeline')
+  timeline(
+    @Param(new ZodValidationPipe(qaRunParamsSchema)) params: QaRunParamsDto,
+    @Query(new ZodValidationPipe(qaTimelineQuerySchema)) query: QaTimelineQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.timelines.timeline(user, params.runId, query.bucketSeconds);
   }
 
   @ApiOperation({ summary: 'Personas de una corrida, paginadas y sin tokens' })
