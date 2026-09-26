@@ -19,14 +19,20 @@ export function normalizeFullPath(path: string): string {
   return normalized ? `/api/v1/${normalized}` : '/api/v1';
 }
 
+/**
+ * El escaneo de código (SOURCE_SCAN) lee las rutas de los decoradores de Nest en sintaxis Express
+ * (`:customerId`); el contrato OpenAPI (OPENAPI_CONTRACT) describe la MISMA ruta con la suya
+ * (`{customerId}`). `endpointTemplateToRegex` sólo reconoce `:param` como comodín — un `fullPath`
+ * con `{customerId}` literal nunca hace match contra una petición real, aparte de que ambos modos
+ * catalogarían la misma ruta como dos filas (`code` y `full_path` distintos) en vez de una sola
+ * actualizada. Se normaliza a la sintaxis Express, la única que el resto del catálogo entiende.
+ */
+export function normalizePathParamSyntax(path: string): string {
+  return path.replace(/\{([A-Za-z0-9_]+)\}/g, ':$1');
+}
+
 export function buildEndpointCode(method: string, fullPath: string): string {
-  const normalizedPath = normalizeEndpointPath(fullPath)
-    // El escaneo de código (SOURCE_SCAN) lee los decoradores de Nest con su sintaxis Express
-    // (`:customerId`); el contrato OpenAPI (OPENAPI_CONTRACT) describe la MISMA ruta con la suya
-    // (`{customerId}`). Sin unificarlas aquí, ambos modos catalogan la misma ruta con un `code`
-    // distinto (`BY_CUSTOMERID` vs `CUSTOMERID`) y quedan como dos filas — una con el contrato
-    // derivado y otra vacía, según cuál escribió último — en vez de una sola actualizada.
-    .replace(/\{([A-Za-z0-9_]+)\}/g, ':$1')
+  const normalizedPath = normalizeEndpointPath(normalizePathParamSyntax(fullPath))
     .replace(/:([A-Za-z0-9_]+)/g, 'by_$1')
     .replace(/[^A-Za-z0-9]+/g, '_')
     .replace(/^_|_$/g, '')

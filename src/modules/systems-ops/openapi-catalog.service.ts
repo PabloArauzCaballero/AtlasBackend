@@ -6,7 +6,7 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import { mapWithConcurrency } from '../../common/utils/concurrency.util.js';
-import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from './endpoint-code.util.js';
+import { buildEndpointCode, moduleFromPath, normalizePathParamSyntax, routeNameFromMethodAndPath } from './endpoint-code.util.js';
 import { OpenApiDocumentRegistry } from './openapi-document.registry.js';
 import { contractFromRequestBody, contractsFromParameters, contractFromSchema, successStatusCodes } from './openapi-contract.util.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
@@ -73,9 +73,13 @@ export class OpenApiCatalogService {
 
   buildSeeds(document: OpenAPIObject): EndpointSeed[] {
     const seeds: EndpointSeed[] = [];
-    for (const [path, item] of Object.entries(document.paths ?? {})) {
+    for (const [rawPath, item] of Object.entries(document.paths ?? {})) {
       if (!item || typeof item !== 'object') continue;
       const pathItem = item as Record<string, unknown>;
+      // OpenAPI describe el path con `{param}`; el resto del catálogo (SOURCE_SCAN, buildEndpointCode,
+      // endpointTemplateToRegex) sólo entiende `:param`. Sin normalizar aquí, esta ruta se cataloga
+      // aparte de la que ya dejó SOURCE_SCAN y su plantilla nunca hace match contra tráfico real.
+      const path = normalizePathParamSyntax(rawPath);
       for (const method of HTTP_METHODS) {
         const operation = pathItem[method];
         if (!operation || typeof operation !== 'object') continue;
