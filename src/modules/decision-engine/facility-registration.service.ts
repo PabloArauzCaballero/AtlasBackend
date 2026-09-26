@@ -9,6 +9,7 @@ import { FindOptions, Op } from 'sequelize';
 import { LoanModel } from '../../database/models/index.js';
 import { DecisionEngineClient } from './decision-engine.client.js';
 import { FacilityRegistrationInput } from './decision-engine.types.js';
+import { percentToUnitRate } from './rate-units.js';
 
 /**
  * Estados de un préstamo REALMENTE concedido (P-11). `pending_disbursement` todavía no es dinero
@@ -94,9 +95,9 @@ export class FacilityRegistrationService {
       principalAmount: Number(loan.principalAmount),
       currencyCode: loan.currencyCode,
       termMonths: loan.termMonths,
-      // Tanto por uno, no porcentaje: el libro ya guarda la tasa anual así, y mandar 28 en vez de
-      // 0,28 pasaría la validación del motor y multiplicaría por cien lo que se calcule con ella.
-      annualRate: Number(loan.annualInterestRate),
+      // El libro guarda PORCENTAJE (18, no 0,18); el motor exige tanto por uno (rate-units.ts):
+      // mandar 18 sin convertir no pasaría inadvertido, lo rechazaría el techo 10 de PRICED_RATE.
+      annualRate: percentToUnitRate(Number(loan.annualInterestRate)),
       ...(loan.disbursedAt ? { disbursedAt: loan.disbursedAt.toISOString() } : {}),
     }));
 

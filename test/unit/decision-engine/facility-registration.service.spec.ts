@@ -22,7 +22,9 @@ describe('FacilityRegistrationService', () => {
       principalAmount: '1500.00',
       currencyCode: 'BOB',
       termMonths: 12,
-      annualInterestRate: '0.2800',
+      // El libro guarda PORCENTAJE (18, no 0,18): una fixture en tanto por uno no ejercería la
+      // conversión y dejaría pasar exactamente el defecto que esta prueba existe para vigilar.
+      annualInterestRate: '18.0000',
       disbursedAt: new Date('2026-02-01T00:00:00Z'),
       decisionFacilityRegisteredAt: null,
       save: jest.fn(async () => undefined),
@@ -62,7 +64,7 @@ describe('FacilityRegistrationService', () => {
       externalReference: 'LOAN-0001',
       originationExecutionId: '88001',
       principalAmount: 1500,
-      annualRate: 0.28,
+      annualRate: 0.18,
     });
   });
 
