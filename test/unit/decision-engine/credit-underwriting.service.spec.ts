@@ -43,7 +43,13 @@ describe('CreditUnderwritingService', () => {
       query: jest.fn(async (..._args: unknown[]) => [{ version: null }]),
     };
     const events = { publish: jest.fn(async (..._args: unknown[]) => undefined) };
-    const service = new CreditUnderwritingService(engine as never, credit as never, sequelize as never, reviewCases as never, events as never);
+    const service = new CreditUnderwritingService(
+      engine as never,
+      credit as never,
+      sequelize as never,
+      reviewCases as never,
+      events as never,
+    );
     return { service, application, credit, engine, reviewCases, events, sequelize };
   }
 
