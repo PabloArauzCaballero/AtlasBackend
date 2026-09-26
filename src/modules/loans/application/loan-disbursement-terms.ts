@@ -4,8 +4,11 @@
  * @system calcula importe, plazo, tasa, fechas y cronograma de datos a datos, sin base ni usuario.
  */
 import { BadRequestException } from '@nestjs/common';
+import { AuthenticatedUser } from '../../../common/types/auth.types.js';
+import { InternalRbacRepository } from '../../internal-users/internal-rbac.repository.js';
 import { addMonthsClamped, buildSchedule, toDateOnly } from '../domain/loan-schedule.js';
 import { fromCents, toCents } from '../domain/money.util.js';
+import { resolveAnnualRate } from './loan-disbursement-rate.js';
 import { DisburseLoanDto } from '../loans.schemas.js';
 
 export { toDateOnly };
@@ -28,15 +31,22 @@ export type DisbursementTerms = {
  * la que lo persiste permite leerla —y discutirla— sin atravesar la transacción. También la vuelve
  * verificable: es una función de datos a datos, sin base ni usuario de por medio.
  */
-export function resolveDisbursementTerms(
-  application: { requestedAmount: string; requestedTermMonths: number },
-  product: { annualInterestRate: string | null },
-  body: DisburseLoanDto,
-): DisbursementTerms {
+export async function resolveDisbursementTerms(params: {
+  application: { requestedAmount: string; requestedTermMonths: number; decisionPricedRate: string | null };
+  product: {
+    annualInterestRate: string | null;
+    minAnnualInterestRate: string | null;
+    maxAnnualInterestRate: string | null;
+  };
+  body: DisburseLoanDto;
+  currentUser: AuthenticatedUser;
+  tenantId: string;
+  rbac: InternalRbacRepository;
+}): Promise<DisbursementTerms> {
+  const { application, product, body, currentUser, tenantId, rbac } = params;
   const principalCents = toCents(application.requestedAmount);
   const termMonths = application.requestedTermMonths;
-  const annualRate = Number(body.annualInterestRate ?? product.annualInterestRate ?? 0);
-  if (!Number.isFinite(annualRate) || annualRate < 0) throw new BadRequestException('INVALID_INTEREST_RATE');
+  const annualRate = await resolveAnnualRate({ application, product, body, currentUser, tenantId, rbac });
 
   const disbursedAt = body.disbursedAt ? new Date(body.disbursedAt) : new Date();
   // Sin primera fecha explícita, el primer vencimiento cae un mes después del desembolso.

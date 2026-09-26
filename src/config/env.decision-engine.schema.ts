@@ -254,4 +254,18 @@ export const decisionEngineEnvShape = {
    */
   DECISION_ENGINE_STATEMENT_POLL_MS: z.coerce.number().int().positive().max(30_000).default(2_000),
   DECISION_ENGINE_STATEMENT_MAX_WAIT_MS: z.coerce.number().int().positive().max(600_000).default(180_000),
+
+  /**
+   * El tope legal de interés que el core hace cumplir de verdad (Frente 3A, plan
+   * `_plan-motor-decisiones-tasa-2026-09-25`, T-4).
+   *
+   * Hasta el 2026-09-26 este valor estaba escrito DOS veces: `underwriting-features.service.ts` lo
+   * mandaba al Motor como variable (`usury_cap_rate: 0.24`, sin poder cambiarlo sin desplegar) y
+   * `loan-disbursement.service.ts` no lo miraba en absoluto — el desembolso aceptaba la tasa del
+   * cuerpo de la petición sin ningún tope real (T-1). Ahora es UNA sola fuente, usada en los dos
+   * sitios: la variable que se manda al Motor y el clamp real del desembolso.
+   *
+   * En TANTO POR UNO (`0.24`, no `24`), igual que exige el rol semántico `PRICED_RATE` del Motor.
+   */
+  USURY_CAP_RATE: z.coerce.number().positive().max(1).default(0.24),
 };

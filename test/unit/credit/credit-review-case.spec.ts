@@ -271,6 +271,11 @@ describe('C-1 de punta a punta · el Motor dice review sin caso → hay caso pro
         Object.assign(app, { status: values.status, decisionMode: values.decisionMode });
         return app;
       }),
+      // Frente 3A: `decideWithProduct` lo consulta ANTES de llamar al motor para mandarle la tasa
+      // base del producto. `null` es una respuesta válida (producto sin resolver -> tasa base 0);
+      // sin este mock la llamada lanzaba `TypeError` y el caso bajo prueba (Motor dice `review`)
+      // se convertía en el camino, distinto, de motor-no-disponible.
+      findProductByCode: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown> | null> => null),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
     const engine = {

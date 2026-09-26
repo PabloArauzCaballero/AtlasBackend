@@ -18,6 +18,7 @@ import { CreditModule } from '../credit/credit.module.js';
 import { CustomersModule } from '../customers/customers.module.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
+import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { LoanDelinquencyService } from './application/loan-delinquency.service.js';
 import { LoanDisbursementService } from './application/loan-disbursement.service.js';
 import { LoanPaymentService } from './application/loan-payment.service.js';
@@ -57,6 +58,9 @@ import { LoansRepository } from './loans.repository.js';
     // El comercio donde nació cada crédito: de él salen el nombre y el rubro del gasto.
     PartnerOnboardingModule,
     DecisionEngineModule,
+    // Frente 3A: el desembolso comprueba `credit.loan_disbursement.override_rate` antes de aceptar
+    // una tasa distinta de la decidida por el Motor o el producto.
+    InternalUsersModule,
   ],
   controllers: [LoansController, LoanPaymentsController, LoansOperationsController],
   providers: [

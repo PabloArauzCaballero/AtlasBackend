@@ -5,6 +5,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 
+import { env } from '../../config/env.js';
 import {} from '../../database/models/index.js';
 import { UnderwritingSignalsService } from './underwriting-signals.service.js';
 import { UnderwritingCreditHistoryService } from './underwriting-credit-history.service.js';
@@ -272,8 +273,15 @@ export class UnderwritingFeaturesService {
       velocity_applications_24h: put('velocity_applications_24h', history.applications24h, FILE),
 
       // ---------------------------------------------------------------- normativa
-      /** Tope legal de la Ley N.º 393; la política no puede tarificar por encima. */
-      usury_cap_rate: put('usury_cap_rate', 0.24, FILE),
+      /**
+       * Tope legal de la Ley N.º 393; la política no puede tarificar por encima.
+       *
+       * Sale de `env.USURY_CAP_RATE` y no de una constante (T-4, Frente 3A): es la MISMA fuente que
+       * `loan-disbursement.service.ts` usa para clampear de verdad al desembolsar. Antes este valor
+       * viajaba al Motor pero nada en el core lo hacía cumplir; ahora un solo número gobierna las
+       * dos puntas.
+       */
+      usury_cap_rate: put('usury_cap_rate', env.USURY_CAP_RATE, FILE),
     };
 
     const observedAt = {

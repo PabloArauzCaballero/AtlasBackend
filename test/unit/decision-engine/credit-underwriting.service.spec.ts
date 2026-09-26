@@ -34,6 +34,9 @@ describe('CreditUnderwritingService', () => {
     const credit = {
       findApplicationById: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown> | null> => application),
       createApplicationEvent: jest.fn(async (..._args: unknown[]) => ({})),
+      // Frente 3A: `decideWithProduct` lo consulta ANTES de llamar al motor, para mandarle la tasa
+      // base del producto. `null` es una respuesta válida (producto sin resolver -> tasa base 0).
+      findProductByCode: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown> | null> => ({ annualInterestRate: null })),
     };
     // El caso PROPIO de Atlas (C-1): sólo se abre cuando el Motor no abrió el suyo.
     const reviewCases = { open: jest.fn(async (..._args: unknown[]) => ({ caseCode: 'CR-CRA-1' })) };
@@ -246,6 +249,65 @@ describe('CreditUnderwritingService', () => {
         expect(application.manualReviewCaseCode).toBeNull();
         expect(application.manualReviewCaseSource).toBeNull();
       }
+    });
+  });
+
+  /*
+   * Frente 3A (plan `_plan-motor-decisiones-tasa-2026-09-25`, punto 4): lo que el Motor tarificó
+   * para ESTA ejecución se persiste en la solicitud, en las MISMAS unidades que usa el resto del
+   * libro (porcentaje) — nunca en tanto por uno, que es como lo publica el Motor.
+   */
+  describe('la tasa y el tramo que decidió el Motor se persisten (Frente 3A)', () => {
+    it('0,18 en la respuesta del Motor se guarda como 18.0000 (PORCENTAJE), no como 0.18', async () => {
+      const { service, application } = build({
+        kind: 'approved',
+        response: response({ output: { annual_percentage_rate: 0.18, pricing_tier: 'B' } }),
+      });
+
+      await service.underwrite(input);
+
+      expect(application.decisionPricedRate).toBe('18.0000');
+      expect(application.decisionPricingTier).toBe('B');
+    });
+
+    it('PRUEBA EN NEGATIVO — sin `annual_percentage_rate` en la respuesta, se guarda null, nunca 0 ni NaN', async () => {
+      const { service, application } = build({ kind: 'approved', response: response({ output: { pricing_tier: 'A' } }) });
+
+      await service.underwrite(input);
+
+      expect(application.decisionPricedRate).toBeNull();
+      // El tramo SÍ puede venir sin la tasa (p. ej. un artefacto v1): se guarda igual.
+      expect(application.decisionPricingTier).toBe('A');
+    });
+
+    it('PRUEBA EN NEGATIVO — sin `output` en absoluto (artefacto anterior a v2), las dos columnas quedan null', async () => {
+      const { service, application } = build({ kind: 'approved', response: response() });
+
+      await service.underwrite(input);
+
+      expect(application.decisionPricedRate).toBeNull();
+      expect(application.decisionPricingTier).toBeNull();
+    });
+
+    it('la tasa y el tramo también quedan en el evento de la decisión, para auditar sin reconstruir la respuesta del motor', async () => {
+      const { service, credit } = build({
+        kind: 'approved',
+        response: response({ output: { annual_percentage_rate: 0.145, pricing_tier: 'C' } }),
+      });
+
+      await service.underwrite(input);
+
+      const [[event]] = credit.createApplicationEvent.mock.calls as unknown as [[Record<string, Record<string, unknown>>]];
+      expect(event.payloadJson).toMatchObject({ decisionPricedRate: '14.5000', decisionPricingTier: 'C' });
+    });
+
+    it('un motor caído no puede haber tarificado nada: las dos columnas quedan null, no heredan un valor de antes', async () => {
+      const { service, application } = build({ kind: 'engineUnavailable', reason: 'ECONNREFUSED' });
+
+      await service.underwrite(input);
+
+      expect(application.decisionPricedRate).toBeNull();
+      expect(application.decisionPricingTier).toBeNull();
     });
   });
 

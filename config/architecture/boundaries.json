@@ -98,11 +98,11 @@
     },
     "credit": {
       "context": "credit-admission",
-      "allowedDependencies": ["customers", "partner-onboarding"]
+      "allowedDependencies": ["customers", "partner-onboarding", "decision-engine"]
     },
     "loans": {
       "context": "loan-book",
-      "allowedDependencies": ["credit"]
+      "allowedDependencies": ["credit", "internal-users"]
     },
     "loan-payment-claims": {
       "context": "loan-book",

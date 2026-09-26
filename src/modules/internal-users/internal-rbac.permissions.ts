@@ -67,6 +67,9 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     // Pedir la verificación del expediente del comercio y enlazarlo con su cuenta del ERP. Mismo
     // reparto: el ERP pide, el Motor decide y —si hay señales— una persona resuelve en su cola.
     'partner.kyb.request',
+    // Anular al desembolsar la tasa que decidió el Motor o la del producto (Frente 3A). Sigue
+    // clampeada al rango del producto y al tope de usura; exige motivo.
+    'credit.loan_disbursement.override_rate',
   ],
   OPERATIONS_ANALYST: [
     'auth.internal.me.read',
