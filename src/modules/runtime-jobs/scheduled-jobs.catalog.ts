@@ -75,7 +75,6 @@ export function buildScheduledJobs(deps: {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
   const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements, supportSla } = deps;
   const { debtRating, outcomeDispatch, partnerKybSync } = deps;
-
   return [
     {
       jobCode: 'process_outbox',
