@@ -1611,49 +1611,49 @@
     argparse "~1.0.9"
     string-argv "~0.3.1"
 
-"@scalar/client-side-rendering@0.3.9":
-  version "0.3.9"
-  resolved "https://registry.yarnpkg.com/@scalar/client-side-rendering/-/client-side-rendering-0.3.9.tgz#6afb301abae473997aff76553d859e5a603e63ed"
-  integrity sha512-Gg+VLhreiWHmHN0i9uatEoIxzsr0FaJoq0x+PkypmFgZFniD477DVCAnmWqx+KXlpFg0VtDanDHARIJXZ1fIeQ==
+"@scalar/client-side-rendering@0.4.3":
+  version "0.4.3"
+  resolved "https://registry.yarnpkg.com/@scalar/client-side-rendering/-/client-side-rendering-0.4.3.tgz#7ac00cec95c442d5b96166d14b924e2aa7a2c972"
+  integrity sha512-a7Hs+YpaT3CEtJcx6pJS/1XMhV/cCGmheYrwuCd51LvrnJLluVqq7ID6F9xWqPnc7Y0E3vs6XZcz+h3exjUFdg==
   dependencies:
-    "@scalar/schemas" "0.8.3"
-    "@scalar/types" "0.18.2"
-    "@scalar/validation" "0.6.3"
+    "@scalar/schemas" "0.11.0"
+    "@scalar/types" "0.21.0"
+    "@scalar/validation" "0.6.4"
 
-"@scalar/helpers@0.11.1":
-  version "0.11.1"
-  resolved "https://registry.yarnpkg.com/@scalar/helpers/-/helpers-0.11.1.tgz#35aa508c57653d812891fbb05df500e580586e66"
-  integrity sha512-Knwbe0IYqFk0PPDoOKLasqglBHfyf9/zwWWqFsSNi/AtdjM29wSZXN6p8DFid6iB5B9epYH9YiSgJ6tpD00TEw==
+"@scalar/helpers@0.13.0":
+  version "0.13.0"
+  resolved "https://registry.yarnpkg.com/@scalar/helpers/-/helpers-0.13.0.tgz#1eff52817ddeede8f9efcc0eb41c203d6e389db2"
+  integrity sha512-1vB6AZXCQZPb+MApSrso6ss+rbLuiI/vGe+PmiXm8Cnt6B+10JeacDPoPr51EgSwltSfH2hZhJ7hHjW2pSg+bQ==
 
-"@scalar/nestjs-api-reference@^1.2.16":
-  version "1.2.16"
-  resolved "https://registry.yarnpkg.com/@scalar/nestjs-api-reference/-/nestjs-api-reference-1.2.16.tgz#3fc9da01dbd198d77b6a0b710c9e68d7da8d4645"
-  integrity sha512-mxd/o6IGDNk2QZhaXNzmN+hu9+mG3ACsbF0w4Wzboqdahydzg1cPxHg33VUGu3gGJocvxeNrSXTy9rjLgzNgWg==
+"@scalar/nestjs-api-reference@^1.2.21":
+  version "1.2.21"
+  resolved "https://registry.yarnpkg.com/@scalar/nestjs-api-reference/-/nestjs-api-reference-1.2.21.tgz#b30341cbdc092c05fc853491bf09ce831e53642e"
+  integrity sha512-uaUpwblhplCzQRt8MYnMUF7FQFwCHGPcA5hmJxbvKezRSmpX4FATS5tXCYmY4P8yiMPTOwlQHB6hz8QSFQkk6g==
   dependencies:
-    "@scalar/client-side-rendering" "0.3.9"
+    "@scalar/client-side-rendering" "0.4.3"
 
-"@scalar/schemas@0.8.3":
-  version "0.8.3"
-  resolved "https://registry.yarnpkg.com/@scalar/schemas/-/schemas-0.8.3.tgz#7708cb0ca821e9bad5306a3d64739cc37dce7286"
-  integrity sha512-cTjgiJxXFXMqXlFZafXOyTOKm1lUfbDTbe9La+dPcQPe6q0zXAiVtys0IKILQWNrjXPidY0eaB9Va/rd16bfxw==
+"@scalar/schemas@0.11.0":
+  version "0.11.0"
+  resolved "https://registry.yarnpkg.com/@scalar/schemas/-/schemas-0.11.0.tgz#fbdb744d1883bb575621f7502ccb391559fc2d02"
+  integrity sha512-rtvZSsL7IFcHLB1j0VJIgW2MJ702NPOvlhRoRWU4gDK4rGDRmy58BzXtF7gbKOm8vA8aX24NIMr7itwc1Pp6AQ==
   dependencies:
-    "@scalar/helpers" "0.11.1"
-    "@scalar/validation" "0.6.3"
+    "@scalar/helpers" "0.13.0"
+    "@scalar/validation" "0.6.4"
 
-"@scalar/types@0.18.2":
-  version "0.18.2"
-  resolved "https://registry.yarnpkg.com/@scalar/types/-/types-0.18.2.tgz#7673b064cd21219b91f0ee669ee3024944ad3849"
-  integrity sha512-q7fGMn0IygdLbYk9W4quM0w1caHDfL9FIxsYXNsgIep6uuO0T/t4BOStyf0qyzQ3pjt0B7rWFxO//EM9I7F/Tw==
+"@scalar/types@0.21.0":
+  version "0.21.0"
+  resolved "https://registry.yarnpkg.com/@scalar/types/-/types-0.21.0.tgz#38c06c16307eb653a514e76166f40dca5ba7f986"
+  integrity sha512-kl/GSKZ2DynaaP1LxnyXxopgoIYrtUI95cOeG3KYkdGJ6pEn3MJ6PDmWfRQNj3gH/ZRx2UuNIf3jVvtMNrlrKA==
   dependencies:
-    "@scalar/helpers" "0.11.1"
+    "@scalar/helpers" "0.13.0"
     nanoid "^5.1.6"
     type-fest "^5.8.0"
-    zod "^4.3.5"
+    zod "^4.4.3"
 
-"@scalar/validation@0.6.3":
-  version "0.6.3"
-  resolved "https://registry.yarnpkg.com/@scalar/validation/-/validation-0.6.3.tgz#810bc7da3b29499718da0ec5ae6d8f66bf5a1c06"
-  integrity sha512-j3s9XPv8Wo1EG5/naBi4XGF0uXYQ2A3QZNI0NKWgCMxRHVrDJGlZEYymcHDHY7fquRm73P8U3c8xqJqB5yad6w==
+"@scalar/validation@0.6.4":
+  version "0.6.4"
+  resolved "https://registry.yarnpkg.com/@scalar/validation/-/validation-0.6.4.tgz#85a70f2b93d82c8a63dd3fd5d1030975613cdf76"
+  integrity sha512-s93HFX0+N6bLwGjZPKFGVHq/gWiZy1YQkR2+dSflbUdYp+4j2Pg+WDA0gwbFrsOlgtkEjwQbjXtbmBiFTtPYUg==
 
 "@scarf/scarf@=1.4.0":
   version "1.4.0"
@@ -6134,7 +6134,12 @@ z-schema@~5.0.2:
   optionalDependencies:
     commander "^9.4.1"
 
-zod@^4.0.17, zod@^4.3.5:
+zod@^4.0.17:
   version "4.4.3"
   resolved "https://registry.yarnpkg.com/zod/-/zod-4.4.3.tgz"
   integrity sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==
+
+zod@^4.4.3:
+  version "4.6.5"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-4.6.5.tgz#e3af3edbdc260239c52f73caad05dbbffe6e82cd"
+  integrity sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==
