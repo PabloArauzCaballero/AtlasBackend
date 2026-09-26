@@ -91,6 +91,9 @@ export class SubmitCreditApplicationUseCase {
         currencyCode: product.currencyCode,
         purposeCode: input.body.purposeCode ?? null,
         status: product.requiresManualReview ? 'under_review' : 'submitted',
+        // Un producto marcado para revisión manual NACE con su modo escrito (C-3): antes quedaba en
+        // NULL, que es indistinguible de una solicitud anterior a la integración con el Motor.
+        decisionMode: product.requiresManualReview ? 'manual' : null,
         eligibilityEvaluationId: evaluation.evaluationId,
         eligibilitySnapshotJson: {
           ruleVersion: evaluation.ruleVersion,

@@ -12,10 +12,20 @@ import {
   CustomerAttributeValueModel,
   CustomerContactMethodModel,
   CustomerProfileVersionModel,
+  FraudCaseModel,
   IdentityVerificationAttemptModel,
+  WatchlistMatchModel,
 } from '../../database/models/index.js';
 
 import { clamp, toNumber } from './underwriting-numbers.js';
+import {
+  IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
+  isIdentityVerified,
+  pickCurrentIdentityAttempt,
+} from '../../common/utils/identity/identity-result.util.js';
+
+/** Los mismos estados que `CustomerEligibilityRiskRepository` cuenta como caso de fraude abierto. */
+const OPEN_FRAUD_CASE_STATUSES = ['open', 'in_review', 'pending', 'escalated'];
 
 /** Lo que se manda al motor, y de dónde salió cada cosa. */
 export type UnderwritingFeatures = {
@@ -82,6 +92,9 @@ export class UnderwritingSignalsService {
     @InjectModel(CustomerContactMethodModel) private readonly contacts: typeof CustomerContactMethodModel,
     @InjectModel(CustomerAddressModel) private readonly addresses: typeof CustomerAddressModel,
     @InjectModel(IdentityVerificationAttemptModel) private readonly identityAttempts: typeof IdentityVerificationAttemptModel,
+    // Cumplimiento y fraude REALES (C-6): siempre al final, detrás de los seis de identidad y perfil.
+    @InjectModel(WatchlistMatchModel) private readonly watchlistMatches: typeof WatchlistMatchModel,
+    @InjectModel(FraudCaseModel) private readonly fraudCases: typeof FraudCaseModel,
   ) {}
 
   /** Los atributos económicos vigentes, por código. */
@@ -116,6 +129,11 @@ export class UnderwritingSignalsService {
     return result as Record<string, number> & Record<string, unknown>;
   }
 
+  /**
+   * La edad del titular. Sin llamadores desde C-6: `age` dejó de viajar al Motor porque el catálogo
+   * la prohíbe para decidir crédito (ver `UnderwritingFeaturesService`). Se conserva para cuando una
+   * política la pida por el feature store gobernado y haga falta derivarla.
+   */
   async currentProfile(tenantId: string, customerId: string): Promise<{ age: number }> {
     const profile = await this.profiles.findOne({
       where: { tenantId, customerId, validUntil: null },
@@ -165,13 +183,22 @@ export class UnderwritingSignalsService {
     inferred: boolean;
     observedAt?: Date | null;
   }> {
-    const attempt = await this.identityAttempts.findOne({
+    /*
+     * TODOS los intentos recientes, no sólo el último: un intento posterior en `PENDING`/`IN_REVIEW`
+     * (el canal móvil reintentando, o un caso todavía en cola) no puede tapar un `verified` anterior
+     * (I-2). `pickCurrentIdentityAttempt` elige el terminal más reciente, o el más reciente a secas
+     * si nadie llegó a un veredicto.
+     */
+    const attempts = await this.identityAttempts.findAll({
       where: { tenantId, customerId },
       order: [['_id', 'DESC']],
+      limit: IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
     } as FindOptions);
+    const attempt = pickCurrentIdentityAttempt(attempts);
 
     if (!attempt) return { verified: false, liveness: false, matchScore: 0, confidence: 0, inferred: false };
-    const verified = attempt.finalResult === 'verified';
+    // `finalResult` puede llegar en mayúsculas del canal móvil (I-1): normalizar antes de comparar.
+    const verified = isIdentityVerified(attempt.finalResult);
     // Cuándo la verificó el proveedor; sin fecha de cierre, cuándo se registró el intento.
     const observedAt = attempt.completedAt ?? attempt.createdAtValue ?? null;
 
@@ -198,5 +225,29 @@ export class UnderwritingSignalsService {
       inferred: verified,
       observedAt,
     };
+  }
+
+  /**
+   * Lo que el registro REAL de cumplimiento y fraude permite AFIRMAR de un cliente (C-6).
+   *
+   * Hasta el 2026-09-25 el core mandaba `sanctions_screening_result = 'CLEAR'`, `pep_status = false`
+   * y `fraud_signal = false` para TODOS, declarados `ausente` en la procedencia pero con el valor
+   * limpio en la variable: la política los leía como «se cotejó y salió limpio». Nadie lo había
+   * cotejado. `watchlist_matches` sólo tiene fila mientras un cotejo ENCONTRÓ algo y nadie lo
+   * descartó (`clearMatch` la borra), y el cotejo es una acción manual de operaciones: la ausencia de
+   * fila no distingue «salió limpio» de «nunca se cotejó». Con `fraud_cases` pasa lo mismo: un caso
+   * abierto es un hecho; su ausencia sólo dice que nadie abrió caso.
+   *
+   * Por eso devuelve únicamente lo afirmable —hay coincidencia, hay caso abierto— y nunca «limpio»:
+   * la ausencia se traduce, en quien compone las variables, en `MISSING`.
+   */
+  async complianceSignals(tenantId: string, customerId: string): Promise<{ activeWatchlistMatch: boolean; openFraudCase: boolean }> {
+    const [matches, cases] = await Promise.all([
+      this.watchlistMatches.count({ where: { tenantId, customerId } } as FindOptions),
+      this.fraudCases.count({
+        where: { tenantId, customerId, closedAt: null, caseStatus: { [Op.in]: OPEN_FRAUD_CASE_STATUSES }, deleted: { [Op.ne]: true } },
+      } as FindOptions),
+    ]);
+    return { activeWatchlistMatch: matches > 0, openFraudCase: cases > 0 };
   }
 }

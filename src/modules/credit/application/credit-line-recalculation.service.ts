@@ -12,7 +12,8 @@ import { env } from '../../../config/env.js';
 import { CreditLineModel } from '../../../database/models/index.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
 import { SubjectReferenceService } from '../../decision-engine/subject-reference.service.js';
-import { lineVariableMetadata, UnderwritingFeaturesService } from '../../decision-engine/underwriting-features.service.js';
+import { UnderwritingFeaturesService } from '../../decision-engine/underwriting-features.service.js';
+import { lineVariableMetadata } from '../../decision-engine/underwriting-features-line-metadata.js';
 import { PaymentCapacityService } from './payment-capacity.service.js';
 import { capacityProvenance, capacityVariables } from './credit-line.service.js';
 
