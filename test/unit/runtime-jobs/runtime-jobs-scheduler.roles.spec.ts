@@ -121,7 +121,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
 
     service.onApplicationBootstrap();
 
-    expect(setTimeout).toHaveBeenCalledTimes(19);
+    expect(setTimeout).toHaveBeenCalledTimes(20);
     service.onModuleDestroy();
   });
 

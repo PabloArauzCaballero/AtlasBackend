@@ -138,13 +138,15 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     // y del atraso del préstamo, y quien la consulta —cobranza, contabilidad, cierre— ya está aquí.
     'loan_risk_ratings',
     'customer_risk_ratings',
-    // La linea de credito vive con el credito y no con el cliente: la decide la politica de
-    // suscripcion, cambia con el comportamiento de pago y se audita junto a los prestamos que la
-    // consumen. En `customer` seria un atributo del expediente, que es justo lo que no es.
+    // La linea de credito vive con el credito y no con el cliente: la decide la politica de suscripcion, cambia con el
+    // comportamiento de pago y se audita junto a los prestamos que la consumen. En `customer` seria un atributo del expediente.
     'credit_lines',
     // El extracto que el cliente sube para que le recalculen la linea: vive con el credito porque es
     // entrada de la politica de suscripcion, no un documento mas de su expediente.
     'bank_statement_reviews',
+    'installment_coverage_projections', // P-14: lo que el ERP cubrió de cada cuota; proyección, no saldo.
+    'credit_exposure_reservations', // P-11: cupo que una concesión reserva y consume, bajo cerrojo del cliente.
+    'decision_consent_replications', // P-09: lo que el motor debe saber del consentimiento, con reintento.
   ],
   [ATLAS_SCHEMAS.RISK]: [
     'feature_definitions',
@@ -161,9 +163,8 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'risk_feature_contributions',
     'risk_assessment_results',
     'risk_signal_seeds',
-    // La MATRIZ de calificación (umbrales y previsión por categoría) es política de riesgo, y por eso
-    // vive aquí aunque lo que califica esté en `credit`: se aprueba, versiona y retira como el resto
-    // de la política, no como un dato del préstamo.
+    // La MATRIZ de calificación (umbrales y previsión por categoría) es política de riesgo: vive aquí aunque lo que califica
+    // esté en `credit`, porque se aprueba, versiona y retira como el resto de la política, no como un dato del préstamo.
     'rating_policy_versions',
     'rating_policy_bands',
   ],
@@ -215,6 +216,9 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'idempotency_keys',
     'outbox_events',
     'inbox_receipts',
+    'external_event_inbox', // P-14: eventos que llegan del ERP, y abajo lo que se le entrega.
+    'external_aggregate_versions',
+    'outbound_event_deliveries',
     'context_ownership',
     'system_job_runs',
     'system_endpoint_catalog',
@@ -236,10 +240,8 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'system_flow_imports',
     // Historial del cuaderno de datos: guarda el CÓDIGO de cada celda y nunca su resultado.
     'data_notebook_query_history',
-    // Los cuadernos guardados. Va en el mismo dominio que su historial —son la
-    // misma función— y faltaba aquí: su modelo resolvía el schema pasando el
-    // nombre de la tabla HERMANA, un apaño que funcionaba de casualidad porque
-    // las dos caen en el mismo dominio, y que dejaba a esta tabla sin declarar.
+    // Los cuadernos guardados. Va en el mismo dominio que su historial —son la misma función— y faltaba aquí: su modelo
+    // resolvía el schema con el nombre de la tabla HERMANA, apaño que funcionaba de casualidad y la dejaba sin declarar.
     'data_notebook_documents',
     'system_stress_profiles',
     'system_domain_catalog',

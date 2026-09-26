@@ -138,8 +138,28 @@ export class CreditRepository {
     application.decisionReasonCode = values.reasonCode;
     application.decidedByInternalUserId = values.decidedByInternalUserId;
     application.decidedAt = values.now;
+    // Una decisión humana no hereda la vigencia que el motor puso a la SUYA: rige la del core.
+    application.decisionValidUntil = null;
     application.updatedAtValue = values.now;
     return application.save({ transaction: options.transaction });
+  }
+
+  /**
+   * Las solicitudes que quedaron sin decidir A PROPÓSITO (P-09): `submitted` con el motivo que dejó el
+   * diferimiento, presentadas desde `since`. Las más viejas primero.
+   */
+  findDeferredApplications(input: { tenantId: string; reasonCode: string; since: Date; limit: number }): Promise<CreditApplicationModel[]> {
+    return this.applicationModel.findAll({
+      where: {
+        tenantId: input.tenantId,
+        status: 'submitted',
+        decisionReasonCode: input.reasonCode,
+        submittedAt: { [Op.gte]: input.since },
+        deleted: false,
+      },
+      order: [['submittedAt', 'ASC']],
+      limit: input.limit,
+    } as FindOptions);
   }
 
   createApplicationEvent(

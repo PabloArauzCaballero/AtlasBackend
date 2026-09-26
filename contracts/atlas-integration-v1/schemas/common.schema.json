@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.atlas.internal/atlas-integration-v1/common.schema.json",
+  "title": "Tipos comunes del contrato de integración Atlas v1",
+  "$defs": {
+    "decimalAmount": {
+      "description": "Importe como TEXTO decimal (nunca número JSON): hasta 16 enteros y 2 decimales, sin signo ni exponente.",
+      "type": "string",
+      "pattern": "^[0-9]{1,16}(\\.[0-9]{1,2})?$"
+    },
+    "positiveDecimalAmount": {
+      "description": "Importe decimal estrictamente positivo.",
+      "type": "string",
+      "pattern": "^(?=.*[1-9])[0-9]{1,16}(\\.[0-9]{1,2})?$"
+    },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "coreId": {
+      "description": "Identificador numérico de Core (BIGINT) serializado como texto.",
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,18}$"
+    },
+    "isoDateTime": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "coreRef": {
+      "description": "Identidad común en Core de la cuota que el ERP conoce por su propio uuid (P-08/P-14). La fija el mapeo explícito del ERP (core_installment_links).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenantId", "loanId", "installmentId"],
+      "properties": {
+        "tenantId": { "$ref": "#/$defs/coreId" },
+        "loanId": { "$ref": "#/$defs/coreId" },
+        "installmentId": { "$ref": "#/$defs/coreId" },
+        "partnerProfileId": { "oneOf": [{ "$ref": "#/$defs/coreId" }, { "type": "null" }] }
+      }
+    }
+  }
+}

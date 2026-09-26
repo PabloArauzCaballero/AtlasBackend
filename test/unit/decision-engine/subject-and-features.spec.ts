@@ -171,7 +171,7 @@ describe('FeatureProjectionService', () => {
 
     const projected = await service.projectForCustomer('1', 'c1', asOf);
     expect(projected.variables.ingresos).toBe(9000);
-    expect(projected.lineage).toEqual([{ featureCode: 'ingresos', featureValueId: 'nuevo', derivationVersion: 'v3' }]);
+    expect(projected.lineage).toEqual([{ featureCode: 'ingresos', featureValueId: 'nuevo', derivationVersion: 'v3', observedAt: null }]);
   });
 
   it('deja constancia del linaje de lo que sí se envió', async () => {

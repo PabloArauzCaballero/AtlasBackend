@@ -4,6 +4,7 @@
  * @system agrupa los modelos del libro de préstamos para registrarlos como un bloque.
  */
 import {
+  DecisionConsentReplicationModel,
   DecisionSubjectLinkModel,
   DelinquencyPolicyModel,
   LoanEventModel,
@@ -37,6 +38,8 @@ export const LOAN_BOOK_MODELS = [
   LoanEventModel,
   LoanOutcomeReportModel,
   DecisionSubjectLinkModel,
+  // P-09: lo que el motor debe saber del consentimiento de cada sujeto, con su cola de reintento.
+  DecisionConsentReplicationModel,
   // La política de mora vigente: lo que se le prometió al cliente que pasaría si se atrasa.
   DelinquencyPolicyModel,
 ] as const;

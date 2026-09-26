@@ -15,7 +15,7 @@ import { PartnerKybSyncService } from '../partner-onboarding/application/partner
 import { SupportSlaService } from '../support/application/support-sla.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
-import { buildOptionalJobs } from './optional-jobs.catalog.js';
+import { buildOptionalJobs, type DeferredUnderwriting } from './optional-jobs.catalog.js';
 
 /**
  * Actor con el que se registran las ejecuciones automáticas en `system_job_runs` y en la auditoría.
@@ -61,17 +61,20 @@ export function buildScheduledJobs(deps: {
   debtRating: DebtRatingService;
   outcomeDispatch: OutcomeDispatchService;
   partnerKybSync: PartnerKybSyncService;
+  /** P-09: reintento de las solicitudes diferidas por falta de base habilitante (ver optional-jobs). */
+  creditUnderwriting?: DeferredUnderwriting;
   /** Campañas de notificación: llega como función desde la composición para no importar internos de Mensajería. */
   notificationCampaigns: { tick: (tenantId: string) => Promise<unknown> };
   /** Consumidor de la cola de estrés: función desde la composición, por el mismo motivo que el anterior. */
   stressRuns: { drain: () => Promise<unknown> };
+  /** P-14: entrega de `payment.*` al ERP; opcional (sólo corre con receptor configurado). */
+  erpEvents?: { deliver: (tenantId: string) => Promise<unknown> };
   /** Consumidor de las corridas QA de N personas (`systems_qa_journey_run`). */
   qaRuns: { drain: () => Promise<unknown> };
 }): ScheduledJob[] {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
   const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements, supportSla } = deps;
   const { debtRating, outcomeDispatch, partnerKybSync } = deps;
-
   return [
     {
       jobCode: 'process_outbox',
@@ -220,6 +223,12 @@ export function buildScheduledJobs(deps: {
       intervalMs: env.RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS,
       run: (tenantId) => outcomeDispatch.registrarCreditosNuevos({ tenantId, limit: env.RUNTIME_JOBS_OUTCOME_DISPATCH_LIMIT }),
     },
+    // P-09: réplica duradera del consentimiento al motor; una revocación sin acusar bloquea el desembolso.
+    {
+      jobCode: 'sync_engine_consents',
+      intervalMs: env.RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS,
+      run: (tenantId) => outcomeDispatch.sincronizarConsentimientos({ tenantId, limit: env.RUNTIME_JOBS_OUTCOME_DISPATCH_LIMIT }),
+    },
     /*
      * La calificación de la cartera —categoría de riesgo y previsión— dependía de que alguien
      * pulsara «Recalificar» antes de un cierre. La categoría se deriva de los días de atraso, que
@@ -290,6 +299,6 @@ export function buildScheduledJobs(deps: {
     },
     // Los trabajos que sólo corren bajo una bandera viven en `optional-jobs.catalog.ts`: esta lista
     // declara lo que corre SIEMPRE, y mezclarlas hacía que dejara de leerse de un vistazo.
-    ...buildOptionalJobs({ maintenance, stressRuns: deps.stressRuns, qaRuns: deps.qaRuns, limit }),
+    ...buildOptionalJobs({ ...deps, limit }),
   ];
 }

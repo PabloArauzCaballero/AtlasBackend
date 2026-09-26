@@ -42,6 +42,7 @@ import { CreditRatingModule } from './modules/credit-rating/credit-rating.module
 import { DecisionEngineModule } from './modules/decision-engine/decision-engine.module.js';
 import { SupportModule } from './modules/support/support.module.js';
 import { LoanPaymentClaimsModule } from './modules/loan-payment-claims/loan-payment-claims.module.js';
+import { ErpIntegrationModule } from './modules/erp-integration/erp-integration.module.js';
 import { LoansModule } from './modules/loans/loans.module.js';
 import { CustomerOnboardingModule } from './modules/customer-onboarding/customer-onboarding.module.js';
 import { ExpedientesModule } from './modules/expedientes/expedientes.module.js';
@@ -117,6 +118,8 @@ import { env } from './config/env.js';
     DecisionEngineModule,
     LoansModule,
     LoanPaymentClaimsModule,
+    // P-14: receptor firmado de eventos del ERP y entrega de payment.* al ERP.
+    ErpIntegrationModule,
     SupportModule,
     CreditRatingModule,
     CustomerDeviceSignalsModule,

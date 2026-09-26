@@ -3,13 +3,14 @@
  * @business Esta pieza cierra el bucle: el motor llega a saber si acertó al decidir.
  * @system entrega al motor los desenlaces encolados por el libro de préstamos, con reintento.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
 import { LoanModel, LoanOutcomeReportModel } from '../../database/models/index.js';
 import { DecisionEngineClient } from './decision-engine.client.js';
 import { FacilityRegistrationService } from './facility-registration.service.js';
-import { FacilityOutcomeInput } from './decision-engine.types.js';
+import { ConsentReplicationService } from './consent-replication.service.js';
+import { FacilityOutcomeInput, FacilityOutcomeResult } from './decision-engine.types.js';
 
 /** Tras varios intentos fallidos se deja de reintentar solo y se pide mirada humana. */
 const MAX_ATTEMPTS = 6;
@@ -23,6 +24,7 @@ export class OutcomeDispatchService {
     @InjectModel(LoanOutcomeReportModel) private readonly reportModel: typeof LoanOutcomeReportModel,
     @InjectModel(LoanModel) private readonly loanModel: typeof LoanModel,
     private readonly facilities: FacilityRegistrationService,
+    @Optional() private readonly consents?: ConsentReplicationService,
   ) {}
 
   /**
@@ -31,6 +33,15 @@ export class OutcomeDispatchService {
    */
   registrarCreditosNuevos(input: { tenantId: string | null; limit: number }) {
     return this.facilities.registrarCreditosNuevos(input);
+  }
+
+  /**
+   * P-09: la réplica duradera de consentimientos, por la misma fachada (trabajo `sync_engine_consents`).
+   * Sin la cola cableada no se finge nada: se devuelve el motivo.
+   */
+  async sincronizarConsentimientos(input: { tenantId: string | null; limit: number }) {
+    if (!this.consents) return { enqueued: 0, synced: 0, failed: 0, reason: 'CONSENT_REPLICATION_NOT_WIRED' as const };
+    return this.consents.sync(input);
   }
 
   /**
@@ -106,16 +117,21 @@ export class OutcomeDispatchService {
        * (una decisión sin sujeto), acaba en `listExhausted`, que es la cola que una persona sí mira.
        */
       const resultados = await this.client.recordFacilityOutcomes(outcomes);
-      const rechazos = new Map(
-        resultados.filter((row) => !row.accepted).map((row) => [`${row.externalReference}#${row.windowDays}`, row.reason]),
-      );
+      const veredictos = new Map(resultados.map((row) => [`${row.externalReference}#${row.windowDays}`, row]));
 
-      const { enviados, rechazadas } = await this.marcarPorFila(enviables, codigoPorPrestamo, rechazos, now);
-      const fallidos = rechazadas + huerfanos.length;
+      const { enviados, rechazadas, conflictos } = await this.marcarPorFila(enviables, codigoPorPrestamo, veredictos, now);
+      const fallidos = rechazadas + conflictos + huerfanos.length;
       if (rechazadas > 0) {
         this.logger.warn(`El motor rechazó ${rechazadas} de ${enviables.length} desenlaces; el motivo de cada uno queda en su last_error.`);
       }
-      return { sent: enviados, failed: fallidos, skipped: 0 };
+      if (conflictos > 0) {
+        // ALERTA: el motor ya tiene OTRO desenlace para esa ventana. Reenviar no lo corrige; hace
+        // falta una corrección explícita. Quedan agotados, en `listExhausted`, a la vista de riesgo.
+        this.logger.error(
+          `OUTCOME_CONFLICT en ${conflictos} desenlaces: el motor ya tiene otro para esa ventana. Requiere corrección manual.`,
+        );
+      }
+      return { sent: enviados, failed: fallidos, skipped: 0, ...(conflictos > 0 ? { conflicts: conflictos } : {}) };
     } catch (error) {
       const message = (error as Error).message ?? 'OUTCOME_DISPATCH_FAILED';
       this.logger.error(`No se pudo entregar el lote de ${enviables.length} desenlaces: ${message}`);
@@ -151,36 +167,43 @@ export class OutcomeDispatchService {
    * Marca cada informe según lo que dijo el motor de SU fila.
    *
    * Fila a fila y no el lote entero: el motor devuelve el veredicto de cada desenlace justamente para
-   * que quien carga no tenga que reenviar el archivo completo por dos filas malas. Dar por enviado un
-   * lote con rechazos dentro perdería esos dos para siempre, porque su ventana ya pasó y no se
-   * vuelven a generar.
+   * que quien carga no tenga que reenviar el archivo completo por dos filas malas.
+   *
+   * - Aceptada, o `duplicate` (ya estaba observada igual: no se reescribió ni contó) → enviada.
+   * - `OUTCOME_CONFLICT` → terminal: se agota con alerta. Reenviar no corrige evidencia.
+   * - Cualquier otro rechazo (`FACILITY_NOT_FOUND`: el alta aún no llegó) → reintentable.
+   * - Sin veredicto para la fila → reintentable. Darla por enviada sin acuse la perdería para siempre,
+   *   porque su ventana ya pasó y no se vuelve a generar.
    */
   private async marcarPorFila(
     enviables: readonly LoanOutcomeReportModel[],
     codigoPorPrestamo: Map<string, string>,
-    rechazos: Map<string, string | null>,
+    veredictos: Map<string, FacilityOutcomeResult>,
     now: Date,
-  ): Promise<{ enviados: number; rechazadas: number }> {
-    let enviados = 0;
-    let rechazadas = 0;
+  ): Promise<{ enviados: number; rechazadas: number; conflictos: number }> {
+    const cuenta = { enviados: 0, rechazadas: 0, conflictos: 0 };
     for (const report of enviables) {
-      const clave = `${codigoPorPrestamo.get(String(report.loanId))}#${report.windowDays}`;
-      const rechazo = rechazos.get(clave);
+      const veredicto = veredictos.get(`${codigoPorPrestamo.get(String(report.loanId))}#${report.windowDays}`);
       report.attempts += 1;
       report.updatedAtValue = now;
-      if (rechazo === undefined) {
+      if (veredicto?.accepted) {
         report.status = 'sent';
         report.sentAt = now;
         report.lastError = null;
-        enviados += 1;
+        cuenta.enviados += 1;
+      } else if (veredicto?.reason === 'OUTCOME_CONFLICT') {
+        report.status = 'failed';
+        report.attempts = Math.max(report.attempts, MAX_ATTEMPTS);
+        report.lastError = 'OUTCOME_CONFLICT: el motor ya tiene otro desenlace para esta ventana; corrección explícita.';
+        cuenta.conflictos += 1;
       } else {
         report.status = 'failed';
-        report.lastError = String(rechazo).slice(0, 2_000);
-        rechazadas += 1;
+        report.lastError = String(veredicto ? (veredicto.reason ?? 'REJECTED') : 'NO_ROW_VERDICT').slice(0, 2_000);
+        cuenta.rechazadas += 1;
       }
       await report.save();
     }
-    return { enviados, rechazadas };
+    return cuenta;
   }
 
   /**

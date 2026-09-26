@@ -1,0 +1,27 @@
+{
+  "topic": "accounting.document.posted",
+  "valid": [
+    {
+      "name": "asiento publicado (Core lo acusa sin efecto)",
+      "envelope": {
+        "spec": "atlas.erp.outbox/1",
+        "eventKey": "accounting-posted-00000000-0000-4000-8000-000000000151",
+        "topic": "accounting.document.posted",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "accounting_document",
+          "id": "00000000-0000-4000-8000-000000000151",
+          "version": 2
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-erp",
+        "payload": {
+          "accountingDocumentId": "00000000-0000-4000-8000-000000000151",
+          "hashSha256": "abababababababababababababababababababababababababababababababab"
+        }
+      }
+    }
+  ],
+  "boundary": [],
+  "invalid": []
+}

@@ -99,15 +99,20 @@ export class UnderwritingSignalsService {
 
     const result: Record<string, unknown> = {};
     const seen = new Set<string>();
+    // La captura más ANTIGUA de lo que se usa: un derivado vale lo que su insumo más viejo (P-10).
+    let oldest: number | null = null;
     for (const value of values) {
       const code = byId.get(String(value.attributeDefinitionId));
       if (!code || seen.has(code)) continue;
       seen.add(code);
+      const captured = new Date(value.validFrom ?? value.createdAtValue).getTime();
+      if (Number.isFinite(captured)) oldest = oldest === null ? captured : Math.min(oldest, captured);
 
       if (code === EMPLOYMENT) result.__employmentStatus = value.valueText ?? null;
       else if (code === 'source_of_funds') result.__sourceOfFunds = value.valueText ?? null;
       else result[code] = toNumber(value.valueNumber);
     }
+    result.__observedAt = oldest === null ? null : new Date(oldest);
     return result as Record<string, number> & Record<string, unknown>;
   }
 
@@ -152,7 +157,14 @@ export class UnderwritingSignalsService {
   async identitySignals(
     tenantId: string,
     customerId: string,
-  ): Promise<{ verified: boolean; liveness: boolean; matchScore: number; confidence: number; inferred: boolean }> {
+  ): Promise<{
+    verified: boolean;
+    liveness: boolean;
+    matchScore: number;
+    confidence: number;
+    inferred: boolean;
+    observedAt?: Date | null;
+  }> {
     const attempt = await this.identityAttempts.findOne({
       where: { tenantId, customerId },
       order: [['_id', 'DESC']],
@@ -160,6 +172,8 @@ export class UnderwritingSignalsService {
 
     if (!attempt) return { verified: false, liveness: false, matchScore: 0, confidence: 0, inferred: false };
     const verified = attempt.finalResult === 'verified';
+    // Cuándo la verificó el proveedor; sin fecha de cierre, cuándo se registró el intento.
+    const observedAt = attempt.completedAt ?? attempt.createdAtValue ?? null;
 
     // Los puntajes del proveedor llegan en 0..1; el artefacto los espera en 0..100.
     const liveness = toNumber(attempt.livenessScore);
@@ -168,7 +182,7 @@ export class UnderwritingSignalsService {
     const hasScores = liveness > 0 || selfie > 0 || name > 0;
 
     if (hasScores) {
-      return { verified, liveness: liveness > 0, matchScore: selfie, confidence: name, inferred: false };
+      return { verified, liveness: liveness > 0, matchScore: selfie, confidence: name, inferred: false, observedAt };
     }
 
     /*
@@ -182,6 +196,7 @@ export class UnderwritingSignalsService {
       matchScore: verified ? ATTESTED_PASS : 0,
       confidence: verified ? ATTESTED_PASS : 0,
       inferred: verified,
+      observedAt,
     };
   }
 }

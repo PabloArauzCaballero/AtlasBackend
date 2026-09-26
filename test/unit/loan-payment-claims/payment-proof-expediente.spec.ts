@@ -22,7 +22,11 @@ function construir() {
   const eventos: Registro[] = [];
 
   const service = new LoanPaymentClaimsService(
-    /* sequelize */ { transaction: jest.fn(async (fn: never) => (fn as unknown as (t: unknown) => unknown)({})) } as never,
+    /* sequelize */ {
+      transaction: jest.fn(async (fn: never) => (fn as unknown as (t: unknown) => unknown)({})),
+      // La versión del agregado (P-08): sin eventos previos de la cuota, la primera es la 1.
+      query: jest.fn(async () => [{ version: null }]),
+    } as never,
     /* claims */ {
       findOne: jest.fn(async () => null),
       create: jest.fn(async (valores: never) => ({
@@ -46,6 +50,7 @@ function construir() {
         installment: { id: '11', loanId: '5', status: 'pending' },
       })),
       resolvePartner: jest.fn(async () => '7'),
+      lockOpenInstallment: jest.fn(async () => undefined),
     } as never,
     expedienteHooks as never,
   );

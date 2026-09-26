@@ -1,0 +1,98 @@
+[
+  {
+    "requirementId": "B08",
+    "packageId": "P-08",
+    "repository": "AtlasBackend",
+    "title": "Reportar el pago o subir comprobante no salda la cuota",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Un aviso de pago deja la cuota pendiente y con saldo; sólo la confirmación del comercio registra el cobro.",
+    "tests": [
+      { "file": "test/integration/credit/payment-lifecycle.spec.ts", "name": "reportar el pago NO salda la cuota" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B20",
+    "packageId": "P-08",
+    "repository": "AtlasBackend",
+    "title": "Sólo el comercio autorizado de esa compra confirma o rechaza; el consumidor no autoconfirma",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Comercio B no decide sobre el préstamo del comercio A; un token de cliente no confirma; ninguno de los dos registra cobro.",
+    "tests": [
+      { "file": "test/integration/credit/payment-lifecycle.spec.ts", "name": "el comercio B no confirma sobre el préstamo del comercio A" },
+      { "file": "test/contracts/payment-lifecycle.contract.spec.ts", "name": "el cliente no puede autoconfirmar aunque llegue al servicio" },
+      { "file": "test/contracts/payment-lifecycle.contract.spec.ts", "name": "un comprobante que llegó a OTRO comercio" },
+      { "file": "test/contracts/payment-lifecycle.contract.spec.ts", "name": "sólo roles de comercio o internos llegan al endpoint de decisión" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B20",
+    "packageId": "P-08",
+    "repository": "AtlasBackend",
+    "title": "Confirmación repetida o concurrente no descuenta dos veces; duplicados y desorden no reabren una cuota pagada",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Dos confirmaciones simultáneas producen un cobro y un 409; rechazar tras confirmar y reportar sobre cuota pagada dan 409 sin cambiar la cuota; un aviso cuya cuota saldó otro cobro no se aplica.",
+    "tests": [
+      { "file": "test/integration/credit/payment-lifecycle.spec.ts", "name": "dos confirmaciones simultáneas cobran UNA vez" },
+      { "file": "test/integration/credit/payment-lifecycle.spec.ts", "name": "duplicados y desorden no reabren una cuota pagada" },
+      { "file": "test/integration/credit/payment-lifecycle.spec.ts", "name": "un aviso cuya cuota ya saldó otro cobro no se aplica otra vez" },
+      { "file": "test/contracts/payment-lifecycle.contract.spec.ts", "name": "un aviso ya decidido no se vuelve a decidir" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B20",
+    "packageId": "P-08",
+    "repository": "AtlasBackend",
+    "title": "Atomicidad: aviso/cobro, cambio de cuota y evento se confirman juntos (outbox en la transacción)",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Si la transacción cae DESPUÉS de escribir el evento no queda ni evento ni aviso ni cobro; EventsService.publish escribe con la transacción de quien llama.",
+    "tests": [
+      { "file": "test/integration/credit/payment-lifecycle.spec.ts", "name": "el aviso y su evento son atómicos" },
+      { "file": "test/integration/credit/payment-lifecycle.spec.ts", "name": "la confirmación es atómica" },
+      { "file": "test/contracts/payment-lifecycle.contract.spec.ts", "name": "confirmar cobra con la clave del aviso y dentro de la MISMA transacción que el evento" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B20",
+    "packageId": "P-08",
+    "repository": "AtlasBackend",
+    "title": "Propagación con versión de agregado, idempotencia e identidad común préstamo/cuota/comercio",
+    "releaseIncluded": true,
+    "ownerRole": "I",
+    "acceptance": "payment.reported/confirmed/rejected salen sobre el agregado cuota con versión monótona, clave de idempotencia estable y loanId, installmentId, partnerProfileId en el payload.",
+    "tests": [
+      { "file": "test/integration/credit/payment-lifecycle.spec.ts", "name": "el comercio autorizado confirma" },
+      { "file": "test/contracts/payment-lifecycle.contract.spec.ts", "name": "payment.confirmed lleva la identidad común" },
+      { "file": "test/contracts/payment-lifecycle.contract.spec.ts", "name": "rechazar no cobra, exige el cerrojo del préstamo" },
+      { "file": "test/contracts/payment-lifecycle.contract.spec.ts", "name": "la versión del agregado es MAX+1" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B20",
+    "packageId": "P-08",
+    "repository": "AtlasBackend",
+    "title": "Pago tardío concurrente con cobertura del ERP: sin doble beneficio ni doble cobro",
+    "releaseIncluded": true,
+    "ownerRole": "I",
+    "acceptance": "El ERP consume payment.confirmed (versión de agregado, idempotencia) y detiene o compensa la cobertura improcedente de esa cuota. Lado Core (aquí): la confirmación se encola y se entrega al ERP en orden y firmada. Lado ERP: AtlasERPBackend docs/compliance/requirements/P-14.json («pago tardío con cobertura viva: NO confirma…»).",
+    "tests": [
+      { "file": "test/integration/erp-integration/erp-events.spec.ts", "name": "reportar y confirmar encolan su entrega al ERP en la misma transacción, con un sobre que cumple el contrato" },
+      { "file": "test/integration/erp-integration/erp-events.spec.ts", "name": "respeta el orden por cuota: la versión 2 no sale mientras la 1 falla" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  }
+]

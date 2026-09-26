@@ -1,0 +1,173 @@
+{
+  "topic": "b2b.coverage.settled",
+  "valid": [
+    {
+      "name": "cobertura liquidada de cuota mapeada",
+      "envelope": {
+        "spec": "atlas.erp.outbox/1",
+        "eventKey": "coverage-settled-00000000-0000-4000-8000-000000000101",
+        "topic": "b2b.coverage.settled",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "merchant_payable",
+          "id": "00000000-0000-4000-8000-000000000101",
+          "version": 2
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-erp",
+        "payload": {
+          "payableId": "00000000-0000-4000-8000-000000000101",
+          "installmentId": "00000000-0000-4000-8000-000000000102",
+          "purchaseId": "00000000-0000-4000-8000-000000000103",
+          "merchantAccountId": "00000000-0000-4000-8000-000000000104",
+          "consumerId": "00000000-0000-4000-8000-000000000105",
+          "settlementId": "00000000-0000-4000-8000-000000000106",
+          "settlementReference": "LIQ-FIXTURE-0001",
+          "amount": "300.00",
+          "currency": "BOB",
+          "paidAt": "2026-09-24T12:00:00.000Z",
+          "recoveryId": "00000000-0000-4000-8000-000000000107",
+          "coreRef": {
+            "tenantId": "900001",
+            "loanId": "910001",
+            "installmentId": "920001",
+            "partnerProfileId": "930001"
+          }
+        }
+      }
+    }
+  ],
+  "boundary": [
+    {
+      "name": "cuota sin mapeo a Core (coreRef null)",
+      "envelope": {
+        "spec": "atlas.erp.outbox/1",
+        "eventKey": "coverage-settled-00000000-0000-4000-8000-000000000111",
+        "topic": "b2b.coverage.settled",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "merchant_payable",
+          "id": "00000000-0000-4000-8000-000000000111",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-erp",
+        "payload": {
+          "payableId": "00000000-0000-4000-8000-000000000111",
+          "installmentId": "00000000-0000-4000-8000-000000000102",
+          "purchaseId": "00000000-0000-4000-8000-000000000103",
+          "merchantAccountId": "00000000-0000-4000-8000-000000000104",
+          "consumerId": "00000000-0000-4000-8000-000000000105",
+          "settlementId": "00000000-0000-4000-8000-000000000106",
+          "settlementReference": "LIQ-FIXTURE-0001",
+          "amount": "300.00",
+          "currency": "BOB",
+          "paidAt": "2026-09-24T12:00:00.000Z",
+          "recoveryId": "00000000-0000-4000-8000-000000000107",
+          "coreRef": null
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "importe como número",
+      "envelope": {
+        "spec": "atlas.erp.outbox/1",
+        "eventKey": "coverage-settled-00000000-0000-4000-8000-000000000121",
+        "topic": "b2b.coverage.settled",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "merchant_payable",
+          "id": "00000000-0000-4000-8000-000000000121",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-erp",
+        "payload": {
+          "payableId": "00000000-0000-4000-8000-000000000101",
+          "installmentId": "00000000-0000-4000-8000-000000000102",
+          "purchaseId": "00000000-0000-4000-8000-000000000103",
+          "merchantAccountId": "00000000-0000-4000-8000-000000000104",
+          "consumerId": "00000000-0000-4000-8000-000000000105",
+          "settlementId": "00000000-0000-4000-8000-000000000106",
+          "settlementReference": "LIQ-FIXTURE-0001",
+          "amount": 300,
+          "currency": "BOB",
+          "paidAt": "2026-09-24T12:00:00.000Z",
+          "recoveryId": "00000000-0000-4000-8000-000000000107",
+          "coreRef": {
+            "tenantId": "900001",
+            "loanId": "910001",
+            "installmentId": "920001",
+            "partnerProfileId": "930001"
+          }
+        }
+      }
+    },
+    {
+      "name": "sin coreRef (debe venir, aunque sea null)",
+      "envelope": {
+        "spec": "atlas.erp.outbox/1",
+        "eventKey": "coverage-settled-00000000-0000-4000-8000-000000000122",
+        "topic": "b2b.coverage.settled",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "merchant_payable",
+          "id": "00000000-0000-4000-8000-000000000122",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-erp",
+        "payload": {
+          "payableId": "00000000-0000-4000-8000-000000000101",
+          "installmentId": "00000000-0000-4000-8000-000000000102",
+          "purchaseId": "00000000-0000-4000-8000-000000000103",
+          "merchantAccountId": "00000000-0000-4000-8000-000000000104",
+          "consumerId": "00000000-0000-4000-8000-000000000105",
+          "settlementId": "00000000-0000-4000-8000-000000000106",
+          "settlementReference": "LIQ-FIXTURE-0001",
+          "amount": "300.00",
+          "currency": "BOB",
+          "paidAt": "2026-09-24T12:00:00.000Z",
+          "recoveryId": "00000000-0000-4000-8000-000000000107"
+        }
+      }
+    },
+    {
+      "name": "coreRef con loanId no numérico",
+      "envelope": {
+        "spec": "atlas.erp.outbox/1",
+        "eventKey": "coverage-settled-00000000-0000-4000-8000-000000000123",
+        "topic": "b2b.coverage.settled",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "merchant_payable",
+          "id": "00000000-0000-4000-8000-000000000123",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-erp",
+        "payload": {
+          "payableId": "00000000-0000-4000-8000-000000000101",
+          "installmentId": "00000000-0000-4000-8000-000000000102",
+          "purchaseId": "00000000-0000-4000-8000-000000000103",
+          "merchantAccountId": "00000000-0000-4000-8000-000000000104",
+          "consumerId": "00000000-0000-4000-8000-000000000105",
+          "settlementId": "00000000-0000-4000-8000-000000000106",
+          "settlementReference": "LIQ-FIXTURE-0001",
+          "amount": "300.00",
+          "currency": "BOB",
+          "paidAt": "2026-09-24T12:00:00.000Z",
+          "recoveryId": "00000000-0000-4000-8000-000000000107",
+          "coreRef": {
+            "tenantId": "900001",
+            "loanId": "L-1",
+            "installmentId": "920001",
+            "partnerProfileId": "930001"
+          }
+        }
+      }
+    }
+  ]
+}

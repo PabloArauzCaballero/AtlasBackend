@@ -53,13 +53,19 @@ function build(applicationOverrides: AnyRecord | null, ownerMerchantUserId?: str
   const partnerDirectory = {
     terminalDirectory: jest.fn(async (..._a: unknown[]) => new Map()),
   };
+  /** El cupo de la línea (P-11): aceptar reserva, declinar libera. */
+  const exposure = {
+    reserve: jest.fn(async (..._a: unknown[]) => ({ id: 'r1' })),
+    release: jest.fn(async (..._a: unknown[]) => ({ released: true })),
+  };
   const service = new CreditBusinessAcceptanceService(
     credit as never,
     partnerProfiles as never,
     partnerDirectory as never,
     sequelize as never,
+    exposure as never,
   );
-  return { service, application, credit, events, partnerProfiles, partnerDirectory };
+  return { service, application, credit, events, partnerProfiles, partnerDirectory, exposure };
 }
 
 describe('creditBusinessAcceptanceSchema', () => {
@@ -202,5 +208,42 @@ describe('CreditBusinessAcceptanceService', () => {
     await expect(
       interno.service.decide({ tenantId: '1', applicationId: '5', body: { accepted: true }, currentUser: ACTOR }),
     ).resolves.toMatchObject({ businessAcceptance: 'accepted' });
+  });
+});
+
+describe('CreditBusinessAcceptanceService · cupo de la línea (P-11)', () => {
+  const base = { id: '5', customerId: '24', requestedAmount: '80.00', currencyCode: 'BOB', decidedAt: new Date() };
+
+  it('aceptar reserva el importe con el vencimiento de la decisión', async () => {
+    const { service, exposure } = build(base);
+    await service.decide({ tenantId: '1', applicationId: '5', body: { accepted: true } as never, currentUser: ACTOR });
+
+    expect(exposure.reserve).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: '1', customerId: '24', applicationId: '5', amount: '80.00', currencyCode: 'BOB' }),
+      undefined,
+    );
+    expect(exposure.release).not.toHaveBeenCalled();
+  });
+
+  it('si el cupo no alcanza, la aceptación falla con el conflicto de la reserva', async () => {
+    const { service, exposure } = build(base);
+    exposure.reserve.mockRejectedValueOnce(new ConflictException('CREDIT_EXPOSURE_LIMIT_EXCEEDED') as never);
+
+    await expect(
+      service.decide({ tenantId: '1', applicationId: '5', body: { accepted: true } as never, currentUser: ACTOR }),
+    ).rejects.toThrow('CREDIT_EXPOSURE_LIMIT_EXCEEDED');
+  });
+
+  it('declinar libera la reserva y no reserva nada', async () => {
+    const { service, exposure } = build(base);
+    await service.decide({
+      tenantId: '1',
+      applicationId: '5',
+      body: { accepted: false, reasonCode: 'CUPO_AGOTADO' } as never,
+      currentUser: ACTOR,
+    });
+
+    expect(exposure.release).toHaveBeenCalledWith(expect.objectContaining({ applicationId: '5', reason: 'business_declined' }), undefined);
+    expect(exposure.reserve).not.toHaveBeenCalled();
   });
 });

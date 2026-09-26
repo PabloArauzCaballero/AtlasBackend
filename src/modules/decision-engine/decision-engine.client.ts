@@ -3,11 +3,15 @@
  * @business Esta pieza traslada la decisión de crédito a una política versionada, aprobada y auditable.
  * @system ejecuta decisiones y carga desenlaces contra el motor, con reintentos y circuito.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { env } from '../../config/env.js';
 import { toAdapterError } from '../../common/resilience/adapter-error.js';
 import { parseFacilityOutcomes, parseFacilityRegistrations } from './engine-verdicts.js';
+import { classifyDecision, type DecisionVerdict } from './decision-verdict.js';
+import { ConsentReplicationStore } from './consent-replication.store.js';
+import { EngineConsentGateway, type ConsentBasis, type ConsentReplicationInput } from './engine-consent.gateway.js';
 import { EngineTransportService, type OpcionesDeLlamada } from './engine-transport.service.js';
+import { basisBlocker, ensureUnderwritingBasis } from './underwriting-basis.js';
 import {
   DecisionRequest,
   DecisionResponse,
@@ -25,7 +29,37 @@ const PROVIDER = 'atlas_decision_engine';
 export class DecisionEngineClient {
   private readonly logger = new Logger(DecisionEngineClient.name);
 
-  constructor(private readonly transport: EngineTransportService) {}
+  /** P-09: entrega y durabilidad de la réplica de consentimientos (engine-consent.gateway.ts). */
+  readonly consents: EngineConsentGateway;
+
+  constructor(
+    private readonly transport: EngineTransportService,
+    /** La cola duradera de réplica de consentimientos. Opcional para los usos sin base (pruebas). */
+    @Optional() consentStore?: ConsentReplicationStore,
+  ) {
+    this.consents = new EngineConsentGateway(transport, () => this.isConfigured, consentStore);
+  }
+
+  /**
+   * El veredicto EJECUTABLE de una respuesta (P-10): aprobación limpia, rechazo o revisión.
+   *
+   * Se expone en el cliente porque quien ya habla con el motor (el recálculo de línea) lo necesita
+   * sin abrir otra dependencia hacia este módulo. La regla vive en `decision-verdict.ts`.
+   */
+  static verdictOf(response: DecisionResponse): DecisionVerdict {
+    return classifyDecision(response);
+  }
+
+  /**
+   * P-09: la base habilitante de la evaluación crediticia, registrada en el motor ANTES de decidir, y
+   * qué hacer si no llegó. Se exponen aquí para que quien ya habla con el motor (el recálculo de línea)
+   * no abra otra dependencia hacia este módulo. La regla vive en `underwriting-basis.ts`.
+   */
+  ensureUnderwritingBasis(input: { tenantId: string; customerId: string; subjectReference: string; now: Date }) {
+    return ensureUnderwritingBasis(this.consents, input);
+  }
+
+  static readonly basisBlocker = basisBlocker;
 
   /** Sin URL no hay integración, y quien llame debe poder distinguirlo de un motor que falla. */
   get isConfigured(): boolean {
@@ -138,52 +172,24 @@ export class DecisionEngineClient {
    * lo contaba. Resultado: el motor no tenía permisos que comprobar, así que la comprobación
    * siempre pasaba. El control existía sobre un conjunto vacío.
    *
-   * ## Por qué no revienta la operación que lo llama
+   * ## Duradero (P-09, 2026-09-24)
    *
-   * Porque el permiso ya está registrado —y es válido— en el sistema donde vive el dato personal.
-   * Esta llamada es una RÉPLICA para que el motor pueda ejercerlo; que falle deja al motor sin
-   * enterarse, no al cliente sin derechos. Tumbar por eso un recálculo de línea cambiaría un
-   * problema de sincronización por uno de servicio.
+   * Antes devolvía `false` al fallar y nadie lo volvía a intentar. Ahora, con `tenantId` y
+   * `customerId`, el estado deseado se escribe PRIMERO en `decision_consent_replications` y el
+   * trabajo `sync_engine_consents` lo reintenta hasta que el motor lo acusa. Sigue sin reventar la
+   * operación que lo llama —el permiso ya es válido donde vive el dato—, pero ya no se pierde.
    */
-  async recordConsent(input: {
-    subjectReference: string;
-    purpose: string;
-    basis: 'CONSENT' | 'CONTRACT' | 'LEGAL_OBLIGATION' | 'CREDIT_PROTECTION' | 'LEGITIMATE_INTEREST';
-    grantedAt: Date;
-    expiresAt?: Date | null;
-    evidenceRef?: string | null;
-  }): Promise<boolean> {
-    if (!this.isConfigured) return false;
-    const url = `${this.transport.baseUrl()}/v1/risk-governance/consents`;
-    const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_OUTCOME_API_KEY ?? '';
-    try {
-      await this.transport.call(url, apiKey, {
-        subjectReference: input.subjectReference,
-        purpose: input.purpose,
-        basis: input.basis,
-        grantedAt: input.grantedAt.toISOString(),
-        ...(input.expiresAt ? { expiresAt: input.expiresAt.toISOString() } : {}),
-        ...(input.evidenceRef ? { evidenceRef: input.evidenceRef } : {}),
-      });
-      return true;
-    } catch (error) {
-      this.logger.warn(`No se pudo replicar el consentimiento en el motor: ${(error as Error).message}`);
-      return false;
-    }
+  async recordConsent(input: ConsentReplicationInput & { basis: ConsentBasis; grantedAt: Date }): Promise<boolean> {
+    return this.consents.replicate({ ...input, action: 'grant' });
   }
 
-  /** Revoca el permiso en el motor. Misma tolerancia a fallo, y por el mismo motivo. */
-  async revokeConsent(input: { subjectReference: string; purpose: string }): Promise<boolean> {
-    if (!this.isConfigured) return false;
-    const url = `${this.transport.baseUrl()}/v1/risk-governance/consents/revoke`;
-    const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_OUTCOME_API_KEY ?? '';
-    try {
-      await this.transport.call(url, apiKey, { subjectReference: input.subjectReference, purpose: input.purpose });
-      return true;
-    } catch (error) {
-      this.logger.warn(`No se pudo revocar el consentimiento en el motor: ${(error as Error).message}`);
-      return false;
-    }
+  /**
+   * Revoca el permiso en el motor, con la misma durabilidad. Una revocación que no llega queda
+   * `pending`, y mientras tanto el core bloquea el desembolso de ese cliente
+   * (`OriginationConsentCheck`, `CONSENT_REVOCATION_PENDING_SYNC`).
+   */
+  async revokeConsent(input: ConsentReplicationInput): Promise<boolean> {
+    return this.consents.replicate({ ...input, action: 'revoke', basis: null, grantedAt: null });
   }
 
   /**

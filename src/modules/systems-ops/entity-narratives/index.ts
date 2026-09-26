@@ -7,6 +7,7 @@ import type { EntityBusinessNarrative } from './entity-narrative.types.js';
 import { AUDIT_QUALITY_NARRATIVES } from './audit-quality.fixtures.js';
 import { COMMUNICATION_NARRATIVES } from './communications.fixtures.js';
 import { CONTEXT_CATALOG_NARRATIVES } from './context-catalogs.fixtures.js';
+import { CREDIT_CONTROL_NARRATIVES } from './credit-controls.fixtures.js';
 import { CREDIT_LIFECYCLE_NARRATIVES } from './credit-lifecycle.fixtures.js';
 import { CREDIT_RATING_NARRATIVES } from './credit-rating.fixtures.js';
 import { DATA_NOTEBOOK_NARRATIVES } from './data-notebook.fixtures.js';
@@ -14,6 +15,7 @@ import { CUSTOMER_IDENTITY_NARRATIVES } from './customer-identity.fixtures.js';
 import { DEVICE_INTELLIGENCE_NARRATIVES } from './device-intelligence.fixtures.js';
 import { EVIDENCE_NARRATIVES } from './evidence.fixtures.js';
 import { EXPEDIENTE_NARRATIVES } from './expedientes.fixtures.js';
+import { ERP_INTEGRATION_NARRATIVES } from './erp-integration.fixtures.js';
 import { EXTERNAL_PROVIDER_NARRATIVES } from './external-providers.fixtures.js';
 import { FRAUD_REVIEW_NARRATIVES } from './fraud-review.fixtures.js';
 import { LOAN_BOOK_NARRATIVES } from './loan-book.fixtures.js';
@@ -34,6 +36,8 @@ export type { EntityBusinessNarrative } from './entity-narrative.types.js';
 export const ENTITY_BUSINESS_NARRATIVES: readonly EntityBusinessNarrative[] = [
   ...PLATFORM_ACCESS_NARRATIVES,
   ...CUSTOMER_IDENTITY_NARRATIVES,
+  ...CREDIT_CONTROL_NARRATIVES,
+  ...ERP_INTEGRATION_NARRATIVES,
   ...PRIVACY_CONSENT_NARRATIVES,
   ...EVIDENCE_NARRATIVES,
   ...EXPEDIENTE_NARRATIVES,
