@@ -21,6 +21,12 @@ export function normalizeFullPath(path: string): string {
 
 export function buildEndpointCode(method: string, fullPath: string): string {
   const normalizedPath = normalizeEndpointPath(fullPath)
+    // El escaneo de código (SOURCE_SCAN) lee los decoradores de Nest con su sintaxis Express
+    // (`:customerId`); el contrato OpenAPI (OPENAPI_CONTRACT) describe la MISMA ruta con la suya
+    // (`{customerId}`). Sin unificarlas aquí, ambos modos catalogan la misma ruta con un `code`
+    // distinto (`BY_CUSTOMERID` vs `CUSTOMERID`) y quedan como dos filas — una con el contrato
+    // derivado y otra vacía, según cuál escribió último — en vez de una sola actualizada.
+    .replace(/\{([A-Za-z0-9_]+)\}/g, ':$1')
     .replace(/:([A-Za-z0-9_]+)/g, 'by_$1')
     .replace(/[^A-Za-z0-9]+/g, '_')
     .replace(/^_|_$/g, '')
