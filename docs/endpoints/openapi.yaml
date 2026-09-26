@@ -31567,6 +31567,100 @@ paths:
       summary: Obtener el QR bancario aprobado del comercio de una caja activa
       tags:
         - partner-onboarding
+  /mobile/assist/chat:
+    post:
+      description: >-
+        Reenvía la pregunta al asistente de IA con una referencia opaca del
+        cliente AUTENTICADO; el asistente no ve la cuenta ni recibe el token.
+        `clientMessageId` es la clave de idempotencia: el móvil reintenta con la
+        MISMA y recoge la respuesta ya guardada en vez de generar otra.
+      operationId: AssistController_chat
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: 'Opcional: se toma del token.'
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: La respuesta del asistente, con su conversación y turno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: >-
+            ASSIST_DISABLED — el asistente está apagado; la app esconde el
+            botón.
+        '409':
+          description: >-
+            ASSIST_IN_FLIGHT — la misma consulta sigue en curso; reintentar con
+            el mismo clientMessageId.
+        '429':
+          description: >-
+            ASSIST_BUSY — tope de consultas simultáneas o de mensajes por
+            minuto.
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: >-
+            ASSIST_UNAVAILABLE — el asistente no contesta; la app ofrece el chat
+            humano.
+      security:
+        - access-token: []
+      summary: Preguntarle al asistente de la app
+      tags:
+        - mobile-assist
+  /mobile/assist/conversation:
+    get:
+      description: >-
+        Los últimos turnos del hilo más reciente, en orden cronológico, para
+        rehidratar la hoja al abrirla. Si el historial no se puede leer se
+        contesta el hilo vacío: no poder leer lo de ayer no impide preguntar
+        hoy.
+      operationId: AssistController_conversation
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: 'Opcional: se toma del token.'
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: El hilo vigente, o vacío si no hay conversaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: >-
+            ASSIST_DISABLED — el asistente está apagado; la app esconde el
+            botón.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: La conversación vigente con el asistente
+      tags:
+        - mobile-assist
 info:
   title: Atlas API
   description: >-
@@ -31623,6 +31717,10 @@ tags:
     description: >-
       Locución de bienvenida del onboarding móvil, encargada al Motor y servida
       por bytes.
+  - name: mobile-assist
+    description: >-
+      Atlas Assist: el asistente de IA de la app, reenviado a AtlasAIService con
+      referencia opaca.
   - name: Mobile · Pagos
     description: >-
       Pagos desde la app del titular: instrucción de pago, QR del comercio y

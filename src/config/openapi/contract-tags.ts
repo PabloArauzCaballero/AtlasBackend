@@ -44,6 +44,7 @@ export const CONTRACT_TAGS: ReadonlyArray<{ name: string; description: string }>
     description: 'Señales del dispositivo del titular (agenda, ubicación) que el riesgo usa como evidencia, con su consentimiento.',
   },
   { name: 'mobile-welcome-audio', description: 'Locución de bienvenida del onboarding móvil, encargada al Motor y servida por bytes.' },
+  { name: 'mobile-assist', description: 'Atlas Assist: el asistente de IA de la app, reenviado a AtlasAIService con referencia opaca.' },
   { name: 'Mobile · Pagos', description: 'Pagos desde la app del titular: instrucción de pago, QR del comercio y comprobante.' },
   {
     name: 'Mobile · Soporte',
