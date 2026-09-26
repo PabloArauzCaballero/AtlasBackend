@@ -136,7 +136,7 @@
     "jaeger:verify": "sh scripts/verify-jaeger.sh"
   },
   "dependencies": {
-    "@aws-sdk/client-kms": "^3.1101.0",
+    "@aws-sdk/client-kms": "^3.1138.0",
     "@nestjs/common": "^11.2.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.2.1",
