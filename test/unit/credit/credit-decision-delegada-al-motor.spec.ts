@@ -3,12 +3,17 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { CreditDecisionService } from '../../../src/modules/credit/application/credit-decision.service.js';
 
 /**
- * Una solicitud que el Motor YA decidió no se decide a mano, y la revisión hecha EN el Motor vuelve.
+ * Una solicitud cuyo caso vive EN el Motor no se decide a mano, y la revisión hecha allí vuelve.
  *
  * Medido el 2026-09-14: `POST /operations/credit/applications/:id/decision` aprobaba —y dejaba
  * desembolsable— cualquier solicitud abierta sin mirar `decisionMode`, incluida una que el Motor
  * había derivado a su propia cola. Y esa cola no tenía camino de vuelta: el analista aprobaba allí
  * y aquí la solicitud seguía `under_review` para siempre.
+ *
+ * C-1 (2026-09-25): el corte se hacía por «el Motor ejecutó esto», y un `review` SIN caso dejaba la
+ * solicitud sin bandeja en ningún sitio (el Motor no abrió la suya y Atlas rechazaba la decisión
+ * humana). Ahora se corta sólo cuando el Motor SÍ abrió caso; si no, Atlas abrió el suyo y se decide
+ * aquí (ver `credit-review-case.spec.ts`).
  */
 const operador = { sub: 'operator-3', tenantId: '7', internalUserId: '3', role: 'admin' } as never;
 
@@ -25,7 +30,13 @@ function build(application: Record<string, unknown> | null) {
     createApplicationEvent: jest.fn(async (..._args: unknown[]) => undefined),
   };
   const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb(transaction)) };
-  return { creditRepository, transaction, service: new CreditDecisionService(creditRepository as never, sequelize as never) };
+  const reviewCases = { close: jest.fn(async (..._args: unknown[]) => true) };
+  return {
+    creditRepository,
+    reviewCases,
+    transaction,
+    service: new CreditDecisionService(creditRepository as never, sequelize as never, reviewCases as never),
+  };
 }
 
 const decididaPorElMotor = () => ({
@@ -34,12 +45,15 @@ const decididaPorElMotor = () => ({
   status: 'under_review',
   decisionMode: 'decision_engine',
   decisionExecutionId: '9001',
+  // El Motor abrió SU caso: la bandeja buena es la suya.
+  manualReviewCaseCode: 'MRC-9001',
+  manualReviewCaseSource: 'engine',
   businessAcceptance: null as string | null,
   save: jest.fn(async (..._args: unknown[]) => undefined),
 });
 
 describe('CreditDecisionService · la decisión humana respeta al Motor', () => {
-  it('rechaza con CREDIT_DECISION_DELEGADA_AL_MOTOR una solicitud con ejecución del Motor', async () => {
+  it('rechaza con CREDIT_DECISION_DELEGADA_AL_MOTOR una solicitud cuyo caso abrió el Motor', async () => {
     const { service, creditRepository } = build(decididaPorElMotor());
     await expect(
       service.decide({ tenantId: '7', applicationId: '31', currentUser: operador, body: { decision: 'approve', reasonCode: 'ok' } }),

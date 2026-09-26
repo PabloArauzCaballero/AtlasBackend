@@ -14,7 +14,7 @@ import { CustomerLifecycleService } from '../../customers/application/customer-l
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerEligibilityRepository } from '../../customers/repositories/customer-eligibility.repository.js';
-import { IDENTITY_VERIFIED_RESULT } from '../../customers/customer-eligibility.constants.js';
+import { isIdentityVerified } from '../../../common/utils/identity/identity-result.util.js';
 import { UpdateProfileDto } from '../customer-onboarding-profile.schemas.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerProfileDataRepository } from '../repositories/customer-profile-data.repository.js';
@@ -203,7 +203,9 @@ export class CustomerProfileUpdateService {
     if (touched.length === 0) return;
 
     const facts = await this.eligibilityRepository.loadFacts(tenantId, customerId);
-    if (facts.identityVerificationResult !== IDENTITY_VERIFIED_RESULT) return;
+    // `identityVerificationResult` puede llegar en mayúsculas del canal móvil (I-1): normalizar
+    // antes de comparar, o un cliente verificado por el Motor podía seguir editando su nombre.
+    if (!isIdentityVerified(facts.identityVerificationResult)) return;
 
     throw new UnprocessableEntityException(
       `IDENTITY_FIELDS_LOCKED: ${touched.join(', ')}. Tu identidad ya fue verificada con tu documento; ` +

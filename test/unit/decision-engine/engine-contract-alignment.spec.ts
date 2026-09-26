@@ -7,7 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { env } from '../../../src/config/env.js';
-import { lineVariableMetadata } from '../../../src/modules/decision-engine/underwriting-features.service.js';
+import { lineVariableMetadata } from '../../../src/modules/decision-engine/underwriting-features-line-metadata.js';
 import { featureMetadata } from '../../../src/modules/decision-engine/credit-decision-engine.service.js';
 import type { DecisionResponse } from '../../../src/modules/decision-engine/decision-engine.types.js';
 import { classifyDecision } from '../../../src/modules/decision-engine/decision-verdict.js';

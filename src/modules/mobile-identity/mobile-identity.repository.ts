@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { IdentityVerificationAttemptModel } from '../../database/models/index.js';
+import { IDENTITY_ATTEMPT_LOOKBACK_LIMIT, pickCurrentIdentityAttempt } from '../../common/utils/identity/identity-result.util.js';
 
 /**
  * El canal con el que se marcan los intentos de este flujo.
@@ -83,15 +84,23 @@ export class MobileIdentityRepository {
    * Se excluye el canal móvil a propósito: los intentos móviles son los que crea
    * ESTE servicio, y leer uno de ellos sería leerse a sí mismo.
    */
-  findLatestOnboardingAttempt(tenantId: string, customerId: string): Promise<IdentityVerificationAttemptModel | null> {
-    return this.attemptModel.findOne({
+  async findLatestOnboardingAttempt(tenantId: string, customerId: string): Promise<IdentityVerificationAttemptModel | null> {
+    /*
+     * El VIGENTE del canal de alta, no el último a secas (I-2): un paquete de identidad reenviado
+     * crea un intento nuevo en `pending_review`, y ése no puede tapar el `verified` que el registro
+     * estatal ya había dado —el artefacto recibiría `PENDING` y mandaría a una persona lo que ya
+     * estaba resuelto—.
+     */
+    const attempts = await this.attemptModel.findAll({
       where: {
         tenantId,
         customerId,
         verificationChannel: { [Op.ne]: MOBILE_CHANNEL },
       },
       order: [['_id', 'DESC']],
+      limit: IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
     });
+    return pickCurrentIdentityAttempt(attempts);
   }
 
   findById(tenantId: string, id: string): Promise<IdentityVerificationAttemptModel | null> {

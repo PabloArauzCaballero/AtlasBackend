@@ -208,7 +208,7 @@ export class CustomerOnboardingController {
     @Body(new ZodValidationPipe(identityManualReviewSchema)) body: IdentityManualReviewDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.identityManualReviewOutcomeService.apply({
+    return this.identityManualReviewOutcomeService.applyForCustomer({
       tenantId,
       customerId: params.customerId,
       decision: body.decision,
