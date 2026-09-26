@@ -129,6 +129,8 @@
     "contracts:build": "node contracts/atlas-integration-v1/build.mjs",
     "db:grants:apply": "tsx src/database/apply-grants.ts",
     "db:seed:demo": "tsx scripts/seed-demo.ts",
+    "db:seed:admin-e2e": "tsx scripts/seed-admin-e2e.ts up",
+    "db:reset:admin-e2e": "tsx scripts/seed-admin-e2e.ts down",
     "check:seed-references": "tsx scripts/check-seed-references.ts",
     "jaeger:up": "docker compose -f docker-compose.yml -f docker-compose.jaeger.yml up -d jaeger",
     "jaeger:down": "docker compose -f docker-compose.yml -f docker-compose.jaeger.yml stop jaeger && docker compose -f docker-compose.yml -f docker-compose.jaeger.yml rm -f jaeger",

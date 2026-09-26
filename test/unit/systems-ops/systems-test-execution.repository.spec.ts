@@ -56,6 +56,9 @@ describe('SystemsTestExecutionRepository', () => {
       continueOnFailure: false,
       assertions: { expectedStatusCodes: [200, 201] },
     });
+    expect((stepModel.upsert as jest.Mock).mock.calls[0][1]).toMatchObject({
+      conflictFields: ['suite_id', 'step_order'],
+    });
   });
 
   it('listTestSuites mapea filtros opcionales y calcula offset', async () => {
