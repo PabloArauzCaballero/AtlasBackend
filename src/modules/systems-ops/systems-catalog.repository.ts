@@ -83,77 +83,83 @@ export class SystemsCatalogRepository {
 
   async upsertEndpoint(seed: EndpointSeed): Promise<void> {
     const now = new Date();
-    await this.endpointModel.upsert({
-      code: seed.code,
-      module: seed.module,
-      controllerName: seed.controllerName ?? null,
-      handlerName: seed.handlerName ?? null,
-      method: seed.method,
-      routePath: seed.fullPath.replace(/^\/api\/v[0-9]+\//, '/'),
-      fullPath: seed.fullPath,
-      routeName: seed.routeName,
-      businessPurpose: seed.businessPurpose,
-      businessAction: seed.businessAction ?? null,
-      expectedResponseSummary: seed.expectedResponseSummary ?? null,
-      technicalPurpose:
-        seed.technicalPurpose ??
-        `Ejecuta ${seed.method} ${seed.fullPath} dentro del módulo ${seed.module}. Debe mantener contrato de entrada, salida, permisos y trazabilidad coherentes con el catálogo de sistemas.`,
-      businessValue: seed.businessValue ?? seed.businessPurpose,
-      auditStrategy:
-        seed.auditStrategy ??
-        `Auditar requestId, actor, roles, parámetros no sensibles, entidades afectadas, resultado HTTP y errores para reconstruir el uso de ${seed.fullPath}.`,
-      decisionUseCases: seed.decisionUseCases ?? [
-        'operación del portal interno',
-        'soporte y diagnóstico',
-        'auditoría de acciones',
-        'control de riesgo operativo',
-      ],
-      inputPayloadContract: seed.inputPayloadContract ?? {
-        body: seed.minPayloadSchema ?? {},
-        query: seed.queryParamsSchema ?? {},
-        path: seed.pathParamsSchema ?? {},
-        headers: seed.headersSchema ?? {},
-      },
-      outputContract: seed.outputContract ?? {
+    // El seed curado y el descubrimiento pueden dar códigos distintos a la misma ruta. La
+    // identidad física es (bloque, método, ruta); usar `code` choca con el índice de esa clave.
+    await this.endpointModel.upsert(
+      {
+        code: seed.code,
+        systemCode: 'ATLAS_BACKEND',
+        module: seed.module,
+        controllerName: seed.controllerName ?? null,
+        handlerName: seed.handlerName ?? null,
+        method: seed.method,
+        routePath: seed.fullPath.replace(/^\/api\/v[0-9]+\//, '/'),
+        fullPath: seed.fullPath,
+        routeName: seed.routeName,
+        businessPurpose: seed.businessPurpose,
+        businessAction: seed.businessAction ?? null,
+        expectedResponseSummary: seed.expectedResponseSummary ?? null,
+        technicalPurpose:
+          seed.technicalPurpose ??
+          `Ejecuta ${seed.method} ${seed.fullPath} dentro del módulo ${seed.module}. Debe mantener contrato de entrada, salida, permisos y trazabilidad coherentes con el catálogo de sistemas.`,
+        businessValue: seed.businessValue ?? seed.businessPurpose,
+        auditStrategy:
+          seed.auditStrategy ??
+          `Auditar requestId, actor, roles, parámetros no sensibles, entidades afectadas, resultado HTTP y errores para reconstruir el uso de ${seed.fullPath}.`,
+        decisionUseCases: seed.decisionUseCases ?? [
+          'operación del portal interno',
+          'soporte y diagnóstico',
+          'auditoría de acciones',
+          'control de riesgo operativo',
+        ],
+        inputPayloadContract: seed.inputPayloadContract ?? {
+          body: seed.minPayloadSchema ?? {},
+          query: seed.queryParamsSchema ?? {},
+          path: seed.pathParamsSchema ?? {},
+          headers: seed.headersSchema ?? {},
+        },
+        outputContract: seed.outputContract ?? {
+          expectedStatusCodes: seed.expectedStatusCodes ?? [200],
+          summary: seed.expectedResponseSummary ?? 'Respuesta documentada por catálogo y smoke tests.',
+        },
+        payloadOriginSummary:
+          seed.payloadOriginSummary ??
+          'Los valores de entrada provienen de body, query, path o headers validados por DTO/Zod cuando aplica; los metadatos técnicos los completa el backend.',
+        sideEffectsSummary:
+          seed.sideEffectsSummary ??
+          (seed.method === 'GET'
+            ? 'Lectura sin escritura de negocio esperada.'
+            : 'Puede escribir estado operacional, auditoría, eventos internos o tablas de dominio según el caso de uso.'),
+        metadataCompletenessScore: seed.metadataCompletenessScore ?? 75,
         expectedStatusCodes: seed.expectedStatusCodes ?? [200],
-        summary: seed.expectedResponseSummary ?? 'Respuesta documentada por catálogo y smoke tests.',
-      },
-      payloadOriginSummary:
-        seed.payloadOriginSummary ??
-        'Los valores de entrada provienen de body, query, path o headers validados por DTO/Zod cuando aplica; los metadatos técnicos los completa el backend.',
-      sideEffectsSummary:
-        seed.sideEffectsSummary ??
-        (seed.method === 'GET'
-          ? 'Lectura sin escritura de negocio esperada.'
-          : 'Puede escribir estado operacional, auditoría, eventos internos o tablas de dominio según el caso de uso.'),
-      metadataCompletenessScore: seed.metadataCompletenessScore ?? 75,
-      expectedStatusCodes: seed.expectedStatusCodes ?? [200],
-      minPayloadSchema: seed.minPayloadSchema ?? {},
-      queryParamsSchema: seed.queryParamsSchema ?? {},
-      pathParamsSchema: seed.pathParamsSchema ?? {},
-      headersSchema: seed.headersSchema ?? {},
-      requiresAuth: seed.requiresAuth ?? true,
-      allowedRoles: seed.allowedRoles ?? [],
-      containsPii: seed.containsPii ?? false,
-      piiFields: seed.piiFields ?? [],
-      riskLevel: seed.riskLevel ?? 'LOW',
-      isDestructive: seed.isDestructive ?? false,
-      isReadonly: seed.isReadonly ?? seed.method === 'GET',
-      idempotencyRequired: seed.idempotencyRequired ?? false,
-      requiresStressTest: seed.requiresStressTest ?? false,
-      requiresIntegrationTest: seed.requiresIntegrationTest ?? false,
-      isTestableFromPortal: seed.isTestableFromPortal ?? false,
-      testEnvironmentOnly: seed.testEnvironmentOnly ?? true,
-      ownerTeam: seed.ownerTeam ?? 'systems',
-      status: seed.status ?? 'ACTIVE',
-      version: 'v1',
-      detectedFrom: seed.detectedFrom ?? 'manual_seed',
-      confidenceLevel: seed.confidenceLevel ?? 'MEDIUM',
-      reviewStatus: seed.reviewStatus ?? 'NEEDS_REVIEW',
-      sourceFile: seed.sourceFile ?? null,
-      createdAtValue: now,
-      updatedAtValue: now,
-    } as never);
+        minPayloadSchema: seed.minPayloadSchema ?? {},
+        queryParamsSchema: seed.queryParamsSchema ?? {},
+        pathParamsSchema: seed.pathParamsSchema ?? {},
+        headersSchema: seed.headersSchema ?? {},
+        requiresAuth: seed.requiresAuth ?? true,
+        allowedRoles: seed.allowedRoles ?? [],
+        containsPii: seed.containsPii ?? false,
+        piiFields: seed.piiFields ?? [],
+        riskLevel: seed.riskLevel ?? 'LOW',
+        isDestructive: seed.isDestructive ?? false,
+        isReadonly: seed.isReadonly ?? seed.method === 'GET',
+        idempotencyRequired: seed.idempotencyRequired ?? false,
+        requiresStressTest: seed.requiresStressTest ?? false,
+        requiresIntegrationTest: seed.requiresIntegrationTest ?? false,
+        isTestableFromPortal: seed.isTestableFromPortal ?? false,
+        testEnvironmentOnly: seed.testEnvironmentOnly ?? true,
+        ownerTeam: seed.ownerTeam ?? 'systems',
+        status: seed.status ?? 'ACTIVE',
+        version: 'v1',
+        detectedFrom: seed.detectedFrom ?? 'manual_seed',
+        confidenceLevel: seed.confidenceLevel ?? 'MEDIUM',
+        reviewStatus: seed.reviewStatus ?? 'NEEDS_REVIEW',
+        sourceFile: seed.sourceFile ?? null,
+        createdAtValue: now,
+        updatedAtValue: now,
+      } as never,
+      { conflictFields: ['system_code', 'method', 'full_path'] },
+    );
   }
 
   async markDeprecatedCandidates(activeKeys: Set<string>): Promise<number> {
