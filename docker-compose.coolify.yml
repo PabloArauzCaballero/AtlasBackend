@@ -394,6 +394,35 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   # `Dockerfile.dev` (NODE_ENV=development), así que no hace falta; queda nombrada para que un
   # despliegue productivo pueda decidirlo sin editar este archivo.
   EXTERNAL_PROVIDERS_ALLOW_MOCK_IN_PRODUCTION: '${EXTERNAL_PROVIDERS_ALLOW_MOCK_IN_PRODUCTION:-false}'
+  # --- Corridas QA de N usuarios ficticios (`src/config/env.qa.schema.ts`) ----------------------
+  # Sin estas líneas el laboratorio del portal respondía «desactivado» aunque las variables
+  # estuvieran en Coolify: lo que no se nombra en este ancla no llega al contenedor. Todo apagado
+  # por defecto; cada entorno lo enciende desde su panel.
+  #
+  # Los defaults NO van vacíos donde el esquema no admite «""»: el entorno es un enum y los topes
+  # son enteros positivos, así que `${VAR:-}` tumbaría el arranque de los tres servicios.
+  #
+  # `QA_TARGET_BASE_URL` en TEST es `http://atlas-backend:3005/api/v1`, el alias propio de la API en
+  # la red compartida. NUNCA `http://api:…`: medido desde el worker, `api` resuelve a siete
+  # contenedores de otras apps de ese Coolify.
+  ATLAS_DEPLOYMENT_ENVIRONMENT: '${ATLAS_DEPLOYMENT_ENVIRONMENT:-}'
+  QA_EXECUTION_ENABLED: '${QA_EXECUTION_ENABLED:-false}'
+  QA_EXECUTION_SECRET: '${QA_EXECUTION_SECRET:-}'
+  QA_TARGET_ENVIRONMENT_ID: '${QA_TARGET_ENVIRONMENT_ID:-qa-local}'
+  QA_TARGET_LABEL: '${QA_TARGET_LABEL:-QA local}'
+  QA_TARGET_BASE_URL: '${QA_TARGET_BASE_URL:-}'
+  QA_TARGET_SHARES_DATABASE: '${QA_TARGET_SHARES_DATABASE:-false}'
+  QA_MAX_PERSONS: '${QA_MAX_PERSONS:-100}'
+  QA_MAX_CONCURRENCY: '${QA_MAX_CONCURRENCY:-10}'
+  QA_MAX_REQUESTS: '${QA_MAX_REQUESTS:-3000}'
+  QA_MAX_DURATION_MS: '${QA_MAX_DURATION_MS:-1800000}'
+  QA_MAX_IN_FLIGHT_REQUESTS: '${QA_MAX_IN_FLIGHT_REQUESTS:-10}'
+  QA_INTERNAL_ACTOR_EMAIL: '${QA_INTERNAL_ACTOR_EMAIL:-}'
+  QA_INTERNAL_ACTOR_PASSWORD: '${QA_INTERNAL_ACTOR_PASSWORD:-}'
+  MOCK_PROVIDERS_CONTROL_URL: '${MOCK_PROVIDERS_CONTROL_URL:-}'
+  MOCK_PROVIDERS_CONTROL_TOKEN: '${MOCK_PROVIDERS_CONTROL_TOKEN:-}'
+  RUNTIME_JOBS_QA_CONSUMER_ENABLED: '${RUNTIME_JOBS_QA_CONSUMER_ENABLED:-false}'
+  RUNTIME_JOBS_QA_CONSUMER_INTERVAL_MS: '${RUNTIME_JOBS_QA_CONSUMER_INTERVAL_MS:-5000}'
   # El modo efectivo de cada proveedor vive en la BASE (`data_providers.default_mode`) y se cambia
   # desde el portal (Gestionar → Runtime). Estas variables lo PISAN, proveedor por proveedor, y por
   # eso van vacías: una sola de ellas puesta aquí volvería inútil el selector del portal.
